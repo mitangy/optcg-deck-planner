@@ -64,6 +64,21 @@ h2,
   text-decoration: none;
   font-weight: 700;
   font-size: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.brand-logo {
+  height: 2rem;
+  width: auto;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.brand a span {
+  white-space: nowrap;
 }
 
 .topbar nav {
@@ -180,6 +195,13 @@ h2,
   border-radius: 24px;
   padding: 2rem;
   box-shadow: var(--shadow);
+}
+
+.login-logo {
+  display: block;
+  width: min(220px, 70%);
+  height: auto;
+  margin-bottom: 0.85rem;
 }
 
 .login-card h1 {
@@ -709,6 +731,10 @@ tr.done {
     position: sticky;
     top: 0.5rem;
     z-index: 20;
+  }
+
+  .brand-logo {
+    height: 1.75rem;
   }
 
   .topbar nav {
