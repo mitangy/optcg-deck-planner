@@ -317,6 +317,54 @@ tr.done {
   background: white;
 }
 
+.import-modes {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.25rem;
+  background: var(--bg-deep);
+  border-radius: 999px;
+  width: fit-content;
+}
+
+.import-modes .mode {
+  border: none;
+  background: transparent;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.import-modes .mode.active {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(28, 25, 21, 0.08);
+}
+
+.paste-block {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.paste-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.paste-actions .btn.secondary {
+  width: auto;
+  margin: 0;
+}
+
+.import-form code {
+  font-size: 0.9em;
+  background: var(--bg-deep);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
 .banner,
 .additional-heading {
   background: #f4d7c3;

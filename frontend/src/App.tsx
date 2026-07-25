@@ -381,6 +381,7 @@ function ImportPage() {
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [decklist, setDecklist] = useState("");
+  const [mode, setMode] = useState<"paste" | "file">("paste");
   const [err, setErr] = useState<string | null>(null);
   const create = useMutation({
     mutationFn: () => api.createDeck(name.trim(), decklist),
@@ -395,41 +396,106 @@ function ImportPage() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     setErr(null);
+    if (!decklist.trim()) {
+      setErr("Paste a deck code or upload a file first.");
+      return;
+    }
     create.mutate();
   }
 
   function onFile(file: File | null) {
     if (!file) return;
     if (!name) setName(file.name.replace(/\.(txt|deck)$/i, ""));
-    file.text().then(setDecklist);
+    file.text().then((text) => {
+      setDecklist(text);
+      setMode("paste");
+    });
+  }
+
+  async function pasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        setErr("Clipboard is empty.");
+        return;
+      }
+      setDecklist(text.trim());
+      setErr(null);
+      setMode("paste");
+    } catch {
+      setErr("Could not read clipboard — paste into the box with Ctrl+V.");
+    }
   }
 
   return (
     <section>
       <h1>Import deck</h1>
+      <p className="muted">
+        Paste an OPTCGSim deck code from your clipboard, or upload a <code>.txt</code> /{" "}
+        <code>.deck</code> file.
+      </p>
       <form className="import-form" onSubmit={onSubmit}>
         <label>
           Deck name
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
-        <label>
-          Decklist file
-          <input
-            type="file"
-            accept=".txt,.deck,text/plain"
-            onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-          />
-        </label>
-        <label>
-          Or paste list
-          <textarea
-            value={decklist}
-            onChange={(e) => setDecklist(e.target.value)}
-            rows={16}
-            placeholder={"4xOP15-053\n1xOP09-118"}
-            required
-          />
-        </label>
+
+        <div className="import-modes" role="tablist" aria-label="Import method">
+          <button
+            type="button"
+            className={mode === "paste" ? "mode active" : "mode"}
+            onClick={() => setMode("paste")}
+          >
+            Paste deck code
+          </button>
+          <button
+            type="button"
+            className={mode === "file" ? "mode active" : "mode"}
+            onClick={() => setMode("file")}
+          >
+            Upload file
+          </button>
+        </div>
+
+        {mode === "paste" ? (
+          <div className="paste-block">
+            <div className="paste-actions">
+              <button type="button" className="btn secondary" onClick={pasteFromClipboard}>
+                Paste from clipboard
+              </button>
+            </div>
+            <label>
+              Deck code
+              <textarea
+                value={decklist}
+                onChange={(e) => setDecklist(e.target.value)}
+                rows={16}
+                placeholder={"1xOP15-002\n4xOP15-053\n4xOP15-052\n…"}
+                required
+              />
+            </label>
+            <p className="hint">
+              Same format as OPTCGSim “Copy Deck List to Clipboard” — one card per line like{" "}
+              <code>4xOP15-053</code>.
+            </p>
+          </div>
+        ) : (
+          <label>
+            Decklist file (.txt / .deck)
+            <input
+              type="file"
+              accept=".txt,.deck,text/plain"
+              onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+            />
+            {decklist && (
+              <p className="hint">
+                Loaded {decklist.split("\n").filter((l) => l.trim()).length} lines — switch to
+                “Paste deck code” to review before creating.
+              </p>
+            )}
+          </label>
+        )}
+
         {err && <p className="error">{err}</p>}
         <button className="btn primary" type="submit" disabled={create.isPending}>
           {create.isPending ? "Saving…" : "Create deck"}
