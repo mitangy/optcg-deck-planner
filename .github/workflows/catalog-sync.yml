@@ -1,0 +1,16 @@
+name: Catalog sync
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger catalog sync
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          CATALOG_SYNC_TOKEN: ${{ secrets.CATALOG_SYNC_TOKEN }}
+        run: |
+          curl -fsS -X POST "$API_URL/admin/sync-catalog" \
+            -H "X-Catalog-Token: $CATALOG_SYNC_TOKEN"
