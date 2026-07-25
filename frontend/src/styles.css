@@ -480,19 +480,57 @@ button.ghost.danger {
 
 .buy-bar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem 1rem;
+  flex-direction: column;
+  gap: 0.65rem;
   margin: 0 0 1rem;
   padding: 0.85rem 1rem;
   border: 1px solid #e0b84d;
   border-radius: 14px;
   background: #fff7d6;
+  min-width: 0;
+}
+
+.buy-bar-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  min-width: 0;
+}
+
+.buy-bar-main > div:first-child {
+  min-width: 0;
+  flex: 1 1 12rem;
 }
 
 .buy-bar strong {
   font-weight: 700;
+}
+
+.buy-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+  min-width: 0;
+}
+
+.buy-bar-actions .btn {
+  min-height: 2.35rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.92rem;
+}
+
+.buy-bar-actions .ghost {
+  min-width: 0;
+  padding: 0.35rem 0.25rem;
+}
+
+.buy-bar-msg {
+  margin: 0;
+  width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .select-col {
@@ -1496,9 +1534,22 @@ tr.done {
   }
 
   .buy-bar {
+    max-width: 100%;
+  }
+
+  .buy-bar-main {
     align-items: stretch;
     flex-direction: column;
-    max-width: 100%;
+  }
+
+  .buy-bar-actions {
+    width: 100%;
+  }
+
+  .buy-bar-actions .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
   }
 
   .desktop-table {

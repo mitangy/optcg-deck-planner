@@ -12,6 +12,10 @@ import {
   ShoppingResponse,
   User,
 } from "./api";
+import {
+  blankMassEntryUrl,
+  buildMassEntryExport,
+} from "./tcgplayerMassEntry";
 
 const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
@@ -1131,6 +1135,7 @@ function ShoppingPage() {
   const [filterReady, setFilterReady] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(() => loadSelectedCardIds());
   const [shareMsg, setShareMsg] = useState<string | null>(null);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!decksQ.data) return;
@@ -1184,15 +1189,22 @@ function ShoppingPage() {
     return list;
   }, [data, onlyNeed, effectiveSorts, search]);
 
-  const selectedTotals = useMemo(() => {
+  const selectedItems = useMemo(() => {
     const byId = new Map((data?.items ?? []).map((i) => [i.card_id, i]));
+    const list: ShoppingItem[] = [];
+    for (const id of selectedCardIds) {
+      const item = byId.get(id);
+      if (item) list.push(item);
+    }
+    return list;
+  }, [data, selectedCardIds]);
+
+  const selectedTotals = useMemo(() => {
     let copies = 0;
     let total = 0;
     let priced = 0;
     let count = 0;
-    for (const id of selectedCardIds) {
-      const item = byId.get(id);
-      if (!item) continue;
+    for (const item of selectedItems) {
       count += 1;
       copies += item.still_need;
       if (item.remaining_cost != null) {
@@ -1201,7 +1213,66 @@ function ShoppingPage() {
       }
     }
     return { count, copies, total: Math.round(total * 100) / 100, priced };
-  }, [data, selectedCardIds]);
+  }, [selectedItems]);
+
+  const massEntry = useMemo(() => buildMassEntryExport(selectedItems), [selectedItems]);
+
+  async function copyMassEntryList(): Promise<boolean> {
+    if (!massEntry.pasteText) {
+      setExportMsg("Nothing to export — selected cards need copies.");
+      return false;
+    }
+    try {
+      await navigator.clipboard.writeText(massEntry.pasteText);
+      return true;
+    } catch {
+      setExportMsg(massEntry.pasteText);
+      return false;
+    }
+  }
+
+  async function onCopyMassEntry() {
+    const ok = await copyMassEntryList();
+    if (!ok) return;
+    const missing =
+      massEntry.missingProductId > 0
+        ? ` · ${massEntry.missingProductId} without product id (name fallback)`
+        : "";
+    setExportMsg(
+      `Copied ${massEntry.includedCount} card${massEntry.includedCount === 1 ? "" : "s"} (${massEntry.copyCount} copies) for TCGPlayer Mass Entry${missing}`,
+    );
+  }
+
+  async function onOpenMassEntry() {
+    if (!massEntry.pasteText) {
+      setExportMsg("Nothing to export — selected cards need copies.");
+      return;
+    }
+    const copied = await copyMassEntryList();
+    if (massEntry.url) {
+      window.open(massEntry.url, "_blank", "noopener,noreferrer");
+      setExportMsg(
+        copied
+          ? "Opened TCGPlayer Mass Entry (list also copied). Use Add to Cart → Optimize Cart."
+          : "Opened TCGPlayer Mass Entry. Paste the list below if the cart is empty.",
+      );
+      return;
+    }
+    window.open(blankMassEntryUrl(), "_blank", "noopener,noreferrer");
+    if (massEntry.withProductId === 0) {
+      setExportMsg(
+        copied
+          ? "List copied. Paste into Mass Entry (One Piece Card Game). No product ids on these cards."
+          : "Open Mass Entry, select One Piece Card Game, and paste the list below.",
+      );
+      return;
+    }
+    setExportMsg(
+      copied
+        ? "List too long for a direct link — copied. Paste into Mass Entry, then Add to Cart → Optimize Cart."
+        : "List too long for a direct link. Paste the list below into Mass Entry.",
+    );
+  }
 
   const allVisibleSelected =
     items.length > 0 && items.every((i) => selectedCardIds.has(i.card_id));
@@ -1348,20 +1419,52 @@ function ShoppingPage() {
       />
 
       {selectedTotals.count > 0 && (
-        <div className="buy-bar" role="status">
-          <div>
-            <strong>
-              {selectedTotals.count} card{selectedTotals.count === 1 ? "" : "s"} selected
-            </strong>
-            <span className="muted">
-              {" "}
-              · {selectedTotals.copies} still needed · {money(selectedTotals.total)}
-              {selectedTotals.priced < selectedTotals.count ? " (priced cards only)" : ""}
-            </span>
+        <div className="buy-bar">
+          <div className="buy-bar-main">
+            <div>
+              <strong>
+                {selectedTotals.count} card{selectedTotals.count === 1 ? "" : "s"} selected
+              </strong>
+              <span className="muted">
+                {" "}
+                · {selectedTotals.copies} still needed · {money(selectedTotals.total)}
+                {selectedTotals.priced < selectedTotals.count ? " (priced cards only)" : ""}
+              </span>
+            </div>
+            <div className="buy-bar-actions">
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={massEntry.includedCount === 0}
+                onClick={() => void onCopyMassEntry()}
+              >
+                Copy for TCGPlayer
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={massEntry.includedCount === 0}
+                onClick={() => void onOpenMassEntry()}
+              >
+                Open Mass Entry
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  setSelectedCardIds(new Set());
+                  setExportMsg(null);
+                }}
+              >
+                Clear selection
+              </button>
+            </div>
           </div>
-          <button type="button" className="ghost" onClick={() => setSelectedCardIds(new Set())}>
-            Clear selection
-          </button>
+          {exportMsg && (
+            <p className="share-banner buy-bar-msg" role="status">
+              {exportMsg}
+            </p>
+          )}
         </div>
       )}
 
