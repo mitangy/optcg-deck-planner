@@ -62,9 +62,14 @@ async def google_callback(
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=f"OAuth failed: {exc}") from exc
 
+    # Newer httpx/Authlib: token is stored on the client after fetch_token;
+    # AsyncClient.get() no longer accepts a token= kwarg.
+    access_token = token.get("access_token") if isinstance(token, dict) else None
+    if not access_token:
+        raise HTTPException(status_code=400, detail="OAuth token missing access_token")
     resp = await client.get(
         "https://openidconnect.googleapis.com/v1/userinfo",
-        token=token,
+        headers={"Authorization": f"Bearer {access_token}"},
     )
     if resp.status_code != 200:
         raise HTTPException(status_code=400, detail="Failed to fetch Google profile")
