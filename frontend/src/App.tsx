@@ -1442,7 +1442,7 @@ function ShoppingPage() {
               </button>
               <button
                 type="button"
-                className="btn"
+                className="btn primary"
                 disabled={massEntry.includedCount === 0}
                 onClick={() => void onOpenMassEntry()}
               >
