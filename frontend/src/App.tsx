@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { api, CardView, money, PrintingView, ShoppingItem, User } from "./api";
 
 const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
 const CARD_SORTS_KEY = "optcg_card_sorts";
+const FILTERS_OPEN_KEY = "optcg_filters_open";
 
 const COLOR_ORDER = ["Red", "Green", "Blue", "Purple", "Black", "Yellow"];
 const SET_PREFIX_ORDER = ["OP", "ST", "EB", "PRB", "P"];
@@ -248,6 +249,120 @@ function SortMenu({
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+function matchesCardSearch(
+  card: {
+    card_id: string;
+    name: string;
+    color?: string;
+    card_type?: string;
+    rarity?: string;
+    used_in?: string[];
+    primary_leader_name?: string | null;
+  },
+  query: string,
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const hay = [
+    card.card_id,
+    card.name,
+    card.color,
+    card.card_type,
+    card.rarity,
+    card.primary_leader_name,
+    ...(card.used_in ?? []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return q.split(/\s+/).every((token) => hay.includes(token));
+}
+
+function useFiltersOpen() {
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(FILTERS_OPEN_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTERS_OPEN_KEY, open ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [open]);
+  return [open, setOpen] as const;
+}
+
+function CardSearchInput({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+  const id = useId();
+  return (
+    <div className="card-search">
+      <label className="sr-only" htmlFor={id}>
+        Search cards
+      </label>
+      <input
+        id={id}
+        type="search"
+        className="card-search-input"
+        placeholder="Search name, ID, color…"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete="off"
+        enterKeyHint="search"
+      />
+      {value ? (
+        <button
+          type="button"
+          className="ghost card-search-clear"
+          onClick={() => onChange("")}
+          aria-label="Clear search"
+        >
+          Clear
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function CollapsibleFilters({
+  summary,
+  children,
+}: {
+  summary?: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useFiltersOpen();
+  const panelId = useId();
+
+  return (
+    <div className={`filter-drawer${open ? " open" : ""}`}>
+      <button
+        type="button"
+        className="filter-drawer-toggle"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="filter-drawer-label">
+          Filters
+          {summary ? <span className="filter-drawer-summary"> · {summary}</span> : null}
+        </span>
+        <span className="filter-drawer-chevron" aria-hidden="true">
+          {open ? "▴" : "▾"}
+        </span>
+      </button>
+      {open ? (
+        <div id={panelId} className="filter-drawer-body">
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -603,14 +718,27 @@ function ShoppingPage() {
   const [onlyNeed, setOnlyNeed] = useState(true);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed);
   const [showAltArts, setShowAltArts] = useShowAltArts();
+  const [search, setSearch] = useState("");
   const sortingByDeck = effectiveSorts.includes("deck");
 
   const items = useMemo(() => {
     let list = data?.items ?? [];
     if (onlyNeed) list = list.filter((i) => i.still_need > 0);
+    if (search.trim()) list = list.filter((i) => matchesCardSearch(i, search));
     list = [...list].sort((a, b) => compareCardOrder(a, b, effectiveSorts));
     return list;
-  }, [data, onlyNeed, effectiveSorts]);
+  }, [data, onlyNeed, effectiveSorts, search]);
+
+  const filterSummary = useMemo(() => {
+    const parts: string[] = [];
+    if (onlyNeed) parts.push("Still need");
+    if (effectiveSorts.length) parts.push(effectiveSorts.map((k) => SORT_LABELS[k]).join(" › "));
+    if (showAltArts) parts.push("Alt arts");
+    if (allDeckIds.length > 0 && activeDeckIds.length < allDeckIds.length) {
+      parts.push(`${activeDeckIds.length}/${allDeckIds.length} decks`);
+    }
+    return parts.join(" · ");
+  }, [onlyNeed, effectiveSorts, showAltArts, activeDeckIds.length, allDeckIds.length]);
 
   function usedInLabel(item: ShoppingItem): string {
     const decks = item.used_in.join(", ");
@@ -666,49 +794,60 @@ function ShoppingPage() {
             {money(data?.remaining_market)}
           </p>
         </div>
-        <div className="filters">
-          <label>
-            <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
-            Still need only
-          </label>
-          <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={onlyNeed} />
-          <label>
-            <input
-              type="checkbox"
-              checked={showAltArts}
-              onChange={(e) => setShowAltArts(e.target.checked)}
-            />
-            Show alt arts
-          </label>
-        </div>
       </div>
-      {sortingByDeck && (
-        <p className="sort-deck-note muted">
-          Deck sort groups cards by leader (deck list order). Cards used by multiple leaders stay under
-          their earliest deck&apos;s leader.
-        </p>
-      )}
 
-      <div className="deck-filter">
-        <div className="deck-filter-head">
-          <span>Include decks</span>
-          <button type="button" className="ghost" onClick={selectAllDecks}>
-            Select all
-          </button>
-        </div>
-        <div className="deck-filter-list">
-          {(decksQ.data ?? []).map((d) => (
-            <label key={d.id} className="deck-chip">
+      <div className="list-toolbar">
+        <CardSearchInput value={search} onChange={setSearch} />
+        <CollapsibleFilters summary={filterSummary}>
+          <div className="filters">
+            <label>
+              <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
+              Still need only
+            </label>
+            <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={onlyNeed} />
+            <label>
               <input
                 type="checkbox"
-                checked={activeDeckIds.includes(d.id)}
-                onChange={() => toggleDeck(d.id)}
+                checked={showAltArts}
+                onChange={(e) => setShowAltArts(e.target.checked)}
               />
-              {d.name}
+              Show alt arts
             </label>
-          ))}
-        </div>
+          </div>
+          {sortingByDeck && (
+            <p className="sort-deck-note muted">
+              Deck sort groups cards by leader (deck list order). Cards used by multiple leaders stay under
+              their earliest deck&apos;s leader.
+            </p>
+          )}
+          <div className="deck-filter">
+            <div className="deck-filter-head">
+              <span>Include decks</span>
+              <button type="button" className="ghost" onClick={selectAllDecks}>
+                Select all
+              </button>
+            </div>
+            <div className="deck-filter-list">
+              {(decksQ.data ?? []).map((d) => (
+                <label key={d.id} className="deck-chip">
+                  <input
+                    type="checkbox"
+                    checked={activeDeckIds.includes(d.id)}
+                    onChange={() => toggleDeck(d.id)}
+                  />
+                  {d.name}
+                </label>
+              ))}
+            </div>
+          </div>
+        </CollapsibleFilters>
       </div>
+
+      {search.trim() && (
+        <p className="search-result-note muted">
+          Showing {items.length} match{items.length === 1 ? "" : "es"} for “{search.trim()}”
+        </p>
+      )}
 
       <div className="table-wrap desktop-table">
         <table className="data-table">
@@ -904,9 +1043,15 @@ function DecksPage() {
   );
 }
 
-function filterCards(cards: CardView[], onlyNeed: boolean, sorts: SortKey[]): CardView[] {
+function filterCards(
+  cards: CardView[],
+  onlyNeed: boolean,
+  sorts: SortKey[],
+  search = "",
+): CardView[] {
   let list = cards;
   if (onlyNeed) list = list.filter((c) => c.still_need > 0);
+  if (search.trim()) list = list.filter((c) => matchesCardSearch(c, search));
   return [...list].sort((a, b) => compareCardOrder(a, b, sorts));
 }
 
@@ -1026,6 +1171,7 @@ function DeckDetailPage() {
   const deckUnavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, deckUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
+  const [search, setSearch] = useState("");
 
   const main = useMemo(() => {
     if (!data) return [];
@@ -1033,8 +1179,9 @@ function DeckDetailPage() {
       data.cards.filter((c) => c.section !== "additional"),
       onlyNeed,
       effectiveSorts,
+      search,
     );
-  }, [data, onlyNeed, effectiveSorts]);
+  }, [data, onlyNeed, effectiveSorts, search]);
 
   const additional = useMemo(() => {
     if (!data) return [];
@@ -1042,14 +1189,24 @@ function DeckDetailPage() {
       data.cards.filter((c) => c.section === "additional"),
       onlyNeed,
       effectiveSorts,
+      search,
     );
-  }, [data, onlyNeed, effectiveSorts]);
+  }, [data, onlyNeed, effectiveSorts, search]);
+
+  const filterSummary = useMemo(() => {
+    const parts: string[] = [];
+    if (onlyNeed) parts.push("Still need");
+    if (effectiveSorts.length) parts.push(effectiveSorts.map((k) => SORT_LABELS[k]).join(" › "));
+    if (showAltArts) parts.push("Alt arts");
+    return parts.join(" · ");
+  }, [onlyNeed, effectiveSorts, showAltArts]);
 
   if (isLoading) return <p className="muted">Loading deck…</p>;
   if (error) return <p className="error">{(error as Error).message}</p>;
   if (!data) return null;
 
   const refresh = () => invalidateOwnedViews(qc);
+  const visibleCount = main.length + additional.length;
 
   return (
     <section>
@@ -1068,27 +1225,40 @@ function DeckDetailPage() {
               : ""}
           </p>
         </div>
-        <div className="filters">
-          <label>
-            <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
-            Still need only
-          </label>
-          <SortMenu
-            sorts={sorts}
-            onChange={setSorts}
-            onlyNeed={onlyNeed}
-            unavailableKeys={deckUnavailableSorts}
-          />
-          <label>
-            <input
-              type="checkbox"
-              checked={showAltArts}
-              onChange={(e) => setShowAltArts(e.target.checked)}
-            />
-            Show alt arts
-          </label>
-        </div>
       </div>
+
+      <div className="list-toolbar">
+        <CardSearchInput value={search} onChange={setSearch} />
+        <CollapsibleFilters summary={filterSummary}>
+          <div className="filters">
+            <label>
+              <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
+              Still need only
+            </label>
+            <SortMenu
+              sorts={sorts}
+              onChange={setSorts}
+              onlyNeed={onlyNeed}
+              unavailableKeys={deckUnavailableSorts}
+            />
+            <label>
+              <input
+                type="checkbox"
+                checked={showAltArts}
+                onChange={(e) => setShowAltArts(e.target.checked)}
+              />
+              Show alt arts
+            </label>
+          </div>
+        </CollapsibleFilters>
+      </div>
+
+      {search.trim() && (
+        <p className="search-result-note muted">
+          Showing {visibleCount} match{visibleCount === 1 ? "" : "es"} for “{search.trim()}”
+        </p>
+      )}
+
       {data.prior_decks.length > 0 && (
         <p className="banner">
           Cards already in earlier same-leader decks are listed first. New pieces are under
