@@ -95,6 +95,10 @@ export type ShoppingItem = {
   tcgplayer_url: string;
   used_in: string[];
   alt_arts: PrintingView[];
+  deck_sort_key?: string;
+  primary_leader_card_id?: string | null;
+  primary_leader_name?: string | null;
+  leader_count?: number;
 };
 
 export type ShoppingResponse = {

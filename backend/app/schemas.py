@@ -85,6 +85,12 @@ class ShoppingItem(BaseModel):
     tcgplayer_url: str = ""
     used_in: list[str]
     alt_arts: list[PrintingView] = []
+    # Deck sort: group by earliest leader, then first same-leader deck that uses the card.
+    # Multi-leader cards use the earliest deck's leader as primary.
+    deck_sort_key: str = ""
+    primary_leader_card_id: str | None = None
+    primary_leader_name: str | None = None
+    leader_count: int = 1
 
 
 class ShoppingResponse(BaseModel):

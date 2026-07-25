@@ -385,6 +385,11 @@ button.ghost.danger {
   cursor: not-allowed;
 }
 
+.sort-deck-note {
+  margin: -0.35rem 0 1rem;
+  font-size: 0.9rem;
+}
+
 .mobile-card-media {
   display: none;
 }

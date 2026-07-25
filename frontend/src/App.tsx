@@ -11,14 +11,22 @@ const CARD_SORTS_KEY = "optcg_card_sorts";
 const COLOR_ORDER = ["Red", "Green", "Blue", "Purple", "Black", "Yellow"];
 const SET_PREFIX_ORDER = ["OP", "ST", "EB", "PRB", "P"];
 
-type SortKey = "still_need" | "color" | "set";
+type SortKey = "still_need" | "color" | "set" | "deck";
 
-const ALL_SORT_KEYS: SortKey[] = ["still_need", "color", "set"];
+const ALL_SORT_KEYS: SortKey[] = ["deck", "still_need", "color", "set"];
 const DEFAULT_SORTS: SortKey[] = ["color", "set"];
 const SORT_LABELS: Record<SortKey, string> = {
+  deck: "Deck",
   still_need: "Still need",
   color: "Color",
   set: "Set",
+};
+
+type SortableCard = {
+  card_id: string;
+  color: string;
+  still_need: number;
+  deck_sort_key?: string;
 };
 
 function colorSortKey(color: string): string {
@@ -47,21 +55,16 @@ function setSortKey(cardId: string): string {
   return `${prefixRank}-${String(num).padStart(4, "0")}-${setCode}`;
 }
 
-function compareBySortKey(
-  a: { card_id: string; color: string; still_need: number },
-  b: { card_id: string; color: string; still_need: number },
-  key: SortKey,
-): number {
+function compareBySortKey(a: SortableCard, b: SortableCard, key: SortKey): number {
   if (key === "still_need") return b.still_need - a.still_need;
   if (key === "color") return colorSortKey(a.color).localeCompare(colorSortKey(b.color));
+  if (key === "deck") {
+    return (a.deck_sort_key || "zzzz").localeCompare(b.deck_sort_key || "zzzz");
+  }
   return setSortKey(a.card_id).localeCompare(setSortKey(b.card_id));
 }
 
-function compareCardOrder(
-  a: { card_id: string; color: string; still_need: number },
-  b: { card_id: string; color: string; still_need: number },
-  sorts: SortKey[],
-): number {
+function compareCardOrder(a: SortableCard, b: SortableCard, sorts: SortKey[]): number {
   for (const key of sorts) {
     const cmp = compareBySortKey(a, b, key);
     if (cmp !== 0) return cmp;
@@ -82,7 +85,7 @@ function loadCardSorts(): SortKey[] {
   }
 }
 
-function useCardSorts(onlyNeed: boolean) {
+function useCardSorts(onlyNeed: boolean, unavailableKeys: SortKey[] = []) {
   const [sorts, setSorts] = useState<SortKey[]>(() => loadCardSorts());
 
   useEffect(() => {
@@ -99,8 +102,13 @@ function useCardSorts(onlyNeed: boolean) {
   }, [sorts]);
 
   const effectiveSorts = useMemo(
-    () => (onlyNeed ? sorts.filter((k) => k !== "still_need") : sorts),
-    [onlyNeed, sorts],
+    () =>
+      sorts.filter((k) => {
+        if (k === "still_need" && onlyNeed) return false;
+        if (unavailableKeys.includes(k)) return false;
+        return true;
+      }),
+    [onlyNeed, sorts, unavailableKeys],
   );
 
   return { sorts, setSorts, effectiveSorts };
@@ -110,10 +118,12 @@ function SortMenu({
   sorts,
   onChange,
   onlyNeed,
+  unavailableKeys = [],
 }: {
   sorts: SortKey[];
   onChange: (next: SortKey[]) => void;
   onlyNeed: boolean;
+  unavailableKeys?: SortKey[];
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -140,12 +150,24 @@ function SortMenu({
   }, [sorts]);
 
   const summary =
-    sorts.length === 0
+    sorts.filter((k) => !unavailableKeys.includes(k) && !(k === "still_need" && onlyNeed)).length === 0
       ? "Card ID"
-      : sorts.map((k) => SORT_LABELS[k]).join(" › ");
+      : sorts
+          .filter((k) => !unavailableKeys.includes(k) && !(k === "still_need" && onlyNeed))
+          .map((k) => SORT_LABELS[k])
+          .join(" › ");
+
+  function keyDisabled(key: SortKey): string | null {
+    if (key === "still_need" && onlyNeed) return "Off while Still need only";
+    if (unavailableKeys.includes(key)) {
+      if (key === "deck") return "Shopping list only";
+      return "Unavailable here";
+    }
+    return null;
+  }
 
   function toggleKey(key: SortKey) {
-    if (key === "still_need" && onlyNeed) return;
+    if (keyDisabled(key)) return;
     if (sorts.includes(key)) {
       onChange(sorts.filter((k) => k !== key));
       return;
@@ -176,11 +198,15 @@ function SortMenu({
       </button>
       {open && (
         <div className="sort-menu-panel" role="menu">
-          <p className="sort-menu-hint">Top option sorts first. Combine Set then Color for colors within a set.</p>
+          <p className="sort-menu-hint">
+            Top option sorts first. Deck groups by leader (earliest deck first); cards used by multiple
+            leaders stay under their earliest leader.
+          </p>
           <ul className="sort-menu-list">
             {menuKeys.map((key) => {
               const active = sorts.includes(key);
-              const disabled = key === "still_need" && onlyNeed;
+              const disabledReason = keyDisabled(key);
+              const disabled = Boolean(disabledReason);
               const activeIdx = sorts.indexOf(key);
               return (
                 <li key={key} className={`sort-menu-item${disabled ? " disabled" : ""}`}>
@@ -193,7 +219,7 @@ function SortMenu({
                     />
                     <span>{SORT_LABELS[key]}</span>
                   </label>
-                  {disabled && <span className="sort-menu-note">Off while Still need only</span>}
+                  {disabledReason && <span className="sort-menu-note">{disabledReason}</span>}
                   {active && !disabled && (
                     <span className="sort-menu-move">
                       <button
@@ -562,6 +588,7 @@ function ShoppingPage() {
   const [onlyNeed, setOnlyNeed] = useState(true);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed);
   const [showAltArts, setShowAltArts] = useShowAltArts();
+  const sortingByDeck = effectiveSorts.includes("deck");
 
   const items = useMemo(() => {
     let list = data?.items ?? [];
@@ -569,6 +596,18 @@ function ShoppingPage() {
     list = [...list].sort((a, b) => compareCardOrder(a, b, effectiveSorts));
     return list;
   }, [data, onlyNeed, effectiveSorts]);
+
+  function usedInLabel(item: ShoppingItem): string {
+    const decks = item.used_in.join(", ");
+    if ((item.leader_count ?? 1) > 1) {
+      const primary = item.primary_leader_name || item.primary_leader_card_id || "earliest deck";
+      return `${decks} · shared (sorted under ${primary})`;
+    }
+    if (sortingByDeck && item.primary_leader_name) {
+      return `${decks} · ${item.primary_leader_name}`;
+    }
+    return decks;
+  }
 
   function toggleDeck(id: number) {
     setSelectedDeckIds((prev) => {
@@ -628,6 +667,12 @@ function ShoppingPage() {
           </label>
         </div>
       </div>
+      {sortingByDeck && (
+        <p className="sort-deck-note muted">
+          Deck sort groups cards by leader (deck list order). Cards used by multiple leaders stay under
+          their earliest deck&apos;s leader.
+        </p>
+      )}
 
       <div className="deck-filter">
         <div className="deck-filter-head">
@@ -697,7 +742,7 @@ function ShoppingPage() {
                     <AltArtsRow alts={item.alt_arts ?? []} />
                   </td>
                 )}
-                <td className="used-in">{item.used_in.join(", ")}</td>
+                <td className="used-in">{usedInLabel(item)}</td>
               </tr>
             ))}
           </tbody>
@@ -744,7 +789,7 @@ function ShoppingPage() {
               </div>
             )}
             {item.used_in.length > 0 && (
-              <p className="used-in mobile-used-in">{item.used_in.join(", ")}</p>
+              <p className="used-in mobile-used-in">{usedInLabel(item)}</p>
             )}
           </article>
         ))}
@@ -917,7 +962,8 @@ function DeckDetailPage() {
     enabled: Number.isFinite(deckId),
   });
   const [onlyNeed, setOnlyNeed] = useState(true);
-  const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed);
+  const deckUnavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
+  const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, deckUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
 
   const main = useMemo(() => {
@@ -966,7 +1012,12 @@ function DeckDetailPage() {
             <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
             Still need only
           </label>
-          <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={onlyNeed} />
+          <SortMenu
+            sorts={sorts}
+            onChange={setSorts}
+            onlyNeed={onlyNeed}
+            unavailableKeys={deckUnavailableSorts}
+          />
           <label>
             <input
               type="checkbox"
