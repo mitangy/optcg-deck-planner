@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -93,8 +93,10 @@ def get_deck(
 def get_shopping(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+    deck_ids: Annotated[list[int] | None, Query()] = None,
 ):
-    return services.shopping_list(db, user)
+    """Optional deck_ids filters Need/Still Need to only the selected decks."""
+    return services.shopping_list(db, user, deck_ids=deck_ids)
 
 
 @router.put("/owned/{card_id}")

@@ -100,7 +100,12 @@ export const api = {
     }),
   deleteDeck: (id: number) =>
     request<{ ok: boolean }>(`/decks/${id}`, { method: "DELETE" }),
-  shopping: () => request<ShoppingResponse>("/shopping"),
+  shopping: (deckIds?: number[]) => {
+    const params = new URLSearchParams();
+    for (const id of deckIds ?? []) params.append("deck_ids", String(id));
+    const qs = params.toString();
+    return request<ShoppingResponse>(`/shopping${qs ? `?${qs}` : ""}`);
+  },
   setOwned: (cardId: string, qty: number) =>
     request<{ card_id: string; qty: number }>(`/owned/${encodeURIComponent(cardId)}`, {
       method: "PUT",

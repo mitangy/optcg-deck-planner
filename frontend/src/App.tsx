@@ -1,11 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { api, CardView, money, ShoppingItem, User } from "./api";
 
+const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
+
 function useMe() {
   return useQuery({ queryKey: ["me"], queryFn: api.me });
+}
+
+function invalidateOwnedViews(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: ["shopping"] });
+  void qc.invalidateQueries({ queryKey: ["deck"] });
+  void qc.invalidateQueries({ queryKey: ["decks"] });
 }
 
 function Shell({ user, children }: { user: User; children: ReactNode }) {
@@ -79,6 +87,43 @@ function LoginPage() {
   );
 }
 
+function CardThumb({ src, alt = "" }: { src?: string; alt?: string }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  if (!src) return <div className="thumb placeholder" />;
+
+  return (
+    <>
+      <button type="button" className="thumb-btn" onClick={() => setOpen(true)} title="Expand card">
+        <img src={src} alt={alt} className="thumb" loading="lazy" />
+      </button>
+      {open && (
+        <div
+          className="lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Expanded card art"
+          onClick={() => setOpen(false)}
+        >
+          <img src={src} alt={alt} className="lightbox-img" onClick={(e) => e.stopPropagation()} />
+          <button type="button" className="lightbox-close" onClick={() => setOpen(false)}>
+            Close
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 function OwnedInput({
   cardId,
   value,
@@ -93,6 +138,10 @@ function OwnedInput({
     mutationFn: (n: number) => api.setOwned(cardId, n),
     onSuccess: onSaved,
   });
+
+  useEffect(() => {
+    setQty(String(value));
+  }, [value, cardId]);
 
   return (
     <input
@@ -113,11 +162,50 @@ function OwnedInput({
   );
 }
 
+function loadShoppingDeckFilter(allIds: number[]): number[] | null {
+  try {
+    const raw = localStorage.getItem(SHOPPING_DECKS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as number[];
+    if (!Array.isArray(parsed)) return null;
+    const allowed = new Set(allIds);
+    const filtered = parsed.filter((id) => allowed.has(id));
+    return filtered.length ? filtered : null;
+  } catch {
+    return null;
+  }
+}
+
 function ShoppingPage() {
   const qc = useQueryClient();
+  const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
+  const allDeckIds = useMemo(() => (decksQ.data ?? []).map((d) => d.id), [decksQ.data]);
+  const [selectedDeckIds, setSelectedDeckIds] = useState<number[] | null>(null);
+  const [filterReady, setFilterReady] = useState(false);
+
+  useEffect(() => {
+    if (!decksQ.data) return;
+    const ids = decksQ.data.map((d) => d.id);
+    const saved = loadShoppingDeckFilter(ids);
+    setSelectedDeckIds(saved ?? ids);
+    setFilterReady(true);
+  }, [decksQ.data]);
+
+  useEffect(() => {
+    if (!filterReady || selectedDeckIds === null) return;
+    localStorage.setItem(SHOPPING_DECKS_KEY, JSON.stringify(selectedDeckIds));
+  }, [selectedDeckIds, filterReady]);
+
+  const activeDeckIds = selectedDeckIds ?? allDeckIds;
+  const shoppingKey = useMemo(
+    () => [...activeDeckIds].sort((a, b) => a - b),
+    [activeDeckIds],
+  );
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["shopping"],
-    queryFn: api.shopping,
+    queryKey: ["shopping", shoppingKey],
+    queryFn: () => api.shopping(shoppingKey.length ? shoppingKey : undefined),
+    enabled: filterReady && allDeckIds.length > 0,
   });
   const [onlyNeed, setOnlyNeed] = useState(true);
   const [sortStillNeed, setSortStillNeed] = useState(true);
@@ -131,6 +219,35 @@ function ShoppingPage() {
     return list;
   }, [data, onlyNeed, sortStillNeed]);
 
+  function toggleDeck(id: number) {
+    setSelectedDeckIds((prev) => {
+      const current = prev ?? allDeckIds;
+      if (current.includes(id)) {
+        const next = current.filter((x) => x !== id);
+        return next.length ? next : current;
+      }
+      return [...current, id];
+    });
+  }
+
+  function selectAllDecks() {
+    setSelectedDeckIds(allDeckIds);
+  }
+
+  if (decksQ.isLoading || (allDeckIds.length > 0 && !filterReady)) {
+    return <p className="muted">Loading shopping list…</p>;
+  }
+  if (decksQ.error) return <p className="error">{(decksQ.error as Error).message}</p>;
+  if (allDeckIds.length === 0) {
+    return (
+      <section>
+        <h1>Master Shopping</h1>
+        <p className="muted">
+          No decks yet. <Link to="/import">Import a deck</Link> to build your shopping list.
+        </p>
+      </section>
+    );
+  }
   if (isLoading) return <p className="muted">Loading shopping list…</p>;
   if (error) return <p className="error">{(error as Error).message}</p>;
 
@@ -159,6 +276,28 @@ function ShoppingPage() {
           </label>
         </div>
       </div>
+
+      <div className="deck-filter">
+        <div className="deck-filter-head">
+          <span>Include decks</span>
+          <button type="button" className="ghost" onClick={selectAllDecks}>
+            Select all
+          </button>
+        </div>
+        <div className="deck-filter-list">
+          {(decksQ.data ?? []).map((d) => (
+            <label key={d.id} className="deck-chip">
+              <input
+                type="checkbox"
+                checked={activeDeckIds.includes(d.id)}
+                onChange={() => toggleDeck(d.id)}
+              />
+              {d.name}
+            </label>
+          ))}
+        </div>
+      </div>
+
       <div className="table-wrap">
         <table>
           <thead>
@@ -178,11 +317,7 @@ function ShoppingPage() {
             {items.map((item: ShoppingItem) => (
               <tr key={item.card_id} className={item.still_need > 0 ? "need" : "done"}>
                 <td>
-                  {item.image_url ? (
-                    <img src={item.image_url} alt="" className="thumb" loading="lazy" />
-                  ) : (
-                    <div className="thumb placeholder" />
-                  )}
+                  <CardThumb src={item.image_url || undefined} alt={item.name} />
                 </td>
                 <td>
                   <div className="card-id">{item.card_id}</div>
@@ -198,10 +333,7 @@ function ShoppingPage() {
                   <OwnedInput
                     cardId={item.card_id}
                     value={item.owned}
-                    onSaved={() => {
-                      qc.invalidateQueries({ queryKey: ["shopping"] });
-                      qc.invalidateQueries({ queryKey: ["decks"] });
-                    }}
+                    onSaved={() => invalidateOwnedViews(qc)}
                   />
                 </td>
                 <td>{item.need}</td>
@@ -223,7 +355,9 @@ function DecksPage() {
   const { data, isLoading, error } = useQuery({ queryKey: ["decks"], queryFn: api.decks });
   const del = useMutation({
     mutationFn: api.deleteDeck,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["decks"] }),
+    onSuccess: () => {
+      invalidateOwnedViews(qc);
+    },
   });
 
   if (isLoading) return <p className="muted">Loading decks…</p>;
@@ -286,11 +420,7 @@ function CardTable({
           {cards.map((c) => (
             <tr key={`${c.section}-${c.card_id}`} className={c.still_need > 0 ? "need" : "done"}>
               <td>
-                {c.image_url ? (
-                  <img src={c.image_url} alt="" className="thumb" loading="lazy" />
-                ) : (
-                  <div className="thumb placeholder" />
-                )}
+                <CardThumb src={c.image_url || undefined} alt={c.name} />
               </td>
               <td>
                 <div className="card-id">{c.card_id}</div>
@@ -333,10 +463,7 @@ function DeckDetailPage() {
 
   const main = data.cards.filter((c) => c.section !== "additional");
   const additional = data.cards.filter((c) => c.section === "additional");
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["deck", deckId] });
-    qc.invalidateQueries({ queryKey: ["shopping"] });
-  };
+  const refresh = () => invalidateOwnedViews(qc);
 
   return (
     <section>

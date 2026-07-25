@@ -23,6 +23,6 @@ services:
       - key: ALLOWED_EMAILS
         sync: false
       - key: ALLOW_ANY_GOOGLE_USER
-        value: "false"
+        value: "true"
       - key: CATALOG_SYNC_TOKEN
         generateValue: true

@@ -241,10 +241,92 @@ tr.done {
   object-fit: contain;
   border-radius: 8px;
   background: white;
+  display: block;
 }
 
 .thumb.placeholder {
   border: 1px dashed var(--line);
+}
+
+.thumb-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+  border-radius: 8px;
+}
+
+.thumb-btn:hover .thumb,
+.thumb-btn:focus-visible .thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgba(18, 16, 14, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.lightbox-img {
+  max-width: min(420px, 92vw);
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  background: #111;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  background: rgba(255, 253, 248, 0.95);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deck-filter {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 253, 248, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.deck-filter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.65rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.deck-filter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+}
+
+.deck-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  cursor: pointer;
 }
 
 .card-id {

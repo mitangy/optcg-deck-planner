@@ -183,13 +183,20 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
     )
 
 
-def shopping_list(db: Session, user: User) -> ShoppingResponse:
+def shopping_list(
+    db: Session,
+    user: User,
+    deck_ids: list[int] | None = None,
+) -> ShoppingResponse:
     decks = db.scalars(
         select(Deck)
         .where(Deck.user_id == user.id)
         .options(selectinload(Deck.cards))
         .order_by(Deck.sort_order, Deck.id)
     ).all()
+    if deck_ids is not None:
+        wanted = set(deck_ids)
+        decks = [d for d in decks if d.id in wanted]
     need: dict[str, int] = {}
     used_in: dict[str, list[str]] = defaultdict(list)
     for deck in decks:
