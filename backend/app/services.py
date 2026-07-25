@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
+import json
+import secrets
 from collections import defaultdict
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.domain import find_leader_id, parse_cost, parse_decklist
-from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, User
+from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, ShareLink, User
 from app.schemas import (
     CardView,
     DeckDetail,
     DeckSummary,
     PrintingView,
+    PublicShoppingResponse,
+    ShareInfo,
     ShoppingItem,
     ShoppingResponse,
 )
@@ -361,3 +366,192 @@ def set_owned(db: Session, user: User, card_id: str, qty: int) -> int:
         row.qty = qty
     db.commit()
     return row.qty
+
+
+def _share_deck_ids(link: ShareLink) -> list[int] | None:
+    if not link.deck_ids_json:
+        return None
+    try:
+        parsed = json.loads(link.deck_ids_json)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, list):
+        return None
+    out: list[int] = []
+    for x in parsed:
+        try:
+            out.append(int(x))
+        except (TypeError, ValueError):
+            continue
+    return out or None
+
+
+def _share_info(link: ShareLink) -> ShareInfo:
+    return ShareInfo(
+        token=link.token,
+        kind=link.kind,
+        deck_id=link.deck_id,
+        deck_ids=_share_deck_ids(link),
+        path=f"/share/{link.token}",
+    )
+
+
+def create_or_update_share(
+    db: Session,
+    user: User,
+    kind: str,
+    deck_id: int | None = None,
+    deck_ids: list[int] | None = None,
+) -> ShareInfo:
+    kind = (kind or "shopping").strip().lower()
+    if kind not in {"shopping", "deck"}:
+        raise ValueError("kind must be shopping or deck")
+
+    if kind == "deck":
+        if deck_id is None:
+            raise ValueError("deck_id is required for deck shares")
+        deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
+        if deck is None:
+            raise LookupError("Deck not found")
+        existing = db.scalar(
+            select(ShareLink).where(
+                ShareLink.user_id == user.id,
+                ShareLink.kind == "deck",
+                ShareLink.deck_id == deck_id,
+                ShareLink.revoked_at.is_(None),
+            )
+        )
+        if existing:
+            return _share_info(existing)
+        link = ShareLink(
+            user_id=user.id,
+            token=secrets.token_urlsafe(18),
+            kind="deck",
+            deck_id=deck_id,
+            deck_ids_json=None,
+        )
+        db.add(link)
+        db.commit()
+        db.refresh(link)
+        return _share_info(link)
+
+    # shopping — reuse one active link per user; refresh deck filter if provided
+    existing = db.scalar(
+        select(ShareLink).where(
+            ShareLink.user_id == user.id,
+            ShareLink.kind == "shopping",
+            ShareLink.revoked_at.is_(None),
+        )
+    )
+    deck_ids_json = json.dumps(sorted(set(deck_ids))) if deck_ids else None
+    if existing:
+        existing.deck_ids_json = deck_ids_json
+        db.commit()
+        db.refresh(existing)
+        return _share_info(existing)
+
+    link = ShareLink(
+        user_id=user.id,
+        token=secrets.token_urlsafe(18),
+        kind="shopping",
+        deck_id=None,
+        deck_ids_json=deck_ids_json,
+    )
+    db.add(link)
+    db.commit()
+    db.refresh(link)
+    return _share_info(link)
+
+
+def revoke_share(db: Session, user: User, token: str) -> None:
+    link = db.scalar(
+        select(ShareLink).where(ShareLink.token == token, ShareLink.user_id == user.id)
+    )
+    if link is None:
+        raise LookupError("Share link not found")
+    if link.revoked_at is None:
+        link.revoked_at = datetime.now(timezone.utc)
+        db.commit()
+
+
+def get_active_shopping_share(db: Session, user: User) -> ShareInfo | None:
+    link = db.scalar(
+        select(ShareLink).where(
+            ShareLink.user_id == user.id,
+            ShareLink.kind == "shopping",
+            ShareLink.revoked_at.is_(None),
+        )
+    )
+    return _share_info(link) if link else None
+
+
+def public_share_view(db: Session, token: str) -> PublicShoppingResponse:
+    link = db.scalar(
+        select(ShareLink).where(ShareLink.token == token, ShareLink.revoked_at.is_(None))
+    )
+    if link is None:
+        raise LookupError("Share link not found")
+    owner = db.get(User, link.user_id)
+    if owner is None:
+        raise LookupError("Share link not found")
+    owner_name = (owner.name or owner.email.split("@")[0] or "Collector").strip()
+
+    if link.kind == "deck":
+        if link.deck_id is None:
+            raise LookupError("Share link not found")
+        detail = get_deck_detail(db, owner, link.deck_id)
+        items: list[ShoppingItem] = []
+        cards_still = 0
+        remaining = 0.0
+        for card in detail.cards:
+            line = (
+                (card.still_need * card.market_price)
+                if card.market_price is not None
+                else None
+            )
+            cards_still += card.still_need
+            if line is not None:
+                remaining += line
+            items.append(
+                ShoppingItem(
+                    card_id=card.card_id,
+                    name=card.name,
+                    rarity=card.rarity,
+                    color=card.color,
+                    card_type=card.card_type,
+                    cost=card.cost,
+                    need=card.needed,
+                    owned=card.owned,
+                    still_need=card.still_need,
+                    market_price=card.market_price,
+                    low_price=card.low_price,
+                    remaining_cost=line,
+                    image_url=card.image_url,
+                    tcgplayer_url=card.tcgplayer_url,
+                    used_in=[detail.name],
+                    alt_arts=card.alt_arts,
+                    primary_leader_card_id=detail.leader_card_id,
+                    primary_leader_name=detail.leader_name,
+                    leader_count=1,
+                )
+            )
+        return PublicShoppingResponse(
+            items=items,
+            cards_still_needed=cards_still,
+            remaining_market=round(remaining, 2),
+            unique_cards=len(items),
+            owner_name=owner_name,
+            kind="deck",
+            deck_name=detail.name,
+        )
+
+    shopping = shopping_list(db, owner, deck_ids=_share_deck_ids(link))
+    return PublicShoppingResponse(
+        items=shopping.items,
+        cards_still_needed=shopping.cards_still_needed,
+        remaining_market=shopping.remaining_market,
+        unique_cards=shopping.unique_cards,
+        owner_name=owner_name,
+        kind="shopping",
+        deck_name=None,
+    )

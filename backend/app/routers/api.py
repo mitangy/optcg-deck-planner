@@ -18,6 +18,9 @@ from app.schemas import (
     DeckSummary,
     DeckUpdate,
     OwnedUpdate,
+    PublicShoppingResponse,
+    ShareCreate,
+    ShareInfo,
     ShoppingResponse,
 )
 from app import services
@@ -108,6 +111,55 @@ def put_owned(
 ):
     qty = services.set_owned(db, user, card_id, body.qty)
     return {"card_id": card_id.upper(), "qty": qty}
+
+
+@router.get("/share/shopping", response_model=ShareInfo | None)
+def get_shopping_share(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return services.get_active_shopping_share(db, user)
+
+
+@router.post("/share", response_model=ShareInfo)
+def post_share(
+    body: ShareCreate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return services.create_or_update_share(
+            db, user, body.kind, deck_id=body.deck_id, deck_ids=body.deck_ids
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/share/{token}")
+def delete_share(
+    token: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        services.revoke_share(db, user, token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"ok": True}
+
+
+@router.get("/public/share/{token}", response_model=PublicShoppingResponse)
+def get_public_share(
+    token: str,
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Unauthenticated read-only shopping/deck view for a share token."""
+    try:
+        return services.public_share_view(db, token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/catalog/status", response_model=CatalogStatus)

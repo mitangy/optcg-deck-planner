@@ -85,5 +85,10 @@ GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
 - `GET/POST /decks`, `GET/PATCH/DELETE /decks/{id}`
 - `GET /shopping?deck_ids=`
 - `PUT /owned/{card_id}`
+- `GET /share/shopping`, `POST /share`, `DELETE /share/{token}` — create/manage public links
+- `GET /public/share/{token}` — unauthenticated read-only shopping/deck view
 - `POST /admin/sync-catalog` (token header)
 - `GET /catalog/status` (auth required)
+
+## Sharing
+From **Shopping** or a **Deck** page, use **Share public link** to copy a URL like `/share/<token>`. Anyone with the link can view the list (owned / still need / prices) without signing in. Turn the shopping link off anytime from the Shopping page.

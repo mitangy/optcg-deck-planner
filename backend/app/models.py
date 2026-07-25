@@ -76,6 +76,28 @@ class Owned(Base):
     user: Mapped[User] = relationship(back_populates="owned")
 
 
+class ShareLink(Base):
+    """Public read-only link to a user's shopping list (or a deck)."""
+
+    __tablename__ = "share_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    kind: Mapped[str] = mapped_column(String(32), default="shopping")  # shopping | deck
+    deck_id: Mapped[int | None] = mapped_column(
+        ForeignKey("decks.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    # JSON list of deck ids for shopping shares; null/empty = all decks
+    deck_ids_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped[User] = relationship()
+
+
 class CatalogCard(Base):
     __tablename__ = "catalog_cards"
 

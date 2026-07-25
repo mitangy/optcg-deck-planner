@@ -2,13 +2,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
-import { api, CardView, money, PrintingView, ShoppingItem, User } from "./api";
+import {
+  api,
+  CardView,
+  DeckDetail,
+  money,
+  PrintingView,
+  ShoppingItem,
+  ShoppingResponse,
+  User,
+} from "./api";
 
 const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
 const CARD_SORTS_KEY = "optcg_card_sorts";
 const FILTERS_OPEN_KEY = "optcg_filters_open";
 const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
+const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
 
 const COLOR_ORDER = ["Red", "Green", "Blue", "Purple", "Black", "Yellow"];
 const SET_PREFIX_ORDER = ["OP", "ST", "EB", "PRB", "P"];
@@ -387,6 +397,50 @@ function invalidateOwnedViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["deck"] });
 }
 
+function patchOwnedQty(cardId: string, qty: number, need: number, market: number | null | undefined) {
+  const still = Math.max(0, need - qty);
+  const remaining =
+    market != null && !Number.isNaN(market) ? Math.round(still * market * 100) / 100 : null;
+  return { owned: qty, still_need: still, remaining_cost: remaining };
+}
+
+function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: string, qty: number) {
+  const id = cardId.toUpperCase();
+  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) => {
+    if (!old) return old;
+    let cardsStill = 0;
+    let remaining = 0;
+    const items = old.items.map((item) => {
+      if (item.card_id.toUpperCase() !== id) {
+        cardsStill += item.still_need;
+        if (item.remaining_cost != null) remaining += item.remaining_cost;
+        return item;
+      }
+      const patched = patchOwnedQty(id, qty, item.need, item.market_price);
+      cardsStill += patched.still_need;
+      if (patched.remaining_cost != null) remaining += patched.remaining_cost;
+      return { ...item, ...patched };
+    });
+    return {
+      ...old,
+      items,
+      cards_still_needed: cardsStill,
+      remaining_market: Math.round(remaining * 100) / 100,
+    };
+  });
+  qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) => {
+    if (!old) return old;
+    return {
+      ...old,
+      cards: old.cards.map((card) => {
+        if (card.card_id.toUpperCase() !== id) return card;
+        const patched = patchOwnedQty(id, qty, card.needed, card.market_price);
+        return { ...card, owned: patched.owned, still_need: patched.still_need };
+      }),
+    };
+  });
+}
+
 function Shell({ user, children }: { user: User; children: ReactNode }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -576,28 +630,55 @@ function OwnedInput({
   value: number;
   onSaved: () => void;
 }) {
-  const [qty, setQty] = useState(value);
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState(String(value));
+  const [focused, setFocused] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const serverValueRef = useRef(value);
+  const pendingRef = useRef<number | null>(null);
+  const draftNum = Number(draft);
+  const displayQty = Number.isFinite(draftNum) ? Math.max(0, Math.floor(draftNum)) : 0;
+
   const mutation = useMutation({
     mutationFn: (n: number) => api.setOwned(cardId, n),
-    onSuccess: () => {
+    onSuccess: (res) => {
       setErr(null);
+      serverValueRef.current = res.qty;
+      if (pendingRef.current === res.qty) pendingRef.current = null;
+      applyOwnedOptimistic(qc, cardId, res.qty);
+      if (!focused) setDraft(String(res.qty));
       onSaved();
     },
     onError: (e: Error) => {
       setErr(e.message);
-      setQty(value);
+      pendingRef.current = null;
+      applyOwnedOptimistic(qc, cardId, serverValueRef.current);
+      if (!focused) setDraft(String(serverValueRef.current));
     },
   });
 
   useEffect(() => {
-    setQty(value);
-  }, [value, cardId]);
+    serverValueRef.current = value;
+    // Don't clobber an in-progress edit or an optimistic value waiting on the server.
+    if (focused || pendingRef.current !== null) return;
+    setDraft(String(value));
+  }, [value, cardId, focused]);
 
   function commit(next: number) {
-    const n = Math.max(0, next);
-    setQty(n);
-    if (n !== value) mutation.mutate(n);
+    const n = Math.max(0, Math.floor(next));
+    setDraft(String(n));
+    if (n === serverValueRef.current && pendingRef.current === null) return;
+    pendingRef.current = n;
+    applyOwnedOptimistic(qc, cardId, n);
+    mutation.mutate(n);
+  }
+
+  function parseDraft(): number | null {
+    const trimmed = draft.trim();
+    if (trimmed === "") return 0;
+    const n = Number(trimmed);
+    if (!Number.isFinite(n)) return null;
+    return Math.max(0, Math.floor(n));
   }
 
   return (
@@ -606,22 +687,40 @@ function OwnedInput({
         type="button"
         className="owned-btn"
         aria-label="Decrease owned"
-        disabled={mutation.isPending || qty <= 0}
-        onClick={() => commit(qty - 1)}
+        disabled={mutation.isPending || displayQty <= 0}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => commit(displayQty - 1)}
       >
         −
       </button>
       <input
         className="owned"
-        type="number"
+        type="text"
         inputMode="numeric"
-        min={0}
-        value={qty}
+        pattern="[0-9]*"
+        value={draft}
         title={err ?? undefined}
-        onChange={(e) => setQty(Math.max(0, Number(e.target.value) || 0))}
-        onBlur={() => commit(qty)}
+        disabled={mutation.isPending && !focused}
+        onFocus={() => setFocused(true)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === "" || /^\d+$/.test(raw)) setDraft(raw);
+        }}
+        onBlur={() => {
+          setFocused(false);
+          const n = parseDraft();
+          if (n == null) {
+            setDraft(String(serverValueRef.current));
+            return;
+          }
+          commit(n);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") {
+            setDraft(String(serverValueRef.current));
+            (e.target as HTMLInputElement).blur();
+          }
         }}
       />
       <button
@@ -629,7 +728,8 @@ function OwnedInput({
         className="owned-btn"
         aria-label="Increase owned"
         disabled={mutation.isPending}
-        onClick={() => commit(qty + 1)}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => commit(displayQty + 1)}
       >
         +
       </button>
@@ -695,12 +795,26 @@ function loadShoppingDeckFilter(allIds: number[]): number[] | null {
   }
 }
 
+function loadSelectedCardIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(SHOPPING_SELECTED_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((x): x is string => typeof x === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
 function ShoppingPage() {
   const qc = useQueryClient();
   const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
   const allDeckIds = useMemo(() => (decksQ.data ?? []).map((d) => d.id), [decksQ.data]);
   const [selectedDeckIds, setSelectedDeckIds] = useState<number[] | null>(null);
   const [filterReady, setFilterReady] = useState(false);
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(() => loadSelectedCardIds());
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!decksQ.data) return;
@@ -715,6 +829,14 @@ function ShoppingPage() {
     localStorage.setItem(SHOPPING_DECKS_KEY, JSON.stringify(selectedDeckIds));
   }, [selectedDeckIds, filterReady]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(SHOPPING_SELECTED_KEY, JSON.stringify([...selectedCardIds]));
+    } catch {
+      /* ignore */
+    }
+  }, [selectedCardIds]);
+
   const activeDeckIds = selectedDeckIds ?? allDeckIds;
   const shoppingKey = useMemo(
     () => [...activeDeckIds].sort((a, b) => a - b),
@@ -724,6 +846,11 @@ function ShoppingPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["shopping", shoppingKey],
     queryFn: () => api.shopping(shoppingKey.length ? shoppingKey : undefined),
+    enabled: filterReady && allDeckIds.length > 0,
+  });
+  const shareQ = useQuery({
+    queryKey: ["share", "shopping"],
+    queryFn: api.getShoppingShare,
     enabled: filterReady && allDeckIds.length > 0,
   });
   const [onlyNeed, setOnlyNeed] = useState(true);
@@ -740,6 +867,28 @@ function ShoppingPage() {
     return list;
   }, [data, onlyNeed, effectiveSorts, search]);
 
+  const selectedTotals = useMemo(() => {
+    const byId = new Map((data?.items ?? []).map((i) => [i.card_id, i]));
+    let copies = 0;
+    let total = 0;
+    let priced = 0;
+    let count = 0;
+    for (const id of selectedCardIds) {
+      const item = byId.get(id);
+      if (!item) continue;
+      count += 1;
+      copies += item.still_need;
+      if (item.remaining_cost != null) {
+        total += item.remaining_cost;
+        priced += 1;
+      }
+    }
+    return { count, copies, total: Math.round(total * 100) / 100, priced };
+  }, [data, selectedCardIds]);
+
+  const allVisibleSelected =
+    items.length > 0 && items.every((i) => selectedCardIds.has(i.card_id));
+
   const filterSummary = useMemo(() => {
     const parts: string[] = [];
     if (onlyNeed) parts.push("Still need");
@@ -750,6 +899,34 @@ function ShoppingPage() {
     }
     return parts.join(" · ");
   }, [onlyNeed, effectiveSorts, showAltArts, activeDeckIds.length, allDeckIds.length]);
+
+  const createShare = useMutation({
+    mutationFn: () =>
+      api.createShare({
+        kind: "shopping",
+        deck_ids: activeDeckIds.length === allDeckIds.length ? undefined : activeDeckIds,
+      }),
+    onSuccess: async (info) => {
+      await qc.invalidateQueries({ queryKey: ["share", "shopping"] });
+      const url = `${window.location.origin}${info.path}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareMsg("Public link copied");
+      } catch {
+        setShareMsg(url);
+      }
+    },
+    onError: (e: Error) => setShareMsg(e.message),
+  });
+
+  const revokeShare = useMutation({
+    mutationFn: (token: string) => api.revokeShare(token),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["share", "shopping"] });
+      setShareMsg("Public link turned off");
+    },
+    onError: (e: Error) => setShareMsg(e.message),
+  });
 
   function usedInLabel(item: ShoppingItem): string {
     const decks = item.used_in.join(", ");
@@ -778,6 +955,27 @@ function ShoppingPage() {
     setSelectedDeckIds(allDeckIds);
   }
 
+  function toggleCard(cardId: string) {
+    setSelectedCardIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  }
+
+  function toggleSelectVisible() {
+    setSelectedCardIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        for (const item of items) next.delete(item.card_id);
+      } else {
+        for (const item of items) next.add(item.card_id);
+      }
+      return next;
+    });
+  }
+
   if (decksQ.isLoading || (allDeckIds.length > 0 && !filterReady)) {
     return <p className="muted">Loading shopping list…</p>;
   }
@@ -795,6 +993,9 @@ function ShoppingPage() {
   if (isLoading) return <p className="muted">Loading shopping list…</p>;
   if (error) return <p className="error">{(error as Error).message}</p>;
 
+  const shareInfo = shareQ.data;
+  const shareUrl = shareInfo ? `${window.location.origin}${shareInfo.path}` : null;
+
   return (
     <section>
       <div className="page-head">
@@ -805,7 +1006,88 @@ function ShoppingPage() {
             {money(data?.remaining_market)}
           </p>
         </div>
+        <div className="page-head-actions">
+          {shareInfo ? (
+            <>
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={async () => {
+                  if (!shareUrl) return;
+                  try {
+                    await navigator.clipboard.writeText(shareUrl);
+                    setShareMsg("Public link copied");
+                  } catch {
+                    setShareMsg(shareUrl);
+                  }
+                }}
+              >
+                Copy public link
+              </button>
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={createShare.isPending}
+                onClick={() => createShare.mutate()}
+              >
+                Update link
+              </button>
+              <button
+                type="button"
+                className="ghost danger"
+                disabled={revokeShare.isPending}
+                onClick={() => revokeShare.mutate(shareInfo.token)}
+              >
+                Turn off
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={createShare.isPending}
+              onClick={() => createShare.mutate()}
+            >
+              {createShare.isPending ? "Creating…" : "Share public link"}
+            </button>
+          )}
+        </div>
       </div>
+      {shareMsg && (
+        <p className="share-banner" role="status">
+          {shareMsg.startsWith("http") ? (
+            <>
+              Public link: <a href={shareMsg}>{shareMsg}</a>
+            </>
+          ) : (
+            shareMsg
+          )}
+          {shareUrl && !shareMsg.startsWith("http") ? (
+            <>
+              {" "}
+              · <a href={shareUrl}>Open</a>
+            </>
+          ) : null}
+        </p>
+      )}
+
+      {selectedTotals.count > 0 && (
+        <div className="buy-bar" role="status">
+          <div>
+            <strong>
+              {selectedTotals.count} card{selectedTotals.count === 1 ? "" : "s"} selected
+            </strong>
+            <span className="muted">
+              {" "}
+              · {selectedTotals.copies} still needed · {money(selectedTotals.total)}
+              {selectedTotals.priced < selectedTotals.count ? " (priced cards only)" : ""}
+            </span>
+          </div>
+          <button type="button" className="ghost" onClick={() => setSelectedCardIds(new Set())}>
+            Clear selection
+          </button>
+        </div>
+      )}
 
       <div className="list-toolbar">
         <CardSearchInput value={search} onChange={setSearch} />
@@ -861,9 +1143,18 @@ function ShoppingPage() {
       )}
 
       <div className="table-wrap desktop-table">
-        <table className="data-table">
+        <table className="data-table shopping-table">
           <thead>
             <tr>
+              <th className="select-col">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleSelectVisible}
+                  aria-label={allVisibleSelected ? "Deselect visible cards" : "Select visible cards"}
+                  disabled={items.length === 0}
+                />
+              </th>
               <th>Card</th>
               <th>Owned</th>
               <th>Still</th>
@@ -876,88 +1167,116 @@ function ShoppingPage() {
             </tr>
           </thead>
           <tbody>
-            {items.map((item: ShoppingItem) => (
-              <tr key={item.card_id} className={item.still_need > 0 ? "need" : "done"}>
-                <td className="card-cell">
-                  <CardThumb src={item.image_url || undefined} alt={item.name} />
-                  <div>
-                    <div className="card-id">{item.card_id}</div>
-                    <div>{item.name}</div>
-                    {item.tcgplayer_url && (
-                      <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
-                        TCGPlayer
-                      </a>
-                    )}
-                  </div>
-                </td>
-                <td>
-                  <OwnedInput
-                    cardId={item.card_id}
-                    value={item.owned}
-                    onSaved={() => invalidateOwnedViews(qc)}
-                  />
-                </td>
-                <td>{item.still_need}</td>
-                <td>{item.need}</td>
-                <td>{money(item.market_price)}</td>
-                <td>{money(item.remaining_cost)}</td>
-                <td>{item.cost ?? "—"}</td>
-                {showAltArts && (
-                  <td>
-                    <AltArtsRow alts={item.alt_arts ?? []} />
+            {items.map((item: ShoppingItem) => {
+              const checked = selectedCardIds.has(item.card_id);
+              return (
+                <tr
+                  key={item.card_id}
+                  className={`${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+                >
+                  <td className="select-col">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleCard(item.card_id)}
+                      aria-label={`Select ${item.card_id}`}
+                    />
                   </td>
-                )}
-                <td className="used-in">{usedInLabel(item)}</td>
-              </tr>
-            ))}
+                  <td className="card-cell">
+                    <CardThumb src={item.image_url || undefined} alt={item.name} />
+                    <div>
+                      <div className="card-id">{item.card_id}</div>
+                      <div>{item.name}</div>
+                      {item.tcgplayer_url && (
+                        <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                          TCGPlayer
+                        </a>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <OwnedInput
+                      cardId={item.card_id}
+                      value={item.owned}
+                      onSaved={() => invalidateOwnedViews(qc)}
+                    />
+                  </td>
+                  <td>{item.still_need}</td>
+                  <td>{item.need}</td>
+                  <td>{money(item.market_price)}</td>
+                  <td>{money(item.remaining_cost)}</td>
+                  <td>{item.cost ?? "—"}</td>
+                  {showAltArts && (
+                    <td>
+                      <AltArtsRow alts={item.alt_arts ?? []} />
+                    </td>
+                  )}
+                  <td className="used-in">{usedInLabel(item)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       <div className="mobile-card-list">
-        {items.map((item: ShoppingItem) => (
-          <article key={item.card_id} className={`mobile-card ${item.still_need > 0 ? "need" : "done"}`}>
-            <div className="mobile-card-top">
-              <MobileCardMedia
-                src={item.image_url || undefined}
-                alt={item.name}
-                cost={item.cost}
-                rarity={item.rarity}
-              />
-              <div className="mobile-card-info">
-                <div className="card-id">{item.card_id}</div>
-                <div className="mobile-card-name">{item.name}</div>
-                <div className="mobile-card-meta">
-                  {[item.color, `Still ${item.still_need}`, `Need ${item.need}`, money(item.market_price)]
-                    .filter(Boolean)
-                    .join(" · ")}
-                  {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+        {items.map((item: ShoppingItem) => {
+          const checked = selectedCardIds.has(item.card_id);
+          return (
+            <article
+              key={item.card_id}
+              className={`mobile-card ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+            >
+              <div className="mobile-card-top">
+                <label className="mobile-select">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleCard(item.card_id)}
+                    aria-label={`Select ${item.card_id}`}
+                  />
+                </label>
+                <MobileCardMedia
+                  src={item.image_url || undefined}
+                  alt={item.name}
+                  cost={item.cost}
+                  rarity={item.rarity}
+                />
+                <div className="mobile-card-info">
+                  <div className="card-id">{item.card_id}</div>
+                  <div className="mobile-card-name">{item.name}</div>
+                  <div className="mobile-card-meta">
+                    {[item.color, `Still ${item.still_need}`, `Need ${item.need}`, money(item.market_price)]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                  </div>
+                  {item.tcgplayer_url && (
+                    <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                      TCGPlayer
+                    </a>
+                  )}
                 </div>
-                {item.tcgplayer_url && (
-                  <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
-                    TCGPlayer
-                  </a>
-                )}
               </div>
-            </div>
-            <div className="mobile-card-owned">
-              <span>Owned</span>
-              <OwnedInput
-                cardId={item.card_id}
-                value={item.owned}
-                onSaved={() => invalidateOwnedViews(qc)}
-              />
-            </div>
-            {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
-              <div className="mobile-card-alts">
-                <AltArtsRow alts={item.alt_arts ?? []} />
+              <div className="mobile-card-owned">
+                <span>Owned</span>
+                <OwnedInput
+                  cardId={item.card_id}
+                  value={item.owned}
+                  onSaved={() => invalidateOwnedViews(qc)}
+                />
               </div>
-            )}
-            {item.used_in.length > 0 && (
-              <p className="used-in mobile-used-in">{usedInLabel(item)}</p>
-            )}
-          </article>
-        ))}
+              {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
+                <div className="mobile-card-alts">
+                  <AltArtsRow alts={item.alt_arts ?? []} />
+                </div>
+              )}
+              {item.used_in.length > 0 && (
+                <p className="used-in mobile-used-in">{usedInLabel(item)}</p>
+              )}
+            </article>
+          );
+        })}
       </div>
     </section>
   );
@@ -1309,6 +1628,20 @@ function DeckDetailPage() {
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, deckUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [search, setSearch] = useState("");
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
+  const shareDeck = useMutation({
+    mutationFn: () => api.createShare({ kind: "deck", deck_id: deckId }),
+    onSuccess: async (info) => {
+      const url = `${window.location.origin}${info.path}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareMsg("Public link copied");
+      } catch {
+        setShareMsg(url);
+      }
+    },
+    onError: (e: Error) => setShareMsg(e.message),
+  });
 
   const main = useMemo(() => {
     if (!data) return [];
@@ -1362,7 +1695,28 @@ function DeckDetailPage() {
               : ""}
           </p>
         </div>
+        <div className="page-head-actions">
+          <button
+            type="button"
+            className="btn secondary"
+            disabled={shareDeck.isPending}
+            onClick={() => shareDeck.mutate()}
+          >
+            {shareDeck.isPending ? "Sharing…" : "Share public link"}
+          </button>
+        </div>
       </div>
+      {shareMsg && (
+        <p className="share-banner" role="status">
+          {shareMsg.startsWith("http") ? (
+            <>
+              Public link: <a href={shareMsg}>{shareMsg}</a>
+            </>
+          ) : (
+            shareMsg
+          )}
+        </p>
+      )}
 
       <DeckProgressSummary cards={data.cards} />
 
@@ -1554,10 +1908,167 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <Shell user={user}>{children}</Shell>;
 }
 
+function PublicSharePage() {
+  const { token = "" } = useParams();
+  const [onlyNeed, setOnlyNeed] = useState(true);
+  const [search, setSearch] = useState("");
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["public-share", token],
+    queryFn: () => api.publicShare(token),
+    enabled: Boolean(token),
+  });
+
+  const items = useMemo(() => {
+    let list = data?.items ?? [];
+    if (onlyNeed) list = list.filter((i) => i.still_need > 0);
+    if (search.trim()) list = list.filter((i) => matchesCardSearch(i, search));
+    list = [...list].sort((a, b) => compareCardOrder(a, b, ["color", "set"]));
+    return list;
+  }, [data, onlyNeed, search]);
+
+  return (
+    <div className="app public-app">
+      <header className="topbar">
+        <div className="brand">
+          <Link to="/login">
+            <img
+              className="brand-logo"
+              src="/optcg-logo.png"
+              alt="ONE PIECE CARD GAME"
+              width={562}
+              height={145}
+            />
+            <span>OPTCG Tracker</span>
+          </Link>
+        </div>
+        <div className="user">
+          <Link className="btn secondary" to="/login">
+            Sign in
+          </Link>
+        </div>
+      </header>
+      <main>
+        {isLoading && <p className="muted">Loading shared list…</p>}
+        {error && <p className="error">{(error as Error).message}</p>}
+        {data && (
+          <section>
+            <div className="page-head">
+              <div>
+                <p className="eyebrow">Public {data.kind === "deck" ? "deck" : "shopping"} list</p>
+                <h1>{data.deck_name || `${data.owner_name}'s list`}</h1>
+                <p className="muted">
+                  Shared by {data.owner_name} · {data.unique_cards} unique cards ·{" "}
+                  {data.cards_still_needed} still needed · {money(data.remaining_market)}
+                </p>
+              </div>
+            </div>
+
+            <div className="list-toolbar">
+              <CardSearchInput value={search} onChange={setSearch} />
+              <div className="filters">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={onlyNeed}
+                    onChange={(e) => setOnlyNeed(e.target.checked)}
+                  />
+                  Still need only
+                </label>
+              </div>
+            </div>
+
+            <div className="table-wrap desktop-table">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Card</th>
+                    <th>Owned</th>
+                    <th>Still</th>
+                    <th>Need</th>
+                    <th>Market</th>
+                    <th>Remaining</th>
+                    <th>Used in</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.card_id} className={item.still_need > 0 ? "need" : "done"}>
+                      <td className="card-cell">
+                        <CardThumb src={item.image_url || undefined} alt={item.name} />
+                        <div>
+                          <div className="card-id">{item.card_id}</div>
+                          <div>{item.name}</div>
+                          {item.tcgplayer_url && (
+                            <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                              TCGPlayer
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td>{item.owned}</td>
+                      <td>{item.still_need}</td>
+                      <td>{item.need}</td>
+                      <td>{money(item.market_price)}</td>
+                      <td>{money(item.remaining_cost)}</td>
+                      <td className="used-in">{item.used_in.join(", ")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-card-list">
+              {items.map((item) => (
+                <article
+                  key={item.card_id}
+                  className={`mobile-card ${item.still_need > 0 ? "need" : "done"}`}
+                >
+                  <div className="mobile-card-top">
+                    <MobileCardMedia
+                      src={item.image_url || undefined}
+                      alt={item.name}
+                      cost={item.cost}
+                      rarity={item.rarity}
+                    />
+                    <div className="mobile-card-info">
+                      <div className="card-id">{item.card_id}</div>
+                      <div className="mobile-card-name">{item.name}</div>
+                      <div className="mobile-card-meta">
+                        {[
+                          `Owned ${item.owned}`,
+                          `Still ${item.still_need}`,
+                          `Need ${item.need}`,
+                          money(item.market_price),
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                        {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                      </div>
+                      {item.tcgplayer_url && (
+                        <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                          TCGPlayer
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  {item.used_in.length > 0 && (
+                    <p className="used-in mobile-used-in">{item.used_in.join(", ")}</p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/share/:token" element={<PublicSharePage />} />
       <Route
         path="/"
         element={

@@ -287,6 +287,75 @@ button.ghost.danger {
   margin: 0.2rem 0;
 }
 
+.page-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.share-banner {
+  margin: -0.35rem 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 253, 248, 0.95);
+  font-size: 0.92rem;
+}
+
+.buy-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e0b84d;
+  border-radius: 14px;
+  background: #fff7d6;
+}
+
+.buy-bar strong {
+  font-weight: 700;
+}
+
+.select-col {
+  width: 2.25rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.select-col input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #c49a1a;
+  cursor: pointer;
+}
+
+tr.selected-row td,
+.mobile-card.selected-row {
+  outline: 2px solid rgba(196, 154, 26, 0.45);
+  outline-offset: -2px;
+}
+
+.mobile-select {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 0.35rem;
+}
+
+.mobile-select input {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: #c49a1a;
+}
+
+.public-app .topbar {
+  margin-bottom: 0;
+}
+
 .deck-progress {
   margin: -0.25rem 0 1rem;
   padding: 0.85rem 1rem;
@@ -1050,9 +1119,21 @@ tr.done {
     min-height: 2.75rem;
   }
 
-  .page-head .btn {
+  .page-head .btn,
+  .page-head-actions {
     width: 100%;
+  }
+
+  .page-head-actions .btn,
+  .page-head-actions .ghost {
+    flex: 1;
     text-align: center;
+    min-height: 2.75rem;
+  }
+
+  .buy-bar {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .desktop-table {

@@ -110,3 +110,23 @@ class CatalogStatus(BaseModel):
     card_count: int
     last_synced_at: str | None
     notes: str = ""
+
+
+class ShareCreate(BaseModel):
+    kind: str = Field(default="shopping", pattern="^(shopping|deck)$")
+    deck_id: int | None = None
+    deck_ids: list[int] | None = None
+
+
+class ShareInfo(BaseModel):
+    token: str
+    kind: str
+    deck_id: int | None = None
+    deck_ids: list[int] | None = None
+    path: str
+
+
+class PublicShoppingResponse(ShoppingResponse):
+    owner_name: str = ""
+    kind: str = "shopping"
+    deck_name: str | None = None

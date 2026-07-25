@@ -110,6 +110,20 @@ export type ShoppingResponse = {
   unique_cards: number;
 };
 
+export type ShareInfo = {
+  token: string;
+  kind: string;
+  deck_id: number | null;
+  deck_ids: number[] | null;
+  path: string;
+};
+
+export type PublicShoppingResponse = ShoppingResponse & {
+  owner_name: string;
+  kind: string;
+  deck_name: string | null;
+};
+
 export const api = {
   apiUrl: API_URL,
   me: () => request<User | null>("/auth/me"),
@@ -138,6 +152,16 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ qty }),
     }),
+  getShoppingShare: () => request<ShareInfo | null>("/share/shopping"),
+  createShare: (body: { kind?: string; deck_id?: number; deck_ids?: number[] }) =>
+    request<ShareInfo>("/share", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  revokeShare: (token: string) =>
+    request<{ ok: boolean }>(`/share/${encodeURIComponent(token)}`, { method: "DELETE" }),
+  publicShare: (token: string) =>
+    request<PublicShoppingResponse>(`/public/share/${encodeURIComponent(token)}`),
 };
 
 export function money(n: number | null | undefined): string {
