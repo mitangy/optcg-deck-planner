@@ -108,6 +108,8 @@ export const api = {
   apiUrl: API_URL,
   me: () => request<User | null>("/auth/me"),
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
+  claim: (ticket: string) =>
+    request<User>("/auth/claim", { method: "POST", body: JSON.stringify({ ticket }) }),
   devLogin: () => request<User>("/auth/dev-login", { method: "POST" }),
   googleLoginUrl: () => `${API_URL}/auth/google`,
   decks: () => request<DeckSummary[]>("/decks"),

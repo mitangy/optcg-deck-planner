@@ -89,6 +89,83 @@ h2,
   font-size: 0.92rem;
 }
 
+.user-name {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-cell {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  min-width: 12rem;
+}
+
+.data-table {
+  min-width: 720px;
+}
+
+.mobile-card-list {
+  display: none;
+}
+
+.owned {
+  width: 2.75rem;
+  padding: 0.45rem 0.2rem;
+  border-radius: 8px;
+  border: 1px solid #e0b84d;
+  background: #fff7d6;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.owned::-webkit-outer-spin-button,
+.owned::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.owned-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.owned-btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  flex-shrink: 0;
+}
+
+.owned-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.owned-btn:not(:disabled):active {
+  background: var(--bg-deep);
+}
+
+.owned-err {
+  color: var(--danger);
+  font-weight: 700;
+}
+
 .login {
   min-height: 100vh;
   display: grid;
@@ -195,6 +272,15 @@ button.ghost.danger {
   color: var(--muted);
 }
 
+.filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
 .table-wrap {
   overflow: auto;
   background: var(--card);
@@ -206,7 +292,6 @@ button.ghost.danger {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 860px;
 }
 
 th,
@@ -367,26 +452,6 @@ tr.done {
   font-size: 0.92rem;
 }
 
-.owned {
-  width: 4.5rem;
-  padding: 0.35rem 0.45rem;
-  border-radius: 8px;
-  border: 1px solid #e0b84d;
-  background: #fff7d6;
-  font: inherit;
-}
-
-.owned-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.owned-err {
-  color: var(--danger);
-  font-weight: 700;
-}
-
 .deck-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -437,6 +502,7 @@ tr.done {
 .import-form input,
 .import-form textarea {
   font: inherit;
+  font-size: 1rem;
   padding: 0.7rem 0.8rem;
   border-radius: 12px;
   border: 1px solid var(--line);
@@ -518,13 +584,163 @@ tr.done {
 }
 
 @media (max-width: 800px) {
+  .app {
+    padding: 0.75rem 0.75rem 5rem;
+  }
+
   .topbar {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.65rem;
+    padding: 0.75rem;
+    position: sticky;
+    top: 0.5rem;
+    z-index: 20;
+  }
+
+  .topbar nav {
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .topbar nav a {
+    flex: 1;
+    text-align: center;
+    padding: 0.45rem 0.25rem;
+    border-radius: 999px;
+    background: var(--bg-deep);
+    font-size: 0.88rem;
+  }
+
+  .user {
+    justify-content: space-between;
   }
 
   .page-head {
     flex-direction: column;
     align-items: start;
+  }
+
+  .filters {
+    width: 100%;
+    gap: 0.35rem 1rem;
+  }
+
+  .filters label {
+    font-size: 0.9rem;
+    min-height: 2.75rem;
+  }
+
+  .page-head .btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .desktop-table {
+    display: none;
+  }
+
+  .owned-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .deck-card .row-actions {
+    gap: 0.75rem;
+  }
+
+  .deck-card .row-actions a,
+  .deck-card .row-actions button {
+    min-height: 2.5rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .mobile-card-list {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .mobile-card {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 0.85rem;
+    box-shadow: var(--shadow);
+  }
+
+  .mobile-card.need {
+    background: var(--need);
+  }
+
+  .mobile-card.done {
+    background: var(--done);
+  }
+
+  .mobile-card-top {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .mobile-card .thumb {
+    width: 64px;
+    height: 64px;
+  }
+
+  .mobile-card-info {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .mobile-card-name {
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .mobile-card-meta {
+    margin-top: 0.25rem;
+    color: var(--muted);
+    font-size: 0.86rem;
+  }
+
+  .mobile-card-owned {
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-weight: 600;
+  }
+
+  .mobile-card-alts {
+    margin-top: 0.65rem;
+  }
+
+  .mobile-used-in {
+    margin: 0.5rem 0 0;
+  }
+
+  .btn.primary,
+  .btn.secondary {
+    min-height: 2.75rem;
+  }
+
+  .import-form {
+    padding: 1rem;
+  }
+
+  .import-modes {
+    width: 100%;
+  }
+
+  .import-modes .mode {
+    flex: 1;
+    text-align: center;
+  }
+
+  .lightbox-close {
+    top: max(1rem, env(safe-area-inset-top));
+    right: max(1rem, env(safe-area-inset-right));
+    min-height: 2.75rem;
+    min-width: 4.5rem;
   }
 }

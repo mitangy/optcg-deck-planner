@@ -14,10 +14,16 @@ from app.models import User
 
 SESSION_COOKIE = "optcg_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
+LOGIN_TICKET_MAX_AGE_SECONDS = 120
+OAUTH_STATE_MAX_AGE_SECONDS = 600
 
 
 def _serializer(settings: Settings) -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(settings.session_secret, salt="optcg-auth")
+
+
+def _oauth_serializer(settings: Settings) -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(settings.session_secret, salt="optcg-oauth")
 
 
 def create_session_token(user_id: int, settings: Settings | None = None) -> str:
@@ -30,6 +36,37 @@ def read_session_token(token: str, settings: Settings | None = None) -> int | No
     try:
         data = _serializer(settings).loads(token, max_age=SESSION_MAX_AGE_SECONDS)
     except (BadSignature, SignatureExpired):
+        return None
+    uid = data.get("uid")
+    return int(uid) if uid is not None else None
+
+
+def create_oauth_state(settings: Settings | None = None) -> str:
+    settings = settings or get_settings()
+    return _oauth_serializer(settings).dumps({"v": 1})
+
+
+def verify_oauth_state(state: str, settings: Settings | None = None) -> bool:
+    settings = settings or get_settings()
+    try:
+        _oauth_serializer(settings).loads(state, max_age=OAUTH_STATE_MAX_AGE_SECONDS)
+        return True
+    except (BadSignature, SignatureExpired):
+        return False
+
+
+def create_login_ticket(user_id: int, settings: Settings | None = None) -> str:
+    settings = settings or get_settings()
+    return _serializer(settings).dumps({"uid": user_id, "purpose": "login"})
+
+
+def read_login_ticket(ticket: str, settings: Settings | None = None) -> int | None:
+    settings = settings or get_settings()
+    try:
+        data = _serializer(settings).loads(ticket, max_age=LOGIN_TICKET_MAX_AGE_SECONDS)
+    except (BadSignature, SignatureExpired):
+        return None
+    if data.get("purpose") != "login":
         return None
     uid = data.get("uid")
     return int(uid) if uid is not None else None
