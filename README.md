@@ -36,35 +36,38 @@ npm run dev
 
 Open http://localhost:5173 — use **Dev login** if Google OAuth is not configured.
 
+## Live URLs
+
+| Piece | URL |
+|-------|-----|
+| Frontend | https://optcg-deck-planner.vercel.app |
+| API | https://optcg-api-nutb.onrender.com |
+
 ## Deploy
 
-### 1. Neon
-Create a free Postgres project and copy the connection string.
+### Current prod (already wired)
+- **Vercel** project `miko21/optcg-deck-planner` (root: `frontend`, env `VITE_API_URL`)
+- **Render** service `optcg-api` (`srv-d9i5jin41pts73an781g`, root: `backend`)
+- **Neon** project `optcg-deck-planner` (Postgres connection string in Render `DATABASE_URL`)
 
-### 2. Google OAuth
+### Still required for Google login
 In Google Cloud Console create an OAuth client (Web):
-- Authorized redirect URI: `https://YOUR-API.onrender.com/auth/callback`
-- Authorized JS origins: your Vercel URL + `http://localhost:5173`
+- Authorized redirect URI: `https://optcg-api-nutb.onrender.com/auth/callback`
+- Authorized JS origins: `https://optcg-deck-planner.vercel.app` + `http://localhost:5173`
+- Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` on the Render service
 
-### 3. Render
-- New Web Service from this repo, root `backend`
-- Or use [`render.yaml`](render.yaml)
-- Set env vars (see `.env.example`): `DATABASE_URL`, `SESSION_SECRET`, `FRONTEND_ORIGIN`, `BACKEND_PUBLIC_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ALLOWED_EMAILS`, `ALLOW_ANY_GOOGLE_USER=false`, `CATALOG_SYNC_TOKEN`
-- After first deploy, sync catalog:
-  ```bash
-  curl -X POST https://YOUR-API.onrender.com/admin/sync-catalog -H "X-Catalog-Token: YOUR_TOKEN"
-  ```
-  (Takes ~1 minute.)
+Until those are set, the API is up but Google login returns 503. Local **Dev login** still works.
 
-### 4. Vercel
-- Import repo, root `frontend`
-- Env: `VITE_API_URL=https://YOUR-API.onrender.com`
-- Deploy
+### After deploy / DB reset
+Sync catalog (~1 min):
+```bash
+curl -X POST https://optcg-api-nutb.onrender.com/admin/sync-catalog -H "X-Catalog-Token: YOUR_TOKEN"
+```
 
-### 5. Daily catalog sync
-Use the included GitHub Action (`.github/workflows/catalog-sync.yml`) with secrets:
-- `API_URL`
-- `CATALOG_SYNC_TOKEN`
+### Daily catalog sync
+GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
+- `API_URL=https://optcg-api-nutb.onrender.com`
+- `CATALOG_SYNC_TOKEN` (same value as Render)
 
 ## API overview
 - `GET /auth/google`, `GET /auth/callback`, `POST /auth/logout`, `GET /auth/me`

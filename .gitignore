@@ -1,4 +1,6 @@
 .env
+.vercel/
+.neon
 .venv/
 __pycache__/
 *.py[cod]
