@@ -12,13 +12,14 @@ const FILTERS_OPEN_KEY = "optcg_filters_open";
 const COLOR_ORDER = ["Red", "Green", "Blue", "Purple", "Black", "Yellow"];
 const SET_PREFIX_ORDER = ["OP", "ST", "EB", "PRB", "P"];
 
-type SortKey = "still_need" | "color" | "set" | "deck";
+type SortKey = "still_need" | "color" | "set" | "deck" | "price";
 
-const ALL_SORT_KEYS: SortKey[] = ["deck", "still_need", "color", "set"];
+const ALL_SORT_KEYS: SortKey[] = ["deck", "still_need", "price", "color", "set"];
 const DEFAULT_SORTS: SortKey[] = ["color", "set"];
 const SORT_LABELS: Record<SortKey, string> = {
   deck: "Deck",
   still_need: "Still need",
+  price: "Price",
   color: "Color",
   set: "Set",
 };
@@ -28,6 +29,7 @@ type SortableCard = {
   color: string;
   still_need: number;
   deck_sort_key?: string;
+  market_price?: number | null;
 };
 
 function colorSortKey(color: string): string {
@@ -61,6 +63,14 @@ function compareBySortKey(a: SortableCard, b: SortableCard, key: SortKey): numbe
   if (key === "color") return colorSortKey(a.color).localeCompare(colorSortKey(b.color));
   if (key === "deck") {
     return (a.deck_sort_key || "zzzz").localeCompare(b.deck_sort_key || "zzzz");
+  }
+  if (key === "price") {
+    const ap = a.market_price;
+    const bp = b.market_price;
+    if (ap == null && bp == null) return 0;
+    if (ap == null) return 1;
+    if (bp == null) return -1;
+    return bp - ap;
   }
   return setSortKey(a.card_id).localeCompare(setSortKey(b.card_id));
 }
@@ -200,8 +210,8 @@ function SortMenu({
       {open && (
         <div className="sort-menu-panel" role="menu">
           <p className="sort-menu-hint">
-            Top option sorts first. Deck groups by leader (earliest deck first); cards used by multiple
-            leaders stay under their earliest leader.
+            Top option sorts first. Price is highest market price first. Deck groups by leader
+            (earliest deck first); cards used by multiple leaders stay under their earliest leader.
           </p>
           <ul className="sort-menu-list">
             {menuKeys.map((key) => {
