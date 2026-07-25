@@ -862,7 +862,14 @@ function DecksPage() {
                       loading="lazy"
                     />
                   ) : (
-                    <div className="thumb placeholder deck-card-leader-thumb" />
+                    <div
+                      className="thumb placeholder deck-card-leader-thumb"
+                      aria-label={d.leader_card_id || "Leader"}
+                    >
+                      <span className="deck-card-leader-fallback">
+                        {d.leader_card_id || "?"}
+                      </span>
+                    </div>
                   )}
                 </div>
               ) : null}
