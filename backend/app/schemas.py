@@ -25,6 +25,8 @@ class DeckSummary(BaseModel):
     id: int
     name: str
     leader_card_id: str | None
+    leader_name: str | None = None
+    leader_image_url: str = ""
     card_count: int
     total_cards: int
     sort_order: int
