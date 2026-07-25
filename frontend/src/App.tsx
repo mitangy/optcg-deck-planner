@@ -17,6 +17,7 @@ const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
 const CARD_SORTS_KEY = "optcg_card_sorts";
 const FILTERS_OPEN_KEY = "optcg_filters_open";
+const SHARE_OPEN_KEY = "optcg_share_open";
 const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
 const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
 const CARD_LAYOUT_KEY = "optcg_card_layout";
@@ -306,22 +307,30 @@ function matchesCardSearch(
   return q.split(/\s+/).every((token) => hay.includes(token));
 }
 
-function useFiltersOpen() {
+function usePersistedOpen(storageKey: string | undefined, defaultOpen: boolean) {
   const [open, setOpen] = useState(() => {
+    if (!storageKey) return defaultOpen;
     try {
-      return localStorage.getItem(FILTERS_OPEN_KEY) === "1";
+      const raw = localStorage.getItem(storageKey);
+      if (raw === null) return defaultOpen;
+      return raw === "1";
     } catch {
-      return false;
+      return defaultOpen;
     }
   });
   useEffect(() => {
+    if (!storageKey) return;
     try {
-      localStorage.setItem(FILTERS_OPEN_KEY, open ? "1" : "0");
+      localStorage.setItem(storageKey, open ? "1" : "0");
     } catch {
       /* ignore */
     }
-  }, [open]);
+  }, [open, storageKey]);
   return [open, setOpen] as const;
+}
+
+function useFiltersOpen() {
+  return usePersistedOpen(FILTERS_OPEN_KEY, false);
 }
 
 function CardSearchInput({ value, onChange }: { value: string; onChange: (next: string) => void }) {
@@ -355,14 +364,20 @@ function CardSearchInput({ value, onChange }: { value: string; onChange: (next: 
   );
 }
 
-function CollapsibleFilters({
+function CollapsibleDrawer({
+  label,
   summary,
+  storageKey,
+  defaultOpen = false,
   children,
 }: {
+  label: string;
   summary?: string;
+  storageKey?: string;
+  defaultOpen?: boolean;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useFiltersOpen();
+  const [open, setOpen] = usePersistedOpen(storageKey, defaultOpen);
   const panelId = useId();
 
   return (
@@ -375,7 +390,7 @@ function CollapsibleFilters({
         onClick={() => setOpen((v) => !v)}
       >
         <span className="filter-drawer-label">
-          Filters
+          {label}
           {summary ? <span className="filter-drawer-summary"> · {summary}</span> : null}
         </span>
         <span className="filter-drawer-chevron" aria-hidden="true">
@@ -388,6 +403,139 @@ function CollapsibleFilters({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function CollapsibleFilters({
+  summary,
+  children,
+}: {
+  summary?: string;
+  children: ReactNode;
+}) {
+  return (
+    <CollapsibleDrawer label="Filters" summary={summary} storageKey={FILTERS_OPEN_KEY}>
+      {children}
+    </CollapsibleDrawer>
+  );
+}
+
+function ShareStatus({
+  message,
+  openUrl,
+}: {
+  message: string | null;
+  openUrl?: string | null;
+}) {
+  if (!message) return null;
+  return (
+    <p className="share-banner" role="status">
+      {message.startsWith("http") ? (
+        <>
+          Public link: <a href={message}>{message}</a>
+        </>
+      ) : (
+        message
+      )}
+      {openUrl && !message.startsWith("http") ? (
+        <>
+          {" "}
+          · <a href={openUrl}>Open</a>
+        </>
+      ) : null}
+    </p>
+  );
+}
+
+function ShoppingSharePanel({
+  shareInfo,
+  shareUrl,
+  shareMsg,
+  creating,
+  revoking,
+  onCopy,
+  onCreateOrUpdate,
+  onRevoke,
+}: {
+  shareInfo: { token: string } | null | undefined;
+  shareUrl: string | null;
+  shareMsg: string | null;
+  creating: boolean;
+  revoking: boolean;
+  onCopy: () => void;
+  onCreateOrUpdate: () => void;
+  onRevoke: () => void;
+}) {
+  const summary = shareInfo ? "On" : "Off";
+  return (
+    <CollapsibleDrawer label="Public link" summary={summary} storageKey={SHARE_OPEN_KEY}>
+      <div className="share-panel">
+        <p className="muted share-panel-note">
+          Anyone with the link can view this shopping list without signing in.
+        </p>
+        <div className="share-panel-actions">
+          {shareInfo ? (
+            <>
+              <button type="button" className="btn secondary" onClick={onCopy}>
+                Copy link
+              </button>
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={creating}
+                onClick={onCreateOrUpdate}
+              >
+                {creating ? "Updating…" : "Update link"}
+              </button>
+              <button
+                type="button"
+                className="ghost danger"
+                disabled={revoking}
+                onClick={onRevoke}
+              >
+                Turn off
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={creating}
+              onClick={onCreateOrUpdate}
+            >
+              {creating ? "Creating…" : "Create public link"}
+            </button>
+          )}
+        </div>
+        <ShareStatus message={shareMsg} openUrl={shareUrl} />
+      </div>
+    </CollapsibleDrawer>
+  );
+}
+
+function DeckSharePanel({
+  shareMsg,
+  sharing,
+  onShare,
+}: {
+  shareMsg: string | null;
+  sharing: boolean;
+  onShare: () => void;
+}) {
+  return (
+    <CollapsibleDrawer label="Public link" summary={shareMsg ? "Ready" : undefined} storageKey={SHARE_OPEN_KEY}>
+      <div className="share-panel">
+        <p className="muted share-panel-note">
+          Anyone with the link can view this deck without signing in.
+        </p>
+        <div className="share-panel-actions">
+          <button type="button" className="btn secondary" disabled={sharing} onClick={onShare}>
+            {sharing ? "Sharing…" : shareMsg ? "Copy public link" : "Create public link"}
+          </button>
+        </div>
+        <ShareStatus message={shareMsg} />
+      </div>
+    </CollapsibleDrawer>
   );
 }
 
@@ -1176,70 +1324,28 @@ function ShoppingPage() {
             {money(data?.remaining_market)}
           </p>
         </div>
-        <div className="page-head-actions">
-          {shareInfo ? (
-            <>
-              <button
-                type="button"
-                className="btn secondary"
-                onClick={async () => {
-                  if (!shareUrl) return;
-                  try {
-                    await navigator.clipboard.writeText(shareUrl);
-                    setShareMsg("Public link copied");
-                  } catch {
-                    setShareMsg(shareUrl);
-                  }
-                }}
-              >
-                Copy public link
-              </button>
-              <button
-                type="button"
-                className="btn secondary"
-                disabled={createShare.isPending}
-                onClick={() => createShare.mutate()}
-              >
-                Update link
-              </button>
-              <button
-                type="button"
-                className="ghost danger"
-                disabled={revokeShare.isPending}
-                onClick={() => revokeShare.mutate(shareInfo.token)}
-              >
-                Turn off
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="btn secondary"
-              disabled={createShare.isPending}
-              onClick={() => createShare.mutate()}
-            >
-              {createShare.isPending ? "Creating…" : "Share public link"}
-            </button>
-          )}
-        </div>
       </div>
-      {shareMsg && (
-        <p className="share-banner" role="status">
-          {shareMsg.startsWith("http") ? (
-            <>
-              Public link: <a href={shareMsg}>{shareMsg}</a>
-            </>
-          ) : (
-            shareMsg
-          )}
-          {shareUrl && !shareMsg.startsWith("http") ? (
-            <>
-              {" "}
-              · <a href={shareUrl}>Open</a>
-            </>
-          ) : null}
-        </p>
-      )}
+
+      <ShoppingSharePanel
+        shareInfo={shareInfo}
+        shareUrl={shareUrl}
+        shareMsg={shareMsg}
+        creating={createShare.isPending}
+        revoking={revokeShare.isPending}
+        onCopy={async () => {
+          if (!shareUrl) return;
+          try {
+            await navigator.clipboard.writeText(shareUrl);
+            setShareMsg("Public link copied");
+          } catch {
+            setShareMsg(shareUrl);
+          }
+        }}
+        onCreateOrUpdate={() => createShare.mutate()}
+        onRevoke={() => {
+          if (shareInfo) revokeShare.mutate(shareInfo.token);
+        }}
+      />
 
       {selectedTotals.count > 0 && (
         <div className="buy-bar" role="status">
@@ -1982,28 +2088,13 @@ function DeckDetailPage() {
               : ""}
           </p>
         </div>
-        <div className="page-head-actions">
-          <button
-            type="button"
-            className="btn secondary"
-            disabled={shareDeck.isPending}
-            onClick={() => shareDeck.mutate()}
-          >
-            {shareDeck.isPending ? "Sharing…" : "Share public link"}
-          </button>
-        </div>
       </div>
-      {shareMsg && (
-        <p className="share-banner" role="status">
-          {shareMsg.startsWith("http") ? (
-            <>
-              Public link: <a href={shareMsg}>{shareMsg}</a>
-            </>
-          ) : (
-            shareMsg
-          )}
-        </p>
-      )}
+
+      <DeckSharePanel
+        shareMsg={shareMsg}
+        sharing={shareDeck.isPending}
+        onShare={() => shareDeck.mutate()}
+      />
 
       <DeckProgressSummary cards={data.cards} />
 
