@@ -53,7 +53,7 @@ Browsing the bare Render host (`/`) returns a small JSON index; use `/health` or
 - **Render** service `optcg-api` (`srv-d9i5jin41pts73an781g`, root `backend`)
 - **Neon** project `optcg-deck-planner` (`DATABASE_URL` on Render)
 
-Vercel and Render deploy **separately**. A merge that only updates the SPA can go live on Vercel while Render is still on an older API. If deck leaders look empty after a frontend change that needs new API fields, open the Render dashboard for `optcg-api` and **Manual Deploy** the latest `main` (confirm `/health` includes `"api_revision": 2` and OpenAPI `DeckSummary` lists `leader_name` / `leader_image_url`).
+Vercel and Render deploy **separately**. A merge that only updates the SPA can go live on Vercel while Render is still on an older API. If deck leaders look empty after a frontend change that needs new API fields, open the Render dashboard for `optcg-api` and **Manual Deploy** the latest `main` (confirm `/health` includes `"api_revision": 3` and OpenAPI `DeckSummary` lists `leader_name` / `leader_image_url`).
 
 Production frontend should use same-origin `/api` (leave `VITE_API_URL` as `/api` or unset in production). Do **not** point `VITE_API_URL` at the raw Render host in production — that breaks session cookies on mobile Safari.
 

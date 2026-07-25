@@ -333,9 +333,22 @@ button.ghost.danger {
 
 .deck-progress-text {
   margin: 0;
-  flex: 1 1 12rem;
+  flex: 1 1 14rem;
+  display: grid;
+  gap: 0.15rem;
+  min-height: 2.6em;
   color: var(--muted);
   font-size: 0.95rem;
+}
+
+.deck-progress-line {
+  display: block;
+  min-height: 1.25em;
+  line-height: 1.25;
+}
+
+.deck-progress-meta {
+  font-size: 0.88rem;
 }
 
 .deck-progress-text strong {

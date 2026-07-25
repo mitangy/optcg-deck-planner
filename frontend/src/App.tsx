@@ -967,6 +967,25 @@ function DecksPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data, isLoading, error } = useQuery({ queryKey: ["decks"], queryFn: api.decks });
+  const needsLeaderArtFallback = useMemo(
+    () => (data ?? []).some((d) => Boolean(d.leader_card_id) && !d.leader_image_url),
+    [data],
+  );
+  // Prod API may lag behind the SPA (Render deploy). Fall back to shopping catalog art.
+  const leaderArtQ = useQuery({
+    queryKey: ["shopping", "leader-art-fallback"],
+    queryFn: () => api.shopping(),
+    enabled: needsLeaderArtFallback,
+    staleTime: 60_000,
+  });
+  const leaderArtById = useMemo(() => {
+    const map = new Map<string, { name: string; image_url: string }>();
+    for (const item of leaderArtQ.data?.items ?? []) {
+      if (!item.image_url && !item.name) continue;
+      map.set(item.card_id, { name: item.name, image_url: item.image_url });
+    }
+    return map;
+  }, [leaderArtQ.data]);
   const del = useMutation({
     mutationFn: api.deleteDeck,
     onSuccess: () => {
@@ -987,68 +1006,73 @@ function DecksPage() {
         </Link>
       </div>
       <div className="deck-grid">
-        {(data ?? []).map((d) => (
-          <article
-            key={d.id}
-            className="deck-card"
-            role="link"
-            tabIndex={0}
-            onClick={() => navigate(`/decks/${d.id}`)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                navigate(`/decks/${d.id}`);
-              }
-            }}
-          >
-            <div className="deck-card-main">
-              {d.leader_image_url || d.leader_card_id ? (
-                <div className="deck-card-leader-art">
-                  {d.leader_image_url ? (
-                    <img
-                      src={d.leader_image_url}
-                      alt={d.leader_name || d.leader_card_id || "Leader"}
-                      className="deck-card-leader-thumb"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div
-                      className="thumb placeholder deck-card-leader-thumb"
-                      aria-label={d.leader_card_id || "Leader"}
-                    >
-                      <span className="deck-card-leader-fallback">
-                        {d.leader_card_id || "?"}
-                      </span>
-                    </div>
-                  )}
+        {(data ?? []).map((d) => {
+          const fallback = d.leader_card_id ? leaderArtById.get(d.leader_card_id) : undefined;
+          const leaderImage = d.leader_image_url || fallback?.image_url || "";
+          const leaderName = d.leader_name || fallback?.name || null;
+          return (
+            <article
+              key={d.id}
+              className="deck-card"
+              role="link"
+              tabIndex={0}
+              onClick={() => navigate(`/decks/${d.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigate(`/decks/${d.id}`);
+                }
+              }}
+            >
+              <div className="deck-card-main">
+                {leaderImage || d.leader_card_id ? (
+                  <div className="deck-card-leader-art">
+                    {leaderImage ? (
+                      <img
+                        src={leaderImage}
+                        alt={leaderName || d.leader_card_id || "Leader"}
+                        className="deck-card-leader-thumb"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div
+                        className="thumb placeholder deck-card-leader-thumb"
+                        aria-label={d.leader_card_id || "Leader"}
+                      >
+                        <span className="deck-card-leader-fallback">
+                          {d.leader_card_id || "?"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+                <div className="deck-card-body">
+                  <h2>{d.name}</h2>
+                  <p className="deck-card-leader">
+                    {d.leader_card_id
+                      ? `${leaderName || "Leader"} · ${d.leader_card_id}`
+                      : "No leader detected"}
+                  </p>
+                  <p className="muted">
+                    {d.card_count} unique · {d.total_cards} cards
+                  </p>
                 </div>
-              ) : null}
-              <div className="deck-card-body">
-                <h2>{d.name}</h2>
-                <p className="deck-card-leader">
-                  {d.leader_card_id
-                    ? `${d.leader_name || "Leader"} · ${d.leader_card_id}`
-                    : "No leader detected"}
-                </p>
-                <p className="muted">
-                  {d.card_count} unique · {d.total_cards} cards
-                </p>
               </div>
-            </div>
-            <div className="row-actions">
-              <button
-                type="button"
-                className="ghost danger"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  del.mutate(d.id);
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          </article>
-        ))}
+              <div className="row-actions">
+                <button
+                  type="button"
+                  className="ghost danger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    del.mutate(d.id);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
@@ -1115,6 +1139,12 @@ function DeckProgressSummary({ cards }: { cards: CardView[] }) {
   const total = mode === "copies" ? stats.copiesNeeded : stats.uniqueTotal;
   const still = mode === "copies" ? stats.copiesStill : stats.uniqueStill;
   const pct = total > 0 ? Math.round((owned / total) * 100) : 100;
+  const meta =
+    stats.copiesStill > 0
+      ? mode === "uniques"
+        ? `${stats.copiesStill} copies left · ${money(stats.remainingMarket)} left`
+        : `${money(stats.remainingMarket)} left`
+      : "Deck complete";
 
   return (
     <div className="deck-progress">
@@ -1138,25 +1168,14 @@ function DeckProgressSummary({ cards }: { cards: CardView[] }) {
           </button>
         </div>
         <p className="deck-progress-text">
-          {mode === "copies" ? (
-            <>
-              <strong>
-                {owned}/{total}
-              </strong>{" "}
-              copies owned · <strong>{still}</strong> still needed
-              {stats.copiesStill > 0 ? ` · ${money(stats.remainingMarket)} left` : ""}
-            </>
-          ) : (
-            <>
-              <strong>
-                {owned}/{total}
-              </strong>{" "}
-              uniques complete · <strong>{still}</strong> still needed
-              {stats.copiesStill > 0
-                ? ` · ${stats.copiesStill} copies · ${money(stats.remainingMarket)} left`
-                : ""}
-            </>
-          )}
+          <span className="deck-progress-line">
+            <strong>
+              {owned}/{total}
+            </strong>{" "}
+            {mode === "copies" ? "copies owned" : "uniques complete"} · <strong>{still}</strong> still
+            needed
+          </span>
+          <span className="deck-progress-line deck-progress-meta">{meta}</span>
         </p>
       </div>
       <div
