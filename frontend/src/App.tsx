@@ -2,9 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
-import { api, CardView, money, ShoppingItem, User } from "./api";
+import { api, CardView, money, PrintingView, ShoppingItem, User } from "./api";
 
 const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
+const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
 
 function useMe() {
   return useQuery({ queryKey: ["me"], queryFn: api.me });
@@ -175,6 +176,49 @@ function OwnedInput({
   );
 }
 
+function useShowAltArts() {
+  const [showAltArts, setShowAltArts] = useState(() => {
+    try {
+      return localStorage.getItem(SHOW_ALT_ARTS_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(SHOW_ALT_ARTS_KEY, showAltArts ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [showAltArts]);
+  return [showAltArts, setShowAltArts] as const;
+}
+
+function AltArtsRow({ alts }: { alts: PrintingView[] }) {
+  if (!alts.length) return <span className="muted">—</span>;
+  return (
+    <div className="alt-arts">
+      {alts.map((alt) => (
+        <div key={alt.product_id} className="alt-art">
+          <CardThumb src={alt.image_url || undefined} alt={alt.name} />
+          <div className="alt-meta">
+            <div className="alt-price">{money(alt.market_price)}</div>
+            {alt.tcgplayer_url ? (
+              <a href={alt.tcgplayer_url} target="_blank" rel="noreferrer" title={alt.name}>
+                Alt
+              </a>
+            ) : (
+              <span className="muted" title={alt.name}>
+                Alt
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function loadShoppingDeckFilter(allIds: number[]): number[] | null {
   try {
     const raw = localStorage.getItem(SHOPPING_DECKS_KEY);
@@ -222,6 +266,7 @@ function ShoppingPage() {
   });
   const [onlyNeed, setOnlyNeed] = useState(true);
   const [sortStillNeed, setSortStillNeed] = useState(true);
+  const [showAltArts, setShowAltArts] = useShowAltArts();
 
   const items = useMemo(() => {
     let list = data?.items ?? [];
@@ -287,6 +332,14 @@ function ShoppingPage() {
             />
             Sort by still need
           </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={showAltArts}
+              onChange={(e) => setShowAltArts(e.target.checked)}
+            />
+            Show alt arts
+          </label>
         </div>
       </div>
 
@@ -323,6 +376,7 @@ function ShoppingPage() {
               <th>Still</th>
               <th>Market</th>
               <th>Remaining</th>
+              {showAltArts && <th>Alt arts</th>}
               <th>Used in</th>
             </tr>
           </thead>
@@ -353,6 +407,11 @@ function ShoppingPage() {
                 <td>{item.still_need}</td>
                 <td>{money(item.market_price)}</td>
                 <td>{money(item.remaining_cost)}</td>
+                {showAltArts && (
+                  <td>
+                    <AltArtsRow alts={item.alt_arts ?? []} />
+                  </td>
+                )}
                 <td className="used-in">{item.used_in.join(", ")}</td>
               </tr>
             ))}
@@ -420,9 +479,11 @@ function filterCards(cards: CardView[], onlyNeed: boolean, sortStillNeed: boolea
 function CardTable({
   cards,
   onOwnedSaved,
+  showAltArts,
 }: {
   cards: CardView[];
   onOwnedSaved: () => void;
+  showAltArts: boolean;
 }) {
   return (
     <div className="table-wrap">
@@ -437,6 +498,7 @@ function CardTable({
             <th>Owned</th>
             <th>Still</th>
             <th>Market</th>
+            {showAltArts && <th>Alt arts</th>}
           </tr>
         </thead>
         <tbody>
@@ -462,6 +524,11 @@ function CardTable({
               </td>
               <td>{c.still_need}</td>
               <td>{money(c.market_price)}</td>
+              {showAltArts && (
+                <td>
+                  <AltArtsRow alts={c.alt_arts ?? []} />
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -481,6 +548,7 @@ function DeckDetailPage() {
   });
   const [onlyNeed, setOnlyNeed] = useState(true);
   const [sortStillNeed, setSortStillNeed] = useState(true);
+  const [showAltArts, setShowAltArts] = useShowAltArts();
 
   const main = useMemo(() => {
     if (!data) return [];
@@ -536,6 +604,14 @@ function DeckDetailPage() {
             />
             Sort by still need
           </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={showAltArts}
+              onChange={(e) => setShowAltArts(e.target.checked)}
+            />
+            Show alt arts
+          </label>
         </div>
       </div>
       {data.prior_decks.length > 0 && (
@@ -545,13 +621,13 @@ function DeckDetailPage() {
         </p>
       )}
       <h2>Deck list</h2>
-      <CardTable cards={main} onOwnedSaved={refresh} />
+      <CardTable cards={main} onOwnedSaved={refresh} showAltArts={showAltArts} />
       {additional.length > 0 && (
         <>
           <h2 className="additional-heading">
             Additional Cards — not in {data.prior_decks.join(", ")}
           </h2>
-          <CardTable cards={additional} onOwnedSaved={refresh} />
+          <CardTable cards={additional} onOwnedSaved={refresh} showAltArts={showAltArts} />
         </>
       )}
     </section>

@@ -96,6 +96,27 @@ class CatalogCard(Base):
     )
 
 
+class CatalogPrinting(Base):
+    """All TCGPlayer products for a card number (standard + alt arts)."""
+
+    __tablename__ = "catalog_printings"
+    __table_args__ = (UniqueConstraint("card_id", "product_id", name="uq_card_product"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    product_id: Mapped[int] = mapped_column(Integer, index=True)
+    name: Mapped[str] = mapped_column(String(255), default="")
+    market_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    low_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    image_url: Mapped[str] = mapped_column(Text, default="")
+    tcgplayer_url: Mapped[str] = mapped_column(Text, default="")
+    group_name: Mapped[str] = mapped_column(String(255), default="")
+    is_special: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class CatalogMeta(Base):
     __tablename__ = "catalog_meta"
 

@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import time
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.domain import is_special_printing
-from app.models import CatalogCard, CatalogMeta
+from app.models import CatalogCard, CatalogMeta, CatalogPrinting
 
 CATEGORY_ID = 68
 USER_AGENT = "OPTCGWebTracker/1.0"
@@ -51,9 +52,17 @@ def _pick_price(price_rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     return sorted(pool, key=key)[0]
 
 
+def _printing_sort_key(entry: dict[str, Any]) -> tuple:
+    """Prefer standard (non-special) then cheapest market."""
+    return (
+        entry["is_special"],
+        entry["market_price"] if entry["market_price"] is not None else 1e9,
+    )
+
+
 def sync_catalog(db: Session) -> dict[str, Any]:
-    """Full TCGCSV pull; keeps the cheapest non-special-preferring row per card_id."""
-    best: dict[str, dict[str, Any]] = {}
+    """Full TCGCSV pull; stores all printings and a preferred CatalogCard per number."""
+    by_card: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
     with httpx.Client() as client:
         groups = _get_json(client, f"{TCGCSV_BASE}/groups")["results"]
@@ -83,6 +92,7 @@ def sync_catalog(db: Session) -> dict[str, Any]:
                 name = product.get("name") or number
                 entry = {
                     "card_id": number,
+                    "product_id": int(product["productId"]),
                     "name": name,
                     "rarity": ed.get("Rarity") or "",
                     "color": ed.get("Color") or "",
@@ -94,43 +104,73 @@ def sync_catalog(db: Session) -> dict[str, Any]:
                     "tcgplayer_url": product.get("url") or "",
                     "group_name": group_name,
                     "is_special": 1 if is_special_printing(name) else 0,
-                    "product_id": product["productId"],
                 }
-                prev = best.get(number)
-                if prev is None:
-                    best[number] = entry
-                    continue
-                # Prefer standard printing, then cheapest market
-                prev_key = (
-                    prev["is_special"],
-                    prev["market_price"] if prev["market_price"] is not None else 1e9,
-                )
-                new_key = (
-                    entry["is_special"],
-                    entry["market_price"] if entry["market_price"] is not None else 1e9,
-                )
-                if new_key < prev_key:
-                    best[number] = entry
+                by_card[number].append(entry)
 
     now = datetime.now(timezone.utc)
-    for card_id, entry in best.items():
+    db.execute(delete(CatalogPrinting))
+
+    printing_count = 0
+    for card_id, entries in by_card.items():
+        # Dedupe by product_id (same product shouldn't appear twice)
+        unique: dict[int, dict[str, Any]] = {}
+        for entry in entries:
+            unique[entry["product_id"]] = entry
+        entries = list(unique.values())
+        printing_count += len(entries)
+
+        best = sorted(entries, key=_printing_sort_key)[0]
         row = db.get(CatalogCard, card_id)
-        payload = {k: v for k, v in entry.items() if k != "product_id"}
-        payload["updated_at"] = now
+        payload = {
+            "card_id": card_id,
+            "name": best["name"],
+            "rarity": best["rarity"],
+            "color": best["color"],
+            "card_type": best["card_type"],
+            "cost": best["cost"],
+            "market_price": best["market_price"],
+            "low_price": best["low_price"],
+            "image_url": best["image_url"],
+            "tcgplayer_url": best["tcgplayer_url"],
+            "group_name": best["group_name"],
+            "is_special": best["is_special"],
+            "updated_at": now,
+        }
         if row is None:
             db.add(CatalogCard(**payload))
         else:
             for key, value in payload.items():
                 setattr(row, key, value)
 
+        for entry in entries:
+            db.add(
+                CatalogPrinting(
+                    card_id=card_id,
+                    product_id=entry["product_id"],
+                    name=entry["name"],
+                    market_price=entry["market_price"],
+                    low_price=entry["low_price"],
+                    image_url=entry["image_url"],
+                    tcgplayer_url=entry["tcgplayer_url"],
+                    group_name=entry["group_name"],
+                    is_special=entry["is_special"],
+                    updated_at=now,
+                )
+            )
+
     meta = db.scalar(select(CatalogMeta).limit(1))
+    notes = f"TCGCSV sync ({printing_count} printings)"
     if meta is None:
-        meta = CatalogMeta(card_count=len(best), last_synced_at=now, notes="TCGCSV sync")
+        meta = CatalogMeta(card_count=len(by_card), last_synced_at=now, notes=notes)
         db.add(meta)
     else:
-        meta.card_count = len(best)
+        meta.card_count = len(by_card)
         meta.last_synced_at = now
-        meta.notes = "TCGCSV sync"
+        meta.notes = notes
 
     db.commit()
-    return {"card_count": len(best), "synced_at": now.isoformat()}
+    return {
+        "card_count": len(by_card),
+        "printing_count": printing_count,
+        "synced_at": now.isoformat(),
+    }

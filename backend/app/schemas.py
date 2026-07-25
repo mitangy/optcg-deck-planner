@@ -30,6 +30,17 @@ class DeckSummary(BaseModel):
     sort_order: int
 
 
+class PrintingView(BaseModel):
+    product_id: int
+    name: str
+    market_price: float | None = None
+    low_price: float | None = None
+    image_url: str = ""
+    tcgplayer_url: str = ""
+    group_name: str = ""
+    is_special: bool = True
+
+
 class CardView(BaseModel):
     card_id: str
     name: str
@@ -45,6 +56,7 @@ class CardView(BaseModel):
     image_url: str = ""
     tcgplayer_url: str = ""
     section: str = "main"  # main | additional
+    alt_arts: list[PrintingView] = []
 
 
 class DeckDetail(BaseModel):
@@ -72,6 +84,7 @@ class ShoppingItem(BaseModel):
     image_url: str = ""
     tcgplayer_url: str = ""
     used_in: list[str]
+    alt_arts: list[PrintingView] = []
 
 
 class ShoppingResponse(BaseModel):

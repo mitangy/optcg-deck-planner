@@ -40,6 +40,17 @@ export type DeckSummary = {
   sort_order: number;
 };
 
+export type PrintingView = {
+  product_id: number;
+  name: string;
+  market_price: number | null;
+  low_price: number | null;
+  image_url: string;
+  tcgplayer_url: string;
+  group_name: string;
+  is_special: boolean;
+};
+
 export type CardView = {
   card_id: string;
   name: string;
@@ -55,6 +66,7 @@ export type CardView = {
   image_url: string;
   tcgplayer_url: string;
   section: "main" | "additional" | string;
+  alt_arts: PrintingView[];
 };
 
 export type DeckDetail = {
@@ -82,6 +94,7 @@ export type ShoppingItem = {
   image_url: string;
   tcgplayer_url: string;
   used_in: string[];
+  alt_arts: PrintingView[];
 };
 
 export type ShoppingResponse = {

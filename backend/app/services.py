@@ -8,8 +8,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.domain import find_leader_id, parse_cost, parse_decklist
-from app.models import CatalogCard, Deck, DeckCard, Owned, User
-from app.schemas import CardView, DeckDetail, DeckSummary, ShoppingItem, ShoppingResponse
+from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, User
+from app.schemas import (
+    CardView,
+    DeckDetail,
+    DeckSummary,
+    PrintingView,
+    ShoppingItem,
+    ShoppingResponse,
+)
 
 
 def _catalog_map(db: Session, card_ids: set[str]) -> dict[str, CatalogCard]:
@@ -17,6 +24,41 @@ def _catalog_map(db: Session, card_ids: set[str]) -> dict[str, CatalogCard]:
         return {}
     rows = db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_(card_ids))).all()
     return {r.card_id: r for r in rows}
+
+
+def _alt_arts_map(db: Session, card_ids: set[str]) -> dict[str, list[PrintingView]]:
+    """Special/alt printings for each card number (excludes the primary catalog row art)."""
+    if not card_ids:
+        return {}
+    rows = db.scalars(
+        select(CatalogPrinting).where(
+            CatalogPrinting.card_id.in_(card_ids),
+            CatalogPrinting.is_special == 1,
+        )
+    ).all()
+    out: dict[str, list[PrintingView]] = defaultdict(list)
+    for row in rows:
+        out[row.card_id].append(
+            PrintingView(
+                product_id=row.product_id,
+                name=row.name,
+                market_price=row.market_price,
+                low_price=row.low_price,
+                image_url=row.image_url,
+                tcgplayer_url=row.tcgplayer_url,
+                group_name=row.group_name,
+                is_special=True,
+            )
+        )
+    for card_id in out:
+        out[card_id].sort(
+            key=lambda p: (
+                p.market_price is None,
+                p.market_price if p.market_price is not None else 1e9,
+                p.product_id,
+            )
+        )
+    return out
 
 
 def _owned_map(db: Session, user_id: int) -> dict[str, int]:
@@ -30,6 +72,7 @@ def _card_view(
     owned: int,
     cat: CatalogCard | None,
     section: str,
+    alt_arts: list[PrintingView] | None = None,
 ) -> CardView:
     cost = parse_cost(cat.cost) if cat else None
     return CardView(
@@ -47,6 +90,7 @@ def _card_view(
         image_url=cat.image_url if cat else "",
         tcgplayer_url=cat.tcgplayer_url if cat else "",
         section=section,
+        alt_arts=alt_arts or [],
     )
 
 
@@ -142,6 +186,7 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
     owned = _owned_map(db, user.id)
     all_ids = {c.card_id for d in decks for c in d.cards}
     catalog = _catalog_map(db, all_ids)
+    alts = _alt_arts_map(db, all_ids)
 
     prior_ids: set[str] = set()
     prior_names: list[str] = []
@@ -166,6 +211,7 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
                 owned.get(card.card_id, 0),
                 catalog.get(card.card_id),
                 section,
+                alts.get(card.card_id, []),
             )
         )
 
@@ -207,6 +253,7 @@ def shopping_list(
 
     owned = _owned_map(db, user.id)
     catalog = _catalog_map(db, set(need))
+    alts = _alt_arts_map(db, set(need))
     items: list[ShoppingItem] = []
     cards_still = 0
     remaining = 0.0
@@ -237,6 +284,7 @@ def shopping_list(
                 image_url=cat.image_url if cat else "",
                 tcgplayer_url=cat.tcgplayer_url if cat else "",
                 used_in=used_in[card_id],
+                alt_arts=alts.get(card_id, []),
             )
         )
     return ShoppingResponse(
