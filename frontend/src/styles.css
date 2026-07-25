@@ -520,6 +520,13 @@ button.ghost.danger {
   min-height: 2.35rem;
   padding: 0.45rem 0.85rem;
   font-size: 0.92rem;
+  width: auto;
+  margin-top: 0;
+}
+
+.buy-bar-actions .btn.secondary {
+  background: #fffdf3;
+  border-color: #d2b45a;
 }
 
 .buy-bar-actions .ghost {
