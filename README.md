@@ -52,11 +52,12 @@ Open http://localhost:5173 — use **Dev login** if Google OAuth is not configur
 
 ### Still required for Google login
 In Google Cloud Console create an OAuth client (Web):
-- Authorized redirect URI: `https://optcg-api-nutb.onrender.com/auth/callback`
+- Authorized redirect URI: `https://optcg-deck-planner.vercel.app/api/auth/callback`
 - Authorized JS origins: `https://optcg-deck-planner.vercel.app` + `http://localhost:5173`
 - Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` on the Render service
 
-Until those are set, the API is up but Google login returns 503. Local **Dev login** still works.
+The frontend calls the API via same-origin `/api` (Vercel rewrite → Render) so the session
+cookie is first-party and works on mobile Safari.
 
 ### Access control
 - **Allowlist (default in prod):** set `ALLOWED_EMAILS` on Render to a comma-separated list (e.g. `you@gmail.com,friend@gmail.com`).

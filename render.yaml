@@ -15,7 +15,7 @@ services:
       - key: FRONTEND_ORIGIN
         value: https://optcg-deck-planner.vercel.app
       - key: BACKEND_PUBLIC_URL
-        value: https://optcg-api-nutb.onrender.com
+        value: https://optcg-deck-planner.vercel.app/api
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET

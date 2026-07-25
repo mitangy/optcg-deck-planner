@@ -394,6 +394,15 @@ function DecksPage() {
   );
 }
 
+function filterCards(cards: CardView[], onlyNeed: boolean, sortStillNeed: boolean): CardView[] {
+  let list = cards;
+  if (onlyNeed) list = list.filter((c) => c.still_need > 0);
+  if (sortStillNeed) {
+    list = [...list].sort((a, b) => b.still_need - a.still_need || a.card_id.localeCompare(b.card_id));
+  }
+  return list;
+}
+
 function CardTable({
   cards,
   onOwnedSaved,
@@ -456,13 +465,31 @@ function DeckDetailPage() {
     queryFn: () => api.deck(deckId),
     enabled: Number.isFinite(deckId),
   });
+  const [onlyNeed, setOnlyNeed] = useState(true);
+  const [sortStillNeed, setSortStillNeed] = useState(true);
+
+  const main = useMemo(() => {
+    if (!data) return [];
+    return filterCards(
+      data.cards.filter((c) => c.section !== "additional"),
+      onlyNeed,
+      sortStillNeed,
+    );
+  }, [data, onlyNeed, sortStillNeed]);
+
+  const additional = useMemo(() => {
+    if (!data) return [];
+    return filterCards(
+      data.cards.filter((c) => c.section === "additional"),
+      onlyNeed,
+      sortStillNeed,
+    );
+  }, [data, onlyNeed, sortStillNeed]);
 
   if (isLoading) return <p className="muted">Loading deck…</p>;
   if (error) return <p className="error">{(error as Error).message}</p>;
   if (!data) return null;
 
-  const main = data.cards.filter((c) => c.section !== "additional");
-  const additional = data.cards.filter((c) => c.section === "additional");
   const refresh = () => invalidateOwnedViews(qc);
 
   return (
@@ -481,6 +508,20 @@ function DeckDetailPage() {
               ? ` · Same leader as ${data.prior_decks.join(", ")}`
               : ""}
           </p>
+        </div>
+        <div className="filters">
+          <label>
+            <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
+            Still need only
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={sortStillNeed}
+              onChange={(e) => setSortStillNeed(e.target.checked)}
+            />
+            Sort by still need
+          </label>
         </div>
       </div>
       {data.prior_decks.length > 0 && (

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+from urllib.parse import urlparse
 
 from authlib.integrations.httpx_client import AsyncOAuth2Client
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -36,6 +37,23 @@ def _google_client(settings: Settings) -> AsyncOAuth2Client:
     )
 
 
+def _cookie_flags(settings: Settings) -> dict:
+    """Prefer SameSite=Lax when API and frontend share a host (Vercel /api proxy)."""
+    api_host = urlparse(settings.backend_public_url).hostname
+    fe_host = urlparse(settings.frontend_origin).hostname
+    cross_site = bool(api_host and fe_host and api_host != fe_host)
+    secure = settings.backend_public_url.startswith("https") or settings.frontend_origin.startswith(
+        "https"
+    )
+    return {
+        "httponly": True,
+        "samesite": "none" if cross_site else "lax",
+        "secure": True if cross_site else secure,
+        "max_age": 60 * 60 * 24 * 30,
+        "path": "/",
+    }
+
+
 @router.get("/google")
 async def google_login(settings: Annotated[Settings, Depends(get_settings)]):
     client = _google_client(settings)
@@ -54,10 +72,15 @@ async def google_callback(
     settings: Annotated[Settings, Depends(get_settings)],
 ):
     client = _google_client(settings)
+    # Prefer the configured public URL so token exchange matches the Google redirect
+    # even when Render sees an internal/proxied request URL.
+    public_callback = f"{settings.backend_public_url.rstrip('/')}/auth/callback"
+    query = request.url.query
+    authorization_response = f"{public_callback}?{query}" if query else public_callback
     try:
         token = await client.fetch_token(
             "https://oauth2.googleapis.com/token",
-            authorization_response=str(request.url),
+            authorization_response=authorization_response,
         )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=f"OAuth failed: {exc}") from exc
@@ -96,24 +119,26 @@ async def google_callback(
     db.refresh(user)
 
     response = RedirectResponse(settings.frontend_origin.rstrip("/") + "/")
-    cross_site = not settings.frontend_origin.rstrip("/").startswith(
-        ("http://localhost", "http://127.0.0.1")
-    )
     response.set_cookie(
         key=SESSION_COOKIE,
         value=create_session_token(user.id, settings),
-        httponly=True,
-        samesite="none" if cross_site else "lax",
-        secure=cross_site or settings.backend_public_url.startswith("https"),
-        max_age=60 * 60 * 24 * 30,
-        path="/",
+        **_cookie_flags(settings),
     )
     return response
 
 
 @router.post("/logout")
-def logout(response: Response):
-    response.delete_cookie(SESSION_COOKIE, path="/")
+def logout(
+    response: Response,
+    settings: Annotated[Settings, Depends(get_settings)],
+):
+    flags = _cookie_flags(settings)
+    response.delete_cookie(
+        SESSION_COOKIE,
+        path=flags["path"],
+        samesite=flags["samesite"],
+        secure=flags["secure"],
+    )
     return {"ok": True}
 
 
