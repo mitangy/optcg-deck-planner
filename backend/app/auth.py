@@ -5,8 +5,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
-from itsdangerous import BadSignature, URLSafeSerializer
-from sqlalchemy import select
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
@@ -14,10 +13,11 @@ from app.db import get_db
 from app.models import User
 
 SESSION_COOKIE = "optcg_session"
+SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
 
-def _serializer(settings: Settings) -> URLSafeSerializer:
-    return URLSafeSerializer(settings.session_secret, salt="optcg-auth")
+def _serializer(settings: Settings) -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(settings.session_secret, salt="optcg-auth")
 
 
 def create_session_token(user_id: int, settings: Settings | None = None) -> str:
@@ -28,8 +28,8 @@ def create_session_token(user_id: int, settings: Settings | None = None) -> str:
 def read_session_token(token: str, settings: Settings | None = None) -> int | None:
     settings = settings or get_settings()
     try:
-        data = _serializer(settings).loads(token)
-    except BadSignature:
+        data = _serializer(settings).loads(token, max_age=SESSION_MAX_AGE_SECONDS)
+    except (BadSignature, SignatureExpired):
         return None
     uid = data.get("uid")
     return int(uid) if uid is not None else None

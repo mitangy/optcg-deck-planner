@@ -2,13 +2,13 @@
 
 Import decks and keep track of what cards you need to buy to finish them.
 
-FastAPI + Vite/React app for tracking One Piece TCG decks, shared Owned counts, and TCGPlayer market prices.
+FastAPI + Vite/React app for tracking One Piece TCG decks, Owned counts across your decks, and TCGPlayer market prices.
 
 ## Stack
 - **Frontend:** Vite + React on Vercel
 - **Backend:** FastAPI on Render
 - **DB:** Neon Postgres (SQLite locally)
-- **Auth:** Google OAuth + `ALLOWED_EMAILS` allowlist (dev login available locally)
+- **Auth:** Google OAuth (+ optional local `ENABLE_DEV_LOGIN`)
 - **Prices:** [TCGCSV](https://tcgcsv.com/) daily sync
 
 ## Local development
@@ -24,7 +24,7 @@ py -3 -m uvicorn app.main:app --reload --port 8000
 
 Or from the repo root: `start-backend.bat` (runs inside `backend/`).
 
-Seed imports the catalog from `../optcg_tracker/cache/catalog.json` (if present) and loads the sample deck `.txt` files.
+Seed is **local-only** — it imports catalog from `../optcg_tracker/cache/catalog.json` (if present) and sample deck `.txt` files.
 
 ### Frontend
 ```bash
@@ -34,52 +34,54 @@ copy .env.example .env
 npm run dev
 ```
 
-Open http://localhost:5173 — use **Dev login** if Google OAuth is not configured.
+Open http://localhost:5173 — use **Dev login** when `ENABLE_DEV_LOGIN=true` and Google OAuth is unset.
 
 ## Live URLs
 
 | Piece | URL |
 |-------|-----|
-| Frontend | https://optcg-deck-planner.vercel.app |
-| API | https://optcg-api-nutb.onrender.com |
+| App | https://optcg-deck-planner.vercel.app |
+| API (via app) | https://optcg-deck-planner.vercel.app/api/… |
+| API (direct) | https://optcg-api-nutb.onrender.com/health |
+
+Browsing the bare Render host (`/`) returns a small JSON index; use `/health` or `/docs` for checks. Free Render may cold-sleep after idle (~30–60s wake).
 
 ## Deploy
 
-### Current prod (already wired)
-- **Vercel** project `miko21/optcg-deck-planner` (root: `frontend`, env `VITE_API_URL`)
-- **Render** service `optcg-api` (`srv-d9i5jin41pts73an781g`, root: `backend`)
-- **Neon** project `optcg-deck-planner` (Postgres connection string in Render `DATABASE_URL`)
+### Current prod
+- **Vercel** project `miko21/optcg-deck-planner` — repo root, config in root `vercel.json` (install/build via `npm --prefix frontend`, `/api` rewrite → Render)
+- **Render** service `optcg-api` (`srv-d9i5jin41pts73an781g`, root `backend`)
+- **Neon** project `optcg-deck-planner` (`DATABASE_URL` on Render)
 
-### Still required for Google login
-In Google Cloud Console create an OAuth client (Web):
+Production frontend should use same-origin `/api` (leave `VITE_API_URL` as `/api` or unset in production). Do **not** point `VITE_API_URL` at the raw Render host in production — that breaks session cookies on mobile Safari.
+
+### Google OAuth
+In Google Cloud Console (OAuth Web client):
 - Authorized redirect URI: `https://optcg-deck-planner.vercel.app/api/auth/callback`
 - Authorized JS origins: `https://optcg-deck-planner.vercel.app` + `http://localhost:5173`
-- Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` on the Render service
-
-The frontend calls the API via same-origin `/api` (Vercel rewrite → Render) so the session
-cookie is first-party and works on mobile Safari.
+- Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` on Render
 
 ### Access control
-- **Allowlist (default in prod):** set `ALLOWED_EMAILS` on Render to a comma-separated list (e.g. `you@gmail.com,friend@gmail.com`).
-- **Open to any Google user:** set `ALLOW_ANY_GOOGLE_USER=true` on Render. That ignores the allowlist. Keep `false` if you only want invited friends.
+- **Allowlist:** `ALLOWED_EMAILS` = comma-separated list
+- **Open to any Google user:** `ALLOW_ANY_GOOGLE_USER=true` (current prod setting)
 
-Google Cloud **test users** are separate — they only matter while the OAuth consent screen is in Testing mode.
+Google Cloud **test users** only matter while the OAuth consent screen is in Testing mode.
 
-### After deploy / DB reset
-Sync catalog (~1 min):
+### Catalog sync
 ```bash
 curl -X POST https://optcg-api-nutb.onrender.com/admin/sync-catalog -H "X-Catalog-Token: YOUR_TOKEN"
 ```
 
-### Daily catalog sync
 GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
 - `API_URL=https://optcg-api-nutb.onrender.com`
 - `CATALOG_SYNC_TOKEN` (same value as Render)
 
 ## API overview
+- `GET /` — service index
+- `GET /health`, `GET /docs`
 - `GET /auth/google`, `GET /auth/callback`, `POST /auth/logout`, `GET /auth/me`
 - `GET/POST /decks`, `GET/PATCH/DELETE /decks/{id}`
-- `GET /shopping`
+- `GET /shopping?deck_ids=`
 - `PUT /owned/{card_id}`
 - `POST /admin/sync-catalog` (token header)
-- `GET /health`
+- `GET /catalog/status` (auth required)

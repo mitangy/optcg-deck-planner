@@ -20,9 +20,10 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     allowed_emails: str = ""
     catalog_sync_token: str = "dev-sync-token"
-    prefer_cheapest_printing: bool = False
     # When true, any signed-in Google user is allowed (ignore ALLOWED_EMAILS)
-    allow_any_google_user: bool = True
+    allow_any_google_user: bool = False
+    # Local-only passwordless login (never enable in production)
+    enable_dev_login: bool = False
 
     @property
     def allowed_email_set(self) -> set[str]:
@@ -40,7 +41,19 @@ class Settings(BaseSettings):
             return "postgresql://" + url[len("postgres://") :]
         return url
 
+    @property
+    def is_production(self) -> bool:
+        return self.frontend_origin.startswith("https://")
+
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    if settings.is_production and settings.session_secret in {
+        "dev-change-me-in-production",
+        "dev-secret-change-me",
+    }:
+        raise RuntimeError("SESSION_SECRET must be set to a strong value in production")
+    if settings.is_production and settings.enable_dev_login:
+        raise RuntimeError("ENABLE_DEV_LOGIN must be false in production")
+    return settings

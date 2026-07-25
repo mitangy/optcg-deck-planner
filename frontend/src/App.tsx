@@ -13,7 +13,6 @@ function useMe() {
 function invalidateOwnedViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["shopping"] });
   void qc.invalidateQueries({ queryKey: ["deck"] });
-  void qc.invalidateQueries({ queryKey: ["decks"] });
 }
 
 function Shell({ user, children }: { user: User; children: ReactNode }) {
@@ -72,16 +71,18 @@ function LoginPage() {
         <p className="eyebrow">One Piece TCG</p>
         <h1>Deck Tracker</h1>
         <p className="lede">
-          Track decks, shared collection counts, and market prices with friends.
+          Track decks, Owned counts across your lists, and market prices.
         </p>
         <a className="btn primary" href={api.googleLoginUrl()}>
           Sign in with Google
         </a>
-        <button type="button" className="btn secondary" onClick={devLogin}>
-          Dev login (local)
-        </button>
+        {import.meta.env.DEV && (
+          <button type="button" className="btn secondary" onClick={devLogin}>
+            Dev login (local)
+          </button>
+        )}
         {err && <p className="error">{err}</p>}
-        <p className="hint">API: {api.apiUrl}</p>
+        {import.meta.env.DEV && <p className="hint">API: {api.apiUrl}</p>}
       </div>
     </div>
   );
@@ -134,9 +135,17 @@ function OwnedInput({
   onSaved: () => void;
 }) {
   const [qty, setQty] = useState(String(value));
+  const [err, setErr] = useState<string | null>(null);
   const mutation = useMutation({
     mutationFn: (n: number) => api.setOwned(cardId, n),
-    onSuccess: onSaved,
+    onSuccess: () => {
+      setErr(null);
+      onSaved();
+    },
+    onError: (e: Error) => {
+      setErr(e.message);
+      setQty(String(value));
+    },
   });
 
   useEffect(() => {
@@ -144,21 +153,25 @@ function OwnedInput({
   }, [value, cardId]);
 
   return (
-    <input
-      className="owned"
-      type="number"
-      min={0}
-      value={qty}
-      onChange={(e) => setQty(e.target.value)}
-      onBlur={() => {
-        const n = Math.max(0, Number(qty) || 0);
-        setQty(String(n));
-        if (n !== value) mutation.mutate(n);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-      }}
-    />
+    <span className="owned-wrap">
+      <input
+        className="owned"
+        type="number"
+        min={0}
+        value={qty}
+        title={err ?? undefined}
+        onChange={(e) => setQty(e.target.value)}
+        onBlur={() => {
+          const n = Math.max(0, Number(qty) || 0);
+          setQty(String(n));
+          if (n !== value) mutation.mutate(n);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+      />
+      {err && <span className="owned-err">!</span>}
+    </span>
   );
 }
 
@@ -356,6 +369,7 @@ function DecksPage() {
   const del = useMutation({
     mutationFn: api.deleteDeck,
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["decks"] });
       invalidateOwnedViews(qc);
     },
   });

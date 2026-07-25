@@ -343,6 +343,17 @@ tr.done {
   font: inherit;
 }
 
+.owned-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.owned-err {
+  color: var(--danger);
+  font-weight: 700;
+}
+
 .deck-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));

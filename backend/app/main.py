@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,13 +11,14 @@ from app.routers import api, auth
 
 settings = get_settings()
 
-app = FastAPI(title=settings.app_name)
 
-
-@app.on_event("startup")
-def on_startup() -> None:
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
     init_db()
+    yield
 
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,6 +34,19 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(api.router)
+
+
+@app.get("/")
+def root():
+    """Friendly landing for the raw Render URL (browsing / used to 404)."""
+    return {
+        "ok": True,
+        "app": settings.app_name,
+        "health": "/health",
+        "docs": "/docs",
+        "frontend": settings.frontend_origin.rstrip("/"),
+        "note": "This is the API. Use the frontend URL to sign in and manage decks.",
+    }
 
 
 @app.get("/health")

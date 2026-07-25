@@ -4,13 +4,16 @@ const configured = (import.meta.env.VITE_API_URL as string | undefined)?.replace
 const API_URL = configured || (import.meta.env.DEV ? "http://localhost:8000" : "/api");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: HeadersInit = {
+    ...(init?.headers || {}),
+  };
+  if (init?.body) {
+    (headers as Record<string, string>)["Content-Type"] = "application/json";
+  }
   const res = await fetch(`${API_URL}${path}`, {
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
     ...init,
+    headers,
   });
   if (!res.ok) {
     let detail = res.statusText;
@@ -114,8 +117,6 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ qty }),
     }),
-  catalogStatus: () =>
-    request<{ card_count: number; last_synced_at: string | null }>("/catalog/status"),
 };
 
 export function money(n: number | null | undefined): string {

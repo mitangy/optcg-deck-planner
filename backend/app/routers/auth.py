@@ -21,6 +21,7 @@ from app.models import User
 from app.schemas import UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+OAUTH_STATE_COOKIE = "optcg_oauth_state"
 
 
 def _google_client(settings: Settings) -> AsyncOAuth2Client:
@@ -57,12 +58,23 @@ def _cookie_flags(settings: Settings) -> dict:
 @router.get("/google")
 async def google_login(settings: Annotated[Settings, Depends(get_settings)]):
     client = _google_client(settings)
-    uri, _state = client.create_authorization_url(
+    uri, state = client.create_authorization_url(
         "https://accounts.google.com/o/oauth2/v2/auth",
         access_type="online",
         prompt="select_account",
     )
-    return RedirectResponse(uri)
+    flags = _cookie_flags(settings)
+    response = RedirectResponse(uri)
+    response.set_cookie(
+        key=OAUTH_STATE_COOKIE,
+        value=state,
+        httponly=True,
+        samesite=flags["samesite"],
+        secure=flags["secure"],
+        max_age=600,
+        path="/",
+    )
+    return response
 
 
 @router.get("/callback")
@@ -71,6 +83,11 @@ async def google_callback(
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ):
+    expected_state = request.cookies.get(OAUTH_STATE_COOKIE)
+    got_state = request.query_params.get("state")
+    if not expected_state or not got_state or expected_state != got_state:
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
+
     client = _google_client(settings)
     # Prefer the configured public URL so token exchange matches the Google redirect
     # even when Render sees an internal/proxied request URL.
@@ -85,8 +102,6 @@ async def google_callback(
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=f"OAuth failed: {exc}") from exc
 
-    # Newer httpx/Authlib: token is stored on the client after fetch_token;
-    # AsyncClient.get() no longer accepts a token= kwarg.
     access_token = token.get("access_token") if isinstance(token, dict) else None
     if not access_token:
         raise HTTPException(status_code=400, detail="OAuth token missing access_token")
@@ -124,6 +139,12 @@ async def google_callback(
         value=create_session_token(user.id, settings),
         **_cookie_flags(settings),
     )
+    response.delete_cookie(
+        OAUTH_STATE_COOKIE,
+        path="/",
+        samesite=_cookie_flags(settings)["samesite"],
+        secure=_cookie_flags(settings)["secure"],
+    )
     return response
 
 
@@ -153,7 +174,9 @@ def dev_login(
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ):
-    """Local-only login when Google OAuth is not configured."""
+    """Local-only login. Disabled unless ENABLE_DEV_LOGIN=true."""
+    if not settings.enable_dev_login:
+        raise HTTPException(status_code=404, detail="Not found")
     if settings.google_client_id and settings.google_client_secret:
         raise HTTPException(status_code=400, detail="Use Google login in this environment")
     email = "dev@localhost"

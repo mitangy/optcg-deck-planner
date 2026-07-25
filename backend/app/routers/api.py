@@ -111,7 +111,11 @@ def put_owned(
 
 
 @router.get("/catalog/status", response_model=CatalogStatus)
-def catalog_status(db: Annotated[Session, Depends(get_db)]):
+def catalog_status(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    _ = user
     meta = db.scalar(select(CatalogMeta).limit(1))
     if meta is None:
         return CatalogStatus(card_count=0, last_synced_at=None)

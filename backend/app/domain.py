@@ -103,23 +103,6 @@ def parse_cost(raw: str | None) -> int | str | None:
         return value
 
 
-def choose_best_printing(
-    printings: list[dict[str, Any]],
-    prefer_cheapest: bool = False,
-) -> dict[str, Any]:
-    def sort_key(p: dict[str, Any]) -> tuple:
-        special = 1 if p.get("is_special") else 0
-        market = p.get("market_price")
-        low = p.get("low_price")
-        price = market if market is not None else 1e9
-        low_v = low if low is not None else 1e9
-        if prefer_cheapest:
-            return (price, special, p.get("product_id") or 0)
-        return (special, price, low_v, p.get("product_id") or 0)
-
-    return sorted(printings, key=sort_key)[0]
-
-
 def find_leader_id(cards: list[ParsedCard], catalog_by_id: dict[str, Any]) -> str | None:
     for card in cards:
         row = catalog_by_id.get(card.card_id)
