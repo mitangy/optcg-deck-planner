@@ -8,6 +8,7 @@ const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
 const CARD_SORTS_KEY = "optcg_card_sorts";
 const FILTERS_OPEN_KEY = "optcg_filters_open";
+const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
 
 const COLOR_ORDER = ["Red", "Green", "Blue", "Purple", "Black", "Yellow"];
 const SET_PREFIX_ORDER = ["OP", "ST", "EB", "PRB", "P"];
@@ -1065,6 +1066,113 @@ function filterCards(
   return [...list].sort((a, b) => compareCardOrder(a, b, sorts));
 }
 
+type DeckProgressMode = "copies" | "uniques";
+
+function summarizeDeckProgress(cards: CardView[]) {
+  const uniqueTotal = cards.length;
+  const uniqueComplete = cards.filter((c) => c.still_need === 0).length;
+  const uniqueStill = uniqueTotal - uniqueComplete;
+  const copiesNeeded = cards.reduce((sum, c) => sum + c.needed, 0);
+  const copiesStill = cards.reduce((sum, c) => sum + c.still_need, 0);
+  const copiesOwned = copiesNeeded - copiesStill;
+  const remainingMarket = cards.reduce((sum, c) => {
+    if (c.still_need <= 0 || c.market_price == null) return sum;
+    return sum + c.still_need * c.market_price;
+  }, 0);
+  return {
+    uniqueTotal,
+    uniqueComplete,
+    uniqueStill,
+    copiesNeeded,
+    copiesStill,
+    copiesOwned,
+    remainingMarket,
+  };
+}
+
+function useDeckProgressMode() {
+  const [mode, setMode] = useState<DeckProgressMode>(() => {
+    try {
+      return localStorage.getItem(DECK_PROGRESS_MODE_KEY) === "uniques" ? "uniques" : "copies";
+    } catch {
+      return "copies";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(DECK_PROGRESS_MODE_KEY, mode);
+    } catch {
+      /* ignore */
+    }
+  }, [mode]);
+  return [mode, setMode] as const;
+}
+
+function DeckProgressSummary({ cards }: { cards: CardView[] }) {
+  const [mode, setMode] = useDeckProgressMode();
+  const stats = useMemo(() => summarizeDeckProgress(cards), [cards]);
+  const owned = mode === "copies" ? stats.copiesOwned : stats.uniqueComplete;
+  const total = mode === "copies" ? stats.copiesNeeded : stats.uniqueTotal;
+  const still = mode === "copies" ? stats.copiesStill : stats.uniqueStill;
+  const pct = total > 0 ? Math.round((owned / total) * 100) : 100;
+
+  return (
+    <div className="deck-progress">
+      <div className="deck-progress-head">
+        <div className="deck-progress-toggle" role="group" aria-label="Progress count mode">
+          <button
+            type="button"
+            className={mode === "copies" ? "active" : ""}
+            aria-pressed={mode === "copies"}
+            onClick={() => setMode("copies")}
+          >
+            Copies
+          </button>
+          <button
+            type="button"
+            className={mode === "uniques" ? "active" : ""}
+            aria-pressed={mode === "uniques"}
+            onClick={() => setMode("uniques")}
+          >
+            Uniques
+          </button>
+        </div>
+        <p className="deck-progress-text">
+          {mode === "copies" ? (
+            <>
+              <strong>
+                {owned}/{total}
+              </strong>{" "}
+              copies owned · <strong>{still}</strong> still needed
+              {stats.copiesStill > 0 ? ` · ${money(stats.remainingMarket)} left` : ""}
+            </>
+          ) : (
+            <>
+              <strong>
+                {owned}/{total}
+              </strong>{" "}
+              uniques complete · <strong>{still}</strong> still needed
+              {stats.copiesStill > 0
+                ? ` · ${stats.copiesStill} copies · ${money(stats.remainingMarket)} left`
+                : ""}
+            </>
+          )}
+        </p>
+      </div>
+      <div
+        className="deck-progress-bar"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={pct}
+        aria-label={`${pct}% of deck ${mode === "copies" ? "copies" : "uniques"} owned`}
+      >
+        <span style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 function CardTable({
   cards,
   onOwnedSaved,
@@ -1236,6 +1344,8 @@ function DeckDetailPage() {
           </p>
         </div>
       </div>
+
+      <DeckProgressSummary cards={data.cards} />
 
       <div className="list-toolbar">
         <CardSearchInput value={search} onChange={setSearch} />
