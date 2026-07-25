@@ -1,14 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { api, CardView, money, PrintingView, ShoppingItem, User } from "./api";
 
 const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
+const CARD_SORTS_KEY = "optcg_card_sorts";
 
 const COLOR_ORDER = ["Red", "Green", "Blue", "Purple", "Black", "Yellow"];
 const SET_PREFIX_ORDER = ["OP", "ST", "EB", "PRB", "P"];
+
+type SortKey = "still_need" | "color" | "set";
+
+const ALL_SORT_KEYS: SortKey[] = ["still_need", "color", "set"];
+const DEFAULT_SORTS: SortKey[] = ["color", "set"];
+const SORT_LABELS: Record<SortKey, string> = {
+  still_need: "Still need",
+  color: "Color",
+  set: "Set",
+};
 
 function colorSortKey(color: string): string {
   const parts = color
@@ -36,19 +47,182 @@ function setSortKey(cardId: string): string {
   return `${prefixRank}-${String(num).padStart(4, "0")}-${setCode}`;
 }
 
+function compareBySortKey(
+  a: { card_id: string; color: string; still_need: number },
+  b: { card_id: string; color: string; still_need: number },
+  key: SortKey,
+): number {
+  if (key === "still_need") return b.still_need - a.still_need;
+  if (key === "color") return colorSortKey(a.color).localeCompare(colorSortKey(b.color));
+  return setSortKey(a.card_id).localeCompare(setSortKey(b.card_id));
+}
+
 function compareCardOrder(
   a: { card_id: string; color: string; still_need: number },
   b: { card_id: string; color: string; still_need: number },
-  sortStillNeed: boolean,
+  sorts: SortKey[],
 ): number {
-  if (sortStillNeed) {
-    const byNeed = b.still_need - a.still_need;
-    if (byNeed !== 0) return byNeed;
+  for (const key of sorts) {
+    const cmp = compareBySortKey(a, b, key);
+    if (cmp !== 0) return cmp;
   }
+  return a.card_id.localeCompare(b.card_id);
+}
+
+function loadCardSorts(): SortKey[] {
+  try {
+    const raw = localStorage.getItem(CARD_SORTS_KEY);
+    if (!raw) return DEFAULT_SORTS;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return DEFAULT_SORTS;
+    const valid = parsed.filter((k): k is SortKey => ALL_SORT_KEYS.includes(k as SortKey));
+    return valid.length ? valid : DEFAULT_SORTS;
+  } catch {
+    return DEFAULT_SORTS;
+  }
+}
+
+function useCardSorts(onlyNeed: boolean) {
+  const [sorts, setSorts] = useState<SortKey[]>(() => loadCardSorts());
+
+  useEffect(() => {
+    if (!onlyNeed) return;
+    setSorts((prev) => (prev.includes("still_need") ? prev.filter((k) => k !== "still_need") : prev));
+  }, [onlyNeed]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CARD_SORTS_KEY, JSON.stringify(sorts));
+    } catch {
+      /* ignore */
+    }
+  }, [sorts]);
+
+  const effectiveSorts = useMemo(
+    () => (onlyNeed ? sorts.filter((k) => k !== "still_need") : sorts),
+    [onlyNeed, sorts],
+  );
+
+  return { sorts, setSorts, effectiveSorts };
+}
+
+function SortMenu({
+  sorts,
+  onChange,
+  onlyNeed,
+}: {
+  sorts: SortKey[];
+  onChange: (next: SortKey[]) => void;
+  onlyNeed: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const menuKeys = useMemo(() => {
+    const inactive = ALL_SORT_KEYS.filter((k) => !sorts.includes(k));
+    return [...sorts, ...inactive];
+  }, [sorts]);
+
+  const summary =
+    sorts.length === 0
+      ? "Card ID"
+      : sorts.map((k) => SORT_LABELS[k]).join(" › ");
+
+  function toggleKey(key: SortKey) {
+    if (key === "still_need" && onlyNeed) return;
+    if (sorts.includes(key)) {
+      onChange(sorts.filter((k) => k !== key));
+      return;
+    }
+    onChange([...sorts, key]);
+  }
+
+  function moveKey(key: SortKey, dir: -1 | 1) {
+    const idx = sorts.indexOf(key);
+    if (idx < 0) return;
+    const next = idx + dir;
+    if (next < 0 || next >= sorts.length) return;
+    const copy = [...sorts];
+    [copy[idx], copy[next]] = [copy[next], copy[idx]];
+    onChange(copy);
+  }
+
   return (
-    colorSortKey(a.color).localeCompare(colorSortKey(b.color)) ||
-    setSortKey(a.card_id).localeCompare(setSortKey(b.card_id)) ||
-    a.card_id.localeCompare(b.card_id)
+    <div className="sort-menu" ref={rootRef}>
+      <button
+        type="button"
+        className="sort-menu-btn"
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((v) => !v)}
+      >
+        Sort: {summary}
+      </button>
+      {open && (
+        <div className="sort-menu-panel" role="menu">
+          <p className="sort-menu-hint">Top option sorts first. Combine Set then Color for colors within a set.</p>
+          <ul className="sort-menu-list">
+            {menuKeys.map((key) => {
+              const active = sorts.includes(key);
+              const disabled = key === "still_need" && onlyNeed;
+              const activeIdx = sorts.indexOf(key);
+              return (
+                <li key={key} className={`sort-menu-item${disabled ? " disabled" : ""}`}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={active && !disabled}
+                      disabled={disabled}
+                      onChange={() => toggleKey(key)}
+                    />
+                    <span>{SORT_LABELS[key]}</span>
+                  </label>
+                  {disabled && <span className="sort-menu-note">Off while Still need only</span>}
+                  {active && !disabled && (
+                    <span className="sort-menu-move">
+                      <button
+                        type="button"
+                        className="ghost"
+                        aria-label={`Move ${SORT_LABELS[key]} up`}
+                        disabled={activeIdx <= 0}
+                        onClick={() => moveKey(key, -1)}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost"
+                        aria-label={`Move ${SORT_LABELS[key]} down`}
+                        disabled={activeIdx >= sorts.length - 1}
+                        onClick={() => moveKey(key, 1)}
+                      >
+                        ↓
+                      </button>
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -201,6 +375,28 @@ function CardThumb({ src, alt = "" }: { src?: string; alt?: string }) {
         </div>
       )}
     </>
+  );
+}
+
+function MobileCardMedia({
+  src,
+  alt,
+  cost,
+  rarity,
+}: {
+  src?: string;
+  alt: string;
+  cost: number | string | null;
+  rarity?: string;
+}) {
+  return (
+    <div className="mobile-card-media">
+      <CardThumb src={src} alt={alt} />
+      <div className="mobile-card-media-meta">
+        <span className="mobile-card-cost">Cost {cost ?? "—"}</span>
+        {rarity ? <span className="mobile-card-rarity">{rarity}</span> : null}
+      </div>
+    </div>
   );
 }
 
@@ -364,15 +560,15 @@ function ShoppingPage() {
     enabled: filterReady && allDeckIds.length > 0,
   });
   const [onlyNeed, setOnlyNeed] = useState(true);
-  const [sortStillNeed, setSortStillNeed] = useState(true);
+  const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed);
   const [showAltArts, setShowAltArts] = useShowAltArts();
 
   const items = useMemo(() => {
     let list = data?.items ?? [];
     if (onlyNeed) list = list.filter((i) => i.still_need > 0);
-    list = [...list].sort((a, b) => compareCardOrder(a, b, sortStillNeed));
+    list = [...list].sort((a, b) => compareCardOrder(a, b, effectiveSorts));
     return list;
-  }, [data, onlyNeed, sortStillNeed]);
+  }, [data, onlyNeed, effectiveSorts]);
 
   function toggleDeck(id: number) {
     setSelectedDeckIds((prev) => {
@@ -421,14 +617,7 @@ function ShoppingPage() {
             <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
             Still need only
           </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={sortStillNeed}
-              onChange={(e) => setSortStillNeed(e.target.checked)}
-            />
-            Sort by still need, then color & set
-          </label>
+          <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={onlyNeed} />
           <label>
             <input
               type="checkbox"
@@ -519,7 +708,12 @@ function ShoppingPage() {
         {items.map((item: ShoppingItem) => (
           <article key={item.card_id} className={`mobile-card ${item.still_need > 0 ? "need" : "done"}`}>
             <div className="mobile-card-top">
-              <CardThumb src={item.image_url || undefined} alt={item.name} />
+              <MobileCardMedia
+                src={item.image_url || undefined}
+                alt={item.name}
+                cost={item.cost}
+                rarity={item.rarity}
+              />
               <div className="mobile-card-info">
                 <div className="card-id">{item.card_id}</div>
                 <div className="mobile-card-name">{item.name}</div>
@@ -604,10 +798,10 @@ function DecksPage() {
   );
 }
 
-function filterCards(cards: CardView[], onlyNeed: boolean, sortStillNeed: boolean): CardView[] {
+function filterCards(cards: CardView[], onlyNeed: boolean, sorts: SortKey[]): CardView[] {
   let list = cards;
   if (onlyNeed) list = list.filter((c) => c.still_need > 0);
-  return [...list].sort((a, b) => compareCardOrder(a, b, sortStillNeed));
+  return [...list].sort((a, b) => compareCardOrder(a, b, sorts));
 }
 
 function CardTable({
@@ -676,7 +870,12 @@ function CardTable({
             className={`mobile-card ${c.still_need > 0 ? "need" : "done"}`}
           >
             <div className="mobile-card-top">
-              <CardThumb src={c.image_url || undefined} alt={c.name} />
+              <MobileCardMedia
+                src={c.image_url || undefined}
+                alt={c.name}
+                cost={c.cost}
+                rarity={c.rarity}
+              />
               <div className="mobile-card-info">
                 <div className="card-id">{c.card_id}</div>
                 <div className="mobile-card-name">{c.name}</div>
@@ -718,7 +917,7 @@ function DeckDetailPage() {
     enabled: Number.isFinite(deckId),
   });
   const [onlyNeed, setOnlyNeed] = useState(true);
-  const [sortStillNeed, setSortStillNeed] = useState(true);
+  const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed);
   const [showAltArts, setShowAltArts] = useShowAltArts();
 
   const main = useMemo(() => {
@@ -726,18 +925,18 @@ function DeckDetailPage() {
     return filterCards(
       data.cards.filter((c) => c.section !== "additional"),
       onlyNeed,
-      sortStillNeed,
+      effectiveSorts,
     );
-  }, [data, onlyNeed, sortStillNeed]);
+  }, [data, onlyNeed, effectiveSorts]);
 
   const additional = useMemo(() => {
     if (!data) return [];
     return filterCards(
       data.cards.filter((c) => c.section === "additional"),
       onlyNeed,
-      sortStillNeed,
+      effectiveSorts,
     );
-  }, [data, onlyNeed, sortStillNeed]);
+  }, [data, onlyNeed, effectiveSorts]);
 
   if (isLoading) return <p className="muted">Loading deck…</p>;
   if (error) return <p className="error">{(error as Error).message}</p>;
@@ -767,14 +966,7 @@ function DeckDetailPage() {
             <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
             Still need only
           </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={sortStillNeed}
-              onChange={(e) => setSortStillNeed(e.target.checked)}
-            />
-            Sort by still need, then color & set
-          </label>
+          <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={onlyNeed} />
           <label>
             <input
               type="checkbox"
