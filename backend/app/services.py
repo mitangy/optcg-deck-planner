@@ -229,6 +229,13 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
     )
 
 
+def _leader_group_id(deck: Deck) -> str:
+    """Group decks that share a leader; each leaderless deck is its own group."""
+    if deck.leader_card_id:
+        return deck.leader_card_id
+    return f"__deck_{deck.id}"
+
+
 def shopping_list(
     db: Session,
     user: User,
@@ -245,11 +252,25 @@ def shopping_list(
         decks = [d for d in decks if d.id in wanted]
     need: dict[str, int] = {}
     used_in: dict[str, list[str]] = defaultdict(list)
-    for deck in decks:
+    card_deck_indexes: dict[str, list[int]] = defaultdict(list)
+    for deck_idx, deck in enumerate(decks):
+        seen_in_deck: set[str] = set()
         for card in deck.cards:
             need[card.card_id] = max(need.get(card.card_id, 0), card.needed)
             if deck.name not in used_in[card.card_id]:
                 used_in[card.card_id].append(deck.name)
+            if card.card_id not in seen_in_deck:
+                card_deck_indexes[card.card_id].append(deck_idx)
+                seen_in_deck.add(card.card_id)
+
+    # Leader group order = earliest selected deck for that leader.
+    leader_group_rank: dict[str, int] = {}
+    leader_deck_indexes: dict[str, list[int]] = defaultdict(list)
+    for deck_idx, deck in enumerate(decks):
+        group = _leader_group_id(deck)
+        if group not in leader_group_rank:
+            leader_group_rank[group] = deck_idx
+        leader_deck_indexes[group].append(deck_idx)
 
     owned = _owned_map(db, user.id)
     catalog = _catalog_map(db, set(need))
@@ -267,6 +288,30 @@ def shopping_list(
         cards_still += still
         if line is not None:
             remaining += line
+
+        indexes = card_deck_indexes[card_id]
+        primary_idx = indexes[0] if indexes else 9999
+        primary_deck = decks[primary_idx] if indexes else None
+        primary_group = _leader_group_id(primary_deck) if primary_deck else "__none"
+        group_rank = leader_group_rank.get(primary_group, 9999)
+        # Within a leader: cards from the first same-leader deck, then later additions.
+        within_rank = 9999
+        for wi, deck_idx in enumerate(leader_deck_indexes.get(primary_group, [])):
+            if deck_idx in indexes:
+                within_rank = wi
+                break
+        deck_sort_key = f"{group_rank:04d}-{within_rank:04d}-{primary_idx:04d}"
+
+        leader_ids = {
+            decks[i].leader_card_id
+            for i in indexes
+            if decks[i].leader_card_id
+        }
+        primary_leader_card_id = primary_deck.leader_card_id if primary_deck else None
+        primary_leader_name = None
+        if primary_leader_card_id and primary_leader_card_id in catalog:
+            primary_leader_name = catalog[primary_leader_card_id].name
+
         items.append(
             ShoppingItem(
                 card_id=card_id,
@@ -285,6 +330,10 @@ def shopping_list(
                 tcgplayer_url=cat.tcgplayer_url if cat else "",
                 used_in=used_in[card_id],
                 alt_arts=alts.get(card_id, []),
+                deck_sort_key=deck_sort_key,
+                primary_leader_card_id=primary_leader_card_id,
+                primary_leader_name=primary_leader_name,
+                leader_count=max(1, len(leader_ids)),
             )
         )
     return ShoppingResponse(
