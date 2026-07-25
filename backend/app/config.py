@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     allowed_emails: str = ""
     catalog_sync_token: str = "dev-sync-token"
     prefer_cheapest_printing: bool = False
-    # When true, any signed-in Google user is allowed (local/dev only)
+    # When true, any signed-in Google user is allowed (ignore ALLOWED_EMAILS)
     allow_any_google_user: bool = True
 
     @property

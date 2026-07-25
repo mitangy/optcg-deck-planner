@@ -58,6 +58,12 @@ In Google Cloud Console create an OAuth client (Web):
 
 Until those are set, the API is up but Google login returns 503. Local **Dev login** still works.
 
+### Access control
+- **Allowlist (default in prod):** set `ALLOWED_EMAILS` on Render to a comma-separated list (e.g. `you@gmail.com,friend@gmail.com`).
+- **Open to any Google user:** set `ALLOW_ANY_GOOGLE_USER=true` on Render. That ignores the allowlist. Keep `false` if you only want invited friends.
+
+Google Cloud **test users** are separate — they only matter while the OAuth consent screen is in Testing mode.
+
 ### After deploy / DB reset
 Sync catalog (~1 min):
 ```bash

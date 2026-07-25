@@ -67,6 +67,8 @@ def get_optional_user(
 
 
 def email_allowed(email: str, settings: Settings) -> bool:
-    if settings.allow_any_google_user and not settings.allowed_email_set:
+    # ALLOW_ANY_GOOGLE_USER=true opens the app to any signed-in Google account.
+    # Otherwise only emails in ALLOWED_EMAILS (comma-separated) may sign in.
+    if settings.allow_any_google_user:
         return True
     return email.strip().lower() in settings.allowed_email_set
