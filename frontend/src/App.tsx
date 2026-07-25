@@ -19,6 +19,9 @@ const CARD_SORTS_KEY = "optcg_card_sorts";
 const FILTERS_OPEN_KEY = "optcg_filters_open";
 const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
 const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
+const CARD_LAYOUT_KEY = "optcg_card_layout";
+
+type CardLayout = "list" | "grid";
 
 const COLOR_ORDER = ["Red", "Green", "Blue", "Purple", "Black", "Yellow"];
 const SET_PREFIX_ORDER = ["OP", "ST", "EB", "PRB", "P"];
@@ -456,33 +459,35 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand">
-          <Link to="/">
-            <img
-              className="brand-logo"
-              src="/optcg-logo.png"
-              alt="ONE PIECE CARD GAME"
-              width={562}
-              height={145}
-            />
-            <span>OPTCG Tracker</span>
-          </Link>
-        </div>
-        <nav>
-          <Link to="/">Shopping</Link>
-          <Link to="/decks">Decks</Link>
-          <Link to="/import">Import</Link>
-        </nav>
-        <div className="user">
-          <span className="user-name" title={user.email}>
-            {shortName}
-          </span>
-          <button type="button" className="ghost" onClick={() => logout.mutate()}>
-            Log out
-          </button>
+        <div className="topbar-inner">
+          <div className="brand">
+            <Link to="/">
+              <img
+                className="brand-logo"
+                src="/optcg-logo.png"
+                alt="ONE PIECE CARD GAME"
+                width={562}
+                height={145}
+              />
+              <span>OPTCG Tracker</span>
+            </Link>
+          </div>
+          <nav>
+            <Link to="/">Shopping</Link>
+            <Link to="/decks">Decks</Link>
+            <Link to="/import">Import</Link>
+          </nav>
+          <div className="user">
+            <span className="user-name" title={user.email}>
+              {shortName}
+            </span>
+            <button type="button" className="ghost" onClick={() => logout.mutate()}>
+              Log out
+            </button>
+          </div>
         </div>
       </header>
-      <main>{children}</main>
+      <main className="app-main">{children}</main>
     </div>
   );
 }
@@ -763,6 +768,53 @@ function formatSaleDate(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+function useCardLayout() {
+  const [layout, setLayout] = useState<CardLayout>(() => {
+    try {
+      return localStorage.getItem(CARD_LAYOUT_KEY) === "grid" ? "grid" : "list";
+    } catch {
+      return "list";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(CARD_LAYOUT_KEY, layout);
+    } catch {
+      /* ignore */
+    }
+  }, [layout]);
+  return [layout, setLayout] as const;
+}
+
+function CardLayoutToggle({
+  layout,
+  onChange,
+}: {
+  layout: CardLayout;
+  onChange: (next: CardLayout) => void;
+}) {
+  return (
+    <div className="layout-toggle" role="group" aria-label="Card layout">
+      <button
+        type="button"
+        className={layout === "list" ? "active" : ""}
+        aria-pressed={layout === "list"}
+        onClick={() => onChange("list")}
+      >
+        List
+      </button>
+      <button
+        type="button"
+        className={layout === "grid" ? "active" : ""}
+        aria-pressed={layout === "grid"}
+        onClick={() => onChange("grid")}
+      >
+        Grid
+      </button>
+    </div>
+  );
+}
+
 function MarketPrice({
   price,
   productId,
@@ -771,6 +823,9 @@ function MarketPrice({
   productId?: number | null;
 }) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null);
   const canExpand = productId != null && productId > 0;
   const salesQ = useQuery({
     queryKey: ["recent-sales", productId],
@@ -778,6 +833,38 @@ function MarketPrice({
     enabled: open && canExpand,
     staleTime: 30 * 60 * 1000,
   });
+
+  useEffect(() => {
+    if (!open) {
+      setPanelPos(null);
+      return;
+    }
+    function place() {
+      const btn = btnRef.current;
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      const width = 224;
+      const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
+      setPanelPos({ top: rect.bottom + 6, left });
+    }
+    place();
+    function onPointerDown(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    window.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   if (price == null || Number.isNaN(price)) {
     return <span className="muted">—</span>;
@@ -788,8 +875,9 @@ function MarketPrice({
   }
 
   return (
-    <div className={`market-price${open ? " open" : ""}`}>
+    <div ref={rootRef} className={`market-price${open ? " open" : ""}`}>
       <button
+        ref={btnRef}
         type="button"
         className="market-price-btn"
         aria-expanded={open}
@@ -801,8 +889,13 @@ function MarketPrice({
           {open ? "▴" : "▾"}
         </span>
       </button>
-      {open && (
-        <div className="market-sales" role="region" aria-label="Last 3 sold prices">
+      {open && panelPos && (
+        <div
+          className="market-sales"
+          role="region"
+          aria-label="Last 3 sold prices"
+          style={{ top: panelPos.top, left: panelPos.left }}
+        >
           <div className="market-sales-head">Last 3 sold</div>
           {salesQ.isLoading && <p className="muted market-sales-status">Loading…</p>}
           {salesQ.error && (
@@ -931,6 +1024,7 @@ function ShoppingPage() {
   const [onlyNeed, setOnlyNeed] = useState(true);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed);
   const [showAltArts, setShowAltArts] = useShowAltArts();
+  const [layout, setLayout] = useCardLayout();
   const [search, setSearch] = useState("");
   const sortingByDeck = effectiveSorts.includes("deck");
 
@@ -969,11 +1063,12 @@ function ShoppingPage() {
     if (onlyNeed) parts.push("Still need");
     if (effectiveSorts.length) parts.push(effectiveSorts.map((k) => SORT_LABELS[k]).join(" › "));
     if (showAltArts) parts.push("Alt arts");
+    if (layout === "grid") parts.push("Grid");
     if (allDeckIds.length > 0 && activeDeckIds.length < allDeckIds.length) {
       parts.push(`${activeDeckIds.length}/${allDeckIds.length} decks`);
     }
     return parts.join(" · ");
-  }, [onlyNeed, effectiveSorts, showAltArts, activeDeckIds.length, allDeckIds.length]);
+  }, [onlyNeed, effectiveSorts, showAltArts, layout, activeDeckIds.length, allDeckIds.length]);
 
   const createShare = useMutation({
     mutationFn: () =>
@@ -1165,7 +1260,10 @@ function ShoppingPage() {
       )}
 
       <div className="list-toolbar">
-        <CardSearchInput value={search} onChange={setSearch} />
+        <div className="list-toolbar-row">
+          <CardSearchInput value={search} onChange={setSearch} />
+          <CardLayoutToggle layout={layout} onChange={setLayout} />
+        </div>
         <CollapsibleFilters summary={filterSummary}>
           <div className="filters">
             <label>
@@ -1217,146 +1315,205 @@ function ShoppingPage() {
         </p>
       )}
 
-      <div className="table-wrap desktop-table">
-        <table className="data-table shopping-table">
-          <thead>
-            <tr>
-              <th className="select-col">
-                <input
-                  type="checkbox"
-                  checked={allVisibleSelected}
-                  onChange={toggleSelectVisible}
-                  aria-label={allVisibleSelected ? "Deselect visible cards" : "Select visible cards"}
-                  disabled={items.length === 0}
-                />
-              </th>
-              <th>Card</th>
-              <th>Owned</th>
-              <th>Still</th>
-              <th>Need</th>
-              <th>Market</th>
-              <th>Remaining</th>
-              <th>Cost</th>
-              {showAltArts && <th>Alt arts</th>}
-              <th>Used in</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item: ShoppingItem) => {
-              const checked = selectedCardIds.has(item.card_id);
-              return (
-                <tr
-                  key={item.card_id}
-                  className={`${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
-                >
-                  <td className="select-col">
+      {layout === "grid" ? (
+        <div className="card-grid">
+          {items.map((item: ShoppingItem) => {
+            const checked = selectedCardIds.has(item.card_id);
+            return (
+              <article
+                key={item.card_id}
+                className={`grid-card ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+              >
+                <div className="grid-card-media">
+                  <label className="grid-card-select">
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggleCard(item.card_id)}
                       aria-label={`Select ${item.card_id}`}
                     />
-                  </td>
-                  <td className="card-cell">
-                    <CardThumb src={item.image_url || undefined} alt={item.name} />
-                    <div>
-                      <div className="card-id">{item.card_id}</div>
-                      <div>{item.name}</div>
-                      {item.tcgplayer_url && (
-                        <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
-                          TCGPlayer
-                        </a>
-                      )}
-                    </div>
-                  </td>
-                  <td>
+                  </label>
+                  <CardThumb src={item.image_url || undefined} alt={item.name} />
+                </div>
+                <div className="grid-card-body">
+                  <div className="card-id">{item.card_id}</div>
+                  <div className="grid-card-name">{item.name}</div>
+                  <div className="grid-card-meta muted">
+                    Still {item.still_need} · Need {item.need}
+                    {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                  </div>
+                  <div className="grid-card-price">
+                    <MarketPrice price={item.market_price} productId={item.product_id} />
+                  </div>
+                  <div className="grid-card-owned">
+                    <span>Owned</span>
                     <OwnedInput
                       cardId={item.card_id}
                       value={item.owned}
                       onSaved={() => invalidateOwnedViews(qc)}
                     />
-                  </td>
-                  <td>{item.still_need}</td>
-                  <td>{item.need}</td>
-                  <td>
-                    <MarketPrice price={item.market_price} productId={item.product_id} />
-                  </td>
-                  <td>{money(item.remaining_cost)}</td>
-                  <td>{item.cost ?? "—"}</td>
-                  {showAltArts && (
-                    <td>
-                      <AltArtsRow alts={item.alt_arts ?? []} />
-                    </td>
-                  )}
-                  <td className="used-in">{usedInLabel(item)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mobile-card-list">
-        {items.map((item: ShoppingItem) => {
-          const checked = selectedCardIds.has(item.card_id);
-          return (
-            <article
-              key={item.card_id}
-              className={`mobile-card ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
-            >
-              <div className="mobile-card-top">
-                <label className="mobile-select">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleCard(item.card_id)}
-                    aria-label={`Select ${item.card_id}`}
-                  />
-                </label>
-                <MobileCardMedia
-                  src={item.image_url || undefined}
-                  alt={item.name}
-                  cost={item.cost}
-                  rarity={item.rarity}
-                />
-                <div className="mobile-card-info">
-                  <div className="card-id">{item.card_id}</div>
-                  <div className="mobile-card-name">{item.name}</div>
-                  <div className="mobile-card-meta">
-                    {[item.color, `Still ${item.still_need}`, `Need ${item.need}`].filter(Boolean).join(" · ")}
-                    {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
-                  </div>
-                  <div className="mobile-card-price-row">
-                    <span className="muted">Market</span>
-                    <MarketPrice price={item.market_price} productId={item.product_id} />
                   </div>
                   {item.tcgplayer_url && (
                     <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
                       TCGPlayer
                     </a>
                   )}
+                  {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
+                    <div className="grid-card-alts">
+                      <AltArtsRow alts={item.alt_arts ?? []} />
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div className="mobile-card-owned">
-                <span>Owned</span>
-                <OwnedInput
-                  cardId={item.card_id}
-                  value={item.owned}
-                  onSaved={() => invalidateOwnedViews(qc)}
-                />
-              </div>
-              {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
-                <div className="mobile-card-alts">
-                  <AltArtsRow alts={item.alt_arts ?? []} />
-                </div>
-              )}
-              {item.used_in.length > 0 && (
-                <p className="used-in mobile-used-in">{usedInLabel(item)}</p>
-              )}
-            </article>
-          );
-        })}
-      </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <>
+          <div className="table-wrap desktop-table">
+            <table className="data-table shopping-table">
+              <thead>
+                <tr>
+                  <th className="select-col">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectVisible}
+                      aria-label={allVisibleSelected ? "Deselect visible cards" : "Select visible cards"}
+                      disabled={items.length === 0}
+                    />
+                  </th>
+                  <th>Card</th>
+                  <th>Owned</th>
+                  <th>Still</th>
+                  <th>Need</th>
+                  <th>Market</th>
+                  <th>Remaining</th>
+                  <th>Cost</th>
+                  {showAltArts && <th>Alt arts</th>}
+                  <th>Used in</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item: ShoppingItem) => {
+                  const checked = selectedCardIds.has(item.card_id);
+                  return (
+                    <tr
+                      key={item.card_id}
+                      className={`${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+                    >
+                      <td className="select-col">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleCard(item.card_id)}
+                          aria-label={`Select ${item.card_id}`}
+                        />
+                      </td>
+                      <td className="card-cell">
+                        <CardThumb src={item.image_url || undefined} alt={item.name} />
+                        <div>
+                          <div className="card-id">{item.card_id}</div>
+                          <div>{item.name}</div>
+                          {item.tcgplayer_url && (
+                            <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                              TCGPlayer
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <OwnedInput
+                          cardId={item.card_id}
+                          value={item.owned}
+                          onSaved={() => invalidateOwnedViews(qc)}
+                        />
+                      </td>
+                      <td>{item.still_need}</td>
+                      <td>{item.need}</td>
+                      <td>
+                        <MarketPrice price={item.market_price} productId={item.product_id} />
+                      </td>
+                      <td>{money(item.remaining_cost)}</td>
+                      <td>{item.cost ?? "—"}</td>
+                      {showAltArts && (
+                        <td>
+                          <AltArtsRow alts={item.alt_arts ?? []} />
+                        </td>
+                      )}
+                      <td className="used-in">{usedInLabel(item)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mobile-card-list">
+            {items.map((item: ShoppingItem) => {
+              const checked = selectedCardIds.has(item.card_id);
+              return (
+                <article
+                  key={item.card_id}
+                  className={`mobile-card ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+                >
+                  <div className="mobile-card-top">
+                    <label className="mobile-select">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleCard(item.card_id)}
+                        aria-label={`Select ${item.card_id}`}
+                      />
+                    </label>
+                    <MobileCardMedia
+                      src={item.image_url || undefined}
+                      alt={item.name}
+                      cost={item.cost}
+                      rarity={item.rarity}
+                    />
+                    <div className="mobile-card-info">
+                      <div className="card-id">{item.card_id}</div>
+                      <div className="mobile-card-name">{item.name}</div>
+                      <div className="mobile-card-meta">
+                        {[item.color, `Still ${item.still_need}`, `Need ${item.need}`]
+                          .filter(Boolean)
+                          .join(" · ")}
+                        {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                      </div>
+                      <div className="mobile-card-price-row">
+                        <span className="muted">Market</span>
+                        <MarketPrice price={item.market_price} productId={item.product_id} />
+                      </div>
+                      {item.tcgplayer_url && (
+                        <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                          TCGPlayer
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mobile-card-owned">
+                    <span>Owned</span>
+                    <OwnedInput
+                      cardId={item.card_id}
+                      value={item.owned}
+                      onSaved={() => invalidateOwnedViews(qc)}
+                    />
+                  </div>
+                  {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
+                    <div className="mobile-card-alts">
+                      <AltArtsRow alts={item.alt_arts ?? []} />
+                    </div>
+                  )}
+                  {item.used_in.length > 0 && (
+                    <p className="used-in mobile-used-in">{usedInLabel(item)}</p>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </>
+      )}
     </section>
   );
 }
@@ -1594,11 +1751,54 @@ function CardTable({
   cards,
   onOwnedSaved,
   showAltArts,
+  layout = "list",
 }: {
   cards: CardView[];
   onOwnedSaved: () => void;
   showAltArts: boolean;
+  layout?: CardLayout;
 }) {
+  if (layout === "grid") {
+    return (
+      <div className="card-grid">
+        {cards.map((c) => (
+          <article
+            key={`${c.section}-${c.card_id}`}
+            className={`grid-card ${c.still_need > 0 ? "need" : "done"}`}
+          >
+            <div className="grid-card-media">
+              <CardThumb src={c.image_url || undefined} alt={c.name} />
+            </div>
+            <div className="grid-card-body">
+              <div className="card-id">{c.card_id}</div>
+              <div className="grid-card-name">{c.name}</div>
+              <div className="grid-card-meta muted">
+                {[`Still ${c.still_need}`, `Need ${c.needed}`, c.card_type || ""].filter(Boolean).join(" · ")}
+              </div>
+              <div className="grid-card-price">
+                <MarketPrice price={c.market_price} productId={c.product_id} />
+              </div>
+              <div className="grid-card-owned">
+                <span>Owned</span>
+                <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
+              </div>
+              {c.tcgplayer_url && (
+                <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
+                  TCGPlayer
+                </a>
+              )}
+              {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
+                <div className="grid-card-alts">
+                  <AltArtsRow alts={c.alt_arts ?? []} />
+                </div>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="table-wrap desktop-table">
@@ -1712,6 +1912,7 @@ function DeckDetailPage() {
   const deckUnavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, deckUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
+  const [layout, setLayout] = useCardLayout();
   const [search, setSearch] = useState("");
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const shareDeck = useMutation({
@@ -1753,8 +1954,9 @@ function DeckDetailPage() {
     if (onlyNeed) parts.push("Still need");
     if (effectiveSorts.length) parts.push(effectiveSorts.map((k) => SORT_LABELS[k]).join(" › "));
     if (showAltArts) parts.push("Alt arts");
+    if (layout === "grid") parts.push("Grid");
     return parts.join(" · ");
-  }, [onlyNeed, effectiveSorts, showAltArts]);
+  }, [onlyNeed, effectiveSorts, showAltArts, layout]);
 
   if (isLoading) return <p className="muted">Loading deck…</p>;
   if (error) return <p className="error">{(error as Error).message}</p>;
@@ -1806,7 +2008,10 @@ function DeckDetailPage() {
       <DeckProgressSummary cards={data.cards} />
 
       <div className="list-toolbar">
-        <CardSearchInput value={search} onChange={setSearch} />
+        <div className="list-toolbar-row">
+          <CardSearchInput value={search} onChange={setSearch} />
+          <CardLayoutToggle layout={layout} onChange={setLayout} />
+        </div>
         <CollapsibleFilters summary={filterSummary}>
           <div className="filters">
             <label>
@@ -1844,13 +2049,18 @@ function DeckDetailPage() {
         </p>
       )}
       <h2>Deck list</h2>
-      <CardTable cards={main} onOwnedSaved={refresh} showAltArts={showAltArts} />
+      <CardTable cards={main} onOwnedSaved={refresh} showAltArts={showAltArts} layout={layout} />
       {additional.length > 0 && (
         <>
           <h2 className="additional-heading">
             Additional Cards — not in {data.prior_decks.join(", ")}
           </h2>
-          <CardTable cards={additional} onOwnedSaved={refresh} showAltArts={showAltArts} />
+          <CardTable
+            cards={additional}
+            onOwnedSaved={refresh}
+            showAltArts={showAltArts}
+            layout={layout}
+          />
         </>
       )}
     </section>
@@ -1997,6 +2207,7 @@ function PublicSharePage() {
   const { token = "" } = useParams();
   const [onlyNeed, setOnlyNeed] = useState(true);
   const [search, setSearch] = useState("");
+  const [layout, setLayout] = useCardLayout();
   const { data, isLoading, error } = useQuery({
     queryKey: ["public-share", token],
     queryFn: () => api.publicShare(token),
@@ -2014,25 +2225,27 @@ function PublicSharePage() {
   return (
     <div className="app public-app">
       <header className="topbar">
-        <div className="brand">
-          <Link to="/login">
-            <img
-              className="brand-logo"
-              src="/optcg-logo.png"
-              alt="ONE PIECE CARD GAME"
-              width={562}
-              height={145}
-            />
-            <span>OPTCG Tracker</span>
-          </Link>
-        </div>
-        <div className="user">
-          <Link className="btn secondary" to="/login">
-            Sign in
-          </Link>
+        <div className="topbar-inner">
+          <div className="brand">
+            <Link to="/login">
+              <img
+                className="brand-logo"
+                src="/optcg-logo.png"
+                alt="ONE PIECE CARD GAME"
+                width={562}
+                height={145}
+              />
+              <span>OPTCG Tracker</span>
+            </Link>
+          </div>
+          <div className="user">
+            <Link className="btn secondary" to="/login">
+              Sign in
+            </Link>
+          </div>
         </div>
       </header>
-      <main>
+      <main className="app-main">
         {isLoading && <p className="muted">Loading shared list…</p>}
         {error && <p className="error">{(error as Error).message}</p>}
         {data && (
@@ -2049,7 +2262,10 @@ function PublicSharePage() {
             </div>
 
             <div className="list-toolbar">
-              <CardSearchInput value={search} onChange={setSearch} />
+              <div className="list-toolbar-row">
+                <CardSearchInput value={search} onChange={setSearch} />
+                <CardLayoutToggle layout={layout} onChange={setLayout} />
+              </div>
               <div className="filters">
                 <label>
                   <input
@@ -2062,72 +2278,24 @@ function PublicSharePage() {
               </div>
             </div>
 
-            <div className="table-wrap desktop-table">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Card</th>
-                    <th>Owned</th>
-                    <th>Still</th>
-                    <th>Need</th>
-                    <th>Market</th>
-                    <th>Remaining</th>
-                    <th>Used in</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={item.card_id} className={item.still_need > 0 ? "need" : "done"}>
-                      <td className="card-cell">
-                        <CardThumb src={item.image_url || undefined} alt={item.name} />
-                        <div>
-                          <div className="card-id">{item.card_id}</div>
-                          <div>{item.name}</div>
-                          {item.tcgplayer_url && (
-                            <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
-                              TCGPlayer
-                            </a>
-                          )}
-                        </div>
-                      </td>
-                      <td>{item.owned}</td>
-                      <td>{item.still_need}</td>
-                      <td>{item.need}</td>
-                      <td>
-                        <MarketPrice price={item.market_price} productId={item.product_id} />
-                      </td>
-                      <td>{money(item.remaining_cost)}</td>
-                      <td className="used-in">{item.used_in.join(", ")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mobile-card-list">
-              {items.map((item) => (
-                <article
-                  key={item.card_id}
-                  className={`mobile-card ${item.still_need > 0 ? "need" : "done"}`}
-                >
-                  <div className="mobile-card-top">
-                    <MobileCardMedia
-                      src={item.image_url || undefined}
-                      alt={item.name}
-                      cost={item.cost}
-                      rarity={item.rarity}
-                    />
-                    <div className="mobile-card-info">
+            {layout === "grid" ? (
+              <div className="card-grid">
+                {items.map((item) => (
+                  <article
+                    key={item.card_id}
+                    className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}
+                  >
+                    <div className="grid-card-media">
+                      <CardThumb src={item.image_url || undefined} alt={item.name} />
+                    </div>
+                    <div className="grid-card-body">
                       <div className="card-id">{item.card_id}</div>
-                      <div className="mobile-card-name">{item.name}</div>
-                      <div className="mobile-card-meta">
-                        {[`Owned ${item.owned}`, `Still ${item.still_need}`, `Need ${item.need}`]
-                          .filter(Boolean)
-                          .join(" · ")}
+                      <div className="grid-card-name">{item.name}</div>
+                      <div className="grid-card-meta muted">
+                        Owned {item.owned} · Still {item.still_need} · Need {item.need}
                         {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
                       </div>
-                      <div className="mobile-card-price-row">
-                        <span className="muted">Market</span>
+                      <div className="grid-card-price">
                         <MarketPrice price={item.market_price} productId={item.product_id} />
                       </div>
                       {item.tcgplayer_url && (
@@ -2136,13 +2304,94 @@ function PublicSharePage() {
                         </a>
                       )}
                     </div>
-                  </div>
-                  {item.used_in.length > 0 && (
-                    <p className="used-in mobile-used-in">{item.used_in.join(", ")}</p>
-                  )}
-                </article>
-              ))}
-            </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="table-wrap desktop-table">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Card</th>
+                        <th>Owned</th>
+                        <th>Still</th>
+                        <th>Need</th>
+                        <th>Market</th>
+                        <th>Remaining</th>
+                        <th>Used in</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item) => (
+                        <tr key={item.card_id} className={item.still_need > 0 ? "need" : "done"}>
+                          <td className="card-cell">
+                            <CardThumb src={item.image_url || undefined} alt={item.name} />
+                            <div>
+                              <div className="card-id">{item.card_id}</div>
+                              <div>{item.name}</div>
+                              {item.tcgplayer_url && (
+                                <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                                  TCGPlayer
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                          <td>{item.owned}</td>
+                          <td>{item.still_need}</td>
+                          <td>{item.need}</td>
+                          <td>
+                            <MarketPrice price={item.market_price} productId={item.product_id} />
+                          </td>
+                          <td>{money(item.remaining_cost)}</td>
+                          <td className="used-in">{item.used_in.join(", ")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mobile-card-list">
+                  {items.map((item) => (
+                    <article
+                      key={item.card_id}
+                      className={`mobile-card ${item.still_need > 0 ? "need" : "done"}`}
+                    >
+                      <div className="mobile-card-top">
+                        <MobileCardMedia
+                          src={item.image_url || undefined}
+                          alt={item.name}
+                          cost={item.cost}
+                          rarity={item.rarity}
+                        />
+                        <div className="mobile-card-info">
+                          <div className="card-id">{item.card_id}</div>
+                          <div className="mobile-card-name">{item.name}</div>
+                          <div className="mobile-card-meta">
+                            {[`Owned ${item.owned}`, `Still ${item.still_need}`, `Need ${item.need}`]
+                              .filter(Boolean)
+                              .join(" · ")}
+                            {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                          </div>
+                          <div className="mobile-card-price-row">
+                            <span className="muted">Market</span>
+                            <MarketPrice price={item.market_price} productId={item.product_id} />
+                          </div>
+                          {item.tcgplayer_url && (
+                            <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                              TCGPlayer
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      {item.used_in.length > 0 && (
+                        <p className="used-in mobile-used-in">{item.used_in.join(", ")}</p>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
           </section>
         )}
       </main>
