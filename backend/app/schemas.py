@@ -43,6 +43,21 @@ class PrintingView(BaseModel):
     is_special: bool = True
 
 
+class RecentSale(BaseModel):
+    price: float
+    shipping: float = 0.0
+    condition: str = ""
+    variant: str = ""
+    language: str = ""
+    quantity: int = 1
+    order_date: str = ""
+
+
+class RecentSalesResponse(BaseModel):
+    product_id: int
+    sales: list[RecentSale]
+
+
 class CardView(BaseModel):
     card_id: str
     name: str
@@ -57,6 +72,7 @@ class CardView(BaseModel):
     low_price: float | None = None
     image_url: str = ""
     tcgplayer_url: str = ""
+    product_id: int | None = None
     section: str = "main"  # main | additional
     alt_arts: list[PrintingView] = []
 
@@ -85,6 +101,7 @@ class ShoppingItem(BaseModel):
     remaining_cost: float | None = None
     image_url: str = ""
     tcgplayer_url: str = ""
+    product_id: int | None = None
     used_in: list[str]
     alt_arts: list[PrintingView] = []
     # Deck sort: group by earliest leader, then first same-leader deck that uses the card.

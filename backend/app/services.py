@@ -71,6 +71,25 @@ def _owned_map(db: Session, user_id: int) -> dict[str, int]:
     return {r.card_id: r.qty for r in rows}
 
 
+def _primary_product_ids(db: Session, card_ids: set[str]) -> dict[str, int]:
+    """Preferred TCGPlayer product id per card number (standard printing, then cheapest)."""
+    if not card_ids:
+        return {}
+    rows = db.scalars(select(CatalogPrinting).where(CatalogPrinting.card_id.in_(card_ids))).all()
+    best: dict[str, tuple[tuple, int]] = {}
+    for row in rows:
+        key = (
+            int(row.is_special or 0),
+            row.market_price is None,
+            row.market_price if row.market_price is not None else 1e9,
+            row.product_id,
+        )
+        prev = best.get(row.card_id)
+        if prev is None or key < prev[0]:
+            best[row.card_id] = (key, row.product_id)
+    return {card_id: pair[1] for card_id, pair in best.items()}
+
+
 def _card_view(
     card_id: str,
     needed: int,
@@ -78,6 +97,7 @@ def _card_view(
     cat: CatalogCard | None,
     section: str,
     alt_arts: list[PrintingView] | None = None,
+    product_id: int | None = None,
 ) -> CardView:
     cost = parse_cost(cat.cost) if cat else None
     return CardView(
@@ -94,6 +114,7 @@ def _card_view(
         low_price=cat.low_price if cat else None,
         image_url=cat.image_url if cat else "",
         tcgplayer_url=cat.tcgplayer_url if cat else "",
+        product_id=product_id,
         section=section,
         alt_arts=alt_arts or [],
     )
@@ -197,6 +218,7 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
     all_ids = {c.card_id for d in decks for c in d.cards}
     catalog = _catalog_map(db, all_ids)
     alts = _alt_arts_map(db, all_ids)
+    product_ids = _primary_product_ids(db, all_ids)
 
     prior_ids: set[str] = set()
     prior_names: list[str] = []
@@ -222,6 +244,7 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
                 catalog.get(card.card_id),
                 section,
                 alts.get(card.card_id, []),
+                product_ids.get(card.card_id),
             )
         )
 
@@ -285,6 +308,7 @@ def shopping_list(
     owned = _owned_map(db, user.id)
     catalog = _catalog_map(db, set(need))
     alts = _alt_arts_map(db, set(need))
+    product_ids = _primary_product_ids(db, set(need))
     items: list[ShoppingItem] = []
     cards_still = 0
     remaining = 0.0
@@ -338,6 +362,7 @@ def shopping_list(
                 remaining_cost=line,
                 image_url=cat.image_url if cat else "",
                 tcgplayer_url=cat.tcgplayer_url if cat else "",
+                product_id=product_ids.get(card_id),
                 used_in=used_in[card_id],
                 alt_arts=alts.get(card_id, []),
                 deck_sort_key=deck_sort_key,
@@ -528,6 +553,7 @@ def public_share_view(db: Session, token: str) -> PublicShoppingResponse:
                     remaining_cost=line,
                     image_url=card.image_url,
                     tcgplayer_url=card.tcgplayer_url,
+                    product_id=card.product_id,
                     used_in=[detail.name],
                     alt_arts=card.alt_arts,
                     primary_leader_card_id=detail.leader_card_id,

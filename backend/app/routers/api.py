@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,6 +12,7 @@ from app.catalog_sync import sync_catalog
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import CatalogMeta, User
+from app.recent_sales import fetch_recent_sales
 from app.schemas import (
     CatalogStatus,
     DeckCreate,
@@ -19,6 +21,7 @@ from app.schemas import (
     DeckUpdate,
     OwnedUpdate,
     PublicShoppingResponse,
+    RecentSalesResponse,
     ShareCreate,
     ShareInfo,
     ShoppingResponse,
@@ -176,6 +179,21 @@ def catalog_status(
         last_synced_at=meta.last_synced_at.isoformat() if meta.last_synced_at else None,
         notes=meta.notes or "",
     )
+
+
+@router.get("/catalog/sales/{product_id}", response_model=RecentSalesResponse)
+def catalog_recent_sales(
+    product_id: int,
+    limit: Annotated[int, Query(ge=1, le=10)] = 3,
+):
+    """Public proxy for TCGPlayer latest sales (cached). Used by price expand UI."""
+    try:
+        sales = fetch_recent_sales(product_id, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="Could not load recent sales") from exc
+    return RecentSalesResponse(product_id=product_id, sales=sales)
 
 
 @router.post("/admin/sync-catalog")

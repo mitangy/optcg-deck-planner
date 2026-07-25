@@ -756,6 +756,81 @@ function useShowAltArts() {
   return [showAltArts, setShowAltArts] as const;
 }
 
+function formatSaleDate(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function MarketPrice({
+  price,
+  productId,
+}: {
+  price: number | null | undefined;
+  productId?: number | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const canExpand = productId != null && productId > 0;
+  const salesQ = useQuery({
+    queryKey: ["recent-sales", productId],
+    queryFn: () => api.recentSales(productId!),
+    enabled: open && canExpand,
+    staleTime: 30 * 60 * 1000,
+  });
+
+  if (price == null || Number.isNaN(price)) {
+    return <span className="muted">—</span>;
+  }
+
+  if (!canExpand) {
+    return <span>{money(price)}</span>;
+  }
+
+  return (
+    <div className={`market-price${open ? " open" : ""}`}>
+      <button
+        type="button"
+        className="market-price-btn"
+        aria-expanded={open}
+        title="Show last 3 sold prices"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span>{money(price)}</span>
+        <span className="market-price-chevron" aria-hidden="true">
+          {open ? "▴" : "▾"}
+        </span>
+      </button>
+      {open && (
+        <div className="market-sales" role="region" aria-label="Last 3 sold prices">
+          <div className="market-sales-head">Last 3 sold</div>
+          {salesQ.isLoading && <p className="muted market-sales-status">Loading…</p>}
+          {salesQ.error && (
+            <p className="error market-sales-status">{(salesQ.error as Error).message}</p>
+          )}
+          {salesQ.data && salesQ.data.sales.length === 0 && (
+            <p className="muted market-sales-status">No recent sales</p>
+          )}
+          {salesQ.data && salesQ.data.sales.length > 0 && (
+            <ul className="market-sales-list">
+              {salesQ.data.sales.map((sale, idx) => (
+                <li key={`${sale.order_date}-${sale.price}-${idx}`}>
+                  <span className="market-sale-price">{money(sale.price)}</span>
+                  <span className="market-sale-meta">
+                    {[sale.condition, sale.variant, formatSaleDate(sale.order_date)]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AltArtsRow({ alts }: { alts: PrintingView[] }) {
   if (!alts.length) return <span className="muted">—</span>;
   return (
@@ -764,7 +839,7 @@ function AltArtsRow({ alts }: { alts: PrintingView[] }) {
         <div key={alt.product_id} className="alt-art">
           <CardThumb src={alt.image_url || undefined} alt={alt.name} />
           <div className="alt-meta">
-            <div className="alt-price">{money(alt.market_price)}</div>
+            <MarketPrice price={alt.market_price} productId={alt.product_id} />
             {alt.tcgplayer_url ? (
               <a href={alt.tcgplayer_url} target="_blank" rel="noreferrer" title={alt.name}>
                 Alt
@@ -1203,7 +1278,9 @@ function ShoppingPage() {
                   </td>
                   <td>{item.still_need}</td>
                   <td>{item.need}</td>
-                  <td>{money(item.market_price)}</td>
+                  <td>
+                    <MarketPrice price={item.market_price} productId={item.product_id} />
+                  </td>
                   <td>{money(item.remaining_cost)}</td>
                   <td>{item.cost ?? "—"}</td>
                   {showAltArts && (
@@ -1246,10 +1323,12 @@ function ShoppingPage() {
                   <div className="card-id">{item.card_id}</div>
                   <div className="mobile-card-name">{item.name}</div>
                   <div className="mobile-card-meta">
-                    {[item.color, `Still ${item.still_need}`, `Need ${item.need}`, money(item.market_price)]
-                      .filter(Boolean)
-                      .join(" · ")}
+                    {[item.color, `Still ${item.still_need}`, `Need ${item.need}`].filter(Boolean).join(" · ")}
                     {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                  </div>
+                  <div className="mobile-card-price-row">
+                    <span className="muted">Market</span>
+                    <MarketPrice price={item.market_price} productId={item.product_id} />
                   </div>
                   {item.tcgplayer_url && (
                     <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
@@ -1556,7 +1635,9 @@ function CardTable({
                 </td>
                 <td>{c.still_need}</td>
                 <td>{c.needed}</td>
-                <td>{money(c.market_price)}</td>
+                <td>
+                  <MarketPrice price={c.market_price} productId={c.product_id} />
+                </td>
                 <td>{c.card_type || "—"}</td>
                 <td>{c.cost ?? "—"}</td>
                 {showAltArts && (
@@ -1587,9 +1668,13 @@ function CardTable({
                 <div className="card-id">{c.card_id}</div>
                 <div className="mobile-card-name">{c.name}</div>
                 <div className="mobile-card-meta">
-                  {[c.color, `Still ${c.still_need}`, `Need ${c.needed}`, money(c.market_price), c.card_type || ""]
+                  {[c.color, `Still ${c.still_need}`, `Need ${c.needed}`, c.card_type || ""]
                     .filter(Boolean)
                     .join(" · ")}
+                </div>
+                <div className="mobile-card-price-row">
+                  <span className="muted">Market</span>
+                  <MarketPrice price={c.market_price} productId={c.product_id} />
                 </div>
                 {c.tcgplayer_url && (
                   <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
@@ -2008,7 +2093,9 @@ function PublicSharePage() {
                       <td>{item.owned}</td>
                       <td>{item.still_need}</td>
                       <td>{item.need}</td>
-                      <td>{money(item.market_price)}</td>
+                      <td>
+                        <MarketPrice price={item.market_price} productId={item.product_id} />
+                      </td>
                       <td>{money(item.remaining_cost)}</td>
                       <td className="used-in">{item.used_in.join(", ")}</td>
                     </tr>
@@ -2034,15 +2121,14 @@ function PublicSharePage() {
                       <div className="card-id">{item.card_id}</div>
                       <div className="mobile-card-name">{item.name}</div>
                       <div className="mobile-card-meta">
-                        {[
-                          `Owned ${item.owned}`,
-                          `Still ${item.still_need}`,
-                          `Need ${item.need}`,
-                          money(item.market_price),
-                        ]
+                        {[`Owned ${item.owned}`, `Still ${item.still_need}`, `Need ${item.need}`]
                           .filter(Boolean)
                           .join(" · ")}
                         {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                      </div>
+                      <div className="mobile-card-price-row">
+                        <span className="muted">Market</span>
+                        <MarketPrice price={item.market_price} productId={item.product_id} />
                       </div>
                       {item.tcgplayer_url && (
                         <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">

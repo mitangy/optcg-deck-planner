@@ -67,6 +67,7 @@ export type CardView = {
   low_price: number | null;
   image_url: string;
   tcgplayer_url: string;
+  product_id?: number | null;
   section: "main" | "additional" | string;
   alt_arts: PrintingView[];
 };
@@ -95,12 +96,28 @@ export type ShoppingItem = {
   remaining_cost: number | null;
   image_url: string;
   tcgplayer_url: string;
+  product_id?: number | null;
   used_in: string[];
   alt_arts: PrintingView[];
   deck_sort_key?: string;
   primary_leader_card_id?: string | null;
   primary_leader_name?: string | null;
   leader_count?: number;
+};
+
+export type RecentSale = {
+  price: number;
+  shipping: number;
+  condition: string;
+  variant: string;
+  language: string;
+  quantity: number;
+  order_date: string;
+};
+
+export type RecentSalesResponse = {
+  product_id: number;
+  sales: RecentSale[];
 };
 
 export type ShoppingResponse = {
@@ -152,6 +169,8 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ qty }),
     }),
+  recentSales: (productId: number, limit = 3) =>
+    request<RecentSalesResponse>(`/catalog/sales/${productId}?limit=${limit}`),
   getShoppingShare: () => request<ShareInfo | null>("/share/shopping"),
   createShare: (body: { kind?: string; deck_id?: number; deck_ids?: number[] }) =>
     request<ShareInfo>("/share", {

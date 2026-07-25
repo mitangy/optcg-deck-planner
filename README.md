@@ -87,6 +87,7 @@ GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
 - `PUT /owned/{card_id}`
 - `GET /share/shopping`, `POST /share`, `DELETE /share/{token}` — create/manage public links
 - `GET /public/share/{token}` — unauthenticated read-only shopping/deck view
+- `GET /catalog/sales/{product_id}` — last sold prices from TCGPlayer (cached, public)
 - `POST /admin/sync-catalog` (token header)
 - `GET /catalog/status` (auth required)
 

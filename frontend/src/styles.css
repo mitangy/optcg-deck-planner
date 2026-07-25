@@ -181,6 +181,95 @@ h2,
   font-weight: 700;
 }
 
+.market-price {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  max-width: 14rem;
+}
+
+.market-price-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0.2rem 0.45rem;
+  border: 1px dashed transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.market-price-btn:hover,
+.market-price.open .market-price-btn {
+  border-color: var(--line);
+  background: rgba(255, 253, 248, 0.95);
+}
+
+.market-price-chevron {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.market-sales {
+  width: min(14rem, 70vw);
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 0.82rem;
+  z-index: 2;
+}
+
+.market-sales-head {
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.market-sales-status {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.market-sales-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.market-sales-list li {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.market-sale-price {
+  font-weight: 700;
+}
+
+.market-sale-meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.mobile-card-price-row {
+  margin-top: 0.4rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .login {
   min-height: 100vh;
   display: grid;
