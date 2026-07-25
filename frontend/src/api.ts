@@ -67,6 +67,7 @@ export type CardView = {
   low_price: number | null;
   image_url: string;
   tcgplayer_url: string;
+  product_id?: number | null;
   section: "main" | "additional" | string;
   alt_arts: PrintingView[];
 };
@@ -95,6 +96,7 @@ export type ShoppingItem = {
   remaining_cost: number | null;
   image_url: string;
   tcgplayer_url: string;
+  product_id?: number | null;
   used_in: string[];
   alt_arts: PrintingView[];
   deck_sort_key?: string;
@@ -103,11 +105,40 @@ export type ShoppingItem = {
   leader_count?: number;
 };
 
+export type RecentSale = {
+  price: number;
+  shipping: number;
+  condition: string;
+  variant: string;
+  language: string;
+  quantity: number;
+  order_date: string;
+};
+
+export type RecentSalesResponse = {
+  product_id: number;
+  sales: RecentSale[];
+};
+
 export type ShoppingResponse = {
   items: ShoppingItem[];
   cards_still_needed: number;
   remaining_market: number;
   unique_cards: number;
+};
+
+export type ShareInfo = {
+  token: string;
+  kind: string;
+  deck_id: number | null;
+  deck_ids: number[] | null;
+  path: string;
+};
+
+export type PublicShoppingResponse = ShoppingResponse & {
+  owner_name: string;
+  kind: string;
+  deck_name: string | null;
 };
 
 export const api = {
@@ -138,6 +169,18 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ qty }),
     }),
+  recentSales: (productId: number, limit = 3) =>
+    request<RecentSalesResponse>(`/catalog/sales/${productId}?limit=${limit}`),
+  getShoppingShare: () => request<ShareInfo | null>("/share/shopping"),
+  createShare: (body: { kind?: string; deck_id?: number; deck_ids?: number[] }) =>
+    request<ShareInfo>("/share", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  revokeShare: (token: string) =>
+    request<{ ok: boolean }>(`/share/${encodeURIComponent(token)}`, { method: "DELETE" }),
+  publicShare: (token: string) =>
+    request<PublicShoppingResponse>(`/public/share/${encodeURIComponent(token)}`),
 };
 
 export function money(n: number | null | undefined): string {

@@ -43,6 +43,21 @@ class PrintingView(BaseModel):
     is_special: bool = True
 
 
+class RecentSale(BaseModel):
+    price: float
+    shipping: float = 0.0
+    condition: str = ""
+    variant: str = ""
+    language: str = ""
+    quantity: int = 1
+    order_date: str = ""
+
+
+class RecentSalesResponse(BaseModel):
+    product_id: int
+    sales: list[RecentSale]
+
+
 class CardView(BaseModel):
     card_id: str
     name: str
@@ -57,6 +72,7 @@ class CardView(BaseModel):
     low_price: float | None = None
     image_url: str = ""
     tcgplayer_url: str = ""
+    product_id: int | None = None
     section: str = "main"  # main | additional
     alt_arts: list[PrintingView] = []
 
@@ -85,6 +101,7 @@ class ShoppingItem(BaseModel):
     remaining_cost: float | None = None
     image_url: str = ""
     tcgplayer_url: str = ""
+    product_id: int | None = None
     used_in: list[str]
     alt_arts: list[PrintingView] = []
     # Deck sort: group by earliest leader, then first same-leader deck that uses the card.
@@ -110,3 +127,23 @@ class CatalogStatus(BaseModel):
     card_count: int
     last_synced_at: str | None
     notes: str = ""
+
+
+class ShareCreate(BaseModel):
+    kind: str = Field(default="shopping", pattern="^(shopping|deck)$")
+    deck_id: int | None = None
+    deck_ids: list[int] | None = None
+
+
+class ShareInfo(BaseModel):
+    token: str
+    kind: str
+    deck_id: int | None = None
+    deck_ids: list[int] | None = None
+    path: str
+
+
+class PublicShoppingResponse(ShoppingResponse):
+    owner_name: str = ""
+    kind: str = "shopping"
+    deck_name: str | None = None

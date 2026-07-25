@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,6 +12,7 @@ from app.catalog_sync import sync_catalog
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import CatalogMeta, User
+from app.recent_sales import fetch_recent_sales
 from app.schemas import (
     CatalogStatus,
     DeckCreate,
@@ -18,6 +20,10 @@ from app.schemas import (
     DeckSummary,
     DeckUpdate,
     OwnedUpdate,
+    PublicShoppingResponse,
+    RecentSalesResponse,
+    ShareCreate,
+    ShareInfo,
     ShoppingResponse,
 )
 from app import services
@@ -110,6 +116,55 @@ def put_owned(
     return {"card_id": card_id.upper(), "qty": qty}
 
 
+@router.get("/share/shopping", response_model=ShareInfo | None)
+def get_shopping_share(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return services.get_active_shopping_share(db, user)
+
+
+@router.post("/share", response_model=ShareInfo)
+def post_share(
+    body: ShareCreate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return services.create_or_update_share(
+            db, user, body.kind, deck_id=body.deck_id, deck_ids=body.deck_ids
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/share/{token}")
+def delete_share(
+    token: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        services.revoke_share(db, user, token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"ok": True}
+
+
+@router.get("/public/share/{token}", response_model=PublicShoppingResponse)
+def get_public_share(
+    token: str,
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Unauthenticated read-only shopping/deck view for a share token."""
+    try:
+        return services.public_share_view(db, token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @router.get("/catalog/status", response_model=CatalogStatus)
 def catalog_status(
     user: Annotated[User, Depends(get_current_user)],
@@ -124,6 +179,21 @@ def catalog_status(
         last_synced_at=meta.last_synced_at.isoformat() if meta.last_synced_at else None,
         notes=meta.notes or "",
     )
+
+
+@router.get("/catalog/sales/{product_id}", response_model=RecentSalesResponse)
+def catalog_recent_sales(
+    product_id: int,
+    limit: Annotated[int, Query(ge=1, le=10)] = 3,
+):
+    """Public proxy for TCGPlayer latest sales (cached). Used by price expand UI."""
+    try:
+        sales = fetch_recent_sales(product_id, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="Could not load recent sales") from exc
+    return RecentSalesResponse(product_id=product_id, sales=sales)
 
 
 @router.post("/admin/sync-catalog")
