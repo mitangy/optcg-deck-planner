@@ -635,6 +635,22 @@ tr.done {
   border: 1px solid var(--line);
 }
 
+.deck-card-leader-thumb.placeholder {
+  display: grid;
+  place-items: center;
+  padding: 0.25rem;
+  text-align: center;
+  background: var(--bg-deep);
+}
+
+.deck-card-leader-fallback {
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--muted);
+  word-break: break-all;
+}
+
 .deck-card-body {
   min-width: 0;
   flex: 1;
