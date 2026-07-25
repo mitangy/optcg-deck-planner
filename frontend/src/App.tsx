@@ -277,7 +277,16 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <Link to="/">OPTCG Tracker</Link>
+          <Link to="/">
+            <img
+              className="brand-logo"
+              src="/optcg-logo.png"
+              alt="ONE PIECE CARD GAME"
+              width={562}
+              height={145}
+            />
+            <span>OPTCG Tracker</span>
+          </Link>
         </div>
         <nav>
           <Link to="/">Shopping</Link>
@@ -347,8 +356,14 @@ function LoginPage() {
   return (
     <div className="login">
       <div className="login-card">
-        <p className="eyebrow">One Piece TCG</p>
-        <h1>Deck Tracker</h1>
+        <img
+          className="login-logo"
+          src="/optcg-logo.png"
+          alt="ONE PIECE CARD GAME"
+          width={562}
+          height={145}
+        />
+        <h1>OPTCG Tracker</h1>
         <p className="lede">
           Track decks, Owned counts across your lists, and market prices.
         </p>
