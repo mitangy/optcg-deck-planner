@@ -815,6 +815,7 @@ function ShoppingPage() {
 
 function DecksPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { data, isLoading, error } = useQuery({ queryKey: ["decks"], queryFn: api.decks });
   const del = useMutation({
     mutationFn: api.deleteDeck,
@@ -837,17 +838,55 @@ function DecksPage() {
       </div>
       <div className="deck-grid">
         {(data ?? []).map((d) => (
-          <article key={d.id} className="deck-card">
-            <h2>
-              <Link to={`/decks/${d.id}`}>{d.name}</Link>
-            </h2>
-            <p className="muted">
-              {d.card_count} unique · {d.total_cards} cards
-              {d.leader_card_id ? ` · Leader ${d.leader_card_id}` : ""}
-            </p>
+          <article
+            key={d.id}
+            className="deck-card"
+            role="link"
+            tabIndex={0}
+            onClick={() => navigate(`/decks/${d.id}`)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                navigate(`/decks/${d.id}`);
+              }
+            }}
+          >
+            <div className="deck-card-main">
+              {d.leader_image_url || d.leader_card_id ? (
+                <div className="deck-card-leader-art">
+                  {d.leader_image_url ? (
+                    <img
+                      src={d.leader_image_url}
+                      alt={d.leader_name || d.leader_card_id || "Leader"}
+                      className="deck-card-leader-thumb"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="thumb placeholder deck-card-leader-thumb" />
+                  )}
+                </div>
+              ) : null}
+              <div className="deck-card-body">
+                <h2>{d.name}</h2>
+                <p className="deck-card-leader">
+                  {d.leader_card_id
+                    ? `${d.leader_name || "Leader"} · ${d.leader_card_id}`
+                    : "No leader detected"}
+                </p>
+                <p className="muted">
+                  {d.card_count} unique · {d.total_cards} cards
+                </p>
+              </div>
+            </div>
             <div className="row-actions">
-              <Link to={`/decks/${d.id}`}>Open</Link>
-              <button type="button" className="ghost danger" onClick={() => del.mutate(d.id)}>
+              <button
+                type="button"
+                className="ghost danger"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  del.mutate(d.id);
+                }}
+              >
                 Delete
               </button>
             </div>

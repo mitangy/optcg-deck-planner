@@ -101,13 +101,18 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
         .options(selectinload(Deck.cards))
         .order_by(Deck.sort_order, Deck.id)
     ).all()
+    leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
+    catalog = _catalog_map(db, leader_ids) if leader_ids else {}
     out: list[DeckSummary] = []
     for deck in decks:
+        leader = catalog.get(deck.leader_card_id) if deck.leader_card_id else None
         out.append(
             DeckSummary(
                 id=deck.id,
                 name=deck.name,
                 leader_card_id=deck.leader_card_id,
+                leader_name=leader.name if leader else None,
+                leader_image_url=leader.image_url if leader else "",
                 card_count=len(deck.cards),
                 total_cards=sum(c.needed for c in deck.cards),
                 sort_order=deck.sort_order,

@@ -35,6 +35,8 @@ export type DeckSummary = {
   id: number;
   name: string;
   leader_card_id: string | null;
+  leader_name?: string | null;
+  leader_image_url?: string;
   card_count: number;
   total_cards: number;
   sort_order: number;
