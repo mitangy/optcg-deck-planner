@@ -8,7 +8,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
@@ -35,12 +35,19 @@ def _oauth_serializer(settings: Settings) -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(settings.session_secret, salt="optcg-oauth")
 
 
-def create_session_token(user_id: int, settings: Settings | None = None) -> str:
+def create_session_token(
+    user_id: int,
+    session_version: int = 0,
+    settings: Settings | None = None,
+) -> str:
     settings = settings or get_settings()
-    return _serializer(settings).dumps({"uid": user_id})
+    return _serializer(settings).dumps({"uid": user_id, "sv": int(session_version)})
 
 
-def read_session_token(token: str, settings: Settings | None = None) -> int | None:
+def read_session_token(
+    token: str, settings: Settings | None = None
+) -> tuple[int, int] | None:
+    """Return (user_id, session_version) or None if invalid."""
     settings = settings or get_settings()
     try:
         data = _serializer(settings).loads(token, max_age=SESSION_MAX_AGE_SECONDS)
@@ -50,7 +57,14 @@ def read_session_token(token: str, settings: Settings | None = None) -> int | No
     if data.get("purpose") is not None:
         return None
     uid = data.get("uid")
-    return int(uid) if uid is not None else None
+    if uid is None:
+        return None
+    # Missing sv means pre-hardening cookie; treat as version 0.
+    sv = data.get("sv", 0)
+    try:
+        return int(uid), int(sv)
+    except (TypeError, ValueError):
+        return None
 
 
 def new_oauth_nonce() -> str:
@@ -151,6 +165,37 @@ def read_login_ticket(ticket: str, settings: Settings | None = None) -> int | No
     return int(uid) if uid is not None else None
 
 
+def resolve_google_user(
+    db: Session,
+    *,
+    email: str,
+    sub: str,
+    name: str,
+) -> User:
+    """Find or create a user for a verified Google identity.
+
+    Refuses to rebind an email that is already linked to a different google_sub.
+    """
+    user = db.scalar(select(User).where(User.google_sub == sub))
+    if user is None:
+        user = db.scalar(select(User).where(User.email == email))
+    if user is None:
+        user = User(email=email, name=name, google_sub=sub)
+        db.add(user)
+    else:
+        if user.google_sub and user.google_sub != sub:
+            raise HTTPException(
+                status_code=403,
+                detail="Email already linked to another Google account",
+            )
+        user.email = email
+        user.name = name
+        user.google_sub = sub
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def get_current_user(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
@@ -159,12 +204,15 @@ def get_current_user(
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    user_id = read_session_token(token, settings)
-    if user_id is None:
+    parsed = read_session_token(token, settings)
+    if parsed is None:
         raise HTTPException(status_code=401, detail="Invalid session")
+    user_id, session_version = parsed
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
+    if int(user.session_version or 0) != session_version:
+        raise HTTPException(status_code=401, detail="Invalid session")
     return user
 
 
@@ -176,10 +224,16 @@ def get_optional_user(
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
         return None
-    user_id = read_session_token(token, settings)
-    if user_id is None:
+    parsed = read_session_token(token, settings)
+    if parsed is None:
         return None
-    return db.get(User, user_id)
+    user_id, session_version = parsed
+    user = db.get(User, user_id)
+    if user is None:
+        return None
+    if int(user.session_version or 0) != session_version:
+        return None
+    return user
 
 
 def email_allowed(email: str, settings: Settings) -> bool:

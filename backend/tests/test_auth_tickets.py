@@ -30,8 +30,8 @@ def test_login_ticket_is_not_a_valid_session(db):
 
 def test_session_token_is_not_a_valid_login_ticket(db):
     settings = _settings()
-    session = create_session_token(7, settings)
-    assert read_session_token(session, settings) == 7
+    session = create_session_token(7, settings=settings)
+    assert read_session_token(session, settings) == (7, 0)
     assert read_login_ticket(session, settings) is None
 
 

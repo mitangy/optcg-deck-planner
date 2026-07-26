@@ -21,6 +21,7 @@ from app.auth import (
     email_allowed,
     get_optional_user,
     new_oauth_nonce,
+    resolve_google_user,
     verify_oauth_state,
 )
 from app.config import Settings, get_settings
@@ -66,10 +67,14 @@ def _cookie_flags(settings: Settings) -> dict:
     }
 
 
-def _set_session_cookie(response: Response, user_id: int, settings: Settings) -> None:
+def _set_session_cookie(
+    response: Response,
+    user: User,
+    settings: Settings,
+) -> None:
     response.set_cookie(
         key=SESSION_COOKIE,
-        value=create_session_token(user_id, settings),
+        value=create_session_token(user.id, int(user.session_version or 0), settings),
         **_cookie_flags(settings),
     )
 
@@ -123,7 +128,8 @@ async def google_callback(
             authorization_response=authorization_response,
         )
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=f"OAuth failed: {exc}") from exc
+        # Do not echo provider/transport internals to the client.
+        raise HTTPException(status_code=400, detail="OAuth failed") from exc
 
     access_token = token.get("access_token") if isinstance(token, dict) else None
     if not access_token:
@@ -140,21 +146,12 @@ async def google_callback(
     name = profile.get("name") or email
     if not email or not sub:
         raise HTTPException(status_code=400, detail="Google profile missing email")
+    if profile.get("email_verified") is not True:
+        raise HTTPException(status_code=400, detail="Google email is not verified")
     if not email_allowed(email, settings):
         raise HTTPException(status_code=403, detail="Email not on allowlist")
 
-    user = db.scalar(select(User).where(User.google_sub == sub))
-    if user is None:
-        user = db.scalar(select(User).where(User.email == email))
-    if user is None:
-        user = User(email=email, name=name, google_sub=sub)
-        db.add(user)
-    else:
-        user.email = email
-        user.name = name
-        user.google_sub = sub
-    db.commit()
-    db.refresh(user)
+    user = resolve_google_user(db, email=email, sub=sub, name=name)
 
     # One-time ticket claimed by the SPA via same-origin POST so the session
     # cookie is set on a fetch response (works on mobile Safari; proxy redirects often drop Set-Cookie).
@@ -189,15 +186,21 @@ def claim_login(
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=400, detail="User not found")
-    _set_session_cookie(response, user.id, settings)
+    _set_session_cookie(response, user, settings)
     return user
 
 
 @router.post("/logout")
 def logout(
     response: Response,
+    db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
+    user: Annotated[User | None, Depends(get_optional_user)],
 ):
+    # Bump session_version so any stolen cookie stops working immediately.
+    if user is not None:
+        user.session_version = int(user.session_version or 0) + 1
+        db.commit()
     flags = _cookie_flags(settings)
     response.delete_cookie(
         SESSION_COOKIE,
@@ -233,7 +236,7 @@ def dev_login(
         db.refresh(user)
     response.set_cookie(
         key=SESSION_COOKIE,
-        value=create_session_token(user.id, settings),
+        value=create_session_token(user.id, int(user.session_version or 0), settings),
         httponly=True,
         samesite="lax",
         secure=False,
