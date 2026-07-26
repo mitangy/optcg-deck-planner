@@ -235,6 +235,20 @@ export function GroupBuyDetailPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
+  const complete = useMutation({
+    mutationFn: () => api.completeGroupBuy(groupId),
+    onSuccess: async (d) => {
+      qc.setQueryData(["group-buy", groupId], d);
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      await qc.invalidateQueries({ queryKey: ["shopping"] });
+      await qc.invalidateQueries({ queryKey: ["deck"] });
+      setMsg(
+        "Marked purchased — each member’s buy quantities were added to Owned and removed from shopping.",
+      );
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
   const contribution = useMutation({
     mutationFn: (deckIds: number[] | null) => api.updateGroupBuyContribution(groupId, deckIds),
     onSuccess: (d) => {
@@ -371,14 +385,20 @@ export function GroupBuyDetailPage() {
         <button type="button" className="btn secondary" onClick={() => void copyInvite(detail.invite_path)}>
           Copy invite link
         </button>
-        <button type="button" className="btn primary" onClick={() => void exportMassEntry(detail)}>
-          Open Mass Entry
-        </button>
+        {detail.status !== "completed" && (
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={() => void exportMassEntry(detail)}
+          >
+            Open Mass Entry
+          </button>
+        )}
         {detail.is_host && detail.status === "open" && (
           <button
             type="button"
             className="btn secondary"
-            disabled={lock.isPending}
+            disabled={lock.isPending || complete.isPending}
             onClick={() => lock.mutate()}
           >
             {lock.isPending ? "Locking…" : "Lock for checkout"}
@@ -388,10 +408,26 @@ export function GroupBuyDetailPage() {
           <button
             type="button"
             className="btn secondary"
-            disabled={unlock.isPending}
+            disabled={unlock.isPending || complete.isPending}
             onClick={() => unlock.mutate()}
           >
             {unlock.isPending ? "Unlocking…" : "Unlock"}
+          </button>
+        )}
+        {detail.is_host && detail.status !== "completed" && (
+          <button
+            type="button"
+            className="btn primary"
+            disabled={complete.isPending}
+            onClick={() => {
+              const ok = window.confirm(
+                "Mark this group buy as purchased?\n\n" +
+                  "This ends the group buy and adds each member’s buy quantities to their Owned counts (clearing those copies from shopping lists).",
+              );
+              if (ok) complete.mutate();
+            }}
+          >
+            {complete.isPending ? "Finishing…" : "Mark purchased"}
           </button>
         )}
         {detail.is_host && (
@@ -635,10 +671,14 @@ export function GroupBuyJoinPage() {
         <button
           type="button"
           className="btn primary"
-          disabled={join.isPending || preview.status === "locked"}
+          disabled={join.isPending || preview.status !== "open"}
           onClick={() => join.mutate()}
         >
-          {join.isPending ? "Joining…" : preview.status === "locked" ? "Locked — cannot join" : "Join group buy"}
+          {join.isPending
+            ? "Joining…"
+            : preview.status === "open"
+              ? "Join group buy"
+              : `${preview.status[0].toUpperCase()}${preview.status.slice(1)} — cannot join`}
         </button>
       ) : (
         <Link

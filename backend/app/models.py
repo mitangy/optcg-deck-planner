@@ -156,7 +156,7 @@ class GroupBuy(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     host_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(200), default="Group buy")
-    status: Mapped[str] = mapped_column(String(32), default="open")  # open | locked
+    status: Mapped[str] = mapped_column(String(32), default="open")  # open | locked | completed
     invite_token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

@@ -1836,6 +1836,10 @@ tr.done {
   color: #8a5a12;
 }
 
+.group-buy-status.status-completed {
+  color: #355c7d;
+}
+
 .group-buy-toolbar {
   display: flex;
   flex-wrap: wrap;

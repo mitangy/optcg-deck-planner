@@ -19,6 +19,7 @@ from app.models import (
     GroupBuyMember,
     GroupBuyQtyOverride,
     GroupBuySnapshotLine,
+    Owned,
     User,
 )
 from app.schemas import (
@@ -212,7 +213,7 @@ def _build_lines(
 ) -> tuple[list[GroupBuyLineOut], dict[int, tuple[int, float]]]:
     needs = (
         _member_needs_locked(group)
-        if group.status == "locked"
+        if group.status in ("locked", "completed")
         else _member_needs_live(db, group)
     )
     zero_customs = (
@@ -418,13 +419,15 @@ def join_group_buy(db: Session, user: User, token: str) -> GroupBuyDetail:
     )
     if group is None:
         raise LookupError("Invite link not found")
-    if group.status == "locked":
+    if group.status in ("locked", "completed"):
         # Allow existing members to open; block new joins.
         try:
             _require_member(group, user)
             return get_group_buy(db, user, group.id)
         except PermissionError as exc:
-            raise PermissionError("This group buy is locked; new members cannot join") from exc
+            raise PermissionError(
+                f"This group buy is {group.status}; new members cannot join"
+            ) from exc
 
     existing = next((m for m in group.members if m.user_id == user.id), None)
     if existing is None:
@@ -566,12 +569,8 @@ def sync_member_quantities(db: Session, user: User, group_id: int) -> GroupBuyDe
     return get_group_buy(db, user, group_id)
 
 
-def lock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
-    group = _get_group(db, group_id)
-    _require_host(group, user)
-    if group.status == "locked":
-        return get_group_buy(db, user, group_id)
-
+def _freeze_snapshot(db: Session, group: GroupBuy) -> None:
+    """Replace snapshot lines with current live (shopping + qty overrides) needs."""
     needs = _member_needs_live(db, group)
     db.execute(delete(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id))
     for need in needs:
@@ -584,6 +583,30 @@ def lock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
                 product_id=need.product_id,
             )
         )
+
+
+def _add_owned(db: Session, user_id: int, card_id: str, delta: int) -> None:
+    if delta <= 0:
+        return
+    card_id = card_id.upper().strip()
+    row = db.scalar(
+        select(Owned).where(Owned.user_id == user_id, Owned.card_id == card_id)
+    )
+    if row is None:
+        db.add(Owned(user_id=user_id, card_id=card_id, qty=delta))
+    else:
+        row.qty = int(row.qty) + delta
+
+
+def lock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    if group.status == "completed":
+        raise PermissionError("Group buy is already completed")
+    if group.status == "locked":
+        return get_group_buy(db, user, group_id)
+
+    _freeze_snapshot(db, group)
     group.status = "locked"
     group.locked_at = datetime.now(timezone.utc)
     db.commit()
@@ -593,9 +616,34 @@ def lock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
 def unlock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_host(group, user)
+    if group.status == "completed":
+        raise PermissionError("Completed group buys cannot be unlocked")
     group.status = "open"
     group.locked_at = None
     db.execute(delete(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id))
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def complete_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
+    """End the group buy and add each member's buy qtys to their Owned counts."""
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    if group.status == "completed":
+        return get_group_buy(db, user, group_id)
+
+    if group.status == "open":
+        _freeze_snapshot(db, group)
+        group.locked_at = datetime.now(timezone.utc)
+        db.flush()
+
+    snapshot = db.scalars(
+        select(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id)
+    ).all()
+    for line in snapshot:
+        _add_owned(db, line.user_id, line.card_id, line.qty)
+
+    group.status = "completed"
     db.commit()
     return get_group_buy(db, user, group_id)
 
@@ -609,6 +657,8 @@ def set_line_override(
 ) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_host(group, user)
+    if group.status == "completed":
+        raise PermissionError("Completed group buys cannot change printings")
     card_id = card_id.upper().strip()
     printing = db.scalar(
         select(CatalogPrinting).where(
