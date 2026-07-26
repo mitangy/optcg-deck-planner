@@ -1274,6 +1274,58 @@ function ShoppingPage() {
     );
   }
 
+  const buyInPerson = useMutation({
+    mutationFn: async (targets: { cardId: string; prevOwned: number; nextOwned: number; copies: number }[]) => {
+      if (!targets.length) {
+        throw new Error("Nothing to mark — selected cards already have enough owned.");
+      }
+      for (const t of targets) {
+        applyOwnedOptimistic(qc, t.cardId, t.nextOwned);
+      }
+      const results = await Promise.allSettled(
+        targets.map((t) => api.setOwned(t.cardId, t.nextOwned)),
+      );
+      const failed: string[] = [];
+      results.forEach((result, i) => {
+        if (result.status === "rejected") {
+          failed.push(targets[i].cardId);
+          applyOwnedOptimistic(qc, targets[i].cardId, targets[i].prevOwned);
+        }
+      });
+      const copies = targets
+        .filter((_, i) => results[i].status === "fulfilled")
+        .reduce((sum, t) => sum + t.copies, 0);
+      const ok = targets.length - failed.length;
+      return { ok, failed, copies };
+    },
+    onSuccess: ({ ok, failed, copies }) => {
+      void qc.invalidateQueries({ queryKey: ["shopping"] });
+      if (failed.length) {
+        setExportMsg(
+          `Marked ${ok} card${ok === 1 ? "" : "s"} bought in person (${copies} copies). Failed: ${failed.join(", ")}`,
+        );
+        return;
+      }
+      setSelectedCardIds(new Set());
+      setExportMsg(
+        `Marked ${ok} card${ok === 1 ? "" : "s"} bought in person (${copies} copies added to Owned).`,
+      );
+    },
+    onError: (e: Error) => setExportMsg(e.message),
+  });
+
+  function onBuyInPerson() {
+    const targets = selectedItems
+      .filter((item) => item.still_need > 0)
+      .map((item) => ({
+        cardId: item.card_id,
+        prevOwned: item.owned,
+        nextOwned: item.owned + item.still_need,
+        copies: item.still_need,
+      }));
+    buyInPerson.mutate(targets);
+  }
+
   const allVisibleSelected =
     items.length > 0 && items.every((i) => selectedCardIds.has(i.card_id));
 
@@ -1420,7 +1472,7 @@ function ShoppingPage() {
 
       {selectedTotals.count > 0 && (
         <div className="buy-bar">
-          <div className="buy-bar-main">
+          <div className="buy-bar-summary">
             <div>
               <strong>
                 {selectedTotals.count} card{selectedTotals.count === 1 ? "" : "s"} selected
@@ -1431,42 +1483,55 @@ function ShoppingPage() {
                 {selectedTotals.priced < selectedTotals.count ? " (priced cards only)" : ""}
               </span>
             </div>
-            <div className="buy-bar-actions">
-              <button
-                type="button"
-                className="btn secondary"
-                disabled={massEntry.includedCount === 0}
-                onClick={() => void onCopyMassEntry()}
-              >
-                Copy for TCGPlayer
-              </button>
-              <button
-                type="button"
-                className="btn primary"
-                disabled={massEntry.includedCount === 0}
-                onClick={() => void onOpenMassEntry()}
-              >
-                Open Mass Entry
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => {
-                  setSelectedCardIds(new Set());
-                  setExportMsg(null);
-                }}
-              >
-                Clear selection
-              </button>
-            </div>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => {
+                setSelectedCardIds(new Set());
+                setExportMsg(null);
+              }}
+            >
+              Clear
+            </button>
           </div>
-          {exportMsg && (
-            <p className="share-banner buy-bar-msg" role="status">
+          <div className="buy-bar-actions">
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={massEntry.includedCount === 0 || buyInPerson.isPending}
+              onClick={() => void onCopyMassEntry()}
+            >
+              Copy for TCGPlayer
+            </button>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={massEntry.includedCount === 0 || buyInPerson.isPending}
+              onClick={() => void onOpenMassEntry()}
+            >
+              Open Mass Entry
+            </button>
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={massEntry.includedCount === 0 || buyInPerson.isPending}
+              onClick={onBuyInPerson}
+            >
+              {buyInPerson.isPending ? "Updating…" : "Buying in person"}
+            </button>
+          </div>
+          {exportMsg ? (
+            <p className="buy-bar-msg" role="status">
               {exportMsg}
             </p>
-          )}
+          ) : null}
         </div>
       )}
+      {selectedTotals.count === 0 && exportMsg ? (
+        <p className="buy-bar-msg buy-bar-msg-solo" role="status">
+          {exportMsg}
+        </p>
+      ) : null}
 
       <div className="list-toolbar">
         <div className="list-toolbar-row">
