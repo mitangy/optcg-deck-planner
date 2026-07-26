@@ -2728,6 +2728,11 @@ function DeckDetailPage() {
     );
   }, [data, onlyNeed, effectiveSorts, search]);
 
+  const hasDonInDeck = useMemo(() => {
+    if (!data) return false;
+    return data.cards.some((c) => c.section === "don" || isDonCardType(c.card_type));
+  }, [data]);
+
   const progressCards = useMemo(() => {
     if (!data) return [];
     return data.cards.filter((c) => c.section !== "don" && !isDonCardType(c.card_type));
@@ -2881,7 +2886,11 @@ function DeckDetailPage() {
         DON!! deck · {donCount}/{DON_DECK_LIMIT}
       </h2>
       {donCards.length === 0 ? (
-        <p className="muted">No DON!! cards in this deck yet. Add some from the list below.</p>
+        <p className="muted">
+          {hasDonInDeck
+            ? "No DON!! cards match the current filters."
+            : "No DON!! cards in this deck yet. Add some from the list below."}
+        </p>
       ) : (
         <CardTable
           cards={donCards}
