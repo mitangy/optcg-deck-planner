@@ -427,7 +427,9 @@ export function GroupBuyDetailPage() {
     onSuccess: async (d) => {
       qc.setQueryData(["group-buy", groupId], d);
       await qc.invalidateQueries({ queryKey: ["group-buys"] });
-      setMsg("Marked ordered — use settlement below to split shipping and what each person owes.");
+      setMsg(
+        "Order placed — settle shipping below. When cards are in hand, use Mark purchased to update Owned.",
+      );
     },
     onError: (e: Error) => setMsg(e.message),
   });
@@ -634,17 +636,23 @@ export function GroupBuyDetailPage() {
             {unlock.isPending ? "Unlocking…" : "Unlock"}
           </button>
         )}
-        {detail.is_host && (detail.status === "open" || detail.status === "locked") && (
+        {detail.is_host && detail.status === "locked" && (
           <button
             type="button"
-            className="btn secondary"
+            className="btn primary"
             disabled={orderBusy}
-            onClick={() => markOrdered.mutate(orderBodyFromForm())}
+            onClick={() => {
+              const ok = window.confirm(
+                "Mark this group buy as ordered?\n\n" +
+                  "Use this after placing the bulk TCGPlayer order. Quantities stay frozen; you can still edit shipping and what each person owes. Owned counts are not updated yet.",
+              );
+              if (ok) markOrdered.mutate(orderBodyFromForm());
+            }}
           >
             {markOrdered.isPending ? "Saving…" : "Mark ordered"}
           </button>
         )}
-        {detail.is_host && detail.status !== "completed" && (
+        {detail.is_host && detail.status === "ordered" && (
           <button
             type="button"
             className="btn primary"
@@ -652,7 +660,7 @@ export function GroupBuyDetailPage() {
             onClick={() => {
               const ok = window.confirm(
                 "Mark this group buy as purchased?\n\n" +
-                  "This ends the group buy and adds each member’s buy quantities to their Owned counts (clearing those copies from shopping lists).",
+                  "Use this when the cards are received. Each member’s buy quantities are added to Owned and cleared from shopping.",
               );
               if (ok) complete.mutate();
             }}
@@ -707,21 +715,21 @@ export function GroupBuyDetailPage() {
         <div className="group-buy-settlement">
           <h2>Order & settlement</h2>
           <p className="muted">
+            {detail.status === "locked"
+              ? "After checkout, mark ordered. Then settle shipping. Mark purchased only when cards are in hand."
+              : detail.status === "ordered"
+                ? "Order placed — settle costs below. Mark purchased when cards are received to update Owned."
+                : "Purchased — Owned updated. Settlement below is for your records."}{" "}
             Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} ={" "}
             <strong>{money(detail.grand_total)}</strong>
             {detail.ordered_at ? ` · ordered ${new Date(detail.ordered_at).toLocaleString()}` : ""}
           </p>
-          {detail.is_host ? (
+          {detail.is_host && detail.status !== "completed" ? (
             <form
               className="group-buy-order-form"
               onSubmit={(e: FormEvent) => {
                 e.preventDefault();
-                const body = orderBodyFromForm();
-                if (detail.status === "locked" || detail.status === "open") {
-                  markOrdered.mutate(body);
-                } else {
-                  saveOrder.mutate(body);
-                }
+                saveOrder.mutate(orderBodyFromForm());
               }}
             >
               <label>
@@ -768,13 +776,7 @@ export function GroupBuyDetailPage() {
                 />
               </label>
               <button type="submit" className="btn secondary" disabled={orderBusy}>
-                {detail.status === "ordered" || detail.status === "completed"
-                  ? saveOrder.isPending
-                    ? "Saving…"
-                    : "Save order details"
-                  : markOrdered.isPending
-                    ? "Saving…"
-                    : "Mark ordered & save"}
+                {saveOrder.isPending ? "Saving…" : "Save order details"}
               </button>
             </form>
           ) : (

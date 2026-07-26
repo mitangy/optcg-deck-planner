@@ -181,6 +181,8 @@ def test_complete_applies_owned_and_clears_shopping(db, two_players):
     group_buy.join_group_buy(db, friend, created.invite_token)
     # Host buys only 1 of OP01-001 (still-need was 3)
     group_buy.set_member_qty(db, host, created.id, "OP01-001", 1)
+    group_buy.lock_group_buy(db, host, created.id)
+    group_buy.mark_ordered(db, host, created.id, None)
 
     assert _owned(db, host.id, "OP01-001") == 1
     assert _owned(db, friend.id, "OP01-001") == 0
@@ -211,10 +213,23 @@ def test_complete_applies_owned_and_clears_shopping(db, two_players):
     assert _owned(db, host.id, "OP01-001") == 2
 
 
+def test_complete_requires_ordered(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Must order")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    with pytest.raises(PermissionError, match="Mark ordered"):
+        group_buy.complete_group_buy(db, host, created.id)
+    group_buy.lock_group_buy(db, host, created.id)
+    with pytest.raises(PermissionError, match="Mark ordered"):
+        group_buy.complete_group_buy(db, host, created.id)
+
+
 def test_member_cannot_complete(db, two_players):
     host, friend = two_players
     created = group_buy.create_group_buy(db, host, "No")
     group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
+    group_buy.mark_ordered(db, host, created.id, None)
     with pytest.raises(PermissionError):
         group_buy.complete_group_buy(db, friend, created.id)
 
@@ -273,22 +288,18 @@ def test_mark_ordered_and_settlement(db, two_players):
     assert _owned(db, host.id, "OP01-001") == 4  # 1 owned + 3 bought
 
 
-def test_mark_ordered_from_open_freezes(db, two_players):
+def test_mark_ordered_requires_lock(db, two_players):
     host, friend = two_players
-    created = group_buy.create_group_buy(db, host, "Direct order")
+    created = group_buy.create_group_buy(db, host, "Need lock")
     group_buy.join_group_buy(db, friend, created.invite_token)
-    ordered = group_buy.mark_ordered(db, host, created.id, None)
-    assert ordered.status == "ordered"
-    assert ordered.locked_at is not None
-    before = {line.card_id: line.total_qty for line in ordered.lines}
-    set_owned(db, friend, "OP01-001", 99)
-    again = group_buy.get_group_buy(db, host, created.id)
-    assert {line.card_id: line.total_qty for line in again.lines} == before
+    with pytest.raises(PermissionError, match="Lock for checkout"):
+        group_buy.mark_ordered(db, host, created.id, None)
 
 
 def test_member_cannot_mark_ordered(db, two_players):
     host, friend = two_players
     created = group_buy.create_group_buy(db, host, "No order")
     group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
     with pytest.raises(PermissionError):
         group_buy.mark_ordered(db, friend, created.id, None)
