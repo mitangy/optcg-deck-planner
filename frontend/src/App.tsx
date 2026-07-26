@@ -34,6 +34,8 @@ const SHARE_OPEN_KEY = "optcg_share_open";
 const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
 const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
 const CARD_LAYOUT_KEY = "optcg_card_layout";
+const DECK_SEARCH_OPEN_KEY = "optcg_deck_search_open";
+const DECK_DON_AVAILABLE_OPEN_KEY = "optcg_deck_don_available_open";
 
 type CardLayout = "list" | "grid";
 
@@ -2425,125 +2427,140 @@ function DeckEditorPanel({
     }
   }
 
+  const searchSummary = [
+    `Main ${mainCount}/${MAIN_DECK_LIMIT}`,
+    `DON!! ${donCount}/${DON_DECK_LIMIT}`,
+    searchEnabled && searchQ.data ? `${searchQ.data.length} results` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <div className="deck-editor">
-      <div className="deck-editor-head">
-        <div>
-          <h2 className="deck-editor-title">Edit deck</h2>
-          <p className="muted deck-editor-sizes">
-            Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {donCount}/{DON_DECK_LIMIT}
-          </p>
+      <CollapsibleDrawer
+        label="Add cards"
+        summary={searchSummary}
+        storageKey={DECK_SEARCH_OPEN_KEY}
+        defaultOpen
+      >
+        <p className="muted deck-editor-sizes">
+          Search the catalog by name, card code, color, or type. Collapse this panel anytime to focus
+          on the deck list below.
+        </p>
+
+        <div className="deck-editor-filters">
+          <CardSearchInput value={query} onChange={setQuery} />
+          <label className="deck-editor-select">
+            <span className="sr-only">Color</span>
+            <select
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              aria-label="Filter by color"
+            >
+              <option value="">All colors</option>
+              {COLOR_ORDER.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="deck-editor-select">
+            <span className="sr-only">Card type</span>
+            <select
+              value={cardType}
+              onChange={(e) => setCardType(e.target.value)}
+              aria-label="Filter by card type"
+            >
+              {CATALOG_TYPE_FILTERS.map((t) => (
+                <option key={t || "all"} value={t}>
+                  {t ? t : "All types"}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-      </div>
 
-      <div className="deck-editor-filters">
-        <CardSearchInput value={query} onChange={setQuery} />
-        <label className="deck-editor-select">
-          <span className="sr-only">Color</span>
-          <select value={color} onChange={(e) => setColor(e.target.value)} aria-label="Filter by color">
-            <option value="">All colors</option>
-            {COLOR_ORDER.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="deck-editor-select">
-          <span className="sr-only">Card type</span>
-          <select
-            value={cardType}
-            onChange={(e) => setCardType(e.target.value)}
-            aria-label="Filter by card type"
-          >
-            {CATALOG_TYPE_FILTERS.map((t) => (
-              <option key={t || "all"} value={t}>
-                {t ? t : "All types"}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+        {err && <p className="error">{err}</p>}
 
-      {err && <p className="error">{err}</p>}
+        {!searchEnabled && (
+          <p className="muted">Search by name, card code, color, or type to add cards.</p>
+        )}
+        {searchEnabled && searchQ.isLoading && <p className="muted">Searching catalog…</p>}
+        {searchEnabled && searchQ.error && (
+          <p className="error">{(searchQ.error as Error).message}</p>
+        )}
+        {searchEnabled && searchQ.data && searchQ.data.length === 0 && (
+          <p className="muted">No catalog matches. Sync the catalog if it is empty locally.</p>
+        )}
 
-      {!searchEnabled && (
-        <p className="muted">Search by name, card code, color, or type to add cards.</p>
-      )}
-      {searchEnabled && searchQ.isLoading && <p className="muted">Searching catalog…</p>}
-      {searchEnabled && searchQ.error && (
-        <p className="error">{(searchQ.error as Error).message}</p>
-      )}
-      {searchEnabled && searchQ.data && searchQ.data.length === 0 && (
-        <p className="muted">No catalog matches. Sync the catalog if it is empty locally.</p>
-      )}
-
-      {searchQ.data && searchQ.data.length > 0 && (
-        <ul className="deck-editor-results">
-          {searchQ.data.map((card) => {
-            const inDeck = neededById.get(card.card_id) ?? 0;
-            const busy = pendingId === card.card_id;
-            return (
-              <li key={card.card_id} className="deck-editor-result">
-                <div className="deck-editor-result-main">
-                  <CardThumb src={card.image_url || undefined} alt={card.name} />
-                  <div>
-                    <div className="card-id">{card.card_id}</div>
-                    <div>{card.name}</div>
-                    <div className="muted">
-                      {[card.color, card.card_type, card.rarity].filter(Boolean).join(" · ") || "—"}
-                      {inDeck > 0 ? ` · In deck ×${inDeck}` : ""}
+        {searchQ.data && searchQ.data.length > 0 && (
+          <ul className="deck-editor-results">
+            {searchQ.data.map((card) => {
+              const inDeck = neededById.get(card.card_id) ?? 0;
+              const busy = pendingId === card.card_id;
+              return (
+                <li key={card.card_id} className="deck-editor-result">
+                  <div className="deck-editor-result-main">
+                    <CardThumb src={card.image_url || undefined} alt={card.name} />
+                    <div>
+                      <div className="card-id">{card.card_id}</div>
+                      <div>{card.name}</div>
+                      <div className="muted">
+                        {[card.color, card.card_type, card.rarity].filter(Boolean).join(" · ") || "—"}
+                        {inDeck > 0 ? ` · In deck ×${inDeck}` : ""}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="deck-editor-result-actions">
-                  {inDeck > 0 && (
-                    <>
+                  <div className="deck-editor-result-actions">
+                    {inDeck > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          className="owned-btn"
+                          aria-label={`Decrease ${card.card_id}`}
+                          disabled={busy}
+                          onClick={() => void setNeeded(card.card_id, inDeck - 1)}
+                        >
+                          −
+                        </button>
+                        <span className="deck-editor-qty">{inDeck}</span>
+                        <button
+                          type="button"
+                          className="owned-btn"
+                          aria-label={`Increase ${card.card_id}`}
+                          disabled={busy}
+                          onClick={() => void addCopies(card, 1)}
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost danger"
+                          disabled={busy}
+                          onClick={() => void setNeeded(card.card_id, 0)}
+                        >
+                          Remove
+                        </button>
+                      </>
+                    )}
+                    {inDeck === 0 && (
                       <button
                         type="button"
-                        className="owned-btn"
-                        aria-label={`Decrease ${card.card_id}`}
-                        disabled={busy}
-                        onClick={() => void setNeeded(card.card_id, inDeck - 1)}
-                      >
-                        −
-                      </button>
-                      <span className="deck-editor-qty">{inDeck}</span>
-                      <button
-                        type="button"
-                        className="owned-btn"
-                        aria-label={`Increase ${card.card_id}`}
+                        className="btn secondary"
                         disabled={busy}
                         onClick={() => void addCopies(card, 1)}
                       >
-                        +
+                        Add
                       </button>
-                      <button
-                        type="button"
-                        className="ghost danger"
-                        disabled={busy}
-                        onClick={() => void setNeeded(card.card_id, 0)}
-                      >
-                        Remove
-                      </button>
-                    </>
-                  )}
-                  {inDeck === 0 && (
-                    <button
-                      type="button"
-                      className="btn secondary"
-                      disabled={busy}
-                      onClick={() => void addCopies(card, 1)}
-                    >
-                      Add
-                    </button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CollapsibleDrawer>
     </div>
   );
 }
@@ -2593,54 +2610,66 @@ function AvailableDonSection({
     }
   }
 
+  const resultCount = donQ.data?.length ?? 0;
+  const summary = [
+    `${donCount}/${DON_DECK_LIMIT} in deck`,
+    resultCount > 0 ? `${resultCount} available` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <div className="don-available">
-      <div className="don-available-head">
-        <h2>Available DON!! cards</h2>
+      <CollapsibleDrawer
+        label="Available DON!! cards"
+        summary={summary}
+        storageKey={DECK_DON_AVAILABLE_OPEN_KEY}
+        defaultOpen={false}
+      >
         <p className="muted">
           Pick from the catalog for this deck&apos;s DON!! deck ({donCount}/{DON_DECK_LIMIT}).
         </p>
-      </div>
-      {err && <p className="error">{err}</p>}
-      {donQ.isLoading && <p className="muted">Loading DON!! cards…</p>}
-      {donQ.error && <p className="error">{(donQ.error as Error).message}</p>}
-      {donQ.data && donQ.data.length === 0 && (
-        <p className="muted">No DON!! cards in the catalog yet.</p>
-      )}
-      {donQ.data && donQ.data.length > 0 && (
-        <ul className="deck-editor-results don-available-list">
-          {donQ.data.map((card) => {
-            const inDeck = neededById.get(card.card_id) ?? 0;
-            const busy = pendingId === card.card_id;
-            const atCap = donCount >= DON_DECK_LIMIT && inDeck === 0;
-            return (
-              <li key={card.card_id} className="deck-editor-result">
-                <div className="deck-editor-result-main">
-                  <CardThumb src={card.image_url || undefined} alt={card.name} />
-                  <div>
-                    <div className="card-id">{card.card_id}</div>
-                    <div>{card.name}</div>
-                    <div className="muted">
-                      {[card.group_name, money(card.market_price)].filter(Boolean).join(" · ")}
-                      {inDeck > 0 ? ` · In deck ×${inDeck}` : ""}
+        {err && <p className="error">{err}</p>}
+        {donQ.isLoading && <p className="muted">Loading DON!! cards…</p>}
+        {donQ.error && <p className="error">{(donQ.error as Error).message}</p>}
+        {donQ.data && donQ.data.length === 0 && (
+          <p className="muted">No DON!! cards in the catalog yet.</p>
+        )}
+        {donQ.data && donQ.data.length > 0 && (
+          <ul className="deck-editor-results don-available-list">
+            {donQ.data.map((card) => {
+              const inDeck = neededById.get(card.card_id) ?? 0;
+              const busy = pendingId === card.card_id;
+              const atCap = donCount >= DON_DECK_LIMIT && inDeck === 0;
+              return (
+                <li key={card.card_id} className="deck-editor-result">
+                  <div className="deck-editor-result-main">
+                    <CardThumb src={card.image_url || undefined} alt={card.name} />
+                    <div>
+                      <div className="card-id">{card.card_id}</div>
+                      <div>{card.name}</div>
+                      <div className="muted">
+                        {[card.group_name, money(card.market_price)].filter(Boolean).join(" · ")}
+                        {inDeck > 0 ? ` · In deck ×${inDeck}` : ""}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="deck-editor-result-actions">
-                  <button
-                    type="button"
-                    className="btn secondary"
-                    disabled={busy || atCap}
-                    onClick={() => void addOne(card)}
-                  >
-                    {inDeck > 0 ? "Add another" : "Add"}
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                  <div className="deck-editor-result-actions">
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      disabled={busy || atCap}
+                      onClick={() => void addOne(card)}
+                    >
+                      {inDeck > 0 ? "Add another" : "Add"}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CollapsibleDrawer>
     </div>
   );
 }

@@ -382,7 +382,14 @@ def upsert_deck_card(
             f"DON!! deck would have {don_projected} cards (maximum {DON_DECK_LIMIT})"
         )
 
-    if main_projected > MAIN_DECK_LIMIT and not confirm_oversize:
+    # Only prompt when crossing the 51-card limit. Once the deck is already over
+    # size (user confirmed), further adds do not re-prompt until it drops to 51
+    # or below again.
+    if (
+        main_projected > MAIN_DECK_LIMIT
+        and main_now <= MAIN_DECK_LIMIT
+        and not confirm_oversize
+    ):
         raise DeckOversizeError(current=main_now, projected=main_projected)
 
     if needed <= 0:
