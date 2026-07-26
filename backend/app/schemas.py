@@ -13,7 +13,8 @@ class UserOut(BaseModel):
 
 class DeckCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    decklist: str = Field(min_length=1)
+    # Bound payload size to avoid oversized parse/DB write DoS.
+    decklist: str = Field(min_length=1, max_length=100_000)
 
 
 class DeckSummary(BaseModel):
@@ -115,7 +116,7 @@ class ShoppingResponse(BaseModel):
 
 
 class OwnedUpdate(BaseModel):
-    qty: int = Field(ge=0)
+    qty: int = Field(ge=0, le=10_000)
 
 
 class CatalogStatus(BaseModel):
