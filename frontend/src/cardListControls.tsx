@@ -214,8 +214,6 @@ export function SortMenu({
           <p className="sort-menu-hint">
             Top option sorts first. Price is highest market price first. Deck groups by leader
             (earliest deck first); cards used by multiple leaders stay under their earliest leader.
-            User groups by who wants the card (member list order); multi-buyer cards stay under
-            their earliest member.
           </p>
           <ul className="sort-menu-list">
             {menuKeys.map((key) => {

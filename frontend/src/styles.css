@@ -1047,7 +1047,8 @@ tr.selected-row td,
 .sort-menu-panel {
   position: absolute;
   top: calc(100% + 0.35rem);
-  right: 0;
+  left: 0;
+  right: auto;
   z-index: 60;
   width: min(20rem, calc(100vw - 2rem));
   max-height: min(24rem, calc(100vh - 6rem));
