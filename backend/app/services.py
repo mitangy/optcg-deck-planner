@@ -170,31 +170,6 @@ def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     return deck
 
 
-def update_deck(
-    db: Session,
-    user: User,
-    deck_id: int,
-    name: str | None,
-    decklist: str | None,
-) -> Deck:
-    deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
-    if deck is None:
-        raise LookupError("Deck not found")
-    if name is not None:
-        deck.name = name.strip()
-    if decklist is not None:
-        parsed = parse_decklist(decklist)
-        catalog = _catalog_map(db, {c.card_id for c in parsed})
-        deck.leader_card_id = find_leader_id(parsed, catalog)
-        deck.cards.clear()
-        db.flush()
-        for card in parsed:
-            db.add(DeckCard(deck_id=deck.id, card_id=card.card_id, needed=card.needed))
-    db.commit()
-    db.refresh(deck)
-    return deck
-
-
 def delete_deck(db: Session, user: User, deck_id: int) -> None:
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
     if deck is None:

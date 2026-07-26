@@ -98,7 +98,7 @@ GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
 - `GET /` — service index
 - `GET /health`, `GET /docs`
 - `GET /auth/google`, `GET /auth/callback`, `POST /auth/logout`, `GET /auth/me`
-- `GET/POST /decks`, `GET/PATCH/DELETE /decks/{id}`
+- `GET/POST /decks`, `GET/DELETE /decks/{id}`
 - `GET /shopping?deck_ids=`
 - `PUT /owned/{card_id}`
 - `GET /share/shopping`, `POST /share`, `DELETE /share/{token}` — create/manage public links
