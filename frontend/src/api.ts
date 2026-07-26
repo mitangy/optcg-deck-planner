@@ -231,6 +231,7 @@ export type GroupBuyLine = {
   my_qty: number;
   my_suggested_qty: number;
   my_is_custom: boolean;
+  my_excluded?: boolean;
 };
 
 export type GroupBuySummary = {

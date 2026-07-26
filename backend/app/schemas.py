@@ -242,6 +242,8 @@ class GroupBuyLineOut(BaseModel):
     my_qty: int = 0
     my_suggested_qty: int = 0
     my_is_custom: bool = False
+    # True when the viewer opted out (custom qty 0 / Exclude).
+    my_excluded: bool = False
 
 
 class GroupBuySummary(BaseModel):

@@ -267,6 +267,8 @@ def _build_lines(
                 bucket[1] += mem.qty * market
 
         mine = next((m for m in members if m.user_id == viewer_user_id), None)
+        my_qty = mine.qty if mine else 0
+        my_is_custom = mine.is_custom if mine else False
         lines_out.append(
             GroupBuyLineOut(
                 card_id=card_id,
@@ -293,9 +295,10 @@ def _build_lines(
                     if m.qty > 0 or m.user_id == viewer_user_id
                 ],
                 alt_arts=alts.get(card_id, []),
-                my_qty=mine.qty if mine else 0,
+                my_qty=my_qty,
                 my_suggested_qty=mine.suggested_qty if mine else 0,
-                my_is_custom=mine.is_custom if mine else False,
+                my_is_custom=my_is_custom,
+                my_excluded=bool(my_is_custom and my_qty == 0),
             )
         )
 
@@ -544,7 +547,9 @@ def set_member_qty(
             GroupBuyQtyOverride.card_id == card_id,
         )
     )
-    if qty == suggested:
+    # Matching a positive shopping still-need clears the override. Qty 0 always
+    # persists as an explicit opt-out ("excluded") even when suggested is already 0.
+    if qty == suggested and qty > 0:
         if existing is not None:
             db.delete(existing)
             db.commit()

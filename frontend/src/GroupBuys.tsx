@@ -80,6 +80,11 @@ function memberBreakdown(line: GroupBuyLine): string {
     .join(" · ");
 }
 
+/** Viewer opted out of this card (custom qty 0 / Exclude). */
+function isLineExcluded(line: GroupBuyLine): boolean {
+  return Boolean(line.my_excluded ?? (line.my_qty === 0 && line.my_is_custom));
+}
+
 function LinePrintingSelect({
   line,
   disabled,
@@ -124,17 +129,21 @@ function BuyQtyEditor({
   qty,
   suggestedQty,
   isCustom,
+  excluded,
   disabled,
   onSave,
   onReset,
+  onExclude,
 }: {
   cardId: string;
   qty: number;
   suggestedQty: number;
   isCustom: boolean;
+  excluded: boolean;
   disabled: boolean;
   onSave: (qty: number) => void;
   onReset: () => void;
+  onExclude: () => void;
 }) {
   const [draft, setDraft] = useState(String(qty));
 
@@ -153,7 +162,7 @@ function BuyQtyEditor({
   }
 
   return (
-    <div className="group-buy-qty">
+    <div className={`group-buy-qty${excluded ? " excluded" : ""}`}>
       <div className="group-buy-qty-controls">
         <button
           type="button"
@@ -189,7 +198,14 @@ function BuyQtyEditor({
         </button>
       </div>
       <div className="group-buy-qty-meta muted">
-        {isCustom ? (
+        {excluded ? (
+          <>
+            <span>Excluded from group buy</span>
+            <button type="button" className="ghost" disabled={disabled} onClick={onReset}>
+              Include again
+            </button>
+          </>
+        ) : isCustom ? (
           <>
             <span>Shopping suggests {suggestedQty}</span>
             <button type="button" className="ghost" disabled={disabled} onClick={onReset}>
@@ -200,6 +216,16 @@ function BuyQtyEditor({
           <span>From shopping</span>
         )}
       </div>
+      {!excluded ? (
+        <button
+          type="button"
+          className="ghost group-buy-exclude-btn"
+          disabled={disabled}
+          onClick={onExclude}
+        >
+          Exclude from group buy
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -288,6 +314,7 @@ export function GroupBuyDetailPage() {
   const qc = useQueryClient();
   const [layout, setLayout] = useCardLayout();
   const [onlyNeed, setOnlyNeed] = useState(true);
+  const [showExcluded, setShowExcluded] = useState(false);
   const unavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, unavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
@@ -310,7 +337,14 @@ export function GroupBuyDetailPage() {
 
   const lines = useMemo(() => {
     let list = detail?.lines ?? [];
-    if (onlyNeed) list = list.filter((l) => l.total_qty > 0);
+    // Excluded (my qty 0) lines with no remaining group total stay hidden unless
+    // "Show excluded" is on. Excluded lines others still need stay visible (grayed).
+    if (!showExcluded) {
+      list = list.filter((l) => !isLineExcluded(l) || l.total_qty > 0);
+    }
+    if (onlyNeed) {
+      list = list.filter((l) => l.total_qty > 0 || (showExcluded && isLineExcluded(l)));
+    }
     if (search.trim()) {
       list = list.filter((l) =>
         matchesCardSearch(
@@ -343,7 +377,7 @@ export function GroupBuyDetailPage() {
         effectiveSorts,
       ),
     );
-  }, [detail, onlyNeed, effectiveSorts, search]);
+  }, [detail, onlyNeed, showExcluded, effectiveSorts, search]);
 
   const filterSummary = useMemo(
     () =>
@@ -352,8 +386,9 @@ export function GroupBuyDetailPage() {
         sorts: effectiveSorts,
         showAltArts,
         layout,
+        extra: showExcluded ? ["Excluded"] : undefined,
       }),
-    [onlyNeed, effectiveSorts, showAltArts, layout],
+    [onlyNeed, effectiveSorts, showAltArts, layout, showExcluded],
   );
 
   useEffect(() => {
@@ -881,6 +916,14 @@ export function GroupBuyDetailPage() {
                   />
                   Show alt arts
                 </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showExcluded}
+                    onChange={(e) => setShowExcluded(e.target.checked)}
+                  />
+                  Show excluded
+                </label>
               </div>
             </CollapsibleFilters>
           </div>
@@ -895,8 +938,13 @@ export function GroupBuyDetailPage() {
             <p className="muted">No cards match the current search or filters.</p>
           ) : layout === "grid" ? (
             <div className="card-grid">
-              {lines.map((line) => (
-                <article key={line.card_id} className="grid-card need">
+              {lines.map((line) => {
+                const excluded = isLineExcluded(line);
+                return (
+                <article
+                  key={line.card_id}
+                  className={`grid-card need${excluded ? " excluded" : ""}`}
+                >
                   <div className="grid-card-media">
                     <CardThumb src={line.image_url || undefined} alt={line.name} />
                   </div>
@@ -905,6 +953,7 @@ export function GroupBuyDetailPage() {
                     <div className="grid-card-name">{line.name}</div>
                     <div className="grid-card-meta muted">
                       {[
+                        excluded ? "Excluded" : "",
                         line.color,
                         `Total ${line.total_qty}`,
                         money(line.remaining_cost),
@@ -924,9 +973,11 @@ export function GroupBuyDetailPage() {
                           qty={line.my_qty}
                           suggestedQty={line.my_suggested_qty}
                           isCustom={line.my_is_custom}
+                          excluded={isLineExcluded(line)}
                           disabled={qtyBusy}
                           onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
                           onReset={() => clearQty.mutate(line.card_id)}
+                          onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
                         />
                       </div>
                     ) : null}
@@ -954,7 +1005,8 @@ export function GroupBuyDetailPage() {
                     ) : null}
                   </div>
                 </article>
-              ))}
+              );
+              })}
             </div>
           ) : (
             <>
@@ -973,13 +1025,16 @@ export function GroupBuyDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {lines.map((line) => (
-                      <tr key={line.card_id}>
+                    {lines.map((line) => {
+                      const excluded = isLineExcluded(line);
+                      return (
+                      <tr key={line.card_id} className={excluded ? "excluded" : undefined}>
                         <td className="card-cell">
                           <CardThumb src={line.image_url || undefined} alt={line.name} />
                           <div>
                             <div className="card-id">{line.card_id}</div>
                             <div>{line.name}</div>
+                            {excluded ? <div className="muted">Excluded</div> : null}
                             {line.tcgplayer_url ? (
                               <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
                                 TCGPlayer
@@ -994,9 +1049,11 @@ export function GroupBuyDetailPage() {
                               qty={line.my_qty}
                               suggestedQty={line.my_suggested_qty}
                               isCustom={line.my_is_custom}
+                              excluded={isLineExcluded(line)}
                               disabled={qtyBusy}
                               onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
                               onReset={() => clearQty.mutate(line.card_id)}
+                              onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
                             />
                           </td>
                         ) : null}
@@ -1023,18 +1080,24 @@ export function GroupBuyDetailPage() {
                           </td>
                         ) : null}
                       </tr>
-                    ))}
+                    );
+                    })}
                   </tbody>
                 </table>
               </div>
               <div className="mobile-card-list">
-                {lines.map((line) => (
-                  <article key={line.card_id} className="mobile-card need">
+                {lines.map((line) => {
+                  const excluded = isLineExcluded(line);
+                  return (
+                  <article
+                    key={line.card_id}
+                    className={`mobile-card need${excluded ? " excluded" : ""}`}
+                  >
                     <div className="mobile-card-top">
                       <MobileCardMedia
                         src={line.image_url || undefined}
                         alt={line.name}
-                        cost={line.cost}
+                        cost={line.cost ?? null}
                         rarity={line.rarity}
                       />
                       <div className="mobile-card-info">
@@ -1042,6 +1105,7 @@ export function GroupBuyDetailPage() {
                         <div className="mobile-card-name">{line.name}</div>
                         <div className="mobile-card-meta">
                           {[
+                            excluded ? "Excluded" : "",
                             line.color,
                             `Total ${line.total_qty}`,
                             money(line.remaining_cost),
@@ -1068,9 +1132,11 @@ export function GroupBuyDetailPage() {
                           qty={line.my_qty}
                           suggestedQty={line.my_suggested_qty}
                           isCustom={line.my_is_custom}
+                          excluded={isLineExcluded(line)}
                           disabled={qtyBusy}
                           onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
                           onReset={() => clearQty.mutate(line.card_id)}
+                          onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
                         />
                       </div>
                     ) : null}
@@ -1092,7 +1158,8 @@ export function GroupBuyDetailPage() {
                       </div>
                     ) : null}
                   </article>
-                ))}
+                );
+                })}
               </div>
             </>
           )}
