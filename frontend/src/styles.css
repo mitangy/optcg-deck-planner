@@ -1836,6 +1836,10 @@ tr.done {
   color: #8a5a12;
 }
 
+.group-buy-status.status-ordered {
+  color: #6b4c9a;
+}
+
 .group-buy-status.status-completed {
   color: #355c7d;
 }
@@ -1857,13 +1861,60 @@ tr.done {
 }
 
 .group-buy-members,
-.group-buy-contribution {
+.group-buy-contribution,
+.group-buy-settlement {
   margin: 0 0 1.25rem;
 }
 
 .group-buy-members ul {
   margin: 0.35rem 0 0;
   padding-left: 1.1rem;
+}
+
+.group-buy-order-form {
+  display: grid;
+  gap: 0.65rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  margin: 0.65rem 0 1rem;
+  align-items: end;
+}
+
+.group-buy-order-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.group-buy-order-form input,
+.group-buy-order-form select,
+.group-buy-order-form textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #ccc);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+  min-height: 2.25rem;
+}
+
+.group-buy-order-notes {
+  grid-column: 1 / -1;
+}
+
+.group-buy-order-form .btn {
+  width: auto;
+  justify-self: start;
+  margin-top: 0;
+}
+
+.group-buy-order-readonly {
+  margin: 0.5rem 0 0.85rem;
+}
+
+.group-buy-owe-table {
+  margin-top: 0.35rem;
 }
 
 .group-buy-printing {

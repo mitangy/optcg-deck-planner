@@ -166,6 +166,13 @@ class GroupBuyQtyUpdate(BaseModel):
     qty: int = Field(ge=0, le=999)
 
 
+class GroupBuyOrderUpdate(BaseModel):
+    external_order_id: str | None = Field(default=None, max_length=200)
+    order_notes: str | None = Field(default=None, max_length=4000)
+    shipping_cost: float | None = Field(default=None, ge=0, le=100000)
+    shipping_split: str | None = Field(default=None, pattern="^(equal|by_cost|by_copies)$")
+
+
 class GroupBuyMemberOut(BaseModel):
     user_id: int
     display_name: str
@@ -173,6 +180,9 @@ class GroupBuyMemberOut(BaseModel):
     deck_ids: list[int] | None = None
     cards_still_needed: int = 0
     remaining_market: float = 0.0
+    card_cost: float = 0.0
+    shipping_share: float = 0.0
+    total_owed: float = 0.0
 
 
 class GroupBuyMemberQtyOut(BaseModel):
@@ -220,6 +230,13 @@ class GroupBuyDetail(GroupBuySummary):
     members: list[GroupBuyMemberOut]
     lines: list[GroupBuyLineOut]
     locked_at: str | None = None
+    ordered_at: str | None = None
+    external_order_id: str = ""
+    order_notes: str = ""
+    shipping_cost: float = 0.0
+    shipping_split: str = "equal"
+    cards_subtotal: float = 0.0
+    grand_total: float = 0.0
 
 
 class GroupBuyInvitePreview(BaseModel):
