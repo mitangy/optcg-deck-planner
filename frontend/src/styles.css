@@ -572,21 +572,21 @@ button.ghost.danger {
 }
 
 tr.selected-row td,
-.mobile-card.selected-row {
+.mobile-card.selected-row,
+.grid-card-wrap.selected-row .grid-card {
   outline: 2px solid rgba(196, 154, 26, 0.45);
   outline-offset: -2px;
 }
 
-.mobile-select {
-  display: flex;
-  align-items: flex-start;
-  padding-top: 0.35rem;
+.mobile-card.selectable,
+.grid-card-wrap.selectable {
+  cursor: pointer;
 }
 
-.mobile-select input {
-  width: 1.2rem;
-  height: 1.2rem;
-  accent-color: #c49a1a;
+.mobile-card.selectable:focus-visible,
+.grid-card-wrap.selectable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .public-app .topbar {
@@ -739,8 +739,22 @@ tr.selected-row td,
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  /* Extra width for the external select column beside each card (matches list). */
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
   gap: 0.85rem;
+}
+
+.grid-card-wrap {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  column-gap: 0.15rem;
+  align-items: start;
+  min-width: 0;
+}
+
+/* Narrow (tap-to-select) grid: no checkbox column. */
+.grid-card-wrap.selectable {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .grid-card {
@@ -763,9 +777,6 @@ tr.selected-row td,
 }
 
 .grid-card-media {
-  position: relative;
-  /* Shrink the media box to the image so the absolute checkbox sits on the
-     image's top-left corner (not in the empty margin beside a centered image). */
   width: fit-content;
   max-width: 100%;
   margin-inline: auto;
@@ -781,24 +792,21 @@ tr.selected-row td,
   display: block;
 }
 
+/* Outside the card, same width/alignment as the list view select column. */
 .grid-card-select {
-  position: absolute;
-  top: 0.25rem;
-  left: 0.25rem;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 8px;
-  background: rgba(255, 253, 248, 0.92);
-  border: 1px solid var(--line);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 2.25rem;
+  padding-top: 0.75rem;
+  margin: 0;
 }
 
 .grid-card-select input {
   width: 1.1rem;
   height: 1.1rem;
   accent-color: #c49a1a;
+  cursor: pointer;
 }
 
 .grid-card-body {
@@ -1520,6 +1528,14 @@ tr.done {
     gap: 0.65rem;
   }
 
+  .grid-card-wrap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .grid-card-select {
+    display: none;
+  }
+
   .grid-card-media .thumb,
   .grid-card-media .thumb-btn .thumb {
     width: 104px;
@@ -1638,10 +1654,6 @@ tr.done {
     align-items: flex-start;
     min-width: 0;
     max-width: 100%;
-  }
-
-  .mobile-select {
-    flex: 0 0 auto;
   }
 
   .mobile-card-media {
