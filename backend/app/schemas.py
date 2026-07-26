@@ -16,11 +16,6 @@ class DeckCreate(BaseModel):
     decklist: str = Field(min_length=1)
 
 
-class DeckUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=200)
-    decklist: str | None = None
-
-
 class DeckSummary(BaseModel):
     id: int
     name: str

@@ -18,7 +18,6 @@ from app.schemas import (
     DeckCreate,
     DeckDetail,
     DeckSummary,
-    DeckUpdate,
     GroupBuyContributionUpdate,
     GroupBuyCreate,
     GroupBuyDetail,
@@ -56,23 +55,6 @@ def post_deck(
 ):
     try:
         deck = services.create_deck(db, user, body.name, body.decklist)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    summaries = {d.id: d for d in services.list_decks(db, user)}
-    return summaries[deck.id]
-
-
-@router.patch("/decks/{deck_id}", response_model=DeckSummary)
-def patch_deck(
-    deck_id: int,
-    body: DeckUpdate,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        deck = services.update_deck(db, user, deck_id, body.name, body.decklist)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     summaries = {d.id: d for d in services.list_decks(db, user)}
