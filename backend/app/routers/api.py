@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from app.catalog_sync import run_catalog_sync_job, sync_in_progress, sync_status
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import CatalogMeta, User
+from app.rate_limit import RateLimiter, client_ip
 from app.recent_sales import fetch_recent_sales
 from app.schemas import (
     CatalogStatus,
@@ -37,6 +38,9 @@ from app.schemas import (
 from app import group_buy, services
 
 router = APIRouter(tags=["api"])
+
+# Public TCGPlayer proxy — keep abuse cost bounded per client IP.
+_sales_rate_limiter = RateLimiter(max_calls=30, period_s=60)
 
 
 @router.get("/decks", response_model=list[DeckSummary])
@@ -418,10 +422,13 @@ def catalog_status(
 
 @router.get("/catalog/sales/{product_id}", response_model=RecentSalesResponse)
 def catalog_recent_sales(
+    request: Request,
     product_id: int,
     limit: Annotated[int, Query(ge=1, le=10)] = 3,
 ):
     """Public proxy for TCGPlayer latest sales (cached). Used by price expand UI."""
+    if not _sales_rate_limiter.allow(client_ip(request)):
+        raise HTTPException(status_code=429, detail="Too many sales requests")
     try:
         sales = fetch_recent_sales(product_id, limit=limit)
     except ValueError as exc:

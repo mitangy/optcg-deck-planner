@@ -11,6 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import (
+    OAUTH_NONCE_COOKIE,
+    OAUTH_STATE_MAX_AGE_SECONDS,
     SESSION_COOKIE,
     consume_login_ticket,
     create_login_ticket,
@@ -18,6 +20,7 @@ from app.auth import (
     create_session_token,
     email_allowed,
     get_optional_user,
+    new_oauth_nonce,
     verify_oauth_state,
 )
 from app.config import Settings, get_settings
@@ -74,14 +77,29 @@ def _set_session_cookie(response: Response, user_id: int, settings: Settings) ->
 @router.get("/google")
 async def google_login(settings: Annotated[Settings, Depends(get_settings)]):
     client = _google_client(settings)
-    # Signed state in the OAuth URL — no cookie needed (more reliable on mobile Safari).
+    # Bind signed state to a short-lived nonce cookie on this host so a stolen
+    # state alone cannot complete login CSRF.
+    nonce = new_oauth_nonce()
     uri, _ = client.create_authorization_url(
         "https://accounts.google.com/o/oauth2/v2/auth",
-        state=create_oauth_state(settings),
+        state=create_oauth_state(nonce, settings),
         access_type="online",
         prompt="select_account",
     )
-    return RedirectResponse(uri)
+    response = RedirectResponse(uri)
+    secure = settings.backend_public_url.startswith("https") or settings.frontend_origin.startswith(
+        "https"
+    )
+    response.set_cookie(
+        key=OAUTH_NONCE_COOKIE,
+        value=nonce,
+        httponly=True,
+        samesite="lax",
+        secure=secure,
+        max_age=OAUTH_STATE_MAX_AGE_SECONDS,
+        path="/",
+    )
+    return response
 
 
 @router.get("/callback")
@@ -91,7 +109,8 @@ async def google_callback(
     settings: Annotated[Settings, Depends(get_settings)],
 ):
     got_state = request.query_params.get("state") or ""
-    if not verify_oauth_state(got_state, settings):
+    nonce = request.cookies.get(OAUTH_NONCE_COOKIE)
+    if not verify_oauth_state(got_state, nonce, settings):
         raise HTTPException(status_code=400, detail="Invalid OAuth state")
 
     client = _google_client(settings)
@@ -142,9 +161,19 @@ async def google_callback(
     # Put the ticket in the URL fragment (not the query string) so it is not
     # sent to servers, proxies, or Referer headers.
     ticket = create_login_ticket(db, user.id, settings)
-    return RedirectResponse(
+    redirect = RedirectResponse(
         f"{settings.frontend_origin.rstrip('/')}/login#ticket={ticket}"
     )
+    secure = settings.backend_public_url.startswith("https") or settings.frontend_origin.startswith(
+        "https"
+    )
+    redirect.delete_cookie(
+        OAUTH_NONCE_COOKIE,
+        path="/",
+        samesite="lax",
+        secure=secure,
+    )
+    return redirect
 
 
 @router.post("/claim", response_model=UserOut)

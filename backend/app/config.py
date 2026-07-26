@@ -43,7 +43,15 @@ class Settings(BaseSettings):
 
     @property
     def is_production(self) -> bool:
-        return self.frontend_origin.startswith("https://")
+        # Any of these means a deployed / non-local environment where weak
+        # defaults and dev login must be rejected.
+        if self.frontend_origin.startswith("https://"):
+            return True
+        if self.backend_public_url.startswith("https://"):
+            return True
+        if self.sqlalchemy_url.startswith("postgresql"):
+            return True
+        return False
 
 
 DEFAULT_SESSION_SECRETS = {"dev-change-me-in-production", "dev-secret-change-me"}

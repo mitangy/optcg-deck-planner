@@ -661,7 +661,7 @@ function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const next = params.get("next");
-    if (next && next.startsWith("/")) rememberLoginNext(next);
+    if (next) rememberLoginNext(next);
   }, []);
 
   useEffect(() => {
