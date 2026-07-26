@@ -358,7 +358,7 @@ def mark_group_buy_ordered(
     db: Annotated[Session, Depends(get_db)],
     body: GroupBuyOrderUpdate = GroupBuyOrderUpdate(),
 ):
-    """Mark ordered: freeze quantities (if needed) and record checkout handoff / shipping."""
+    """Mark ordered: record checkout handoff after lock (does not update Owned)."""
     try:
         return group_buy.mark_ordered(db, user, group_id, body)
     except LookupError as exc:
@@ -393,7 +393,7 @@ def complete_group_buy(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """Mark purchased: end the group buy and apply buy qtys to each member's Owned."""
+    """Mark purchased: apply buy qtys to Owned (requires ordered first)."""
     try:
         return group_buy.complete_group_buy(db, user, group_id)
     except LookupError as exc:

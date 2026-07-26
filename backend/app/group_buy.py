@@ -686,22 +686,21 @@ def mark_ordered(
     group_id: int,
     body: GroupBuyOrderUpdate | None = None,
 ) -> GroupBuyDetail:
-    """Freeze quantities (if needed) and record that the bulk order was placed."""
+    """Record that the bulk order was placed (after lock). Does not change Owned."""
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status == "completed":
         raise PermissionError("Group buy is already completed")
     if group.status == "open":
-        _freeze_snapshot(db, group)
-        group.locked_at = datetime.now(timezone.utc)
-        db.flush()
-    elif group.status not in ("locked", "ordered"):
+        raise PermissionError("Lock for checkout before marking ordered")
+    if group.status not in ("locked", "ordered"):
         raise PermissionError("Group buy cannot be marked ordered from this status")
 
     if body is not None:
         _apply_order_fields(group, body)
     group.status = "ordered"
-    group.ordered_at = datetime.now(timezone.utc)
+    if group.ordered_at is None:
+        group.ordered_at = datetime.now(timezone.utc)
     db.commit()
     return get_group_buy(db, user, group_id)
 
@@ -723,22 +722,13 @@ def update_order(
 
 
 def complete_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
-    """End the group buy and add each member's buy qtys to their Owned counts."""
+    """Mark purchased: apply buy qtys to Owned. Requires status ordered first."""
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status == "completed":
         return get_group_buy(db, user, group_id)
-
-    if group.status == "open":
-        _freeze_snapshot(db, group)
-        group.locked_at = datetime.now(timezone.utc)
-        db.flush()
-    elif group.status not in ("locked", "ordered"):
-        raise PermissionError("Group buy cannot be completed from this status")
-
-    if group.ordered_at is None and group.status != "ordered":
-        # Completing without an explicit order step is fine; leave ordered_at null.
-        pass
+    if group.status != "ordered":
+        raise PermissionError("Mark ordered after checkout before marking purchased")
 
     snapshot = db.scalars(
         select(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id)

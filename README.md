@@ -122,7 +122,7 @@ GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
 From **Shopping** or a **Deck** page, use **Share public link** to copy a URL like `/share/<token>`. Anyone with the link can view the list (owned / still need / prices) without signing in. Turn the shopping link off anytime from the Shopping page.
 
 ## Group buys
-Start a group buy from **Shopping** or **Group buys**, copy the invite link, and have friends sign in to join. Quantities default to each member’s shopping still-need (summed across members); each person can edit **Your buy** per card, then the host **Locks for checkout** and exports with **Open Mass Entry**. After placing the bulk order, the host can **Mark ordered**, enter shipping, and split costs (equal / by card cost / by copies). When cards arrive, **Mark purchased** ends the group buy and adds each member’s quantities to Owned (clearing those copies from shopping).
+Start a group buy from **Shopping** or **Group buys**, copy the invite link, and have friends sign in to join. Quantities default to each member’s shopping still-need (summed across members); each person can edit **Your buy** per card, then the host **Locks for checkout** and exports with **Open Mass Entry**. After placing the bulk order, **Mark ordered** (does not change Owned). Enter shipping and split costs (equal / by card cost / by copies). When cards are received, **Mark purchased** applies each member’s quantities to Owned and clears those copies from shopping.
 
 ## Backend tests
 ```bash
