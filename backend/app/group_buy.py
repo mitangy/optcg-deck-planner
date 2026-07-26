@@ -271,6 +271,10 @@ def _build_lines(
             GroupBuyLineOut(
                 card_id=card_id,
                 name=cat.name if cat else "(not in catalog)",
+                color=cat.color if cat else "",
+                rarity=cat.rarity if cat else "",
+                card_type=cat.card_type if cat else "",
+                cost=cat.cost if cat else None,
                 total_qty=total_qty,
                 market_price=market,
                 remaining_cost=remaining,

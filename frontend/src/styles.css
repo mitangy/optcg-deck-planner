@@ -2014,14 +2014,12 @@ tr.done {
   font-size: 0.85rem;
 }
 
-.group-buy-merged-toolbar {
-  margin-top: 0.25rem;
+.group-buy-merged-heading {
+  margin: 0 0 0.65rem;
 }
 
-.group-buy-merged-heading {
-  margin: 0;
-  flex: 1 1 auto;
-  min-width: 0;
+.group-buy-merged-toolbar {
+  margin-bottom: 1rem;
 }
 
 .grid-card-owned .group-buy-qty {

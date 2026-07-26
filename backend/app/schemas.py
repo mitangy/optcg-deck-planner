@@ -226,6 +226,10 @@ class GroupBuyMemberQtyOut(BaseModel):
 class GroupBuyLineOut(BaseModel):
     card_id: str
     name: str
+    color: str = ""
+    rarity: str = ""
+    card_type: str = ""
+    cost: str | None = None
     total_qty: int
     market_price: float | None = None
     remaining_cost: float | None = None

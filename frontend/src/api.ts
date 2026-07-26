@@ -216,6 +216,10 @@ export type GroupBuyOrderUpdate = {
 export type GroupBuyLine = {
   card_id: string;
   name: string;
+  color?: string;
+  rarity?: string;
+  card_type?: string;
+  cost?: string | null;
   total_qty: number;
   market_price: number | null;
   remaining_cost: number | null;
