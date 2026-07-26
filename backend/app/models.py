@@ -34,6 +34,19 @@ class User(Base):
     owned: Mapped[list[Owned]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
+class LoginTicket(Base):
+    """Single-use OAuth login tickets (claimed once via POST /auth/claim)."""
+
+    __tablename__ = "login_tickets"
+
+    jti: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class Deck(Base):
     __tablename__ = "decks"
 
