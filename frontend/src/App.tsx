@@ -593,20 +593,14 @@ function formatShoppingListStats(data: {
   items: { still_need: number; market_price?: number | null }[];
 } | null | undefined) {
   const { totalUnique, uniqueStillNeeded, totalStillNeeded, remainingMarket } = shoppingListStats(data);
-<<<<<<< HEAD
   const hasPrices = (data?.items ?? []).some(
     (i) => i.market_price != null && !Number.isNaN(i.market_price),
   );
   const marketLabel = hasPrices ? money(remainingMarket) : "no prices yet";
-  return (
-    `${totalUnique} total unique cards · ${uniqueStillNeeded} unique cards still needed, ` +
-    `${totalStillNeeded} total cards still needed · ${marketLabel}`
-=======
   // Keep to one scannable line on mobile — avoid burying the card list below chrome.
   return (
     `${uniqueStillNeeded}/${totalUnique} uniques left · ${totalStillNeeded} copies · ` +
-    `${money(remainingMarket)}`
->>>>>>> origin/cursor/ui-p1-polish-ea10
+    `${marketLabel}`
   );
 }
 
@@ -813,7 +807,12 @@ function CardThumb({
   }, [open]);
 
   if (!src) {
-    const label = (fallbackLabel || alt || "").trim();
+    const rawAlt = (alt || "").trim();
+    const label = (
+      fallbackLabel ||
+      (rawAlt && rawAlt.toLowerCase() !== "(not in catalog)" ? rawAlt : "") ||
+      ""
+    ).trim();
     return (
       <div className="thumb placeholder" aria-label={label || "No card image"}>
         {label ? <span className="thumb-fallback">{label}</span> : null}
@@ -1191,7 +1190,11 @@ function AltArtsRow({ alts }: { alts: PrintingView[] }) {
     <div className="alt-arts">
       {alts.map((alt) => (
         <div key={alt.product_id} className="alt-art">
-          <CardThumb src={alt.image_url || undefined} alt={alt.name} fallbackLabel={alt.name} />
+          <CardThumb
+            src={alt.image_url || undefined}
+            alt={alt.name}
+            fallbackLabel={alt.group_name || "Alt art"}
+          />
           <div className="alt-meta">
             <MarketPrice price={alt.market_price} productId={alt.product_id} />
             {alt.tcgplayer_url ? (
@@ -1756,7 +1759,11 @@ function ShoppingPage() {
                 )}
                 <div className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}>
                   <div className="grid-card-media" onClick={stopCardSelectBubble}>
-                    <CardThumb src={item.image_url || undefined} alt={item.name} />
+                    <CardThumb
+                      src={item.image_url || undefined}
+                      alt={item.name}
+                      fallbackLabel={item.card_id}
+                    />
                   </div>
                   <div className="grid-card-body">
                     <div className="card-id">{item.card_id}</div>
@@ -1840,7 +1847,11 @@ function ShoppingPage() {
                         />
                       </td>
                       <td className="card-cell">
-                        <CardThumb src={item.image_url || undefined} alt={item.name} />
+                        <CardThumb
+                          src={item.image_url || undefined}
+                          alt={item.name}
+                          fallbackLabel={item.card_id}
+                        />
                         <div>
                           <div className="card-id">{item.card_id}</div>
                           <div>{item.name}</div>
@@ -1904,6 +1915,7 @@ function ShoppingPage() {
                         alt={item.name}
                         cost={item.cost}
                         rarity={item.rarity}
+                        fallbackLabel={item.card_id}
                       />
                     </div>
                     <div className="mobile-card-info">
@@ -2244,7 +2256,11 @@ function CardTable({
             className={`grid-card ${c.still_need > 0 ? "need" : "done"}`}
           >
             <div className="grid-card-media">
-              <CardThumb src={c.image_url || undefined} alt={c.name} />
+              <CardThumb
+                src={c.image_url || undefined}
+                alt={c.name}
+                fallbackLabel={c.card_id}
+              />
             </div>
             <div className="grid-card-body">
               <div className="card-id">{c.card_id}</div>
@@ -2307,7 +2323,11 @@ function CardTable({
             {cards.map((c) => (
               <tr key={`${c.section}-${c.card_id}`} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
-                  <CardThumb src={c.image_url || undefined} alt={c.name} />
+                  <CardThumb
+                    src={c.image_url || undefined}
+                    alt={c.name}
+                    fallbackLabel={c.card_id}
+                  />
                   <div>
                     <div className="card-id">{c.card_id}</div>
                     <div>{c.name}</div>
@@ -2362,6 +2382,7 @@ function CardTable({
                 alt={c.name}
                 cost={c.cost}
                 rarity={c.rarity}
+                fallbackLabel={c.card_id}
               />
               <div className="mobile-card-info">
                 <div className="card-id">{c.card_id}</div>
@@ -2631,7 +2652,11 @@ function DeckEditorPanel({
               return (
                 <li key={card.card_id} className="deck-editor-result">
                   <div className="deck-editor-result-main">
-                    <CardThumb src={card.image_url || undefined} alt={card.name} />
+                    <CardThumb
+                      src={card.image_url || undefined}
+                      alt={card.name}
+                      fallbackLabel={card.card_id}
+                    />
                     <div>
                       <div className="card-id">{card.card_id}</div>
                       <div>{card.name}</div>
@@ -2770,7 +2795,11 @@ function AvailableDonSection({
               return (
                 <li key={card.card_id} className="deck-editor-result">
                   <div className="deck-editor-result-main">
-                    <CardThumb src={card.image_url || undefined} alt={card.name} />
+                    <CardThumb
+                      src={card.image_url || undefined}
+                      alt={card.name}
+                      fallbackLabel={card.card_id}
+                    />
                     <div>
                       <div className="card-id">{card.card_id}</div>
                       <div>{card.name}</div>
@@ -3318,7 +3347,11 @@ function PublicSharePage() {
                     className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}
                   >
                     <div className="grid-card-media">
-                      <CardThumb src={item.image_url || undefined} alt={item.name} />
+                      <CardThumb
+                        src={item.image_url || undefined}
+                        alt={item.name}
+                        fallbackLabel={item.card_id}
+                      />
                     </div>
                     <div className="grid-card-body">
                       <div className="card-id">{item.card_id}</div>
@@ -3358,7 +3391,11 @@ function PublicSharePage() {
                       {items.map((item) => (
                         <tr key={item.card_id} className={item.still_need > 0 ? "need" : "done"}>
                           <td className="card-cell">
-                            <CardThumb src={item.image_url || undefined} alt={item.name} />
+                            <CardThumb
+                          src={item.image_url || undefined}
+                          alt={item.name}
+                          fallbackLabel={item.card_id}
+                        />
                             <div>
                               <div className="card-id">{item.card_id}</div>
                               <div>{item.name}</div>
@@ -3395,6 +3432,7 @@ function PublicSharePage() {
                           alt={item.name}
                           cost={item.cost}
                           rarity={item.rarity}
+                          fallbackLabel={item.card_id}
                         />
                         <div className="mobile-card-info">
                           <div className="card-id">{item.card_id}</div>
