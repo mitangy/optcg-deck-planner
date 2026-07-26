@@ -133,13 +133,13 @@ function BuyQtyEditor({
       <div className="group-buy-qty-meta muted">
         {isCustom ? (
           <>
-            Shopping suggests {suggestedQty}{" "}
+            <span>Shopping suggests {suggestedQty}</span>
             <button type="button" className="ghost" disabled={disabled} onClick={onReset}>
               Use suggested
             </button>
           </>
         ) : (
-          <>From shopping</>
+          <span>From shopping</span>
         )}
       </div>
     </div>
