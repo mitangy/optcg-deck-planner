@@ -13,6 +13,8 @@ class MemberNeed:
     card_id: str
     qty: int
     product_id: int | None = None
+    suggested_qty: int = 0
+    is_custom: bool = False
 
 
 @dataclass(frozen=True)
@@ -20,6 +22,8 @@ class MergedMemberQty:
     user_id: int
     display_name: str
     qty: int
+    suggested_qty: int = 0
+    is_custom: bool = False
 
 
 @dataclass(frozen=True)
@@ -46,12 +50,16 @@ def merge_member_needs(needs: list[MemberNeed]) -> list[MergedLine]:
                 user_id=need.user_id,
                 display_name=need.display_name,
                 qty=need.qty,
+                suggested_qty=need.suggested_qty,
+                is_custom=need.is_custom,
             )
         else:
             by_card[card_id][need.user_id] = MergedMemberQty(
                 user_id=need.user_id,
                 display_name=need.display_name,
                 qty=existing.qty + need.qty,
+                suggested_qty=existing.suggested_qty + need.suggested_qty,
+                is_custom=existing.is_custom or need.is_custom,
             )
         if suggested.get(card_id) is None and need.product_id:
             suggested[card_id] = need.product_id

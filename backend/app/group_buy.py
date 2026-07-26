@@ -10,13 +10,14 @@ from urllib.parse import urlencode
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.group_buy_merge import MemberNeed, merge_member_needs
+from app.group_buy_merge import MemberNeed, MergedMemberQty, merge_member_needs
 from app.models import (
     CatalogCard,
     CatalogPrinting,
     GroupBuy,
     GroupBuyLineOverride,
     GroupBuyMember,
+    GroupBuyQtyOverride,
     GroupBuySnapshotLine,
     User,
 )
@@ -73,6 +74,7 @@ def _get_group(db: Session, group_id: int) -> GroupBuy:
             selectinload(GroupBuy.host),
             selectinload(GroupBuy.snapshot_lines),
             selectinload(GroupBuy.line_overrides),
+            selectinload(GroupBuy.qty_overrides),
         )
     )
     if group is None:
@@ -92,23 +94,43 @@ def _require_host(group: GroupBuy, user: User) -> None:
         raise PermissionError("Only the host can do that")
 
 
+def _qty_override_map(group: GroupBuy) -> dict[tuple[int, str], int]:
+    return {
+        (row.user_id, row.card_id.upper()): int(row.qty)
+        for row in group.qty_overrides
+    }
+
+
 def _member_needs_live(db: Session, group: GroupBuy) -> list[MemberNeed]:
+    """Shopping still-need as default, with per-member qty overrides applied."""
+    overrides = _qty_override_map(group)
     needs: list[MemberNeed] = []
     for member in group.members:
         shopping = services.shopping_list(
             db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)
         )
         name = _display_name(member.user)
-        for item in shopping.items:
-            if item.still_need <= 0:
+        shop_by_id = {item.card_id.upper(): item for item in shopping.items}
+        card_ids = set(shop_by_id) | {
+            card_id for (uid, card_id) in overrides if uid == member.user_id
+        }
+        for card_id in sorted(card_ids):
+            item = shop_by_id.get(card_id)
+            suggested = item.still_need if item else 0
+            key = (member.user_id, card_id)
+            is_custom = key in overrides
+            qty = overrides[key] if is_custom else suggested
+            if qty <= 0:
                 continue
             needs.append(
                 MemberNeed(
                     user_id=member.user_id,
                     display_name=name,
-                    card_id=item.card_id,
-                    qty=item.still_need,
-                    product_id=item.product_id,
+                    card_id=card_id,
+                    qty=qty,
+                    product_id=item.product_id if item else None,
+                    suggested_qty=suggested,
+                    is_custom=is_custom,
                 )
             )
     return needs
@@ -129,6 +151,8 @@ def _member_needs_locked(group: GroupBuy) -> list[MemberNeed]:
                 card_id=line.card_id,
                 qty=line.qty,
                 product_id=line.product_id,
+                suggested_qty=line.qty,
+                is_custom=False,
             )
         )
     return needs
@@ -150,24 +174,73 @@ def _catalog_bundle(db: Session, card_ids: set[str]):
     return catalog, product_ids, alts, printings
 
 
-def _build_lines(db: Session, group: GroupBuy) -> tuple[list[GroupBuyLineOut], dict[int, tuple[int, float]]]:
+def _viewer_zero_customs(
+    db: Session,
+    group: GroupBuy,
+    viewer_user_id: int,
+) -> dict[str, MergedMemberQty]:
+    """Custom qty=0 rows so the viewer can bump a line back up from the UI."""
+    if group.status != "open":
+        return {}
+    member = next((m for m in group.members if m.user_id == viewer_user_id), None)
+    if member is None:
+        return {}
+    shopping = services.shopping_list(
+        db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)
+    )
+    shop_by_id = {item.card_id.upper(): item for item in shopping.items}
+    name = _display_name(member.user)
+    out: dict[str, MergedMemberQty] = {}
+    for (uid, card_id), qty in _qty_override_map(group).items():
+        if uid != viewer_user_id or qty > 0:
+            continue
+        item = shop_by_id.get(card_id)
+        out[card_id] = MergedMemberQty(
+            user_id=viewer_user_id,
+            display_name=name,
+            qty=0,
+            suggested_qty=item.still_need if item else 0,
+            is_custom=True,
+        )
+    return out
+
+
+def _build_lines(
+    db: Session,
+    group: GroupBuy,
+    viewer_user_id: int | None = None,
+) -> tuple[list[GroupBuyLineOut], dict[int, tuple[int, float]]]:
     needs = (
         _member_needs_locked(group)
         if group.status == "locked"
         else _member_needs_live(db, group)
     )
+    zero_customs = (
+        _viewer_zero_customs(db, group, viewer_user_id) if viewer_user_id is not None else {}
+    )
     merged = merge_member_needs(needs)
-    overrides = {o.card_id.upper(): o.product_id for o in group.line_overrides}
-    card_ids = {line.card_id for line in merged}
+    product_overrides = {o.card_id.upper(): o.product_id for o in group.line_overrides}
+    card_ids = {line.card_id for line in merged} | set(zero_customs)
     catalog, primary_ids, alts, printings = _catalog_bundle(db, card_ids)
 
     member_totals: dict[int, list[int]] = {m.user_id: [0, 0.0] for m in group.members}
     lines_out: list[GroupBuyLineOut] = []
+    merged_by_id = {line.card_id: line for line in merged}
 
-    for line in merged:
-        cat = catalog.get(line.card_id)
-        product_id = overrides.get(line.card_id) or line.suggested_product_id or primary_ids.get(
-            line.card_id
+    for card_id in sorted(card_ids):
+        line = merged_by_id.get(card_id)
+        members_list: list[MergedMemberQty] = list(line.members) if line else []
+        if card_id in zero_customs and all(m.user_id != viewer_user_id for m in members_list):
+            members_list.append(zero_customs[card_id])
+            members_list.sort(key=lambda m: (m.display_name.lower(), m.user_id))
+        members = tuple(members_list)
+
+        total_qty = sum(m.qty for m in members)
+        cat = catalog.get(card_id)
+        product_id = (
+            product_overrides.get(card_id)
+            or (line.suggested_product_id if line else None)
+            or primary_ids.get(card_id)
         )
         market = None
         image_url = cat.image_url if cat else ""
@@ -179,20 +252,21 @@ def _build_lines(db: Session, group: GroupBuy) -> tuple[list[GroupBuyLineOut], d
             tcgplayer_url = printing.tcgplayer_url or tcgplayer_url
         elif cat is not None:
             market = cat.market_price
-        remaining = (
-            round(line.total_qty * market, 2) if market is not None else None
-        )
-        for mem in line.members:
+        remaining = round(total_qty * market, 2) if market is not None else None
+        for mem in members:
+            if mem.qty <= 0:
+                continue
             bucket = member_totals.setdefault(mem.user_id, [0, 0.0])
             bucket[0] += mem.qty
             if market is not None:
                 bucket[1] += mem.qty * market
 
+        mine = next((m for m in members if m.user_id == viewer_user_id), None)
         lines_out.append(
             GroupBuyLineOut(
-                card_id=line.card_id,
+                card_id=card_id,
                 name=cat.name if cat else "(not in catalog)",
-                total_qty=line.total_qty,
+                total_qty=total_qty,
                 market_price=market,
                 remaining_cost=remaining,
                 product_id=product_id,
@@ -203,14 +277,19 @@ def _build_lines(db: Session, group: GroupBuy) -> tuple[list[GroupBuyLineOut], d
                         user_id=m.user_id,
                         display_name=m.display_name,
                         qty=m.qty,
+                        suggested_qty=m.suggested_qty,
+                        is_custom=m.is_custom,
                     )
-                    for m in line.members
+                    for m in members
+                    if m.qty > 0 or m.user_id == viewer_user_id
                 ],
-                alt_arts=alts.get(line.card_id, []),
+                alt_arts=alts.get(card_id, []),
+                my_qty=mine.qty if mine else 0,
+                my_suggested_qty=mine.suggested_qty if mine else 0,
+                my_is_custom=mine.is_custom if mine else False,
             )
         )
 
-    # Convert member market totals to rounded floats
     member_stats = {
         uid: (counts[0], round(counts[1], 2)) for uid, counts in member_totals.items()
     }
@@ -259,12 +338,13 @@ def list_group_buys(db: Session, user: User) -> list[GroupBuySummary]:
             selectinload(GroupBuy.host),
             selectinload(GroupBuy.snapshot_lines),
             selectinload(GroupBuy.line_overrides),
+            selectinload(GroupBuy.qty_overrides),
         )
         .order_by(GroupBuy.id.desc())
     ).all()
     out: list[GroupBuySummary] = []
     for group in groups:
-        lines, _ = _build_lines(db, group)
+        lines, _ = _build_lines(db, group, viewer_user_id=user.id)
         out.append(GroupBuySummary(**_summary_fields(group, user, lines)))
     return out
 
@@ -272,7 +352,7 @@ def list_group_buys(db: Session, user: User) -> list[GroupBuySummary]:
 def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_member(group, user)
-    lines, member_stats = _build_lines(db, group)
+    lines, member_stats = _build_lines(db, group, viewer_user_id=user.id)
     members_out: list[GroupBuyMemberOut] = []
     for member in sorted(
         group.members,
@@ -333,6 +413,7 @@ def join_group_buy(db: Session, user: User, token: str) -> GroupBuyDetail:
             selectinload(GroupBuy.host),
             selectinload(GroupBuy.snapshot_lines),
             selectinload(GroupBuy.line_overrides),
+            selectinload(GroupBuy.qty_overrides),
         )
     )
     if group is None:
@@ -387,6 +468,100 @@ def update_contribution(
     if group.status != "open":
         raise PermissionError("Group buy is locked; contributions cannot change")
     member.deck_ids_json = _dump_deck_ids(deck_ids)
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def set_member_qty(
+    db: Session,
+    user: User,
+    group_id: int,
+    card_id: str,
+    qty: int,
+) -> GroupBuyDetail:
+    """Set how many copies the current user wants to buy for a card."""
+    group = _get_group(db, group_id)
+    member = _require_member(group, user)
+    if group.status != "open":
+        raise PermissionError("Group buy is locked; quantities cannot change")
+    card_id = card_id.upper().strip()
+    if not card_id:
+        raise ValueError("card_id is required")
+    qty = max(0, min(999, int(qty)))
+
+    # Default (no override) is shopping still-need. If qty matches that, clear override.
+    shopping = services.shopping_list(
+        db, user, deck_ids=_parse_deck_ids(member.deck_ids_json)
+    )
+    suggested = next(
+        (item.still_need for item in shopping.items if item.card_id.upper() == card_id),
+        0,
+    )
+    existing = db.scalar(
+        select(GroupBuyQtyOverride).where(
+            GroupBuyQtyOverride.group_buy_id == group.id,
+            GroupBuyQtyOverride.user_id == user.id,
+            GroupBuyQtyOverride.card_id == card_id,
+        )
+    )
+    if qty == suggested:
+        if existing is not None:
+            db.delete(existing)
+            db.commit()
+        return get_group_buy(db, user, group_id)
+
+    if existing is None:
+        db.add(
+            GroupBuyQtyOverride(
+                group_buy_id=group.id,
+                user_id=user.id,
+                card_id=card_id,
+                qty=qty,
+            )
+        )
+    else:
+        existing.qty = qty
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def clear_member_qty(
+    db: Session,
+    user: User,
+    group_id: int,
+    card_id: str,
+) -> GroupBuyDetail:
+    """Remove a qty override so the line follows shopping still-need again."""
+    group = _get_group(db, group_id)
+    _require_member(group, user)
+    if group.status != "open":
+        raise PermissionError("Group buy is locked; quantities cannot change")
+    card_id = card_id.upper().strip()
+    existing = db.scalar(
+        select(GroupBuyQtyOverride).where(
+            GroupBuyQtyOverride.group_buy_id == group.id,
+            GroupBuyQtyOverride.user_id == user.id,
+            GroupBuyQtyOverride.card_id == card_id,
+        )
+    )
+    if existing is not None:
+        db.delete(existing)
+        db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def sync_member_quantities(db: Session, user: User, group_id: int) -> GroupBuyDetail:
+    """Clear all of the current user's qty overrides (back to shopping still-need)."""
+    group = _get_group(db, group_id)
+    _require_member(group, user)
+    if group.status != "open":
+        raise PermissionError("Group buy is locked; quantities cannot change")
+    db.execute(
+        delete(GroupBuyQtyOverride).where(
+            GroupBuyQtyOverride.group_buy_id == group.id,
+            GroupBuyQtyOverride.user_id == user.id,
+        )
+    )
     db.commit()
     return get_group_buy(db, user, group_id)
 

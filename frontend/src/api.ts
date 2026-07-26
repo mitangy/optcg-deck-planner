@@ -145,6 +145,8 @@ export type GroupBuyMemberQty = {
   user_id: number;
   display_name: string;
   qty: number;
+  suggested_qty?: number;
+  is_custom?: boolean;
 };
 
 export type GroupBuyMember = {
@@ -167,6 +169,9 @@ export type GroupBuyLine = {
   image_url: string;
   members: GroupBuyMemberQty[];
   alt_arts: PrintingView[];
+  my_qty: number;
+  my_suggested_qty: number;
+  my_is_custom: boolean;
 };
 
 export type GroupBuySummary = {
@@ -278,6 +283,17 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ product_id }),
     }),
+  setGroupBuyQty: (id: number, cardId: string, qty: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/quantities/${encodeURIComponent(cardId)}`, {
+      method: "PUT",
+      body: JSON.stringify({ qty }),
+    }),
+  clearGroupBuyQty: (id: number, cardId: string) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/quantities/${encodeURIComponent(cardId)}`, {
+      method: "DELETE",
+    }),
+  syncGroupBuyQuantities: (id: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/quantities/sync`, { method: "POST" }),
   exportGroupBuyTcgplayer: (id: number) =>
     request<GroupBuyExport>(`/group-buys/${id}/export/tcgplayer`),
 };

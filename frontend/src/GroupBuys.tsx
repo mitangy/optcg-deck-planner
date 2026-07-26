@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -31,7 +31,94 @@ export function consumeLoginNext(): string | null {
 }
 
 function memberBreakdown(line: GroupBuyLine): string {
-  return line.members.map((m) => `${m.display_name} ×${m.qty}`).join(" · ");
+  return line.members
+    .map((m) => `${m.display_name} ×${m.qty}${m.is_custom ? "*" : ""}`)
+    .join(" · ");
+}
+
+function BuyQtyEditor({
+  cardId,
+  qty,
+  suggestedQty,
+  isCustom,
+  disabled,
+  onSave,
+  onReset,
+}: {
+  cardId: string;
+  qty: number;
+  suggestedQty: number;
+  isCustom: boolean;
+  disabled: boolean;
+  onSave: (qty: number) => void;
+  onReset: () => void;
+}) {
+  const [draft, setDraft] = useState(String(qty));
+
+  useEffect(() => {
+    setDraft(String(qty));
+  }, [qty, cardId]);
+
+  function commit() {
+    const n = Math.max(0, Math.min(999, Math.floor(Number(draft))));
+    if (!Number.isFinite(n)) {
+      setDraft(String(qty));
+      return;
+    }
+    setDraft(String(n));
+    if (n !== qty) onSave(n);
+  }
+
+  return (
+    <div className="group-buy-qty">
+      <div className="group-buy-qty-controls">
+        <button
+          type="button"
+          className="owned-btn"
+          aria-label={`Decrease buy qty for ${cardId}`}
+          disabled={disabled || qty <= 0}
+          onClick={() => onSave(Math.max(0, qty - 1))}
+        >
+          −
+        </button>
+        <input
+          className="group-buy-qty-input"
+          inputMode="numeric"
+          aria-label={`Buy quantity for ${cardId}`}
+          value={draft}
+          disabled={disabled}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.currentTarget.blur();
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="owned-btn"
+          aria-label={`Increase buy qty for ${cardId}`}
+          disabled={disabled || qty >= 999}
+          onClick={() => onSave(Math.min(999, qty + 1))}
+        >
+          +
+        </button>
+      </div>
+      <div className="group-buy-qty-meta muted">
+        {isCustom ? (
+          <>
+            Shopping suggests {suggestedQty}{" "}
+            <button type="button" className="ghost" disabled={disabled} onClick={onReset}>
+              Use suggested
+            </button>
+          </>
+        ) : (
+          <>From shopping</>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function GroupBuysPage() {
@@ -164,6 +251,35 @@ export function GroupBuyDetailPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
+  const setQty = useMutation({
+    mutationFn: ({ cardId, qty }: { cardId: string; qty: number }) =>
+      api.setGroupBuyQty(groupId, cardId, qty),
+    onSuccess: async (d) => {
+      qc.setQueryData(["group-buy", groupId], d);
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const clearQty = useMutation({
+    mutationFn: (cardId: string) => api.clearGroupBuyQty(groupId, cardId),
+    onSuccess: async (d) => {
+      qc.setQueryData(["group-buy", groupId], d);
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const syncQty = useMutation({
+    mutationFn: () => api.syncGroupBuyQuantities(groupId),
+    onSuccess: async (d) => {
+      qc.setQueryData(["group-buy", groupId], d);
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      setMsg("Your buy quantities reset to shopping still-need.");
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
   const remove = useMutation({
     mutationFn: () => api.deleteGroupBuy(groupId),
     onSuccess: async () => {
@@ -172,6 +288,8 @@ export function GroupBuyDetailPage() {
     },
     onError: (e: Error) => setMsg(e.message),
   });
+
+  const qtyBusy = setQty.isPending || clearQty.isPending || syncQty.isPending;
 
   const meQ = useQuery({ queryKey: ["me"], queryFn: api.me });
   const myContribution = useMemo(() => {
@@ -313,44 +431,59 @@ export function GroupBuyDetailPage() {
         </ul>
       </div>
 
-      {detail.status === "open" && myContribution && decks.length > 0 && (
+      {detail.status === "open" && myContribution && (
         <div className="group-buy-contribution">
           <h2>Your contribution</h2>
-          <p className="muted">Choose which of your decks feed this group buy (live until locked).</p>
-          <div className="filters">
-            <label>
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={() => contribution.mutate(null)}
-              />
-              All decks
-            </label>
-            {decks.map((d) => {
-              const checked = allSelected || (activeDeckIds?.includes(d.id) ?? false);
-              return (
-                <label key={d.id}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={contribution.isPending}
-                    onChange={() => {
-                      const current = activeDeckIds ?? decks.map((x) => x.id);
-                      let next: number[];
-                      if (current.includes(d.id)) {
-                        next = current.filter((x) => x !== d.id);
-                        if (!next.length) next = current;
-                      } else {
-                        next = [...current, d.id];
-                      }
-                      if (next.length === decks.length) contribution.mutate(null);
-                      else contribution.mutate(next);
-                    }}
-                  />
-                  {d.name}
-                </label>
-              );
-            })}
+          <p className="muted">
+            Defaults follow your shopping still-need. Edit <strong>Your buy</strong> on any line
+            before the host locks.
+          </p>
+          {decks.length > 0 && (
+            <div className="filters">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => contribution.mutate(null)}
+                />
+                All decks
+              </label>
+              {decks.map((d) => {
+                const checked = allSelected || (activeDeckIds?.includes(d.id) ?? false);
+                return (
+                  <label key={d.id}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={contribution.isPending}
+                      onChange={() => {
+                        const current = activeDeckIds ?? decks.map((x) => x.id);
+                        let next: number[];
+                        if (current.includes(d.id)) {
+                          next = current.filter((x) => x !== d.id);
+                          if (!next.length) next = current;
+                        } else {
+                          next = [...current, d.id];
+                        }
+                        if (next.length === decks.length) contribution.mutate(null);
+                        else contribution.mutate(next);
+                      }}
+                    />
+                    {d.name}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          <div className="group-buy-contribution-actions">
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={syncQty.isPending || detail.status !== "open"}
+              onClick={() => syncQty.mutate()}
+            >
+              {syncQty.isPending ? "Resetting…" : "Reset my qtys to shopping"}
+            </button>
           </div>
         </div>
       )}
@@ -364,6 +497,7 @@ export function GroupBuyDetailPage() {
             <thead>
               <tr>
                 <th>Card</th>
+                {detail.status === "open" ? <th>Your buy</th> : null}
                 <th>Total</th>
                 <th>Who</th>
                 <th>Est.</th>
@@ -377,6 +511,19 @@ export function GroupBuyDetailPage() {
                     <div className="card-id">{line.card_id}</div>
                     <div>{line.name}</div>
                   </td>
+                  {detail.status === "open" ? (
+                    <td>
+                      <BuyQtyEditor
+                        cardId={line.card_id}
+                        qty={line.my_qty}
+                        suggestedQty={line.my_suggested_qty}
+                        isCustom={line.my_is_custom}
+                        disabled={qtyBusy}
+                        onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
+                        onReset={() => clearQty.mutate(line.card_id)}
+                      />
+                    </td>
+                  ) : null}
                   <td>{line.total_qty}</td>
                   <td className="muted">{memberBreakdown(line)}</td>
                   <td>{money(line.remaining_cost)}</td>
@@ -427,12 +574,26 @@ export function GroupBuyDetailPage() {
                     Total {line.total_qty} · {money(line.remaining_cost)}
                   </p>
                   <p className="muted">{memberBreakdown(line)}</p>
+                  {detail.status === "open" ? (
+                    <BuyQtyEditor
+                      cardId={line.card_id}
+                      qty={line.my_qty}
+                      suggestedQty={line.my_suggested_qty}
+                      isCustom={line.my_is_custom}
+                      disabled={qtyBusy}
+                      onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
+                      onReset={() => clearQty.mutate(line.card_id)}
+                    />
+                  ) : null}
                 </div>
               </article>
             ))}
           </div>
         </div>
       )}
+      {detail.status === "open" ? (
+        <p className="muted group-buy-footnote">* Custom quantity (not shopping still-need)</p>
+      ) : null}
     </section>
   );
 }

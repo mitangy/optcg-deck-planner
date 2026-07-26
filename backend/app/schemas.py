@@ -162,6 +162,10 @@ class GroupBuyLineOverrideUpdate(BaseModel):
     product_id: int = Field(gt=0)
 
 
+class GroupBuyQtyUpdate(BaseModel):
+    qty: int = Field(ge=0, le=999)
+
+
 class GroupBuyMemberOut(BaseModel):
     user_id: int
     display_name: str
@@ -175,6 +179,8 @@ class GroupBuyMemberQtyOut(BaseModel):
     user_id: int
     display_name: str
     qty: int
+    suggested_qty: int = 0
+    is_custom: bool = False
 
 
 class GroupBuyLineOut(BaseModel):
@@ -188,6 +194,10 @@ class GroupBuyLineOut(BaseModel):
     image_url: str = ""
     members: list[GroupBuyMemberQtyOut]
     alt_arts: list[PrintingView] = []
+    # Viewer (current user) contribution on this line — for qty editors.
+    my_qty: int = 0
+    my_suggested_qty: int = 0
+    my_is_custom: bool = False
 
 
 class GroupBuySummary(BaseModel):
