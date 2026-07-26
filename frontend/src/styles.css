@@ -70,10 +70,12 @@ h2,
 .app {
   width: 100%;
   max-width: 100%;
+  /* Fill the screen on short pages without owning a taller scrollport than
+     the document content (nested 100svh shells were leaving empty scroll). */
   min-height: 100%;
   min-height: 100svh;
-  /* Keep a little room below the last row; safe-area covers notched phones. */
-  padding: 0 0 max(0.75rem, env(safe-area-inset-bottom, 0px));
+  /* Safe-area only — avoid a fixed bottom pad that reads as empty space. */
+  padding: 0 0 env(safe-area-inset-bottom, 0px);
   overflow-x: clip;
 }
 
@@ -81,7 +83,7 @@ h2,
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem 1.25rem 0;
+  padding: 1rem 1.25rem 0.5rem;
 }
 
 .topbar {
@@ -178,6 +180,14 @@ h2,
 
 .mobile-card-list {
   display: none;
+}
+
+/* When JS only mounts the mobile list (group buy), keep it in flow. */
+.mobile-card-list.mobile-card-list-mounted {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 .owned {
@@ -769,6 +779,7 @@ tr.selected-row td,
 }
 
 .grid-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -1490,11 +1501,11 @@ tr.done {
   }
 
   .app {
-    padding: 0 0 max(0.5rem, env(safe-area-inset-bottom, 0px));
+    padding: 0 0 env(safe-area-inset-bottom, 0px);
   }
 
   .app-main {
-    padding: 0.75rem 0.75rem 0;
+    padding: 0.75rem 0.75rem 0.35rem;
     max-width: 100%;
   }
 
@@ -1687,6 +1698,7 @@ tr.done {
   }
 
   .mobile-card {
+    position: relative;
     border: 1px solid var(--line);
     border-radius: 16px;
     padding: 0.85rem;
@@ -1955,7 +1967,19 @@ tr.done {
 
 .group-buy-members ul {
   margin: 0.35rem 0 0;
-  padding-left: 1.1rem;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.group-buy-members li,
+.group-buy-member-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  min-width: 0;
 }
 
 .group-buy-order-form {
@@ -2033,7 +2057,6 @@ tr.done {
 
 .grid-card-owned .group-buy-exclude-btn {
   justify-self: center;
-  text-align: center;
 }
 
 .grid-card-owned .group-buy-printing {
@@ -2051,22 +2074,30 @@ tr.done {
   margin-top: 0;
 }
 
+.group-buy-deck-filter-note {
+  margin: 0.55rem 0 0;
+  font-size: 0.82rem;
+}
+
 .group-buy-qty {
   /* Column width comes from the −/+ controls only, so the suggestion
      line cannot widen this block and shove the stepper sideways. */
   display: inline-grid;
   grid-template-columns: max-content;
-  gap: 0.25rem;
+  gap: 0.35rem;
   min-width: 0;
   justify-items: stretch;
 }
 
-.group-buy-exclude-btn {
+.group-buy-exclude-btn.btn {
   justify-self: start;
+  width: auto;
   margin: 0;
-  padding: 0;
-  font-size: 0.8rem;
-  min-height: 0;
+  min-height: 2rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
+  border-radius: 10px;
+  white-space: nowrap;
 }
 
 .data-table tr.excluded,
@@ -2078,6 +2109,112 @@ tr.done {
 
 .data-table tr.excluded {
   background: #f0ebe3;
+}
+
+.group-buy-swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px rgba(28, 25, 21, 0.18);
+}
+
+.group-buy-who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.55rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.group-buy-who-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.86rem;
+  color: var(--muted);
+  min-width: 0;
+}
+
+.group-buy-who-row {
+  margin: 0.3rem 0 0.15rem;
+  min-width: 0;
+}
+
+.group-buy-color-rail {
+  display: flex;
+  flex-direction: column;
+  width: 4px;
+  border-radius: 999px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  align-self: stretch;
+  min-height: 2.5rem;
+}
+
+.group-buy-color-rail > span {
+  flex: 1 1 0;
+  min-height: 0.45rem;
+}
+
+.grid-card:has(> .group-buy-color-rail),
+.mobile-card:has(> .group-buy-color-rail) {
+  padding-left: 0.85rem;
+}
+
+.grid-card > .group-buy-color-rail,
+.mobile-card > .group-buy-color-rail {
+  position: absolute;
+  left: 0;
+  top: 0.65rem;
+  bottom: 0.65rem;
+  min-height: 0;
+  border-radius: 16px 0 0 16px;
+}
+
+.card-cell > .group-buy-color-rail {
+  align-self: stretch;
+  min-height: 3rem;
+}
+
+.gb-user-0 { --gb-user: #0f6a6a; }
+.gb-user-1 { --gb-user: #c65911; }
+.gb-user-2 { --gb-user: #2f6b3a; }
+.gb-user-3 { --gb-user: #355c7d; }
+.gb-user-4 { --gb-user: #9b2c2c; }
+.gb-user-5 { --gb-user: #6b5344; }
+.gb-user-6 { --gb-user: #8a5a12; }
+.gb-user-7 { --gb-user: #3d5a80; }
+
+.grid-card.need.gb-user-0,
+.grid-card.need.gb-user-1,
+.grid-card.need.gb-user-2,
+.grid-card.need.gb-user-3,
+.grid-card.need.gb-user-4,
+.grid-card.need.gb-user-5,
+.grid-card.need.gb-user-6,
+.grid-card.need.gb-user-7,
+.mobile-card.need.gb-user-0,
+.mobile-card.need.gb-user-1,
+.mobile-card.need.gb-user-2,
+.mobile-card.need.gb-user-3,
+.mobile-card.need.gb-user-4,
+.mobile-card.need.gb-user-5,
+.mobile-card.need.gb-user-6,
+.mobile-card.need.gb-user-7 {
+  background: color-mix(in srgb, var(--gb-user) 14%, var(--need));
+}
+
+.data-table tr.gb-user-0,
+.data-table tr.gb-user-1,
+.data-table tr.gb-user-2,
+.data-table tr.gb-user-3,
+.data-table tr.gb-user-4,
+.data-table tr.gb-user-5,
+.data-table tr.gb-user-6,
+.data-table tr.gb-user-7 {
+  background: color-mix(in srgb, var(--gb-user) 10%, var(--card));
 }
 
 .group-buy-qty-controls {
@@ -2117,7 +2254,7 @@ tr.done {
 }
 
 .group-buy-footnote {
-  margin: 0.75rem 0 0;
+  margin: 0.5rem 0 0;
   font-size: 0.85rem;
 }
 

@@ -6,6 +6,8 @@ import {
   api,
   GroupBuyDetail,
   GroupBuyLine,
+  GroupBuyMember,
+  GroupBuyMemberQty,
   GroupBuyOrderUpdate,
   money,
 } from "./api";
@@ -74,10 +76,112 @@ export function consumeLoginNext(): string | null {
   }
 }
 
-function memberBreakdown(line: GroupBuyLine): string {
-  return line.members
-    .map((m) => `${m.display_name} ×${m.qty}${m.is_custom ? "*" : ""}`)
-    .join(" · ");
+/** Stable palette for group-buy members — fits the cream/teal product chrome. */
+const MEMBER_COLORS = [
+  "#0f6a6a",
+  "#c65911",
+  "#2f6b3a",
+  "#355c7d",
+  "#9b2c2c",
+  "#6b5344",
+  "#8a5a12",
+  "#3d5a80",
+];
+
+/** Matches the shopping mobile breakpoint in styles.css (`max-width: 800px`). */
+function useNarrowLayout() {
+  const [narrow, setNarrow] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 800px)").matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 800px)");
+    const onChange = () => setNarrow(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return narrow;
+}
+
+function memberColorIndex(userId: number, members: { user_id: number }[]): number {
+  const idx = members.findIndex((m) => m.user_id === userId);
+  return (idx >= 0 ? idx : userId) % MEMBER_COLORS.length;
+}
+
+function memberColor(userId: number, members: { user_id: number }[]): string {
+  return MEMBER_COLORS[memberColorIndex(userId, members)];
+}
+
+function MemberSwatch({
+  userId,
+  members,
+  title,
+}: {
+  userId: number;
+  members: { user_id: number }[];
+  title?: string;
+}) {
+  return (
+    <span
+      className="group-buy-swatch"
+      style={{ background: memberColor(userId, members) }}
+      title={title}
+      aria-hidden={title ? undefined : true}
+    />
+  );
+}
+
+function MemberBreakdown({
+  line,
+  members,
+}: {
+  line: GroupBuyLine;
+  members: GroupBuyMember[];
+}) {
+  if (!line.members.length) return <span className="muted">—</span>;
+  return (
+    <span className="group-buy-who">
+      {line.members.map((m: GroupBuyMemberQty) => (
+        <span key={m.user_id} className="group-buy-who-chip">
+          <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
+          <span>
+            {m.display_name} ×{m.qty}
+            {m.is_custom ? "*" : ""}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function MemberColorRail({
+  line,
+  members,
+}: {
+  line: GroupBuyLine;
+  members: GroupBuyMember[];
+}) {
+  const active = line.members.filter((m) => m.qty > 0);
+  if (!active.length) return null;
+  return (
+    <span className="group-buy-color-rail" aria-hidden="true">
+      {active.map((m) => (
+        <span key={m.user_id} style={{ background: memberColor(m.user_id, members) }} />
+      ))}
+    </span>
+  );
+}
+
+function cardShellClass(
+  base: string,
+  line: GroupBuyLine,
+  members: GroupBuyMember[],
+  excluded: boolean,
+): string {
+  const active = line.members.filter((m) => m.qty > 0);
+  const sole =
+    active.length === 1 ? ` gb-user-${memberColorIndex(active[0].user_id, members)}` : "";
+  return `${base}${excluded ? " excluded" : ""}${sole}`;
 }
 
 /** Viewer opted out of this card (custom qty 0 / Exclude). */
@@ -199,12 +303,7 @@ function BuyQtyEditor({
       </div>
       <div className="group-buy-qty-meta muted">
         {excluded ? (
-          <>
-            <span>Excluded from group buy</span>
-            <button type="button" className="ghost" disabled={disabled} onClick={onReset}>
-              Include again
-            </button>
-          </>
+          <span>Excluded from group buy</span>
         ) : isCustom ? (
           <>
             <span>Shopping suggests {suggestedQty}</span>
@@ -216,16 +315,25 @@ function BuyQtyEditor({
           <span>From shopping</span>
         )}
       </div>
-      {!excluded ? (
+      {excluded ? (
         <button
           type="button"
-          className="ghost group-buy-exclude-btn"
+          className="btn secondary group-buy-exclude-btn"
+          disabled={disabled}
+          onClick={onReset}
+        >
+          Include again
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="btn secondary group-buy-exclude-btn"
           disabled={disabled}
           onClick={onExclude}
         >
           Exclude from group buy
         </button>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -312,6 +420,7 @@ export function GroupBuyDetailPage() {
   const { id } = useParams();
   const groupId = Number(id);
   const qc = useQueryClient();
+  const isNarrow = useNarrowLayout();
   const [layout, setLayout] = useCardLayout();
   const [onlyNeed, setOnlyNeed] = useState(true);
   const [showExcluded, setShowExcluded] = useState(false);
@@ -332,6 +441,7 @@ export function GroupBuyDetailPage() {
     enabled: Number.isFinite(groupId) && groupId > 0,
   });
   const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
+  const meQ = useQuery({ queryKey: ["me"], queryFn: api.me });
 
   const detail = detailQ.data;
 
@@ -379,17 +489,39 @@ export function GroupBuyDetailPage() {
     );
   }, [detail, onlyNeed, showExcluded, effectiveSorts, search]);
 
-  const filterSummary = useMemo(
-    () =>
-      buildFilterSummary({
-        onlyNeed,
-        sorts: effectiveSorts,
-        showAltArts,
-        layout,
-        extra: showExcluded ? ["Excluded"] : undefined,
-      }),
-    [onlyNeed, effectiveSorts, showAltArts, layout, showExcluded],
-  );
+  const decks = decksQ.data ?? [];
+  const myContribution = useMemo(() => {
+    const me = meQ.data;
+    if (!detail || !me) return null;
+    return detail.members.find((m) => m.user_id === me.id) ?? null;
+  }, [detail, meQ.data]);
+  const activeDeckIds = myContribution?.deck_ids;
+  const allSelected = !activeDeckIds || (decks.length > 0 && activeDeckIds.length === decks.length);
+  const selectedDeckCount = allSelected ? decks.length : (activeDeckIds?.length ?? decks.length);
+
+  const filterSummary = useMemo(() => {
+    const extra: string[] = [];
+    if (showExcluded) extra.push("Excluded");
+    if (decks.length > 0 && !allSelected) {
+      extra.push(`${selectedDeckCount}/${decks.length} decks`);
+    }
+    return buildFilterSummary({
+      onlyNeed,
+      sorts: effectiveSorts,
+      showAltArts,
+      layout,
+      extra: extra.length ? extra : undefined,
+    });
+  }, [
+    onlyNeed,
+    effectiveSorts,
+    showAltArts,
+    layout,
+    showExcluded,
+    decks.length,
+    allSelected,
+    selectedDeckCount,
+  ]);
 
   useEffect(() => {
     if (!detail) return;
@@ -514,13 +646,6 @@ export function GroupBuyDetailPage() {
 
   const qtyBusy = setQty.isPending || clearQty.isPending || syncQty.isPending;
 
-  const meQ = useQuery({ queryKey: ["me"], queryFn: api.me });
-  const myContribution = useMemo(() => {
-    const me = meQ.data;
-    if (!detail || !me) return null;
-    return detail.members.find((m) => m.user_id === me.id) ?? null;
-  }, [detail, meQ.data]);
-
   async function copyInvite(path: string) {
     const url = `${window.location.origin}${path}`;
     try {
@@ -569,12 +694,28 @@ export function GroupBuyDetailPage() {
   if (detailQ.error) return <p className="error">{(detailQ.error as Error).message}</p>;
   if (!detail) return <p className="error">Group buy not found.</p>;
 
-  const decks = decksQ.data ?? [];
-  const activeDeckIds = myContribution?.deck_ids;
-  const allSelected = !activeDeckIds || activeDeckIds.length === decks.length;
   const canEditPrintings = detail.is_host && (detail.status === "open" || detail.status === "locked");
   const showOrderPanel = detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
   const orderBusy = markOrdered.isPending || saveOrder.isPending || complete.isPending;
+  const members = detail.members;
+
+  function setContributionDecks(next: number[] | null) {
+    if (next && next.length === decks.length) contribution.mutate(null);
+    else contribution.mutate(next);
+  }
+
+  function toggleContributionDeck(deckId: number) {
+    const current = activeDeckIds ?? decks.map((d) => d.id);
+    let next: number[];
+    if (current.includes(deckId)) {
+      next = current.filter((x) => x !== deckId);
+      // Keep at least one deck — empty dumps to "all" on the backend.
+      if (!next.length) next = current;
+    } else {
+      next = [...current, deckId];
+    }
+    setContributionDecks(next);
+  }
 
   function orderBodyFromForm(): GroupBuyOrderUpdate {
     const parsed = Number(shippingCost);
@@ -690,8 +831,9 @@ export function GroupBuyDetailPage() {
       <div className="group-buy-members">
         <h2>Members</h2>
         <ul>
-          {detail.members.map((m) => (
+          {members.map((m) => (
             <li key={m.user_id}>
+              <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
               <strong>
                 {m.display_name}
                 {m.role === "host" ? " (host)" : ""}
@@ -808,11 +950,14 @@ export function GroupBuyDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {detail.members.map((m) => (
+                {members.map((m) => (
                   <tr key={m.user_id}>
                     <td>
-                      {m.display_name}
-                      {m.role === "host" ? " (host)" : ""}
+                      <span className="group-buy-member-cell">
+                        <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
+                        {m.display_name}
+                        {m.role === "host" ? " (host)" : ""}
+                      </span>
                     </td>
                     <td>{money(m.card_cost ?? 0)}</td>
                     <td>{money(m.shipping_share ?? 0)}</td>
@@ -831,46 +976,9 @@ export function GroupBuyDetailPage() {
         <div className="group-buy-contribution">
           <h2>Your contribution</h2>
           <p className="muted">
-            Defaults follow your shopping still-need. Edit <strong>Your buy</strong> on any line
-            before the host locks.
+            Defaults follow your shopping still-need for the decks selected under Filters. Edit{" "}
+            <strong>Your buy</strong> on any line before the host locks.
           </p>
-          {decks.length > 0 && (
-            <div className="filters">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={() => contribution.mutate(null)}
-                />
-                All decks
-              </label>
-              {decks.map((d) => {
-                const checked = allSelected || (activeDeckIds?.includes(d.id) ?? false);
-                return (
-                  <label key={d.id}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={contribution.isPending}
-                      onChange={() => {
-                        const current = activeDeckIds ?? decks.map((x) => x.id);
-                        let next: number[];
-                        if (current.includes(d.id)) {
-                          next = current.filter((x) => x !== d.id);
-                          if (!next.length) next = current;
-                        } else {
-                          next = [...current, d.id];
-                        }
-                        if (next.length === decks.length) contribution.mutate(null);
-                        else contribution.mutate(next);
-                      }}
-                    />
-                    {d.name}
-                  </label>
-                );
-              })}
-            </div>
-          )}
           <div className="group-buy-contribution-actions">
             <button
               type="button"
@@ -927,6 +1035,40 @@ export function GroupBuyDetailPage() {
                   Show excluded
                 </label>
               </div>
+              {detail.status === "open" && myContribution && decks.length > 0 ? (
+                <div className="deck-filter">
+                  <div className="deck-filter-head">
+                    <span>Include decks</span>
+                    <button
+                      type="button"
+                      className="ghost"
+                      disabled={contribution.isPending || allSelected}
+                      onClick={() => setContributionDecks(null)}
+                    >
+                      Select all
+                    </button>
+                  </div>
+                  <div className="deck-filter-list">
+                    {decks.map((d) => {
+                      const checked = allSelected || (activeDeckIds?.includes(d.id) ?? false);
+                      return (
+                        <label key={d.id} className="deck-chip">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={contribution.isPending}
+                            onChange={() => toggleContributionDeck(d.id)}
+                          />
+                          {d.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="muted group-buy-deck-filter-note">
+                    Unselected decks are left out of your group-buy contribution.
+                  </p>
+                </div>
+              ) : null}
             </CollapsibleFilters>
           </div>
 
@@ -943,158 +1085,81 @@ export function GroupBuyDetailPage() {
               {lines.map((line) => {
                 const excluded = isLineExcluded(line);
                 return (
-                <article
-                  key={line.card_id}
-                  className={`grid-card need${excluded ? " excluded" : ""}`}
-                >
-                  <div className="grid-card-media">
-                    <CardThumb src={line.image_url || undefined} alt={line.name} />
-                  </div>
-                  <div className="grid-card-body">
-                    <div className="card-id">{line.card_id}</div>
-                    <div className="grid-card-name">{line.name}</div>
-                    <div className="grid-card-meta muted">
-                      {[
-                        excluded ? "Excluded" : "",
-                        line.color,
-                        `Total ${line.total_qty}`,
-                        money(line.remaining_cost),
-                        memberBreakdown(line),
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </div>
-                    <div className="grid-card-price">
-                      <MarketPrice price={line.market_price} productId={line.product_id} />
-                    </div>
-                    {detail.status === "open" ? (
-                      <div className="grid-card-owned">
-                        <span>Your buy</span>
-                        <BuyQtyEditor
-                          cardId={line.card_id}
-                          qty={line.my_qty}
-                          suggestedQty={line.my_suggested_qty}
-                          isCustom={line.my_is_custom}
-                          excluded={isLineExcluded(line)}
-                          disabled={qtyBusy}
-                          onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
-                          onReset={() => clearQty.mutate(line.card_id)}
-                          onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
-                        />
-                      </div>
-                    ) : null}
-                    {detail.is_host ? (
-                      <div className="grid-card-owned">
-                        <span>Printing</span>
-                        <LinePrintingSelect
-                          line={line}
-                          disabled={!canEditPrintings || setProduct.isPending}
-                          onChange={(productId) =>
-                            setProduct.mutate({ cardId: line.card_id, productId })
-                          }
-                        />
-                      </div>
-                    ) : null}
-                    {line.tcgplayer_url ? (
-                      <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
-                        TCGPlayer
-                      </a>
-                    ) : null}
-                    {showAltArts && line.alt_arts.length > 0 ? (
-                      <div className="grid-card-alts">
-                        <AltArtsRow alts={line.alt_arts} />
-                      </div>
-                    ) : null}
-                  </div>
-                </article>
-              );
-              })}
-            </div>
-          ) : (
-            <>
-              <div className="table-wrap desktop-table">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Card</th>
-                      {detail.status === "open" ? <th>Your buy</th> : null}
-                      <th>Total</th>
-                      <th>Who</th>
-                      <th>Market</th>
-                      <th>Est.</th>
-                      {detail.is_host ? <th>Printing</th> : null}
-                      {showAltArts ? <th>Alt arts</th> : null}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lines.map((line) => {
-                      const excluded = isLineExcluded(line);
-                      return (
-                      <tr key={line.card_id} className={excluded ? "excluded" : undefined}>
-                        <td className="card-cell">
-                          <CardThumb src={line.image_url || undefined} alt={line.name} />
-                          <div>
-                            <div className="card-id">{line.card_id}</div>
-                            <div>{line.name}</div>
-                            {excluded ? <div className="muted">Excluded</div> : null}
-                            {line.tcgplayer_url ? (
-                              <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
-                                TCGPlayer
-                              </a>
-                            ) : null}
-                          </div>
-                        </td>
-                        {detail.status === "open" ? (
-                          <td>
-                            <BuyQtyEditor
-                              cardId={line.card_id}
-                              qty={line.my_qty}
-                              suggestedQty={line.my_suggested_qty}
-                              isCustom={line.my_is_custom}
-                              excluded={isLineExcluded(line)}
-                              disabled={qtyBusy}
-                              onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
-                              onReset={() => clearQty.mutate(line.card_id)}
-                              onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
-                            />
-                          </td>
-                        ) : null}
-                        <td>{line.total_qty}</td>
-                        <td className="muted">{memberBreakdown(line)}</td>
-                        <td>
-                          <MarketPrice price={line.market_price} productId={line.product_id} />
-                        </td>
-                        <td>{money(line.remaining_cost)}</td>
-                        {detail.is_host ? (
-                          <td>
-                            <LinePrintingSelect
-                              line={line}
-                              disabled={!canEditPrintings || setProduct.isPending}
-                              onChange={(productId) =>
-                                setProduct.mutate({ cardId: line.card_id, productId })
-                              }
-                            />
-                          </td>
-                        ) : null}
-                        {showAltArts ? (
-                          <td>
-                            <AltArtsRow alts={line.alt_arts} />
-                          </td>
-                        ) : null}
-                      </tr>
-                    );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mobile-card-list">
-                {lines.map((line) => {
-                  const excluded = isLineExcluded(line);
-                  return (
                   <article
                     key={line.card_id}
-                    className={`mobile-card need${excluded ? " excluded" : ""}`}
+                    className={cardShellClass("grid-card need", line, members, excluded)}
                   >
+                    <MemberColorRail line={line} members={members} />
+                    <div className="grid-card-media">
+                      <CardThumb src={line.image_url || undefined} alt={line.name} />
+                    </div>
+                    <div className="grid-card-body">
+                      <div className="card-id">{line.card_id}</div>
+                      <div className="grid-card-name">{line.name}</div>
+                      <div className="grid-card-meta muted">
+                        {[excluded ? "Excluded" : "", line.color, `Total ${line.total_qty}`, money(line.remaining_cost)]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </div>
+                      <div className="group-buy-who-row">
+                        <MemberBreakdown line={line} members={members} />
+                      </div>
+                      <div className="grid-card-price">
+                        <MarketPrice price={line.market_price} productId={line.product_id} />
+                      </div>
+                      {detail.status === "open" ? (
+                        <div className="grid-card-owned">
+                          <span>Your buy</span>
+                          <BuyQtyEditor
+                            cardId={line.card_id}
+                            qty={line.my_qty}
+                            suggestedQty={line.my_suggested_qty}
+                            isCustom={line.my_is_custom}
+                            excluded={excluded}
+                            disabled={qtyBusy}
+                            onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
+                            onReset={() => clearQty.mutate(line.card_id)}
+                            onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
+                          />
+                        </div>
+                      ) : null}
+                      {detail.is_host ? (
+                        <div className="grid-card-owned">
+                          <span>Printing</span>
+                          <LinePrintingSelect
+                            line={line}
+                            disabled={!canEditPrintings || setProduct.isPending}
+                            onChange={(productId) =>
+                              setProduct.mutate({ cardId: line.card_id, productId })
+                            }
+                          />
+                        </div>
+                      ) : null}
+                      {line.tcgplayer_url ? (
+                        <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
+                          TCGPlayer
+                        </a>
+                      ) : null}
+                      {showAltArts && line.alt_arts.length > 0 ? (
+                        <div className="grid-card-alts">
+                          <AltArtsRow alts={line.alt_arts} />
+                        </div>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : isNarrow ? (
+            <div className="mobile-card-list mobile-card-list-mounted">
+              {lines.map((line) => {
+                const excluded = isLineExcluded(line);
+                return (
+                  <article
+                    key={line.card_id}
+                    className={cardShellClass("mobile-card need", line, members, excluded)}
+                  >
+                    <MemberColorRail line={line} members={members} />
                     <div className="mobile-card-top">
                       <MobileCardMedia
                         src={line.image_url || undefined}
@@ -1106,15 +1171,12 @@ export function GroupBuyDetailPage() {
                         <div className="card-id">{line.card_id}</div>
                         <div className="mobile-card-name">{line.name}</div>
                         <div className="mobile-card-meta">
-                          {[
-                            excluded ? "Excluded" : "",
-                            line.color,
-                            `Total ${line.total_qty}`,
-                            money(line.remaining_cost),
-                            memberBreakdown(line),
-                          ]
+                          {[excluded ? "Excluded" : "", line.color, `Total ${line.total_qty}`, money(line.remaining_cost)]
                             .filter(Boolean)
                             .join(" · ")}
+                        </div>
+                        <div className="group-buy-who-row">
+                          <MemberBreakdown line={line} members={members} />
                         </div>
                         <div className="mobile-card-price-row">
                           <MarketPrice price={line.market_price} productId={line.product_id} />
@@ -1134,7 +1196,7 @@ export function GroupBuyDetailPage() {
                           qty={line.my_qty}
                           suggestedQty={line.my_suggested_qty}
                           isCustom={line.my_is_custom}
-                          excluded={isLineExcluded(line)}
+                          excluded={excluded}
                           disabled={qtyBusy}
                           onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
                           onReset={() => clearQty.mutate(line.card_id)}
@@ -1161,9 +1223,95 @@ export function GroupBuyDetailPage() {
                     ) : null}
                   </article>
                 );
-                })}
-              </div>
-            </>
+              })}
+            </div>
+          ) : (
+            <div className="table-wrap desktop-table">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Card</th>
+                    {detail.status === "open" ? <th>Your buy</th> : null}
+                    <th>Total</th>
+                    <th>Who</th>
+                    <th>Market</th>
+                    <th>Est.</th>
+                    {detail.is_host ? <th>Printing</th> : null}
+                    {showAltArts ? <th>Alt arts</th> : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((line) => {
+                    const excluded = isLineExcluded(line);
+                    const active = line.members.filter((m) => m.qty > 0);
+                    const soleClass =
+                      active.length === 1
+                        ? ` gb-user-${memberColorIndex(active[0].user_id, members)}`
+                        : "";
+                    return (
+                      <tr
+                        key={line.card_id}
+                        className={`${excluded ? "excluded" : ""}${soleClass}`.trim() || undefined}
+                      >
+                        <td className="card-cell">
+                          <MemberColorRail line={line} members={members} />
+                          <CardThumb src={line.image_url || undefined} alt={line.name} />
+                          <div>
+                            <div className="card-id">{line.card_id}</div>
+                            <div>{line.name}</div>
+                            {excluded ? <div className="muted">Excluded</div> : null}
+                            {line.tcgplayer_url ? (
+                              <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
+                                TCGPlayer
+                              </a>
+                            ) : null}
+                          </div>
+                        </td>
+                        {detail.status === "open" ? (
+                          <td>
+                            <BuyQtyEditor
+                              cardId={line.card_id}
+                              qty={line.my_qty}
+                              suggestedQty={line.my_suggested_qty}
+                              isCustom={line.my_is_custom}
+                              excluded={excluded}
+                              disabled={qtyBusy}
+                              onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
+                              onReset={() => clearQty.mutate(line.card_id)}
+                              onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
+                            />
+                          </td>
+                        ) : null}
+                        <td>{line.total_qty}</td>
+                        <td>
+                          <MemberBreakdown line={line} members={members} />
+                        </td>
+                        <td>
+                          <MarketPrice price={line.market_price} productId={line.product_id} />
+                        </td>
+                        <td>{money(line.remaining_cost)}</td>
+                        {detail.is_host ? (
+                          <td>
+                            <LinePrintingSelect
+                              line={line}
+                              disabled={!canEditPrintings || setProduct.isPending}
+                              onChange={(productId) =>
+                                setProduct.mutate({ cardId: line.card_id, productId })
+                              }
+                            />
+                          </td>
+                        ) : null}
+                        {showAltArts ? (
+                          <td>
+                            <AltArtsRow alts={line.alt_arts} />
+                          </td>
+                        ) : null}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </>
       )}
