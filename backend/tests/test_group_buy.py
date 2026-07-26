@@ -136,12 +136,27 @@ def test_qty_zero_opts_out_and_sync_resets(db, two_players):
     assert line.total_qty == 3  # host only
     assert line.my_qty == 0
     assert line.my_is_custom is True
+    assert line.my_excluded is True
 
     synced = group_buy.sync_member_quantities(db, friend, created.id)
     line = next(l for l in synced.lines if l.card_id == "OP01-001")
     assert line.my_qty == 3
     assert line.my_is_custom is False
+    assert line.my_excluded is False
     assert line.total_qty == 6
+
+
+def test_exclude_keeps_zero_total_line_for_viewer(db, two_players):
+    """Sole buyer excluding a card keeps a grayed-out row (custom qty 0)."""
+    host, _friend = two_players
+    created = group_buy.create_group_buy(db, host, "Solo exclude")
+
+    updated = group_buy.set_member_qty(db, host, created.id, "OP01-001", 0)
+    line = next(l for l in updated.lines if l.card_id == "OP01-001")
+    assert line.total_qty == 0
+    assert line.my_qty == 0
+    assert line.my_excluded is True
+    assert line.my_suggested_qty == 3
 
 
 def test_locked_group_rejects_qty_edits(db, two_players):

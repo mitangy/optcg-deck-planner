@@ -9,7 +9,20 @@ import {
   GroupBuyOrderUpdate,
   money,
 } from "./api";
-import { CardThumb } from "./CardThumb";
+import { CardLayoutToggle, useCardLayout } from "./CardLayout";
+import {
+  buildFilterSummary,
+  CardSearchInput,
+  CollapsibleFilters,
+  compareCardOrder,
+  matchesCardSearch,
+  SortMenu,
+  useCardSorts,
+  useShowAltArts,
+  type SortKey,
+} from "./cardListControls";
+import { CardThumb, MobileCardMedia } from "./CardThumb";
+import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import { blankMassEntryUrl, buildMassEntryExport } from "./tcgplayerMassEntry";
 import {
   AuthLoadingSkeleton,
@@ -67,22 +80,70 @@ function memberBreakdown(line: GroupBuyLine): string {
     .join(" · ");
 }
 
+/** Viewer opted out of this card (custom qty 0 / Exclude). */
+function isLineExcluded(line: GroupBuyLine): boolean {
+  return Boolean(line.my_excluded ?? (line.my_qty === 0 && line.my_is_custom));
+}
+
+function LinePrintingSelect({
+  line,
+  disabled,
+  onChange,
+}: {
+  line: GroupBuyLine;
+  disabled: boolean;
+  onChange: (productId: number) => void;
+}) {
+  if (!line.product_id && !line.alt_arts.length) {
+    return <span className="muted">—</span>;
+  }
+  return (
+    <select
+      className="group-buy-printing"
+      value={line.product_id ?? ""}
+      disabled={disabled || !line.alt_arts.length}
+      onChange={(e) => {
+        const productId = Number(e.target.value);
+        if (!productId) return;
+        onChange(productId);
+      }}
+    >
+      {line.product_id ? (
+        <option value={line.product_id}>Preferred · {money(line.market_price)}</option>
+      ) : (
+        <option value="">No product id</option>
+      )}
+      {line.alt_arts
+        .filter((alt) => alt.product_id !== line.product_id)
+        .map((alt) => (
+          <option key={alt.product_id} value={alt.product_id}>
+            Alt · {alt.name} · {money(alt.market_price)}
+          </option>
+        ))}
+    </select>
+  );
+}
+
 function BuyQtyEditor({
   cardId,
   qty,
   suggestedQty,
   isCustom,
+  excluded,
   disabled,
   onSave,
   onReset,
+  onExclude,
 }: {
   cardId: string;
   qty: number;
   suggestedQty: number;
   isCustom: boolean;
+  excluded: boolean;
   disabled: boolean;
   onSave: (qty: number) => void;
   onReset: () => void;
+  onExclude: () => void;
 }) {
   const [draft, setDraft] = useState(String(qty));
 
@@ -101,7 +162,7 @@ function BuyQtyEditor({
   }
 
   return (
-    <div className="group-buy-qty">
+    <div className={`group-buy-qty${excluded ? " excluded" : ""}`}>
       <div className="group-buy-qty-controls">
         <button
           type="button"
@@ -137,7 +198,14 @@ function BuyQtyEditor({
         </button>
       </div>
       <div className="group-buy-qty-meta muted">
-        {isCustom ? (
+        {excluded ? (
+          <>
+            <span>Excluded from group buy</span>
+            <button type="button" className="ghost" disabled={disabled} onClick={onReset}>
+              Include again
+            </button>
+          </>
+        ) : isCustom ? (
           <>
             <span>Shopping suggests {suggestedQty}</span>
             <button type="button" className="ghost" disabled={disabled} onClick={onReset}>
@@ -148,6 +216,16 @@ function BuyQtyEditor({
           <span>From shopping</span>
         )}
       </div>
+      {!excluded ? (
+        <button
+          type="button"
+          className="ghost group-buy-exclude-btn"
+          disabled={disabled}
+          onClick={onExclude}
+        >
+          Exclude from group buy
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -234,6 +312,13 @@ export function GroupBuyDetailPage() {
   const { id } = useParams();
   const groupId = Number(id);
   const qc = useQueryClient();
+  const [layout, setLayout] = useCardLayout();
+  const [onlyNeed, setOnlyNeed] = useState(true);
+  const [showExcluded, setShowExcluded] = useState(false);
+  const unavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
+  const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, unavailableSorts);
+  const [showAltArts, setShowAltArts] = useShowAltArts();
+  const [search, setSearch] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
   const [orderId, setOrderId] = useState("");
@@ -249,6 +334,62 @@ export function GroupBuyDetailPage() {
   const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
 
   const detail = detailQ.data;
+
+  const lines = useMemo(() => {
+    let list = detail?.lines ?? [];
+    // Excluded (my qty 0) lines with no remaining group total stay hidden unless
+    // "Show excluded" is on. Excluded lines others still need stay visible (grayed).
+    if (!showExcluded) {
+      list = list.filter((l) => !isLineExcluded(l) || l.total_qty > 0);
+    }
+    if (onlyNeed) {
+      list = list.filter((l) => l.total_qty > 0 || (showExcluded && isLineExcluded(l)));
+    }
+    if (search.trim()) {
+      list = list.filter((l) =>
+        matchesCardSearch(
+          {
+            card_id: l.card_id,
+            name: l.name,
+            color: l.color,
+            card_type: l.card_type,
+            rarity: l.rarity,
+            used_in: l.members.map((m) => m.display_name),
+          },
+          search,
+        ),
+      );
+    }
+    return [...list].sort((a, b) =>
+      compareCardOrder(
+        {
+          card_id: a.card_id,
+          color: a.color || "",
+          still_need: a.total_qty,
+          market_price: a.market_price,
+        },
+        {
+          card_id: b.card_id,
+          color: b.color || "",
+          still_need: b.total_qty,
+          market_price: b.market_price,
+        },
+        effectiveSorts,
+      ),
+    );
+  }, [detail, onlyNeed, showExcluded, effectiveSorts, search]);
+
+  const filterSummary = useMemo(
+    () =>
+      buildFilterSummary({
+        onlyNeed,
+        sorts: effectiveSorts,
+        showAltArts,
+        layout,
+        extra: showExcluded ? ["Excluded"] : undefined,
+      }),
+    [onlyNeed, effectiveSorts, showAltArts, layout, showExcluded],
+  );
 
   useEffect(() => {
     if (!detail) return;
@@ -741,155 +882,287 @@ export function GroupBuyDetailPage() {
         </div>
       )}
 
-      <h2>Merged list</h2>
+      <h2 className="group-buy-merged-heading">Merged list</h2>
       {detail.lines.length === 0 ? (
         <p className="muted">Nothing to buy yet — members need cards on their shopping lists.</p>
       ) : (
         <>
-        <div className="table-wrap desktop-table">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Card</th>
-                {detail.status === "open" ? <th>Your buy</th> : null}
-                <th>Total</th>
-                <th>Who</th>
-                <th>Est.</th>
-                {detail.is_host ? <th>Printing</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {detail.lines.map((line) => (
-                <tr key={line.card_id}>
-                  <td className="card-cell">
-                    <CardThumb src={line.image_url || undefined} alt={line.name} />
-                    <div>
-                      <div className="card-id">{line.card_id}</div>
-                      <div>{line.name}</div>
-                    </div>
-                  </td>
-                  {detail.status === "open" ? (
-                    <td>
-                      <BuyQtyEditor
-                        cardId={line.card_id}
-                        qty={line.my_qty}
-                        suggestedQty={line.my_suggested_qty}
-                        isCustom={line.my_is_custom}
-                        disabled={qtyBusy}
-                        onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
-                        onReset={() => clearQty.mutate(line.card_id)}
-                      />
-                    </td>
-                  ) : null}
-                  <td>{line.total_qty}</td>
-                  <td className="muted">{memberBreakdown(line)}</td>
-                  <td>{money(line.remaining_cost)}</td>
-                  {detail.is_host ? (
-                    <td>
-                      {line.product_id || line.alt_arts.length ? (
-                        <select
-                          className="group-buy-printing"
-                          value={line.product_id ?? ""}
-                          disabled={
-                            !canEditPrintings || setProduct.isPending || !line.alt_arts.length
-                          }
-                          onChange={(e) => {
-                            const productId = Number(e.target.value);
-                            if (!productId) return;
-                            setProduct.mutate({ cardId: line.card_id, productId });
-                          }}
-                        >
-                          {line.product_id ? (
-                            <option value={line.product_id}>
-                              Preferred · {money(line.market_price)}
-                            </option>
-                          ) : (
-                            <option value="">No product id</option>
-                          )}
-                          {line.alt_arts
-                            .filter((alt) => alt.product_id !== line.product_id)
-                            .map((alt) => (
-                              <option key={alt.product_id} value={alt.product_id}>
-                                Alt · {alt.name} · {money(alt.market_price)}
-                              </option>
-                            ))}
-                        </select>
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
-                  ) : null}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mobile-card-list">
-            {detail.lines.map((line) => (
-              <article key={line.card_id} className="mobile-card need">
-                <div className="mobile-card-top">
-                  <div className="mobile-card-media">
+          <div className="list-toolbar group-buy-merged-toolbar">
+            <div className="list-toolbar-row">
+              <CardSearchInput value={search} onChange={setSearch} />
+              <CardLayoutToggle layout={layout} onChange={setLayout} />
+            </div>
+            <CollapsibleFilters summary={filterSummary}>
+              <div className="filters">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={onlyNeed}
+                    onChange={(e) => setOnlyNeed(e.target.checked)}
+                  />
+                  Still need only
+                </label>
+                <SortMenu
+                  sorts={sorts}
+                  onChange={setSorts}
+                  onlyNeed={onlyNeed}
+                  unavailableKeys={unavailableSorts}
+                />
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showAltArts}
+                    onChange={(e) => setShowAltArts(e.target.checked)}
+                  />
+                  Show alt arts
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showExcluded}
+                    onChange={(e) => setShowExcluded(e.target.checked)}
+                  />
+                  Show excluded
+                </label>
+              </div>
+            </CollapsibleFilters>
+          </div>
+
+          {search.trim() ? (
+            <p className="search-result-note muted">
+              Showing {lines.length} match{lines.length === 1 ? "" : "es"} for “{search.trim()}”
+            </p>
+          ) : null}
+
+          {lines.length === 0 ? (
+            <p className="muted">No cards match the current search or filters.</p>
+          ) : layout === "grid" ? (
+            <div className="card-grid">
+              {lines.map((line) => {
+                const excluded = isLineExcluded(line);
+                return (
+                <article
+                  key={line.card_id}
+                  className={`grid-card need${excluded ? " excluded" : ""}`}
+                >
+                  <div className="grid-card-media">
                     <CardThumb src={line.image_url || undefined} alt={line.name} />
                   </div>
-                  <div className="mobile-card-info">
+                  <div className="grid-card-body">
                     <div className="card-id">{line.card_id}</div>
-                    <div className="mobile-card-name">{line.name}</div>
-                    <div className="mobile-card-meta">
-                      {[`Total ${line.total_qty}`, money(line.remaining_cost), memberBreakdown(line)]
+                    <div className="grid-card-name">{line.name}</div>
+                    <div className="grid-card-meta muted">
+                      {[
+                        excluded ? "Excluded" : "",
+                        line.color,
+                        `Total ${line.total_qty}`,
+                        money(line.remaining_cost),
+                        memberBreakdown(line),
+                      ]
                         .filter(Boolean)
                         .join(" · ")}
                     </div>
+                    <div className="grid-card-price">
+                      <MarketPrice price={line.market_price} productId={line.product_id} />
+                    </div>
+                    {detail.status === "open" ? (
+                      <div className="grid-card-owned">
+                        <span>Your buy</span>
+                        <BuyQtyEditor
+                          cardId={line.card_id}
+                          qty={line.my_qty}
+                          suggestedQty={line.my_suggested_qty}
+                          isCustom={line.my_is_custom}
+                          excluded={isLineExcluded(line)}
+                          disabled={qtyBusy}
+                          onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
+                          onReset={() => clearQty.mutate(line.card_id)}
+                          onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
+                        />
+                      </div>
+                    ) : null}
+                    {detail.is_host ? (
+                      <div className="grid-card-owned">
+                        <span>Printing</span>
+                        <LinePrintingSelect
+                          line={line}
+                          disabled={!canEditPrintings || setProduct.isPending}
+                          onChange={(productId) =>
+                            setProduct.mutate({ cardId: line.card_id, productId })
+                          }
+                        />
+                      </div>
+                    ) : null}
+                    {line.tcgplayer_url ? (
+                      <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
+                        TCGPlayer
+                      </a>
+                    ) : null}
+                    {showAltArts && line.alt_arts.length > 0 ? (
+                      <div className="grid-card-alts">
+                        <AltArtsRow alts={line.alt_arts} />
+                      </div>
+                    ) : null}
                   </div>
-                </div>
-                {detail.status === "open" ? (
-                  <div className="mobile-card-owned">
-                    <span>Your buy</span>
-                    <BuyQtyEditor
-                      cardId={line.card_id}
-                      qty={line.my_qty}
-                      suggestedQty={line.my_suggested_qty}
-                      isCustom={line.my_is_custom}
-                      disabled={qtyBusy}
-                      onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
-                      onReset={() => clearQty.mutate(line.card_id)}
-                    />
-                  </div>
-                ) : null}
-                {detail.is_host && (line.product_id || line.alt_arts.length) ? (
-                  <div className="mobile-card-owned">
-                    <span>Printing</span>
-                    <select
-                      className="group-buy-printing"
-                      value={line.product_id ?? ""}
-                      disabled={
-                        !canEditPrintings || setProduct.isPending || !line.alt_arts.length
-                      }
-                      onChange={(e) => {
-                        const productId = Number(e.target.value);
-                        if (!productId) return;
-                        setProduct.mutate({ cardId: line.card_id, productId });
-                      }}
-                    >
-                      {line.product_id ? (
-                        <option value={line.product_id}>
-                          Preferred · {money(line.market_price)}
-                        </option>
-                      ) : (
-                        <option value="">No product id</option>
-                      )}
-                      {line.alt_arts
-                        .filter((alt) => alt.product_id !== line.product_id)
-                        .map((alt) => (
-                          <option key={alt.product_id} value={alt.product_id}>
-                            Alt · {alt.name} · {money(alt.market_price)}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                ) : null}
-              </article>
-            ))}
-          </div>
+                </article>
+              );
+              })}
+            </div>
+          ) : (
+            <>
+              <div className="table-wrap desktop-table">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Card</th>
+                      {detail.status === "open" ? <th>Your buy</th> : null}
+                      <th>Total</th>
+                      <th>Who</th>
+                      <th>Market</th>
+                      <th>Est.</th>
+                      {detail.is_host ? <th>Printing</th> : null}
+                      {showAltArts ? <th>Alt arts</th> : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((line) => {
+                      const excluded = isLineExcluded(line);
+                      return (
+                      <tr key={line.card_id} className={excluded ? "excluded" : undefined}>
+                        <td className="card-cell">
+                          <CardThumb src={line.image_url || undefined} alt={line.name} />
+                          <div>
+                            <div className="card-id">{line.card_id}</div>
+                            <div>{line.name}</div>
+                            {excluded ? <div className="muted">Excluded</div> : null}
+                            {line.tcgplayer_url ? (
+                              <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
+                                TCGPlayer
+                              </a>
+                            ) : null}
+                          </div>
+                        </td>
+                        {detail.status === "open" ? (
+                          <td>
+                            <BuyQtyEditor
+                              cardId={line.card_id}
+                              qty={line.my_qty}
+                              suggestedQty={line.my_suggested_qty}
+                              isCustom={line.my_is_custom}
+                              excluded={isLineExcluded(line)}
+                              disabled={qtyBusy}
+                              onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
+                              onReset={() => clearQty.mutate(line.card_id)}
+                              onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
+                            />
+                          </td>
+                        ) : null}
+                        <td>{line.total_qty}</td>
+                        <td className="muted">{memberBreakdown(line)}</td>
+                        <td>
+                          <MarketPrice price={line.market_price} productId={line.product_id} />
+                        </td>
+                        <td>{money(line.remaining_cost)}</td>
+                        {detail.is_host ? (
+                          <td>
+                            <LinePrintingSelect
+                              line={line}
+                              disabled={!canEditPrintings || setProduct.isPending}
+                              onChange={(productId) =>
+                                setProduct.mutate({ cardId: line.card_id, productId })
+                              }
+                            />
+                          </td>
+                        ) : null}
+                        {showAltArts ? (
+                          <td>
+                            <AltArtsRow alts={line.alt_arts} />
+                          </td>
+                        ) : null}
+                      </tr>
+                    );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mobile-card-list">
+                {lines.map((line) => {
+                  const excluded = isLineExcluded(line);
+                  return (
+                  <article
+                    key={line.card_id}
+                    className={`mobile-card need${excluded ? " excluded" : ""}`}
+                  >
+                    <div className="mobile-card-top">
+                      <MobileCardMedia
+                        src={line.image_url || undefined}
+                        alt={line.name}
+                        cost={line.cost ?? null}
+                        rarity={line.rarity}
+                      />
+                      <div className="mobile-card-info">
+                        <div className="card-id">{line.card_id}</div>
+                        <div className="mobile-card-name">{line.name}</div>
+                        <div className="mobile-card-meta">
+                          {[
+                            excluded ? "Excluded" : "",
+                            line.color,
+                            `Total ${line.total_qty}`,
+                            money(line.remaining_cost),
+                            memberBreakdown(line),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                        <div className="mobile-card-price-row">
+                          <MarketPrice price={line.market_price} productId={line.product_id} />
+                          {line.tcgplayer_url ? (
+                            <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
+                              TCGPlayer
+                            </a>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                    {detail.status === "open" ? (
+                      <div className="mobile-card-owned">
+                        <span>Your buy</span>
+                        <BuyQtyEditor
+                          cardId={line.card_id}
+                          qty={line.my_qty}
+                          suggestedQty={line.my_suggested_qty}
+                          isCustom={line.my_is_custom}
+                          excluded={isLineExcluded(line)}
+                          disabled={qtyBusy}
+                          onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
+                          onReset={() => clearQty.mutate(line.card_id)}
+                          onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
+                        />
+                      </div>
+                    ) : null}
+                    {detail.is_host && (line.product_id || line.alt_arts.length) ? (
+                      <div className="mobile-card-owned">
+                        <span>Printing</span>
+                        <LinePrintingSelect
+                          line={line}
+                          disabled={!canEditPrintings || setProduct.isPending}
+                          onChange={(productId) =>
+                            setProduct.mutate({ cardId: line.card_id, productId })
+                          }
+                        />
+                      </div>
+                    ) : null}
+                    {showAltArts && line.alt_arts.length > 0 ? (
+                      <div className="mobile-card-alts">
+                        <AltArtsRow alts={line.alt_arts} />
+                      </div>
+                    ) : null}
+                  </article>
+                );
+                })}
+              </div>
+            </>
+          )}
         </>
       )}
       {detail.status === "open" ? (

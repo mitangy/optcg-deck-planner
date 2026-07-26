@@ -226,6 +226,10 @@ class GroupBuyMemberQtyOut(BaseModel):
 class GroupBuyLineOut(BaseModel):
     card_id: str
     name: str
+    color: str = ""
+    rarity: str = ""
+    card_type: str = ""
+    cost: str | None = None
     total_qty: int
     market_price: float | None = None
     remaining_cost: float | None = None
@@ -238,6 +242,8 @@ class GroupBuyLineOut(BaseModel):
     my_qty: int = 0
     my_suggested_qty: int = 0
     my_is_custom: bool = False
+    # True when the viewer opted out (custom qty 0 / Exclude).
+    my_excluded: bool = False
 
 
 class GroupBuySummary(BaseModel):

@@ -2014,6 +2014,34 @@ tr.done {
   font-size: 0.85rem;
 }
 
+.group-buy-merged-heading {
+  margin: 0 0 0.65rem;
+}
+
+.group-buy-merged-toolbar {
+  margin-bottom: 1rem;
+}
+
+.grid-card-owned .group-buy-qty {
+  justify-items: center;
+}
+
+.grid-card-owned .group-buy-qty-meta {
+  align-items: center;
+  text-align: center;
+}
+
+.grid-card-owned .group-buy-exclude-btn {
+  justify-self: center;
+  text-align: center;
+}
+
+.grid-card-owned .group-buy-printing {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .group-buy-contribution-actions {
   margin-top: 0.75rem;
 }
@@ -2031,6 +2059,25 @@ tr.done {
   gap: 0.25rem;
   min-width: 0;
   justify-items: stretch;
+}
+
+.group-buy-exclude-btn {
+  justify-self: start;
+  margin: 0;
+  padding: 0;
+  font-size: 0.8rem;
+  min-height: 0;
+}
+
+.data-table tr.excluded,
+.grid-card.excluded,
+.mobile-card.excluded {
+  opacity: 0.55;
+  filter: grayscale(0.4);
+}
+
+.data-table tr.excluded {
+  background: #f0ebe3;
 }
 
 .group-buy-qty-controls {
