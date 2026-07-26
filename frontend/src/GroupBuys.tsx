@@ -513,7 +513,9 @@ export function GroupBuyDetailPage() {
             {complete.isPending ? "Finishing…" : "Mark purchased"}
           </button>
         )}
-        {detail.is_host && (
+      </div>
+      {detail.is_host && (
+        <div className="group-buy-danger-zone">
           <button
             type="button"
             className="ghost danger"
@@ -522,10 +524,10 @@ export function GroupBuyDetailPage() {
               if (window.confirm("Delete this group buy for everyone?")) remove.mutate();
             }}
           >
-            Delete
+            Delete group buy
           </button>
-        )}
-      </div>
+        </div>
+      )}
       {(inviteMsg || msg) && (
         <p className="buy-bar-msg buy-bar-msg-solo" role="status">
           {inviteMsg || msg}
