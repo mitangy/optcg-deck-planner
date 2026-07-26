@@ -120,6 +120,23 @@ def is_don_type(card_type: str | None) -> bool:
     return normalized.startswith("don") or "don!!" in normalized
 
 
+def is_don_product(
+    *,
+    name: str | None = None,
+    card_type: str | None = None,
+    rarity: str | None = None,
+) -> bool:
+    """Detect DON!! singles from TCGCSV fields (many have no Number)."""
+    if is_don_type(card_type) or is_don_type(rarity):
+        return True
+    return (name or "").strip().upper().startswith("DON!!")
+
+
+def synthetic_don_card_id(product_id: int) -> str:
+    """Stable catalog id for numberless DON!! products."""
+    return f"DON-{int(product_id)}"
+
+
 def is_leader_type(card_type: str | None, rarity: str | None = None) -> bool:
     normalized = normalize_card_type(card_type)
     rarity_u = (rarity or "").strip().upper()
@@ -129,7 +146,14 @@ def is_leader_type(card_type: str | None, rarity: str | None = None) -> bool:
 def is_don_card(row: Any | None) -> bool:
     if row is None:
         return False
-    return is_don_type(getattr(row, "card_type", None))
+    if is_don_product(
+        name=getattr(row, "name", None),
+        card_type=getattr(row, "card_type", None),
+        rarity=getattr(row, "rarity", None),
+    ):
+        return True
+    card_id = (getattr(row, "card_id", None) or "").strip().upper()
+    return card_id.startswith("DON-")
 
 
 def is_leader_card(row: Any | None) -> bool:

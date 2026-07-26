@@ -15,12 +15,38 @@ from tests.conftest import add_catalog, add_deck_with_cards, make_user
 
 
 def test_don_and_leader_type_helpers():
+    from app.domain import is_don_product, synthetic_don_card_id
+    from app.catalog_sync import resolve_catalog_card_id
+
     assert is_don_type("DON!!")
     assert is_don_type("Don")
     assert not is_don_type("Character")
     assert is_leader_type("Leader")
     assert is_leader_type("", "L")
     assert not is_leader_type("Character", "R")
+    assert is_don_product(name="DON!! Card (Uta) (Gold)", card_type="", rarity="")
+    assert synthetic_don_card_id(586181) == "DON-586181"
+    assert (
+        resolve_catalog_card_id(
+            {"productId": 586181, "name": "DON!! Card (Uta) (Gold)"},
+            {"CardType": "DON!!", "Rarity": "DON!!"},
+        )
+        == "DON-586181"
+    )
+    assert (
+        resolve_catalog_card_id(
+            {"productId": 1, "name": "Nami"},
+            {"Number": "OP01-016", "CardType": "Character"},
+        )
+        == "OP01-016"
+    )
+    assert (
+        resolve_catalog_card_id(
+            {"productId": 2, "name": "Booster Box"},
+            {},
+        )
+        is None
+    )
 
 
 def test_deck_size_counts_split_don(db):

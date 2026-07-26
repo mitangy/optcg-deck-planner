@@ -12,7 +12,7 @@ import httpx
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.domain import is_special_printing
+from app.domain import is_don_product, is_special_printing, synthetic_don_card_id
 from app.models import CatalogCard, CatalogMeta, CatalogPrinting
 
 CATEGORY_ID = 68
@@ -96,6 +96,21 @@ def _extended_map(product: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def resolve_catalog_card_id(product: dict[str, Any], ed: dict[str, str] | None = None) -> str | None:
+    """Return catalog card_id for a TCGCSV product, or None if it should be skipped."""
+    fields = ed if ed is not None else _extended_map(product)
+    product_id = int(product["productId"])
+    name = product.get("name") or ""
+    rarity = fields.get("Rarity") or ""
+    card_type = fields.get("CardType") or fields.get("Card Type") or ""
+    number = (fields.get("Number") or "").strip().upper()
+    if number:
+        return number
+    if is_don_product(name=name, card_type=card_type, rarity=rarity):
+        return synthetic_don_card_id(product_id)
+    return None
+
+
 def _pick_price(price_rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not price_rows:
         return None
@@ -147,18 +162,21 @@ def sync_catalog(db: Session) -> dict[str, Any]:
 
             for product in products:
                 ed = _extended_map(product)
-                number = (ed.get("Number") or "").strip().upper()
-                if not number:
+                card_id = resolve_catalog_card_id(product, ed)
+                if not card_id:
                     continue
-                price = _pick_price(prices_by_id.get(product["productId"], []))
-                name = product.get("name") or number
+                product_id = int(product["productId"])
+                price = _pick_price(prices_by_id.get(product_id, []))
+                name = product.get("name") or card_id
+                rarity = ed.get("Rarity") or ""
+                card_type = ed.get("CardType") or ed.get("Card Type") or ""
                 entry = {
-                    "card_id": number,
-                    "product_id": int(product["productId"]),
+                    "card_id": card_id,
+                    "product_id": product_id,
                     "name": name,
-                    "rarity": ed.get("Rarity") or "",
+                    "rarity": rarity,
                     "color": ed.get("Color") or "",
-                    "card_type": ed.get("CardType") or "",
+                    "card_type": card_type,
                     "cost": (ed.get("Cost") or "").strip() or None,
                     "market_price": price.get("marketPrice") if price else None,
                     "low_price": price.get("lowPrice") if price else None,
@@ -167,7 +185,7 @@ def sync_catalog(db: Session) -> dict[str, Any]:
                     "group_name": group_name,
                     "is_special": 1 if is_special_printing(name) else 0,
                 }
-                by_card[number].append(entry)
+                by_card[card_id].append(entry)
 
     now = datetime.now(timezone.utc)
     db.execute(delete(CatalogPrinting))
