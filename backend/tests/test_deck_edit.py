@@ -10,7 +10,14 @@ from app.domain import (
     is_leader_type,
 )
 from app.models import CatalogCard
-from app.services import DeckOversizeError, get_deck_detail, search_catalog, upsert_deck_card
+from app.services import (
+    DeckOversizeError,
+    get_deck_detail,
+    reset_deck_owned,
+    search_catalog,
+    set_owned,
+    upsert_deck_card,
+)
 from tests.conftest import add_catalog, add_deck_with_cards, make_user
 
 
@@ -123,6 +130,32 @@ def test_upsert_deck_card_add_and_remove(db):
 
     detail = upsert_deck_card(db, user, deck.id, "OP01-016", 0)
     assert all(c.card_id != "OP01-016" for c in detail.cards)
+
+
+def test_reset_deck_owned_zeros_cards_in_deck(db):
+    user = make_user(db, email="owned@test", name="O", sub="sub-o")
+    add_catalog(db, "OP01-016", name="Nami", product_id=1, market=2.0)
+    add_catalog(db, "OP01-025", name="Usopp", product_id=2, market=1.0)
+    deck = add_deck_with_cards(db, user, "Reset me", {"OP01-016": 4, "OP01-025": 2})
+    set_owned(db, user, "OP01-016", 3)
+    set_owned(db, user, "OP01-025", 1)
+    # Card not in this deck should be left alone.
+    set_owned(db, user, "OP99-001", 5)
+
+    reset_count, detail = reset_deck_owned(db, user, deck.id)
+    assert reset_count == 2
+    by_id = {c.card_id: c for c in detail.cards}
+    assert by_id["OP01-016"].owned == 0
+    assert by_id["OP01-016"].still_need == 4
+    assert by_id["OP01-025"].owned == 0
+
+    from sqlalchemy import select
+    from app.models import Owned
+
+    other = db.scalar(
+        select(Owned).where(Owned.user_id == user.id, Owned.card_id == "OP99-001")
+    )
+    assert other is not None and other.qty == 5
 
 
 def test_upsert_requires_confirm_over_main_limit(db):

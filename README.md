@@ -100,6 +100,7 @@ GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
 - `GET /auth/google`, `GET /auth/callback`, `POST /auth/logout`, `GET /auth/me`
 - `GET/POST /decks`, `GET/DELETE /decks/{id}`
 - `PUT/DELETE /decks/{id}/cards/{card_id}` — add/update/remove cards (`confirm_oversize` soft-confirms past 51)
+- `POST /decks/{id}/reset-owned` — set Owned to 0 for every card in the deck
 - `GET /shopping?deck_ids=`
 - `PUT /owned/{card_id}`
 - `GET /share/shopping`, `POST /share`, `DELETE /share/{token}` — create/manage public links
