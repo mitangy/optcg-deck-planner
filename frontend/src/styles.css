@@ -2026,16 +2026,17 @@ tr.done {
   margin: 0;
 }
 
-.deck-editor-sizes {
-  margin: 0 0 0.75rem;
+.deck-editor .filter-drawer-body,
+.don-available .filter-drawer-body {
+  gap: 0.55rem;
+  padding: 0.55rem 0.75rem 0.75rem;
 }
 
 .deck-editor-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
   align-items: center;
-  margin-bottom: 0.75rem;
   min-width: 0;
 }
 
@@ -2044,21 +2045,38 @@ tr.done {
   min-width: 0;
 }
 
+.deck-editor-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
 .deck-editor-select {
   display: flex;
   min-width: 0;
+  flex: 1 1 6rem;
 }
 
 .deck-editor-select select {
   appearance: auto;
+  width: 100%;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fff;
   color: var(--ink);
-  padding: 0.45rem 0.65rem;
+  padding: 0.4rem 0.55rem;
   font: inherit;
   min-width: 0;
   max-width: 100%;
+  min-height: 2.5rem;
+}
+
+.deck-editor-status {
+  margin: 0;
+  font-size: 0.9rem;
 }
 
 .deck-editor-results {
@@ -2066,17 +2084,20 @@ tr.done {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.45rem;
   min-width: 0;
+  max-height: min(22rem, 50vh);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .deck-editor-result {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem 1rem;
+  gap: 0.5rem 0.75rem;
   align-items: center;
   justify-content: space-between;
-  padding: 0.55rem 0.65rem;
+  padding: 0.45rem 0.55rem;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: rgba(255, 253, 248, 0.85);
@@ -2085,23 +2106,23 @@ tr.done {
 
 .deck-editor-result-main {
   display: flex;
-  gap: 0.65rem;
+  gap: 0.55rem;
   align-items: center;
   min-width: 0;
-  flex: 1 1 14rem;
+  flex: 1 1 12rem;
 }
 
 .deck-editor-result-main .thumb,
 .deck-editor-result-main .thumb.placeholder {
-  width: 48px;
-  height: 67px;
+  width: 40px;
+  height: 56px;
   flex: 0 0 auto;
 }
 
 .deck-editor-result-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.3rem;
   align-items: center;
   justify-content: flex-end;
   min-width: 0;
@@ -2123,21 +2144,78 @@ tr.done {
 }
 
 .don-available-list {
-  max-height: min(28rem, 60vh);
+  max-height: min(22rem, 45vh);
   overflow: auto;
   overscroll-behavior: contain;
 }
 
 @media (max-width: 720px) {
+  .deck-editor,
+  .don-available {
+    margin-bottom: 0.65rem;
+  }
+
+  .deck-editor .filter-drawer-toggle,
+  .don-available .filter-drawer-toggle {
+    min-height: 2.4rem;
+    padding: 0.45rem 0.7rem;
+  }
+
+  .deck-editor .filter-drawer-body,
+  .don-available .filter-drawer-body {
+    gap: 0.4rem;
+    padding: 0.45rem 0.65rem 0.65rem;
+  }
+
   .deck-editor-filters {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.35rem;
   }
 
-  .deck-editor-select select,
-  .deck-editor-result-actions .btn,
-  .deck-editor-result-actions .ghost {
-    width: 100%;
+  .deck-editor-filters .card-search {
+    flex: 0 0 auto;
+  }
+
+  .deck-editor-filters .card-search-input {
+    min-height: 2.4rem;
+    padding: 0.45rem 0.7rem;
+  }
+
+  .deck-editor-filter-row {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+  }
+
+  .deck-editor-select {
+    flex: 1 1 0;
+  }
+
+  .deck-editor-select select {
+    min-height: 2.35rem;
+    padding: 0.35rem 0.45rem;
+    font-size: 0.92rem;
+  }
+
+  .deck-editor-results {
+    max-height: min(16rem, 38vh);
+    gap: 0.35rem;
+  }
+
+  .deck-editor-result {
+    padding: 0.4rem 0.45rem;
+    gap: 0.4rem;
+  }
+
+  .deck-editor-result-main .thumb,
+  .deck-editor-result-main .thumb.placeholder {
+    width: 36px;
+    height: 50px;
+  }
+
+  .deck-editor-result-actions .btn.secondary {
+    width: auto;
+    padding: 0.35rem 0.7rem;
   }
 
   .page-head-actions .btn.primary {

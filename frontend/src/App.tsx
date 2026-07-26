@@ -2443,55 +2443,54 @@ function DeckEditorPanel({
         storageKey={DECK_SEARCH_OPEN_KEY}
         defaultOpen
       >
-        <p className="muted deck-editor-sizes">
-          Search the catalog by name, card code, color, or type. Collapse this panel anytime to focus
-          on the deck list below.
-        </p>
-
         <div className="deck-editor-filters">
           <CardSearchInput value={query} onChange={setQuery} />
-          <label className="deck-editor-select">
-            <span className="sr-only">Color</span>
-            <select
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              aria-label="Filter by color"
-            >
-              <option value="">All colors</option>
-              {COLOR_ORDER.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="deck-editor-select">
-            <span className="sr-only">Card type</span>
-            <select
-              value={cardType}
-              onChange={(e) => setCardType(e.target.value)}
-              aria-label="Filter by card type"
-            >
-              {CATALOG_TYPE_FILTERS.map((t) => (
-                <option key={t || "all"} value={t}>
-                  {t ? t : "All types"}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="deck-editor-filter-row">
+            <label className="deck-editor-select">
+              <span className="sr-only">Color</span>
+              <select
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                aria-label="Filter by color"
+              >
+                <option value="">All colors</option>
+                {COLOR_ORDER.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="deck-editor-select">
+              <span className="sr-only">Card type</span>
+              <select
+                value={cardType}
+                onChange={(e) => setCardType(e.target.value)}
+                aria-label="Filter by card type"
+              >
+                {CATALOG_TYPE_FILTERS.map((t) => (
+                  <option key={t || "all"} value={t}>
+                    {t ? t : "All types"}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
 
-        {err && <p className="error">{err}</p>}
+        {err && <p className="error deck-editor-status">{err}</p>}
 
         {!searchEnabled && (
-          <p className="muted">Search by name, card code, color, or type to add cards.</p>
+          <p className="muted deck-editor-status">Search name, ID, color, or type</p>
         )}
-        {searchEnabled && searchQ.isLoading && <p className="muted">Searching catalog…</p>}
+        {searchEnabled && searchQ.isLoading && (
+          <p className="muted deck-editor-status">Searching…</p>
+        )}
         {searchEnabled && searchQ.error && (
-          <p className="error">{(searchQ.error as Error).message}</p>
+          <p className="error deck-editor-status">{(searchQ.error as Error).message}</p>
         )}
         {searchEnabled && searchQ.data && searchQ.data.length === 0 && (
-          <p className="muted">No catalog matches. Sync the catalog if it is empty locally.</p>
+          <p className="muted deck-editor-status">No catalog matches</p>
         )}
 
         {searchQ.data && searchQ.data.length > 0 && (
@@ -2626,14 +2625,11 @@ function AvailableDonSection({
         storageKey={DECK_DON_AVAILABLE_OPEN_KEY}
         defaultOpen={false}
       >
-        <p className="muted">
-          Pick from the catalog for this deck&apos;s DON!! deck ({donCount}/{DON_DECK_LIMIT}).
-        </p>
-        {err && <p className="error">{err}</p>}
-        {donQ.isLoading && <p className="muted">Loading DON!! cards…</p>}
-        {donQ.error && <p className="error">{(donQ.error as Error).message}</p>}
+        {err && <p className="error deck-editor-status">{err}</p>}
+        {donQ.isLoading && <p className="muted deck-editor-status">Loading DON!! cards…</p>}
+        {donQ.error && <p className="error deck-editor-status">{(donQ.error as Error).message}</p>}
         {donQ.data && donQ.data.length === 0 && (
-          <p className="muted">No DON!! cards in the catalog yet.</p>
+          <p className="muted deck-editor-status">No DON!! cards in the catalog yet.</p>
         )}
         {donQ.data && donQ.data.length > 0 && (
           <ul className="deck-editor-results don-available-list">
