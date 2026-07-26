@@ -616,7 +616,8 @@ function ShoppingPage() {
     enabled: filterReady && allDeckIds.length > 0,
   });
   const [onlyNeed, setOnlyNeed] = useState(true);
-  const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed);
+  const shoppingUnavailableSorts = useMemo(() => ["user"] as SortKey[], []);
+  const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, shoppingUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [layout, setLayout] = useCardLayout();
   const [search, setSearch] = useState("");
@@ -1005,7 +1006,12 @@ function ShoppingPage() {
               <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
               Still need only
             </label>
-            <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={onlyNeed} />
+            <SortMenu
+              sorts={sorts}
+              onChange={setSorts}
+              onlyNeed={onlyNeed}
+              unavailableKeys={shoppingUnavailableSorts}
+            />
             <label>
               <input
                 type="checkbox"
@@ -2133,7 +2139,7 @@ function DeckDetailPage() {
     enabled: Number.isFinite(deckId),
   });
   const [onlyNeed, setOnlyNeed] = useState(true);
-  const deckUnavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
+  const deckUnavailableSorts = useMemo(() => ["deck", "user"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, deckUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [layout, setLayout] = useCardLayout();

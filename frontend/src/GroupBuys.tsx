@@ -189,6 +189,75 @@ function isLineExcluded(line: GroupBuyLine): boolean {
   return Boolean(line.my_excluded ?? (line.my_qty === 0 && line.my_is_custom));
 }
 
+/** Earliest member (member-list order) who still wants copies of this card. */
+function primaryWantingMember(
+  line: GroupBuyLine,
+  members: GroupBuyMember[],
+): GroupBuyMemberQty | null {
+  const active = line.members.filter((m) => m.qty > 0);
+  if (!active.length) return null;
+  const order = new Map(members.map((m, i) => [m.user_id, i]));
+  return [...active].sort(
+    (a, b) => (order.get(a.user_id) ?? 999) - (order.get(b.user_id) ?? 999),
+  )[0];
+}
+
+function userSortKeyForLine(line: GroupBuyLine, members: GroupBuyMember[]): string {
+  const primary = primaryWantingMember(line, members);
+  if (!primary) return "zzzz";
+  const idx = members.findIndex((m) => m.user_id === primary.user_id);
+  const rank = String(idx >= 0 ? idx : 999).padStart(3, "0");
+  return `${rank}-${primary.display_name.toLowerCase()}`;
+}
+
+type GroupBuyDisplayRow =
+  | { kind: "header"; key: string; userId: number; displayName: string }
+  | { kind: "line"; key: string; line: GroupBuyLine };
+
+function buildGroupBuyDisplayRows(
+  lines: GroupBuyLine[],
+  members: GroupBuyMember[],
+  groupingByUser: boolean,
+): GroupBuyDisplayRow[] {
+  if (!groupingByUser) {
+    return lines.map((line) => ({ kind: "line" as const, key: line.card_id, line }));
+  }
+  const rows: GroupBuyDisplayRow[] = [];
+  let lastUserId: number | undefined;
+  for (const line of lines) {
+    const primary = primaryWantingMember(line, members);
+    const userId = primary?.user_id ?? -1;
+    if (userId !== lastUserId) {
+      rows.push({
+        kind: "header",
+        key: `user-${userId}`,
+        userId,
+        displayName: primary?.display_name ?? "No buyers",
+      });
+      lastUserId = userId;
+    }
+    rows.push({ kind: "line", key: line.card_id, line });
+  }
+  return rows;
+}
+
+function UserGroupHeading({
+  userId,
+  displayName,
+  members,
+}: {
+  userId: number;
+  displayName: string;
+  members: GroupBuyMember[];
+}) {
+  return (
+    <div className="group-buy-user-heading">
+      {userId >= 0 ? <MemberSwatch userId={userId} members={members} title={displayName} /> : null}
+      <span>{displayName}</span>
+    </div>
+  );
+}
+
 function LinePrintingSelect({
   line,
   disabled,
@@ -422,10 +491,10 @@ export function GroupBuyDetailPage() {
   const qc = useQueryClient();
   const isNarrow = useNarrowLayout();
   const [layout, setLayout] = useCardLayout();
-  const [onlyNeed, setOnlyNeed] = useState(true);
   const [showExcluded, setShowExcluded] = useState(false);
   const unavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
-  const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, unavailableSorts);
+  // Always show still-needed cards; keep still_need sort disabled like shopping's "Still need only".
+  const { sorts, setSorts, effectiveSorts } = useCardSorts(true, unavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [search, setSearch] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -434,6 +503,9 @@ export function GroupBuyDetailPage() {
   const [orderNotes, setOrderNotes] = useState("");
   const [shippingCost, setShippingCost] = useState("0");
   const [shippingSplit, setShippingSplit] = useState<ShippingSplit>("equal");
+  const sortingByUser = effectiveSorts.includes("user");
+  /** Section headers only when User is the primary sort (otherwise groups would fragment). */
+  const groupingByUser = effectiveSorts[0] === "user";
 
   const detailQ = useQuery({
     queryKey: ["group-buy", groupId],
@@ -444,17 +516,16 @@ export function GroupBuyDetailPage() {
   const meQ = useQuery({ queryKey: ["me"], queryFn: api.me });
 
   const detail = detailQ.data;
+  const members = detail?.members ?? [];
 
   const lines = useMemo(() => {
     let list = detail?.lines ?? [];
-    // Excluded (my qty 0) lines with no remaining group total stay hidden unless
-    // "Show excluded" is on. Excluded lines others still need stay visible (grayed).
+    // Always still-needed only. Excluded (my qty 0) lines with no remaining group total
+    // stay hidden unless "Show excluded" is on. Excluded lines others still need stay visible.
     if (!showExcluded) {
       list = list.filter((l) => !isLineExcluded(l) || l.total_qty > 0);
     }
-    if (onlyNeed) {
-      list = list.filter((l) => l.total_qty > 0 || (showExcluded && isLineExcluded(l)));
-    }
+    list = list.filter((l) => l.total_qty > 0 || (showExcluded && isLineExcluded(l)));
     if (search.trim()) {
       list = list.filter((l) =>
         matchesCardSearch(
@@ -470,6 +541,7 @@ export function GroupBuyDetailPage() {
         ),
       );
     }
+    const memberList = detail?.members ?? [];
     return [...list].sort((a, b) =>
       compareCardOrder(
         {
@@ -477,17 +549,24 @@ export function GroupBuyDetailPage() {
           color: a.color || "",
           still_need: a.total_qty,
           market_price: a.market_price,
+          user_sort_key: userSortKeyForLine(a, memberList),
         },
         {
           card_id: b.card_id,
           color: b.color || "",
           still_need: b.total_qty,
           market_price: b.market_price,
+          user_sort_key: userSortKeyForLine(b, memberList),
         },
         effectiveSorts,
       ),
     );
-  }, [detail, onlyNeed, showExcluded, effectiveSorts, search]);
+  }, [detail, showExcluded, effectiveSorts, search]);
+
+  const displayRows = useMemo(
+    () => buildGroupBuyDisplayRows(lines, members, groupingByUser),
+    [lines, members, groupingByUser],
+  );
 
   const decks = decksQ.data ?? [];
   const myContribution = useMemo(() => {
@@ -506,14 +585,12 @@ export function GroupBuyDetailPage() {
       extra.push(`${selectedDeckCount}/${decks.length} decks`);
     }
     return buildFilterSummary({
-      onlyNeed,
       sorts: effectiveSorts,
       showAltArts,
       layout,
       extra: extra.length ? extra : undefined,
     });
   }, [
-    onlyNeed,
     effectiveSorts,
     showAltArts,
     layout,
@@ -697,7 +774,11 @@ export function GroupBuyDetailPage() {
   const canEditPrintings = detail.is_host && (detail.status === "open" || detail.status === "locked");
   const showOrderPanel = detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
   const orderBusy = markOrdered.isPending || saveOrder.isPending || complete.isPending;
-  const members = detail.members;
+  const tableColSpan =
+    5 +
+    (detail.status === "open" ? 1 : 0) +
+    (detail.is_host ? 1 : 0) +
+    (showAltArts ? 1 : 0);
 
   function setContributionDecks(next: number[] | null) {
     if (next && next.length === decks.length) contribution.mutate(null);
@@ -1004,18 +1085,10 @@ export function GroupBuyDetailPage() {
             </div>
             <CollapsibleFilters summary={filterSummary}>
               <div className="filters">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={onlyNeed}
-                    onChange={(e) => setOnlyNeed(e.target.checked)}
-                  />
-                  Still need only
-                </label>
                 <SortMenu
                   sorts={sorts}
                   onChange={setSorts}
-                  onlyNeed={onlyNeed}
+                  onlyNeed
                   unavailableKeys={unavailableSorts}
                 />
                 <label>
@@ -1035,6 +1108,12 @@ export function GroupBuyDetailPage() {
                   Show excluded
                 </label>
               </div>
+              {sortingByUser ? (
+                <p className="sort-deck-note muted">
+                  User sort groups cards by who wants them (member list order). Cards wanted by
+                  multiple people stay under their earliest member.
+                </p>
+              ) : null}
               {detail.status === "open" && myContribution && decks.length > 0 ? (
                 <div className="deck-filter">
                   <div className="deck-filter-head">
@@ -1082,11 +1161,23 @@ export function GroupBuyDetailPage() {
             <p className="muted">No cards match the current search or filters.</p>
           ) : layout === "grid" ? (
             <div className="card-grid">
-              {lines.map((line) => {
+              {displayRows.map((row) => {
+                if (row.kind === "header") {
+                  return (
+                    <div key={row.key} className="group-buy-user-section">
+                      <UserGroupHeading
+                        userId={row.userId}
+                        displayName={row.displayName}
+                        members={members}
+                      />
+                    </div>
+                  );
+                }
+                const line = row.line;
                 const excluded = isLineExcluded(line);
                 return (
                   <article
-                    key={line.card_id}
+                    key={row.key}
                     className={cardShellClass("grid-card need", line, members, excluded)}
                   >
                     <MemberColorRail line={line} members={members} />
@@ -1152,11 +1243,23 @@ export function GroupBuyDetailPage() {
             </div>
           ) : isNarrow ? (
             <div className="mobile-card-list mobile-card-list-mounted">
-              {lines.map((line) => {
+              {displayRows.map((row) => {
+                if (row.kind === "header") {
+                  return (
+                    <div key={row.key} className="group-buy-user-section">
+                      <UserGroupHeading
+                        userId={row.userId}
+                        displayName={row.displayName}
+                        members={members}
+                      />
+                    </div>
+                  );
+                }
+                const line = row.line;
                 const excluded = isLineExcluded(line);
                 return (
                   <article
-                    key={line.card_id}
+                    key={row.key}
                     className={cardShellClass("mobile-card need", line, members, excluded)}
                   >
                     <MemberColorRail line={line} members={members} />
@@ -1241,7 +1344,21 @@ export function GroupBuyDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {lines.map((line) => {
+                  {displayRows.map((row) => {
+                    if (row.kind === "header") {
+                      return (
+                        <tr key={row.key} className="group-buy-user-header-row">
+                          <td colSpan={tableColSpan}>
+                            <UserGroupHeading
+                              userId={row.userId}
+                              displayName={row.displayName}
+                              members={members}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    }
+                    const line = row.line;
                     const excluded = isLineExcluded(line);
                     const active = line.members.filter((m) => m.qty > 0);
                     const soleClass =
@@ -1250,7 +1367,7 @@ export function GroupBuyDetailPage() {
                         : "";
                     return (
                       <tr
-                        key={line.card_id}
+                        key={row.key}
                         className={`${excluded ? "excluded" : ""}${soleClass}`.trim() || undefined}
                       >
                         <td className="card-cell">
