@@ -60,9 +60,24 @@ def _ensure_group_buy_columns() -> None:
             conn.execute(text(f"ALTER TABLE group_buys ADD COLUMN {name} {typ}"))
 
 
+def _ensure_user_session_version() -> None:
+    """Add session_version on existing DBs (create_all does not alter tables)."""
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("users")}
+    if "session_version" in existing:
+        return
+    with engine.begin() as conn:
+        conn.execute(
+            text("ALTER TABLE users ADD COLUMN session_version INTEGER DEFAULT 0")
+        )
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_group_buy_columns()
+    _ensure_user_session_version()
 
 
 def get_db() -> Generator[Session, None, None]:

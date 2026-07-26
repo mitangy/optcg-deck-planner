@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 from typing import Annotated
 
 import httpx
@@ -37,6 +38,13 @@ from app.schemas import (
 from app import group_buy, services
 
 router = APIRouter(tags=["api"])
+
+
+def _require_catalog_token(x_catalog_token: str | None, settings: Settings) -> None:
+    provided = x_catalog_token or ""
+    expected = settings.catalog_sync_token or ""
+    if not expected or not hmac.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="Invalid catalog sync token")
 
 
 @router.get("/decks", response_model=list[DeckSummary])
@@ -442,8 +450,7 @@ def admin_sync_catalog(
     The sync is long-running, so it runs as a background job instead of blocking
     this request (which would time out the caller and the free Render instance).
     """
-    if not x_catalog_token or x_catalog_token != settings.catalog_sync_token:
-        raise HTTPException(status_code=401, detail="Invalid catalog sync token")
+    _require_catalog_token(x_catalog_token, settings)
     if sync_in_progress():
         return {"status": "already_running", "detail": "A catalog sync is already in progress"}
     background_tasks.add_task(run_catalog_sync_job)
@@ -456,6 +463,5 @@ def admin_sync_catalog_status(
     x_catalog_token: Annotated[str | None, Header()] = None,
 ):
     """Report the background catalog sync state (guarded by the same token)."""
-    if not x_catalog_token or x_catalog_token != settings.catalog_sync_token:
-        raise HTTPException(status_code=401, detail="Invalid catalog sync token")
+    _require_catalog_token(x_catalog_token, settings)
     return sync_status()

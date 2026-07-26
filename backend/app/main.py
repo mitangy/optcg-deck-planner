@@ -18,7 +18,17 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title=settings.app_name, lifespan=lifespan)
+_docs = None if settings.is_production else "/docs"
+_redoc = None if settings.is_production else "/redoc"
+_openapi = None if settings.is_production else "/openapi.json"
+
+app = FastAPI(
+    title=settings.app_name,
+    lifespan=lifespan,
+    docs_url=_docs,
+    redoc_url=_redoc,
+    openapi_url=_openapi,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,14 +49,16 @@ app.include_router(api.router)
 @app.get("/")
 def root():
     """Friendly landing for the raw Render URL (browsing / used to 404)."""
-    return {
+    payload = {
         "ok": True,
         "app": settings.app_name,
         "health": "/health",
-        "docs": "/docs",
         "frontend": settings.frontend_origin.rstrip("/"),
         "note": "This is the API. Use the frontend URL to sign in and manage decks.",
     }
+    if not settings.is_production:
+        payload["docs"] = "/docs"
+    return payload
 
 
 @app.get("/health")
