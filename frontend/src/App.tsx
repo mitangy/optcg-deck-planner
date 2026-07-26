@@ -665,11 +665,18 @@ function LoginPage() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const ticket = params.get("ticket");
+    // Prefer fragment (not sent to servers/Referer); fall back to ?ticket= for
+    // older redirects still in flight during deploy.
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const queryParams = new URLSearchParams(window.location.search);
+    const ticket = hashParams.get("ticket") || queryParams.get("ticket");
     if (!ticket) return;
     let cancelled = false;
     setClaiming(true);
+    // Strip ticket from the address bar before the claim request.
+    queryParams.delete("ticket");
+    const q = queryParams.toString();
+    window.history.replaceState({}, "", window.location.pathname + (q ? `?${q}` : ""));
     api
       .claim(ticket)
       .then(async () => {

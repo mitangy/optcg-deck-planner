@@ -14,13 +14,13 @@ from app.auth import (
     OAUTH_NONCE_COOKIE,
     OAUTH_STATE_MAX_AGE_SECONDS,
     SESSION_COOKIE,
+    consume_login_ticket,
     create_login_ticket,
     create_oauth_state,
     create_session_token,
     email_allowed,
     get_optional_user,
     new_oauth_nonce,
-    read_login_ticket,
     verify_oauth_state,
 )
 from app.config import Settings, get_settings
@@ -158,9 +158,11 @@ async def google_callback(
 
     # One-time ticket claimed by the SPA via same-origin POST so the session
     # cookie is set on a fetch response (works on mobile Safari; proxy redirects often drop Set-Cookie).
-    ticket = create_login_ticket(user.id, settings)
+    # Put the ticket in the URL fragment (not the query string) so it is not
+    # sent to servers, proxies, or Referer headers.
+    ticket = create_login_ticket(db, user.id, settings)
     redirect = RedirectResponse(
-        f"{settings.frontend_origin.rstrip('/')}/login?ticket={ticket}"
+        f"{settings.frontend_origin.rstrip('/')}/login#ticket={ticket}"
     )
     secure = settings.backend_public_url.startswith("https") or settings.frontend_origin.startswith(
         "https"
@@ -181,7 +183,7 @@ def claim_login(
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ):
-    user_id = read_login_ticket(body.ticket, settings)
+    user_id = consume_login_ticket(db, body.ticket, settings)
     if user_id is None:
         raise HTTPException(status_code=400, detail="Invalid or expired login ticket")
     user = db.get(User, user_id)
