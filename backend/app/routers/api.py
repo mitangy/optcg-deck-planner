@@ -16,7 +16,9 @@ from app.models import CatalogMeta, User
 from app.rate_limit import RateLimiter, client_ip
 from app.recent_sales import fetch_recent_sales
 from app.schemas import (
+    CatalogCardResult,
     CatalogStatus,
+    DeckCardUpsert,
     DeckCreate,
     DeckDetail,
     DeckSummary,
@@ -37,6 +39,7 @@ from app.schemas import (
     ShoppingResponse,
 )
 from app import group_buy, services
+from app.services import DeckOversizeError
 
 router = APIRouter(tags=["api"])
 
@@ -96,6 +99,57 @@ def get_deck(
         return services.get_deck_detail(db, user, deck_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.put("/decks/{deck_id}/cards/{card_id}", response_model=DeckDetail)
+def put_deck_card(
+    deck_id: int,
+    card_id: str,
+    body: DeckCardUpsert,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return services.upsert_deck_card(
+            db,
+            user,
+            deck_id,
+            card_id,
+            body.needed,
+            confirm_oversize=body.confirm_oversize,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except DeckOversizeError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "deck_oversize",
+                "message": str(exc),
+                "current": exc.current,
+                "projected": exc.projected,
+                "limit": exc.limit,
+            },
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/decks/{deck_id}/cards/{card_id}", response_model=DeckDetail)
+def delete_deck_card(
+    deck_id: int,
+    card_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return services.upsert_deck_card(
+            db, user, deck_id, card_id, 0, confirm_oversize=True
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/shopping", response_model=ShoppingResponse)
@@ -426,6 +480,20 @@ def catalog_status(
         last_synced_at=meta.last_synced_at.isoformat() if meta.last_synced_at else None,
         notes=meta.notes or "",
     )
+
+
+@router.get("/catalog/cards", response_model=list[CatalogCardResult])
+def catalog_cards(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    q: Annotated[str, Query()] = "",
+    color: Annotated[str, Query()] = "",
+    card_type: Annotated[str, Query()] = "",
+    limit: Annotated[int, Query(ge=1, le=100)] = 40,
+):
+    """Search the card catalog by name, id, color, type, rarity, or set name."""
+    _ = user
+    return services.search_catalog(db, q=q, color=color, card_type=card_type, limit=limit)
 
 
 @router.get("/catalog/sales/{product_id}", response_model=RecentSalesResponse)

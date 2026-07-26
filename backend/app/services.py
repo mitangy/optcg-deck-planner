@@ -7,13 +7,23 @@ import secrets
 from collections import defaultdict
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.domain import find_leader_id, parse_cost, parse_decklist
+from app.domain import (
+    DON_DECK_LIMIT,
+    MAIN_DECK_LIMIT,
+    ParsedCard,
+    deck_size_counts,
+    find_leader_id,
+    is_don_card,
+    parse_cost,
+    parse_decklist,
+)
 from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, ShareLink, User
 from app.schemas import (
     CardView,
+    CatalogCardResult,
     DeckDetail,
     DeckSummary,
     PrintingView,
@@ -22,6 +32,18 @@ from app.schemas import (
     ShoppingItem,
     ShoppingResponse,
 )
+
+
+class DeckOversizeError(Exception):
+    """Raised when adding would push the main deck past MAIN_DECK_LIMIT without confirm."""
+
+    def __init__(self, *, current: int, projected: int, limit: int = MAIN_DECK_LIMIT):
+        self.current = current
+        self.projected = projected
+        self.limit = limit
+        super().__init__(
+            f"Deck would have {projected} cards (limit {limit}: 50 + 1 leader). Confirm to continue."
+        )
 
 
 def _catalog_map(db: Session, card_ids: set[str]) -> dict[str, CatalogCard]:
@@ -120,6 +142,10 @@ def _card_view(
     )
 
 
+def _deck_card_lines(deck: Deck) -> list[ParsedCard]:
+    return [ParsedCard(card_id=c.card_id, needed=c.needed) for c in deck.cards]
+
+
 def list_decks(db: Session, user: User) -> list[DeckSummary]:
     decks = db.scalars(
         select(Deck)
@@ -127,11 +153,13 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
         .options(selectinload(Deck.cards))
         .order_by(Deck.sort_order, Deck.id)
     ).all()
+    all_ids = {c.card_id for d in decks for c in d.cards}
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
-    catalog = _catalog_map(db, leader_ids) if leader_ids else {}
+    catalog = _catalog_map(db, all_ids | leader_ids)
     out: list[DeckSummary] = []
     for deck in decks:
         leader = catalog.get(deck.leader_card_id) if deck.leader_card_id else None
+        main_cards, don_cards = deck_size_counts(_deck_card_lines(deck), catalog)
         out.append(
             DeckSummary(
                 id=deck.id,
@@ -140,7 +168,9 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
                 leader_name=leader.name if leader else None,
                 leader_image_url=leader.image_url if leader else "",
                 card_count=len(deck.cards),
-                total_cards=sum(c.needed for c in deck.cards),
+                total_cards=main_cards,
+                main_cards=main_cards,
+                don_cards=don_cards,
                 sort_order=deck.sort_order,
             )
         )
@@ -207,16 +237,21 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
 
     cards: list[CardView] = []
     for card in target.cards:
-        section = "additional" if prior_ids and card.card_id not in prior_ids else "main"
-        # If this is the first deck for the leader, everything is main
-        if not prior_ids:
+        cat = catalog.get(card.card_id)
+        if is_don_card(cat):
+            section = "don"
+        elif not prior_ids:
+            section = "main"
+        elif card.card_id not in prior_ids:
+            section = "additional"
+        else:
             section = "main"
         cards.append(
             _card_view(
                 card.card_id,
                 card.needed,
                 owned.get(card.card_id, 0),
-                catalog.get(card.card_id),
+                cat,
                 section,
                 alts.get(card.card_id, []),
                 product_ids.get(card.card_id),
@@ -227,6 +262,8 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
     if target.leader_card_id and target.leader_card_id in catalog:
         leader_name = catalog[target.leader_card_id].name
 
+    main_cards, don_cards = deck_size_counts(_deck_card_lines(target), catalog)
+
     return DeckDetail(
         id=target.id,
         name=target.name,
@@ -234,7 +271,131 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
         leader_name=leader_name,
         prior_decks=prior_names,
         cards=cards,
+        main_cards=main_cards,
+        don_cards=don_cards,
     )
+
+
+def search_catalog(
+    db: Session,
+    *,
+    q: str = "",
+    color: str = "",
+    card_type: str = "",
+    limit: int = 40,
+) -> list[CatalogCardResult]:
+    """Search preferred catalog printings by name, id, color, type, rarity, or set."""
+    limit = max(1, min(limit, 100))
+    stmt = select(CatalogCard)
+    filters = []
+    query = (q or "").strip()
+    if query:
+        like = f"%{query}%"
+        filters.append(
+            or_(
+                CatalogCard.card_id.ilike(like),
+                CatalogCard.name.ilike(like),
+                CatalogCard.color.ilike(like),
+                CatalogCard.card_type.ilike(like),
+                CatalogCard.rarity.ilike(like),
+                CatalogCard.group_name.ilike(like),
+            )
+        )
+    color_q = (color or "").strip()
+    if color_q:
+        filters.append(CatalogCard.color.ilike(f"%{color_q}%"))
+    type_q = (card_type or "").strip()
+    if type_q:
+        filters.append(CatalogCard.card_type.ilike(f"%{type_q}%"))
+    if filters:
+        stmt = stmt.where(*filters)
+    # Prefer exact id matches, then cheaper market price, then name.
+    q_upper = query.upper()
+    order = [
+        CatalogCard.market_price.is_(None),
+        CatalogCard.market_price.asc(),
+        CatalogCard.name.asc(),
+        CatalogCard.card_id.asc(),
+    ]
+    if query:
+        order.insert(0, (func.upper(CatalogCard.card_id) == q_upper).desc())
+    stmt = stmt.order_by(*order).limit(limit)
+    rows = db.scalars(stmt).all()
+    return [
+        CatalogCardResult(
+            card_id=row.card_id,
+            name=row.name,
+            rarity=row.rarity or "",
+            color=row.color or "",
+            card_type=row.card_type or "",
+            cost=parse_cost(row.cost),
+            market_price=row.market_price,
+            low_price=row.low_price,
+            image_url=row.image_url or "",
+            tcgplayer_url=row.tcgplayer_url or "",
+            group_name=row.group_name or "",
+        )
+        for row in rows
+    ]
+
+
+def upsert_deck_card(
+    db: Session,
+    user: User,
+    deck_id: int,
+    card_id: str,
+    needed: int,
+    *,
+    confirm_oversize: bool = False,
+) -> DeckDetail:
+    """Set absolute needed count for a card in a deck (0 removes)."""
+    card_id = card_id.strip().upper()
+    if not card_id:
+        raise ValueError("card_id is required")
+    if needed < 0:
+        raise ValueError("needed must be >= 0")
+
+    deck = db.scalar(
+        select(Deck)
+        .where(Deck.id == deck_id, Deck.user_id == user.id)
+        .options(selectinload(Deck.cards))
+    )
+    if deck is None:
+        raise LookupError("Deck not found")
+
+    existing = next((c for c in deck.cards if c.card_id == card_id), None)
+    catalog_ids = {c.card_id for c in deck.cards} | {card_id}
+    catalog = _catalog_map(db, catalog_ids)
+
+    projected: dict[str, int] = {c.card_id: c.needed for c in deck.cards}
+    if needed <= 0:
+        projected.pop(card_id, None)
+    else:
+        projected[card_id] = needed
+    projected_lines = [ParsedCard(card_id=cid, needed=qty) for cid, qty in projected.items()]
+
+    main_now, _don_now = deck_size_counts(_deck_card_lines(deck), catalog)
+    main_projected, don_projected = deck_size_counts(projected_lines, catalog)
+
+    if don_projected > DON_DECK_LIMIT:
+        raise ValueError(
+            f"DON!! deck would have {don_projected} cards (maximum {DON_DECK_LIMIT})"
+        )
+
+    if main_projected > MAIN_DECK_LIMIT and not confirm_oversize:
+        raise DeckOversizeError(current=main_now, projected=main_projected)
+
+    if needed <= 0:
+        if existing is not None:
+            db.delete(existing)
+    elif existing is None:
+        db.add(DeckCard(deck_id=deck.id, card_id=card_id, needed=needed))
+    else:
+        existing.needed = needed
+
+    deck.leader_card_id = find_leader_id(projected_lines, catalog)
+    db.commit()
+    return get_deck_detail(db, user, deck_id)
 
 
 def _leader_group_id(deck: Deck) -> str:

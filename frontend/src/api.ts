@@ -16,14 +16,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers,
   });
   if (!res.ok) {
-    let detail = res.statusText;
+    let detail: unknown = res.statusText;
     try {
       const body = await res.json();
-      detail = body.detail || JSON.stringify(body);
+      detail = body.detail ?? body;
     } catch {
       /* ignore */
     }
-    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    const err = new Error(
+      typeof detail === "string" ? detail : JSON.stringify(detail),
+    ) as Error & { status?: number; detail?: unknown };
+    err.status = res.status;
+    err.detail = detail;
+    throw err;
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -39,6 +44,8 @@ export type DeckSummary = {
   leader_image_url?: string;
   card_count: number;
   total_cards: number;
+  main_cards?: number;
+  don_cards?: number;
   sort_order: number;
 };
 
@@ -51,6 +58,20 @@ export type PrintingView = {
   tcgplayer_url: string;
   group_name: string;
   is_special: boolean;
+};
+
+export type CatalogCardResult = {
+  card_id: string;
+  name: string;
+  rarity: string;
+  color: string;
+  card_type: string;
+  cost: number | string | null;
+  market_price: number | null;
+  low_price: number | null;
+  image_url: string;
+  tcgplayer_url: string;
+  group_name: string;
 };
 
 export type CardView = {
@@ -68,7 +89,7 @@ export type CardView = {
   image_url: string;
   tcgplayer_url: string;
   product_id?: number | null;
-  section: "main" | "additional" | string;
+  section: "main" | "additional" | "don" | string;
   alt_arts: PrintingView[];
 };
 
@@ -79,7 +100,31 @@ export type DeckDetail = {
   leader_name: string | null;
   prior_decks: string[];
   cards: CardView[];
+  main_cards?: number;
+  don_cards?: number;
 };
+
+export type DeckOversizeDetail = {
+  code: "deck_oversize";
+  message: string;
+  current: number;
+  projected: number;
+  limit: number;
+};
+
+export function isDeckOversizeError(
+  err: unknown,
+): err is Error & { status: number; detail: DeckOversizeDetail } {
+  if (!(err instanceof Error)) return false;
+  const e = err as Error & { status?: number; detail?: unknown };
+  if (e.status !== 409) return false;
+  const d = e.detail;
+  return (
+    typeof d === "object" &&
+    d !== null &&
+    (d as DeckOversizeDetail).code === "deck_oversize"
+  );
+}
 
 export type ShoppingItem = {
   card_id: string;
@@ -248,6 +293,34 @@ export const api = {
     }),
   deleteDeck: (id: number) =>
     request<{ ok: boolean }>(`/decks/${id}`, { method: "DELETE" }),
+  upsertDeckCard: (
+    deckId: number,
+    cardId: string,
+    needed: number,
+    confirmOversize = false,
+  ) =>
+    request<DeckDetail>(`/decks/${deckId}/cards/${encodeURIComponent(cardId)}`, {
+      method: "PUT",
+      body: JSON.stringify({ needed, confirm_oversize: confirmOversize }),
+    }),
+  removeDeckCard: (deckId: number, cardId: string) =>
+    request<DeckDetail>(`/decks/${deckId}/cards/${encodeURIComponent(cardId)}`, {
+      method: "DELETE",
+    }),
+  searchCatalog: (opts?: {
+    q?: string;
+    color?: string;
+    card_type?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (opts?.q) params.set("q", opts.q);
+    if (opts?.color) params.set("color", opts.color);
+    if (opts?.card_type) params.set("card_type", opts.card_type);
+    if (opts?.limit != null) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return request<CatalogCardResult[]>(`/catalog/cards${qs ? `?${qs}` : ""}`);
+  },
   shopping: (deckIds?: number[]) => {
     const params = new URLSearchParams();
     for (const id of deckIds ?? []) params.append("deck_ids", String(id));

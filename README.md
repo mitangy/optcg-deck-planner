@@ -99,6 +99,7 @@ GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
 - `GET /health`, `GET /docs`
 - `GET /auth/google`, `GET /auth/callback`, `POST /auth/logout`, `GET /auth/me`
 - `GET/POST /decks`, `GET/DELETE /decks/{id}`
+- `PUT/DELETE /decks/{id}/cards/{card_id}` — add/update/remove cards (`confirm_oversize` soft-confirms past 51)
 - `GET /shopping?deck_ids=`
 - `PUT /owned/{card_id}`
 - `GET /share/shopping`, `POST /share`, `DELETE /share/{token}` — create/manage public links
@@ -110,6 +111,7 @@ GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
 - `POST /group-buys/{id}/complete` — mark purchased (apply Owned)
 - `PUT/DELETE /group-buys/{id}/quantities/{card_id}`, `POST .../quantities/sync`
 - `PUT /group-buys/{id}/lines/{card_id}`, `GET .../export/tcgplayer`
+- `GET /catalog/cards` — search catalog by name/id/color/type (auth)
 - `GET /catalog/sales/{product_id}` — last sold prices from TCGPlayer (cached, public)
 - `POST /admin/sync-catalog` (token header) — enqueue-only, returns `202`
 - `GET /admin/sync-catalog/status` (token header) — background sync state

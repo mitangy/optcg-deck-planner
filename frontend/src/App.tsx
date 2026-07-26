@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   api,
+  CatalogCardResult,
   CardView,
   DeckDetail,
+  isDeckOversizeError,
   money,
   PrintingView,
   ShoppingItem,
@@ -1934,11 +1936,23 @@ function DecksPage() {
                       : "No leader detected"}
                   </p>
                   <p className="muted">
-                    {d.card_count} unique · {d.total_cards} cards
+                    {d.main_cards ?? d.total_cards}/{51} main
+                    {(d.don_cards ?? 0) > 0 ? ` · ${d.don_cards}/10 DON!!` : ""}
+                    {` · ${d.card_count} unique`}
                   </p>
                 </div>
               </div>
               <div className="row-actions">
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/decks/${d.id}?edit=1`);
+                  }}
+                >
+                  Edit
+                </button>
                 <button
                   type="button"
                   className="ghost danger"
@@ -2077,11 +2091,17 @@ function CardTable({
   onOwnedSaved,
   showAltArts,
   layout = "list",
+  editing = false,
+  onNeededChange,
+  neededBusyId = null,
 }: {
   cards: CardView[];
   onOwnedSaved: () => void;
   showAltArts: boolean;
   layout?: CardLayout;
+  editing?: boolean;
+  onNeededChange?: (cardId: string, needed: number) => void;
+  neededBusyId?: string | null;
 }) {
   if (layout === "grid") {
     return (
@@ -2103,6 +2123,17 @@ function CardTable({
               <div className="grid-card-price">
                 <MarketPrice price={c.market_price} productId={c.product_id} />
               </div>
+              {editing && onNeededChange ? (
+                <div className="grid-card-owned">
+                  <span>In deck</span>
+                  <NeededStepper
+                    cardId={c.card_id}
+                    value={c.needed}
+                    busy={neededBusyId === c.card_id}
+                    onChange={onNeededChange}
+                  />
+                </div>
+              ) : null}
               <div className="grid-card-owned">
                 <span>Owned</span>
                 <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
@@ -2159,7 +2190,18 @@ function CardTable({
                   <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
                 </td>
                 <td>{c.still_need}</td>
-                <td>{c.needed}</td>
+                <td>
+                  {editing && onNeededChange ? (
+                    <NeededStepper
+                      cardId={c.card_id}
+                      value={c.needed}
+                      busy={neededBusyId === c.card_id}
+                      onChange={onNeededChange}
+                    />
+                  ) : (
+                    c.needed
+                  )}
+                </td>
                 <td>
                   <MarketPrice price={c.market_price} productId={c.product_id} />
                 </td>
@@ -2208,6 +2250,17 @@ function CardTable({
                 )}
               </div>
             </div>
+            {editing && onNeededChange ? (
+              <div className="mobile-card-owned">
+                <span>In deck</span>
+                <NeededStepper
+                  cardId={c.card_id}
+                  value={c.needed}
+                  busy={neededBusyId === c.card_id}
+                  onChange={onNeededChange}
+                />
+              </div>
+            ) : null}
             <div className="mobile-card-owned">
               <span>Owned</span>
               <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
@@ -2224,10 +2277,379 @@ function CardTable({
   );
 }
 
+function NeededStepper({
+  cardId,
+  value,
+  busy,
+  onChange,
+}: {
+  cardId: string;
+  value: number;
+  busy?: boolean;
+  onChange: (cardId: string, needed: number) => void;
+}) {
+  return (
+    <span className="owned-wrap">
+      <button
+        type="button"
+        className="owned-btn"
+        aria-label={`Decrease ${cardId} in deck`}
+        disabled={busy || value <= 0}
+        onClick={() => onChange(cardId, Math.max(0, value - 1))}
+      >
+        −
+      </button>
+      <span className="deck-editor-qty" aria-label={`${cardId} copies in deck`}>
+        {value}
+      </span>
+      <button
+        type="button"
+        className="owned-btn"
+        aria-label={`Increase ${cardId} in deck`}
+        disabled={busy}
+        onClick={() => onChange(cardId, value + 1)}
+      >
+        +
+      </button>
+    </span>
+  );
+}
+
+function isDonCardType(cardType: string | undefined | null): boolean {
+  const t = (cardType || "").trim().toLowerCase();
+  return t.startsWith("don") || t.includes("don!!");
+}
+
+const MAIN_DECK_LIMIT = 51;
+const DON_DECK_LIMIT = 10;
+const CATALOG_TYPE_FILTERS = ["", "Leader", "Character", "Event", "Stage", "DON!!"] as const;
+
+async function setDeckCardNeeded(
+  deckId: number,
+  cardId: string,
+  needed: number,
+): Promise<DeckDetail | null> {
+  try {
+    return await api.upsertDeckCard(deckId, cardId, needed, false);
+  } catch (err) {
+    if (!isDeckOversizeError(err)) throw err;
+    const { projected, limit, message } = err.detail;
+    const ok = window.confirm(
+      `${message}\n\nOfficial constructed size is 50 cards + 1 leader (${limit}). ` +
+        `This deck would have ${projected}. Add anyway?`,
+    );
+    if (!ok) return null;
+    return api.upsertDeckCard(deckId, cardId, needed, true);
+  }
+}
+
+function DeckEditorPanel({
+  deckId,
+  deck,
+  onUpdated,
+}: {
+  deckId: number;
+  deck: DeckDetail;
+  onUpdated: (detail: DeckDetail) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [color, setColor] = useState("");
+  const [cardType, setCardType] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(query.trim()), 250);
+    return () => window.clearTimeout(t);
+  }, [query]);
+
+  const searchEnabled = Boolean(debouncedQ || color || cardType);
+  const searchQ = useQuery({
+    queryKey: ["catalog-search", debouncedQ, color, cardType],
+    queryFn: () =>
+      api.searchCatalog({
+        q: debouncedQ || undefined,
+        color: color || undefined,
+        card_type: cardType || undefined,
+        limit: 40,
+      }),
+    enabled: searchEnabled,
+  });
+
+  const neededById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of deck.cards) map.set(c.card_id, c.needed);
+    return map;
+  }, [deck.cards]);
+
+  const mainCount = deck.main_cards ?? deck.cards
+    .filter((c) => c.section !== "don" && !isDonCardType(c.card_type))
+    .reduce((s, c) => s + c.needed, 0);
+  const donCount = deck.don_cards ?? deck.cards
+    .filter((c) => c.section === "don" || isDonCardType(c.card_type))
+    .reduce((s, c) => s + c.needed, 0);
+
+  async function addCopies(card: CatalogCardResult, add: number) {
+    setErr(null);
+    setPendingId(card.card_id);
+    try {
+      const current = neededById.get(card.card_id) ?? 0;
+      const next = current + add;
+      if (isDonCardType(card.card_type)) {
+        const projectedDon = donCount - current + next;
+        if (projectedDon > DON_DECK_LIMIT) {
+          setErr(`DON!! deck is limited to ${DON_DECK_LIMIT} cards.`);
+          return;
+        }
+      }
+      const detail = await setDeckCardNeeded(deckId, card.card_id, next);
+      if (detail) onUpdated(detail);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  async function setNeeded(cardId: string, needed: number) {
+    setErr(null);
+    setPendingId(cardId);
+    try {
+      const detail = await setDeckCardNeeded(deckId, cardId, Math.max(0, needed));
+      if (detail) onUpdated(detail);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  return (
+    <div className="deck-editor">
+      <div className="deck-editor-head">
+        <div>
+          <h2 className="deck-editor-title">Edit deck</h2>
+          <p className="muted deck-editor-sizes">
+            Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {donCount}/{DON_DECK_LIMIT}
+          </p>
+        </div>
+      </div>
+
+      <div className="deck-editor-filters">
+        <CardSearchInput value={query} onChange={setQuery} />
+        <label className="deck-editor-select">
+          <span className="sr-only">Color</span>
+          <select value={color} onChange={(e) => setColor(e.target.value)} aria-label="Filter by color">
+            <option value="">All colors</option>
+            {COLOR_ORDER.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="deck-editor-select">
+          <span className="sr-only">Card type</span>
+          <select
+            value={cardType}
+            onChange={(e) => setCardType(e.target.value)}
+            aria-label="Filter by card type"
+          >
+            {CATALOG_TYPE_FILTERS.map((t) => (
+              <option key={t || "all"} value={t}>
+                {t ? t : "All types"}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {err && <p className="error">{err}</p>}
+
+      {!searchEnabled && (
+        <p className="muted">Search by name, card code, color, or type to add cards.</p>
+      )}
+      {searchEnabled && searchQ.isLoading && <p className="muted">Searching catalog…</p>}
+      {searchEnabled && searchQ.error && (
+        <p className="error">{(searchQ.error as Error).message}</p>
+      )}
+      {searchEnabled && searchQ.data && searchQ.data.length === 0 && (
+        <p className="muted">No catalog matches. Sync the catalog if it is empty locally.</p>
+      )}
+
+      {searchQ.data && searchQ.data.length > 0 && (
+        <ul className="deck-editor-results">
+          {searchQ.data.map((card) => {
+            const inDeck = neededById.get(card.card_id) ?? 0;
+            const busy = pendingId === card.card_id;
+            return (
+              <li key={card.card_id} className="deck-editor-result">
+                <div className="deck-editor-result-main">
+                  <CardThumb src={card.image_url || undefined} alt={card.name} />
+                  <div>
+                    <div className="card-id">{card.card_id}</div>
+                    <div>{card.name}</div>
+                    <div className="muted">
+                      {[card.color, card.card_type, card.rarity].filter(Boolean).join(" · ") || "—"}
+                      {inDeck > 0 ? ` · In deck ×${inDeck}` : ""}
+                    </div>
+                  </div>
+                </div>
+                <div className="deck-editor-result-actions">
+                  {inDeck > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        className="owned-btn"
+                        aria-label={`Decrease ${card.card_id}`}
+                        disabled={busy}
+                        onClick={() => void setNeeded(card.card_id, inDeck - 1)}
+                      >
+                        −
+                      </button>
+                      <span className="deck-editor-qty">{inDeck}</span>
+                      <button
+                        type="button"
+                        className="owned-btn"
+                        aria-label={`Increase ${card.card_id}`}
+                        disabled={busy}
+                        onClick={() => void addCopies(card, 1)}
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost danger"
+                        disabled={busy}
+                        onClick={() => void setNeeded(card.card_id, 0)}
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
+                  {inDeck === 0 && (
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      disabled={busy}
+                      onClick={() => void addCopies(card, 1)}
+                    >
+                      Add
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function AvailableDonSection({
+  deckId,
+  deck,
+  onUpdated,
+}: {
+  deckId: number;
+  deck: DeckDetail;
+  onUpdated: (detail: DeckDetail) => void;
+}) {
+  const [err, setErr] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const donQ = useQuery({
+    queryKey: ["catalog-don"],
+    queryFn: () => api.searchCatalog({ card_type: "DON", limit: 100 }),
+    staleTime: 60_000,
+  });
+
+  const neededById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of deck.cards) map.set(c.card_id, c.needed);
+    return map;
+  }, [deck.cards]);
+
+  const donCount = deck.don_cards ?? deck.cards
+    .filter((c) => c.section === "don" || isDonCardType(c.card_type))
+    .reduce((s, c) => s + c.needed, 0);
+
+  async function addOne(card: CatalogCardResult) {
+    setErr(null);
+    const current = neededById.get(card.card_id) ?? 0;
+    if (donCount >= DON_DECK_LIMIT) {
+      setErr(`DON!! deck is limited to ${DON_DECK_LIMIT} cards.`);
+      return;
+    }
+    setPendingId(card.card_id);
+    try {
+      const detail = await setDeckCardNeeded(deckId, card.card_id, current + 1);
+      if (detail) onUpdated(detail);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  return (
+    <div className="don-available">
+      <div className="don-available-head">
+        <h2>Available DON!! cards</h2>
+        <p className="muted">
+          Pick from the catalog for this deck&apos;s DON!! deck ({donCount}/{DON_DECK_LIMIT}).
+        </p>
+      </div>
+      {err && <p className="error">{err}</p>}
+      {donQ.isLoading && <p className="muted">Loading DON!! cards…</p>}
+      {donQ.error && <p className="error">{(donQ.error as Error).message}</p>}
+      {donQ.data && donQ.data.length === 0 && (
+        <p className="muted">No DON!! cards in the catalog yet.</p>
+      )}
+      {donQ.data && donQ.data.length > 0 && (
+        <ul className="deck-editor-results don-available-list">
+          {donQ.data.map((card) => {
+            const inDeck = neededById.get(card.card_id) ?? 0;
+            const busy = pendingId === card.card_id;
+            const atCap = donCount >= DON_DECK_LIMIT && inDeck === 0;
+            return (
+              <li key={card.card_id} className="deck-editor-result">
+                <div className="deck-editor-result-main">
+                  <CardThumb src={card.image_url || undefined} alt={card.name} />
+                  <div>
+                    <div className="card-id">{card.card_id}</div>
+                    <div>{card.name}</div>
+                    <div className="muted">
+                      {[card.group_name, money(card.market_price)].filter(Boolean).join(" · ")}
+                      {inDeck > 0 ? ` · In deck ×${inDeck}` : ""}
+                    </div>
+                  </div>
+                </div>
+                <div className="deck-editor-result-actions">
+                  <button
+                    type="button"
+                    className="btn secondary"
+                    disabled={busy || atCap}
+                    onClick={() => void addOne(card)}
+                  >
+                    {inDeck > 0 ? "Add another" : "Add"}
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function DeckDetailPage() {
   const { id } = useParams();
   const deckId = Number(id);
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading, error } = useQuery({
     queryKey: ["deck", deckId],
     queryFn: () => api.deck(deckId),
@@ -2239,6 +2661,9 @@ function DeckDetailPage() {
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [layout, setLayout] = useCardLayout();
   const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState(() => searchParams.get("edit") === "1");
+  const [neededBusyId, setNeededBusyId] = useState<string | null>(null);
+  const [neededErr, setNeededErr] = useState<string | null>(null);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const shareDeck = useMutation({
     mutationFn: () => api.createShare({ kind: "deck", deck_id: deckId }),
@@ -2254,10 +2679,29 @@ function DeckDetailPage() {
     onError: (e: Error) => setShareMsg(e.message),
   });
 
+  const applyDeckUpdate = (detail: DeckDetail) => {
+    qc.setQueryData(["deck", deckId], detail);
+    void qc.invalidateQueries({ queryKey: ["decks"] });
+    void qc.invalidateQueries({ queryKey: ["shopping"] });
+  };
+
+  const changeNeeded = async (cardId: string, needed: number) => {
+    setNeededErr(null);
+    setNeededBusyId(cardId);
+    try {
+      const detail = await setDeckCardNeeded(deckId, cardId, needed);
+      if (detail) applyDeckUpdate(detail);
+    } catch (e) {
+      setNeededErr((e as Error).message);
+    } finally {
+      setNeededBusyId(null);
+    }
+  };
+
   const main = useMemo(() => {
     if (!data) return [];
     return filterCards(
-      data.cards.filter((c) => c.section !== "additional"),
+      data.cards.filter((c) => c.section !== "additional" && c.section !== "don"),
       onlyNeed,
       effectiveSorts,
       search,
@@ -2274,6 +2718,21 @@ function DeckDetailPage() {
     );
   }, [data, onlyNeed, effectiveSorts, search]);
 
+  const donCards = useMemo(() => {
+    if (!data) return [];
+    return filterCards(
+      data.cards.filter((c) => c.section === "don" || isDonCardType(c.card_type)),
+      onlyNeed,
+      effectiveSorts,
+      search,
+    );
+  }, [data, onlyNeed, effectiveSorts, search]);
+
+  const progressCards = useMemo(() => {
+    if (!data) return [];
+    return data.cards.filter((c) => c.section !== "don" && !isDonCardType(c.card_type));
+  }, [data]);
+
   const filterSummary = useMemo(() => {
     const parts: string[] = [];
     if (onlyNeed) parts.push("Still need");
@@ -2288,7 +2747,11 @@ function DeckDetailPage() {
   if (!data) return null;
 
   const refresh = () => invalidateOwnedViews(qc);
-  const visibleCount = main.length + additional.length;
+  const visibleCount = main.length + additional.length + donCards.length;
+  const mainCount = data.main_cards ?? progressCards.reduce((s, c) => s + c.needed, 0);
+  const donCount = data.don_cards ?? data.cards
+    .filter((c) => c.section === "don" || isDonCardType(c.card_type))
+    .reduce((s, c) => s + c.needed, 0);
 
   return (
     <section>
@@ -2306,6 +2769,29 @@ function DeckDetailPage() {
               ? ` · Same leader as ${data.prior_decks.join(", ")}`
               : ""}
           </p>
+          <p className="muted deck-size-meta">
+            Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {donCount}/{DON_DECK_LIMIT}
+          </p>
+        </div>
+        <div className="page-head-actions">
+          <button
+            type="button"
+            className={editing ? "btn secondary" : "btn primary"}
+            aria-pressed={editing}
+            onClick={() => {
+              setEditing((v) => {
+                const next = !v;
+                if (!next && searchParams.get("edit") === "1") {
+                  const nextParams = new URLSearchParams(searchParams);
+                  nextParams.delete("edit");
+                  setSearchParams(nextParams, { replace: true });
+                }
+                return next;
+              });
+            }}
+          >
+            {editing ? "Done editing" : "Edit deck"}
+          </button>
         </div>
       </div>
 
@@ -2315,7 +2801,11 @@ function DeckDetailPage() {
         onShare={() => shareDeck.mutate()}
       />
 
-      <DeckProgressSummary cards={data.cards} />
+      {editing && (
+        <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
+      )}
+
+      <DeckProgressSummary cards={progressCards} />
 
       <div className="list-toolbar">
         <div className="list-toolbar-row">
@@ -2352,6 +2842,8 @@ function DeckDetailPage() {
         </p>
       )}
 
+      {neededErr && <p className="error">{neededErr}</p>}
+
       {data.prior_decks.length > 0 && (
         <p className="banner">
           Cards already in earlier same-leader decks are listed first. New pieces are under
@@ -2359,7 +2851,15 @@ function DeckDetailPage() {
         </p>
       )}
       <h2>Deck list</h2>
-      <CardTable cards={main} onOwnedSaved={refresh} showAltArts={showAltArts} layout={layout} />
+      <CardTable
+        cards={main}
+        onOwnedSaved={refresh}
+        showAltArts={showAltArts}
+        layout={layout}
+        editing={editing}
+        onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
+        neededBusyId={neededBusyId}
+      />
       {additional.length > 0 && (
         <>
           <h2 className="additional-heading">
@@ -2370,9 +2870,31 @@ function DeckDetailPage() {
             onOwnedSaved={refresh}
             showAltArts={showAltArts}
             layout={layout}
+            editing={editing}
+            onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
+            neededBusyId={neededBusyId}
           />
         </>
       )}
+
+      <h2 className="don-heading">
+        DON!! deck · {donCount}/{DON_DECK_LIMIT}
+      </h2>
+      {donCards.length === 0 ? (
+        <p className="muted">No DON!! cards in this deck yet. Add some from the list below.</p>
+      ) : (
+        <CardTable
+          cards={donCards}
+          onOwnedSaved={refresh}
+          showAltArts={showAltArts}
+          layout={layout}
+          editing={editing}
+          onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
+          neededBusyId={neededBusyId}
+        />
+      )}
+
+      <AvailableDonSection deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
     </section>
   );
 }
