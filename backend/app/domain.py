@@ -64,14 +64,23 @@ def parse_decklist(text: str) -> list[ParsedCard]:
         else:
             expanded.extend(p.strip() for p in parts if p.strip())
 
+    trailing_qty_re = re.compile(r"^[xX]\s*(\d+)$|^(\d+)$")
+
     for line_no, line in enumerate(expanded, start=1):
         match = DECK_LINE_RE.match(line)
         if match:
             rest = (match.group(3) or "").strip()
+            card_id = match.group(2).upper()
+            leading_qty = match.group(1)
+            # Support "OP01-001 4" / "OP01-001 x4" when qty wasn't written first.
+            trailing = trailing_qty_re.match(rest) if rest and not leading_qty else None
+            if trailing:
+                qty = int(trailing.group(1) or trailing.group(2))
+                cards[card_id] = cards.get(card_id, 0) + qty
+                continue
             # One entry (optional card name) vs multiple codes on one line
             if not rest or not DECK_TOKEN_RE.search(rest):
-                qty = int(match.group(1) or "1")
-                card_id = match.group(2).upper()
+                qty = int(leading_qty or "1")
                 cards[card_id] = cards.get(card_id, 0) + qty
                 continue
         # Fall back: find all qty+id tokens in the line
