@@ -2031,6 +2031,11 @@ tr.done {
   text-align: center;
 }
 
+.grid-card-owned .group-buy-exclude-btn {
+  justify-self: center;
+  text-align: center;
+}
+
 .grid-card-owned .group-buy-printing {
   width: 100%;
   max-width: 100%;
