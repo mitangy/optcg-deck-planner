@@ -8,12 +8,13 @@ export const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
 export const COLOR_ORDER = ["Red", "Green", "Blue", "Purple", "Black", "Yellow"];
 const SET_PREFIX_ORDER = ["OP", "ST", "EB", "PRB", "P"];
 
-export type SortKey = "still_need" | "color" | "set" | "deck" | "price";
+export type SortKey = "still_need" | "color" | "set" | "deck" | "user" | "price";
 
-export const ALL_SORT_KEYS: SortKey[] = ["deck", "still_need", "price", "color", "set"];
+export const ALL_SORT_KEYS: SortKey[] = ["deck", "user", "still_need", "price", "color", "set"];
 export const DEFAULT_SORTS: SortKey[] = ["color", "set"];
 export const SORT_LABELS: Record<SortKey, string> = {
   deck: "Deck",
+  user: "User",
   still_need: "Still need",
   price: "Price",
   color: "Color",
@@ -25,6 +26,7 @@ export type SortableCard = {
   color: string;
   still_need: number;
   deck_sort_key?: string;
+  user_sort_key?: string;
   market_price?: number | null;
 };
 
@@ -59,6 +61,9 @@ function compareBySortKey(a: SortableCard, b: SortableCard, key: SortKey): numbe
   if (key === "color") return colorSortKey(a.color).localeCompare(colorSortKey(b.color));
   if (key === "deck") {
     return (a.deck_sort_key || "zzzz").localeCompare(b.deck_sort_key || "zzzz");
+  }
+  if (key === "user") {
+    return (a.user_sort_key || "zzzz").localeCompare(b.user_sort_key || "zzzz");
   }
   if (key === "price") {
     const ap = a.market_price;
@@ -168,6 +173,7 @@ export function SortMenu({
     if (key === "still_need" && onlyNeed) return "Off while Still need only";
     if (unavailableKeys.includes(key)) {
       if (key === "deck") return "Shopping list only";
+      if (key === "user") return "Group buy only";
       return "Unavailable here";
     }
     return null;
@@ -208,6 +214,8 @@ export function SortMenu({
           <p className="sort-menu-hint">
             Top option sorts first. Price is highest market price first. Deck groups by leader
             (earliest deck first); cards used by multiple leaders stay under their earliest leader.
+            User groups by who wants the card (member list order); multi-buyer cards stay under
+            their earliest member.
           </p>
           <ul className="sort-menu-list">
             {menuKeys.map((key) => {
