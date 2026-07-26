@@ -1985,9 +1985,13 @@ tr.done {
 }
 
 .group-buy-qty {
-  display: grid;
+  /* Column width comes from the −/+ controls only, so the suggestion
+     line cannot widen this block and shove the stepper sideways. */
+  display: inline-grid;
+  grid-template-columns: max-content;
   gap: 0.25rem;
   min-width: 0;
+  justify-items: stretch;
 }
 
 .group-buy-qty-controls {
@@ -2008,13 +2012,22 @@ tr.done {
 }
 
 .group-buy-qty-meta {
+  /* Ignore intrinsic text width when sizing the grid column. */
+  width: 0;
+  min-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
   font-size: 0.8rem;
   line-height: 1.3;
 }
 
 .group-buy-qty-meta .ghost {
-  margin-left: 0.25rem;
+  margin: 0;
+  padding: 0;
   font-size: 0.8rem;
+  min-height: 0;
 }
 
 .group-buy-footnote {
