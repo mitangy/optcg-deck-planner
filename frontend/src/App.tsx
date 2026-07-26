@@ -25,6 +25,15 @@ import {
   GroupBuysPage,
   rememberLoginNext,
 } from "./GroupBuys";
+import {
+  AuthLoadingSkeleton,
+  DeckDetailSkeleton,
+  DecksListSkeleton,
+  GroupBuyDetailSkeleton,
+  GroupBuysListSkeleton,
+  InlineSkeleton,
+  ShoppingListSkeleton,
+} from "./Skeleton";
 
 const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
@@ -739,7 +748,7 @@ function LoginPage() {
     const next = consumeLoginNext() || "/";
     return <Navigate to={next} replace />;
   }
-  if (claiming) return <p className="muted center">Signing you in…</p>;
+  if (claiming) return <AuthLoadingSkeleton label="Signing you in…" />;
 
   async function devLogin() {
     try {
@@ -1131,7 +1140,7 @@ function MarketPrice({
           style={{ top: panelPos.top, left: panelPos.left }}
         >
           <div className="market-sales-head">Last 3 sold</div>
-          {salesQ.isLoading && <p className="muted market-sales-status">Loading…</p>}
+          {salesQ.isLoading && <InlineSkeleton lines={3} label="Loading recent sales…" />}
           {salesQ.error && (
             <p className="error market-sales-status">{(salesQ.error as Error).message}</p>
           )}
@@ -1515,7 +1524,7 @@ function ShoppingPage() {
   }
 
   if (decksQ.isLoading || (allDeckIds.length > 0 && !filterReady)) {
-    return <p className="muted">Loading shopping list…</p>;
+    return <ShoppingListSkeleton />;
   }
   if (decksQ.error) return <p className="error">{(decksQ.error as Error).message}</p>;
   if (allDeckIds.length === 0) {
@@ -1528,7 +1537,7 @@ function ShoppingPage() {
       </section>
     );
   }
-  if (isLoading) return <p className="muted">Loading shopping list…</p>;
+  if (isLoading) return <ShoppingListSkeleton />;
   if (error) return <p className="error">{(error as Error).message}</p>;
 
   const shareInfo = shareQ.data;
@@ -1973,7 +1982,7 @@ function DecksPage() {
     },
   });
 
-  if (isLoading) return <p className="muted">Loading decks…</p>;
+  if (isLoading) return <DecksListSkeleton />;
   if (error) return <p className="error">{(error as Error).message}</p>;
 
   return (
@@ -2579,7 +2588,7 @@ function DeckEditorPanel({
           <p className="muted deck-editor-status">Search name, ID, color, or type</p>
         )}
         {searchEnabled && searchQ.isLoading && (
-          <p className="muted deck-editor-status">Searching…</p>
+          <InlineSkeleton lines={3} label="Searching catalog…" />
         )}
         {searchEnabled && searchQ.error && (
           <p className="error deck-editor-status">{(searchQ.error as Error).message}</p>
@@ -2721,7 +2730,7 @@ function AvailableDonSection({
         defaultOpen={false}
       >
         {err && <p className="error deck-editor-status">{err}</p>}
-        {donQ.isLoading && <p className="muted deck-editor-status">Loading DON!! cards…</p>}
+        {donQ.isLoading && <InlineSkeleton lines={3} label="Loading DON!! cards…" />}
         {donQ.error && <p className="error deck-editor-status">{(donQ.error as Error).message}</p>}
         {donQ.data && donQ.data.length === 0 && (
           <p className="muted deck-editor-status">No DON!! cards in the catalog yet.</p>
@@ -2882,7 +2891,7 @@ function DeckDetailPage() {
     return parts.join(" · ");
   }, [onlyNeed, effectiveSorts, showAltArts, layout]);
 
-  if (isLoading) return <p className="muted">Loading deck…</p>;
+  if (isLoading) return <DeckDetailSkeleton />;
   if (error) return <p className="error">{(error as Error).message}</p>;
   if (!data) return null;
 
@@ -3196,7 +3205,7 @@ function ImportPage() {
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { data: user, isLoading } = useMe();
-  if (isLoading) return <p className="muted center">Loading…</p>;
+  if (isLoading) return <AuthLoadingSkeleton label="Loading…" />;
   if (!user) return <Navigate to="/login" replace />;
   return <Shell user={user}>{children}</Shell>;
 }
@@ -3244,7 +3253,7 @@ function PublicSharePage() {
         </div>
       </header>
       <main className="app-main">
-        {isLoading && <p className="muted">Loading shared list…</p>}
+        {isLoading && <ShoppingListSkeleton />}
         {error && <p className="error">{(error as Error).message}</p>}
         {data && (
           <section>

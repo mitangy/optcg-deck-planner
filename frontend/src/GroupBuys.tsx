@@ -10,6 +10,11 @@ import {
   money,
 } from "./api";
 import { blankMassEntryUrl, buildMassEntryExport } from "./tcgplayerMassEntry";
+import {
+  AuthLoadingSkeleton,
+  GroupBuyDetailSkeleton,
+  GroupBuysListSkeleton,
+} from "./Skeleton";
 
 const NEXT_KEY = "optcg_login_next";
 
@@ -162,7 +167,7 @@ export function GroupBuysPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
-  if (listQ.isLoading) return <p className="muted">Loading group buys…</p>;
+  if (listQ.isLoading) return <GroupBuysListSkeleton />;
   if (listQ.error) return <p className="error">{(listQ.error as Error).message}</p>;
 
   const rows = listQ.data ?? [];
@@ -416,7 +421,7 @@ export function GroupBuyDetailPage() {
   if (!Number.isFinite(groupId) || groupId <= 0) {
     return <p className="error">Invalid group buy.</p>;
   }
-  if (detailQ.isLoading) return <p className="muted">Loading group buy…</p>;
+  if (detailQ.isLoading) return <GroupBuyDetailSkeleton />;
   if (detailQ.error) return <p className="error">{(detailQ.error as Error).message}</p>;
   if (!detail) return <p className="error">Group buy not found.</p>;
 
@@ -905,7 +910,9 @@ export function GroupBuyJoinPage() {
   });
 
   if (!token) return <p className="error">Missing invite token.</p>;
-  if (previewQ.isLoading || meQ.isLoading) return <p className="muted">Loading invite…</p>;
+  if (previewQ.isLoading || meQ.isLoading) {
+    return <AuthLoadingSkeleton label="Loading invite…" />;
+  }
   if (previewQ.error) return <p className="error">{(previewQ.error as Error).message}</p>;
   const preview = previewQ.data!;
 
