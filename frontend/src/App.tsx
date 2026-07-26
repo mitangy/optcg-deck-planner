@@ -590,13 +590,17 @@ function formatShoppingListStats(data: {
   unique_cards?: number;
   cards_still_needed?: number;
   remaining_market?: number;
-  items: { still_need: number }[];
+  items: { still_need: number; market_price?: number | null }[];
 } | null | undefined) {
   const { totalUnique, uniqueStillNeeded, totalStillNeeded, remainingMarket } = shoppingListStats(data);
+  const hasPrices = (data?.items ?? []).some(
+    (i) => i.market_price != null && !Number.isNaN(i.market_price),
+  );
+  const marketLabel = hasPrices ? money(remainingMarket) : "no prices yet";
   // Keep to one scannable line on mobile — avoid burying the card list below chrome.
   return (
     `${uniqueStillNeeded}/${totalUnique} uniques left · ${totalStillNeeded} copies · ` +
-    `${money(remainingMarket)}`
+    `${marketLabel}`
   );
 }
 
@@ -765,7 +769,7 @@ function LoginPage() {
         />
         <h1>OPTCG Tracker</h1>
         <p className="lede">
-          Track decks, Owned counts across your lists, and market prices.
+          Track decks, owned counts across your lists, and market prices.
         </p>
         <a className="btn primary" href={api.googleLoginUrl()}>
           Sign in with Google
@@ -782,7 +786,15 @@ function LoginPage() {
   );
 }
 
-function CardThumb({ src, alt = "" }: { src?: string; alt?: string }) {
+function CardThumb({
+  src,
+  alt = "",
+  fallbackLabel,
+}: {
+  src?: string;
+  alt?: string;
+  fallbackLabel?: string;
+}) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -794,7 +806,19 @@ function CardThumb({ src, alt = "" }: { src?: string; alt?: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  if (!src) return <div className="thumb placeholder" />;
+  if (!src) {
+    const rawAlt = (alt || "").trim();
+    const label = (
+      fallbackLabel ||
+      (rawAlt && rawAlt.toLowerCase() !== "(not in catalog)" ? rawAlt : "") ||
+      ""
+    ).trim();
+    return (
+      <div className="thumb placeholder" aria-label={label || "No card image"}>
+        {label ? <span className="thumb-fallback">{label}</span> : null}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -824,15 +848,17 @@ function MobileCardMedia({
   alt,
   cost,
   rarity,
+  fallbackLabel,
 }: {
   src?: string;
   alt: string;
   cost: number | string | null;
   rarity?: string;
+  fallbackLabel?: string;
 }) {
   return (
     <div className="mobile-card-media">
-      <CardThumb src={src} alt={alt} />
+      <CardThumb src={src} alt={alt} fallbackLabel={fallbackLabel} />
       <div className="mobile-card-media-meta">
         <span className="mobile-card-cost">Cost {cost ?? "—"}</span>
         {rarity ? <span className="mobile-card-rarity">{rarity}</span> : null}
@@ -1164,7 +1190,11 @@ function AltArtsRow({ alts }: { alts: PrintingView[] }) {
     <div className="alt-arts">
       {alts.map((alt) => (
         <div key={alt.product_id} className="alt-art">
-          <CardThumb src={alt.image_url || undefined} alt={alt.name} />
+          <CardThumb
+            src={alt.image_url || undefined}
+            alt={alt.name}
+            fallbackLabel={alt.group_name || "Alt art"}
+          />
           <div className="alt-meta">
             <MarketPrice price={alt.market_price} productId={alt.product_id} />
             {alt.tcgplayer_url ? (
@@ -1729,7 +1759,11 @@ function ShoppingPage() {
                 )}
                 <div className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}>
                   <div className="grid-card-media" onClick={stopCardSelectBubble}>
-                    <CardThumb src={item.image_url || undefined} alt={item.name} />
+                    <CardThumb
+                      src={item.image_url || undefined}
+                      alt={item.name}
+                      fallbackLabel={item.card_id}
+                    />
                   </div>
                   <div className="grid-card-body">
                     <div className="card-id">{item.card_id}</div>
@@ -1813,7 +1847,11 @@ function ShoppingPage() {
                         />
                       </td>
                       <td className="card-cell">
-                        <CardThumb src={item.image_url || undefined} alt={item.name} />
+                        <CardThumb
+                          src={item.image_url || undefined}
+                          alt={item.name}
+                          fallbackLabel={item.card_id}
+                        />
                         <div>
                           <div className="card-id">{item.card_id}</div>
                           <div>{item.name}</div>
@@ -1877,6 +1915,7 @@ function ShoppingPage() {
                         alt={item.name}
                         cost={item.cost}
                         rarity={item.rarity}
+                        fallbackLabel={item.card_id}
                       />
                     </div>
                     <div className="mobile-card-info">
@@ -2027,7 +2066,7 @@ function DecksPage() {
                 ) : null}
                 <div className="deck-card-body">
                   <h2>{d.name}</h2>
-                  <p className="deck-card-leader">
+                  <p className={`deck-card-leader${d.leader_card_id ? "" : " is-missing"}`}>
                     {d.leader_card_id
                       ? `${leaderName || "Leader"} · ${d.leader_card_id}`
                       : "No leader detected"}
@@ -2090,6 +2129,9 @@ function summarizeDeckProgress(cards: CardView[]) {
   const copiesNeeded = cards.reduce((sum, c) => sum + c.needed, 0);
   const copiesStill = cards.reduce((sum, c) => sum + c.still_need, 0);
   const copiesOwned = copiesNeeded - copiesStill;
+  const hasMarketPrices = cards.some(
+    (c) => c.market_price != null && !Number.isNaN(c.market_price),
+  );
   const remainingMarket = cards.reduce((sum, c) => {
     if (c.still_need <= 0 || c.market_price == null) return sum;
     return sum + c.still_need * c.market_price;
@@ -2102,6 +2144,7 @@ function summarizeDeckProgress(cards: CardView[]) {
     copiesStill,
     copiesOwned,
     remainingMarket,
+    hasMarketPrices,
   };
 }
 
@@ -2132,9 +2175,13 @@ function DeckProgressSummary({ cards }: { cards: CardView[] }) {
   const pct = total > 0 ? Math.round((owned / total) * 100) : 100;
   const meta =
     stats.copiesStill > 0
-      ? mode === "uniques"
-        ? `${stats.copiesStill} copies left · ${money(stats.remainingMarket)} left`
-        : `${money(stats.remainingMarket)} left`
+      ? !stats.hasMarketPrices
+        ? mode === "uniques"
+          ? `${stats.copiesStill} copies left · no market prices yet`
+          : "No market prices yet"
+        : mode === "uniques"
+          ? `${stats.copiesStill} copies left · ${money(stats.remainingMarket)} left`
+          : `${money(stats.remainingMarket)} left`
       : "Deck complete";
 
   return (
@@ -2209,7 +2256,11 @@ function CardTable({
             className={`grid-card ${c.still_need > 0 ? "need" : "done"}`}
           >
             <div className="grid-card-media">
-              <CardThumb src={c.image_url || undefined} alt={c.name} />
+              <CardThumb
+                src={c.image_url || undefined}
+                alt={c.name}
+                fallbackLabel={c.card_id}
+              />
             </div>
             <div className="grid-card-body">
               <div className="card-id">{c.card_id}</div>
@@ -2272,7 +2323,11 @@ function CardTable({
             {cards.map((c) => (
               <tr key={`${c.section}-${c.card_id}`} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
-                  <CardThumb src={c.image_url || undefined} alt={c.name} />
+                  <CardThumb
+                    src={c.image_url || undefined}
+                    alt={c.name}
+                    fallbackLabel={c.card_id}
+                  />
                   <div>
                     <div className="card-id">{c.card_id}</div>
                     <div>{c.name}</div>
@@ -2327,6 +2382,7 @@ function CardTable({
                 alt={c.name}
                 cost={c.cost}
                 rarity={c.rarity}
+                fallbackLabel={c.card_id}
               />
               <div className="mobile-card-info">
                 <div className="card-id">{c.card_id}</div>
@@ -2596,7 +2652,11 @@ function DeckEditorPanel({
               return (
                 <li key={card.card_id} className="deck-editor-result">
                   <div className="deck-editor-result-main">
-                    <CardThumb src={card.image_url || undefined} alt={card.name} />
+                    <CardThumb
+                      src={card.image_url || undefined}
+                      alt={card.name}
+                      fallbackLabel={card.card_id}
+                    />
                     <div>
                       <div className="card-id">{card.card_id}</div>
                       <div>{card.name}</div>
@@ -2735,7 +2795,11 @@ function AvailableDonSection({
               return (
                 <li key={card.card_id} className="deck-editor-result">
                   <div className="deck-editor-result-main">
-                    <CardThumb src={card.image_url || undefined} alt={card.name} />
+                    <CardThumb
+                      src={card.image_url || undefined}
+                      alt={card.name}
+                      fallbackLabel={card.card_id}
+                    />
                     <div>
                       <div className="card-id">{card.card_id}</div>
                       <div>{card.name}</div>
@@ -2901,7 +2965,7 @@ function DeckDetailPage() {
             <Link to="/decks">Decks</Link>
           </p>
           <h1>{data.name}</h1>
-          <p className="muted">
+          <p className={`muted${data.leader_card_id ? "" : " deck-leader-missing"}`}>
             {data.leader_card_id
               ? `Leader ${data.leader_card_id}${data.leader_name ? ` · ${data.leader_name}` : ""}`
               : "No leader detected"}
@@ -3283,7 +3347,11 @@ function PublicSharePage() {
                     className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}
                   >
                     <div className="grid-card-media">
-                      <CardThumb src={item.image_url || undefined} alt={item.name} />
+                      <CardThumb
+                        src={item.image_url || undefined}
+                        alt={item.name}
+                        fallbackLabel={item.card_id}
+                      />
                     </div>
                     <div className="grid-card-body">
                       <div className="card-id">{item.card_id}</div>
@@ -3323,7 +3391,11 @@ function PublicSharePage() {
                       {items.map((item) => (
                         <tr key={item.card_id} className={item.still_need > 0 ? "need" : "done"}>
                           <td className="card-cell">
-                            <CardThumb src={item.image_url || undefined} alt={item.name} />
+                            <CardThumb
+                          src={item.image_url || undefined}
+                          alt={item.name}
+                          fallbackLabel={item.card_id}
+                        />
                             <div>
                               <div className="card-id">{item.card_id}</div>
                               <div>{item.name}</div>
@@ -3360,6 +3432,7 @@ function PublicSharePage() {
                           alt={item.name}
                           cost={item.cost}
                           rarity={item.rarity}
+                          fallbackLabel={item.card_id}
                         />
                         <div className="mobile-card-info">
                           <div className="card-id">{item.card_id}</div>
