@@ -197,6 +197,11 @@ def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
         db.add(DeckCard(deck_id=deck.id, card_id=card.card_id, needed=card.needed))
     db.commit()
     db.refresh(deck)
+    # Open group buys with an explicit deck filter should pick up new imports.
+    # (Null contribution already means "all decks".)
+    from app import group_buy
+
+    group_buy.include_deck_in_open_group_buys(db, user, deck.id)
     return deck
 
 
@@ -417,6 +422,11 @@ def shopping_list(
     user: User,
     deck_ids: list[int] | None = None,
 ) -> ShoppingResponse:
+    """Master shopping list for a user.
+
+    Need per card is the MAX copies required by any single selected deck
+    (not the sum across decks). Owned is shared, so still_need = max(0, need − owned).
+    """
     decks = db.scalars(
         select(Deck)
         .where(Deck.user_id == user.id)
@@ -432,6 +442,7 @@ def shopping_list(
     for deck_idx, deck in enumerate(decks):
         seen_in_deck: set[str] = set()
         for card in deck.cards:
+            # Max across decks — sharing a playset covers every list that uses it.
             need[card.card_id] = max(need.get(card.card_id, 0), card.needed)
             if deck.name not in used_in[card.card_id]:
                 used_in[card.card_id].append(deck.name)

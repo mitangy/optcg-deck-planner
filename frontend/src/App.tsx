@@ -2434,6 +2434,9 @@ function ImportPage() {
     onSuccess: async (deck) => {
       await qc.invalidateQueries({ queryKey: ["decks"] });
       await qc.invalidateQueries({ queryKey: ["shopping"] });
+      // New imports are auto-added to open group-buy contributions.
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      await qc.invalidateQueries({ queryKey: ["group-buy"] });
       navigate(`/decks/${deck.id}`);
     },
     onError: (e: Error) => setErr(e.message),

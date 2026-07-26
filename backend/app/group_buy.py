@@ -515,6 +515,34 @@ def update_contribution(
     return get_group_buy(db, user, group_id)
 
 
+def include_deck_in_open_group_buys(db: Session, user: User, deck_id: int) -> None:
+    """Include a newly imported deck in every open group-buy contribution.
+
+    ``deck_ids_json is None`` already means all decks (new decks count automatically).
+    Explicit contribution lists get ``deck_id`` appended so imports are not left out.
+    Locked / ordered / completed pools are left unchanged.
+    """
+    members = db.scalars(
+        select(GroupBuyMember)
+        .join(GroupBuy, GroupBuy.id == GroupBuyMember.group_buy_id)
+        .where(
+            GroupBuyMember.user_id == user.id,
+            GroupBuy.status == "open",
+        )
+    ).all()
+    changed = False
+    for member in members:
+        current = _parse_deck_ids(member.deck_ids_json)
+        if current is None:
+            continue
+        if deck_id in current:
+            continue
+        member.deck_ids_json = _dump_deck_ids([*current, int(deck_id)])
+        changed = True
+    if changed:
+        db.commit()
+
+
 def set_member_qty(
     db: Session,
     user: User,

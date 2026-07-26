@@ -105,6 +105,35 @@ def test_contribution_deck_filter(db, two_players):
     assert created.lines[0].total_qty == 4
 
 
+def test_import_deck_auto_adds_to_open_group_buy_contribution(db, two_players):
+    """Importing a deck while a filtered group buy is open appends it to contribution."""
+    host, _friend = two_players
+    add_catalog(db, "OP01-099", name="New Card", product_id=1099, market=3.0)
+    host_deck = next(d for d in services.list_decks(db, host))
+    created = group_buy.create_group_buy(db, host, "Auto add", deck_ids=[host_deck.id])
+    before_ids = {line.card_id for line in created.lines}
+    assert "OP01-099" not in before_ids
+
+    new_deck = services.create_deck(db, host, "Imported", "4 OP01-099")
+    detail = group_buy.get_group_buy(db, host, created.id)
+    member = next(m for m in detail.members if m.user_id == host.id)
+    assert member.deck_ids is not None
+    assert new_deck.id in member.deck_ids
+    assert "OP01-099" in {line.card_id for line in detail.lines}
+
+
+def test_import_deck_noop_when_contribution_is_all_decks(db, two_players):
+    """Null contribution already means all decks — import still surfaces in the pool."""
+    host, _friend = two_players
+    add_catalog(db, "OP01-098", name="Other", product_id=1098, market=2.0)
+    created = group_buy.create_group_buy(db, host, "All decks", deck_ids=None)
+    services.create_deck(db, host, "Imported All", "2 OP01-098")
+    detail = group_buy.get_group_buy(db, host, created.id)
+    member = next(m for m in detail.members if m.user_id == host.id)
+    assert member.deck_ids is None
+    assert "OP01-098" in {line.card_id for line in detail.lines}
+
+
 def test_member_can_override_buy_qty(db, two_players):
     host, friend = two_players
     created = group_buy.create_group_buy(db, host, "Qty edit")
