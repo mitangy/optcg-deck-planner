@@ -2689,6 +2689,7 @@ function DeckDetailPage() {
   const [editing, setEditing] = useState(() => searchParams.get("edit") === "1");
   const [neededBusyId, setNeededBusyId] = useState<string | null>(null);
   const [neededErr, setNeededErr] = useState<string | null>(null);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const shareDeck = useMutation({
     mutationFn: () => api.createShare({ kind: "deck", deck_id: deckId }),
@@ -2722,6 +2723,20 @@ function DeckDetailPage() {
       setNeededBusyId(null);
     }
   };
+
+  const resetOwned = useMutation({
+    mutationFn: () => api.resetDeckOwned(deckId),
+    onSuccess: (res) => {
+      applyDeckUpdate(res.deck);
+      invalidateOwnedViews(qc);
+      setResetMsg(
+        res.reset_count === 0
+          ? "Owned counts were already 0 for this deck"
+          : `Reset owned on ${res.reset_count} card${res.reset_count === 1 ? "" : "s"}`,
+      );
+    },
+    onError: (e: Error) => setResetMsg(e.message),
+  });
 
   const main = useMemo(() => {
     if (!data) return [];
@@ -2806,6 +2821,22 @@ function DeckDetailPage() {
         <div className="page-head-actions">
           <button
             type="button"
+            className="btn secondary"
+            disabled={resetOwned.isPending || data.cards.length === 0}
+            onClick={() => {
+              const ok = window.confirm(
+                "Reset owned counts to 0 for every card in this deck?\n\n" +
+                  "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks.",
+              );
+              if (!ok) return;
+              setResetMsg(null);
+              resetOwned.mutate();
+            }}
+          >
+            {resetOwned.isPending ? "Resetting…" : "Reset owned"}
+          </button>
+          <button
+            type="button"
             className={editing ? "btn secondary" : "btn primary"}
             aria-pressed={editing}
             onClick={() => {
@@ -2824,6 +2855,12 @@ function DeckDetailPage() {
           </button>
         </div>
       </div>
+
+      {resetMsg && (
+        <p className="share-banner" role="status">
+          {resetMsg}
+        </p>
+      )}
 
       <DeckSharePanel
         shareMsg={shareMsg}

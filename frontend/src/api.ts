@@ -293,6 +293,11 @@ export const api = {
     }),
   deleteDeck: (id: number) =>
     request<{ ok: boolean }>(`/decks/${id}`, { method: "DELETE" }),
+  resetDeckOwned: (id: number) =>
+    request<{ deck_id: number; reset_count: number; deck: DeckDetail }>(
+      `/decks/${id}/reset-owned`,
+      { method: "POST" },
+    ),
   upsertDeckCard: (
     deckId: number,
     cardId: string,

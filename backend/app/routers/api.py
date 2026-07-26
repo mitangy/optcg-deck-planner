@@ -21,6 +21,7 @@ from app.schemas import (
     DeckCardUpsert,
     DeckCreate,
     DeckDetail,
+    DeckOwnedResetResult,
     DeckSummary,
     GroupBuyContributionUpdate,
     GroupBuyCreate,
@@ -150,6 +151,20 @@ def delete_deck_card(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/decks/{deck_id}/reset-owned", response_model=DeckOwnedResetResult)
+def reset_deck_owned(
+    deck_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Zero Owned counts for every card that appears in this deck."""
+    try:
+        reset_count, detail = services.reset_deck_owned(db, user, deck_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return DeckOwnedResetResult(deck_id=deck_id, reset_count=reset_count, deck=detail)
 
 
 @router.get("/shopping", response_model=ShoppingResponse)

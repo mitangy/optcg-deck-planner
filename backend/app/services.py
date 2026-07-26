@@ -536,6 +536,36 @@ def set_owned(db: Session, user: User, card_id: str, qty: int) -> int:
     return row.qty
 
 
+def reset_deck_owned(db: Session, user: User, deck_id: int) -> tuple[int, DeckDetail]:
+    """Set Owned qty to 0 for every card_id present in the deck.
+
+    Owned is shared across decks, so this also clears those cards elsewhere.
+    """
+    deck = db.scalar(
+        select(Deck)
+        .where(Deck.id == deck_id, Deck.user_id == user.id)
+        .options(selectinload(Deck.cards))
+    )
+    if deck is None:
+        raise LookupError("Deck not found")
+
+    card_ids = {c.card_id for c in deck.cards}
+    reset_count = 0
+    if card_ids:
+        rows = db.scalars(
+            select(Owned).where(Owned.user_id == user.id, Owned.card_id.in_(card_ids))
+        ).all()
+        for row in rows:
+            if row.qty != 0:
+                row.qty = 0
+                reset_count += 1
+        if reset_count:
+            db.commit()
+
+    detail = get_deck_detail(db, user, deck_id)
+    return reset_count, detail
+
+
 def _share_deck_ids(link: ShareLink) -> list[int] | None:
     if not link.deck_ids_json:
         return None

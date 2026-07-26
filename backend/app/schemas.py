@@ -145,6 +145,14 @@ class OwnedUpdate(BaseModel):
     qty: int = Field(ge=0, le=10_000)
 
 
+class DeckOwnedResetResult(BaseModel):
+    """Result of zeroing Owned for every card that appears in a deck."""
+
+    deck_id: int
+    reset_count: int
+    deck: DeckDetail
+
+
 class CatalogStatus(BaseModel):
     card_count: int
     last_synced_at: str | None
