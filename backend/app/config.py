@@ -46,14 +46,17 @@ class Settings(BaseSettings):
         return self.frontend_origin.startswith("https://")
 
 
+DEFAULT_SESSION_SECRETS = {"dev-change-me-in-production", "dev-secret-change-me"}
+DEFAULT_CATALOG_SYNC_TOKEN = "dev-sync-token"
+
+
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
-    if settings.is_production and settings.session_secret in {
-        "dev-change-me-in-production",
-        "dev-secret-change-me",
-    }:
+    if settings.is_production and settings.session_secret in DEFAULT_SESSION_SECRETS:
         raise RuntimeError("SESSION_SECRET must be set to a strong value in production")
     if settings.is_production and settings.enable_dev_login:
         raise RuntimeError("ENABLE_DEV_LOGIN must be false in production")
+    if settings.is_production and settings.catalog_sync_token == DEFAULT_CATALOG_SYNC_TOKEN:
+        raise RuntimeError("CATALOG_SYNC_TOKEN must be set to a strong value in production")
     return settings

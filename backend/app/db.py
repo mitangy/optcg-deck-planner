@@ -15,7 +15,12 @@ engine_kwargs: dict = {}
 if settings.sqlalchemy_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 else:
+    # Neon (and most managed Postgres) drop idle connections; pre-ping validates
+    # a pooled connection before use and pool_recycle proactively retires stale
+    # ones so requests after an idle period don't hit "server closed the
+    # connection" errors.
     engine_kwargs["pool_pre_ping"] = True
+    engine_kwargs["pool_recycle"] = 300
 
 engine = create_engine(
     settings.sqlalchemy_url,
