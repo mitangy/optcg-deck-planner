@@ -49,13 +49,17 @@ Browsing the bare Render host (`/`) returns a small JSON index; use `/health` or
 ## Deploy
 
 ### Current prod
-- **Vercel** project `miko21/optcg-deck-planner` — repo root, config in root `vercel.json` (install/build via `npm --prefix frontend`, `/api` rewrite → Render)
+- **Vercel** project `miko21/optcg-deck-planner` — **Root Directory = `.`** (repo root), config in the root `vercel.json` (install/build via `npm --prefix frontend`, output `frontend/dist`, `/api/*` rewrite → Render). Do **not** set Vercel's Root Directory to `frontend/` — the root `vercel.json` is the single source of truth.
 - **Render** service `optcg-api` (`srv-d9i5jin41pts73an781g`, root `backend`)
 - **Neon** project `optcg-deck-planner` (`DATABASE_URL` on Render)
 
-Vercel and Render deploy **separately**. A merge that only updates the SPA can go live on Vercel while Render is still on an older API. If deck leaders look empty after a frontend change that needs new API fields, open the Render dashboard for `optcg-api` and **Manual Deploy** the latest `main` (confirm `/health` includes `"api_revision": 3` and OpenAPI `DeckSummary` lists `leader_name` / `leader_image_url`).
+Vercel and Render deploy **separately**. A merge that only updates the SPA can go live on Vercel while Render is still on an older API. If deck leaders look empty after a frontend change that needs new API fields, open the Render dashboard for `optcg-api` and **Manual Deploy** the latest `main` (confirm `/health` includes the expected `"api_revision"` and OpenAPI `DeckSummary` lists `leader_name` / `leader_image_url`).
 
-Production frontend should use same-origin `/api` (leave `VITE_API_URL` as `/api` or unset in production). Do **not** point `VITE_API_URL` at the raw Render host in production — that breaks session cookies on mobile Safari.
+Render's **free** plan cold-sleeps after ~15 min idle, so the first `/api/*` request after idle can take ~30–60s (occasional login/API flakiness). This is expected on free — use a paid instance or an external keepalive ping to avoid it.
+
+Production frontend should use same-origin `/api` — **leave `VITE_API_URL` unset** (or use a relative path like `/api`) in production. Do **not** point `VITE_API_URL` at the raw Render host: cross-origin API calls make the session cookie third-party and break login on mobile Safari, defeating the `/api` rewrite. The production build enforces this and fails if `VITE_API_URL` is an absolute `http(s)://` URL (see `frontend/vite.config.ts`).
+
+The `/api/*` rewrite target (the Render host) is hardcoded in the root `vercel.json`. If the Render service is renamed or its URL changes, update `vercel.json` and redeploy Vercel, or all `/api` traffic breaks.
 
 ### Google OAuth
 In Google Cloud Console (OAuth Web client):
@@ -64,14 +68,19 @@ In Google Cloud Console (OAuth Web client):
 - Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` on Render
 
 ### Access control
-- **Allowlist:** `ALLOWED_EMAILS` = comma-separated list
-- **Open to any Google user:** `ALLOW_ANY_GOOGLE_USER=true` (current prod setting)
+Current prod **allows any signed-in Google user** — `ALLOW_ANY_GOOGLE_USER=true` is set on Render (see `render.yaml`), which lets any Google account sign in and **ignores `ALLOWED_EMAILS`**. To restrict access instead, set `ALLOW_ANY_GOOGLE_USER=false` and list permitted addresses in `ALLOWED_EMAILS`.
+- **Open to any Google user (current prod):** `ALLOW_ANY_GOOGLE_USER=true`
+- **Allowlist:** `ALLOW_ANY_GOOGLE_USER=false` + `ALLOWED_EMAILS` = comma-separated list
 
 Google Cloud **test users** only matter while the OAuth consent screen is in Testing mode.
 
 ### Catalog sync
+The sync is **enqueue-only**: the endpoint starts a background job and returns `202` immediately (a full TCGCSV pull is too long to run inside a request). Poll the status endpoint to see progress/results.
 ```bash
+# Start (returns 202 {"status":"started"}; "already_running" if one is in flight)
 curl -X POST https://optcg-api-nutb.onrender.com/admin/sync-catalog -H "X-Catalog-Token: YOUR_TOKEN"
+# Check progress / last result
+curl https://optcg-api-nutb.onrender.com/admin/sync-catalog/status -H "X-Catalog-Token: YOUR_TOKEN"
 ```
 
 GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
@@ -95,7 +104,8 @@ GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
 - `PUT/DELETE /group-buys/{id}/quantities/{card_id}`, `POST .../quantities/sync`
 - `PUT /group-buys/{id}/lines/{card_id}`, `GET .../export/tcgplayer`
 - `GET /catalog/sales/{product_id}` — last sold prices from TCGPlayer (cached, public)
-- `POST /admin/sync-catalog` (token header)
+- `POST /admin/sync-catalog` (token header) — enqueue-only, returns `202`
+- `GET /admin/sync-catalog/status` (token header) — background sync state
 - `GET /catalog/status` (auth required)
 
 ## Sharing

@@ -3,12 +3,12 @@ from __future__ import annotations
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
-from app.catalog_sync import sync_catalog
+from app.catalog_sync import run_catalog_sync_job, sync_in_progress, sync_status
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import CatalogMeta, User
@@ -449,13 +449,31 @@ def catalog_recent_sales(
     return RecentSalesResponse(product_id=product_id, sales=sales)
 
 
-@router.post("/admin/sync-catalog")
+@router.post("/admin/sync-catalog", status_code=202)
 def admin_sync_catalog(
-    db: Annotated[Session, Depends(get_db)],
+    background_tasks: BackgroundTasks,
     settings: Annotated[Settings, Depends(get_settings)],
     x_catalog_token: Annotated[str | None, Header()] = None,
 ):
+    """Enqueue a full catalog sync and return immediately (202).
+
+    The sync is long-running, so it runs as a background job instead of blocking
+    this request (which would time out the caller and the free Render instance).
+    """
     if not x_catalog_token or x_catalog_token != settings.catalog_sync_token:
         raise HTTPException(status_code=401, detail="Invalid catalog sync token")
-    result = sync_catalog(db)
-    return result
+    if sync_in_progress():
+        return {"status": "already_running", "detail": "A catalog sync is already in progress"}
+    background_tasks.add_task(run_catalog_sync_job)
+    return {"status": "started", "detail": "Catalog sync started in the background"}
+
+
+@router.get("/admin/sync-catalog/status")
+def admin_sync_catalog_status(
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_catalog_token: Annotated[str | None, Header()] = None,
+):
+    """Report the background catalog sync state (guarded by the same token)."""
+    if not x_catalog_token or x_catalog_token != settings.catalog_sync_token:
+        raise HTTPException(status_code=401, detail="Invalid catalog sync token")
+    return sync_status()

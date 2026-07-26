@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import threading
 import time
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 from sqlalchemy import delete, select
@@ -18,6 +19,67 @@ CATEGORY_ID = 68
 USER_AGENT = "OPTCGWebTracker/1.0"
 TCGCSV_BASE = f"https://tcgcsv.com/tcgplayer/{CATEGORY_ID}"
 REQUEST_PAUSE_S = 0.12
+
+# A full TCGCSV pull walks every set (many HTTP round-trips + throttle sleeps),
+# so it must never run inside a request handler — on Render free that blocks the
+# single instance and the HTTP client (Vercel proxy / GitHub Action curl) times
+# out. It is launched as a background job instead; this guard keeps at most one
+# sync running at a time and records the outcome for observability.
+_sync_lock = threading.Lock()
+_sync_state: dict[str, Any] = {
+    "running": False,
+    "started_at": None,
+    "finished_at": None,
+    "last_result": None,
+    "last_error": None,
+}
+
+
+def sync_in_progress() -> bool:
+    return _sync_state["running"]
+
+
+def sync_status() -> dict[str, Any]:
+    return dict(_sync_state)
+
+
+def _default_session_factory() -> Session:
+    # Imported lazily so importing this module never triggers engine creation.
+    from app.db import SessionLocal
+
+    return SessionLocal()
+
+
+def run_catalog_sync_job(
+    session_factory: Callable[[], Session] | None = None,
+) -> dict[str, Any] | None:
+    """Run a full catalog sync in its own DB session (for background execution).
+
+    Returns the sync result, or ``None`` if a sync was already running (the
+    non-blocking lock keeps concurrent syncs from clobbering the catalog).
+    """
+    if not _sync_lock.acquire(blocking=False):
+        return None
+    factory = session_factory or _default_session_factory
+    _sync_state.update(
+        running=True,
+        started_at=datetime.now(timezone.utc).isoformat(),
+        finished_at=None,
+        last_error=None,
+    )
+    db = factory()
+    try:
+        result = sync_catalog(db)
+        _sync_state["last_result"] = result
+        return result
+    except Exception as exc:  # noqa: BLE001 — record and surface via status
+        _sync_state["last_error"] = str(exc)
+        raise
+    finally:
+        db.close()
+        _sync_state["running"] = False
+        _sync_state["finished_at"] = datetime.now(timezone.utc).isoformat()
+        _sync_lock.release()
 
 
 def _get_json(client: httpx.Client, url: str) -> dict[str, Any]:
