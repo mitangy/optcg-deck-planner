@@ -570,6 +570,34 @@ function patchOwnedQty(cardId: string, qty: number, need: number, market: number
   return { owned: qty, still_need: still, remaining_cost: remaining };
 }
 
+function shoppingListStats(data: {
+  unique_cards?: number;
+  cards_still_needed?: number;
+  remaining_market?: number;
+  items: { still_need: number }[];
+} | null | undefined) {
+  const items = data?.items ?? [];
+  return {
+    totalUnique: data?.unique_cards ?? items.length,
+    uniqueStillNeeded: items.filter((i) => i.still_need > 0).length,
+    totalStillNeeded: data?.cards_still_needed ?? 0,
+    remainingMarket: data?.remaining_market,
+  };
+}
+
+function formatShoppingListStats(data: {
+  unique_cards?: number;
+  cards_still_needed?: number;
+  remaining_market?: number;
+  items: { still_need: number }[];
+} | null | undefined) {
+  const { totalUnique, uniqueStillNeeded, totalStillNeeded, remainingMarket } = shoppingListStats(data);
+  return (
+    `${totalUnique} total unique cards · ${uniqueStillNeeded} unique cards still needed, ` +
+    `${totalStillNeeded} total cards still needed · ${money(remainingMarket)}`
+  );
+}
+
 function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: string, qty: number) {
   const id = cardId.toUpperCase();
   qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) => {
@@ -1507,10 +1535,7 @@ function ShoppingPage() {
       <div className="page-head">
         <div>
           <h1>Master Shopping</h1>
-          <p className="muted">
-            {data?.unique_cards ?? 0} unique cards · {data?.cards_still_needed ?? 0} still needed ·{" "}
-            {money(data?.remaining_market)}
-          </p>
+          <p className="muted">{formatShoppingListStats(data)}</p>
         </div>
         <div className="page-head-actions">
           <button
@@ -3224,8 +3249,7 @@ function PublicSharePage() {
                 <p className="eyebrow">Public {data.kind === "deck" ? "deck" : "shopping"} list</p>
                 <h1>{data.deck_name || `${data.owner_name}'s list`}</h1>
                 <p className="muted">
-                  Shared by {data.owner_name} · {data.unique_cards} unique cards ·{" "}
-                  {data.cards_still_needed} still needed · {money(data.remaining_market)}
+                  Shared by {data.owner_name} · {formatShoppingListStats(data)}
                 </p>
               </div>
             </div>
