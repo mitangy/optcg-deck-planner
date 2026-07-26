@@ -969,6 +969,25 @@ function useCardLayout() {
   return [layout, setLayout] as const;
 }
 
+/** Matches the shopping mobile breakpoint in styles.css (`max-width: 800px`). */
+function useNarrowLayout() {
+  const [narrow, setNarrow] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 800px)").matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 800px)");
+    const onChange = () => setNarrow(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return narrow;
+}
+
+function stopCardSelectBubble(e: { stopPropagation(): void }) {
+  e.stopPropagation();
+}
+
 function CardLayoutToggle({
   layout,
   onChange,
@@ -1161,6 +1180,7 @@ function loadSelectedCardIds(): Set<string> {
 function ShoppingPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const isNarrow = useNarrowLayout();
   const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
   const allDeckIds = useMemo(() => (decksQ.data ?? []).map((d) => d.id), [decksQ.data]);
   const [selectedDeckIds, setSelectedDeckIds] = useState<number[] | null>(null);
@@ -1648,13 +1668,28 @@ function ShoppingPage() {
         <div className="card-grid">
           {items.map((item: ShoppingItem) => {
             const checked = selectedCardIds.has(item.card_id);
+            const tapToSelect = isNarrow;
             return (
               <article
                 key={item.card_id}
-                className={`grid-card ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+                className={`grid-card-wrap${checked ? " selected-row" : ""}${tapToSelect ? " selectable" : ""}`}
+                onClick={tapToSelect ? () => toggleCard(item.card_id) : undefined}
+                onKeyDown={
+                  tapToSelect
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleCard(item.card_id);
+                        }
+                      }
+                    : undefined
+                }
+                role={tapToSelect ? "button" : undefined}
+                tabIndex={tapToSelect ? 0 : undefined}
+                aria-pressed={tapToSelect ? checked : undefined}
               >
-                <div className="grid-card-media">
-                  <label className="grid-card-select">
+                {!tapToSelect && (
+                  <label className="grid-card-select" onClick={stopCardSelectBubble}>
                     <input
                       type="checkbox"
                       checked={checked}
@@ -1662,36 +1697,45 @@ function ShoppingPage() {
                       aria-label={`Select ${item.card_id}`}
                     />
                   </label>
-                  <CardThumb src={item.image_url || undefined} alt={item.name} />
-                </div>
-                <div className="grid-card-body">
-                  <div className="card-id">{item.card_id}</div>
-                  <div className="grid-card-name">{item.name}</div>
-                  <div className="grid-card-meta muted">
-                    Still {item.still_need} · Need {item.need}
-                    {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                )}
+                <div className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}>
+                  <div className="grid-card-media" onClick={stopCardSelectBubble}>
+                    <CardThumb src={item.image_url || undefined} alt={item.name} />
                   </div>
-                  <div className="grid-card-price">
-                    <MarketPrice price={item.market_price} productId={item.product_id} />
-                  </div>
-                  <div className="grid-card-owned">
-                    <span>Owned</span>
-                    <OwnedInput
-                      cardId={item.card_id}
-                      value={item.owned}
-                      onSaved={() => invalidateOwnedViews(qc)}
-                    />
-                  </div>
-                  {item.tcgplayer_url && (
-                    <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
-                      TCGPlayer
-                    </a>
-                  )}
-                  {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
-                    <div className="grid-card-alts">
-                      <AltArtsRow alts={item.alt_arts ?? []} />
+                  <div className="grid-card-body">
+                    <div className="card-id">{item.card_id}</div>
+                    <div className="grid-card-name">{item.name}</div>
+                    <div className="grid-card-meta muted">
+                      Still {item.still_need} · Need {item.need}
+                      {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
                     </div>
-                  )}
+                    <div className="grid-card-price" onClick={stopCardSelectBubble}>
+                      <MarketPrice price={item.market_price} productId={item.product_id} />
+                    </div>
+                    <div className="grid-card-owned" onClick={stopCardSelectBubble}>
+                      <span>Owned</span>
+                      <OwnedInput
+                        cardId={item.card_id}
+                        value={item.owned}
+                        onSaved={() => invalidateOwnedViews(qc)}
+                      />
+                    </div>
+                    {item.tcgplayer_url && (
+                      <a
+                        href={item.tcgplayer_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={stopCardSelectBubble}
+                      >
+                        TCGPlayer
+                      </a>
+                    )}
+                    {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
+                      <div className="grid-card-alts" onClick={stopCardSelectBubble}>
+                        <AltArtsRow alts={item.alt_arts ?? []} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </article>
             );
@@ -1784,23 +1828,28 @@ function ShoppingPage() {
               return (
                 <article
                   key={item.card_id}
-                  className={`mobile-card ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+                  className={`mobile-card selectable ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={checked}
+                  aria-label={`${checked ? "Deselect" : "Select"} ${item.card_id}`}
+                  onClick={() => toggleCard(item.card_id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleCard(item.card_id);
+                    }
+                  }}
                 >
                   <div className="mobile-card-top">
-                    <label className="mobile-select">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleCard(item.card_id)}
-                        aria-label={`Select ${item.card_id}`}
+                    <div onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
+                      <MobileCardMedia
+                        src={item.image_url || undefined}
+                        alt={item.name}
+                        cost={item.cost}
+                        rarity={item.rarity}
                       />
-                    </label>
-                    <MobileCardMedia
-                      src={item.image_url || undefined}
-                      alt={item.name}
-                      cost={item.cost}
-                      rarity={item.rarity}
-                    />
+                    </div>
                     <div className="mobile-card-info">
                       <div className="card-id">{item.card_id}</div>
                       <div className="mobile-card-name">{item.name}</div>
@@ -1810,18 +1859,31 @@ function ShoppingPage() {
                           .join(" · ")}
                         {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
                       </div>
-                      <div className="mobile-card-price-row">
+                      <div
+                        className="mobile-card-price-row"
+                        onClick={stopCardSelectBubble}
+                        onKeyDown={stopCardSelectBubble}
+                      >
                         <span className="muted">Market</span>
                         <MarketPrice price={item.market_price} productId={item.product_id} />
                       </div>
                       {item.tcgplayer_url && (
-                        <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                        <a
+                          href={item.tcgplayer_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={stopCardSelectBubble}
+                        >
                           TCGPlayer
                         </a>
                       )}
                     </div>
                   </div>
-                  <div className="mobile-card-owned">
+                  <div
+                    className="mobile-card-owned"
+                    onClick={stopCardSelectBubble}
+                    onKeyDown={stopCardSelectBubble}
+                  >
                     <span>Owned</span>
                     <OwnedInput
                       cardId={item.card_id}
@@ -1830,7 +1892,11 @@ function ShoppingPage() {
                     />
                   </div>
                   {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
-                    <div className="mobile-card-alts">
+                    <div
+                      className="mobile-card-alts"
+                      onClick={stopCardSelectBubble}
+                      onKeyDown={stopCardSelectBubble}
+                    >
                       <AltArtsRow alts={item.alt_arts ?? []} />
                     </div>
                   )}
