@@ -87,9 +87,23 @@ GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
 - `PUT /owned/{card_id}`
 - `GET /share/shopping`, `POST /share`, `DELETE /share/{token}` — create/manage public links
 - `GET /public/share/{token}` — unauthenticated read-only shopping/deck view
+- `GET/POST /group-buys`, `GET/DELETE /group-buys/{id}` — collaborative group buys
+- `POST /group-buys/join/{token}`, `GET /public/group-buys/{token}` — invite join + preview
+- `PUT /group-buys/{id}/contribution`, `POST .../lock`, `POST .../unlock`
+- `PUT /group-buys/{id}/lines/{card_id}`, `GET .../export/tcgplayer`
 - `GET /catalog/sales/{product_id}` — last sold prices from TCGPlayer (cached, public)
 - `POST /admin/sync-catalog` (token header)
 - `GET /catalog/status` (auth required)
 
 ## Sharing
 From **Shopping** or a **Deck** page, use **Share public link** to copy a URL like `/share/<token>`. Anyone with the link can view the list (owned / still need / prices) without signing in. Turn the shopping link off anytime from the Shopping page.
+
+## Group buys
+Start a group buy from **Shopping** or **Group buys**, copy the invite link, and have friends sign in to join. Quantities are live (`still need` summed across members) until the host **Locks for checkout**, then export with **Open Mass Entry**.
+
+## Backend tests
+```bash
+cd backend
+pip install -r requirements.txt
+python -m pytest
+```

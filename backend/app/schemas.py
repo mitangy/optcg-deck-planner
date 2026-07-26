@@ -147,3 +147,84 @@ class PublicShoppingResponse(ShoppingResponse):
     owner_name: str = ""
     kind: str = "shopping"
     deck_name: str | None = None
+
+
+class GroupBuyCreate(BaseModel):
+    title: str = Field(default="Group buy", min_length=1, max_length=200)
+    deck_ids: list[int] | None = None
+
+
+class GroupBuyContributionUpdate(BaseModel):
+    deck_ids: list[int] | None = None
+
+
+class GroupBuyLineOverrideUpdate(BaseModel):
+    product_id: int = Field(gt=0)
+
+
+class GroupBuyMemberOut(BaseModel):
+    user_id: int
+    display_name: str
+    role: str
+    deck_ids: list[int] | None = None
+    cards_still_needed: int = 0
+    remaining_market: float = 0.0
+
+
+class GroupBuyMemberQtyOut(BaseModel):
+    user_id: int
+    display_name: str
+    qty: int
+
+
+class GroupBuyLineOut(BaseModel):
+    card_id: str
+    name: str
+    total_qty: int
+    market_price: float | None = None
+    remaining_cost: float | None = None
+    product_id: int | None = None
+    tcgplayer_url: str = ""
+    image_url: str = ""
+    members: list[GroupBuyMemberQtyOut]
+    alt_arts: list[PrintingView] = []
+
+
+class GroupBuySummary(BaseModel):
+    id: int
+    title: str
+    status: str
+    invite_token: str
+    invite_path: str
+    host_user_id: int
+    host_name: str
+    member_count: int
+    is_host: bool
+    unique_cards: int
+    cards_still_needed: int
+    remaining_market: float
+    created_at: str
+
+
+class GroupBuyDetail(GroupBuySummary):
+    members: list[GroupBuyMemberOut]
+    lines: list[GroupBuyLineOut]
+    locked_at: str | None = None
+
+
+class GroupBuyInvitePreview(BaseModel):
+    title: str
+    host_name: str
+    member_count: int
+    status: str
+    invite_token: str
+
+
+class GroupBuyExport(BaseModel):
+    paste_text: str
+    url: str | None = None
+    included_count: int
+    copy_count: int
+    with_product_id: int
+    missing_product_id: int
+    status: str
