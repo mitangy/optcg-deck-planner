@@ -16,6 +16,7 @@ from app.db import get_db
 from app.models import LoginTicket, User
 
 SESSION_COOKIE = "optcg_session"
+OAUTH_NONCE_COOKIE = "optcg_oauth_nonce"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 LOGIN_TICKET_MAX_AGE_SECONDS = 120
 OAUTH_STATE_MAX_AGE_SECONDS = 600
@@ -66,18 +67,29 @@ def read_session_token(
         return None
 
 
-def create_oauth_state(settings: Settings | None = None) -> str:
-    settings = settings or get_settings()
-    return _oauth_serializer(settings).dumps({"v": 1})
+def new_oauth_nonce() -> str:
+    return secrets.token_urlsafe(24)
 
 
-def verify_oauth_state(state: str, settings: Settings | None = None) -> bool:
+def create_oauth_state(nonce: str, settings: Settings | None = None) -> str:
+    """Signed OAuth state bound to a browser-held nonce cookie."""
     settings = settings or get_settings()
+    return _oauth_serializer(settings).dumps({"v": 1, "n": nonce})
+
+
+def verify_oauth_state(
+    state: str,
+    nonce: str | None,
+    settings: Settings | None = None,
+) -> bool:
+    settings = settings or get_settings()
+    if not nonce:
+        return False
     try:
-        _oauth_serializer(settings).loads(state, max_age=OAUTH_STATE_MAX_AGE_SECONDS)
-        return True
+        data = _oauth_serializer(settings).loads(state, max_age=OAUTH_STATE_MAX_AGE_SECONDS)
     except (BadSignature, SignatureExpired):
         return False
+    return data.get("n") == nonce
 
 
 def create_login_ticket(
