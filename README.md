@@ -89,7 +89,7 @@ GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
 - `GET /public/share/{token}` — unauthenticated read-only shopping/deck view
 - `GET/POST /group-buys`, `GET/DELETE /group-buys/{id}` — collaborative group buys
 - `POST /group-buys/join/{token}`, `GET /public/group-buys/{token}` — invite join + preview
-- `PUT /group-buys/{id}/contribution`, `POST .../lock`, `POST .../unlock`
+- `PUT /group-buys/{id}/contribution`, `POST .../lock`, `POST .../unlock`, `POST .../complete`
 - `PUT/DELETE /group-buys/{id}/quantities/{card_id}`, `POST .../quantities/sync`
 - `PUT /group-buys/{id}/lines/{card_id}`, `GET .../export/tcgplayer`
 - `GET /catalog/sales/{product_id}` — last sold prices from TCGPlayer (cached, public)
@@ -100,7 +100,7 @@ GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
 From **Shopping** or a **Deck** page, use **Share public link** to copy a URL like `/share/<token>`. Anyone with the link can view the list (owned / still need / prices) without signing in. Turn the shopping link off anytime from the Shopping page.
 
 ## Group buys
-Start a group buy from **Shopping** or **Group buys**, copy the invite link, and have friends sign in to join. Quantities default to each member’s shopping still-need (summed across members); each person can edit **Your buy** per card, then the host **Locks for checkout** and exports with **Open Mass Entry**.
+Start a group buy from **Shopping** or **Group buys**, copy the invite link, and have friends sign in to join. Quantities default to each member’s shopping still-need (summed across members); each person can edit **Your buy** per card, then the host **Locks for checkout** and exports with **Open Mass Entry**. After buying, the host taps **Mark purchased** to end the group buy and add each member’s quantities to Owned (clearing those copies from shopping).
 
 ## Backend tests
 ```bash

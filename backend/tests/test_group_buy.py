@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from app import group_buy
+from sqlalchemy import select
+
+from app import group_buy, services
+from app.models import Owned
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
 
@@ -147,3 +150,54 @@ def test_locked_group_rejects_qty_edits(db, two_players):
     group_buy.lock_group_buy(db, host, created.id)
     with pytest.raises(PermissionError):
         group_buy.set_member_qty(db, host, created.id, "OP01-001", 1)
+
+
+def _owned(db, user_id: int, card_id: str) -> int:
+    row = db.scalar(
+        select(Owned).where(Owned.user_id == user_id, Owned.card_id == card_id)
+    )
+    return int(row.qty) if row else 0
+
+
+def test_complete_applies_owned_and_clears_shopping(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Purchased")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    # Host buys only 1 of OP01-001 (still-need was 3)
+    group_buy.set_member_qty(db, host, created.id, "OP01-001", 1)
+
+    assert _owned(db, host.id, "OP01-001") == 1
+    assert _owned(db, friend.id, "OP01-001") == 0
+
+    done = group_buy.complete_group_buy(db, host, created.id)
+    assert done.status == "completed"
+
+    # Host: 1 existing + 1 bought; Friend: 0 + 3 bought
+    assert _owned(db, host.id, "OP01-001") == 2
+    assert _owned(db, friend.id, "OP01-001") == 3
+    assert _owned(db, host.id, "OP01-002") == 2
+    assert _owned(db, friend.id, "OP01-002") == 4
+
+    host_shop = services.shopping_list(db, host)
+    friend_shop = services.shopping_list(db, friend)
+    host_by_id = {i.card_id: i.still_need for i in host_shop.items if i.still_need > 0}
+    friend_by_id = {i.card_id: i.still_need for i in friend_shop.items if i.still_need > 0}
+    # Host still needs 2 more OP01-001 (need 4, owned 2); OP01-002 filled
+    assert host_by_id.get("OP01-001") == 2
+    assert "OP01-002" not in host_by_id
+    assert friend_by_id == {}  # friend fully covered
+
+    with pytest.raises(PermissionError):
+        group_buy.unlock_group_buy(db, host, created.id)
+    # Idempotent
+    again = group_buy.complete_group_buy(db, host, created.id)
+    assert again.status == "completed"
+    assert _owned(db, host.id, "OP01-001") == 2
+
+
+def test_member_cannot_complete(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "No")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    with pytest.raises(PermissionError):
+        group_buy.complete_group_buy(db, friend, created.id)

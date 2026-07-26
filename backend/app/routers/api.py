@@ -287,6 +287,21 @@ def unlock_group_buy(
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
+@router.post("/group-buys/{group_id}/complete", response_model=GroupBuyDetail)
+def complete_group_buy(
+    group_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Mark purchased: end the group buy and apply buy qtys to each member's Owned."""
+    try:
+        return group_buy.complete_group_buy(db, user, group_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
 @router.put("/group-buys/{group_id}/lines/{card_id}", response_model=GroupBuyDetail)
 def put_group_buy_line_override(
     group_id: int,

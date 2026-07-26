@@ -278,6 +278,8 @@ export const api = {
     request<GroupBuyDetail>(`/group-buys/${id}/lock`, { method: "POST" }),
   unlockGroupBuy: (id: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/unlock`, { method: "POST" }),
+  completeGroupBuy: (id: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/complete`, { method: "POST" }),
   setGroupBuyLineProduct: (id: number, cardId: string, product_id: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/lines/${encodeURIComponent(cardId)}`, {
       method: "PUT",
