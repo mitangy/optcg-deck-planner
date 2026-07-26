@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.models import User
+from app.models import LoginTicket, User
 
 SESSION_COOKIE = "optcg_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
@@ -21,6 +23,11 @@ OAUTH_STATE_MAX_AGE_SECONDS = 600
 
 def _serializer(settings: Settings) -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(settings.session_secret, salt="optcg-auth")
+
+
+def _ticket_serializer(settings: Settings) -> URLSafeTimedSerializer:
+    # Separate salt so login tickets can never verify as session cookies.
+    return URLSafeTimedSerializer(settings.session_secret, salt="optcg-login-ticket")
 
 
 def _oauth_serializer(settings: Settings) -> URLSafeTimedSerializer:
@@ -44,6 +51,9 @@ def read_session_token(
     try:
         data = _serializer(settings).loads(token, max_age=SESSION_MAX_AGE_SECONDS)
     except (BadSignature, SignatureExpired):
+        return None
+    # Defense in depth: session cookies must not carry a login purpose.
+    if data.get("purpose") is not None:
         return None
     uid = data.get("uid")
     if uid is None:
@@ -70,15 +80,71 @@ def verify_oauth_state(state: str, settings: Settings | None = None) -> bool:
         return False
 
 
-def create_login_ticket(user_id: int, settings: Settings | None = None) -> str:
+def create_login_ticket(
+    db: Session,
+    user_id: int,
+    settings: Settings | None = None,
+) -> str:
+    """Issue a short-lived, single-use login ticket stored in the DB by jti."""
     settings = settings or get_settings()
-    return _serializer(settings).dumps({"uid": user_id, "purpose": "login"})
+    jti = secrets.token_urlsafe(18)
+    now = datetime.now(timezone.utc)
+    # Drop expired rows opportunistically so the table stays small.
+    db.execute(delete(LoginTicket).where(LoginTicket.expires_at < now))
+    db.add(
+        LoginTicket(
+            jti=jti,
+            user_id=user_id,
+            expires_at=now + timedelta(seconds=LOGIN_TICKET_MAX_AGE_SECONDS),
+        )
+    )
+    db.commit()
+    return _ticket_serializer(settings).dumps(
+        {"uid": user_id, "purpose": "login", "jti": jti}
+    )
+
+
+def consume_login_ticket(
+    db: Session,
+    ticket: str,
+    settings: Settings | None = None,
+) -> int | None:
+    """Validate and atomically consume a login ticket. Returns user_id or None."""
+    settings = settings or get_settings()
+    try:
+        data = _ticket_serializer(settings).loads(
+            ticket, max_age=LOGIN_TICKET_MAX_AGE_SECONDS
+        )
+    except (BadSignature, SignatureExpired):
+        return None
+    if data.get("purpose") != "login":
+        return None
+    uid = data.get("uid")
+    jti = data.get("jti")
+    if uid is None or not jti:
+        return None
+    row = db.get(LoginTicket, jti)
+    if row is None:
+        return None
+    expires = row.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if expires < datetime.now(timezone.utc) or row.user_id != int(uid):
+        db.delete(row)
+        db.commit()
+        return None
+    db.delete(row)
+    db.commit()
+    return int(uid)
 
 
 def read_login_ticket(ticket: str, settings: Settings | None = None) -> int | None:
+    """Validate ticket signature/age without consuming (tests / introspection)."""
     settings = settings or get_settings()
     try:
-        data = _serializer(settings).loads(ticket, max_age=LOGIN_TICKET_MAX_AGE_SECONDS)
+        data = _ticket_serializer(settings).loads(
+            ticket, max_age=LOGIN_TICKET_MAX_AGE_SECONDS
+        )
     except (BadSignature, SignatureExpired):
         return None
     if data.get("purpose") != "login":
