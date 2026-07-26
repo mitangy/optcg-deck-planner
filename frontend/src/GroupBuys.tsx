@@ -9,6 +9,7 @@ import {
   GroupBuyOrderUpdate,
   money,
 } from "./api";
+import { CardLayoutToggle, useCardLayout } from "./CardLayout";
 import { CardThumb } from "./CardThumb";
 import { blankMassEntryUrl, buildMassEntryExport } from "./tcgplayerMassEntry";
 import {
@@ -65,6 +66,45 @@ function memberBreakdown(line: GroupBuyLine): string {
   return line.members
     .map((m) => `${m.display_name} ×${m.qty}${m.is_custom ? "*" : ""}`)
     .join(" · ");
+}
+
+function LinePrintingSelect({
+  line,
+  disabled,
+  onChange,
+}: {
+  line: GroupBuyLine;
+  disabled: boolean;
+  onChange: (productId: number) => void;
+}) {
+  if (!line.product_id && !line.alt_arts.length) {
+    return <span className="muted">—</span>;
+  }
+  return (
+    <select
+      className="group-buy-printing"
+      value={line.product_id ?? ""}
+      disabled={disabled || !line.alt_arts.length}
+      onChange={(e) => {
+        const productId = Number(e.target.value);
+        if (!productId) return;
+        onChange(productId);
+      }}
+    >
+      {line.product_id ? (
+        <option value={line.product_id}>Preferred · {money(line.market_price)}</option>
+      ) : (
+        <option value="">No product id</option>
+      )}
+      {line.alt_arts
+        .filter((alt) => alt.product_id !== line.product_id)
+        .map((alt) => (
+          <option key={alt.product_id} value={alt.product_id}>
+            Alt · {alt.name} · {money(alt.market_price)}
+          </option>
+        ))}
+    </select>
+  );
 }
 
 function BuyQtyEditor({
@@ -234,6 +274,7 @@ export function GroupBuyDetailPage() {
   const { id } = useParams();
   const groupId = Number(id);
   const qc = useQueryClient();
+  const [layout, setLayout] = useCardLayout();
   const [msg, setMsg] = useState<string | null>(null);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
   const [orderId, setOrderId] = useState("");
@@ -741,90 +782,118 @@ export function GroupBuyDetailPage() {
         </div>
       )}
 
-      <h2>Merged list</h2>
+      <div className="list-toolbar group-buy-merged-toolbar">
+        <div className="list-toolbar-row">
+          <h2 className="group-buy-merged-heading">Merged list</h2>
+          {detail.lines.length > 0 ? (
+            <CardLayoutToggle layout={layout} onChange={setLayout} />
+          ) : null}
+        </div>
+      </div>
       {detail.lines.length === 0 ? (
         <p className="muted">Nothing to buy yet — members need cards on their shopping lists.</p>
+      ) : layout === "grid" ? (
+        <div className="card-grid">
+          {detail.lines.map((line) => (
+            <article key={line.card_id} className="grid-card need">
+              <div className="grid-card-media">
+                <CardThumb src={line.image_url || undefined} alt={line.name} />
+              </div>
+              <div className="grid-card-body">
+                <div className="card-id">{line.card_id}</div>
+                <div className="grid-card-name">{line.name}</div>
+                <div className="grid-card-meta muted">
+                  {[`Total ${line.total_qty}`, money(line.remaining_cost), memberBreakdown(line)]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </div>
+                {detail.status === "open" ? (
+                  <div className="grid-card-owned">
+                    <span>Your buy</span>
+                    <BuyQtyEditor
+                      cardId={line.card_id}
+                      qty={line.my_qty}
+                      suggestedQty={line.my_suggested_qty}
+                      isCustom={line.my_is_custom}
+                      disabled={qtyBusy}
+                      onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
+                      onReset={() => clearQty.mutate(line.card_id)}
+                    />
+                  </div>
+                ) : null}
+                {detail.is_host ? (
+                  <div className="grid-card-owned">
+                    <span>Printing</span>
+                    <LinePrintingSelect
+                      line={line}
+                      disabled={!canEditPrintings || setProduct.isPending}
+                      onChange={(productId) =>
+                        setProduct.mutate({ cardId: line.card_id, productId })
+                      }
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
       ) : (
         <>
-        <div className="table-wrap desktop-table">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Card</th>
-                {detail.status === "open" ? <th>Your buy</th> : null}
-                <th>Total</th>
-                <th>Who</th>
-                <th>Est.</th>
-                {detail.is_host ? <th>Printing</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {detail.lines.map((line) => (
-                <tr key={line.card_id}>
-                  <td className="card-cell">
-                    <CardThumb src={line.image_url || undefined} alt={line.name} />
-                    <div>
-                      <div className="card-id">{line.card_id}</div>
-                      <div>{line.name}</div>
-                    </div>
-                  </td>
-                  {detail.status === "open" ? (
-                    <td>
-                      <BuyQtyEditor
-                        cardId={line.card_id}
-                        qty={line.my_qty}
-                        suggestedQty={line.my_suggested_qty}
-                        isCustom={line.my_is_custom}
-                        disabled={qtyBusy}
-                        onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
-                        onReset={() => clearQty.mutate(line.card_id)}
-                      />
-                    </td>
-                  ) : null}
-                  <td>{line.total_qty}</td>
-                  <td className="muted">{memberBreakdown(line)}</td>
-                  <td>{money(line.remaining_cost)}</td>
-                  {detail.is_host ? (
-                    <td>
-                      {line.product_id || line.alt_arts.length ? (
-                        <select
-                          className="group-buy-printing"
-                          value={line.product_id ?? ""}
-                          disabled={
-                            !canEditPrintings || setProduct.isPending || !line.alt_arts.length
-                          }
-                          onChange={(e) => {
-                            const productId = Number(e.target.value);
-                            if (!productId) return;
-                            setProduct.mutate({ cardId: line.card_id, productId });
-                          }}
-                        >
-                          {line.product_id ? (
-                            <option value={line.product_id}>
-                              Preferred · {money(line.market_price)}
-                            </option>
-                          ) : (
-                            <option value="">No product id</option>
-                          )}
-                          {line.alt_arts
-                            .filter((alt) => alt.product_id !== line.product_id)
-                            .map((alt) => (
-                              <option key={alt.product_id} value={alt.product_id}>
-                                Alt · {alt.name} · {money(alt.market_price)}
-                              </option>
-                            ))}
-                        </select>
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
-                  ) : null}
+          <div className="table-wrap desktop-table">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Card</th>
+                  {detail.status === "open" ? <th>Your buy</th> : null}
+                  <th>Total</th>
+                  <th>Who</th>
+                  <th>Est.</th>
+                  {detail.is_host ? <th>Printing</th> : null}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mobile-card-list">
+              </thead>
+              <tbody>
+                {detail.lines.map((line) => (
+                  <tr key={line.card_id}>
+                    <td className="card-cell">
+                      <CardThumb src={line.image_url || undefined} alt={line.name} />
+                      <div>
+                        <div className="card-id">{line.card_id}</div>
+                        <div>{line.name}</div>
+                      </div>
+                    </td>
+                    {detail.status === "open" ? (
+                      <td>
+                        <BuyQtyEditor
+                          cardId={line.card_id}
+                          qty={line.my_qty}
+                          suggestedQty={line.my_suggested_qty}
+                          isCustom={line.my_is_custom}
+                          disabled={qtyBusy}
+                          onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
+                          onReset={() => clearQty.mutate(line.card_id)}
+                        />
+                      </td>
+                    ) : null}
+                    <td>{line.total_qty}</td>
+                    <td className="muted">{memberBreakdown(line)}</td>
+                    <td>{money(line.remaining_cost)}</td>
+                    {detail.is_host ? (
+                      <td>
+                        <LinePrintingSelect
+                          line={line}
+                          disabled={!canEditPrintings || setProduct.isPending}
+                          onChange={(productId) =>
+                            setProduct.mutate({ cardId: line.card_id, productId })
+                          }
+                        />
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mobile-card-list">
             {detail.lines.map((line) => (
               <article key={line.card_id} className="mobile-card need">
                 <div className="mobile-card-top">
@@ -858,33 +927,13 @@ export function GroupBuyDetailPage() {
                 {detail.is_host && (line.product_id || line.alt_arts.length) ? (
                   <div className="mobile-card-owned">
                     <span>Printing</span>
-                    <select
-                      className="group-buy-printing"
-                      value={line.product_id ?? ""}
-                      disabled={
-                        !canEditPrintings || setProduct.isPending || !line.alt_arts.length
+                    <LinePrintingSelect
+                      line={line}
+                      disabled={!canEditPrintings || setProduct.isPending}
+                      onChange={(productId) =>
+                        setProduct.mutate({ cardId: line.card_id, productId })
                       }
-                      onChange={(e) => {
-                        const productId = Number(e.target.value);
-                        if (!productId) return;
-                        setProduct.mutate({ cardId: line.card_id, productId });
-                      }}
-                    >
-                      {line.product_id ? (
-                        <option value={line.product_id}>
-                          Preferred · {money(line.market_price)}
-                        </option>
-                      ) : (
-                        <option value="">No product id</option>
-                      )}
-                      {line.alt_arts
-                        .filter((alt) => alt.product_id !== line.product_id)
-                        .map((alt) => (
-                          <option key={alt.product_id} value={alt.product_id}>
-                            Alt · {alt.name} · {money(alt.market_price)}
-                          </option>
-                        ))}
-                    </select>
+                    />
                   </div>
                 ) : null}
               </article>

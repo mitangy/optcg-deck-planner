@@ -18,6 +18,7 @@ import {
   blankMassEntryUrl,
   buildMassEntryExport,
 } from "./tcgplayerMassEntry";
+import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
 import {
   consumeLoginNext,
@@ -44,11 +45,8 @@ const FILTERS_OPEN_KEY = "optcg_filters_open";
 const SHARE_OPEN_KEY = "optcg_share_open_v2";
 const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
 const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
-const CARD_LAYOUT_KEY = "optcg_card_layout";
 const DECK_SEARCH_OPEN_KEY = "optcg_deck_search_open";
 const DECK_DON_AVAILABLE_OPEN_KEY = "optcg_deck_don_available_open";
-
-type CardLayout = "list" | "grid";
 
 const COLOR_ORDER = ["Red", "Green", "Blue", "Purple", "Black", "Yellow"];
 const SET_PREFIX_ORDER = ["OP", "ST", "EB", "PRB", "P"];
@@ -934,24 +932,6 @@ function formatSaleDate(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function useCardLayout() {
-  const [layout, setLayout] = useState<CardLayout>(() => {
-    try {
-      return localStorage.getItem(CARD_LAYOUT_KEY) === "grid" ? "grid" : "list";
-    } catch {
-      return "list";
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(CARD_LAYOUT_KEY, layout);
-    } catch {
-      /* ignore */
-    }
-  }, [layout]);
-  return [layout, setLayout] as const;
-}
-
 /** Matches the shopping mobile breakpoint in styles.css (`max-width: 800px`). */
 function useNarrowLayout() {
   const [narrow, setNarrow] = useState(() =>
@@ -969,35 +949,6 @@ function useNarrowLayout() {
 
 function stopCardSelectBubble(e: { stopPropagation(): void }) {
   e.stopPropagation();
-}
-
-function CardLayoutToggle({
-  layout,
-  onChange,
-}: {
-  layout: CardLayout;
-  onChange: (next: CardLayout) => void;
-}) {
-  return (
-    <div className="layout-toggle" role="group" aria-label="Card layout">
-      <button
-        type="button"
-        className={layout === "list" ? "active" : ""}
-        aria-pressed={layout === "list"}
-        onClick={() => onChange("list")}
-      >
-        List
-      </button>
-      <button
-        type="button"
-        className={layout === "grid" ? "active" : ""}
-        aria-pressed={layout === "grid"}
-        onClick={() => onChange("grid")}
-      >
-        Grid
-      </button>
-    </div>
-  );
 }
 
 function MarketPrice({
