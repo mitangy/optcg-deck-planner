@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   api,
   CatalogCardResult,
@@ -30,7 +30,8 @@ const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
 const CARD_SORTS_KEY = "optcg_card_sorts";
 const FILTERS_OPEN_KEY = "optcg_filters_open";
-const SHARE_OPEN_KEY = "optcg_share_open";
+/* v2: default-closed public link (resets older localStorage "open" so mobile chrome stays shorter). */
+const SHARE_OPEN_KEY = "optcg_share_open_v2";
 const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
 const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
 const CARD_LAYOUT_KEY = "optcg_card_layout";
@@ -592,6 +593,7 @@ function formatShoppingListStats(data: {
   items: { still_need: number; market_price?: number | null }[];
 } | null | undefined) {
   const { totalUnique, uniqueStillNeeded, totalStillNeeded, remainingMarket } = shoppingListStats(data);
+<<<<<<< HEAD
   const hasPrices = (data?.items ?? []).some(
     (i) => i.market_price != null && !Number.isNaN(i.market_price),
   );
@@ -599,6 +601,12 @@ function formatShoppingListStats(data: {
   return (
     `${totalUnique} total unique cards · ${uniqueStillNeeded} unique cards still needed, ` +
     `${totalStillNeeded} total cards still needed · ${marketLabel}`
+=======
+  // Keep to one scannable line on mobile — avoid burying the card list below chrome.
+  return (
+    `${uniqueStillNeeded}/${totalUnique} uniques left · ${totalStillNeeded} copies · ` +
+    `${money(remainingMarket)}`
+>>>>>>> origin/cursor/ui-p1-polish-ea10
   );
 }
 
@@ -667,11 +675,13 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
               <span>OPTCG Tracker</span>
             </Link>
           </div>
-          <nav>
-            <Link to="/">Shopping</Link>
-            <Link to="/decks">Decks</Link>
-            <Link to="/group-buys">Group buys</Link>
-            <Link to="/import">Import</Link>
+          <nav aria-label="Primary">
+            <NavLink to="/" end>
+              Shopping
+            </NavLink>
+            <NavLink to="/decks">Decks</NavLink>
+            <NavLink to="/group-buys">Group buys</NavLink>
+            <NavLink to="/import">Import</NavLink>
           </nav>
           <div className="user">
             <span className="user-name" title={user.email}>

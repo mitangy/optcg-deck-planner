@@ -2,7 +2,8 @@
   --bg: #f4f0e8;
   --bg-deep: #e7dfd2;
   --ink: #1c1915;
-  --muted: #6b6358;
+  /* Dark enough for ~6:1 on page cream (#e7dfd2) — clears WCAG AA body text. */
+  --muted: #534c42;
   --card: #fffdf8;
   --line: #d9d0c3;
   --accent: #0f6a6a;
@@ -141,6 +142,12 @@ h2,
 
 .topbar nav a:hover {
   color: var(--accent-ink);
+}
+
+.topbar nav a.active,
+.topbar nav a[aria-current="page"] {
+  color: var(--accent-ink);
+  font-weight: 650;
 }
 
 .user {
@@ -1522,23 +1529,50 @@ tr.done {
   }
 
   .topbar-inner {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.65rem;
-    padding: 0.75rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand user"
+      "nav nav";
+    align-items: center;
+    gap: 0.45rem 0.75rem;
+    padding: 0.55rem 0.75rem;
     max-width: none;
     width: 100%;
   }
 
+  .brand {
+    grid-area: brand;
+    min-width: 0;
+  }
+
+  .brand a span {
+    font-size: 1rem;
+  }
+
   .brand-logo {
-    height: 1.75rem;
+    height: 1.55rem;
   }
 
   .topbar nav {
+    grid-area: nav;
     justify-content: space-between;
-    gap: 0.5rem;
+    gap: 0.35rem;
     width: 100%;
     min-width: 0;
+  }
+
+  .user {
+    grid-area: user;
+    width: auto;
+    max-width: 100%;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .user-name {
+    max-width: 5.5rem;
   }
 
   .list-toolbar-row {
@@ -1577,17 +1611,22 @@ tr.done {
   .topbar nav a {
     flex: 1;
     min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    padding: 0.45rem 0.25rem;
+    padding: 0.35rem 0.2rem;
+    min-height: 2.25rem;
     border-radius: 999px;
     background: var(--bg-deep);
-    font-size: 0.88rem;
+    font-size: 0.82rem;
   }
 
-  .user {
-    justify-content: space-between;
-    width: 100%;
-    min-width: 0;
+  .topbar nav a.active,
+  .topbar nav a[aria-current="page"] {
+    background: var(--card);
+    box-shadow: inset 0 0 0 1px var(--accent);
+    color: var(--accent-ink);
   }
 
   .page-head {
