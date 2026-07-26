@@ -99,3 +99,51 @@ def test_contribution_deck_filter(db, two_players):
     # Host owned 0 of 002 in fixture... wait host has deck with 002 need 2 and no owned for 002
     # With only deck_b, need 4 of 002, owned 0 → still 4
     assert created.lines[0].total_qty == 4
+
+
+def test_member_can_override_buy_qty(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Qty edit")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+
+    # Host still needs 3 of OP01-001; buy only 1.
+    updated = group_buy.set_member_qty(db, host, created.id, "OP01-001", 1)
+    line = next(l for l in updated.lines if l.card_id == "OP01-001")
+    assert line.my_qty == 1
+    assert line.my_suggested_qty == 3
+    assert line.my_is_custom is True
+    assert line.total_qty == 4  # host 1 + friend 3
+
+    # Matching suggested clears the override.
+    cleared = group_buy.set_member_qty(db, host, created.id, "OP01-001", 3)
+    line = next(l for l in cleared.lines if l.card_id == "OP01-001")
+    assert line.my_is_custom is False
+    assert line.my_qty == 3
+    assert line.total_qty == 6
+
+
+def test_qty_zero_opts_out_and_sync_resets(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Opt out")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+
+    updated = group_buy.set_member_qty(db, friend, created.id, "OP01-001", 0)
+    line = next(l for l in updated.lines if l.card_id == "OP01-001")
+    assert line.total_qty == 3  # host only
+    assert line.my_qty == 0
+    assert line.my_is_custom is True
+
+    synced = group_buy.sync_member_quantities(db, friend, created.id)
+    line = next(l for l in synced.lines if l.card_id == "OP01-001")
+    assert line.my_qty == 3
+    assert line.my_is_custom is False
+    assert line.total_qty == 6
+
+
+def test_locked_group_rejects_qty_edits(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Locked qty")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
+    with pytest.raises(PermissionError):
+        group_buy.set_member_qty(db, host, created.id, "OP01-001", 1)

@@ -173,6 +173,9 @@ class GroupBuy(Base):
     line_overrides: Mapped[list[GroupBuyLineOverride]] = relationship(
         back_populates="group_buy", cascade="all, delete-orphan"
     )
+    qty_overrides: Mapped[list[GroupBuyQtyOverride]] = relationship(
+        back_populates="group_buy", cascade="all, delete-orphan"
+    )
 
 
 class GroupBuyMember(Base):
@@ -233,3 +236,24 @@ class GroupBuyLineOverride(Base):
     product_id: Mapped[int] = mapped_column(Integer)
 
     group_buy: Mapped[GroupBuy] = relationship(back_populates="line_overrides")
+
+
+class GroupBuyQtyOverride(Base):
+    """Per-member buy quantity override (defaults otherwise come from shopping still-need)."""
+
+    __tablename__ = "group_buy_qty_overrides"
+    __table_args__ = (
+        UniqueConstraint(
+            "group_buy_id", "user_id", "card_id", name="uq_group_buy_qty_override"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    group_buy_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buys.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+
+    group_buy: Mapped[GroupBuy] = relationship(back_populates="qty_overrides")

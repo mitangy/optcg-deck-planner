@@ -1872,6 +1872,53 @@ tr.done {
   font-size: 0.85rem;
 }
 
+.group-buy-contribution-actions {
+  margin-top: 0.75rem;
+}
+
+.group-buy-contribution-actions .btn {
+  width: auto;
+  margin-top: 0;
+}
+
+.group-buy-qty {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.group-buy-qty-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.group-buy-qty-input {
+  width: 3rem;
+  min-height: 2rem;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.group-buy-qty-meta {
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.group-buy-qty-meta .ghost {
+  margin-left: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.group-buy-footnote {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+}
+
 .group-buy-join {
   max-width: 28rem;
 }

@@ -25,6 +25,7 @@ from app.schemas import (
     GroupBuyExport,
     GroupBuyInvitePreview,
     GroupBuyLineOverrideUpdate,
+    GroupBuyQtyUpdate,
     GroupBuySummary,
     OwnedUpdate,
     PublicShoppingResponse,
@@ -302,6 +303,53 @@ def put_group_buy_line_override(
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put("/group-buys/{group_id}/quantities/{card_id}", response_model=GroupBuyDetail)
+def put_group_buy_qty(
+    group_id: int,
+    card_id: str,
+    body: GroupBuyQtyUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.set_member_qty(db, user, group_id, card_id, body.qty)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/group-buys/{group_id}/quantities/{card_id}", response_model=GroupBuyDetail)
+def delete_group_buy_qty(
+    group_id: int,
+    card_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.clear_member_qty(db, user, group_id, card_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.post("/group-buys/{group_id}/quantities/sync", response_model=GroupBuyDetail)
+def sync_group_buy_quantities(
+    group_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.sync_member_quantities(db, user, group_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 @router.get("/group-buys/{group_id}/export/tcgplayer", response_model=GroupBuyExport)
