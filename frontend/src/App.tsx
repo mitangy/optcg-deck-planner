@@ -16,6 +16,13 @@ import {
   blankMassEntryUrl,
   buildMassEntryExport,
 } from "./tcgplayerMassEntry";
+import {
+  consumeLoginNext,
+  GroupBuyDetailPage,
+  GroupBuyJoinPage,
+  GroupBuysPage,
+  rememberLoginNext,
+} from "./GroupBuys";
 
 const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
@@ -627,6 +634,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
           <nav>
             <Link to="/">Shopping</Link>
             <Link to="/decks">Decks</Link>
+            <Link to="/group-buys">Group buys</Link>
             <Link to="/import">Import</Link>
           </nav>
           <div className="user">
@@ -652,6 +660,12 @@ function LoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const next = params.get("next");
+    if (next && next.startsWith("/")) rememberLoginNext(next);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
     const ticket = params.get("ticket");
     if (!ticket) return;
     let cancelled = false;
@@ -660,9 +674,10 @@ function LoginPage() {
       .claim(ticket)
       .then(async () => {
         if (cancelled) return;
-        window.history.replaceState({}, "", "/");
+        const next = consumeLoginNext() || "/";
+        window.history.replaceState({}, "", next);
         await refetch();
-        navigate("/", { replace: true });
+        navigate(next, { replace: true });
       })
       .catch((e) => {
         if (cancelled) return;
@@ -677,7 +692,10 @@ function LoginPage() {
     };
   }, [navigate, refetch]);
 
-  if (!isLoading && user) return <Navigate to="/" replace />;
+  if (!isLoading && user) {
+    const next = consumeLoginNext() || "/";
+    return <Navigate to={next} replace />;
+  }
   if (claiming) return <p className="muted center">Signing you in…</p>;
 
   async function devLogin() {
@@ -685,6 +703,8 @@ function LoginPage() {
       setErr(null);
       await api.devLogin();
       await refetch();
+      const next = consumeLoginNext() || "/";
+      navigate(next, { replace: true });
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
@@ -1129,6 +1149,7 @@ function loadSelectedCardIds(): Set<string> {
 
 function ShoppingPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
   const allDeckIds = useMemo(() => (decksQ.data ?? []).map((d) => d.id), [decksQ.data]);
   const [selectedDeckIds, setSelectedDeckIds] = useState<number[] | null>(null);
@@ -1369,6 +1390,19 @@ function ShoppingPage() {
     onError: (e: Error) => setShareMsg(e.message),
   });
 
+  const startGroupBuy = useMutation({
+    mutationFn: () =>
+      api.createGroupBuy({
+        title: "Group buy",
+        deck_ids: activeDeckIds.length === allDeckIds.length ? undefined : activeDeckIds,
+      }),
+    onSuccess: async (detail) => {
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      navigate(`/group-buys/${detail.id}`);
+    },
+    onError: (e: Error) => setExportMsg(e.message),
+  });
+
   function usedInLabel(item: ShoppingItem): string {
     const decks = item.used_in.join(", ");
     if ((item.leader_count ?? 1) > 1) {
@@ -1446,6 +1480,16 @@ function ShoppingPage() {
             {data?.unique_cards ?? 0} unique cards · {data?.cards_still_needed ?? 0} still needed ·{" "}
             {money(data?.remaining_market)}
           </p>
+        </div>
+        <div className="page-head-actions">
+          <button
+            type="button"
+            className="btn secondary"
+            disabled={startGroupBuy.isPending}
+            onClick={() => startGroupBuy.mutate()}
+          >
+            {startGroupBuy.isPending ? "Starting…" : "Start group buy"}
+          </button>
         </div>
       </div>
 
@@ -2663,6 +2707,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/share/:token" element={<PublicSharePage />} />
+      <Route path="/group-buy/join/:token" element={<GroupBuyJoinPage />} />
       <Route
         path="/"
         element={
@@ -2684,6 +2729,22 @@ export default function App() {
         element={
           <RequireAuth>
             <DeckDetailPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/group-buys"
+        element={
+          <RequireAuth>
+            <GroupBuysPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/group-buys/:id"
+        element={
+          <RequireAuth>
+            <GroupBuyDetailPage />
           </RequireAuth>
         }
       />

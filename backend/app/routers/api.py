@@ -19,6 +19,13 @@ from app.schemas import (
     DeckDetail,
     DeckSummary,
     DeckUpdate,
+    GroupBuyContributionUpdate,
+    GroupBuyCreate,
+    GroupBuyDetail,
+    GroupBuyExport,
+    GroupBuyInvitePreview,
+    GroupBuyLineOverrideUpdate,
+    GroupBuySummary,
     OwnedUpdate,
     PublicShoppingResponse,
     RecentSalesResponse,
@@ -26,7 +33,7 @@ from app.schemas import (
     ShareInfo,
     ShoppingResponse,
 )
-from app import services
+from app import group_buy, services
 
 router = APIRouter(tags=["api"])
 
@@ -163,6 +170,152 @@ def get_public_share(
         return services.public_share_view(db, token)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/group-buys", response_model=list[GroupBuySummary])
+def get_group_buys(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return group_buy.list_group_buys(db, user)
+
+
+@router.post("/group-buys", response_model=GroupBuyDetail)
+def post_group_buy(
+    body: GroupBuyCreate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return group_buy.create_group_buy(db, user, body.title, deck_ids=body.deck_ids)
+
+
+@router.get("/group-buys/{group_id}", response_model=GroupBuyDetail)
+def get_group_buy(
+    group_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.get_group_buy(db, user, group_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.delete("/group-buys/{group_id}")
+def delete_group_buy(
+    group_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        group_buy.delete_group_buy(db, user, group_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    return {"ok": True}
+
+
+@router.post("/group-buys/join/{token}", response_model=GroupBuyDetail)
+def join_group_buy(
+    token: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.join_group_buy(db, user, token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.get("/public/group-buys/{token}", response_model=GroupBuyInvitePreview)
+def public_group_buy_invite(
+    token: str,
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.invite_preview(db, token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.put("/group-buys/{group_id}/contribution", response_model=GroupBuyDetail)
+def put_group_buy_contribution(
+    group_id: int,
+    body: GroupBuyContributionUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.update_contribution(db, user, group_id, body.deck_ids)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.post("/group-buys/{group_id}/lock", response_model=GroupBuyDetail)
+def lock_group_buy(
+    group_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.lock_group_buy(db, user, group_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.post("/group-buys/{group_id}/unlock", response_model=GroupBuyDetail)
+def unlock_group_buy(
+    group_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.unlock_group_buy(db, user, group_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.put("/group-buys/{group_id}/lines/{card_id}", response_model=GroupBuyDetail)
+def put_group_buy_line_override(
+    group_id: int,
+    card_id: str,
+    body: GroupBuyLineOverrideUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.set_line_override(db, user, group_id, card_id, body.product_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/group-buys/{group_id}/export/tcgplayer", response_model=GroupBuyExport)
+def export_group_buy_tcgplayer(
+    group_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.export_tcgplayer(db, user, group_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 @router.get("/catalog/status", response_model=CatalogStatus)

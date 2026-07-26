@@ -141,6 +141,74 @@ export type PublicShoppingResponse = ShoppingResponse & {
   deck_name: string | null;
 };
 
+export type GroupBuyMemberQty = {
+  user_id: number;
+  display_name: string;
+  qty: number;
+};
+
+export type GroupBuyMember = {
+  user_id: number;
+  display_name: string;
+  role: string;
+  deck_ids: number[] | null;
+  cards_still_needed: number;
+  remaining_market: number;
+};
+
+export type GroupBuyLine = {
+  card_id: string;
+  name: string;
+  total_qty: number;
+  market_price: number | null;
+  remaining_cost: number | null;
+  product_id?: number | null;
+  tcgplayer_url: string;
+  image_url: string;
+  members: GroupBuyMemberQty[];
+  alt_arts: PrintingView[];
+};
+
+export type GroupBuySummary = {
+  id: number;
+  title: string;
+  status: string;
+  invite_token: string;
+  invite_path: string;
+  host_user_id: number;
+  host_name: string;
+  member_count: number;
+  is_host: boolean;
+  unique_cards: number;
+  cards_still_needed: number;
+  remaining_market: number;
+  created_at: string;
+};
+
+export type GroupBuyDetail = GroupBuySummary & {
+  members: GroupBuyMember[];
+  lines: GroupBuyLine[];
+  locked_at: string | null;
+};
+
+export type GroupBuyInvitePreview = {
+  title: string;
+  host_name: string;
+  member_count: number;
+  status: string;
+  invite_token: string;
+};
+
+export type GroupBuyExport = {
+  paste_text: string;
+  url: string | null;
+  included_count: number;
+  copy_count: number;
+  with_product_id: number;
+  missing_product_id: number;
+  status: string;
+};
+
 export const api = {
   apiUrl: API_URL,
   me: () => request<User | null>("/auth/me"),
@@ -181,6 +249,37 @@ export const api = {
     request<{ ok: boolean }>(`/share/${encodeURIComponent(token)}`, { method: "DELETE" }),
   publicShare: (token: string) =>
     request<PublicShoppingResponse>(`/public/share/${encodeURIComponent(token)}`),
+  groupBuys: () => request<GroupBuySummary[]>("/group-buys"),
+  groupBuy: (id: number) => request<GroupBuyDetail>(`/group-buys/${id}`),
+  createGroupBuy: (body: { title?: string; deck_ids?: number[] }) =>
+    request<GroupBuyDetail>("/group-buys", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  deleteGroupBuy: (id: number) =>
+    request<{ ok: boolean }>(`/group-buys/${id}`, { method: "DELETE" }),
+  joinGroupBuy: (token: string) =>
+    request<GroupBuyDetail>(`/group-buys/join/${encodeURIComponent(token)}`, {
+      method: "POST",
+    }),
+  groupBuyInvitePreview: (token: string) =>
+    request<GroupBuyInvitePreview>(`/public/group-buys/${encodeURIComponent(token)}`),
+  updateGroupBuyContribution: (id: number, deck_ids: number[] | null | undefined) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/contribution`, {
+      method: "PUT",
+      body: JSON.stringify({ deck_ids: deck_ids ?? null }),
+    }),
+  lockGroupBuy: (id: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/lock`, { method: "POST" }),
+  unlockGroupBuy: (id: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/unlock`, { method: "POST" }),
+  setGroupBuyLineProduct: (id: number, cardId: string, product_id: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/lines/${encodeURIComponent(cardId)}`, {
+      method: "PUT",
+      body: JSON.stringify({ product_id }),
+    }),
+  exportGroupBuyTcgplayer: (id: number) =>
+    request<GroupBuyExport>(`/group-buys/${id}/export/tcgplayer`),
 };
 
 export function money(n: number | null | undefined): string {

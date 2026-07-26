@@ -146,3 +146,90 @@ class CatalogMeta(Base):
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     card_count: Mapped[int] = mapped_column(Integer, default=0)
     notes: Mapped[str] = mapped_column(Text, default="")
+
+
+class GroupBuy(Base):
+    """Collaborative shopping pool (group buy) with invite link."""
+
+    __tablename__ = "group_buys"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    host_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(200), default="Group buy")
+    status: Mapped[str] = mapped_column(String(32), default="open")  # open | locked
+    invite_token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    host: Mapped[User] = relationship()
+    members: Mapped[list[GroupBuyMember]] = relationship(
+        back_populates="group_buy", cascade="all, delete-orphan"
+    )
+    snapshot_lines: Mapped[list[GroupBuySnapshotLine]] = relationship(
+        back_populates="group_buy", cascade="all, delete-orphan"
+    )
+    line_overrides: Mapped[list[GroupBuyLineOverride]] = relationship(
+        back_populates="group_buy", cascade="all, delete-orphan"
+    )
+
+
+class GroupBuyMember(Base):
+    __tablename__ = "group_buy_members"
+    __table_args__ = (UniqueConstraint("group_buy_id", "user_id", name="uq_group_buy_member"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    group_buy_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buys.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(32), default="member")  # host | member
+    # JSON list of deck ids for this member's contribution; null/empty = all decks
+    deck_ids_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    joined_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    group_buy: Mapped[GroupBuy] = relationship(back_populates="members")
+    user: Mapped[User] = relationship()
+
+
+class GroupBuySnapshotLine(Base):
+    """Frozen per-member qty at lock time."""
+
+    __tablename__ = "group_buy_snapshot_lines"
+    __table_args__ = (
+        UniqueConstraint(
+            "group_buy_id", "user_id", "card_id", name="uq_group_buy_snapshot_line"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    group_buy_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buys.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+    product_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    group_buy: Mapped[GroupBuy] = relationship(back_populates="snapshot_lines")
+
+
+class GroupBuyLineOverride(Base):
+    """Host-chosen TCGPlayer product/printing for a merged card line."""
+
+    __tablename__ = "group_buy_line_overrides"
+    __table_args__ = (
+        UniqueConstraint("group_buy_id", "card_id", name="uq_group_buy_line_override"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    group_buy_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buys.id", ondelete="CASCADE"), index=True
+    )
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    product_id: Mapped[int] = mapped_column(Integer)
+
+    group_buy: Mapped[GroupBuy] = relationship(back_populates="line_overrides")
