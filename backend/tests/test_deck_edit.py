@@ -145,6 +145,18 @@ def test_upsert_requires_confirm_over_main_limit(db):
     )
     assert detail.main_cards == MAIN_DECK_LIMIT + 1
 
+    # Already over the limit — further adds should not require re-confirm.
+    add_catalog(db, "OP99-998", name="Another", product_id=998, market=1.0)
+    detail = upsert_deck_card(db, user, deck.id, "OP99-998", 1)
+    assert detail.main_cards == MAIN_DECK_LIMIT + 2
+
+    # Drop back to the limit, then crossing again requires confirm.
+    detail = upsert_deck_card(db, user, deck.id, "OP99-999", 0)
+    detail = upsert_deck_card(db, user, deck.id, "OP99-998", 0)
+    assert detail.main_cards == MAIN_DECK_LIMIT
+    with pytest.raises(DeckOversizeError):
+        upsert_deck_card(db, user, deck.id, "OP99-999", 1)
+
 
 def test_don_deck_hard_cap(db):
     user = make_user(db, email="c@test", name="C", sub="sub-c")

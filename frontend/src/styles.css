@@ -2018,31 +2018,16 @@ tr.done {
 .deck-editor,
 .don-available {
   margin: 0 0 1rem;
-  padding: 0.85rem 1rem;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--card);
   min-width: 0;
 }
 
-.deck-editor-head,
-.don-available-head {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-  min-width: 0;
-}
-
-.deck-editor-title {
+.deck-editor .filter-drawer,
+.don-available .filter-drawer {
   margin: 0;
-  font-size: 1.1rem;
 }
 
 .deck-editor-sizes {
-  margin: 0.2rem 0 0;
+  margin: 0 0 0.75rem;
 }
 
 .deck-editor-filters {
@@ -2137,15 +2122,6 @@ tr.done {
   margin-top: 1rem;
 }
 
-.don-available-head h2 {
-  margin: 0;
-  font-size: 1.15rem;
-}
-
-.don-available-head p {
-  margin: 0.25rem 0 0;
-}
-
 .don-available-list {
   max-height: min(28rem, 60vh);
   overflow: auto;
@@ -2153,11 +2129,6 @@ tr.done {
 }
 
 @media (max-width: 720px) {
-  .deck-editor,
-  .don-available {
-    padding: 0.75rem;
-  }
-
   .deck-editor-filters {
     flex-direction: column;
     align-items: stretch;
