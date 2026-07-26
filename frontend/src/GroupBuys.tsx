@@ -6,11 +6,20 @@ import {
   api,
   GroupBuyDetail,
   GroupBuyLine,
+  GroupBuyOrderUpdate,
   money,
 } from "./api";
 import { blankMassEntryUrl, buildMassEntryExport } from "./tcgplayerMassEntry";
 
 const NEXT_KEY = "optcg_login_next";
+
+type ShippingSplit = "equal" | "by_cost" | "by_copies";
+
+const SHIPPING_SPLIT_LABELS: Record<ShippingSplit, string> = {
+  equal: "Equal among buyers",
+  by_cost: "By card cost",
+  by_copies: "By copies",
+};
 
 export function rememberLoginNext(path: string) {
   try {
@@ -205,6 +214,10 @@ export function GroupBuyDetailPage() {
   const qc = useQueryClient();
   const [msg, setMsg] = useState<string | null>(null);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState("");
+  const [orderNotes, setOrderNotes] = useState("");
+  const [shippingCost, setShippingCost] = useState("0");
+  const [shippingSplit, setShippingSplit] = useState<ShippingSplit>("equal");
 
   const detailQ = useQuery({
     queryKey: ["group-buy", groupId],
@@ -214,6 +227,17 @@ export function GroupBuyDetailPage() {
   const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
 
   const detail = detailQ.data;
+
+  useEffect(() => {
+    if (!detail) return;
+    setOrderId(detail.external_order_id || "");
+    setOrderNotes(detail.order_notes || "");
+    setShippingCost(String(detail.shipping_cost ?? 0));
+    const split = detail.shipping_split;
+    setShippingSplit(
+      split === "by_cost" || split === "by_copies" || split === "equal" ? split : "equal",
+    );
+  }, [detail]);
 
   const lock = useMutation({
     mutationFn: () => api.lockGroupBuy(groupId),
@@ -231,6 +255,26 @@ export function GroupBuyDetailPage() {
       qc.setQueryData(["group-buy", groupId], d);
       await qc.invalidateQueries({ queryKey: ["group-buys"] });
       setMsg("Group buy unlocked — live shopping contributions again.");
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const markOrdered = useMutation({
+    mutationFn: (body: GroupBuyOrderUpdate) => api.markGroupBuyOrdered(groupId, body),
+    onSuccess: async (d) => {
+      qc.setQueryData(["group-buy", groupId], d);
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      setMsg("Marked ordered — use settlement below to split shipping and what each person owes.");
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const saveOrder = useMutation({
+    mutationFn: (body: GroupBuyOrderUpdate) => api.updateGroupBuyOrder(groupId, body),
+    onSuccess: async (d) => {
+      qc.setQueryData(["group-buy", groupId], d);
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      setMsg("Order details saved.");
     },
     onError: (e: Error) => setMsg(e.message),
   });
@@ -363,6 +407,19 @@ export function GroupBuyDetailPage() {
   const decks = decksQ.data ?? [];
   const activeDeckIds = myContribution?.deck_ids;
   const allSelected = !activeDeckIds || activeDeckIds.length === decks.length;
+  const canEditPrintings = detail.is_host && (detail.status === "open" || detail.status === "locked");
+  const showOrderPanel = detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
+  const orderBusy = markOrdered.isPending || saveOrder.isPending || complete.isPending;
+
+  function orderBodyFromForm(): GroupBuyOrderUpdate {
+    const parsed = Number(shippingCost);
+    return {
+      external_order_id: orderId.trim(),
+      order_notes: orderNotes.trim(),
+      shipping_cost: Number.isFinite(parsed) && parsed >= 0 ? parsed : 0,
+      shipping_split: shippingSplit,
+    };
+  }
 
   return (
     <section>
@@ -398,7 +455,7 @@ export function GroupBuyDetailPage() {
           <button
             type="button"
             className="btn secondary"
-            disabled={lock.isPending || complete.isPending}
+            disabled={lock.isPending || orderBusy}
             onClick={() => lock.mutate()}
           >
             {lock.isPending ? "Locking…" : "Lock for checkout"}
@@ -408,10 +465,20 @@ export function GroupBuyDetailPage() {
           <button
             type="button"
             className="btn secondary"
-            disabled={unlock.isPending || complete.isPending}
+            disabled={unlock.isPending || orderBusy}
             onClick={() => unlock.mutate()}
           >
             {unlock.isPending ? "Unlocking…" : "Unlock"}
+          </button>
+        )}
+        {detail.is_host && (detail.status === "open" || detail.status === "locked") && (
+          <button
+            type="button"
+            className="btn secondary"
+            disabled={orderBusy}
+            onClick={() => markOrdered.mutate(orderBodyFromForm())}
+          >
+            {markOrdered.isPending ? "Saving…" : "Mark ordered"}
           </button>
         )}
         {detail.is_host && detail.status !== "completed" && (
@@ -460,12 +527,140 @@ export function GroupBuyDetailPage() {
               </strong>
               <span className="muted">
                 {" "}
-                · {m.cards_still_needed} copies · {money(m.remaining_market)}
+                · {m.cards_still_needed} copies · cards {money(m.card_cost ?? m.remaining_market)}
+                {showOrderPanel ? (
+                  <>
+                    {" "}
+                    · ship {money(m.shipping_share ?? 0)} · owes {money(m.total_owed ?? m.remaining_market)}
+                  </>
+                ) : null}
               </span>
             </li>
           ))}
         </ul>
       </div>
+
+      {showOrderPanel && (
+        <div className="group-buy-settlement">
+          <h2>Order & settlement</h2>
+          <p className="muted">
+            Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} ={" "}
+            <strong>{money(detail.grand_total)}</strong>
+            {detail.ordered_at ? ` · ordered ${new Date(detail.ordered_at).toLocaleString()}` : ""}
+          </p>
+          {detail.is_host ? (
+            <form
+              className="group-buy-order-form"
+              onSubmit={(e: FormEvent) => {
+                e.preventDefault();
+                const body = orderBodyFromForm();
+                if (detail.status === "locked" || detail.status === "open") {
+                  markOrdered.mutate(body);
+                } else {
+                  saveOrder.mutate(body);
+                }
+              }}
+            >
+              <label>
+                Order / receipt id
+                <input
+                  type="text"
+                  value={orderId}
+                  maxLength={200}
+                  onChange={(e) => setOrderId(e.target.value)}
+                  placeholder="Optional"
+                />
+              </label>
+              <label>
+                Shipping cost
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={shippingCost}
+                  onChange={(e) => setShippingCost(e.target.value)}
+                />
+              </label>
+              <label>
+                Split shipping
+                <select
+                  value={shippingSplit}
+                  onChange={(e) => setShippingSplit(e.target.value as ShippingSplit)}
+                >
+                  {(Object.keys(SHIPPING_SPLIT_LABELS) as ShippingSplit[]).map((key) => (
+                    <option key={key} value={key}>
+                      {SHIPPING_SPLIT_LABELS[key]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="group-buy-order-notes">
+                Notes
+                <textarea
+                  value={orderNotes}
+                  maxLength={4000}
+                  rows={3}
+                  onChange={(e) => setOrderNotes(e.target.value)}
+                  placeholder="Who paid, tracking, Venmo handles…"
+                />
+              </label>
+              <button type="submit" className="btn secondary" disabled={orderBusy}>
+                {detail.status === "ordered" || detail.status === "completed"
+                  ? saveOrder.isPending
+                    ? "Saving…"
+                    : "Save order details"
+                  : markOrdered.isPending
+                    ? "Saving…"
+                    : "Mark ordered & save"}
+              </button>
+            </form>
+          ) : (
+            <div className="group-buy-order-readonly">
+              {detail.external_order_id ? (
+                <p>
+                  Order id: <strong>{detail.external_order_id}</strong>
+                </p>
+              ) : null}
+              <p className="muted">
+                Shipping split:{" "}
+                {SHIPPING_SPLIT_LABELS[
+                  detail.shipping_split === "by_cost" || detail.shipping_split === "by_copies"
+                    ? detail.shipping_split
+                    : "equal"
+                ]}
+              </p>
+              {detail.order_notes ? <p>{detail.order_notes}</p> : null}
+            </div>
+          )}
+          <div className="table-wrap">
+            <table className="desktop-table group-buy-owe-table">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Cards</th>
+                  <th>Shipping</th>
+                  <th>Owes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.members.map((m) => (
+                  <tr key={m.user_id}>
+                    <td>
+                      {m.display_name}
+                      {m.role === "host" ? " (host)" : ""}
+                    </td>
+                    <td>{money(m.card_cost ?? 0)}</td>
+                    <td>{money(m.shipping_share ?? 0)}</td>
+                    <td>
+                      <strong>{money(m.total_owed ?? 0)}</strong>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {detail.status === "open" && myContribution && (
         <div className="group-buy-contribution">
@@ -569,7 +764,9 @@ export function GroupBuyDetailPage() {
                         <select
                           className="group-buy-printing"
                           value={line.product_id ?? ""}
-                          disabled={setProduct.isPending || !line.alt_arts.length}
+                          disabled={
+                            !canEditPrintings || setProduct.isPending || !line.alt_arts.length
+                          }
                           onChange={(e) => {
                             const productId = Number(e.target.value);
                             if (!productId) return;

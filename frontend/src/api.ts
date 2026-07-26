@@ -156,6 +156,16 @@ export type GroupBuyMember = {
   deck_ids: number[] | null;
   cards_still_needed: number;
   remaining_market: number;
+  card_cost?: number;
+  shipping_share?: number;
+  total_owed?: number;
+};
+
+export type GroupBuyOrderUpdate = {
+  external_order_id?: string | null;
+  order_notes?: string | null;
+  shipping_cost?: number | null;
+  shipping_split?: "equal" | "by_cost" | "by_copies" | null;
 };
 
 export type GroupBuyLine = {
@@ -194,6 +204,13 @@ export type GroupBuyDetail = GroupBuySummary & {
   members: GroupBuyMember[];
   lines: GroupBuyLine[];
   locked_at: string | null;
+  ordered_at: string | null;
+  external_order_id: string;
+  order_notes: string;
+  shipping_cost: number;
+  shipping_split: "equal" | "by_cost" | "by_copies" | string;
+  cards_subtotal: number;
+  grand_total: number;
 };
 
 export type GroupBuyInvitePreview = {
@@ -278,6 +295,16 @@ export const api = {
     request<GroupBuyDetail>(`/group-buys/${id}/lock`, { method: "POST" }),
   unlockGroupBuy: (id: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/unlock`, { method: "POST" }),
+  markGroupBuyOrdered: (id: number, body?: GroupBuyOrderUpdate) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/order`, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+    }),
+  updateGroupBuyOrder: (id: number, body: GroupBuyOrderUpdate) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/order`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
   completeGroupBuy: (id: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/complete`, { method: "POST" }),
   setGroupBuyLineProduct: (id: number, cardId: string, product_id: number) =>

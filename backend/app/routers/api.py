@@ -25,6 +25,7 @@ from app.schemas import (
     GroupBuyExport,
     GroupBuyInvitePreview,
     GroupBuyLineOverrideUpdate,
+    GroupBuyOrderUpdate,
     GroupBuyQtyUpdate,
     GroupBuySummary,
     OwnedUpdate,
@@ -285,6 +286,42 @@ def unlock_group_buy(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.post("/group-buys/{group_id}/order", response_model=GroupBuyDetail)
+def mark_group_buy_ordered(
+    group_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    body: GroupBuyOrderUpdate = GroupBuyOrderUpdate(),
+):
+    """Mark ordered: freeze quantities (if needed) and record checkout handoff / shipping."""
+    try:
+        return group_buy.mark_ordered(db, user, group_id, body)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.patch("/group-buys/{group_id}/order", response_model=GroupBuyDetail)
+def patch_group_buy_order(
+    group_id: int,
+    body: GroupBuyOrderUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Update order notes, shipping cost, and shipping split (host)."""
+    try:
+        return group_buy.update_order(db, user, group_id, body)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/group-buys/{group_id}/complete", response_model=GroupBuyDetail)

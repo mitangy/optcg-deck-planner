@@ -11,6 +11,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.group_buy_merge import MemberNeed, MergedMemberQty, merge_member_needs
+from app.group_buy_settlement import SHIPPING_SPLIT_MODES, build_settlements, round_money
 from app.models import (
     CatalogCard,
     CatalogPrinting,
@@ -29,9 +30,12 @@ from app.schemas import (
     GroupBuyLineOut,
     GroupBuyMemberOut,
     GroupBuyMemberQtyOut,
+    GroupBuyOrderUpdate,
     GroupBuySummary,
 )
 from app import services
+
+FROZEN_STATUSES = frozenset({"locked", "ordered", "completed"})
 
 TCGPLAYER_MASS_ENTRY_BASE = "https://www.tcgplayer.com/massentry"
 TCGPLAYER_PRODUCT_LINE = "One Piece Card Game"
@@ -213,7 +217,7 @@ def _build_lines(
 ) -> tuple[list[GroupBuyLineOut], dict[int, tuple[int, float]]]:
     needs = (
         _member_needs_locked(group)
-        if group.status in ("locked", "completed")
+        if group.status in FROZEN_STATUSES
         else _member_needs_live(db, group)
     )
     zero_customs = (
@@ -354,20 +358,42 @@ def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_member(group, user)
     lines, member_stats = _build_lines(db, group, viewer_user_id=user.id)
+
+    card_costs = {uid: float(stats[1]) for uid, stats in member_stats.items()}
+    copies = {uid: int(stats[0]) for uid, stats in member_stats.items()}
+    for member in group.members:
+        card_costs.setdefault(member.user_id, 0.0)
+        copies.setdefault(member.user_id, 0)
+    settlements = {
+        row.user_id: row
+        for row in build_settlements(
+            member_card_costs=card_costs,
+            member_copies=copies,
+            shipping_cost=float(group.shipping_cost or 0.0),
+            shipping_split=group.shipping_split or "equal",
+        )
+    }
+    cards_subtotal = round_money(sum(card_costs.values()))
+    shipping_cost = round_money(float(group.shipping_cost or 0.0))
+
     members_out: list[GroupBuyMemberOut] = []
     for member in sorted(
         group.members,
         key=lambda m: (0 if m.role == "host" else 1, m.id),
     ):
-        copies, market = member_stats.get(member.user_id, (0, 0.0))
+        copies_n, market = member_stats.get(member.user_id, (0, 0.0))
+        settle = settlements.get(member.user_id)
         members_out.append(
             GroupBuyMemberOut(
                 user_id=member.user_id,
                 display_name=_display_name(member.user),
                 role=member.role,
                 deck_ids=_parse_deck_ids(member.deck_ids_json),
-                cards_still_needed=copies,
+                cards_still_needed=copies_n,
                 remaining_market=market,
+                card_cost=settle.card_cost if settle else 0.0,
+                shipping_share=settle.shipping_share if settle else 0.0,
+                total_owed=settle.total_owed if settle else 0.0,
             )
         )
     return GroupBuyDetail(
@@ -375,6 +401,13 @@ def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
         members=members_out,
         lines=lines,
         locked_at=group.locked_at.isoformat() if group.locked_at else None,
+        ordered_at=group.ordered_at.isoformat() if group.ordered_at else None,
+        external_order_id=group.external_order_id or "",
+        order_notes=group.order_notes or "",
+        shipping_cost=shipping_cost,
+        shipping_split=group.shipping_split or "equal",
+        cards_subtotal=cards_subtotal,
+        grand_total=round_money(cards_subtotal + shipping_cost),
     )
 
 
@@ -419,7 +452,7 @@ def join_group_buy(db: Session, user: User, token: str) -> GroupBuyDetail:
     )
     if group is None:
         raise LookupError("Invite link not found")
-    if group.status in ("locked", "completed"):
+    if group.status in FROZEN_STATUSES:
         # Allow existing members to open; block new joins.
         try:
             _require_member(group, user)
@@ -598,11 +631,24 @@ def _add_owned(db: Session, user_id: int, card_id: str, delta: int) -> None:
         row.qty = int(row.qty) + delta
 
 
+def _apply_order_fields(group: GroupBuy, body: GroupBuyOrderUpdate) -> None:
+    if body.external_order_id is not None:
+        group.external_order_id = body.external_order_id.strip()[:200]
+    if body.order_notes is not None:
+        group.order_notes = body.order_notes.strip()[:4000]
+    if body.shipping_cost is not None:
+        group.shipping_cost = max(0.0, float(body.shipping_cost))
+    if body.shipping_split is not None:
+        if body.shipping_split not in SHIPPING_SPLIT_MODES:
+            raise ValueError("shipping_split must be equal, by_cost, or by_copies")
+        group.shipping_split = body.shipping_split
+
+
 def lock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_host(group, user)
-    if group.status == "completed":
-        raise PermissionError("Group buy is already completed")
+    if group.status in ("ordered", "completed"):
+        raise PermissionError(f"Group buy is already {group.status}")
     if group.status == "locked":
         return get_group_buy(db, user, group_id)
 
@@ -616,11 +662,53 @@ def lock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
 def unlock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_host(group, user)
-    if group.status == "completed":
-        raise PermissionError("Completed group buys cannot be unlocked")
+    if group.status in ("ordered", "completed"):
+        raise PermissionError(f"{group.status.capitalize()} group buys cannot be unlocked")
     group.status = "open"
     group.locked_at = None
     db.execute(delete(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id))
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def mark_ordered(
+    db: Session,
+    user: User,
+    group_id: int,
+    body: GroupBuyOrderUpdate | None = None,
+) -> GroupBuyDetail:
+    """Freeze quantities (if needed) and record that the bulk order was placed."""
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    if group.status == "completed":
+        raise PermissionError("Group buy is already completed")
+    if group.status == "open":
+        _freeze_snapshot(db, group)
+        group.locked_at = datetime.now(timezone.utc)
+        db.flush()
+    elif group.status not in ("locked", "ordered"):
+        raise PermissionError("Group buy cannot be marked ordered from this status")
+
+    if body is not None:
+        _apply_order_fields(group, body)
+    group.status = "ordered"
+    group.ordered_at = datetime.now(timezone.utc)
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def update_order(
+    db: Session,
+    user: User,
+    group_id: int,
+    body: GroupBuyOrderUpdate,
+) -> GroupBuyDetail:
+    """Update order notes / shipping / split while locked, ordered, or completed."""
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    if group.status == "open":
+        raise PermissionError("Lock or mark ordered before editing order details")
+    _apply_order_fields(group, body)
     db.commit()
     return get_group_buy(db, user, group_id)
 
@@ -636,6 +724,12 @@ def complete_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail
         _freeze_snapshot(db, group)
         group.locked_at = datetime.now(timezone.utc)
         db.flush()
+    elif group.status not in ("locked", "ordered"):
+        raise PermissionError("Group buy cannot be completed from this status")
+
+    if group.ordered_at is None and group.status != "ordered":
+        # Completing without an explicit order step is fine; leave ordered_at null.
+        pass
 
     snapshot = db.scalars(
         select(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id)
@@ -657,8 +751,8 @@ def set_line_override(
 ) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_host(group, user)
-    if group.status == "completed":
-        raise PermissionError("Completed group buys cannot change printings")
+    if group.status in ("ordered", "completed"):
+        raise PermissionError(f"{group.status.capitalize()} group buys cannot change printings")
     card_id = card_id.upper().strip()
     printing = db.scalar(
         select(CatalogPrinting).where(

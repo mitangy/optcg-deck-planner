@@ -156,12 +156,19 @@ class GroupBuy(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     host_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(200), default="Group buy")
-    status: Mapped[str] = mapped_column(String(32), default="open")  # open | locked | completed
+    # open | locked | ordered | completed
+    status: Mapped[str] = mapped_column(String(32), default="open")
     invite_token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
     locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ordered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    external_order_id: Mapped[str] = mapped_column(String(200), default="")
+    order_notes: Mapped[str] = mapped_column(Text, default="")
+    shipping_cost: Mapped[float] = mapped_column(Float, default=0.0)
+    # equal | by_cost | by_copies
+    shipping_split: Mapped[str] = mapped_column(String(32), default="equal")
 
     host: Mapped[User] = relationship()
     members: Mapped[list[GroupBuyMember]] = relationship(

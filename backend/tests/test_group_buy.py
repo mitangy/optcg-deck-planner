@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from app import group_buy, services
 from app.models import Owned
+from app.schemas import GroupBuyOrderUpdate
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
 
@@ -201,3 +202,78 @@ def test_member_cannot_complete(db, two_players):
     group_buy.join_group_buy(db, friend, created.invite_token)
     with pytest.raises(PermissionError):
         group_buy.complete_group_buy(db, friend, created.id)
+
+
+def test_mark_ordered_and_settlement(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Order")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
+
+    ordered = group_buy.mark_ordered(
+        db,
+        host,
+        created.id,
+        GroupBuyOrderUpdate(
+            external_order_id="TCG-123",
+            order_notes="Shipped to host",
+            shipping_cost=3.0,
+            shipping_split="by_cost",
+        ),
+    )
+    assert ordered.status == "ordered"
+    assert ordered.ordered_at is not None
+    assert ordered.external_order_id == "TCG-123"
+    assert ordered.shipping_cost == 3.0
+    assert ordered.shipping_split == "by_cost"
+    # Host: 3*2.5 + 2*1.0 = 9.5; Friend: 3*2.5 + 3*1.0 = 10.5; cards 20; ship by_cost
+    assert ordered.cards_subtotal == 20.0
+    assert ordered.grand_total == 23.0
+    by_name = {m.display_name: m for m in ordered.members}
+    assert by_name["Host"].card_cost == 9.5
+    assert by_name["Friend"].card_cost == 10.5
+    assert round(by_name["Host"].shipping_share + by_name["Friend"].shipping_share, 2) == 3.0
+    assert by_name["Host"].total_owed == round(
+        by_name["Host"].card_cost + by_name["Host"].shipping_share, 2
+    )
+
+    with pytest.raises(PermissionError):
+        group_buy.unlock_group_buy(db, host, created.id)
+
+    updated = group_buy.update_order(
+        db,
+        host,
+        created.id,
+        GroupBuyOrderUpdate(shipping_split="equal", shipping_cost=2.0),
+    )
+    assert updated.shipping_split == "equal"
+    assert updated.shipping_cost == 2.0
+    by_name = {m.display_name: m for m in updated.members}
+    assert by_name["Host"].shipping_share == 1.0
+    assert by_name["Friend"].shipping_share == 1.0
+
+    done = group_buy.complete_group_buy(db, host, created.id)
+    assert done.status == "completed"
+    assert done.external_order_id == "TCG-123"
+    assert _owned(db, host.id, "OP01-001") == 4  # 1 owned + 3 bought
+
+
+def test_mark_ordered_from_open_freezes(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Direct order")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    ordered = group_buy.mark_ordered(db, host, created.id, None)
+    assert ordered.status == "ordered"
+    assert ordered.locked_at is not None
+    before = {line.card_id: line.total_qty for line in ordered.lines}
+    set_owned(db, friend, "OP01-001", 99)
+    again = group_buy.get_group_buy(db, host, created.id)
+    assert {line.card_id: line.total_qty for line in again.lines} == before
+
+
+def test_member_cannot_mark_ordered(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "No order")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    with pytest.raises(PermissionError):
+        group_buy.mark_ordered(db, friend, created.id, None)
