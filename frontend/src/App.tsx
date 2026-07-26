@@ -593,7 +593,7 @@ function formatShoppingListStats(data: {
 } | null | undefined) {
   const { totalUnique, uniqueStillNeeded, totalStillNeeded, remainingMarket } = shoppingListStats(data);
   return (
-    `${totalUnique} total unique cards · ${uniqueStillNeeded} unique cards still needed · ` +
+    `${totalUnique} total unique cards · ${uniqueStillNeeded} unique cards still needed, ` +
     `${totalStillNeeded} total cards still needed · ${money(remainingMarket)}`
   );
 }
