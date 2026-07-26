@@ -648,8 +648,8 @@ export function GroupBuyDetailPage() {
               {detail.order_notes ? <p>{detail.order_notes}</p> : null}
             </div>
           )}
-          <div className="table-wrap">
-            <table className="desktop-table group-buy-owe-table">
+        <div className="table-wrap desktop-table">
+          <table className="data-table group-buy-owe-table">
               <thead>
                 <tr>
                   <th>Member</th>
@@ -739,8 +739,9 @@ export function GroupBuyDetailPage() {
       {detail.lines.length === 0 ? (
         <p className="muted">Nothing to buy yet — members need cards on their shopping lists.</p>
       ) : (
-        <div className="table-wrap">
-          <table className="desktop-table">
+        <>
+        <div className="table-wrap desktop-table">
+          <table className="data-table">
             <thead>
               <tr>
                 <th>Card</th>
@@ -813,7 +814,8 @@ export function GroupBuyDetailPage() {
               ))}
             </tbody>
           </table>
-          <div className="mobile-card-list">
+        </div>
+        <div className="mobile-card-list">
             {detail.lines.map((line) => (
               <article key={line.card_id} className="mobile-card need">
                 <div className="mobile-card-top">
@@ -876,7 +878,7 @@ export function GroupBuyDetailPage() {
               </article>
             ))}
           </div>
-        </div>
+        </>
       )}
       {detail.status === "open" ? (
         <p className="muted group-buy-footnote">* Custom quantity (not shopping still-need)</p>

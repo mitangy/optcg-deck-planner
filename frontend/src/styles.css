@@ -37,16 +37,19 @@ body {
   width: 100%;
   max-width: 100%;
   min-height: 100%;
-  min-height: 100dvh;
+  /* svh = visible viewport with browser chrome showing; avoids empty scroll
+     under short pages that 100dvh/lvh leave on mobile Safari. */
+  min-height: 100svh;
   background: var(--bg-deep);
   overflow-x: clip;
+  overscroll-behavior-y: none;
 }
 
 #root {
   width: 100%;
   max-width: 100%;
   min-height: 100%;
-  min-height: 100dvh;
+  min-height: 100svh;
   overflow-x: clip;
   background: var(--page-bg);
   background-attachment: fixed;
@@ -67,8 +70,9 @@ h2,
   width: 100%;
   max-width: 100%;
   min-height: 100%;
-  min-height: 100dvh;
-  padding: 0 0 1.5rem;
+  min-height: 100svh;
+  /* Keep a little room below the last row; safe-area covers notched phones. */
+  padding: 0 0 max(0.75rem, env(safe-area-inset-bottom, 0px));
   overflow-x: clip;
 }
 
@@ -321,7 +325,7 @@ h2,
 
 .login {
   min-height: 100%;
-  min-height: 100dvh;
+  min-height: 100svh;
   display: grid;
   place-items: center;
   padding: 2rem;
@@ -1464,8 +1468,14 @@ tr.done {
 }
 
 @media (max-width: 800px) {
+  html,
+  #root {
+    /* fixed backgrounds inflate scroll height on some mobile browsers */
+    background-attachment: scroll;
+  }
+
   .app {
-    padding: 0 0 1.25rem;
+    padding: 0 0 max(0.5rem, env(safe-area-inset-bottom, 0px));
   }
 
   .app-main {
@@ -1589,7 +1599,14 @@ tr.done {
     justify-content: center;
   }
 
-  .desktop-table {
+  .data-table {
+    min-width: 0;
+  }
+
+  /* Keep hidden desktop tables out of layout entirely (some WebViews
+     still reserve space for display:none table descendants otherwise). */
+  .table-wrap.desktop-table,
+  table.desktop-table {
     display: none !important;
   }
 
@@ -2086,7 +2103,7 @@ tr.done {
   display: grid;
   gap: 0.45rem;
   min-width: 0;
-  max-height: min(22rem, 50vh);
+  max-height: min(22rem, 50svh);
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -2144,7 +2161,7 @@ tr.done {
 }
 
 .don-available-list {
-  max-height: min(22rem, 45vh);
+  max-height: min(22rem, 45svh);
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -2198,7 +2215,7 @@ tr.done {
   }
 
   .deck-editor-results {
-    max-height: min(16rem, 38vh);
+    max-height: min(16rem, 38svh);
     gap: 0.35rem;
   }
 
