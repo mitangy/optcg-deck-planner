@@ -103,13 +103,65 @@ def parse_cost(raw: str | None) -> int | str | None:
         return value
 
 
+# Official constructed size: 50 main-deck cards + 1 leader. DON!! is separate (max 10).
+MAIN_DECK_LIMIT = 51
+DON_DECK_LIMIT = 10
+
+
+def normalize_card_type(card_type: str | None) -> str:
+    return (card_type or "").strip().lower()
+
+
+def is_don_type(card_type: str | None) -> bool:
+    """True for DON!! catalog rows (TCGPlayer CardType is typically 'DON!!')."""
+    normalized = normalize_card_type(card_type)
+    if not normalized:
+        return False
+    return normalized.startswith("don") or "don!!" in normalized
+
+
+def is_leader_type(card_type: str | None, rarity: str | None = None) -> bool:
+    normalized = normalize_card_type(card_type)
+    rarity_u = (rarity or "").strip().upper()
+    return normalized == "leader" or rarity_u == "L"
+
+
+def is_don_card(row: Any | None) -> bool:
+    if row is None:
+        return False
+    return is_don_type(getattr(row, "card_type", None))
+
+
+def is_leader_card(row: Any | None) -> bool:
+    if row is None:
+        return False
+    return is_leader_type(getattr(row, "card_type", None), getattr(row, "rarity", None))
+
+
 def find_leader_id(cards: list[ParsedCard], catalog_by_id: dict[str, Any]) -> str | None:
     for card in cards:
         row = catalog_by_id.get(card.card_id)
-        if not row:
-            continue
-        card_type = (getattr(row, "card_type", None) or "").lower()
-        rarity = (getattr(row, "rarity", None) or "").upper()
-        if card_type == "leader" or rarity == "L":
+        if is_leader_card(row):
             return card.card_id
     return None
+
+
+def deck_size_counts(
+    cards: list[ParsedCard] | list[tuple[str, int]],
+    catalog_by_id: dict[str, Any],
+) -> tuple[int, int]:
+    """Return (main_or_leader_copies, don_copies) for a deck's card lines."""
+    main = 0
+    don = 0
+    for entry in cards:
+        if isinstance(entry, ParsedCard):
+            card_id, needed = entry.card_id, entry.needed
+        else:
+            card_id, needed = entry
+        if needed <= 0:
+            continue
+        if is_don_card(catalog_by_id.get(card_id)):
+            don += needed
+        else:
+            main += needed
+    return main, don

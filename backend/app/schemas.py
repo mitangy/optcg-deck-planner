@@ -17,6 +17,14 @@ class DeckCreate(BaseModel):
     decklist: str = Field(min_length=1, max_length=100_000)
 
 
+class DeckCardUpsert(BaseModel):
+    """Set absolute copy count for a card in a deck. needed=0 removes the line."""
+
+    needed: int = Field(ge=0, le=99)
+    # Soft confirm when projected main+leader copies would exceed MAIN_DECK_LIMIT (51).
+    confirm_oversize: bool = False
+
+
 class DeckSummary(BaseModel):
     id: int
     name: str
@@ -25,7 +33,23 @@ class DeckSummary(BaseModel):
     leader_image_url: str = ""
     card_count: int
     total_cards: int
+    main_cards: int = 0
+    don_cards: int = 0
     sort_order: int
+
+
+class CatalogCardResult(BaseModel):
+    card_id: str
+    name: str
+    rarity: str = ""
+    color: str = ""
+    card_type: str = ""
+    cost: int | str | None = None
+    market_price: float | None = None
+    low_price: float | None = None
+    image_url: str = ""
+    tcgplayer_url: str = ""
+    group_name: str = ""
 
 
 class PrintingView(BaseModel):
@@ -69,7 +93,7 @@ class CardView(BaseModel):
     image_url: str = ""
     tcgplayer_url: str = ""
     product_id: int | None = None
-    section: str = "main"  # main | additional
+    section: str = "main"  # main | additional | don
     alt_arts: list[PrintingView] = []
 
 
@@ -80,6 +104,8 @@ class DeckDetail(BaseModel):
     leader_name: str | None = None
     prior_decks: list[str] = []
     cards: list[CardView]
+    main_cards: int = 0
+    don_cards: int = 0
 
 
 class ShoppingItem(BaseModel):

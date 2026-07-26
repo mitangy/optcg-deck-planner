@@ -2010,3 +2010,168 @@ tr.done {
     justify-content: center;
   }
 }
+
+.deck-size-meta {
+  margin: 0.35rem 0 0;
+}
+
+.deck-editor,
+.don-available {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  min-width: 0;
+}
+
+.deck-editor-head,
+.don-available-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  min-width: 0;
+}
+
+.deck-editor-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.deck-editor-sizes {
+  margin: 0.2rem 0 0;
+}
+
+.deck-editor-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  min-width: 0;
+}
+
+.deck-editor-filters .card-search {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.deck-editor-select {
+  display: flex;
+  min-width: 0;
+}
+
+.deck-editor-select select {
+  appearance: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  padding: 0.45rem 0.65rem;
+  font: inherit;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.deck-editor-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.deck-editor-result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 253, 248, 0.85);
+  min-width: 0;
+}
+
+.deck-editor-result-main {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+
+.deck-editor-result-main .thumb,
+.deck-editor-result-main .thumb.placeholder {
+  width: 48px;
+  height: 67px;
+  flex: 0 0 auto;
+}
+
+.deck-editor-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.deck-editor-qty {
+  min-width: 1.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.don-heading,
+.additional-heading {
+  margin-top: 1.5rem;
+}
+
+.don-available {
+  margin-top: 1rem;
+}
+
+.don-available-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.don-available-head p {
+  margin: 0.25rem 0 0;
+}
+
+.don-available-list {
+  max-height: min(28rem, 60vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 720px) {
+  .deck-editor,
+  .don-available {
+    padding: 0.75rem;
+  }
+
+  .deck-editor-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .deck-editor-select select,
+  .deck-editor-result-actions .btn,
+  .deck-editor-result-actions .ghost {
+    width: 100%;
+  }
+
+  .page-head-actions .btn.primary {
+    flex: 1 1 auto;
+    text-align: center;
+    justify-content: center;
+  }
+}
