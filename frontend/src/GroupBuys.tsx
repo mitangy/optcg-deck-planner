@@ -9,6 +9,7 @@ import {
   GroupBuyOrderUpdate,
   money,
 } from "./api";
+import { CardThumb } from "./CardThumb";
 import { blankMassEntryUrl, buildMassEntryExport } from "./tcgplayerMassEntry";
 import {
   AuthLoadingSkeleton,
@@ -760,9 +761,12 @@ export function GroupBuyDetailPage() {
             <tbody>
               {detail.lines.map((line) => (
                 <tr key={line.card_id}>
-                  <td>
-                    <div className="card-id">{line.card_id}</div>
-                    <div>{line.name}</div>
+                  <td className="card-cell">
+                    <CardThumb src={line.image_url || undefined} alt={line.name} />
+                    <div>
+                      <div className="card-id">{line.card_id}</div>
+                      <div>{line.name}</div>
+                    </div>
                   </td>
                   {detail.status === "open" ? (
                     <td>
@@ -824,6 +828,9 @@ export function GroupBuyDetailPage() {
             {detail.lines.map((line) => (
               <article key={line.card_id} className="mobile-card need">
                 <div className="mobile-card-top">
+                  <div className="mobile-card-media">
+                    <CardThumb src={line.image_url || undefined} alt={line.name} />
+                  </div>
                   <div className="mobile-card-info">
                     <div className="card-id">{line.card_id}</div>
                     <div className="mobile-card-name">{line.name}</div>
