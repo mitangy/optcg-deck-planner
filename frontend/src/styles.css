@@ -1748,8 +1748,8 @@ tr.done {
   .mobile-card {
     position: relative;
     border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 0.65rem;
+    border-radius: 12px;
+    padding: 0.55rem;
     box-shadow: var(--shadow);
     width: 100%;
     max-width: 100%;
@@ -1776,14 +1776,14 @@ tr.done {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.2rem;
     flex: 0 0 auto;
-    width: 72px;
+    width: 64px;
   }
 
   .mobile-card .thumb {
-    width: 72px;
-    height: 100px;
+    width: 64px;
+    height: 90px;
   }
 
   .mobile-card-media-meta {
@@ -1854,13 +1854,13 @@ tr.done {
   }
 
   .mobile-card-owned {
-    margin-top: 0.4rem;
+    margin-top: 0.3rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0.15rem;
     font-weight: 650;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
   }
 
   .mobile-card-owned > span {
@@ -1874,15 +1874,15 @@ tr.done {
   }
 
   .mobile-card-owned .owned-btn {
-    width: 2.35rem;
-    height: 2.35rem;
-    font-size: 1.1rem;
+    width: 2.2rem;
+    height: 2.2rem;
+    font-size: 1.05rem;
   }
 
   .mobile-card-owned .owned {
-    width: 2.35rem;
-    padding: 0.35rem 0.15rem;
-    font-size: 0.95rem;
+    width: 2.2rem;
+    padding: 0.3rem 0.1rem;
+    font-size: 0.92rem;
   }
 
   .mobile-card-owned .group-buy-qty {
@@ -1905,11 +1905,20 @@ tr.done {
   }
 
   .mobile-card-alts {
-    margin-top: 0.4rem;
+    margin-top: 0.3rem;
   }
 
   .mobile-used-in {
-    margin: 0.5rem 0 0;
+    margin: 0.35rem 0 0;
+  }
+
+  .mobile-card .alt-art {
+    padding: 0.2rem 0.3rem;
+  }
+
+  .mobile-card .alt-art .thumb {
+    width: 40px;
+    height: 55px;
   }
 
   .btn.primary,
