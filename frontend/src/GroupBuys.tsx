@@ -287,7 +287,7 @@ function LinePrintingSelect({
       value={currentId ?? ""}
       disabled={disabled || (preferredId == null && alts.length === 0)}
       aria-label={`Checkout printing for ${line.card_id}`}
-      title="Printing used for group checkout / mass entry (whole line)"
+      title="Default checkout printing when nobody set alt-art wants (mass entry splits AA wants first)"
       onChange={(e) => {
         const productId = Number(e.target.value);
         if (!productId) return;
@@ -837,13 +837,15 @@ export function GroupBuyDetailPage() {
 
   async function exportMassEntry(d: GroupBuyDetail) {
     try {
+      // Backend allocates each member's AA wants; local fallback is last-resort
+      // only (viewer alt_arts must not be applied against total_qty).
       const exported = await api.exportGroupBuyTcgplayer(d.id);
       const local = buildMassEntryExport(
         d.lines.map((line) => ({
           card_id: line.card_id,
           name: line.name,
           still_need: line.total_qty,
-          product_id: line.product_id,
+          product_id: line.preferred_product_id ?? line.product_id,
         })),
       );
       const paste = exported.paste_text || local.pasteText;
@@ -1437,7 +1439,9 @@ export function GroupBuyDetailPage() {
                     <th>Who</th>
                     <th>Market</th>
                     <th>Est.</th>
-                    {detail.is_host ? <th title="Checkout printing for mass entry">Printing</th> : null}
+                    {detail.is_host ? (
+                      <th title="Default printing when no alt-art wants are set">Printing</th>
+                    ) : null}
                     {showAltArts ? <th>Alt arts</th> : null}
                   </tr>
                 </thead>
