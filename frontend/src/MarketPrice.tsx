@@ -127,20 +127,21 @@ export function AltArtsRow({
   onWantChange,
   busyProductId = null,
 }: {
-  alts: PrintingView[];
+  alts: PrintingView[] | null | undefined;
   /** Deck Need for this card; used to disable + when alt wants are at the cap. */
   cardNeeded?: number;
   editable?: boolean;
   onWantChange?: (productId: number, qty: number) => void;
   busyProductId?: number | null;
 }) {
-  if (!alts.length) return <span className="muted">—</span>;
-  const wantSum = alts.reduce((s, a) => s + (a.wanted ?? 0), 0);
+  const list = alts ?? [];
+  if (!list.length) return <span className="muted">—</span>;
+  const wantSum = list.reduce((s, a) => s + (a.wanted ?? 0), 0);
   const atCap = cardNeeded != null && wantSum >= cardNeeded;
 
   return (
     <div className="alt-arts">
-      {alts.map((alt) => {
+      {list.map((alt) => {
         const wanted = alt.wanted ?? 0;
         const busy = busyProductId === alt.product_id;
         return (

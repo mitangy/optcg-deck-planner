@@ -77,7 +77,14 @@ def test_host_printing_override_and_export(db, two_players):
     updated = group_buy.set_line_override(db, host, created.id, "OP01-001", 1009)
     line = next(l for l in updated.lines if l.card_id == "OP01-001")
     assert line.product_id == 1009
+    assert line.preferred_product_id == 1001
 
+    # Selecting preferred again clears the override.
+    reset = group_buy.set_line_override(db, host, created.id, "OP01-001", 1001)
+    line = next(l for l in reset.lines if l.card_id == "OP01-001")
+    assert line.product_id == 1001
+
+    group_buy.set_line_override(db, host, created.id, "OP01-001", 1009)
     export = group_buy.export_tcgplayer(db, host, created.id)
     assert "6-1009" in export.paste_text.splitlines()
     assert "5-1002" in export.paste_text.splitlines()

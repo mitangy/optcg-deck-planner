@@ -267,27 +267,34 @@ function LinePrintingSelect({
   disabled: boolean;
   onChange: (productId: number) => void;
 }) {
-  if (!line.product_id && !line.alt_arts.length) {
+  const preferredId = line.preferred_product_id ?? null;
+  const alts = line.alt_arts ?? [];
+  const currentId = line.product_id ?? preferredId;
+  if (!preferredId && alts.length === 0) {
     return <span className="muted">—</span>;
   }
   return (
     <select
       className="group-buy-printing"
-      value={line.product_id ?? ""}
-      disabled={disabled || !line.alt_arts.length}
+      value={currentId ?? ""}
+      disabled={disabled || (preferredId == null && alts.length === 0)}
+      aria-label={`Checkout printing for ${line.card_id}`}
+      title="Printing used for group checkout / mass entry (whole line)"
       onChange={(e) => {
         const productId = Number(e.target.value);
         if (!productId) return;
         onChange(productId);
       }}
     >
-      {line.product_id ? (
-        <option value={line.product_id}>Preferred · {money(line.market_price)}</option>
+      {preferredId != null ? (
+        <option value={preferredId}>
+          Preferred · {money(line.preferred_market_price ?? null)}
+        </option>
       ) : (
-        <option value="">No product id</option>
+        <option value="">No preferred product</option>
       )}
-      {line.alt_arts
-        .filter((alt) => alt.product_id !== line.product_id)
+      {alts
+        .filter((alt) => alt.product_id !== preferredId)
         .map((alt) => (
           <option key={alt.product_id} value={alt.product_id}>
             Alt · {alt.name} · {money(alt.market_price)}
@@ -790,21 +797,27 @@ export function GroupBuyDetailPage() {
 
   const qtyBusy = setQty.isPending || clearQty.isPending || syncQty.isPending;
 
-  const groupBuyAltRow = (line: GroupBuyLine) => (
-    <AltArtsRow
-      alts={line.alt_arts}
-      cardNeeded={line.my_need ?? 0}
-      editable={detail?.status === "open"}
-      onWantChange={(productId, qty) =>
-        setAltWant.mutate({ cardId: line.card_id, productId, qty })
-      }
-      busyProductId={
-        altWantBusyKey?.startsWith(`${line.card_id}:`)
-          ? Number(altWantBusyKey.slice(line.card_id.length + 1))
-          : null
-      }
-    />
-  );
+  const groupBuyAltRow = (line: GroupBuyLine) => {
+    const alts = line.alt_arts ?? [];
+    const canEditWants = detail?.status === "open" && (line.my_need ?? 0) > 0;
+    return (
+      <AltArtsRow
+        alts={alts}
+        cardNeeded={line.my_need ?? 0}
+        editable={canEditWants}
+        onWantChange={
+          canEditWants
+            ? (productId, qty) => setAltWant.mutate({ cardId: line.card_id, productId, qty })
+            : undefined
+        }
+        busyProductId={
+          altWantBusyKey?.startsWith(`${line.card_id}:`)
+            ? Number(altWantBusyKey.slice(line.card_id.length + 1))
+            : null
+        }
+      />
+    );
+  };
 
   async function copyInvite(path: string) {
     const url = `${window.location.origin}${path}`;
@@ -1314,7 +1327,7 @@ export function GroupBuyDetailPage() {
                           TCGPlayer
                         </a>
                       ) : null}
-                      {showAltArts && line.alt_arts.length > 0 ? (
+                      {showAltArts ? (
                         <div className="grid-card-alts">{groupBuyAltRow(line)}</div>
                       ) : null}
                     </div>
@@ -1400,7 +1413,7 @@ export function GroupBuyDetailPage() {
                         />
                       </div>
                     ) : null}
-                    {showAltArts && line.alt_arts.length > 0 ? (
+                    {showAltArts ? (
                       <div className="mobile-card-alts">{groupBuyAltRow(line)}</div>
                     ) : null}
                   </article>
@@ -1418,7 +1431,7 @@ export function GroupBuyDetailPage() {
                     <th>Who</th>
                     <th>Market</th>
                     <th>Est.</th>
-                    {detail.is_host ? <th>Printing</th> : null}
+                    {detail.is_host ? <th title="Checkout printing for mass entry">Printing</th> : null}
                     {showAltArts ? <th>Alt arts</th> : null}
                   </tr>
                 </thead>
@@ -1497,7 +1510,9 @@ export function GroupBuyDetailPage() {
                             />
                           </td>
                         ) : null}
-                        {showAltArts ? <td>{groupBuyAltRow(line)}</td> : null}
+                        {showAltArts ? (
+                          <td className="alt-arts-cell">{groupBuyAltRow(line)}</td>
+                        ) : null}
                       </tr>
                     );
                   })}

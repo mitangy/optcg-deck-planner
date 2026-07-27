@@ -257,6 +257,9 @@ class GroupBuyLineOut(BaseModel):
     market_price: float | None = None
     remaining_cost: float | None = None
     product_id: int | None = None
+    # Catalog preferred (usually standard) printing — always available to reset checkout to.
+    preferred_product_id: int | None = None
+    preferred_market_price: float | None = None
     tcgplayer_url: str = ""
     image_url: str = ""
     members: list[GroupBuyMemberQtyOut]

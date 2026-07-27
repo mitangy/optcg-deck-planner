@@ -2053,12 +2053,35 @@ tr.done {
 
 .group-buy-printing {
   max-width: 14rem;
+  min-width: 0;
+  width: 100%;
   min-height: 2rem;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
   font-size: 0.85rem;
+}
+
+.data-table td.alt-arts-cell {
+  vertical-align: top;
+  min-width: 0;
+  max-width: 14rem;
+  width: 12rem;
+}
+
+.data-table td.alt-arts-cell .alt-arts {
+  max-width: 100%;
+}
+
+.grid-card-alts,
+.mobile-card-alts {
+  min-width: 0;
+}
+
+.grid-card-alts .alt-arts,
+.mobile-card-alts .alt-arts {
+  max-width: 100%;
 }
 
 .group-buy-merged-heading {
