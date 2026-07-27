@@ -1532,17 +1532,19 @@ export function GroupBuyDetailPage() {
                         className={`${excluded ? "excluded" : ""}${soleClass}`.trim() || undefined}
                       >
                         <td className="card-cell">
-                          <MemberColorRail line={line} members={members} />
-                          <CardThumb src={line.image_url || undefined} alt={line.name} />
-                          <div>
-                            <div className="card-id">{line.card_id}</div>
-                            <div>{line.name}</div>
-                            {excluded ? <div className="muted">Excluded</div> : null}
-                            {line.tcgplayer_url ? (
-                              <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
-                                TCGPlayer
-                              </a>
-                            ) : null}
+                          <div className="card-cell-inner">
+                            <MemberColorRail line={line} members={members} />
+                            <CardThumb src={line.image_url || undefined} alt={line.name} />
+                            <div>
+                              <div className="card-id">{line.card_id}</div>
+                              <div>{line.name}</div>
+                              {excluded ? <div className="muted">Excluded</div> : null}
+                              {line.tcgplayer_url ? (
+                                <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
+                                  TCGPlayer
+                                </a>
+                              ) : null}
+                            </div>
                           </div>
                         </td>
                         {detail.status === "open" ? (

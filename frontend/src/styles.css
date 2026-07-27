@@ -176,15 +176,26 @@ body:has(.group-buy-detail) .topbar-inner {
   white-space: nowrap;
 }
 
+/* Keep the <td> as a real table-cell so row borders stay continuous.
+   Flex the inner wrapper instead — display:flex on td breaks border-collapse. */
 .card-cell {
+  min-width: 12rem;
+  vertical-align: middle;
+}
+
+.card-cell-inner {
   display: flex;
   gap: 0.75rem;
   align-items: center;
-  min-width: 12rem;
+  min-width: 0;
 }
 
 .data-table {
   min-width: 720px;
+  /* separate + 0 spacing draws each cell's border-bottom in full so lines
+     don't fragment around flex cells, sticky headers, or tinted rows. */
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .mobile-card-list {
@@ -1166,15 +1177,41 @@ tr.selected-row td,
 
 table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 th,
 td {
   padding: 0.7rem 0.8rem;
-  border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: middle;
+}
+
+/* Continuous row rules via inset line (not border-collapse seams).
+   border-bottom on cells fragments around flex history, sticky headers,
+   and narrow columns like the shopping checkbox — this paints evenly. */
+.data-table > :is(thead, tbody) > tr > :is(th, td) {
+  position: relative;
+  border-bottom: none;
+  background-clip: padding-box;
+}
+
+.data-table > :is(thead, tbody) > tr > :is(th, td)::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--line);
+  pointer-events: none;
+}
+
+/* Non-data tables (e.g. group-buy owes) keep a simple bottom border. */
+table:not(.data-table) th,
+table:not(.data-table) td {
+  border-bottom: 1px solid var(--line);
 }
 
 th {
@@ -1185,13 +1222,14 @@ th {
   background: #faf7f1;
   position: sticky;
   top: 0;
+  z-index: 1;
 }
 
-tr.need {
+tr.need td {
   background: var(--need);
 }
 
-tr.done {
+tr.done td {
   background: var(--done);
 }
 
@@ -2459,7 +2497,6 @@ tr.done {
 .data-table tr.group-buy-user-header-row td {
   padding: 0.7rem 0.85rem 0.45rem;
   background: var(--bg);
-  border-bottom: 1px solid var(--line);
   font-weight: 650;
 }
 
@@ -2521,15 +2558,17 @@ tr.done {
   white-space: nowrap;
 }
 
-.data-table tr.excluded,
 .grid-card.excluded,
 .mobile-card.excluded {
   opacity: 0.55;
   filter: grayscale(0.4);
 }
 
-.data-table tr.excluded {
+/* Mute excluded table rows without filter on <tr>/<td> — filters create a
+   stacking context that clips and shifts border-bottom seams. */
+.data-table tr.excluded td {
   background: #f0ebe3;
+  opacity: 0.55;
 }
 
 .group-buy-swatch {
@@ -2594,7 +2633,7 @@ tr.done {
   border-radius: 16px 0 0 16px;
 }
 
-.card-cell > .group-buy-color-rail {
+.card-cell-inner > .group-buy-color-rail {
   align-self: stretch;
   min-height: 3rem;
 }
@@ -2627,14 +2666,14 @@ tr.done {
   background: color-mix(in srgb, var(--gb-user) 14%, var(--need));
 }
 
-.data-table tr.gb-user-0,
-.data-table tr.gb-user-1,
-.data-table tr.gb-user-2,
-.data-table tr.gb-user-3,
-.data-table tr.gb-user-4,
-.data-table tr.gb-user-5,
-.data-table tr.gb-user-6,
-.data-table tr.gb-user-7 {
+.data-table tr.gb-user-0 td,
+.data-table tr.gb-user-1 td,
+.data-table tr.gb-user-2 td,
+.data-table tr.gb-user-3 td,
+.data-table tr.gb-user-4 td,
+.data-table tr.gb-user-5 td,
+.data-table tr.gb-user-6 td,
+.data-table tr.gb-user-7 td {
   background: color-mix(in srgb, var(--gb-user) 10%, var(--card));
 }
 
