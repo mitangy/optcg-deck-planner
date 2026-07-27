@@ -1373,32 +1373,30 @@ function ShoppingPage() {
                         onClick={stopCardSelectBubble}
                         onKeyDown={stopCardSelectBubble}
                       >
-                        <span className="muted">Market</span>
-                        <MarketPrice price={item.market_price} productId={item.product_id} />
+                        <div className="mobile-card-price-main">
+                          <span className="muted">Market</span>
+                          <MarketPrice price={item.market_price} productId={item.product_id} />
+                          {item.tcgplayer_url ? (
+                            <a
+                              href={item.tcgplayer_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={stopCardSelectBubble}
+                            >
+                              TCGPlayer
+                            </a>
+                          ) : null}
+                        </div>
+                        <div className="mobile-card-owned">
+                          <span>Owned</span>
+                          <OwnedInput
+                            cardId={item.card_id}
+                            value={item.owned}
+                            onSaved={() => invalidateOwnedViews(qc)}
+                          />
+                        </div>
                       </div>
-                      {item.tcgplayer_url && (
-                        <a
-                          href={item.tcgplayer_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={stopCardSelectBubble}
-                        >
-                          TCGPlayer
-                        </a>
-                      )}
                     </div>
-                  </div>
-                  <div
-                    className="mobile-card-owned"
-                    onClick={stopCardSelectBubble}
-                    onKeyDown={stopCardSelectBubble}
-                  >
-                    <span>Owned</span>
-                    <OwnedInput
-                      cardId={item.card_id}
-                      value={item.owned}
-                      onSaved={() => invalidateOwnedViews(qc)}
-                    />
                   </div>
                   {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
                     <div
@@ -1832,18 +1830,24 @@ function CardTable({
                     .join(" · ")}
                 </div>
                 <div className="mobile-card-price-row">
-                  <span className="muted">Market</span>
-                  <MarketPrice price={c.market_price} productId={c.product_id} />
+                  <div className="mobile-card-price-main">
+                    <span className="muted">Market</span>
+                    <MarketPrice price={c.market_price} productId={c.product_id} />
+                    {c.tcgplayer_url ? (
+                      <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
+                        TCGPlayer
+                      </a>
+                    ) : null}
+                  </div>
+                  <div className="mobile-card-owned">
+                    <span>Owned</span>
+                    <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
+                  </div>
                 </div>
-                {c.tcgplayer_url && (
-                  <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
-                    TCGPlayer
-                  </a>
-                )}
               </div>
             </div>
             {editing && onNeededChange ? (
-              <div className="mobile-card-owned">
+              <div className="mobile-card-owned mobile-card-owned-block">
                 <span>In deck</span>
                 <NeededStepper
                   cardId={c.card_id}
@@ -1853,10 +1857,6 @@ function CardTable({
                 />
               </div>
             ) : null}
-            <div className="mobile-card-owned">
-              <span>Owned</span>
-              <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
-            </div>
             {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
               <div className="mobile-card-alts">{altRow(c)}</div>
             )}
@@ -2888,14 +2888,16 @@ function PublicSharePage() {
                             {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
                           </div>
                           <div className="mobile-card-price-row">
-                            <span className="muted">Market</span>
-                            <MarketPrice price={item.market_price} productId={item.product_id} />
+                            <div className="mobile-card-price-main">
+                              <span className="muted">Market</span>
+                              <MarketPrice price={item.market_price} productId={item.product_id} />
+                              {item.tcgplayer_url ? (
+                                <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                                  TCGPlayer
+                                </a>
+                              ) : null}
+                            </div>
                           </div>
-                          {item.tcgplayer_url && (
-                            <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
-                              TCGPlayer
-                            </a>
-                          )}
                         </div>
                       </div>
                       {item.used_in.length > 0 && (
