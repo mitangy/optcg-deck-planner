@@ -270,6 +270,8 @@ export type GroupBuyDetail = GroupBuySummary & {
   tax_cost: number;
   cards_subtotal: number;
   grand_total: number;
+  receipt_text?: string;
+  has_receipt?: boolean;
 };
 
 export type GroupBuyInvitePreview = {

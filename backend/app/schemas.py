@@ -304,6 +304,9 @@ class GroupBuyDetail(GroupBuySummary):
     tax_cost: float = 0.0
     cards_subtotal: float = 0.0
     grand_total: float = 0.0
+    # Saved TCGPlayer receipt paste (empty when none). Host uses this to rematch after refresh.
+    receipt_text: str = ""
+    has_receipt: bool = False
 
 
 class GroupBuyInvitePreview(BaseModel):

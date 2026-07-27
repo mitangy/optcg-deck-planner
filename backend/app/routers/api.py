@@ -474,9 +474,18 @@ def match_group_buy_receipt(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """Parse a TCGPlayer receipt and compare line items to this group buy."""
+    """Parse a TCGPlayer receipt and compare line items to this group buy.
+
+    Hosts also persist the paste so Mark purchased still works after a refresh.
+    """
     try:
-        return group_buy.build_receipt_match_report(db, user, group_id, body.receipt_text)
+        report = group_buy.build_receipt_match_report(db, user, group_id, body.receipt_text)
+        try:
+            group_buy.save_receipt_text(db, user, group_id, body.receipt_text)
+        except PermissionError:
+            # Members may match for preview; only the host saves.
+            pass
+        return report
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:

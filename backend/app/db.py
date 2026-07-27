@@ -55,6 +55,8 @@ def _ensure_group_buy_columns() -> None:
         additions.append(("shipping_split", "VARCHAR(32) DEFAULT 'equal'"))
     if "tax_cost" not in existing:
         additions.append(("tax_cost", "FLOAT DEFAULT 0"))
+    if "receipt_text" not in existing:
+        additions.append(("receipt_text", "TEXT DEFAULT ''"))
     if not additions:
         return
     with engine.begin() as conn:
