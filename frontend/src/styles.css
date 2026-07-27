@@ -517,6 +517,10 @@ button.ghost.danger {
   margin: 0 0 1rem;
 }
 
+.filter-drawer + .filter-drawer {
+  margin: -0.5rem 0 1rem;
+}
+
 .buy-bar {
   display: flex;
   flex-direction: column;
