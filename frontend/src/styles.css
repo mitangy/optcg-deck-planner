@@ -1271,7 +1271,7 @@ tr.done {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
-  max-width: 280px;
+  max-width: 320px;
 }
 
 .alt-art {
@@ -1294,6 +1294,28 @@ tr.done {
   gap: 0.05rem;
   font-size: 0.78rem;
   line-height: 1.2;
+}
+
+.alt-want-wrap {
+  margin-top: 0.1rem;
+}
+
+.alt-want-wrap .owned-btn {
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 0.85rem;
+}
+
+.alt-want-qty {
+  min-width: 1rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.alt-want-label {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .alt-price {

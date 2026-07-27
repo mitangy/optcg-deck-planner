@@ -6,11 +6,18 @@ export const TCGPLAYER_PRODUCT_LINE = "One Piece Card Game";
 /** Stay under common proxy/browser URL limits (414 on long Mass Entry links). */
 export const MASS_ENTRY_URL_MAX_LEN = 1800;
 
+export type MassEntryAlt = {
+  product_id: number;
+  wanted?: number;
+};
+
 export type MassEntryCard = {
   card_id: string;
   name: string;
   still_need: number;
   product_id?: number | null;
+  /** When present, still_need is allocated to alt wants first, then the primary product. */
+  alt_arts?: MassEntryAlt[];
 };
 
 export type MassEntryExport = {
@@ -32,9 +39,34 @@ function productEntry(qty: number, productId: number): string {
   return `${qty}-${productId}`;
 }
 
-function nameFallbackEntry(card: MassEntryCard): string {
+function nameFallbackEntry(card: MassEntryCard, qty: number): string {
   const name = (card.name || card.card_id).trim();
-  return `${card.still_need} ${name} ${card.card_id}`.trim();
+  return `${qty} ${name} ${card.card_id}`.trim();
+}
+
+/** Allocate still_need: alt wants first (list order), remainder to primary product. */
+export function allocateMassEntryBuys(
+  card: MassEntryCard,
+): { product_id: number | null; qty: number }[] {
+  let remaining = card.still_need;
+  if (remaining <= 0) return [];
+  const buys: { product_id: number | null; qty: number }[] = [];
+  for (const alt of card.alt_arts ?? []) {
+    if (remaining <= 0) break;
+    const want = alt.wanted ?? 0;
+    const take = Math.min(Math.max(0, want), remaining);
+    if (take > 0 && alt.product_id > 0) {
+      buys.push({ product_id: alt.product_id, qty: take });
+      remaining -= take;
+    }
+  }
+  if (remaining > 0) {
+    buys.push({
+      product_id: card.product_id != null && card.product_id > 0 ? card.product_id : null,
+      qty: remaining,
+    });
+  }
+  return buys;
 }
 
 export function buildMassEntryExport(cards: MassEntryCard[]): MassEntryExport {
@@ -42,14 +74,25 @@ export function buildMassEntryExport(cards: MassEntryCard[]): MassEntryExport {
   const productParts: string[] = [];
   const fallbackLines: string[] = [];
   let copyCount = 0;
+  let withProductId = 0;
+  let missingProductId = 0;
 
   for (const card of included) {
     copyCount += card.still_need;
-    if (card.product_id != null && card.product_id > 0) {
-      productParts.push(productEntry(card.still_need, card.product_id));
-    } else {
-      fallbackLines.push(nameFallbackEntry(card));
+    const buys = allocateMassEntryBuys(card);
+    let cardHasProduct = false;
+    let cardHasFallback = false;
+    for (const buy of buys) {
+      if (buy.product_id != null && buy.product_id > 0) {
+        productParts.push(productEntry(buy.qty, buy.product_id));
+        cardHasProduct = true;
+      } else {
+        fallbackLines.push(nameFallbackEntry(card, buy.qty));
+        cardHasFallback = true;
+      }
     }
+    if (cardHasProduct) withProductId += 1;
+    if (cardHasFallback) missingProductId += 1;
   }
 
   const pasteLines = [...productParts, ...fallbackLines];
@@ -71,8 +114,8 @@ export function buildMassEntryExport(cards: MassEntryCard[]): MassEntryExport {
     url,
     includedCount: included.length,
     copyCount,
-    withProductId: productParts.length,
-    missingProductId: fallbackLines.length,
+    withProductId,
+    missingProductId,
   };
 }
 

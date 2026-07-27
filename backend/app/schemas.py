@@ -61,6 +61,14 @@ class PrintingView(BaseModel):
     tcgplayer_url: str = ""
     group_name: str = ""
     is_special: bool = True
+    # Per-deck (or shopping max-across-decks) alt want for play; 0 when unset.
+    wanted: int = 0
+
+
+class DeckCardPrintingUpdate(BaseModel):
+    """Set how many copies of an alt printing are wanted in a deck (≤ card Need)."""
+
+    qty: int = Field(ge=0, le=99)
 
 
 class RecentSale(BaseModel):

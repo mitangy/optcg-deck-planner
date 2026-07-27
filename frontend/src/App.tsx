@@ -1554,6 +1554,8 @@ function CardTable({
   editing = false,
   onNeededChange,
   neededBusyId = null,
+  onAltWantChange,
+  altWantBusyKey = null,
 }: {
   cards: CardView[];
   onOwnedSaved: () => void;
@@ -1562,7 +1564,27 @@ function CardTable({
   editing?: boolean;
   onNeededChange?: (cardId: string, needed: number) => void;
   neededBusyId?: string | null;
+  onAltWantChange?: (cardId: string, productId: number, qty: number) => void;
+  /** `${cardId}:${productId}` while a printing want save is in flight. */
+  altWantBusyKey?: string | null;
 }) {
+  const altRow = (c: CardView) => (
+    <AltArtsRow
+      alts={c.alt_arts ?? []}
+      cardNeeded={c.needed}
+      editable={Boolean(onAltWantChange)}
+      onWantChange={
+        onAltWantChange
+          ? (productId, qty) => onAltWantChange(c.card_id, productId, qty)
+          : undefined
+      }
+      busyProductId={
+        altWantBusyKey?.startsWith(`${c.card_id}:`)
+          ? Number(altWantBusyKey.slice(c.card_id.length + 1))
+          : null
+      }
+    />
+  );
   if (layout === "grid") {
     return (
       <div className="card-grid">
@@ -1604,9 +1626,7 @@ function CardTable({
                 </a>
               )}
               {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
-                <div className="grid-card-alts">
-                  <AltArtsRow alts={c.alt_arts ?? []} />
-                </div>
+                <div className="grid-card-alts">{altRow(c)}</div>
               )}
             </div>
           </article>
@@ -1667,11 +1687,7 @@ function CardTable({
                 </td>
                 <td>{c.card_type || "—"}</td>
                 <td>{c.cost ?? "—"}</td>
-                {showAltArts && (
-                  <td>
-                    <AltArtsRow alts={c.alt_arts ?? []} />
-                  </td>
-                )}
+                {showAltArts && <td>{altRow(c)}</td>}
               </tr>
             ))}
           </tbody>
@@ -1726,9 +1742,7 @@ function CardTable({
               <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
             </div>
             {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
-              <div className="mobile-card-alts">
-                <AltArtsRow alts={c.alt_arts ?? []} />
-              </div>
+              <div className="mobile-card-alts">{altRow(c)}</div>
             )}
           </article>
         ))}
@@ -2147,6 +2161,8 @@ function DeckDetailPage() {
   const [editing, setEditing] = useState(() => searchParams.get("edit") === "1");
   const [neededBusyId, setNeededBusyId] = useState<string | null>(null);
   const [neededErr, setNeededErr] = useState<string | null>(null);
+  const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
+  const [altWantErr, setAltWantErr] = useState<string | null>(null);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const shareDeck = useMutation({
@@ -2179,6 +2195,19 @@ function DeckDetailPage() {
       setNeededErr((e as Error).message);
     } finally {
       setNeededBusyId(null);
+    }
+  };
+
+  const changeAltWant = async (cardId: string, productId: number, qty: number) => {
+    setAltWantErr(null);
+    setAltWantBusyKey(`${cardId}:${productId}`);
+    try {
+      const detail = await api.setDeckCardPrinting(deckId, cardId, productId, qty);
+      applyDeckUpdate(detail);
+    } catch (e) {
+      setAltWantErr((e as Error).message);
+    } finally {
+      setAltWantBusyKey(null);
     }
   };
 
@@ -2368,6 +2397,7 @@ function DeckDetailPage() {
       )}
 
       {neededErr && <p className="error">{neededErr}</p>}
+      {altWantErr && <p className="error">{altWantErr}</p>}
 
       {data.prior_decks.length > 0 && (
         <p className="banner">
@@ -2384,6 +2414,8 @@ function DeckDetailPage() {
         editing={editing}
         onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
         neededBusyId={neededBusyId}
+        onAltWantChange={(cardId, productId, qty) => void changeAltWant(cardId, productId, qty)}
+        altWantBusyKey={altWantBusyKey}
       />
       {additional.length > 0 && (
         <>
@@ -2398,6 +2430,8 @@ function DeckDetailPage() {
             editing={editing}
             onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
             neededBusyId={neededBusyId}
+            onAltWantChange={(cardId, productId, qty) => void changeAltWant(cardId, productId, qty)}
+            altWantBusyKey={altWantBusyKey}
           />
         </>
       )}
@@ -2420,6 +2454,8 @@ function DeckDetailPage() {
           editing={editing}
           onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
           neededBusyId={neededBusyId}
+          onAltWantChange={(cardId, productId, qty) => void changeAltWant(cardId, productId, qty)}
+          altWantBusyKey={altWantBusyKey}
         />
       )}
 

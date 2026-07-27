@@ -120,27 +120,77 @@ export function MarketPrice({
   );
 }
 
-export function AltArtsRow({ alts }: { alts: PrintingView[] }) {
+export function AltArtsRow({
+  alts,
+  cardNeeded,
+  editable = false,
+  onWantChange,
+  busyProductId = null,
+}: {
+  alts: PrintingView[];
+  /** Deck Need for this card; used to disable + when alt wants are at the cap. */
+  cardNeeded?: number;
+  editable?: boolean;
+  onWantChange?: (productId: number, qty: number) => void;
+  busyProductId?: number | null;
+}) {
   if (!alts.length) return <span className="muted">—</span>;
+  const wantSum = alts.reduce((s, a) => s + (a.wanted ?? 0), 0);
+  const atCap = cardNeeded != null && wantSum >= cardNeeded;
+
   return (
     <div className="alt-arts">
-      {alts.map((alt) => (
-        <div key={alt.product_id} className="alt-art">
-          <CardThumb src={alt.image_url || undefined} alt={alt.name} />
-          <div className="alt-meta">
-            <MarketPrice price={alt.market_price} productId={alt.product_id} />
-            {alt.tcgplayer_url ? (
-              <a href={alt.tcgplayer_url} target="_blank" rel="noreferrer" title={alt.name}>
-                Alt
-              </a>
-            ) : (
-              <span className="muted" title={alt.name}>
-                Alt
-              </span>
-            )}
+      {alts.map((alt) => {
+        const wanted = alt.wanted ?? 0;
+        const busy = busyProductId === alt.product_id;
+        return (
+          <div key={alt.product_id} className="alt-art">
+            <CardThumb src={alt.image_url || undefined} alt={alt.name} />
+            <div className="alt-meta">
+              <MarketPrice price={alt.market_price} productId={alt.product_id} />
+              {editable && onWantChange ? (
+                <span className="owned-wrap alt-want-wrap">
+                  <button
+                    type="button"
+                    className="owned-btn"
+                    aria-label={`Decrease want for ${alt.name}`}
+                    disabled={busy || wanted <= 0}
+                    onClick={() => onWantChange(alt.product_id, Math.max(0, wanted - 1))}
+                  >
+                    −
+                  </button>
+                  <span className="alt-want-qty" aria-label={`${alt.name} wanted`}>
+                    {wanted}
+                  </span>
+                  <button
+                    type="button"
+                    className="owned-btn"
+                    aria-label={`Increase want for ${alt.name}`}
+                    disabled={busy || atCap}
+                    title={atCap ? `Cannot exceed Need (${cardNeeded})` : undefined}
+                    onClick={() => onWantChange(alt.product_id, wanted + 1)}
+                  >
+                    +
+                  </button>
+                </span>
+              ) : wanted > 0 ? (
+                <span className="alt-want-label" title="Wanted for play in deck">
+                  ×{wanted}
+                </span>
+              ) : null}
+              {alt.tcgplayer_url ? (
+                <a href={alt.tcgplayer_url} target="_blank" rel="noreferrer" title={alt.name}>
+                  Alt
+                </a>
+              ) : (
+                <span className="muted" title={alt.name}>
+                  Alt
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
