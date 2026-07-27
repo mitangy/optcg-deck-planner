@@ -878,18 +878,86 @@ def set_line_override(
 
 
 def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
-    detail = get_group_buy(db, user, group_id)
+    """Build TCGPlayer Mass Entry paste/URL for a group buy.
+
+    Allocates each member's alt-art wants first (same as pricing), then the
+    remainder at Preferred. Host printing overrides only apply when nobody on
+    the line requested a specific alt — legacy "buy the whole line as this
+    printing". Dumping total_qty onto one product_id was the disconnect that
+    turned "1 AA + 3 base" into "4× checkout printing".
+    """
+    group = _get_group(db, group_id)
+    _require_member(group, user)
+    lines, _ = _build_lines(db, group, viewer_user_id=user.id)
+
+    member_shop_alts: dict[int, dict[str, list]] = {}
+    for member in group.members:
+        shop = services.shopping_list(
+            db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)
+        )
+        member_shop_alts[member.user_id] = {
+            item.card_id: item.alt_arts for item in shop.items
+        }
+
     product_parts: list[str] = []
     fallback: list[str] = []
     copy_count = 0
-    for line in detail.lines:
+    cards_with_product = 0
+    cards_missing = 0
+
+    for line in lines:
         if line.total_qty <= 0:
             continue
         copy_count += line.total_qty
-        if line.product_id:
-            product_parts.append(f"{line.total_qty}-{line.product_id}")
-        else:
-            fallback.append(f"{line.total_qty} {line.name} {line.card_id}".strip())
+
+        any_alt_wants = False
+        for mem in line.members:
+            if mem.qty <= 0:
+                continue
+            for alt in member_shop_alts.get(mem.user_id, {}).get(line.card_id, []):
+                if (alt.wanted or 0) > 0:
+                    any_alt_wants = True
+                    break
+            if any_alt_wants:
+                break
+
+        # Match pricing: AA wants → preferred remainder. Otherwise host override.
+        standard_pid = (
+            line.preferred_product_id
+            if any_alt_wants
+            else (line.product_id or line.preferred_product_id)
+        )
+
+        qty_by_product: dict[int, int] = {}
+        fallback_qty = 0
+        for mem in line.members:
+            if mem.qty <= 0:
+                continue
+            mem_alts = member_shop_alts.get(mem.user_id, {}).get(line.card_id, [])
+            alt_inputs = [
+                (a.product_id, a.wanted, a.market_price)
+                for a in mem_alts
+                if (a.wanted or 0) > 0
+            ]
+            buys = services.allocate_still_need_buys(
+                mem.qty,
+                alt_inputs,
+                standard_product_id=standard_pid,
+                standard_price=None,
+            )
+            for pid, qty, _price in buys:
+                if pid:
+                    qty_by_product[pid] = qty_by_product.get(pid, 0) + qty
+                else:
+                    fallback_qty += qty
+
+        if qty_by_product:
+            cards_with_product += 1
+            for pid, qty in sorted(qty_by_product.items()):
+                product_parts.append(f"{qty}-{pid}")
+        if fallback_qty > 0:
+            cards_missing += 1
+            fallback.append(f"{fallback_qty} {line.name} {line.card_id}".strip())
 
     paste_lines = product_parts + fallback
     paste_text = "\n".join(paste_lines)
@@ -908,11 +976,11 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
     return GroupBuyExport(
         paste_text=paste_text,
         url=url,
-        included_count=len(paste_lines),
+        included_count=cards_with_product + cards_missing,
         copy_count=copy_count,
-        with_product_id=len(product_parts),
-        missing_product_id=len(fallback),
-        status=detail.status,
+        with_product_id=cards_with_product,
+        missing_product_id=cards_missing,
+        status=group.status,
     )
 
 

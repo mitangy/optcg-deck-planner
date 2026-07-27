@@ -86,10 +86,33 @@ def test_host_printing_override_and_export(db, two_players):
 
     group_buy.set_line_override(db, host, created.id, "OP01-001", 1009)
     export = group_buy.export_tcgplayer(db, host, created.id)
+    # No alt wants → host printing override still buys the whole line as AA.
     assert "6-1009" in export.paste_text.splitlines()
     assert "5-1002" in export.paste_text.splitlines()
     assert export.copy_count == 11
     assert export.with_product_id == 2
+
+
+def test_export_allocates_alt_wants_not_whole_line(db, two_players):
+    """Mass entry must split AA wants; not dump total_qty onto checkout printing."""
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "AA export")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+
+    host_deck = next(d for d in services.list_decks(db, host) if d.name == "Host Deck")
+    # Host still-need 3 of OP01-001; want only 1 AA. Friend still-need 3, no AA.
+    services.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 1)
+    # Checkout override to AA used to export 6-1009 — must not when alts are set.
+    group_buy.set_line_override(db, host, created.id, "OP01-001", 1009)
+
+    export = group_buy.export_tcgplayer(db, host, created.id)
+    lines = export.paste_text.splitlines()
+    # Host 1×AA + 2×preferred, Friend 3×preferred → 1×1009 + 5×1001
+    assert "1-1009" in lines
+    assert "5-1001" in lines
+    assert "6-1009" not in lines
+    assert "5-1002" in lines  # OP01-002 unchanged
+    assert export.copy_count == 11
 
 
 def test_member_cannot_lock(db, two_players):

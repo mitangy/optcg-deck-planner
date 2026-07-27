@@ -1,4 +1,4 @@
-/** TCGPlayer Mass Entry helpers for shopping / future group-buy exports. */
+/** TCGPlayer Mass Entry helpers for shopping and group-buy export fallbacks. */
 
 export const TCGPLAYER_MASS_ENTRY_BASE = "https://www.tcgplayer.com/massentry";
 export const TCGPLAYER_PRODUCT_LINE = "One Piece Card Game";
