@@ -1184,11 +1184,34 @@ table {
 th,
 td {
   padding: 0.7rem 0.8rem;
-  border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: middle;
-  /* Keep row tints from painting over the 1px seam between rows. */
+}
+
+/* Continuous row rules via inset line (not border-collapse seams).
+   border-bottom on cells fragments around flex history, sticky headers,
+   and narrow columns like the shopping checkbox — this paints evenly. */
+.data-table > :is(thead, tbody) > tr > :is(th, td) {
+  position: relative;
+  border-bottom: none;
   background-clip: padding-box;
+}
+
+.data-table > :is(thead, tbody) > tr > :is(th, td)::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--line);
+  pointer-events: none;
+}
+
+/* Non-data tables (e.g. group-buy owes) keep a simple bottom border. */
+table:not(.data-table) th,
+table:not(.data-table) td {
+  border-bottom: 1px solid var(--line);
 }
 
 th {
@@ -2287,7 +2310,6 @@ tr.done td {
 .data-table tr.group-buy-user-header-row td {
   padding: 0.7rem 0.85rem 0.45rem;
   background: var(--bg);
-  border-bottom: 1px solid var(--line);
   font-weight: 650;
 }
 
