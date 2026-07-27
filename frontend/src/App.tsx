@@ -865,15 +865,17 @@ function ShoppingItemsView({
                     />
                   </td>
                   <td className="card-cell">
-                    <CardThumb src={item.image_url || undefined} alt={item.name} />
-                    <div>
-                      <div className="card-id">{item.card_id}</div>
-                      <div>{item.name}</div>
-                      {item.tcgplayer_url && (
-                        <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
-                          TCGPlayer
-                        </a>
-                      )}
+                    <div className="card-cell-inner">
+                      <CardThumb src={item.image_url || undefined} alt={item.name} />
+                      <div>
+                        <div className="card-id">{item.card_id}</div>
+                        <div>{item.name}</div>
+                        {item.tcgplayer_url && (
+                          <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                            TCGPlayer
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td>
@@ -1919,15 +1921,17 @@ function CardTable({
             {cards.map((c) => (
               <tr key={`${c.section}-${c.card_id}`} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
-                  <CardThumb src={c.image_url || undefined} alt={c.name} />
-                  <div>
-                    <div className="card-id">{c.card_id}</div>
-                    <div>{c.name}</div>
-                    {c.tcgplayer_url && (
-                      <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
-                        TCGPlayer
-                      </a>
-                    )}
+                  <div className="card-cell-inner">
+                    <CardThumb src={c.image_url || undefined} alt={c.name} />
+                    <div>
+                      <div className="card-id">{c.card_id}</div>
+                      <div>{c.name}</div>
+                      {c.tcgplayer_url && (
+                        <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
+                          TCGPlayer
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td>
@@ -3026,15 +3030,17 @@ function PublicSharePage() {
                       {items.map((item) => (
                         <tr key={item.card_id} className={item.still_need > 0 ? "need" : "done"}>
                           <td className="card-cell">
-                            <CardThumb src={item.image_url || undefined} alt={item.name} />
-                            <div>
-                              <div className="card-id">{item.card_id}</div>
-                              <div>{item.name}</div>
-                              {item.tcgplayer_url && (
-                                <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
-                                  TCGPlayer
-                                </a>
-                              )}
+                            <div className="card-cell-inner">
+                              <CardThumb src={item.image_url || undefined} alt={item.name} />
+                              <div>
+                                <div className="card-id">{item.card_id}</div>
+                                <div>{item.name}</div>
+                                {item.tcgplayer_url && (
+                                  <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                                    TCGPlayer
+                                  </a>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td>{item.owned}</td>
