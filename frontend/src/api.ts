@@ -226,6 +226,8 @@ export type GroupBuyLine = {
   market_price: number | null;
   remaining_cost: number | null;
   product_id?: number | null;
+  preferred_product_id?: number | null;
+  preferred_market_price?: number | null;
   tcgplayer_url: string;
   image_url: string;
   members: GroupBuyMemberQty[];

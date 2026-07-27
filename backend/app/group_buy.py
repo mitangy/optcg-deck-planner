@@ -233,6 +233,7 @@ def _build_lines(
 
     viewer_wants: dict[str, dict[int, int]] = {}
     viewer_need: dict[str, int] = {}
+    viewer_shop_alts: dict[str, list] = {}
     if viewer_user_id is not None:
         member = next((m for m in group.members if m.user_id == viewer_user_id), None)
         if member is not None:
@@ -244,6 +245,9 @@ def _build_lines(
                 viewer_wants[item.card_id] = {
                     a.product_id: a.wanted for a in item.alt_arts if a.wanted > 0
                 }
+                # Keep the exact shopping alt payload so wants stay in sync with
+                # the master shopping list (same deck filter as this contribution).
+                viewer_shop_alts[item.card_id] = item.alt_arts
 
     catalog, primary_ids, alts, printings = _catalog_bundle(
         db, card_ids, wanted=viewer_wants or None
@@ -263,10 +267,16 @@ def _build_lines(
 
         total_qty = sum(m.qty for m in members)
         cat = catalog.get(card_id)
+        preferred_product_id = primary_ids.get(card_id)
+        preferred_market = None
+        if preferred_product_id and preferred_product_id in printings:
+            preferred_market = printings[preferred_product_id].market_price
+        elif cat is not None:
+            preferred_market = cat.market_price
         product_id = (
             product_overrides.get(card_id)
             or (line.suggested_product_id if line else None)
-            or primary_ids.get(card_id)
+            or preferred_product_id
         )
         market = None
         image_url = cat.image_url if cat else ""
@@ -302,6 +312,8 @@ def _build_lines(
                 market_price=market,
                 remaining_cost=remaining,
                 product_id=product_id,
+                preferred_product_id=preferred_product_id,
+                preferred_market_price=preferred_market,
                 tcgplayer_url=tcgplayer_url,
                 image_url=image_url,
                 members=[
@@ -315,7 +327,7 @@ def _build_lines(
                     for m in members
                     if m.qty > 0 or m.user_id == viewer_user_id
                 ],
-                alt_arts=alts.get(card_id, []),
+                alt_arts=list(viewer_shop_alts.get(card_id) or alts.get(card_id, [])),
                 my_qty=my_qty,
                 my_suggested_qty=mine.suggested_qty if mine else 0,
                 my_is_custom=my_is_custom,
@@ -811,12 +823,21 @@ def set_line_override(
     )
     if printing is None:
         raise ValueError("Unknown printing for this card")
+
+    preferred = services._primary_product_ids(db, {card_id}).get(card_id)
     existing = db.scalar(
         select(GroupBuyLineOverride).where(
             GroupBuyLineOverride.group_buy_id == group.id,
             GroupBuyLineOverride.card_id == card_id,
         )
     )
+    # Selecting the catalog preferred printing clears any host override.
+    if preferred is not None and product_id == preferred:
+        if existing is not None:
+            db.delete(existing)
+            db.commit()
+        return get_group_buy(db, user, group_id)
+
     if existing is None:
         db.add(
             GroupBuyLineOverride(
