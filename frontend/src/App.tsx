@@ -1221,7 +1221,7 @@ function ShoppingPage() {
                     <div className="card-id">{item.card_id}</div>
                     <div className="grid-card-name">{item.name}</div>
                     <div className="grid-card-meta muted">
-                      Still {item.still_need} · Need {item.need}
+                      {item.still_need}/{item.need} still needed
                       {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
                     </div>
                     <div className="grid-card-price" onClick={stopCardSelectBubble}>
@@ -1273,8 +1273,7 @@ function ShoppingPage() {
                   </th>
                   <th>Card</th>
                   <th>Owned</th>
-                  <th>Still</th>
-                  <th>Need</th>
+                  <th>Still needed</th>
                   <th>Market</th>
                   <th>Remaining</th>
                   <th>Cost</th>
@@ -1317,8 +1316,7 @@ function ShoppingPage() {
                           onSaved={() => invalidateOwnedViews(qc)}
                         />
                       </td>
-                      <td>{item.still_need}</td>
-                      <td>{item.need}</td>
+                      <td>{item.still_need}/{item.need}</td>
                       <td>
                         <MarketPrice price={item.market_price} productId={item.product_id} />
                       </td>
@@ -1365,7 +1363,7 @@ function ShoppingPage() {
                       <div className="card-id">{item.card_id}</div>
                       <div className="mobile-card-name">{item.name}</div>
                       <div className="mobile-card-meta">
-                        {[item.color, `Still ${item.still_need}`, `Need ${item.need}`]
+                        {[item.color, `${item.still_need}/${item.need} still needed`]
                           .filter(Boolean)
                           .join(" · ")}
                         {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
@@ -1645,8 +1643,7 @@ function DeckProgressSummary({ cards }: { cards: CardView[] }) {
             <strong>
               {owned}/{total}
             </strong>{" "}
-            {mode === "copies" ? "copies owned" : "uniques complete"} · <strong>{still}</strong> still
-            needed
+            {mode === "copies" ? "copies owned" : "uniques complete"} · <strong>{still}</strong> still needed
           </span>
           <span className="deck-progress-line deck-progress-meta">{meta}</span>
         </p>
@@ -1719,7 +1716,7 @@ function CardTable({
               <div className="card-id">{c.card_id}</div>
               <div className="grid-card-name">{c.name}</div>
               <div className="grid-card-meta muted">
-                {[`Still ${c.still_need}`, `Need ${c.needed}`, c.card_type || ""].filter(Boolean).join(" · ")}
+                {[`${c.still_need}/${c.needed} still needed`, c.card_type || ""].filter(Boolean).join(" · ")}
               </div>
               <div className="grid-card-price">
                 <MarketPrice price={c.market_price} productId={c.product_id} />
@@ -1762,8 +1759,7 @@ function CardTable({
             <tr>
               <th>Card</th>
               <th>Owned</th>
-              <th>Still</th>
-              <th>Needed</th>
+              <th>Still needed</th>
               <th>Market</th>
               <th>Type</th>
               <th>Cost</th>
@@ -1788,17 +1784,18 @@ function CardTable({
                 <td>
                   <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
                 </td>
-                <td>{c.still_need}</td>
                 <td>
                   {editing && onNeededChange ? (
-                    <NeededStepper
-                      cardId={c.card_id}
-                      value={c.needed}
-                      busy={neededBusyId === c.card_id}
-                      onChange={onNeededChange}
-                    />
+                    <>{c.still_need}/{" "}
+                      <NeededStepper
+                        cardId={c.card_id}
+                        value={c.needed}
+                        busy={neededBusyId === c.card_id}
+                        onChange={onNeededChange}
+                      />
+                    </>
                   ) : (
-                    c.needed
+                    `${c.still_need}/${c.needed}`
                   )}
                 </td>
                 <td>
@@ -1830,7 +1827,7 @@ function CardTable({
                 <div className="card-id">{c.card_id}</div>
                 <div className="mobile-card-name">{c.name}</div>
                 <div className="mobile-card-meta">
-                  {[c.color, `Still ${c.still_need}`, `Need ${c.needed}`, c.card_type || ""]
+                  {[c.color, `${c.still_need}/${c.needed} still needed`, c.card_type || ""]
                     .filter(Boolean)
                     .join(" · ")}
                 </div>
@@ -2811,7 +2808,7 @@ function PublicSharePage() {
                       <div className="card-id">{item.card_id}</div>
                       <div className="grid-card-name">{item.name}</div>
                       <div className="grid-card-meta muted">
-                        Owned {item.owned} · Still {item.still_need} · Need {item.need}
+                        Owned {item.owned} · {item.still_need}/{item.need} still needed
                         {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
                       </div>
                       <div className="grid-card-price">
@@ -2834,8 +2831,7 @@ function PublicSharePage() {
                       <tr>
                         <th>Card</th>
                         <th>Owned</th>
-                        <th>Still</th>
-                        <th>Need</th>
+                        <th>Still needed</th>
                         <th>Market</th>
                         <th>Remaining</th>
                         <th>Used in</th>
@@ -2857,8 +2853,7 @@ function PublicSharePage() {
                             </div>
                           </td>
                           <td>{item.owned}</td>
-                          <td>{item.still_need}</td>
-                          <td>{item.need}</td>
+                          <td>{item.still_need}/{item.need}</td>
                           <td>
                             <MarketPrice price={item.market_price} productId={item.product_id} />
                           </td>
@@ -2887,7 +2882,7 @@ function PublicSharePage() {
                           <div className="card-id">{item.card_id}</div>
                           <div className="mobile-card-name">{item.name}</div>
                           <div className="mobile-card-meta">
-                            {[`Owned ${item.owned}`, `Still ${item.still_need}`, `Need ${item.need}`]
+                            {[`Owned ${item.owned}`, `${item.still_need}/${item.need} still needed`]
                               .filter(Boolean)
                               .join(" · ")}
                             {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
