@@ -34,6 +34,9 @@ from app.schemas import (
     GroupBuyLineOverrideUpdate,
     GroupBuyOrderUpdate,
     GroupBuyQtyUpdate,
+    GroupBuyReceiptApplyRequest,
+    GroupBuyReceiptMatchReport,
+    GroupBuyReceiptMatchRequest,
     GroupBuySummary,
     OwnedUpdate,
     PublicShoppingResponse,
@@ -459,6 +462,45 @@ def complete_group_buy(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.post(
+    "/group-buys/{group_id}/receipt/match",
+    response_model=GroupBuyReceiptMatchReport,
+)
+def match_group_buy_receipt(
+    group_id: int,
+    body: GroupBuyReceiptMatchRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Parse a TCGPlayer receipt and compare line items to this group buy."""
+    try:
+        return group_buy.build_receipt_match_report(db, user, group_id, body.receipt_text)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/group-buys/{group_id}/receipt/apply", response_model=GroupBuyDetail)
+def apply_group_buy_receipt(
+    group_id: int,
+    body: GroupBuyReceiptApplyRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Stage matched receipt copies onto Owned (partial OK); complete when pool is empty."""
+    try:
+        return group_buy.apply_receipt_to_group_buy(db, user, group_id, body)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.put("/group-buys/{group_id}/lines/{card_id}", response_model=GroupBuyDetail)

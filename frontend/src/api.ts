@@ -287,6 +287,34 @@ export type GroupBuyExport = {
   status: string;
 };
 
+export type GroupBuyReceiptLine = {
+  card_id: string;
+  name: string;
+  group_name: string;
+  needed_qty: number;
+  receipt_qty: number;
+  status: "exact" | "surplus" | "short" | "extra" | "missing" | string;
+  confidence: string;
+  product_id: number | null;
+  staged_qty: number;
+  descriptions: string[];
+};
+
+export type GroupBuyReceiptUnmatched = {
+  qty: number;
+  description: string;
+  set_name: string;
+  card_name: string;
+};
+
+export type GroupBuyReceiptMatchReport = {
+  lines: GroupBuyReceiptLine[];
+  unmatched: GroupBuyReceiptUnmatched[];
+  summary: Record<string, number>;
+  can_apply_full: boolean;
+  can_apply_partial: boolean;
+};
+
 export const api = {
   apiUrl: API_URL,
   me: () => request<User | null>("/auth/me"),
@@ -412,6 +440,19 @@ export const api = {
     }),
   completeGroupBuy: (id: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/complete`, { method: "POST" }),
+  matchGroupBuyReceipt: (id: number, receipt_text: string) =>
+    request<GroupBuyReceiptMatchReport>(`/group-buys/${id}/receipt/match`, {
+      method: "POST",
+      body: JSON.stringify({ receipt_text }),
+    }),
+  applyGroupBuyReceipt: (
+    id: number,
+    body: { receipt_text: string; card_ids?: string[] | null; allow_partial?: boolean },
+  ) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/receipt/apply`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   setGroupBuyLineProduct: (id: number, cardId: string, product_id: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/lines/${encodeURIComponent(cardId)}`, {
       method: "PUT",

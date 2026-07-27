@@ -319,3 +319,44 @@ class GroupBuyExport(BaseModel):
     with_product_id: int
     missing_product_id: int
     status: str
+
+
+class GroupBuyReceiptMatchRequest(BaseModel):
+    receipt_text: str = Field(min_length=1, max_length=200_000)
+
+
+class GroupBuyReceiptApplyRequest(BaseModel):
+    receipt_text: str = Field(min_length=1, max_length=200_000)
+    # When set, only these card_ids are applied (staging selection). None = all matched pool cards.
+    card_ids: list[str] | None = None
+    # Apply even when some pool lines are short / missing from the receipt.
+    allow_partial: bool = True
+
+
+class GroupBuyReceiptUnmatchedOut(BaseModel):
+    qty: int
+    description: str
+    set_name: str = ""
+    card_name: str = ""
+
+
+class GroupBuyReceiptLineOut(BaseModel):
+    card_id: str
+    name: str
+    group_name: str = ""
+    needed_qty: int
+    receipt_qty: int
+    # exact | surplus | short | extra | missing
+    status: str
+    confidence: str = ""
+    product_id: int | None = None
+    staged_qty: int = 0
+    descriptions: list[str] = []
+
+
+class GroupBuyReceiptMatchReport(BaseModel):
+    lines: list[GroupBuyReceiptLineOut]
+    unmatched: list[GroupBuyReceiptUnmatchedOut]
+    summary: dict[str, int]
+    can_apply_full: bool
+    can_apply_partial: bool

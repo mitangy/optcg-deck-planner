@@ -31,8 +31,13 @@ from app.schemas import (
     GroupBuyMemberOut,
     GroupBuyMemberQtyOut,
     GroupBuyOrderUpdate,
+    GroupBuyReceiptApplyRequest,
+    GroupBuyReceiptLineOut,
+    GroupBuyReceiptMatchReport,
+    GroupBuyReceiptUnmatchedOut,
     GroupBuySummary,
 )
+from app.tcgplayer_receipt import aggregate_receipt_matches, parse_tcgplayer_receipt
 from app import services
 
 FROZEN_STATUSES = frozenset({"locked", "ordered", "completed"})
@@ -991,3 +996,242 @@ def delete_group_buy(db: Session, user: User, group_id: int) -> None:
     _require_host(group, user)
     db.delete(group)
     db.commit()
+
+
+def _pool_qty_by_card_db(db: Session, group: GroupBuy) -> dict[str, int]:
+    if group.status in FROZEN_STATUSES:
+        needs = _member_needs_locked(group)
+    else:
+        needs = _member_needs_live(db, group)
+    totals: dict[str, int] = {}
+    for need in needs:
+        cid = need.card_id.upper().strip()
+        totals[cid] = totals.get(cid, 0) + int(need.qty)
+    return totals
+
+def _line_display_name(db: Session, card_id: str, fallback: str = "") -> str:
+    card = db.get(CatalogCard, card_id)
+    if card is not None and card.name:
+        return card.name
+    return fallback or card_id
+
+
+def build_receipt_match_report(
+    db: Session,
+    user: User,
+    group_id: int,
+    receipt_text: str,
+) -> GroupBuyReceiptMatchReport:
+    """Parse a TCGPlayer receipt and compare it to the group-buy pool."""
+    group = _get_group(db, group_id)
+    _require_member(group, user)
+
+    parsed = parse_tcgplayer_receipt(receipt_text)
+    matched, unmatched_lines = aggregate_receipt_matches(db, parsed)
+    pool = _pool_qty_by_card_db(db, group)
+    receipt_by_card = {m.card_id.upper(): m for m in matched}
+
+    lines_out: list[GroupBuyReceiptLineOut] = []
+    counts = {
+        "exact": 0,
+        "surplus": 0,
+        "short": 0,
+        "extra": 0,
+        "missing": 0,
+        "unmatched": len(unmatched_lines),
+        "receipt_copies": sum(p.qty for p in parsed),
+        "needed_copies": sum(pool.values()),
+        "staged_copies": 0,
+    }
+
+    # Pool cards first (stable by card_id)
+    for card_id in sorted(pool.keys()):
+        needed = pool[card_id]
+        hit = receipt_by_card.pop(card_id, None)
+        receipt_qty = hit.qty if hit else 0
+        if hit is None:
+            status = "missing"
+            counts["missing"] += 1
+            staged = 0
+        elif receipt_qty == needed:
+            status = "exact"
+            counts["exact"] += 1
+            staged = needed
+        elif receipt_qty > needed:
+            status = "surplus"
+            counts["surplus"] += 1
+            staged = needed
+        else:
+            status = "short"
+            counts["short"] += 1
+            staged = receipt_qty
+        counts["staged_copies"] += staged
+        lines_out.append(
+            GroupBuyReceiptLineOut(
+                card_id=card_id,
+                name=_line_display_name(db, card_id, hit.name if hit else ""),
+                group_name=hit.group_name if hit else "",
+                needed_qty=needed,
+                receipt_qty=receipt_qty,
+                status=status,
+                confidence=hit.confidence if hit else "",
+                product_id=hit.product_id if hit else None,
+                staged_qty=staged,
+                descriptions=list(hit.descriptions) if hit else [],
+            )
+        )
+
+    # Extra receipt cards not in the pool
+    for card_id, hit in sorted(receipt_by_card.items()):
+        counts["extra"] += 1
+        lines_out.append(
+            GroupBuyReceiptLineOut(
+                card_id=card_id,
+                name=hit.name or _line_display_name(db, card_id),
+                group_name=hit.group_name,
+                needed_qty=0,
+                receipt_qty=hit.qty,
+                status="extra",
+                confidence=hit.confidence,
+                product_id=hit.product_id,
+                staged_qty=0,
+                descriptions=list(hit.descriptions),
+            )
+        )
+
+    unmatched_out = [
+        GroupBuyReceiptUnmatchedOut(
+            qty=line.qty,
+            description=line.raw_description,
+            set_name=line.set_name,
+            card_name=line.card_name,
+        )
+        for line in unmatched_lines
+    ]
+
+    can_full = (
+        counts["missing"] == 0
+        and counts["short"] == 0
+        and counts["needed_copies"] > 0
+    )
+    can_partial = counts["staged_copies"] > 0
+
+    return GroupBuyReceiptMatchReport(
+        lines=lines_out,
+        unmatched=unmatched_out,
+        summary=counts,
+        can_apply_full=can_full,
+        can_apply_partial=can_partial,
+    )
+
+
+def _allocate_across_snapshot(
+    snapshot_rows: list[GroupBuySnapshotLine],
+    apply_qty: int,
+) -> list[tuple[GroupBuySnapshotLine, int]]:
+    """Greedy allocation in snapshot row order (stable by id)."""
+    remaining = apply_qty
+    out: list[tuple[GroupBuySnapshotLine, int]] = []
+    for row in sorted(snapshot_rows, key=lambda r: (r.id or 0)):
+        if remaining <= 0:
+            break
+        take = min(int(row.qty), remaining)
+        if take <= 0:
+            continue
+        out.append((row, take))
+        remaining -= take
+    return out
+
+
+def apply_receipt_to_group_buy(
+    db: Session,
+    user: User,
+    group_id: int,
+    body: GroupBuyReceiptApplyRequest,
+) -> GroupBuyDetail:
+    """Stage receipt matches onto Owned (partial or full), then complete when empty.
+
+    Host only. Group buy must be locked or ordered. Locked pools are marked ordered
+    first. Snapshot lines are reduced by the applied amounts so a later Mark purchased
+    (or another receipt apply) only covers what is still outstanding.
+    """
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    if group.status == "completed":
+        raise PermissionError("Group buy is already completed")
+    if group.status == "open":
+        raise PermissionError("Lock for checkout before applying a receipt")
+    if group.status not in ("locked", "ordered"):
+        raise PermissionError("Group buy cannot apply a receipt from this status")
+
+    report = build_receipt_match_report(db, user, group_id, body.receipt_text)
+    if not report.can_apply_partial:
+        raise ValueError("No receipt lines matched cards in this group buy")
+
+    selected: set[str] | None = None
+    if body.card_ids is not None:
+        selected = {c.upper().strip() for c in body.card_ids if c and c.strip()}
+        if not selected:
+            raise ValueError("No cards selected to stage")
+
+    staged_lines = [
+        line
+        for line in report.lines
+        if line.staged_qty > 0
+        and line.status in ("exact", "surplus", "short")
+        and (selected is None or line.card_id in selected)
+    ]
+    if not staged_lines:
+        raise ValueError("No selected cards have receipt copies to apply")
+
+    if not body.allow_partial:
+        if not report.can_apply_full:
+            raise ValueError(
+                "Receipt does not fully cover the group buy — enable partial apply or fix shortages"
+            )
+        if selected is not None:
+            pool_ids = {l.card_id for l in report.lines if l.needed_qty > 0}
+            if selected != pool_ids:
+                raise ValueError("Full apply requires staging every pool card")
+
+    # Ensure ordered before mutating owned / snapshot
+    if group.status == "locked":
+        group.status = "ordered"
+        if group.ordered_at is None:
+            group.ordered_at = datetime.now(timezone.utc)
+
+    snapshot_all = list(
+        db.scalars(
+            select(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id)
+        ).all()
+    )
+    by_card: dict[str, list[GroupBuySnapshotLine]] = {}
+    for row in snapshot_all:
+        by_card.setdefault(row.card_id.upper(), []).append(row)
+
+    applied_any = False
+    for line in staged_lines:
+        rows = by_card.get(line.card_id, [])
+        allocations = _allocate_across_snapshot(rows, line.staged_qty)
+        for snap, take in allocations:
+            _add_owned(db, snap.user_id, snap.card_id, take)
+            snap.qty = int(snap.qty) - take
+            applied_any = True
+            if snap.qty <= 0:
+                # Remove via relationship so delete-orphan cascade actually drops the row
+                # (session.delete alone can be resurrected while still on group.snapshot_lines).
+                if snap in group.snapshot_lines:
+                    group.snapshot_lines.remove(snap)
+                else:
+                    db.delete(snap)
+
+    if not applied_any:
+        raise ValueError("Nothing left to apply — snapshot may already be cleared")
+
+    db.flush()
+    remaining = any(int(row.qty) > 0 for row in group.snapshot_lines)
+    if not remaining:
+        group.status = "completed"
+
+    db.commit()
+    return get_group_buy(db, user, group_id)
