@@ -44,18 +44,36 @@ type Props = {
   groupId: number;
   isHost: boolean;
   status: string;
+  /** Saved paste from the server (survives refresh). */
+  initialReceiptText?: string;
   onDraftChange: (draft: ReceiptApplyDraft | null) => void;
   onError: (message: string) => void;
+  /** Called after a successful match so the parent can refresh has_receipt. */
+  onReceiptSaved?: () => void;
 };
 
-export function ReceiptImportPanel({ groupId, isHost, status, onDraftChange, onError }: Props) {
+export function ReceiptImportPanel({
+  groupId,
+  isHost,
+  status,
+  initialReceiptText = "",
+  onDraftChange,
+  onError,
+  onReceiptSaved,
+}: Props) {
+  const savedText = (initialReceiptText || "").trim();
   const [open, setOpen] = useState(() => status === "ordered" || status === "locked");
-  const [text, setText] = useState("");
+  const [text, setText] = useState(savedText);
   const [report, setReport] = useState<GroupBuyReceiptMatchReport | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showMatched, setShowMatched] = useState(false);
   const onDraftChangeRef = useRef(onDraftChange);
   onDraftChangeRef.current = onDraftChange;
+  const onReceiptSavedRef = useRef(onReceiptSaved);
+  onReceiptSavedRef.current = onReceiptSaved;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+  const autoMatchKeyRef = useRef<string | null>(null);
 
   const canUse = isHost && (status === "locked" || status === "ordered");
 
@@ -73,8 +91,16 @@ export function ReceiptImportPanel({ groupId, isHost, status, onDraftChange, onE
       setSelected(new Set());
       setText("");
       onDraftChangeRef.current(null);
+      autoMatchKeyRef.current = null;
     }
   }, [canUse]);
+
+  // Hydrate from server-saved paste when the panel mounts / group changes.
+  useEffect(() => {
+    if (!canUse) return;
+    const next = (initialReceiptText || "").trim();
+    setText((prev) => (prev.trim() ? prev : next));
+  }, [canUse, initialReceiptText, groupId]);
 
   useEffect(() => {
     if (!canUse) return;
@@ -93,14 +119,33 @@ export function ReceiptImportPanel({ groupId, isHost, status, onDraftChange, onE
   }, [canUse, report, text, selected, stagedCopies]);
 
   const match = useMutation({
-    mutationFn: () => api.matchGroupBuyReceipt(groupId, text),
-    onSuccess: (data) => {
+    mutationFn: (receiptText: string) => api.matchGroupBuyReceipt(groupId, receiptText),
+    onSuccess: (data, receiptText) => {
       setReport(data);
       setSelected(defaultSelected(data));
       setShowMatched(false);
+      setOpen(true);
+      onReceiptSavedRef.current?.();
+      if (receiptText.trim()) {
+        autoMatchKeyRef.current = `${groupId}:${receiptText.trim()}`;
+      }
     },
-    onError: (e: Error) => onError(e.message),
+    onError: (e: Error) => onErrorRef.current(e.message),
   });
+
+  // After refresh, rematch the server-saved receipt so Mark purchased stays available.
+  useEffect(() => {
+    if (!canUse) return;
+    const paste = text.trim();
+    const saved = (initialReceiptText || "").trim();
+    if (!paste || !saved || paste !== saved || report || match.isPending) return;
+    const key = `${groupId}:${paste}`;
+    if (autoMatchKeyRef.current === key) return;
+    autoMatchKeyRef.current = key;
+    match.mutate(paste);
+    // Intentionally omit `match` — rematch once per saved paste after refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rematch once per saved paste
+  }, [canUse, groupId, text, initialReceiptText, report, match.isPending]);
 
   const summaryBits = useMemo(() => {
     if (!report) return null;
@@ -155,25 +200,43 @@ export function ReceiptImportPanel({ groupId, isHost, status, onDraftChange, onE
       onError("Paste TCGPlayer order line items first.");
       return;
     }
-    match.mutate();
+    match.mutate(text);
   }
+
+  const matchedReady = Boolean(report && stagedCopies > 0);
 
   return (
     <div className="group-buy-receipt">
       <div className="group-buy-receipt-head">
         <h2>TCGPlayer receipt</h2>
-        <button
-          type="button"
-          className="btn secondary"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? "Hide import" : "Import receipt"}
-        </button>
+        <div className="group-buy-receipt-head-actions">
+          {matchedReady ? (
+            <span className="group-buy-receipt-ready" role="status">
+              Ready for Mark purchased
+            </span>
+          ) : savedText || text.trim() ? (
+            <span className="group-buy-receipt-pending muted" role="status">
+              {match.isPending ? "Matching saved receipt…" : "Match receipt to enable Mark purchased"}
+            </span>
+          ) : (
+            <span className="group-buy-receipt-needed" role="status">
+              Required
+            </span>
+          )}
+          <button
+            type="button"
+            className="btn secondary"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? "Hide import" : "Import receipt"}
+          </button>
+        </div>
       </div>
       <p className="muted">
         Required before Mark purchased. Paste order details (Qty + Description), match to this pool,
         then use <strong>Mark purchased</strong> to add only the matched receipt copies to Owned.
+        Your paste is saved on this group buy so it survives a refresh.
       </p>
       {open ? (
         <form className="group-buy-receipt-form" onSubmit={onMatchSubmit}>
@@ -187,6 +250,7 @@ export function ReceiptImportPanel({ groupId, isHost, status, onDraftChange, onE
                 setText(e.target.value);
                 setReport(null);
                 setSelected(new Set());
+                autoMatchKeyRef.current = null;
               }}
               placeholder={
                 "Qty\tDescription\n2\tOne Piece Card Game - Adventure on Kami's Island - Barrier Bulls - Near Mint\n…"

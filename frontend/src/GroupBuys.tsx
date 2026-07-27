@@ -36,6 +36,7 @@ import {
 
 const NEXT_KEY = "optcg_login_next";
 const SETTLEMENT_OPEN_KEY = "optcg_group_buy_settlement_open";
+const MEMBERS_OPEN_KEY = "optcg_group_buy_members_open";
 
 type ShippingSplit = "equal" | "by_cost" | "by_copies";
 
@@ -1050,6 +1051,15 @@ export function GroupBuyDetailPage() {
           </button>
         )}
       </div>
+      {detail.is_host &&
+      (detail.status === "locked" || detail.status === "ordered") &&
+      !receiptReady ? (
+        <p className="group-buy-receipt-gate muted" role="status">
+          {detail.has_receipt
+            ? "Matching saved receipt… Mark purchased unlocks when the match finishes."
+            : "Import and match a TCGPlayer receipt below to enable Mark purchased."}
+        </p>
+      ) : null}
       {(inviteMsg || msg) && (
         <p className="buy-bar-msg buy-bar-msg-solo" role="status">
           {inviteMsg || msg}
@@ -1057,30 +1067,36 @@ export function GroupBuyDetailPage() {
       )}
 
       <div className="group-buy-members">
-        <h2>Members</h2>
-        <ul>
-          {members.map((m) => (
-            <li key={m.user_id}>
-              <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
-              <strong>
-                {m.display_name}
-                {m.role === "host" ? " (host)" : ""}
-              </strong>
-              <span className="muted">
-                {" "}
-                · {m.cards_still_needed} copies · cards {money(m.card_cost ?? m.remaining_market)}
-                {showOrderPanel ? (
-                  <>
-                    {" "}
-                    · ship {money(m.shipping_share ?? 0)} · tax {money(m.tax_share ?? 0)}
-                    {" · owes "}
-                    <strong className="group-buy-owes">{money(m.total_owed ?? m.remaining_market)}</strong>
-                  </>
-                ) : null}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <CollapsibleDrawer
+          label="Members"
+          summary={`${detail.member_count} · ${money(detail.grand_total || detail.remaining_market)}`}
+          storageKey={MEMBERS_OPEN_KEY}
+          defaultOpen
+        >
+          <ul>
+            {members.map((m) => (
+              <li key={m.user_id}>
+                <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
+                <strong>
+                  {m.display_name}
+                  {m.role === "host" ? " (host)" : ""}
+                </strong>
+                <span className="muted">
+                  {" "}
+                  · {m.cards_still_needed} copies · cards {money(m.card_cost ?? m.remaining_market)}
+                  {showOrderPanel ? (
+                    <>
+                      {" "}
+                      · ship {money(m.shipping_share ?? 0)} · tax {money(m.tax_share ?? 0)}
+                      {" · owes "}
+                      <strong className="group-buy-owes">{money(m.total_owed ?? m.remaining_market)}</strong>
+                    </>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </CollapsibleDrawer>
       </div>
 
       {showOrderPanel && (
@@ -1233,8 +1249,12 @@ export function GroupBuyDetailPage() {
           groupId={groupId}
           isHost={detail.is_host}
           status={detail.status}
+          initialReceiptText={detail.receipt_text || ""}
           onDraftChange={setReceiptDraft}
           onError={(message) => setMsg(message)}
+          onReceiptSaved={() => {
+            void qc.invalidateQueries({ queryKey: ["group-buy", groupId] });
+          }}
         />
       )}
 

@@ -483,6 +483,8 @@ def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
         tax_cost=tax_cost,
         cards_subtotal=cards_subtotal,
         grand_total=round_money(cards_subtotal + shipping_cost + tax_cost),
+        receipt_text=group.receipt_text or "",
+        has_receipt=bool((group.receipt_text or "").strip()),
     )
 
 
@@ -1018,6 +1020,18 @@ def _line_display_name(db: Session, card_id: str, fallback: str = "") -> str:
     return fallback or card_id
 
 
+def save_receipt_text(db: Session, user: User, group_id: int, receipt_text: str) -> None:
+    """Persist the host's TCGPlayer receipt paste (survives refresh)."""
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    if group.status not in ("locked", "ordered"):
+        raise PermissionError("Receipt can only be saved while locked or ordered")
+    cleaned = (receipt_text or "").strip()[:200_000]
+    if cleaned != (group.receipt_text or ""):
+        group.receipt_text = cleaned
+        db.commit()
+
+
 def build_receipt_match_report(
     db: Session,
     user: User,
@@ -1166,7 +1180,10 @@ def apply_receipt_to_group_buy(
     if group.status not in ("locked", "ordered"):
         raise PermissionError("Group buy cannot apply a receipt from this status")
 
-    report = build_receipt_match_report(db, user, group_id, body.receipt_text)
+    cleaned_receipt = (body.receipt_text or "").strip()[:200_000]
+    group.receipt_text = cleaned_receipt
+
+    report = build_receipt_match_report(db, user, group_id, cleaned_receipt)
     if not report.can_apply_partial:
         raise ValueError("No receipt lines matched cards in this group buy")
 

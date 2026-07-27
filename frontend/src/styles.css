@@ -2149,20 +2149,63 @@ tr.done td {
   margin: 0 0 1.25rem;
 }
 
+.group-buy-members .filter-drawer,
 .group-buy-settlement .filter-drawer {
   margin: 0;
 }
 
+.group-buy-members .filter-drawer-label,
 .group-buy-settlement .filter-drawer-label {
   font-size: 1.15rem;
   font-weight: 700;
   color: var(--ink, inherit);
 }
 
+.group-buy-members .filter-drawer-summary,
 .group-buy-settlement .filter-drawer-summary {
   font-weight: 700;
   color: var(--ink, inherit);
   opacity: 0.9;
+}
+
+.group-buy-receipt-gate {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.9rem;
+  min-width: 0;
+}
+
+.group-buy-receipt-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  min-width: 0;
+}
+
+.group-buy-receipt-ready {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #2f5d2f;
+  background: #eef6ee;
+  border: 1px solid #6a9a6a;
+  border-radius: 4px;
+  padding: 0.2rem 0.45rem;
+  white-space: nowrap;
+}
+
+.group-buy-receipt-needed {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #6a4a12;
+  background: #f8f1e4;
+  border: 1px solid #b08940;
+  border-radius: 4px;
+  padding: 0.2rem 0.45rem;
+  white-space: nowrap;
+}
+
+.group-buy-receipt-pending {
+  font-size: 0.8rem;
 }
 
 .group-buy-owes {

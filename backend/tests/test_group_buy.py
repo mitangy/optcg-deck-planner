@@ -242,6 +242,28 @@ def _receipt_for_pool(*rows: tuple[str, int, str]) -> str:
     return "\n".join(lines)
 
 
+def test_match_persists_receipt_text_for_host(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Persist")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
+    group_buy.mark_ordered(db, host, created.id, None)
+
+    receipt = _receipt_for_pool(("Luffy", 6, "Test Set"), ("Zoro", 5, "Test Set"))
+    report = group_buy.build_receipt_match_report(db, host, created.id, receipt)
+    assert report.can_apply_full
+    group_buy.save_receipt_text(db, host, created.id, receipt)
+
+    detail = group_buy.get_group_buy(db, host, created.id)
+    assert detail.has_receipt
+    assert detail.receipt_text.strip() == receipt.strip()
+
+    # Survives another get (refresh)
+    again = group_buy.get_group_buy(db, friend, created.id)
+    assert again.has_receipt
+    assert "Luffy" in again.receipt_text
+
+
 def test_complete_requires_receipt(db, two_players):
     """Naked Mark purchased without a receipt is blocked — use receipt apply."""
     host, friend = two_players
