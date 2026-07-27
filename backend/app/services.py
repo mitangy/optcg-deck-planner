@@ -573,6 +573,79 @@ def set_deck_card_printing(
     if deck_card is None:
         raise LookupError("Card not in deck")
 
+    _assert_special_printing(db, card_id, product_id)
+    _write_deck_printing_qty(
+        db,
+        deck_id=deck.id,
+        card_id=card_id,
+        product_id=product_id,
+        qty=qty,
+        needed=deck_card.needed,
+        strict=True,
+    )
+    db.commit()
+    return get_deck_detail(db, user, deck_id)
+
+
+def set_user_card_printing(
+    db: Session,
+    user: User,
+    card_id: str,
+    product_id: int,
+    qty: int,
+    deck_ids: list[int] | None = None,
+) -> tuple[int, int]:
+    """Set alt-art want on every matching deck (clamped per deck Need).
+
+    Returns (max_qty_stored, decks_updated). Used by shopping / group buy so all
+    views stay synced.
+    """
+    card_id = card_id.strip().upper()
+    if not card_id:
+        raise ValueError("card_id is required")
+    if qty < 0:
+        raise ValueError("qty must be >= 0")
+    if product_id <= 0:
+        raise ValueError("product_id must be positive")
+
+    _assert_special_printing(db, card_id, product_id)
+
+    decks = db.scalars(
+        select(Deck)
+        .where(Deck.user_id == user.id)
+        .options(selectinload(Deck.cards))
+        .order_by(Deck.sort_order, Deck.id)
+    ).all()
+    if deck_ids is not None:
+        wanted = set(deck_ids)
+        decks = [d for d in decks if d.id in wanted]
+
+    max_stored = 0
+    updated = 0
+    for deck in decks:
+        deck_card = next((c for c in deck.cards if c.card_id == card_id), None)
+        if deck_card is None:
+            continue
+        stored = _write_deck_printing_qty(
+            db,
+            deck_id=deck.id,
+            card_id=card_id,
+            product_id=product_id,
+            qty=qty,
+            needed=deck_card.needed,
+            strict=False,
+        )
+        max_stored = max(max_stored, stored)
+        updated += 1
+
+    if updated == 0:
+        raise LookupError("Card not in any selected deck")
+
+    db.commit()
+    return max_stored, updated
+
+
+def _assert_special_printing(db: Session, card_id: str, product_id: int) -> None:
     printing = db.scalar(
         select(CatalogPrinting).where(
             CatalogPrinting.card_id == card_id,
@@ -583,23 +656,37 @@ def set_deck_card_printing(
     if printing is None:
         raise ValueError("Unknown alt printing for this card")
 
+
+def _write_deck_printing_qty(
+    db: Session,
+    *,
+    deck_id: int,
+    card_id: str,
+    product_id: int,
+    qty: int,
+    needed: int,
+    strict: bool,
+) -> int:
+    """Write one deck's alt want. Returns qty stored (may be clamped when not strict)."""
     others = db.scalars(
         select(DeckCardPrinting).where(
-            DeckCardPrinting.deck_id == deck.id,
+            DeckCardPrinting.deck_id == deck_id,
             DeckCardPrinting.card_id == card_id,
             DeckCardPrinting.product_id != product_id,
         )
     ).all()
     others_sum = sum(r.qty for r in others)
-    if others_sum + qty > deck_card.needed:
-        raise ValueError(
-            f"Alt art wants cannot exceed Need ({deck_card.needed}): "
-            f"{others_sum} other + {qty} would be {others_sum + qty}"
-        )
+    if others_sum + qty > needed:
+        if strict:
+            raise ValueError(
+                f"Alt art wants cannot exceed Need ({needed}): "
+                f"{others_sum} other + {qty} would be {others_sum + qty}"
+            )
+        qty = max(0, needed - others_sum)
 
     row = db.scalar(
         select(DeckCardPrinting).where(
-            DeckCardPrinting.deck_id == deck.id,
+            DeckCardPrinting.deck_id == deck_id,
             DeckCardPrinting.card_id == card_id,
             DeckCardPrinting.product_id == product_id,
         )
@@ -607,10 +694,11 @@ def set_deck_card_printing(
     if qty <= 0:
         if row is not None:
             db.delete(row)
-    elif row is None:
+        return 0
+    if row is None:
         db.add(
             DeckCardPrinting(
-                deck_id=deck.id,
+                deck_id=deck_id,
                 card_id=card_id,
                 product_id=product_id,
                 qty=qty,
@@ -618,9 +706,7 @@ def set_deck_card_printing(
         )
     else:
         row.qty = qty
-
-    db.commit()
-    return get_deck_detail(db, user, deck_id)
+    return qty
 
 
 def _leader_group_id(deck: Deck) -> str:

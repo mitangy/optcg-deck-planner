@@ -163,13 +163,17 @@ def _member_needs_locked(group: GroupBuy) -> list[MemberNeed]:
     return needs
 
 
-def _catalog_bundle(db: Session, card_ids: set[str]):
+def _catalog_bundle(
+    db: Session,
+    card_ids: set[str],
+    wanted: dict[str, dict[int, int]] | None = None,
+):
     catalog = {}
     if card_ids:
         rows = db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_(card_ids))).all()
         catalog = {r.card_id: r for r in rows}
     product_ids = services._primary_product_ids(db, card_ids)
-    alts = services._alt_arts_map(db, card_ids)
+    alts = services._alt_arts_map(db, card_ids, wanted=wanted)
     printings: dict[int, CatalogPrinting] = {}
     if card_ids:
         rows = db.scalars(
@@ -226,7 +230,24 @@ def _build_lines(
     merged = merge_member_needs(needs)
     product_overrides = {o.card_id.upper(): o.product_id for o in group.line_overrides}
     card_ids = {line.card_id for line in merged} | set(zero_customs)
-    catalog, primary_ids, alts, printings = _catalog_bundle(db, card_ids)
+
+    viewer_wants: dict[str, dict[int, int]] = {}
+    viewer_need: dict[str, int] = {}
+    if viewer_user_id is not None:
+        member = next((m for m in group.members if m.user_id == viewer_user_id), None)
+        if member is not None:
+            shop = services.shopping_list(
+                db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)
+            )
+            for item in shop.items:
+                viewer_need[item.card_id] = item.need
+                viewer_wants[item.card_id] = {
+                    a.product_id: a.wanted for a in item.alt_arts if a.wanted > 0
+                }
+
+    catalog, primary_ids, alts, printings = _catalog_bundle(
+        db, card_ids, wanted=viewer_wants or None
+    )
 
     member_totals: dict[int, list[int]] = {m.user_id: [0, 0.0] for m in group.members}
     lines_out: list[GroupBuyLineOut] = []
@@ -299,6 +320,7 @@ def _build_lines(
                 my_suggested_qty=mine.suggested_qty if mine else 0,
                 my_is_custom=my_is_custom,
                 my_excluded=bool(my_is_custom and my_qty == 0),
+                my_need=viewer_need.get(card_id, 0),
             )
         )
 

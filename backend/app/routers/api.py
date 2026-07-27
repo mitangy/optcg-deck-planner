@@ -18,6 +18,8 @@ from app.recent_sales import fetch_recent_sales
 from app.schemas import (
     CatalogCardResult,
     CatalogStatus,
+    CardPrintingResult,
+    CardPrintingUpdate,
     DeckCardPrintingUpdate,
     DeckCardUpsert,
     DeckCreate,
@@ -175,6 +177,39 @@ def put_deck_card_printing(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put(
+    "/cards/{card_id}/printings/{product_id}",
+    response_model=CardPrintingResult,
+)
+def put_card_printing(
+    card_id: str,
+    product_id: int,
+    body: CardPrintingUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Set alt-art want across decks that include the card (shopping / group-buy sync)."""
+    try:
+        qty, decks_updated = services.set_user_card_printing(
+            db,
+            user,
+            card_id,
+            product_id,
+            body.qty,
+            deck_ids=body.deck_ids,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CardPrintingResult(
+        card_id=card_id.upper(),
+        product_id=product_id,
+        qty=qty,
+        decks_updated=decks_updated,
+    )
 
 
 @router.post("/decks/{deck_id}/reset-owned", response_model=DeckOwnedResetResult)
