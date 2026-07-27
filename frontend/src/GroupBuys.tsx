@@ -26,7 +26,7 @@ import {
 } from "./cardListControls";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
-import { ReceiptImportPanel } from "./ReceiptImport";
+import { ReceiptImportPanel, type ReceiptApplyDraft } from "./ReceiptImport";
 import { blankMassEntryUrl } from "./tcgplayerMassEntry";
 import {
   AuthLoadingSkeleton,
@@ -521,6 +521,8 @@ export function GroupBuyDetailPage() {
   const [shippingCost, setShippingCost] = useState("0");
   const [taxCost, setTaxCost] = useState("0");
   const [shippingSplit, setShippingSplit] = useState<ShippingSplit>("equal");
+  const [receiptDraft, setReceiptDraft] = useState<ReceiptApplyDraft | null>(null);
+  const [receiptResetKey, setReceiptResetKey] = useState(0);
   const sortingByUser = effectiveSorts.includes("user");
   /** Section headers only when User is the primary sort (otherwise groups would fragment). */
   const groupingByUser = effectiveSorts[0] === "user";
@@ -656,7 +658,7 @@ export function GroupBuyDetailPage() {
       qc.setQueryData(["group-buy", groupId], d);
       await qc.invalidateQueries({ queryKey: ["group-buys"] });
       setMsg(
-        "Order placed — settle shipping below. When cards are in hand, use Mark purchased to update Owned.",
+        "Order placed — settle shipping below. Import a TCGPlayer receipt, then Mark purchased for matched copies.",
       );
     },
     onError: (e: Error) => setMsg(e.message),
@@ -673,14 +675,23 @@ export function GroupBuyDetailPage() {
   });
 
   const complete = useMutation({
-    mutationFn: () => api.completeGroupBuy(groupId),
-    onSuccess: async (d) => {
+    mutationFn: (draft: ReceiptApplyDraft) =>
+      api.applyGroupBuyReceipt(groupId, {
+        receipt_text: draft.receiptText,
+        card_ids: draft.selectedCardIds,
+        allow_partial: true,
+      }),
+    onSuccess: async (d, draft) => {
       qc.setQueryData(["group-buy", groupId], d);
       await qc.invalidateQueries({ queryKey: ["group-buys"] });
       await qc.invalidateQueries({ queryKey: ["shopping"] });
       await qc.invalidateQueries({ queryKey: ["deck"] });
+      setReceiptDraft(null);
+      setReceiptResetKey((k) => k + 1);
       setMsg(
-        "Marked purchased — each member’s buy quantities were added to Owned and removed from shopping.",
+        d.status === "completed"
+          ? `Marked purchased — ${draft.stagedCopies} matched copies (${draft.lineCount} lines) added to Owned.`
+          : `Marked purchased — ${draft.stagedCopies} matched copies (${draft.lineCount} lines) added to Owned. Remaining pool stays ordered until another receipt covers it.`,
       );
     },
     onError: (e: Error) => setMsg(e.message),
@@ -892,6 +903,7 @@ export function GroupBuyDetailPage() {
   const canEditPrintings = detail.is_host && (detail.status === "open" || detail.status === "locked");
   const showOrderPanel = detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
   const orderBusy = markOrdered.isPending || saveOrder.isPending || complete.isPending;
+  const receiptReady = Boolean(receiptDraft?.canApply);
   const tableColSpan =
     5 +
     (detail.status === "open" ? 1 : 0) +
@@ -994,20 +1006,35 @@ export function GroupBuyDetailPage() {
             {markOrdered.isPending ? "Saving…" : "Mark ordered"}
           </button>
         )}
-        {detail.is_host && detail.status === "ordered" && (
+        {detail.is_host && (detail.status === "locked" || detail.status === "ordered") && (
           <button
             type="button"
             className="btn primary"
-            disabled={complete.isPending}
+            disabled={complete.isPending || !receiptReady}
+            title={
+              receiptReady
+                ? undefined
+                : "Import and match a TCGPlayer receipt first"
+            }
             onClick={() => {
+              if (!receiptDraft?.canApply) {
+                setMsg("Import and match a TCGPlayer receipt before Mark purchased.");
+                return;
+              }
               const ok = window.confirm(
-                "Mark this group buy as purchased?\n\n" +
-                  "Use this when the cards are received. Each member’s buy quantities are added to Owned and cleared from shopping.",
+                "Mark purchased for matched receipt cards?\n\n" +
+                  `${receiptDraft.lineCount} card line(s), ${receiptDraft.stagedCopies} copies will be added to Owned.\n` +
+                  "Pool cards missing from the receipt are left ordered until another receipt covers them." +
+                  (detail.status === "locked" ? "\n\nThis will also mark the pool as ordered." : ""),
               );
-              if (ok) complete.mutate();
+              if (ok) complete.mutate(receiptDraft);
             }}
           >
-            {complete.isPending ? "Finishing…" : "Mark purchased"}
+            {complete.isPending
+              ? "Finishing…"
+              : receiptReady
+                ? `Mark purchased (${receiptDraft?.stagedCopies ?? 0})`
+                : "Mark purchased"}
           </button>
         )}
         {detail.is_host && (
@@ -1066,10 +1093,10 @@ export function GroupBuyDetailPage() {
           >
             <p className="muted">
               {detail.status === "locked"
-                ? "After checkout, mark ordered — or import a TCGPlayer receipt below to verify and stage copies. Mark purchased only when cards are in hand."
+                ? "After checkout, mark ordered. Import a TCGPlayer receipt (required), then Mark purchased for matched copies only."
                 : detail.status === "ordered"
-                  ? "Order placed — settle costs below. Import a TCGPlayer receipt to verify/stage copies, or Mark purchased when everything is received."
-                  : "Purchased — Owned updated. Settlement below is for your records."}{" "}
+                  ? "Order placed — settle costs below. Import a TCGPlayer receipt (required), then Mark purchased to update Owned for matched copies."
+                  : "Purchased — Owned updated for matched receipt cards. Settlement below is for your records."}{" "}
               Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} + tax{" "}
               {money(detail.tax_cost ?? 0)} ={" "}
               <strong className="group-buy-owes">{money(detail.grand_total)}</strong>
@@ -1202,16 +1229,11 @@ export function GroupBuyDetailPage() {
 
       {detail.is_host && (detail.status === "locked" || detail.status === "ordered") && (
         <ReceiptImportPanel
+          key={receiptResetKey}
           groupId={groupId}
           isHost={detail.is_host}
           status={detail.status}
-          onApplied={(d, message) => {
-            qc.setQueryData(["group-buy", groupId], d);
-            void qc.invalidateQueries({ queryKey: ["group-buys"] });
-            void qc.invalidateQueries({ queryKey: ["shopping"] });
-            void qc.invalidateQueries({ queryKey: ["deck"] });
-            setMsg(message);
-          }}
+          onDraftChange={setReceiptDraft}
           onError={(message) => setMsg(message)}
         />
       )}

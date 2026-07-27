@@ -2275,7 +2275,21 @@ tr.done {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem 0.75rem;
+  align-items: center;
   margin-bottom: 0.45rem;
+}
+
+.group-buy-receipt-show-matched {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-right: auto;
+  font-size: 0.9rem;
+  min-width: 0;
+}
+
+.group-buy-receipt-empty {
+  margin: 0 0 0.65rem;
 }
 
 .group-buy-receipt-table {

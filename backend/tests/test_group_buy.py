@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from app import group_buy, services
 from app.models import Owned
-from app.schemas import GroupBuyOrderUpdate
+from app.schemas import GroupBuyOrderUpdate, GroupBuyReceiptApplyRequest
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
 
@@ -234,6 +234,25 @@ def _owned(db, user_id: int, card_id: str) -> int:
     return int(row.qty) if row else 0
 
 
+def _receipt_for_pool(*rows: tuple[str, int, str]) -> str:
+    """Build a simple TCGPlayer-style receipt: (card_name, qty, set_label)."""
+    lines = ["Qty\tDescription"]
+    for name, qty, set_name in rows:
+        lines.append(f"{qty}\tOne Piece Card Game - {set_name} - {name} - Near Mint")
+    return "\n".join(lines)
+
+
+def test_complete_requires_receipt(db, two_players):
+    """Naked Mark purchased without a receipt is blocked — use receipt apply."""
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Must receipt")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
+    group_buy.mark_ordered(db, host, created.id, None)
+    with pytest.raises(PermissionError, match="receipt"):
+        group_buy.complete_group_buy(db, host, created.id)
+
+
 def test_complete_applies_owned_and_clears_shopping(db, two_players):
     host, friend = two_players
     created = group_buy.create_group_buy(db, host, "Purchased")
@@ -246,7 +265,14 @@ def test_complete_applies_owned_and_clears_shopping(db, two_players):
     assert _owned(db, host.id, "OP01-001") == 1
     assert _owned(db, friend.id, "OP01-001") == 0
 
-    done = group_buy.complete_group_buy(db, host, created.id)
+    # Snapshot totals after qty override: OP01-001=4, OP01-002=5
+    receipt = _receipt_for_pool(("Luffy", 4, "Test Set"), ("Zoro", 5, "Test Set"))
+    done = group_buy.apply_receipt_to_group_buy(
+        db,
+        host,
+        created.id,
+        GroupBuyReceiptApplyRequest(receipt_text=receipt, allow_partial=False),
+    )
     assert done.status == "completed"
 
     # Host: 1 existing + 1 bought; Friend: 0 + 3 bought
@@ -266,20 +292,20 @@ def test_complete_applies_owned_and_clears_shopping(db, two_players):
 
     with pytest.raises(PermissionError):
         group_buy.unlock_group_buy(db, host, created.id)
-    # Idempotent
+    # Idempotent completed status via naked complete
     again = group_buy.complete_group_buy(db, host, created.id)
     assert again.status == "completed"
     assert _owned(db, host.id, "OP01-001") == 2
 
 
-def test_complete_requires_ordered(db, two_players):
+def test_complete_requires_ordered_or_receipt(db, two_players):
     host, friend = two_players
     created = group_buy.create_group_buy(db, host, "Must order")
     group_buy.join_group_buy(db, friend, created.invite_token)
-    with pytest.raises(PermissionError, match="Mark ordered"):
+    with pytest.raises(PermissionError, match="receipt"):
         group_buy.complete_group_buy(db, host, created.id)
     group_buy.lock_group_buy(db, host, created.id)
-    with pytest.raises(PermissionError, match="Mark ordered"):
+    with pytest.raises(PermissionError, match="receipt"):
         group_buy.complete_group_buy(db, host, created.id)
 
 
@@ -351,7 +377,15 @@ def test_mark_ordered_and_settlement(db, two_players):
         by_name["Host"].card_cost + by_name["Host"].shipping_share + by_name["Host"].tax_share, 2
     )
 
-    done = group_buy.complete_group_buy(db, host, created.id)
+    done = group_buy.apply_receipt_to_group_buy(
+        db,
+        host,
+        created.id,
+        GroupBuyReceiptApplyRequest(
+            receipt_text=_receipt_for_pool(("Luffy", 6, "Test Set"), ("Zoro", 5, "Test Set")),
+            allow_partial=False,
+        ),
+    )
     assert done.status == "completed"
     assert done.external_order_id == "TCG-123"
     assert _owned(db, host.id, "OP01-001") == 4  # 1 owned + 3 bought
