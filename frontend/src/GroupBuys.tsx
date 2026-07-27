@@ -25,6 +25,7 @@ import {
 } from "./cardListControls";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
+import { ReceiptImportPanel } from "./ReceiptImport";
 import { blankMassEntryUrl } from "./tcgplayerMassEntry";
 import {
   AuthLoadingSkeleton,
@@ -1052,9 +1053,9 @@ export function GroupBuyDetailPage() {
           <h2>Order & settlement</h2>
           <p className="muted">
             {detail.status === "locked"
-              ? "After checkout, mark ordered. Then settle shipping. Mark purchased only when cards are in hand."
+              ? "After checkout, mark ordered — or import a TCGPlayer receipt below to verify and stage copies. Mark purchased only when cards are in hand."
               : detail.status === "ordered"
-                ? "Order placed — settle costs below. Mark purchased when cards are received to update Owned."
+                ? "Order placed — settle costs below. Import a TCGPlayer receipt to verify/stage copies, or Mark purchased when everything is received."
                 : "Purchased — Owned updated. Settlement below is for your records."}{" "}
             Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} ={" "}
             <strong>{money(detail.grand_total)}</strong>
@@ -1164,6 +1165,22 @@ export function GroupBuyDetailPage() {
             </table>
           </div>
         </div>
+      )}
+
+      {detail.is_host && (detail.status === "locked" || detail.status === "ordered") && (
+        <ReceiptImportPanel
+          groupId={groupId}
+          isHost={detail.is_host}
+          status={detail.status}
+          onApplied={(d, message) => {
+            qc.setQueryData(["group-buy", groupId], d);
+            void qc.invalidateQueries({ queryKey: ["group-buys"] });
+            void qc.invalidateQueries({ queryKey: ["shopping"] });
+            void qc.invalidateQueries({ queryKey: ["deck"] });
+            setMsg(message);
+          }}
+          onError={(message) => setMsg(message)}
+        />
       )}
 
       {detail.status === "open" && myContribution && (
