@@ -2634,8 +2634,18 @@ tr.done {
   margin-top: 1.5rem;
 }
 
+.shopping-don-section {
+  margin-top: 0.25rem;
+  min-width: 0;
+}
+
+.shopping-don-section .don-heading {
+  margin-top: 1.5rem;
+  margin-bottom: 0.65rem;
+}
+
 .don-available {
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
 .don-available-list {

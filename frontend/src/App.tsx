@@ -55,8 +55,19 @@ const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 const SHARE_OPEN_KEY = "optcg_share_open_v2";
 const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
 const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
+const SHOW_SHOPPING_DONS_KEY = "optcg_show_shopping_dons";
 const DECK_SEARCH_OPEN_KEY = "optcg_deck_search_open";
 const DECK_DON_AVAILABLE_OPEN_KEY = "optcg_deck_don_available_open";
+
+function isDonCardType(cardType: string | undefined | null): boolean {
+  const t = (cardType || "").trim().toLowerCase();
+  return t.startsWith("don") || t.includes("don!!");
+}
+
+function isDonCard(card: { card_type?: string | null; card_id?: string }): boolean {
+  if (isDonCardType(card.card_type)) return true;
+  return (card.card_id || "").toUpperCase().startsWith("DON-");
+}
 
 function ShareStatus({
   message,
@@ -651,6 +662,275 @@ function loadSelectedCardIds(): Set<string> {
   }
 }
 
+function loadShowShoppingDons(): boolean {
+  try {
+    const raw = localStorage.getItem(SHOW_SHOPPING_DONS_KEY);
+    if (raw === null) return true;
+    return raw === "1";
+  } catch {
+    return true;
+  }
+}
+
+function ShoppingItemsView({
+  items,
+  layout,
+  isNarrow,
+  selectedCardIds,
+  onToggleCard,
+  allVisibleSelected,
+  onToggleSelectVisible,
+  showAltArts,
+  altRow,
+  usedInLabel,
+  onOwnedSaved,
+}: {
+  items: ShoppingItem[];
+  layout: CardLayout;
+  isNarrow: boolean;
+  selectedCardIds: Set<string>;
+  onToggleCard: (cardId: string) => void;
+  allVisibleSelected: boolean;
+  onToggleSelectVisible: () => void;
+  showAltArts: boolean;
+  altRow: (item: ShoppingItem) => ReactNode;
+  usedInLabel: (item: ShoppingItem) => string;
+  onOwnedSaved: () => void;
+}) {
+  if (items.length === 0) return null;
+
+  if (layout === "grid") {
+    return (
+      <div className="card-grid">
+        {items.map((item: ShoppingItem) => {
+          const checked = selectedCardIds.has(item.card_id);
+          const tapToSelect = isNarrow;
+          return (
+            <article
+              key={item.card_id}
+              className={`grid-card-wrap${checked ? " selected-row" : ""}${tapToSelect ? " selectable" : ""}`}
+              onClick={tapToSelect ? () => onToggleCard(item.card_id) : undefined}
+              onKeyDown={
+                tapToSelect
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onToggleCard(item.card_id);
+                      }
+                    }
+                  : undefined
+              }
+              role={tapToSelect ? "button" : undefined}
+              tabIndex={tapToSelect ? 0 : undefined}
+              aria-pressed={tapToSelect ? checked : undefined}
+            >
+              {!tapToSelect && (
+                <label className="grid-card-select" onClick={stopCardSelectBubble}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => onToggleCard(item.card_id)}
+                    aria-label={`Select ${item.card_id}`}
+                  />
+                </label>
+              )}
+              <div className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}>
+                <div className="grid-card-media" onClick={stopCardSelectBubble}>
+                  <CardThumb src={item.image_url || undefined} alt={item.name} />
+                </div>
+                <div className="grid-card-body">
+                  <div className="card-id">{item.card_id}</div>
+                  <div className="grid-card-name">{item.name}</div>
+                  <div className="grid-card-meta muted">
+                    {item.still_need}/{item.need} still needed
+                    {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                  </div>
+                  <div className="grid-card-price" onClick={stopCardSelectBubble}>
+                    <MarketPrice price={item.market_price} productId={item.product_id} />
+                  </div>
+                  <div className="grid-card-owned" onClick={stopCardSelectBubble}>
+                    <span>Owned</span>
+                    <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+                  </div>
+                  {item.tcgplayer_url && (
+                    <a
+                      href={item.tcgplayer_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={stopCardSelectBubble}
+                    >
+                      TCGPlayer
+                    </a>
+                  )}
+                  {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
+                    <div className="grid-card-alts" onClick={stopCardSelectBubble}>
+                      {altRow(item)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="table-wrap desktop-table">
+        <table className="data-table shopping-table">
+          <thead>
+            <tr>
+              <th className="select-col">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={onToggleSelectVisible}
+                  aria-label={allVisibleSelected ? "Deselect visible cards" : "Select visible cards"}
+                />
+              </th>
+              <th>Card</th>
+              <th>Owned</th>
+              <th>Still needed</th>
+              <th>Market</th>
+              <th>Remaining</th>
+              <th>Cost</th>
+              {showAltArts && <th>Alt arts</th>}
+              <th>Used in</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item: ShoppingItem) => {
+              const checked = selectedCardIds.has(item.card_id);
+              return (
+                <tr
+                  key={item.card_id}
+                  className={`${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+                >
+                  <td className="select-col">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => onToggleCard(item.card_id)}
+                      aria-label={`Select ${item.card_id}`}
+                    />
+                  </td>
+                  <td className="card-cell">
+                    <CardThumb src={item.image_url || undefined} alt={item.name} />
+                    <div>
+                      <div className="card-id">{item.card_id}</div>
+                      <div>{item.name}</div>
+                      {item.tcgplayer_url && (
+                        <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                          TCGPlayer
+                        </a>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+                  </td>
+                  <td>
+                    {item.still_need}/{item.need}
+                  </td>
+                  <td>
+                    <MarketPrice price={item.market_price} productId={item.product_id} />
+                  </td>
+                  <td>{money(item.remaining_cost)}</td>
+                  <td>{item.cost ?? "—"}</td>
+                  {showAltArts && <td onClick={stopCardSelectBubble}>{altRow(item)}</td>}
+                  <td className="used-in">{usedInLabel(item)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mobile-card-list">
+        {items.map((item: ShoppingItem) => {
+          const checked = selectedCardIds.has(item.card_id);
+          return (
+            <article
+              key={item.card_id}
+              className={`mobile-card selectable ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+              role="button"
+              tabIndex={0}
+              aria-pressed={checked}
+              aria-label={`${checked ? "Deselect" : "Select"} ${item.card_id}`}
+              onClick={() => onToggleCard(item.card_id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onToggleCard(item.card_id);
+                }
+              }}
+            >
+              <div className="mobile-card-top">
+                <div onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
+                  <MobileCardMedia
+                    src={item.image_url || undefined}
+                    alt={item.name}
+                    cost={item.cost}
+                    rarity={item.rarity}
+                  />
+                </div>
+                <div className="mobile-card-info">
+                  <div className="card-id">{item.card_id}</div>
+                  <div className="mobile-card-name">{item.name}</div>
+                  <div className="mobile-card-meta">
+                    {[item.color, `${item.still_need}/${item.need} still needed`]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                  </div>
+                  <div
+                    className="mobile-card-price-row"
+                    onClick={stopCardSelectBubble}
+                    onKeyDown={stopCardSelectBubble}
+                  >
+                    <div className="mobile-card-price-main">
+                      <span className="muted">Market</span>
+                      <MarketPrice price={item.market_price} productId={item.product_id} />
+                      {item.tcgplayer_url ? (
+                        <a
+                          href={item.tcgplayer_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={stopCardSelectBubble}
+                        >
+                          TCGPlayer
+                        </a>
+                      ) : null}
+                    </div>
+                    <div className="mobile-card-owned">
+                      <span>Owned</span>
+                      <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
+                <div
+                  className="mobile-card-alts"
+                  onClick={stopCardSelectBubble}
+                  onKeyDown={stopCardSelectBubble}
+                >
+                  {altRow(item)}
+                </div>
+              )}
+              {item.used_in.length > 0 && (
+                <p className="used-in mobile-used-in">{usedInLabel(item)}</p>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 function ShoppingPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -701,6 +981,7 @@ function ShoppingPage() {
     enabled: filterReady && allDeckIds.length > 0,
   });
   const [onlyNeed, setOnlyNeed] = useState(true);
+  const [showDons, setShowDons] = useState(loadShowShoppingDons);
   const shoppingUnavailableSorts = useMemo(() => ["user"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, shoppingUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
@@ -709,6 +990,14 @@ function ShoppingPage() {
   const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
   const [altWantErr, setAltWantErr] = useState<string | null>(null);
   const sortingByDeck = effectiveSorts.includes("deck");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SHOW_SHOPPING_DONS_KEY, showDons ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [showDons]);
 
   const changeShoppingAltWant = async (cardId: string, productId: number, qty: number) => {
     setAltWantErr(null);
@@ -745,13 +1034,21 @@ function ShoppingPage() {
     />
   );
 
-  const items = useMemo(() => {
+  const filteredItems = useMemo(() => {
     let list = data?.items ?? [];
     if (onlyNeed) list = list.filter((i) => i.still_need > 0);
     if (search.trim()) list = list.filter((i) => matchesCardSearch(i, search));
     list = [...list].sort((a, b) => compareCardOrder(a, b, effectiveSorts));
     return list;
   }, [data, onlyNeed, effectiveSorts, search]);
+
+  const mainItems = useMemo(() => filteredItems.filter((i) => !isDonCard(i)), [filteredItems]);
+  const donItems = useMemo(() => filteredItems.filter((i) => isDonCard(i)), [filteredItems]);
+  const hasDonsInData = useMemo(() => (data?.items ?? []).some(isDonCard), [data]);
+  const items = useMemo(
+    () => (showDons ? [...mainItems, ...donItems] : mainItems),
+    [mainItems, donItems, showDons],
+  );
 
   const selectedItems = useMemo(() => {
     const byId = new Map((data?.items ?? []).map((i) => [i.card_id, i]));
@@ -896,6 +1193,7 @@ function ShoppingPage() {
   const filterSummary = useMemo(() => {
     const parts: string[] = [];
     if (onlyNeed) parts.push("Still need");
+    if (showDons) parts.push("DON!!");
     if (effectiveSorts.length) parts.push(effectiveSorts.map((k) => SORT_LABELS[k]).join(" › "));
     if (showAltArts) parts.push("Alt arts");
     if (layout === "grid") parts.push("Grid");
@@ -903,7 +1201,7 @@ function ShoppingPage() {
       parts.push(`${activeDeckIds.length}/${allDeckIds.length} decks`);
     }
     return parts.join(" · ");
-  }, [onlyNeed, effectiveSorts, showAltArts, layout, activeDeckIds.length, allDeckIds.length]);
+  }, [onlyNeed, showDons, effectiveSorts, showAltArts, layout, activeDeckIds.length, allDeckIds.length]);
 
   const createShare = useMutation({
     mutationFn: () =>
@@ -1129,6 +1427,10 @@ function ShoppingPage() {
               <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
               Still need only
             </label>
+            <label>
+              <input type="checkbox" checked={showDons} onChange={(e) => setShowDons(e.target.checked)} />
+              Show DON!!
+            </label>
             <SortMenu
               sorts={sorts}
               onChange={setSorts}
@@ -1179,242 +1481,43 @@ function ShoppingPage() {
         </p>
       )}
 
-      {layout === "grid" ? (
-        <div className="card-grid">
-          {items.map((item: ShoppingItem) => {
-            const checked = selectedCardIds.has(item.card_id);
-            const tapToSelect = isNarrow;
-            return (
-              <article
-                key={item.card_id}
-                className={`grid-card-wrap${checked ? " selected-row" : ""}${tapToSelect ? " selectable" : ""}`}
-                onClick={tapToSelect ? () => toggleCard(item.card_id) : undefined}
-                onKeyDown={
-                  tapToSelect
-                    ? (e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          toggleCard(item.card_id);
-                        }
-                      }
-                    : undefined
-                }
-                role={tapToSelect ? "button" : undefined}
-                tabIndex={tapToSelect ? 0 : undefined}
-                aria-pressed={tapToSelect ? checked : undefined}
-              >
-                {!tapToSelect && (
-                  <label className="grid-card-select" onClick={stopCardSelectBubble}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleCard(item.card_id)}
-                      aria-label={`Select ${item.card_id}`}
-                    />
-                  </label>
-                )}
-                <div className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}>
-                  <div className="grid-card-media" onClick={stopCardSelectBubble}>
-                    <CardThumb src={item.image_url || undefined} alt={item.name} />
-                  </div>
-                  <div className="grid-card-body">
-                    <div className="card-id">{item.card_id}</div>
-                    <div className="grid-card-name">{item.name}</div>
-                    <div className="grid-card-meta muted">
-                      {item.still_need}/{item.need} still needed
-                      {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
-                    </div>
-                    <div className="grid-card-price" onClick={stopCardSelectBubble}>
-                      <MarketPrice price={item.market_price} productId={item.product_id} />
-                    </div>
-                    <div className="grid-card-owned" onClick={stopCardSelectBubble}>
-                      <span>Owned</span>
-                      <OwnedInput
-                        cardId={item.card_id}
-                        value={item.owned}
-                        onSaved={() => invalidateOwnedViews(qc)}
-                      />
-                    </div>
-                    {item.tcgplayer_url && (
-                      <a
-                        href={item.tcgplayer_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={stopCardSelectBubble}
-                      >
-                        TCGPlayer
-                      </a>
-                    )}
-                    {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
-                      <div className="grid-card-alts" onClick={stopCardSelectBubble}>
-                        {shoppingAltRow(item)}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      ) : (
-        <>
-          <div className="table-wrap desktop-table">
-            <table className="data-table shopping-table">
-              <thead>
-                <tr>
-                  <th className="select-col">
-                    <input
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      onChange={toggleSelectVisible}
-                      aria-label={allVisibleSelected ? "Deselect visible cards" : "Select visible cards"}
-                      disabled={items.length === 0}
-                    />
-                  </th>
-                  <th>Card</th>
-                  <th>Owned</th>
-                  <th>Still needed</th>
-                  <th>Market</th>
-                  <th>Remaining</th>
-                  <th>Cost</th>
-                  {showAltArts && <th>Alt arts</th>}
-                  <th>Used in</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item: ShoppingItem) => {
-                  const checked = selectedCardIds.has(item.card_id);
-                  return (
-                    <tr
-                      key={item.card_id}
-                      className={`${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
-                    >
-                      <td className="select-col">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleCard(item.card_id)}
-                          aria-label={`Select ${item.card_id}`}
-                        />
-                      </td>
-                      <td className="card-cell">
-                        <CardThumb src={item.image_url || undefined} alt={item.name} />
-                        <div>
-                          <div className="card-id">{item.card_id}</div>
-                          <div>{item.name}</div>
-                          {item.tcgplayer_url && (
-                            <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
-                              TCGPlayer
-                            </a>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <OwnedInput
-                          cardId={item.card_id}
-                          value={item.owned}
-                          onSaved={() => invalidateOwnedViews(qc)}
-                        />
-                      </td>
-                      <td>{item.still_need}/{item.need}</td>
-                      <td>
-                        <MarketPrice price={item.market_price} productId={item.product_id} />
-                      </td>
-                      <td>{money(item.remaining_cost)}</td>
-                      <td>{item.cost ?? "—"}</td>
-                      {showAltArts && <td onClick={stopCardSelectBubble}>{shoppingAltRow(item)}</td>}
-                      <td className="used-in">{usedInLabel(item)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+      <ShoppingItemsView
+        items={mainItems}
+        layout={layout}
+        isNarrow={isNarrow}
+        selectedCardIds={selectedCardIds}
+        onToggleCard={toggleCard}
+        allVisibleSelected={allVisibleSelected}
+        onToggleSelectVisible={toggleSelectVisible}
+        showAltArts={showAltArts}
+        altRow={shoppingAltRow}
+        usedInLabel={usedInLabel}
+        onOwnedSaved={() => invalidateOwnedViews(qc)}
+      />
 
-          <div className="mobile-card-list">
-            {items.map((item: ShoppingItem) => {
-              const checked = selectedCardIds.has(item.card_id);
-              return (
-                <article
-                  key={item.card_id}
-                  className={`mobile-card selectable ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={checked}
-                  aria-label={`${checked ? "Deselect" : "Select"} ${item.card_id}`}
-                  onClick={() => toggleCard(item.card_id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleCard(item.card_id);
-                    }
-                  }}
-                >
-                  <div className="mobile-card-top">
-                    <div onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
-                      <MobileCardMedia
-                        src={item.image_url || undefined}
-                        alt={item.name}
-                        cost={item.cost}
-                        rarity={item.rarity}
-                      />
-                    </div>
-                    <div className="mobile-card-info">
-                      <div className="card-id">{item.card_id}</div>
-                      <div className="mobile-card-name">{item.name}</div>
-                      <div className="mobile-card-meta">
-                        {[item.color, `${item.still_need}/${item.need} still needed`]
-                          .filter(Boolean)
-                          .join(" · ")}
-                        {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
-                      </div>
-                      <div
-                        className="mobile-card-price-row"
-                        onClick={stopCardSelectBubble}
-                        onKeyDown={stopCardSelectBubble}
-                      >
-                        <div className="mobile-card-price-main">
-                          <span className="muted">Market</span>
-                          <MarketPrice price={item.market_price} productId={item.product_id} />
-                          {item.tcgplayer_url ? (
-                            <a
-                              href={item.tcgplayer_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={stopCardSelectBubble}
-                            >
-                              TCGPlayer
-                            </a>
-                          ) : null}
-                        </div>
-                        <div className="mobile-card-owned">
-                          <span>Owned</span>
-                          <OwnedInput
-                            cardId={item.card_id}
-                            value={item.owned}
-                            onSaved={() => invalidateOwnedViews(qc)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
-                    <div
-                      className="mobile-card-alts"
-                      onClick={stopCardSelectBubble}
-                      onKeyDown={stopCardSelectBubble}
-                    >
-                      {shoppingAltRow(item)}
-                    </div>
-                  )}
-                  {item.used_in.length > 0 && (
-                    <p className="used-in mobile-used-in">{usedInLabel(item)}</p>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </>
+      {showDons && hasDonsInData && (
+        <div className="shopping-don-section">
+          <h2 className="don-heading">
+            DON!!{donItems.length ? ` · ${donItems.length}` : ""}
+          </h2>
+          {donItems.length === 0 ? (
+            <p className="muted">No DON!! cards match the current filters.</p>
+          ) : (
+            <ShoppingItemsView
+              items={donItems}
+              layout={layout}
+              isNarrow={isNarrow}
+              selectedCardIds={selectedCardIds}
+              onToggleCard={toggleCard}
+              allVisibleSelected={allVisibleSelected}
+              onToggleSelectVisible={toggleSelectVisible}
+              showAltArts={showAltArts}
+              altRow={shoppingAltRow}
+              usedInLabel={usedInLabel}
+              onOwnedSaved={() => invalidateOwnedViews(qc)}
+            />
+          )}
+        </div>
       )}
     </section>
   );
@@ -1903,11 +2006,6 @@ function NeededStepper({
       </button>
     </span>
   );
-}
-
-function isDonCardType(cardType: string | undefined | null): boolean {
-  const t = (cardType || "").trim().toLowerCase();
-  return t.startsWith("don") || t.includes("don!!");
 }
 
 const MAIN_DECK_LIMIT = 51;
@@ -2553,6 +2651,8 @@ function DeckDetailPage() {
         </>
       )}
 
+      <AvailableDonSection deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
+
       <h2 className="don-heading">
         DON!! deck · {donCount}/{DON_DECK_LIMIT}
       </h2>
@@ -2560,7 +2660,7 @@ function DeckDetailPage() {
         <p className="muted">
           {hasDonInDeck
             ? "No DON!! cards match the current filters."
-            : "No DON!! cards in this deck yet. Add some from the list below."}
+            : "No DON!! cards in this deck yet. Add some from the list above."}
         </p>
       ) : (
         <CardTable
@@ -2575,8 +2675,6 @@ function DeckDetailPage() {
           altWantBusyKey={altWantBusyKey}
         />
       )}
-
-      <AvailableDonSection deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
     </section>
   );
 }
