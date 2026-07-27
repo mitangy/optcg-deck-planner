@@ -2175,37 +2175,75 @@ tr.done td {
 }
 
 .group-buy-receipt-head-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.45rem 0.65rem;
   min-width: 0;
+  width: 100%;
+}
+
+.group-buy-receipt-ready,
+.group-buy-receipt-needed,
+.group-buy-receipt-pending {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 1.75rem;
+  box-sizing: border-box;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .group-buy-receipt-ready {
-  font-size: 0.8rem;
-  font-weight: 700;
   color: #2f5d2f;
   background: #eef6ee;
-  border: 1px solid #6a9a6a;
-  border-radius: 4px;
-  padding: 0.2rem 0.45rem;
-  white-space: nowrap;
+  border-color: #6a9a6a;
 }
 
 .group-buy-receipt-needed {
-  font-size: 0.8rem;
-  font-weight: 700;
   color: #6a4a12;
   background: #f8f1e4;
-  border: 1px solid #b08940;
-  border-radius: 4px;
-  padding: 0.2rem 0.45rem;
-  white-space: nowrap;
+  border-color: #b08940;
 }
 
 .group-buy-receipt-pending {
-  font-size: 0.8rem;
+  color: var(--muted, #666);
+  background: var(--surface, #fff);
+  border-color: var(--line, #ccc);
+}
+
+.group-buy-receipt-toggle {
+  position: relative;
+  flex-shrink: 0;
+  justify-self: end;
+  width: auto;
+  min-width: 0;
+  margin-top: 0;
+  text-align: center;
+}
+
+.group-buy-receipt-toggle-stack {
+  display: grid;
+  justify-items: center;
+}
+
+.group-buy-receipt-toggle-label {
+  grid-area: 1 / 1;
+}
+
+.group-buy-receipt-toggle-label[aria-hidden="true"] {
+  visibility: hidden;
 }
 
 .group-buy-owes {
@@ -2286,16 +2324,28 @@ tr.done td {
 }
 
 .group-buy-receipt-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 0.75rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.45rem 0.75rem;
   margin-bottom: 0.25rem;
+  align-items: start;
 }
 
 .group-buy-receipt-head h2 {
   margin: 0;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .group-buy-receipt-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .group-buy-receipt-head-actions {
+    width: auto;
+    min-width: 16rem;
+  }
 }
 
 .group-buy-receipt-form {

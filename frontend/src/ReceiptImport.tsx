@@ -204,32 +204,47 @@ export function ReceiptImportPanel({
   }
 
   const matchedReady = Boolean(report && stagedCopies > 0);
+  const statusLabel = matchedReady
+    ? "Ready"
+    : match.isPending
+      ? "Matching…"
+      : savedText || text.trim()
+        ? "Match to unlock"
+        : "Required";
+  const statusKind = matchedReady ? "ready" : savedText || text.trim() || match.isPending ? "pending" : "needed";
 
   return (
     <div className="group-buy-receipt">
       <div className="group-buy-receipt-head">
         <h2>TCGPlayer receipt</h2>
         <div className="group-buy-receipt-head-actions">
-          {matchedReady ? (
-            <span className="group-buy-receipt-ready" role="status">
-              Ready for Mark purchased
-            </span>
-          ) : savedText || text.trim() ? (
-            <span className="group-buy-receipt-pending muted" role="status">
-              {match.isPending ? "Matching saved receipt…" : "Match receipt to enable Mark purchased"}
-            </span>
-          ) : (
-            <span className="group-buy-receipt-needed" role="status">
-              Required
-            </span>
-          )}
+          <span
+            className={
+              statusKind === "ready"
+                ? "group-buy-receipt-ready"
+                : statusKind === "needed"
+                  ? "group-buy-receipt-needed"
+                  : "group-buy-receipt-pending"
+            }
+            role="status"
+          >
+            {statusLabel}
+          </span>
           <button
             type="button"
-            className="btn secondary"
+            className="btn secondary group-buy-receipt-toggle"
             aria-expanded={open}
+            aria-label={open ? "Hide import" : "Import receipt"}
             onClick={() => setOpen((v) => !v)}
           >
-            {open ? "Hide import" : "Import receipt"}
+            <span className="group-buy-receipt-toggle-stack">
+              <span className="group-buy-receipt-toggle-label" aria-hidden={!open}>
+                Hide import
+              </span>
+              <span className="group-buy-receipt-toggle-label" aria-hidden={open}>
+                Import receipt
+              </span>
+            </span>
           </button>
         </div>
       </div>
