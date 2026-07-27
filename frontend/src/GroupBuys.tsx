@@ -499,6 +499,7 @@ export function GroupBuyDetailPage() {
   const [search, setSearch] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
+  const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
   const [orderId, setOrderId] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [shippingCost, setShippingCost] = useState("0");
@@ -712,6 +713,72 @@ export function GroupBuyDetailPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
+  const setAltWant = useMutation({
+    mutationFn: ({
+      cardId,
+      productId,
+      qty,
+    }: {
+      cardId: string;
+      productId: number;
+      qty: number;
+    }) =>
+      api.setCardPrinting(
+        cardId,
+        productId,
+        qty,
+        activeDeckIds && activeDeckIds.length ? activeDeckIds : undefined,
+      ),
+    onMutate: async ({ cardId, productId, qty }) => {
+      setAltWantBusyKey(`${cardId}:${productId}`);
+      await qc.cancelQueries({ queryKey: ["group-buy", groupId] });
+      const prev = qc.getQueryData<GroupBuyDetail>(["group-buy", groupId]);
+      if (prev) {
+        qc.setQueryData<GroupBuyDetail>(["group-buy", groupId], {
+          ...prev,
+          lines: prev.lines.map((line) =>
+            line.card_id === cardId
+              ? {
+                  ...line,
+                  alt_arts: line.alt_arts.map((a) =>
+                    a.product_id === productId ? { ...a, wanted: qty } : a,
+                  ),
+                }
+              : line,
+          ),
+        });
+      }
+      return { prev };
+    },
+    onError: (e: Error, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["group-buy", groupId], ctx.prev);
+      setMsg(e.message);
+    },
+    onSuccess: async (res, vars) => {
+      qc.setQueryData<GroupBuyDetail>(["group-buy", groupId], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          lines: old.lines.map((line) =>
+            line.card_id === vars.cardId
+              ? {
+                  ...line,
+                  alt_arts: line.alt_arts.map((a) =>
+                    a.product_id === vars.productId ? { ...a, wanted: res.qty } : a,
+                  ),
+                }
+              : line,
+          ),
+        };
+      });
+      await qc.invalidateQueries({ queryKey: ["group-buy", groupId] });
+      await qc.invalidateQueries({ queryKey: ["shopping"] });
+      await qc.invalidateQueries({ queryKey: ["deck"] });
+      await qc.invalidateQueries({ queryKey: ["decks"] });
+    },
+    onSettled: () => setAltWantBusyKey(null),
+  });
+
   const remove = useMutation({
     mutationFn: () => api.deleteGroupBuy(groupId),
     onSuccess: async () => {
@@ -722,6 +789,22 @@ export function GroupBuyDetailPage() {
   });
 
   const qtyBusy = setQty.isPending || clearQty.isPending || syncQty.isPending;
+
+  const groupBuyAltRow = (line: GroupBuyLine) => (
+    <AltArtsRow
+      alts={line.alt_arts}
+      cardNeeded={line.my_need ?? 0}
+      editable={detail?.status === "open"}
+      onWantChange={(productId, qty) =>
+        setAltWant.mutate({ cardId: line.card_id, productId, qty })
+      }
+      busyProductId={
+        altWantBusyKey?.startsWith(`${line.card_id}:`)
+          ? Number(altWantBusyKey.slice(line.card_id.length + 1))
+          : null
+      }
+    />
+  );
 
   async function copyInvite(path: string) {
     const url = `${window.location.origin}${path}`;
@@ -1232,9 +1315,7 @@ export function GroupBuyDetailPage() {
                         </a>
                       ) : null}
                       {showAltArts && line.alt_arts.length > 0 ? (
-                        <div className="grid-card-alts">
-                          <AltArtsRow alts={line.alt_arts} />
-                        </div>
+                        <div className="grid-card-alts">{groupBuyAltRow(line)}</div>
                       ) : null}
                     </div>
                   </article>
@@ -1320,9 +1401,7 @@ export function GroupBuyDetailPage() {
                       </div>
                     ) : null}
                     {showAltArts && line.alt_arts.length > 0 ? (
-                      <div className="mobile-card-alts">
-                        <AltArtsRow alts={line.alt_arts} />
-                      </div>
+                      <div className="mobile-card-alts">{groupBuyAltRow(line)}</div>
                     ) : null}
                   </article>
                 );
@@ -1418,11 +1497,7 @@ export function GroupBuyDetailPage() {
                             />
                           </td>
                         ) : null}
-                        {showAltArts ? (
-                          <td>
-                            <AltArtsRow alts={line.alt_arts} />
-                          </td>
-                        ) : null}
+                        {showAltArts ? <td>{groupBuyAltRow(line)}</td> : null}
                       </tr>
                     );
                   })}

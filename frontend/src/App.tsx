@@ -186,6 +186,91 @@ function invalidateOwnedViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["deck"] });
 }
 
+function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: ["shopping"] });
+  void qc.invalidateQueries({ queryKey: ["deck"] });
+  void qc.invalidateQueries({ queryKey: ["decks"] });
+  void qc.invalidateQueries({ queryKey: ["group-buy"] });
+  void qc.invalidateQueries({ queryKey: ["group-buys"] });
+}
+
+function shoppingRemainingForItem(item: {
+  still_need: number;
+  product_id?: number | null;
+  market_price: number | null;
+  alt_arts?: { product_id: number; wanted?: number; market_price: number | null }[];
+}): number | null {
+  const still = item.still_need;
+  if (still <= 0) return 0;
+  let remaining = still;
+  let total = 0;
+  let missingPrice = false;
+  for (const alt of item.alt_arts ?? []) {
+    if (remaining <= 0) break;
+    const want = alt.wanted ?? 0;
+    const take = Math.min(Math.max(0, want), remaining);
+    if (take <= 0) continue;
+    if (alt.market_price == null) missingPrice = true;
+    else total += take * alt.market_price;
+    remaining -= take;
+  }
+  if (remaining > 0) {
+    if (item.market_price == null) missingPrice = true;
+    else total += remaining * item.market_price;
+  }
+  if (missingPrice) return null;
+  return Math.round(total * 100) / 100;
+}
+
+function applyAltWantOptimistic(
+  qc: ReturnType<typeof useQueryClient>,
+  cardId: string,
+  productId: number,
+  qty: number,
+) {
+  const id = cardId.toUpperCase();
+  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) => {
+    if (!old) return old;
+    let cardsStill = 0;
+    let remaining = 0;
+    const items = old.items.map((item) => {
+      if (item.card_id.toUpperCase() !== id) {
+        cardsStill += item.still_need;
+        if (item.remaining_cost != null) remaining += item.remaining_cost;
+        return item;
+      }
+      const alt_arts = (item.alt_arts ?? []).map((a) =>
+        a.product_id === productId ? { ...a, wanted: qty } : a,
+      );
+      const patched = { ...item, alt_arts, remaining_cost: shoppingRemainingForItem({ ...item, alt_arts }) };
+      cardsStill += patched.still_need;
+      if (patched.remaining_cost != null) remaining += patched.remaining_cost;
+      return patched;
+    });
+    return {
+      ...old,
+      items,
+      cards_still_needed: cardsStill,
+      remaining_market: Math.round(remaining * 100) / 100,
+    };
+  });
+  qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) => {
+    if (!old) return old;
+    return {
+      ...old,
+      cards: old.cards.map((card) => {
+        if (card.card_id.toUpperCase() !== id) return card;
+        return {
+          ...card,
+          alt_arts: (card.alt_arts ?? []).map((a) =>
+            a.product_id === productId ? { ...a, wanted: qty } : a,
+          ),
+        };
+      }),
+    };
+  });
+}
+
 function patchOwnedQty(cardId: string, qty: number, need: number, market: number | null | undefined) {
   const still = Math.max(0, need - qty);
   const remaining =
@@ -621,7 +706,44 @@ function ShoppingPage() {
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [layout, setLayout] = useCardLayout();
   const [search, setSearch] = useState("");
+  const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
+  const [altWantErr, setAltWantErr] = useState<string | null>(null);
   const sortingByDeck = effectiveSorts.includes("deck");
+
+  const changeShoppingAltWant = async (cardId: string, productId: number, qty: number) => {
+    setAltWantErr(null);
+    setAltWantBusyKey(`${cardId}:${productId}`);
+    applyAltWantOptimistic(qc, cardId, productId, qty);
+    try {
+      const res = await api.setCardPrinting(
+        cardId,
+        productId,
+        qty,
+        activeDeckIds.length ? activeDeckIds : undefined,
+      );
+      applyAltWantOptimistic(qc, cardId, productId, res.qty);
+      invalidateAltWantViews(qc);
+    } catch (e) {
+      setAltWantErr((e as Error).message);
+      invalidateAltWantViews(qc);
+    } finally {
+      setAltWantBusyKey(null);
+    }
+  };
+
+  const shoppingAltRow = (item: ShoppingItem) => (
+    <AltArtsRow
+      alts={item.alt_arts ?? []}
+      cardNeeded={item.need}
+      editable
+      onWantChange={(productId, qty) => void changeShoppingAltWant(item.card_id, productId, qty)}
+      busyProductId={
+        altWantBusyKey?.startsWith(`${item.card_id}:`)
+          ? Number(altWantBusyKey.slice(item.card_id.length + 1))
+          : null
+      }
+    />
+  );
 
   const items = useMemo(() => {
     let list = data?.items ?? [];
@@ -994,6 +1116,7 @@ function ShoppingPage() {
           {exportMsg}
         </p>
       ) : null}
+      {altWantErr && <p className="error">{altWantErr}</p>}
 
       <div className="list-toolbar">
         <div className="list-toolbar-row">
@@ -1124,7 +1247,7 @@ function ShoppingPage() {
                     )}
                     {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
                       <div className="grid-card-alts" onClick={stopCardSelectBubble}>
-                        <AltArtsRow alts={item.alt_arts ?? []} />
+                        {shoppingAltRow(item)}
                       </div>
                     )}
                   </div>
@@ -1201,11 +1324,7 @@ function ShoppingPage() {
                       </td>
                       <td>{money(item.remaining_cost)}</td>
                       <td>{item.cost ?? "—"}</td>
-                      {showAltArts && (
-                        <td>
-                          <AltArtsRow alts={item.alt_arts ?? []} />
-                        </td>
-                      )}
+                      {showAltArts && <td onClick={stopCardSelectBubble}>{shoppingAltRow(item)}</td>}
                       <td className="used-in">{usedInLabel(item)}</td>
                     </tr>
                   );
@@ -1289,7 +1408,7 @@ function ShoppingPage() {
                       onClick={stopCardSelectBubble}
                       onKeyDown={stopCardSelectBubble}
                     >
-                      <AltArtsRow alts={item.alt_arts ?? []} />
+                      {shoppingAltRow(item)}
                     </div>
                   )}
                   {item.used_in.length > 0 && (
@@ -2181,8 +2300,7 @@ function DeckDetailPage() {
 
   const applyDeckUpdate = (detail: DeckDetail) => {
     qc.setQueryData(["deck", deckId], detail);
-    void qc.invalidateQueries({ queryKey: ["decks"] });
-    void qc.invalidateQueries({ queryKey: ["shopping"] });
+    invalidateAltWantViews(qc);
   };
 
   const changeNeeded = async (cardId: string, needed: number) => {
@@ -2201,11 +2319,13 @@ function DeckDetailPage() {
   const changeAltWant = async (cardId: string, productId: number, qty: number) => {
     setAltWantErr(null);
     setAltWantBusyKey(`${cardId}:${productId}`);
+    applyAltWantOptimistic(qc, cardId, productId, qty);
     try {
       const detail = await api.setDeckCardPrinting(deckId, cardId, productId, qty);
       applyDeckUpdate(detail);
     } catch (e) {
       setAltWantErr((e as Error).message);
+      invalidateAltWantViews(qc);
     } finally {
       setAltWantBusyKey(null);
     }

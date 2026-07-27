@@ -71,6 +71,21 @@ class DeckCardPrintingUpdate(BaseModel):
     qty: int = Field(ge=0, le=99)
 
 
+class CardPrintingUpdate(BaseModel):
+    """Set alt-art want across the user's decks that include the card (synced)."""
+
+    qty: int = Field(ge=0, le=99)
+    deck_ids: list[int] | None = None
+
+
+class CardPrintingResult(BaseModel):
+    card_id: str
+    product_id: int
+    """Max qty stored after per-deck clamps."""
+    qty: int
+    decks_updated: int
+
+
 class RecentSale(BaseModel):
     price: float
     shipping: float = 0.0
@@ -252,6 +267,8 @@ class GroupBuyLineOut(BaseModel):
     my_is_custom: bool = False
     # True when the viewer opted out (custom qty 0 / Exclude).
     my_excluded: bool = False
+    # Viewer's play Need for this card (max across their contribution decks) — alt want cap.
+    my_need: int = 0
 
 
 class GroupBuySummary(BaseModel):
