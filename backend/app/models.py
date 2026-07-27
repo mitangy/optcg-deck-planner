@@ -79,6 +79,21 @@ class DeckCard(Base):
     deck: Mapped[Deck] = relationship(back_populates="cards")
 
 
+class DeckCardPrinting(Base):
+    """Per-deck alt-art want counts (play allocation of DeckCard.needed)."""
+
+    __tablename__ = "deck_card_printings"
+    __table_args__ = (
+        UniqueConstraint("deck_id", "card_id", "product_id", name="uq_deck_card_printing"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    deck_id: Mapped[int] = mapped_column(ForeignKey("decks.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    product_id: Mapped[int] = mapped_column(Integer, index=True)
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class Owned(Base):
     __tablename__ = "owned"
     __table_args__ = (UniqueConstraint("user_id", "card_id", name="uq_user_owned"),)

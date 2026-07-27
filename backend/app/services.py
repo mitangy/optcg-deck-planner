@@ -20,7 +20,16 @@ from app.domain import (
     parse_cost,
     parse_decklist,
 )
-from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, ShareLink, User
+from app.models import (
+    CatalogCard,
+    CatalogPrinting,
+    Deck,
+    DeckCard,
+    DeckCardPrinting,
+    Owned,
+    ShareLink,
+    User,
+)
 from app.schemas import (
     CardView,
     CatalogCardResult,
@@ -53,7 +62,11 @@ def _catalog_map(db: Session, card_ids: set[str]) -> dict[str, CatalogCard]:
     return {r.card_id: r for r in rows}
 
 
-def _alt_arts_map(db: Session, card_ids: set[str]) -> dict[str, list[PrintingView]]:
+def _alt_arts_map(
+    db: Session,
+    card_ids: set[str],
+    wanted: dict[str, dict[int, int]] | None = None,
+) -> dict[str, list[PrintingView]]:
     """Special/alt printings for each card number (excludes the primary catalog row art)."""
     if not card_ids:
         return {}
@@ -63,6 +76,7 @@ def _alt_arts_map(db: Session, card_ids: set[str]) -> dict[str, list[PrintingVie
             CatalogPrinting.is_special == 1,
         )
     ).all()
+    want = wanted or {}
     out: dict[str, list[PrintingView]] = defaultdict(list)
     for row in rows:
         out[row.card_id].append(
@@ -75,6 +89,7 @@ def _alt_arts_map(db: Session, card_ids: set[str]) -> dict[str, list[PrintingVie
                 tcgplayer_url=row.tcgplayer_url,
                 group_name=row.group_name,
                 is_special=True,
+                wanted=int(want.get(row.card_id, {}).get(row.product_id, 0)),
             )
         )
     for card_id in out:
@@ -86,6 +101,113 @@ def _alt_arts_map(db: Session, card_ids: set[str]) -> dict[str, list[PrintingVie
             )
         )
     return out
+
+
+def _printing_wants_for_decks(
+    db: Session, deck_ids: list[int]
+) -> dict[int, dict[str, dict[int, int]]]:
+    """deck_id -> card_id -> product_id -> qty."""
+    if not deck_ids:
+        return {}
+    rows = db.scalars(
+        select(DeckCardPrinting).where(DeckCardPrinting.deck_id.in_(deck_ids))
+    ).all()
+    out: dict[int, dict[str, dict[int, int]]] = defaultdict(lambda: defaultdict(dict))
+    for row in rows:
+        if row.qty > 0:
+            out[row.deck_id][row.card_id][row.product_id] = row.qty
+    return out
+
+
+def clamp_alt_want_map(wants: dict[int, int], limit: int) -> dict[int, int]:
+    """Reduce alt wants so sum(qty) <= limit, cutting largest counts first."""
+    if limit < 0:
+        limit = 0
+    total = sum(max(0, q) for q in wants.values())
+    if total <= limit:
+        return {pid: q for pid, q in wants.items() if q > 0}
+    # Largest qty first; stable by product_id for determinism.
+    items = sorted(wants.items(), key=lambda x: (-max(0, x[1]), x[0]))
+    excess = total - limit
+    result = {pid: max(0, q) for pid, q in wants.items()}
+    for pid, qty in items:
+        if excess <= 0:
+            break
+        reduce_by = min(qty, excess)
+        result[pid] = qty - reduce_by
+        excess -= reduce_by
+    return {pid: q for pid, q in result.items() if q > 0}
+
+
+def _apply_alt_want_clamp_to_rows(
+    rows: list[DeckCardPrinting], limit: int
+) -> None:
+    """Mutate/delete ORM rows so their qty sum fits limit (largest first)."""
+    wants = {r.product_id: r.qty for r in rows if r.qty > 0}
+    clamped = clamp_alt_want_map(wants, limit)
+    for row in rows:
+        new_qty = clamped.get(row.product_id, 0)
+        if new_qty <= 0:
+            row.qty = 0
+        elif row.qty != new_qty:
+            row.qty = new_qty
+
+
+def _delete_zero_printing_rows(db: Session, rows: list[DeckCardPrinting]) -> None:
+    for row in rows:
+        if row.qty <= 0:
+            db.delete(row)
+
+
+def _clear_deck_card_printings(db: Session, deck_id: int, card_id: str) -> None:
+    rows = db.scalars(
+        select(DeckCardPrinting).where(
+            DeckCardPrinting.deck_id == deck_id,
+            DeckCardPrinting.card_id == card_id,
+        )
+    ).all()
+    for row in rows:
+        db.delete(row)
+
+
+def allocate_still_need_buys(
+    still_need: int,
+    alt_wants: list[tuple[int, int, float | None]],
+    *,
+    standard_product_id: int | None,
+    standard_price: float | None,
+) -> list[tuple[int | None, int, float | None]]:
+    """Allocate still_need copies: alt wants first (in list order), then standard.
+
+    Each alt entry is (product_id, wanted_qty, market_price).
+    Returns list of (product_id|None, qty, unit_price).
+    """
+    if still_need <= 0:
+        return []
+    remaining = still_need
+    buys: list[tuple[int | None, int, float | None]] = []
+    for product_id, wanted_qty, price in alt_wants:
+        if remaining <= 0:
+            break
+        take = min(max(0, wanted_qty), remaining)
+        if take > 0:
+            buys.append((product_id, take, price))
+            remaining -= take
+    if remaining > 0:
+        buys.append((standard_product_id, remaining, standard_price))
+    return buys
+
+
+def remaining_cost_for_buys(buys: list[tuple[int | None, int, float | None]]) -> float | None:
+    """Sum qty * unit_price; None if any buy line is missing a price."""
+    if not buys:
+        return 0.0
+    total = 0.0
+    for _pid, qty, price in buys:
+        if price is None:
+            return None
+        total += qty * price
+    return round(total, 2)
 
 
 def _owned_map(db: Session, user_id: int) -> dict[str, int]:
@@ -227,7 +349,8 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
     owned = _owned_map(db, user.id)
     all_ids = {c.card_id for d in decks for c in d.cards}
     catalog = _catalog_map(db, all_ids)
-    alts = _alt_arts_map(db, all_ids)
+    deck_wants = _printing_wants_for_decks(db, [target.id]).get(target.id, {})
+    alts = _alt_arts_map(db, all_ids, wanted=deck_wants)
     product_ids = _primary_product_ids(db, all_ids)
 
     prior_ids: set[str] = set()
@@ -400,12 +523,102 @@ def upsert_deck_card(
     if needed <= 0:
         if existing is not None:
             db.delete(existing)
+        _clear_deck_card_printings(db, deck.id, card_id)
     elif existing is None:
         db.add(DeckCard(deck_id=deck.id, card_id=card_id, needed=needed))
     else:
         existing.needed = needed
+        # Auto-clamp alt wants when Need drops below their sum.
+        printing_rows = db.scalars(
+            select(DeckCardPrinting).where(
+                DeckCardPrinting.deck_id == deck.id,
+                DeckCardPrinting.card_id == card_id,
+            )
+        ).all()
+        if printing_rows:
+            _apply_alt_want_clamp_to_rows(printing_rows, needed)
+            _delete_zero_printing_rows(db, printing_rows)
 
     deck.leader_card_id = find_leader_id(projected_lines, catalog)
+    db.commit()
+    return get_deck_detail(db, user, deck_id)
+
+
+def set_deck_card_printing(
+    db: Session,
+    user: User,
+    deck_id: int,
+    card_id: str,
+    product_id: int,
+    qty: int,
+) -> DeckDetail:
+    """Set alt-art want qty for a card in a deck. Sum of alts cannot exceed needed."""
+    card_id = card_id.strip().upper()
+    if not card_id:
+        raise ValueError("card_id is required")
+    if qty < 0:
+        raise ValueError("qty must be >= 0")
+    if product_id <= 0:
+        raise ValueError("product_id must be positive")
+
+    deck = db.scalar(
+        select(Deck)
+        .where(Deck.id == deck_id, Deck.user_id == user.id)
+        .options(selectinload(Deck.cards))
+    )
+    if deck is None:
+        raise LookupError("Deck not found")
+
+    deck_card = next((c for c in deck.cards if c.card_id == card_id), None)
+    if deck_card is None:
+        raise LookupError("Card not in deck")
+
+    printing = db.scalar(
+        select(CatalogPrinting).where(
+            CatalogPrinting.card_id == card_id,
+            CatalogPrinting.product_id == product_id,
+            CatalogPrinting.is_special == 1,
+        )
+    )
+    if printing is None:
+        raise ValueError("Unknown alt printing for this card")
+
+    others = db.scalars(
+        select(DeckCardPrinting).where(
+            DeckCardPrinting.deck_id == deck.id,
+            DeckCardPrinting.card_id == card_id,
+            DeckCardPrinting.product_id != product_id,
+        )
+    ).all()
+    others_sum = sum(r.qty for r in others)
+    if others_sum + qty > deck_card.needed:
+        raise ValueError(
+            f"Alt art wants cannot exceed Need ({deck_card.needed}): "
+            f"{others_sum} other + {qty} would be {others_sum + qty}"
+        )
+
+    row = db.scalar(
+        select(DeckCardPrinting).where(
+            DeckCardPrinting.deck_id == deck.id,
+            DeckCardPrinting.card_id == card_id,
+            DeckCardPrinting.product_id == product_id,
+        )
+    )
+    if qty <= 0:
+        if row is not None:
+            db.delete(row)
+    elif row is None:
+        db.add(
+            DeckCardPrinting(
+                deck_id=deck.id,
+                card_id=card_id,
+                product_id=product_id,
+                qty=qty,
+            )
+        )
+    else:
+        row.qty = qty
+
     db.commit()
     return get_deck_detail(db, user, deck_id)
 
@@ -461,8 +674,21 @@ def shopping_list(
 
     owned = _owned_map(db, user.id)
     catalog = _catalog_map(db, set(need))
-    alts = _alt_arts_map(db, set(need))
     product_ids = _primary_product_ids(db, set(need))
+
+    # Max alt-want per product across selected decks, then clamp sum to shopping need.
+    wants_by_deck = _printing_wants_for_decks(db, [d.id for d in decks])
+    merged_wants: dict[str, dict[int, int]] = defaultdict(dict)
+    for deck in decks:
+        for card_id, by_pid in wants_by_deck.get(deck.id, {}).items():
+            for pid, qty in by_pid.items():
+                prev = merged_wants[card_id].get(pid, 0)
+                if qty > prev:
+                    merged_wants[card_id][pid] = qty
+    for card_id, by_pid in list(merged_wants.items()):
+        merged_wants[card_id] = clamp_alt_want_map(by_pid, need.get(card_id, 0))
+
+    alts = _alt_arts_map(db, set(need), wanted=merged_wants)
     items: list[ShoppingItem] = []
     cards_still = 0
     remaining = 0.0
@@ -472,7 +698,17 @@ def shopping_list(
         still = max(0, qty_need - qty_owned)
         cat = catalog.get(card_id)
         market = cat.market_price if cat else None
-        line = (still * market) if market is not None else None
+        card_alts = alts.get(card_id, [])
+        alt_buy_inputs = [
+            (a.product_id, a.wanted, a.market_price) for a in card_alts if a.wanted > 0
+        ]
+        buys = allocate_still_need_buys(
+            still,
+            alt_buy_inputs,
+            standard_product_id=product_ids.get(card_id),
+            standard_price=market,
+        )
+        line = remaining_cost_for_buys(buys)
         cards_still += still
         if line is not None:
             remaining += line
@@ -518,7 +754,7 @@ def shopping_list(
                 tcgplayer_url=cat.tcgplayer_url if cat else "",
                 product_id=product_ids.get(card_id),
                 used_in=used_in[card_id],
-                alt_arts=alts.get(card_id, []),
+                alt_arts=card_alts,
                 deck_sort_key=deck_sort_key,
                 primary_leader_card_id=primary_leader_card_id,
                 primary_leader_name=primary_leader_name,

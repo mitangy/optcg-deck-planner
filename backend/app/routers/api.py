@@ -18,6 +18,7 @@ from app.recent_sales import fetch_recent_sales
 from app.schemas import (
     CatalogCardResult,
     CatalogStatus,
+    DeckCardPrintingUpdate,
     DeckCardUpsert,
     DeckCreate,
     DeckDetail,
@@ -146,6 +147,29 @@ def delete_deck_card(
     try:
         return services.upsert_deck_card(
             db, user, deck_id, card_id, 0, confirm_oversize=True
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put(
+    "/decks/{deck_id}/cards/{card_id}/printings/{product_id}",
+    response_model=DeckDetail,
+)
+def put_deck_card_printing(
+    deck_id: int,
+    card_id: str,
+    product_id: int,
+    body: DeckCardPrintingUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Set how many copies of an alt printing are wanted in this deck (≤ Need)."""
+    try:
+        return services.set_deck_card_printing(
+            db, user, deck_id, card_id, product_id, body.qty
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

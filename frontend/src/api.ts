@@ -58,6 +58,8 @@ export type PrintingView = {
   tcgplayer_url: string;
   group_name: string;
   is_special: boolean;
+  /** Per-deck (or shopping max-across-decks) alt want for play. */
+  wanted?: number;
 };
 
 export type CatalogCardResult = {
@@ -317,6 +319,14 @@ export const api = {
     request<DeckDetail>(`/decks/${deckId}/cards/${encodeURIComponent(cardId)}`, {
       method: "DELETE",
     }),
+  setDeckCardPrinting: (deckId: number, cardId: string, productId: number, qty: number) =>
+    request<DeckDetail>(
+      `/decks/${deckId}/cards/${encodeURIComponent(cardId)}/printings/${productId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ qty }),
+      },
+    ),
   searchCatalog: (opts?: {
     q?: string;
     color?: string;
