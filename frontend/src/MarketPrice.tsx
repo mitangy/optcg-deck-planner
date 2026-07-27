@@ -150,33 +150,36 @@ export function AltArtsRow({
             <div className="alt-meta">
               <MarketPrice price={alt.market_price} productId={alt.product_id} />
               {editable && onWantChange ? (
-                <span className="owned-wrap alt-want-wrap">
-                  <button
-                    type="button"
-                    className="owned-btn"
-                    aria-label={`Decrease want for ${alt.name}`}
-                    disabled={busy || wanted <= 0}
-                    onClick={() => onWantChange(alt.product_id, Math.max(0, wanted - 1))}
-                  >
-                    −
-                  </button>
-                  <span className="alt-want-qty" aria-label={`${alt.name} wanted`}>
-                    {wanted}
+                <span className="alt-want-controls">
+                  <span className="alt-want-caption">Want</span>
+                  <span className="owned-wrap alt-want-wrap">
+                    <button
+                      type="button"
+                      className="owned-btn"
+                      aria-label={`Decrease want for ${alt.name}`}
+                      disabled={busy || wanted <= 0}
+                      onClick={() => onWantChange(alt.product_id, Math.max(0, wanted - 1))}
+                    >
+                      −
+                    </button>
+                    <span className="alt-want-qty" aria-label={`${alt.name} wanted`}>
+                      {wanted}
+                    </span>
+                    <button
+                      type="button"
+                      className="owned-btn"
+                      aria-label={`Increase want for ${alt.name}`}
+                      disabled={busy || atCap}
+                      title={atCap ? `Cannot exceed Need (${cardNeeded})` : undefined}
+                      onClick={() => onWantChange(alt.product_id, wanted + 1)}
+                    >
+                      +
+                    </button>
                   </span>
-                  <button
-                    type="button"
-                    className="owned-btn"
-                    aria-label={`Increase want for ${alt.name}`}
-                    disabled={busy || atCap}
-                    title={atCap ? `Cannot exceed Need (${cardNeeded})` : undefined}
-                    onClick={() => onWantChange(alt.product_id, wanted + 1)}
-                  >
-                    +
-                  </button>
                 </span>
               ) : wanted > 0 ? (
                 <span className="alt-want-label" title="Wanted for play in deck">
-                  ×{wanted}
+                  Want ×{wanted}
                 </span>
               ) : null}
               {alt.tcgplayer_url ? (
