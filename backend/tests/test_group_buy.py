@@ -318,9 +318,11 @@ def test_mark_ordered_and_settlement(db, two_players):
     # Host: 3*2.5 + 2*1.0 = 9.5; Friend: 3*2.5 + 3*1.0 = 10.5; cards 20; ship by_cost
     assert ordered.cards_subtotal == 20.0
     assert ordered.grand_total == 23.0
+    assert ordered.tax_cost == 0.0
     by_name = {m.display_name: m for m in ordered.members}
     assert by_name["Host"].card_cost == 9.5
     assert by_name["Friend"].card_cost == 10.5
+    assert by_name["Host"].tax_share == 0.0
     assert round(by_name["Host"].shipping_share + by_name["Friend"].shipping_share, 2) == 3.0
     assert by_name["Host"].total_owed == round(
         by_name["Host"].card_cost + by_name["Host"].shipping_share, 2
@@ -333,13 +335,21 @@ def test_mark_ordered_and_settlement(db, two_players):
         db,
         host,
         created.id,
-        GroupBuyOrderUpdate(shipping_split="equal", shipping_cost=2.0),
+        GroupBuyOrderUpdate(shipping_split="equal", shipping_cost=2.0, tax_cost=4.0),
     )
     assert updated.shipping_split == "equal"
     assert updated.shipping_cost == 2.0
+    assert updated.tax_cost == 4.0
+    assert updated.grand_total == 26.0  # 20 + 2 + 4
     by_name = {m.display_name: m for m in updated.members}
     assert by_name["Host"].shipping_share == 1.0
     assert by_name["Friend"].shipping_share == 1.0
+    # Tax by card cost: Host 9.5/20 * 4 = 1.9, Friend 10.5/20 * 4 = 2.1
+    assert by_name["Host"].tax_share == 1.9
+    assert by_name["Friend"].tax_share == 2.1
+    assert by_name["Host"].total_owed == round(
+        by_name["Host"].card_cost + by_name["Host"].shipping_share + by_name["Host"].tax_share, 2
+    )
 
     done = group_buy.complete_group_buy(db, host, created.id)
     assert done.status == "completed"

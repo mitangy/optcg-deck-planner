@@ -199,6 +199,8 @@ class GroupBuy(Base):
     shipping_cost: Mapped[float] = mapped_column(Float, default=0.0)
     # equal | by_cost | by_copies
     shipping_split: Mapped[str] = mapped_column(String(32), default="equal")
+    # Sales tax / fees — always split by card cost in settlement.
+    tax_cost: Mapped[float] = mapped_column(Float, default=0.0)
 
     host: Mapped[User] = relationship()
     members: Mapped[list[GroupBuyMember]] = relationship(

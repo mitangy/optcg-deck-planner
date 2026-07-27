@@ -442,10 +442,12 @@ def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
             member_copies=copies,
             shipping_cost=float(group.shipping_cost or 0.0),
             shipping_split=group.shipping_split or "equal",
+            tax_cost=float(group.tax_cost or 0.0),
         )
     }
     cards_subtotal = round_money(sum(card_costs.values()))
     shipping_cost = round_money(float(group.shipping_cost or 0.0))
+    tax_cost = round_money(float(group.tax_cost or 0.0))
 
     members_out: list[GroupBuyMemberOut] = []
     for member in sorted(
@@ -464,6 +466,7 @@ def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
                 remaining_market=market,
                 card_cost=settle.card_cost if settle else 0.0,
                 shipping_share=settle.shipping_share if settle else 0.0,
+                tax_share=settle.tax_share if settle else 0.0,
                 total_owed=settle.total_owed if settle else 0.0,
             )
         )
@@ -477,8 +480,9 @@ def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
         order_notes=group.order_notes or "",
         shipping_cost=shipping_cost,
         shipping_split=group.shipping_split or "equal",
+        tax_cost=tax_cost,
         cards_subtotal=cards_subtotal,
-        grand_total=round_money(cards_subtotal + shipping_cost),
+        grand_total=round_money(cards_subtotal + shipping_cost + tax_cost),
     )
 
 
@@ -743,6 +747,8 @@ def _apply_order_fields(group: GroupBuy, body: GroupBuyOrderUpdate) -> None:
         if body.shipping_split not in SHIPPING_SPLIT_MODES:
             raise ValueError("shipping_split must be equal, by_cost, or by_copies")
         group.shipping_split = body.shipping_split
+    if body.tax_cost is not None:
+        group.tax_cost = max(0.0, float(body.tax_cost))
 
 
 def lock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:

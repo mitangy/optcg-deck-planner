@@ -2111,6 +2111,35 @@ tr.done {
   margin: 0 0 1.25rem;
 }
 
+.group-buy-settlement .filter-drawer {
+  margin: 0;
+}
+
+.group-buy-settlement .filter-drawer-label {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink, inherit);
+}
+
+.group-buy-settlement .filter-drawer-summary {
+  font-weight: 700;
+  color: var(--ink, inherit);
+  opacity: 0.9;
+}
+
+.group-buy-owes {
+  font-weight: 700;
+  color: var(--ink, inherit);
+}
+
+.group-buy-field-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+  line-height: 1.3;
+}
+
 .group-buy-members ul {
   margin: 0.35rem 0 0;
   padding: 0;

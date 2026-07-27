@@ -14,6 +14,7 @@ class MemberSettlement:
     card_cost: float
     copies: int
     shipping_share: float
+    tax_share: float
     total_owed: float
 
 
@@ -56,6 +57,20 @@ def split_shipping(
     return _allocate_cents(shipping, raw, floors)
 
 
+def split_tax(
+    tax_cost: float,
+    *,
+    card_costs: dict[int, float],
+) -> dict[int, float]:
+    """Tax always splits proportional to each member's card cost."""
+    return split_shipping(
+        tax_cost,
+        card_costs=card_costs,
+        copies={uid: 1 for uid in card_costs},
+        mode="by_cost",
+    )
+
+
 def math_floor_cents(value: float) -> float:
     cents = int(value * 100 + 1e-9)
     return cents / 100.0
@@ -93,6 +108,7 @@ def build_settlements(
     member_copies: dict[int, int],
     shipping_cost: float,
     shipping_split: str,
+    tax_cost: float = 0.0,
 ) -> list[MemberSettlement]:
     shares = split_shipping(
         shipping_cost,
@@ -100,18 +116,23 @@ def build_settlements(
         copies=member_copies,
         mode=shipping_split,
     )
-    user_ids = sorted(set(member_card_costs) | set(member_copies) | set(shares))
+    tax_shares = split_tax(tax_cost, card_costs=member_card_costs)
+    user_ids = sorted(
+        set(member_card_costs) | set(member_copies) | set(shares) | set(tax_shares)
+    )
     out: list[MemberSettlement] = []
     for uid in user_ids:
         card = round_money(float(member_card_costs.get(uid, 0.0)))
         ship = round_money(float(shares.get(uid, 0.0)))
+        tax = round_money(float(tax_shares.get(uid, 0.0)))
         out.append(
             MemberSettlement(
                 user_id=uid,
                 card_cost=card,
                 copies=int(member_copies.get(uid, 0)),
                 shipping_share=ship,
-                total_owed=round_money(card + ship),
+                tax_share=tax,
+                total_owed=round_money(card + ship + tax),
             )
         )
     return out
