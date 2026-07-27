@@ -817,7 +817,7 @@ function ShoppingPage() {
       window.open(massEntry.url, "_blank", "noopener,noreferrer");
       setExportMsg(
         copied
-          ? "Opened TCGPlayer Mass Entry (list also copied). Use Add to Cart → Optimize Cart."
+          ? "Opened TCGPlayer Mass Entry (list copied as backup). Paste only if the form is empty, then Add to Cart → Optimize Cart."
           : "Opened TCGPlayer Mass Entry. Paste the list below if the cart is empty.",
       );
       return;
