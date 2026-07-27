@@ -205,6 +205,7 @@ export type GroupBuyMember = {
   remaining_market: number;
   card_cost?: number;
   shipping_share?: number;
+  tax_share?: number;
   total_owed?: number;
 };
 
@@ -213,6 +214,7 @@ export type GroupBuyOrderUpdate = {
   order_notes?: string | null;
   shipping_cost?: number | null;
   shipping_split?: "equal" | "by_cost" | "by_copies" | null;
+  tax_cost?: number | null;
 };
 
 export type GroupBuyLine = {
@@ -265,6 +267,7 @@ export type GroupBuyDetail = GroupBuySummary & {
   order_notes: string;
   shipping_cost: number;
   shipping_split: "equal" | "by_cost" | "by_copies" | string;
+  tax_cost: number;
   cards_subtotal: number;
   grand_total: number;
 };

@@ -224,6 +224,7 @@ class GroupBuyOrderUpdate(BaseModel):
     order_notes: str | None = Field(default=None, max_length=4000)
     shipping_cost: float | None = Field(default=None, ge=0, le=100000)
     shipping_split: str | None = Field(default=None, pattern="^(equal|by_cost|by_copies)$")
+    tax_cost: float | None = Field(default=None, ge=0, le=100000)
 
 
 class GroupBuyMemberOut(BaseModel):
@@ -235,6 +236,7 @@ class GroupBuyMemberOut(BaseModel):
     remaining_market: float = 0.0
     card_cost: float = 0.0
     shipping_share: float = 0.0
+    tax_share: float = 0.0
     total_owed: float = 0.0
 
 
@@ -299,6 +301,7 @@ class GroupBuyDetail(GroupBuySummary):
     order_notes: str = ""
     shipping_cost: float = 0.0
     shipping_split: str = "equal"
+    tax_cost: float = 0.0
     cards_subtotal: float = 0.0
     grand_total: float = 0.0
 

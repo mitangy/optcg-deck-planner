@@ -15,6 +15,7 @@ import { CardLayoutToggle, useCardLayout } from "./CardLayout";
 import {
   buildFilterSummary,
   CardSearchInput,
+  CollapsibleDrawer,
   CollapsibleFilters,
   compareCardOrder,
   matchesCardSearch,
@@ -34,6 +35,7 @@ import {
 } from "./Skeleton";
 
 const NEXT_KEY = "optcg_login_next";
+const SETTLEMENT_OPEN_KEY = "optcg_group_buy_settlement_open";
 
 type ShippingSplit = "equal" | "by_cost" | "by_copies";
 
@@ -517,6 +519,7 @@ export function GroupBuyDetailPage() {
   const [orderId, setOrderId] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [shippingCost, setShippingCost] = useState("0");
+  const [taxCost, setTaxCost] = useState("0");
   const [shippingSplit, setShippingSplit] = useState<ShippingSplit>("equal");
   const sortingByUser = effectiveSorts.includes("user");
   /** Section headers only when User is the primary sort (otherwise groups would fragment). */
@@ -620,6 +623,7 @@ export function GroupBuyDetailPage() {
     setOrderId(detail.external_order_id || "");
     setOrderNotes(detail.order_notes || "");
     setShippingCost(String(detail.shipping_cost ?? 0));
+    setTaxCost(String(detail.tax_cost ?? 0));
     const split = detail.shipping_split;
     setShippingSplit(
       split === "by_cost" || split === "by_copies" || split === "equal" ? split : "equal",
@@ -913,12 +917,14 @@ export function GroupBuyDetailPage() {
   }
 
   function orderBodyFromForm(): GroupBuyOrderUpdate {
-    const parsed = Number(shippingCost);
+    const parsedShip = Number(shippingCost);
+    const parsedTax = Number(taxCost);
     return {
       external_order_id: orderId.trim(),
       order_notes: orderNotes.trim(),
-      shipping_cost: Number.isFinite(parsed) && parsed >= 0 ? parsed : 0,
+      shipping_cost: Number.isFinite(parsedShip) && parsedShip >= 0 ? parsedShip : 0,
       shipping_split: shippingSplit,
+      tax_cost: Number.isFinite(parsedTax) && parsedTax >= 0 ? parsedTax : 0,
     };
   }
 
@@ -1039,7 +1045,9 @@ export function GroupBuyDetailPage() {
                 {showOrderPanel ? (
                   <>
                     {" "}
-                    · ship {money(m.shipping_share ?? 0)} · owes {money(m.total_owed ?? m.remaining_market)}
+                    · ship {money(m.shipping_share ?? 0)} · tax {money(m.tax_share ?? 0)}
+                    {" · owes "}
+                    <strong className="group-buy-owes">{money(m.total_owed ?? m.remaining_market)}</strong>
                   </>
                 ) : null}
               </span>
@@ -1050,120 +1058,145 @@ export function GroupBuyDetailPage() {
 
       {showOrderPanel && (
         <div className="group-buy-settlement">
-          <h2>Order & settlement</h2>
-          <p className="muted">
-            {detail.status === "locked"
-              ? "After checkout, mark ordered — or import a TCGPlayer receipt below to verify and stage copies. Mark purchased only when cards are in hand."
-              : detail.status === "ordered"
-                ? "Order placed — settle costs below. Import a TCGPlayer receipt to verify/stage copies, or Mark purchased when everything is received."
-                : "Purchased — Owned updated. Settlement below is for your records."}{" "}
-            Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} ={" "}
-            <strong>{money(detail.grand_total)}</strong>
-            {detail.ordered_at ? ` · ordered ${new Date(detail.ordered_at).toLocaleString()}` : ""}
-          </p>
-          {detail.is_host && detail.status !== "completed" ? (
-            <form
-              className="group-buy-order-form"
-              onSubmit={(e: FormEvent) => {
-                e.preventDefault();
-                saveOrder.mutate(orderBodyFromForm());
-              }}
-            >
-              <label>
-                Order / receipt id
-                <input
-                  type="text"
-                  value={orderId}
-                  maxLength={200}
-                  onChange={(e) => setOrderId(e.target.value)}
-                  placeholder="Optional"
-                />
-              </label>
-              <label>
-                Shipping cost
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={shippingCost}
-                  onChange={(e) => setShippingCost(e.target.value)}
-                />
-              </label>
-              <label>
-                Split shipping
-                <select
-                  value={shippingSplit}
-                  onChange={(e) => setShippingSplit(e.target.value as ShippingSplit)}
-                >
-                  {(Object.keys(SHIPPING_SPLIT_LABELS) as ShippingSplit[]).map((key) => (
-                    <option key={key} value={key}>
-                      {SHIPPING_SPLIT_LABELS[key]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="group-buy-order-notes">
-                Notes
-                <textarea
-                  value={orderNotes}
-                  maxLength={4000}
-                  rows={3}
-                  onChange={(e) => setOrderNotes(e.target.value)}
-                  placeholder="Who paid, tracking, Venmo handles…"
-                />
-              </label>
-              <button type="submit" className="btn secondary" disabled={orderBusy}>
-                {saveOrder.isPending ? "Saving…" : "Save order details"}
-              </button>
-            </form>
-          ) : (
-            <div className="group-buy-order-readonly">
-              {detail.external_order_id ? (
-                <p>
-                  Order id: <strong>{detail.external_order_id}</strong>
+          <CollapsibleDrawer
+            label="Order & settlement"
+            summary={`${money(detail.grand_total)} total`}
+            storageKey={SETTLEMENT_OPEN_KEY}
+            defaultOpen
+          >
+            <p className="muted">
+              {detail.status === "locked"
+                ? "After checkout, mark ordered — or import a TCGPlayer receipt below to verify and stage copies. Mark purchased only when cards are in hand."
+                : detail.status === "ordered"
+                  ? "Order placed — settle costs below. Import a TCGPlayer receipt to verify/stage copies, or Mark purchased when everything is received."
+                  : "Purchased — Owned updated. Settlement below is for your records."}{" "}
+              Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} + tax{" "}
+              {money(detail.tax_cost ?? 0)} ={" "}
+              <strong className="group-buy-owes">{money(detail.grand_total)}</strong>
+              {detail.ordered_at ? ` · ordered ${new Date(detail.ordered_at).toLocaleString()}` : ""}
+            </p>
+            {detail.is_host && detail.status !== "completed" ? (
+              <form
+                className="group-buy-order-form"
+                onSubmit={(e: FormEvent) => {
+                  e.preventDefault();
+                  saveOrder.mutate(orderBodyFromForm());
+                }}
+              >
+                <label>
+                  Order / receipt id
+                  <input
+                    type="text"
+                    value={orderId}
+                    maxLength={200}
+                    onChange={(e) => setOrderId(e.target.value)}
+                    placeholder="Optional"
+                  />
+                </label>
+                <label>
+                  Shipping cost
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={shippingCost}
+                    onChange={(e) => setShippingCost(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Split shipping
+                  <select
+                    value={shippingSplit}
+                    onChange={(e) => setShippingSplit(e.target.value as ShippingSplit)}
+                  >
+                    {(Object.keys(SHIPPING_SPLIT_LABELS) as ShippingSplit[]).map((key) => (
+                      <option key={key} value={key}>
+                        {SHIPPING_SPLIT_LABELS[key]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Tax
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={taxCost}
+                    onChange={(e) => setTaxCost(e.target.value)}
+                    aria-describedby="group-buy-tax-hint"
+                  />
+                  <span id="group-buy-tax-hint" className="group-buy-field-hint">
+                    Always split by card cost
+                  </span>
+                </label>
+                <label className="group-buy-order-notes">
+                  Notes
+                  <textarea
+                    value={orderNotes}
+                    maxLength={4000}
+                    rows={3}
+                    onChange={(e) => setOrderNotes(e.target.value)}
+                    placeholder="Who paid, tracking, Venmo handles…"
+                  />
+                </label>
+                <button type="submit" className="btn secondary" disabled={orderBusy}>
+                  {saveOrder.isPending ? "Saving…" : "Save order details"}
+                </button>
+              </form>
+            ) : (
+              <div className="group-buy-order-readonly">
+                {detail.external_order_id ? (
+                  <p>
+                    Order id: <strong>{detail.external_order_id}</strong>
+                  </p>
+                ) : null}
+                <p className="muted">
+                  Shipping split:{" "}
+                  {SHIPPING_SPLIT_LABELS[
+                    detail.shipping_split === "by_cost" || detail.shipping_split === "by_copies"
+                      ? detail.shipping_split
+                      : "equal"
+                  ]}
+                  {" · Tax split: by card cost"}
+                  {(detail.tax_cost ?? 0) > 0 ? ` (${money(detail.tax_cost)})` : ""}
                 </p>
-              ) : null}
-              <p className="muted">
-                Shipping split:{" "}
-                {SHIPPING_SPLIT_LABELS[
-                  detail.shipping_split === "by_cost" || detail.shipping_split === "by_copies"
-                    ? detail.shipping_split
-                    : "equal"
-                ]}
-              </p>
-              {detail.order_notes ? <p>{detail.order_notes}</p> : null}
-            </div>
-          )}
-        <div className="table-wrap desktop-table">
-          <table className="data-table group-buy-owe-table">
-              <thead>
-                <tr>
-                  <th>Member</th>
-                  <th>Cards</th>
-                  <th>Shipping</th>
-                  <th>Owes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((m) => (
-                  <tr key={m.user_id}>
-                    <td>
-                      <span className="group-buy-member-cell">
-                        <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
-                        {m.display_name}
-                        {m.role === "host" ? " (host)" : ""}
-                      </span>
-                    </td>
-                    <td>{money(m.card_cost ?? 0)}</td>
-                    <td>{money(m.shipping_share ?? 0)}</td>
-                    <td>
-                      <strong>{money(m.total_owed ?? 0)}</strong>
-                    </td>
+                {detail.order_notes ? <p>{detail.order_notes}</p> : null}
+              </div>
+            )}
+            <div className="table-wrap desktop-table">
+              <table className="data-table group-buy-owe-table">
+                <thead>
+                  <tr>
+                    <th>Member</th>
+                    <th>Cards</th>
+                    <th>Shipping</th>
+                    <th>Tax</th>
+                    <th>Owes</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {members.map((m) => (
+                    <tr key={m.user_id}>
+                      <td>
+                        <span className="group-buy-member-cell">
+                          <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
+                          {m.display_name}
+                          {m.role === "host" ? " (host)" : ""}
+                        </span>
+                      </td>
+                      <td>{money(m.card_cost ?? 0)}</td>
+                      <td>{money(m.shipping_share ?? 0)}</td>
+                      <td>{money(m.tax_share ?? 0)}</td>
+                      <td>
+                        <strong className="group-buy-owes">{money(m.total_owed ?? 0)}</strong>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CollapsibleDrawer>
         </div>
       )}
 

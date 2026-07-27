@@ -46,5 +46,30 @@ def test_build_settlements_totals():
     by_id = {r.user_id: r for r in rows}
     assert by_id[1].shipping_share == 2.5
     assert by_id[2].shipping_share == 1.5
+    assert by_id[1].tax_share == 0.0
     assert by_id[1].total_owed == 15.0
     assert by_id[2].total_owed == 9.0
+
+
+def test_tax_always_splits_by_card_cost():
+    from app.group_buy_settlement import split_tax
+
+    shares = split_tax(3.0, card_costs={1: 20.0, 2: 10.0})
+    assert shares[1] == 2.0
+    assert shares[2] == 1.0
+
+    rows = build_settlements(
+        member_card_costs={1: 20.0, 2: 10.0},
+        member_copies={1: 1, 2: 9},
+        shipping_cost=3.0,
+        shipping_split="equal",
+        tax_cost=3.0,
+    )
+    by_id = {r.user_id: r for r in rows}
+    # Shipping equal among buyers; tax by cost 2:1
+    assert by_id[1].shipping_share == 1.5
+    assert by_id[2].shipping_share == 1.5
+    assert by_id[1].tax_share == 2.0
+    assert by_id[2].tax_share == 1.0
+    assert by_id[1].total_owed == 23.5  # 20 + 1.5 + 2
+    assert by_id[2].total_owed == 12.5  # 10 + 1.5 + 1
