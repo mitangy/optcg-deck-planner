@@ -339,10 +339,19 @@ body:has(.group-buy-detail) .topbar-inner {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 0.35rem 0.65rem;
   min-width: 0;
   max-width: 100%;
+}
+
+.mobile-card-price-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .mobile-card-price-row .market-price {
@@ -1819,10 +1828,39 @@ tr.done {
 
   .mobile-card-price-row {
     width: 100%;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .mobile-card-price-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 0.3rem 0.5rem;
   }
 
   .mobile-card-price-row .market-price-btn {
     padding-left: 0;
+  }
+
+  .mobile-card-price-row .mobile-card-owned {
+    margin-top: 0;
+    flex: 0 0 auto;
+    align-items: flex-end;
+  }
+
+  /* Slightly tighter stepper when Owned sits beside Market / TCGPlayer */
+  .mobile-card-price-row .mobile-card-owned .owned-btn {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1rem;
+  }
+
+  .mobile-card-price-row .mobile-card-owned .owned {
+    width: 2rem;
+    padding: 0.25rem 0.08rem;
+    font-size: 0.88rem;
   }
 
   .sort-menu {
@@ -1857,10 +1895,15 @@ tr.done {
     margin-top: 0.3rem;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-end;
     gap: 0.15rem;
     font-weight: 650;
     font-size: 0.78rem;
+  }
+
+  .mobile-card-owned-block {
+    width: 100%;
+    align-items: flex-end;
   }
 
   .mobile-card-owned > span {
@@ -1886,16 +1929,16 @@ tr.done {
   }
 
   .mobile-card-owned .group-buy-qty {
-    justify-items: center;
+    justify-items: end;
   }
 
   .mobile-card-owned .group-buy-qty-meta {
-    align-items: center;
-    text-align: center;
+    align-items: flex-end;
+    text-align: right;
   }
 
   .mobile-card-owned .group-buy-exclude-btn {
-    justify-self: center;
+    justify-self: end;
   }
 
   .mobile-card-owned .group-buy-printing {
