@@ -514,6 +514,10 @@ button.ghost.danger {
 }
 
 .page-head + .filter-drawer {
+  margin: 0 0 0.5rem;
+}
+
+.filter-drawer + .filter-drawer {
   margin: 0 0 1rem;
 }
 

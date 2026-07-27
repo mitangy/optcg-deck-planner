@@ -17,6 +17,11 @@ import {
   blankMassEntryUrl,
   buildMassEntryExport,
 } from "./tcgplayerMassEntry";
+import {
+  buildOptcgSimExport,
+  downloadTextFile,
+  optcgSimFilename,
+} from "./optcgsimExport";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
   CardSearchInput,
@@ -53,6 +58,7 @@ import {
 const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 /* v2: default-closed public link (resets older localStorage "open" so mobile chrome stays shorter). */
 const SHARE_OPEN_KEY = "optcg_share_open_v2";
+const DECK_EXPORT_OPEN_KEY = "optcg_deck_export_open";
 const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
 const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
 const SHOW_SHOPPING_DONS_KEY = "optcg_show_shopping_dons";
@@ -183,6 +189,48 @@ function DeckSharePanel({
           </button>
         </div>
         <ShareStatus message={shareMsg} />
+      </div>
+    </CollapsibleDrawer>
+  );
+}
+
+function DeckExportPanel({
+  deck,
+  exportMsg,
+  onCopy,
+  onDownload,
+}: {
+  deck: DeckDetail;
+  exportMsg: string | null;
+  onCopy: () => void;
+  onDownload: () => void;
+}) {
+  const exportable = useMemo(
+    () => buildOptcgSimExport(deck.cards, { leaderCardId: deck.leader_card_id }),
+    [deck],
+  );
+  const empty = exportable.lineCount === 0;
+  const summary = empty
+    ? "Empty"
+    : `${exportable.lineCount} line${exportable.lineCount === 1 ? "" : "s"}`;
+
+  return (
+    <CollapsibleDrawer label="Export for OPTCGSim" summary={summary} storageKey={DECK_EXPORT_OPEN_KEY}>
+      <div className="share-panel">
+        <p className="muted share-panel-note">
+          Copy or download a deck list in OPTCGSim format (
+          <code>4xOP15-053</code>), then use Import from Clipboard in the simulator. DON!! cards are
+          omitted.
+        </p>
+        <div className="share-panel-actions">
+          <button type="button" className="btn secondary" disabled={empty} onClick={onCopy}>
+            Copy deck list
+          </button>
+          <button type="button" className="btn secondary" disabled={empty} onClick={onDownload}>
+            Download .txt
+          </button>
+        </div>
+        <ShareStatus message={exportMsg} />
       </div>
     </CollapsibleDrawer>
   );
@@ -2379,6 +2427,7 @@ function DeckDetailPage() {
   const [altWantErr, setAltWantErr] = useState<string | null>(null);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
   const shareDeck = useMutation({
     mutationFn: () => api.createShare({ kind: "deck", deck_id: deckId }),
     onSuccess: async (info) => {
@@ -2392,6 +2441,37 @@ function DeckDetailPage() {
     },
     onError: (e: Error) => setShareMsg(e.message),
   });
+
+  const optcgSimExport = useMemo(() => {
+    if (!data) return null;
+    return buildOptcgSimExport(data.cards, { leaderCardId: data.leader_card_id });
+  }, [data]);
+
+  const copyOptcgSimList = async () => {
+    if (!optcgSimExport || !optcgSimExport.pasteText) {
+      setExportMsg("Nothing to export — add main-deck cards first.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(optcgSimExport.pasteText);
+      setExportMsg(
+        `Copied ${optcgSimExport.lineCount} line${optcgSimExport.lineCount === 1 ? "" : "s"} for OPTCGSim`,
+      );
+    } catch {
+      setExportMsg("Could not copy — try Download .txt instead.");
+    }
+  };
+
+  const downloadOptcgSimList = () => {
+    if (!data || !optcgSimExport || !optcgSimExport.pasteText) {
+      setExportMsg("Nothing to export — add main-deck cards first.");
+      return;
+    }
+    downloadTextFile(optcgSimExport.pasteText, optcgSimFilename(data.name));
+    setExportMsg(
+      `Downloaded ${optcgSimExport.lineCount} line${optcgSimExport.lineCount === 1 ? "" : "s"} for OPTCGSim`,
+    );
+  };
 
   const applyDeckUpdate = (detail: DeckDetail) => {
     qc.setQueryData(["deck", deckId], detail);
@@ -2568,6 +2648,13 @@ function DeckDetailPage() {
         shareMsg={shareMsg}
         sharing={shareDeck.isPending}
         onShare={() => shareDeck.mutate()}
+      />
+
+      <DeckExportPanel
+        deck={data}
+        exportMsg={exportMsg}
+        onCopy={() => void copyOptcgSimList()}
+        onDownload={downloadOptcgSimList}
       />
 
       {editing && (
