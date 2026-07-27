@@ -1,12 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import {
-  api,
-  GroupBuyDetail,
-  GroupBuyReceiptLine,
-  GroupBuyReceiptMatchReport,
-} from "./api";
+import type { GroupBuyReceiptLine, GroupBuyReceiptMatchReport } from "./api";
+import { api } from "./api";
 
 const STATUS_LABEL: Record<string, string> = {
   exact: "Matched",
@@ -16,13 +12,15 @@ const STATUS_LABEL: Record<string, string> = {
   extra: "Extra",
 };
 
-type Props = {
-  groupId: number;
-  isHost: boolean;
-  status: string;
-  onApplied: (detail: GroupBuyDetail, message: string) => void;
-  onError: (message: string) => void;
-};
+/** Lines that are clean receipt↔pool matches (hidden by default). */
+function isMatchedLine(line: GroupBuyReceiptLine): boolean {
+  return line.status === "exact";
+}
+
+/** Problem / mismatch lines shown by default in the report table. */
+function isMismatchLine(line: GroupBuyReceiptLine): boolean {
+  return !isMatchedLine(line);
+}
 
 function defaultSelected(report: GroupBuyReceiptMatchReport): Set<string> {
   const next = new Set<string>();
@@ -34,54 +32,72 @@ function defaultSelected(report: GroupBuyReceiptMatchReport): Set<string> {
   return next;
 }
 
-function poolLines(report: GroupBuyReceiptMatchReport): GroupBuyReceiptLine[] {
-  return report.lines.filter((l) => l.status !== "extra");
-}
+export type ReceiptApplyDraft = {
+  receiptText: string;
+  selectedCardIds: string[];
+  stagedCopies: number;
+  canApply: boolean;
+  lineCount: number;
+};
 
-export function ReceiptImportPanel({ groupId, isHost, status, onApplied, onError }: Props) {
-  const [open, setOpen] = useState(false);
+type Props = {
+  groupId: number;
+  isHost: boolean;
+  status: string;
+  onDraftChange: (draft: ReceiptApplyDraft | null) => void;
+  onError: (message: string) => void;
+};
+
+export function ReceiptImportPanel({ groupId, isHost, status, onDraftChange, onError }: Props) {
+  const [open, setOpen] = useState(() => status === "ordered" || status === "locked");
   const [text, setText] = useState("");
   const [report, setReport] = useState<GroupBuyReceiptMatchReport | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showMatched, setShowMatched] = useState(false);
+  const onDraftChangeRef = useRef(onDraftChange);
+  onDraftChangeRef.current = onDraftChange;
 
-  const canUse = status === "locked" || status === "ordered";
+  const canUse = isHost && (status === "locked" || status === "ordered");
+
+  const stagedCopies = useMemo(() => {
+    if (!report) return 0;
+    return report.lines
+      .filter((l) => selected.has(l.card_id))
+      .reduce((sum, l) => sum + l.staged_qty, 0);
+  }, [report, selected]);
 
   useEffect(() => {
     if (!canUse) {
       setOpen(false);
       setReport(null);
+      setSelected(new Set());
+      setText("");
+      onDraftChangeRef.current(null);
     }
   }, [canUse]);
+
+  useEffect(() => {
+    if (!canUse) return;
+    if (!report || !text.trim()) {
+      onDraftChangeRef.current(null);
+      return;
+    }
+    const selectedCardIds = [...selected];
+    onDraftChangeRef.current({
+      receiptText: text,
+      selectedCardIds,
+      stagedCopies,
+      canApply: stagedCopies > 0,
+      lineCount: selectedCardIds.length,
+    });
+  }, [canUse, report, text, selected, stagedCopies]);
 
   const match = useMutation({
     mutationFn: () => api.matchGroupBuyReceipt(groupId, text),
     onSuccess: (data) => {
       setReport(data);
       setSelected(defaultSelected(data));
-    },
-    onError: (e: Error) => onError(e.message),
-  });
-
-  const apply = useMutation({
-    mutationFn: () =>
-      api.applyGroupBuyReceipt(groupId, {
-        receipt_text: text,
-        card_ids: [...selected],
-        allow_partial: true,
-      }),
-    onSuccess: (detail) => {
-      const staged = selected.size;
-      const finished = detail.status === "completed";
-      onApplied(
-        detail,
-        finished
-          ? `Receipt applied — all staged cards marked purchased (${staged} lines). Owned updated.`
-          : `Receipt staged — applied ${staged} line(s) to Owned. Remaining pool stays ordered until the rest arrives.`,
-      );
-      setReport(null);
-      setText("");
-      setSelected(new Set());
-      setOpen(false);
+      setShowMatched(false);
     },
     onError: (e: Error) => onError(e.message),
   });
@@ -99,14 +115,21 @@ export function ReceiptImportPanel({ groupId, isHost, status, onApplied, onError
     ].filter(Boolean);
   }, [report]);
 
-  const stagedCopies = useMemo(() => {
-    if (!report) return 0;
-    return report.lines
-      .filter((l) => selected.has(l.card_id))
-      .reduce((sum, l) => sum + l.staged_qty, 0);
-  }, [report, selected]);
+  const visibleLines = useMemo(() => {
+    if (!report) return [];
+    return report.lines.filter((l) => (showMatched ? true : isMismatchLine(l)));
+  }, [report, showMatched]);
 
-  if (!isHost || !canUse) return null;
+  const matchedCount = useMemo(
+    () => (report ? report.lines.filter(isMatchedLine).length : 0),
+    [report],
+  );
+  const mismatchCount = useMemo(
+    () => (report ? report.lines.filter(isMismatchLine).length : 0),
+    [report],
+  );
+
+  if (!canUse) return null;
 
   function toggleCard(cardId: string) {
     setSelected((prev) => {
@@ -135,25 +158,6 @@ export function ReceiptImportPanel({ groupId, isHost, status, onApplied, onError
     match.mutate();
   }
 
-  function onApplyClick() {
-    if (!report || selected.size === 0) return;
-    const shorts = report.lines.filter(
-      (l) => selected.has(l.card_id) && (l.status === "short" || l.status === "missing"),
-    ).length;
-    const missingPool = report.lines.some((l) => l.status === "missing");
-    const ok = window.confirm(
-      (report.can_apply_full && selected.size === poolLines(report).length
-        ? "Apply the full receipt and mark this group buy purchased?\n\n"
-        : "Stage selected receipt copies onto Owned?\n\n") +
-        `${selected.size} card line(s), ${stagedCopies} copies will be added to Owned` +
-        (shorts || missingPool
-          ? ".\n\nSome lines are short or missing — leftover pool quantities stay ordered."
-          : ".") +
-        (status === "locked" ? "\n\nThis will also mark the pool as ordered." : ""),
-    );
-    if (ok) apply.mutate();
-  }
-
   return (
     <div className="group-buy-receipt">
       <div className="group-buy-receipt-head">
@@ -168,8 +172,8 @@ export function ReceiptImportPanel({ groupId, isHost, status, onApplied, onError
         </button>
       </div>
       <p className="muted">
-        Paste order details (Qty + Description) to verify what you bought against this pool, then
-        stage matched copies onto Owned.
+        Required before Mark purchased. Paste order details (Qty + Description), match to this pool,
+        then use <strong>Mark purchased</strong> to add only the matched receipt copies to Owned.
       </p>
       {open ? (
         <form className="group-buy-receipt-form" onSubmit={onMatchSubmit}>
@@ -182,6 +186,7 @@ export function ReceiptImportPanel({ groupId, isHost, status, onApplied, onError
               onChange={(e) => {
                 setText(e.target.value);
                 setReport(null);
+                setSelected(new Set());
               }}
               placeholder={
                 "Qty\tDescription\n2\tOne Piece Card Game - Adventure on Kami's Island - Barrier Bulls - Near Mint\n…"
@@ -193,20 +198,6 @@ export function ReceiptImportPanel({ groupId, isHost, status, onApplied, onError
             <button type="submit" className="btn secondary" disabled={match.isPending || !text.trim()}>
               {match.isPending ? "Matching…" : "Match to pool"}
             </button>
-            {report ? (
-              <button
-                type="button"
-                className="btn primary"
-                disabled={apply.isPending || stagedCopies <= 0}
-                onClick={onApplyClick}
-              >
-                {apply.isPending
-                  ? "Applying…"
-                  : report.can_apply_full && selected.size === poolLines(report).length
-                    ? "Apply & mark purchased"
-                    : `Stage ${stagedCopies} copies`}
-              </button>
-            ) : null}
           </div>
         </form>
       ) : null}
@@ -217,9 +208,18 @@ export function ReceiptImportPanel({ groupId, isHost, status, onApplied, onError
             {summaryBits?.join(" · ") || "No differences"}
             {" · "}
             {report.summary.receipt_copies ?? 0} receipt copies · {report.summary.needed_copies ?? 0}{" "}
-            needed · {stagedCopies} selected to stage
+            needed · {stagedCopies} selected for Mark purchased
           </p>
           <div className="group-buy-receipt-select-actions">
+            <label className="group-buy-receipt-show-matched">
+              <input
+                type="checkbox"
+                checked={showMatched}
+                onChange={(e) => setShowMatched(e.target.checked)}
+              />
+              Show matched cards
+              {matchedCount > 0 ? ` (${matchedCount})` : ""}
+            </label>
             <button type="button" className="ghost" onClick={selectAllStaged}>
               Select matched
             </button>
@@ -227,60 +227,71 @@ export function ReceiptImportPanel({ groupId, isHost, status, onApplied, onError
               Clear
             </button>
           </div>
-          <div className="table-wrap">
-            <table className="data-table group-buy-receipt-table">
-              <thead>
-                <tr>
-                  <th scope="col" className="group-buy-receipt-check">
-                    Stage
-                  </th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Card</th>
-                  <th scope="col">Need</th>
-                  <th scope="col">Receipt</th>
-                  <th scope="col">Apply</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.lines.map((line) => {
-                  const canStage = line.staged_qty > 0;
-                  return (
-                    <tr key={`${line.card_id}-${line.status}`} className={`receipt-status-${line.status}`}>
-                      <td className="group-buy-receipt-check">
-                        {canStage ? (
-                          <input
-                            type="checkbox"
-                            checked={selected.has(line.card_id)}
-                            onChange={() => toggleCard(line.card_id)}
-                            aria-label={`Stage ${line.name || line.card_id}`}
-                          />
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
-                      </td>
-                      <td>
-                        <span className={`receipt-pill status-${line.status}`}>
-                          {STATUS_LABEL[line.status] || line.status}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="group-buy-receipt-card">
-                          <strong>{line.name || line.card_id}</strong>
-                          <span className="muted">
-                            {line.card_id}
-                            {line.group_name ? ` · ${line.group_name}` : ""}
+          {!showMatched && mismatchCount === 0 && matchedCount > 0 ? (
+            <p className="muted group-buy-receipt-empty">
+              All pool cards matched exactly. Turn on <strong>Show matched cards</strong> to review
+              them, or Mark purchased to update Owned.
+            </p>
+          ) : null}
+          {visibleLines.length > 0 ? (
+            <div className="table-wrap">
+              <table className="data-table group-buy-receipt-table">
+                <thead>
+                  <tr>
+                    <th scope="col" className="group-buy-receipt-check">
+                      Include
+                    </th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Card</th>
+                    <th scope="col">Need</th>
+                    <th scope="col">Receipt</th>
+                    <th scope="col">Apply</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleLines.map((line) => {
+                    const canStage = line.staged_qty > 0;
+                    return (
+                      <tr
+                        key={`${line.card_id}-${line.status}`}
+                        className={`receipt-status-${line.status}`}
+                      >
+                        <td className="group-buy-receipt-check">
+                          {canStage ? (
+                            <input
+                              type="checkbox"
+                              checked={selected.has(line.card_id)}
+                              onChange={() => toggleCard(line.card_id)}
+                              aria-label={`Include ${line.name || line.card_id}`}
+                            />
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`receipt-pill status-${line.status}`}>
+                            {STATUS_LABEL[line.status] || line.status}
                           </span>
-                        </div>
-                      </td>
-                      <td>{line.needed_qty}</td>
-                      <td>{line.receipt_qty}</td>
-                      <td>{canStage ? line.staged_qty : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td>
+                          <div className="group-buy-receipt-card">
+                            <strong>{line.name || line.card_id}</strong>
+                            <span className="muted">
+                              {line.card_id}
+                              {line.group_name ? ` · ${line.group_name}` : ""}
+                            </span>
+                          </div>
+                        </td>
+                        <td>{line.needed_qty}</td>
+                        <td>{line.receipt_qty}</td>
+                        <td>{canStage ? line.staged_qty : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
           {report.unmatched.length > 0 ? (
             <div className="group-buy-receipt-unmatched">
               <h3>Unmatched receipt lines</h3>

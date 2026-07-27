@@ -455,7 +455,7 @@ def complete_group_buy(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """Mark purchased: apply buy qtys to Owned (requires ordered first)."""
+    """Mark purchased without a receipt is blocked (use POST .../receipt/apply)."""
     try:
         return group_buy.complete_group_buy(db, user, group_id)
     except LookupError as exc:

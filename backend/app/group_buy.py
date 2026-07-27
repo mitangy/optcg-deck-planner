@@ -820,23 +820,19 @@ def update_order(
 
 
 def complete_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
-    """Mark purchased: apply buy qtys to Owned. Requires status ordered first."""
+    """Mark purchased without a receipt is no longer supported.
+
+    Hosts must import a TCGPlayer receipt and apply matched lines via
+    ``apply_receipt_to_group_buy`` (Mark purchased in the UI).
+    """
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status == "completed":
         return get_group_buy(db, user, group_id)
-    if group.status != "ordered":
-        raise PermissionError("Mark ordered after checkout before marking purchased")
-
-    snapshot = db.scalars(
-        select(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id)
-    ).all()
-    for line in snapshot:
-        _add_owned(db, line.user_id, line.card_id, line.qty)
-
-    group.status = "completed"
-    db.commit()
-    return get_group_buy(db, user, group_id)
+    raise PermissionError(
+        "Import a TCGPlayer receipt and Mark purchased for matched cards — "
+        "completing without a receipt is not supported"
+    )
 
 
 def set_line_override(
