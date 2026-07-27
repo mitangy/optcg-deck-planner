@@ -332,3 +332,29 @@ def test_member_cannot_mark_ordered(db, two_players):
     group_buy.lock_group_buy(db, host, created.id)
     with pytest.raises(PermissionError):
         group_buy.mark_ordered(db, friend, created.id, None)
+
+
+def test_group_buy_shows_viewer_alt_wants(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Alts")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+
+    host_deck = next(d for d in services.list_decks(db, host) if d.name == "Host Deck")
+    services.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 2)
+
+    host_view = group_buy.get_group_buy(db, host, created.id)
+    host_line = next(l for l in host_view.lines if l.card_id == "OP01-001")
+    assert host_line.my_need == 4
+    assert next(a.wanted for a in host_line.alt_arts if a.product_id == 1009) == 2
+
+    # Friend sees their own wants (0), not the host's
+    friend_view = group_buy.get_group_buy(db, friend, created.id)
+    friend_line = next(l for l in friend_view.lines if l.card_id == "OP01-001")
+    assert next(a.wanted for a in friend_line.alt_arts if a.product_id == 1009) == 0
+
+    # Sync from group-buy style API updates host decks and shows on next fetch
+    services.set_user_card_printing(db, host, "OP01-001", 1009, 1)
+    host_view = group_buy.get_group_buy(db, host, created.id)
+    host_line = next(l for l in host_view.lines if l.card_id == "OP01-001")
+    assert next(a.wanted for a in host_line.alt_arts if a.product_id == 1009) == 1
+

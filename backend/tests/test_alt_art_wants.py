@@ -110,6 +110,42 @@ def test_shopping_merges_max_alt_wants_and_prices_alts(db):
     assert item.remaining_cost == 18.0  # remaining 1 allocated to AA want
 
 
+def test_set_user_card_printing_syncs_across_decks(db):
+    from app.services import set_user_card_printing
+    from app.models import DeckCardPrinting
+    from sqlalchemy import select
+
+    user = make_user(db, email="e@t.com", name="E", sub="e")
+    add_catalog(db, "OP01-016", name="Nami", product_id=1, market=1.2)
+    add_catalog(db, "OP01-016", name="Nami", product_id=100, market=18.0, special=True)
+    d1 = add_deck_with_cards(db, user, "A", {"OP01-016": 4})
+    d2 = add_deck_with_cards(db, user, "B", {"OP01-016": 2})
+
+    qty, updated = set_user_card_printing(db, user, "OP01-016", 100, 3)
+    assert updated == 2
+    assert qty == 3  # deck A stores 3; deck B clamps to 2; max is 3
+    rows = {
+        r.deck_id: r.qty
+        for r in db.scalars(select(DeckCardPrinting).where(DeckCardPrinting.card_id == "OP01-016"))
+    }
+    assert rows[d1.id] == 3
+    assert rows[d2.id] == 2
+
+    shop = shopping_list(db, user)
+    item = next(i for i in shop.items if i.card_id == "OP01-016")
+    assert next(a.wanted for a in item.alt_arts if a.product_id == 100) == 3
+
+    # Lowering from shopping syncs all decks down
+    qty, updated = set_user_card_printing(db, user, "OP01-016", 100, 1)
+    assert qty == 1
+    rows = {
+        r.deck_id: r.qty
+        for r in db.scalars(select(DeckCardPrinting).where(DeckCardPrinting.card_id == "OP01-016"))
+    }
+    assert rows[d1.id] == 1
+    assert rows[d2.id] == 1
+
+
 def test_get_deck_detail_includes_wanted(db):
     user = make_user(db, email="d@t.com", name="D", sub="d")
     add_catalog(db, "OP01-016", name="Nami", product_id=1, market=1.2)

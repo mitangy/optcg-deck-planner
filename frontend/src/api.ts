@@ -234,6 +234,8 @@ export type GroupBuyLine = {
   my_suggested_qty: number;
   my_is_custom: boolean;
   my_excluded?: boolean;
+  /** Viewer's play Need for this card — caps alt want steppers. */
+  my_need?: number;
 };
 
 export type GroupBuySummary = {
@@ -325,6 +327,14 @@ export const api = {
       {
         method: "PUT",
         body: JSON.stringify({ qty }),
+      },
+    ),
+  setCardPrinting: (cardId: string, productId: number, qty: number, deckIds?: number[]) =>
+    request<{ card_id: string; product_id: number; qty: number; decks_updated: number }>(
+      `/cards/${encodeURIComponent(cardId)}/printings/${productId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ qty, deck_ids: deckIds }),
       },
     ),
   searchCatalog: (opts?: {
