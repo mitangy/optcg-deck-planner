@@ -242,7 +242,7 @@ def _build_lines(
         )
         by_card: dict[str, list] = {}
         for item in shop.items:
-            by_card[item.card_id] = item.alt_arts
+            by_card[item.card_id.upper()] = item.alt_arts
             if member.user_id == viewer_user_id:
                 viewer_need[item.card_id] = item.need
                 viewer_wants[item.card_id] = {
@@ -895,8 +895,10 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
         shop = services.shopping_list(
             db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)
         )
+        # Uppercase keys — line.card_id is uppercased in merge; mismatched case
+        # silently dropped AA wants and fell back to whole-line printing.
         member_shop_alts[member.user_id] = {
-            item.card_id: item.alt_arts for item in shop.items
+            item.card_id.upper(): item.alt_arts for item in shop.items
         }
 
     product_parts: list[str] = []

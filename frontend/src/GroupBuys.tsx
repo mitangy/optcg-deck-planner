@@ -25,7 +25,7 @@ import {
 } from "./cardListControls";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
-import { blankMassEntryUrl, buildMassEntryExport } from "./tcgplayerMassEntry";
+import { blankMassEntryUrl } from "./tcgplayerMassEntry";
 import {
   AuthLoadingSkeleton,
   GroupBuyDetailSkeleton,
@@ -837,31 +837,40 @@ export function GroupBuyDetailPage() {
 
   async function exportMassEntry(d: GroupBuyDetail) {
     try {
-      // Backend allocates each member's AA wants; local fallback is last-resort
-      // only (viewer alt_arts must not be applied against total_qty).
+      // Backend is source of truth (per-member AA allocation). Never open a
+      // client-built deep link alongside backend paste — local export omits
+      // alt wants, and pasting into a pre-filled Mass Entry doubles qty.
       const exported = await api.exportGroupBuyTcgplayer(d.id);
-      const local = buildMassEntryExport(
-        d.lines.map((line) => ({
-          card_id: line.card_id,
-          name: line.name,
-          still_need: line.total_qty,
-          product_id: line.preferred_product_id ?? line.product_id,
-        })),
-      );
-      const paste = exported.paste_text || local.pasteText;
-      const url = exported.url || local.url;
-      try {
-        await navigator.clipboard.writeText(paste);
-      } catch {
-        setMsg(paste);
+      const paste = exported.paste_text.trim();
+      if (!paste) {
+        setMsg("Nothing to export — no copies in this group buy.");
         return;
       }
-      if (url) {
-        window.open(url, "_blank", "noopener,noreferrer");
-        setMsg("Opened Mass Entry (list copied). Add to Cart → Optimize Cart.");
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(paste);
+        copied = true;
+      } catch {
+        /* clipboard may be blocked; still open Mass Entry when we have a URL */
+      }
+      const copies = exported.copy_count;
+      const cards = exported.included_count;
+      if (exported.url) {
+        window.open(exported.url, "_blank", "noopener,noreferrer");
+        setMsg(
+          copied
+            ? `Opened Mass Entry for ${copies} group copies (${cards} lines). List copied as backup — paste only if the form is empty, then Add to Cart → Optimize Cart.`
+            : `Opened Mass Entry for ${copies} group copies. If the form is empty, copy the list from the app and paste it, then Add to Cart → Optimize Cart.`,
+        );
       } else {
         window.open(blankMassEntryUrl(), "_blank", "noopener,noreferrer");
-        setMsg("List copied — paste into Mass Entry, then Add to Cart → Optimize Cart.");
+        if (copied) {
+          setMsg(
+            `List too long for a direct link — copied ${copies} group copies. Paste into Mass Entry (do not paste twice), then Add to Cart → Optimize Cart.`,
+          );
+        } else {
+          setMsg(paste);
+        }
       }
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
