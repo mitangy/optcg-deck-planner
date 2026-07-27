@@ -273,6 +273,14 @@ function LinePrintingSelect({
   if (!preferredId && alts.length === 0) {
     return <span className="muted">—</span>;
   }
+
+  function altOptionLabel(name: string, price: number | null | undefined): string {
+    // Keep labels short so the native select caret does not cover the text.
+    const cleaned = name.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
+    const short = cleaned.length > 16 ? `${cleaned.slice(0, 14)}…` : cleaned;
+    return `Alt · ${short} · ${money(price)}`;
+  }
+
   return (
     <select
       className="group-buy-printing"
@@ -287,17 +295,15 @@ function LinePrintingSelect({
       }}
     >
       {preferredId != null ? (
-        <option value={preferredId}>
-          Preferred · {money(line.preferred_market_price ?? null)}
-        </option>
+        <option value={preferredId}>Preferred · {money(line.preferred_market_price ?? null)}</option>
       ) : (
         <option value="">No preferred product</option>
       )}
       {alts
         .filter((alt) => alt.product_id !== preferredId)
         .map((alt) => (
-          <option key={alt.product_id} value={alt.product_id}>
-            Alt · {alt.name} · {money(alt.market_price)}
+          <option key={alt.product_id} value={alt.product_id} title={alt.name}>
+            {altOptionLabel(alt.name, alt.market_price)}
           </option>
         ))}
     </select>
@@ -905,7 +911,7 @@ export function GroupBuyDetailPage() {
   }
 
   return (
-    <section>
+    <section className="group-buy-detail">
       <div className="page-head">
         <div>
           <p className="muted">

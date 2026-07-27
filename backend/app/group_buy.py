@@ -234,20 +234,22 @@ def _build_lines(
     viewer_wants: dict[str, dict[int, int]] = {}
     viewer_need: dict[str, int] = {}
     viewer_shop_alts: dict[str, list] = {}
-    if viewer_user_id is not None:
-        member = next((m for m in group.members if m.user_id == viewer_user_id), None)
-        if member is not None:
-            shop = services.shopping_list(
-                db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)
-            )
-            for item in shop.items:
+    # Per-member alt wants for pricing (allocate AA qty, rest at preferred).
+    member_shop_alts: dict[int, dict[str, list]] = {}
+    for member in group.members:
+        shop = services.shopping_list(
+            db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)
+        )
+        by_card: dict[str, list] = {}
+        for item in shop.items:
+            by_card[item.card_id] = item.alt_arts
+            if member.user_id == viewer_user_id:
                 viewer_need[item.card_id] = item.need
                 viewer_wants[item.card_id] = {
                     a.product_id: a.wanted for a in item.alt_arts if a.wanted > 0
                 }
-                # Keep the exact shopping alt payload so wants stay in sync with
-                # the master shopping list (same deck filter as this contribution).
                 viewer_shop_alts[item.card_id] = item.alt_arts
+        member_shop_alts[member.user_id] = by_card
 
     catalog, primary_ids, alts, printings = _catalog_bundle(
         db, card_ids, wanted=viewer_wants or None
@@ -288,14 +290,37 @@ def _build_lines(
             tcgplayer_url = printing.tcgplayer_url or tcgplayer_url
         elif cat is not None:
             market = cat.market_price
-        remaining = round(total_qty * market, 2) if market is not None else None
+
+        # Price by each member's alt wants (AA qty × AA price + remainder × preferred),
+        # not total_qty × checkout printing — so wanting 1 AA does not price the whole line as AA.
+        line_remaining = 0.0
+        priced_ok = True
+        any_buy = False
         for mem in members:
             if mem.qty <= 0:
                 continue
+            any_buy = True
+            mem_alts = member_shop_alts.get(mem.user_id, {}).get(card_id, [])
+            alt_inputs = [
+                (a.product_id, a.wanted, a.market_price)
+                for a in mem_alts
+                if (a.wanted or 0) > 0
+            ]
+            buys = services.allocate_still_need_buys(
+                mem.qty,
+                alt_inputs,
+                standard_product_id=preferred_product_id,
+                standard_price=preferred_market,
+            )
+            cost = services.remaining_cost_for_buys(buys)
             bucket = member_totals.setdefault(mem.user_id, [0, 0.0])
             bucket[0] += mem.qty
-            if market is not None:
-                bucket[1] += mem.qty * market
+            if cost is None:
+                priced_ok = False
+            else:
+                line_remaining += cost
+                bucket[1] += cost
+        remaining = round(line_remaining, 2) if any_buy and priced_ok else (0.0 if not any_buy else None)
 
         mine = next((m for m in members if m.user_id == viewer_user_id), None)
         my_qty = mine.qty if mine else 0

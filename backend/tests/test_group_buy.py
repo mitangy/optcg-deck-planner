@@ -365,3 +365,24 @@ def test_group_buy_shows_viewer_alt_wants(db, two_players):
     host_line = next(l for l in host_view.lines if l.card_id == "OP01-001")
     assert next(a.wanted for a in host_line.alt_arts if a.product_id == 1009) == 1
 
+
+def test_group_buy_remaining_allocates_alt_wants_not_whole_line(db, two_players):
+    """Wanting 1 AA must not price every copy at the AA market (or checkout override)."""
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "AA price")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+
+    host_deck = next(d for d in services.list_decks(db, host) if d.name == "Host Deck")
+    # Host still-need 3 of OP01-001; want only 1 AA ($9), rest preferred ($2.5).
+    services.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 1)
+    # Checkout printing override to AA used to inflate the whole line — must not.
+    group_buy.set_line_override(db, host, created.id, "OP01-001", 1009)
+
+    detail = group_buy.get_group_buy(db, host, created.id)
+    line = next(l for l in detail.lines if l.card_id == "OP01-001")
+    assert line.product_id == 1009
+    # Host: 1×$9 + 2×$2.5 = 14; Friend: 3×$2.5 = 7.5 → 21.5
+    assert line.remaining_cost == 21.5
+    # Header total includes OP01-002 as well (host 2×$1 + friend 3×$1 = 5).
+    assert detail.remaining_market == round(21.5 + 5.0, 2)
+

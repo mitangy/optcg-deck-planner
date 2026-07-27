@@ -86,6 +86,11 @@ h2,
   padding: 1rem 1.25rem 0.5rem;
 }
 
+/* Group buy tables need more horizontal room (printing + alt arts columns). */
+.app-main:has(.group-buy-detail) {
+  max-width: min(1600px, 100%);
+}
+
 .topbar {
   width: 100%;
   max-width: 100%;
@@ -107,6 +112,10 @@ h2,
   gap: 1rem;
   align-items: center;
   justify-content: space-between;
+}
+
+body:has(.group-buy-detail) .topbar-inner {
+  max-width: min(1600px, 100%);
 }
 
 .brand a {
@@ -2052,25 +2061,46 @@ tr.done {
 }
 
 .group-buy-printing {
-  max-width: 14rem;
-  min-width: 0;
+  box-sizing: border-box;
+  appearance: auto;
+  -webkit-appearance: menulist;
+  max-width: 100%;
+  min-width: 12rem;
   width: 100%;
-  min-height: 2rem;
+  min-height: 2.25rem;
+  /* Leave room for the native dropdown caret so it never covers the label. */
+  padding: 0.35rem 2rem 0.35rem 0.55rem;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
   font-size: 0.85rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .data-table td.alt-arts-cell {
   vertical-align: top;
   min-width: 0;
-  max-width: 14rem;
-  width: 12rem;
+  max-width: 12rem;
+  width: 11rem;
 }
 
 .data-table td.alt-arts-cell .alt-arts {
+  max-width: 100%;
+}
+
+.data-table td:has(.group-buy-printing) {
+  min-width: 12.5rem;
+  max-width: 16rem;
+  width: 14rem;
+}
+
+.group-buy-detail .table-wrap {
+  /* Prefer fitting the page width over a nested horizontal scrollbar when possible. */
+  overflow-x: auto;
   max-width: 100%;
 }
 
@@ -2082,6 +2112,12 @@ tr.done {
 .grid-card-alts .alt-arts,
 .mobile-card-alts .alt-arts {
   max-width: 100%;
+}
+
+.grid-card-owned .group-buy-printing {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .group-buy-merged-heading {
