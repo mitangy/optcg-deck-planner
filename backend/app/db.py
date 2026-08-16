@@ -86,8 +86,10 @@ def _ensure_deck_is_main() -> None:
     existing = {col["name"] for col in inspector.get_columns("decks")}
     if "is_main" in existing:
         return
+    # Postgres requires boolean literals (DEFAULT 0 → DatatypeMismatch).
+    default = "FALSE" if engine.dialect.name == "postgresql" else "0"
     with engine.begin() as conn:
-        conn.execute(text("ALTER TABLE decks ADD COLUMN is_main BOOLEAN DEFAULT 0"))
+        conn.execute(text(f"ALTER TABLE decks ADD COLUMN is_main BOOLEAN DEFAULT {default}"))
 
 
 def init_db() -> None:
