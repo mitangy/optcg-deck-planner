@@ -153,6 +153,66 @@ def _printing_sort_key(entry: dict[str, Any]) -> tuple:
     )
 
 
+def _orm_printing_sort_key(row: CatalogPrinting) -> tuple:
+    return (
+        int(row.is_special or 0),
+        row.market_price if row.market_price is not None else 1e9,
+        int(row.product_id),
+    )
+
+
+def refresh_special_flags(db: Session) -> dict[str, int]:
+    """Recompute is_special from stored names and re-pick preferred catalog rows.
+
+    Lets deploys that only widen SPECIAL_NAME_MARKERS update alt-art visibility
+    without waiting on a full TCGCSV pull.
+    """
+    printings = list(db.scalars(select(CatalogPrinting)).all())
+    if not printings:
+        return {"printings_updated": 0, "cards_updated": 0}
+
+    printings_updated = 0
+    by_card: dict[str, list[CatalogPrinting]] = defaultdict(list)
+    for row in printings:
+        flag = 1 if is_special_printing(row.name) else 0
+        if int(row.is_special or 0) != flag:
+            row.is_special = flag
+            printings_updated += 1
+        by_card[row.card_id].append(row)
+
+    now = datetime.now(timezone.utc)
+    cards_updated = 0
+    for card_id, rows in by_card.items():
+        best = sorted(rows, key=_orm_printing_sort_key)[0]
+        card = db.get(CatalogCard, card_id)
+        if card is None:
+            continue
+        payload = {
+            "name": best.name,
+            "market_price": best.market_price,
+            "low_price": best.low_price,
+            "image_url": best.image_url,
+            "tcgplayer_url": best.tcgplayer_url,
+            "group_name": best.group_name,
+            "is_special": int(best.is_special or 0),
+            "updated_at": now,
+        }
+        changed = False
+        for key, value in payload.items():
+            if getattr(card, key) != value:
+                setattr(card, key, value)
+                changed = True
+        if changed:
+            cards_updated += 1
+
+    if printings_updated or cards_updated:
+        db.commit()
+    return {
+        "printings_updated": printings_updated,
+        "cards_updated": cards_updated,
+    }
+
+
 def sync_catalog(db: Session) -> dict[str, Any]:
     """Full TCGCSV pull; stores all printings and a preferred CatalogCard per number."""
     by_card: dict[str, list[dict[str, Any]]] = defaultdict(list)

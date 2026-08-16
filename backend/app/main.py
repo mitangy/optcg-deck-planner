@@ -15,6 +15,15 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    # Re-flag alt printings when SPECIAL_NAME_MARKERS expands (no TCGCSV wait).
+    from app.catalog_sync import refresh_special_flags
+    from app.db import SessionLocal
+
+    db = SessionLocal()
+    try:
+        refresh_special_flags(db)
+    finally:
+        db.close()
     yield
 
 
