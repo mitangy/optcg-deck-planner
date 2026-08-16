@@ -217,6 +217,9 @@ class GroupBuy(Base):
     qty_overrides: Mapped[list[GroupBuyQtyOverride]] = relationship(
         back_populates="group_buy", cascade="all, delete-orphan"
     )
+    receipt_applies: Mapped[list[GroupBuyReceiptApply]] = relationship(
+        back_populates="group_buy", cascade="all, delete-orphan"
+    )
 
 
 class GroupBuyMember(Base):
@@ -298,3 +301,46 @@ class GroupBuyQtyOverride(Base):
     qty: Mapped[int] = mapped_column(Integer, default=0)
 
     group_buy: Mapped[GroupBuy] = relationship(back_populates="qty_overrides")
+
+
+class GroupBuyReceiptApply(Base):
+    """One Mark purchased action — ledger so the host can undo Owned + snapshot changes."""
+
+    __tablename__ = "group_buy_receipt_applies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    group_buy_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buys.id", ondelete="CASCADE"), index=True
+    )
+    applied_by_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    # locked | ordered — status immediately before this apply mutated the pool
+    status_before: Mapped[str] = mapped_column(String(32), default="ordered")
+    # True when this apply set ordered_at (auto-order from locked)
+    set_ordered_at: Mapped[int] = mapped_column(Integer, default=0)
+    applied_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    group_buy: Mapped[GroupBuy] = relationship(back_populates="receipt_applies")
+    lines: Mapped[list[GroupBuyReceiptApplyLine]] = relationship(
+        back_populates="apply", cascade="all, delete-orphan"
+    )
+
+
+class GroupBuyReceiptApplyLine(Base):
+    """Per-member Owned / snapshot allocation recorded for one receipt apply."""
+
+    __tablename__ = "group_buy_receipt_apply_lines"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    apply_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buy_receipt_applies.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    product_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+
+    apply: Mapped[GroupBuyReceiptApply] = relationship(back_populates="lines")

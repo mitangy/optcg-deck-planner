@@ -19,6 +19,8 @@ from app.models import (
     GroupBuyLineOverride,
     GroupBuyMember,
     GroupBuyQtyOverride,
+    GroupBuyReceiptApply,
+    GroupBuyReceiptApplyLine,
     GroupBuySnapshotLine,
     Owned,
     User,
@@ -85,6 +87,7 @@ def _get_group(db: Session, group_id: int) -> GroupBuy:
             selectinload(GroupBuy.snapshot_lines),
             selectinload(GroupBuy.line_overrides),
             selectinload(GroupBuy.qty_overrides),
+            selectinload(GroupBuy.receipt_applies).selectinload(GroupBuyReceiptApply.lines),
         )
     )
     if group is None:
@@ -485,6 +488,7 @@ def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
         grand_total=round_money(cards_subtotal + shipping_cost + tax_cost),
         receipt_text=group.receipt_text or "",
         has_receipt=bool((group.receipt_text or "").strip()),
+        can_undo_purchase=bool(group.receipt_applies),
     )
 
 
@@ -736,6 +740,19 @@ def _add_owned(db: Session, user_id: int, card_id: str, delta: int) -> None:
         db.add(Owned(user_id=user_id, card_id=card_id, qty=delta))
     else:
         row.qty = int(row.qty) + delta
+
+
+def _subtract_owned(db: Session, user_id: int, card_id: str, delta: int) -> None:
+    """Remove Owned copies added by a purchase apply (never goes below 0)."""
+    if delta <= 0:
+        return
+    card_id = card_id.upper().strip()
+    row = db.scalar(
+        select(Owned).where(Owned.user_id == user_id, Owned.card_id == card_id)
+    )
+    if row is None:
+        return
+    row.qty = max(0, int(row.qty) - delta)
 
 
 def _apply_order_fields(group: GroupBuy, body: GroupBuyOrderUpdate) -> None:
@@ -1214,10 +1231,22 @@ def apply_receipt_to_group_buy(
                 raise ValueError("Full apply requires staging every pool card")
 
     # Ensure ordered before mutating owned / snapshot
+    status_before = group.status
+    set_ordered_at = False
     if group.status == "locked":
         group.status = "ordered"
         if group.ordered_at is None:
             group.ordered_at = datetime.now(timezone.utc)
+            set_ordered_at = True
+
+    apply_event = GroupBuyReceiptApply(
+        group_buy_id=group.id,
+        applied_by_user_id=user.id,
+        status_before=status_before,
+        set_ordered_at=1 if set_ordered_at else 0,
+    )
+    db.add(apply_event)
+    db.flush()
 
     snapshot_all = list(
         db.scalars(
@@ -1234,6 +1263,15 @@ def apply_receipt_to_group_buy(
         allocations = _allocate_across_snapshot(rows, line.staged_qty)
         for snap, take in allocations:
             _add_owned(db, snap.user_id, snap.card_id, take)
+            db.add(
+                GroupBuyReceiptApplyLine(
+                    apply_id=apply_event.id,
+                    user_id=snap.user_id,
+                    card_id=snap.card_id.upper().strip(),
+                    product_id=snap.product_id,
+                    qty=take,
+                )
+            )
             snap.qty = int(snap.qty) - take
             applied_any = True
             if snap.qty <= 0:
@@ -1251,6 +1289,72 @@ def apply_receipt_to_group_buy(
     remaining = any(int(row.qty) > 0 for row in group.snapshot_lines)
     if not remaining:
         group.status = "completed"
+
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyDetail:
+    """Reverse the most recent Mark purchased (Owned + snapshot + status).
+
+    Host only. Restores frozen pool quantities and subtracts the Owned copies that
+    apply added. Receipt paste and order settlement fields are left intact.
+    """
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    if group.status not in ("ordered", "completed"):
+        raise PermissionError("Nothing to undo in this status")
+
+    applies = sorted(
+        group.receipt_applies,
+        key=lambda a: (a.applied_at or datetime.min.replace(tzinfo=timezone.utc), a.id or 0),
+    )
+    if not applies:
+        raise ValueError(
+            "Nothing to undo — this purchase was not recorded (apply before undo was available)"
+        )
+    apply_event = applies[-1]
+
+    for line in apply_event.lines:
+        card_id = line.card_id.upper().strip()
+        qty = int(line.qty)
+        if qty <= 0:
+            continue
+        _subtract_owned(db, line.user_id, card_id, qty)
+        existing = next(
+            (
+                row
+                for row in group.snapshot_lines
+                if row.user_id == line.user_id and row.card_id.upper() == card_id
+            ),
+            None,
+        )
+        if existing is not None:
+            existing.qty = int(existing.qty) + qty
+            if existing.product_id is None and line.product_id is not None:
+                existing.product_id = line.product_id
+        else:
+            group.snapshot_lines.append(
+                GroupBuySnapshotLine(
+                    group_buy_id=group.id,
+                    user_id=line.user_id,
+                    card_id=card_id,
+                    qty=qty,
+                    product_id=line.product_id,
+                )
+            )
+
+    status_before = (apply_event.status_before or "ordered").strip()
+    if status_before not in ("locked", "ordered"):
+        status_before = "ordered"
+    group.status = status_before
+    if int(apply_event.set_ordered_at or 0):
+        group.ordered_at = None
+
+    if apply_event in group.receipt_applies:
+        group.receipt_applies.remove(apply_event)
+    else:
+        db.delete(apply_event)
 
     db.commit()
     return get_group_buy(db, user, group_id)

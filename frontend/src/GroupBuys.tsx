@@ -698,6 +698,22 @@ export function GroupBuyDetailPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
+  const undoPurchase = useMutation({
+    mutationFn: () => api.undoGroupBuyReceiptApply(groupId),
+    onSuccess: async (d) => {
+      qc.setQueryData(["group-buy", groupId], d);
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      await qc.invalidateQueries({ queryKey: ["shopping"] });
+      await qc.invalidateQueries({ queryKey: ["deck"] });
+      setReceiptDraft(null);
+      setReceiptResetKey((k) => k + 1);
+      setMsg(
+        "Undid Mark purchased — pool quantities and who owes what are restored. Receipt paste is still saved.",
+      );
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
   const contribution = useMutation({
     mutationFn: (deckIds: number[] | null) => api.updateGroupBuyContribution(groupId, deckIds),
     onSuccess: (d) => {
@@ -1038,6 +1054,23 @@ export function GroupBuyDetailPage() {
                 : "Mark purchased"}
           </button>
         )}
+        {detail.is_host && detail.can_undo_purchase && (
+          <button
+            type="button"
+            className="btn secondary"
+            disabled={undoPurchase.isPending || complete.isPending}
+            onClick={() => {
+              const ok = window.confirm(
+                "Undo the latest Mark purchased?\n\n" +
+                  "This restores the shopping pool and each person’s owed amounts, and removes those receipt copies from Owned. " +
+                  "Your imported receipt paste stays saved so you can Mark purchased again.",
+              );
+              if (ok) undoPurchase.mutate();
+            }}
+          >
+            {undoPurchase.isPending ? "Undoing…" : "Undo Mark purchased"}
+          </button>
+        )}
         {detail.is_host && (
           <button
             type="button"
@@ -1112,7 +1145,7 @@ export function GroupBuyDetailPage() {
                 ? "After checkout, mark ordered. Import a TCGPlayer receipt (required), then Mark purchased for matched copies only."
                 : detail.status === "ordered"
                   ? "Order placed — settle costs below. Import a TCGPlayer receipt (required), then Mark purchased to update Owned for matched copies."
-                  : "Purchased — Owned updated for matched receipt cards. Settlement below is for your records."}{" "}
+                  : "Purchased — Owned updated for matched receipt cards. Settlement below is for your records. Hosts can Undo Mark purchased to restore the pool."}{" "}
               Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} + tax{" "}
               {money(detail.tax_cost ?? 0)} ={" "}
               <strong className="group-buy-owes">{money(detail.grand_total)}</strong>
