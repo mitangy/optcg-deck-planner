@@ -78,7 +78,9 @@ jobs:
           echo "Enqueueing catalog sync at ${API_URL}/admin/sync-catalog"
           start_file="$(mktemp)"
           curl_auth "$start_file" POST /admin/sync-catalog
+          echo
           cat "$start_file"
+          echo
           start_status="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))' <"$start_file")"
           rm -f "$start_file"
           if [ "$start_status" != "started" ] && [ "$start_status" != "already_running" ]; then
@@ -88,41 +90,60 @@ jobs:
 
           echo "Polling /admin/sync-catalog/status until the background job finishes"
           # Full TCGCSV pull walks every set; allow a long window on free Render.
+          # Interpret status in Python — bash IFS collapses empty tab fields, which
+          # previously treated a successful last_result JSON as last_error.
           deadline=$((SECONDS + 2400))
           status_file="$(mktemp)"
           while [ "$SECONDS" -lt "$deadline" ]; do
             curl_auth "$status_file" GET /admin/sync-catalog/status
-            # Emits: RUNNING FINISHED_AT LAST_ERROR LAST_RESULT (tab-separated)
-            IFS=$'\t' read -r RUNNING FINISHED_AT LAST_ERROR LAST_RESULT < <(
-              python3 -c '
+            set +e
+            parse_out="$(
+              python3 - "$status_file" <<'PY'
           import json, sys
-          data = json.load(sys.stdin)
-          running = "1" if data.get("running") else "0"
+          path = sys.argv[1]
+          data = json.load(open(path, encoding="utf-8"))
+          running = bool(data.get("running"))
           finished = data.get("finished_at") or ""
           err = data.get("last_error") or ""
           result = data.get("last_result")
-          result_s = json.dumps(result) if result is not None else ""
-          print("\t".join([running, finished, err, result_s]))
-          ' <"$status_file"
-            )
-            echo "running=${RUNNING} finished_at=${FINISHED_AT:-none}"
-            if [ "$RUNNING" = "1" ]; then
-              sleep 20
-              continue
-            fi
-            # Claim happens in the HTTP handler before 202, so once running flips
-            # false we have either a fresh finish for this enqueue or an in-flight
-            # "already_running" job that has now completed.
-            if [ -n "${FINISHED_AT}" ]; then
-              rm -f "$status_file"
-              if [ -n "${LAST_ERROR}" ]; then
-                echo "::error::Catalog sync failed: ${LAST_ERROR}"
+          print(f"running={int(running)} finished_at={finished or 'none'}", flush=True)
+          if running:
+              sys.exit(10)
+          if not finished:
+              sys.exit(12)
+          if err:
+              print(err)
+              sys.exit(11)
+          print(json.dumps(result) if result is not None else "ok")
+          sys.exit(0)
+          PY
+            )"
+            rc=$?
+            set -e
+            echo "$parse_out"
+            case "$rc" in
+              0)
+                rm -f "$status_file"
+                echo "Catalog sync completed."
+                exit 0
+                ;;
+              10|12)
+                sleep 20
+                continue
+                ;;
+              11)
+                # parse_out is: status line + error message on the next line(s)
+                err="$(printf '%s\n' "$parse_out" | tail -n +2)"
+                rm -f "$status_file"
+                echo "::error::Catalog sync failed: ${err:-unknown}"
                 exit 1
-              fi
-              echo "Catalog sync completed: ${LAST_RESULT:-ok}"
-              exit 0
-            fi
-            sleep 20
+                ;;
+              *)
+                rm -f "$status_file"
+                echo "::error::Unexpected status parser exit code: ${rc}"
+                exit 1
+                ;;
+            esac
           done
 
           rm -f "$status_file"
