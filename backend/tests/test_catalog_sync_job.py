@@ -88,3 +88,27 @@ def test_job_records_error_and_reraises(monkeypatch):
     assert status["last_error"] == "tcgcsv down"
     # Lock is released even on failure, so a later sync can run.
     assert not catalog_sync._sync_lock.locked()
+
+
+def test_try_claim_marks_running_before_job_body(monkeypatch):
+    assert catalog_sync.try_claim_sync_slot()
+    status = catalog_sync.sync_status()
+    assert status["running"] is True
+    assert status["finished_at"] is None
+    assert status["started_at"] is not None
+
+    # Second claim fails while the first holds the lock.
+    assert not catalog_sync.try_claim_sync_slot()
+
+    monkeypatch.setattr(
+        catalog_sync,
+        "sync_catalog",
+        lambda db: {"card_count": 1, "printing_count": 1},
+    )
+    result = catalog_sync.run_catalog_sync_job(
+        session_factory=MagicMock(),
+        already_claimed=True,
+    )
+    assert result == {"card_count": 1, "printing_count": 1}
+    assert not catalog_sync.sync_in_progress()
+    assert catalog_sync.sync_status()["finished_at"] is not None

@@ -91,8 +91,10 @@ curl https://optcg-api-nutb.onrender.com/admin/sync-catalog/status -H "X-Catalog
 ```
 
 GitHub Action (`.github/workflows/catalog-sync.yml`) secrets:
-- `API_URL=https://optcg-api-nutb.onrender.com`
-- `CATALOG_SYNC_TOKEN` (same value as Render)
+- `CATALOG_SYNC_TOKEN` (**required**) — same value as Render `optcg-api` → Environment. Without this secret the daily job fails immediately (every run since setup has failed for this reason).
+- `API_URL` (optional) — defaults to `https://optcg-api-nutb.onrender.com`
+
+The Action enqueues the sync, retries through Render free-tier cold starts, then polls `/admin/sync-catalog/status` until the background job finishes (or fails).
 
 ## API overview
 - `GET /` — service index

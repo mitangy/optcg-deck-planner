@@ -43,6 +43,23 @@ def sync_status() -> dict[str, Any]:
     return dict(_sync_state)
 
 
+def try_claim_sync_slot() -> bool:
+    """Acquire the sync lock and mark the job running.
+
+    Call this from the HTTP handler *before* returning 202 so status polls do
+    not briefly see a stale ``finished_at`` from a prior run.
+    """
+    if not _sync_lock.acquire(blocking=False):
+        return False
+    _sync_state.update(
+        running=True,
+        started_at=datetime.now(timezone.utc).isoformat(),
+        finished_at=None,
+        last_error=None,
+    )
+    return True
+
+
 def _default_session_factory() -> Session:
     # Imported lazily so importing this module never triggers engine creation.
     from app.db import SessionLocal
@@ -52,21 +69,20 @@ def _default_session_factory() -> Session:
 
 def run_catalog_sync_job(
     session_factory: Callable[[], Session] | None = None,
+    *,
+    already_claimed: bool = False,
 ) -> dict[str, Any] | None:
     """Run a full catalog sync in its own DB session (for background execution).
 
     Returns the sync result, or ``None`` if a sync was already running (the
     non-blocking lock keeps concurrent syncs from clobbering the catalog).
+
+    Pass ``already_claimed=True`` when the caller used :func:`try_claim_sync_slot`
+    so the lock/state are not acquired twice.
     """
-    if not _sync_lock.acquire(blocking=False):
+    if not already_claimed and not try_claim_sync_slot():
         return None
     factory = session_factory or _default_session_factory
-    _sync_state.update(
-        running=True,
-        started_at=datetime.now(timezone.utc).isoformat(),
-        finished_at=None,
-        last_error=None,
-    )
     db = factory()
     try:
         result = sync_catalog(db)

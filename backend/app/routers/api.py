@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
-from app.catalog_sync import run_catalog_sync_job, sync_in_progress, sync_status
+from app.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import CatalogMeta, User
@@ -651,9 +651,10 @@ def admin_sync_catalog(
     this request (which would time out the caller and the free Render instance).
     """
     _require_catalog_token(x_catalog_token, settings)
-    if sync_in_progress():
+    # Claim before returning so /status never briefly reports a stale finish.
+    if not try_claim_sync_slot():
         return {"status": "already_running", "detail": "A catalog sync is already in progress"}
-    background_tasks.add_task(run_catalog_sync_job)
+    background_tasks.add_task(run_catalog_sync_job, already_claimed=True)
     return {"status": "started", "detail": "Catalog sync started in the background"}
 
 
