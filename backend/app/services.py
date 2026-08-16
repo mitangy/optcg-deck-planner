@@ -335,6 +335,29 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
                 is_main=is_main,
             )
         )
+    # Group by leader (no-leader last). Within a group: Main first, then sort_order.
+    leader_group_key: dict[str | None, tuple] = {}
+    for summary in out:
+        key = summary.leader_card_id
+        if key in leader_group_key:
+            continue
+        name = (summary.leader_name or "").casefold()
+        # Earliest sort_order among decks in this group anchors group order.
+        earliest = min(
+            (s.sort_order, s.id)
+            for s in out
+            if s.leader_card_id == key
+        )
+        # No-leader decks sort after all leader groups.
+        leader_group_key[key] = (key is None, name, earliest[0], earliest[1], key or "")
+    out.sort(
+        key=lambda s: (
+            leader_group_key[s.leader_card_id],
+            0 if s.is_main else 1,
+            s.sort_order,
+            s.id,
+        )
+    )
     return out
 
 

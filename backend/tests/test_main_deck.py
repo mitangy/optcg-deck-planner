@@ -213,3 +213,60 @@ def test_set_main_requires_leader(db):
 
     with pytest.raises(ValueError, match="no leader"):
         set_deck_as_main(db, user, deck.id)
+
+
+def test_list_decks_groups_by_leader_with_main_first(db):
+    _seed_leader_catalog(db)
+    db.add(
+        CatalogCard(
+            card_id="OP02-001",
+            name="Zoro Leader",
+            card_type="Leader",
+            rarity="L",
+        )
+    )
+    db.commit()
+    user = make_user(db, email="f@test", name="F", sub="f")
+
+    luffy_variant = _make_leader_deck(
+        db,
+        user,
+        "Luffy Tech",
+        {"OP01-001": 1, "OP01-019": 4},
+        sort_order=1,
+        is_main=False,
+        leader="OP01-001",
+    )
+    zoro_main = _make_leader_deck(
+        db,
+        user,
+        "Zoro Core",
+        {"OP02-001": 1, "OP01-017": 4},
+        sort_order=2,
+        is_main=True,
+        leader="OP02-001",
+    )
+    luffy_main = _make_leader_deck(
+        db,
+        user,
+        "Luffy Core",
+        {"OP01-001": 1, "OP01-016": 4},
+        sort_order=3,
+        is_main=True,
+        leader="OP01-001",
+    )
+    no_leader = add_deck_with_cards(db, user, "Orphan", {"OP01-018": 4})
+    no_leader.sort_order = 0
+    db.commit()
+
+    names = [d.name for d in list_decks(db, user)]
+    # Leaders sorted by name (Luffy before Zoro); Main first within group; no-leader last.
+    assert names == ["Luffy Core", "Luffy Tech", "Zoro Core", "Orphan"]
+    summaries = {d.name: d for d in list_decks(db, user)}
+    assert summaries["Luffy Core"].is_main is True
+    assert summaries["Luffy Tech"].is_main is False
+    assert summaries["Zoro Core"].is_main is True
+    # IDs still resolve for detail after reordering.
+    assert get_deck_detail(db, user, luffy_variant.id).prior_decks == ["Luffy Core"]
+    assert get_deck_detail(db, user, luffy_main.id).is_main is True
+    assert get_deck_detail(db, user, zoro_main.id).is_main is True
