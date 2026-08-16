@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.domain import SPECIAL_NAME_MARKERS
 from app.models import CatalogCard, CatalogPrinting
 
 PRODUCT_LINE_PREFIXES = (
@@ -38,13 +39,8 @@ CARD_ID_AFTER_DASH_RE = re.compile(
 # Collector number only: (054), (112), (053)
 COLLECTOR_NUM_RE = re.compile(r"\((\d{2,3})\)\s*$")
 
-SPECIAL_HINTS = (
-    "alternate art",
-    "parallel",
-    "manga",
-    "special rare",
-    "(sp)",
-)
+# Same markers as catalog sync so receipt lines prefer the matching printing.
+SPECIAL_HINTS = SPECIAL_NAME_MARKERS
 
 LINE_START_RE = re.compile(
     r"^\s*(\d+)\s*(?:[xX]\s+)?(?:\t+|\s{2,}|\s+)(.+?)\s*$"
