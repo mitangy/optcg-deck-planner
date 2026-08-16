@@ -268,6 +268,36 @@ def _deck_card_lines(deck: Deck) -> list[ParsedCard]:
     return [ParsedCard(card_id=c.card_id, needed=c.needed) for c in deck.cards]
 
 
+def _same_leader_decks(decks: list[Deck], leader_card_id: str | None) -> list[Deck]:
+    if not leader_card_id:
+        return []
+    return [d for d in decks if d.leader_card_id == leader_card_id]
+
+
+def _resolve_main_deck(decks: list[Deck], leader_card_id: str | None) -> Deck | None:
+    """Pick the Main deck for a leader: explicit is_main, else earliest sort_order."""
+    group = _same_leader_decks(decks, leader_card_id)
+    if not group:
+        return None
+    marked = [d for d in group if d.is_main]
+    if marked:
+        # Prefer earliest marked if data ever has more than one.
+        return min(marked, key=lambda d: (d.sort_order, d.id))
+    return min(group, key=lambda d: (d.sort_order, d.id))
+
+
+def _clear_main_flags(db: Session, user_id: int, leader_card_id: str, *, except_id: int | None = None) -> None:
+    stmt = select(Deck).where(
+        Deck.user_id == user_id,
+        Deck.leader_card_id == leader_card_id,
+        Deck.is_main.is_(True),
+    )
+    if except_id is not None:
+        stmt = stmt.where(Deck.id != except_id)
+    for deck in db.scalars(stmt).all():
+        deck.is_main = False
+
+
 def list_decks(db: Session, user: User) -> list[DeckSummary]:
     decks = db.scalars(
         select(Deck)
@@ -278,10 +308,18 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
     all_ids = {c.card_id for d in decks for c in d.cards}
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
     catalog = _catalog_map(db, all_ids | leader_ids)
+    main_by_leader: dict[str, int] = {}
+    for leader_id in leader_ids:
+        main = _resolve_main_deck(decks, leader_id)
+        if main is not None:
+            main_by_leader[leader_id] = main.id
     out: list[DeckSummary] = []
     for deck in decks:
         leader = catalog.get(deck.leader_card_id) if deck.leader_card_id else None
         main_cards, don_cards = deck_size_counts(_deck_card_lines(deck), catalog)
+        is_main = bool(
+            deck.leader_card_id and main_by_leader.get(deck.leader_card_id) == deck.id
+        )
         out.append(
             DeckSummary(
                 id=deck.id,
@@ -294,6 +332,7 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
                 main_cards=main_cards,
                 don_cards=don_cards,
                 sort_order=deck.sort_order,
+                is_main=is_main,
             )
         )
     return out
@@ -307,10 +346,21 @@ def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     max_order = db.scalar(
         select(Deck.sort_order).where(Deck.user_id == user.id).order_by(Deck.sort_order.desc())
     )
+    # First deck for this leader becomes Main so Additional Cards works immediately.
+    is_main = False
+    if leader_id:
+        existing_same = db.scalar(
+            select(Deck.id).where(
+                Deck.user_id == user.id,
+                Deck.leader_card_id == leader_id,
+            )
+        )
+        is_main = existing_same is None
     deck = Deck(
         user_id=user.id,
         name=name.strip(),
         leader_card_id=leader_id,
+        is_main=is_main,
         sort_order=(max_order or 0) + 1,
     )
     db.add(deck)
@@ -331,8 +381,32 @@ def delete_deck(db: Session, user: User, deck_id: int) -> None:
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
     if deck is None:
         raise LookupError("Deck not found")
+    leader_id = deck.leader_card_id
+    was_main = bool(deck.is_main)
     db.delete(deck)
+    db.flush()
+    if was_main and leader_id:
+        remaining = db.scalars(
+            select(Deck)
+            .where(Deck.user_id == user.id, Deck.leader_card_id == leader_id)
+            .order_by(Deck.sort_order, Deck.id)
+        ).all()
+        if remaining:
+            remaining[0].is_main = True
     db.commit()
+
+
+def set_deck_as_main(db: Session, user: User, deck_id: int) -> DeckDetail:
+    """Mark this deck as Main for its leader; other same-leader decks compare against it."""
+    deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
+    if deck is None:
+        raise LookupError("Deck not found")
+    if not deck.leader_card_id:
+        raise ValueError("Deck has no leader — cannot set as Main")
+    _clear_main_flags(db, user.id, deck.leader_card_id, except_id=deck.id)
+    deck.is_main = True
+    db.commit()
+    return get_deck_detail(db, user, deck_id)
 
 
 def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
@@ -353,15 +427,13 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
     alts = _alt_arts_map(db, all_ids, wanted=deck_wants)
     product_ids = _primary_product_ids(db, all_ids)
 
+    baseline = _resolve_main_deck(decks, target.leader_card_id)
+    is_main = baseline is not None and baseline.id == target.id
     prior_ids: set[str] = set()
     prior_names: list[str] = []
-    if target.leader_card_id:
-        for deck in decks:
-            if deck.id == target.id:
-                break
-            if deck.leader_card_id == target.leader_card_id:
-                prior_names.append(deck.name)
-                prior_ids.update(c.card_id for c in deck.cards)
+    if baseline is not None and not is_main:
+        prior_names = [baseline.name]
+        prior_ids = {c.card_id for c in baseline.cards}
 
     cards: list[CardView] = []
     for card in target.cards:
@@ -398,6 +470,7 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
         leader_card_id=target.leader_card_id,
         leader_name=leader_name,
         prior_decks=prior_names,
+        is_main=is_main,
         cards=cards,
         main_cards=main_cards,
         don_cards=don_cards,
@@ -539,7 +612,37 @@ def upsert_deck_card(
             _apply_alt_want_clamp_to_rows(printing_rows, needed)
             _delete_zero_printing_rows(db, printing_rows)
 
-    deck.leader_card_id = find_leader_id(projected_lines, catalog)
+    prev_leader = deck.leader_card_id
+    was_main = bool(deck.is_main)
+    new_leader = find_leader_id(projected_lines, catalog)
+    deck.leader_card_id = new_leader
+    if prev_leader != new_leader:
+        deck.is_main = False
+        db.flush()
+        if was_main and prev_leader:
+            remaining = db.scalars(
+                select(Deck)
+                .where(
+                    Deck.user_id == user.id,
+                    Deck.leader_card_id == prev_leader,
+                    Deck.id != deck.id,
+                )
+                .order_by(Deck.sort_order, Deck.id)
+            ).all()
+            if remaining and not any(d.is_main for d in remaining):
+                remaining[0].is_main = True
+        if new_leader:
+            peers = db.scalars(
+                select(Deck).where(
+                    Deck.user_id == user.id,
+                    Deck.leader_card_id == new_leader,
+                    Deck.id != deck.id,
+                )
+            ).all()
+            if not peers:
+                deck.is_main = True
+    elif not new_leader:
+        deck.is_main = False
     db.commit()
     return get_deck_detail(db, user, deck_id)
 

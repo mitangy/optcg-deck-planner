@@ -78,10 +78,23 @@ def _ensure_user_session_version() -> None:
         )
 
 
+def _ensure_deck_is_main() -> None:
+    """Add is_main on existing DBs (create_all does not alter tables)."""
+    inspector = inspect(engine)
+    if "decks" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("decks")}
+    if "is_main" in existing:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE decks ADD COLUMN is_main BOOLEAN DEFAULT 0"))
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_group_buy_columns()
     _ensure_user_session_version()
+    _ensure_deck_is_main()
 
 
 def get_db() -> Generator[Session, None, None]:

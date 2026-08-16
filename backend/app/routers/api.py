@@ -96,6 +96,21 @@ def remove_deck(
     return {"ok": True}
 
 
+@router.post("/decks/{deck_id}/set-main", response_model=DeckDetail)
+def set_deck_main(
+    deck_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Mark this deck as Main for its leader; variants compare Additional Cards against it."""
+    try:
+        return services.set_deck_as_main(db, user, deck_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.get("/decks/{deck_id}", response_model=DeckDetail)
 def get_deck(
     deck_id: int,

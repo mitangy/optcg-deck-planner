@@ -1477,6 +1477,44 @@ tr.done td {
   font-size: 1.25rem;
 }
 
+.deck-card-title-row,
+.deck-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.deck-card-title-row h2,
+.deck-detail-title-row h1 {
+  margin: 0;
+  min-width: 0;
+}
+
+.deck-card-title-row h2 {
+  margin-bottom: 0.25rem;
+}
+
+.deck-main-badge {
+  display: inline-block;
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: 6px;
+  padding: 0.15rem 0.45rem;
+  line-height: 1.2;
+}
+
+.deck-card.is-main {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+
 .deck-card-leader {
   margin: 0 0 0.35rem;
   font-weight: 600;
