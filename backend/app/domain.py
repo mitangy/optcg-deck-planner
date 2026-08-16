@@ -16,8 +16,9 @@ DECK_TOKEN_RE = re.compile(
 )
 
 # Substrings matched against TCGPlayer product names (case-insensitive).
-# Keep this broader than classic AA/Parallel so Full Art, TR, foil reprints,
-# box toppers, and promo/event variants surface in the alt-arts UI.
+# Intentionally omits plain "reprint" / bare "promo" — those are usually the
+# same base art on another SKU. Alt-arts UI also drops same image_url as the
+# preferred printing (see services._alt_arts_map).
 SPECIAL_NAME_MARKERS = (
     # Classic alts / serialized treatments
     "alternate art",
@@ -29,7 +30,7 @@ SPECIAL_NAME_MARKERS = (
     "(tr)",
     "box topper",
     "dash pack",
-    # Foil reprint treatments
+    # Distinct foil treatments (not plain reprints)
     "pirate foil",
     "jolly roger foil",
     # Promo / event / competitive variants
@@ -47,8 +48,6 @@ SPECIAL_NAME_MARKERS = (
     "prerelease",
     "super pre-release",
     "treasure cup",
-    "promo",
-    "reprint",
     "stamped",
     "illustration box",
     "premium card collection",

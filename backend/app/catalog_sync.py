@@ -195,7 +195,6 @@ def refresh_special_flags(db: Session) -> dict[str, int]:
             "tcgplayer_url": best.tcgplayer_url,
             "group_name": best.group_name,
             "is_special": int(best.is_special or 0),
-            "updated_at": now,
         }
         changed = False
         for key, value in payload.items():
@@ -203,6 +202,7 @@ def refresh_special_flags(db: Session) -> dict[str, int]:
                 setattr(card, key, value)
                 changed = True
         if changed:
+            card.updated_at = now
             cards_updated += 1
 
     if printings_updated or cards_updated:

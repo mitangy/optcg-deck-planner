@@ -67,9 +67,18 @@ def _alt_arts_map(
     card_ids: set[str],
     wanted: dict[str, dict[int, int]] | None = None,
 ) -> dict[str, list[PrintingView]]:
-    """Special/alt printings for each card number (excludes the primary catalog row art)."""
+    """Special printings with different art than the preferred catalog row.
+
+    Excludes the primary product id and any special whose image_url matches the
+    preferred face (plain reprints that reuse base art).
+    """
     if not card_ids:
         return {}
+    primary_ids = _primary_product_ids(db, card_ids)
+    preferred_image = {
+        row.card_id: (row.image_url or "").strip()
+        for row in db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_(card_ids))).all()
+    }
     rows = db.scalars(
         select(CatalogPrinting).where(
             CatalogPrinting.card_id.in_(card_ids),
@@ -79,6 +88,12 @@ def _alt_arts_map(
     want = wanted or {}
     out: dict[str, list[PrintingView]] = defaultdict(list)
     for row in rows:
+        if row.product_id == primary_ids.get(row.card_id):
+            continue
+        img = (row.image_url or "").strip()
+        pref_img = preferred_image.get(row.card_id, "")
+        if img and pref_img and img == pref_img:
+            continue
         out[row.card_id].append(
             PrintingView(
                 product_id=row.product_id,
