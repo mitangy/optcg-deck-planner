@@ -307,6 +307,8 @@ class GroupBuyDetail(GroupBuySummary):
     # Saved TCGPlayer receipt paste (empty when none). Host uses this to rematch after refresh.
     receipt_text: str = ""
     has_receipt: bool = False
+    # Host can undo the latest Mark purchased when a receipt-apply ledger exists.
+    can_undo_purchase: bool = False
 
 
 class GroupBuyInvitePreview(BaseModel):

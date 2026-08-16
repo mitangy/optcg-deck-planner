@@ -272,6 +272,7 @@ export type GroupBuyDetail = GroupBuySummary & {
   grand_total: number;
   receipt_text?: string;
   has_receipt?: boolean;
+  can_undo_purchase?: boolean;
 };
 
 export type GroupBuyInvitePreview = {
@@ -458,6 +459,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  undoGroupBuyReceiptApply: (id: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/receipt/undo`, { method: "POST" }),
   setGroupBuyLineProduct: (id: number, cardId: string, product_id: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/lines/${encodeURIComponent(cardId)}`, {
       method: "PUT",
