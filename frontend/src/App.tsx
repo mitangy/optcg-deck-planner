@@ -7,6 +7,7 @@ import {
   CatalogCardResult,
   CardView,
   DeckDetail,
+  DeckSummary,
   isDeckOversizeError,
   money,
   ShoppingItem,
@@ -1573,6 +1574,47 @@ function ShoppingPage() {
   );
 }
 
+type DeckLeaderGroup = {
+  key: string;
+  leaderCardId: string | null;
+  leaderName: string | null;
+  leaderImageUrl: string;
+  decks: DeckSummary[];
+};
+
+function groupDecksByLeader(
+  decks: DeckSummary[],
+  artFallback: Map<string, { name: string; image_url: string }>,
+): DeckLeaderGroup[] {
+  const groups: DeckLeaderGroup[] = [];
+  const indexByKey = new Map<string, number>();
+  for (const deck of decks) {
+    const key = deck.leader_card_id || "__none__";
+    let idx = indexByKey.get(key);
+    if (idx == null) {
+      const fallback = deck.leader_card_id ? artFallback.get(deck.leader_card_id) : undefined;
+      idx = groups.length;
+      indexByKey.set(key, idx);
+      groups.push({
+        key,
+        leaderCardId: deck.leader_card_id,
+        leaderName: deck.leader_name || fallback?.name || null,
+        leaderImageUrl: deck.leader_image_url || fallback?.image_url || "",
+        decks: [],
+      });
+    }
+    groups[idx].decks.push(deck);
+  }
+  for (const group of groups) {
+    group.decks.sort((a, b) => {
+      if (Boolean(a.is_main) !== Boolean(b.is_main)) return a.is_main ? -1 : 1;
+      if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+      return a.id - b.id;
+    });
+  }
+  return groups;
+}
+
 function DecksPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -1596,11 +1638,24 @@ function DecksPage() {
     }
     return map;
   }, [leaderArtQ.data]);
+  const leaderGroups = useMemo(
+    () => groupDecksByLeader(data ?? [], leaderArtById),
+    [data, leaderArtById],
+  );
   const del = useMutation({
     mutationFn: api.deleteDeck,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["decks"] });
       invalidateOwnedViews(qc);
+    },
+  });
+  const setMain = useMutation({
+    mutationFn: api.setDeckAsMain,
+    onSuccess: (detail) => {
+      void qc.invalidateQueries({ queryKey: ["decks"] });
+      qc.setQueryData(["deck", detail.id], detail);
+      // Other same-leader decks change which cards are Additional.
+      void qc.invalidateQueries({ queryKey: ["deck"] });
     },
   });
 
@@ -1615,84 +1670,135 @@ function DecksPage() {
           Import deck
         </Link>
       </div>
-      <div className="deck-grid">
-        {(data ?? []).map((d) => {
-          const fallback = d.leader_card_id ? leaderArtById.get(d.leader_card_id) : undefined;
-          const leaderImage = d.leader_image_url || fallback?.image_url || "";
-          const leaderName = d.leader_name || fallback?.name || null;
+      {setMain.isError && (
+        <p className="error">{(setMain.error as Error).message}</p>
+      )}
+      <div className="deck-leader-groups">
+        {leaderGroups.map((group) => {
+          const heading = group.leaderCardId
+            ? `${group.leaderName || "Leader"} · ${group.leaderCardId}`
+            : "No leader detected";
           return (
-            <article
-              key={d.id}
-              className="deck-card"
-              role="link"
-              tabIndex={0}
-              onClick={() => navigate(`/decks/${d.id}`)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  navigate(`/decks/${d.id}`);
-                }
-              }}
-            >
-              <div className="deck-card-main">
-                {leaderImage || d.leader_card_id ? (
-                  <div className="deck-card-leader-art">
-                    {leaderImage ? (
-                      <img
-                        src={leaderImage}
-                        alt={leaderName || d.leader_card_id || "Leader"}
-                        className="deck-card-leader-thumb"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div
-                        className="thumb placeholder deck-card-leader-thumb"
-                        aria-label={d.leader_card_id || "Leader"}
-                      >
-                        <span className="deck-card-leader-fallback">
-                          {d.leader_card_id || "?"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+            <section key={group.key} className="deck-leader-group">
+              <header className="deck-leader-group-head">
+                {group.leaderCardId ? (
+                  group.leaderImageUrl ? (
+                    <img
+                      src={group.leaderImageUrl}
+                      alt=""
+                      className="deck-leader-group-thumb"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="thumb placeholder deck-leader-group-thumb" aria-hidden>
+                      <span className="deck-card-leader-fallback">{group.leaderCardId}</span>
+                    </div>
+                  )
                 ) : null}
-                <div className="deck-card-body">
-                  <h2>{d.name}</h2>
-                  <p className="deck-card-leader">
-                    {d.leader_card_id
-                      ? `${leaderName || "Leader"} · ${d.leader_card_id}`
-                      : "No leader detected"}
-                  </p>
+                <div className="deck-leader-group-title">
+                  <h2>{heading}</h2>
                   <p className="muted">
-                    {d.main_cards ?? d.total_cards}/{51} main
-                    {(d.don_cards ?? 0) > 0 ? ` · ${d.don_cards}/10 DON!!` : ""}
-                    {` · ${d.card_count} unique`}
+                    {group.decks.length} deck{group.decks.length === 1 ? "" : "s"}
+                    {group.decks.some((d) => d.is_main) ? " · Main listed first" : ""}
                   </p>
                 </div>
+              </header>
+              <div className="deck-grid">
+                {group.decks.map((d) => {
+                  const fallback = d.leader_card_id
+                    ? leaderArtById.get(d.leader_card_id)
+                    : undefined;
+                  const leaderImage = d.leader_image_url || fallback?.image_url || "";
+                  const leaderName = d.leader_name || fallback?.name || null;
+                  const isMain = Boolean(d.is_main);
+                  return (
+                    <article
+                      key={d.id}
+                      className={`deck-card${isMain ? " is-main" : ""}`}
+                      role="link"
+                      tabIndex={0}
+                      onClick={() => navigate(`/decks/${d.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          navigate(`/decks/${d.id}`);
+                        }
+                      }}
+                    >
+                      <div className="deck-card-main">
+                        {leaderImage || d.leader_card_id ? (
+                          <div className="deck-card-leader-art">
+                            {leaderImage ? (
+                              <img
+                                src={leaderImage}
+                                alt={leaderName || d.leader_card_id || "Leader"}
+                                className="deck-card-leader-thumb"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div
+                                className="thumb placeholder deck-card-leader-thumb"
+                                aria-label={d.leader_card_id || "Leader"}
+                              >
+                                <span className="deck-card-leader-fallback">
+                                  {d.leader_card_id || "?"}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                        <div className="deck-card-body">
+                          <div className="deck-card-title-row">
+                            <h2>{d.name}</h2>
+                            {isMain && <span className="deck-main-badge">Main deck</span>}
+                          </div>
+                          <p className="muted">
+                            {d.main_cards ?? d.total_cards}/{51} main
+                            {(d.don_cards ?? 0) > 0 ? ` · ${d.don_cards}/10 DON!!` : ""}
+                            {` · ${d.card_count} unique`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="row-actions">
+                        {d.leader_card_id && !isMain && (
+                          <button
+                            type="button"
+                            className="ghost"
+                            disabled={setMain.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMain.mutate(d.id);
+                            }}
+                          >
+                            Set as Main
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/decks/${d.id}?edit=1`);
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost danger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            del.mutate(d.id);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
-              <div className="row-actions">
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/decks/${d.id}?edit=1`);
-                  }}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="ghost danger"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    del.mutate(d.id);
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </article>
+            </section>
           );
         })}
       </div>
@@ -2524,6 +2630,15 @@ function DeckDetailPage() {
     onError: (e: Error) => setResetMsg(e.message),
   });
 
+  const setMain = useMutation({
+    mutationFn: () => api.setDeckAsMain(deckId),
+    onSuccess: (detail) => {
+      applyDeckUpdate(detail);
+      void qc.invalidateQueries({ queryKey: ["decks"] });
+      void qc.invalidateQueries({ queryKey: ["deck"] });
+    },
+  });
+
   const main = useMemo(() => {
     if (!data) return [];
     return filterCards(
@@ -2591,20 +2706,35 @@ function DeckDetailPage() {
           <p className="eyebrow">
             <Link to="/decks">Decks</Link>
           </p>
-          <h1>{data.name}</h1>
+          <div className="deck-detail-title-row">
+            <h1>{data.name}</h1>
+            {data.is_main && <span className="deck-main-badge">Main deck</span>}
+          </div>
           <p className="muted">
             {data.leader_card_id
               ? `Leader ${data.leader_card_id}${data.leader_name ? ` · ${data.leader_name}` : ""}`
               : "No leader detected"}
             {data.prior_decks.length > 0
-              ? ` · Same leader as ${data.prior_decks.join(", ")}`
-              : ""}
+              ? ` · Compared to Main: ${data.prior_decks.join(", ")}`
+              : data.is_main && data.leader_card_id
+                ? " · Main deck for this leader"
+                : ""}
           </p>
           <p className="muted deck-size-meta">
             Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {donCount}/{DON_DECK_LIMIT}
           </p>
         </div>
         <div className="page-head-actions">
+          {data.leader_card_id && !data.is_main && (
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={setMain.isPending}
+              onClick={() => setMain.mutate()}
+            >
+              {setMain.isPending ? "Setting…" : "Set as Main"}
+            </button>
+          )}
           <button
             type="button"
             className="btn secondary"
@@ -2641,6 +2771,10 @@ function DeckDetailPage() {
           </button>
         </div>
       </div>
+
+      {setMain.isError && (
+        <p className="error">{(setMain.error as Error).message}</p>
+      )}
 
       {resetMsg && (
         <p className="share-banner" role="status">
@@ -2707,8 +2841,8 @@ function DeckDetailPage() {
 
       {data.prior_decks.length > 0 && (
         <p className="banner">
-          Cards already in earlier same-leader decks are listed first. New pieces are under
-          Additional Cards.
+          Cards also in the Main deck ({data.prior_decks.join(", ")}) are listed first. Cards that
+          differ appear under Additional Cards.
         </p>
       )}
       <h2>Deck list</h2>

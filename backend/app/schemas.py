@@ -36,6 +36,8 @@ class DeckSummary(BaseModel):
     main_cards: int = 0
     don_cards: int = 0
     sort_order: int
+    # Effective main for this leader (explicit flag or earliest same-leader fallback).
+    is_main: bool = False
 
 
 class CatalogCardResult(BaseModel):
@@ -125,7 +127,9 @@ class DeckDetail(BaseModel):
     name: str
     leader_card_id: str | None
     leader_name: str | None = None
+    # Name of the Main deck this list is compared against (empty when this is Main).
     prior_decks: list[str] = []
+    is_main: bool = False
     cards: list[CardView]
     main_cards: int = 0
     don_cards: int = 0

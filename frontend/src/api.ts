@@ -47,6 +47,8 @@ export type DeckSummary = {
   main_cards?: number;
   don_cards?: number;
   sort_order: number;
+  /** Effective Main for this leader (explicit or earliest same-leader fallback). */
+  is_main?: boolean;
 };
 
 export type PrintingView = {
@@ -100,7 +102,9 @@ export type DeckDetail = {
   name: string;
   leader_card_id: string | null;
   leader_name: string | null;
+  /** Name of the Main deck this list is compared against (empty when this is Main). */
   prior_decks: string[];
+  is_main?: boolean;
   cards: CardView[];
   main_cards?: number;
   don_cards?: number;
@@ -338,6 +342,8 @@ export const api = {
     }),
   deleteDeck: (id: number) =>
     request<{ ok: boolean }>(`/decks/${id}`, { method: "DELETE" }),
+  setDeckAsMain: (id: number) =>
+    request<DeckDetail>(`/decks/${id}/set-main`, { method: "POST" }),
   resetDeckOwned: (id: number) =>
     request<{ deck_id: number; reset_count: number; deck: DeckDetail }>(
       `/decks/${id}/reset-owned`,
