@@ -16,6 +16,7 @@ import {
   REGIONS,
   type Quad,
 } from "./cardRectify";
+import { extractCardIdTokens } from "./cardScan";
 import { scanLog } from "./scanLog";
 
 /** Long-edge size fed to Tesseract. Collector numbers are small on the card
@@ -238,17 +239,30 @@ export async function recognizeCardText(
   const bitmap = await loadImage(file);
   try {
     // Preferred path: flatten the card and read only the name/number strip.
-    // Measured 5–17× faster than whole-card OCR, and correct on photos where
-    // the whole-card pass failed outright.
-    let target: HTMLCanvasElement | null = null;
+    // Faster than whole-card OCR and correct on angled photos where the
+    // whole-card pass failed outright.
+    let band: HTMLCanvasElement | null = null;
     try {
-      target = rectifiedReadBand(bitmap);
-      scanLog("scan:rectify", target ? "card found, reading strip" : "no card outline, full image");
+      band = rectifiedReadBand(bitmap);
+      scanLog("scan:rectify", band ? "card found, reading strip" : "no card outline, full image");
     } catch (err) {
       scanLog("scan:rectify-error", err);
     }
-    const { data } = await worker.recognize(target ?? preprocess(bitmap));
-    return data.text ?? "";
+
+    let text = "";
+    if (band) {
+      text = (await worker.recognize(band)).data.text ?? "";
+      if (extractCardIdTokens(text).length) return text;
+      // The strip yielded a name but no number. This is what an
+      // already-cropped image does: the card fills the frame, corner detection
+      // lands slightly inside it, and the read band slides up off the number.
+      // Never let rectifying lose what the plain pass would have found.
+      scanLog("scan:rectify-fallback", "no id in strip, retrying whole image");
+    }
+    const whole = (await worker.recognize(preprocess(bitmap))).data.text ?? "";
+    // Keep both: the strip is the better source for the printed name, the
+    // whole image for the number, and the resolver cross-checks the two.
+    return text ? `${text}\n${whole}` : whole;
   } finally {
     bitmap.close?.();
   }
