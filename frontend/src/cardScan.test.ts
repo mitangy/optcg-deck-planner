@@ -58,8 +58,17 @@ describe("repairCardId", () => {
     expect(repairCardId("5T03-008")).toBe("ST03-008");
   });
 
+  it("collapses a doubled letter in the prefix", () => {
+    // From a real iPhone photo of OP11-070: Tesseract doubled the P. A repeat
+    // is a deletion rather than a substitution, so the distance check misses it.
+    expect(repairCardId("OPP11-070")).toBe("OP11-070");
+    expect(repairCardId("SST03-008")).toBe("ST03-008");
+  });
+
   it("refuses a prefix that is not uniquely near a real one", () => {
     expect(repairCardId("XY11-070")).toBeNull();
+    // Neither one substitution nor a collapsed repeat reaches a real prefix.
+    expect(repairCardId("ZZ15-053")).toBeNull();
   });
 
   it("rejects tokens that cannot be card ids", () => {

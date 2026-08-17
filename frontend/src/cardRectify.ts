@@ -185,12 +185,20 @@ export function findCardQuad(data: ImageData, minAreaFraction = 0.12): Quad | nu
   const quad: Quad = [tl, tr, br, bl];
   const area = quadArea(quad);
   if (area < w * h * minAreaFraction) return null;
-  // A card is roughly 0.72 wide-to-tall; reject anything wildly off.
+
+  // No shape check beyond this: without a capture guide, a handheld photo's
+  // projected card can legitimately take almost any aspect under perspective,
+  // so a card-proportion test has no reliable signal to key off — it rejected
+  // a genuinely correct detection (0.743 on a real flat-lay) while a wrong one
+  // (a monitor bezel, 0.900) sat closer to a card's own 0.716. And a bad quad
+  // here does not cost correctness anyway: the caller retries whole-image OCR
+  // whenever the rectified read finds no card id, so the only price of
+  // accepting a wrong quad is one extra OCR pass, not a wrong answer. Once a
+  // capture guide constrains the crop, this whole function stops being asked
+  // to guess and the question disappears.
   const width = Math.hypot(tr.x - tl.x, tr.y - tl.y);
   const height = Math.hypot(bl.x - tl.x, bl.y - tl.y);
   if (!width || !height) return null;
-  const aspect = width / height;
-  if (aspect < CARD_ASPECT * 0.6 || aspect > CARD_ASPECT * 1.7) return null;
   return quad;
 }
 

@@ -142,14 +142,22 @@ describe("findCardQuad", () => {
     expect(findCardQuad(scene(200, 200, speck))).toBeNull();
   });
 
-  it("rejects a shape with an implausible aspect ratio", () => {
+  it("accepts a shape that is not card-proportioned", () => {
+    // Deliberately not rejected on aspect: without a capture guide, a real
+    // handheld photo's projected quad can take almost any aspect under
+    // perspective, so a card-shape test has no reliable signal to key off —
+    // measured on real photos, it rejected a genuinely correct detection
+    // while a wrong one passed. Correctness instead comes from the caller,
+    // which retries whole-image OCR whenever the rectified crop yields no
+    // card id, so a wrong-shaped accept here costs a wasted pass, not a
+    // wrong answer.
     const wide: Quad = [
       { x: 10, y: 80 },
       { x: 190, y: 80 },
       { x: 190, y: 120 },
       { x: 10, y: 120 },
     ];
-    expect(findCardQuad(scene(200, 200, wide))).toBeNull();
+    expect(findCardQuad(scene(200, 200, wide))).not.toBeNull();
   });
 });
 

@@ -89,7 +89,7 @@ export async function readDroppedImage(dt: DataTransfer): Promise<DropResult> {
  * observed range recovers separation between ink and card stock without the
  * information loss of hard binarisation.
  */
-export function preprocess(source: ImageBitmap | HTMLCanvasElement): HTMLCanvasElement {
+export function preprocess(source: ImageSource): HTMLCanvasElement {
   const sw = source.width;
   const sh = source.height;
   const scale = Math.max(1, TARGET_LONG_EDGE / Math.max(sw, sh));
@@ -131,6 +131,31 @@ export function preprocess(source: ImageBitmap | HTMLCanvasElement): HTMLCanvasE
 const DETECT_WIDTH = 640;
 
 /**
+ * Longest edge we will process at.
+ *
+ * A modern phone camera produces ~12MP (4032×3024). Working at that size buys
+ * no accuracy — the card still resolves comfortably at 2000px — but it costs
+ * a ~48MB getImageData allocation and several seconds, and mobile Safari
+ * discards tabs that allocate heavily.
+ */
+const MAX_WORK_EDGE = 2000;
+
+/** Downscale an oversized capture; pass smaller images through untouched. */
+export function clampToWorkingSize(source: ImageBitmap): ImageBitmap | HTMLCanvasElement {
+  const longest = Math.max(source.width, source.height);
+  if (longest <= MAX_WORK_EDGE) return source;
+  const scale = MAX_WORK_EDGE / longest;
+  const c = document.createElement("canvas");
+  c.width = Math.round(source.width * scale);
+  c.height = Math.round(source.height * scale);
+  const x = c.getContext("2d", { willReadFrequently: true });
+  if (!x) return source;
+  x.imageSmoothingQuality = "high";
+  x.drawImage(source, 0, 0, c.width, c.height);
+  return c;
+}
+
+/**
  * Upscale applied to the read band before OCR.
  *
  * Tuned on real photos, not clean scans: a warped JPEG carries far less usable
@@ -140,7 +165,9 @@ const DETECT_WIDTH = 640;
  */
 const BAND_ZOOM = 3;
 
-function toCanvas(source: ImageBitmap): HTMLCanvasElement {
+type ImageSource = ImageBitmap | HTMLCanvasElement;
+
+function toCanvas(source: ImageSource): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = source.width;
   c.height = source.height;
@@ -160,7 +187,7 @@ function toCanvas(source: ImageBitmap): HTMLCanvasElement {
  * Returns null when no plausible card is found, leaving the caller to fall
  * back to whole-image OCR rather than act on a bad crop.
  */
-export function rectifiedReadBand(source: ImageBitmap): HTMLCanvasElement | null {
+export function rectifiedReadBand(source: ImageSource): HTMLCanvasElement | null {
   const full = toCanvas(source);
   const fctx = full.getContext("2d", { willReadFrequently: true });
   if (!fctx) return null;
@@ -241,9 +268,14 @@ export async function recognizeCardText(
     // Preferred path: flatten the card and read only the name/number strip.
     // Faster than whole-card OCR and correct on angled photos where the
     // whole-card pass failed outright.
+    // Cap resolution before any pixel work: a 12MP capture is pure cost.
+    const source = clampToWorkingSize(bitmap);
+    if (source !== bitmap) {
+      scanLog("scan:downscale", `${bitmap.width}x${bitmap.height} -> ${source.width}x${source.height}`);
+    }
     let band: HTMLCanvasElement | null = null;
     try {
-      band = rectifiedReadBand(bitmap);
+      band = rectifiedReadBand(source);
       scanLog("scan:rectify", band ? "card found, reading strip" : "no card outline, full image");
     } catch (err) {
       scanLog("scan:rectify-error", err);
@@ -259,7 +291,7 @@ export async function recognizeCardText(
       // Never let rectifying lose what the plain pass would have found.
       scanLog("scan:rectify-fallback", "no id in strip, retrying whole image");
     }
-    const whole = (await worker.recognize(preprocess(bitmap))).data.text ?? "";
+    const whole = (await worker.recognize(preprocess(source))).data.text ?? "";
     // Keep both: the strip is the better source for the printed name, the
     // whole image for the number, and the resolver cross-checks the two.
     return text ? `${text}\n${whole}` : whole;

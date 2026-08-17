@@ -100,7 +100,13 @@ function differsByOne(a: string, b: string): boolean {
 function normalizePrefix(prefix: string): string | null {
   if (SET_PREFIX_SET.has(prefix)) return prefix;
   const near = SET_PREFIXES.filter((p) => differsByOne(p, prefix));
-  return near.length === 1 ? near[0] : null;
+  if (near.length === 1) return near[0];
+  // Tesseract also duplicates a stroke rather than misreading it: a real photo
+  // of OP11-070 came back as "OPP11-070". Collapsing a doubled letter is a
+  // deletion, not a substitution, so the distance check above cannot see it.
+  const collapsed = prefix.replace(/(.)\1+/g, "$1");
+  if (collapsed !== prefix && SET_PREFIX_SET.has(collapsed)) return collapsed;
+  return null;
 }
 
 /** Repair the portion before the hyphen into a valid set code, or null. */

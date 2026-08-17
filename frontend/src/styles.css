@@ -750,6 +750,15 @@ tr.selected-row td,
   margin-bottom: 1rem;
 }
 
+/* Grid items default to min-width: auto, so they refuse to shrink below their
+   min-content width and silently overflow the track on narrow screens — the
+   row, the layout toggle and the filter drawer were all ~28px wider than the
+   grid at 320px. With overflow-x: clip on the page there is no scrollbar to
+   reveal it, so anything at the right edge just disappears. */
+.list-toolbar > * {
+  min-width: 0;
+}
+
 .list-toolbar-row {
   display: flex;
   flex-wrap: wrap;
@@ -1759,6 +1768,15 @@ tr.done td {
 
   .list-toolbar-row {
     align-items: stretch;
+  }
+
+  /* Let the search shrink rather than force a wrap. Its 16rem flex-basis is
+     wider than a small phone once gaps and the Scan button are accounted for,
+     and it scales with the user's text size — so at narrow widths, or with
+     large type, Scan was pushed onto a line of its own below the fold. */
+  .list-toolbar-row .card-search {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .layout-toggle {
