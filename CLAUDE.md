@@ -15,6 +15,8 @@ After any frontend change that affects layout, components, or interactive UI, **
 
 If a change introduces misalignment, fix it in the same PR — do not leave “follow-up polish” for later.
 
+On Cursor Cloud, follow **UI review / walkthrough artifacts** in `AGENTS.md` (Puppeteer + headed Chrome for recordings). Do not rely on the computer-use agent alone for lightbox/card-art demos.
+
 ## Product context
 
 - Vite/React SPA on Vercel + FastAPI on Render + Neon Postgres
