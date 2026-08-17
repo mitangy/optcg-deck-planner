@@ -37,6 +37,7 @@ import {
   useShowAltArts,
   type SortKey,
 } from "./cardListControls";
+import { cardImageUrl } from "./cardImage";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import {
@@ -1684,7 +1685,7 @@ function DecksPage() {
                 {group.leaderCardId ? (
                   group.leaderImageUrl ? (
                     <img
-                      src={group.leaderImageUrl}
+                      src={cardImageUrl(group.leaderImageUrl, "thumb") || group.leaderImageUrl}
                       alt=""
                       className="deck-leader-group-thumb"
                       loading="lazy"
@@ -1730,7 +1731,7 @@ function DecksPage() {
                           <div className="deck-card-leader-art">
                             {leaderImage ? (
                               <img
-                                src={leaderImage}
+                                src={cardImageUrl(leaderImage, "thumb") || leaderImage}
                                 alt={leaderName || d.leader_card_id || "Leader"}
                                 className="deck-card-leader-thumb"
                                 loading="lazy"

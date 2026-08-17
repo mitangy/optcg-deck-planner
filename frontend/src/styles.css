@@ -179,7 +179,7 @@ body:has(.group-buy-detail) .topbar-inner {
 /* Keep the <td> as a real table-cell so row borders stay continuous.
    Flex the inner wrapper instead — display:flex on td breaks border-collapse. */
 .card-cell {
-  min-width: 12rem;
+  min-width: 14rem;
   vertical-align: middle;
 }
 
@@ -839,8 +839,8 @@ tr.selected-row td,
 
 .grid-card-media .thumb,
 .grid-card-media .thumb-btn .thumb {
-  width: 120px;
-  height: 168px;
+  width: 156px;
+  height: 218px;
 }
 
 .grid-card-media .thumb-btn {
@@ -1234,8 +1234,8 @@ tr.done td {
 }
 
 .thumb {
-  width: 72px;
-  height: 100px;
+  width: 108px;
+  height: 151px;
   object-fit: contain;
   border-radius: 10px;
   background: white;
@@ -1266,14 +1266,16 @@ tr.done td {
   z-index: 1000;
   display: grid;
   place-items: center;
-  padding: 1.5rem;
+  padding: 3.25rem 0.75rem 0.75rem;
   background: rgba(18, 16, 14, 0.72);
   backdrop-filter: blur(4px);
 }
 
 .lightbox-img {
-  max-width: min(560px, 94vw);
-  max-height: 90vh;
+  width: auto;
+  height: auto;
+  max-width: min(640px, calc(100vw - 1.5rem));
+  max-height: calc(100dvh - 4.5rem);
   object-fit: contain;
   border-radius: 16px;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
@@ -1345,8 +1347,8 @@ tr.done td {
 }
 
 .alt-art .thumb {
-  width: 48px;
-  height: 66px;
+  width: 64px;
+  height: 90px;
 }
 
 .alt-meta {
@@ -1770,7 +1772,7 @@ tr.done td {
   }
 
   .card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
     gap: 0.65rem;
   }
 
@@ -1784,8 +1786,8 @@ tr.done td {
 
   .grid-card-media .thumb,
   .grid-card-media .thumb-btn .thumb {
-    width: 104px;
-    height: 146px;
+    width: 120px;
+    height: 168px;
   }
 
   .topbar nav a {
@@ -1921,12 +1923,12 @@ tr.done td {
     align-items: center;
     gap: 0.2rem;
     flex: 0 0 auto;
-    width: 64px;
+    width: 96px;
   }
 
   .mobile-card .thumb {
-    width: 64px;
-    height: 90px;
+    width: 96px;
+    height: 134px;
   }
 
   .mobile-card-media-meta {
@@ -2094,8 +2096,8 @@ tr.done td {
   }
 
   .mobile-card .alt-art .thumb {
-    width: 40px;
-    height: 55px;
+    width: 52px;
+    height: 72px;
   }
 
   .btn.primary,
@@ -3282,14 +3284,14 @@ tr.done td {
 }
 
 .skeleton-thumb {
-  width: 48px;
-  height: 68px;
+  width: 108px;
+  height: 151px;
   border-radius: 10px;
 }
 
 .skeleton-thumb-lg {
-  width: 72px;
-  height: 100px;
+  width: 96px;
+  height: 134px;
 }
 
 .skeleton-chip {
