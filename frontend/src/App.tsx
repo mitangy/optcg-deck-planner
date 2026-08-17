@@ -38,6 +38,7 @@ import {
   type SortKey,
 } from "./cardListControls";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
+import { CardScanner, useImageDrop } from "./CardScanner";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import {
   consumeLoginNext,
@@ -1038,6 +1039,19 @@ function ShoppingPage() {
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [layout, setLayout] = useCardLayout();
   const [search, setSearch] = useState("");
+  const [scanOpen, setScanOpen] = useState(false);
+  const [droppedImage, setDroppedImage] = useState<Blob | null>(null);
+  const [pageDragging, setPageDragging] = useState(false);
+  // Dropping a card image anywhere on this page opens the scanner, so the
+  // dialog does not have to be open first for drag-and-drop to work.
+  useImageDrop({
+    enabled: !scanOpen,
+    onImage: (blob) => {
+      setDroppedImage(blob);
+      setScanOpen(true);
+    },
+    onDragStateChange: setPageDragging,
+  });
   const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
   const [altWantErr, setAltWantErr] = useState<string | null>(null);
   const sortingByDeck = effectiveSorts.includes("deck");
@@ -1354,6 +1368,24 @@ function ShoppingPage() {
         <p className="muted">
           No decks yet. <Link to="/import">Import a deck</Link> to build your shopping list.
         </p>
+        {/* Price lookup works without any decks — useful before you own a list. */}
+        <p className="muted">
+          Or{" "}
+          <button type="button" className="ghost linkish" onClick={() => setScanOpen(true)}>
+            scan a card
+          </button>{" "}
+          to check its market price.
+        </p>
+        {scanOpen && (
+          <CardScanner
+            items={[]}
+            initialImage={droppedImage}
+            onClose={() => {
+              setScanOpen(false);
+              setDroppedImage(null);
+            }}
+          />
+        )}
       </section>
     );
   }
@@ -1470,6 +1502,9 @@ function ShoppingPage() {
       <div className="list-toolbar">
         <div className="list-toolbar-row">
           <CardSearchInput value={search} onChange={setSearch} />
+          <button type="button" className="ghost scan-open" onClick={() => setScanOpen(true)}>
+            Scan
+          </button>
           <CardLayoutToggle layout={layout} onChange={setLayout} />
         </div>
         <CollapsibleFilters summary={filterSummary}>
@@ -1569,6 +1604,23 @@ function ShoppingPage() {
             />
           )}
         </div>
+      )}
+      {/* Confirms the page is receiving the drag, so a failure is legible as
+          "not accepted" rather than "nothing happened". */}
+      {pageDragging && !scanOpen && (
+        <div className="page-drop-hint" role="status">
+          Drop the card image to scan it
+        </div>
+      )}
+      {scanOpen && (
+        <CardScanner
+          items={data?.items ?? []}
+          initialImage={droppedImage}
+          onClose={() => {
+            setScanOpen(false);
+            setDroppedImage(null);
+          }}
+        />
       )}
     </section>
   );

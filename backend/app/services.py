@@ -515,6 +515,41 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
     )
 
 
+def card_printings(db: Session, card_id: str) -> list[PrintingView]:
+    """Every catalog printing of one card number, cheapest plain first.
+
+    The scanner needs this to price what the user is physically holding: a
+    single card number can span a base printing and far pricier alternate-art
+    or manga treatments, which the card face distinguishes only by a small
+    star above the rarity badge.
+    """
+    rows = db.scalars(
+        select(CatalogPrinting).where(CatalogPrinting.card_id == card_id)
+    ).all()
+    views = [
+        PrintingView(
+            product_id=row.product_id,
+            name=row.name,
+            market_price=row.market_price,
+            low_price=row.low_price,
+            image_url=row.image_url,
+            tcgplayer_url=row.tcgplayer_url,
+            group_name=row.group_name,
+            is_special=bool(row.is_special),
+        )
+        for row in rows
+    ]
+    views.sort(
+        key=lambda p: (
+            p.is_special,
+            p.market_price is None,
+            p.market_price if p.market_price is not None else 1e9,
+            p.product_id,
+        )
+    )
+    return views
+
+
 def search_catalog(
     db: Session,
     *,

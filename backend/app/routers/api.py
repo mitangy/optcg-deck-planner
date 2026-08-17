@@ -39,6 +39,7 @@ from app.schemas import (
     GroupBuyReceiptMatchRequest,
     GroupBuySummary,
     OwnedUpdate,
+    PrintingView,
     PublicShoppingResponse,
     RecentSalesResponse,
     ShareCreate,
@@ -651,6 +652,17 @@ def catalog_cards(
     """Search the card catalog by name, id, color, type, rarity, or set name."""
     _ = user
     return services.search_catalog(db, q=q, color=color, card_type=card_type, limit=limit)
+
+
+@router.get("/catalog/cards/{card_id}/printings", response_model=list[PrintingView])
+def catalog_card_printings(
+    card_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """All printings of a card number, so a scan can price the exact treatment."""
+    _ = user
+    return services.card_printings(db, card_id)
 
 
 @router.get("/catalog/sales/{product_id}", response_model=RecentSalesResponse)
