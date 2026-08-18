@@ -22,6 +22,7 @@ from app.domain import (
 )
 from app.models import (
     CatalogCard,
+    CatalogMeta,
     CatalogPrinting,
     Deck,
     DeckCard,
@@ -33,6 +34,8 @@ from app.models import (
 from app.schemas import (
     CardView,
     CatalogCardResult,
+    CatalogHashManifest,
+    CatalogPrintingHash,
     DeckDetail,
     DeckSummary,
     PrintingView,
@@ -548,6 +551,24 @@ def card_printings(db: Session, card_id: str) -> list[PrintingView]:
         )
     )
     return views
+
+
+def hash_manifest(db: Session) -> CatalogHashManifest:
+    """Perceptual hashes of every hashed printing, for client-side scan matching.
+
+    ``version`` tracks ``CatalogMeta.phash_synced_at`` so the router can ETag
+    the response and skip resending an unchanged manifest.
+    """
+    meta = db.scalar(select(CatalogMeta).limit(1))
+    version = meta.phash_synced_at.isoformat() if meta and meta.phash_synced_at else "0"
+    rows = db.scalars(select(CatalogPrinting).where(CatalogPrinting.phash.isnot(None))).all()
+    return CatalogHashManifest(
+        version=version,
+        printings=[
+            CatalogPrintingHash(product_id=r.product_id, card_id=r.card_id, phash=r.phash)
+            for r in rows
+        ],
+    )
 
 
 def search_catalog(

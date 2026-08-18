@@ -40,6 +40,7 @@ import {
 import { cardImageUrl } from "./cardImage";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
 import { CardScanner, useImageDrop } from "./CardScanner";
+import HashValidatePage from "./devtools/HashValidatePage";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import {
   consumeLoginNext,
@@ -3299,6 +3300,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/share/:token" element={<PublicSharePage />} />
       <Route path="/group-buy/join/:token" element={<GroupBuyJoinPage />} />
+      {import.meta.env.DEV && <Route path="/dev/hash-validate" element={<HashValidatePage />} />}
       <Route
         path="/"
         element={

@@ -264,7 +264,14 @@ def sync_catalog(db: Session) -> dict[str, Any]:
                 by_card[card_id].append(entry)
 
     now = datetime.now(timezone.utc)
-    db.execute(delete(CatalogPrinting))
+
+    # Upsert by (card_id, product_id) rather than delete-all-then-insert, so a
+    # printing's id (and any phash computed for it) survives across syncs —
+    # only rows TCGCSV no longer lists are removed, at the end.
+    existing_printings = {
+        (row.card_id, row.product_id): row for row in db.scalars(select(CatalogPrinting)).all()
+    }
+    seen_keys: set[tuple[str, int]] = set()
 
     printing_count = 0
     for card_id, entries in by_card.items():
@@ -299,20 +306,35 @@ def sync_catalog(db: Session) -> dict[str, Any]:
                 setattr(row, key, value)
 
         for entry in entries:
-            db.add(
-                CatalogPrinting(
-                    card_id=card_id,
-                    product_id=entry["product_id"],
-                    name=entry["name"],
-                    market_price=entry["market_price"],
-                    low_price=entry["low_price"],
-                    image_url=entry["image_url"],
-                    tcgplayer_url=entry["tcgplayer_url"],
-                    group_name=entry["group_name"],
-                    is_special=entry["is_special"],
-                    updated_at=now,
+            printing_key = (card_id, entry["product_id"])
+            seen_keys.add(printing_key)
+            printing_payload = {
+                "name": entry["name"],
+                "market_price": entry["market_price"],
+                "low_price": entry["low_price"],
+                "image_url": entry["image_url"],
+                "tcgplayer_url": entry["tcgplayer_url"],
+                "group_name": entry["group_name"],
+                "is_special": entry["is_special"],
+                "updated_at": now,
+            }
+            printing_row = existing_printings.get(printing_key)
+            if printing_row is None:
+                db.add(
+                    CatalogPrinting(
+                        card_id=card_id,
+                        product_id=entry["product_id"],
+                        **printing_payload,
+                    )
                 )
-            )
+            else:
+                for key, value in printing_payload.items():
+                    setattr(printing_row, key, value)
+
+    stale_keys = set(existing_printings) - seen_keys
+    if stale_keys:
+        stale_ids = [existing_printings[k].id for k in stale_keys]
+        db.execute(delete(CatalogPrinting).where(CatalogPrinting.id.in_(stale_ids)))
 
     meta = db.scalar(select(CatalogMeta).limit(1))
     notes = f"TCGCSV sync ({printing_count} printings)"

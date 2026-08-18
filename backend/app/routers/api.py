@@ -1,22 +1,27 @@
 from __future__ import annotations
 
 import hmac
+from datetime import datetime, timezone
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request
-from sqlalchemy import select
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request, Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.models import CatalogMeta, User
+from app.models import CatalogMeta, CatalogPrinting, User
 from app.rate_limit import RateLimiter, client_ip
 from app.recent_sales import fetch_recent_sales
 from app.schemas import (
     CatalogCardResult,
+    CatalogPrintingHashBatch,
+    CatalogPrintingHashTarget,
     CatalogStatus,
     CardPrintingResult,
     CardPrintingUpdate,
@@ -665,6 +670,26 @@ def catalog_card_printings(
     return services.card_printings(db, card_id)
 
 
+@router.get("/catalog/printings/hashes")
+def catalog_printing_hashes(
+    request: Request,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Perceptual-hash manifest for client-side scan matching.
+
+    ETag'd on CatalogMeta.phash_synced_at so an unchanged manifest 304s
+    instead of re-sending a few hundred KB of JSON every session.
+    """
+    _ = user
+    manifest = services.hash_manifest(db)
+    etag = f'"{manifest.version}"'
+    headers = {"Cache-Control": "private, max-age=0, must-revalidate", "ETag": etag}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return JSONResponse(content=jsonable_encoder(manifest), headers=headers)
+
+
 @router.get("/catalog/sales/{product_id}", response_model=RecentSalesResponse)
 def catalog_recent_sales(
     request: Request,
@@ -710,3 +735,66 @@ def admin_sync_catalog_status(
     """Report the background catalog sync state (guarded by the same token)."""
     _require_catalog_token(x_catalog_token, settings)
     return sync_status()
+
+
+@router.get(
+    "/admin/catalog/printings-needing-hash",
+    response_model=list[CatalogPrintingHashTarget],
+)
+def admin_printings_needing_hash(
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_catalog_token: Annotated[str | None, Header()] = None,
+    limit: Annotated[int, Query(ge=1, le=5000)] = 2000,
+):
+    """Printings whose reference image still needs a perceptual hash.
+
+    A row qualifies when it has no hash yet, or its stored image_url has
+    changed since the hash was computed (phash_source tracks that).
+    """
+    _require_catalog_token(x_catalog_token, settings)
+    rows = db.scalars(
+        select(CatalogPrinting)
+        .where(
+            or_(
+                CatalogPrinting.phash.is_(None),
+                CatalogPrinting.phash_source.is_(None),
+                CatalogPrinting.phash_source != CatalogPrinting.image_url,
+            )
+        )
+        .limit(limit)
+    ).all()
+    return [
+        CatalogPrintingHashTarget(product_id=r.product_id, card_id=r.card_id, image_url=r.image_url)
+        for r in rows
+    ]
+
+
+@router.post("/admin/catalog/hashes")
+def admin_write_hashes(
+    body: CatalogPrintingHashBatch,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_catalog_token: Annotated[str | None, Header()] = None,
+):
+    """Write computed perceptual hashes back onto their printings."""
+    _require_catalog_token(x_catalog_token, settings)
+    updated = 0
+    for item in body.hashes:
+        row = db.scalar(
+            select(CatalogPrinting).where(
+                CatalogPrinting.card_id == item.card_id,
+                CatalogPrinting.product_id == item.product_id,
+            )
+        )
+        if row is None:
+            continue
+        row.phash = item.phash
+        row.phash_source = row.image_url
+        updated += 1
+    if updated:
+        meta = db.scalar(select(CatalogMeta).limit(1))
+        if meta is not None:
+            meta.phash_synced_at = datetime.now(timezone.utc)
+        db.commit()
+    return {"updated": updated}

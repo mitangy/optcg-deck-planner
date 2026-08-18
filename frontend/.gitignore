@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+
+# Real card photos used to validate scan-hash matching (sourced ad hoc from
+# the web for testing — not ours to redistribute, and not needed by anyone
+# who isn't actively running the validation harness).
+public/dev-fixtures/

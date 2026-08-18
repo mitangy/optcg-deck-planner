@@ -169,6 +169,12 @@ class CatalogPrinting(Base):
     tcgplayer_url: Mapped[str] = mapped_column(Text, default="")
     group_name: Mapped[str] = mapped_column(String(255), default="")
     is_special: Mapped[int] = mapped_column(Integer, default=0)
+    # Perceptual hash of image_url's product photo (hex-encoded; width is
+    # defined by frontend/src/imageHash.ts's HASH_HEX_LENGTH, not fixed here),
+    # for client-side scan matching. phash_source records the image_url the
+    # hash was computed from, so a changed image can be detected and recomputed.
+    phash: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    phash_source: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -181,6 +187,9 @@ class CatalogMeta(Base):
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     card_count: Mapped[int] = mapped_column(Integer, default=0)
     notes: Mapped[str] = mapped_column(Text, default="")
+    # Bumped whenever any printing's phash changes, so clients can cache-bust
+    # the hash manifest without re-checking every row.
+    phash_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class GroupBuy(Base):

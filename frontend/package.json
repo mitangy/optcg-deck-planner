@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "hash-catalog": "tsx scripts/hash-catalog.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.66.0",
@@ -17,9 +18,13 @@
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
+    "@techstark/opencv-js": "^5.0.0-release.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "jpeg-js": "^0.4.4",
+    "pngjs": "^7.0.0",
+    "tsx": "^4.19.2",
     "typescript": "~5.7.2",
     "vite": "^6.0.0",
     "vitest": "^3.2.7"
