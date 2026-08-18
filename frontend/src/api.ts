@@ -1,7 +1,24 @@
 const configured = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "");
-// Local: hit uvicorn directly. Production: same-origin /api (Vercel rewrite → Render)
-// so the session cookie is first-party (required on mobile Safari).
-const API_URL = configured || (import.meta.env.DEV ? "http://localhost:8000" : "/api");
+// Local: hit uvicorn directly, on whichever host the page itself was loaded
+// from — not a fixed address. A static VITE_API_URL forces every page load to
+// call that one host regardless of how it was reached: opening the app via a
+// LAN IP for phone testing would leave a desktop tab on localhost silently
+// calling out to the LAN IP too, an unnecessary cross-address request that
+// has nothing to do with how that tab was opened. Deriving it from
+// window.location means localhost pairs with localhost and a LAN IP pairs
+// with itself, independent of whatever else is being tested.
+// Production: same-origin /api (Vercel rewrite → Render) so the session
+// cookie is first-party (required on mobile Safari).
+const API_URL =
+  configured ||
+  (import.meta.env.DEV
+    ? // Guarded rather than assumed: this module is imported (transitively,
+      // via other components) by tests running under Vitest's default Node
+      // environment, where `window` does not exist.
+      typeof window !== "undefined"
+      ? `${window.location.protocol}//${window.location.hostname}:8000`
+      : "http://localhost:8000"
+    : "/api");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: HeadersInit = {

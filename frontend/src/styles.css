@@ -3761,3 +3761,180 @@ button.ghost.scan-open:hover {
   gap: 0.75rem;
   margin-top: 0.5rem;
 }
+
+
+/* --- Live camera capture (full screen) ---------------------------------- */
+
+.live-capture-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #000;
+  overflow: hidden;
+}
+
+/* display:block matters, not just decoration: a <video> is inline by
+   default, and an inline replaced element sized via a percentage height can
+   fail to fill its box under iOS Safari, leaving the rest of the container
+   showing its own background — exactly the black band seen under a real
+   camera stream that never showed up against a canvas-mocked one in testing. */
+.live-video {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.live-guide-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* A large box-shadow doubles as a mask: everything outside the rounded rect
+   darkens, without a separate overlay element or a clip-path polygon. */
+.live-guide-box {
+  position: relative;
+  /* Bound by both viewport dimensions, correctly converted through the
+     card's own aspect ratio (0.7159, matching CARD_ASPECT in cardRectify.ts)
+     rather than comparing a height percentage against a width percentage
+     directly. min(70dvh, 78vw) compared raw units with no shared basis: on a
+     typical phone the vw bound is the smaller number by construction (since
+     screens are taller than wide), so the box always clamped to it — visibly
+     smaller than a real card held up to the camera, forcing an awkwardly
+     long working distance to fill it. Converting the width bound through the
+     aspect ratio into an equivalent height keeps the comparison meaningful. */
+  height: min(72dvh, calc(85vw / 0.7159));
+  border-radius: 14px;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+}
+
+.live-guide-corner {
+  position: absolute;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-style: solid;
+  border-color: #fff;
+  border-width: 0;
+}
+
+.live-guide-corner.tl {
+  top: -2px;
+  left: -2px;
+  border-top-width: 3px;
+  border-left-width: 3px;
+  border-top-left-radius: 10px;
+}
+
+.live-guide-corner.tr {
+  top: -2px;
+  right: -2px;
+  border-top-width: 3px;
+  border-right-width: 3px;
+  border-top-right-radius: 10px;
+}
+
+.live-guide-corner.bl {
+  bottom: -2px;
+  left: -2px;
+  border-bottom-width: 3px;
+  border-left-width: 3px;
+  border-bottom-left-radius: 10px;
+}
+
+.live-guide-corner.br {
+  bottom: -2px;
+  right: -2px;
+  border-bottom-width: 3px;
+  border-right-width: 3px;
+  border-bottom-right-radius: 10px;
+}
+
+.live-status {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 1rem;
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.live-error {
+  color: #ffd7c2;
+}
+
+/* Fixed top/bottom bars over the video, not part of its layout flow, so the
+   video always gets the full viewport regardless of control height. */
+.live-top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top, 0px) + 0.85rem) 1rem 0.85rem;
+  background: linear-gradient(rgba(0, 0, 0, 0.5), transparent);
+}
+
+.live-cancel,
+.live-torch {
+  border: none;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.live-bottom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem 1rem calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+}
+
+.live-hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.live-shutter {
+  width: 4.2rem;
+  height: 4.2rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 3px solid #fff;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+
+.live-shutter:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
