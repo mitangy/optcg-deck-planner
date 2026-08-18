@@ -25,38 +25,78 @@ async function loadRefs(): Promise<RefImage[]> {
   const res = await fetch("/dev-fixtures/refs/index.json");
   if (!res.ok) throw new Error(`refs/index.json missing (HTTP ${res.status}) — run the fetch script`);
   const entries: RefIndexEntry[] = await res.json();
-  return entries.map((e) => ({ label: e.label, url: `/dev-fixtures/refs/${e.file}` }));
+  return entries.map((e) => ({
+    label: e.label,
+    cardId: e.card_id,
+    url: `/dev-fixtures/refs/${e.file}`,
+  }));
 }
 
+/**
+ * Real phone photos, shot by the user on 2026-08-18 — six cards, several
+ * foil/SEC, several lying sideways in a landscape frame (no EXIF rotation
+ * tag, so that is genuinely how they were taken). These are the honest test
+ * set; the four web-sourced photos below are kept for continuity with the
+ * earlier runs.
+ */
 const CASES: ValidationCase[] = [
   {
-    label: "OP14-119 — Mihawk alt art, PSA slab, hand-held",
+    label: "OP16-119 — Marshall.D.Teach SEC, gold foil (photo)",
+    photoUrl: "/dev-fixtures/user/IMG_4468.jpg",
+    correctCardId: "OP16-119",
+  },
+  {
+    label: "EB03-055 — Nico Robin SR, gold foil (photo)",
+    photoUrl: "/dev-fixtures/user/IMG_4470.jpg",
+    correctCardId: "EB03-055",
+  },
+  {
+    label: "OP13-037 — Roronoa Zoro R, sideways (photo)",
+    photoUrl: "/dev-fixtures/user/IMG_4471.jpg",
+    correctCardId: "OP13-037",
+  },
+  {
+    label: "OP11-070 — Charlotte Pudding (photo)",
+    photoUrl: "/dev-fixtures/user/IMG_4472.jpg",
+    correctCardId: "OP11-070",
+  },
+  {
+    label: "OP11-119 — Koby SEC, foil, sideways (photo)",
+    photoUrl: "/dev-fixtures/user/IMG_4473.jpg",
+    correctCardId: "OP11-119",
+  },
+  {
+    label: "OP10-014 — Franky C, sideways (photo)",
+    photoUrl: "/dev-fixtures/user/IMG_4474.jpg",
+    correctCardId: "OP10-014",
+  },
+  {
+    label: "OP14-119 — Mihawk alt art, PSA slab (web)",
     photoUrl: "/dev-fixtures/OP14-119.webp",
-    correctRefLabel: "OP14-119_alt",
+    correctCardId: "OP14-119",
   },
   {
-    label: "OP13-119 — Ace, Wanted Poster art, flat-lay",
+    label: "OP13-119 — Ace, Wanted Poster art (web)",
     photoUrl: "/dev-fixtures/OP13-119.webp",
-    correctRefLabel: "OP13-119_wanted",
+    correctCardId: "OP13-119",
   },
   {
-    label: "OP06-119 — Sanji SEC, heavy foil/holo glare",
+    label: "OP06-119 — Sanji SEC, foil glare (web)",
     photoUrl: "/dev-fixtures/OP06-119.webp",
-    correctRefLabel: "OP06-119_base",
+    correctCardId: "OP06-119",
   },
   {
-    label: "OP01-041 — Momonosuke, sleeved, plain background",
+    label: "OP01-041 — Momonosuke, sleeved (web)",
     photoUrl: "/dev-fixtures/OP01-041.webp",
-    correctRefLabel: "OP01-041",
+    correctCardId: "OP01-041",
   },
 ];
 
-const OCR_CASES: OcrValidationCase[] = [
-  { label: CASES[0].label, photoUrl: CASES[0].photoUrl, correctCardId: "OP14-119" },
-  { label: CASES[1].label, photoUrl: CASES[1].photoUrl, correctCardId: "OP13-119" },
-  { label: CASES[2].label, photoUrl: CASES[2].photoUrl, correctCardId: "OP06-119" },
-  { label: CASES[3].label, photoUrl: CASES[3].photoUrl, correctCardId: "OP01-041" },
-];
+const OCR_CASES: OcrValidationCase[] = CASES.map((c) => ({
+  label: c.label,
+  photoUrl: c.photoUrl,
+  correctCardId: c.correctCardId,
+}));
 
 function Thumb({ src, caption, sub, bad }: { src: string; caption: string; sub?: string; bad?: boolean }) {
   return (
@@ -213,54 +253,35 @@ function OrbTable({ reports }: { reports: OrbCaseReport[] }) {
       <thead>
         <tr style={{ textAlign: "left" }}>
           <th style={{ padding: 8 }}>Case</th>
-          <th style={{ padding: 8 }}>old: correct</th>
-          <th style={{ padding: 8 }}>old: best</th>
-          <th style={{ padding: 8 }}>old: rank</th>
-          <th style={{ padding: 8 }}>old pass</th>
-          <th style={{ padding: 8, color: "#9cf" }}>verify: correct inliers</th>
-          <th style={{ padding: 8, color: "#9cf" }}>verify: best</th>
-          <th style={{ padding: 8, color: "#9cf" }}>verify: runner-up</th>
-          <th style={{ padding: 8, color: "#9cf" }}>verify: rank</th>
-          <th style={{ padding: 8, color: "#9cf" }}>survivors</th>
-          <th style={{ padding: 8, color: "#9cf" }}>ms/candidate</th>
-          <th style={{ padding: 8, color: "#9cf" }}>verify pass</th>
+          <th style={{ padding: 8 }}>correct: inliers (good)</th>
+          <th style={{ padding: 8 }}>best match</th>
+          <th style={{ padding: 8 }}>runner-up</th>
+          <th style={{ padding: 8 }}>correct rank</th>
+          <th style={{ padding: 8 }}>survivors</th>
+          <th style={{ padding: 8 }}>ms/cand</th>
+          <th style={{ padding: 8 }}>pass</th>
         </tr>
       </thead>
       <tbody>
         {reports.map((r) => (
           <tr key={r.label}>
             <td style={{ padding: 8, borderTop: "1px solid #333" }}>{r.label}</td>
-            <td style={{ padding: 8, borderTop: "1px solid #333" }}>{r.correct?.goodMatches ?? "—"}</td>
             <td style={{ padding: 8, borderTop: "1px solid #333" }}>
-              {r.best?.label ?? "—"} ({r.best?.goodMatches ?? "—"})
+              {r.correct ? `${r.correct.inliers} (${r.correct.good})` : "—"}
+            </td>
+            <td style={{ padding: 8, borderTop: "1px solid #333" }}>
+              {r.best ? `${r.best.label} (${r.best.inliers})` : "—"}
+            </td>
+            <td style={{ padding: 8, borderTop: "1px solid #333" }}>
+              {r.runnerUp ? `${r.runnerUp.label} (${r.runnerUp.inliers})` : "—"}
             </td>
             <td style={{ padding: 8, borderTop: "1px solid #333", color: r.correctRank === 1 ? "#8f8" : "#fc6" }}>
               {r.correctRank ?? "—"} / {r.totalCandidates}
             </td>
+            <td style={{ padding: 8, borderTop: "1px solid #333" }}>{r.survivors}</td>
+            <td style={{ padding: 8, borderTop: "1px solid #333" }}>{r.msPerCandidate.toFixed(0)}</td>
             <td style={{ padding: 8, borderTop: "1px solid #333", color: r.correctIsBest ? "#8f8" : "#f66" }}>
               {r.correctIsBest ? "✅" : "❌"}
-            </td>
-            <td style={{ padding: 8, borderTop: "1px solid #333" }}>
-              {r.verifyCorrect?.inliers ?? "—"}
-              {r.verifyCorrect ? ` (${r.verifyCorrect.good} good)` : ""}
-            </td>
-            <td style={{ padding: 8, borderTop: "1px solid #333" }}>
-              {r.verifyBest?.label ?? "—"} ({r.verifyBest?.inliers ?? "—"})
-            </td>
-            <td style={{ padding: 8, borderTop: "1px solid #333" }}>
-              {r.verifyRunnerUp ? `${r.verifyRunnerUp.label} (${r.verifyRunnerUp.inliers})` : "—"}
-            </td>
-            <td
-              style={{ padding: 8, borderTop: "1px solid #333", color: r.verifyCorrectRank === 1 ? "#8f8" : "#fc6" }}
-            >
-              {r.verifyCorrectRank ?? "—"} / {r.totalCandidates}
-            </td>
-            <td style={{ padding: 8, borderTop: "1px solid #333" }}>{r.verifySurvivors}</td>
-            <td style={{ padding: 8, borderTop: "1px solid #333" }}>
-              {(r.verifyMs / Math.max(1, r.totalCandidates)).toFixed(0)} ms
-            </td>
-            <td style={{ padding: 8, borderTop: "1px solid #333", color: r.verifyCorrectIsBest ? "#8f8" : "#f66" }}>
-              {r.verifyCorrectIsBest ? "✅" : "❌"}
             </td>
           </tr>
         ))}
@@ -321,7 +342,7 @@ export default function HashValidatePage() {
 
   const passCount = reports.filter((r) => r.correctIsBest).length;
   const orbPassCount = orbReports?.filter((r) => r.correctIsBest).length;
-  const orbVerifyPassCount = orbReports?.filter((r) => r.verifyCorrectIsBest).length;
+  const orbVerifyPassCount = orbReports?.filter((r) => r.correctIsBest).length;
   const ocrSetCount = ocrReports?.filter((r) => r.gotCorrectSet).length;
   const edgePassCount = structReports?.filter((r) => r.edgeCorrectIsBest).length;
   const znccPassCount = structReports?.filter((r) => r.znccCorrectIsBest).length;

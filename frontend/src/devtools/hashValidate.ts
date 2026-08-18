@@ -9,18 +9,31 @@
 import { findCardQuad, rectifyToCanvas } from "../cardRectify";
 import { computeHash, hammingDistance } from "../imageHash";
 
-export type RefImage = { label: string; url: string };
+export type RefImage = { label: string; url: string; cardId: string };
 
 export type ValidationCase = {
   label: string;
   photoUrl: string;
-  /** The RefImage.label that is the true match for this photo. */
-  correctRefLabel: string;
+  /**
+   * The card *number* that is the true answer, e.g. "OP11-070".
+   *
+   * Scored per card number rather than per printing on purpose: a number has
+   * ~2.4 printings (6,637 printings over 2,745 numbers), the photo may be any
+   * of them, and identifying the card is the scanner's actual job. Choosing
+   * between printings of that number is a separate, narrower problem.
+   */
+  correctCardId: string;
 };
 
 type Hashed = { hash: string; rectified: boolean; previewUrl: string };
 
-export type MatchInfo = { label: string; url: string; previewUrl: string; distance: number };
+export type MatchInfo = {
+  label: string;
+  cardId: string;
+  url: string;
+  previewUrl: string;
+  distance: number;
+};
 
 export type CaseReport = {
   label: string;
@@ -103,20 +116,30 @@ export async function runValidation(
   refs: RefImage[],
 ): Promise<CaseReport[]> {
   const refHashed = await Promise.all(
-    refs.map(async (r) => ({ label: r.label, url: r.url, ...(await hashReference(r.url)) })),
+    refs.map(async (r) => ({
+      label: r.label,
+      cardId: r.cardId,
+      url: r.url,
+      ...(await hashReference(r.url)),
+    })),
   );
-  const refByLabel = new Map(refHashed.map((r) => [r.label, r]));
 
   const reports: CaseReport[] = [];
   for (const c of cases) {
     const photo = await hashPhoto(c.photoUrl);
-    const distances = refHashed
-      .map((r) => ({ label: r.label, url: r.url, previewUrl: r.previewUrl, distance: hammingDistance(photo.hash, r.hash) }))
+    const distances: MatchInfo[] = refHashed
+      .map((r) => ({
+        label: r.label,
+        cardId: r.cardId,
+        url: r.url,
+        previewUrl: r.previewUrl,
+        distance: hammingDistance(photo.hash, r.hash),
+      }))
       .sort((a, b) => a.distance - b.distance);
     const best = distances[0] ?? null;
     const runnerUp = distances[1] ?? null;
-    const correctRef = refByLabel.get(c.correctRefLabel) ?? null;
-    const correctIndex = distances.findIndex((d) => d.label === c.correctRefLabel);
+    // Best-ranked printing *of the right card* — any of them counts.
+    const correctIndex = distances.findIndex((d) => d.cardId === c.correctCardId);
     const correct = correctIndex >= 0 ? distances[correctIndex] : null;
     reports.push({
       label: c.label,
@@ -124,11 +147,11 @@ export async function runValidation(
       photoPreviewUrl: photo.previewUrl,
       rectified: photo.rectified,
       correctDistance: correct ? correct.distance : null,
-      correctRefUrl: correctRef?.url ?? "",
-      correctRefPreviewUrl: correctRef?.previewUrl ?? "",
+      correctRefUrl: correct?.url ?? "",
+      correctRefPreviewUrl: correct?.previewUrl ?? "",
       best,
       runnerUp,
-      correctIsBest: best?.label === c.correctRefLabel,
+      correctIsBest: best?.cardId === c.correctCardId,
       correctRank: correctIndex >= 0 ? correctIndex + 1 : null,
       totalCandidates: distances.length,
       ranked: distances,

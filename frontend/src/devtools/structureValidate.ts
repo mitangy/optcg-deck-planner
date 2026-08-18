@@ -48,7 +48,7 @@ export async function runStructureValidation(
   refs: RefImage[],
 ): Promise<StructureReport[]> {
   const prepared = await Promise.all(
-    refs.map(async (r) => ({ label: r.label, ...(await prepare(r.url)) })),
+    refs.map(async (r) => ({ label: r.label, cardId: r.cardId, ...(await prepare(r.url)) })),
   );
 
   const reports: StructureReport[] = [];
@@ -56,15 +56,19 @@ export async function runStructureValidation(
     const photo = await prepare(c.photoUrl);
 
     const edgeRanked = prepared
-      .map((r) => ({ label: r.label, distance: edgeHashDistance(photo.edgeHash, r.edgeHash) }))
+      .map((r) => ({
+        label: r.label,
+        cardId: r.cardId,
+        distance: edgeHashDistance(photo.edgeHash, r.edgeHash),
+      }))
       .sort((a, b) => a.distance - b.distance);
-    const edgeCorrectIndex = edgeRanked.findIndex((d) => d.label === c.correctRefLabel);
+    const edgeCorrectIndex = edgeRanked.findIndex((d) => d.cardId === c.correctCardId);
 
     // Higher ZNCC is better, so this list sorts descending.
     const znccRanked = prepared
-      .map((r) => ({ label: r.label, score: zncc(photo.thumb, r.thumb) }))
+      .map((r) => ({ label: r.label, cardId: r.cardId, score: zncc(photo.thumb, r.thumb) }))
       .sort((a, b) => b.score - a.score);
-    const znccCorrectIndex = znccRanked.findIndex((d) => d.label === c.correctRefLabel);
+    const znccCorrectIndex = znccRanked.findIndex((d) => d.cardId === c.correctCardId);
 
     reports.push({
       label: c.label,
@@ -73,13 +77,13 @@ export async function runStructureValidation(
       edgeCorrectRank: edgeCorrectIndex >= 0 ? edgeCorrectIndex + 1 : null,
       edgeBestLabel: edgeRanked[0]?.label ?? null,
       edgeBestDistance: edgeRanked[0]?.distance ?? null,
-      edgeCorrectIsBest: edgeRanked[0]?.label === c.correctRefLabel,
+      edgeCorrectIsBest: edgeRanked[0]?.cardId === c.correctCardId,
       znccCorrectScore: znccCorrectIndex >= 0 ? znccRanked[znccCorrectIndex].score : null,
       znccCorrectRank: znccCorrectIndex >= 0 ? znccCorrectIndex + 1 : null,
       znccBestLabel: znccRanked[0]?.label ?? null,
       znccBestScore: znccRanked[0]?.score ?? null,
       znccRunnerUpScore: znccRanked[1]?.score ?? null,
-      znccCorrectIsBest: znccRanked[0]?.label === c.correctRefLabel,
+      znccCorrectIsBest: znccRanked[0]?.cardId === c.correctCardId,
       totalCandidates: prepared.length,
     });
   }

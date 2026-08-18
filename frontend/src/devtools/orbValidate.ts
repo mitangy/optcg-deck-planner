@@ -1,36 +1,37 @@
-/** Same validation cases/refs, scored by ORB feature matching — both the
- * original good-match count and the mDex/FORB homography verifier, so the
- * upgrade can be judged against the old numbers on identical inputs.
+/** ORB scoring for the validation cases, using the mDex/FORB verifier:
+ * Lowe ratio test, one-homography consensus (MAGSAC++), geometry sanity
+ * checks, scored by inlier count.
+ *
+ * One `orbVerifyScore` call per pair rather than two — the ratio-test
+ * survivor count it already returns serves as the descriptor-only signal, so
+ * the old separate `orbMatchScore` pass is redundant here and doubled the
+ * (dominant) cost of this run.
  */
 
 import { hashPhoto, loadImageData, type RefImage, type ValidationCase } from "./hashValidate";
-import { orbMatchScore, orbVerifyScore } from "./orbMatch";
+import { orbVerifyScore } from "./orbMatch";
 
-export type OrbMatchInfo = { label: string; goodMatches: number; avgDistance: number };
-/** `inliers` is the *score*: zero when any sanity check rejected the fit, so a
- *  rejected candidate can never outrank an accepted one. */
-export type OrbVerifyInfo = { label: string; inliers: number; good: number; rejected: string };
+export type OrbVerifyInfo = {
+  label: string;
+  cardId: string;
+  /** Score: inliers when every check passed, else 0 so it cannot outrank a real fit. */
+  inliers: number;
+  /** Ratio-test survivors — the descriptor-only signal, used as a tie-break. */
+  good: number;
+  rejected: string;
+};
 
 export type OrbCaseReport = {
   label: string;
-  correct: OrbMatchInfo | null;
-  best: OrbMatchInfo | null;
-  runnerUp: OrbMatchInfo | null;
+  correct: OrbVerifyInfo | null;
+  best: OrbVerifyInfo | null;
+  runnerUp: OrbVerifyInfo | null;
   correctIsBest: boolean;
   correctRank: number | null;
   totalCandidates: number;
-  ranked: OrbMatchInfo[];
-  /** Homography-verifier results over the same candidates. */
-  verifyCorrect: OrbVerifyInfo | null;
-  verifyBest: OrbVerifyInfo | null;
-  verifyRunnerUp: OrbVerifyInfo | null;
-  verifyCorrectIsBest: boolean;
-  verifyCorrectRank: number | null;
-  /** How many candidates produced any homography consensus at all. */
-  verifySurvivors: number;
-  elapsedMs: number;
-  /** Verify-only wall time, so per-candidate cost can be read directly. */
-  verifyMs: number;
+  /** Candidates that passed every geometric check. */
+  survivors: number;
+  msPerCandidate: number;
 };
 
 export async function runOrbValidation(
@@ -40,62 +41,39 @@ export async function runOrbValidation(
   const reports: OrbCaseReport[] = [];
   for (const c of cases) {
     const started = performance.now();
-    // Reuse the same rectify-or-fallback crop the block-hash pipeline hashes,
-    // so this is an apples-to-apples comparison of scoring method only.
+    // Same rectify-or-fallback crop the hashes use, so only the scoring differs.
     const photo = await hashPhoto(c.photoUrl);
     const photoImg = await loadImageData(photo.previewUrl);
 
-    const scores: OrbMatchInfo[] = [];
-    const verifies: OrbVerifyInfo[] = [];
-    let verifyMs = 0;
+    const scored: OrbVerifyInfo[] = [];
     for (const r of refs) {
       const refImg = await loadImageData(r.url);
-      const score = await orbMatchScore(photoImg, refImg);
-      scores.push({ label: r.label, goodMatches: score.goodMatches, avgDistance: score.avgDistance });
-      const vStart = performance.now();
       const v = await orbVerifyScore(photoImg, refImg);
-      verifyMs += performance.now() - vStart;
-      verifies.push({
+      scored.push({
         label: r.label,
+        cardId: r.cardId,
         inliers: v.rejected === "none" ? v.inliers : 0,
         good: v.good,
         rejected: v.rejected,
       });
     }
-    scores.sort((a, b) => b.goodMatches - a.goodMatches);
-    // Rank by geometry first, descriptor count second. A verified match always
-    // outranks an unverified one, but when geometry fits nothing — a degenerate
-    // homography on a poorly-rectified query, which is a real case here — this
-    // degrades to the old descriptor ranking instead of discarding the answer.
-    const goodByLabel = new Map(scores.map((s) => [s.label, s.goodMatches]));
-    verifies.sort(
-      (a, b) => b.inliers - a.inliers || (goodByLabel.get(b.label) ?? 0) - (goodByLabel.get(a.label) ?? 0),
-    );
 
-    const best = scores[0] ?? null;
-    const runnerUp = scores[1] ?? null;
-    const correctIndex = scores.findIndex((s) => s.label === c.correctRefLabel);
-    const correct = correctIndex >= 0 ? scores[correctIndex] : null;
+    // Geometry first, descriptor count second: a verified match always beats
+    // an unverified one, but when geometry fits nothing this degrades to the
+    // descriptor ranking instead of throwing the answer away.
+    scored.sort((a, b) => b.inliers - a.inliers || b.good - a.good);
 
-    const vCorrectIndex = verifies.findIndex((s) => s.label === c.correctRefLabel);
-
+    const correctIndex = scored.findIndex((s) => s.cardId === c.correctCardId);
     reports.push({
       label: c.label,
-      correct,
-      best,
-      runnerUp,
-      correctIsBest: best?.label === c.correctRefLabel,
+      correct: correctIndex >= 0 ? scored[correctIndex] : null,
+      best: scored[0] ?? null,
+      runnerUp: scored[1] ?? null,
+      correctIsBest: scored[0]?.cardId === c.correctCardId,
       correctRank: correctIndex >= 0 ? correctIndex + 1 : null,
-      totalCandidates: scores.length,
-      ranked: scores,
-      verifyCorrect: vCorrectIndex >= 0 ? verifies[vCorrectIndex] : null,
-      verifyBest: verifies[0] ?? null,
-      verifyRunnerUp: verifies[1] ?? null,
-      verifyCorrectIsBest: verifies[0]?.label === c.correctRefLabel,
-      verifyCorrectRank: vCorrectIndex >= 0 ? vCorrectIndex + 1 : null,
-      verifySurvivors: verifies.filter((v) => v.rejected === "none").length,
-      elapsedMs: performance.now() - started,
-      verifyMs,
+      totalCandidates: scored.length,
+      survivors: scored.filter((s) => s.rejected === "none").length,
+      msPerCandidate: (performance.now() - started) / Math.max(1, refs.length),
     });
   }
   return reports;

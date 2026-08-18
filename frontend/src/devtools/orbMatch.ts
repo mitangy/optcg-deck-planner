@@ -52,14 +52,32 @@ const MIN_GOOD_FOR_HOMOGRAPHY = 10;
 /** Fewer inliers than this is noise, not a consensus. */
 const MIN_INLIERS = 8;
 
-type Extracted = { gray: Cv; kp: Cv; desc: Cv };
+export type Extracted = { gray: Cv; kp: Cv; desc: Cv };
 
-function extract(cv: Cv, image: ImageData): Extracted {
+/**
+ * Extract once, match many.
+ *
+ * Descriptor extraction dominates a naive per-pair call, and in a real
+ * pipeline neither side pays it at query time: the query is extracted once
+ * for the whole scan, and reference descriptors are precomputed offline
+ * (~20 KB per card). Exposing extraction separately is what lets the harness
+ * measure the cost that would actually be paid per candidate.
+ */
+export async function extractFeatures(image: ImageData, nFeatures = ORB_FEATURES): Promise<Extracted> {
+  const cv = await getCv();
+  return extract(cv, image, nFeatures);
+}
+
+export async function releaseFeatures(f: Extracted): Promise<void> {
+  release(await getCv(), f);
+}
+
+function extract(cv: Cv, image: ImageData, nFeatures = ORB_FEATURES): Extracted {
   const mat = cv.matFromImageData(image);
   const gray = new cv.Mat();
   cv.cvtColor(mat, gray, cv.COLOR_RGBA2GRAY);
   mat.delete();
-  const orb = new cv.ORB(ORB_FEATURES);
+  const orb = new cv.ORB(nFeatures);
   const kp = new cv.KeyPointVector();
   const desc = new cv.Mat();
   const mask = new cv.Mat();
@@ -222,25 +240,113 @@ function saneQuad(h: number[], candW: number, candH: number, queryW: number, que
 /**
  * Score a pair the way mDex/FORB does: ratio test, one-homography
  * consensus, sanity checks, and the inlier count as the score.
+ *
+ * Extracts both sides, so it costs far more than a real query would — use
+ * `verifyFeatures` with pre-extracted descriptors to measure or implement
+ * the per-candidate cost.
  */
 export async function orbVerifyScore(query: ImageData, candidate: ImageData): Promise<OrbVerifyResult> {
   const cv = await getCv();
   const Q = extract(cv, query);
   const C = extract(cv, candidate);
-
-  const fail = (rejected: OrbVerifyResult["rejected"], good = 0): OrbVerifyResult => {
+  try {
+    return await verifyFeatures(Q, C, query.width, query.height, candidate.width, candidate.height);
+  } finally {
     release(cv, Q);
     release(cv, C);
-    return { good, inliers: 0, rejected };
-  };
+  }
+}
 
-  if (Q.desc.rows === 0 || C.desc.rows === 0) return fail("no-descriptors");
+/**
+ * A card's features in the form they are stored and shipped: a descriptor
+ * matrix plus flat x,y pairs. Deliberately not a `KeyPointVector` — the
+ * matcher only ever reads `.pt`, and descriptors arriving from a precomputed
+ * bundle have no KeyPoint objects to rebuild.
+ */
+export type Features = { desc: Cv; pts: ArrayLike<number>; width: number; height: number };
+
+/** View an extracted result as `Features`. Borrows `desc`; do not delete it twice. */
+export function toFeatures(e: Extracted, width: number, height: number): Features {
+  const n = e.kp.size();
+  const pts = new Float32Array(n * 2);
+  for (let i = 0; i < n; i += 1) {
+    const p = e.kp.get(i).pt;
+    pts[i * 2] = p.x;
+    pts[i * 2 + 1] = p.y;
+  }
+  return { desc: e.desc, pts, width, height };
+}
+
+/** Build `Features` from stored bytes — the shape a descriptor bundle yields. */
+export async function featuresFromBytes(
+  descBytes: Uint8Array,
+  pts: ArrayLike<number>,
+  width: number,
+  height: number,
+): Promise<Features> {
+  const cv = await getCv();
+  const rows = descBytes.length / 32;
+  const desc = cv.matFromArray(rows, 32, cv.CV_8U, Array.from(descBytes));
+  return { desc, pts, width, height };
+}
+
+/** Same verification as `verifyFeatures`, over the storable `Features` shape. */
+export async function verifyPair(q: Features, c: Features): Promise<OrbVerifyResult> {
+  const cv = await getCv();
+  return verifyCore(cv, q.desc, q.pts, c.desc, c.pts, q.width, q.height, c.width, c.height);
+}
+
+/**
+ * The matching half only: ratio test, homography, sanity checks. This is the
+ * work a real scan pays per shortlist candidate, given precomputed
+ * descriptors on both sides.
+ */
+export async function verifyFeatures(
+  Q: Extracted,
+  C: Extracted,
+  queryW: number,
+  queryH: number,
+  candW: number,
+  candH: number,
+): Promise<OrbVerifyResult> {
+  const cv = await getCv();
+  return verifyCore(
+    cv,
+    Q.desc,
+    toFeatures(Q, queryW, queryH).pts,
+    C.desc,
+    toFeatures(C, candW, candH).pts,
+    queryW,
+    queryH,
+    candW,
+    candH,
+  );
+}
+
+async function verifyCore(
+  cv: Cv,
+  qDesc: Cv,
+  qPts: ArrayLike<number>,
+  cDesc: Cv,
+  cPts: ArrayLike<number>,
+  queryW: number,
+  queryH: number,
+  candW: number,
+  candH: number,
+): Promise<OrbVerifyResult> {
+  const fail = (rejected: OrbVerifyResult["rejected"], good = 0): OrbVerifyResult => ({
+    good,
+    inliers: 0,
+    rejected,
+  });
+
+  if (qDesc.rows === 0 || cDesc.rows === 0) return fail("no-descriptors");
 
   // knnMatch with k=2 so each candidate keypoint has a runner-up to compare
   // against — that comparison *is* the ratio test.
   const bf = new cv.BFMatcher(cv.NORM_HAMMING, false);
   const knn = new cv.DMatchVectorVector();
-  bf.knnMatch(C.desc, Q.desc, knn, 2);
+  bf.knnMatch(cDesc, qDesc, knn, 2);
 
   const srcPts: number[] = [];
   const dstPts: number[] = [];
@@ -253,10 +359,8 @@ export async function orbVerifyScore(query: ImageData, candidate: ImageData): Pr
     const m = pair.get(0);
     const n = pair.get(1);
     if (m.distance < LOWE_RATIO * n.distance) {
-      const cKp = C.kp.get(m.queryIdx).pt;
-      const qKp = Q.kp.get(m.trainIdx).pt;
-      srcPts.push(cKp.x, cKp.y);
-      dstPts.push(qKp.x, qKp.y);
+      srcPts.push(cPts[m.queryIdx * 2], cPts[m.queryIdx * 2 + 1]);
+      dstPts.push(qPts[m.trainIdx * 2], qPts[m.trainIdx * 2 + 1]);
     }
     pair.delete?.();
   }
@@ -288,7 +392,7 @@ export async function orbVerifyScore(query: ImageData, candidate: ImageData): Pr
     const hReason = saneHomographyReason(hv);
     if (inliers < MIN_INLIERS) result = { good, inliers, rejected: "too-few-inliers" };
     else if (hReason) result = { good, inliers, rejected: "insane-homography", detail: hReason };
-    else if (!saneQuad(hv, candidate.width, candidate.height, query.width, query.height)) {
+    else if (!saneQuad(hv, candW, candH, queryW, queryH)) {
       result = { good, inliers, rejected: "insane-quad" };
     } else result = { good, inliers, rejected: "none" };
   }
@@ -297,7 +401,5 @@ export async function orbVerifyScore(query: ImageData, candidate: ImageData): Pr
   inlierMask.delete();
   srcMat.delete();
   dstMat.delete();
-  release(cv, Q);
-  release(cv, C);
   return result;
 }
