@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import type { CatalogCardResult, ShoppingItem } from "./api";
+import { CardCaptureLive, isLiveCaptureSupported } from "./CardCaptureLive";
 import { CardThumb } from "./CardThumb";
 import { MarketPrice } from "./MarketPrice";
 import { resolveScanWithCatalog } from "./cardScanLookup";
@@ -147,10 +148,13 @@ export function CardScanner({
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [manual, setManual] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const liveRef = useRef(true);
+  // Computed once: getUserMedia support doesn't change mid-session.
+  const [liveSupported] = useState(isLiveCaptureSupported);
 
   useEffect(() => {
     liveRef.current = true;
@@ -161,12 +165,15 @@ export function CardScanner({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      // Step back out of the camera first; Escape again closes the dialog.
+      if (cameraOpen) setCameraOpen(false);
+      else onClose();
     };
     window.addEventListener("keydown", onKey);
     dialogRef.current?.focus();
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, cameraOpen]);
 
   const lookupCard = useCallback(async (cardId: string) => {
     const rows = await api.searchCatalog({ q: cardId, limit: 1 });
@@ -268,41 +275,59 @@ export function CardScanner({
           </button>
         </div>
 
-        <div className={`scan-drop${dragging ? " dragging" : ""}`}>
-          <p className="scan-drop-hint">Drop a photo anywhere in this box, or</p>
-          <div className="scan-actions">
-            <button type="button" onClick={() => cameraRef.current?.click()}>
-              Take a photo
-            </button>
-            <button type="button" className="ghost" onClick={() => fileRef.current?.click()}>
-              Choose image
-            </button>
+        {cameraOpen ? (
+          <CardCaptureLive
+            onCapture={(blob) => {
+              setCameraOpen(false);
+              void runScan(blob);
+            }}
+            onCancel={() => setCameraOpen(false)}
+          />
+        ) : (
+          <div className={`scan-drop${dragging ? " dragging" : ""}`}>
+            <p className="scan-drop-hint">Drop a photo anywhere in this box, or</p>
+            <div className="scan-actions">
+              {liveSupported ? (
+                <button type="button" onClick={() => setCameraOpen(true)}>
+                  Scan with camera
+                </button>
+              ) : (
+                <button type="button" onClick={() => cameraRef.current?.click()}>
+                  Take a photo
+                </button>
+              )}
+              <button type="button" className="ghost" onClick={() => fileRef.current?.click()}>
+                Choose image
+              </button>
+            </div>
+            <input
+              ref={cameraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="sr-only"
+              onChange={(e) => {
+                onPick(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(e) => {
+                onPick(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
           </div>
-          <input
-            ref={cameraRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="sr-only"
-            onChange={(e) => {
-              onPick(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={(e) => {
-              onPick(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
-        </div>
+        )}
 
-        {/* Fixed-height status region so the dialog never resizes mid-scan. */}
-        <div className="scan-status" aria-live="polite">
+        {/* Fixed-height status region so the dialog never resizes mid-scan.
+            Hidden during live capture so the camera view isn't cramped by an
+            empty reserved block below it. */}
+        <div className="scan-status" aria-live="polite" hidden={cameraOpen}>
           {phase.kind === "working" && (
             <>
               <p className="scan-status-label">{phase.label}</p>
@@ -344,31 +369,35 @@ export function CardScanner({
           )}
         </div>
 
-        <ScanDiagnostics />
+        {!cameraOpen && (
+          <>
+            <ScanDiagnostics />
 
-        <form
-          className="scan-manual"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const id = manual.trim().toUpperCase();
-            if (id) void lookupCard(id);
-          }}
-        >
-          <label htmlFor="scan-manual-input">Or type the card number</label>
-          <div className="scan-manual-row">
-            <input
-              id="scan-manual-input"
-              value={manual}
-              onChange={(e) => setManual(e.target.value)}
-              placeholder="OP15-053"
-              autoComplete="off"
-              autoCapitalize="characters"
-            />
-            <button type="submit" disabled={!manual.trim()}>
-              Look up
-            </button>
-          </div>
-        </form>
+            <form
+              className="scan-manual"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const id = manual.trim().toUpperCase();
+                if (id) void lookupCard(id);
+              }}
+            >
+              <label htmlFor="scan-manual-input">Or type the card number</label>
+              <div className="scan-manual-row">
+                <input
+                  id="scan-manual-input"
+                  value={manual}
+                  onChange={(e) => setManual(e.target.value)}
+                  placeholder="OP15-053"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                />
+                <button type="submit" disabled={!manual.trim()}>
+                  Look up
+                </button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
