@@ -257,6 +257,21 @@ export function CardScanner({
 
   const need = phase.kind === "hit" ? items.find((i) => i.card_id === phase.card.card_id) : undefined;
 
+  // Full-screen rather than embedded in the dialog card: a camera preview
+  // cramped into a small padded box gives a much worse view of the card than
+  // the device's own screen can offer, and doesn't read as a viewfinder.
+  if (cameraOpen) {
+    return (
+      <CardCaptureLive
+        onCapture={(blob) => {
+          setCameraOpen(false);
+          void runScan(blob);
+        }}
+        onCancel={() => setCameraOpen(false)}
+      />
+    );
+  }
+
   return (
     <div className="scan-backdrop" role="presentation" onClick={onClose}>
       <div
@@ -275,59 +290,47 @@ export function CardScanner({
           </button>
         </div>
 
-        {cameraOpen ? (
-          <CardCaptureLive
-            onCapture={(blob) => {
-              setCameraOpen(false);
-              void runScan(blob);
-            }}
-            onCancel={() => setCameraOpen(false)}
-          />
-        ) : (
-          <div className={`scan-drop${dragging ? " dragging" : ""}`}>
-            <p className="scan-drop-hint">Drop a photo anywhere in this box, or</p>
-            <div className="scan-actions">
-              {liveSupported ? (
-                <button type="button" onClick={() => setCameraOpen(true)}>
-                  Scan with camera
-                </button>
-              ) : (
-                <button type="button" onClick={() => cameraRef.current?.click()}>
-                  Take a photo
-                </button>
-              )}
-              <button type="button" className="ghost" onClick={() => fileRef.current?.click()}>
-                Choose image
+        <div className={`scan-drop${dragging ? " dragging" : ""}`}>
+          <p className="scan-drop-hint">Drop a photo anywhere in this box, or</p>
+          <div className="scan-actions">
+            {liveSupported ? (
+              <button type="button" onClick={() => setCameraOpen(true)}>
+                Scan with camera
               </button>
-            </div>
-            <input
-              ref={cameraRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="sr-only"
-              onChange={(e) => {
-                onPick(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={(e) => {
-                onPick(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
+            ) : (
+              <button type="button" onClick={() => cameraRef.current?.click()}>
+                Take a photo
+              </button>
+            )}
+            <button type="button" className="ghost" onClick={() => fileRef.current?.click()}>
+              Choose image
+            </button>
           </div>
-        )}
+          <input
+            ref={cameraRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            onChange={(e) => {
+              onPick(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={(e) => {
+              onPick(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+        </div>
 
-        {/* Fixed-height status region so the dialog never resizes mid-scan.
-            Hidden during live capture so the camera view isn't cramped by an
-            empty reserved block below it. */}
-        <div className="scan-status" aria-live="polite" hidden={cameraOpen}>
+        {/* Fixed-height status region so the dialog never resizes mid-scan. */}
+        <div className="scan-status" aria-live="polite">
           {phase.kind === "working" && (
             <>
               <p className="scan-status-label">{phase.label}</p>
@@ -369,35 +372,31 @@ export function CardScanner({
           )}
         </div>
 
-        {!cameraOpen && (
-          <>
-            <ScanDiagnostics />
+        <ScanDiagnostics />
 
-            <form
-              className="scan-manual"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const id = manual.trim().toUpperCase();
-                if (id) void lookupCard(id);
-              }}
-            >
-              <label htmlFor="scan-manual-input">Or type the card number</label>
-              <div className="scan-manual-row">
-                <input
-                  id="scan-manual-input"
-                  value={manual}
-                  onChange={(e) => setManual(e.target.value)}
-                  placeholder="OP15-053"
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                />
-                <button type="submit" disabled={!manual.trim()}>
-                  Look up
-                </button>
-              </div>
-            </form>
-          </>
-        )}
+        <form
+          className="scan-manual"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const id = manual.trim().toUpperCase();
+            if (id) void lookupCard(id);
+          }}
+        >
+          <label htmlFor="scan-manual-input">Or type the card number</label>
+          <div className="scan-manual-row">
+            <input
+              id="scan-manual-input"
+              value={manual}
+              onChange={(e) => setManual(e.target.value)}
+              placeholder="OP15-053"
+              autoComplete="off"
+              autoCapitalize="characters"
+            />
+            <button type="submit" disabled={!manual.trim()}>
+              Look up
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

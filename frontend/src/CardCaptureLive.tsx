@@ -134,32 +134,35 @@ export function CardCaptureLive({ onCapture, onCancel }: Props) {
   }, [onCapture]);
 
   return (
-    <div className="live-capture">
-      <div className="live-video-wrap">
-        <video ref={videoRef} className="live-video" playsInline muted autoPlay />
-        {ready && (
-          <div className="live-guide-layer" aria-hidden="true">
-            <div className="live-guide-box" style={{ aspectRatio: CARD_ASPECT }}>
-              <span className="live-guide-corner tl" />
-              <span className="live-guide-corner tr" />
-              <span className="live-guide-corner bl" />
-              <span className="live-guide-corner br" />
-            </div>
+    <div className="live-capture-overlay" role="dialog" aria-modal="true" aria-label="Scan a card">
+      <video ref={videoRef} className="live-video" playsInline muted autoPlay />
+
+      {ready && (
+        <div className="live-guide-layer" aria-hidden="true">
+          <div className="live-guide-box" style={{ aspectRatio: CARD_ASPECT }}>
+            <span className="live-guide-corner tl" />
+            <span className="live-guide-corner tr" />
+            <span className="live-guide-corner bl" />
+            <span className="live-guide-corner br" />
           </div>
-        )}
-        {!ready && !error && <p className="live-status">Starting camera…</p>}
-        {error && <p className="live-status live-error">{error}</p>}
-      </div>
-      <p className="live-hint">Fill the frame with the card, then tap Capture.</p>
-      <div className="live-controls">
-        <button type="button" className="ghost" onClick={onCancel}>
+        </div>
+      )}
+      {!ready && !error && <p className="live-status">Starting camera…</p>}
+      {error && <p className="live-status live-error">{error}</p>}
+
+      <div className="live-top-bar">
+        <button type="button" className="live-cancel" onClick={onCancel}>
           Cancel
         </button>
         {torchSupported && (
-          <button type="button" className="ghost" onClick={toggleTorch}>
+          <button type="button" className="live-torch" onClick={toggleTorch}>
             {torchOn ? "Torch off" : "Torch on"}
           </button>
         )}
+      </div>
+
+      <div className="live-bottom-bar">
+        <p className="live-hint">Fill the frame with the card, then tap Capture.</p>
         <button
           type="button"
           className="live-shutter"
