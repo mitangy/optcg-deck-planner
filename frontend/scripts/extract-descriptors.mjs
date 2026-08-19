@@ -21,7 +21,14 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import jpeg from "jpeg-js";
+// Static import here, unlike the browser side which loads OpenCV lazily:
+// this script does nothing else, so there is no bundle to keep small.
 import cvModule from "@techstark/opencv-js";
+
+// Imported, not reimplemented: the client sorts candidates by comparing its
+// own hash to these, so both sides must use the same algorithm. Run via tsx
+// so this .mjs can import the TypeScript source directly.
+import { computeOrderHash } from "../src/cardOrder.ts";
 
 const N_FEATURES = 250;
 
@@ -35,16 +42,19 @@ async function getCv() {
   return mod;
 }
 
-/** One record: label, dimensions, keypoints (uint16 pairs), descriptors (32B each). */
-function encodeRecord(label, width, height, kp, desc) {
+/** One record: label, order hash, dimensions, keypoints (uint16 pairs), descriptors (32B each). */
+function encodeRecord(label, orderHash, width, height, kp, desc) {
   const labelBytes = new TextEncoder().encode(label);
+  const hashBytes = new TextEncoder().encode(orderHash);
   const n = kp.length / 2;
-  const size = 2 + labelBytes.length + 2 + 2 + 2 + n * 4 + n * 32;
+  const size = 2 + labelBytes.length + 2 + hashBytes.length + 2 + 2 + 2 + n * 4 + n * 32;
   const buf = new Uint8Array(size);
   const view = new DataView(buf.buffer);
   let o = 0;
   view.setUint16(o, labelBytes.length, true); o += 2;
   buf.set(labelBytes, o); o += labelBytes.length;
+  view.setUint16(o, hashBytes.length, true); o += 2;
+  buf.set(hashBytes, o); o += hashBytes.length;
   view.setUint16(o, width, true); o += 2;
   view.setUint16(o, height, true); o += 2;
   view.setUint16(o, n, true); o += 2;
@@ -97,7 +107,8 @@ async function main() {
       kp[i * 2] = Math.max(0, Math.min(65535, Math.round(p.x)));
       kp[i * 2 + 1] = Math.max(0, Math.min(65535, Math.round(p.y)));
     }
-    const rec = encodeRecord(entry.label, raw.width, raw.height, kp, new Uint8Array(desc.data));
+    const orderHash = computeOrderHash({ width: raw.width, height: raw.height, data: raw.data });
+    const rec = encodeRecord(entry.label, orderHash, raw.width, raw.height, kp, new Uint8Array(desc.data));
     records.push(rec);
     meta.push({ label: entry.label, cardId: entry.card_id, offset, length: rec.length });
     offset += rec.length;

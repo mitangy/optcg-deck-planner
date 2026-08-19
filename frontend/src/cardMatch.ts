@@ -1,47 +1,62 @@
-/** Prototype: ORB feature matching, to test whether it survives foil glare
- * better than block-average hashing does. Dev-only experiment — not wired
- * into production matching, and @techstark/opencv-js is a devDependency.
+/** Identify a card by matching ORB features against precomputed references.
  *
- * Two scorers live here so the harness can A/B them on identical inputs:
+ * Chosen over perceptual hashing after measurement, not preference: every
+ * global-statistics hash tried (block, colour+gradient, dHash, edge-map,
+ * ZNCC) held a roughly constant *percentile* as the reference pool grew, so
+ * the right card was never reliably near the top at catalog scale. ORB held
+ * rank 1 with margins intact across a 7.7x pool increase, including on
+ * gold-foil cards that defeat OCR, because it scores geometric agreement
+ * between two specific images rather than a position in a distribution.
  *
- *  - `orbMatchScore` — the original: count mutually-nearest descriptor pairs
- *    under a fixed Hamming threshold.
- *  - `orbVerifyScore` — the mDex/FORB verifier: Lowe ratio test, then insist
- *    a single homography explains the surviving matches, then sanity-check
- *    that homography, and score by *inlier count*. Descriptor matches lie
- *    constantly on cards (yellow borders match yellow borders); requiring one
- *    consistent perspective transform is what separates a real match from
- *    coincidence, since a wrong card produces no consensus.
+ * Descriptor matches lie constantly on cards — yellow borders match yellow
+ * borders — so a match is only believed when one homography explains it:
+ * Lowe ratio test, MAGSAC++ consensus, geometry sanity on both the matrix
+ * and the projected card corners, scored by inlier count. Measured across
+ * 3,690 wrong-card comparisons, no wrong card ever scored above zero, which
+ * is what makes an early-exit threshold safe.
  */
-import cvModule from "@techstark/opencv-js";
-import { quadArea, type Pt, type Quad } from "../cardRectify";
+import { quadArea, type Pt, type Quad } from "./cardRectify";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Cv = any;
 
 let cvPromise: Promise<Cv> | null = null;
 
+/**
+ * Load OpenCV on first use.
+ *
+ * Dynamically imported so the ~15 MB wasm build is code-split out of the
+ * initial bundle: most visits never open the scanner, and making everyone
+ * pay for it on page load would be a heavy cost for a feature they may not
+ * use. The module also initialises asynchronously, so callers must await
+ * this rather than touching `cv` directly.
+ */
 async function getCv(): Promise<Cv> {
   if (!cvPromise) {
     cvPromise = (async () => {
-      const mod = cvModule as unknown as Cv;
+      const mod = ((await import("@techstark/opencv-js")).default ?? {}) as Cv;
       if (mod instanceof Promise) return mod;
       if (mod.Mat) return mod;
       await new Promise<void>((resolve) => {
         mod.onRuntimeInitialized = () => resolve();
       });
       return mod;
-    })();
+    })().catch((err) => {
+      // Let a later attempt retry rather than caching the failure forever.
+      cvPromise = null;
+      throw err;
+    });
   }
   return cvPromise;
 }
 
-export type OrbResult = { goodMatches: number; avgDistance: number; totalMatches: number };
-
-/** Distance below this (out of a max 256 for the 32-byte ORB descriptor) counts as a real match. */
-const GOOD_MATCH_MAX_DISTANCE = 48;
-
-const ORB_FEATURES = 500;
+/**
+ * Features per card. Measured knee: 250 keeps every test photo correct at
+ * ~1.2 ms per candidate, while 150 drops to 3/6 — and it fails by rejecting
+ * everything rather than by mis-ranking, so there is no graceful degradation
+ * below this. 500 is no more accurate and 3.5x slower.
+ */
+export const ORB_FEATURES = 250;
 
 /** Lowe's ratio: keep a match only if it clearly beats the runner-up. */
 const LOWE_RATIO = 0.8;
@@ -91,34 +106,6 @@ function release(cv: Cv, e: Extracted): void {
   e.gray.delete();
   e.kp.delete();
   e.desc.delete();
-}
-
-export async function orbMatchScore(a: ImageData, b: ImageData): Promise<OrbResult> {
-  const cv = await getCv();
-  const A = extract(cv, a);
-  const B = extract(cv, b);
-
-  let goodMatches = 0;
-  let totalMatches = 0;
-  let avgDistance = Infinity;
-
-  if (A.desc.rows > 0 && B.desc.rows > 0) {
-    const bf = new cv.BFMatcher(cv.NORM_HAMMING, true);
-    const matchVec = new cv.DMatchVector();
-    bf.match(A.desc, B.desc, matchVec);
-    totalMatches = matchVec.size();
-    const distances: number[] = [];
-    for (let i = 0; i < matchVec.size(); i += 1) distances.push(matchVec.get(i).distance);
-    const good = distances.filter((d) => d <= GOOD_MATCH_MAX_DISTANCE);
-    goodMatches = good.length;
-    avgDistance = good.length ? good.reduce((s, d) => s + d, 0) / good.length : Infinity;
-    matchVec.delete();
-    bf.delete();
-  }
-
-  release(cv, A);
-  release(cv, B);
-  return { goodMatches, avgDistance, totalMatches };
 }
 
 export type OrbVerifyResult = {

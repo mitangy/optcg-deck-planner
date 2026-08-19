@@ -186,37 +186,6 @@ class CatalogStatus(BaseModel):
     notes: str = ""
 
 
-class CatalogPrintingHashTarget(BaseModel):
-    """A printing whose reference image still needs a perceptual hash computed."""
-
-    product_id: int
-    card_id: str
-    image_url: str
-
-
-class CatalogPrintingHashUpdate(BaseModel):
-    product_id: int
-    card_id: str
-    phash: str = Field(min_length=1, max_length=256)
-
-
-class CatalogPrintingHashBatch(BaseModel):
-    hashes: list[CatalogPrintingHashUpdate] = Field(max_length=5000)
-
-
-class CatalogPrintingHash(BaseModel):
-    """One entry in the client-facing scan-match manifest."""
-
-    product_id: int
-    card_id: str
-    phash: str
-
-
-class CatalogHashManifest(BaseModel):
-    version: str
-    printings: list[CatalogPrintingHash]
-
-
 class ShareCreate(BaseModel):
     kind: str = Field(default="shopping", pattern="^(shopping|deck)$")
     deck_id: int | None = None

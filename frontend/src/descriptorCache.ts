@@ -44,6 +44,9 @@ export type DescriptorManifest = {
 export type DescriptorRecord = {
   label: string;
   cardId: string;
+  /** Precomputed ordering hash — hashing thousands of references at load
+   *  time would cost far more than the matching it is meant to save. */
+  orderHash: string;
   width: number;
   height: number;
   points: Uint16Array;
@@ -196,6 +199,10 @@ export function decodeRecord(buf: ArrayBuffer, offset: number, cardId: string): 
   o += 2;
   const label = new TextDecoder().decode(bytes.subarray(o, o + labelLen));
   o += labelLen;
+  const hashLen = view.getUint16(o, true);
+  o += 2;
+  const orderHash = new TextDecoder().decode(bytes.subarray(o, o + hashLen));
+  o += hashLen;
   const width = view.getUint16(o, true);
   o += 2;
   const height = view.getUint16(o, true);
@@ -210,7 +217,7 @@ export function decodeRecord(buf: ArrayBuffer, offset: number, cardId: string): 
     o += 2;
   }
   const descriptors = bytes.subarray(o, o + n * 32);
-  return { label, cardId, width, height, points, descriptors };
+  return { label, cardId, orderHash, width, height, points, descriptors };
 }
 
 /** Read every cached record. Throws if a chunk is missing — call `ensureDescriptors` first. */

@@ -8,17 +8,16 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "hash-catalog": "tsx scripts/hash-catalog.mjs"
+    "extract-descriptors": "tsx scripts/extract-descriptors.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.66.0",
+    "@techstark/opencv-js": "^5.0.0-release.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.1.0",
-    "tesseract.js": "^7.0.0"
+    "react-router-dom": "^7.1.0"
   },
   "devDependencies": {
-    "@techstark/opencv-js": "^5.0.0-release.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",

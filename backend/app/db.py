@@ -92,37 +92,11 @@ def _ensure_deck_is_main() -> None:
         conn.execute(text(f"ALTER TABLE decks ADD COLUMN is_main BOOLEAN DEFAULT {default}"))
 
 
-def _ensure_printing_phash_columns() -> None:
-    """Add phash/phash_source on existing DBs (create_all does not alter tables)."""
-    inspector = inspect(engine)
-    if "catalog_printings" not in inspector.get_table_names():
-        return
-    existing = {col["name"] for col in inspector.get_columns("catalog_printings")}
-    additions: list[tuple[str, str]] = []
-    if "phash" not in existing:
-        additions.append(("phash", "VARCHAR(256)"))
-    if "phash_source" not in existing:
-        additions.append(("phash_source", "TEXT"))
-    if additions:
-        with engine.begin() as conn:
-            for name, typ in additions:
-                conn.execute(text(f"ALTER TABLE catalog_printings ADD COLUMN {name} {typ}"))
-
-    if "catalog_meta" not in inspector.get_table_names():
-        return
-    meta_existing = {col["name"] for col in inspector.get_columns("catalog_meta")}
-    if "phash_synced_at" not in meta_existing:
-        typ = "TIMESTAMP" if engine.dialect.name == "sqlite" else "TIMESTAMP WITH TIME ZONE"
-        with engine.begin() as conn:
-            conn.execute(text(f"ALTER TABLE catalog_meta ADD COLUMN phash_synced_at {typ}"))
-
-
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_group_buy_columns()
     _ensure_user_session_version()
     _ensure_deck_is_main()
-    _ensure_printing_phash_columns()
 
 
 def get_db() -> Generator[Session, None, None]:

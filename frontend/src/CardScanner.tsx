@@ -11,10 +11,9 @@ import type { CatalogCardResult, ShoppingItem } from "./api";
 import { CardCaptureLive, isLiveCaptureSupported } from "./CardCaptureLive";
 import { CardThumb } from "./CardThumb";
 import { MarketPrice } from "./MarketPrice";
-import { resolveScanWithCatalog } from "./cardScanLookup";
-import type { ScanConfidence } from "./cardScan";
-import { isScanEngineReady, readDroppedImage, recognizeCardText } from "./cardScanOcr";
-import type { ScanProgress } from "./cardScanOcr";
+import { matchCard } from "./cardScanMatch";
+import { loadImageForScan, readDroppedImage } from "./cardScanImage";
+import { useScanData, type ScanDataState } from "./useScanData";
 import {
   clearScanLog,
   describeDataTransfer,
@@ -27,17 +26,60 @@ import {
 type Phase =
   | { kind: "idle" }
   | { kind: "working"; label: string; progress: number }
-  | { kind: "hit"; card: CatalogCardResult; confidence: ScanConfidence }
+  | { kind: "hit"; card: CatalogCardResult; note: string | null }
   | { kind: "miss"; message: string; candidate?: string };
 
-const CONFIDENCE_NOTE: Record<ScanConfidence, string | null> = {
-  exact: null,
-  repaired: "Read corrected — check the card matches.",
-  fuzzy: "Low confidence — confirm this is the right card.",
-};
+function formatMb(bytes: number): string {
+  return `${(bytes / 1048576).toFixed(0)} MB`;
+}
 
-function progressLabel(p: ScanProgress): string {
-  return p.stage === "loading-engine" ? "Loading scanner…" : "Reading card…";
+/**
+ * Explains and gates the one-time descriptor download.
+ *
+ * Matching runs entirely on the device, which is the point — the wifi at a
+ * card show is exactly what breaks price checks — but it means the reference
+ * data has to be fetched once first. Asking plainly, with the size shown,
+ * beats either surprising the user with a large download or discovering the
+ * data is missing mid-scan at the booth.
+ */
+function ScanDataGate({
+  state,
+  onDownload,
+}: {
+  state: ScanDataState;
+  onDownload: () => void;
+}) {
+  if (state.kind === "ready") return null;
+  if (state.kind === "checking") return <p className="scan-note">Checking scan data…</p>;
+  if (state.kind === "unavailable") {
+    return <p className="scan-note scan-note-warn">Scan data unavailable: {state.message}</p>;
+  }
+  if (state.kind === "preparing") return <p className="scan-note">Preparing scan data…</p>;
+  if (state.kind === "downloading") {
+    const { bytesDone, bytesTotal, chunksDone, chunksTotal } = state.progress;
+    const pct = bytesTotal ? Math.round((bytesDone / bytesTotal) * 100) : 0;
+    return (
+      <div className="scan-note">
+        <p>
+          Downloading scan data… {pct}% ({chunksDone}/{chunksTotal})
+        </p>
+        <progress value={bytesDone} max={bytesTotal} />
+      </div>
+    );
+  }
+  const remaining = state.totalBytes - state.cachedBytes;
+  return (
+    <div className="scan-note">
+      <p>
+        Scanning works offline, but needs a one-time {formatMb(state.totalBytes)} download
+        {state.cachedBytes > 0 ? ` (${formatMb(remaining)} left)` : ""}. Best done on wifi before
+        you head out.
+      </p>
+      <button type="button" onClick={onDownload}>
+        Download scan data
+      </button>
+    </div>
+  );
 }
 
 /**
@@ -155,6 +197,7 @@ export function CardScanner({
   const liveRef = useRef(true);
   // Computed once: getUserMedia support doesn't change mid-session.
   const [liveSupported] = useState(isLiveCaptureSupported);
+  const scanData = useScanData(true);
 
   useEffect(() => {
     liveRef.current = true;
@@ -178,49 +221,56 @@ export function CardScanner({
   const lookupCard = useCallback(async (cardId: string) => {
     const rows = await api.searchCatalog({ q: cardId, limit: 1 });
     const exact = rows.find((r) => r.card_id.toUpperCase() === cardId.toUpperCase());
-    if (exact) setPhase({ kind: "hit", card: exact, confidence: "exact" });
+    if (exact) setPhase({ kind: "hit", card: exact, note: null });
     else setPhase({ kind: "miss", message: `No catalog card matches ${cardId}.` });
   }, []);
 
-  const runScan = useCallback(async (file: Blob) => {
-    setPhase({
-      kind: "working",
-      label: isScanEngineReady() ? "Reading card…" : "Loading scanner…",
-      progress: 0,
-    });
-    scanLog("scan:start", `type=${file.type || "?"} size=${file.size}`);
-    try {
-      const text = await recognizeCardText(file, (p) => {
-        if (!liveRef.current) return;
-        setPhase({ kind: "working", label: progressLabel(p), progress: p.progress });
-      });
-      scanLog("scan:ocr", `${text.trim().length} chars: ${JSON.stringify(text.trim().slice(-90))}`);
-      const outcome = await resolveScanWithCatalog(text, (q) =>
-        api.searchCatalog({ q, limit: 100 }),
-      );
-      if (!liveRef.current) return;
-      if (outcome.ok) {
-        scanLog(
-          "scan:hit",
-          `${outcome.card.card_id} (${outcome.confidence}, ${outcome.queries} queries)`,
-        );
-        setPhase({ kind: "hit", card: outcome.card, confidence: outcome.confidence });
+  const runScan = useCallback(
+    async (file: Blob) => {
+      if (scanData.state.kind !== "ready") {
+        setPhase({ kind: "miss", message: "Scan data isn't ready yet." });
         return;
       }
-      scanLog("scan:miss", `${outcome.reason}${outcome.candidate ? ` candidate=${outcome.candidate}` : ""}`);
-      const message =
-        outcome.reason === "no-card-id"
-          ? "Couldn't find a card number. Get the bottom-right corner in frame, or type it below."
-          : outcome.reason === "not-in-catalog"
-            ? `Read ${outcome.candidate}, which isn't in the catalog.`
-            : "Read was ambiguous — try again with less glare, or type the number below.";
-      setPhase({ kind: "miss", message, candidate: outcome.candidate });
-    } catch (err) {
-      scanLog("scan:error", err);
-      if (!liveRef.current) return;
-      setPhase({ kind: "miss", message: (err as Error).message || "Scan failed." });
-    }
-  }, []);
+      const candidates = scanData.state.candidates;
+      setPhase({ kind: "working", label: "Matching card…", progress: 0 });
+      scanLog("scan:start", `type=${file.type || "?"} size=${file.size}`);
+      try {
+        const photo = await loadImageForScan(file);
+        const match = await matchCard(photo, candidates, (examined, total) => {
+          if (!liveRef.current) return;
+          setPhase({ kind: "working", label: "Matching card…", progress: examined / total });
+        });
+        if (!liveRef.current) return;
+        if (!match) {
+          setPhase({
+            kind: "miss",
+            message: "No match. Fill the frame with the card and avoid glare, or type the number below.",
+          });
+          return;
+        }
+        const rows = await api.searchCatalog({ q: match.cardId, limit: 1 });
+        if (!liveRef.current) return;
+        const card = rows.find((r) => r.card_id.toUpperCase() === match.cardId.toUpperCase());
+        if (!card) {
+          setPhase({ kind: "miss", message: `Matched ${match.cardId}, which isn't in the catalog.` });
+          return;
+        }
+        // A real match scores far above everything else, so a thin margin is
+        // worth surfacing rather than presenting as certain.
+        const thin = match.inliers - match.runnerUp < 5;
+        setPhase({
+          kind: "hit",
+          card,
+          note: thin ? "Close call — check this is the right card." : null,
+        });
+      } catch (err) {
+        scanLog("scan:error", err);
+        if (!liveRef.current) return;
+        setPhase({ kind: "miss", message: (err as Error).message || "Scan failed." });
+      }
+    },
+    [scanData.state],
+  );
 
   const onPick = (file: File | undefined) => {
     if (file) void runScan(file);
@@ -290,19 +340,34 @@ export function CardScanner({
           </button>
         </div>
 
+        <ScanDataGate state={scanData.state} onDownload={scanData.download} />
+
         <div className={`scan-drop${dragging ? " dragging" : ""}`}>
           <p className="scan-drop-hint">Drop a photo anywhere in this box, or</p>
           <div className="scan-actions">
             {liveSupported ? (
-              <button type="button" onClick={() => setCameraOpen(true)}>
+              <button
+                type="button"
+                onClick={() => setCameraOpen(true)}
+                disabled={scanData.state.kind !== "ready"}
+              >
                 Scan with camera
               </button>
             ) : (
-              <button type="button" onClick={() => cameraRef.current?.click()}>
+              <button
+                type="button"
+                onClick={() => cameraRef.current?.click()}
+                disabled={scanData.state.kind !== "ready"}
+              >
                 Take a photo
               </button>
             )}
-            <button type="button" className="ghost" onClick={() => fileRef.current?.click()}>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => fileRef.current?.click()}
+              disabled={scanData.state.kind !== "ready"}
+            >
               Choose image
             </button>
           </div>
@@ -361,9 +426,7 @@ export function CardScanner({
                       : `Covered — you own ${need.owned} of ${need.need}`
                     : "Not in any of your decks"}
                 </p>
-                {CONFIDENCE_NOTE[phase.confidence] && (
-                  <p className="scan-hit-warn">{CONFIDENCE_NOTE[phase.confidence]}</p>
-                )}
+                {phase.note && <p className="scan-hit-warn">{phase.note}</p>}
                 <a href={phase.card.tcgplayer_url} target="_blank" rel="noreferrer">
                   View on TCGPlayer
                 </a>

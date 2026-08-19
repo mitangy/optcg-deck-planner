@@ -1,0 +1,69 @@
+name: Scan descriptors
+
+# Deliberately NOT part of the nightly catalog sync. Prices change daily;
+# card art does not. Descriptors only need regenerating when new printings
+# appear — a few times a year — and this job downloads thousands of images,
+# which would make an already fragile free-tier nightly workflow much worse.
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max printings to process (blank = all)"
+        required: false
+        default: ""
+  schedule:
+    # Monthly, well after a set release would have landed in the catalog.
+    - cron: "0 5 1 * *"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Fetch reference card images
+        working-directory: frontend
+        env:
+          LIMIT: ${{ inputs.limit }}
+        run: node scripts/fetch-reference-images.mjs .scan-build/refs
+
+      - name: Extract descriptors
+        working-directory: frontend
+        run: |
+          mkdir -p .scan-build/desc
+          npm run extract-descriptors -- .scan-build/refs .scan-build/desc
+
+      - name: Summarise
+        working-directory: frontend
+        run: |
+          echo "### Scan descriptor bundle" >> "$GITHUB_STEP_SUMMARY"
+          node -e '
+            const m = require("./.scan-build/desc/descriptors.manifest.json");
+            const mb = (m.totalBytes / 1048576).toFixed(1);
+            console.log(`- format: ${m.formatVersion}`);
+            console.log(`- printings: ${m.totalRecords}`);
+            console.log(`- chunks: ${m.chunks.length} (${mb} MB total)`);
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+      # Published as an artifact rather than deployed: where these are served
+      # from is still an open decision (static hosting has deployment size
+      # limits, and serving them from the API instance would be slow). The
+      # artifact makes the bundle available and reviewable without committing
+      # tens of megabytes of binary to the repo.
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-descriptors
+          path: frontend/.scan-build/desc
+          retention-days: 30

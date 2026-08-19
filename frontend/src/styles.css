@@ -3667,6 +3667,34 @@ button.ghost.scan-open:hover {
   color: var(--warn);
 }
 
+/* One-time descriptor download prompt and progress. Reserves its own space
+   above the drop zone so appearing/disappearing never shifts the buttons
+   under a tapping finger. */
+.scan-note {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 0.85rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.03));
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.scan-note p {
+  margin: 0;
+}
+
+.scan-note progress {
+  width: 100%;
+  height: 0.5rem;
+}
+
+.scan-note-warn {
+  color: var(--warn);
+}
+
 .scan-manual {
   border-top: 1px solid var(--line);
   padding-top: 0.85rem;

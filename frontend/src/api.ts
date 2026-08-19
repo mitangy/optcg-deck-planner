@@ -95,17 +95,6 @@ export type CatalogCardResult = {
   group_name: string;
 };
 
-export type CatalogPrintingHash = {
-  product_id: number;
-  card_id: string;
-  phash: string;
-};
-
-export type CatalogHashManifest = {
-  version: string;
-  printings: CatalogPrintingHash[];
-};
-
 export type CardView = {
   card_id: string;
   name: string;
@@ -434,7 +423,6 @@ export const api = {
     }),
   recentSales: (productId: number, limit = 3) =>
     request<RecentSalesResponse>(`/catalog/sales/${productId}?limit=${limit}`),
-  hashManifest: () => request<CatalogHashManifest>("/catalog/printings/hashes"),
   getShoppingShare: () => request<ShareInfo | null>("/share/shopping"),
   createShare: (body: { kind?: string; deck_id?: number; deck_ids?: number[] }) =>
     request<ShareInfo>("/share", {

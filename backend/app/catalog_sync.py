@@ -266,8 +266,8 @@ def sync_catalog(db: Session) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
 
     # Upsert by (card_id, product_id) rather than delete-all-then-insert, so a
-    # printing's id (and any phash computed for it) survives across syncs —
-    # only rows TCGCSV no longer lists are removed, at the end.
+    # printing's id survives across syncs — only rows TCGCSV no longer lists
+    # are removed, at the end.
     existing_printings = {
         (row.card_id, row.product_id): row for row in db.scalars(select(CatalogPrinting)).all()
     }
