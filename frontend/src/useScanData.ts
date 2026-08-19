@@ -22,11 +22,19 @@ import {
 } from "./cardScanMatch";
 
 /**
+ * Path prefix every blob is stored under. Owned here rather than folded into
+ * the configured URL so both sides agree by construction — it must match
+ * PREFIX in scripts/upload-descriptors.mjs.
+ */
+const SCAN_DATA_PREFIX = "scan-data";
+
+/**
  * Where the chunked descriptor bundle lives.
  *
- * Blob storage in production, set via VITE_SCAN_DATA_BASE; falls back to a
- * local path so `npm run extract-descriptors` output can be served straight
- * out of public/ during development.
+ * VITE_SCAN_DATA_BASE is the *root* of the store — e.g. a blob storage
+ * origin — with the prefix appended here. Empty by default, which resolves
+ * to a same-origin `/scan-data`, so a locally generated bundle in public/ is
+ * picked up by `npm run dev` with no configuration.
  *
  * Not committed and not served by the API: ~55 MB of descriptors are a build
  * artifact, not source, so keeping them in git would grow the repo
@@ -34,7 +42,11 @@ import {
  * immutable by construction — every chunk filename is a hash of its
  * contents — so a CDN can cache them indefinitely.
  */
-const SCAN_DATA_BASE = (import.meta.env.VITE_SCAN_DATA_BASE as string | undefined) || "/scan-data";
+const SCAN_DATA_ROOT = ((import.meta.env.VITE_SCAN_DATA_BASE as string | undefined) || "").replace(
+  /\/+$/,
+  "",
+);
+const SCAN_DATA_BASE = `${SCAN_DATA_ROOT}/${SCAN_DATA_PREFIX}`;
 const MANIFEST_URL = `${SCAN_DATA_BASE}/descriptors.manifest.json`;
 
 export type ScanDataState =

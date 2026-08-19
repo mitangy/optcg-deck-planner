@@ -92,7 +92,10 @@ async function main() {
   });
 
   console.log(`uploaded ${uploaded} chunks (${(bytes / 1048576).toFixed(1)} MB) + manifest`);
-  console.log(`\nSet VITE_SCAN_DATA_BASE to:\n  ${manifestRes.url.replace(`/${manifestName}`, "")}`);
+  // The store root, without the prefix: the client appends that itself, so
+  // both sides cannot drift apart.
+  const root = manifestRes.url.replace(`/${PREFIX}/${manifestName}`, "");
+  console.log(`\nSet VITE_SCAN_DATA_BASE to:\n  ${root}`);
 }
 
 main().catch((err) => {

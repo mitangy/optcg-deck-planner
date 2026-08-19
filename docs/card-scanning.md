@@ -83,8 +83,11 @@ which also means the bundle can be refreshed without redeploying.
    secrets. Without it the workflow still runs and publishes the bundle as a
    downloadable artifact, but skips the upload.
 3. **Set `VITE_SCAN_DATA_BASE`** in the Vercel project's environment
-   variables to the uploaded bundle's base URL. The upload script prints it,
-   e.g. `https://<store>.public.blob.vercel-storage.com/scan-data`.
+   variables to the store *root* — e.g.
+   `https://<store>.public.blob.vercel-storage.com`, which the upload script
+   prints. The `scan-data/` prefix is appended by the client, so it is not
+   part of this value. Vite inlines `VITE_*` at build time, so redeploy after
+   changing it.
 
 Until step 3 is done the scanner shows "Scan data unavailable" rather than
 failing silently — matching cannot work without the descriptors.
@@ -107,9 +110,13 @@ node scripts/fetch-reference-images.mjs .scan-build/refs   # LIMIT=200 to sample
 npm run extract-descriptors -- .scan-build/refs public/scan-data
 ```
 
-`public/scan-data/` is gitignored, and `VITE_SCAN_DATA_BASE` defaults to
-`/scan-data`, so a local bundle is picked up by `npm run dev` with no further
-configuration.
+`public/scan-data/` is gitignored, and `VITE_SCAN_DATA_BASE` is empty by
+default — resolving to a same-origin `/scan-data` — so a local bundle is
+picked up by `npm run dev` with no further configuration.
+
+Node 20+ is required: `@vercel/blob` declares it, and on Node 18 the upload
+fails inside undici with a message that points at Node internals rather than
+the version.
 
 ## Why chunks are content-addressed
 
