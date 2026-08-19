@@ -21,8 +21,16 @@ import {
   type ScanCandidate,
 } from "./cardScanMatch";
 
-/** Where the chunked descriptor bundle lives. Static assets, immutable by hash. */
-const SCAN_DATA_BASE = "/dev-fixtures/desc";
+/**
+ * Where the chunked descriptor bundle lives.
+ *
+ * Served as static assets from the frontend's own origin (Vercel's CDN),
+ * not from the API: it is immutable data by construction — every chunk
+ * filename is a hash of its contents — and routing tens of megabytes through
+ * the API instance would be slow for no benefit. Regenerate with the
+ * scan-descriptors workflow.
+ */
+const SCAN_DATA_BASE = "/scan-data";
 const MANIFEST_URL = `${SCAN_DATA_BASE}/descriptors.manifest.json`;
 
 export type ScanDataState =
