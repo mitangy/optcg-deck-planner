@@ -29,3 +29,7 @@ dist-ssr
 # the web for testing — not ours to redistribute, and not needed by anyone
 # who isn't actively running the validation harness).
 public/dev-fixtures/
+
+# Scan descriptor build scratch: downloaded card art and generated
+# bundles. Regenerate with the scan-descriptors workflow; never source.
+.scan-build/

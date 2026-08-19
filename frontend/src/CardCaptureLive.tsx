@@ -35,8 +35,68 @@ type Props = {
   onCancel: () => void;
 };
 
+/**
+ * Keep a thin ring of background around the guide when cropping.
+ *
+ * Cropping flush to the guide would hand the matcher a card with no border,
+ * and `findCardQuad` separates the card from its surroundings by sampling
+ * the image edge — with nothing but card there, it has nothing to key off.
+ * A small margin keeps rectification working while still discarding the
+ * table, fingers and neighbouring cards.
+ */
+const GUIDE_CROP_MARGIN = 0.06;
+
+/**
+ * Map the on-screen guide box into the video's own pixel coordinates.
+ *
+ * The preview is `object-fit: cover`, so the frame is scaled up to fill the
+ * element and the overflow is cropped evenly on both axes — neither of which
+ * is visible in element coordinates. Both have to be undone, or the crop
+ * lands somewhere other than where the user framed the card.
+ *
+ * Falls back to the whole frame if the guide has not been laid out yet.
+ */
+export function guideCropInVideoSpace(
+  video: HTMLVideoElement,
+  guide: HTMLElement | null,
+): { x: number; y: number; width: number; height: number } {
+  const full = { x: 0, y: 0, width: video.videoWidth, height: video.videoHeight };
+  const box = video.getBoundingClientRect();
+  const g = guide?.getBoundingClientRect();
+  if (!g || !g.width || !g.height || !box.width || !box.height) return full;
+
+  const scale = Math.max(box.width / video.videoWidth, box.height / video.videoHeight);
+  if (!Number.isFinite(scale) || scale <= 0) return full;
+  const shownW = video.videoWidth * scale;
+  const shownH = video.videoHeight * scale;
+  const hiddenX = (shownW - box.width) / 2;
+  const hiddenY = (shownH - box.height) / 2;
+
+  const marginX = g.width * GUIDE_CROP_MARGIN;
+  const marginY = g.height * GUIDE_CROP_MARGIN;
+  const left = g.left - box.left - marginX;
+  const top = g.top - box.top - marginY;
+
+  const x = (left + hiddenX) / scale;
+  const y = (top + hiddenY) / scale;
+  const width = (g.width + marginX * 2) / scale;
+  const height = (g.height + marginY * 2) / scale;
+
+  // Clamp so a guide larger than the frame cannot ask for pixels that do not
+  // exist, which would make drawImage silently produce a blank canvas.
+  const cx = Math.max(0, Math.min(x, video.videoWidth));
+  const cy = Math.max(0, Math.min(y, video.videoHeight));
+  return {
+    x: cx,
+    y: cy,
+    width: Math.max(1, Math.min(width, video.videoWidth - cx)),
+    height: Math.max(1, Math.min(height, video.videoHeight - cy)),
+  };
+}
+
 export function CardCaptureLive({ onCapture, onCancel }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const guideRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
   const [ready, setReady] = useState(false);
@@ -116,12 +176,24 @@ export function CardCaptureLive({ onCapture, onCancel }: Props) {
   const capture = useCallback(() => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return;
+    const crop = guideCropInVideoSpace(video, guideRef.current);
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = Math.round(crop.width);
+    canvas.height = Math.round(crop.height);
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(
+      video,
+      crop.x,
+      crop.y,
+      crop.width,
+      crop.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+    scanLog("live:crop", `guide ${Math.round(crop.width)}x${Math.round(crop.height)} of ${video.videoWidth}x${video.videoHeight}`);
     canvas.toBlob(
       (blob) => {
         if (!blob) return;
@@ -139,7 +211,7 @@ export function CardCaptureLive({ onCapture, onCancel }: Props) {
 
       {ready && (
         <div className="live-guide-layer" aria-hidden="true">
-          <div className="live-guide-box" style={{ aspectRatio: CARD_ASPECT }}>
+          <div ref={guideRef} className="live-guide-box" style={{ aspectRatio: CARD_ASPECT }}>
             <span className="live-guide-corner tl" />
             <span className="live-guide-corner tr" />
             <span className="live-guide-corner bl" />
