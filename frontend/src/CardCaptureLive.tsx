@@ -112,9 +112,10 @@ export function CardCaptureLive({ onCapture, onCancel }: Props) {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
-            // Ask for plenty of resolution — the collector number is small
-            // even inside the guide. cardScanOcr's own cap keeps whatever
-            // comes back from becoming a memory problem.
+            // Ask for plenty of resolution: the guide crop keeps only ~15%
+            // of the frame, so the card's own detail is what survives.
+            // cardScanImage caps the working size, so a large capture costs
+            // nothing downstream.
             width: { ideal: 1920 },
             height: { ideal: 1920 },
           },

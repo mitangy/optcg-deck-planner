@@ -1,15 +1,17 @@
 /** Dev-only page: runs the production scan pipeline over fixture photos.
  *
- * Visit /dev/scan-validate locally. Photos and the descriptor bundle live in
- * public/dev-fixtures/ (gitignored); regenerate with
- * `npm run extract-descriptors -- public/dev-fixtures/refs public/dev-fixtures/desc`.
+ * Visit /dev/scan-validate locally. Needs a descriptor bundle in
+ * public/scan-data (see docs/card-scanning.md) and fixture photos under
+ * public/dev-fixtures/user/ — both gitignored, so supply your own photos.
  */
 
 import { useEffect, useState } from "react";
 import { runScanValidation, type ScanCase, type ScanCaseResult } from "./scanValidate";
 
-const MANIFEST_URL = "/dev-fixtures/desc/descriptors.manifest.json";
-const BASE_URL = "/dev-fixtures/desc";
+// The same bundle the app uses, so this exercises the real path rather
+// than a parallel copy that could drift.
+const BASE_URL = "/scan-data";
+const MANIFEST_URL = `${BASE_URL}/descriptors.manifest.json`;
 
 /** Real phone photos: two gold-foil SEC cards, three lying sideways. */
 const CASES: ScanCase[] = [

@@ -8,9 +8,9 @@ description: Test the dev app on a real phone over LAN Wi-Fi — camera capture,
 Emulating a phone in a desktop browser (device toolbar, resize_window) only
 changes the viewport — it does not exercise a real camera, real HEIC photos,
 real glare, or Mobile Safari's actual API behavior. For the card scanner in
-particular, every real bug found so far (a doubled OCR letter, corner
-detection latching onto a monitor bezel, gold-foil cards defeating OCR) only
-showed up with a genuine phone photo. Emulation would have shipped all of
+particular, every real bug found so far (corner detection latching onto a
+monitor bezel, rectification failing on close-ups where the card fills the
+frame, gold-foil glare) only showed up with a genuine phone photo. Emulation would have shipped all of
 them. Test on a real device before trusting a camera-facing change.
 
 ## Quick start
@@ -87,14 +87,23 @@ directly in the browser console (Browser pane → `javascript_tool`) — no
 simulator needed:
 
 ```js
-const ocr = await import('/src/cardScanOcr.ts');
-const lookup = await import('/src/cardScanLookup.ts');
+const cache = await import('/src/descriptorCache.ts');
+const match = await import('/src/cardScanMatch.ts');
+const img = await import('/src/cardScanImage.ts');
+
+// Needs a descriptor bundle in public/scan-data — see docs/card-scanning.md.
+const manifest = await (await fetch('/scan-data/descriptors.manifest.json')).json();
+await cache.ensureDescriptors(manifest, '/scan-data');
+const candidates = await match.loadCandidates(manifest);
+
 const blob = await (await fetch('/path/to/photo.jpg')).blob();
-const text = await ocr.recognizeCardText(blob);
-const result = await lookup.resolveScanWithCatalog(text, q =>
-  fetch(`http://localhost:8000/catalog/cards?q=${q}&limit=100`, { credentials: 'include' }).then(r => r.json())
-);
+const result = await match.matchCard(await img.loadImageForScan(blob), candidates);
+// { cardId, inliers, examined, runnerUp } — inliers >= 10 is a confident match.
+await match.releaseCandidates(candidates);
 ```
+
+There is also a dev-only page at `/dev/scan-validate` that runs this over a
+set of fixture photos and reports per-case results.
 
 HEIC photos (the default iPhone format) need converting first —
 `sips -s format jpeg photo.HEIC --out photo.jpg` on macOS. This is the method
