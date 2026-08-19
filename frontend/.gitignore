@@ -33,3 +33,8 @@ public/dev-fixtures/
 # Scan descriptor build scratch: downloaded card art and generated
 # bundles. Regenerate with the scan-descriptors workflow; never source.
 .scan-build/
+
+# Descriptor bundle: a build artifact, uploaded to blob storage by the
+# scan-descriptors workflow rather than committed. Regenerate locally with
+# npm run extract-descriptors to develop against it.
+public/scan-data/

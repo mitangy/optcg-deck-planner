@@ -19,6 +19,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # Job-level so the publish step's `if:` can see it — a step's own `env:`
+    # is not in scope when its condition is evaluated.
+    env:
+      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -56,12 +60,19 @@ jobs:
             console.log(`- chunks: ${m.chunks.length} (${mb} MB total)`);
           ' >> "$GITHUB_STEP_SUMMARY"
 
-      # Published as an artifact rather than deployed: where these are served
-      # from is still an open decision (static hosting has deployment size
-      # limits, and serving them from the API instance would be slow). The
-      # artifact makes the bundle available and reviewable without committing
-      # tens of megabytes of binary to the repo.
-      - name: Upload bundle
+      # Published to blob storage rather than committed: ~55 MB regenerated
+      # whenever a set releases would grow the repo permanently, and it cannot
+      # be built during a deploy (it needs thousands of image downloads).
+      # Uploading here also means refreshing the bundle does not require a
+      # redeploy.
+      - name: Publish to blob storage
+        if: env.BLOB_READ_WRITE_TOKEN != ''
+        working-directory: frontend
+        run: npm run upload-descriptors -- .scan-build/desc
+
+      # Kept as a fallback so a run without the token still produces something
+      # usable, and so a bundle can be inspected before it is published.
+      - name: Upload bundle artifact
         uses: actions/upload-artifact@v4
         with:
           name: scan-descriptors

@@ -24,13 +24,17 @@ import {
 /**
  * Where the chunked descriptor bundle lives.
  *
- * Served as static assets from the frontend's own origin (Vercel's CDN),
- * not from the API: it is immutable data by construction — every chunk
- * filename is a hash of its contents — and routing tens of megabytes through
- * the API instance would be slow for no benefit. Regenerate with the
- * scan-descriptors workflow.
+ * Blob storage in production, set via VITE_SCAN_DATA_BASE; falls back to a
+ * local path so `npm run extract-descriptors` output can be served straight
+ * out of public/ during development.
+ *
+ * Not committed and not served by the API: ~55 MB of descriptors are a build
+ * artifact, not source, so keeping them in git would grow the repo
+ * permanently for data that is regenerated whenever a set releases. They are
+ * immutable by construction — every chunk filename is a hash of its
+ * contents — so a CDN can cache them indefinitely.
  */
-const SCAN_DATA_BASE = "/scan-data";
+const SCAN_DATA_BASE = (import.meta.env.VITE_SCAN_DATA_BASE as string | undefined) || "/scan-data";
 const MANIFEST_URL = `${SCAN_DATA_BASE}/descriptors.manifest.json`;
 
 export type ScanDataState =
