@@ -118,35 +118,46 @@ async function main() {
     if (done % 50 === 0) console.log(`  ${done}/${index.length}`);
   }
 
-  // Split into chunks, restating each record's offset relative to its own
-  // chunk so a client can use a chunk without holding the others.
+  // Group into chunks by *set*, then content-address each chunk.
   //
-  // Chunks are content-addressed: the filename *is* the hash of the bytes.
-  // The catalog syncs nightly, so a single global version would invalidate
-  // every cached chunk whenever one card was added, forcing a full
-  // re-download for a handful of new cards. With content addressing an
-  // unchanged chunk keeps its name, the client already has it, and only
-  // genuinely new or changed chunks are fetched. It also makes the files
+  // Grouping must key off something stable in the record, not its position:
+  // slicing a sorted list into fixed-size chunks means a new set inserting in
+  // the middle shifts every later record into a different chunk, changing
+  // every hash and forcing a full re-download — measured, it invalidated
+  // 100% of chunks. Keyed by set, adding OP12-999 rewrites only the OP12
+  // chunk. Content addressing then makes unchanged chunks keep their
+  // filenames, so the client refetches just the difference, and the files are
   // safely immutable for CDN caching.
+  const bySet = new Map();
+  records.forEach((rec, i) => {
+    const set = meta[i].cardId.split("-")[0] || "misc";
+    if (!bySet.has(set)) bySet.set(set, []);
+    bySet.get(set).push({ rec, meta: meta[i] });
+  });
+
   const chunks = [];
   let total = 0;
-  for (let start = 0; start < records.length; start += CHUNK_RECORDS) {
-    const slice = records.slice(start, start + CHUNK_RECORDS);
-    const size = slice.reduce((s, r) => s + r.length, 0);
-    const buf = new Uint8Array(size);
-    const entries = [];
-    let p = 0;
-    slice.forEach((r, i) => {
-      const m = meta[start + i];
-      entries.push({ label: m.label, cardId: m.cardId, offset: p, length: r.length });
-      buf.set(r, p);
-      p += r.length;
-    });
-    const hash = createHash("sha256").update(buf).digest("hex").slice(0, 16);
-    const file = `descriptors-${hash}.bin`;
-    writeFileSync(join(outDir, file), buf);
-    chunks.push({ file, hash, bytes: size, records: entries });
-    total += size;
+  for (const set of [...bySet.keys()].sort()) {
+    const group = bySet.get(set);
+    // Split oversized sets so no single chunk is unwieldy; a change then
+    // touches one part rather than the whole set.
+    for (let start = 0; start < group.length; start += CHUNK_RECORDS) {
+      const slice = group.slice(start, start + CHUNK_RECORDS);
+      const size = slice.reduce((s, x) => s + x.rec.length, 0);
+      const buf = new Uint8Array(size);
+      const entries = [];
+      let p = 0;
+      for (const { rec, meta: m } of slice) {
+        entries.push({ label: m.label, cardId: m.cardId, offset: p, length: rec.length });
+        buf.set(rec, p);
+        p += rec.length;
+      }
+      const hash = createHash("sha256").update(buf).digest("hex").slice(0, 16);
+      const file = `descriptors-${hash}.bin`;
+      writeFileSync(join(outDir, file), buf);
+      chunks.push({ file, hash, set, bytes: size, records: entries });
+      total += size;
+    }
   }
 
   // formatVersion invalidates everything on a *format* change (different
