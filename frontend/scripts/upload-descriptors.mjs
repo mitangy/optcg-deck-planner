@@ -20,7 +20,25 @@ import { put } from "@vercel/blob";
 /** Everything lives under one prefix so a stale bundle can be identified. */
 const PREFIX = "scan-data";
 
+/**
+ * @vercel/blob requires Node >= 20. On Node 18 it fails deep inside undici
+ * with "The stream argument must be an instance of Stream. Received an
+ * instance of ReadableStream", which says nothing about the actual cause —
+ * so check up front rather than let that surface.
+ */
+function requireNode20() {
+  const major = Number(process.versions.node.split(".")[0]);
+  if (major >= 20) return;
+  console.error(
+    `Node ${process.versions.node} is too old — @vercel/blob needs >= 20.\n` +
+      `Run this with a newer Node, e.g.:\n` +
+      `  nvm use 20   (or: npx -y node@20 scripts/upload-descriptors.mjs <bundleDir>)`,
+  );
+  process.exit(1);
+}
+
 async function main() {
+  requireNode20();
   const dir = process.argv[2];
   if (!dir) {
     console.error("usage: upload-descriptors.mjs <bundleDir>");
