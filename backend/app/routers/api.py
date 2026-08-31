@@ -33,6 +33,7 @@ from app.schemas import (
     GroupBuyInvitePreview,
     GroupBuyLineOverrideUpdate,
     GroupBuyOrderUpdate,
+    GroupBuyPublicUpdate,
     GroupBuyQtyUpdate,
     GroupBuyReceiptApplyRequest,
     GroupBuyReceiptMatchReport,
@@ -384,6 +385,35 @@ def public_group_buy_invite(
         return group_buy.invite_preview(db, token)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/public/group-buys/{token}/view", response_model=GroupBuyDetail)
+def public_group_buy_view(
+    token: str,
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Unauthenticated read-only group buy when the host enabled public view."""
+    try:
+        return group_buy.public_group_buy_view(db, token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.put("/group-buys/{group_id}/public", response_model=GroupBuyDetail)
+def put_group_buy_public(
+    group_id: int,
+    body: GroupBuyPublicUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.set_public(db, user, group_id, body.is_public)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 @router.put("/group-buys/{group_id}/contribution", response_model=GroupBuyDetail)

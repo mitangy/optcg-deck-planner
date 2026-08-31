@@ -475,3 +475,45 @@ def test_group_buy_remaining_allocates_alt_wants_not_whole_line(db, two_players)
     # Header total includes OP01-002 as well (host 2×$1 + friend 3×$1 = 5).
     assert detail.remaining_market == round(21.5 + 5.0, 2)
 
+
+def test_public_view_requires_toggle_and_is_read_only(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Public pool")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    assert created.is_public is False
+    assert created.public_path is None
+
+    with pytest.raises(PermissionError):
+        group_buy.public_group_buy_view(db, created.invite_token)
+
+    # Only the host can enable public view.
+    with pytest.raises(PermissionError):
+        group_buy.set_public(db, friend, created.id, True)
+
+    enabled = group_buy.set_public(db, host, created.id, True)
+    assert enabled.is_public is True
+    assert enabled.public_path == f"/group-buy/view/{created.invite_token}"
+    assert enabled.read_only is False  # host's authenticated view stays editable
+
+    public = group_buy.public_group_buy_view(db, created.invite_token)
+    assert public.read_only is True
+    assert public.is_host is False
+    assert public.is_public is True
+    assert public.receipt_text == ""
+    assert public.has_receipt is False
+    assert public.can_undo_purchase is False
+    assert public.member_count == 2
+    assert {line.card_id for line in public.lines} == {"OP01-001", "OP01-002"}
+    # Deck contribution filters stay private on the public payload.
+    assert all(m.deck_ids is None for m in public.members)
+
+    preview = group_buy.invite_preview(db, created.invite_token)
+    assert preview.is_public is True
+    assert preview.public_path == public.public_path
+
+    disabled = group_buy.set_public(db, host, created.id, False)
+    assert disabled.is_public is False
+    assert disabled.public_path is None
+    with pytest.raises(PermissionError):
+        group_buy.public_group_buy_view(db, created.invite_token)
+

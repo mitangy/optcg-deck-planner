@@ -47,6 +47,7 @@ import {
   GroupBuyDetailPage,
   GroupBuyJoinPage,
   GroupBuysPage,
+  PublicGroupBuyPage,
   rememberLoginNext,
 } from "./GroupBuys";
 import {
@@ -3300,6 +3301,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/share/:token" element={<PublicSharePage />} />
       <Route path="/group-buy/join/:token" element={<GroupBuyJoinPage />} />
+      <Route path="/group-buy/view/:token" element={<PublicGroupBuyPage />} />
       {import.meta.env.DEV && <Route path="/dev/scan-validate" element={<ScanValidatePage />} />}
       <Route
         path="/"

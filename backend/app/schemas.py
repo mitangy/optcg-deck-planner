@@ -231,6 +231,10 @@ class GroupBuyOrderUpdate(BaseModel):
     tax_cost: float | None = Field(default=None, ge=0, le=100000)
 
 
+class GroupBuyPublicUpdate(BaseModel):
+    is_public: bool
+
+
 class GroupBuyMemberOut(BaseModel):
     user_id: int
     display_name: str
@@ -290,6 +294,9 @@ class GroupBuySummary(BaseModel):
     host_name: str
     member_count: int
     is_host: bool
+    is_public: bool = False
+    # Present when is_public — unauthenticated read-only view path.
+    public_path: str | None = None
     unique_cards: int
     cards_still_needed: int
     remaining_market: float
@@ -313,6 +320,8 @@ class GroupBuyDetail(GroupBuySummary):
     has_receipt: bool = False
     # Host can undo the latest Mark purchased when a receipt-apply ledger exists.
     can_undo_purchase: bool = False
+    # True for unauthenticated public viewers — UI must stay read-only.
+    read_only: bool = False
 
 
 class GroupBuyInvitePreview(BaseModel):
@@ -321,6 +330,8 @@ class GroupBuyInvitePreview(BaseModel):
     member_count: int
     status: str
     invite_token: str
+    is_public: bool = False
+    public_path: str | None = None
 
 
 class GroupBuyExport(BaseModel):
