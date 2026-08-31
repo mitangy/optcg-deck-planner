@@ -377,7 +377,7 @@ def _build_lines(
 
 def _summary_fields(
     group: GroupBuy,
-    user: User,
+    user: User | None,
     lines: list[GroupBuyLineOut],
 ) -> dict:
     cards_still = sum(line.total_qty for line in lines)
@@ -385,6 +385,7 @@ def _summary_fields(
         sum(line.remaining_cost for line in lines if line.remaining_cost is not None),
         2,
     )
+    is_public = bool(getattr(group, "is_public", False))
     return {
         "id": group.id,
         "title": group.title,
@@ -394,7 +395,9 @@ def _summary_fields(
         "host_user_id": group.host_user_id,
         "host_name": _display_name(group.host),
         "member_count": len(group.members),
-        "is_host": group.host_user_id == user.id,
+        "is_host": bool(user is not None and group.host_user_id == user.id),
+        "is_public": is_public,
+        "public_path": f"/group-buy/view/{group.invite_token}" if is_public else None,
         "unique_cards": len(lines),
         "cards_still_needed": cards_still,
         "remaining_market": remaining,
@@ -402,36 +405,15 @@ def _summary_fields(
     }
 
 
-def list_group_buys(db: Session, user: User) -> list[GroupBuySummary]:
-    member_rows = db.scalars(
-        select(GroupBuyMember).where(GroupBuyMember.user_id == user.id)
-    ).all()
-    if not member_rows:
-        return []
-    group_ids = [m.group_buy_id for m in member_rows]
-    groups = db.scalars(
-        select(GroupBuy)
-        .where(GroupBuy.id.in_(group_ids))
-        .options(
-            selectinload(GroupBuy.members).selectinload(GroupBuyMember.user),
-            selectinload(GroupBuy.host),
-            selectinload(GroupBuy.snapshot_lines),
-            selectinload(GroupBuy.line_overrides),
-            selectinload(GroupBuy.qty_overrides),
-        )
-        .order_by(GroupBuy.id.desc())
-    ).all()
-    out: list[GroupBuySummary] = []
-    for group in groups:
-        lines, _ = _build_lines(db, group, viewer_user_id=user.id)
-        out.append(GroupBuySummary(**_summary_fields(group, user, lines)))
-    return out
-
-
-def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
-    group = _get_group(db, group_id)
-    _require_member(group, user)
-    lines, member_stats = _build_lines(db, group, viewer_user_id=user.id)
+def _detail_from_group(
+    db: Session,
+    group: GroupBuy,
+    user: User | None,
+    *,
+    read_only: bool = False,
+) -> GroupBuyDetail:
+    viewer_id = user.id if user is not None else 0
+    lines, member_stats = _build_lines(db, group, viewer_user_id=viewer_id)
 
     card_costs = {uid: float(stats[1]) for uid, stats in member_stats.items()}
     copies = {uid: int(stats[0]) for uid, stats in member_stats.items()}
@@ -464,7 +446,7 @@ def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
                 user_id=member.user_id,
                 display_name=_display_name(member.user),
                 role=member.role,
-                deck_ids=_parse_deck_ids(member.deck_ids_json),
+                deck_ids=_parse_deck_ids(member.deck_ids_json) if not read_only else None,
                 cards_still_needed=copies_n,
                 remaining_market=market,
                 card_cost=settle.card_cost if settle else 0.0,
@@ -473,6 +455,8 @@ def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
                 total_owed=settle.total_owed if settle else 0.0,
             )
         )
+    # Public viewers must not see host receipt paste or undo affordances.
+    receipt_text = "" if read_only else (group.receipt_text or "")
     return GroupBuyDetail(
         **_summary_fields(group, user, lines),
         members=members_out,
@@ -486,10 +470,43 @@ def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
         tax_cost=tax_cost,
         cards_subtotal=cards_subtotal,
         grand_total=round_money(cards_subtotal + shipping_cost + tax_cost),
-        receipt_text=group.receipt_text or "",
-        has_receipt=bool((group.receipt_text or "").strip()),
-        can_undo_purchase=bool(group.receipt_applies),
+        receipt_text=receipt_text,
+        has_receipt=bool(receipt_text.strip()) if not read_only else False,
+        can_undo_purchase=False if read_only else bool(group.receipt_applies),
+        read_only=read_only,
     )
+
+
+def list_group_buys(db: Session, user: User) -> list[GroupBuySummary]:
+    member_rows = db.scalars(
+        select(GroupBuyMember).where(GroupBuyMember.user_id == user.id)
+    ).all()
+    if not member_rows:
+        return []
+    group_ids = [m.group_buy_id for m in member_rows]
+    groups = db.scalars(
+        select(GroupBuy)
+        .where(GroupBuy.id.in_(group_ids))
+        .options(
+            selectinload(GroupBuy.members).selectinload(GroupBuyMember.user),
+            selectinload(GroupBuy.host),
+            selectinload(GroupBuy.snapshot_lines),
+            selectinload(GroupBuy.line_overrides),
+            selectinload(GroupBuy.qty_overrides),
+        )
+        .order_by(GroupBuy.id.desc())
+    ).all()
+    out: list[GroupBuySummary] = []
+    for group in groups:
+        lines, _ = _build_lines(db, group, viewer_user_id=user.id)
+        out.append(GroupBuySummary(**_summary_fields(group, user, lines)))
+    return out
+
+
+def get_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
+    group = _get_group(db, group_id)
+    _require_member(group, user)
+    return _detail_from_group(db, group, user, read_only=False)
 
 
 def create_group_buy(
@@ -565,13 +582,51 @@ def invite_preview(db: Session, token: str) -> GroupBuyInvitePreview:
     )
     if group is None:
         raise LookupError("Invite link not found")
+    is_public = bool(getattr(group, "is_public", False))
     return GroupBuyInvitePreview(
         title=group.title,
         host_name=_display_name(group.host),
         member_count=len(group.members),
         status=group.status,
         invite_token=group.invite_token,
+        is_public=is_public,
+        public_path=f"/group-buy/view/{group.invite_token}" if is_public else None,
     )
+
+
+def set_public(
+    db: Session,
+    user: User,
+    group_id: int,
+    is_public: bool,
+) -> GroupBuyDetail:
+    """Host toggles whether anyone with the link can view this pool read-only."""
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    group.is_public = bool(is_public)
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def public_group_buy_view(db: Session, token: str) -> GroupBuyDetail:
+    """Unauthenticated read-only detail when the host has enabled public view."""
+    group = db.scalar(
+        select(GroupBuy)
+        .where(GroupBuy.invite_token == token)
+        .options(
+            selectinload(GroupBuy.members).selectinload(GroupBuyMember.user),
+            selectinload(GroupBuy.host),
+            selectinload(GroupBuy.snapshot_lines),
+            selectinload(GroupBuy.line_overrides),
+            selectinload(GroupBuy.qty_overrides),
+            selectinload(GroupBuy.receipt_applies).selectinload(GroupBuyReceiptApply.lines),
+        )
+    )
+    if group is None:
+        raise LookupError("Group buy not found")
+    if not bool(getattr(group, "is_public", False)):
+        raise PermissionError("This group buy is not public")
+    return _detail_from_group(db, group, user=None, read_only=True)
 
 
 def update_contribution(

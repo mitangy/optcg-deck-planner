@@ -57,6 +57,9 @@ def _ensure_group_buy_columns() -> None:
         additions.append(("tax_cost", "FLOAT DEFAULT 0"))
     if "receipt_text" not in existing:
         additions.append(("receipt_text", "TEXT DEFAULT ''"))
+    if "is_public" not in existing:
+        default = "FALSE" if dialect == "postgresql" else "0"
+        additions.append(("is_public", f"BOOLEAN DEFAULT {default}"))
     if not additions:
         return
     with engine.begin() as conn:

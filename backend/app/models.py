@@ -208,6 +208,8 @@ class GroupBuy(Base):
     tax_cost: Mapped[float] = mapped_column(Float, default=0.0)
     # Last TCGPlayer receipt paste (host); survives refresh so Mark purchased can rematch.
     receipt_text: Mapped[str] = mapped_column(Text, default="")
+    # When True, anyone with the invite token can view the pool read-only (no mutations).
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     host: Mapped[User] = relationship()
     members: Mapped[list[GroupBuyMember]] = relationship(

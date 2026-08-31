@@ -273,6 +273,8 @@ export type GroupBuySummary = {
   host_name: string;
   member_count: number;
   is_host: boolean;
+  is_public?: boolean;
+  public_path?: string | null;
   unique_cards: number;
   cards_still_needed: number;
   remaining_market: number;
@@ -294,6 +296,7 @@ export type GroupBuyDetail = GroupBuySummary & {
   receipt_text?: string;
   has_receipt?: boolean;
   can_undo_purchase?: boolean;
+  read_only?: boolean;
 };
 
 export type GroupBuyInvitePreview = {
@@ -302,6 +305,8 @@ export type GroupBuyInvitePreview = {
   member_count: number;
   status: string;
   invite_token: string;
+  is_public?: boolean;
+  public_path?: string | null;
 };
 
 export type GroupBuyExport = {
@@ -448,6 +453,13 @@ export const api = {
     }),
   groupBuyInvitePreview: (token: string) =>
     request<GroupBuyInvitePreview>(`/public/group-buys/${encodeURIComponent(token)}`),
+  publicGroupBuy: (token: string) =>
+    request<GroupBuyDetail>(`/public/group-buys/${encodeURIComponent(token)}/view`),
+  setGroupBuyPublic: (id: number, is_public: boolean) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/public`, {
+      method: "PUT",
+      body: JSON.stringify({ is_public }),
+    }),
   updateGroupBuyContribution: (id: number, deck_ids: number[] | null | undefined) =>
     request<GroupBuyDetail>(`/group-buys/${id}/contribution`, {
       method: "PUT",

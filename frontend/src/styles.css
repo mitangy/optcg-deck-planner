@@ -524,6 +524,22 @@ button.ghost.danger {
   min-width: 0;
 }
 
+.group-buy-public-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  min-height: 2rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.group-buy-public-toggle input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--teal, #0f6a6a);
+}
+
 .page-head + .filter-drawer {
   margin: 0 0 0.5rem;
 }
