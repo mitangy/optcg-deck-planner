@@ -26,7 +26,7 @@ Placeholder READMEs live in `mobile/`, `game-server/`, and `packages/rules/` unt
 
 | Step | Plan | Goal |
 |------|------|------|
-| 1 | [steps/01-rules-engine.md](./steps/01-rules-engine.md) | Headless rules engine + CI simulations |
+| 1 | [steps/01-rules-engine.md](./steps/01-rules-engine.md) | Headless rules engine + CI simulations (**plan ready**) |
 | 2 | [steps/02-game-server.md](./steps/02-game-server.md) | Authoritative Colyseus duel room (tiny card subset) |
 | 3 | [steps/03-expo-client-board.md](./steps/03-expo-client-board.md) | Expo board that renders state diffs + sends intents |
 | 4 | [steps/04-matchmaking-reconnect-ranked.md](./steps/04-matchmaking-reconnect-ranked.md) | Matchmaking, reconnect, ranked ladder wiring |
