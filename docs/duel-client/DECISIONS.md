@@ -55,3 +55,9 @@ Record of durable choices. Change these only by updating this file and the affec
 ## ADR-009 — Stepwise delivery with plan gates
 
 **Decision:** Each numbered step has its own plan under `docs/duel-client/steps/`. Implementation of a step starts only after that plan’s **Ready for development** checklist is complete.
+
+## ADR-010 — Step 1 rules slice (locked at plan gate)
+
+**Decision:** Step 1 ships a **simplified OPTCG-inspired** engine (not paper-legal): primary win **life → 0**, secondary **deck-out**; **Vitest** in a **standalone** `packages/rules` package; workspaces deferred to Step 2; v1 content capped at the **6 placeholder cards** listed in `steps/01-rules-engine.md`.
+
+**Why:** Unblocks Step 2 quickly while keeping determinism and a frozen public API (`createMatch`, `applyIntent`, `getViewForPlayer`, `listLegalIntents`).
