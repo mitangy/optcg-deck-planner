@@ -58,6 +58,10 @@ Record of durable choices. Change these only by updating this file and the affec
 
 ## ADR-010 — Step 1 rules slice (locked at plan gate)
 
-**Decision:** Step 1 ships a **simplified OPTCG-inspired** engine (not paper-legal): primary win **life → 0**, secondary **deck-out**; **Vitest** in a **standalone** `packages/rules` package; workspaces deferred to Step 2; v1 content capped at the **6 placeholder cards** listed in `steps/01-rules-engine.md`.
+**Decision:** Step 1 ships a **headless engine that follows official OPTCG rules** (Rule Manual + Comprehensive Rules as authority). Victory, turn phases, DON!! economy, Life cards, and battle steps (Attack → Block → Counter → Damage → End) must match the manuals — **not** a simplified house ruleset. Content remains a **tiny placeholder card subset** so implementation stays finite; missing keywords are omitted or listed as known gaps, never replaced with contradictory shortcuts (e.g. auto-loss at 0 Life without a successful Leader battle).
 
-**Why:** Unblocks Step 2 quickly while keeping determinism and a frozen public API (`createMatch`, `applyIntent`, `getViewForPlayer`, `listLegalIntents`).
+**Tooling:** **Vitest** in a **standalone** `packages/rules` package; workspaces deferred to Step 2.
+
+**Why:** Product is a digital duel client; incorrect core rules would poison every later step. Placeholder cards keep scope bounded without sacrificing rules fidelity.
+
+**See:** `steps/01-rules-engine.md`.

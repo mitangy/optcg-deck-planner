@@ -61,9 +61,11 @@ Companion web (`frontend/`) remains the deck planner; it is **not** the duel ren
 ### 3.3 Rules package (`packages/rules`)
 
 - Pure, headless TypeScript: no React, no Colyseus imports.
-- Card definition schema (data-driven), zones, turn phases, cost payment, attack/block, win checks.
+- **Authority:** official OPTCG Rule Manual + Comprehensive Rules (card text wins when present).
+- Encodes official zones, turn phases (Refresh → Draw → DON!! → Main → End), DON!! economy (deck / cost / give), Life cards, and battle steps (Attack → Block → Counter → Damage → End).
+- Card definition schema is data-driven; Step 1 uses a tiny placeholder subset that still exercises real structure (Blocker, Counter, Stage, etc.).
 - Deterministic given `(state, intent, rng_seed)` so CI can replay matches.
-- Exhaustive unit tests + batch simulation harness.
+- Exhaustive unit tests + batch simulation harness; README must list known gaps vs comprehensive rules (never silent house rules).
 
 ### 3.4 Meta API (`backend/`)
 

@@ -3,14 +3,15 @@
 **Status:** `ready for development`  
 **Depends on:** None  
 **Unblocks:** Step 2  
-**Branch for implementation:** prefer `cursor/duel-rules-engine-afeb` (or continue on current planning branch if preferred)
+**Branch for implementation:** prefer `cursor/duel-rules-engine-afeb`
 
 ## Ready for development (gate)
 
 | Gate item | Decision |
 |-----------|----------|
 | Goal / acceptance match product B | Yes — headless authoritative rules only |
-| v1 card subset agreed | Yes — see § Card subset (6 definitions, placeholder IPs) |
+| Rules fidelity | **Official OPTCG** (Rule Manual + Comprehensive Rules) — not a house ruleset |
+| v1 card subset agreed | Yes — tiny **placeholder** cards that exercise official structure (see § Card subset) |
 | Owner / CI command | Implementer of this step; CI = `cd packages/rules && npm test` and `npm run sim` |
 | Open questions resolved | Yes — see § Decisions locked |
 
@@ -23,9 +24,18 @@
 
 ## Goal
 
-Ship a **headless, deterministic** TypeScript package that can run a complete two-player duel using a **tiny OPTCG-inspired subset**, with unit tests and a batch simulator. No UI. No network.
+Ship a **headless, deterministic** TypeScript package that runs a complete two-player duel under **official ONE PIECE CARD GAME (OPTCG) rules**, using a tiny placeholder card subset for tests/sims. No UI. No network.
 
-Success looks like: Step 2 can `import { createMatch, applyIntent, getViewForPlayer } from '@optcg/rules'` (final package name TBD in § Package identity) and drive a room without re-implementing legality.
+Success looks like: Step 2 can import `createMatch`, `applyIntent`, `getViewForPlayer`, `listLegalIntents` and drive a room without re-implementing legality — and a rules question can be answered by pointing at Bandai’s manuals plus this engine’s tests.
+
+**Authority order (when implementing):**
+
+1. Card text on a definition (once real cards exist)
+2. [Comprehensive Rules](https://en.onepiece-cardgame.com/pdf/rule_comprehensive.pdf) (or current official comprehensive PDF)
+3. [Official Rule Manual](https://en.onepiece-cardgame.com/pdf/rule_manual.pdf) / play guide
+4. This plan’s clarifications for engine encoding only (never silent house rules)
+
+If the engine must approximate because a rule is underspecified in code yet, document it under **Rules clarifications** and add a test; do **not** invent shortcuts that contradict the manuals (e.g. “life hits 0 → instant loss” is **wrong** in OPTCG).
 
 ---
 
@@ -33,109 +43,125 @@ Success looks like: Step 2 can `import { createMatch, applyIntent, getViewForPla
 
 | Topic | Decision | Rationale |
 |-------|----------|-----------|
-| Primary win | **Life → 0** | Clearest vertical slice; matches OPTCG core feel |
-| Secondary win | **Deck-out on required draw** | Cheap invariant; include in win check |
-| Monorepo tooling (Step 1) | **Standalone package** under `packages/rules` with its own `package.json` | Frontend already uses npm + vitest; no root workspace required yet |
-| Test runner | **Vitest** | Matches `frontend/` |
-| TypeScript module | `"type": "module"` + Vitest | Align with frontend |
-| Workspaces | **Defer to Step 2** | `game-server` will introduce npm workspaces (or equivalent) to link this package |
-| Rules fidelity | **Simplified OPTCG-inspired**, not paper-legal | Avoid rules rabbit hole; document divergences in README |
-| Card naming | **Placeholder IDs / generic names** | ADR-008 — no official names/art in v1 data |
-| RNG | **Injected `Rng` only**; forbid `Math.random` in `src/` | Deterministic sims / replay |
-| Attack timing | **Attack actions during Main**, then explicit End turn | Fewer phases than full paper; enough for combat |
+| Rules fidelity | **Official OPTCG turn, cost, life, DON!!, and battle flow** | Product requirement: digital duel client |
+| Primary win | Win a **battle against the opponent’s Leader while they have 0 Life cards** | Rule Manual victory conditions |
+| Secondary win | Opponent’s **deck reaches 0** (deck-out loss) | Rule Manual |
+| Life | Face-down **Life cards** equal to Leader’s Life value (not a bare integer-only model) | Official setup |
+| DON!! | Real **10-card DON!! deck** → cost area; rest to pay; **give** to Leader/Character for +1000 power on your turn | Official |
+| Deck size (constructed) | **50** main-deck cards + **1** Leader + **10** DON!! | Official constructed |
+| First-turn restrictions | First player: **no draw**, **1 DON!!**, **neither player may attack on their first turn** | Official |
+| Mulligan | Supported once per player during setup (intent or setup flag) | Official |
+| Monorepo tooling (Step 1) | **Standalone** `packages/rules` + **Vitest** | Match frontend; workspaces in Step 2 |
+| Card naming / art | Placeholder IDs (ADR-008); mechanics must still be real OPTCG keywords | IP-safe prototype data |
+| RNG | Injected `Rng` only; no `Math.random` in `src/` | Deterministic sims |
+| Keyword budget (Step 1 cards) | Implement **framework for official battle/keywords used by the subset**; other keywords may be stubbed as “unsupported card text” until Step 5 | Avoid boiling the ocean while keeping structure correct |
 
 ---
 
 ## In scope
 
-- Package scaffold: `package.json`, `tsconfig.json`, vitest config, `src/`, scripts.
-- Match state: two seats, leader, life, deck, hand, character area, DON pool (simplified), phase, turn player, winner.
-- Intents + `applyIntent` → `{ state, events, error? }`.
-- Data-driven card definitions for the subset + effect hook table.
-- Seeded RNG interface used for shuffle (and any random effect if added later).
-- `getViewForPlayer` stripping opponent hand / deck order / face-down life cards as opaque counts.
-- `listLegalIntents` (or equivalent) for the simulator’s random legal play.
-- Unit tests + `npm run sim` (≥ 100 games, exit non-zero on invariant failure).
-- README: public API, how to add a card, how to test/sim, simplified-rules notes.
+- Package scaffold: `package.json`, `tsconfig.json`, vitest, `src/`, scripts.
+- Full **official turn pipeline**: Refresh → Draw → DON!! → Main → End.
+- Zones per official areas: Leader, Characters (max 5), Stage (max 1), Deck, Trash, Cost (DON!!), DON!! deck, Life, Hand.
+- Paying costs by **resting** active DON!! in the cost area.
+- **Giving** DON!! from cost area to Leader/Character; power +1000 per given DON!! during the controller’s turn; return given DON!! to cost area (active) on Refresh; if a Character leaves, attached DON!! return to cost area **rested** (per manual).
+- Playing Characters / Stages / Events per Main Phase rules (including trash-one-Character when playing a 6th; replace Stage).
+- **Battle flowchart**: Attack Declaration → Block Step → Counter Step → Damage Step → End of Battle.
+- Life damage: reveal/check top Life for **Trigger** (optional activate); else add to hand; **0 Life + successful Leader attack → attacker wins**.
+- `getViewForPlayer`: hide opponent hand ids, deck order, Life card faces, DON!! deck order.
+- Seeded shuffle; unit tests; `npm run sim` (≥ 100 games).
+- README citing official manuals + listing any encoding clarifications.
 
 ## Out of scope
 
 - Colyseus, Expo, FastAPI, Redis.
-- Full keyword suite (Rush, Double Attack, Trigger life effects, Counter windows, etc.).
-- Perfect DON deck / life-card flip / multi-attack declaration parity with paper.
-- Networking, timers, disconnects, UI.
-- Root-level npm workspaces (Step 2).
-- Publishing to npm registry.
+- Full card pool / every keyword in the game (Double Attack, Banish, complex Activate:Main chains, etc. beyond what the Step 1 subset needs).
+- Perfect parity with every comprehensive-rules edge case on day one — but **no intentional contradictions**; track gaps in README “Known gaps”.
+- Networking, timers, UI.
+- Root npm workspaces (Step 2).
+- Publishing to npm.
 
 ---
 
-## Simplified rules model (v1)
+## Official rules model (engine must implement)
 
-Explicitly **not** full OPTCG. Document these simplifications in the package README.
+Encode the Rule Manual flow. Summary for implementers (verify against current PDFs when coding):
 
 ### Setup
 
-- 2 players (`0` and `1`).
-- Each deck: **40 cards** from the subset only (constructed by `createMatch` helpers / sim).
-- Each player: **1 Leader** (from match config), **life = 5** (lower than paper 5–10 for faster sims; configurable in `createMatch`).
-- Opening: shuffle with seeded RNG, draw **5**, active player = seat `0`.
-- DON: simplified **numeric DON pool** (not a full DON deck). Start of turn: active player gains **2 DON** (refresh exhausted characters + reset DON available to current total — see phases).
+1. Shuffle main deck (seeded).
+2. Place Leader face-up.
+3. Decide first player (config or RNG).
+4. Draw 5.
+5. Optional mulligan once (return hand, reshuffle, draw 5).
+6. Move top **Life** cards from deck to Life area face-down (count = Leader’s Life). Bottom of Life stack = first taken from deck top per manual ordering — pick one encoding, test it, document in clarifications.
+7. First player’s turn begins at Refresh.
 
-### Zones (per player)
+### Victory
 
-| Zone | Notes |
-|------|--------|
-| `leader` | Single leader instance (always present) |
-| `life` | Integer count only in v1 (no life-card stack / triggers) |
-| `deck` | Ordered list of card def ids (top = end of array or index 0 — pick one and stick to it in code) |
-| `hand` | Card instances |
-| `characters` | Up to **5** characters in play |
-| `don` | `{ total, available }` integers |
-| `trash` | Discard pile |
+- Attacker wins a battle against the opponent’s **Leader** while that opponent has **0 Life cards**.
+- A player whose **deck count reaches 0** loses (ongoing effects canceled per manual).
 
-### Phases (active player)
+### Turn phases
 
-1. **Refresh** — ready (un-rest) characters + leader; set `don.available = don.total` (then apply turn DON gain below).
-2. **Draw** — draw 1; if deck empty → that player **loses** (deck-out).
-3. **Don** — `don.total += 2`, `don.available = don.total` (simple v1 gain; no DON deck cards).
-4. **Main** — play characters/events, attack, pass-to-end.
-5. **End** — clear “this turn” buffs; switch active player; go to their Refresh.
+1. **Refresh** — Set all your rested cards active; return all **given** DON!! to your cost area **active**.
+2. **Draw** — Draw 1 (**skipped** on the first player’s first turn). If unable to draw from an empty deck → that player loses.
+3. **DON!!** — Put **2** DON!! from DON!! deck into cost area active (**1** on the first player’s first turn). If fewer remain, put as many as remain.
+4. **Main** — In any order, any number of times (when legal): play cards; activate applicable effects; give DON!!; declare battles. Declare end of Main to proceed.
+5. **End** — End-of-turn effects; clear “until end of turn / during this turn” effects; pass turn.
 
-Auto-advance Refresh → Draw → Don → Main at turn start inside `createMatch` / end-turn transition so clients mostly act in **Main**.
+### Costs & DON!!
 
-### Combat (Main)
+- To pay cost \(N\): rest \(N\) **active** DON!! in your cost area.
+- Give: move 1 active cost-area DON!! under your Leader or a Character (visible). During **your** turn, +1000 power per DON!! on that card.
+- No attack on each player’s **first turn** of the game.
 
-- Intent `attack` declares attacker (leader or active character) and target (opponent leader, or omit for “face” only in v1).
-- **No blocker window** as a separate phase: if opponent has a ready character with `blocker`, they may respond with intent `block` before damage; if they pass (`pass_block`) or have none, damage applies.
-- Damage: if attacker power ≥ target power, target is KO’d (characters → trash; leader damage → defender `life -= 1`). Power ties: attacker wins KO for v1.
-- Leader cannot be KO’d; only life reduction.
-- When `life <= 0` → attacker’s seat wins.
-- Attacker becomes rested after attack; **one attack per character/leader per turn**.
+### Battle steps (Main)
+
+1. **Attack Declaration** — Rest an active Leader or Character; choose target: opponent Leader **or** a **rested** opponent Character. Resolve When Attacking / when attacked effects as applicable.
+2. **Block Step** — Defender may activate **[Blocker]** on one eligible Character (once per battle), redirecting the attack.
+3. **Counter Step** — Defender may, any times in any order: trash hand cards with **[Counter]** to add power for the battle; and/or play **[Counter]** Events from hand (pay costs as required by card text).
+4. **Damage Step** — Compare power; **attacker wins ties**. If attack fails, nothing. If success vs Character → K.O. to trash. If success vs Leader → 1 damage (process Life / Trigger); if Leader had 0 Life already → **attacker wins the game**.
+5. **End of Battle** — End-of-battle effects; clear “during this battle” modifiers.
 
 ### Playing cards (Main)
 
-- **Character:** pay `cost` from `don.available`; if characters length ≥ 5, illegal; enter rested or active per card flag (default **active** for v1).
-- **Event:** pay cost; resolve effect; go to trash.
-- Cannot play leader from hand (leader comes from config only).
+- **Character** — Place active, pay cost. If 5 Characters already, trash one of yours first.
+- **Stage** — Max 1; trash existing Stage to play another; pay cost.
+- **Event (Main)** — Reveal, pay cost, resolve Main effect, trash. Counter Events are **not** playable as Main from hand.
 
 ---
 
-## Card subset (6 definitions)
+## Rules clarifications (encoding only)
 
-Placeholder IDs only — not official OPTCG cards.
+Use these only where the manual leaves implementation choices; update if Comprehensive Rules say otherwise:
 
-| ID | Type | Cost | Power | Effect / keyword |
-|----|------|------|-------|------------------|
-| `leader_striker` | Leader | — | 5000 | Default leader |
-| `char_recruit` | Character | 1 | 2000 | Vanilla |
-| `char_soldier` | Character | 3 | 4000 | Vanilla |
-| `char_guardian` | Character | 2 | 3000 | **Blocker** — may `block` while ready |
-| `event_draw` | Event | 1 | — | Draw 1 |
-| `event_pump` | Event | 2 | — | Target your character or leader: **+2000 power until End** |
+| Topic | Encoding choice for Step 1 |
+|-------|----------------------------|
+| Life stack orientation | Life[0] = next damage card (top). Document in README. |
+| Power from given DON!! | +1000 per attached DON!! **only on the card’s controller’s turn** (per manual). |
+| Simultaneous effects | Turn player’s effects first, then opponent (manual). Within one player, controller chooses order. |
+| Unsupported keywords on a card definition | Card cannot be included in Step 1 legal data; or effect no-ops **only if** tests say so and README “Known gaps” lists it — prefer omitting the card. |
 
-**Deck building for sims/tests:** 40-card lists using multiples of the four non-leader cards (e.g. 12/12/10/6). Leader chosen via `createMatch({ players: [{ leaderId, deck }, ...] })`.
+---
 
-No more than these **6** definitions in Step 1 without updating this plan.
+## Card subset (placeholders exercising official structure)
+
+Not official card names/art. Cap Step 1 at these definitions unless this plan is updated.
+
+| ID | Type | Cost | Power | Counter | Keywords / effect |
+|----|------|------|-------|---------|-------------------|
+| `leader_red_5k` | Leader | — | 5000 | — | Life **5**, color Red |
+| `char_vanilla_2k` | Character | 1 | 2000 | 1000 | Vanilla; usable as Counter from hand |
+| `char_curve_4k` | Character | 3 | 4000 | 1000 | Vanilla |
+| `char_blocker_3k` | Character | 2 | 3000 | — | **[Blocker]** |
+| `event_main_draw` | Event | 1 | — | — | **[Main]** Draw 1 |
+| `event_counter_1k` | Event | 0 | — | — | **[Counter]** +1000 to Leader or 1 Character this battle |
+| `stage_small_buff` | Stage | 1 | — | — | Your Leader gets +1000 power (static while in Stage area) |
+
+**Constructed decks for sims/tests:** 50-card lists from the non-leader cards (respect max 4 per card number), colors legal for `leader_red_5k`, plus 10 DON!! and that Leader.
+
+Optional later in Step 1 (only if tests need it): one **[Trigger]** Life-relevant character — otherwise Trigger path can be tested with a dedicated fixture card in tests without expanding the playable subset.
 
 ---
 
@@ -144,43 +170,42 @@ No more than these **6** definitions in Step 1 without updating this plan.
 Package name: `@optcg/rules` (private).
 
 ```ts
-// Match lifecycle
 createMatch(config: CreateMatchConfig): MatchState
-
-// Authority
 applyIntent(state: MatchState, intent: Intent, ctx: ApplyContext): ApplyResult
 getViewForPlayer(state: MatchState, seat: Seat): PlayerView
 listLegalIntents(state: MatchState, seat: Seat): Intent[]
-
-// Optional helpers for tests/sims
 assertInvariants(state: MatchState): void
 ```
 
-### Core types (sketch)
+### Intent sketch (official structure)
 
 ```ts
 type Seat = 0 | 1
-type Phase = "refresh" | "draw" | "don" | "main" | "block" | "end"
+
+type Phase =
+  | "setup" | "mulligan"
+  | "refresh" | "draw" | "don" | "main"
+  | "battle_attack" | "battle_block" | "battle_counter" | "battle_damage" | "battle_end"
+  | "end"
 
 type Intent =
-  | { type: "play_card"; handIndex: number; targets?: Target[] }
-  | { type: "attack"; attackerId: InstanceId; target: "leader" }
+  | { type: "mulligan"; doMulligan: boolean }
+  | { type: "play_card"; handIndex: number; trashCharacterInstanceId?: InstanceId } // 6th character
+  | { type: "activate_main"; ... } // only if subset needs Activate:Main
+  | { type: "give_don"; donInstanceId: InstanceId; targetId: InstanceId }
+  | { type: "declare_attack"; attackerId: InstanceId; target: { kind: "leader" } | { kind: "character"; id: InstanceId } }
   | { type: "block"; blockerId: InstanceId }
   | { type: "pass_block" }
-  | { type: "end_turn" }
-
-type ApplyContext = { rng: Rng }
-type ApplyResult = {
-  ok: boolean
-  state: MatchState
-  events: Event[]
-  error?: { code: string; message: string }
-}
+  | { type: "counter_character"; handIndex: number; boostTargetId: InstanceId }
+  | { type: "counter_event"; handIndex: number; targets?: Target[] }
+  | { type: "pass_counter" } // explicitly leave Counter Step
+  | { type: "decide_trigger"; accept: boolean } // when Life card has Trigger
+  | { type: "end_main" }
 ```
 
-`PlayerView` includes own hand/deck counts/board and **opponent: handCount, deckCount, life, board without hidden info**. Never include opponent hand card ids or deck order.
+`PlayerView` never includes opponent hand card ids, deck order, Life faces, or DON!! deck order — only counts / public board.
 
-Export surface lives in `src/index.ts` only.
+Exports only from `src/index.ts`.
 
 ---
 
@@ -193,63 +218,69 @@ packages/rules/
   vitest.config.ts
   README.md
   src/
-    index.ts                 # public exports
-    rng.ts                   # SeededRng + Rng interface
-    types.ts                 # MatchState, Intent, Event, views
+    index.ts
+    rng.ts
+    types.ts
     invariants.ts
     createMatch.ts
     applyIntent.ts
-    legal.ts                 # listLegalIntents
-    view.ts                  # getViewForPlayer
-    phases.ts                # turn/phase transitions
-    combat.ts
+    legal.ts
+    view.ts
+    phases/
+      refresh.ts
+      draw.ts
+      don.ts
+      main.ts
+      end.ts
+    battle/
+      attack.ts
+      block.ts
+      counter.ts
+      damage.ts
+    donEconomy.ts          # pay cost, give, return on refresh / leave field
     cards/
       registry.ts
-      definitions.ts         # the 6 cards
-      effects.ts             # effect hooks by card id
+      definitions.ts
+      effects.ts
     sim/
       randomPlay.ts
       runBatch.ts
     __tests__/
-      createMatch.test.ts
-      playCharacter.test.ts
-      combat.test.ts
-      blocker.test.ts
-      events.test.ts
-      viewHidesHand.test.ts
-      invariants.test.ts
+      setup.test.ts
+      turnPhases.test.ts
+      donEconomy.test.ts
+      playCharacterStageEvent.test.ts
+      battleBlockCounter.test.ts
+      lifeAndVictory.test.ts
+      firstTurnRestrictions.test.ts
+      viewHidesPrivate.test.ts
       sim.smoke.test.ts
 ```
 
 ### npm scripts
 
-| Script | Command purpose |
-|--------|-----------------|
+| Script | Purpose |
+|--------|---------|
 | `test` | `vitest run` |
 | `test:watch` | `vitest` |
-| `sim` | `tsx src/sim/runBatch.ts` (or vitest-node entry) — default 100 games |
+| `sim` | batch ≥ 100 games |
 | `typecheck` | `tsc --noEmit` |
 
-### Dependencies
-
-- **dev:** `typescript`, `vitest`, `tsx` (for sim CLI)
-- **runtime:** none (pure TS)
+Runtime dependencies: **none**.
 
 ---
 
-## Implementation sequence (within Step 1)
+## Implementation sequence
 
-Do these in order; each ends with tests green before the next.
-
-1. **Scaffold** — package.json, tsconfig, vitest, empty exports.
-2. **Types + RNG + invariants** — state shapes; seeded shuffle; `assertInvariants`.
-3. **createMatch** — setup, opening hands, active seat 0 in Main (after auto refresh/draw/don).
-4. **Play character / event** — DON payment, zone moves, `event_draw` / `event_pump`.
-5. **Combat + blocker** — attack, optional block, life/KO, win life→0.
-6. **end_turn** — phase clear, switch player, auto refresh/draw/don.
-7. **Views + legal intents** — privacy tests; legal list drives sim.
-8. **Batch sim** — 100+ games; fail on throw / invariant / stuck (no legal intents while no winner).
-9. **README polish** — API, adding cards, simplifications list.
+1. Scaffold + types + RNG + invariants (zones match official areas).
+2. `createMatch` setup: 50/10/Leader, Life cards, mulligan hook, first/second flags.
+3. Phase auto-pipeline Refresh → Draw → DON!! → Main with first-turn exceptions.
+4. DON!! pay + give + refresh return; power calculation.
+5. Play Character / Stage / Event (Main).
+6. Full battle steps including Block, Counter, Damage, Leader 0-life win, deck-out.
+7. Trigger decision path (even if only test fixture card).
+8. Views + `listLegalIntents`.
+9. Batch sim + README (manual links, clarifications, known gaps).
 
 ---
 
@@ -257,28 +288,33 @@ Do these in order; each ends with tests green before the next.
 
 | Case | Expect |
 |------|--------|
-| createMatch determinism | same seed → same opening hands/deck order |
-| play character without DON | `ok: false`, state unchanged |
-| play character with DON | board +1, don available reduced |
-| board at 5 characters | further character play illegal |
-| event_draw | hand +1, deck -1 |
-| attack into empty board | leader life -1 when power wins |
-| life → 0 | `winner` set; further intents illegal |
-| blocker | `char_guardian` can intercept; blocker rests / KO rules as implemented |
-| view privacy | seat 0 view has no seat 1 hand ids |
-| sim 100 | exit 0; no invariant breaches |
+| Setup Life | Life count equals Leader Life; main deck decreased accordingly |
+| First player turn 1 | No draw; 1 DON!!; `declare_attack` illegal |
+| Second player turn 1 | Draw 1; 2 DON!!; still no attacks |
+| Pay cost | Rests N DON!!; insufficient active DON!! → illegal |
+| Give DON!! | +1000 power on controller’s turn only |
+| 6th Character | Requires trash of an existing Character |
+| Blocker | Redirects attack once; rested |
+| Counter | Hand Counter / Counter Event can raise defender power; attacker wins ties |
+| Leader damage at Life ≥ 1 | Life card → hand (or Trigger path) |
+| Leader damage at Life 0 | Attacking player wins |
+| Deck-out | Player who cannot draw / whose deck hits 0 loses per encoded manual rule |
+| View privacy | No opponent hand ids / Life faces / deck order |
+| Sim 100 | Exit 0; no invariant breaches |
 
 ---
 
 ## Acceptance criteria
 
 - [ ] `cd packages/rules && npm test` passes
-- [ ] `cd packages/rules && npm run sim` completes ≥ 100 games with exit code 0
-- [ ] `getViewForPlayer` never exposes opponent hand contents or deck order
-- [ ] README documents public API, card-add guide, simplified rules, scripts
-- [ ] `package.json` has **no** dependencies on React, React Native, Colyseus, FastAPI clients
-- [ ] No `Math.random` in `src/` (eslint grep or code review)
-- [ ] This plan’s § Exit notes filled when done
+- [ ] `cd packages/rules && npm run sim` completes ≥ 100 games, exit 0
+- [ ] Turn phases and battle steps match official flowchart names/order above
+- [ ] Victory conditions match official (Leader battle at 0 Life; deck-out) — **not** “life counter hits 0 auto-loss without battle”
+- [ ] DON!! modeled as deck + cost area + give/attach, not a single integer “mana pool” that ignores resting/giving
+- [ ] `getViewForPlayer` hides private info
+- [ ] README links official manuals, lists clarifications + known gaps
+- [ ] No React / RN / Colyseus / FastAPI deps; no `Math.random` in `src/`
+- [ ] Exit notes filled
 
 ---
 
@@ -286,25 +322,26 @@ Do these in order; each ends with tests green before the next.
 
 | Risk | Mitigation |
 |------|------------|
-| Sliding into full OPTCG rules | Hard cap 6 cards; keyword budget = Blocker + two events only |
-| Ambiguous phase/combat edge cases | Codify in tests; prefer simple illegal over complex optional rules |
-| API churn before Step 2 | Freeze exports in `src/index.ts`; changelog in exit notes |
-| Sim soft-locks | `listLegalIntents` empty + no winner → sim failure |
+| Comprehensive Rules complexity | Subset keywords only; structure still official; “Known gaps” list |
+| Accidental house rules | Code review vs Rule Manual; victory/DON!!/battle tests as guardians |
+| Sim length with 50-card decks | Cap turn count; legal-intent random policy; still require ≥100 finished games |
+| API churn | Freeze `src/index.ts` exports |
 
 ---
 
-## Explicitly deferred (not blocking)
+## Explicitly deferred
 
-- npm workspaces / package path mapping for `game-server` (Step 2)
-- Counter step, Trigger gates, DON deck cards, life card flips
-- Rush / Double Attack / Multi-attack patterns beyond one attack per unit
-- Deck validation against real catalog IDs from FastAPI
+- npm workspaces linking into `game-server` (Step 2)
+- Keywords not on the Step 1 subset (Rush, Double Attack, Banish, many Activate effects, …)
+- Real catalog IDs / Bandai card text import (Step 5 + legal review)
+- Competitive ban lists / official deck registration
 
 ---
 
 ## Exit notes (fill when step completes)
 
+- Manual versions consulted (PDF dates):
 - Actual subset list:
-- Public API summary (final export names):
-- Divergences from this plan:
-- Follow-ups deferred to later steps:
+- Public API summary:
+- Clarifications / known gaps vs Comprehensive Rules:
+- Follow-ups for Step 5 content:
