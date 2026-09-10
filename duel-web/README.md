@@ -36,6 +36,8 @@ cp ../../duel-web/src/assets/cardAtlas.json ../../duel-web/public/cardAtlas.json
 
 Copy `.env.example` → `.env` for local overrides. Staging/production bake `VITE_*` at **build** time on Vercel.
 
+**Google OAuth:** `VITE_API_URL` must use the **same hostname** as backend `BACKEND_PUBLIC_URL` (both `localhost` or both `127.0.0.1`). Mixing them puts the OAuth nonce cookie on one host and the Google callback on the other → `{"detail":"Invalid OAuth state"}`. In Google Cloud Console, Authorized redirect URI is exactly `{BACKEND_PUBLIC_URL}/auth/callback`.
+
 HTTPS pages require a **WSS** game server (`https://` / `wss://`). Mixed content (HTTPS → `http://` Colyseus) fails closed.
 
 ### Staging mint (`POST /duel/dev-token`)
