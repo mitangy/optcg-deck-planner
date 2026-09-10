@@ -32,7 +32,7 @@ docs/duel-client/       Architecture + per-step plans (this tree)
 | 4 | [steps/04-matchmaking-reconnect-ranked.md](./steps/04-matchmaking-reconnect-ranked.md) | Matchmaking, reconnect, ranked + **browser-capable** lobby auth (**implemented**) |
 | 4.5 | [steps/04.5-web-deploy.md](./steps/04.5-web-deploy.md) | **`duel-web/` Vite frontend** + Vercel staging (**implemented**) |
 | 5 | [steps/05-content-spectate-android.md](./steps/05-content-spectate-android.md) | Broader cards, spectate, Android, **production web polish** (**in progress**) |
-| 5.5 | [steps/05.5-board-ux-sim-tft.md](./steps/05.5-board-ux-sim-tft.md) | **`duel-web/` playmat** — OPTCG Sim layout + TFT-inspired chrome (**in progress**) |
+| 5.5 | [steps/05.5-board-ux-sim-tft.md](./steps/05.5-board-ux-sim-tft.md) | **`duel-web/` playmat** — OPTCG Sim layout + TFT-inspired chrome (**implemented**) |
 
 ### Web deploy placement (ADR-014)
 
