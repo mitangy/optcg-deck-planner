@@ -3,6 +3,8 @@
  * Do not import @optcg/rules into the app.
  */
 
+import { lookupCard } from "../cards/atlas";
+
 export const PROTOCOL_VERSION = 1 as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
@@ -180,24 +182,65 @@ export function parseMatchOver(raw: unknown): MatchOverMessage {
   };
 }
 
-export function intentLabel(intent: Intent): string {
+function shortId(id: unknown): string {
+  return String(id ?? "?").slice(0, 8);
+}
+
+function nameForDef(defId: string | undefined): string | null {
+  if (!defId) return null;
+  const n = lookupCard(defId).name;
+  return n && n !== defId ? n : defId;
+}
+
+function findBoardName(view: PlayerView | undefined, instanceId: unknown): string {
+  if (!view || instanceId == null) return shortId(instanceId);
+  const id = String(instanceId);
+  if (view.you.leader.id === id) return nameForDef(view.you.leader.defId) ?? shortId(id);
+  const ch = view.you.characters.find((c) => c.id === id);
+  if (ch) return nameForDef(ch.defId) ?? shortId(id);
+  if (view.opponent.leader.id === id) {
+    return nameForDef(view.opponent.leader.defId) ?? shortId(id);
+  }
+  const och = view.opponent.characters.find((c) => c.id === id);
+  if (och) return nameForDef(och.defId) ?? shortId(id);
+  return shortId(id);
+}
+
+function handName(view: PlayerView | undefined, handIndex: unknown): string {
+  if (!view || typeof handIndex !== "number") return `#${String(handIndex)}`;
+  const card = view.you.hand[handIndex];
+  if (!card) return `#${handIndex}`;
+  return nameForDef(card.defId) ?? `#${handIndex}`;
+}
+
+export function intentLabel(intent: Intent, view?: PlayerView): string {
   switch (intent.type) {
     case "mulligan":
       return intent.doMulligan ? "Mulligan" : "Keep hand";
     case "play_card":
-      return `Play hand #${intent.handIndex}`;
+      return `Play ${handName(view, intent.handIndex)}`;
     case "give_don":
-      return `Give DON → ${String(intent.targetId).slice(0, 8)}`;
-    case "declare_attack":
+      return `Give DON → ${findBoardName(view, intent.targetId)}`;
+    case "activate_leader":
+      return `Activate Leader → ${findBoardName(view, intent.targetId)}`;
+    case "declare_attack": {
+      const target = intent.target as { kind?: string; instanceId?: string } | undefined;
+      if (target?.kind === "leader") {
+        return `Attack Leader (${findBoardName(view, view?.opponent.leader.id)})`;
+      }
+      if (target?.kind === "character") {
+        return `Attack ${findBoardName(view, target.instanceId)}`;
+      }
       return `Attack ${JSON.stringify(intent.target)}`;
+    }
     case "declare_block":
-      return `Block (${String(intent.blockerId).slice(0, 8)})`;
+      return `Block (${findBoardName(view, intent.blockerId)})`;
     case "pass_block":
       return "Pass block";
     case "counter_from_hand":
-      return `Counter hand #${intent.handIndex}`;
+      return `Counter ${handName(view, intent.handIndex)}`;
     case "counter_event":
-      return `Counter event #${intent.handIndex}`;
+      return `Counter event ${handName(view, intent.handIndex)}`;
     case "pass_counter":
       return "Pass counter";
     case "resolve_trigger":

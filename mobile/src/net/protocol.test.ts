@@ -18,7 +18,7 @@ function sampleView(withOpponentHand = false): PlayerView {
       leader: { id: "L0", defId: "ST01-001", power: 5000 },
       characters: [],
       stage: null,
-      hand: [{ id: "h1", defId: "ST01-002" }],
+      hand: [{ id: "h1", defId: "ST01-003" }],
       deckCount: 10,
       trash: [],
       lifeCount: 5,
@@ -48,7 +48,7 @@ function sampleView(withOpponentHand = false): PlayerView {
     legalIntents: [{ type: "end_turn" }],
   };
   if (withOpponentHand) {
-    (view.opponent as { hand?: unknown }).hand = [{ id: "x", defId: "ST01-002" }];
+    (view.opponent as { hand?: unknown }).hand = [{ id: "x", defId: "ST01-003" }];
   }
   return view;
 }
@@ -86,18 +86,33 @@ describe("protocol parsers", () => {
     ).toBe(1);
   });
 
-  it("labels intents", () => {
+  it("labels intents with atlas names when view is provided", () => {
+    const view = sampleView();
     expect(intentLabel({ type: "end_turn" })).toBe("End turn");
-    expect(intentLabel({ type: "play_card", handIndex: 2 })).toMatch(/Play/);
+    expect(intentLabel({ type: "play_card", handIndex: 0 }, view)).toMatch(/Karoo|ST01-003/);
+    expect(intentLabel({ type: "activate_leader", targetId: "L0" }, view)).toMatch(
+      /Activate Leader/,
+    );
     expect(intentLabel({ type: "mulligan", doMulligan: false })).toMatch(/Keep/i);
   });
 });
 
 describe("card atlas", () => {
   it("resolves curated real ids with art urls", () => {
-    expect(listAtlasIds().length).toBeGreaterThanOrEqual(10);
+    expect(listAtlasIds()).toEqual(
+      expect.arrayContaining([
+        "ST01-001",
+        "ST01-003",
+        "ST01-006",
+        "ST01-008",
+        "ST01-009",
+        "ST01-014",
+      ]),
+    );
+    expect(listAtlasIds()).not.toContain("OP01-013");
     const luffy = lookupCard("ST01-001");
     expect(luffy.name).toMatch(/Luffy/i);
     expect(luffy.imageUrl).toMatch(/^https?:\/\//);
+    expect(lookupCard("ST01-014").name).toMatch(/Guard Point/i);
   });
 });

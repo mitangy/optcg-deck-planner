@@ -83,3 +83,15 @@ Record of durable choices. Change these only by updating this file and the affec
 **Why:** Proves the vertical slice on a real phone with recognizable cards, without Mac builds, without coupling Expo’s toolchain to the Node game-server workspace, without trusting the client with rules, and without boiling the ocean on the full card pool.
 
 **See:** `steps/03-expo-client-board.md`.
+
+## ADR-013 — Step 3.5 curated-card audit (locked at plan gate)
+
+**Decision:** Step 3.5 is a **fidelity patch**, not a feature expansion. Every curated real id on the duel happy path must match its printed English identity (number, name, cost, power, counter, encoded keywords). Misencoded Step 3 cards are **corrected or removed** — never left as silent house rules. Unsupported prints (Rush, Main KO, Stage Activate:Main, fabricated OP ids) are omitted until Step 5.
+
+**Engine:** Add one hook for ST01-001 `[Activate: Main] [Once Per Turn]` — give up to 1 **rested** DON!! from the cost area to the Leader or a Character. Intent type `activate_leader` over wire `protocolVersion: 1` (no protocol version bump).
+
+**Client:** Intent labels resolve atlas names for hand/field targets; legality remains server-only.
+
+**Why:** Step 3 exit notes and a print audit showed wrong names/effects (e.g. Jet Pistol encoded as draw). Shipping recognizable but incorrect cards poisons demos and violates Step 1 authority order.
+
+**See:** `steps/03.5-curated-card-audit.md`.

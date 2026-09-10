@@ -89,7 +89,7 @@ describe("DON!! economy and play", () => {
     state = act(state, 1, { type: "end_turn" }, rng);
     expect(state.players[0].costArea.length).toBe(3);
     const handIndex = state.players[0].hand.findIndex(
-      (c) => c.defId === "ST01-002",
+      (c) => c.defId === "ST01-003" || c.defId === "ST01-006",
     );
     if (handIndex < 0) {
       expect(state.players[0].costArea.length).toBeGreaterThan(0);
@@ -118,6 +118,62 @@ describe("DON!! economy and play", () => {
     );
     const after = getPlayerView(state, 0).you.leader.power;
     expect(after).toBe(before + 1000);
+  });
+});
+
+describe("ST01-001 Activate:Main", () => {
+  it("attaches one rested DON!! once per turn to Leader or Character", () => {
+    let { state, rng } = fresh(3);
+    state = act(state, 0, { type: "end_turn" }, rng);
+    state = act(state, 1, { type: "end_turn" }, rng);
+    expect(state.players[0].costArea.length).toBe(3);
+
+    // Print requires a rested cost-area DON!! (typically after paying a cost).
+    state = structuredClone(state);
+    const toRest = state.players[0].costArea.find((d) => !d.rested);
+    expect(toRest).toBeTruthy();
+    toRest!.rested = true;
+
+    const leaderId = state.players[0].leader.id;
+    const legal = listLegalIntents(state, 0);
+    expect(
+      legal.some((i) => i.type === "activate_leader" && i.targetId === leaderId),
+    ).toBe(true);
+
+    const before = getPlayerView(state, 0).you.leader.power;
+    state = act(state, 0, { type: "activate_leader", targetId: leaderId }, rng);
+    expect(getPlayerView(state, 0).you.leader.power).toBe(before + 1000);
+    expect(state.players[0].leaderActivatedThisTurn).toBe(true);
+    expect(
+      listLegalIntents(state, 0).some((i) => i.type === "activate_leader"),
+    ).toBe(false);
+
+    const second = applyIntent(
+      state,
+      { type: "activate_leader", targetId: leaderId },
+      { seat: 0, rng },
+    );
+    expect(second.ok).toBe(false);
+    expect(second.error?.code).toBe("once_per_turn");
+  });
+
+  it("clears once-per-turn flag at the next turn start", () => {
+    let { state, rng } = fresh(3);
+    state = act(state, 0, { type: "end_turn" }, rng);
+    state = act(state, 1, { type: "end_turn" }, rng);
+    state = structuredClone(state);
+    state.players[0].costArea.find((d) => !d.rested)!.rested = true;
+    state = act(
+      state,
+      0,
+      { type: "activate_leader", targetId: state.players[0].leader.id },
+      rng,
+    );
+    expect(state.players[0].leaderActivatedThisTurn).toBe(true);
+    state = act(state, 0, { type: "end_turn" }, rng);
+    state = act(state, 1, { type: "end_turn" }, rng);
+    expect(state.activeSeat).toBe(0);
+    expect(state.players[0].leaderActivatedThisTurn).toBe(false);
   });
 });
 

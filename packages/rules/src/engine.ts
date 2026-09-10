@@ -137,6 +137,7 @@ function buildPlayer(state: MatchState, cfg: PlayerDeckConfig, rng: Rng): Player
     attachedDons: [],
     mulliganDone: false,
     turnsStarted: 0,
+    leaderActivatedThisTurn: false,
   };
   for (let i = 0; i < 5; i++) {
     if (!player.deck.length) break;
@@ -157,6 +158,7 @@ function beginTurn(state: MatchState, events: GameEvent[]): void {
   const seat = state.activeSeat;
   const player = state.players[seat];
   player.turnsStarted += 1;
+  player.leaderActivatedThisTurn = false;
   refresh(player);
   events.push({ type: "phase_changed", phase: "refresh", activeSeat: seat });
 
@@ -443,6 +445,27 @@ export function applyIntent(
     return done();
   }
 
+  if (intent.type === "activate_leader") {
+    const leaderDef = getCardDef(player.leader.defId);
+    if (!leaderDef.leaderActivateGiveRestedDon) {
+      return fail(state, "no_activate", "Leader has no Activate:Main");
+    }
+    if (player.leaderActivatedThisTurn) {
+      return fail(state, "once_per_turn", "Activate:Main already used");
+    }
+    const donIdx = player.costArea.findIndex((d) => d.rested);
+    if (donIdx < 0) return fail(state, "no_rested_don", "Need a rested DON!!");
+    const target = findBoard(player, intent.targetId);
+    if (!target) return fail(state, "bad_target", "Invalid Activate:Main target");
+    const [don] = player.costArea.splice(donIdx, 1);
+    don.attachedTo = target.id;
+    target.attachedDonIds.push(don.id);
+    player.attachedDons.push(don);
+    player.leaderActivatedThisTurn = true;
+    events.push({ type: "don_given", seat, donId: don.id, targetId: target.id });
+    return done();
+  }
+
   if (intent.type === "play_card") {
     const card = player.hand[intent.handIndex];
     if (!card) return fail(state, "bad_hand", "Bad hand index");
@@ -587,6 +610,18 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
     out.push({ type: "give_don", donId: don.id, targetId: player.leader.id });
     for (const ch of player.characters) {
       out.push({ type: "give_don", donId: don.id, targetId: ch.id });
+    }
+  }
+
+  const leaderDef = getCardDef(player.leader.defId);
+  if (
+    leaderDef.leaderActivateGiveRestedDon &&
+    !player.leaderActivatedThisTurn &&
+    player.costArea.some((d) => d.rested)
+  ) {
+    out.push({ type: "activate_leader", targetId: player.leader.id });
+    for (const ch of player.characters) {
+      out.push({ type: "activate_leader", targetId: ch.id });
     }
   }
 
