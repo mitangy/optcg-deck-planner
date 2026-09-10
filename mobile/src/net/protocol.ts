@@ -12,7 +12,8 @@ export type Seat = 0 | 1;
 
 export type DuelJoinOptions = {
   protocolVersion: ProtocolVersion;
-  devUserId: string;
+  devUserId?: string;
+  gameToken?: string;
   secret?: string;
   preferredSeat?: Seat;
 };

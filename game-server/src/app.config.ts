@@ -5,15 +5,21 @@ import {
   playground,
 } from "colyseus";
 import { DuelRoom } from "./rooms/DuelRoom.js";
+import { MatchmakerRoom } from "./rooms/MatchmakerRoom.js";
 
 const server = defineServer({
   rooms: {
     duel: defineRoom(DuelRoom),
+    ranked_queue: defineRoom(MatchmakerRoom),
   },
 
   express: (app) => {
     app.get("/health", (_req, res) => {
-      res.json({ ok: true, service: "optcg-game-server" });
+      res.json({
+        ok: true,
+        service: "optcg-game-server",
+        rooms: ["duel", "ranked_queue"],
+      });
     });
 
     if (process.env.NODE_ENV !== "production") {

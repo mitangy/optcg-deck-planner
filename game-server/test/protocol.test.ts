@@ -19,10 +19,20 @@ describe("protocol parsers", () => {
     assert.equal(j.secret, "s");
   });
 
-  it("rejects bad protocol version on join", () => {
+  it("parses join options with gameToken only", () => {
+    const j = parseJoinOptions({
+      protocolVersion: PROTOCOL_VERSION,
+      gameToken: "abc.def",
+      preferredSeat: 0,
+    });
+    assert.equal(j.gameToken, "abc.def");
+    assert.equal(j.devUserId, undefined);
+  });
+
+  it("rejects join without gameToken or devUserId", () => {
     assert.throws(
-      () => parseJoinOptions({ protocolVersion: 99, devUserId: "x" }),
-      /protocolVersion/,
+      () => parseJoinOptions({ protocolVersion: PROTOCOL_VERSION }),
+      /gameToken or devUserId/,
     );
   });
 

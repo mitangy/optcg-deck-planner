@@ -13,7 +13,13 @@ import {
   type Rng,
   type Seat,
 } from "@optcg/rules";
-import { getDevJoinSecret, getLogLevel } from "../env.js";
+import {
+  getDevJoinSecret,
+  getLogLevel,
+  getReconnectGraceSeconds,
+  requireGameToken,
+} from "../env.js";
+import { verifyGameToken } from "../gameToken.js";
 import {
   PROTOCOL_VERSION,
   parseCreateOptions,
@@ -23,12 +29,16 @@ import {
   type PlayerDeckWire,
   type WelcomeMessage,
 } from "../protocol.js";
+import { postMatchResult } from "../writeback.js";
 import { DuelPublicState } from "./schema/DuelPublicState.js";
 
 type SeatSlot = {
   seat: Seat;
   sessionId: string;
-  devUserId: string;
+  /** Stable player key for logs / legacy. */
+  displayId: string;
+  /** FastAPI user id when known; synthetic negative for legacy devUserId. */
+  userId: number;
 };
 
 const INTENT_RATE_LIMIT = 20;
@@ -43,17 +53,22 @@ export class DuelRoom extends Room {
   private matchId = "";
   private seed = 0;
   private autoSkipMulligan = true;
+  private ranked = true;
   private createPlayers: [PlayerDeckWire, PlayerDeckWire] | undefined;
+  private presetSeatUserIds: [number, number] | undefined;
   private seats: [SeatSlot | null, SeatSlot | null] = [null, null];
   private intentTimestamps = new Map<string, number[]>();
   private matchStarted = false;
   private matchOverSent = false;
+  private endReason: string | null = null;
 
   onCreate(options: unknown) {
     const parsed = parseCreateOptions(options);
     this.seed = parsed.seed;
     this.autoSkipMulligan = parsed.autoSkipMulligan;
     this.createPlayers = parsed.players;
+    this.ranked = parsed.ranked;
+    this.presetSeatUserIds = parsed.seatUserIds;
     this.matchId = this.roomId;
     this.state.matchId = this.matchId;
     this.state.seatsFilled = 0;
@@ -64,6 +79,10 @@ export class DuelRoom extends Room {
 
     this.onMessage("intent", (client, message) => {
       this.handleIntent(client, message);
+    });
+
+    this.onMessage("concede", (client) => {
+      this.handleConcede(client);
     });
 
     this.onMessage("sync", (client) => {
@@ -78,28 +97,21 @@ export class DuelRoom extends Room {
       client.send("pong", { t });
     });
 
-    this.log("info", "room_created", { matchId: this.matchId, seed: this.seed });
+    this.log("info", "room_created", {
+      matchId: this.matchId,
+      seed: this.seed,
+      ranked: this.ranked,
+    });
   }
 
   onAuth(_client: Client, options: unknown) {
-    let join;
-    try {
-      join = parseJoinOptions(options);
-    } catch (e) {
-      const err = e as Error & { code?: ErrorCode };
-      throw new Error(err.message || "unauthorized");
-    }
-    const required = getDevJoinSecret();
-    if (required && join.secret !== required) {
-      throw new Error("unauthorized");
-    }
-    return { devUserId: join.devUserId, preferredSeat: join.preferredSeat };
+    return this.resolveIdentity(options);
   }
 
   onJoin(client: Client, options: unknown) {
-    let join;
+    let identity: { displayId: string; userId: number; preferredSeat?: Seat };
     try {
-      join = parseJoinOptions(options);
+      identity = this.resolveIdentity(options);
     } catch (e) {
       const err = e as Error & { code?: ErrorCode };
       this.sendError(client, err.code ?? "bad_protocol", err.message);
@@ -107,7 +119,24 @@ export class DuelRoom extends Room {
       return;
     }
 
-    const seat = this.assignSeat(client.sessionId, join.devUserId, join.preferredSeat);
+    // Reclaim after allowReconnection: same sessionId may already be seated.
+    const existingSeat = this.seatForClient(client);
+    if (existingSeat !== null) {
+      this.log("info", "player_reconnected", {
+        matchId: this.matchId,
+        seat: existingSeat,
+        sessionId: client.sessionId,
+      });
+      this.sendSync(client);
+      return;
+    }
+
+    const seat = this.assignSeat(
+      client.sessionId,
+      identity.displayId,
+      identity.userId,
+      identity.preferredSeat,
+    );
     if (seat === null) {
       this.sendError(client, "room_full", "No free seat");
       client.leave();
@@ -118,49 +147,131 @@ export class DuelRoom extends Room {
     this.log("info", "player_joined", {
       matchId: this.matchId,
       seat,
-      devUserId: join.devUserId,
+      displayId: identity.displayId,
+      userId: identity.userId,
       sessionId: client.sessionId,
     });
 
     if (this.seats[0] && this.seats[1] && !this.matchStarted) {
       this.startMatch();
+    } else if (this.matchStarted && this.match) {
+      this.sendSync(client);
     }
   }
 
-  onLeave(client: Client) {
-    for (let i = 0; i < 2; i++) {
-      const slot = this.seats[i];
-      if (slot && slot.sessionId === client.sessionId) {
-        this.log("info", "player_left", {
-          matchId: this.matchId,
-          seat: i,
-          sessionId: client.sessionId,
-        });
-        this.seats[i] = null;
-      }
+  /** Consented leave (CloseCode.CONSENTED) — no reclaim. */
+  onLeave(client: Client, _code?: number) {
+    if (this.seatForClient(client) === null) return;
+    this.clearSeat(client.sessionId);
+  }
+
+  /**
+   * Unexpected disconnect — offer seat reclaim for RECONNECT_GRACE_SECONDS.
+   * Colyseus 0.18 routes drops here when `onDrop` is defined.
+   */
+  async onDrop(client: Client, _code?: number) {
+    const seat = this.seatForClient(client);
+    if (seat === null) return;
+
+    if (this.matchOverSent || !this.matchStarted) {
+      this.clearSeat(client.sessionId);
+      return;
     }
-    this.state.seatsFilled = (this.seats[0] ? 1 : 0) + (this.seats[1] ? 1 : 0);
-    this.intentTimestamps.delete(client.sessionId);
+
+    const grace = getReconnectGraceSeconds();
+    this.log("info", "player_disconnected", {
+      matchId: this.matchId,
+      seat,
+      graceSeconds: grace,
+    });
+    try {
+      await this.allowReconnection(client, grace);
+      this.log("info", "player_reclaim_ok", {
+        matchId: this.matchId,
+        seat,
+        sessionId: client.sessionId,
+      });
+      this.sendSync(client);
+    } catch {
+      this.log("info", "player_reclaim_timeout", {
+        matchId: this.matchId,
+        seat,
+      });
+      this.clearSeat(client.sessionId);
+    }
   }
 
   onDispose() {
     this.log("info", "room_disposed", { matchId: this.matchId });
   }
 
+  private resolveIdentity(options: unknown): {
+    displayId: string;
+    userId: number;
+    preferredSeat?: Seat;
+  } {
+    const join = parseJoinOptions(options);
+    const required = getDevJoinSecret();
+    if (required && join.secret !== required) {
+      throw Object.assign(new Error("unauthorized"), { code: "unauthorized" as const });
+    }
+    if (join.gameToken) {
+      const payload = verifyGameToken(join.gameToken);
+      if (!payload) {
+        throw Object.assign(new Error("invalid game token"), {
+          code: "unauthorized" as const,
+        });
+      }
+      return {
+        displayId: payload.email,
+        userId: payload.uid,
+        preferredSeat: join.preferredSeat,
+      };
+    }
+    if (requireGameToken()) {
+      throw Object.assign(new Error("gameToken required"), {
+        code: "unauthorized" as const,
+      });
+    }
+    const displayId = join.devUserId!;
+    return {
+      displayId,
+      userId: hashToNegativeId(displayId),
+      preferredSeat: join.preferredSeat,
+    };
+  }
+
+  private clearSeat(sessionId: string) {
+    for (let i = 0; i < 2; i++) {
+      const slot = this.seats[i];
+      if (slot && slot.sessionId === sessionId) {
+        this.log("info", "player_left", {
+          matchId: this.matchId,
+          seat: i,
+          sessionId,
+        });
+        this.seats[i] = null;
+      }
+    }
+    this.state.seatsFilled = (this.seats[0] ? 1 : 0) + (this.seats[1] ? 1 : 0);
+    this.intentTimestamps.delete(sessionId);
+  }
+
   private assignSeat(
     sessionId: string,
-    devUserId: string,
+    displayId: string,
+    userId: number,
     preferred?: Seat,
   ): Seat | null {
     if (preferred === 0 || preferred === 1) {
       if (!this.seats[preferred]) {
-        this.seats[preferred] = { seat: preferred, sessionId, devUserId };
+        this.seats[preferred] = { seat: preferred, sessionId, displayId, userId };
         return preferred;
       }
     }
     for (const seat of [0, 1] as Seat[]) {
       if (!this.seats[seat]) {
-        this.seats[seat] = { seat, sessionId, devUserId };
+        this.seats[seat] = { seat, sessionId, displayId, userId };
         return seat;
       }
     }
@@ -217,6 +328,23 @@ export class DuelRoom extends Room {
       });
     }
 
+    this.maybeSendMatchOver();
+  }
+
+  private handleConcede(client: Client) {
+    const seat = this.seatForClient(client);
+    if (seat === null || !this.match || this.matchOverSent) return;
+    if (this.match.winner !== null || this.match.phase === "game_over") return;
+    const winner = (seat === 0 ? 1 : 0) as Seat;
+    this.endReason = "concede";
+    this.match = {
+      ...this.match,
+      winner,
+      winReason: "leader_battle_at_zero_life",
+      phase: "game_over",
+    };
+    this.syncPublicState();
+    this.log("info", "concede", { matchId: this.matchId, seat, winner });
     this.maybeSendMatchOver();
   }
 
@@ -298,12 +426,41 @@ export class DuelRoom extends Room {
     this.matchOverSent = true;
     const result = {
       winner: this.match.winner,
-      reason: this.match.winReason ?? "unknown",
+      reason: this.endReason ?? this.match.winReason ?? "unknown",
     };
     this.log("info", "match_end", { matchId: this.matchId, ...result });
     this.broadcast("match_over", {
       protocolVersion: PROTOCOL_VERSION,
       result,
+    });
+    void this.writebackResult(result.winner, result.reason);
+  }
+
+  private async writebackResult(winner: Seat, reason: string) {
+    const s0 = this.seats[0]?.userId ?? this.presetSeatUserIds?.[0];
+    const s1 = this.seats[1]?.userId ?? this.presetSeatUserIds?.[1];
+    if (s0 == null || s1 == null) {
+      this.log("warn", "match_ingest_skip", {
+        matchId: this.matchId,
+        reason: "missing_user_ids",
+      });
+      return;
+    }
+    // Skip ingest for synthetic legacy negative ids unless both are real (>0).
+    if (s0 <= 0 || s1 <= 0) {
+      this.log("info", "match_ingest_skip", {
+        matchId: this.matchId,
+        reason: "legacy_dev_users",
+      });
+      return;
+    }
+    await postMatchResult({
+      match_id: this.matchId,
+      seat0_user_id: s0,
+      seat1_user_id: s1,
+      winner_seat: winner,
+      reason,
+      ranked: this.ranked,
     });
   }
 
@@ -382,4 +539,11 @@ export class DuelRoom extends Room {
     if (level === "warn") console.warn(line);
     else console.log(line);
   }
+}
+
+function hashToNegativeId(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  const n = Math.abs(h) % 1_000_000_000;
+  return -1 - n;
 }

@@ -351,3 +351,39 @@ class GroupBuyReceiptApplyLine(Base):
     qty: Mapped[int] = mapped_column(Integer, default=0)
 
     apply: Mapped[GroupBuyReceiptApply] = relationship(back_populates="lines")
+
+
+class DuelRating(Base):
+    """Per-user ranked duel rating (Elo)."""
+
+    __tablename__ = "duel_ratings"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    rating: Mapped[int] = mapped_column(Integer, default=1000, server_default="1000")
+    games_played: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class DuelMatch(Base):
+    """Completed duel result (idempotent on match_id)."""
+
+    __tablename__ = "duel_matches"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    match_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    seat0_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    seat1_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    winner_seat: Mapped[int] = mapped_column(Integer)  # 0 or 1
+    reason: Mapped[str] = mapped_column(String(64), default="unknown")
+    ranked: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    seat0_rating_before: Mapped[int] = mapped_column(Integer)
+    seat1_rating_before: Mapped[int] = mapped_column(Integer)
+    seat0_rating_after: Mapped[int] = mapped_column(Integer)
+    seat1_rating_after: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

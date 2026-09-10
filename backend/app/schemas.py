@@ -383,3 +383,52 @@ class GroupBuyReceiptMatchReport(BaseModel):
     summary: dict[str, int]
     can_apply_full: bool
     can_apply_partial: bool
+
+
+# --- Duel (Step 4) ---
+
+
+class DuelDevTokenIn(BaseModel):
+    """Mint a game token for a local/dev user key (ENABLE_DEV_LOGIN only)."""
+
+    user_key: str = Field(min_length=1, max_length=64)
+
+
+class DuelTokenOut(BaseModel):
+    token: str
+    expires_at: int
+    user_id: int
+    email: str
+    rating: int
+    games_played: int
+
+
+class DuelMatchIngest(BaseModel):
+    match_id: str = Field(min_length=1, max_length=64)
+    seat0_user_id: int
+    seat1_user_id: int
+    winner_seat: int = Field(ge=0, le=1)
+    reason: str = Field(default="unknown", max_length=64)
+    ranked: bool = True
+
+
+class DuelMatchOut(BaseModel):
+    match_id: str
+    created: bool
+    winner_seat: int
+    seat0_rating_before: int
+    seat1_rating_before: int
+    seat0_rating_after: int
+    seat1_rating_after: int
+
+
+class DuelRatingOut(BaseModel):
+    user_id: int
+    email: str
+    name: str
+    rating: int
+    games_played: int
+
+
+class DuelLeaderboardOut(BaseModel):
+    entries: list[DuelRatingOut]

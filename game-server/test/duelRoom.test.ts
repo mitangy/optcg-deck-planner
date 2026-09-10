@@ -206,4 +206,65 @@ describe("DuelRoom", () => {
     await colyseus.connectTo(room, joinOpts("b", 1));
     await assert.rejects(() => colyseus.connectTo(room, joinOpts("c")));
   });
+
+  it("ranked_queue pairs two clients into a duel room id", async () => {
+    const c1 = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("queue-a"));
+    const c2 = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("queue-b"));
+
+    const matched = await Promise.all([
+      new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error("c1 matched timeout")), 5000);
+        c1.onMessage("queued", () => {});
+        c1.onMessage("matched", (msg: { roomId: string; seat: number }) => {
+          clearTimeout(t);
+          resolve(msg);
+        });
+      }),
+      new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error("c2 matched timeout")), 5000);
+        c2.onMessage("queued", () => {});
+        c2.onMessage("matched", (msg: { roomId: string; seat: number }) => {
+          clearTimeout(t);
+          resolve(msg);
+        });
+      }),
+    ]);
+
+    assert.equal(matched[0].roomId, matched[1].roomId);
+    assert.notEqual(matched[0].seat, matched[1].seat);
+    await c1.leave(true);
+    await c2.leave(true);
+  });
+
+  it("ranked_queue skips same-user pair and matches a distinct third client", async () => {
+    const dupA = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("same-user"));
+    const dupB = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("same-user"));
+    let earlyMatch = false;
+    dupA.onMessage("matched", () => {
+      earlyMatch = true;
+    });
+    dupB.onMessage("matched", () => {
+      earlyMatch = true;
+    });
+    await new Promise((r) => setTimeout(r, 80));
+    assert.equal(earlyMatch, false);
+
+    const other = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("other-user"));
+    const msg = await new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error("third matched timeout")), 5000);
+      other.onMessage("matched", (m: { roomId: string; seat: number }) => {
+        clearTimeout(t);
+        resolve(m);
+      });
+      dupA.onMessage("matched", (m: { roomId: string; seat: number }) => {
+        clearTimeout(t);
+        resolve(m);
+      });
+    });
+    assert.equal(typeof msg.roomId, "string");
+    assert.ok(msg.seat === 0 || msg.seat === 1);
+    await dupA.leave(true);
+    await dupB.leave(true);
+    await other.leave(true);
+  });
 });
