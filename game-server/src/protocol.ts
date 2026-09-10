@@ -10,7 +10,10 @@ export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
 export type DuelJoinOptions = {
   protocolVersion: ProtocolVersion;
-  devUserId: string;
+  /** Legacy / local freeform id when gameToken is absent. */
+  devUserId?: string;
+  /** FastAPI HMAC bearer (preferred). */
+  gameToken?: string;
   /** Required when server has DEV_JOIN_SECRET set. */
   secret?: string;
   preferredSeat?: Seat;
@@ -83,8 +86,18 @@ export function parseJoinOptions(raw: unknown): DuelJoinOptions {
       code: "bad_protocol" as const,
     });
   }
-  if (typeof o.devUserId !== "string" || !o.devUserId.trim()) {
-    throw Object.assign(new Error("devUserId required"), { code: "unauthorized" as const });
+  const gameToken =
+    typeof o.gameToken === "string" && o.gameToken.trim()
+      ? o.gameToken.trim()
+      : undefined;
+  const devUserId =
+    typeof o.devUserId === "string" && o.devUserId.trim()
+      ? o.devUserId.trim()
+      : undefined;
+  if (!gameToken && !devUserId) {
+    throw Object.assign(new Error("gameToken or devUserId required"), {
+      code: "unauthorized" as const,
+    });
   }
   const preferredSeat = o.preferredSeat;
   if (preferredSeat !== undefined && preferredSeat !== 0 && preferredSeat !== 1) {
@@ -94,7 +107,8 @@ export function parseJoinOptions(raw: unknown): DuelJoinOptions {
   }
   return {
     protocolVersion: PROTOCOL_VERSION,
-    devUserId: o.devUserId.trim(),
+    devUserId,
+    gameToken,
     secret: typeof o.secret === "string" ? o.secret : undefined,
     preferredSeat: preferredSeat as Seat | undefined,
   };
@@ -104,6 +118,8 @@ export function parseCreateOptions(raw: unknown): {
   protocolVersion: ProtocolVersion;
   seed: number;
   autoSkipMulligan: boolean;
+  ranked: boolean;
+  seatUserIds?: [number, number];
   players?: [PlayerDeckWire, PlayerDeckWire];
 } {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
@@ -117,6 +133,22 @@ export function parseCreateOptions(raw: unknown): {
       ? Math.floor(o.seed)
       : Date.now() % 1_000_000_000;
   const autoSkipMulligan = o.autoSkipMulligan !== false;
+  const ranked = o.ranked !== false;
+  let seatUserIds: [number, number] | undefined;
+  if (o.seatUserIds !== undefined) {
+    if (!Array.isArray(o.seatUserIds) || o.seatUserIds.length !== 2) {
+      throw Object.assign(new Error("seatUserIds must be a 2-tuple"), {
+        code: "bad_protocol" as const,
+      });
+    }
+    const [a, b] = o.seatUserIds as [unknown, unknown];
+    if (typeof a !== "number" || typeof b !== "number") {
+      throw Object.assign(new Error("seatUserIds must be numbers"), {
+        code: "bad_protocol" as const,
+      });
+    }
+    seatUserIds = [a, b];
+  }
   let players: [PlayerDeckWire, PlayerDeckWire] | undefined;
   if (o.players !== undefined) {
     if (!Array.isArray(o.players) || o.players.length !== 2) {
@@ -125,7 +157,14 @@ export function parseCreateOptions(raw: unknown): {
     const [a, b] = o.players as [unknown, unknown];
     players = [asPlayerDeck(a), asPlayerDeck(b)];
   }
-  return { protocolVersion: PROTOCOL_VERSION, seed, autoSkipMulligan, players };
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    seed,
+    autoSkipMulligan,
+    ranked,
+    seatUserIds,
+    players,
+  };
 }
 
 function asPlayerDeck(raw: unknown): PlayerDeckWire {

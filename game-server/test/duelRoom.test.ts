@@ -206,4 +206,33 @@ describe("DuelRoom", () => {
     await colyseus.connectTo(room, joinOpts("b", 1));
     await assert.rejects(() => colyseus.connectTo(room, joinOpts("c")));
   });
+
+  it("ranked_queue pairs two clients into a duel room id", async () => {
+    const c1 = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("queue-a"));
+    const c2 = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("queue-b"));
+
+    const matched = await Promise.all([
+      new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error("c1 matched timeout")), 5000);
+        c1.onMessage("queued", () => {});
+        c1.onMessage("matched", (msg: { roomId: string; seat: number }) => {
+          clearTimeout(t);
+          resolve(msg);
+        });
+      }),
+      new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error("c2 matched timeout")), 5000);
+        c2.onMessage("queued", () => {});
+        c2.onMessage("matched", (msg: { roomId: string; seat: number }) => {
+          clearTimeout(t);
+          resolve(msg);
+        });
+      }),
+    ]);
+
+    assert.equal(matched[0].roomId, matched[1].roomId);
+    assert.notEqual(matched[0].seat, matched[1].seat);
+    await c1.leave(true);
+    await c2.leave(true);
+  });
 });

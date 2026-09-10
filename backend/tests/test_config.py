@@ -11,6 +11,7 @@ def prod_env(monkeypatch):
     monkeypatch.setenv("FRONTEND_ORIGIN", "https://optcg.example.com")
     monkeypatch.setenv("SESSION_SECRET", "a-strong-session-secret")
     monkeypatch.setenv("CATALOG_SYNC_TOKEN", "a-strong-sync-token")
+    monkeypatch.setenv("DUEL_INGEST_SECRET", "a-strong-duel-ingest-secret")
     monkeypatch.setenv("ENABLE_DEV_LOGIN", "false")
     get_settings.cache_clear()
     yield
@@ -36,6 +37,13 @@ def test_production_rejects_default_session_secret(prod_env, monkeypatch):
         get_settings()
 
 
+def test_production_rejects_default_duel_ingest_secret(prod_env, monkeypatch):
+    monkeypatch.setenv("DUEL_INGEST_SECRET", "dev-duel-ingest")
+    get_settings.cache_clear()
+    with pytest.raises(RuntimeError, match="DUEL_INGEST_SECRET"):
+        get_settings()
+
+
 def test_production_rejects_dev_login(prod_env, monkeypatch):
     monkeypatch.setenv("ENABLE_DEV_LOGIN", "true")
     get_settings.cache_clear()
@@ -48,6 +56,7 @@ def test_https_backend_url_counts_as_production(monkeypatch):
     monkeypatch.setenv("BACKEND_PUBLIC_URL", "https://api.example.com")
     monkeypatch.setenv("SESSION_SECRET", "a-strong-session-secret")
     monkeypatch.setenv("CATALOG_SYNC_TOKEN", "a-strong-sync-token")
+    monkeypatch.setenv("DUEL_INGEST_SECRET", "a-strong-duel-ingest-secret")
     monkeypatch.setenv("ENABLE_DEV_LOGIN", "false")
     get_settings.cache_clear()
     assert get_settings().is_production is True
@@ -60,6 +69,7 @@ def test_postgres_database_counts_as_production(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@localhost/db")
     monkeypatch.setenv("SESSION_SECRET", "a-strong-session-secret")
     monkeypatch.setenv("CATALOG_SYNC_TOKEN", "a-strong-sync-token")
+    monkeypatch.setenv("DUEL_INGEST_SECRET", "a-strong-duel-ingest-secret")
     monkeypatch.setenv("ENABLE_DEV_LOGIN", "false")
     get_settings.cache_clear()
     assert get_settings().is_production is True

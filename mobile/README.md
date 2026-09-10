@@ -31,6 +31,7 @@ Writes `mobile/assets/cardAtlas.json`.
 | Variable | Example | Purpose |
 |----------|---------|---------|
 | `EXPO_PUBLIC_GAME_SERVER_URL` | `http://192.168.1.10:2567` | Colyseus HTTP endpoint for `@colyseus/sdk` |
+| `EXPO_PUBLIC_API_URL` | `http://192.168.1.10:8000` | FastAPI for `/duel/dev-token` and ratings |
 | `EXPO_PUBLIC_DEV_JOIN_SECRET` | (optional) | Must match game-server `DEV_JOIN_SECRET` when set |
 
 Defaults to `http://localhost:2567` (fine for web / iOS Simulator on the same machine). On a **physical phone**, use your computer’s LAN IP — `localhost` points at the phone.

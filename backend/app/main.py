@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import init_db
-from app.routers import api, auth
+from app.routers import api, auth, duel
 
 settings = get_settings()
 
@@ -40,13 +40,24 @@ app = FastAPI(
 )
 
 _cors_origins = [settings.frontend_origin.rstrip("/")]
+_cors_origins.extend(settings.duel_cors_origin_list)
 if not settings.is_production:
     _cors_origins.extend(
         [
             "http://localhost:5173",
             "http://127.0.0.1:5173",
+            "http://localhost:8081",
+            "http://127.0.0.1:8081",
         ]
     )
+# de-dupe while preserving order
+_seen: set[str] = set()
+_cors_unique: list[str] = []
+for o in _cors_origins:
+    if o not in _seen:
+        _seen.add(o)
+        _cors_unique.append(o)
+_cors_origins = _cors_unique
 
 app.add_middleware(
     CORSMiddleware,
@@ -58,6 +69,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(api.router)
+app.include_router(duel.router)
 
 
 @app.get("/")
@@ -77,4 +89,4 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "app": settings.app_name, "api_revision": 9}
+    return {"ok": True, "app": settings.app_name, "api_revision": 10}

@@ -1,17 +1,18 @@
 # Step 4 — Matchmaking, reconnect, ranked
 
-**Status:** `planned` (not started)  
+**Status:** `in progress`  
 **Depends on:** Step 3 / 3.5 acceptance criteria met  
 **Unblocks:** Step 4.5 web staging deploy; Step 5 production-minded features
 
 ## Ready for development (gate)
 
-- [ ] Step 3 / 3.5 exit notes reviewed (auth gaps listed)
-- [ ] Redis available in target deploy env (or explicitly single-node with documented limit)
-- [ ] MMR formula choice (simple Elo vs Glicko-lite) recorded below
-- [ ] FastAPI endpoints sketched (token mint, match result ingest, rating read)
-- [ ] Browser client path agreed: **bearer game tokens** + CORS hooks (ADR-014); product web UI is **`duel-web/`** in Step 4.5
-- [ ] Checklist complete before coding
+- [x] Step 3 / 3.5 exit notes reviewed (auth gaps listed)
+- [x] Redis available in target deploy env (or explicitly single-node with documented limit) — **single-process OK locally; Redis required for ≥2 game-server processes (ADR-006)**
+- [x] MMR formula choice: **Elo**, K=24 (K=40 for first 10 games), initial **1000**
+- [x] FastAPI endpoints sketched: `POST /duel/token`, `POST /duel/dev-token` (dev), `POST /duel/matches` (ingest), `GET /duel/rating/me`, `GET /duel/leaderboard`
+- [x] Browser client path agreed: **bearer game tokens** + CORS hooks (ADR-014); product web UI is **`duel-web/`** in Step 4.5
+- [x] Open questions locked: disconnect grace **60s**; queue supports **ranked** (default) and optional casual flag later
+- [x] Checklist complete — **implementation started**
 
 ## Goal
 

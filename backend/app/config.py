@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     allowed_emails: str = ""
     catalog_sync_token: str = "dev-sync-token"
+    # Shared HMAC secret for short-lived Colyseus join tokens (defaults to session_secret).
+    game_token_secret: str = ""
+    # Game-server → API match ingest header secret.
+    duel_ingest_secret: str = "dev-duel-ingest"
+    # Extra CORS origins for Expo / duel-web (comma-separated).
+    duel_cors_origins: str = "http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006"
     # When true, any signed-in Google user is allowed (ignore ALLOWED_EMAILS)
     allow_any_google_user: bool = False
     # Local-only passwordless login (never enable in production)
@@ -32,6 +38,10 @@ class Settings(BaseSettings):
             for e in self.allowed_emails.split(",")
             if e.strip()
         }
+
+    @property
+    def duel_cors_origin_list(self) -> list[str]:
+        return [o.strip().rstrip("/") for o in self.duel_cors_origins.split(",") if o.strip()]
 
     @property
     def sqlalchemy_url(self) -> str:
@@ -56,6 +66,7 @@ class Settings(BaseSettings):
 
 DEFAULT_SESSION_SECRETS = {"dev-change-me-in-production", "dev-secret-change-me"}
 DEFAULT_CATALOG_SYNC_TOKEN = "dev-sync-token"
+DEFAULT_DUEL_INGEST_SECRET = "dev-duel-ingest"
 
 
 @lru_cache
@@ -67,4 +78,6 @@ def get_settings() -> Settings:
         raise RuntimeError("ENABLE_DEV_LOGIN must be false in production")
     if settings.is_production and settings.catalog_sync_token == DEFAULT_CATALOG_SYNC_TOKEN:
         raise RuntimeError("CATALOG_SYNC_TOKEN must be set to a strong value in production")
+    if settings.is_production and settings.duel_ingest_secret == DEFAULT_DUEL_INGEST_SECRET:
+        raise RuntimeError("DUEL_INGEST_SECRET must be set to a strong value in production")
     return settings

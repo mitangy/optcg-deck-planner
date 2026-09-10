@@ -21,11 +21,14 @@ export type DuelClientHandlers = {
   onError?: (err: ErrorMessage) => void;
   onMatchOver?: (msg: MatchOverMessage) => void;
   onDisconnect?: (code: number) => void;
+  onQueued?: (position: number) => void;
+  onMatched?: (info: { roomId: string; seat: Seat; ranked: boolean }) => void;
 };
 
 export type ConnectParams = {
   serverUrl?: string;
-  devUserId: string;
+  devUserId?: string;
+  gameToken?: string;
   secret?: string;
   preferredSeat?: Seat;
   roomId?: string;
@@ -35,7 +38,9 @@ export type ConnectParams = {
 export class DuelClient {
   private client: Client | null = null;
   private room: Room | null = null;
+  private queueRoom: Room | null = null;
   private handlers: DuelClientHandlers = {};
+  private reconnectionToken: string | null = null;
 
   setHandlers(h: DuelClientHandlers) {
     this.handlers = h;
@@ -45,19 +50,17 @@ export class DuelClient {
     return this.room?.roomId;
   }
 
+  getReconnectionToken(): string | null {
+    return this.reconnectionToken;
+  }
+
   async connect(params: ConnectParams): Promise<{ matchId: string; seat: Seat }> {
     await this.disconnect();
 
     const url = params.serverUrl ?? getGameServerUrl();
     this.client = new Client(url);
 
-    const join: DuelJoinOptions = {
-      protocolVersion: PROTOCOL_VERSION,
-      devUserId: params.devUserId.trim(),
-      secret: params.secret ?? getDevJoinSecret(),
-      preferredSeat: params.preferredSeat,
-    };
-
+    const join = this.buildJoin(params);
     const create: DuelCreateOptions = {
       protocolVersion: PROTOCOL_VERSION,
       autoSkipMulligan: true,
@@ -72,8 +75,143 @@ export class DuelClient {
     }
 
     this.room = room;
-    this.wire(room);
+    this.captureReconnectionToken(room);
+    this.wireDuel(room);
 
+    return this.waitWelcome(room);
+  }
+
+  /** Join ranked_queue until matched, then join the duel room. */
+  async queueRanked(params: ConnectParams): Promise<{ matchId: string; seat: Seat }> {
+    await this.disconnect();
+    const url = params.serverUrl ?? getGameServerUrl();
+    this.client = new Client(url);
+    const join = this.buildJoin(params);
+
+    const queueRoom = await this.client.joinOrCreate("ranked_queue", join);
+    this.queueRoom = queueRoom;
+
+    const matched = await new Promise<{ roomId: string; seat: Seat; ranked: boolean }>(
+      (resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("Queue timed out")), 120000);
+        queueRoom.onMessage("queued", (msg: { position?: number }) => {
+          this.handlers.onQueued?.(typeof msg?.position === "number" ? msg.position : 0);
+        });
+        queueRoom.onMessage(
+          "matched",
+          (msg: { roomId?: string; seat?: Seat; ranked?: boolean }) => {
+            clearTimeout(timer);
+            if (typeof msg?.roomId !== "string" || (msg.seat !== 0 && msg.seat !== 1)) {
+              reject(new Error("Bad matched payload"));
+              return;
+            }
+            resolve({
+              roomId: msg.roomId,
+              seat: msg.seat,
+              ranked: msg.ranked !== false,
+            });
+          },
+        );
+        queueRoom.onError((code, message) => {
+          clearTimeout(timer);
+          reject(new Error(message || `queue error ${code}`));
+        });
+      },
+    );
+
+    this.handlers.onMatched?.(matched);
+    try {
+      await queueRoom.leave(true);
+    } catch {
+      /* ignore */
+    }
+    this.queueRoom = null;
+
+    const room = await this.client.joinById(matched.roomId, {
+      ...join,
+      preferredSeat: matched.seat,
+    });
+    this.room = room;
+    this.captureReconnectionToken(room);
+    this.wireDuel(room);
+    return this.waitWelcome(room);
+  }
+
+  async cancelQueue() {
+    if (this.queueRoom) {
+      try {
+        this.queueRoom.send("cancel", {});
+        await this.queueRoom.leave(true);
+      } catch {
+        /* ignore */
+      }
+      this.queueRoom = null;
+    }
+  }
+
+  async reconnect(): Promise<{ matchId: string; seat: Seat }> {
+    if (!this.client || !this.reconnectionToken) {
+      throw new Error("No reconnection token");
+    }
+    const room = await this.client.reconnect(this.reconnectionToken);
+    this.room = room;
+    this.captureReconnectionToken(room);
+    this.wireDuel(room);
+    room.send("sync", { protocolVersion: PROTOCOL_VERSION });
+    return this.waitWelcome(room);
+  }
+
+  sendIntent(intent: Intent) {
+    if (!this.room) throw new Error("Not connected");
+    this.room.send("intent", { protocolVersion: PROTOCOL_VERSION, intent });
+  }
+
+  concede() {
+    if (!this.room) throw new Error("Not connected");
+    this.room.send("concede", { protocolVersion: PROTOCOL_VERSION });
+  }
+
+  sync() {
+    if (!this.room) throw new Error("Not connected");
+    this.room.send("sync", { protocolVersion: PROTOCOL_VERSION });
+  }
+
+  ping(t = Date.now()) {
+    this.room?.send("ping", { t });
+  }
+
+  async disconnect() {
+    await this.cancelQueue();
+    if (this.room) {
+      try {
+        await this.room.leave(true);
+      } catch {
+        /* ignore */
+      }
+      this.room = null;
+    }
+    this.client = null;
+    this.reconnectionToken = null;
+  }
+
+  private buildJoin(params: ConnectParams): DuelJoinOptions {
+    return {
+      protocolVersion: PROTOCOL_VERSION,
+      devUserId: params.devUserId?.trim() || undefined,
+      gameToken: params.gameToken,
+      secret: params.secret ?? getDevJoinSecret(),
+      preferredSeat: params.preferredSeat,
+    };
+  }
+
+  private captureReconnectionToken(room: Room) {
+    const token = (room as { reconnectionToken?: string }).reconnectionToken;
+    if (typeof token === "string" && token.length > 0) {
+      this.reconnectionToken = token;
+    }
+  }
+
+  private waitWelcome(room: Room): Promise<{ matchId: string; seat: Seat }> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(
         () => reject(new Error("Timed out waiting for welcome")),
@@ -93,33 +231,7 @@ export class DuelClient {
     });
   }
 
-  sendIntent(intent: Intent) {
-    if (!this.room) throw new Error("Not connected");
-    this.room.send("intent", { protocolVersion: PROTOCOL_VERSION, intent });
-  }
-
-  sync() {
-    if (!this.room) throw new Error("Not connected");
-    this.room.send("sync", { protocolVersion: PROTOCOL_VERSION });
-  }
-
-  ping(t = Date.now()) {
-    this.room?.send("ping", { t });
-  }
-
-  async disconnect() {
-    if (this.room) {
-      try {
-        await this.room.leave(true);
-      } catch {
-        /* ignore */
-      }
-      this.room = null;
-    }
-    this.client = null;
-  }
-
-  private wire(room: Room) {
+  private wireDuel(room: Room) {
     room.onMessage("welcome", (raw: unknown) => {
       try {
         const msg = parseWelcome(raw);
