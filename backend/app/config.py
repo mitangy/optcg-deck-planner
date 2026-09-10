@@ -25,7 +25,10 @@ class Settings(BaseSettings):
     # Game-server → API match ingest header secret.
     duel_ingest_secret: str = "dev-duel-ingest"
     # Extra CORS origins for Expo / duel-web (comma-separated).
-    duel_cors_origins: str = "http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006"
+    duel_cors_origins: str = (
+        "http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,"
+        "http://localhost:5174,http://127.0.0.1:5174"
+    )
     # When true, any signed-in Google user is allowed (ignore ALLOWED_EMAILS)
     allow_any_google_user: bool = False
     # Local-only passwordless login (never enable in production)

@@ -3,7 +3,10 @@
  */
 import { listen } from "@colyseus/tools";
 import app from "./app.config.js";
+import { installCorsAllowlist } from "./cors.js";
 import { getPort } from "./env.js";
+
+installCorsAllowlist();
 
 const port = getPort();
 listen(app, port);
