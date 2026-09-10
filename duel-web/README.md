@@ -89,6 +89,8 @@ Do **not** edit the repo-root `vercel.json` (planner).
 
 Official card names and Bandai cardlist art URLs are for **private prototype testing only**. Public production needs rights / feature flags (Step 5).
 
+The curated atlas in this package uses **bundled** arts under `public/cards/` (Bandai CDN blocks cross-site embedding with CORP). Regenerate from `@optcg/rules` then re-mirror files into `public/cards/` when expanding the set.
+
 ## Tests
 
 ```bash

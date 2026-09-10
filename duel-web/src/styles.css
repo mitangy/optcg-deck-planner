@@ -165,8 +165,11 @@ button {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
   background: transparent;
+  overflow: hidden;
 }
 
 .reconnect-banner {
@@ -941,6 +944,7 @@ button {
     grid-template-areas:
       "brand actions"
       "status status";
+    padding: 0.4rem 0.65rem;
   }
 
   .hud-brand {
@@ -949,34 +953,78 @@ button {
 
   .hud-status {
     grid-area: status;
+    font-size: 0.7rem;
   }
 
   .hud-actions {
     grid-area: actions;
   }
 
+  .playmat {
+    padding: 0.4rem 0.5rem 0.25rem;
+  }
+
+  .playmat-inner {
+    gap: 0.4rem;
+  }
+
+  .side-field {
+    padding: 0.4rem 0.45rem 0.5rem;
+  }
+
   .side-grid {
     grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 0.35rem;
+    gap: 0.3rem;
   }
 
   .card-tile.compact {
-    width: 52px;
-    height: 74px;
-  }
-
-  .card-tile.full {
-    width: 76px;
-    height: 106px;
-  }
-
-  .zone-slot {
     width: 48px;
     height: 68px;
   }
 
+  .card-tile.full {
+    width: 70px;
+    height: 98px;
+  }
+
+  .zone-slot {
+    width: 44px;
+    height: 62px;
+  }
+
   .zone-pile {
-    width: 54px;
+    width: 48px;
+  }
+
+  .zone-pile-stack {
+    width: 34px;
+    height: 46px;
+  }
+
+  .characters-row {
+    min-height: 72px;
+  }
+
+  .opp-hand-hint {
+    min-height: 1.5rem;
+  }
+
+  .card-back {
+    width: 16px;
+    height: 22px;
+  }
+
+  .hand-rail {
+    padding: 0.35rem 0.55rem 0.4rem;
+  }
+
+  .hand-row .card-tile.full {
+    width: 64px;
+    height: 90px;
+  }
+
+  .intent-bar {
+    padding: 0.4rem 0.55rem 0.5rem;
   }
 }
 
