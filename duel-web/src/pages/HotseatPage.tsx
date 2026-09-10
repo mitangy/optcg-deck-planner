@@ -34,6 +34,7 @@ export function HotseatPage() {
   const [ready, setReady] = useState(false);
   const bags = useRef<[SeatBag | null, SeatBag | null]>([null, null]);
   const [, bump] = useState(0);
+  const bootGen = useRef(0);
 
   const title = useMemo(() => nav?.deckName ?? "Hotseat", [nav?.deckName]);
 
@@ -43,8 +44,11 @@ export function HotseatPage() {
       return;
     }
 
+    const gen = ++bootGen.current;
     let cancelled = false;
     const clients: DuelClient[] = [];
+
+    const alive = () => !cancelled && gen === bootGen.current;
 
     async function boot() {
       try {
@@ -67,6 +71,8 @@ export function HotseatPage() {
         }
 
         const auth0 = await auth("a");
+        if (!alive()) return;
+
         const c0 = new DuelClient();
         clients.push(c0);
         const bag0: SeatBag = {
@@ -76,27 +82,36 @@ export function HotseatPage() {
           error: null,
           connected: false,
         };
+        if (!alive()) {
+          void c0.disconnect();
+          return;
+        }
         bags.current[0] = bag0;
         c0.setHandlers({
           onWelcome: ({ matchId: id, view }) => {
+            if (!alive()) return;
             setMatchId(id);
             bag0.view = view;
             bag0.connected = true;
             bump((n) => n + 1);
           },
           onView: (view) => {
+            if (!alive()) return;
             bag0.view = view;
             bump((n) => n + 1);
           },
           onMatchOver: (msg) => {
+            if (!alive()) return;
             bag0.matchOver = msg.result;
             bump((n) => n + 1);
           },
           onError: (err) => {
+            if (!alive()) return;
             bag0.error = `${err.code}: ${err.message}`;
             bump((n) => n + 1);
           },
           onDisconnect: () => {
+            if (!alive()) return;
             bag0.connected = false;
             bump((n) => n + 1);
           },
@@ -108,10 +123,12 @@ export function HotseatPage() {
           deck: wire,
           createOptions: { players: [wire, wire] },
         });
-        if (cancelled) return;
+        if (!alive()) return;
         setMatchId(info.matchId);
 
         const auth1 = await auth("b");
+        if (!alive()) return;
+
         const c1 = new DuelClient();
         clients.push(c1);
         const bag1: SeatBag = {
@@ -124,23 +141,28 @@ export function HotseatPage() {
         bags.current[1] = bag1;
         c1.setHandlers({
           onWelcome: ({ view }) => {
+            if (!alive()) return;
             bag1.view = view;
             bag1.connected = true;
             bump((n) => n + 1);
           },
           onView: (view) => {
+            if (!alive()) return;
             bag1.view = view;
             bump((n) => n + 1);
           },
           onMatchOver: (msg) => {
+            if (!alive()) return;
             bag1.matchOver = msg.result;
             bump((n) => n + 1);
           },
           onError: (err) => {
+            if (!alive()) return;
             bag1.error = `${err.code}: ${err.message}`;
             bump((n) => n + 1);
           },
           onDisconnect: () => {
+            if (!alive()) return;
             bag1.connected = false;
             bump((n) => n + 1);
           },
@@ -152,10 +174,20 @@ export function HotseatPage() {
           preferredSeat: 1,
           deck: wire,
         });
-        if (cancelled) return;
+        if (!alive()) return;
+
+        const deadline = Date.now() + 10000;
+        while (Date.now() < deadline && (!bag0.view || !bag1.view)) {
+          if (!alive()) return;
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        if (!alive()) return;
+        if (!bag0.view || !bag1.view) {
+          throw new Error("Hotseat connected but never received board views");
+        }
         setReady(true);
       } catch (e) {
-        if (!cancelled) {
+        if (alive()) {
           setBootError(e instanceof Error ? e.message : "Hotseat failed");
         }
       }
@@ -198,7 +230,7 @@ export function HotseatPage() {
     );
   }
 
-  if (!ready || !bag) {
+  if (!ready || !bag?.view) {
     return (
       <div className="duel-root">
         <div className="loading arena-loading">Starting hotseat ({title})…</div>

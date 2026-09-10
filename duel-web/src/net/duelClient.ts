@@ -73,7 +73,9 @@ export class DuelClient {
     if (params.roomId?.trim()) {
       room = await this.client.joinById(params.roomId.trim(), join);
     } else {
-      room = await this.client.joinOrCreate("duel", { ...create, ...join });
+      // Always `create` for the host seat so StrictMode remounts / leftover
+      // reconnect-grace rooms are not re-joined while locked at maxClients.
+      room = await this.client.create("duel", { ...create, ...join });
     }
 
     this.room = room;
