@@ -43,13 +43,13 @@ export default function ConnectScreen() {
     };
   }
 
-  async function go(mode: "create" | "join" | "queue") {
+  async function go(mode: "create" | "join" | "queue" | "spectate") {
     if (!userKey.trim()) {
       setError("user key is required");
       return;
     }
-    if (mode === "join" && !roomId.trim()) {
-      setError("Room id required to join");
+    if ((mode === "join" || mode === "spectate") && !roomId.trim()) {
+      setError("Room id required to join / spectate");
       return;
     }
     setBusy(true);
@@ -61,7 +61,8 @@ export default function ConnectScreen() {
       } else {
         await connect({
           ...opts,
-          roomId: mode === "join" ? roomId.trim() : undefined,
+          roomId: mode === "create" ? undefined : roomId.trim(),
+          role: mode === "spectate" ? "spectator" : "player",
         });
       }
       router.push("/duel");
@@ -76,7 +77,7 @@ export default function ConnectScreen() {
     <View style={styles.root}>
       <Text style={styles.brand}>OPTCG Duel</Text>
       <Text style={styles.sub}>
-        Step 4 lobby — ranked queue, bearer game tokens, reconnect. Private prototype only.
+        Step 5 lobby — ranked queue, spectate, bearer game tokens, reconnect. Private prototype only.
       </Text>
 
       <Text style={styles.label}>Game server URL</Text>
@@ -170,6 +171,13 @@ export default function ConnectScreen() {
           onPress={() => go("join")}
         >
           <Text style={styles.btnText}>Join by room id</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.btn, styles.secondary]}
+          disabled={busy || queueing}
+          onPress={() => go("spectate")}
+        >
+          <Text style={styles.btnText}>Spectate room</Text>
         </Pressable>
       </View>
     </View>

@@ -12,6 +12,7 @@ export {
   applyIntent,
   listLegalIntents,
   getPlayerView,
+  getSpectatorView,
   assertInvariants,
   skipMulligans,
 } from "./engine.js";

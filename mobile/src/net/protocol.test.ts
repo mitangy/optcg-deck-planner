@@ -66,6 +66,24 @@ describe("protocol parsers", () => {
     expect(() => assertNoOpponentHand(sampleView(true))).toThrow(/privacy|leak/i);
   });
 
+  it("parses spectator welcome with empty hands", () => {
+    const view = sampleView();
+    view.spectator = true;
+    view.you.hand = [];
+    view.you.handCount = 5;
+    view.legalIntents = [];
+    const msg = parseWelcome({
+      protocolVersion: PROTOCOL_VERSION,
+      matchId: "m-spec",
+      seat: 0,
+      role: "spectator",
+      view,
+    });
+    expect(msg.role).toBe("spectator");
+    expect(msg.view.you.hand).toEqual([]);
+    expect(msg.view.you.handCount).toBe(5);
+  });
+
   it("parses view, error, and match_over", () => {
     expect(
       parseView({ protocolVersion: PROTOCOL_VERSION, view: sampleView() }).view

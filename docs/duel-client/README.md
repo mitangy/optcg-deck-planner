@@ -34,6 +34,8 @@ docs/duel-client/       Architecture + per-step plans (this tree)
 | 5 | [steps/05-content-spectate-android.md](./steps/05-content-spectate-android.md) | Broader cards, spectate, Android, **production web polish** (**in progress**) |
 | 5.5 | [steps/05.5-board-ux-sim-tft.md](./steps/05.5-board-ux-sim-tft.md) | **`duel-web/` playmat** — OPTCG Sim layout + TFT-inspired chrome (**implemented**) |
 
+Content guide: [CONTENT.md](./CONTENT.md) · Load notes: [LOAD.md](./LOAD.md)
+
 ### Web deploy placement (ADR-014)
 
 | Step | What ships |

@@ -35,13 +35,13 @@ export function LobbyPage() {
     };
   }
 
-  async function go(mode: "create" | "join" | "queue") {
+  async function go(mode: "create" | "join" | "queue" | "spectate") {
     if (!userKey.trim()) {
       setError("user key is required");
       return;
     }
-    if (mode === "join" && !roomId.trim()) {
-      setError("Room id required to join");
+    if ((mode === "join" || mode === "spectate") && !roomId.trim()) {
+      setError("Room id required to join / spectate");
       return;
     }
     setBusy(true);
@@ -53,7 +53,8 @@ export function LobbyPage() {
       } else {
         await connect({
           ...opts,
-          roomId: mode === "join" ? roomId.trim() : undefined,
+          roomId: mode === "create" ? undefined : roomId.trim(),
+          role: mode === "spectate" ? "spectator" : "player",
         });
       }
       navigate("/duel");
@@ -153,6 +154,14 @@ export function LobbyPage() {
             onClick={() => go("join")}
           >
             Join by room id
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={busy || queueing}
+            onClick={() => go("spectate")}
+          >
+            Spectate room
           </button>
         </div>
       </form>

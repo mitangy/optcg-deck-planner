@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildTestDeck } from "../cards/definitions.js";
+import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
 import {
   applyIntent,
   assertInvariants,
   createMatch,
   getPlayerView,
+  getSpectatorView,
   listLegalIntents,
   skipMulligans,
 } from "../engine.js";
@@ -219,4 +220,74 @@ describe("privacy", () => {
     expect(view.opponent.lifeCount).toBe(5);
     expect((view.opponent as { life?: unknown }).life).toBeUndefined();
   });
+
+  it("non-Rush characters are summoning sick; Rush can attack same turn", () => {
+    let state = createMatch({
+      seed: 7,
+      firstSeat: 0,
+      players: [
+        { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
+        { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
+      ],
+    });
+    const rng = createSeededRng(7);
+    state = skipMulligans(state, rng);
+    // Advance past first-turn attack lock for P0
+    state = applyIntent(state, { type: "end_turn" }, { seat: 0, rng }).state;
+    state = applyIntent(state, { type: "end_turn" }, { seat: 1, rng }).state;
+    expect(state.players[0].turnsStarted).toBe(2);
+
+    // Put Karoo (no Rush) and Sanji (Rush) into hand with enough DON!!
+    state.players[0].hand = [
+      { id: "h_karoo", defId: "ST01-003", rested: false, attachedDonIds: [] },
+      { id: "h_sanji", defId: "ST01-004", rested: false, attachedDonIds: [] },
+    ];
+    while (state.players[0].costArea.filter((d) => !d.rested).length < 4) {
+      const d = state.players[0].donDeck.pop();
+      if (!d) break;
+      state.players[0].costArea.push(d);
+    }
+
+    let r = applyIntent(state, { type: "play_card", handIndex: 0 }, { seat: 0, rng });
+    expect(r.ok).toBe(true);
+    state = r.state;
+    const karoo = state.players[0].characters.find((c) => c.defId === "ST01-003")!;
+    expect(karoo.summoningSick).toBe(true);
+    expect(
+      listLegalIntents(state, 0).some(
+        (i) => i.type === "declare_attack" && i.attackerId === karoo.id,
+      ),
+    ).toBe(false);
+
+    r = applyIntent(state, { type: "play_card", handIndex: 0 }, { seat: 0, rng });
+    expect(r.ok).toBe(true);
+    state = r.state;
+    const sanji = state.players[0].characters.find((c) => c.defId === "ST01-004")!;
+    expect(sanji.summoningSick).toBe(false);
+    expect(
+      listLegalIntents(state, 0).some(
+        (i) => i.type === "declare_attack" && i.attackerId === sanji.id,
+      ),
+    ).toBe(true);
+  });
+
+  it("spectator view hides both hands", () => {
+    let state = createMatch({
+      seed: 3,
+      firstSeat: 0,
+      players: [
+        { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
+        { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
+      ],
+    });
+    state = skipMulligans(state, createSeededRng(3));
+    const view = getSpectatorView(state, 0);
+    expect(view.spectator).toBe(true);
+    expect(view.you.hand).toEqual([]);
+    expect(view.you.handCount).toBeGreaterThan(0);
+    expect(view.opponent.handCount).toBeGreaterThan(0);
+    expect(view.legalIntents).toEqual([]);
+    expect((view as { opponent?: { hand?: unknown } }).opponent?.hand).toBeUndefined();
+  });
+
 });

@@ -32,6 +32,17 @@ const defs: CardDef[] = [
     imageUrl: bandaiArt("ST01-003"),
   },
   {
+    id: "ST01-004",
+    name: "Sanji",
+    type: "character",
+    colors: ["red"],
+    cost: 2,
+    power: 4000,
+    counter: 1000,
+    rush: true,
+    imageUrl: bandaiArt("ST01-004"),
+  },
+  {
     id: "ST01-006",
     name: "TonyTony.Chopper",
     type: "character",
@@ -98,6 +109,7 @@ export type CardAtlasEntry = {
   life?: number;
   counter?: number;
   blocker?: boolean;
+  rush?: boolean;
   imageUrl?: string;
 };
 
@@ -114,6 +126,7 @@ export function buildCardAtlas(): Record<CardDefId, CardAtlasEntry> {
       life: d.life,
       counter: d.counter,
       blocker: d.blocker,
+      rush: d.rush,
       imageUrl: d.imageUrl,
     };
   }
@@ -130,6 +143,10 @@ export function buildTestDeck(size = 20): CardDefId[] {
     "ST01-003",
     "ST01-003",
     "ST01-003",
+    "ST01-004",
+    "ST01-004",
+    "ST01-004",
+    "ST01-004",
     "ST01-006",
     "ST01-006",
     "ST01-006",
@@ -140,10 +157,6 @@ export function buildTestDeck(size = 20): CardDefId[] {
     "ST01-008",
     "ST01-009",
     "ST01-009",
-    "ST01-009",
-    "ST01-009",
-    "ST01-014",
-    "ST01-014",
     "ST01-014",
     "ST01-014",
   ];

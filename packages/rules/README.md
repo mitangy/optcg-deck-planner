@@ -16,6 +16,7 @@ createMatch(config)
 applyIntent(state, intent, { seat, rng })
 listLegalIntents(state, seat)
 getPlayerView(state, seat)
+getSpectatorView(state, cameraSeat?)
 assertInvariants(state)
 skipMulligans(state, rng)
 createSeededRng(seed)
@@ -76,7 +77,8 @@ Decks in tests/sims use **20 cards** (≤4 copies each) from this set — not fu
 
 ## Known gaps (vs full Comprehensive Rules)
 
-- Keywords not on the subset (Rush, Double Attack, Banish, DON!!×N When Attacking, Stage Activate:Main, Main KO events, etc.)  
+- Keywords not on the subset (Double Attack, Banish, DON!!×N When Attacking, Stage Activate:Main, Main KO events, etc.)  
+- Rush **is** implemented (ST01-004 Sanji) with Character summoning sickness  
 - Thousand Sunny / Jet Pistol KO / other ST01 prints deferred until hooks exist  
 - No full 50-card / color-identity / 4-of constructed validation yet  
 - Trigger handling is minimal (`triggerDraw` only; no curated Trigger print in the default set)  
