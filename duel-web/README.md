@@ -38,6 +38,17 @@ Copy `.env.example` → `.env` for local overrides. Staging/production bake `VIT
 
 HTTPS pages require a **WSS** game server (`https://` / `wss://`). Mixed content (HTTPS → `http://` Colyseus) fails closed.
 
+### Staging mint (`POST /duel/dev-token`)
+
+Production APIs keep `ENABLE_DEV_LOGIN=false` (startup refuses otherwise). For duel-web staging demos, set **`ENABLE_DUEL_DEV_TOKEN=true`** on the FastAPI service that `VITE_API_URL` points at. That unlocks cookie-free `/duel/dev-token` without enabling `/auth/dev-login`.
+
+| Staging target | Notes |
+|----------------|-------|
+| `https://optcg-api-pr-84.onrender.com` | PR preview for this branch — prefer while Step 4.5 is unmerged |
+| `https://optcg-api-nutb.onrender.com` | Production API — needs `ENABLE_DUEL_DEV_TOKEN` **and** the flag shipped on `main` |
+
+If Create duel shows `Token mint failed (404)`, the API is hiding `/duel/dev-token` (flag off or old deploy).
+
 ## Run
 
 ```bash

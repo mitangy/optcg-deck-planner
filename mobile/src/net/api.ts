@@ -1,4 +1,4 @@
-/** Mint a cookie-free game token when backend ENABLE_DEV_LOGIN is on. */
+/** Mint a cookie-free game token (ENABLE_DEV_LOGIN or ENABLE_DUEL_DEV_TOKEN). */
 import { getApiBaseUrl } from "../config";
 
 export type DuelTokenResponse = {

@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     allow_any_google_user: bool = False
     # Local-only passwordless login (never enable in production)
     enable_dev_login: bool = False
+    # Cookie-free POST /duel/dev-token for duel-web / Expo staging demos.
+    # Safe to enable in production staging; does not unlock /auth/dev-login.
+    enable_duel_dev_token: bool = False
 
     @property
     def allowed_email_set(self) -> set[str]:
