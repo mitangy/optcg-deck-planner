@@ -109,6 +109,7 @@ Work is **split across three plan slices**:
 | **Step 4** | Make lobby/matchmaking **browser-capable** (bearer game tokens, CORS-ready server hooks). Local browser smoke may use Vite `duel-web` once scaffolded, or temporary Expo web — product UI is still `duel-web/` |
 | **Step 4.5** | **Scaffold + staging deploy** of `duel-web/` to Vercel; WSS to staging game server; shareable HTTPS URL |
 | **Step 5** | **Production web polish** on `duel-web/` (desktop layout, production domain, legal/IP flags); alongside Android + spectate + content |
+| **Step 5.5** | **Board UX** — OPTCG Sim zone layout + TFT-inspired chrome (see ADR-015) |
 
 **Why:** Product asks for a real **web frontend**, not only an Expo static export. Keeping it out of `frontend/` preserves the deck planner’s release train. Vite matches existing Vercel ops. Two UIs (Expo + Vite) are acceptable if both stay dumb renderers of server views.
 
@@ -120,3 +121,17 @@ Work is **split across three plan slices**:
 - Single mega-step for “all web” — rejected (poor gating).
 
 **See:** `steps/04-matchmaking-reconnect-ranked.md`, `steps/04.5-web-deploy.md`, `steps/05-content-spectate-android.md`.
+
+## ADR-015 — OPTCG Sim playmat layout + TFT-inspired HUD (Step 5.5)
+
+**Decision:** The `duel-web/` board uses **official OPTCG / OPTCG Sim zone placement** (Life, Character row, Leader, Stage, Deck, Trash, DON!! deck, Cost area, Hand) and a **TFT-inspired** visual language (gold chrome peripheral HUD, arena vignette, bottom hand “bench”, elevated selection, clear zone frames). Do **not** ship Riot or OPTCG Sim assets, logos, or trademarks — inspiration only.
+
+**Why:** Paper and Sim players already know that layout; TFT’s HUD hierarchy reads well on desktop for a competitive board game. Carving this into Step 5.5 keeps Step 5’s content/spectate/Android gates from blocking the visual pass.
+
+**Rejected alternatives:**
+
+- Inventing a novel zone topology — rejected (breaks Sim muscle memory).
+- Hex grid / auto-battler board geometry — rejected (wrong game; keep card rows).
+- Copying Sim or Riot art packs — rejected (IP).
+
+**See:** `steps/05.5-board-ux-sim-tft.md`, `steps/05-content-spectate-android.md`.

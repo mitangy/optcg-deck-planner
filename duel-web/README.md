@@ -79,9 +79,11 @@ Do **not** edit the repo-root `vercel.json` (planner).
 ## Architecture notes
 
 - Board is a **pure renderer** of `welcome` / `view` / `events` / `error` / `match_over`.
+- Playmat zones follow **OPTCG Sim / official layout** (Step 5.5 / ADR-015); visual chrome is TFT-inspired (gold HUD, bottom hand rail).
 - Cosmetics from bundled **card atlas** keyed by `defId`.
 - **Do not** import `@optcg/rules` for legality.
 - Wire types: `src/net/protocol.ts` (mirrored from game-server).
+- Layout QA: open `/demo` for a static playmat with sample zones (no live match).
 
 ## IP / private prototype
 
