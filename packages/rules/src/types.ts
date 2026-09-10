@@ -32,6 +32,8 @@ export interface CardDef {
   counterPowerBonus?: number;
   mainDraw?: number;
   triggerDraw?: number;
+  /** Optional art URL (TCGPlayer CDN or Bandai cardlist). Display only. */
+  imageUrl?: string;
 }
 
 export interface CardInstance {

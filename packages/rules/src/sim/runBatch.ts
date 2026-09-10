@@ -32,8 +32,8 @@ function playRandom(seed: number, maxIntents = 800): {
     seed,
     firstSeat: 0,
     players: [
-      { leaderId: "leader_red_5k", deck: [...deck] },
-      { leaderId: "leader_red_5k", deck: [...deck] },
+      { leaderId: "ST01-001", deck: [...deck] },
+      { leaderId: "ST01-001", deck: [...deck] },
     ],
   });
   state = skipMulligans(state, rng);

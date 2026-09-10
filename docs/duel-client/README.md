@@ -28,7 +28,7 @@ Placeholder READMEs live in `mobile/`, `game-server/`, and `packages/rules/` unt
 |------|------|------|
 | 1 | [steps/01-rules-engine.md](./steps/01-rules-engine.md) | Headless **official OPTCG** rules engine + CI simulations (**implemented**) |
 | 2 | [steps/02-game-server.md](./steps/02-game-server.md) | Authoritative Colyseus duel room (tiny card subset) (**implemented**) |
-| 3 | [steps/03-expo-client-board.md](./steps/03-expo-client-board.md) | Expo board that renders state diffs + sends intents |
+| 3 | [steps/03-expo-client-board.md](./steps/03-expo-client-board.md) | Expo board + curated real OPTCG cards (**plan ready**) |
 | 4 | [steps/04-matchmaking-reconnect-ranked.md](./steps/04-matchmaking-reconnect-ranked.md) | Matchmaking, reconnect, ranked ladder wiring |
 | 5 | [steps/05-content-spectate-android.md](./steps/05-content-spectate-android.md) | Broader card data, spectate, Android store pass |
 

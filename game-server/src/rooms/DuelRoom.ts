@@ -4,6 +4,7 @@ import {
   buildTestDeck,
   createMatch,
   createSeededRng,
+  DEFAULT_LEADER_ID,
   getPlayerView,
   skipMulligans,
   type GameEvent,
@@ -178,8 +179,8 @@ export class DuelRoom extends Room {
     this.rng = createSeededRng(this.seed);
     const deckA = this.createPlayers?.[0]?.deck ?? buildTestDeck(20);
     const deckB = this.createPlayers?.[1]?.deck ?? buildTestDeck(20);
-    const leaderA = this.createPlayers?.[0]?.leaderId ?? "leader_red_5k";
-    const leaderB = this.createPlayers?.[1]?.leaderId ?? "leader_red_5k";
+    const leaderA = this.createPlayers?.[0]?.leaderId ?? DEFAULT_LEADER_ID;
+    const leaderB = this.createPlayers?.[1]?.leaderId ?? DEFAULT_LEADER_ID;
 
     let match = createMatch({
       seed: this.seed,
