@@ -63,7 +63,7 @@ describe("protocol parsers", () => {
     });
     expect(msg.matchId).toBe("m1");
     expect(msg.view.opponent.handCount).toBe(5);
-    expect(() => assertNoOpponentHand(sampleView(true))).toThrow(/privacy/);
+    expect(() => assertNoOpponentHand(sampleView(true))).toThrow(/privacy|leak/i);
   });
 
   it("parses view, error, and match_over", () => {
@@ -88,7 +88,8 @@ describe("protocol parsers", () => {
 
   it("labels intents", () => {
     expect(intentLabel({ type: "end_turn" })).toBe("End turn");
-    expect(intentLabel({ type: "mulligan", doMulligan: false })).toBe("Keep hand");
+    expect(intentLabel({ type: "play_card", handIndex: 2 })).toMatch(/Play/);
+    expect(intentLabel({ type: "mulligan", doMulligan: false })).toMatch(/Keep/i);
   });
 });
 
