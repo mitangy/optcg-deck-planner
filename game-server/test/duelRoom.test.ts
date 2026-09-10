@@ -207,6 +207,62 @@ describe("DuelRoom", () => {
     await assert.rejects(() => colyseus.connectTo(room, joinOpts("c")));
   });
 
+  it("uses join-time seat decks for leaders", async () => {
+    const customDeck = {
+      leaderId: "ST01-001",
+      deck: [
+        "ST01-003",
+        "ST01-003",
+        "ST01-003",
+        "ST01-003",
+        "ST01-006",
+        "ST01-006",
+        "ST01-006",
+        "ST01-006",
+        "ST01-008",
+        "ST01-008",
+        "ST01-008",
+        "ST01-008",
+        "ST01-009",
+        "ST01-009",
+        "ST01-009",
+        "ST01-009",
+        "ST01-014",
+        "ST01-014",
+        "ST01-014",
+        "ST01-014",
+      ],
+    };
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 99,
+      autoSkipMulligan: true,
+      players: [customDeck, customDeck],
+    });
+
+    type ViewWithLeader = PlayerView & {
+      you: PlayerView["you"] & { leader: { defId: string } };
+    };
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, {
+      ...joinOpts("deck-a", 0),
+      deck: customDeck,
+    });
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, {
+      ...joinOpts("deck-b", 1),
+      deck: customDeck,
+    });
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    assert.equal((bags[0].welcome as ViewWithLeader).you.leader.defId, "ST01-001");
+    assert.equal((bags[1].welcome as ViewWithLeader).you.leader.defId, "ST01-001");
+  });
+
   it("ranked_queue pairs two clients into a duel room id", async () => {
     const c1 = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("queue-a"));
     const c2 = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("queue-b"));

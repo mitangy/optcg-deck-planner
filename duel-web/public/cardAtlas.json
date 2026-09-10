@@ -9,7 +9,15 @@
     "cost": 0,
     "power": 5000,
     "life": 5,
-    "imageUrl": "/cards/ST01-001.png"
+    "imageUrl": "/cards/ST01-001.png",
+    "effectText": "[Activate: Main] [Once Per Turn] You may rest this Leader: Give up to 1 rested DON!! card to your Leader or 1 of your Characters.",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "/cards/ST01-001_p1.webp"
+      }
+    ]
   },
   "ST01-003": {
     "id": "ST01-003",
@@ -21,7 +29,8 @@
     "cost": 1,
     "power": 3000,
     "counter": 1000,
-    "imageUrl": "/cards/ST01-003.png"
+    "imageUrl": "/cards/ST01-003.png",
+    "effectText": "—"
   },
   "ST01-006": {
     "id": "ST01-006",
@@ -33,7 +42,20 @@
     "cost": 1,
     "power": 1000,
     "blocker": true,
-    "imageUrl": "/cards/ST01-006.png"
+    "imageUrl": "/cards/ST01-006.png",
+    "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.)",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "/cards/ST01-006_p1.webp"
+      },
+      {
+        "id": "p2",
+        "label": "Parallel 2",
+        "imageUrl": "/cards/ST01-006_p2.webp"
+      }
+    ]
   },
   "ST01-008": {
     "id": "ST01-008",
@@ -45,7 +67,20 @@
     "cost": 3,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/ST01-008.png"
+    "imageUrl": "/cards/ST01-008.png",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "/cards/ST01-008_p1.webp"
+      },
+      {
+        "id": "p2",
+        "label": "Parallel 2",
+        "imageUrl": "/cards/ST01-008_p2.webp"
+      }
+    ]
   },
   "ST01-009": {
     "id": "ST01-009",
@@ -57,7 +92,20 @@
     "cost": 2,
     "power": 4000,
     "counter": 1000,
-    "imageUrl": "/cards/ST01-009.png"
+    "imageUrl": "/cards/ST01-009.png",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "/cards/ST01-009_p1.webp"
+      },
+      {
+        "id": "p2",
+        "label": "Parallel 2",
+        "imageUrl": "/cards/ST01-009_p2.webp"
+      }
+    ]
   },
   "ST01-014": {
     "id": "ST01-014",
@@ -67,6 +115,19 @@
       "red"
     ],
     "cost": 1,
-    "imageUrl": "/cards/ST01-014.png"
+    "imageUrl": "/cards/ST01-014.png",
+    "effectText": "[Counter] Your Leader or 1 of your Characters gains +3000 power during this battle.",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "/cards/ST01-014_p1.webp"
+      },
+      {
+        "id": "p2",
+        "label": "Parallel 2",
+        "imageUrl": "/cards/ST01-014_p2.webp"
+      }
+    ]
   }
 }

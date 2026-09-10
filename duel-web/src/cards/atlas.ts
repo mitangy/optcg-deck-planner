@@ -1,5 +1,11 @@
 import atlasJson from "../assets/cardAtlas.json";
 
+export type CardAltArt = {
+  id: string;
+  label: string;
+  imageUrl: string;
+};
+
 export type CardAtlasEntry = {
   id: string;
   name: string;
@@ -11,6 +17,8 @@ export type CardAtlasEntry = {
   counter?: number;
   blocker?: boolean;
   imageUrl?: string;
+  effectText?: string;
+  altArts?: CardAltArt[];
 };
 
 const atlas = atlasJson as Record<string, CardAtlasEntry>;

@@ -33,6 +33,8 @@ export type ConnectParams = {
   preferredSeat?: Seat;
   roomId?: string;
   createOptions?: DuelCreateOptions;
+  /** Deck for this seat (create or join). */
+  deck?: { leaderId: string; deck: string[] };
 };
 
 export class DuelClient {
@@ -203,6 +205,7 @@ export class DuelClient {
       gameToken: params.gameToken,
       secret: params.secret ?? getDevJoinSecret(),
       preferredSeat: params.preferredSeat,
+      deck: params.deck,
     };
   }
 

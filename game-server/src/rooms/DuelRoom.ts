@@ -55,6 +55,7 @@ export class DuelRoom extends Room {
   private autoSkipMulligan = true;
   private ranked = true;
   private createPlayers: [PlayerDeckWire, PlayerDeckWire] | undefined;
+  private seatDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
   private presetSeatUserIds: [number, number] | undefined;
   private seats: [SeatSlot | null, SeatSlot | null] = [null, null];
   private intentTimestamps = new Map<string, number[]>();
@@ -67,6 +68,9 @@ export class DuelRoom extends Room {
     this.seed = parsed.seed;
     this.autoSkipMulligan = parsed.autoSkipMulligan;
     this.createPlayers = parsed.players;
+    if (parsed.players) {
+      this.seatDecks = [parsed.players[0], parsed.players[1]];
+    }
     this.ranked = parsed.ranked;
     this.presetSeatUserIds = parsed.seatUserIds;
     this.matchId = this.roomId;
@@ -109,7 +113,7 @@ export class DuelRoom extends Room {
   }
 
   onJoin(client: Client, options: unknown) {
-    let identity: { displayId: string; userId: number; preferredSeat?: Seat };
+    let identity: { displayId: string; userId: number; preferredSeat?: Seat; deck?: PlayerDeckWire };
     try {
       identity = this.resolveIdentity(options);
     } catch (e) {
@@ -143,6 +147,10 @@ export class DuelRoom extends Room {
       return;
     }
 
+    if (identity.deck) {
+      this.seatDecks[seat] = identity.deck;
+    }
+
     this.state.seatsFilled = (this.seats[0] ? 1 : 0) + (this.seats[1] ? 1 : 0);
     this.log("info", "player_joined", {
       matchId: this.matchId,
@@ -150,6 +158,7 @@ export class DuelRoom extends Room {
       displayId: identity.displayId,
       userId: identity.userId,
       sessionId: client.sessionId,
+      hasDeck: Boolean(identity.deck),
     });
 
     if (this.seats[0] && this.seats[1] && !this.matchStarted) {
@@ -209,6 +218,7 @@ export class DuelRoom extends Room {
     displayId: string;
     userId: number;
     preferredSeat?: Seat;
+    deck?: PlayerDeckWire;
   } {
     const join = parseJoinOptions(options);
     const required = getDevJoinSecret();
@@ -226,6 +236,7 @@ export class DuelRoom extends Room {
         displayId: payload.email,
         userId: payload.uid,
         preferredSeat: join.preferredSeat,
+        deck: join.deck,
       };
     }
     if (requireGameToken()) {
@@ -238,6 +249,7 @@ export class DuelRoom extends Room {
       displayId,
       userId: hashToNegativeId(displayId),
       preferredSeat: join.preferredSeat,
+      deck: join.deck,
     };
   }
 
@@ -288,10 +300,12 @@ export class DuelRoom extends Room {
   private startMatch() {
     this.matchStarted = true;
     this.rng = createSeededRng(this.seed);
-    const deckA = this.createPlayers?.[0]?.deck ?? buildTestDeck(20);
-    const deckB = this.createPlayers?.[1]?.deck ?? buildTestDeck(20);
-    const leaderA = this.createPlayers?.[0]?.leaderId ?? DEFAULT_LEADER_ID;
-    const leaderB = this.createPlayers?.[1]?.leaderId ?? DEFAULT_LEADER_ID;
+    const deckA = this.seatDecks[0]?.deck ?? this.createPlayers?.[0]?.deck ?? buildTestDeck(20);
+    const deckB = this.seatDecks[1]?.deck ?? this.createPlayers?.[1]?.deck ?? buildTestDeck(20);
+    const leaderA =
+      this.seatDecks[0]?.leaderId ?? this.createPlayers?.[0]?.leaderId ?? DEFAULT_LEADER_ID;
+    const leaderB =
+      this.seatDecks[1]?.leaderId ?? this.createPlayers?.[1]?.leaderId ?? DEFAULT_LEADER_ID;
 
     let match = createMatch({
       seed: this.seed,

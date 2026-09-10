@@ -10,19 +10,26 @@ export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
 export type Seat = 0 | 1;
 
+export type PlayerDeckWire = {
+  leaderId: string;
+  deck: string[];
+};
+
 export type DuelJoinOptions = {
   protocolVersion: ProtocolVersion;
   devUserId?: string;
   gameToken?: string;
   secret?: string;
   preferredSeat?: Seat;
+  /** Optional deck for this seat. */
+  deck?: PlayerDeckWire;
 };
 
 export type DuelCreateOptions = {
   protocolVersion?: ProtocolVersion;
   seed?: number;
   autoSkipMulligan?: boolean;
-  players?: [{ leaderId: string; deck: string[] }, { leaderId: string; deck: string[] }];
+  players?: [PlayerDeckWire, PlayerDeckWire];
 };
 
 /** Prefer sending objects from view.legalIntents unchanged. */

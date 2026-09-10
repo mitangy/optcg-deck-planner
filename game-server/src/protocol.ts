@@ -17,6 +17,8 @@ export type DuelJoinOptions = {
   /** Required when server has DEV_JOIN_SECRET set. */
   secret?: string;
   preferredSeat?: Seat;
+  /** Optional deck for this seat (overrides create-time placeholder for that seat). */
+  deck?: PlayerDeckWire;
 };
 
 export type PlayerDeckWire = {
@@ -105,12 +107,17 @@ export function parseJoinOptions(raw: unknown): DuelJoinOptions {
       code: "bad_protocol" as const,
     });
   }
+  let deck: PlayerDeckWire | undefined;
+  if (o.deck !== undefined) {
+    deck = asPlayerDeck(o.deck);
+  }
   return {
     protocolVersion: PROTOCOL_VERSION,
     devUserId,
     gameToken,
     secret: typeof o.secret === "string" ? o.secret : undefined,
     preferredSeat: preferredSeat as Seat | undefined,
+    deck,
   };
 }
 

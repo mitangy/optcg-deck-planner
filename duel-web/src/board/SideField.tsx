@@ -47,6 +47,7 @@ export function SideField({ side, data, compact }: Props) {
                   rested={c.rested}
                   power={c.power}
                   attachedDonCount={c.attachedDonCount}
+                  inspectOnClick
                 />
               ))
             )}
@@ -69,6 +70,7 @@ export function SideField({ side, data, compact }: Props) {
             power={data.leader.power}
             attachedDonCount={data.leader.attachedDonCount}
             frame="leader"
+            inspectOnClick
           />
         </div>
 
@@ -79,6 +81,7 @@ export function SideField({ side, data, compact }: Props) {
               defId={data.stage.defId}
               compact={compact || mirrored}
               rested={data.stage.rested}
+              inspectOnClick
             />
           ) : (
             <div className="zone-slot stage-empty">Stage</div>

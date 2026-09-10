@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
+import { resolveCardImageUrl } from "../decks/artPrefs";
 import { lookupCard } from "../cards/atlas";
+import { CardInspect } from "./CardInspect";
 
 const COLOR_CHIP: Record<string, string> = {
   red: "#c62828",
@@ -18,7 +20,10 @@ type Props = {
   compact?: boolean;
   selected?: boolean;
   frame?: "default" | "leader";
+  /** Primary click (hand select / intent targeting). */
   onClick?: () => void;
+  /** When true, click opens inspect instead of onClick (board cards). */
+  inspectOnClick?: boolean;
 };
 
 export function CardTile({
@@ -30,9 +35,16 @@ export function CardTile({
   selected,
   frame = "default",
   onClick,
+  inspectOnClick = false,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
   const [imgFailed, setImgFailed] = useState(false);
+  const [inspectOpen, setInspectOpen] = useState(false);
+  const [artTick, setArtTick] = useState(0);
+  const imageUrl = useMemo(() => {
+    void artTick;
+    return resolveCardImageUrl(defId);
+  }, [defId, artTick]);
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
   const shownPower = power ?? entry.power ?? null;
   const className = [
@@ -45,10 +57,29 @@ export function CardTile({
     .filter(Boolean)
     .join(" ");
 
+  function openInspect(e?: MouseEvent) {
+    e?.preventDefault();
+    e?.stopPropagation();
+    setInspectOpen(true);
+  }
+
+  function handleClick() {
+    if (inspectOnClick) {
+      setInspectOpen(true);
+      return;
+    }
+    onClick?.();
+  }
+
   const body = (
     <>
-      {!imgFailed && entry.imageUrl ? (
-        <img src={entry.imageUrl} alt={entry.name} onError={() => setImgFailed(true)} />
+      {!imgFailed && imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={entry.name}
+          onError={() => setImgFailed(true)}
+          onLoad={() => setArtTick((n) => n)}
+        />
       ) : (
         <div className="card-fallback" style={{ backgroundColor: chip }}>
           {entry.id}
@@ -60,15 +91,37 @@ export function CardTile({
         <div className="name">{entry.name}</div>
         <div className="meta">{`C${entry.cost}`}</div>
       </div>
+      {!inspectOnClick ? (
+        <button
+          type="button"
+          className="card-inspect-chip"
+          title="Inspect card"
+          aria-label={`Inspect ${entry.name}`}
+          onClick={openInspect}
+        >
+          i
+        </button>
+      ) : null}
     </>
   );
 
-  if (onClick) {
-    return (
-      <button type="button" className={className} onClick={onClick}>
-        {body}
-      </button>
-    );
-  }
-  return <div className={className}>{body}</div>;
+  return (
+    <>
+      {onClick || inspectOnClick ? (
+        <button type="button" className={className} onClick={handleClick}>
+          {body}
+        </button>
+      ) : (
+        <div className={className}>{body}</div>
+      )}
+      <CardInspect
+        defId={defId}
+        open={inspectOpen}
+        onClose={() => {
+          setInspectOpen(false);
+          setArtTick((n) => n + 1);
+        }}
+      />
+    </>
+  );
 }

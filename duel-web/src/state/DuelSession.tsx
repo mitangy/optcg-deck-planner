@@ -26,12 +26,20 @@ type DuelSession = {
     secret?: string;
     roomId?: string;
     preferredSeat?: Seat;
+    deck?: { leaderId: string; deck: string[] };
+    createOptions?: {
+      players?: [
+        { leaderId: string; deck: string[] },
+        { leaderId: string; deck: string[] },
+      ];
+    };
   }) => Promise<void>;
   queueRanked: (opts: {
     serverUrl?: string;
     devUserId?: string;
     gameToken?: string;
     secret?: string;
+    deck?: { leaderId: string; deck: string[] };
   }) => Promise<void>;
   cancelQueue: () => Promise<void>;
   reconnect: () => Promise<void>;

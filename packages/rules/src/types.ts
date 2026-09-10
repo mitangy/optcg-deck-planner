@@ -39,6 +39,10 @@ export interface CardDef {
   leaderActivateGiveRestedDon?: boolean;
   /** Optional art URL (TCGPlayer CDN or Bandai cardlist). Display only. */
   imageUrl?: string;
+  /** Printed ability / effect text for client inspect UI (display only). */
+  effectText?: string;
+  /** Alternate printings (display only). */
+  altArts?: { id: string; label: string; imageUrl: string }[];
 }
 
 export interface CardInstance {

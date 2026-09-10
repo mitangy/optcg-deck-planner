@@ -36,6 +36,17 @@ describe("protocol parsers", () => {
     );
   });
 
+  it("parses join options with seat deck", () => {
+    const j = parseJoinOptions({
+      protocolVersion: PROTOCOL_VERSION,
+      devUserId: "dev-1",
+      preferredSeat: 0,
+      deck: { leaderId: "ST01-001", deck: ["ST01-003", "ST01-006"] },
+    });
+    assert.equal(j.deck?.leaderId, "ST01-001");
+    assert.deepEqual(j.deck?.deck, ["ST01-003", "ST01-006"]);
+  });
+
   it("defaults create options", () => {
     const c = parseCreateOptions({});
     assert.equal(c.autoSkipMulligan, true);
