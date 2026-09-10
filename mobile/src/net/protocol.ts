@@ -16,6 +16,7 @@ export type DuelJoinOptions = {
   gameToken?: string;
   secret?: string;
   preferredSeat?: Seat;
+  role?: "player" | "spectator";
 };
 
 export type DuelCreateOptions = {
@@ -42,6 +43,7 @@ export type WelcomeMessage = {
   protocolVersion: ProtocolVersion;
   matchId: string;
   seat: Seat;
+  role?: "player" | "spectator";
   view: PlayerView;
 };
 
@@ -75,15 +77,20 @@ export type CardView = {
   rested?: boolean;
   attachedDonCount?: number;
   power?: number;
+  summoningSick?: boolean;
+  rush?: boolean;
 };
 
 export type PlayerView = {
   seat: Seat;
+  spectator?: boolean;
+  cameraSeat?: Seat;
   you: {
     leader: CardView;
     characters: CardView[];
     stage: CardView | null;
     hand: { id: string; defId: string }[];
+    handCount?: number;
     deckCount: number;
     trash: string[];
     lifeCount: number;
@@ -130,6 +137,17 @@ export function assertNoOpponentHand(view: PlayerView): void {
   }
 }
 
+/** Spectators must not receive either seat's hand contents. */
+export function assertSpectatorPrivacy(view: PlayerView): void {
+  assertNoOpponentHand(view);
+  if (view.you.hand.length > 0) {
+    throw new Error("privacy leak: spectator you.hand not empty");
+  }
+  if (typeof view.you.handCount !== "number") {
+    throw new Error("spectator you.handCount missing");
+  }
+}
+
 export function parseWelcome(raw: unknown): WelcomeMessage {
   if (!raw || typeof raw !== "object") throw new Error("welcome body required");
   const o = raw as Record<string, unknown>;
@@ -138,11 +156,18 @@ export function parseWelcome(raw: unknown): WelcomeMessage {
   if (o.seat !== 0 && o.seat !== 1) throw new Error("seat required");
   if (!o.view || typeof o.view !== "object") throw new Error("view required");
   const view = o.view as PlayerView;
-  assertNoOpponentHand(view);
+  const role =
+    o.role === "spectator" || o.role === "player" ? o.role : undefined;
+  if (role === "spectator" || view.spectator) {
+    assertSpectatorPrivacy(view);
+  } else {
+    assertNoOpponentHand(view);
+  }
   return {
     protocolVersion: PROTOCOL_VERSION,
     matchId: o.matchId,
     seat: o.seat,
+    role,
     view,
   };
 }
@@ -153,7 +178,11 @@ export function parseView(raw: unknown): ViewMessage {
   if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
   if (!o.view || typeof o.view !== "object") throw new Error("view required");
   const view = o.view as PlayerView;
-  assertNoOpponentHand(view);
+  if (view.spectator) {
+    assertSpectatorPrivacy(view);
+  } else {
+    assertNoOpponentHand(view);
+  }
   return { protocolVersion: PROTOCOL_VERSION, view };
 }
 

@@ -37,6 +37,8 @@ export interface CardDef {
    * area to this Leader or one of your Characters (ST01-001).
    */
   leaderActivateGiveRestedDon?: boolean;
+  /** Rush — may attack the turn this Character enters play. */
+  rush?: boolean;
   /** Optional art URL (TCGPlayer CDN or Bandai cardlist). Display only. */
   imageUrl?: string;
   /** Printed ability / effect text for client inspect UI (display only). */
@@ -50,6 +52,11 @@ export interface CardInstance {
   defId: CardDefId;
   rested: boolean;
   attachedDonIds: InstanceId[];
+  /**
+   * Characters only: cannot attack until owner's next turn start unless Rush.
+   * Cleared in `beginTurn` for the active seat.
+   */
+  summoningSick?: boolean;
 }
 
 export interface DonInstance {

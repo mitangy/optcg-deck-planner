@@ -17,6 +17,7 @@ type Props = {
   matchId: string | null;
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
+  spectator?: boolean;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
   onClearError: () => void;
@@ -28,6 +29,7 @@ export function DuelBoard({
   matchId,
   errorBanner,
   matchOver,
+  spectator = false,
   onSendIntent,
   onLeave,
   onClearError,
@@ -46,13 +48,18 @@ export function DuelBoard({
   const you = view.you;
   const opp = view.opponent;
   const mySeat = seat ?? view.seat;
+  const spectating = spectator || Boolean(view.spectator);
+  const handSlots = spectating
+    ? Array.from({ length: you.handCount ?? 0 }, (_, i) => i)
+    : you.hand.map((_, i) => i);
 
   return (
     <View style={styles.root}>
       <View style={styles.chrome}>
         <Text style={styles.chromeText}>
-          Phase {view.phase} · Turn {view.turnNumber} · You seat {mySeat}
-          {view.activeSeat === mySeat ? " · YOUR TURN" : ""}
+          {spectating ? "SPECTATE · " : ""}
+          Phase {view.phase} · Turn {view.turnNumber} · Camera seat {mySeat}
+          {!spectating && view.activeSeat === mySeat ? " · YOUR TURN" : ""}
         </Text>
         <View style={styles.chromeRow}>
           <Text style={styles.matchId} selectable>
@@ -133,33 +140,47 @@ export function DuelBoard({
           {you.costArea.length} · Deck {you.deckCount}
         </Text>
 
-        <Text style={styles.zoneLabel}>Hand</Text>
+        <Text style={styles.zoneLabel}>
+          {spectating ? "Seat hand (hidden)" : "Hand"}
+        </Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.hand}
         >
-          {you.hand.map((c, idx) => (
-            <CardTile
-              key={c.id}
-              defId={c.defId}
-              selected={handFilter === idx}
-              onPress={() => setHandFilter((prev) => (prev === idx ? null : idx))}
-            />
-          ))}
+          {spectating
+            ? handSlots.map((i) => (
+                <View key={`back-${i}`} style={styles.cardBack}>
+                  <Text style={styles.cardBackText}>?</Text>
+                </View>
+              ))
+            : you.hand.map((c, idx) => (
+                <CardTile
+                  key={c.id}
+                  defId={c.defId}
+                  selected={handFilter === idx}
+                  onPress={() => setHandFilter((prev) => (prev === idx ? null : idx))}
+                />
+              ))}
         </ScrollView>
       </ScrollView>
 
-      <IntentBar
-        intents={view.legalIntents}
-        view={view}
-        disabled={over}
-        filterHandIndex={handFilter}
-        onSend={(intent) => {
-          setHandFilter(null);
-          onSendIntent(intent);
-        }}
-      />
+      {!spectating ? (
+        <IntentBar
+          intents={view.legalIntents}
+          view={view}
+          disabled={over}
+          filterHandIndex={handFilter}
+          onSend={(intent) => {
+            setHandFilter(null);
+            onSendIntent(intent);
+          }}
+        />
+      ) : (
+        <View style={styles.spectateBar}>
+          <Text style={styles.spectateText}>Read-only spectate — no intents</Text>
+        </View>
+      )}
 
       <Modal visible={over} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
@@ -232,6 +253,24 @@ const styles = StyleSheet.create({
   stats: { color: "#b0bec5", fontSize: 12, marginBottom: 8 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
   hand: { gap: 8, paddingVertical: 4 },
+  cardBack: {
+    width: 72,
+    height: 100,
+    borderRadius: 8,
+    backgroundColor: "#263238",
+    borderWidth: 1,
+    borderColor: "#546e7a",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardBackText: { color: "#90a4ae", fontSize: 22, fontWeight: "800" },
+  spectateBar: {
+    padding: 12,
+    backgroundColor: "#102027",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#37474f",
+  },
+  spectateText: { color: "#90a4ae", textAlign: "center", fontSize: 12 },
   prompt: {
     backgroundColor: "#1a237e",
     borderRadius: 8,

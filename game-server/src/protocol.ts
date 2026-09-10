@@ -17,6 +17,8 @@ export type DuelJoinOptions = {
   /** Required when server has DEV_JOIN_SECRET set. */
   secret?: string;
   preferredSeat?: Seat;
+  /** Step 5: join as read-only spectator (public view; both hands hidden). */
+  role?: "player" | "spectator";
   /** Optional deck for this seat (overrides create-time placeholder for that seat). */
   deck?: PlayerDeckWire;
 };
@@ -46,7 +48,9 @@ export type ErrorCode =
 export type WelcomeMessage = {
   protocolVersion: ProtocolVersion;
   matchId: string;
+  /** Player seat, or camera seat when role is spectator. */
   seat: Seat;
+  role?: "player" | "spectator";
   view: unknown;
 };
 
@@ -107,6 +111,15 @@ export function parseJoinOptions(raw: unknown): DuelJoinOptions {
       code: "bad_protocol" as const,
     });
   }
+  const roleRaw = o.role;
+  let role: "player" | "spectator" | undefined;
+  if (roleRaw === "spectator" || roleRaw === "player") {
+    role = roleRaw;
+  } else if (roleRaw !== undefined) {
+    throw Object.assign(new Error("role must be player or spectator"), {
+      code: "bad_protocol" as const,
+    });
+  }
   let deck: PlayerDeckWire | undefined;
   if (o.deck !== undefined) {
     deck = asPlayerDeck(o.deck);
@@ -117,6 +130,7 @@ export function parseJoinOptions(raw: unknown): DuelJoinOptions {
     gameToken,
     secret: typeof o.secret === "string" ? o.secret : undefined,
     preferredSeat: preferredSeat as Seat | undefined,
+    role,
     deck,
   };
 }

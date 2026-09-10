@@ -20,6 +20,7 @@ export function DuelPage() {
     concede,
     leave,
     clearError,
+    role,
   } = useDuelSession();
 
   useEffect(() => {
@@ -61,6 +62,7 @@ export function DuelPage() {
         matchId={matchId}
         errorBanner={errorBanner}
         matchOver={matchOver}
+        spectator={role === "spectator" || Boolean(view?.spectator)}
         onSendIntent={sendIntent}
         onLeave={async () => {
           await leave();
@@ -68,7 +70,7 @@ export function DuelPage() {
         }}
         onClearError={clearError}
       />
-      {connected && view && !matchOver ? (
+      {connected && view && !matchOver && role === "player" ? (
         <button type="button" className="concede-fab" onClick={() => concede()}>
           Concede
         </button>

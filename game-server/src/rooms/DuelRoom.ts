@@ -6,6 +6,7 @@ import {
   createSeededRng,
   DEFAULT_LEADER_ID,
   getPlayerView,
+  getSpectatorView,
   skipMulligans,
   type GameEvent,
   type Intent,
@@ -41,11 +42,20 @@ type SeatSlot = {
   userId: number;
 };
 
+type SpectatorSlot = {
+  sessionId: string;
+  displayId: string;
+  userId: number;
+  /** Which side is rendered as "you" in client layouts. */
+  cameraSeat: Seat;
+};
+
 const INTENT_RATE_LIMIT = 20;
 const INTENT_RATE_WINDOW_MS = 1000;
+const MAX_SPECTATORS = 8;
 
 export class DuelRoom extends Room {
-  maxClients = 2;
+  maxClients = 2 + MAX_SPECTATORS;
   state = new DuelPublicState();
 
   private match: MatchState | null = null;
@@ -58,6 +68,7 @@ export class DuelRoom extends Room {
   private seatDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
   private presetSeatUserIds: [number, number] | undefined;
   private seats: [SeatSlot | null, SeatSlot | null] = [null, null];
+  private spectators: SpectatorSlot[] = [];
   private intentTimestamps = new Map<string, number[]>();
   private matchStarted = false;
   private matchOverSent = false;
@@ -113,7 +124,13 @@ export class DuelRoom extends Room {
   }
 
   onJoin(client: Client, options: unknown) {
-    let identity: { displayId: string; userId: number; preferredSeat?: Seat; deck?: PlayerDeckWire };
+    let identity: {
+      displayId: string;
+      userId: number;
+      preferredSeat?: Seat;
+      role: "player" | "spectator";
+      deck?: PlayerDeckWire;
+    };
     try {
       identity = this.resolveIdentity(options);
     } catch (e) {
@@ -132,6 +149,37 @@ export class DuelRoom extends Room {
         sessionId: client.sessionId,
       });
       this.sendSync(client);
+      return;
+    }
+
+    if (identity.role === "spectator") {
+      if (this.spectators.length >= MAX_SPECTATORS) {
+        this.sendError(client, "room_full", "Spectator cap reached");
+        client.leave();
+        return;
+      }
+      const cameraSeat: Seat =
+        identity.preferredSeat === 0 || identity.preferredSeat === 1
+          ? identity.preferredSeat
+          : 0;
+      this.spectators.push({
+        sessionId: client.sessionId,
+        displayId: identity.displayId,
+        userId: identity.userId,
+        cameraSeat,
+      });
+      this.log("info", "spectator_joined", {
+        matchId: this.matchId,
+        displayId: identity.displayId,
+        cameraSeat,
+        sessionId: client.sessionId,
+        spectatorCount: this.spectators.length,
+      });
+      if (this.matchStarted && this.match) {
+        this.sendSpectatorSync(client, cameraSeat);
+      } else {
+        this.sendError(client, "match_not_ready", "Waiting for duel to start");
+      }
       return;
     }
 
@@ -170,6 +218,10 @@ export class DuelRoom extends Room {
 
   /** Consented leave (CloseCode.CONSENTED) — no reclaim. */
   onLeave(client: Client, _code?: number) {
+    if (this.spectatorForClient(client)) {
+      this.clearSpectator(client.sessionId);
+      return;
+    }
     if (this.seatForClient(client) === null) return;
     this.clearSeat(client.sessionId);
   }
@@ -179,6 +231,10 @@ export class DuelRoom extends Room {
    * Colyseus 0.18 routes drops here when `onDrop` is defined.
    */
   async onDrop(client: Client, _code?: number) {
+    if (this.spectatorForClient(client)) {
+      this.clearSpectator(client.sessionId);
+      return;
+    }
     const seat = this.seatForClient(client);
     if (seat === null) return;
 
@@ -218,9 +274,11 @@ export class DuelRoom extends Room {
     displayId: string;
     userId: number;
     preferredSeat?: Seat;
+    role: "player" | "spectator";
     deck?: PlayerDeckWire;
   } {
     const join = parseJoinOptions(options);
+    const role = join.role ?? "player";
     const required = getDevJoinSecret();
     if (required && join.secret !== required) {
       throw Object.assign(new Error("unauthorized"), { code: "unauthorized" as const });
@@ -236,6 +294,7 @@ export class DuelRoom extends Room {
         displayId: payload.email,
         userId: payload.uid,
         preferredSeat: join.preferredSeat,
+        role,
         deck: join.deck,
       };
     }
@@ -249,6 +308,7 @@ export class DuelRoom extends Room {
       displayId,
       userId: hashToNegativeId(displayId),
       preferredSeat: join.preferredSeat,
+      role,
       deck: join.deck,
     };
   }
@@ -267,6 +327,22 @@ export class DuelRoom extends Room {
     }
     this.state.seatsFilled = (this.seats[0] ? 1 : 0) + (this.seats[1] ? 1 : 0);
     this.intentTimestamps.delete(sessionId);
+  }
+
+  private clearSpectator(sessionId: string) {
+    const before = this.spectators.length;
+    this.spectators = this.spectators.filter((s) => s.sessionId !== sessionId);
+    if (this.spectators.length !== before) {
+      this.log("info", "spectator_left", {
+        matchId: this.matchId,
+        sessionId,
+        spectatorCount: this.spectators.length,
+      });
+    }
+  }
+
+  private spectatorForClient(client: Client): SpectatorSlot | null {
+    return this.spectators.find((s) => s.sessionId === client.sessionId) ?? null;
   }
 
   private assignSeat(
@@ -333,6 +409,7 @@ export class DuelRoom extends Room {
         protocolVersion: PROTOCOL_VERSION,
         matchId: this.matchId,
         seat: slot.seat,
+        role: "player",
         view,
       };
       client.send("welcome", welcome);
@@ -342,10 +419,20 @@ export class DuelRoom extends Room {
       });
     }
 
+    for (const spec of this.spectators) {
+      const client = this.clients.find((c) => c.sessionId === spec.sessionId);
+      if (!client) continue;
+      this.sendSpectatorSync(client, spec.cameraSeat);
+    }
+
     this.maybeSendMatchOver();
   }
 
   private handleConcede(client: Client) {
+    if (this.spectatorForClient(client)) {
+      this.sendError(client, "unauthorized", "Spectators cannot concede");
+      return;
+    }
     const seat = this.seatForClient(client);
     if (seat === null || !this.match || this.matchOverSent) return;
     if (this.match.winner !== null || this.match.phase === "game_over") return;
@@ -363,6 +450,10 @@ export class DuelRoom extends Room {
   }
 
   private handleIntent(client: Client, message: unknown) {
+    if (this.spectatorForClient(client)) {
+      this.sendError(client, "unauthorized", "Spectators cannot send intents");
+      return;
+    }
     const seat = this.seatForClient(client);
     if (seat === null) {
       this.sendError(client, "unauthorized", "Not seated");
@@ -424,6 +515,19 @@ export class DuelRoom extends Room {
       const client = this.clients.find((c) => c.sessionId === slot.sessionId);
       if (!client) continue;
       const view = getPlayerView(this.match, slot.seat);
+      client.send("events", {
+        protocolVersion: PROTOCOL_VERSION,
+        events,
+      });
+      client.send("view", {
+        protocolVersion: PROTOCOL_VERSION,
+        view,
+      });
+    }
+    for (const spec of this.spectators) {
+      const client = this.clients.find((c) => c.sessionId === spec.sessionId);
+      if (!client) continue;
+      const view = getSpectatorView(this.match, spec.cameraSeat);
       client.send("events", {
         protocolVersion: PROTOCOL_VERSION,
         events,
@@ -500,6 +604,11 @@ export class DuelRoom extends Room {
   }
 
   private sendSync(client: Client) {
+    const spec = this.spectatorForClient(client);
+    if (spec) {
+      this.sendSpectatorSync(client, spec.cameraSeat);
+      return;
+    }
     const seat = this.seatForClient(client);
     if (seat === null || !this.match) {
       this.sendError(client, "match_not_ready", "Match not started");
@@ -510,6 +619,36 @@ export class DuelRoom extends Room {
       protocolVersion: PROTOCOL_VERSION,
       matchId: this.matchId,
       seat,
+      role: "player",
+      view,
+    };
+    client.send("welcome", welcome);
+    client.send("view", {
+      protocolVersion: PROTOCOL_VERSION,
+      view,
+    });
+    if (this.match.winner !== null) {
+      client.send("match_over", {
+        protocolVersion: PROTOCOL_VERSION,
+        result: {
+          winner: this.match.winner,
+          reason: this.match.winReason ?? "unknown",
+        },
+      });
+    }
+  }
+
+  private sendSpectatorSync(client: Client, cameraSeat: Seat) {
+    if (!this.match) {
+      this.sendError(client, "match_not_ready", "Match not started");
+      return;
+    }
+    const view = getSpectatorView(this.match, cameraSeat);
+    const welcome: WelcomeMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      matchId: this.matchId,
+      seat: cameraSeat,
+      role: "spectator",
       view,
     };
     client.send("welcome", welcome);

@@ -116,16 +116,16 @@ export function LobbyPage() {
     return userKey.trim() || "web-dev";
   }
 
-  async function go(mode: "create" | "join" | "queue" | "hotseat") {
+  async function go(mode: "create" | "join" | "queue" | "hotseat" | "spectate") {
     if (authMode === "dev" && !userKey.trim()) {
       setError("user key is required for dev auth");
       return;
     }
-    if (mode === "join" && !roomId.trim()) {
-      setError("Room id required to join");
+    if ((mode === "join" || mode === "spectate") && !roomId.trim()) {
+      setError("Room id required to join / spectate");
       return;
     }
-    if (!selectedDeck) {
+    if (mode !== "spectate" && !selectedDeck) {
       setError("Select a deck first");
       return;
     }
@@ -135,9 +135,9 @@ export function LobbyPage() {
       // Starting a new match must not auto-resume a prior room on the next
       // /hotseat or /duel mount (refresh keeps history.state).
       clearMatchResume();
-      const wire = deckToWire(selectedDeck);
-      setSelectedDeckId(selectedDeck.id);
       if (mode === "hotseat") {
+        const wire = deckToWire(selectedDeck!);
+        setSelectedDeckId(selectedDeck!.id);
         navigate("/hotseat", {
           state: {
             serverUrl: serverUrl.trim(),
@@ -145,17 +145,30 @@ export function LobbyPage() {
             userKey: hotseatUserKey(),
             useToken: true,
             deckWire: wire,
-            deckName: selectedDeck.name,
+            deckName: selectedDeck!.name,
           },
         });
         return;
       }
       const opts = await authOpts();
       if (mode === "queue") {
+        const wire = deckToWire(selectedDeck!);
+        setSelectedDeckId(selectedDeck!.id);
         await queueRanked({ ...opts, deck: wire });
         navigate("/duel");
         return;
       }
+      if (mode === "spectate") {
+        await connect({
+          ...opts,
+          roomId: roomId.trim(),
+          role: "spectator",
+        });
+        navigate("/duel");
+        return;
+      }
+      const wire = deckToWire(selectedDeck!);
+      setSelectedDeckId(selectedDeck!.id);
       await connect({
         ...opts,
         roomId: mode === "join" ? roomId.trim() : undefined,
@@ -414,6 +427,14 @@ export function LobbyPage() {
               Cancel queue
             </button>
           ) : null}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={busy || queueing}
+            onClick={() => void go("spectate")}
+          >
+            Spectate room
+          </button>
         </div>
       </form>
     </div>

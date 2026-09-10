@@ -549,6 +549,12 @@ button {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
+.hand-back {
+  width: 64px;
+  height: 90px;
+  flex-shrink: 0;
+}
+
 .opp-hand-more {
   font-size: 0.7rem;
   color: var(--muted);

@@ -196,7 +196,7 @@ describe("DuelRoom", () => {
     assert.equal(typeof bags[0].over!.result.reason, "string");
   });
 
-  it("rejects a third joiner when the room is full", async () => {
+  it("rejects a third player when both seats are filled", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 1,
@@ -261,6 +261,57 @@ describe("DuelRoom", () => {
     await syncSeat(c1, bags[1]);
     assert.equal((bags[0].welcome as ViewWithLeader).you.leader.defId, "ST01-001");
     assert.equal((bags[1].welcome as ViewWithLeader).you.leader.defId, "ST01-001");
+  });
+
+  it("allows a spectator with public view and empty hands", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 42,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("a", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("b", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    type SpecBag = {
+      welcome?: {
+        role?: string;
+        view: PlayerView & {
+          spectator?: boolean;
+          you: PlayerView["you"] & { handCount?: number };
+        };
+      };
+      views: unknown[];
+      errors: { code: string; message: string }[];
+    };
+    const specBag: SpecBag = { views: [], errors: [] };
+    const spec = await colyseus.connectTo(room, {
+      protocolVersion: PROTOCOL_VERSION,
+      devUserId: "watcher",
+      role: "spectator",
+      preferredSeat: 0,
+    });
+    spec.onMessage("welcome", (msg: SpecBag["welcome"]) => {
+      specBag.welcome = msg;
+    });
+    spec.onMessage("error", (msg: { code: string; message: string }) => {
+      specBag.errors.push(msg);
+    });
+    spec.send("sync", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => specBag.welcome != null, 8000);
+
+    assert.equal(specBag.welcome!.role, "spectator");
+    assert.equal(specBag.welcome!.view.spectator, true);
+    assert.deepEqual(specBag.welcome!.view.you.hand, []);
+    assert.ok((specBag.welcome!.view.you.handCount ?? 0) > 0);
+    assert.deepEqual(specBag.welcome!.view.legalIntents, []);
   });
 
   it("ranked_queue pairs two clients into a duel room id", async () => {
