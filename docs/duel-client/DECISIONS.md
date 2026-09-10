@@ -73,3 +73,13 @@ Record of durable choices. Change these only by updating this file and the affec
 **Why:** Hidden-info TCG needs private views; Colyseus Schema sync of full match state would leak or fight privacy. Dev auth unblocks local/CI without meta-API coupling. Workspaces enable `import "@optcg/rules"` without publishing.
 
 **See:** `steps/02-game-server.md`.
+
+## ADR-012 — Step 3 Expo board + curated real cards (locked at plan gate)
+
+**Decision:** Step 3 ships an **Expo Router** iOS-first app in `mobile/` that speaks Step 2 `protocolVersion: 1` via `@colyseus/sdk`. The board is a **pure renderer** of server `welcome` / `view` / `events` / `error` / `match_over`; intents are chosen from `view.legalIntents` (no `@optcg/rules` on device for legality). Auth is **devUserId-only**; join flow is **create or paste room id**. `mobile/` stays **outside** root npm workspaces.
+
+**Card content:** Step 3 also lands a **curated real OPTCG id set** in `@optcg/rules` (official numbers, names, TCGPlayer art URLs, mechanics limited to keywords the engine already supports). Default duels use those ids. Full-set / every-keyword expansion and public licensed builds remain Step 5. Cosmetics are delivered to the client via a generated **card atlas** keyed by `defId` — not via Postgres catalog on the intent path.
+
+**Why:** Proves the vertical slice on a real phone with recognizable cards, without Mac builds, without coupling Expo’s toolchain to the Node game-server workspace, without trusting the client with rules, and without boiling the ocean on the full card pool.
+
+**See:** `steps/03-expo-client-board.md`.
