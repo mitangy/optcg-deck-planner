@@ -1,20 +1,21 @@
 # Step 4 — Matchmaking, reconnect, ranked
 
 **Status:** `planned` (not started)  
-**Depends on:** Step 3 acceptance criteria met  
-**Unblocks:** Step 5 production-minded features
+**Depends on:** Step 3 / 3.5 acceptance criteria met  
+**Unblocks:** Step 4.5 web staging deploy; Step 5 production-minded features
 
 ## Ready for development (gate)
 
-- [ ] Step 3 exit notes reviewed (auth gaps listed)
+- [ ] Step 3 / 3.5 exit notes reviewed (auth gaps listed)
 - [ ] Redis available in target deploy env (or explicitly single-node with documented limit)
 - [ ] MMR formula choice (simple Elo vs Glicko-lite) recorded below
 - [ ] FastAPI endpoints sketched (token mint, match result ingest, rating read)
+- [ ] Browser client path agreed: **bearer game tokens** + CORS hooks (ADR-014); product web UI is **`duel-web/`** in Step 4.5
 - [ ] Checklist complete before coding
 
 ## Goal
 
-Players can **queue for a duel**, get matched, **reconnect** after a drop within a TTL without losing the match, and have **ranked results** persisted through FastAPI/Postgres. Game server ready for **multi-instance** with Redis when deploying beyond one process.
+Players can **queue for a duel**, get matched, **reconnect** after a drop within a TTL without losing the match, and have **ranked results** persisted through FastAPI/Postgres. Game server ready for **multi-instance** with Redis when deploying beyond one process. The same lobby/match path must work from a **browser** as well as Expo Go — so Step 4.5 can ship the **`duel-web/`** frontend to Vercel without redesigning auth.
 
 ## In scope
 
@@ -23,8 +24,9 @@ Players can **queue for a duel**, get matched, **reconnect** after a drop within
 - Reconnect: reconnect token / Colyseus seat reclaim; disconnect grace timer; intentional concede.
 - Ranked: initial rating, update on `match_over`, basic leaderboard or profile rating read API.
 - Redis for matchmaker locks + Colyseus presence when running ≥2 game-server processes.
-- Lobby UI in Expo: queue, cancel, reconnect banner.
+- Lobby UI in Expo: queue, cancel, reconnect banner (native). Browser lobby lands in **`duel-web/`** (Step 4.5) but Step 4 auth/token APIs must not be native-only.
 - Basic abuse controls: queue rate limit, intent rate limit.
+- **Browser readiness (ADR-014):** join/queue using **bearer** (or Colyseus join options) — not third-party cookies; document CORS allowlist env for upcoming `duel-web` origins; prove happy path in a browser (Expo web smoke OK until `duel-web` exists).
 
 ## Out of scope
 
@@ -32,6 +34,10 @@ Players can **queue for a duel**, get matched, **reconnect** after a drop within
 - Spectate (Step 5).
 - Perfect paper-rules coverage / large set expansion (Step 5).
 - Nakama migration (decision checkpoint only — see below).
+- **Scaffolding / Vercel hosting of `duel-web/`** (Step 4.5).
+- Desktop layout polish / production duel domain (Step 5).
+- Merging duel UI into the Vite deck planner `frontend/` (rejected — ADR-014).
+- Shipping Expo RN-web export as the product web app (rejected — ADR-014).
 
 ## Deliverables
 
@@ -72,6 +78,7 @@ At end of Step 4, review:
 - [ ] Match result appears in API/storage exactly once; ratings move as designed.
 - [ ] Documented path to run two game-server processes with Redis (even if staging-only).
 - [ ] Mobile shows queue state, in-match reconnect, and post-match rating change (minimal UI OK).
+- [ ] **Web (local):** two browser sessions can queue (or join) and finish a duel with bearer tokens — Expo web smoke acceptable until Step 4.5 lands `duel-web/`.
 
 ## Risks
 
@@ -79,7 +86,8 @@ At end of Step 4, review:
 |------|------------|
 | Split-brain matchmaking | Single leader or Redis lock; tests for double-fire |
 | Abandoned rooms | TTL + concede + cleanup job |
-| Auth bugs on mobile Safari history | Prefer bearer tokens for game path, not third-party cookies |
+| Auth bugs on mobile Safari / web | Prefer bearer tokens for game path, not third-party cookies |
+| Mixed content when HTTPS web hits `http://` game server | Document; Step 4.5 requires WSS staging |
 
 ## Open questions
 
@@ -91,3 +99,4 @@ At end of Step 4, review:
 - Grace TTL:
 - Rating formula shipped:
 - Colyseus vs Nakama checkpoint outcome:
+- Browser smoke notes (local):
