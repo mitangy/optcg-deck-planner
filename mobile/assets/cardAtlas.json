@@ -1,0 +1,138 @@
+{
+  "ST01-001": {
+    "id": "ST01-001",
+    "name": "Monkey.D.Luffy",
+    "type": "leader",
+    "colors": [
+      "red"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "life": 5,
+    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/ST01-001.png"
+  },
+  "ST01-002": {
+    "id": "ST01-002",
+    "name": "Monkey.D.Luffy",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 1000,
+    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/ST01-002.png"
+  },
+  "ST01-003": {
+    "id": "ST01-003",
+    "name": "Roronoa Zoro",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/ST01-003.png"
+  },
+  "ST01-004": {
+    "id": "ST01-004",
+    "name": "Nami",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 1000,
+    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/ST01-004.png"
+  },
+  "ST01-005": {
+    "id": "ST01-005",
+    "name": "Usopp",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 2,
+    "power": 3000,
+    "counter": 1000,
+    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/ST01-005.png"
+  },
+  "ST01-006": {
+    "id": "ST01-006",
+    "name": "Sanji",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 2,
+    "power": 3000,
+    "blocker": true,
+    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/ST01-006.png"
+  },
+  "ST01-007": {
+    "id": "ST01-007",
+    "name": "TonyTony.Chopper",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 1000,
+    "blocker": true,
+    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/ST01-007.png"
+  },
+  "OP01-013": {
+    "id": "OP01-013",
+    "name": "Trafalgar Law",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 1000,
+    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/OP01-013.png"
+  },
+  "ST01-014": {
+    "id": "ST01-014",
+    "name": "Gum-Gum Jet Pistol",
+    "type": "event",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/ST01-014.png"
+  },
+  "ST01-015": {
+    "id": "ST01-015",
+    "name": "Gum-Gum Balloon",
+    "type": "event",
+    "colors": [
+      "red"
+    ],
+    "cost": 0,
+    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/ST01-015.png"
+  },
+  "OP01-031": {
+    "id": "OP01-031",
+    "name": "Radical Beam!!",
+    "type": "event",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/OP01-031.png"
+  },
+  "ST01-017": {
+    "id": "ST01-017",
+    "name": "Thousand Sunny",
+    "type": "stage",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/ST01-017.png"
+  }
+}
