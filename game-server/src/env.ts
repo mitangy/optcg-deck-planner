@@ -52,7 +52,14 @@ export function getReconnectGraceSeconds(): number {
 export function getCorsOrigins(): string[] {
   const raw =
     process.env.CORS_ORIGINS ??
-    "http://localhost:8081,http://127.0.0.1:8081,http://localhost:5173,http://127.0.0.1:5173";
+    [
+      "http://localhost:8081",
+      "http://127.0.0.1:8081",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "http://localhost:5174",
+      "http://127.0.0.1:5174",
+    ].join(",");
   return raw
     .split(",")
     .map((s) => s.trim().replace(/\/$/, ""))

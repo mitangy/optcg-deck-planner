@@ -1,8 +1,10 @@
 # mobile/ — OPTCG Duel Client (Expo)
 
-Expo Router iOS-first client for **Step 3**: connect to the Colyseus `duel` room, render the private player view with **curated real OPTCG card ids / names / art**, and send intents from `view.legalIntents`.
+Expo Router iOS-first client for **Step 3+**: connect to the Colyseus `duel` / `ranked_queue` rooms, render the private player view with **curated real OPTCG card ids / names / art**, and send intents from `view.legalIntents`.
 
-This package is **outside** the root npm workspaces (same isolation as `frontend/`).
+This package is **outside** the root npm workspaces (same isolation as `frontend/` / `duel-web/`).
+
+**Product web UI is `duel-web/`** (Vite on Vercel). `expo start --web` remains a **local smoke tool only** — it is not the shipped browser frontend (ADR-014).
 
 ## Requirements
 

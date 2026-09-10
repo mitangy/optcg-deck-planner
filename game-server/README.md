@@ -42,7 +42,7 @@ Dev tools (non-production):
 | `API_BASE_URL` | `http://localhost:8000` | FastAPI base for match result ingest |
 | `DUEL_INGEST_SECRET` | `dev-duel-ingest` | Must match FastAPI `DUEL_INGEST_SECRET` |
 | `RECONNECT_GRACE_SECONDS` | `60` | Seat reclaim window after drop |
-| `CORS_ORIGINS` | localhost Expo/Vite ports | Intended browser allowlist for Step 4.5 CORS tightening (not enforced yet — see Step 4 exit notes) |
+| `CORS_ORIGINS` | localhost Expo + duel-web (`5174`) | Allowlist enforced via `matchMaker.controller.getCorsHeaders` (not Express `cors()`) |
 | `REDIS_URL` | unset | When set, enable Colyseus presence for multi-instance (ops) |
 | `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` |
 | `NODE_ENV` | unset | Set `production` to disable playground/monitor |
