@@ -6,9 +6,9 @@ import {
 } from "../cards/definitions.js";
 
 describe("Step 5 curated defs", () => {
-  it("ships ST01 curated ids including Rush Sanji", () => {
-    const ids = listCardDefs().map((d) => d.id).sort();
-    expect(ids).toEqual([
+  it("ships ST01 curated ids including Rush Sanji (plus later seed stubs)", () => {
+    const ids = listCardDefs().map((d) => d.id);
+    for (const id of [
       "ST01-001",
       "ST01-003",
       "ST01-004",
@@ -16,7 +16,9 @@ describe("Step 5 curated defs", () => {
       "ST01-008",
       "ST01-009",
       "ST01-014",
-    ]);
+    ]) {
+      expect(ids).toContain(id);
+    }
     expect(ids).not.toContain("OP01-013");
     expect(ids).not.toContain("ST01-002");
     expect(ids).not.toContain("ST01-017");

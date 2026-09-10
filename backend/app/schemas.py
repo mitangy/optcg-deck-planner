@@ -394,6 +394,12 @@ class DuelDevTokenIn(BaseModel):
     user_key: str = Field(min_length=1, max_length=64)
 
 
+class DuelGuestTokenIn(BaseModel):
+    """Mint a game token for a stable browser guest id (always available)."""
+
+    guest_id: str = Field(min_length=8, max_length=64)
+
+
 class DuelTokenOut(BaseModel):
     token: str
     expires_at: int

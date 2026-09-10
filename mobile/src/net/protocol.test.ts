@@ -130,7 +130,9 @@ describe("card atlas", () => {
     expect(listAtlasIds()).not.toContain("OP01-013");
     const luffy = lookupCard("ST01-001");
     expect(luffy.name).toMatch(/Luffy/i);
+    // Atlas may store Vite-relative `/cards/...`; lookup resolves to https for RN.
     expect(luffy.imageUrl).toMatch(/^https?:\/\//);
     expect(lookupCard("ST01-014").name).toMatch(/Guard Point/i);
+    expect(lookupCard("ST01-004").rush).toBe(true);
   });
 });

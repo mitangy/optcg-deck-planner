@@ -68,6 +68,182 @@ button {
   gap: 0.55rem;
 }
 
+.lobby-wide {
+  max-width: 640px;
+}
+
+.lobby-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.lobby-section-title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--chrome-bright);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lobby-textarea,
+.lobby select {
+  background: var(--arena-panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 0.65rem 0.75rem;
+  width: 100%;
+  font: inherit;
+}
+
+.lobby-textarea {
+  resize: vertical;
+  min-height: 7rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.hotseat-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.85rem;
+  background: linear-gradient(90deg, #1a3a2a, #243044);
+  border-bottom: 1px solid var(--chrome);
+  color: var(--chrome-bright);
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+
+.card-inspect-chip {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+
+.card-tile {
+  position: relative;
+}
+
+.card-inspect-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(4, 8, 12, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.card-inspect {
+  display: grid;
+  grid-template-columns: minmax(160px, 280px) minmax(200px, 340px);
+  gap: 1rem;
+  background: var(--arena-panel);
+  border: 1px solid var(--chrome);
+  border-radius: 12px;
+  padding: 1rem;
+  max-width: 680px;
+  width: 100%;
+  max-height: min(90dvh, 720px);
+  overflow: auto;
+}
+
+.card-inspect-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-inspect-img {
+  width: 100%;
+  max-width: 260px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.card-inspect-fallback {
+  width: 180px;
+  height: 250px;
+  display: grid;
+  place-items: center;
+  background: #333;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 700;
+}
+
+.card-inspect-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.card-inspect-name {
+  margin: 0;
+  color: var(--chrome-bright);
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+}
+
+.card-inspect-id {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.card-inspect-effect-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--chrome);
+  margin-bottom: 0.25rem;
+}
+
+.card-inspect-effect p {
+  margin: 0;
+  line-height: 1.45;
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+.card-inspect-alt-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.card-inspect-alt-btn {
+  min-height: 36px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .card-inspect {
+    grid-template-columns: 1fr;
+  }
+}
+
 .lobby-brand {
   font-family: var(--font-display);
   font-size: clamp(2.5rem, 9vw, 3.5rem);

@@ -117,6 +117,18 @@ def test_dev_token_and_match_ingest(client):
         db.close()
 
 
+def test_guest_token_is_always_available(client):
+    c, _SessionLocal = client
+    r = c.post("/duel/guest-token", json={"guest_id": "browserguestid001"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["token"]
+    assert body["email"].startswith("guest-")
+    # Same guest id remints the same user.
+    r2 = c.post("/duel/guest-token", json={"guest_id": "browserguestid001"})
+    assert r2.json()["user_id"] == body["user_id"]
+
+
 def test_dev_token_hidden_without_flags(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("ENABLE_DEV_LOGIN", "false")
     monkeypatch.setenv("ENABLE_DUEL_DEV_TOKEN", "false")
