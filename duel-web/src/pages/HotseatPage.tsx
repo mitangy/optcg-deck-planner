@@ -47,15 +47,22 @@ export function HotseatPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const navFromRoute = (location.state ?? null) as HotseatNavState | null;
-  const existingResume = loadMatchResume();
-  const resumeHotseat =
-    !navFromRoute && existingResume?.mode === "hotseat" ? existingResume : null;
+  // Capture resume intent once on mount. Refresh keeps history.state, so we
+  // prefer a sessionStorage blob over treating that state as a fresh start.
+  const resumeOnMount = useRef(
+    (() => {
+      const existing = loadMatchResume();
+      return existing?.mode === "hotseat" ? existing : null;
+    })(),
+  );
+  const resumeHotseat = resumeOnMount.current;
 
   const navRef = useRef<HotseatNavState | null>(
-    navFromRoute ?? (resumeHotseat ? navFromResume(resumeHotseat) : null),
+    resumeHotseat ? navFromResume(resumeHotseat) : navFromRoute,
   );
-  if (navFromRoute) navRef.current = navFromRoute;
-  const nav = navFromRoute ?? navRef.current;
+  // Fresh lobby navigation (blob cleared before navigate) updates nav once.
+  if (navFromRoute && !resumeHotseat) navRef.current = navFromRoute;
+  const nav = navRef.current;
 
   const [activeSeat, setActiveSeat] = useState<Seat>(resumeHotseat?.activeSeat ?? 0);
   const [matchId, setMatchId] = useState<string | null>(resumeHotseat?.roomId ?? null);
@@ -156,10 +163,9 @@ export function HotseatPage() {
 
     async function boot() {
       try {
-        const shouldResume =
-          !navFromRoute && loadMatchResume()?.mode === "hotseat"
-            ? (loadMatchResume() as HotseatResumeBlob)
-            : null;
+        // Prefer the mount-time resume blob even when history.state is present
+        // (browser refresh keeps location.state on the history entry).
+        const shouldResume = resumeHotseat;
 
         if (shouldResume) {
           setResuming(true);
@@ -313,7 +319,7 @@ export function HotseatPage() {
       for (const c of clients) void c.disconnect(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nav, navigate, navFromRoute]);
+  }, [navigate]);
 
   useEffect(() => {
     if (!ready) return;

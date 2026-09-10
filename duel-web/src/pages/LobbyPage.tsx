@@ -22,7 +22,7 @@ import {
   mintSessionGameToken,
   type AuthUser,
 } from "../net/api";
-import { loadMatchResume } from "../net/matchResume";
+import { clearMatchResume, loadMatchResume } from "../net/matchResume";
 import { useDuelSession } from "../state/DuelSession";
 
 type AuthMode = "guest" | "google" | "dev";
@@ -132,6 +132,9 @@ export function LobbyPage() {
     setBusy(true);
     setError(null);
     try {
+      // Starting a new match must not auto-resume a prior room on the next
+      // /hotseat or /duel mount (refresh keeps history.state).
+      clearMatchResume();
       const wire = deckToWire(selectedDeck);
       setSelectedDeckId(selectedDeck.id);
       if (mode === "hotseat") {
