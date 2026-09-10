@@ -65,3 +65,11 @@ Record of durable choices. Change these only by updating this file and the affec
 **Why:** Product is a digital duel client; incorrect core rules would poison every later step. Placeholder cards keep scope bounded without sacrificing rules fidelity.
 
 **See:** `steps/01-rules-engine.md`.
+
+## ADR-011 — Step 2 game server slice (locked at plan gate)
+
+**Decision:** Step 2 ships a **single-process Colyseus** room (`"duel"`) that imports `@optcg/rules`, seats two players, and speaks **message-based** `protocolVersion: 1` (intent → per-seat `view` / `events`). Private zones are **never** placed in shared Colyseus Schema state. Auth is **dev-only** (`devUserId` + optional `DEV_JOIN_SECRET`). Decks default to Step 1 placeholders. Root **npm workspaces** link `packages/*` and `game-server` only (exclude `frontend/`). Redis, FastAPI game tokens, reconnect, and Expo remain later steps.
+
+**Why:** Hidden-info TCG needs private views; Colyseus Schema sync of full match state would leak or fight privacy. Dev auth unblocks local/CI without meta-API coupling. Workspaces enable `import "@optcg/rules"` without publishing.
+
+**See:** `steps/02-game-server.md`.
