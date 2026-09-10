@@ -66,8 +66,9 @@ export const DEMO_VIEW: PlayerView = {
   winReason: null,
   legalIntents: [
     { type: "end_turn" },
-    { type: "play_character", handIndex: 0 },
-    { type: "attach_don", target: "leader", amount: 1 },
+    { type: "play_card", handIndex: 0 },
+    { type: "give_don", donId: "d1", targetId: "y-leader" },
+    { type: "activate_leader", targetId: "y-leader" },
   ],
 };
 

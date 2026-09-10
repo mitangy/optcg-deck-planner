@@ -601,11 +601,21 @@ button {
   opacity: 0.92;
 }
 
-.don-pile-art {
+/* <img> faces must fill the absolute stack slot — intrinsic size would otherwise
+   paint a full-card overlay across the playmat (DON!! is ~400×562). */
+img.zone-pile-face {
+  width: 100%;
+  height: 100%;
+  display: block;
   object-fit: cover;
   object-position: center top;
   padding: 0;
+  box-sizing: border-box;
+}
+
+.don-pile-art {
   border-color: #7a9a4a !important;
+  background: none !important;
 }
 
 .don-empty {
