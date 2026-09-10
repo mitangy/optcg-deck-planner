@@ -92,15 +92,20 @@ export function CardTile({
         <div className="meta">{`C${entry.cost}`}</div>
       </div>
       {!inspectOnClick ? (
-        <button
-          type="button"
+        // span (not button) — parent tile may already be a <button>
+        <span
+          role="button"
+          tabIndex={0}
           className="card-inspect-chip"
           title="Inspect card"
           aria-label={`Inspect ${entry.name}`}
           onClick={openInspect}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") openInspect(e as unknown as MouseEvent);
+          }}
         >
           i
-        </button>
+        </span>
       ) : null}
     </>
   );

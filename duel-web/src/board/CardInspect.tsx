@@ -57,7 +57,13 @@ export function CardInspect({ defId, open, onClose }: Props) {
           </p>
           <div className="card-inspect-effect">
             <div className="card-inspect-effect-label">Ability</div>
-            <p>{entry.effectText?.trim() || "No printed effect text in atlas."}</p>
+            <p>
+              {(() => {
+                const t = entry.effectText?.trim() ?? "";
+                if (!t || t === "—" || t === "-") return "No printed ability.";
+                return t;
+              })()}
+            </p>
           </div>
           {alts.length > 0 ? (
             <div className="card-inspect-alts">

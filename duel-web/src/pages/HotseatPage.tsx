@@ -26,7 +26,10 @@ type SeatBag = {
 export function HotseatPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const nav = (location.state ?? null) as HotseatNavState | null;
+  const navFromRoute = (location.state ?? null) as HotseatNavState | null;
+  const navRef = useRef<HotseatNavState | null>(navFromRoute);
+  if (navFromRoute) navRef.current = navFromRoute;
+  const nav = navFromRoute ?? navRef.current;
 
   const [activeSeat, setActiveSeat] = useState<Seat>(0);
   const [matchId, setMatchId] = useState<string | null>(null);
