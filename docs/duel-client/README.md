@@ -1,6 +1,6 @@
 # OPTCG Digital Duel Client — Planning Index
 
-This directory is the **source of truth** for the digital duel client (product B): a real-time, authoritative One Piece TCG–style duel experience on iPhone first, Android + **web** later, developable without a Mac.
+This directory is the **source of truth** for the digital duel client (product B): a real-time, authoritative One Piece TCG–style duel experience on iPhone first, with **Android** and a dedicated **web frontend** later, developable without a Mac.
 
 ## How to use these plans
 
@@ -12,11 +12,12 @@ This directory is the **source of truth** for the digital duel client (product B
 ## Repository layout (scaffold)
 
 ```
-mobile/                 Expo React Native duel client (iOS-first; web via RN-web export)
+mobile/                 Expo React Native — native duel client (iOS / Android)
+duel-web/               Vite React — duel web frontend (browser)  [Step 4.5]
 game-server/            Colyseus authoritative match runtime
 packages/rules/         Shared, headless rules engine + tests
 backend/                Existing FastAPI — accounts, decks, catalog, ratings API
-frontend/               Existing Vite deck planner (companion web; not the duel UI)
+frontend/               Existing Vite deck planner (shopping/decks; not the duel UI)
 docs/duel-client/       Architecture + per-step plans (this tree)
 ```
 
@@ -29,23 +30,24 @@ docs/duel-client/       Architecture + per-step plans (this tree)
 | 3 | [steps/03-expo-client-board.md](./steps/03-expo-client-board.md) | Expo board + curated real OPTCG cards (**implemented**) |
 | 3.5 | [steps/03.5-curated-card-audit.md](./steps/03.5-curated-card-audit.md) | Fix Step 3 misencoded prints + ST01-001 Activate:Main + intent labels (**implemented**) |
 | 4 | [steps/04-matchmaking-reconnect-ranked.md](./steps/04-matchmaking-reconnect-ranked.md) | Matchmaking, reconnect, ranked + **browser-capable** lobby auth |
-| 4.5 | [steps/04.5-web-deploy.md](./steps/04.5-web-deploy.md) | **Expo web → Vercel staging** deploy + CORS/WSS (**plan ready**) |
+| 4.5 | [steps/04.5-web-deploy.md](./steps/04.5-web-deploy.md) | **`duel-web/` Vite frontend** + Vercel staging (**plan ready**) |
 | 5 | [steps/05-content-spectate-android.md](./steps/05-content-spectate-android.md) | Broader cards, spectate, Android, **production web polish** |
 
 ### Web deploy placement (ADR-014)
 
-Not a single step — **three slices**:
+| Step | What ships |
+|------|------------|
+| **4** | Bearer tokens + CORS hooks; browser can play (local) |
+| **4.5** | New **`duel-web/`** frontend on **Vercel staging** (separate from deck planner) |
+| **5** | Production polish on that frontend + Android / spectate / content |
 
-1. **Step 4** — bearer tokens + local web smoke (no Vercel required).  
-2. **Step 4.5** — staging HTTPS URL on a **separate** Vercel project from the deck planner.  
-3. **Step 5** — desktop UX + production domain + legal flags.
-
-Colyseus stays on a persistent Node host; only the static Expo export lands on Vercel.
+Colyseus stays on a persistent Node host. Deck planner `frontend/` stays its own Vercel app.
 
 ## Non-goals (program-wide)
 
-- Replacing the existing deck planner SPA in this repo’s first release.
-- Merging the duel board into the Vite `frontend/` app.
+- Replacing the existing deck planner SPA.
+- Merging the duel board into Vite `frontend/`.
+- Using Expo RN-web export as the **product** web UI (dev smoke only).
 - Client-authoritative rules or REST-polled turns.
 - Requiring a Mac for day-to-day development or App Store submission (use EAS).
 - Running Colyseus on Vercel serverless.

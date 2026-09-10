@@ -2,22 +2,22 @@
 
 ## 1. Product shape
 
-Players open a **mobile or web** client, authenticate, select or import a deck, enter matchmaking, and play a **server-authoritative** duel. The client never decides legal plays; it sends **intents** and renders **state diffs** (plus animations).
+Players open a **native or web** client, authenticate, select or import a deck, enter matchmaking, and play a **server-authoritative** duel. The client never decides legal plays; it sends **intents** and renders **state diffs** (plus animations).
 
 Target constraints:
 
 - Up to **thousands of concurrent connected players** (online ≠ all in active duels).
-- **iPhone-first**; Android is a later store pass on the same codebase; **web** is the same Expo app exported to static hosting (ADR-014).
+- **iPhone-first** native; Android later on the same Expo app; **browser** via dedicated **`duel-web/`** Vite frontend (ADR-014).
 - **No Mac required** for develop, build, or submit (Expo EAS + physical device; web via Vercel).
 
 ## 2. High-level diagram
 
 ```
 ┌─────────────────┐     HTTPS      ┌──────────────────┐
-│  Expo client    │───────────────▶│  FastAPI         │
-│  (mobile/)      │  auth, decks,  │  (backend/)      │
-│  iOS / Android  │  catalog, MMR  │  Postgres (Neon) │
-│  + web (RN-web) │                └────────▲─────────┘
+│  Clients        │───────────────▶│  FastAPI         │
+│  mobile/ (Expo) │  auth, decks,  │  (backend/)      │
+│  duel-web/      │  catalog, MMR  │  Postgres (Neon) │
+│  (Vite SPA)     │                └────────▲─────────┘
 └────────┬────────┘                         │
          │ WebSocket                        │ match results,
          │ (intents / diffs)                │ ratings writeback
@@ -35,20 +35,28 @@ Target constraints:
 └─────────────────┘
 ```
 
-Companion web (`frontend/`) remains the **deck planner** on the existing Vercel project. The **duel** web UI is the Expo app’s static export on a **separate** Vercel project (ADR-014) — not a second board implementation inside Vite.
+Three web surfaces stay distinct:
+
+- **`frontend/`** — deck planner (existing Vercel project).
+- **`duel-web/`** — duel **web frontend** (Vercel project from Step 4.5).
+- **`mobile/`** — native Expo client (EAS); optional Expo web is **dev smoke only**.
 
 ## 3. Layer responsibilities
 
-### 3.1 Client (`mobile/`)
+### 3.1 Native client (`mobile/`)
 
-- Expo (React Native) + Expo Router.
-- Surfaces: **iOS** (EAS), **Android** (later EAS), **web** (Expo static export → Vercel, Step 4.5+).
-- Sign-in (Google / later Apple Sign-In), deck pick, lobby UI, board UI, animations.
+- Expo (React Native) + Expo Router for **iOS / Android** (EAS).
+- Sign-in, deck pick, lobby UI, board UI, animations.
 - Holds ephemeral UI state only (selection, animation queues).
-- Speaks:
-  - REST/JSON to FastAPI for account and deck meta.
-  - WebSocket (Colyseus JS client) for match traffic.
-- Ships native via **EAS Build / EAS Submit**; ships web via **`expo export --platform web`** to a Vercel project **separate** from the deck planner.
+- Speaks REST to FastAPI and WebSocket (Colyseus) for match traffic.
+- Optional `expo start --web` for local smoke — **not** the product web app.
+
+### 3.1b Web frontend (`duel-web/`) — Step 4.5+
+
+- Vite + React SPA: browser lobby + board + match-over.
+- Same protocol and card atlas as Expo; **dumb renderer** of server views.
+- Ships to **Vercel** (project separate from deck planner).
+- Desktop polish and production domain land in Step 5.
 
 ### 3.2 Game server (`game-server/`)
 
@@ -128,23 +136,23 @@ Scale levers:
 
 | Env | Client | Game server | API | Notes |
 |-----|--------|-------------|-----|-------|
-| Local | Expo Go / `expo start --web` | `game-server` on localhost | existing `:8000` | SQLite/Neon local per current AGENTS.md |
-| Preview | EAS preview + **Vercel preview** (Step 4.5) | staging host (WSS) | staging API | Browser demos without phones; CORS allowlist |
-| Production | App Store / Play + **Vercel duel web** (Step 5) | always-on cluster | Render (or equiv) + Neon | Redis required; planner Vercel project stays separate |
+| Local | Expo Go + `duel-web` Vite | `game-server` on localhost | existing `:8000` | SQLite/Neon local per current AGENTS.md |
+| Preview | EAS preview + **`duel-web` Vercel preview** (Step 4.5) | staging host (WSS) | staging API | Browser demos; CORS allowlist |
+| Production | App Store / Play + **`duel-web` Vercel** (Step 5) | always-on cluster | Render (or equiv) + Neon | Redis required; planner Vercel project stays separate |
 
 ## 8. Security & App Store notes
 
 - Prefer **Apple Sign-In** once shipping on iOS (Guideline expectations when other social logins exist).
-- Secrets only on servers / EAS / Vercel server env — never in the app binary; `EXPO_PUBLIC_*` is public by definition.
+- Secrets only on servers / EAS / Vercel server env — never in the app binary; `VITE_*` / `EXPO_PUBLIC_*` are public by definition.
 - TLS everywhere (HTTPS page → WSS game server); pin nothing exotic in v1 unless threatened.
 - Privacy policy / data deletion for accounts before public store or public web.
 
 ## 9. Relation to existing deck planner
 
-- Decks created in the planner should become selectable in the duel client via the same FastAPI deck APIs (Step 3/4).
+- Decks created in the planner should become selectable in native and web duel clients via the same FastAPI deck APIs (Step 3/4).
 - Do not block duel MVP on shopping-list UI parity.
 - Shared catalog IDs should align so a planner deck can map into rules definitions when card data exists.
-- Do **not** merge the duel board into `frontend/`; link users across products via URLs/API instead (ADR-014).
+- Do **not** merge the duel board into `frontend/`; link users across products via URLs/API instead (ADR-014). `duel-web/` is the duel web frontend.
 
 ## 10. Step mapping
 
@@ -155,5 +163,5 @@ Scale levers:
 | `mobile` board + intents | Step 3 |
 | Curated-card fidelity | Step 3.5 |
 | Matchmaking, reconnect, ranked + browser-capable auth | Step 4 |
-| Expo web → Vercel staging | Step 4.5 |
+| `duel-web/` Vite frontend + Vercel staging | Step 4.5 |
 | Content breadth, spectate, Android, production web | Step 5 |
