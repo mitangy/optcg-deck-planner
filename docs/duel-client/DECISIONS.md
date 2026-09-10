@@ -28,6 +28,8 @@ Record of durable choices. Change these only by updating this file and the affec
 - **FastAPI WebSockets only** — rejected as primary duel runtime; poorer room tooling and scaling story for many concurrent matches.
 - **Unity / Photon** — rejected as default; heavier for 2D TCG and worse fit for no-Mac Expo workflow.
 
+**Step 4 checkpoint (2026-09):** Stay on Colyseus. Ranked FIFO queue, reconnect grace, and FastAPI Elo/leaderboard ingest met the step without Nakama. Next revisit trigger: multi-instance matchmaking pain or lobby feature gaps before/during Step 5.
+
 ## ADR-004 — Rules live in `packages/rules` (pure TS)
 
 **Decision:** All legality and resolution logic is a headless library with tests and sims.

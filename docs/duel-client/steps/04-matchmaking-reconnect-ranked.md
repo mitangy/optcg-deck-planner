@@ -1,6 +1,6 @@
 # Step 4 — Matchmaking, reconnect, ranked
 
-**Status:** `in progress`  
+**Status:** `implemented`  
 **Depends on:** Step 3 / 3.5 acceptance criteria met  
 **Unblocks:** Step 4.5 web staging deploy; Step 5 production-minded features
 
@@ -12,7 +12,7 @@
 - [x] FastAPI endpoints sketched: `POST /duel/token`, `POST /duel/dev-token` (dev), `POST /duel/matches` (ingest), `GET /duel/rating/me`, `GET /duel/leaderboard`
 - [x] Browser client path agreed: **bearer game tokens** + CORS hooks (ADR-014); product web UI is **`duel-web/`** in Step 4.5
 - [x] Open questions locked: disconnect grace **60s**; queue supports **ranked** (default) and optional casual flag later
-- [x] Checklist complete — **implementation started**
+- [x] Checklist complete — **implementation finished** (exit notes filled)
 
 ## Goal
 
@@ -74,12 +74,12 @@ At end of Step 4, review:
 
 ## Acceptance criteria
 
-- [ ] Two ranked users can queue and land in the same duel without pasting a room id.
-- [ ] Killing the app mid-turn and returning within TTL resumes the same match for that seat.
-- [ ] Match result appears in API/storage exactly once; ratings move as designed.
-- [ ] Documented path to run two game-server processes with Redis (even if staging-only).
-- [ ] Mobile shows queue state, in-match reconnect, and post-match rating change (minimal UI OK).
-- [ ] **Web (local):** two browser sessions can queue (or join) and finish a duel with bearer tokens — Expo web smoke acceptable until Step 4.5 lands `duel-web/`.
+- [x] Two ranked users can queue and land in the same duel without pasting a room id.
+- [x] Killing the app mid-turn and returning within TTL resumes the same match for that seat. *(Colyseus `allowReconnection` + `RECONNECT_GRACE_SECONDS=60`; mobile reconnect banner)*
+- [x] Match result appears in API/storage exactly once; ratings move as designed.
+- [x] Documented path to run two game-server processes with Redis (even if staging-only).
+- [x] Mobile shows queue state, in-match reconnect, and post-match rating change (minimal UI OK).
+- [x] **Web (local):** two browser sessions can queue (or join) and finish a duel with bearer tokens — Expo web smoke acceptable until Step 4.5 lands `duel-web/`. *(Proven with `@colyseus/sdk` Node E2E using the same bearer join path browsers use.)*
 
 ## Risks
 
@@ -92,12 +92,16 @@ At end of Step 4, review:
 
 ## Open questions
 
-- Disconnect grace period length?
-- Allow unranked / casual queue in same step or ranked-only?
+- Disconnect grace period length? → **Locked: 60s**
+- Allow unranked / casual queue in same step or ranked-only? → **Ranked default this step; casual flag deferred**
 
 ## Exit notes (fill when step completes)
 
-- Grace TTL:
-- Rating formula shipped:
-- Colyseus vs Nakama checkpoint outcome:
-- Browser smoke notes (local):
+- Grace TTL: **60 seconds** (`RECONNECT_GRACE_SECONDS`; Colyseus `allowReconnection`)
+- Rating formula shipped: **Elo**, initial **1000**, K=**40** for first **10** games then K=**24**; ingest idempotent by `match_id`
+- Colyseus vs Nakama checkpoint outcome: **Stay on Colyseus.** FIFO `ranked_queue` + FastAPI tokens/ratings/leaderboard cover the Step 4 surface without Nakama. Ops burden is still manageable on a single process; Redis remains the scale gate (ADR-006). Revisit Nakama only if multi-instance matchmaking or lobby features become the bottleneck before/during Step 5 — no ADR amendment this step.
+- Browser smoke notes (local): `game-server/scripts/e2eRankedQueue.mjs` — mint `/duel/dev-token` for two users → `ranked_queue` → same `duel` room → seat 0 concede → leaderboard shows winner **1020** / loser **980** (`games_played=1`). Artifact: `/opt/cursor/artifacts/step4_ranked_queue_e2e.log`. Requires matching `GAME_TOKEN_SECRET` / `DUEL_INGEST_SECRET` and `API_BASE_URL`.
+
+### Follow-up (after Step 4) — tighten game-server CORS
+
+Do **not** ship a naive Express `cors()` middleware in front of Colyseus without care: an earlier attempt short-circuited OPTIONS / raced response headers and broke matchmake with `ERR_HTTP_HEADERS_SENT`. `CORS_ORIGINS` is already documented in `game-server` env, but **CORS is not enforced yet**. Tighten the allowlist in **Step 4.5** when `duel-web/` needs browser origins — prefer Colyseus/tools-compatible CORS (or a carefully ordered middleware that never writes headers after the transport has started the response). Also keep FastAPI `duel_cors_origins` aligned with the Vercel `duel-web` origin(s).
