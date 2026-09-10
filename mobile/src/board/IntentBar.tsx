@@ -1,9 +1,10 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { intentLabel, type Intent } from "../net/protocol";
+import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
 
 type Props = {
   intents: Intent[];
+  view?: PlayerView;
   disabled?: boolean;
   filterHandIndex?: number | null;
   onSend: (intent: Intent) => void;
@@ -15,7 +16,7 @@ function matchesHandFilter(intent: Intent, handIndex: number | null | undefined)
   return true;
 }
 
-export function IntentBar({ intents, disabled, filterHandIndex, onSend }: Props) {
+export function IntentBar({ intents, view, disabled, filterHandIndex, onSend }: Props) {
   const shown = intents.filter((i) => matchesHandFilter(i, filterHandIndex));
 
   if (shown.length === 0) {
@@ -37,7 +38,7 @@ export function IntentBar({ intents, disabled, filterHandIndex, onSend }: Props)
             onPress={() => onSend(intent)}
             style={[styles.btn, disabled ? styles.btnDisabled : null]}
           >
-            <Text style={styles.btnText}>{intentLabel(intent)}</Text>
+            <Text style={styles.btnText}>{intentLabel(intent, view)}</Text>
           </Pressable>
         ))}
       </ScrollView>

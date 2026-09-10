@@ -152,6 +152,7 @@ export function DuelBoard({
 
       <IntentBar
         intents={view.legalIntents}
+        view={view}
         disabled={over}
         filterHandIndex={handFilter}
         onSend={(intent) => {

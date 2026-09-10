@@ -32,6 +32,11 @@ export interface CardDef {
   counterPowerBonus?: number;
   mainDraw?: number;
   triggerDraw?: number;
+  /**
+   * Leader Activate: Main [Once Per Turn] — attach 1 rested DON!! from cost
+   * area to this Leader or one of your Characters (ST01-001).
+   */
+  leaderActivateGiveRestedDon?: boolean;
   /** Optional art URL (TCGPlayer CDN or Bandai cardlist). Display only. */
   imageUrl?: string;
 }
@@ -79,6 +84,8 @@ export interface PlayerState {
   attachedDons: DonInstance[];
   mulliganDone: boolean;
   turnsStarted: number;
+  /** Cleared at turn start (`beginTurn`). Once-per-turn Leader Activate:Main. */
+  leaderActivatedThisTurn: boolean;
 }
 
 export interface MatchState {
@@ -118,6 +125,8 @@ export type Intent =
   | { type: "mulligan"; doMulligan: boolean }
   | { type: "play_card"; handIndex: number; trashCharacterId?: InstanceId }
   | { type: "give_don"; donId: InstanceId; targetId: InstanceId }
+  /** Attach 1 rested cost-area DON!! to Leader/Character (once per turn). */
+  | { type: "activate_leader"; targetId: InstanceId }
   | { type: "declare_attack"; attackerId: InstanceId; target: AttackTarget }
   | { type: "declare_block"; blockerId: InstanceId }
   | { type: "pass_block" }
