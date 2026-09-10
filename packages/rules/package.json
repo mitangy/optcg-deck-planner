@@ -9,6 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "sim": "tsx src/sim/runBatch.ts",
+    "export-atlas": "tsx src/scripts/exportAtlas.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

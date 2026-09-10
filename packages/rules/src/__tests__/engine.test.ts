@@ -21,8 +21,8 @@ function fresh(seed = 1): {
     seed,
     firstSeat: 0,
     players: [
-      { leaderId: "leader_red_5k", deck: [...deck] },
-      { leaderId: "leader_red_5k", deck: [...deck] },
+      { leaderId: "ST01-001", deck: [...deck] },
+      { leaderId: "ST01-001", deck: [...deck] },
     ],
   });
   state = skipMulligans(state, rng);
@@ -89,7 +89,7 @@ describe("DON!! economy and play", () => {
     state = act(state, 1, { type: "end_turn" }, rng);
     expect(state.players[0].costArea.length).toBe(3);
     const handIndex = state.players[0].hand.findIndex(
-      (c) => c.defId === "char_vanilla_2k",
+      (c) => c.defId === "ST01-002",
     );
     if (handIndex < 0) {
       expect(state.players[0].costArea.length).toBeGreaterThan(0);

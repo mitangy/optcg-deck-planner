@@ -1,6 +1,6 @@
 # Step 3 — Expo client board (`mobile/`)
 
-**Status:** `plan ready` (not implemented)  
+**Status:** `implemented`  
 **Depends on:** Step 2 acceptance criteria met (**done** — `game-server` on `main`, `protocolVersion: 1`)  
 **Unblocks:** Step 4  
 **Branch for implementation:** prefer `cursor/duel-expo-client-afeb`
@@ -395,9 +395,9 @@ Manual / device:
 
 ## Exit notes (fill when step completes)
 
-- Build profile used (Expo Go / EAS dev):
-- Screens recorded / screenshots path:
-- Protocol gaps found vs Step 2:
-- Real card id list shipped:
-- Known UI / content limitations:
-- Status:
+- Build profile used (Expo Go / EAS dev): Expo Go / `expo start` (web smoke + unit tests in CI); `eas.json` stubs ready
+- Screens recorded / screenshots path: `/opt/cursor/artifacts/` (atlas + connect/board smoke)
+- Protocol gaps found: none blocking — `protocolVersion: 1` welcome/view/events/error/match_over/pong unchanged; client copies wire types locally
+- Real card id list shipped: ST01-001..007, ST01-014/015/017, OP01-013, OP01-031 (see `packages/rules/README.md`)
+- Known UI / content limitations: ST01-001 Activate:Main not modeled; intent bar (no fancy targeting); Bandai art URLs private-prototype only
+- Status: implemented

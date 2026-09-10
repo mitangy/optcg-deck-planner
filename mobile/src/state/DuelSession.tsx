@@ -1,0 +1,106 @@
+import React, { createContext, useContext, useMemo, useRef, useState } from "react";
+import { DuelClient } from "../net/duelClient";
+import type {
+  Intent,
+  MatchOverMessage,
+  PlayerView,
+  Seat,
+} from "../net/protocol";
+
+type DuelSession = {
+  client: DuelClient;
+  connected: boolean;
+  matchId: string | null;
+  seat: Seat | null;
+  view: PlayerView | null;
+  errorBanner: string | null;
+  matchOver: MatchOverMessage["result"] | null;
+  connect: (opts: {
+    serverUrl?: string;
+    devUserId: string;
+    secret?: string;
+    roomId?: string;
+    preferredSeat?: Seat;
+  }) => Promise<void>;
+  sendIntent: (intent: Intent) => void;
+  leave: () => Promise<void>;
+  clearError: () => void;
+};
+
+const Ctx = createContext<DuelSession | null>(null);
+
+export function DuelSessionProvider({ children }: { children: React.ReactNode }) {
+  const clientRef = useRef(new DuelClient());
+  const [connected, setConnected] = useState(false);
+  const [matchId, setMatchId] = useState<string | null>(null);
+  const [seat, setSeat] = useState<Seat | null>(null);
+  const [view, setView] = useState<PlayerView | null>(null);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const [matchOver, setMatchOver] = useState<MatchOverMessage["result"] | null>(null);
+
+  const value = useMemo<DuelSession>(() => {
+    const client = clientRef.current;
+    return {
+      client,
+      connected,
+      matchId,
+      seat,
+      view,
+      errorBanner,
+      matchOver,
+      async connect(opts) {
+        setErrorBanner(null);
+        setMatchOver(null);
+        setView(null);
+        client.setHandlers({
+          onWelcome: ({ matchId: id, seat: s, view: v }) => {
+            setMatchId(id);
+            setSeat(s);
+            setView(v);
+            setConnected(true);
+          },
+          onView: (v) => setView(v),
+          onError: (err) => setErrorBanner(`${err.code}: ${err.message}`),
+          onMatchOver: (msg) => setMatchOver(msg.result),
+          onDisconnect: () => setConnected(false),
+        });
+        const info = await client.connect({
+          serverUrl: opts.serverUrl,
+          devUserId: opts.devUserId,
+          secret: opts.secret,
+          roomId: opts.roomId,
+          preferredSeat: opts.preferredSeat,
+        });
+        setMatchId(info.matchId);
+        setSeat(info.seat);
+        setConnected(true);
+      },
+      sendIntent(intent) {
+        try {
+          client.sendIntent(intent);
+        } catch (e) {
+          setErrorBanner(e instanceof Error ? e.message : "Send failed");
+        }
+      },
+      async leave() {
+        await client.disconnect();
+        setConnected(false);
+        setMatchId(null);
+        setSeat(null);
+        setView(null);
+        setMatchOver(null);
+      },
+      clearError() {
+        setErrorBanner(null);
+      },
+    };
+  }, [connected, matchId, seat, view, errorBanner, matchOver]);
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function useDuelSession(): DuelSession {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("useDuelSession outside provider");
+  return ctx;
+}
