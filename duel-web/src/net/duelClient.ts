@@ -161,22 +161,46 @@ export class DuelClient {
    * Rejoin after an unexpected drop / page reload.
    * Pass `reconnectionToken` + `serverUrl` when restoring from sessionStorage
    * (the in-memory Client is gone after refresh).
+   *
+   * Retries on "seat reservation expired" — full page reload can race the
+   * server's `allowReconnection` setup by a few dozen ms.
    */
   async reconnect(opts?: {
     serverUrl?: string;
     reconnectionToken?: string;
+    attempts?: number;
   }): Promise<{ matchId: string; seat: Seat }> {
     const token = opts?.reconnectionToken ?? this.reconnectionToken;
     if (!token) throw new Error("No reconnection token");
     const url = opts?.serverUrl ?? getGameServerUrl();
-    this.client = new Client(url);
-    this.reconnectionToken = token;
-    const room = await this.client.reconnect(token);
-    this.room = room;
-    this.captureReconnectionToken(room);
-    this.wireDuel(room);
-    room.send("sync", { protocolVersion: PROTOCOL_VERSION });
-    return this.waitWelcome(room);
+    const attempts = opts?.attempts ?? 5;
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+      if (i > 0) {
+        await new Promise((r) => setTimeout(r, 100 * i));
+      }
+      try {
+        this.client = new Client(url);
+        this.reconnectionToken = token;
+        const room = await this.client.reconnect(token);
+        this.room = room;
+        this.captureReconnectionToken(room);
+        this.wireDuel(room);
+        room.send("sync", { protocolVersion: PROTOCOL_VERSION });
+        return await this.waitWelcome(room);
+      } catch (e) {
+        lastErr = e;
+        const msg = e instanceof Error ? e.message : String(e);
+        const retryable = /seat reservation expired|reconnection/i.test(msg);
+        if (!retryable || i === attempts - 1) throw e;
+        try {
+          await this.disconnect(false);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
   }
 
   sendIntent(intent: Intent) {

@@ -40,6 +40,34 @@ function navFromResume(blob: HotseatResumeBlob): HotseatNavState {
 }
 
 /**
+ * Park live hotseat sockets across React StrictMode remounts so we do not
+ * soft-disconnect + reclaim (which rotates Colyseus reconnection tokens).
+ * A deferred teardown still runs if the page truly leaves hotseat.
+ */
+type ParkedHotseat = {
+  bags: [SeatBag, SeatBag];
+  matchId: string;
+  activeSeat: Seat;
+  timer: ReturnType<typeof setTimeout> | null;
+};
+let parkedHotseat: ParkedHotseat | null = null;
+
+function clearParkedTeardown() {
+  if (parkedHotseat?.timer) {
+    clearTimeout(parkedHotseat.timer);
+    parkedHotseat.timer = null;
+  }
+}
+
+function disposeParked(consented: boolean) {
+  clearParkedTeardown();
+  const bags = parkedHotseat?.bags;
+  parkedHotseat = null;
+  if (!bags) return;
+  for (const b of bags) void b.client.disconnect(consented);
+}
+
+/**
  * One browser, two seats — pass the device between turns.
  * Refresh auto-reconnects both seats from the sessionStorage resume blob.
  */
@@ -107,11 +135,79 @@ export function HotseatPage() {
       return;
     }
 
+    clearParkedTeardown();
+
     const gen = ++bootGen.current;
     let cancelled = false;
     const clients: DuelClient[] = [];
 
     const alive = () => !cancelled && gen === bootGen.current;
+
+    // Reclaim sockets parked by StrictMode remount — avoids token rotation.
+    if (
+      parkedHotseat &&
+      parkedHotseat.bags[0].view &&
+      parkedHotseat.bags[1].view &&
+      parkedHotseat.matchId
+    ) {
+      const parked = parkedHotseat;
+      bags.current = parked.bags;
+      setMatchId(parked.matchId);
+      matchIdRef.current = parked.matchId;
+      setActiveSeat(parked.activeSeat);
+      activeSeatRef.current = parked.activeSeat;
+      setResuming(false);
+      setReady(true);
+      // Re-bind handlers to the new mount's alive()/persist closures.
+      for (const bag of parked.bags) {
+        clients.push(bag.client);
+        bag.client.setHandlers({
+          onWelcome: ({ matchId: id, view }) => {
+            if (!alive()) return;
+            setMatchId(id);
+            matchIdRef.current = id;
+            bag.view = view;
+            bag.connected = true;
+            bump((n) => n + 1);
+            persistResume();
+          },
+          onView: (view) => {
+            if (!alive()) return;
+            bag.view = view;
+            bump((n) => n + 1);
+          },
+          onMatchOver: (msg) => {
+            if (!alive()) return;
+            bag.matchOver = msg.result;
+            clearMatchResume();
+            bump((n) => n + 1);
+          },
+          onError: (err) => {
+            if (!alive()) return;
+            bag.error = `${err.code}: ${err.message}`;
+            bump((n) => n + 1);
+          },
+          onDisconnect: () => {
+            if (!alive()) return;
+            bag.connected = false;
+            bump((n) => n + 1);
+          },
+          onReconnectionToken: () => {
+            if (!alive()) return;
+            persistResume();
+          },
+        });
+      }
+      return () => {
+        cancelled = true;
+        parkedHotseat = {
+          bags: parked.bags,
+          matchId: matchIdRef.current ?? parked.matchId,
+          activeSeat: activeSeatRef.current,
+          timer: setTimeout(() => disposeParked(false), 500),
+        };
+      };
+    }
 
     function wireBag(client: DuelClient, bag: SeatBag) {
       client.setHandlers({
@@ -190,16 +286,19 @@ export function HotseatPage() {
           wireBag(c0, bag0);
           wireBag(c1, bag1);
 
-          const [w0, w1] = await Promise.all([
-            c0.reconnect({
-              serverUrl: shouldResume.serverUrl,
-              reconnectionToken: shouldResume.seats[0].reconnectionToken,
-            }),
-            c1.reconnect({
-              serverUrl: shouldResume.serverUrl,
-              reconnectionToken: shouldResume.seats[1].reconnectionToken,
-            }),
-          ]);
+          // Brief pause so the server's onDrop → allowReconnection is armed
+          // after a hard refresh (WS drop). Reclaim seats one at a time.
+          await new Promise((r) => setTimeout(r, 150));
+          if (!alive()) return;
+          const w0 = await c0.reconnect({
+            serverUrl: shouldResume.serverUrl,
+            reconnectionToken: shouldResume.seats[0].reconnectionToken,
+          });
+          if (!alive()) return;
+          const w1 = await c1.reconnect({
+            serverUrl: shouldResume.serverUrl,
+            reconnectionToken: shouldResume.seats[1].reconnectionToken,
+          });
           if (!alive()) return;
           if (w0.matchId !== w1.matchId) {
             throw new Error("Hotseat seats reconnected to different rooms");
@@ -301,6 +400,15 @@ export function HotseatPage() {
           throw new Error("Hotseat connected but never received board views");
         }
         if (!alive()) return;
+        const [p0, p1] = bags.current;
+        if (p0 && p1 && matchIdRef.current) {
+          parkedHotseat = {
+            bags: [p0, p1],
+            matchId: matchIdRef.current,
+            activeSeat: activeSeatRef.current,
+            timer: null,
+          };
+        }
         setReady(true);
       } catch (e) {
         if (alive()) {
@@ -315,8 +423,19 @@ export function HotseatPage() {
 
     return () => {
       cancelled = true;
-      // Soft leave so StrictMode remount / refresh can still reconnect.
-      for (const c of clients) void c.disconnect(false);
+      // Park sockets briefly so StrictMode remount can reclaim them without
+      // rotating reconnection tokens. Real navigation/unload tears down after.
+      const [b0, b1] = bags.current;
+      if (b0 && b1 && matchIdRef.current) {
+        parkedHotseat = {
+          bags: [b0, b1],
+          matchId: matchIdRef.current,
+          activeSeat: activeSeatRef.current,
+          timer: setTimeout(() => disposeParked(false), 500),
+        };
+      } else {
+        for (const c of clients) void c.disconnect(false);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
@@ -338,6 +457,7 @@ export function HotseatPage() {
 
   async function leave() {
     clearMatchResume();
+    disposeParked(true);
     await Promise.allSettled(
       bags.current.map((b) => (b ? b.client.disconnect(true) : Promise.resolve())),
     );
