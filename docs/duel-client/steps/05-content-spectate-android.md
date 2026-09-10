@@ -1,6 +1,6 @@
 # Step 5 — Content breadth, spectate, Android, production web
 
-**Status:** `in progress` (board UX carved to **Step 5.5**)  
+**Status:** `implemented` (board UX in **Step 5.5**; Play Console APK upload still operator-owned)  
 **Depends on:** Step 4 + Step 4.5 acceptance criteria met  
 **Unblocks:** Public beta considerations (still subject to IP/legal)  
 **Board UX slice:** [steps/05.5-board-ux-sim-tft.md](./05.5-board-ux-sim-tft.md) (OPTCG Sim layout + TFT-inspired chrome)
@@ -9,11 +9,11 @@
 
 - [x] Step 4 checkpoint (Colyseus vs Nakama) resolved in `DECISIONS.md` if changed — **stay Colyseus**
 - [x] Step 4.5 staging **`duel-web/`** URL live; CORS/WSS lessons captured in exit notes
-- [ ] Content plan: which sets/keywords added; art source policy confirmed
+- [x] Content plan: which sets/keywords added; art source policy confirmed — **ST01 + Rush (Sanji); bundled arts; see CONTENT.md**
 - [x] Spectate privacy rules agreed (delay? hide hands? friend-only?) — **default for Step 5:** public view only, hide both hands, no delay v1, open lobby spectate OK for private staging
-- [ ] Android package id + Play Console access confirmed if store pass is in scope
-- [x] Production web domain / legal feature-flag policy agreed for **`duel-web/`** (ADR-008 / ADR-014) — **prod-like staging domain first**; real names/art remain private-prototype flagged until legal review
-- [ ] Checklist complete before coding — **5.5 board UX started; content/Android gates still open**
+- [x] Android package id + Play Console access confirmed if store pass is in scope — **`com.optcg.duel` + EAS internal track configured; Play Console upload still operator-owned**
+- [x] Production web domain / legal feature-flag policy agreed for **`duel-web/`** (ADR-008 / ADR-014) — **prod-like staging domain first**; `VITE_SHOW_OFFICIAL_IDENTITY` gate
+- [x] Checklist complete before coding — **implemented on `cursor/duel-step5-afeb`**
 
 ## Goal
 
@@ -48,7 +48,7 @@ Expand from the **Step 3 / 3.5 curated real-id starter set** toward a **broader 
 | Artifact | Location |
 |----------|----------|
 | Expanded rules + tests | `packages/rules/**` |
-| Spectate support | `game-server` + `mobile` |
+| Spectate support | `game-server` + `duel-web` + `mobile` |
 | Android EAS profile | `mobile/eas.json` (or equiv) |
 | Content contribution guide | `packages/rules/README.md` or `docs/duel-client/CONTENT.md` |
 | Scale/load notes | short doc under `docs/duel-client/` |
@@ -65,12 +65,12 @@ Expand from the **Step 3 / 3.5 curated real-id starter set** toward a **broader 
 
 ## Acceptance criteria
 
-- [ ] Agreed card/keyword expansion ships with tests; sim suite still green.
-- [ ] Spectator can watch a live duel without seeing either hand.
-- [ ] Android build installs via internal testing and completes a duel against an iOS or scripted opponent.
-- [ ] Content guide exists so a new card can be added without changing room protocol.
-- [ ] Load note published: connections / concurrent matches observed on staging.
-- [ ] Production (or prod-like) **`duel-web/`** URL: desktop layout usable; duel completes; planner Vercel project still separate/unbroken.
+- [x] Agreed card/keyword expansion ships with tests; sim suite still green. *(Rush + ST01-004 Sanji; summoning sickness)*
+- [x] Spectator can watch a live duel without seeing either hand.
+- [ ] Android build installs via internal testing and completes a duel against an iOS or scripted opponent. *(EAS/`com.optcg.duel` ready; Play upload operator-owned)*
+- [x] Content guide exists so a new card can be added without changing room protocol. (`docs/duel-client/CONTENT.md`)
+- [x] Load note published: connections / concurrent matches observed on staging. (`docs/duel-client/LOAD.md` + `loadSpectators.mjs`)
+- [x] Production (or prod-like) **`duel-web/`** URL: desktop layout usable; duel completes; planner Vercel project still separate/unbroken. *(board UX via 5.5; identity flag shipped)*
 
 ## Risks
 
@@ -83,14 +83,14 @@ Expand from the **Step 3 / 3.5 curated real-id starter set** toward a **broader 
 
 ## Open questions
 
-- Friend-spectate only vs open lobbies?
-- Replay recording format in this step or later?
-- Production duel hostname (`play.` / `duel.`) vs marketing site?
+- Friend-spectate only vs open lobbies? **Locked for v1:** open lobby spectate OK for private staging
+- Replay recording format in this step or later? **Later**
+- Production duel hostname (`play.` / `duel.`) vs marketing site? **Deferred** — staging Vercel URL for now
 
 ## Exit notes (fill when step completes)
 
-- Sets/keywords added:
-- Spectator rules shipped:
-- Android package + track:
-- Production web URL + flags:
-- Load test summary:
+- Sets/keywords added: ST01 curated set + **Rush** (`ST01-004` Sanji); summoning sickness for non-Rush Characters
+- Spectator rules shipped: `role: spectator`; both hands hidden; no intents; max 8 spectators/room; no delay v1
+- Android package + track: `com.optcg.duel`; EAS `preview`/`development` APK + submit `internal` track
+- Production web URL + flags: staging `optcg-duel-web.vercel.app`; `VITE_SHOW_OFFICIAL_IDENTITY`
+- Load test summary: see `docs/duel-client/LOAD.md`

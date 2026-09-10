@@ -19,14 +19,15 @@ describe("protocol parsers", () => {
     assert.equal(j.secret, "s");
   });
 
-  it("parses join options with gameToken only", () => {
+  it("parses spectator join role", () => {
     const j = parseJoinOptions({
       protocolVersion: PROTOCOL_VERSION,
-      gameToken: "abc.def",
+      devUserId: "watch",
+      role: "spectator",
       preferredSeat: 0,
     });
-    assert.equal(j.gameToken, "abc.def");
-    assert.equal(j.devUserId, undefined);
+    assert.equal(j.role, "spectator");
+    assert.equal(j.preferredSeat, 0);
   });
 
   it("rejects join without gameToken or devUserId", () => {

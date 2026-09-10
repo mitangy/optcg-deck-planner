@@ -159,6 +159,9 @@ function beginTurn(state: MatchState, events: GameEvent[]): void {
   const player = state.players[seat];
   player.turnsStarted += 1;
   player.leaderActivatedThisTurn = false;
+  for (const c of player.characters) {
+    c.summoningSick = false;
+  }
   refresh(player);
   events.push({ type: "phase_changed", phase: "refresh", activeSeat: seat });
 
@@ -490,6 +493,8 @@ export function applyIntent(
       }
       const inst = makeCard(next, card.defId);
       inst.id = card.id;
+      // Official: Characters cannot attack the turn they enter play unless Rush.
+      inst.summoningSick = !def.rush;
       player.characters.push(inst);
       events.push({ type: "card_played", seat, defId: card.defId, instanceId: inst.id });
       return done();
@@ -525,6 +530,9 @@ export function applyIntent(
     const attacker = findBoard(player, intent.attackerId);
     if (!attacker || attacker.rested) {
       return fail(state, "bad_attacker", "Invalid attacker");
+    }
+    if (attacker.id !== player.leader.id && attacker.summoningSick) {
+      return fail(state, "summoning_sick", "Character cannot attack the turn it entered play");
     }
     if (intent.target.kind === "character") {
       const targetId = intent.target.instanceId;
@@ -639,7 +647,11 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
   });
 
   if (player.turnsStarted >= 2) {
-    const attackers = [player.leader, ...player.characters].filter((c) => !c.rested);
+    const attackers = [player.leader, ...player.characters].filter((c) => {
+      if (c.rested) return false;
+      if (c.id !== player.leader.id && c.summoningSick) return false;
+      return true;
+    });
     const opp = state.players[otherSeat(seat)];
     for (const a of attackers) {
       out.push({ type: "declare_attack", attackerId: a.id, target: { kind: "leader" } });
@@ -667,6 +679,8 @@ export function getPlayerView(state: MatchState, seat: Seat) {
     rested: c.rested,
     attachedDonCount: c.attachedDonIds.length,
     power: powerOf(state, s, c),
+    summoningSick: Boolean(c.summoningSick),
+    rush: Boolean(getCardDef(c.defId).rush),
   });
   return {
     seat,
@@ -705,6 +719,26 @@ export function getPlayerView(state: MatchState, seat: Seat) {
     winner: state.winner,
     winReason: state.winReason,
     legalIntents: listLegalIntents(state, seat),
+  };
+}
+
+/**
+ * Public board for spectators: both hands hidden (counts only), no legal intents.
+ * `cameraSeat` chooses which side is rendered as "you" in client layouts.
+ */
+export function getSpectatorView(state: MatchState, cameraSeat: Seat = 0) {
+  const base = getPlayerView(state, cameraSeat);
+  const youHandCount = base.you.hand.length;
+  return {
+    ...base,
+    spectator: true as const,
+    cameraSeat,
+    you: {
+      ...base.you,
+      hand: [] as { id: string; defId: string }[],
+      handCount: youHandCount,
+    },
+    legalIntents: [] as Intent[],
   };
 }
 

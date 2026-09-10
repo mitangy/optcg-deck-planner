@@ -14,6 +14,7 @@ type DuelSession = {
   canReconnect: boolean;
   matchId: string | null;
   seat: Seat | null;
+  role: "player" | "spectator";
   view: PlayerView | null;
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
@@ -25,6 +26,7 @@ type DuelSession = {
     secret?: string;
     roomId?: string;
     preferredSeat?: Seat;
+    role?: "player" | "spectator";
   }) => Promise<void>;
   queueRanked: (opts: {
     serverUrl?: string;
@@ -50,6 +52,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [canReconnect, setCanReconnect] = useState(false);
   const [matchId, setMatchId] = useState<string | null>(null);
   const [seat, setSeat] = useState<Seat | null>(null);
+  const [role, setRole] = useState<"player" | "spectator">("player");
   const [view, setView] = useState<PlayerView | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [matchOver, setMatchOver] = useState<MatchOverMessage["result"] | null>(null);
@@ -60,9 +63,10 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
 
     function wireHandlers() {
       client.setHandlers({
-        onWelcome: ({ matchId: id, seat: s, view: v }) => {
+        onWelcome: ({ matchId: id, seat: s, role: r, view: v }) => {
           setMatchId(id);
           setSeat(s);
+          setRole(r ?? (v.spectator ? "spectator" : "player"));
           setView(v);
           setConnected(true);
           setCanReconnect(true);
@@ -89,6 +93,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       canReconnect,
       matchId,
       seat,
+      role,
       view,
       errorBanner,
       matchOver,
@@ -98,18 +103,20 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setErrorBanner(null);
         setMatchOver(null);
         setView(null);
+        setRole(opts.role ?? "player");
         setQueueing(false);
         wireHandlers();
         const info = await client.connect(opts);
         setMatchId(info.matchId);
         setSeat(info.seat);
         setConnected(true);
-        setCanReconnect(true);
+        setCanReconnect(opts.role !== "spectator");
       },
       async queueRanked(opts) {
         setErrorBanner(null);
         setMatchOver(null);
         setView(null);
+        setRole("player");
         setQueueing(true);
         wireHandlers();
         try {
@@ -157,6 +164,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setCanReconnect(false);
         setMatchId(null);
         setSeat(null);
+        setRole("player");
         setView(null);
         setMatchOver(null);
       },
@@ -170,6 +178,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     canReconnect,
     matchId,
     seat,
+    role,
     view,
     errorBanner,
     matchOver,

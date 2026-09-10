@@ -5,12 +5,13 @@ import {
   listCardDefs,
 } from "../cards/definitions.js";
 
-describe("Step 3.5 curated defs", () => {
-  it("ships only corrected ST01 ids with accurate prints", () => {
+describe("Step 5 curated defs", () => {
+  it("ships ST01 curated ids including Rush Sanji", () => {
     const ids = listCardDefs().map((d) => d.id).sort();
     expect(ids).toEqual([
       "ST01-001",
       "ST01-003",
+      "ST01-004",
       "ST01-006",
       "ST01-008",
       "ST01-009",
@@ -33,6 +34,13 @@ describe("Step 3.5 curated defs", () => {
       cost: 1,
       power: 3000,
       counter: 1000,
+    });
+    expect(getCardDef("ST01-004")).toMatchObject({
+      name: "Sanji",
+      cost: 2,
+      power: 4000,
+      counter: 1000,
+      rush: true,
     });
     expect(getCardDef("ST01-006")).toMatchObject({
       name: "TonyTony.Chopper",

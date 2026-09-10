@@ -10,6 +10,7 @@ type Props = {
   matchId: string | null;
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
+  spectator?: boolean;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
   onClearError: () => void;
@@ -21,6 +22,7 @@ export function DuelBoard({
   matchId,
   errorBanner,
   matchOver,
+  spectator = false,
   onSendIntent,
   onLeave,
   onClearError,
@@ -58,7 +60,8 @@ export function DuelBoard({
   const you = view.you;
   const opp = view.opponent;
   const mySeat = seat ?? view.seat;
-  const yourTurn = view.activeSeat === mySeat && !over;
+  const spectating = spectator || Boolean(view.spectator);
+  const yourTurn = !spectating && view.activeSeat === mySeat && !over;
 
   return (
     <div className={`board-root arena${yourTurn ? " your-turn" : ""}`}>
@@ -69,8 +72,9 @@ export function DuelBoard({
           <span className="hud-sep">·</span>
           <span>Turn {view.turnNumber}</span>
           <span className="hud-sep">·</span>
-          <span>Seat {mySeat}</span>
+          <span>{spectating ? "Spectating" : `Seat ${mySeat}`}</span>
           {yourTurn ? <span className="hud-turn-chip">YOUR TURN</span> : null}
+          {spectating ? <span className="hud-turn-chip">SPECTATOR</span> : null}
         </div>
         <div className="hud-actions">
           <span className="match-id" title={matchId ?? undefined}>
@@ -149,31 +153,43 @@ export function DuelBoard({
 
       <div className="hand-rail">
         <div className="hand-rail-head">
-          <span className="hand-rail-title">Hand</span>
-          <span className="hand-rail-count">{you.hand.length}</span>
+          <span className="hand-rail-title">{spectating ? "Seat hand (hidden)" : "Hand"}</span>
+          <span className="hand-rail-count">
+            {spectating ? (you.handCount ?? 0) : you.hand.length}
+          </span>
         </div>
         <div className="hand-row">
-          {you.hand.map((c, idx) => (
-            <CardTile
-              key={c.id}
-              defId={c.defId}
-              selected={handFilter === idx}
-              onClick={() => setHandFilter((prev) => (prev === idx ? null : idx))}
-            />
-          ))}
+          {spectating
+            ? Array.from({ length: Math.min(you.handCount ?? 0, 8) }).map((_, i) => (
+                <span key={i} className="card-back hand-back" />
+              ))
+            : you.hand.map((c, idx) => (
+                <CardTile
+                  key={c.id}
+                  defId={c.defId}
+                  selected={handFilter === idx}
+                  onClick={() => setHandFilter((prev) => (prev === idx ? null : idx))}
+                />
+              ))}
         </div>
       </div>
 
-      <IntentBar
-        intents={view.legalIntents}
-        view={view}
-        disabled={over}
-        filterHandIndex={handFilter}
-        onSend={(intent) => {
-          setHandFilter(null);
-          onSendIntent(intent);
-        }}
-      />
+      {!spectating ? (
+        <IntentBar
+          intents={view.legalIntents}
+          view={view}
+          disabled={over}
+          filterHandIndex={handFilter}
+          onSend={(intent) => {
+            setHandFilter(null);
+            onSendIntent(intent);
+          }}
+        />
+      ) : (
+        <div className="intent-bar">
+          <p className="intent-empty">Spectating — both hands hidden; intents disabled</p>
+        </div>
+      )}
 
       {over ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">

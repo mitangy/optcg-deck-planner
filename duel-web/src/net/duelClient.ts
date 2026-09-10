@@ -15,7 +15,12 @@ import {
 import { Client, type Room } from "@colyseus/sdk";
 
 export type DuelClientHandlers = {
-  onWelcome?: (info: { matchId: string; seat: Seat; view: PlayerView }) => void;
+  onWelcome?: (info: {
+    matchId: string;
+    seat: Seat;
+    view: PlayerView;
+    role: "player" | "spectator";
+  }) => void;
   onView?: (view: PlayerView) => void;
   onEvents?: (events: unknown[]) => void;
   onError?: (err: ErrorMessage) => void;
@@ -32,6 +37,7 @@ export type ConnectParams = {
   secret?: string;
   preferredSeat?: Seat;
   roomId?: string;
+  role?: "player" | "spectator";
   createOptions?: DuelCreateOptions;
 };
 
@@ -203,6 +209,7 @@ export class DuelClient {
       gameToken: params.gameToken,
       secret: params.secret ?? getDevJoinSecret(),
       preferredSeat: params.preferredSeat,
+      role: params.role,
     };
   }
 
@@ -241,6 +248,7 @@ export class DuelClient {
           matchId: msg.matchId,
           seat: msg.seat,
           view: msg.view,
+          role: msg.role ?? (msg.view.spectator ? "spectator" : "player"),
         });
         this.handlers.onView?.(msg.view);
       } catch (e) {

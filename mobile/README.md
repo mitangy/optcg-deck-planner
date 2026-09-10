@@ -35,8 +35,16 @@ Writes `mobile/assets/cardAtlas.json`.
 | `EXPO_PUBLIC_GAME_SERVER_URL` | `http://192.168.1.10:2567` | Colyseus HTTP endpoint for `@colyseus/sdk` |
 | `EXPO_PUBLIC_API_URL` | `http://192.168.1.10:8000` | FastAPI for `/duel/dev-token` and ratings |
 | `EXPO_PUBLIC_DEV_JOIN_SECRET` | (optional) | Must match game-server `DEV_JOIN_SECRET` when set |
+| `EXPO_PUBLIC_SHOW_OFFICIAL_IDENTITY` | `true` | Legal gate — set `false` on public builds to hide official names/art |
 
 Defaults to `http://localhost:2567` (fine for web / iOS Simulator on the same machine). On a **physical phone**, use your computer’s LAN IP — `localhost` points at the phone.
+
+## Android (Step 5)
+
+- Package id: `com.optcg.duel` (`app.json` → `expo.android.package`)
+- EAS profiles: `development` / `preview` (APK, internal) and `production` (AAB) with submit track `internal`
+- Build: `cd mobile && npx eas-cli build --platform android --profile preview`
+- Play Console upload / internal testing track remains an operator step (credentials not in-repo)
 
 ## Run
 

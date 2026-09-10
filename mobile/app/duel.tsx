@@ -11,6 +11,7 @@ export default function DuelScreen() {
     canReconnect,
     view,
     seat,
+    role,
     matchId,
     errorBanner,
     matchOver,
@@ -21,6 +22,8 @@ export default function DuelScreen() {
     leave,
     clearError,
   } = useDuelSession();
+
+  const spectating = role === "spectator" || Boolean(view?.spectator);
 
   useEffect(() => {
     if (!connected && !view && !canReconnect) {
@@ -50,12 +53,16 @@ export default function DuelScreen() {
       {rating != null ? (
         <Text style={styles.rating}>Your rating: {rating}</Text>
       ) : null}
+      {spectating ? (
+        <Text style={styles.rating}>Spectating — hands hidden · read-only</Text>
+      ) : null}
       <DuelBoard
         view={view}
         seat={seat}
         matchId={matchId}
         errorBanner={errorBanner}
         matchOver={matchOver}
+        spectator={spectating}
         onSendIntent={sendIntent}
         onLeave={async () => {
           await leave();
@@ -63,7 +70,7 @@ export default function DuelScreen() {
         }}
         onClearError={clearError}
       />
-      {connected && !matchOver ? (
+      {connected && !matchOver && !spectating ? (
         <Pressable style={styles.concede} onPress={() => concede()}>
           <Text style={styles.concedeText}>Concede</Text>
         </Pressable>
