@@ -1,9 +1,9 @@
 # Step 2 — Game server (`game-server/`)
 
-**Status:** `plan ready` (not implemented)  
+**Status:** `implemented` (see Exit notes)  
 **Depends on:** Step 1 acceptance criteria met (**done** — `@optcg/rules` on `main`)  
 **Unblocks:** Step 3  
-**Branch for implementation:** prefer `cursor/duel-game-server-afeb`
+**Branch for implementation:** `cursor/duel-game-server-afeb`
 
 ## Ready for development (gate)
 
@@ -294,14 +294,14 @@ Manual (optional): Colyseus playground or a tiny Node script joining twice on lo
 
 ## Acceptance criteria
 
-- [ ] Two local clients can complete a duel to `match_over` using only server-validated intents
-- [ ] Illegal intent does not mutate authoritative state
-- [ ] Each client only receives its own private view (no opponent hand)
-- [ ] `game-server` README: install, run, test, env
-- [ ] Server process does not import Expo/React Native
-- [ ] Root workspace resolves `@optcg/rules` without publishing to npm
-- [ ] `protocolVersion: 1` documented and present on messages
-- [ ] Exit notes filled; status → `implemented`
+- [x] Two local clients can complete a duel to `match_over` using only server-validated intents
+- [x] Illegal intent does not mutate authoritative state
+- [x] Each client only receives its own private view (no opponent hand)
+- [x] `game-server` README: install, run, test, env
+- [x] Server process does not import Expo/React Native
+- [x] Root workspace resolves `@optcg/rules` without publishing to npm
+- [x] `protocolVersion: 1` documented and present on messages
+- [x] Exit notes filled; status → `implemented`
 
 ---
 
@@ -341,8 +341,10 @@ Manual (optional): Colyseus playground or a tiny Node script joining twice on lo
 
 ## Exit notes (fill when step completes)
 
-- Final protocol summary / link:
-- Room name registered:
-- Colyseus + Node versions pinned:
-- Known limitations:
-- Status:
+- Final protocol summary / link: `game-server/src/protocol.ts` + `game-server/README.md` — `protocolVersion: 1`; messages `welcome` / `view` / `events` / `error` / `match_over` / `pong`; client `intent` / `ping` / `sync`
+- Room name registered: `duel` (`DuelRoom`)
+- Colyseus + Node versions pinned: `colyseus` ^0.18.5, `@colyseus/sdk` ^0.18.2, `@colyseus/testing` ^0.18.5; Node ≥ 22
+- Rules API wired: `createMatch`, `applyIntent`, `getPlayerView`, `skipMulligans`, `createSeededRng`, `buildTestDeck` from `@optcg/rules`
+- Known limitations: single process (no Redis); dev join auth only; default placeholder decks; no reconnect; no FastAPI writeback; `sync` helper for late listeners
+- Tests: `cd game-server && npm test` (7 passing — privacy, illegal intent, match_over, room full, protocol parsers)
+- Status: **implemented**
