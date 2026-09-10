@@ -55,3 +55,13 @@ Record of durable choices. Change these only by updating this file and the affec
 ## ADR-009 — Stepwise delivery with plan gates
 
 **Decision:** Each numbered step has its own plan under `docs/duel-client/steps/`. Implementation of a step starts only after that plan’s **Ready for development** checklist is complete.
+
+## ADR-010 — Step 1 rules slice (locked at plan gate)
+
+**Decision:** Step 1 ships a **headless engine that follows official OPTCG rules** (Rule Manual + Comprehensive Rules as authority). Victory, turn phases, DON!! economy, Life cards, and battle steps (Attack → Block → Counter → Damage → End) must match the manuals — **not** a simplified house ruleset. Content remains a **tiny placeholder card subset** so implementation stays finite; missing keywords are omitted or listed as known gaps, never replaced with contradictory shortcuts (e.g. auto-loss at 0 Life without a successful Leader battle).
+
+**Tooling:** **Vitest** in a **standalone** `packages/rules` package; workspaces deferred to Step 2.
+
+**Why:** Product is a digital duel client; incorrect core rules would poison every later step. Placeholder cards keep scope bounded without sacrificing rules fidelity.
+
+**See:** `steps/01-rules-engine.md`.
