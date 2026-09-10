@@ -79,13 +79,17 @@ Do **not** edit the repo-root `vercel.json` (planner).
 ## Architecture notes
 
 - Board is a **pure renderer** of `welcome` / `view` / `events` / `error` / `match_over`.
+- Playmat zones follow **OPTCG Sim / official layout** (Step 5.5 / ADR-015); visual chrome is TFT-inspired (gold HUD, bottom hand rail).
 - Cosmetics from bundled **card atlas** keyed by `defId`.
 - **Do not** import `@optcg/rules` for legality.
 - Wire types: `src/net/protocol.ts` (mirrored from game-server).
+- Layout QA: open `/demo` for a static playmat with sample zones (no live match).
 
 ## IP / private prototype
 
 Official card names and Bandai cardlist art URLs are for **private prototype testing only**. Public production needs rights / feature flags (Step 5).
+
+The curated atlas in this package uses **bundled** arts under `public/cards/` (Bandai CDN blocks cross-site embedding with CORP). Regenerate from `@optcg/rules` then re-mirror files into `public/cards/` when expanding the set.
 
 ## Tests
 

@@ -1,18 +1,19 @@
 # Step 5 — Content breadth, spectate, Android, production web
 
-**Status:** `planned` (not started)  
+**Status:** `in progress` (board UX carved to **Step 5.5**)  
 **Depends on:** Step 4 + Step 4.5 acceptance criteria met  
-**Unblocks:** Public beta considerations (still subject to IP/legal)
+**Unblocks:** Public beta considerations (still subject to IP/legal)  
+**Board UX slice:** [steps/05.5-board-ux-sim-tft.md](./05.5-board-ux-sim-tft.md) (OPTCG Sim layout + TFT-inspired chrome)
 
 ## Ready for development (gate)
 
-- [ ] Step 4 checkpoint (Colyseus vs Nakama) resolved in `DECISIONS.md` if changed
-- [ ] Step 4.5 staging **`duel-web/`** URL live; CORS/WSS lessons captured in exit notes
+- [x] Step 4 checkpoint (Colyseus vs Nakama) resolved in `DECISIONS.md` if changed — **stay Colyseus**
+- [x] Step 4.5 staging **`duel-web/`** URL live; CORS/WSS lessons captured in exit notes
 - [ ] Content plan: which sets/keywords added; art source policy confirmed
-- [ ] Spectate privacy rules agreed (delay? hide hands? friend-only?)
+- [x] Spectate privacy rules agreed (delay? hide hands? friend-only?) — **default for Step 5:** public view only, hide both hands, no delay v1, open lobby spectate OK for private staging
 - [ ] Android package id + Play Console access confirmed if store pass is in scope
-- [ ] Production web domain / legal feature-flag policy agreed for **`duel-web/`** (ADR-008 / ADR-014)
-- [ ] Checklist complete before coding
+- [x] Production web domain / legal feature-flag policy agreed for **`duel-web/`** (ADR-008 / ADR-014) — **prod-like staging domain first**; real names/art remain private-prototype flagged until legal review
+- [ ] Checklist complete before coding — **5.5 board UX started; content/Android gates still open**
 
 ## Goal
 
@@ -29,6 +30,7 @@ Expand from the **Step 3 / 3.5 curated real-id starter set** toward a **broader 
 - Security/privacy pass for wider testing (account deletion path, ToS placeholders).
 - Legal gate / feature flags for public builds that show real names/art.
 - **Production web (ADR-014):** desktop-responsive polish on **`duel-web/`**; production (or prod-like) Vercel domain; spectate share URLs if spectate ships; keep planner `frontend/`, `duel-web/`, and Expo `mobile/` as separate products.
+- **Board UX (Step 5.5):** OPTCG Sim zone layout (board / hand / DON!!) + TFT-inspired visual language on `duel-web/` — see `05.5-board-ux-sim-tft.md`.
 
 ## Out of scope
 
