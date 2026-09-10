@@ -4,7 +4,7 @@ export const PROTOCOL_VERSION = 1 as const;
 
 /** Colyseus HTTP(S) endpoint; SDK derives WS/WSS. */
 export function getGameServerUrl(): string {
-  return import.meta.env.VITE_GAME_SERVER_URL ?? "http://localhost:2567";
+  return import.meta.env.VITE_GAME_SERVER_URL ?? "http://127.0.0.1:2567";
 }
 
 export function getApiBaseUrl(): string {

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { DuelClient } from "../net/duelClient";
 import type {
   Intent,
@@ -101,10 +102,12 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setQueueing(false);
         wireHandlers();
         const info = await client.connect(opts);
-        setMatchId(info.matchId);
-        setSeat(info.seat);
-        setConnected(true);
-        setCanReconnect(true);
+        flushSync(() => {
+          setMatchId(info.matchId);
+          setSeat(info.seat);
+          setConnected(true);
+          setCanReconnect(true);
+        });
       },
       async queueRanked(opts) {
         setErrorBanner(null);
@@ -114,11 +117,13 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         wireHandlers();
         try {
           const info = await client.queueRanked(opts);
-          setMatchId(info.matchId);
-          setSeat(info.seat);
-          setConnected(true);
-          setCanReconnect(true);
-          setQueueing(false);
+          flushSync(() => {
+            setMatchId(info.matchId);
+            setSeat(info.seat);
+            setConnected(true);
+            setCanReconnect(true);
+            setQueueing(false);
+          });
         } catch (e) {
           setQueueing(false);
           throw e;

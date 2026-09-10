@@ -78,7 +78,9 @@ export class DuelClient {
     this.captureReconnectionToken(room);
     this.wireDuel(room);
 
-    return this.waitWelcome(room);
+    // Resolve as soon as the Colyseus room exists so the lobby can show the
+    // room id while waiting for the second seat (welcome arrives via handlers).
+    return { matchId: room.roomId, seat: params.preferredSeat ?? 0 };
   }
 
   /** Join ranked_queue until matched, then join the duel room. */
@@ -134,7 +136,7 @@ export class DuelClient {
     this.room = room;
     this.captureReconnectionToken(room);
     this.wireDuel(room);
-    return this.waitWelcome(room);
+    return { matchId: room.roomId, seat: matched.seat };
   }
 
   async cancelQueue() {

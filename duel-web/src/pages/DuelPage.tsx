@@ -22,10 +22,10 @@ export function DuelPage() {
   } = useDuelSession();
 
   useEffect(() => {
-    if (!connected && !view && !canReconnect) {
+    if (!connected && !view && !canReconnect && !matchId) {
       navigate("/", { replace: true });
     }
-  }, [connected, view, canReconnect, navigate]);
+  }, [connected, view, canReconnect, matchId, navigate]);
 
   return (
     <div className="duel-root">
@@ -60,7 +60,7 @@ export function DuelPage() {
         }}
         onClearError={clearError}
       />
-      {connected && !matchOver ? (
+      {connected && view && !matchOver ? (
         <button type="button" className="concede-fab" onClick={() => concede()}>
           Concede
         </button>

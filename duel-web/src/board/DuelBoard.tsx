@@ -30,7 +30,23 @@ export function DuelBoard({
   if (!view) {
     return (
       <div className="board-root">
-        <div className="loading">Waiting for match view…</div>
+        <div className="board-chrome">
+          <div className="board-chrome-text">Waiting for opponent…</div>
+          <div className="board-chrome-row">
+            <div className="match-id" title={matchId ?? undefined}>
+              Room {matchId ?? "—"}
+            </div>
+            <button type="button" className="leave-btn" onClick={onLeave}>
+              Leave
+            </button>
+          </div>
+        </div>
+        {errorBanner ? (
+          <button type="button" className="error-banner" onClick={onClearError}>
+            {errorBanner}
+          </button>
+        ) : null}
+        <div className="loading">Share the room id — match starts when both seats join.</div>
       </div>
     );
   }
