@@ -88,15 +88,17 @@ export class MatchmakerRoom extends Room {
     try {
       while (this.queue.length >= 2) {
         const a = this.queue.shift()!;
-        const b = this.queue.shift()!;
-        if (a.userId === b.userId) {
-          this.queue.unshift(b);
+        const partnerIdx = this.queue.findIndex((q) => q.userId !== a.userId);
+        if (partnerIdx < 0) {
+          // No distinct opponent yet (two tabs / hash collision) — wait for another joiner.
+          this.queue.unshift(a);
           a.client.send("queued", {
             protocolVersion: PROTOCOL_VERSION,
             position: 1,
           });
           break;
         }
+        const b = this.queue.splice(partnerIdx, 1)[0]!;
         try {
           const room = await matchMaker.createRoom("duel", {
             protocolVersion: PROTOCOL_VERSION,

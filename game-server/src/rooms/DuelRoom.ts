@@ -159,11 +159,21 @@ export class DuelRoom extends Room {
     }
   }
 
-  async onLeave(client: Client, consented: boolean) {
+  /** Consented leave (CloseCode.CONSENTED) — no reclaim. */
+  onLeave(client: Client, _code?: number) {
+    if (this.seatForClient(client) === null) return;
+    this.clearSeat(client.sessionId);
+  }
+
+  /**
+   * Unexpected disconnect — offer seat reclaim for RECONNECT_GRACE_SECONDS.
+   * Colyseus 0.18 routes drops here when `onDrop` is defined.
+   */
+  async onDrop(client: Client, _code?: number) {
     const seat = this.seatForClient(client);
     if (seat === null) return;
 
-    if (consented || this.matchOverSent || !this.matchStarted) {
+    if (this.matchOverSent || !this.matchStarted) {
       this.clearSeat(client.sessionId);
       return;
     }

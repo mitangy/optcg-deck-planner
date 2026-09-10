@@ -235,4 +235,36 @@ describe("DuelRoom", () => {
     await c1.leave(true);
     await c2.leave(true);
   });
+
+  it("ranked_queue skips same-user pair and matches a distinct third client", async () => {
+    const dupA = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("same-user"));
+    const dupB = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("same-user"));
+    let earlyMatch = false;
+    dupA.onMessage("matched", () => {
+      earlyMatch = true;
+    });
+    dupB.onMessage("matched", () => {
+      earlyMatch = true;
+    });
+    await new Promise((r) => setTimeout(r, 80));
+    assert.equal(earlyMatch, false);
+
+    const other = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("other-user"));
+    const msg = await new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error("third matched timeout")), 5000);
+      other.onMessage("matched", (m: { roomId: string; seat: number }) => {
+        clearTimeout(t);
+        resolve(m);
+      });
+      dupA.onMessage("matched", (m: { roomId: string; seat: number }) => {
+        clearTimeout(t);
+        resolve(m);
+      });
+    });
+    assert.equal(typeof msg.roomId, "string");
+    assert.ok(msg.seat === 0 || msg.seat === 1);
+    await dupA.leave(true);
+    await dupB.leave(true);
+    await other.leave(true);
+  });
 });
