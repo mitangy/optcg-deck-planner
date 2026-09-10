@@ -575,25 +575,37 @@ button {
 }
 
 .don-chip {
-  width: 18px;
-  height: 26px;
+  width: 28px;
+  height: 40px;
   border-radius: 3px;
   border: 1px solid #8fbf55;
-  background: linear-gradient(180deg, #9fd46a, #4a7a30);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  transition: transform 160ms ease;
+  object-fit: cover;
+  object-position: center top;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+  transition: transform 160ms ease, filter 160ms ease;
+  flex-shrink: 0;
+  background: #1a2810;
 }
 
 .don-chip.active {
   transform: rotate(0deg);
+  filter: saturate(1.05) brightness(1.05);
 }
 
 .don-chip.rested {
-  width: 26px;
-  height: 18px;
+  width: 40px;
+  height: 28px;
   border-color: #6a7a55;
-  background: linear-gradient(180deg, #5a6a40, #2a3520);
-  opacity: 0.85;
+  object-fit: cover;
+  filter: saturate(0.7) brightness(0.75);
+  opacity: 0.92;
+}
+
+.don-pile-art {
+  object-fit: cover;
+  object-position: center top;
+  padding: 0;
+  border-color: #7a9a4a !important;
 }
 
 .don-empty {

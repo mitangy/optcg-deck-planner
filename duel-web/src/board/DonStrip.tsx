@@ -1,3 +1,5 @@
+import { DON_CARD_ART } from "./donArt";
+
 type DonToken = { id: string; rested: boolean };
 
 type Props = {
@@ -32,10 +34,13 @@ export function DonStrip({ tokens, activeCount, totalCount, side }: Props) {
           <span className="don-empty">Empty</span>
         ) : (
           items.map((t) => (
-            <span
+            <img
               key={t.id}
-              className={`don-chip${t.rested ? " rested" : " active"}`}
+              src={DON_CARD_ART}
+              alt={t.rested ? "Rested DON!!" : "Active DON!!"}
               title={t.rested ? "Rested DON!!" : "Active DON!!"}
+              className={`don-chip${t.rested ? " rested" : " active"}`}
+              draggable={false}
             />
           ))
         )}

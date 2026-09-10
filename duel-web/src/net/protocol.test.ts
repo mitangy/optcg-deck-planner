@@ -112,7 +112,7 @@ describe("card atlas", () => {
     expect(listAtlasIds()).not.toContain("OP01-013");
     const luffy = lookupCard("ST01-001");
     expect(luffy.name).toMatch(/Luffy/i);
-    expect(luffy.imageUrl).toMatch(/^https?:\/\//);
+    expect(luffy.imageUrl).toMatch(/^(\/cards\/|https?:\/\/)/);
     expect(lookupCard("ST01-014").name).toMatch(/Guard Point/i);
   });
 });

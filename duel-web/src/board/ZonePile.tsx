@@ -1,3 +1,5 @@
+import { DON_CARD_ART } from "./donArt";
+
 type Props = {
   label: string;
   count: number;
@@ -11,7 +13,11 @@ export function ZonePile({ label, count, variant = "deck", secret }: Props) {
       <div className="zone-pile-stack" aria-hidden>
         <span className="zone-pile-face" />
         <span className="zone-pile-face mid" />
-        <span className="zone-pile-face top" />
+        {variant === "don" ? (
+          <img className="zone-pile-face top don-pile-art" src={DON_CARD_ART} alt="" />
+        ) : (
+          <span className="zone-pile-face top" />
+        )}
       </div>
       <div className="zone-pile-meta">
         <span className="zone-pile-label">{label}</span>
