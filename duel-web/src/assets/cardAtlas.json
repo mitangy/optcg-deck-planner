@@ -129,5 +129,434 @@
         "imageUrl": "/cards/ST01-014_p2.webp"
       }
     ]
+  },
+  "OP17-001": {
+    "id": "OP17-001",
+    "name": "Monkey.D.Luffy (stub)",
+    "type": "leader",
+    "colors": [
+      "red"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "life": 5,
+    "imageUrl": "/cards/OP17-001.png",
+    "effectText": "—"
+  },
+  "OP16-080": {
+    "id": "OP16-080",
+    "name": "Marshall.D.Teach (stub)",
+    "type": "leader",
+    "colors": [
+      "black"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "life": 4,
+    "imageUrl": "/cards/OP16-080.png",
+    "effectText": "—"
+  },
+  "OP09-118": {
+    "id": "OP09-118",
+    "name": "Nami (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP09-118.png",
+    "effectText": "—"
+  },
+  "OP12-002": {
+    "id": "OP12-002",
+    "name": "Jinbe (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP12-002.png",
+    "effectText": "—"
+  },
+  "OP12-018": {
+    "id": "OP12-018",
+    "name": "Sanji (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP12-018.png",
+    "effectText": "—"
+  },
+  "OP16-021": {
+    "id": "OP16-021",
+    "name": "Zoro (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP16-021.png",
+    "effectText": "—"
+  },
+  "OP16-118": {
+    "id": "OP16-118",
+    "name": "Franky (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP16-118.png",
+    "effectText": "—"
+  },
+  "OP17-002": {
+    "id": "OP17-002",
+    "name": "Usopp (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 2,
+    "power": 3000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP17-002.png",
+    "effectText": "—"
+  },
+  "OP17-003": {
+    "id": "OP17-003",
+    "name": "Chopper (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 2,
+    "power": 3000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP17-003.png",
+    "effectText": "—"
+  },
+  "OP17-005": {
+    "id": "OP17-005",
+    "name": "Robin (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP17-005.png",
+    "effectText": "—"
+  },
+  "OP17-008": {
+    "id": "OP17-008",
+    "name": "Brook (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP17-008.png",
+    "effectText": "—"
+  },
+  "OP17-015": {
+    "id": "OP17-015",
+    "name": "Luffy (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP17-015.png",
+    "effectText": "—"
+  },
+  "OP17-017": {
+    "id": "OP17-017",
+    "name": "Yamato (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP17-017.png",
+    "effectText": "—"
+  },
+  "OP17-019": {
+    "id": "OP17-019",
+    "name": "Sabo (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP17-019.png",
+    "effectText": "—"
+  },
+  "ST23-001": {
+    "id": "ST23-001",
+    "name": "Bonney (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "/cards/ST23-001.png",
+    "effectText": "—"
+  },
+  "ST30-004": {
+    "id": "ST30-004",
+    "name": "Kid (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/ST30-004.png",
+    "effectText": "—"
+  },
+  "ST30-005": {
+    "id": "ST30-005",
+    "name": "Killer (stub)",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "/cards/ST30-005.png",
+    "effectText": "—"
+  },
+  "EB04-058": {
+    "id": "EB04-058",
+    "name": "Kuzan (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/EB04-058.png",
+    "effectText": "—"
+  },
+  "OP09-086": {
+    "id": "OP09-086",
+    "name": "Crocodile (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP09-086.png",
+    "effectText": "—"
+  },
+  "OP09-093": {
+    "id": "OP09-093",
+    "name": "Mihawk (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP09-093.png",
+    "effectText": "—"
+  },
+  "OP09-095": {
+    "id": "OP09-095",
+    "name": "Perona (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 2,
+    "power": 3000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP09-095.png",
+    "effectText": "—"
+  },
+  "OP09-096": {
+    "id": "OP09-096",
+    "name": "Absalom (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP09-096.png",
+    "effectText": "—"
+  },
+  "OP09-099": {
+    "id": "OP09-099",
+    "name": "Moria (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 8,
+    "power": 9000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP09-099.png",
+    "effectText": "—"
+  },
+  "OP12-112": {
+    "id": "OP12-112",
+    "name": "Teach (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP12-112.png",
+    "effectText": "—"
+  },
+  "OP14-108": {
+    "id": "OP14-108",
+    "name": "Shiryu (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP14-108.png",
+    "effectText": "—"
+  },
+  "OP16-104": {
+    "id": "OP16-104",
+    "name": "Doc Q (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP16-104.png",
+    "effectText": "—"
+  },
+  "OP16-106": {
+    "id": "OP16-106",
+    "name": "Van Augur (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP16-106.png",
+    "effectText": "—"
+  },
+  "OP16-108": {
+    "id": "OP16-108",
+    "name": "Lafitte (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP16-108.png",
+    "effectText": "—"
+  },
+  "OP16-109": {
+    "id": "OP16-109",
+    "name": "Jesus Burgess (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP16-109.png",
+    "effectText": "—"
+  },
+  "OP16-110": {
+    "id": "OP16-110",
+    "name": "Catarina Devon (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP16-110.png",
+    "effectText": "—"
+  },
+  "OP16-115": {
+    "id": "OP16-115",
+    "name": "Blackbeard (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 10,
+    "power": 12000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP16-115.png",
+    "effectText": "—"
+  },
+  "OP16-116": {
+    "id": "OP16-116",
+    "name": "Avalo Pizarro (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP16-116.png",
+    "effectText": "—"
+  },
+  "OP16-119": {
+    "id": "OP16-119",
+    "name": "Vasco Shot (stub)",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP16-119.png",
+    "effectText": "—"
   }
 }

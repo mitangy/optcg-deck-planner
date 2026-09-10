@@ -209,3 +209,58 @@ export function ensureDefaultDeck(): SavedDeck {
 export function deckToWire(deck: SavedDeck): { leaderId: string; deck: string[] } {
   return { leaderId: deck.leaderId, deck: [...deck.cards] };
 }
+
+const TEST_OP17_LIST = `1xOP17-001
+2xOP09-118
+4xOP12-002
+2xOP12-018
+4xOP16-021
+4xOP16-118
+4xOP17-002
+4xOP17-003
+4xOP17-005
+4xOP17-008
+2xOP17-015
+4xOP17-017
+4xOP17-019
+2xST23-001
+4xST30-004
+2xST30-005`;
+
+const TEST_OP16_LIST = `1xOP16-080
+4xEB04-058
+3xOP09-086
+4xOP09-093
+2xOP09-095
+2xOP09-096
+4xOP09-099
+4xOP12-112
+2xOP14-108
+4xOP16-104
+2xOP16-106
+4xOP16-108
+4xOP16-109
+4xOP16-110
+1xOP16-115
+2xOP16-116
+4xOP16-119`;
+
+function upsertSeedDeck(id: string, name: string, list: string): SavedDeck {
+  const v = validateImportedList(list);
+  if (!v.ok || !v.leaderId) {
+    throw new Error(`Seed deck ${id} invalid: ${v.errors.join("; ")}`);
+  }
+  return saveDeck({
+    id,
+    name,
+    leaderId: v.leaderId,
+    cards: v.cards,
+  });
+}
+
+/** Seed the two constructed test decks (idempotent upsert). */
+export function ensureTestDecks(): SavedDeck[] {
+  const a = upsertSeedDeck("test-op17-red", "Test OP17 red", TEST_OP17_LIST);
+  const b = upsertSeedDeck("test-op16-black", "Test OP16 black", TEST_OP16_LIST);
+  return [a, b];
+}
