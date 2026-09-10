@@ -135,3 +135,18 @@ Work is **split across three plan slices**:
 - Copying Sim or Riot art packs — rejected (IP).
 
 **See:** `steps/05.5-board-ux-sim-tft.md`, `steps/05-content-spectate-android.md`.
+
+## ADR-016 — Duel-web guest + Google auth (planner cookie sharing deferred)
+
+**Decision:** Ship **duel-web-local auth** first:
+
+1. **Stable browser guest id** (`localStorage`) → `POST /duel/guest-token` for rating continuity across sessions.
+2. **Google sign-in on duel-web** via `GET /auth/google?return_to=<duel-web origin>` → ticket fragment → `/auth/complete` claim → `POST /duel/token` with session cookie.
+3. **Do not yet** share the planner (`frontend/`) session cookie across origins / parent domains.
+
+**Why now:** Unblocks refresh-safe play and ranked identity without waiting on cross-subdomain cookie / CORS hardening.
+
+**Follow-up:** Add cross-origin session sharing (cookie `Domain`, `SameSite=None; Secure`, shared parent host or BFF) after duel-web auth UX is validated. Until then, planner login and duel-web login are separate cookies on localhost ports / separate Vercel projects.
+
+**See:** `duel-web` lobby Identity section; `backend` `/duel/guest-token` + OAuth `return_to` allowlist.
+

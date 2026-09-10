@@ -17,6 +17,7 @@ from app.models import LoginTicket, User
 
 SESSION_COOKIE = "optcg_session"
 OAUTH_NONCE_COOKIE = "optcg_oauth_nonce"
+OAUTH_RETURN_COOKIE = "optcg_oauth_return"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 LOGIN_TICKET_MAX_AGE_SECONDS = 120
 OAUTH_STATE_MAX_AGE_SECONDS = 600

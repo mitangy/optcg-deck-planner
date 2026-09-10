@@ -19,6 +19,7 @@ from app.models import DuelMatch, DuelRating, User
 from app.rate_limit import RateLimiter, client_ip
 from app.schemas import (
     DuelDevTokenIn,
+    DuelGuestTokenIn,
     DuelLeaderboardOut,
     DuelMatchIngest,
     DuelMatchOut,
@@ -32,6 +33,7 @@ _token_rate = RateLimiter(max_calls=30, period_s=60)
 _ingest_rate = RateLimiter(max_calls=120, period_s=60)
 
 _USER_KEY_RE = re.compile(r"^[a-zA-Z0-9_.:-]{1,64}$")
+_GUEST_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{8,64}$")
 
 
 def _get_or_create_rating(db: Session, user_id: int) -> DuelRating:
@@ -89,6 +91,29 @@ def mint_dev_token(
     user = db.scalar(select(User).where(User.email == email))
     if user is None:
         user = User(email=email, name=body.user_key, google_sub=sub)
+        db.add(user)
+        db.flush()
+    return _token_out(db, user, settings)
+
+
+@router.post("/guest-token", response_model=DuelTokenOut)
+def mint_guest_token(
+    body: DuelGuestTokenIn,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> DuelTokenOut:
+    """Always-on cookie-free mint keyed by a stable browser guest id (rating continuity)."""
+    if not _GUEST_ID_RE.match(body.guest_id):
+        raise HTTPException(status_code=400, detail="Invalid guest_id")
+    if not _token_rate.allow(f"duel-guest-token:{client_ip(request)}:{body.guest_id}"):
+        raise HTTPException(status_code=429, detail="Too many token requests")
+
+    email = f"guest-{body.guest_id.lower()}@localhost"
+    sub = f"duel-guest-{body.guest_id.lower()}"
+    user = db.scalar(select(User).where(User.email == email))
+    if user is None:
+        user = User(email=email, name=f"Guest {body.guest_id[:8]}", google_sub=sub)
         db.add(user)
         db.flush()
     return _token_out(db, user, settings)

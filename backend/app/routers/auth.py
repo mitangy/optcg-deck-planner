@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import (
     OAUTH_NONCE_COOKIE,
+    OAUTH_RETURN_COOKIE,
     OAUTH_STATE_MAX_AGE_SECONDS,
     SESSION_COOKIE,
     consume_login_ticket,
@@ -79,8 +80,38 @@ def _set_session_cookie(
     )
 
 
+def _allowed_return_origins(settings: Settings) -> set[str]:
+    origins = {settings.frontend_origin.rstrip("/")}
+    origins.update(settings.duel_cors_origin_list)
+    return origins
+
+
+def _sanitize_return_to(raw: str | None, settings: Settings) -> str | None:
+    """Allow only absolute http(s) origins on the planner / duel CORS allowlist."""
+    if not raw:
+        return None
+    try:
+        parsed = urlparse(raw.strip())
+    except Exception:
+        return None
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return None
+    if parsed.path not in ("", "/"):
+        # Origin only — path is fixed to /auth/complete on redirect.
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+    else:
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+    if origin.rstrip("/") not in _allowed_return_origins(settings):
+        return None
+    return origin.rstrip("/")
+
+
 @router.get("/google")
-async def google_login(settings: Annotated[Settings, Depends(get_settings)]):
+async def google_login(
+    request: Request,
+    settings: Annotated[Settings, Depends(get_settings)],
+    return_to: str | None = None,
+):
     client = _google_client(settings)
     # Bind signed state to a short-lived nonce cookie on this host so a stolen
     # state alone cannot complete login CSRF.
@@ -104,6 +135,20 @@ async def google_login(settings: Annotated[Settings, Depends(get_settings)]):
         max_age=OAUTH_STATE_MAX_AGE_SECONDS,
         path="/",
     )
+    # Optional return origin for duel-web (or other allowlisted SPA). Defaults to planner.
+    safe_return = _sanitize_return_to(return_to or request.query_params.get("return_to"), settings)
+    if safe_return:
+        response.set_cookie(
+            key=OAUTH_RETURN_COOKIE,
+            value=safe_return,
+            httponly=True,
+            samesite="lax",
+            secure=secure,
+            max_age=OAUTH_STATE_MAX_AGE_SECONDS,
+            path="/",
+        )
+    else:
+        response.delete_cookie(OAUTH_RETURN_COOKIE, path="/")
     return response
 
 
@@ -158,14 +203,22 @@ async def google_callback(
     # Put the ticket in the URL fragment (not the query string) so it is not
     # sent to servers, proxies, or Referer headers.
     ticket = create_login_ticket(db, user.id, settings)
-    redirect = RedirectResponse(
-        f"{settings.frontend_origin.rstrip('/')}/login#ticket={ticket}"
-    )
+    return_to = _sanitize_return_to(request.cookies.get(OAUTH_RETURN_COOKIE), settings)
+    dest_origin = return_to or settings.frontend_origin.rstrip("/")
+    # Duel-web claims at /auth/complete; planner SPA still uses /login.
+    dest_path = "/auth/complete" if return_to else "/login"
+    redirect = RedirectResponse(f"{dest_origin}{dest_path}#ticket={ticket}")
     secure = settings.backend_public_url.startswith("https") or settings.frontend_origin.startswith(
         "https"
     )
     redirect.delete_cookie(
         OAUTH_NONCE_COOKIE,
+        path="/",
+        samesite="lax",
+        secure=secure,
+    )
+    redirect.delete_cookie(
+        OAUTH_RETURN_COOKIE,
         path="/",
         samesite="lax",
         secure=secure,

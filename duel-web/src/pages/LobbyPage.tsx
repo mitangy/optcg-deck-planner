@@ -1,18 +1,31 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { getOrCreateGuestId } from "../auth/guestId";
 import { getApiBaseUrl, getGameServerUrl } from "../config";
 import {
   deckToWire,
   deleteDeck,
   ensureDefaultDeck,
+  ensureTestDecks,
   listSavedDecks,
   saveDeck,
   setSelectedDeckId,
   validateImportedList,
   type SavedDeck,
 } from "../decks/storage";
-import { mintDevGameToken } from "../net/api";
+import {
+  fetchAuthMe,
+  googleLoginUrl,
+  logoutSession,
+  mintDevGameToken,
+  mintGuestGameToken,
+  mintSessionGameToken,
+  type AuthUser,
+} from "../net/api";
+import { loadMatchResume } from "../net/matchResume";
 import { useDuelSession } from "../state/DuelSession";
+
+type AuthMode = "guest" | "google" | "dev";
 
 export function LobbyPage() {
   const navigate = useNavigate();
@@ -22,7 +35,8 @@ export function LobbyPage() {
   const [userKey, setUserKey] = useState("web-dev");
   const [secret, setSecret] = useState("");
   const [roomId, setRoomId] = useState("");
-  const [useToken, setUseToken] = useState(true);
+  const [authMode, setAuthMode] = useState<AuthMode>("guest");
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ratingLabel, setRatingLabel] = useState<string | null>(null);
@@ -35,6 +49,7 @@ export function LobbyPage() {
 
   function refreshDecks(preferId?: string) {
     const seeded = ensureDefaultDeck();
+    ensureTestDecks();
     const all = listSavedDecks();
     setDecks(all);
     const prefer = preferId ?? selectedId;
@@ -45,6 +60,17 @@ export function LobbyPage() {
 
   useEffect(() => {
     refreshDecks();
+    const resume = loadMatchResume();
+    if (resume?.mode === "duel") navigate("/duel", { replace: true });
+    else if (resume?.mode === "hotseat") navigate("/hotseat", { replace: true });
+    void fetchAuthMe()
+      .then((u) => {
+        if (u) {
+          setAuthUser(u);
+          setAuthMode("google");
+        }
+      })
+      .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -54,16 +80,29 @@ export function LobbyPage() {
   );
 
   async function authOpts() {
-    if (!useToken) {
+    if (authMode === "guest") {
+      const minted = await mintGuestGameToken(getOrCreateGuestId());
+      setRating(minted.rating);
+      setRatingLabel(`${minted.rating} (${minted.games_played} games · guest)`);
       return {
         serverUrl: serverUrl.trim(),
-        devUserId: userKey.trim(),
+        gameToken: minted.token,
+        secret: secret.trim() || undefined,
+      };
+    }
+    if (authMode === "google") {
+      const minted = await mintSessionGameToken();
+      setRating(minted.rating);
+      setRatingLabel(`${minted.rating} (${minted.games_played} games)`);
+      return {
+        serverUrl: serverUrl.trim(),
+        gameToken: minted.token,
         secret: secret.trim() || undefined,
       };
     }
     const minted = await mintDevGameToken(userKey.trim());
     setRating(minted.rating);
-    setRatingLabel(`${minted.rating} (${minted.games_played} games)`);
+    setRatingLabel(`${minted.rating} (${minted.games_played} games · dev)`);
     return {
       serverUrl: serverUrl.trim(),
       gameToken: minted.token,
@@ -71,9 +110,15 @@ export function LobbyPage() {
     };
   }
 
+  function hotseatUserKey(): string {
+    if (authMode === "guest") return getOrCreateGuestId();
+    if (authMode === "google" && authUser) return `user-${authUser.id}`;
+    return userKey.trim() || "web-dev";
+  }
+
   async function go(mode: "create" | "join" | "queue" | "hotseat") {
-    if (!userKey.trim()) {
-      setError("user key is required");
+    if (authMode === "dev" && !userKey.trim()) {
+      setError("user key is required for dev auth");
       return;
     }
     if (mode === "join" && !roomId.trim()) {
@@ -89,23 +134,23 @@ export function LobbyPage() {
     try {
       const wire = deckToWire(selectedDeck);
       setSelectedDeckId(selectedDeck.id);
-      const opts = await authOpts();
-      if (mode === "queue") {
-        await queueRanked({ ...opts, deck: wire });
-        navigate("/duel");
-        return;
-      }
       if (mode === "hotseat") {
         navigate("/hotseat", {
           state: {
             serverUrl: serverUrl.trim(),
             secret: secret.trim() || undefined,
-            userKey: userKey.trim(),
-            useToken,
+            userKey: hotseatUserKey(),
+            useToken: true,
             deckWire: wire,
             deckName: selectedDeck.name,
           },
         });
+        return;
+      }
+      const opts = await authOpts();
+      if (mode === "queue") {
+        await queueRanked({ ...opts, deck: wire });
+        navigate("/duel");
         return;
       }
       await connect({
@@ -164,6 +209,62 @@ export function LobbyPage() {
         </p>
 
         <section className="lobby-section">
+          <h2 className="lobby-section-title">Identity</h2>
+          <p className="meta">
+            Duel-web auth only for now — sharing the planner session cookie across origins is
+            deferred (see ADR-016).
+          </p>
+          <div className="actions" style={{ marginBottom: 8 }}>
+            <button
+              type="button"
+              className={`btn ${authMode === "guest" ? "btn-primary" : "btn-secondary"}`}
+              disabled={busy}
+              onClick={() => setAuthMode("guest")}
+            >
+              Continue as guest
+            </button>
+            <a className="btn btn-secondary" href={googleLoginUrl()}>
+              Sign in with Google
+            </a>
+            <button
+              type="button"
+              className={`btn ${authMode === "dev" ? "btn-primary" : "btn-secondary"}`}
+              disabled={busy}
+              onClick={() => setAuthMode("dev")}
+            >
+              Dev key
+            </button>
+            {authUser ? (
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={busy}
+                onClick={() => {
+                  void logoutSession().then(() => {
+                    setAuthUser(null);
+                    setAuthMode("guest");
+                    setRating(null);
+                    setRatingLabel(null);
+                  });
+                }}
+              >
+                Sign out
+              </button>
+            ) : null}
+          </div>
+          <p className="meta">
+            {authMode === "guest"
+              ? `Guest id ${getOrCreateGuestId().slice(0, 10)}… (stable in this browser)`
+              : authMode === "google"
+                ? authUser
+                  ? `Signed in as ${authUser.email}`
+                  : "Complete Google sign-in, then return here"
+                : "Dev key mint via POST /duel/dev-token"}
+          </p>
+          {ratingLabel ? <p className="meta">Rating: {ratingLabel}</p> : null}
+        </section>
+
+        <section className="lobby-section">
           <h2 className="lobby-section-title">Your decks</h2>
           <label htmlFor="deck">Active deck</label>
           <select
@@ -185,7 +286,9 @@ export function LobbyPage() {
               Leader {selectedDeck.leaderId} · {selectedDeck.cards.length} main-deck cards
             </p>
           ) : null}
-          {selectedDeck && selectedDeck.id !== "default-st01" ? (
+          {selectedDeck &&
+          selectedDeck.id !== "default-st01" &&
+          !selectedDeck.id.startsWith("test-") ? (
             <button
               type="button"
               className="btn btn-danger"
@@ -235,19 +338,18 @@ export function LobbyPage() {
 
           <p className="meta">API: {apiUrl}</p>
 
-          <label htmlFor="user">User key (dev token / legacy id)</label>
-          <input
-            id="user"
-            autoCapitalize="off"
-            value={userKey}
-            onChange={(e) => setUserKey(e.target.value)}
-            placeholder="web-dev"
-          />
-
-          <button type="button" className="toggle" onClick={() => setUseToken((v) => !v)}>
-            Auth: {useToken ? "POST /duel/dev-token (bearer)" : "legacy devUserId"}
-          </button>
-          {ratingLabel ? <p className="meta">Rating: {ratingLabel}</p> : null}
+          {authMode === "dev" ? (
+            <>
+              <label htmlFor="user">User key (dev token)</label>
+              <input
+                id="user"
+                autoCapitalize="off"
+                value={userKey}
+                onChange={(e) => setUserKey(e.target.value)}
+                placeholder="web-dev"
+              />
+            </>
+          ) : null}
 
           <label htmlFor="secret">Join secret (optional)</label>
           <input
@@ -276,7 +378,7 @@ export function LobbyPage() {
             type="button"
             className="btn btn-primary"
             disabled={busy || queueing}
-            onClick={() => go("hotseat")}
+            onClick={() => void go("hotseat")}
           >
             Play locally vs yourself
           </button>
@@ -284,7 +386,7 @@ export function LobbyPage() {
             type="button"
             className="btn btn-secondary"
             disabled={busy || queueing}
-            onClick={() => go("create")}
+            onClick={() => void go("create")}
           >
             Create duel
           </button>
@@ -292,7 +394,7 @@ export function LobbyPage() {
             type="button"
             className="btn btn-secondary"
             disabled={busy || queueing}
-            onClick={() => go("join")}
+            onClick={() => void go("join")}
           >
             Join by room id
           </button>
@@ -300,12 +402,12 @@ export function LobbyPage() {
             type="button"
             className="btn btn-secondary"
             disabled={busy || queueing}
-            onClick={() => go("queue")}
+            onClick={() => void go("queue")}
           >
             {busy || queueing ? "Working…" : "Ranked queue"}
           </button>
           {queueing ? (
-            <button type="button" className="btn btn-danger" onClick={() => cancelQueue()}>
+            <button type="button" className="btn btn-danger" onClick={() => void cancelQueue()}>
               Cancel queue
             </button>
           ) : null}
