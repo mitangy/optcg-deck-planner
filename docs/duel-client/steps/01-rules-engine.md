@@ -1,6 +1,6 @@
 # Step 1 — Rules engine (`packages/rules`)
 
-**Status:** `ready for development`  
+**Status:** `implemented` (see Exit notes)  
 **Depends on:** None  
 **Unblocks:** Step 2  
 **Branch for implementation:** prefer `cursor/duel-rules-engine-afeb`
@@ -340,8 +340,9 @@ Runtime dependencies: **none**.
 
 ## Exit notes (fill when step completes)
 
-- Manual versions consulted (PDF dates):
-- Actual subset list:
-- Public API summary:
-- Clarifications / known gaps vs Comprehensive Rules:
-- Follow-ups for Step 5 content:
+- Manual versions consulted (PDF dates): Rule Manual + Comprehensive Rules (en.onepiece-cardgame.com current PDFs as of implementation); encoding follows Step 1 plan
+- Actual subset list: `leader_red_5k`, `char_vanilla_2k`, `char_curve_4k`, `char_blocker_3k`, `event_main_draw`, `event_counter_1k`, `stage_small_buff`, `char_trigger_draw` (fixture)
+- Public API summary: `createMatch`, `applyIntent`, `listLegalIntents`, `getPlayerView`, `assertInvariants`, `skipMulligans`, `createSeededRng`, `buildTestDeck`
+- Clarifications / known gaps vs Comprehensive Rules: see `packages/rules/README.md` (20-card test decks; subset keywords only; minimal Trigger)
+- Follow-ups for Step 5 content: expand card pool/keywords; 50-card constructed validation; richer Trigger/Activate effects
+- Status: **implemented** — `cd packages/rules && npm test && npm run sim`
