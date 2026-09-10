@@ -14,17 +14,18 @@
 
 ## Goal
 
-Expand from the tiny subset toward a **playable broader card pool**, add **spectating**, and complete an **Android** build/store readiness pass on the same Expo app. Harden content pipeline so new cards are data + tests, not one-off server forks.
+Expand from the **Step 3 curated real-id starter set** toward a **broader playable card pool**, add **spectating**, and complete an **Android** build/store readiness pass on the same Expo app. Harden the content pipeline so new cards are data + tests, not one-off server forks.
 
 ## In scope
 
-- Grow `packages/rules` card definitions and keywords needed for the agreed sets; regression sims.
-- Content pipeline docs: add card → tests → appear in server/client.
+- Grow `packages/rules` card definitions and keywords **beyond the Step 3 curated set**; regression sims.
+- Content pipeline docs: add card → tests → appear in server/client (extends Step 3 atlas export).
 - Spectator mode: read-only room subscription; no hidden info; optional delay.
 - Expo Android configuration; EAS Android build; basic Play internal testing track.
 - Performance pass: board virtualization if needed, WS payload size, image caching.
 - Client UX for set filters / deck validation against legal definitions.
 - Security/privacy pass for wider testing (account deletion path, ToS placeholders).
+- Legal gate / feature flags for public builds that show real names/art.
 
 ## Out of scope
 
