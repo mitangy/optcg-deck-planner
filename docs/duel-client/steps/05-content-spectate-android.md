@@ -1,6 +1,6 @@
 # Step 5 — Content breadth, spectate, Android, production web
 
-**Status:** `ready for review` (board UX shipped in **Step 5.5**; Play internal install still operator-owned)  
+**Status:** `implemented` (board UX in **Step 5.5**; Play Console APK upload still operator-owned)  
 **Depends on:** Step 4 + Step 4.5 acceptance criteria met  
 **Unblocks:** Public beta considerations (still subject to IP/legal)  
 **Board UX slice:** [steps/05.5-board-ux-sim-tft.md](./05.5-board-ux-sim-tft.md) (OPTCG Sim layout + TFT-inspired chrome)
