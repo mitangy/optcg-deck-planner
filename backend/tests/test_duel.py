@@ -117,6 +117,81 @@ def test_dev_token_and_match_ingest(client):
         db.close()
 
 
+def test_dev_token_hidden_without_flags(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("ENABLE_DEV_LOGIN", "false")
+    monkeypatch.setenv("ENABLE_DUEL_DEV_TOKEN", "false")
+    monkeypatch.setenv("DUEL_INGEST_SECRET", "test-ingest")
+    monkeypatch.setenv("SESSION_SECRET", "test-session-secret")
+    monkeypatch.setenv("GAME_TOKEN_SECRET", "test-game-token")
+    monkeypatch.setenv("FRONTEND_ORIGIN", "http://localhost:5173")
+    monkeypatch.setenv("DATABASE_URL", "sqlite://")
+    get_settings.cache_clear()
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+    def _override_db():
+        db = SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = _override_db
+    try:
+        with TestClient(app) as c:
+            r = c.post("/duel/dev-token", json={"user_key": "alice"})
+            assert r.status_code == 404
+            assert r.json()["detail"] == "Not found"
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+
+
+def test_dev_token_via_staging_flag(monkeypatch: pytest.MonkeyPatch):
+    """Production-like: ENABLE_DEV_LOGIN off, ENABLE_DUEL_DEV_TOKEN on."""
+    monkeypatch.setenv("ENABLE_DEV_LOGIN", "false")
+    monkeypatch.setenv("ENABLE_DUEL_DEV_TOKEN", "true")
+    monkeypatch.setenv("DUEL_INGEST_SECRET", "test-ingest")
+    monkeypatch.setenv("SESSION_SECRET", "test-session-secret")
+    monkeypatch.setenv("GAME_TOKEN_SECRET", "test-game-token")
+    monkeypatch.setenv("FRONTEND_ORIGIN", "http://localhost:5173")
+    monkeypatch.setenv("DATABASE_URL", "sqlite://")
+    get_settings.cache_clear()
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+    def _override_db():
+        db = SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = _override_db
+    try:
+        with TestClient(app) as c:
+            r = c.post("/duel/dev-token", json={"user_key": "staging-alice"})
+            assert r.status_code == 200, r.text
+            body = r.json()
+            assert body["token"]
+            assert body["email"] == "duel-staging-alice@localhost"
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+
+
 def test_ingest_rejects_bad_secret(client):
     c, _ = client
     a = c.post("/duel/dev-token", json={"user_key": "a"}).json()
