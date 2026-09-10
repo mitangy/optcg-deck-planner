@@ -8,13 +8,13 @@ Record of durable choices. Change these only by updating this file and the affec
 
 **Consequences:** Requires authoritative game server, rules engine, and WebSockets; deck planner remains a companion.
 
-## ADR-002 — Mobile = Expo (React Native) + EAS
+## ADR-002 — Client = Expo (React Native) + EAS + web export
 
-**Decision:** iOS-first client in Expo; Android later from the same app.
+**Decision:** One Expo app in `mobile/` ships **iOS-first** (EAS), **Android later** (EAS), and **web** via Expo’s React Native Web static export.
 
-**Why:** No Mac required for cloud iOS builds/submit; team already uses React; one codebase for Android.
+**Why:** No Mac required for cloud iOS builds/submit; team already uses React; one codebase for phone + browser demos without rewriting the board in Vite.
 
-**Consequences:** Prefer Expo SDK modules; custom native modules slow no-Mac iteration. Apple Developer Program still required.
+**Consequences:** Prefer Expo SDK modules with web fallbacks; custom native modules slow no-Mac iteration. Apple Developer Program still required for store. Web is a first-class target but **not** merged into the deck-planner Vite SPA (see ADR-014).
 
 ## ADR-003 — Game server = Colyseus (TypeScript) for v1
 
@@ -95,3 +95,23 @@ Record of durable choices. Change these only by updating this file and the affec
 **Why:** Step 3 exit notes and a print audit showed wrong names/effects (e.g. Jet Pistol encoded as draw). Shipping recognizable but incorrect cards poisons demos and violates Step 1 authority order.
 
 **See:** `steps/03.5-curated-card-audit.md`.
+
+## ADR-014 — Duel web on Vercel (separate from deck planner); split across Steps 4 / 4.5 / 5
+
+**Decision:** Deploy the **same** Expo duel client as a static **web app on Vercel**, in a **separate Vercel project** from the existing deck-planner SPA (`frontend/` + root `vercel.json`). Colyseus remains on a **persistent Node host** (not Vercel serverless). Work is **split across three plan slices**:
+
+| Slice | Web responsibility |
+|-------|-------------------|
+| **Step 4** | Make the lobby/matchmaking path **browser-capable** (bearer game tokens, CORS-ready server config hooks, acceptance includes local `expo start --web` / browser smoke — not necessarily a public URL yet) |
+| **Step 4.5** | **Staging deploy**: `expo export --platform web` → Vercel staging project; WSS to staging game server; shareable HTTPS URL |
+| **Step 5** | **Production web polish**: desktop layout, production domain, legal/IP feature flags for wider web testing; alongside Android + spectate |
+
+**Why:** Local `npm run web` already works for smoke, but demos need a URL; stuffing full Vercel/CDN/desktop UX into Step 4 overloads matchmaking; waiting until Step 5 alone delays the shareable staging link. Keeping planner and duel on separate Vercel projects avoids fighting Vite vs Metro export pipelines in one `vercel.json`.
+
+**Rejected alternatives:**
+
+- Merge duel UI into `frontend/` Vite app — duplicates board, splits protocol clients, fights ADR-012 “dumb board”.
+- Host Colyseus on Vercel serverless — unsuitable for sticky long-lived rooms.
+- Single mega-step for “all web” — poor gating vs multiplayer vs store/content work.
+
+**See:** `steps/04-matchmaking-reconnect-ranked.md`, `steps/04.5-web-deploy.md`, `steps/05-content-spectate-android.md`.

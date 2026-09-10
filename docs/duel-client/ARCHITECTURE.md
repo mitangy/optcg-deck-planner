@@ -2,13 +2,13 @@
 
 ## 1. Product shape
 
-Players open a mobile app, authenticate, select or import a deck, enter matchmaking, and play a **server-authoritative** duel. The phone never decides legal plays; it sends **intents** and renders **state diffs** (plus animations).
+Players open a **mobile or web** client, authenticate, select or import a deck, enter matchmaking, and play a **server-authoritative** duel. The client never decides legal plays; it sends **intents** and renders **state diffs** (plus animations).
 
 Target constraints:
 
 - Up to **thousands of concurrent connected players** (online ≠ all in active duels).
-- **iPhone-first**; Android is a later store pass on the same codebase.
-- **No Mac required** for develop, build, or submit (Expo EAS + physical device).
+- **iPhone-first**; Android is a later store pass on the same codebase; **web** is the same Expo app exported to static hosting (ADR-014).
+- **No Mac required** for develop, build, or submit (Expo EAS + physical device; web via Vercel).
 
 ## 2. High-level diagram
 
@@ -16,9 +16,9 @@ Target constraints:
 ┌─────────────────┐     HTTPS      ┌──────────────────┐
 │  Expo client    │───────────────▶│  FastAPI         │
 │  (mobile/)      │  auth, decks,  │  (backend/)      │
-│                 │  catalog, MMR  │  Postgres (Neon) │
-└────────┬────────┘                └────────▲─────────┘
-         │                                  │
+│  iOS / Android  │  catalog, MMR  │  Postgres (Neon) │
+│  + web (RN-web) │                └────────▲─────────┘
+└────────┬────────┘                         │
          │ WebSocket                        │ match results,
          │ (intents / diffs)                │ ratings writeback
          ▼                                  │
@@ -35,19 +35,20 @@ Target constraints:
 └─────────────────┘
 ```
 
-Companion web (`frontend/`) remains the deck planner; it is **not** the duel renderer in v1.
+Companion web (`frontend/`) remains the **deck planner** on the existing Vercel project. The **duel** web UI is the Expo app’s static export on a **separate** Vercel project (ADR-014) — not a second board implementation inside Vite.
 
 ## 3. Layer responsibilities
 
-### 3.1 Mobile client (`mobile/`)
+### 3.1 Client (`mobile/`)
 
 - Expo (React Native) + Expo Router.
+- Surfaces: **iOS** (EAS), **Android** (later EAS), **web** (Expo static export → Vercel, Step 4.5+).
 - Sign-in (Google / later Apple Sign-In), deck pick, lobby UI, board UI, animations.
 - Holds ephemeral UI state only (selection, animation queues).
 - Speaks:
   - REST/JSON to FastAPI for account and deck meta.
   - WebSocket (Colyseus JS client) for match traffic.
-- Ships via **EAS Build / EAS Submit** (cloud macOS workers).
+- Ships native via **EAS Build / EAS Submit**; ships web via **`expo export --platform web`** to a Vercel project **separate** from the deck planner.
 
 ### 3.2 Game server (`game-server/`)
 
@@ -127,22 +128,23 @@ Scale levers:
 
 | Env | Client | Game server | API | Notes |
 |-----|--------|-------------|-----|-------|
-| Local | Expo dev client / Expo Go where possible | `game-server` on localhost | existing `:8000` | SQLite/Neon local per current AGENTS.md |
-| Preview | EAS preview build | staging host | staging API | Device testing without Mac |
-| Production | App Store / Play | always-on cluster | Render (or equiv) + Neon | Redis required |
+| Local | Expo Go / `expo start --web` | `game-server` on localhost | existing `:8000` | SQLite/Neon local per current AGENTS.md |
+| Preview | EAS preview + **Vercel preview** (Step 4.5) | staging host (WSS) | staging API | Browser demos without phones; CORS allowlist |
+| Production | App Store / Play + **Vercel duel web** (Step 5) | always-on cluster | Render (or equiv) + Neon | Redis required; planner Vercel project stays separate |
 
 ## 8. Security & App Store notes
 
 - Prefer **Apple Sign-In** once shipping on iOS (Guideline expectations when other social logins exist).
-- Secrets only on servers / EAS secrets — never in the app binary.
-- TLS everywhere; pin nothing exotic in v1 unless threatened.
-- Privacy policy / data deletion for accounts before public store.
+- Secrets only on servers / EAS / Vercel server env — never in the app binary; `EXPO_PUBLIC_*` is public by definition.
+- TLS everywhere (HTTPS page → WSS game server); pin nothing exotic in v1 unless threatened.
+- Privacy policy / data deletion for accounts before public store or public web.
 
 ## 9. Relation to existing deck planner
 
 - Decks created in the planner should become selectable in the duel client via the same FastAPI deck APIs (Step 3/4).
 - Do not block duel MVP on shopping-list UI parity.
 - Shared catalog IDs should align so a planner deck can map into rules definitions when card data exists.
+- Do **not** merge the duel board into `frontend/`; link users across products via URLs/API instead (ADR-014).
 
 ## 10. Step mapping
 
@@ -151,5 +153,7 @@ Scale levers:
 | `packages/rules` | Step 1 |
 | `game-server` Colyseus room | Step 2 |
 | `mobile` board + intents | Step 3 |
-| Matchmaking, reconnect, ranked | Step 4 |
-| Content breadth, spectate, Android | Step 5 |
+| Curated-card fidelity | Step 3.5 |
+| Matchmaking, reconnect, ranked + browser-capable auth | Step 4 |
+| Expo web → Vercel staging | Step 4.5 |
+| Content breadth, spectate, Android, production web | Step 5 |
