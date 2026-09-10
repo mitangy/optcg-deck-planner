@@ -8,6 +8,7 @@ export function DuelPage() {
   const {
     connected,
     canReconnect,
+    resuming,
     view,
     seat,
     matchId,
@@ -22,11 +23,18 @@ export function DuelPage() {
   } = useDuelSession();
 
   useEffect(() => {
-    if (!connected && !view && !canReconnect && !matchId) {
+    if (!connected && !view && !canReconnect && !matchId && !resuming) {
       navigate("/", { replace: true });
     }
-  }, [connected, view, canReconnect, matchId, navigate]);
+  }, [connected, view, canReconnect, matchId, resuming, navigate]);
 
+  if (resuming && !view) {
+    return (
+      <div className="duel-root">
+        <div className="loading arena-loading">Reconnecting to match…</div>
+      </div>
+    );
+  }
   return (
     <div className="duel-root">
       {!connected && canReconnect && view ? (

@@ -23,6 +23,8 @@ export type DuelClientHandlers = {
   onDisconnect?: (code: number) => void;
   onQueued?: (position: number) => void;
   onMatched?: (info: { roomId: string; seat: Seat; ranked: boolean }) => void;
+  /** Fired whenever Colyseus issues/refreshes a reconnection token. */
+  onReconnectionToken?: (token: string, roomId: string) => void;
 };
 
 export type ConnectParams = {
@@ -155,11 +157,21 @@ export class DuelClient {
     }
   }
 
-  async reconnect(): Promise<{ matchId: string; seat: Seat }> {
-    if (!this.client || !this.reconnectionToken) {
-      throw new Error("No reconnection token");
-    }
-    const room = await this.client.reconnect(this.reconnectionToken);
+  /**
+   * Rejoin after an unexpected drop / page reload.
+   * Pass `reconnectionToken` + `serverUrl` when restoring from sessionStorage
+   * (the in-memory Client is gone after refresh).
+   */
+  async reconnect(opts?: {
+    serverUrl?: string;
+    reconnectionToken?: string;
+  }): Promise<{ matchId: string; seat: Seat }> {
+    const token = opts?.reconnectionToken ?? this.reconnectionToken;
+    if (!token) throw new Error("No reconnection token");
+    const url = opts?.serverUrl ?? getGameServerUrl();
+    this.client = new Client(url);
+    this.reconnectionToken = token;
+    const room = await this.client.reconnect(token);
     this.room = room;
     this.captureReconnectionToken(room);
     this.wireDuel(room);
@@ -186,18 +198,23 @@ export class DuelClient {
     this.room?.send("ping", { t });
   }
 
-  async disconnect() {
+  /**
+   * @param consented When true (default), leave with consent and drop the
+   *   reconnection token. Pass `false` only for rare soft-teardowns where the
+   *   server should keep reconnect grace (page reload uses neither — the tab dies).
+   */
+  async disconnect(consented = true) {
     await this.cancelQueue();
     if (this.room) {
       try {
-        await this.room.leave(true);
+        await this.room.leave(consented);
       } catch {
         /* ignore */
       }
       this.room = null;
     }
     this.client = null;
-    this.reconnectionToken = null;
+    if (consented) this.reconnectionToken = null;
   }
 
   private buildJoin(params: ConnectParams): DuelJoinOptions {
@@ -215,6 +232,7 @@ export class DuelClient {
     const token = (room as { reconnectionToken?: string }).reconnectionToken;
     if (typeof token === "string" && token.length > 0) {
       this.reconnectionToken = token;
+      this.handlers.onReconnectionToken?.(token, room.roomId);
     }
   }
 
