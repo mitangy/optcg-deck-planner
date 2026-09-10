@@ -76,8 +76,8 @@ def mint_dev_token(
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> DuelTokenOut:
-    """Cookie-free token mint for Expo / local browsers when ENABLE_DEV_LOGIN."""
-    if not settings.enable_dev_login:
+    """Cookie-free token mint for Expo / duel-web when ENABLE_DEV_LOGIN or ENABLE_DUEL_DEV_TOKEN."""
+    if not settings.enable_dev_login and not settings.enable_duel_dev_token:
         raise HTTPException(status_code=404, detail="Not found")
     if not _USER_KEY_RE.match(body.user_key):
         raise HTTPException(status_code=400, detail="Invalid user_key")

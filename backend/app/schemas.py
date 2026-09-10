@@ -389,7 +389,7 @@ class GroupBuyReceiptMatchReport(BaseModel):
 
 
 class DuelDevTokenIn(BaseModel):
-    """Mint a game token for a local/dev user key (ENABLE_DEV_LOGIN only)."""
+    """Mint a game token for a local/dev user key (ENABLE_DEV_LOGIN or ENABLE_DUEL_DEV_TOKEN)."""
 
     user_key: str = Field(min_length=1, max_length=64)
 
