@@ -821,6 +821,36 @@ button {
   user-select: none;
 }
 
+.don-chip-btn {
+  display: inline-flex;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  line-height: 0;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.don-chip-btn:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.don-chip-btn.is-draggable {
+  cursor: grab;
+}
+
+.don-chip-btn.is-draggable:active {
+  cursor: grabbing;
+}
+
+.don-chip-btn .don-chip {
+  display: block;
+  pointer-events: none;
+}
+
+
 /* <img> faces must fill the absolute stack slot — intrinsic size would otherwise
    paint a full-card overlay across the playmat (DON!! is ~400×562). */
 img.zone-pile-face {

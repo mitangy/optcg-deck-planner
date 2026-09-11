@@ -42,10 +42,22 @@ function DonChip({
     onDragCancel: onDonDragCancel,
   });
 
+  const className = `don-chip${token.rested ? " rested" : " active"}${
+    canDrag ? " don-draggable" : ""
+  }${dragging || isDragging ? " don-dragging" : ""}`;
+
+  // Button host (not bare <img>) so pointer capture / touch drag is reliable.
   return (
-    <img
-      src={DON_CARD_ART}
-      alt={token.rested ? "Rested DON!!" : "Active DON!!"}
+    <button
+      type="button"
+      className={`don-chip-btn${canDrag ? " is-draggable" : ""}`}
+      aria-label={
+        canDrag
+          ? "Drag onto Leader or Character to give DON!!"
+          : token.rested
+            ? "Rested DON!!"
+            : "Active DON!!"
+      }
       title={
         canDrag
           ? "Drag onto Leader or Character to give DON!!"
@@ -53,13 +65,13 @@ function DonChip({
             ? "Rested DON!!"
             : "Active DON!!"
       }
-      className={`don-chip${token.rested ? " rested" : " active"}${
-        canDrag ? " don-draggable" : ""
-      }${dragging || isDragging ? " don-dragging" : ""}`}
+      disabled={!canDrag}
       // Keep HTML5 DnD off; pointer drag owns the gesture.
       draggable={false}
       {...bind}
-    />
+    >
+      <img src={DON_CARD_ART} alt="" className={className} draggable={false} />
+    </button>
   );
 }
 
