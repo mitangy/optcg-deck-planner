@@ -374,4 +374,49 @@ describe("DuelRoom", () => {
     await dupB.leave(true);
     await other.leave(true);
   });
+
+  it("relays cosmetics artPrefs between seats", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 7,
+      autoSkipMulligan: true,
+    });
+
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const cosmetics: [{ seat: number; artPrefs: Record<string, string> }[], { seat: number; artPrefs: Record<string, string> }[]] = [[], []];
+
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("cosmetics", (msg: { seat: number; artPrefs: Record<string, string> }) => {
+      cosmetics[0].push(msg);
+    });
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    c1.onMessage("cosmetics", (msg: { seat: number; artPrefs: Record<string, string> }) => {
+      cosmetics[1].push(msg);
+    });
+
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    c0.send("cosmetics", {
+      protocolVersion: PROTOCOL_VERSION,
+      artPrefs: { "ST01-006": "p1" },
+    });
+
+    await waitUntil(
+      () => cosmetics[0].some((m) => m.seat === 0 && m.artPrefs["ST01-006"] === "p1")
+        && cosmetics[1].some((m) => m.seat === 0 && m.artPrefs["ST01-006"] === "p1"),
+      5000,
+    );
+
+    assert.equal(cosmetics[1].find((m) => m.seat === 0)!.artPrefs["ST01-006"], "p1");
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
 });

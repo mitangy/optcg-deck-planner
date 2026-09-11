@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { expandDecklist, parseDecklist, toDecklistText } from "./parseDecklist";
-import { validateImportedList } from "./storage";
+import { ensureTestDecks, validateImportedList } from "./storage";
 
 describe("parseDecklist", () => {
   it("parses OPTCGSim and egman styles", () => {
@@ -45,7 +45,7 @@ describe("validateImportedList", () => {
     expect(v.warnings.some((w) => /OP99-999/.test(w))).toBe(true);
   });
 
-  it("accepts Test OP16 black seed list including OP16-080", () => {
+  it("accepts Test OP16 Teach seed list including OP16-080", () => {
     const v = validateImportedList(`1xOP16-080
 4xEB04-058
 3xOP09-086
@@ -66,5 +66,28 @@ describe("validateImportedList", () => {
     expect(v.ok).toBe(true);
     expect(v.leaderId).toBe("OP16-080");
     expect(v.cards.length).toBeGreaterThanOrEqual(40);
+  });
+});
+
+describe("ensureTestDecks", () => {
+  it("upserts Teach-named OP16 seed deck", () => {
+    const mem = new Map<string, string>();
+    // storage.ts reads window.localStorage in the browser; stub for node vitest.
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (k: string) => mem.get(k) ?? null,
+        setItem: (k: string, v: string) => {
+          mem.set(k, v);
+        },
+        removeItem: (k: string) => {
+          mem.delete(k);
+        },
+      },
+    });
+    const decks = ensureTestDecks();
+    const teach = decks.find((d) => d.id === "test-op16-black");
+    expect(teach?.name).toMatch(/Teach/i);
+    expect(teach?.leaderId).toBe("OP16-080");
   });
 });

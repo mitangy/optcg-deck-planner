@@ -1,5 +1,6 @@
 import atlasJson from "../assets/cardAtlas.json";
 import { showOfficialIdentity } from "../legal";
+import { tcgArtForCard } from "./tcgArt";
 
 export type CardAltArt = {
   id: string;
@@ -45,6 +46,8 @@ export function stubAtlasEntry(
   type: "leader" | "character" = "character",
 ): CardAtlasEntry {
   const id = defId.trim().toUpperCase();
+  // Prefer TCGPlayer CDN when mapped; else local /cards/ mirror.
+  const imageUrl = tcgArtForCard(id) ?? `/cards/${id}.png`;
   if (type === "leader") {
     return {
       id,
@@ -54,7 +57,7 @@ export function stubAtlasEntry(
       cost: 0,
       power: 5000,
       life: 5,
-      imageUrl: `/cards/${id}.png`,
+      imageUrl,
       effectText: "—",
     };
   }
@@ -66,7 +69,7 @@ export function stubAtlasEntry(
     cost: 2,
     power: 3000,
     counter: 1000,
-    imageUrl: `/cards/${id}.png`,
+    imageUrl,
     effectText: "—",
   };
 }

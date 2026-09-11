@@ -12,6 +12,15 @@ export {
   type CardAtlasEntry,
 } from "./cards/definitions.js";
 export {
+  TCG_PRODUCTS,
+} from "./cards/tcgProducts.js";
+export {
+  tcgArtForCard,
+  tcgAltsForCard,
+  tcgProductImageUrl,
+  listTcgMappedCardIds,
+} from "./cards/tcgArt.js";
+export {
   createMatch,
   applyIntent,
   listLegalIntents,

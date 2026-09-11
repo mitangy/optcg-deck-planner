@@ -1,8 +1,25 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type MouseEvent,
+  type PointerEvent,
+} from "react";
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import { isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
+import {
+  getArtPrefsTick,
+  subscribeArtPrefs,
+  type Seat,
+} from "../decks/seatArtPrefs";
 import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "./CardInspect";
-import { createClickDeferController, createLongPressController } from "./inspectGestures";
+import {
+  createClickDeferController,
+  createLongPressController,
+} from "./inspectGestures";
 
 const COLOR_CHIP: Record<string, string> = {
   red: "#c62828",
@@ -25,6 +42,10 @@ type Props = {
   onClick?: () => void;
   /** When true, click opens inspect instead of onClick (board cards). */
   inspectOnClick?: boolean;
+  /** Seat that owns this card instance (art resolution). */
+  ownerSeat?: Seat;
+  /** Seat controlling the UI (alt-art picker writes here). */
+  viewingSeat?: Seat;
 };
 
 export function CardTile({
@@ -37,15 +58,29 @@ export function CardTile({
   frame = "default",
   onClick,
   inspectOnClick = false,
+  ownerSeat,
+  viewingSeat,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
   const [imgFailed, setImgFailed] = useState(false);
+  const [localFallback, setLocalFallback] = useState(false);
   const [inspectOpen, setInspectOpen] = useState(false);
-  const [artTick, setArtTick] = useState(0);
+  const artTick = useSyncExternalStore(
+    subscribeArtPrefs,
+    getArtPrefsTick,
+    getArtPrefsTick,
+  );
   const imageUrl = useMemo(() => {
     void artTick;
-    return resolveCardImageUrl(defId);
-  }, [defId, artTick]);
+    if (localFallback) return localCardArtPath(defId);
+    return resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
+  }, [defId, artTick, localFallback, ownerSeat]);
+
+  useEffect(() => {
+    setImgFailed(false);
+    setLocalFallback(false);
+  }, [defId]);
+
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
   const shownPower = power ?? entry.power ?? null;
   const className = [
@@ -134,6 +169,15 @@ export function CardTile({
     longPressRef.current?.onPointerCancel(e);
   }
 
+  function handleImgError() {
+    const primary = resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
+    if (!localFallback && isTcgplayerCdnUrl(primary)) {
+      setLocalFallback(true);
+      return;
+    }
+    setImgFailed(true);
+  }
+
   const interactive = Boolean(onClick || inspectOnClick);
   const showInspectChip = !inspectOnClick;
 
@@ -143,8 +187,7 @@ export function CardTile({
         <img
           src={imageUrl}
           alt={entry.name}
-          onError={() => setImgFailed(true)}
-          onLoad={() => setArtTick((n) => n)}
+          onError={handleImgError}
           draggable={false}
         />
       ) : (
@@ -202,10 +245,9 @@ export function CardTile({
       <CardInspect
         defId={defId}
         open={inspectOpen}
-        onClose={() => {
-          setInspectOpen(false);
-          setArtTick((n) => n + 1);
-        }}
+        onClose={() => setInspectOpen(false)}
+        ownerSeat={ownerSeat}
+        viewingSeat={viewingSeat ?? ownerSeat}
       />
     </>
   );
