@@ -11,7 +11,7 @@ How to add a playable OPTCG card to the digital duel without changing the Colyse
 2. **Tests** — update `packages/rules/src/__tests__/definitions.test.ts` and add engine coverage when introducing a new keyword.
 3. **Sims** — `cd packages/rules && npm test && npm run sim`.
 4. **Atlas** — `cd packages/rules && npm run export-atlas` (writes mobile + `duel-web` atlas JSON).
-5. **Web arts** — Prefer TCGPlayer CDN URLs (same as the deck planner). Map product ids in `packages/rules/src/cards/tcgProducts.ts`; `localArt()` / atlas export emit `https://tcgplayer-cdn.tcgplayer.com/product/{id}_400w.jpg`. Clients rewrite to `_in_1000x1000` for inspect via `duel-web/src/cards/cardImage.ts` (mirrors `frontend/src/cardImage.ts`). Bandai CDN blocks browser hotlink (CORP) — do not ship `onepiece-cardgame.com` in `imageUrl`. Fall back to local `/cards/{id}.png` only when no product id is mapped yet.
+5. **Web arts** — Prefer TCGPlayer CDN URLs (same as the deck planner). Map product ids in `packages/rules/src/cards/tcgProducts.ts`; `localArt()` / atlas export emit `https://tcgplayer-cdn.tcgplayer.com/product/{id}_400w.jpg`. Clients rewrite to `_in_1000x1000` for inspect via `duel-web/src/cards/cardImage.ts` (mirrors `frontend/src/cardImage.ts`). Bandai CDN blocks browser hotlink (CORP) — do not ship `onepiece-cardgame.com` in `imageUrl`. Fall back to local `/cards/{id}.png` only when no product id is mapped yet. **Stub defs must use the printed name/cost/type for that card number** so CDN art matches the caption (scrambled placeholder names look like “wrong artwork”).
 6. **Ship** — no protocol / room changes required; clients already render by `defId`.
 
 ## Keyword budget (Step 5)
