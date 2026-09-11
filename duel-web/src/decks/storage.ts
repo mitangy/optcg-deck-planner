@@ -1,5 +1,4 @@
 import {
-  hasAtlasEntry,
   isOptcgCardId,
   listAtlasIds,
   lookupCard,
@@ -110,8 +109,6 @@ export function validateImportedList(text: string): DeckValidation {
       }
     }
   }
-
-  void hasAtlasEntry;
 
   if (leaders.length === 0) errors.push("Decklist must include a Leader (e.g. 1xST01-001)");
   if (leaders.length > 1) errors.push(`Multiple leaders: ${leaders.join(", ")}`);
