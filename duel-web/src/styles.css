@@ -953,6 +953,121 @@ button {
   background: linear-gradient(145deg, #2a2a2a, #141414);
 }
 
+button.zone-pile {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.zone-pile-openable {
+  border-radius: 8px;
+  outline-offset: 2px;
+}
+
+.zone-pile-openable:hover .zone-pile-face.top,
+.zone-pile-openable:focus-visible .zone-pile-face.top {
+  box-shadow: 0 0 0 2px var(--chrome), 0 4px 8px rgba(0, 0, 0, 0.35);
+}
+
+.zone-pile-openable:focus-visible {
+  outline: 2px solid var(--chrome-bright);
+}
+
+.zone-pile-empty {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.trash-viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(4, 8, 12, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem
+    max(0.75rem, env(safe-area-inset-bottom));
+  cursor: pointer;
+}
+
+.trash-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--arena-panel);
+  border: 1px solid var(--chrome);
+  border-radius: 14px;
+  padding: 0.85rem 1rem 1rem;
+  max-width: 920px;
+  width: 100%;
+  max-height: min(82dvh, 640px);
+  min-height: min(42dvh, 320px);
+  overflow: hidden;
+  cursor: default;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.trash-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.trash-viewer-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.trash-viewer-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--chrome-bright);
+  line-height: 1.2;
+}
+
+.trash-viewer-sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.trash-viewer-done {
+  flex-shrink: 0;
+  min-height: 44px;
+  min-width: 5.5rem;
+}
+
+.trash-viewer-empty {
+  margin: 0.5rem 0 1rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.trash-viewer-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  overflow: auto;
+  min-height: 0;
+  padding: 0.15rem 0.1rem 0.5rem;
+  align-content: flex-start;
+}
+
+@media (max-width: 720px) {
+  .trash-viewer {
+    max-height: min(92dvh, 900px);
+  }
+}
+
 .zone-pile-meta {
   text-align: center;
   line-height: 1.15;

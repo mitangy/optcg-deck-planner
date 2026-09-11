@@ -26,7 +26,7 @@ export const DEMO_VIEW: PlayerView = {
       { id: "y-h5", defId: "ST01-014" },
     ],
     deckCount: 38,
-    trash: ["ST01-003"],
+    trash: ["ST01-003", "ST01-014", "ST01-009"],
     lifeCount: 4,
     donDeckCount: 4,
     costArea: [
@@ -50,7 +50,7 @@ export const DEMO_VIEW: PlayerView = {
     stage: null,
     handCount: 6,
     deckCount: 40,
-    trash: [],
+    trash: ["ST01-006", "ST01-008"],
     lifeCount: 5,
     donDeckCount: 6,
     costAreaCount: 4,
