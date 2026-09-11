@@ -78,6 +78,17 @@ describe("createLongPressController", () => {
     expect(onLongPress).not.toHaveBeenCalled();
   });
 
+  it("cancel aborts an in-flight long-press (drag-arm path)", () => {
+    vi.useFakeTimers();
+    const onLongPress = vi.fn();
+    const c = createLongPressController({ onLongPress });
+    c.onPointerDown({ pointerId: 1, clientX: 0, clientY: 0 });
+    c.cancel();
+    vi.advanceTimersByTime(LONG_PRESS_MS + 50);
+    expect(onLongPress).not.toHaveBeenCalled();
+    expect(c.activated).toBe(false);
+  });
+
   it("ignores move/up for a different pointerId", () => {
     vi.useFakeTimers();
     const onLongPress = vi.fn();

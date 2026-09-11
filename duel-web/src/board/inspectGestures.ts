@@ -105,6 +105,12 @@ export function createLongPressController(opts: LongPressControllerOptions) {
       cancelled = true;
       reset();
     },
+    /** Abort an in-flight long-press (e.g. pointer-drag armed past threshold). */
+    cancel() {
+      cancelled = true;
+      clearTimer();
+      pointerId = null;
+    },
     dispose() {
       reset();
       activated = false;

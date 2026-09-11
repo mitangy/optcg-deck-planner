@@ -1,4 +1,5 @@
 import { DON_CARD_ART } from "./donArt";
+import { usePointerDrag } from "./usePointerDrag";
 
 type DonToken = { id: string; rested: boolean };
 
@@ -9,9 +10,82 @@ type Props = {
   activeCount?: number;
   totalCount?: number;
   side: "you" | "opp";
+  /** DON!! ids that have a legal give_don intent. */
+  draggableDonIds?: ReadonlySet<string>;
+  /** Currently dragged don id (for opacity). */
+  draggingDonId?: string | null;
+  onDonDragStart?: (donId: string) => void;
+  onDonDragEnd?: (donId: string, clientX: number, clientY: number) => void;
+  onDonDragCancel?: () => void;
 };
 
-export function DonStrip({ tokens, activeCount, totalCount, side }: Props) {
+function DonChip({
+  token,
+  canDrag,
+  isDragging,
+  onDonDragStart,
+  onDonDragEnd,
+  onDonDragCancel,
+}: {
+  token: DonToken;
+  canDrag: boolean;
+  isDragging: boolean;
+  onDonDragStart?: (donId: string) => void;
+  onDonDragEnd?: (donId: string, clientX: number, clientY: number) => void;
+  onDonDragCancel?: () => void;
+}) {
+  const { bind, dragging } = usePointerDrag({
+    enabled: canDrag,
+    payload: token.id,
+    onDragStart: onDonDragStart,
+    onDragEnd: onDonDragEnd,
+    onDragCancel: onDonDragCancel,
+  });
+
+  const className = `don-chip${token.rested ? " rested" : " active"}${
+    canDrag ? " don-draggable" : ""
+  }${dragging || isDragging ? " don-dragging" : ""}`;
+
+  // Button host (not bare <img>) so pointer capture / touch drag is reliable.
+  return (
+    <button
+      type="button"
+      className={`don-chip-btn${canDrag ? " is-draggable" : ""}`}
+      aria-label={
+        canDrag
+          ? "Drag onto Leader or Character to give DON!!"
+          : token.rested
+            ? "Rested DON!!"
+            : "Active DON!!"
+      }
+      title={
+        canDrag
+          ? "Drag onto Leader or Character to give DON!!"
+          : token.rested
+            ? "Rested DON!!"
+            : "Active DON!!"
+      }
+      disabled={!canDrag}
+      // Keep HTML5 DnD off; pointer drag owns the gesture.
+      draggable={false}
+      {...bind}
+    >
+      <img src={DON_CARD_ART} alt="" className={className} draggable={false} />
+    </button>
+  );
+}
+
+export function DonStrip({
+  tokens,
+  activeCount,
+  totalCount,
+  side,
+  draggableDonIds,
+  draggingDonId,
+  onDonDragStart,
+  onDonDragEnd,
+  onDonDragCancel,
+}: Props) {
   const items: DonToken[] =
     tokens ??
     Array.from({ length: totalCount ?? 0 }, (_, i) => ({
@@ -33,16 +107,20 @@ export function DonStrip({ tokens, activeCount, totalCount, side }: Props) {
         {items.length === 0 ? (
           <span className="don-empty">Empty</span>
         ) : (
-          items.map((t) => (
-            <img
-              key={t.id}
-              src={DON_CARD_ART}
-              alt={t.rested ? "Rested DON!!" : "Active DON!!"}
-              title={t.rested ? "Rested DON!!" : "Active DON!!"}
-              className={`don-chip${t.rested ? " rested" : " active"}`}
-              draggable={false}
-            />
-          ))
+          items.map((t) => {
+            const canDrag = Boolean(draggableDonIds?.has(t.id));
+            return (
+              <DonChip
+                key={t.id}
+                token={t}
+                canDrag={canDrag}
+                isDragging={draggingDonId === t.id}
+                onDonDragStart={onDonDragStart}
+                onDonDragEnd={onDonDragEnd}
+                onDonDragCancel={onDonDragCancel}
+              />
+            );
+          })
         )}
       </div>
     </div>

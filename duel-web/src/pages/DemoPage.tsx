@@ -67,7 +67,10 @@ export const DEMO_VIEW: PlayerView = {
   legalIntents: [
     { type: "end_turn" },
     { type: "play_card", handIndex: 0 },
+    { type: "play_card", handIndex: 2 },
     { type: "give_don", donId: "d1", targetId: "y-leader" },
+    { type: "give_don", donId: "d1", targetId: "y-c1" },
+    { type: "give_don", donId: "d2", targetId: "y-leader" },
     { type: "activate_leader", targetId: "y-leader" },
   ],
 };

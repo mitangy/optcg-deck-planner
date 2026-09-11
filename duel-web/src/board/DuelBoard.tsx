@@ -1,6 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
+import {
+  canDragDon,
+  canDragHandCard,
+  canDropPlayOnField,
+  findDropTargetAtPoint,
+  giveDonTargetIds,
+  playCardTrashTargetIds,
+  resolveDropIntent,
+  type DragPayload,
+} from "./dragIntents";
 import { IntentBar } from "./IntentBar";
 import { SideField } from "./SideField";
 
@@ -16,6 +26,8 @@ type Props = {
   onClearError: () => void;
 };
 
+const EMPTY_IDS = new Set<string>();
+
 export function DuelBoard({
   view,
   seat,
@@ -28,7 +40,50 @@ export function DuelBoard({
   onClearError,
 }: Props) {
   const [handFilter, setHandFilter] = useState<number | null>(null);
+  const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
+
   const over = matchOver != null || view?.winner != null;
+  const mySeat = seat ?? view?.seat ?? null;
+  const spectating = spectator || Boolean(view?.spectator);
+  const yourTurn =
+    Boolean(view) && !spectating && view!.activeSeat === mySeat && !over;
+  const intents = view?.legalIntents ?? [];
+  const dndEnabled = yourTurn && !spectating && !over;
+  const costArea = view?.you.costArea ?? [];
+
+  const draggableDonIds = useMemo(() => {
+    if (!dndEnabled) return EMPTY_IDS;
+    const ids = new Set<string>();
+    for (const t of costArea) {
+      if (canDragDon(intents, t.id)) ids.add(t.id);
+    }
+    return ids;
+  }, [dndEnabled, intents, costArea]);
+
+  const giveDonHighlightIds = useMemo(() => {
+    if (dragPayload?.type !== "give_don") return EMPTY_IDS;
+    return new Set(giveDonTargetIds(intents, dragPayload.donId));
+  }, [dragPayload, intents]);
+
+  const playFieldHighlight = Boolean(
+    dragPayload?.type === "play_card" &&
+      canDropPlayOnField(intents, dragPayload.handIndex),
+  );
+
+  const playTrashHighlightIds = useMemo(() => {
+    if (dragPayload?.type !== "play_card") return EMPTY_IDS;
+    return new Set(playCardTrashTargetIds(intents, dragPayload.handIndex));
+  }, [dragPayload, intents]);
+
+  function commitDrop(payload: DragPayload, clientX: number, clientY: number) {
+    const drop = findDropTargetAtPoint(clientX, clientY);
+    const intent = resolveDropIntent(payload, drop, intents);
+    setDragPayload(null);
+    if (intent) {
+      setHandFilter(null);
+      onSendIntent(intent);
+    }
+  }
 
   if (!view) {
     return (
@@ -59,14 +114,16 @@ export function DuelBoard({
 
   const you = view.you;
   const opp = view.opponent;
-  const mySeat = seat ?? view.seat;
-  const oppSeat: Seat = mySeat === 0 ? 1 : 0;
-  const spectating = spectator || Boolean(view.spectator);
-  const yourTurn = !spectating && view.activeSeat === mySeat && !over;
-  const viewingSeat: Seat | undefined = spectating ? undefined : mySeat;
+  const boardSeat: Seat = mySeat ?? view.seat;
+  const oppSeat: Seat = boardSeat === 0 ? 1 : 0;
+  const viewingSeat: Seat | undefined = spectating ? undefined : boardSeat;
 
   return (
-    <div className={`board-root arena${yourTurn ? " your-turn" : ""}`}>
+    <div
+      className={`board-root arena${yourTurn ? " your-turn" : ""}${
+        dragPayload ? " is-dnd" : ""
+      }`}
+    >
       <header className="hud-bar">
         <div className="hud-brand">OPTCG DUEL</div>
         <div className={`hud-status${yourTurn ? " pulse" : ""}`}>
@@ -140,7 +197,7 @@ export function DuelBoard({
 
           <SideField
             side="you"
-            ownerSeat={mySeat}
+            ownerSeat={boardSeat}
             viewingSeat={viewingSeat}
             data={{
               leader: you.leader,
@@ -153,6 +210,23 @@ export function DuelBoard({
               costArea: you.costArea,
               activeDonCount: you.activeDonCount,
             }}
+            drag={
+              dndEnabled
+                ? {
+                    draggableDonIds,
+                    draggingDonId:
+                      dragPayload?.type === "give_don" ? dragPayload.donId : null,
+                    onDonDragStart: (donId) =>
+                      setDragPayload({ type: "give_don", donId }),
+                    onDonDragEnd: (donId, x, y) =>
+                      commitDrop({ type: "give_don", donId }, x, y),
+                    onDonDragCancel: () => setDragPayload(null),
+                    giveDonHighlightIds,
+                    playTrashHighlightIds,
+                    playFieldHighlight,
+                  }
+                : undefined
+            }
           />
         </div>
       </div>
@@ -169,16 +243,28 @@ export function DuelBoard({
             ? Array.from({ length: Math.min(you.handCount ?? 0, 8) }).map((_, i) => (
                 <span key={i} className="card-back hand-back" />
               ))
-            : you.hand.map((c, idx) => (
-                <CardTile
-                  key={c.id}
-                  defId={c.defId}
-                  selected={handFilter === idx}
-                  onClick={() => setHandFilter((prev) => (prev === idx ? null : idx))}
-                  ownerSeat={mySeat}
-                  viewingSeat={viewingSeat}
-                />
-              ))}
+            : you.hand.map((c, idx) => {
+                const playable = dndEnabled && canDragHandCard(intents, idx);
+                return (
+                  <CardTile
+                    key={c.id}
+                    defId={c.defId}
+                    selected={handFilter === idx}
+                    onClick={() => setHandFilter((prev) => (prev === idx ? null : idx))}
+                    dragEnabled={playable}
+                    dragPayload={{ type: "play_card", handIndex: idx }}
+                    onDragStart={() =>
+                      setDragPayload({ type: "play_card", handIndex: idx })
+                    }
+                    onDragEnd={(x, y) =>
+                      commitDrop({ type: "play_card", handIndex: idx }, x, y)
+                    }
+                    onDragCancel={() => setDragPayload(null)}
+                    ownerSeat={boardSeat}
+                    viewingSeat={viewingSeat}
+                  />
+                );
+              })}
         </div>
       </div>
 

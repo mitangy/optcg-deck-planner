@@ -20,6 +20,7 @@ import {
   createClickDeferController,
   createLongPressController,
 } from "./inspectGestures";
+import { usePointerDrag } from "./usePointerDrag";
 
 const COLOR_CHIP: Record<string, string> = {
   red: "#c62828",
@@ -42,6 +43,16 @@ type Props = {
   onClick?: () => void;
   /** When true, click opens inspect instead of onClick (board cards). */
   inspectOnClick?: boolean;
+  /** HTML5 drag stays off; pointer drag when set. */
+  dragEnabled?: boolean;
+  dragPayload?: unknown;
+  onDragStart?: () => void;
+  onDragEnd?: (clientX: number, clientY: number) => void;
+  onDragCancel?: () => void;
+  /** data-dnd-drop value for give_don / play_trash targets. */
+  dropAttr?: string | null;
+  dropHighlight?: boolean;
+  classNameExtra?: string;
   /** Seat that owns this card instance (art resolution). */
   ownerSeat?: Seat;
   /** Seat controlling the UI (alt-art picker writes here). */
@@ -58,6 +69,14 @@ export function CardTile({
   frame = "default",
   onClick,
   inspectOnClick = false,
+  dragEnabled = false,
+  dragPayload,
+  onDragStart,
+  onDragEnd,
+  onDragCancel,
+  dropAttr,
+  dropHighlight = false,
+  classNameExtra,
   ownerSeat,
   viewingSeat,
 }: Props) {
@@ -83,15 +102,6 @@ export function CardTile({
 
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
   const shownPower = power ?? entry.power ?? null;
-  const className = [
-    "card-tile",
-    compact ? "compact" : "full",
-    selected ? "selected" : "",
-    rested ? "rested" : "",
-    frame === "leader" ? "leader-frame" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
 
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
@@ -121,6 +131,33 @@ export function CardTile({
       defer?.dispose();
     };
   }, []);
+
+  const { bind: dragBind, dragging } = usePointerDrag({
+    enabled: dragEnabled,
+    payload: dragPayload ?? null,
+    onDragStart: () => {
+      // Drag arms at 8px; long-press cancel is 12px — abort inspect once drag starts.
+      longPressRef.current?.cancel();
+      clickDeferRef.current?.cancel();
+      onDragStart?.();
+    },
+    onDragEnd: (_p, x, y) => onDragEnd?.(x, y),
+    onDragCancel,
+  });
+
+  const className = [
+    "card-tile",
+    compact ? "compact" : "full",
+    selected ? "selected" : "",
+    rested ? "rested" : "",
+    frame === "leader" ? "leader-frame" : "",
+    dropHighlight ? "drop-highlight" : "",
+    dragEnabled ? "card-draggable" : "",
+    dragging ? "card-dragging" : "",
+    classNameExtra ?? "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   function openInspectFromChip(e?: MouseEvent) {
     e?.preventDefault();
@@ -155,18 +192,22 @@ export function CardTile({
   function handlePointerDown(e: PointerEvent) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     longPressRef.current?.onPointerDown(e);
+    dragBind.onPointerDown?.(e);
   }
 
   function handlePointerMove(e: PointerEvent) {
     longPressRef.current?.onPointerMove(e);
+    dragBind.onPointerMove?.(e);
   }
 
   function handlePointerUp(e: PointerEvent) {
     longPressRef.current?.onPointerUp(e);
+    dragBind.onPointerUp?.(e);
   }
 
   function handlePointerCancel(e: PointerEvent) {
     longPressRef.current?.onPointerCancel(e);
+    dragBind.onPointerCancel?.(e);
   }
 
   function handleImgError() {
@@ -178,7 +219,7 @@ export function CardTile({
     setImgFailed(true);
   }
 
-  const interactive = Boolean(onClick || inspectOnClick);
+  const interactive = Boolean(onClick || inspectOnClick || dragEnabled);
   const showInspectChip = !inspectOnClick;
 
   const body = (
@@ -223,6 +264,7 @@ export function CardTile({
     </>
   );
 
+  const dropProps = dropAttr ? { "data-dnd-drop": dropAttr } : {};
   const pointerHandlers = {
     onPointerDown: handlePointerDown,
     onPointerMove: handlePointerMove,
@@ -234,11 +276,20 @@ export function CardTile({
   return (
     <>
       {interactive ? (
-        <button type="button" className={className} onClick={handleClick} {...pointerHandlers}>
+        <button
+          type="button"
+          className={className}
+          onClick={handleClick}
+          onClickCapture={dragBind.onClickCapture}
+          draggable={false}
+          style={dragBind.style}
+          {...dropProps}
+          {...pointerHandlers}
+        >
           {body}
         </button>
       ) : (
-        <div className={className} {...pointerHandlers}>
+        <div className={className} {...dropProps} {...pointerHandlers}>
           {body}
         </div>
       )}
