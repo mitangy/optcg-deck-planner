@@ -85,19 +85,37 @@ function narrateOne(e: LooseEvent, youSeat: number | null): string | null {
       return `${act(e.seat, youSeat, "replace", "replaces")} Stage (trashes ${cardName(e.trashedDefId)})`;
     case "character_trashed_for_space":
       return `${act(e.seat, youSeat, "trash", "trashes")} ${cardName(e.defId)} for board space`;
-    case "don_given":
-      return `${act(e.seat, youSeat, "attach", "attaches")} DON!!`;
+    case "don_given": {
+      const name =
+        typeof e.targetDefId === "string" ? cardName(e.targetDefId) : "a card";
+      const pow =
+        typeof e.newPower === "number" ? ` → ${e.newPower} power` : "";
+      return `${act(e.seat, youSeat, "attach", "attaches")} DON!! to ${name}${pow}`;
+    }
     case "attack_declared": {
       const target = e.target as { kind?: string } | undefined;
       const tgt = target?.kind === "leader" ? "Leader" : "a Character";
-      return `${act(e.seat, youSeat, "attack", "attacks")} ${tgt}`;
+      const atk =
+        typeof e.attackerPower === "number" ? e.attackerPower : null;
+      const def =
+        typeof e.defenderPower === "number" ? e.defenderPower : null;
+      const pow =
+        atk != null && def != null ? ` (${atk} vs ${def})` : "";
+      return `${act(e.seat, youSeat, "attack", "attacks")} ${tgt}${pow}`;
     }
     case "blocked":
       return `${act(e.seat, youSeat, "block", "blocks")}`;
     case "counter_applied":
       return `${act(e.seat, youSeat, "counter", "counters")} with ${cardName(e.defId)} (+${Number(e.bonus) || 0})`;
-    case "battle_resolved":
-      return `Battle ${e.attackerWon ? "hits" : "fails"}`;
+    case "battle_resolved": {
+      const atk =
+        typeof e.attackerPower === "number" ? e.attackerPower : null;
+      const def =
+        typeof e.defenderPower === "number" ? e.defenderPower : null;
+      const pow =
+        atk != null && def != null ? ` (${atk} vs ${def})` : "";
+      return `Battle ${e.attackerWon ? "hits" : "fails"}${pow}`;
+    }
     case "character_ko":
       return `${seatLabel(e.seat, youSeat)}'s ${cardName(e.defId)} is K.O.'d`;
     case "life_taken":

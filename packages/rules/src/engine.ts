@@ -94,6 +94,17 @@ function findBoard(p: PlayerState, id: string): CardInstance | null {
   return p.characters.find((c) => c.id === id) ?? null;
 }
 
+/** Board card targeted by the current battle (leader or character). */
+function battleDefender(
+  state: MatchState,
+  battle: NonNullable<MatchState["battle"]>,
+): CardInstance | null {
+  const defSeat = otherSeat(battle.attackerSeat);
+  if (battle.target.kind === "leader") return state.players[defSeat].leader;
+  const targetId = battle.target.instanceId;
+  return state.players[defSeat].characters.find((c) => c.id === targetId) ?? null;
+}
+
 function powerOf(
   state: MatchState,
   seat: Seat,
@@ -242,9 +253,15 @@ function resolveDamage(state: MatchState, events: GameEvent[]): void {
     defender = ch;
   }
 
-  const won =
-    powerOf(state, atkSeat, attacker) >= powerOf(state, defSeat, defender, true);
-  events.push({ type: "battle_resolved", attackerWon: won });
+  const atkPow = powerOf(state, atkSeat, attacker);
+  const defPow = powerOf(state, defSeat, defender, true);
+  const won = atkPow >= defPow;
+  events.push({
+    type: "battle_resolved",
+    attackerWon: won,
+    attackerPower: atkPow,
+    defenderPower: defPow,
+  });
   if (!won) {
     state.battle = null;
     state.phase = "main";
@@ -457,7 +474,14 @@ export function applyIntent(
     don.attachedTo = target.id;
     target.attachedDonIds.push(don.id);
     player.attachedDons.push(don);
-    events.push({ type: "don_given", seat, donId: don.id, targetId: target.id });
+    events.push({
+      type: "don_given",
+      seat,
+      donId: don.id,
+      targetId: target.id,
+      targetDefId: target.defId,
+      newPower: powerOf(state, seat, target),
+    });
     return done();
   }
 
@@ -478,7 +502,14 @@ export function applyIntent(
     target.attachedDonIds.push(don.id);
     player.attachedDons.push(don);
     player.leaderActivatedThisTurn = true;
-    events.push({ type: "don_given", seat, donId: don.id, targetId: target.id });
+    events.push({
+      type: "don_given",
+      seat,
+      donId: don.id,
+      targetId: target.id,
+      targetDefId: target.defId,
+      newPower: powerOf(state, seat, target),
+    });
     return done();
   }
 
@@ -562,11 +593,18 @@ export function applyIntent(
       defenderPowerBonus: 0,
       attackerPowerBonus: 0,
     };
+    const defender = battleDefender(next, next.battle);
+    const atkPow = powerOf(next, seat, attacker);
+    const defPow = defender
+      ? powerOf(next, otherSeat(seat), defender, true)
+      : 0;
     events.push({
       type: "attack_declared",
       seat,
       attackerId: attacker.id,
       target: intent.target,
+      attackerPower: atkPow,
+      defenderPower: defPow,
     });
     next.phase = "block";
     return done();

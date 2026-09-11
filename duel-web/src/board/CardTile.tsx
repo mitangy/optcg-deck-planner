@@ -31,6 +31,14 @@ const COLOR_CHIP: Record<string, string> = {
   yellow: "#f9a825",
 };
 
+/** CSS modifier for status / CC chips (stun, unrestable, …). */
+function slugStatus(label: string): string {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 type Props = {
   defId: string;
   rested?: boolean;
@@ -260,7 +268,10 @@ export function CardTile({
       {labels.length ? (
         <div className="status-chips" aria-label="Card statuses">
           {labels.map((label) => (
-            <span key={label} className="status-chip">
+            <span
+              key={label}
+              className={`status-chip status-chip-${slugStatus(label)}`}
+            >
               {label}
             </span>
           ))}

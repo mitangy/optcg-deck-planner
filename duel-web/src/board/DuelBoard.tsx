@@ -189,13 +189,13 @@ export function DuelBoard({
         </button>
       ) : null}
 
-            <BattleLogPanel
+      <BattleLogPanel
         entries={battleLog}
         collapsed={logCollapsed}
         onToggle={() => setLogCollapsed((v) => !v)}
       />
 
-<div className="playmat">
+      <div className="playmat">
         <div className="playmat-inner">
           <div className="opp-hand-hint" aria-label={`Opponent hand ${opp.handCount}`}>
             <span className="opp-hand-label">Opp hand</span>

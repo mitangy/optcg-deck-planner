@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
 import {
+  narrateEvents,
+  type BattleLogEntry,
+} from "../board/battleLog";
+import {
   initSeatArtPrefsFromStorage,
   resetAllSeatArtPrefs,
   setCosmeticsPublisher,
@@ -27,10 +31,12 @@ type HotseatNavState = {
 
 type SeatBag = {
   client: DuelClient;
+  seat: Seat;
   view: PlayerView | null;
   matchOver: MatchOverMessage["result"] | null;
   error: string | null;
   connected: boolean;
+  battleLog: BattleLogEntry[];
 };
 
 function navFromResume(blob: HotseatResumeBlob): HotseatNavState {
@@ -193,6 +199,16 @@ export function HotseatPage() {
             if (!alive()) return;
             bump((n) => n + 1);
           },
+          onEvents: (events) => {
+            const turn = bag.view?.turnNumber ?? 1;
+            const lines = narrateEvents(events, {
+              youSeat: bag.seat,
+              turnNumber: turn,
+            });
+            if (lines.length) bag.battleLog = [...bag.battleLog, ...lines];
+            if (!alive()) return;
+            bump((n) => n + 1);
+          },
           onMatchOver: (msg) => {
             bag.matchOver = msg.result;
             if (!alive()) return;
@@ -244,6 +260,16 @@ export function HotseatPage() {
           if (!alive()) return;
           bump((n) => n + 1);
         },
+        onEvents: (events) => {
+          const turn = bag.view?.turnNumber ?? 1;
+          const lines = narrateEvents(events, {
+            youSeat: bag.seat,
+            turnNumber: turn,
+          });
+          if (lines.length) bag.battleLog = [...bag.battleLog, ...lines];
+          if (!alive()) return;
+          bump((n) => n + 1);
+        },
         onMatchOver: (msg) => {
           bag.matchOver = msg.result;
           if (!alive()) return;
@@ -289,17 +315,21 @@ export function HotseatPage() {
           clients.push(c0, c1);
           const bag0: SeatBag = {
             client: c0,
+            seat: 0,
             view: null,
             matchOver: null,
             error: null,
             connected: false,
+            battleLog: [],
           };
           const bag1: SeatBag = {
             client: c1,
+            seat: 1,
             view: null,
             matchOver: null,
             error: null,
             connected: false,
+            battleLog: [],
           };
           bags.current = [bag0, bag1];
           wireBag(c0, bag0);
@@ -368,10 +398,12 @@ export function HotseatPage() {
         clients.push(c0);
         const bag0: SeatBag = {
           client: c0,
+          seat: 0,
           view: null,
           matchOver: null,
           error: null,
           connected: false,
+          battleLog: [],
         };
         if (!alive()) {
           void c0.disconnect(false);
@@ -397,10 +429,12 @@ export function HotseatPage() {
         clients.push(c1);
         const bag1: SeatBag = {
           client: c1,
+          seat: 1,
           view: null,
           matchOver: null,
           error: null,
           connected: false,
+          battleLog: [],
         };
         bags.current[1] = bag1;
         wireBag(c1, bag1);
@@ -576,6 +610,7 @@ export function HotseatPage() {
         matchId={matchId}
         errorBanner={bag.error}
         matchOver={bag.matchOver}
+        battleLog={bag.battleLog}
         onSendIntent={sendIntent}
         onLeave={leave}
         onClearError={() => {

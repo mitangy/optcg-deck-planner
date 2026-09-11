@@ -6,25 +6,43 @@ describe("narrateEvents", () => {
     const lines = narrateEvents(
       [
         { type: "card_played", seat: 0, defId: "ST01-003" },
-        { type: "don_given", seat: 0 },
+        {
+          type: "don_given",
+          seat: 0,
+          targetDefId: "ST01-001",
+          newPower: 7000,
+        },
         {
           type: "attack_declared",
           seat: 0,
           target: { kind: "leader" },
+          attackerPower: 7000,
+          defenderPower: 5000,
         },
         { type: "blocked", seat: 1 },
         { type: "counter_applied", seat: 1, defId: "ST01-014", bonus: 3000 },
-        { type: "battle_resolved", attackerWon: false },
+        {
+          type: "battle_resolved",
+          attackerWon: false,
+          attackerPower: 7000,
+          defenderPower: 8000,
+        },
       ],
       { youSeat: 0, turnNumber: 2 },
     ).map((e) => e.text);
 
     expect(lines.some((t) => t.includes("play"))).toBe(true);
-    expect(lines).toContain("You attach DON!!");
-    expect(lines).toContain("You attack Leader");
+    expect(lines.some((t) => t.includes("attach") && t.includes("7000"))).toBe(
+      true,
+    );
+    expect(lines.some((t) => t.includes("attack Leader") && t.includes("7000 vs 5000"))).toBe(
+      true,
+    );
     expect(lines).toContain("Opponent blocks");
     expect(lines.some((t) => t.includes("counter"))).toBe(true);
-    expect(lines).toContain("Battle fails");
+    expect(lines.some((t) => t.includes("Battle fails") && t.includes("7000 vs 8000"))).toBe(
+      true,
+    );
   });
 
   it("groups by turn", () => {

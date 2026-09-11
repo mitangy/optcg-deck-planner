@@ -1677,3 +1677,30 @@ img.zone-pile-face {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.status-chip-stun,
+.status-chip-stunned {
+  border-color: rgba(255, 120, 80, 0.7);
+  color: #ffb38a;
+}
+.status-chip-unrestable,
+.status-chip-unrestable {
+  border-color: rgba(120, 180, 255, 0.7);
+  color: #a8d0ff;
+}
+.status-chip-nullified,
+.status-chip-nullified {
+  border-color: rgba(200, 140, 255, 0.7);
+  color: #d7b3ff;
+}
+.status-chip-rested {
+  border-color: rgba(180, 180, 180, 0.55);
+  color: #c8c8c8;
+}
+.status-chip-summoning-sick {
+  border-color: rgba(255, 220, 100, 0.55);
+  color: #ffe9a0;
+}
+.status-chip-rush {
+  border-color: rgba(255, 100, 100, 0.7);
+  color: #ffb0b0;
+}

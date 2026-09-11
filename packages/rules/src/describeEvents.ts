@@ -34,12 +34,16 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
         );
         break;
       case "don_given":
-        lines.push(`Seat ${e.seat} attaches DON!!`);
+        lines.push(
+          `Seat ${e.seat} attaches DON!! to ${getCardDef(e.targetDefId).name} → ${e.newPower} power`,
+        );
         break;
       case "attack_declared": {
         const target =
           e.target.kind === "leader" ? "Leader" : "a Character";
-        lines.push(`Seat ${e.seat} attacks ${target}`);
+        lines.push(
+          `Seat ${e.seat} attacks ${target} (${e.attackerPower} vs ${e.defenderPower})`,
+        );
         break;
       }
       case "blocked":
@@ -51,7 +55,9 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
         );
         break;
       case "battle_resolved":
-        lines.push(`Battle ${e.attackerWon ? "hits" : "fails"}`);
+        lines.push(
+          `Battle ${e.attackerWon ? "hits" : "fails"} (${e.attackerPower} vs ${e.defenderPower})`,
+        );
         break;
       case "character_ko":
         lines.push(`Seat ${e.seat}'s ${getCardDef(e.defId).name} is K.O.'d`);
