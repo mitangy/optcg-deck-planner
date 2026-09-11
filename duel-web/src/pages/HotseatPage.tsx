@@ -151,6 +151,16 @@ export function HotseatPage() {
     const alive = () => !cancelled && gen === bootGen.current;
 
     // Reclaim sockets parked by StrictMode remount — avoids token rotation.
+    // If a prior mount parked sockets without board views (welcomes arrived
+    // after cancel), drop them so resume/fresh boot is not blocked by seats
+    // still held in allowReconnection grace.
+    if (
+      parkedHotseat &&
+      !(parkedHotseat.bags[0].view && parkedHotseat.bags[1].view && parkedHotseat.matchId)
+    ) {
+      disposeParked(false);
+    }
+
     if (
       parkedHotseat &&
       parkedHotseat.bags[0].view &&
@@ -170,33 +180,33 @@ export function HotseatPage() {
         clients.push(bag.client);
         bag.client.setHandlers({
           onWelcome: ({ matchId: id, view }) => {
+            bag.view = view;
+            bag.connected = true;
             if (!alive()) return;
             setMatchId(id);
             matchIdRef.current = id;
-            bag.view = view;
-            bag.connected = true;
             bump((n) => n + 1);
             persistResume();
           },
           onView: (view) => {
-            if (!alive()) return;
             bag.view = view;
+            if (!alive()) return;
             bump((n) => n + 1);
           },
           onMatchOver: (msg) => {
-            if (!alive()) return;
             bag.matchOver = msg.result;
+            if (!alive()) return;
             clearMatchResume();
             bump((n) => n + 1);
           },
           onError: (err) => {
-            if (!alive()) return;
             bag.error = `${err.code}: ${err.message}`;
+            if (!alive()) return;
             bump((n) => n + 1);
           },
           onDisconnect: () => {
-            if (!alive()) return;
             bag.connected = false;
+            if (!alive()) return;
             bump((n) => n + 1);
           },
           onReconnectionToken: () => {
@@ -219,33 +229,35 @@ export function HotseatPage() {
     function wireBag(client: DuelClient, bag: SeatBag) {
       client.setHandlers({
         onWelcome: ({ matchId: id, view }) => {
+          // Always stash on the bag so StrictMode park/reclaim keeps views
+          // even when this mount was already cancelled.
+          bag.view = view;
+          bag.connected = true;
           if (!alive()) return;
           setMatchId(id);
           matchIdRef.current = id;
-          bag.view = view;
-          bag.connected = true;
           bump((n) => n + 1);
           persistResume();
         },
         onView: (view) => {
-          if (!alive()) return;
           bag.view = view;
+          if (!alive()) return;
           bump((n) => n + 1);
         },
         onMatchOver: (msg) => {
-          if (!alive()) return;
           bag.matchOver = msg.result;
+          if (!alive()) return;
           clearMatchResume();
           bump((n) => n + 1);
         },
         onError: (err) => {
-          if (!alive()) return;
           bag.error = `${err.code}: ${err.message}`;
+          if (!alive()) return;
           bump((n) => n + 1);
         },
         onDisconnect: () => {
-          if (!alive()) return;
           bag.connected = false;
+          if (!alive()) return;
           bump((n) => n + 1);
         },
         onReconnectionToken: () => {
@@ -416,6 +428,7 @@ export function HotseatPage() {
             timer: null,
           };
         }
+        setResuming(false);
         setReady(true);
       } catch (e) {
         if (alive()) {
@@ -426,7 +439,17 @@ export function HotseatPage() {
       }
     }
 
-    void boot();
+    // Hard ceiling so a hung mint/matchmake cannot leave the UI on Starting forever.
+    const bootWatchdog = window.setTimeout(() => {
+      if (!alive()) return;
+      clearMatchResume();
+      setResuming(false);
+      setBootError("Hotseat startup timed out — check the game server and try again");
+    }, 25000);
+
+    void boot().finally(() => {
+      window.clearTimeout(bootWatchdog);
+    });
 
     return () => {
       cancelled = true;
