@@ -25,6 +25,7 @@ describe("resolveCardImageUrl seat scoping", () => {
 
   it("updates all copies for a seat when that seat's pref changes", () => {
     replaceSeatArtPrefs(0, {});
+    replaceSeatArtPrefs(1, {});
     setSeatArtPref(0, "ST01-006", "p1");
 
     const a = resolveCardImageUrl("ST01-006", { ownerSeat: 0 });
