@@ -1,3 +1,4 @@
+import { appendFileSync } from "node:fs";
 import { Room, Client } from "colyseus";
 import {
   applyIntent,
@@ -392,14 +393,64 @@ export class DuelRoom extends Room {
     const leaderB =
       this.seatDecks[1]?.leaderId ?? this.createPlayers?.[1]?.leaderId ?? DEFAULT_LEADER_ID;
 
-    let match = createMatch({
-      seed: this.seed,
-      firstSeat: 0,
-      players: [
-        { leaderId: leaderA, deck: [...deckA] },
-        { leaderId: leaderB, deck: [...deckB] },
-      ],
-    });
+    // #region agent log
+    {
+      const payload = {
+        hypothesisId: "E",
+        location: "DuelRoom.ts:startMatch",
+        message: "startMatch decks",
+        data: {
+          matchId: this.matchId,
+          leaderA,
+          leaderB,
+          deckLens: [deckA.length, deckB.length],
+          process: "game-server",
+        },
+        timestamp: Date.now(),
+      };
+      try {
+        appendFileSync("/opt/cursor/logs/debug.log", `${JSON.stringify(payload)}\n`);
+      } catch {
+        /* ignore */
+      }
+      this.log("info", "agent_debug_start_match", payload.data);
+    }
+    // #endregion
+
+    let match: MatchState;
+    try {
+      match = createMatch({
+        seed: this.seed,
+        firstSeat: 0,
+        players: [
+          { leaderId: leaderA, deck: [...deckA] },
+          { leaderId: leaderB, deck: [...deckB] },
+        ],
+      });
+    } catch (e) {
+      // #region agent log
+      const errPayload = {
+        hypothesisId: "A",
+        location: "DuelRoom.ts:startMatch",
+        message: "createMatch threw",
+        data: {
+          matchId: this.matchId,
+          leaderA,
+          leaderB,
+          error: e instanceof Error ? e.message : String(e),
+        },
+        timestamp: Date.now(),
+      };
+      try {
+        appendFileSync("/opt/cursor/logs/debug.log", `${JSON.stringify(errPayload)}\n`);
+      } catch {
+        /* ignore */
+      }
+      this.log("warn", "agent_debug_create_match_fail", errPayload.data);
+      // #endregion
+      this.matchStarted = false;
+      throw e;
+    }
 
     if (this.autoSkipMulligan) {
       match = skipMulligans(match, this.rng);

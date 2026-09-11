@@ -8,6 +8,7 @@ export {
   normalizeCardDefId,
   buildTestDeck,
   buildCardAtlas,
+  getDefsDebugSnapshot,
   DEFAULT_LEADER_ID,
   type CardAtlasEntry,
 } from "./cards/definitions.js";

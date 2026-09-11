@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import type { CardDef, CardDefId } from "../types.js";
 import { tcgAltsForCard, tcgArtForCard } from "./tcgArt.js";
 
@@ -508,6 +509,39 @@ void bandaiArt;
 
 const byId = new Map(defs.map((d) => [d.id, d]));
 
+/** Runtime identity for detecting duplicate module instances (debug). */
+const DEFS_MODULE_ID = `defs_${Math.random().toString(36).slice(2, 9)}`;
+
+// #region agent log
+function agentLog(
+  hypothesisId: string,
+  location: string,
+  message: string,
+  data: Record<string, unknown>,
+): void {
+  const payload = {
+    hypothesisId,
+    location,
+    message,
+    data: { moduleId: DEFS_MODULE_ID, defsCount: byId.size, ...data },
+    timestamp: Date.now(),
+  };
+  try {
+    fs.appendFileSync(
+      "/opt/cursor/logs/debug.log",
+      `${JSON.stringify(payload)}\n`,
+    );
+  } catch {
+    /* ignore missing path */
+  }
+  console.warn(`[agent-debug] ${JSON.stringify(payload)}`);
+}
+agentLog("A", "definitions.ts:init", "defs module loaded", {
+  hasOP16080: byId.has("OP16-080"),
+  hasEnsure: true,
+});
+// #endregion
+
 export const DEFAULT_LEADER_ID: CardDefId = "ST01-001";
 
 /** Normalize OPTCG-style ids (trim + uppercase). */
@@ -517,6 +551,21 @@ export function normalizeCardDefId(id: string): CardDefId {
 
 export function hasCardDef(id: CardDefId): boolean {
   return byId.has(normalizeCardDefId(id));
+}
+
+/** Debug/ops snapshot — used by game-server /health (safe, no secrets). */
+export function getDefsDebugSnapshot(): {
+  moduleId: string;
+  defsCount: number;
+  hasOP16080: boolean;
+  hasEnsureDefsForPlayers: boolean;
+} {
+  return {
+    moduleId: DEFS_MODULE_ID,
+    defsCount: byId.size,
+    hasOP16080: byId.has("OP16-080"),
+    hasEnsureDefsForPlayers: true,
+  };
 }
 
 /**
@@ -572,6 +621,13 @@ export function ensureCardDef(
 export function ensureDefsForPlayers(
   players: ReadonlyArray<{ leaderId: CardDefId; deck: readonly CardDefId[] }>,
 ): void {
+  // #region agent log
+  agentLog("B", "definitions.ts:ensureDefsForPlayers", "ensureDefs entry", {
+    leaders: players.map((p) => p.leaderId),
+    deckLens: players.map((p) => p.deck.length),
+    hasOP16080Before: byId.has("OP16-080"),
+  });
+  // #endregion
   const missing: string[] = [];
   for (const p of players) {
     const leaderId = normalizeCardDefId(p.leaderId);
@@ -590,11 +646,28 @@ export function ensureDefsForPlayers(
       `[optcg/rules] Auto-stubbed ${uniq.length} missing card def(s): ${uniq.join(", ")}`,
     );
   }
+  // #region agent log
+  agentLog("B", "definitions.ts:ensureDefsForPlayers", "ensureDefs exit", {
+    missingCount: missing.length,
+    hasOP16080After: byId.has("OP16-080"),
+  });
+  // #endregion
 }
 
 export function getCardDef(id: CardDefId): CardDef {
-  const d = byId.get(normalizeCardDefId(id));
-  if (!d) throw new Error(`Unknown card def: ${id}`);
+  const key = normalizeCardDefId(id);
+  const d = byId.get(key);
+  if (!d) {
+    // #region agent log
+    agentLog("A", "definitions.ts:getCardDef", "Unknown card def throw", {
+      rawId: id,
+      key,
+      hasKey: byId.has(key),
+      hasOP16080: byId.has("OP16-080"),
+    });
+    // #endregion
+    throw new Error(`Unknown card def: ${id}`);
+  }
   return d;
 }
 
