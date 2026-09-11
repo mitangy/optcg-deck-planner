@@ -1,16 +1,22 @@
 import type { CardDef, CardDefId } from "../types.js";
+import { tcgAltsForCard, tcgArtForCard } from "./tcgArt.js";
 
-/** Bandai EN cardlist art keyed by official card number. */
+/** Bandai EN cardlist art keyed by official card number (often CORP-blocked in browsers). */
 function bandaiArt(id: string): string {
   return `https://en.onepiece-cardgame.com/images/cardlist/card/${id}.png`;
 }
 
-/** Local duel-web mirror (+ Limitless-sourced parallels under /cards). */
+/**
+ * Prefer TCGPlayer CDN (same as the deck planner catalog). Fall back to a local
+ * `/cards/` mirror when no product id is mapped yet.
+ */
 function localArt(id: string): string {
-  return `/cards/${id}.png`;
+  return tcgArtForCard(id) ?? `/cards/${id}.png`;
 }
 
 function localAlt(id: string, parallel: string): string {
+  const fromTcg = tcgAltsForCard(id).find((a) => a.id === parallel);
+  if (fromTcg) return fromTcg.imageUrl;
   return `/cards/${id}_${parallel}.webp`;
 }
 
@@ -55,7 +61,7 @@ const defs: CardDef[] = [
     power: 4000,
     counter: 1000,
     rush: true,
-    imageUrl: bandaiArt("ST01-004"),
+    imageUrl: localArt("ST01-004"),
   },
   {
     id: "ST01-006",
@@ -486,6 +492,17 @@ const defs: CardDef[] = [
   },
 ];
 
+// Prefer TCGPlayer CDN alt prints when mapped; keep any curated local parallels.
+for (const d of defs) {
+  const fromTcg = tcgAltsForCard(d.id);
+  if (!fromTcg.length) continue;
+  const byAltId = new Map((d.altArts ?? []).map((a) => [a.id, a]));
+  for (const a of fromTcg) {
+    byAltId.set(a.id, { id: a.id, label: a.label, imageUrl: a.imageUrl });
+  }
+  d.altArts = [...byAltId.values()];
+}
+
 // Keep Bandai CDN as a documented fallback for tooling that prefers remote art.
 void bandaiArt;
 
@@ -605,6 +622,8 @@ export type CardAtlasEntry = {
 export function buildCardAtlas(): Record<CardDefId, CardAtlasEntry> {
   const atlas: Record<CardDefId, CardAtlasEntry> = {};
   for (const d of defs) {
+    const authoredAlts = d.altArts?.map((a) => ({ ...a }));
+    const tcgAlts = tcgAltsForCard(d.id);
     atlas[d.id] = {
       id: d.id,
       name: d.name,
@@ -618,7 +637,8 @@ export function buildCardAtlas(): Record<CardDefId, CardAtlasEntry> {
       rush: d.rush,
       imageUrl: d.imageUrl,
       effectText: d.effectText,
-      altArts: d.altArts?.map((a) => ({ ...a })),
+      // Prefer authored alt list (e.g. local ST01 parallels); else TCGCSV alts.
+      altArts: authoredAlts?.length ? authoredAlts : tcgAlts.length ? tcgAlts : undefined,
     };
   }
   return atlas;

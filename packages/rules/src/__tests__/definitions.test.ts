@@ -82,11 +82,20 @@ describe("Step 5 curated defs", () => {
 });
 
 describe("constructed seed stubs + auto-stub", () => {
-  it("resolves OP16-080 Teach leader stub", () => {
+  it("resolves OP16-080 Teach leader stub with TCGPlayer CDN art", () => {
     const teach = getCardDef("OP16-080");
     expect(teach.type).toBe("leader");
     expect(teach.colors).toContain("black");
     expect(teach.life).toBe(4);
+    expect(teach.imageUrl).toBe(
+      "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg",
+    );
+  });
+
+  it("does not ship Bandai hotlink URLs on curated imageUrl fields", () => {
+    for (const d of listCardDefs()) {
+      expect(d.imageUrl ?? "").not.toMatch(/onepiece-cardgame\.com/);
+    }
   });
 
   it("auto-stubs unknown OPTCG ids via ensureDefsForPlayers", () => {
