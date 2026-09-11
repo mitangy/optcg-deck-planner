@@ -1,9 +1,12 @@
 import { getDevJoinSecret, getGameServerUrl, PROTOCOL_VERSION } from "../config";
 import {
+  parseCosmetics,
   parseError,
   parseMatchOver,
   parseView,
   parseWelcome,
+  type ArtPrefsMap,
+  type CosmeticsMessage,
   type DuelCreateOptions,
   type DuelJoinOptions,
   type ErrorMessage,
@@ -25,6 +28,7 @@ export type DuelClientHandlers = {
   onEvents?: (events: unknown[]) => void;
   onError?: (err: ErrorMessage) => void;
   onMatchOver?: (msg: MatchOverMessage) => void;
+  onCosmetics?: (msg: CosmeticsMessage) => void;
   onDisconnect?: (code: number) => void;
   onQueued?: (position: number) => void;
   onMatched?: (info: { roomId: string; seat: Seat; ranked: boolean }) => void;
@@ -224,6 +228,15 @@ export class DuelClient {
     this.room.send("sync", { protocolVersion: PROTOCOL_VERSION });
   }
 
+  /** Publish this seat's alt-art prefs (non-authoritative cosmetics). */
+  sendCosmetics(artPrefs: ArtPrefsMap) {
+    if (!this.room) return;
+    this.room.send("cosmetics", {
+      protocolVersion: PROTOCOL_VERSION,
+      artPrefs,
+    });
+  }
+
   ping(t = Date.now()) {
     this.room?.send("ping", { t });
   }
@@ -346,6 +359,18 @@ export class DuelClient {
           protocolVersion: PROTOCOL_VERSION,
           code: "bad_protocol",
           message: e instanceof Error ? e.message : "Bad match_over",
+        });
+      }
+    });
+
+    room.onMessage("cosmetics", (raw: unknown) => {
+      try {
+        this.handlers.onCosmetics?.(parseCosmetics(raw));
+      } catch (e) {
+        this.handlers.onError?.({
+          protocolVersion: PROTOCOL_VERSION,
+          code: "bad_protocol",
+          message: e instanceof Error ? e.message : "Bad cosmetics",
         });
       }
     });

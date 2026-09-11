@@ -60,8 +60,10 @@ export function DuelBoard({
   const you = view.you;
   const opp = view.opponent;
   const mySeat = seat ?? view.seat;
+  const oppSeat: Seat = mySeat === 0 ? 1 : 0;
   const spectating = spectator || Boolean(view.spectator);
   const yourTurn = !spectating && view.activeSeat === mySeat && !over;
+  const viewingSeat: Seat | undefined = spectating ? undefined : mySeat;
 
   return (
     <div className={`board-root arena${yourTurn ? " your-turn" : ""}`}>
@@ -107,6 +109,8 @@ export function DuelBoard({
           <SideField
             side="opp"
             compact
+            ownerSeat={oppSeat}
+            viewingSeat={viewingSeat}
             data={{
               leader: opp.leader,
               characters: opp.characters,
@@ -136,6 +140,8 @@ export function DuelBoard({
 
           <SideField
             side="you"
+            ownerSeat={mySeat}
+            viewingSeat={viewingSeat}
             data={{
               leader: you.leader,
               characters: you.characters,
@@ -169,6 +175,8 @@ export function DuelBoard({
                   defId={c.defId}
                   selected={handFilter === idx}
                   onClick={() => setHandFilter((prev) => (prev === idx ? null : idx))}
+                  ownerSeat={mySeat}
+                  viewingSeat={viewingSeat}
                 />
               ))}
         </div>

@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
+import {
+  initSeatArtPrefsFromStorage,
+  resetAllSeatArtPrefs,
+  setCosmeticsPublisher,
+} from "../decks/seatArtPrefs";
 import { mintGuestGameToken } from "../net/api";
 import { DuelClient } from "../net/duelClient";
 import {
@@ -452,9 +457,29 @@ export function HotseatPage() {
 
   useEffect(() => {
     if (!ready) return;
+    // Shared in-process maps — no cosmetics network relay for hotseat.
+    // Seed once when the match becomes ready; do not re-seed on seat switch
+    // or divergent per-seat alt picks would be wiped.
+    setCosmeticsPublisher(null);
+    initSeatArtPrefsFromStorage(0);
+    initSeatArtPrefsFromStorage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
+
+  useEffect(() => {
+    if (!ready) return;
     persistResume();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSeat, ready]);
+
+  useEffect(() => {
+    return () => {
+      if (!parkedHotseat) {
+        setCosmeticsPublisher(null);
+        resetAllSeatArtPrefs();
+      }
+    };
+  }, []);
 
   if (!nav) return null;
 

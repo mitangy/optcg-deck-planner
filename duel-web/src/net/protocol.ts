@@ -78,6 +78,17 @@ export type MatchOverMessage = {
   };
 };
 
+
+/** Cosmetics are non-authoritative display prefs (alt art per defId). */
+export type ArtPrefsMap = Record<string, string>;
+
+export type CosmeticsMessage = {
+  protocolVersion: ProtocolVersion;
+  seat: Seat;
+  artPrefs: ArtPrefsMap;
+};
+
+
 export type CardView = {
   id: string;
   defId: string;
@@ -217,6 +228,29 @@ export function parseMatchOver(raw: unknown): MatchOverMessage {
       reason: typeof result.reason === "string" ? result.reason : "unknown",
     },
   };
+}
+
+
+export function parseCosmetics(raw: unknown): CosmeticsMessage {
+  if (!raw || typeof raw !== "object") throw new Error("cosmetics body required");
+  const o = raw as Record<string, unknown>;
+  if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
+  if (o.seat !== 0 && o.seat !== 1) throw new Error("cosmetics.seat required");
+  const artPrefs = asArtPrefsMap(o.artPrefs);
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    seat: o.seat,
+    artPrefs,
+  };
+}
+
+function asArtPrefsMap(raw: unknown): ArtPrefsMap {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: ArtPrefsMap = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string" && v.trim()) out[k] = v.trim();
+  }
+  return out;
 }
 
 function shortId(id: unknown): string {
