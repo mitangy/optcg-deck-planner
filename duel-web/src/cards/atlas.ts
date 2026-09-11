@@ -45,6 +45,7 @@ export function stubAtlasEntry(
   type: "leader" | "character" = "character",
 ): CardAtlasEntry {
   const id = defId.trim().toUpperCase();
+  // Curated stubs ship CDN urls via cardAtlas.json; unknown ids fall back to local.
   if (type === "leader") {
     return {
       id,

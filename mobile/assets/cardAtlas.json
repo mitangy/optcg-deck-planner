@@ -9,7 +9,7 @@
     "cost": 0,
     "power": 5000,
     "life": 5,
-    "imageUrl": "/cards/ST01-001.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288228_400w.jpg",
     "effectText": "[Activate: Main] [Once Per Turn] You may rest this Leader: Give up to 1 rested DON!! card to your Leader or 1 of your Characters.",
     "altArts": [
       {
@@ -29,7 +29,7 @@
     "cost": 1,
     "power": 3000,
     "counter": 1000,
-    "imageUrl": "/cards/ST01-003.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288230_400w.jpg",
     "effectText": "—"
   },
   "ST01-004": {
@@ -43,7 +43,7 @@
     "power": 4000,
     "counter": 1000,
     "rush": true,
-    "imageUrl": "https://en.onepiece-cardgame.com/images/cardlist/card/ST01-004.png"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288232_400w.jpg"
   },
   "ST01-006": {
     "id": "ST01-006",
@@ -55,7 +55,7 @@
     "cost": 1,
     "power": 1000,
     "blocker": true,
-    "imageUrl": "/cards/ST01-006.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288235_400w.jpg",
     "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.)",
     "altArts": [
       {
@@ -80,7 +80,7 @@
     "cost": 3,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/ST01-008.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288237_400w.jpg",
     "effectText": "—",
     "altArts": [
       {
@@ -105,7 +105,7 @@
     "cost": 2,
     "power": 4000,
     "counter": 1000,
-    "imageUrl": "/cards/ST01-009.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288238_400w.jpg",
     "effectText": "—",
     "altArts": [
       {
@@ -128,7 +128,7 @@
       "red"
     ],
     "cost": 1,
-    "imageUrl": "/cards/ST01-014.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288243_400w.jpg",
     "effectText": "[Counter] Your Leader or 1 of your Characters gains +3000 power during this battle.",
     "altArts": [
       {
@@ -153,8 +153,15 @@
     "cost": 0,
     "power": 5000,
     "life": 5,
-    "imageUrl": "/cards/OP17-001.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/705925_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/705924_400w.jpg"
+      }
+    ]
   },
   "OP16-080": {
     "id": "OP16-080",
@@ -166,8 +173,15 @@
     "cost": 0,
     "power": 5000,
     "life": 4,
-    "imageUrl": "/cards/OP16-080.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/694628_400w.jpg"
+      }
+    ]
   },
   "OP09-118": {
     "id": "OP09-118",
@@ -179,8 +193,20 @@
     "cost": 3,
     "power": 4000,
     "counter": 1000,
-    "imageUrl": "/cards/OP09-118.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597064_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Manga Rare",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597065_400w.jpg"
+      },
+      {
+        "id": "p2",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597066_400w.jpg"
+      }
+    ]
   },
   "OP12-002": {
     "id": "OP12-002",
@@ -192,7 +218,7 @@
     "cost": 4,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/OP12-002.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/643725_400w.jpg",
     "effectText": "—"
   },
   "OP12-018": {
@@ -205,7 +231,7 @@
     "cost": 4,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/OP12-018.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/643745_400w.jpg",
     "effectText": "—"
   },
   "OP16-021": {
@@ -218,8 +244,15 @@
     "cost": 4,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/OP16-021.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696004_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696005_400w.jpg"
+      }
+    ]
   },
   "OP16-118": {
     "id": "OP16-118",
@@ -231,8 +264,15 @@
     "cost": 3,
     "power": 4000,
     "counter": 1000,
-    "imageUrl": "/cards/OP16-118.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/694932_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/694933_400w.jpg"
+      }
+    ]
   },
   "OP17-002": {
     "id": "OP17-002",
@@ -244,7 +284,7 @@
     "cost": 2,
     "power": 3000,
     "counter": 1000,
-    "imageUrl": "/cards/OP17-002.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712591_400w.jpg",
     "effectText": "—"
   },
   "OP17-003": {
@@ -257,7 +297,7 @@
     "cost": 2,
     "power": 3000,
     "counter": 1000,
-    "imageUrl": "/cards/OP17-003.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/708075_400w.jpg",
     "effectText": "—"
   },
   "OP17-005": {
@@ -270,8 +310,20 @@
     "cost": 3,
     "power": 4000,
     "counter": 1000,
-    "imageUrl": "/cards/OP17-005.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/711499_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/708077_400w.jpg"
+      },
+      {
+        "id": "p2",
+        "label": "Manga Rare",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712083_400w.jpg"
+      }
+    ]
   },
   "OP17-008": {
     "id": "OP17-008",
@@ -283,7 +335,7 @@
     "cost": 3,
     "power": 4000,
     "counter": 1000,
-    "imageUrl": "/cards/OP17-008.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712594_400w.jpg",
     "effectText": "—"
   },
   "OP17-015": {
@@ -296,7 +348,7 @@
     "cost": 5,
     "power": 6000,
     "counter": 1000,
-    "imageUrl": "/cards/OP17-015.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/708073_400w.jpg",
     "effectText": "—"
   },
   "OP17-017": {
@@ -309,7 +361,7 @@
     "cost": 4,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/OP17-017.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712600_400w.jpg",
     "effectText": "—"
   },
   "OP17-019": {
@@ -322,7 +374,7 @@
     "cost": 5,
     "power": 6000,
     "counter": 1000,
-    "imageUrl": "/cards/OP17-019.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712602_400w.jpg",
     "effectText": "—"
   },
   "ST23-001": {
@@ -335,7 +387,7 @@
     "cost": 3,
     "power": 4000,
     "counter": 1000,
-    "imageUrl": "/cards/ST23-001.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/633761_400w.jpg",
     "effectText": "—"
   },
   "ST30-004": {
@@ -348,8 +400,15 @@
     "cost": 4,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/ST30-004.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/695422_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alt 1",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/695745_400w.jpg"
+      }
+    ]
   },
   "ST30-005": {
     "id": "ST30-005",
@@ -361,8 +420,15 @@
     "cost": 3,
     "power": 4000,
     "counter": 1000,
-    "imageUrl": "/cards/ST30-005.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/695423_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alt 1",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/695424_400w.jpg"
+      }
+    ]
   },
   "EB04-058": {
     "id": "EB04-058",
@@ -374,8 +440,15 @@
     "cost": 5,
     "power": 6000,
     "counter": 1000,
-    "imageUrl": "/cards/EB04-058.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/685329_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/685330_400w.jpg"
+      }
+    ]
   },
   "OP09-086": {
     "id": "OP09-086",
@@ -387,7 +460,7 @@
     "cost": 5,
     "power": 6000,
     "counter": 1000,
-    "imageUrl": "/cards/OP09-086.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597027_400w.jpg",
     "effectText": "—"
   },
   "OP09-093": {
@@ -400,8 +473,20 @@
     "cost": 4,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/OP09-093.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597034_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Manga Rare",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597035_400w.jpg"
+      },
+      {
+        "id": "p2",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597036_400w.jpg"
+      }
+    ]
   },
   "OP09-095": {
     "id": "OP09-095",
@@ -413,7 +498,7 @@
     "cost": 2,
     "power": 3000,
     "counter": 1000,
-    "imageUrl": "/cards/OP09-095.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597039_400w.jpg",
     "effectText": "—"
   },
   "OP09-096": {
@@ -426,7 +511,7 @@
     "cost": 3,
     "power": 4000,
     "counter": 1000,
-    "imageUrl": "/cards/OP09-096.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597040_400w.jpg",
     "effectText": "—"
   },
   "OP09-099": {
@@ -439,7 +524,7 @@
     "cost": 8,
     "power": 9000,
     "counter": 1000,
-    "imageUrl": "/cards/OP09-099.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597043_400w.jpg",
     "effectText": "—"
   },
   "OP12-112": {
@@ -452,7 +537,7 @@
     "cost": 4,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/OP12-112.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/643859_400w.jpg",
     "effectText": "—"
   },
   "OP14-108": {
@@ -465,8 +550,20 @@
     "cost": 5,
     "power": 6000,
     "counter": 1000,
-    "imageUrl": "/cards/OP14-108.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/671438_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alt 1",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/672378_400w.jpg"
+      },
+      {
+        "id": "p2",
+        "label": "Alt 2",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712120_400w.jpg"
+      }
+    ]
   },
   "OP16-104": {
     "id": "OP16-104",
@@ -478,7 +575,7 @@
     "cost": 3,
     "power": 4000,
     "counter": 1000,
-    "imageUrl": "/cards/OP16-104.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696086_400w.jpg",
     "effectText": "—"
   },
   "OP16-106": {
@@ -491,7 +588,7 @@
     "cost": 4,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/OP16-106.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696088_400w.jpg",
     "effectText": "—"
   },
   "OP16-108": {
@@ -504,8 +601,15 @@
     "cost": 3,
     "power": 4000,
     "counter": 1000,
-    "imageUrl": "/cards/OP16-108.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696090_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alt 1",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696091_400w.jpg"
+      }
+    ]
   },
   "OP16-109": {
     "id": "OP16-109",
@@ -517,7 +621,7 @@
     "cost": 4,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/OP16-109.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696092_400w.jpg",
     "effectText": "—"
   },
   "OP16-110": {
@@ -530,7 +634,7 @@
     "cost": 4,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/OP16-110.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696093_400w.jpg",
     "effectText": "—"
   },
   "OP16-115": {
@@ -543,7 +647,7 @@
     "cost": 10,
     "power": 12000,
     "counter": 1000,
-    "imageUrl": "/cards/OP16-115.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696098_400w.jpg",
     "effectText": "—"
   },
   "OP16-116": {
@@ -556,8 +660,15 @@
     "cost": 5,
     "power": 6000,
     "counter": 1000,
-    "imageUrl": "/cards/OP16-116.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696099_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696100_400w.jpg"
+      }
+    ]
   },
   "OP16-119": {
     "id": "OP16-119",
@@ -569,7 +680,14 @@
     "cost": 4,
     "power": 5000,
     "counter": 1000,
-    "imageUrl": "/cards/OP16-119.png",
-    "effectText": "—"
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/695756_400w.jpg",
+    "effectText": "—",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/695757_400w.jpg"
+      }
+    ]
   }
 }

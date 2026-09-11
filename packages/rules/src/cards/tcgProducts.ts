@@ -1,0 +1,270 @@
+/** Auto-mapped OPTCG card number → TCGPlayer product ids (from TCGCSV). */
+export const TCG_PRODUCTS: Record<
+  string,
+  { productId: number; alts: { id: string; label: string; productId: number }[] }
+> = {
+  "ST01-001": {
+    "productId": 288228,
+    "alts": []
+  },
+  "ST01-003": {
+    "productId": 288230,
+    "alts": []
+  },
+  "ST01-004": {
+    "productId": 288232,
+    "alts": []
+  },
+  "ST01-006": {
+    "productId": 288235,
+    "alts": []
+  },
+  "ST01-008": {
+    "productId": 288237,
+    "alts": []
+  },
+  "ST01-009": {
+    "productId": 288238,
+    "alts": []
+  },
+  "ST01-014": {
+    "productId": 288243,
+    "alts": []
+  },
+  "OP17-001": {
+    "productId": 705925,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 705924
+      }
+    ]
+  },
+  "OP16-080": {
+    "productId": 694627,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 694628
+      }
+    ]
+  },
+  "OP09-118": {
+    "productId": 597064,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Manga Rare",
+        "productId": 597065
+      },
+      {
+        "id": "p2",
+        "label": "Alternate Art",
+        "productId": 597066
+      }
+    ]
+  },
+  "OP12-002": {
+    "productId": 643725,
+    "alts": []
+  },
+  "OP12-018": {
+    "productId": 643745,
+    "alts": []
+  },
+  "OP16-021": {
+    "productId": 696004,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 696005
+      }
+    ]
+  },
+  "OP16-118": {
+    "productId": 694932,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 694933
+      }
+    ]
+  },
+  "OP17-002": {
+    "productId": 712591,
+    "alts": []
+  },
+  "OP17-003": {
+    "productId": 708075,
+    "alts": []
+  },
+  "OP17-005": {
+    "productId": 711499,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 708077
+      },
+      {
+        "id": "p2",
+        "label": "Manga Rare",
+        "productId": 712083
+      }
+    ]
+  },
+  "OP17-008": {
+    "productId": 712594,
+    "alts": []
+  },
+  "OP17-015": {
+    "productId": 708073,
+    "alts": []
+  },
+  "OP17-017": {
+    "productId": 712600,
+    "alts": []
+  },
+  "OP17-019": {
+    "productId": 712602,
+    "alts": []
+  },
+  "ST23-001": {
+    "productId": 633761,
+    "alts": []
+  },
+  "ST30-004": {
+    "productId": 695422,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alt 1",
+        "productId": 695745
+      }
+    ]
+  },
+  "ST30-005": {
+    "productId": 695423,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alt 1",
+        "productId": 695424
+      }
+    ]
+  },
+  "EB04-058": {
+    "productId": 685329,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 685330
+      }
+    ]
+  },
+  "OP09-086": {
+    "productId": 597027,
+    "alts": []
+  },
+  "OP09-093": {
+    "productId": 597034,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Manga Rare",
+        "productId": 597035
+      },
+      {
+        "id": "p2",
+        "label": "Alternate Art",
+        "productId": 597036
+      }
+    ]
+  },
+  "OP09-095": {
+    "productId": 597039,
+    "alts": []
+  },
+  "OP09-096": {
+    "productId": 597040,
+    "alts": []
+  },
+  "OP09-099": {
+    "productId": 597043,
+    "alts": []
+  },
+  "OP12-112": {
+    "productId": 643859,
+    "alts": []
+  },
+  "OP14-108": {
+    "productId": 671438,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alt 1",
+        "productId": 672378
+      },
+      {
+        "id": "p2",
+        "label": "Alt 2",
+        "productId": 712120
+      }
+    ]
+  },
+  "OP16-104": {
+    "productId": 696086,
+    "alts": []
+  },
+  "OP16-106": {
+    "productId": 696088,
+    "alts": []
+  },
+  "OP16-108": {
+    "productId": 696090,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alt 1",
+        "productId": 696091
+      }
+    ]
+  },
+  "OP16-109": {
+    "productId": 696092,
+    "alts": []
+  },
+  "OP16-110": {
+    "productId": 696093,
+    "alts": []
+  },
+  "OP16-115": {
+    "productId": 696098,
+    "alts": []
+  },
+  "OP16-116": {
+    "productId": 696099,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 696100
+      }
+    ]
+  },
+  "OP16-119": {
+    "productId": 695756,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 695757
+      }
+    ]
+  }
+};
