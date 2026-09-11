@@ -8,7 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "tsx watch --include ../packages/rules/src/**/*.ts src/index.ts",
+    "dev": "tsx watch --include ../packages/rules/src/cards/**/*.ts --include ../packages/rules/src/engine.ts --include ../packages/rules/src/index.ts --include ../packages/rules/src/types.ts --include ../packages/rules/src/rng.ts src/index.ts",
     "start": "tsx src/index.ts",
     "test": "mocha --import=tsx/esm \"test/**/*.test.ts\" --exit --timeout 60000",
     "typecheck": "tsc -p tsconfig.json --noEmit"

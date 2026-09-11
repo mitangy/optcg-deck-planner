@@ -4,7 +4,7 @@ import {
   monitor,
   playground,
 } from "colyseus";
-import { getDefsDebugSnapshot } from "@optcg/rules";
+import { getDefsHealthSnapshot } from "@optcg/rules";
 import { DuelRoom } from "./rooms/DuelRoom.js";
 import { MatchmakerRoom } from "./rooms/MatchmakerRoom.js";
 
@@ -16,15 +16,12 @@ const server = defineServer({
 
   express: (app) => {
     app.get("/health", (_req, res) => {
-      // #region agent log
-      const defs = getDefsDebugSnapshot();
-      // #endregion
       res.json({
         ok: true,
         service: "optcg-game-server",
         rooms: ["duel", "ranked_queue"],
-        // Debug probe: whether Teach leader stub is loaded in this process.
-        defs,
+        // Catch stale deploys missing curated stubs (e.g. Teach OP16-080).
+        defs: getDefsHealthSnapshot(),
       });
     });
 

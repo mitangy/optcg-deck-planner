@@ -3,6 +3,7 @@ import {
   buildTestDeck,
   ensureDefsForPlayers,
   getCardDef,
+  getDefsHealthSnapshot,
   listCardDefs,
 } from "../cards/definitions.js";
 
@@ -90,6 +91,12 @@ describe("constructed seed stubs + auto-stub", () => {
     expect(teach.imageUrl).toBe(
       "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg",
     );
+  });
+
+  it("exposes OP16-080 in the health snapshot for deploy checks", () => {
+    const snap = getDefsHealthSnapshot();
+    expect(snap.hasOP16080).toBe(true);
+    expect(snap.defsCount).toBeGreaterThan(0);
   });
 
   it("does not ship Bandai hotlink URLs on curated imageUrl fields", () => {

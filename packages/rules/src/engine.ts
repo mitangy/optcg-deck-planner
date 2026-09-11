@@ -1,8 +1,6 @@
-import fs from "node:fs";
 import {
   ensureDefsForPlayers,
   getCardDef,
-  getDefsDebugSnapshot,
   normalizeCardDefId,
 } from "./cards/definitions.js";
 import { createSeededRng, type Rng } from "./rng.js";
@@ -301,27 +299,6 @@ export function createMatch(config: CreateMatchConfig): MatchState {
     leaderId: normalizeCardDefId(p.leaderId),
     deck: p.deck.map((id) => normalizeCardDefId(id)),
   })) as CreateMatchConfig["players"];
-  // #region agent log
-  try {
-    fs.appendFileSync(
-      "/opt/cursor/logs/debug.log",
-      `${JSON.stringify({
-        hypothesisId: "B",
-        location: "engine.ts:createMatch",
-        message: "createMatch before ensureDefs",
-        data: {
-          leaders: players.map((p) => p.leaderId),
-          deckLens: players.map((p) => p.deck.length),
-          sampleIds: players.flatMap((p) => [p.leaderId, ...p.deck.slice(0, 3)]),
-          snap: getDefsDebugSnapshot(),
-        },
-        timestamp: Date.now(),
-      })}\n`,
-    );
-  } catch {
-    /* ignore */
-  }
-  // #endregion
   // Constructed lists often include ids beyond the curated ST01/seed stubs.
   // Auto-register vanilla defs so matches can start instead of throwing
   // `Unknown card def: …` mid-create.
