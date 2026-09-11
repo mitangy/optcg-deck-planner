@@ -85,7 +85,8 @@ describe("resolveCardImageUrl with deck artPrefs", () => {
       ...deck,
       artPrefs: undefined,
     });
-    expect(standard).toBe("/cards/ST01-006.png");
+    // Default art is TCGplayer CDN after #92 (local /cards is fallback only).
+    expect(standard).toMatch(/tcgplayer-cdn\.tcgplayer\.com\/product\/\d+/);
     deleteDeck(deck.id);
   });
 });

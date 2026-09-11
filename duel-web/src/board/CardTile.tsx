@@ -1,5 +1,6 @@
-import { useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import { isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
 import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "./CardInspect";
 
@@ -39,12 +40,20 @@ export function CardTile({
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
   const [imgFailed, setImgFailed] = useState(false);
+  const [localFallback, setLocalFallback] = useState(false);
   const [inspectOpen, setInspectOpen] = useState(false);
   const [artTick, setArtTick] = useState(0);
   const imageUrl = useMemo(() => {
     void artTick;
-    return resolveCardImageUrl(defId);
-  }, [defId, artTick]);
+    if (localFallback) return localCardArtPath(defId);
+    return resolveCardImageUrl(defId, "thumb");
+  }, [defId, artTick, localFallback]);
+
+  useEffect(() => {
+    setImgFailed(false);
+    setLocalFallback(false);
+  }, [defId]);
+
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
   const shownPower = power ?? entry.power ?? null;
   const className = [
@@ -71,13 +80,22 @@ export function CardTile({
     onClick?.();
   }
 
+  function handleImgError() {
+    const primary = resolveCardImageUrl(defId, "thumb");
+    if (!localFallback && isTcgplayerCdnUrl(primary)) {
+      setLocalFallback(true);
+      return;
+    }
+    setImgFailed(true);
+  }
+
   const body = (
     <>
       {!imgFailed && imageUrl ? (
         <img
           src={imageUrl}
           alt={entry.name}
-          onError={() => setImgFailed(true)}
+          onError={handleImgError}
           onLoad={() => setArtTick((n) => n)}
         />
       ) : (

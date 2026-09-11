@@ -334,6 +334,10 @@ function upsertSeedDeck(id: string, name: string, list: string): SavedDeck {
 /** Seed the two constructed test decks (idempotent upsert). */
 export function ensureTestDecks(): SavedDeck[] {
   const a = upsertSeedDeck("test-op17-red", "Test OP17 red", TEST_OP17_LIST);
-  const b = upsertSeedDeck("test-op16-black", "Test OP16 black", TEST_OP16_LIST);
+  const b = upsertSeedDeck(
+    "test-op16-black",
+    "Test OP16 Teach (black)",
+    TEST_OP16_LIST,
+  );
   return [a, b];
 }

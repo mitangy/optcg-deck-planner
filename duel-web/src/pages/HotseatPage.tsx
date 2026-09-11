@@ -100,6 +100,8 @@ export function HotseatPage() {
   const bags = useRef<[SeatBag | null, SeatBag | null]>([null, null]);
   const [, bump] = useState(0);
   const bootGen = useRef(0);
+  /** When true, skip resume persist + socket park so Leave / Back can exit. */
+  const leavingRef = useRef(false);
   const activeSeatRef = useRef(activeSeat);
   activeSeatRef.current = activeSeat;
   const matchIdRef = useRef(matchId);
@@ -108,7 +110,7 @@ export function HotseatPage() {
   const title = useMemo(() => nav?.deckName ?? "Hotseat", [nav?.deckName]);
 
   function persistResume() {
-    if (!nav) return;
+    if (leavingRef.current || !nav) return;
     const [b0, b1] = bags.current;
     const t0 = b0?.client.getReconnectionToken();
     const t1 = b1?.client.getReconnectionToken();
@@ -423,6 +425,14 @@ export function HotseatPage() {
 
     return () => {
       cancelled = true;
+      // Intentional Leave: tear down immediately and do not re-park / re-resume.
+      if (leavingRef.current) {
+        matchIdRef.current = null;
+        bags.current = [null, null];
+        disposeParked(true);
+        for (const c of clients) void c.disconnect(true);
+        return;
+      }
       // Park sockets briefly so StrictMode remount can reclaim them without
       // rotating reconnection tokens. Real navigation/unload tears down after.
       const [b0, b1] = bags.current;
@@ -456,10 +466,14 @@ export function HotseatPage() {
   }
 
   async function leave() {
+    leavingRef.current = true;
     clearMatchResume();
+    matchIdRef.current = null;
     disposeParked(true);
+    const toClose = bags.current;
+    bags.current = [null, null];
     await Promise.allSettled(
-      bags.current.map((b) => (b ? b.client.disconnect(true) : Promise.resolve())),
+      toClose.map((b) => (b ? b.client.disconnect(true) : Promise.resolve())),
     );
     navigate("/", { replace: true });
   }
@@ -480,6 +494,12 @@ export function HotseatPage() {
   if (!ready || !bag?.view) {
     return (
       <div className="duel-root">
+        <div className="hotseat-bar">
+          <span>{resuming ? `Reconnecting (${title})…` : `Starting hotseat (${title})…`}</span>
+          <button type="button" className="btn btn-secondary" onClick={() => void leave()}>
+            Leave
+          </button>
+        </div>
         <div className="loading arena-loading">
           {resuming ? `Reconnecting both seats (${title})…` : `Starting hotseat (${title})…`}
         </div>
@@ -493,9 +513,14 @@ export function HotseatPage() {
         <span>
           Hotseat · controlling seat {activeSeat} · {title}
         </span>
-        <button type="button" className="btn btn-secondary" onClick={() => setActiveSeat(other)}>
-          Pass device → seat {other}
-        </button>
+        <div className="hotseat-bar-actions">
+          <button type="button" className="btn btn-secondary" onClick={() => setActiveSeat(other)}>
+            Pass device → seat {other}
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => void leave()}>
+            Leave match
+          </button>
+        </div>
       </div>
       <DuelBoard
         view={bag.view}

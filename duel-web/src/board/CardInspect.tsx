@@ -14,7 +14,7 @@ export function CardInspect({ defId, open, onClose }: Props) {
   const [artTick, setArtTick] = useState(0);
   const imageUrl = useMemo(() => {
     void artTick;
-    return resolveCardImageUrl(defId) ?? entry.imageUrl;
+    return resolveCardImageUrl(defId, "large") ?? entry.imageUrl;
   }, [defId, entry.imageUrl, artTick]);
 
   useEffect(() => {
