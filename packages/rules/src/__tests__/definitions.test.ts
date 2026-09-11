@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTestDeck,
+  ensureDefsForPlayers,
   getCardDef,
   listCardDefs,
 } from "../cards/definitions.js";
@@ -77,5 +78,28 @@ describe("Step 5 curated defs", () => {
       expect(listCardDefs().some((d) => d.id === id)).toBe(true);
       expect(getCardDef(id).type).not.toBe("leader");
     }
+  });
+});
+
+describe("constructed seed stubs + auto-stub", () => {
+  it("resolves OP16-080 Teach leader stub", () => {
+    const teach = getCardDef("OP16-080");
+    expect(teach.type).toBe("leader");
+    expect(teach.colors).toContain("black");
+    expect(teach.life).toBe(4);
+  });
+
+  it("auto-stubs unknown OPTCG ids via ensureDefsForPlayers", () => {
+    const id = "OP99-001";
+    expect(() => getCardDef(id)).toThrow(/Unknown card def/);
+    ensureDefsForPlayers([
+      { leaderId: "ST01-001", deck: [id, id] },
+      { leaderId: "OP16-080", deck: ["OP16-119", "OP16-119"] },
+    ]);
+    expect(getCardDef(id)).toMatchObject({
+      id,
+      type: "character",
+      power: 3000,
+    });
   });
 });

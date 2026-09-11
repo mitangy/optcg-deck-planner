@@ -1,4 +1,8 @@
-import { getCardDef } from "./cards/definitions.js";
+import {
+  ensureDefsForPlayers,
+  getCardDef,
+  normalizeCardDefId,
+} from "./cards/definitions.js";
 import { createSeededRng, type Rng } from "./rng.js";
 import type {
   ApplyContext,
@@ -291,6 +295,15 @@ function resolveDamage(state: MatchState, events: GameEvent[]): void {
 }
 
 export function createMatch(config: CreateMatchConfig): MatchState {
+  const players = config.players.map((p) => ({
+    leaderId: normalizeCardDefId(p.leaderId),
+    deck: p.deck.map((id) => normalizeCardDefId(id)),
+  })) as CreateMatchConfig["players"];
+  // Constructed lists often include ids beyond the curated ST01/seed stubs.
+  // Auto-register vanilla defs so matches can start instead of throwing
+  // `Unknown card def: …` mid-create.
+  ensureDefsForPlayers(players);
+
   const rng = createSeededRng(config.seed);
   const firstSeat: Seat = config.firstSeat ?? 0;
   const state: MatchState = {
@@ -307,8 +320,8 @@ export function createMatch(config: CreateMatchConfig): MatchState {
     lastEvents: [],
   };
   state.players = [
-    buildPlayer(state, config.players[0], rng),
-    buildPlayer(state, config.players[1], rng),
+    buildPlayer(state, players[0], rng),
+    buildPlayer(state, players[1], rng),
   ];
   return state;
 }

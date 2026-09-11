@@ -37,10 +37,34 @@ describe("validateImportedList", () => {
     expect(v.cards).toHaveLength(20);
   });
 
-  it("rejects unknown and over-4", () => {
+  it("rejects over-4 but allows uncurated OPTCG ids as stubs", () => {
     const v = validateImportedList("1xST01-001\n5xST01-003\n1xOP99-999");
     expect(v.ok).toBe(false);
-    expect(v.errors.some((e) => /max 4/i.test(e))).toBe(true);
-    expect(v.errors.some((e) => /OP99-999/.test(e))).toBe(true);
+    expect(v.errors.some((e) => /max 4|copies/i.test(e))).toBe(true);
+    expect(v.errors.some((e) => /OP99-999/.test(e))).toBe(false);
+    expect(v.warnings.some((w) => /OP99-999/.test(w))).toBe(true);
+  });
+
+  it("accepts Test OP16 black seed list including OP16-080", () => {
+    const v = validateImportedList(`1xOP16-080
+4xEB04-058
+3xOP09-086
+4xOP09-093
+2xOP09-095
+2xOP09-096
+4xOP09-099
+4xOP12-112
+2xOP14-108
+4xOP16-104
+2xOP16-106
+4xOP16-108
+4xOP16-109
+4xOP16-110
+1xOP16-115
+2xOP16-116
+4xOP16-119`);
+    expect(v.ok).toBe(true);
+    expect(v.leaderId).toBe("OP16-080");
+    expect(v.cards.length).toBeGreaterThanOrEqual(40);
   });
 });
