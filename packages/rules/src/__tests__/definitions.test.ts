@@ -86,10 +86,34 @@ describe("constructed seed stubs + auto-stub", () => {
     const teach = getCardDef("OP16-080");
     expect(teach.type).toBe("leader");
     expect(teach.colors).toContain("black");
+    expect(teach.colors).toContain("yellow");
     expect(teach.life).toBe(4);
     expect(teach.imageUrl).toBe(
       "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg",
     );
+  });
+
+  it("matches printed cost/name for OP16 art that previously had wrong stubs", () => {
+    expect(getCardDef("OP16-109")).toMatchObject({
+      name: "Doc Q",
+      type: "character",
+      cost: 1,
+      power: 0,
+      counter: 2000,
+      colors: ["yellow"],
+    });
+    expect(getCardDef("OP16-119")).toMatchObject({
+      name: "Marshall.D.Teach",
+      type: "character",
+      cost: 8,
+      power: 10000,
+      colors: ["yellow"],
+    });
+    expect(getCardDef("OP16-115")).toMatchObject({
+      name: "Black Vortex",
+      type: "event",
+      cost: 1,
+    });
   });
 
   it("does not ship Bandai hotlink URLs on curated imageUrl fields", () => {
