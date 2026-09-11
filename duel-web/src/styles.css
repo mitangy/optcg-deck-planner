@@ -186,12 +186,17 @@ button {
 }
 
 .card-inspect-handle {
-  width: 40px;
+  width: 48px;
   height: 4px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.28);
   margin: 0.15rem auto 0.1rem;
   flex-shrink: 0;
+  padding: 10px 24px;
+  box-sizing: content-box;
+  background-clip: content-box;
+  cursor: grab;
+  touch-action: none;
 }
 
 .card-inspect-toolbar {

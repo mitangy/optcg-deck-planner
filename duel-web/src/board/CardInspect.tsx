@@ -46,7 +46,8 @@ export function CardInspect({ defId, open, onClose }: Props) {
 
   function onSheetPointerDown(e: PointerEvent) {
     const target = e.target as HTMLElement;
-    if (target.closest(".card-inspect-scroll")) return;
+    // Only swipe-dismiss from the grab handle so Done/Close keep working.
+    if (!target.closest(".card-inspect-handle")) return;
     swipeStartY.current = e.clientY;
     swipeDeltaY.current = 0;
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
