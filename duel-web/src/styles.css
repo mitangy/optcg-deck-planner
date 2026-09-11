@@ -989,7 +989,7 @@ button.zone-pile {
   z-index: 70;
   background: rgba(4, 8, 12, 0.82);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem
     max(0.75rem, env(safe-area-inset-bottom));
@@ -1002,14 +1002,15 @@ button.zone-pile {
   gap: 0.75rem;
   background: var(--arena-panel);
   border: 1px solid var(--chrome);
-  border-radius: 16px 16px 12px 12px;
-  padding: 0.75rem 1rem 1rem;
+  border-radius: 14px;
+  padding: 0.85rem 1rem 1rem;
   max-width: 920px;
   width: 100%;
-  max-height: min(88dvh, 720px);
+  max-height: min(82dvh, 640px);
+  min-height: min(42dvh, 320px);
   overflow: hidden;
   cursor: default;
-  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
 }
 
 .trash-viewer-toolbar {
