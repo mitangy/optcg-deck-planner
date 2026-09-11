@@ -4,6 +4,7 @@ import {
   monitor,
   playground,
 } from "colyseus";
+import { getDefsHealthSnapshot } from "@optcg/rules";
 import { DuelRoom } from "./rooms/DuelRoom.js";
 import { MatchmakerRoom } from "./rooms/MatchmakerRoom.js";
 
@@ -19,6 +20,8 @@ const server = defineServer({
         ok: true,
         service: "optcg-game-server",
         rooms: ["duel", "ranked_queue"],
+        // Catch stale deploys missing curated stubs (e.g. Teach OP16-080).
+        defs: getDefsHealthSnapshot(),
       });
     });
 

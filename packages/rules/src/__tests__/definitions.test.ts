@@ -3,6 +3,7 @@ import {
   buildTestDeck,
   ensureDefsForPlayers,
   getCardDef,
+  getDefsHealthSnapshot,
   listCardDefs,
 } from "../cards/definitions.js";
 
@@ -82,14 +83,48 @@ describe("Step 5 curated defs", () => {
 });
 
 describe("constructed seed stubs + auto-stub", () => {
-  it("resolves OP16-080 Teach leader stub with TCGPlayer CDN art", () => {
+  it("resolves OP16-080 Teach leader with printed dual color + TCGPlayer CDN art", () => {
     const teach = getCardDef("OP16-080");
     expect(teach.type).toBe("leader");
-    expect(teach.colors).toContain("black");
+    expect(teach.name).toBe("Marshall.D.Teach");
+    expect(teach.colors).toEqual(["black", "yellow"]);
     expect(teach.life).toBe(4);
     expect(teach.imageUrl).toBe(
       "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg",
     );
+  });
+
+  it("exposes OP16-080 in the health snapshot for deploy checks", () => {
+    const snap = getDefsHealthSnapshot();
+    expect(snap.hasOP16080).toBe(true);
+    expect(snap.defsCount).toBeGreaterThan(0);
+  });
+
+  it("matches printed Teach-deck identities (CDN art keys align with names)", () => {
+    expect(getCardDef("OP16-104")).toMatchObject({
+      name: "Catarina Devon",
+      type: "character",
+      cost: 4,
+      power: 3000,
+    });
+    expect(getCardDef("OP16-109")).toMatchObject({
+      name: "Doc Q",
+      cost: 1,
+      power: 0,
+    });
+    expect(getCardDef("OP16-115")).toMatchObject({
+      name: "Black Vortex",
+      type: "event",
+      cost: 1,
+      eventTiming: "main",
+    });
+    expect(getCardDef("EB04-058")).toMatchObject({
+      name: "Borsalino",
+      blocker: true,
+      cost: 5,
+    });
+    expect(getCardDef("OP09-096").type).toBe("event");
+    expect(getCardDef("OP09-099").type).toBe("stage");
   });
 
   it("does not ship Bandai hotlink URLs on curated imageUrl fields", () => {
