@@ -1,4 +1,10 @@
-import { listAtlasIds, lookupCard } from "../cards/atlas";
+import {
+  hasAtlasEntry,
+  isOptcgCardId,
+  listAtlasIds,
+  lookupCard,
+  registerAtlasStub,
+} from "../cards/atlas";
 import { expandDecklist, parseDecklist, type ParsedDeckLine } from "./parseDecklist";
 
 const STORAGE_KEY = "optcg.duel.savedDecks.v1";
@@ -49,11 +55,29 @@ export function validateImportedList(text: string): DeckValidation {
   const known = knownIds();
   const leaders: string[] = [];
   const main: ParsedDeckLine[] = [];
+  const unknownSingletons: string[] = [];
+
   for (const line of lines) {
     if (!known.has(line.cardId)) {
-      errors.push(`${line.cardId} is not in the duel card pool yet`);
+      if (!isOptcgCardId(line.cardId)) {
+        errors.push(`${line.cardId} is not a valid OPTCG card id`);
+        continue;
+      }
+      warnings.push(
+        `${line.cardId} is not curated yet — will play as a vanilla stub`,
+      );
+      if (line.count > 4) {
+        errors.push(`${line.cardId} has ${line.count} copies (max 4)`);
+      }
+      // Defer type: curated leaders win; otherwise a single 1x unknown may be the leader.
+      if (line.count === 1) unknownSingletons.push(line.cardId);
+      else {
+        registerAtlasStub(line.cardId, "character");
+        main.push(line);
+      }
       continue;
     }
+
     if (line.count > 4) {
       errors.push(`${line.cardId} has ${line.count} copies (max 4)`);
     }
@@ -65,6 +89,29 @@ export function validateImportedList(text: string): DeckValidation {
       main.push(line);
     }
   }
+
+  if (leaders.length === 0 && unknownSingletons.length === 1) {
+    // e.g. `1xOP16-080` before the atlas caught up — treat as leader stub.
+    leaders.push(unknownSingletons[0]);
+    registerAtlasStub(unknownSingletons[0], "leader");
+    warnings.push(
+      `${unknownSingletons[0]} treated as Leader stub (not in curated atlas)`,
+    );
+  } else if (leaders.length === 0 && unknownSingletons.length > 1) {
+    errors.push(
+      `Multiple possible leaders among uncurated 1x cards: ${unknownSingletons.join(", ")}. Include a curated Leader or only one 1x line.`,
+    );
+  } else {
+    // Curated leader present — remaining unknown singletons are main-deck stubs.
+    for (const id of unknownSingletons) {
+      if (!leaders.includes(id)) {
+        registerAtlasStub(id, "character");
+        main.push({ cardId: id, count: 1 });
+      }
+    }
+  }
+
+  void hasAtlasEntry;
 
   if (leaders.length === 0) errors.push("Decklist must include a Leader (e.g. 1xST01-001)");
   if (leaders.length > 1) errors.push(`Multiple leaders: ${leaders.join(", ")}`);

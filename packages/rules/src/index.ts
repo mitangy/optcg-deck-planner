@@ -2,6 +2,10 @@ export { createSeededRng, type Rng } from "./rng.js";
 export {
   getCardDef,
   listCardDefs,
+  hasCardDef,
+  ensureCardDef,
+  ensureDefsForPlayers,
+  normalizeCardDefId,
   buildTestDeck,
   buildCardAtlas,
   DEFAULT_LEADER_ID,

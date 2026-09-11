@@ -493,8 +493,90 @@ const byId = new Map(defs.map((d) => [d.id, d]));
 
 export const DEFAULT_LEADER_ID: CardDefId = "ST01-001";
 
+/** Normalize OPTCG-style ids (trim + uppercase). */
+export function normalizeCardDefId(id: string): CardDefId {
+  return id.trim().toUpperCase();
+}
+
+export function hasCardDef(id: CardDefId): boolean {
+  return byId.has(normalizeCardDefId(id));
+}
+
+/**
+ * Register a vanilla stub when a deck references an id outside the curated set.
+ * Leaders need `asLeader: true` (life/power defaults); everything else is a
+ * generic Character so matches can still start for constructed lists.
+ */
+export function ensureCardDef(
+  id: CardDefId,
+  opts: { asLeader?: boolean } = {},
+): CardDef {
+  const key = normalizeCardDefId(id);
+  const existing = byId.get(key);
+  if (existing) {
+    if (opts.asLeader && existing.type !== "leader") {
+      throw new Error(
+        `Card ${key} is typed as ${existing.type} but was used as a Leader`,
+      );
+    }
+    return existing;
+  }
+
+  const stub: CardDef = opts.asLeader
+    ? {
+        id: key,
+        name: `${key} (stub)`,
+        type: "leader",
+        colors: ["red"],
+        cost: 0,
+        power: 5000,
+        life: 5,
+        imageUrl: localArt(key),
+        effectText: "—",
+      }
+    : {
+        id: key,
+        name: `${key} (stub)`,
+        type: "character",
+        colors: ["red"],
+        cost: 2,
+        power: 3000,
+        counter: 1000,
+        imageUrl: localArt(key),
+        effectText: "—",
+      };
+
+  defs.push(stub);
+  byId.set(key, stub);
+  return stub;
+}
+
+/** Ensure every leader + main-deck id has a CardDef (curated or auto-stub). */
+export function ensureDefsForPlayers(
+  players: ReadonlyArray<{ leaderId: CardDefId; deck: readonly CardDefId[] }>,
+): void {
+  const missing: string[] = [];
+  for (const p of players) {
+    const leaderId = normalizeCardDefId(p.leaderId);
+    if (!hasCardDef(leaderId)) missing.push(leaderId);
+    ensureCardDef(leaderId, { asLeader: true });
+    for (const raw of p.deck) {
+      const id = normalizeCardDefId(raw);
+      if (!hasCardDef(id)) missing.push(id);
+      ensureCardDef(id);
+    }
+  }
+  if (missing.length) {
+    // Dedupe for logs/tests; createMatch still proceeds with stubs.
+    const uniq = [...new Set(missing)];
+    console.warn(
+      `[optcg/rules] Auto-stubbed ${uniq.length} missing card def(s): ${uniq.join(", ")}`,
+    );
+  }
+}
+
 export function getCardDef(id: CardDefId): CardDef {
-  const d = byId.get(id);
+  const d = byId.get(normalizeCardDefId(id));
   if (!d) throw new Error(`Unknown card def: ${id}`);
   return d;
 }
