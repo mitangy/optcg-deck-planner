@@ -504,6 +504,17 @@ export function hasCardDef(id: CardDefId): boolean {
   return byId.has(normalizeCardDefId(id));
 }
 
+/** Ops snapshot for game-server `/health` (no secrets). */
+export function getDefsHealthSnapshot(): {
+  defsCount: number;
+  hasOP16080: boolean;
+} {
+  return {
+    defsCount: byId.size,
+    hasOP16080: byId.has("OP16-080"),
+  };
+}
+
 /**
  * Register a vanilla stub when a deck references an id outside the curated set.
  * Leaders need `asLeader: true` (life/power defaults); everything else is a
