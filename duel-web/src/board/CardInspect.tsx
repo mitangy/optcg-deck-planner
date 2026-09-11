@@ -7,7 +7,13 @@ import {
 } from "../decks/seatArtPrefs";
 import { setArtPref } from "../decks/storage";
 import { lookupCard } from "../cards/atlas";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+  type PointerEvent,
+} from "react";
 
 type Props = {
   defId: string;
@@ -19,7 +25,9 @@ type Props = {
   viewingSeat?: Seat;
 };
 
-/** Expanded card inspect: large art + ability text + alt-art picker. */
+const SWIPE_DISMISS_PX = 80;
+
+/** Expanded card inspect: sheet UI + ability text + alt-art picker. */
 export function CardInspect({
   defId,
   open,
@@ -43,6 +51,10 @@ export function CardInspect({
     );
   }, [defId, entry.imageUrl, artTick, ownerSeat, viewingSeat]);
 
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const swipeStartY = useRef<number | null>(null);
+  const swipeDeltaY = useRef(0);
+
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -52,22 +64,55 @@ export function CardInspect({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) {
+      swipeStartY.current = null;
+      swipeDeltaY.current = 0;
+      if (sheetRef.current) sheetRef.current.style.transform = "";
+    }
+  }, [open]);
+
   if (!open) return null;
 
   const alts = entry.altArts ?? [];
   const prefSeat = viewingSeat ?? ownerSeat;
   // Only allow editing artwork for cards you own (or unscoped local inspect).
   const canEditArt =
-    prefSeat != null &&
-    (ownerSeat == null || ownerSeat === prefSeat);
+    prefSeat != null && (ownerSeat == null || ownerSeat === prefSeat);
 
   function applyAlt(altId: string | null) {
     if (!canEditArt) return;
     if (prefSeat === 0 || prefSeat === 1) {
       setSeatArtPref(prefSeat, defId, altId);
     }
-    // Persist for next match seed (local player).
     setArtPref(defId, altId);
+  }
+
+  function onSheetPointerDown(e: PointerEvent) {
+    const target = e.target as HTMLElement;
+    // Only swipe-dismiss from the grab handle so Done/Close keep working.
+    if (!target.closest(".card-inspect-handle")) return;
+    swipeStartY.current = e.clientY;
+    swipeDeltaY.current = 0;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  }
+
+  function onSheetPointerMove(e: PointerEvent) {
+    if (swipeStartY.current == null) return;
+    const dy = e.clientY - swipeStartY.current;
+    swipeDeltaY.current = dy;
+    if (dy > 0 && sheetRef.current) {
+      sheetRef.current.style.transform = `translateY(${dy}px)`;
+    }
+  }
+
+  function onSheetPointerUp() {
+    if (swipeStartY.current == null) return;
+    const dy = swipeDeltaY.current;
+    swipeStartY.current = null;
+    swipeDeltaY.current = 0;
+    if (sheetRef.current) sheetRef.current.style.transform = "";
+    if (dy >= SWIPE_DISMISS_PX) onClose();
   }
 
   return (
@@ -78,60 +123,80 @@ export function CardInspect({
       aria-label={`${entry.name} details`}
       onClick={onClose}
     >
-      <div className="card-inspect" onClick={(e) => e.stopPropagation()}>
-        <div className="card-inspect-art">
-          {imageUrl ? (
-            <img src={imageUrl} alt={entry.name} className="card-inspect-img" />
-          ) : (
-            <div className="card-inspect-fallback">{entry.id}</div>
-          )}
-        </div>
-        <div className="card-inspect-meta">
+      <div
+        ref={sheetRef}
+        className="card-inspect"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={onSheetPointerDown}
+        onPointerMove={onSheetPointerMove}
+        onPointerUp={onSheetPointerUp}
+        onPointerCancel={onSheetPointerUp}
+      >
+        <div className="card-inspect-handle" aria-hidden />
+        <div className="card-inspect-toolbar">
           <h2 className="card-inspect-name">{entry.name}</h2>
-          <p className="card-inspect-id">
-            {entry.id} · {entry.type} · {entry.colors.join("/")} · cost {entry.cost}
-            {entry.power != null ? ` · ${entry.power} power` : ""}
-            {entry.counter != null ? ` · ${entry.counter} counter` : ""}
-            {entry.life != null ? ` · ${entry.life} life` : ""}
-            {entry.blocker ? " · Blocker" : ""}
-          </p>
-          <div className="card-inspect-effect">
-            <div className="card-inspect-effect-label">Ability</div>
-            <p>
-              {(() => {
-                const t = entry.effectText?.trim() ?? "";
-                if (!t || t === "—" || t === "-") return "No printed ability.";
-                return t;
-              })()}
-            </p>
+          <button type="button" className="btn btn-primary card-inspect-done" onClick={onClose}>
+            Done
+          </button>
+        </div>
+        <div className="card-inspect-scroll">
+          <div className="card-inspect-art">
+            {imageUrl ? (
+              <img src={imageUrl} alt={entry.name} className="card-inspect-img" />
+            ) : (
+              <div className="card-inspect-fallback">{entry.id}</div>
+            )}
           </div>
-          {alts.length > 0 && canEditArt ? (
-            <div className="card-inspect-alts">
-              <div className="card-inspect-effect-label">Artwork</div>
-              <div className="card-inspect-alt-row">
-                <button
-                  type="button"
-                  className="btn btn-secondary card-inspect-alt-btn"
-                  onClick={() => applyAlt(null)}
-                >
-                  Standard
-                </button>
-                {alts.map((a) => (
+          <div className="card-inspect-meta">
+            <p className="card-inspect-id">
+              {entry.id} · {entry.type} · {entry.colors.join("/")} · cost {entry.cost}
+              {entry.power != null ? ` · ${entry.power} power` : ""}
+              {entry.counter != null ? ` · ${entry.counter} counter` : ""}
+              {entry.life != null ? ` · ${entry.life} life` : ""}
+              {entry.blocker ? " · Blocker" : ""}
+            </p>
+            <div className="card-inspect-effect">
+              <div className="card-inspect-effect-label">Ability</div>
+              <p>
+                {(() => {
+                  const t = entry.effectText?.trim() ?? "";
+                  if (!t || t === "—" || t === "-") return "No printed ability.";
+                  return t;
+                })()}
+              </p>
+            </div>
+            {alts.length > 0 && canEditArt ? (
+              <div className="card-inspect-alts">
+                <div className="card-inspect-effect-label">Artwork</div>
+                <div className="card-inspect-alt-row">
                   <button
-                    key={a.id}
                     type="button"
                     className="btn btn-secondary card-inspect-alt-btn"
-                    onClick={() => applyAlt(a.id)}
+                    onClick={() => applyAlt(null)}
                   >
-                    {a.label}
+                    Standard
                   </button>
-                ))}
+                  {alts.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className="btn btn-secondary card-inspect-alt-btn"
+                      onClick={() => applyAlt(a.id)}
+                    >
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : null}
-          <button type="button" className="btn btn-primary" onClick={onClose}>
-            Close
-          </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn-secondary card-inspect-close-bottom"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>

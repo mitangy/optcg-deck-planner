@@ -1,9 +1,11 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type MouseEvent,
+  type PointerEvent,
 } from "react";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
@@ -14,6 +16,10 @@ import {
 } from "../decks/seatArtPrefs";
 import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "./CardInspect";
+import {
+  createClickDeferController,
+  createLongPressController,
+} from "./inspectGestures";
 
 const COLOR_CHIP: Record<string, string> = {
   red: "#c62828",
@@ -87,18 +93,80 @@ export function CardTile({
     .filter(Boolean)
     .join(" ");
 
-  function openInspect(e?: MouseEvent) {
+  const onClickRef = useRef(onClick);
+  onClickRef.current = onClick;
+
+  const openInspectRef = useRef(() => setInspectOpen(true));
+  openInspectRef.current = () => setInspectOpen(true);
+
+  const longPressRef = useRef<ReturnType<typeof createLongPressController> | null>(null);
+  if (longPressRef.current == null) {
+    longPressRef.current = createLongPressController({
+      onLongPress: () => openInspectRef.current(),
+    });
+  }
+
+  const clickDeferRef = useRef<ReturnType<typeof createClickDeferController> | null>(null);
+  if (clickDeferRef.current == null) {
+    clickDeferRef.current = createClickDeferController({
+      onSingleClick: () => onClickRef.current?.(),
+    });
+  }
+
+  useEffect(() => {
+    const lp = longPressRef.current;
+    const defer = clickDeferRef.current;
+    return () => {
+      lp?.dispose();
+      defer?.dispose();
+    };
+  }, []);
+
+  function openInspectFromChip(e?: MouseEvent) {
     e?.preventDefault();
     e?.stopPropagation();
+    clickDeferRef.current?.cancel();
     setInspectOpen(true);
   }
 
-  function handleClick() {
+  function handleClick(e: MouseEvent) {
+    // Long-press already opened inspect — suppress the synthetic click.
+    if (longPressRef.current?.consumeActivated()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (inspectOnClick) {
       setInspectOpen(true);
       return;
     }
-    onClick?.();
+    if (onClick) {
+      clickDeferRef.current?.onClick();
+    }
+  }
+
+  function handleDoubleClick(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    clickDeferRef.current?.cancel();
+    setInspectOpen(true);
+  }
+
+  function handlePointerDown(e: PointerEvent) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    longPressRef.current?.onPointerDown(e);
+  }
+
+  function handlePointerMove(e: PointerEvent) {
+    longPressRef.current?.onPointerMove(e);
+  }
+
+  function handlePointerUp(e: PointerEvent) {
+    longPressRef.current?.onPointerUp(e);
+  }
+
+  function handlePointerCancel(e: PointerEvent) {
+    longPressRef.current?.onPointerCancel(e);
   }
 
   function handleImgError() {
@@ -110,10 +178,18 @@ export function CardTile({
     setImgFailed(true);
   }
 
+  const interactive = Boolean(onClick || inspectOnClick);
+  const showInspectChip = !inspectOnClick;
+
   const body = (
     <>
       {!imgFailed && imageUrl ? (
-        <img src={imageUrl} alt={entry.name} onError={handleImgError} />
+        <img
+          src={imageUrl}
+          alt={entry.name}
+          onError={handleImgError}
+          draggable={false}
+        />
       ) : (
         <div className="card-fallback" style={{ backgroundColor: chip }}>
           {entry.id}
@@ -125,17 +201,20 @@ export function CardTile({
         <div className="name">{entry.name}</div>
         <div className="meta">{`C${entry.cost}`}</div>
       </div>
-      {!inspectOnClick ? (
-        // span (not button) — parent tile may already be a <button>
+      {showInspectChip ? (
+        // Quiet keyboard-accessible control — prefer double-click / long-press.
         <span
           role="button"
           tabIndex={0}
           className="card-inspect-chip"
-          title="Inspect card"
+          title="Inspect card (or double-click / long-press)"
           aria-label={`Inspect ${entry.name}`}
-          onClick={openInspect}
+          onClick={openInspectFromChip}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") openInspect(e as unknown as MouseEvent);
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              openInspectFromChip(e as unknown as MouseEvent);
+            }
           }}
         >
           i
@@ -144,14 +223,24 @@ export function CardTile({
     </>
   );
 
+  const pointerHandlers = {
+    onPointerDown: handlePointerDown,
+    onPointerMove: handlePointerMove,
+    onPointerUp: handlePointerUp,
+    onPointerCancel: handlePointerCancel,
+    onDoubleClick: handleDoubleClick,
+  };
+
   return (
     <>
-      {onClick || inspectOnClick ? (
-        <button type="button" className={className} onClick={handleClick}>
+      {interactive ? (
+        <button type="button" className={className} onClick={handleClick} {...pointerHandlers}>
           {body}
         </button>
       ) : (
-        <div className={className}>{body}</div>
+        <div className={className} {...pointerHandlers}>
+          {body}
+        </div>
       )}
       <CardInspect
         defId={defId}

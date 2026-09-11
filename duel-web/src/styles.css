@@ -135,60 +135,125 @@ button {
 
 .card-inspect-chip {
   position: absolute;
-  top: 3px;
-  right: 3px;
+  top: 2px;
+  right: 2px;
   z-index: 2;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  font-size: 0.65rem;
-  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.58rem;
+  font-weight: 600;
   line-height: 1;
   padding: 0;
   cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.card-tile:hover .card-inspect-chip,
+.card-inspect-chip:focus-visible {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.55);
 }
 
 .card-tile {
   position: relative;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .card-inspect-backdrop {
   position: fixed;
   inset: 0;
   z-index: 80;
-  background: rgba(4, 8, 12, 0.78);
+  background: rgba(4, 8, 12, 0.82);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 1rem;
+  padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+  cursor: pointer;
 }
 
 .card-inspect {
-  display: grid;
-  grid-template-columns: minmax(160px, 280px) minmax(200px, 340px);
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
   background: var(--arena-panel);
   border: 1px solid var(--chrome);
-  border-radius: 12px;
-  padding: 1rem;
-  max-width: 680px;
+  border-radius: 16px 16px 12px 12px;
+  padding: 0.65rem 1rem 1rem;
+  max-width: 720px;
   width: 100%;
-  max-height: min(90dvh, 720px);
+  max-height: min(92dvh, 760px);
+  overflow: hidden;
+  cursor: default;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.45);
+  transition: transform 0.12s ease-out;
+}
+
+.card-inspect-handle {
+  width: 48px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  margin: 0.15rem auto 0.1rem;
+  flex-shrink: 0;
+  padding: 10px 24px;
+  box-sizing: content-box;
+  background-clip: content-box;
+  cursor: grab;
+  touch-action: none;
+}
+
+.card-inspect-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.card-inspect-toolbar .card-inspect-name {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.card-inspect-done {
+  flex-shrink: 0;
+  min-height: 44px;
+  min-width: 5.5rem;
+  padding: 0.5rem 1.1rem;
+  font-weight: 700;
+}
+
+.card-inspect-scroll {
+  display: grid;
+  grid-template-columns: minmax(160px, 280px) minmax(200px, 1fr);
+  gap: 1rem;
   overflow: auto;
+  min-height: 0;
+  padding-bottom: 0.25rem;
+  overscroll-behavior: contain;
 }
 
 .card-inspect-art {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
 
 .card-inspect-img {
   width: 100%;
-  max-width: 260px;
+  max-width: 280px;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
@@ -208,6 +273,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+  min-width: 0;
 }
 
 .card-inspect-name {
@@ -250,9 +316,34 @@ button {
   font-size: 0.75rem;
 }
 
-@media (max-width: 640px) {
+.card-inspect-close-bottom {
+  align-self: stretch;
+  min-height: 44px;
+  margin-top: 0.25rem;
+}
+
+@media (min-width: 641px) {
+  .card-inspect-backdrop {
+    align-items: center;
+  }
+
   .card-inspect {
+    border-radius: 12px;
+  }
+
+  .card-inspect-handle {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .card-inspect-scroll {
     grid-template-columns: 1fr;
+  }
+
+  .card-inspect-img {
+    max-width: 220px;
+    margin: 0 auto;
   }
 }
 
