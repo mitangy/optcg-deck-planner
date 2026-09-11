@@ -145,7 +145,7 @@
   },
   "OP17-001": {
     "id": "OP17-001",
-    "name": "Monkey.D.Luffy (stub)",
+    "name": "Edward.Newgate",
     "type": "leader",
     "colors": [
       "red"
@@ -154,7 +154,7 @@
     "power": 5000,
     "life": 5,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/705925_400w.jpg",
-    "effectText": "—",
+    "effectText": "[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card from your hand: Up to 1 of your Leader or Characters gains +4000 power during this battle.",
     "altArts": [
       {
         "id": "p1",
@@ -165,16 +165,17 @@
   },
   "OP16-080": {
     "id": "OP16-080",
-    "name": "Marshall.D.Teach (stub)",
+    "name": "Marshall.D.Teach",
     "type": "leader",
     "colors": [
-      "black"
+      "black",
+      "yellow"
     ],
     "cost": 0,
     "power": 5000,
     "life": 4,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg",
-    "effectText": "—",
+    "effectText": "[Opponent's Turn] All of your Characters gain +1 cost.\n\n[On your Opponent's Attack] [Once Per Turn] You may trash 1 card with a [Trigger] from your hand: Change the target of that attack to this Leader or to one of your {Blackbeard Pirates} type Character cards.",
     "altArts": [
       {
         "id": "p1",
@@ -185,16 +186,15 @@
   },
   "OP09-118": {
     "id": "OP09-118",
-    "name": "Nami (stub)",
+    "name": "Gol.D.Roger",
     "type": "character",
     "colors": [
       "red"
     ],
-    "cost": 3,
-    "power": 4000,
-    "counter": 1000,
+    "cost": 10,
+    "power": 13000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597064_400w.jpg",
-    "effectText": "—",
+    "effectText": "[Rush] (This card can attack on the turn in which it is played.)\n\nWhen your opponent activates [Blocker], if either you or your opponent has 0 Life cards, you win the game.",
     "altArts": [
       {
         "id": "p1",
@@ -210,42 +210,38 @@
   },
   "OP12-002": {
     "id": "OP12-002",
-    "name": "Jinbe (stub)",
+    "name": "Edward.Newgate",
     "type": "character",
     "colors": [
       "red"
     ],
-    "cost": 4,
-    "power": 5000,
-    "counter": 1000,
+    "cost": 5,
+    "power": 6000,
+    "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/643725_400w.jpg",
     "effectText": "—"
   },
   "OP12-018": {
     "id": "OP12-018",
-    "name": "Sanji (stub)",
-    "type": "character",
+    "name": "Color of the Supreme King Haki",
+    "type": "event",
     "colors": [
       "red"
     ],
-    "cost": 4,
-    "power": 5000,
-    "counter": 1000,
+    "cost": 0,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/643745_400w.jpg",
-    "effectText": "—"
+    "effectText": "[Counter] Up to 1 of your Characters or [Silvers Rayleigh] gains +2000 power during this battle. Then, you may rest 1 of your DON!! cards. If you do, give your opponent's Leader and all of their Characters 1000 power during this turn."
   },
   "OP16-021": {
     "id": "OP16-021",
-    "name": "Zoro (stub)",
-    "type": "character",
+    "name": "Moby Dick",
+    "type": "stage",
     "colors": [
       "red"
     ],
-    "cost": 4,
-    "power": 5000,
-    "counter": 1000,
+    "cost": 1,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696004_400w.jpg",
-    "effectText": "—",
+    "effectText": "[On Play] If your Leader has the {Whitebeard Pirates} type, look at 3 cards from the top of your deck and add up to 1 card to your hand. Then, place the rest at the bottom of your deck in any order.\n\n\n[Activate:Main] You may trash this Stage: Give up to 1 rested DON!! card to your Leader or 1 of your Characters.",
     "altArts": [
       {
         "id": "p1",
@@ -256,16 +252,16 @@
   },
   "OP16-118": {
     "id": "OP16-118",
-    "name": "Franky (stub)",
+    "name": "Portgas.D.Ace",
     "type": "character",
     "colors": [
       "red"
     ],
-    "cost": 3,
-    "power": 4000,
+    "cost": 5,
+    "power": 6000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/694932_400w.jpg",
-    "effectText": "—",
+    "effectText": "The counter of all of your Character cards with 8000 power in your hand becomes +2000.\n\n[On Play]/[On K.O.] Look at 5 cards from the top of your deck; reveal up to 1 [Monkey.D.Luffy] or up to 1 card with a type including \"Whitebeard Pirates\" and add it to your hand. Then, place the rest a the bottom of your deck in any order.",
     "altArts": [
       {
         "id": "p1",
@@ -276,42 +272,39 @@
   },
   "OP17-002": {
     "id": "OP17-002",
-    "name": "Usopp (stub)",
+    "name": "Atmos",
     "type": "character",
     "colors": [
       "red"
     ],
-    "cost": 2,
-    "power": 3000,
-    "counter": 1000,
+    "cost": 4,
+    "power": 6000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712591_400w.jpg",
-    "effectText": "—"
+    "effectText": "[Opponent's Turn] This Character gains +3000 power."
   },
   "OP17-003": {
     "id": "OP17-003",
-    "name": "Chopper (stub)",
+    "name": "Izo",
     "type": "character",
     "colors": [
       "red"
     ],
-    "cost": 2,
-    "power": 3000,
-    "counter": 1000,
+    "cost": 4,
+    "power": 6000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/708075_400w.jpg",
-    "effectText": "—"
+    "effectText": "[Rush: Character]\n\n[On Play] If your Leader is [Edward.Newgate] or has the {Land of Wano} type, give up to 1 of your opponent's rested Characters -6000 power during this turn."
   },
   "OP17-005": {
     "id": "OP17-005",
-    "name": "Robin (stub)",
+    "name": "Edward.Newgate",
     "type": "character",
     "colors": [
       "red"
     ],
-    "cost": 3,
-    "power": 4000,
-    "counter": 1000,
+    "cost": 10,
+    "power": 12000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/711499_400w.jpg",
-    "effectText": "—",
+    "effectText": "If your opponent has a Character with 10000 power or more, give this card in your hand -4 cost.\n\n[On Play] Your monocolored Leader's base power becomes 8000 until the end of your opponent's next End Phase.",
     "altArts": [
       {
         "id": "p1",
@@ -327,20 +320,19 @@
   },
   "OP17-008": {
     "id": "OP17-008",
-    "name": "Brook (stub)",
+    "name": "Jozu",
     "type": "character",
     "colors": [
       "red"
     ],
-    "cost": 3,
-    "power": 4000,
-    "counter": 1000,
+    "cost": 6,
+    "power": 8000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712594_400w.jpg",
-    "effectText": "—"
+    "effectText": "[On Play] Your [Edward.Newgate] Leader's base power becomes 8000 until the end of your opponent's next End Phase."
   },
   "OP17-015": {
     "id": "OP17-015",
-    "name": "Luffy (stub)",
+    "name": "Marco",
     "type": "character",
     "colors": [
       "red"
@@ -349,59 +341,56 @@
     "power": 6000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/708073_400w.jpg",
-    "effectText": "—"
+    "effectText": "If one of your Characters would be removed from the field by your opponent's effect, you may K.O. this Character instead.\n\n[On K.O.] You may trash 1 card with a type including \"Whitebeard Pirates\" from your hand: Play this Character card from your trash."
   },
   "OP17-017": {
     "id": "OP17-017",
-    "name": "Yamato (stub)",
-    "type": "character",
+    "name": "Ga Ha Ha Ha!!",
+    "type": "event",
     "colors": [
       "red"
     ],
-    "cost": 4,
-    "power": 5000,
-    "counter": 1000,
+    "cost": 1,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712600_400w.jpg",
-    "effectText": "—"
+    "effectText": "[Counter] Up to 1 of your Leader with a type including \"Whitebeard Pirates\" or up to 1 of your Characters with a type including \"Whitebeard Pirates\" gains +2000 power during this battle. Then, give up to 1 of your opponent's Leader or Characters 2000 power during this turn."
   },
   "OP17-019": {
     "id": "OP17-019",
-    "name": "Sabo (stub)",
-    "type": "character",
+    "name": "I Don't Have Time to Chat with Snot-Nosed Brats",
+    "type": "event",
     "colors": [
       "red"
     ],
-    "cost": 5,
-    "power": 6000,
-    "counter": 1000,
+    "cost": 1,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712602_400w.jpg",
-    "effectText": "—"
+    "effectText": "[Main] Look at 5 cards from the top of your deck; reveal up to 1 card with a type including \"Whitebeard Pirates\" and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n\n[Trigger] Your Leader gains +1000 power during this turn."
   },
   "ST23-001": {
     "id": "ST23-001",
-    "name": "Bonney (stub)",
+    "name": "Uta",
     "type": "character",
     "colors": [
       "red"
     ],
-    "cost": 3,
+    "cost": 6,
     "power": 4000,
-    "counter": 1000,
+    "counter": 2000,
+    "blocker": true,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/633761_400w.jpg",
-    "effectText": "—"
+    "effectText": "If you have a Character with 10000 power or more, give this card in your hand −4 cost.\n[Blocker]"
   },
   "ST30-004": {
     "id": "ST30-004",
-    "name": "Kid (stub)",
+    "name": "Emporio.Ivankov",
     "type": "character",
     "colors": [
       "red"
     ],
-    "cost": 4,
-    "power": 5000,
+    "cost": 1,
+    "power": 2000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/695422_400w.jpg",
-    "effectText": "—",
+    "effectText": "[On Play] You may reveal 2 Character cards with 6000 power from your hand: Draw 3 cards and trash 2 cards from your hand.",
     "altArts": [
       {
         "id": "p1",
@@ -412,14 +401,14 @@
   },
   "ST30-005": {
     "id": "ST30-005",
-    "name": "Killer (stub)",
+    "name": "Jozu",
     "type": "character",
     "colors": [
       "red"
     ],
-    "cost": 3,
-    "power": 4000,
-    "counter": 1000,
+    "cost": 5,
+    "power": 6000,
+    "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/695423_400w.jpg",
     "effectText": "—",
     "altArts": [
@@ -432,16 +421,17 @@
   },
   "EB04-058": {
     "id": "EB04-058",
-    "name": "Kuzan (stub)",
+    "name": "Borsalino",
     "type": "character",
     "colors": [
-      "black"
+      "yellow"
     ],
     "cost": 5,
     "power": 6000,
     "counter": 1000,
+    "blocker": true,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/685329_400w.jpg",
-    "effectText": "—",
+    "effectText": "[Blocker]\n[On Play] If you have 2 or less Life cards, add up to 1 card from the top of your deck to the top of your Life cards.",
     "altArts": [
       {
         "id": "p1",
@@ -452,20 +442,7 @@
   },
   "OP09-086": {
     "id": "OP09-086",
-    "name": "Crocodile (stub)",
-    "type": "character",
-    "colors": [
-      "black"
-    ],
-    "cost": 5,
-    "power": 6000,
-    "counter": 1000,
-    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597027_400w.jpg",
-    "effectText": "—"
-  },
-  "OP09-093": {
-    "id": "OP09-093",
-    "name": "Mihawk (stub)",
+    "name": "Jesus Burgess",
     "type": "character",
     "colors": [
       "black"
@@ -473,8 +450,20 @@
     "cost": 4,
     "power": 5000,
     "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597027_400w.jpg",
+    "effectText": "This Character cannot be K.O.'d by your opponent's effects.\n\nIf your Leader has the \"Blackbeard Pirates\" type, this Character gains +1000 power for every 4 cards in your trash."
+  },
+  "OP09-093": {
+    "id": "OP09-093",
+    "name": "Marshall.D.Teach",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 10,
+    "power": 12000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597034_400w.jpg",
-    "effectText": "—",
+    "effectText": "[Blocker]\n\n[Activate: Main] [Once Per Turn] If your Leader has the \"Blackbeard Pirates\" type and this Character was played on this turn, negate the effect of up to 1 of your opponent's Leader during this turn. Then, negate the effect of up to 1 of your opponent's Characters and that Character cannot attack until the end of your opponent's next turn.",
     "altArts": [
       {
         "id": "p1",
@@ -490,68 +479,64 @@
   },
   "OP09-095": {
     "id": "OP09-095",
-    "name": "Perona (stub)",
+    "name": "Laffitte",
     "type": "character",
     "colors": [
       "black"
     ],
-    "cost": 2,
-    "power": 3000,
+    "cost": 1,
+    "power": 1000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597039_400w.jpg",
-    "effectText": "—"
+    "effectText": "[Activate: Main] You may rest 1 of your DON!! cards and this Character: Look at 5 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card and add it to your hand. Then, place the rest at the bottom of your deck in any order."
   },
   "OP09-096": {
     "id": "OP09-096",
-    "name": "Absalom (stub)",
-    "type": "character",
+    "name": "My Era...Begins!!",
+    "type": "event",
     "colors": [
       "black"
     ],
-    "cost": 3,
-    "power": 4000,
-    "counter": 1000,
+    "cost": 1,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597040_400w.jpg",
-    "effectText": "—"
+    "effectText": "[Main] Look at 3 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card other than [My Era...Begins!!] and add it to your hand. Then, trash the rest.\n\n[Trigger] Activate this card's [Main] effect."
   },
   "OP09-099": {
     "id": "OP09-099",
-    "name": "Moria (stub)",
-    "type": "character",
+    "name": "Fullalead",
+    "type": "stage",
     "colors": [
       "black"
     ],
-    "cost": 8,
-    "power": 9000,
-    "counter": 1000,
+    "cost": 1,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597043_400w.jpg",
-    "effectText": "—"
+    "effectText": "[Activate: Main] You may trash 1 card from your hand and rest this Stage: Look at 3 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card and add it to your hand. Then, place the rest at the bottom of your deck in any order."
   },
   "OP12-112": {
     "id": "OP12-112",
-    "name": "Teach (stub)",
+    "name": "Baby 5",
     "type": "character",
     "colors": [
-      "black"
+      "yellow"
     ],
     "cost": 4,
     "power": 5000,
-    "counter": 1000,
+    "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/643859_400w.jpg",
-    "effectText": "—"
+    "effectText": "[Trigger] If your Leader is multicolored, draw 2 cards."
   },
   "OP14-108": {
     "id": "OP14-108",
-    "name": "Shiryu (stub)",
+    "name": "Silvers Rayleigh",
     "type": "character",
     "colors": [
-      "black"
+      "yellow"
     ],
-    "cost": 5,
+    "cost": 6,
     "power": 6000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/671438_400w.jpg",
-    "effectText": "—",
+    "effectText": "[On Play] If your Leader is multicolored and your opponent has 3 or less Life cards, K.O. up to 1 of your opponent's Characters with 7000 base power or less.\n\n[Trigger] Activate this card's [On Play] effect.",
     "altArts": [
       {
         "id": "p1",
@@ -567,42 +552,41 @@
   },
   "OP16-104": {
     "id": "OP16-104",
-    "name": "Doc Q (stub)",
+    "name": "Catarina Devon",
     "type": "character",
     "colors": [
-      "black"
+      "yellow"
     ],
-    "cost": 3,
-    "power": 4000,
-    "counter": 1000,
+    "cost": 4,
+    "power": 3000,
+    "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696086_400w.jpg",
-    "effectText": "—"
+    "effectText": "[When Attacking] Select up to 1 of your opponent's Characters. This Character's base power becomes the same as the selected Character's power during this turn.\n\n[Trigger] Draw 1 card and play up to 1 {Blackbeard Pirates} type Character with a cost of 1 from your trash."
   },
   "OP16-106": {
     "id": "OP16-106",
-    "name": "Van Augur (stub)",
+    "name": "Sanjuan.Wolf",
     "type": "character",
     "colors": [
-      "black"
+      "yellow"
     ],
     "cost": 4,
     "power": 5000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696088_400w.jpg",
-    "effectText": "—"
+    "effectText": "[On K.O.] If your Leader has the {Blackbeard Pirates} type, draw 1 card, then up to 1 of your Leader or Character cards' base power becomes 7000 during this turn.\n\n[Trigger] Activate this card's [On K.O.] effect."
   },
   "OP16-108": {
     "id": "OP16-108",
-    "name": "Lafitte (stub)",
+    "name": "Shiryu",
     "type": "character",
     "colors": [
-      "black"
+      "yellow"
     ],
-    "cost": 3,
-    "power": 4000,
-    "counter": 1000,
+    "cost": 6,
+    "power": 8000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696090_400w.jpg",
-    "effectText": "—",
+    "effectText": "[On Play] You may trash 1 card from your hand: Add up to 1 {Blackbeard Pirates} type card with a cost of 6 or less from your trash to the top of your Life cards face-up.\n\n[Trigger] Draw 2 cards.",
     "altArts": [
       {
         "id": "p1",
@@ -613,55 +597,51 @@
   },
   "OP16-109": {
     "id": "OP16-109",
-    "name": "Jesus Burgess (stub)",
+    "name": "Doc Q",
     "type": "character",
     "colors": [
-      "black"
+      "yellow"
     ],
-    "cost": 4,
-    "power": 5000,
-    "counter": 1000,
+    "cost": 1,
+    "power": 0,
+    "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696092_400w.jpg",
-    "effectText": "—"
+    "effectText": "[On K.O.] If your Leader has the {Blackbeard Pirates} type, draw 1 card and K.O. up to 2 of your opponent's Characters with a cost of 1 or less.\n\n[Trigger] Activate this card's [On K.O.] effect."
   },
   "OP16-110": {
     "id": "OP16-110",
-    "name": "Catarina Devon (stub)",
+    "name": "Vasco Shot",
     "type": "character",
     "colors": [
-      "black"
+      "yellow"
     ],
-    "cost": 4,
-    "power": 5000,
+    "cost": 1,
+    "power": 2000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696093_400w.jpg",
-    "effectText": "—"
+    "effectText": "[On K.O.] Draw 1 card and rest up to 1 of your opponent's Characters with a cost of 6 or less.\n\n[Trigger] Activate this card's [On K.O.] effect."
   },
   "OP16-115": {
     "id": "OP16-115",
-    "name": "Blackbeard (stub)",
-    "type": "character",
+    "name": "Black Vortex",
+    "type": "event",
     "colors": [
-      "black"
+      "yellow"
     ],
-    "cost": 10,
-    "power": 12000,
-    "counter": 1000,
+    "cost": 1,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696098_400w.jpg",
-    "effectText": "—"
+    "effectText": "[Main] If your Leader has the {Blackbeard Pirates} type, add up to 1 card with a [Trigger] other than [Black Vortex] from your trash to your hand.\n\n[Trigger] Negate the effect of up to 1 of your opponent's Leader or Character cards during this turn."
   },
   "OP16-116": {
     "id": "OP16-116",
-    "name": "Avalo Pizarro (stub)",
-    "type": "character",
+    "name": "Zehahahahaha!",
+    "type": "event",
     "colors": [
-      "black"
+      "yellow"
     ],
-    "cost": 5,
-    "power": 6000,
-    "counter": 1000,
+    "cost": 8,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696099_400w.jpg",
-    "effectText": "—",
+    "effectText": "[Main] If you have 10 DON!! cards on your field, play up to 1 [Marshall.D.Teach] from your hand. Then, add up to 1 card from the top of your opponent's Life cards to the owner's hand.\n\n[Trigger] Draw 2 cards and trash 1 card from your hand.",
     "altArts": [
       {
         "id": "p1",
@@ -672,16 +652,15 @@
   },
   "OP16-119": {
     "id": "OP16-119",
-    "name": "Vasco Shot (stub)",
+    "name": "Marshall.D.Teach",
     "type": "character",
     "colors": [
-      "black"
+      "yellow"
     ],
-    "cost": 4,
-    "power": 5000,
-    "counter": 1000,
+    "cost": 8,
+    "power": 10000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/695756_400w.jpg",
-    "effectText": "—",
+    "effectText": "[On Play] Look at 3 cards from the top of your deck; add up to 1 card to the top of your Life cards. Then, place the rest at the bottom of your deck in any order.\n\n[Trigger] Negate the effect of up to 1 of your opponent's Characters during this turn. Then, K.O. up to 1 of your opponent's Characters with a cost of 5 or less.",
     "altArts": [
       {
         "id": "p1",
