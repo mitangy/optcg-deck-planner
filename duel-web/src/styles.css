@@ -121,6 +121,18 @@ button {
   flex-wrap: wrap;
 }
 
+.hotseat-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.resume-banner {
+  border: 1px solid var(--chrome);
+  background: rgba(40, 60, 45, 0.45);
+}
+
 .card-inspect-chip {
   position: absolute;
   top: 3px;
@@ -774,11 +786,16 @@ button {
   filter: saturate(1.05) brightness(1.05);
 }
 
+/* Keep the portrait bitmap and rotate the whole chip — swapping width/height
+   alone left upright art cropped inside a landscape frame. */
 .don-chip.rested {
-  width: 40px;
-  height: 28px;
+  width: 28px;
+  height: 40px;
   border-color: #6a7a55;
   object-fit: cover;
+  object-position: center top;
+  transform: rotate(90deg);
+  margin: 0 6px;
   filter: saturate(0.7) brightness(0.75);
   opacity: 0.92;
 }
