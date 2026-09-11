@@ -157,16 +157,25 @@ export function saveDeck(input: {
   name: string;
   leaderId: string;
   cards: string[];
+  /** Omit to keep existing prefs; pass `{}` / object to replace. */
   artPrefs?: Record<string, string>;
 }): SavedDeck {
   const decks = readAll();
   const id = input.id ?? crypto.randomUUID();
+  const existing = decks.find((d) => d.id === id);
+  let artPrefs: Record<string, string> | undefined;
+  if (input.artPrefs !== undefined) {
+    artPrefs =
+      Object.keys(input.artPrefs).length > 0 ? { ...input.artPrefs } : undefined;
+  } else if (existing?.artPrefs && Object.keys(existing.artPrefs).length > 0) {
+    artPrefs = { ...existing.artPrefs };
+  }
   const next: SavedDeck = {
     id,
     name: input.name.trim() || "Untitled deck",
     leaderId: input.leaderId,
     cards: [...input.cards],
-    artPrefs: input.artPrefs ? { ...input.artPrefs } : undefined,
+    artPrefs,
     updatedAt: Date.now(),
   };
   const idx = decks.findIndex((d) => d.id === id);
@@ -174,6 +183,26 @@ export function saveDeck(input: {
   else decks.push(next);
   writeAll(decks);
   return next;
+}
+
+/** Persist preferred alt art for one card on a saved deck (`null` = standard). */
+export function setDeckArtPref(
+  deckId: string,
+  defId: string,
+  altId: string | null,
+): SavedDeck | undefined {
+  const deck = getSavedDeck(deckId);
+  if (!deck) return undefined;
+  const artPrefs = { ...(deck.artPrefs ?? {}) };
+  if (!altId) delete artPrefs[defId];
+  else artPrefs[defId] = altId;
+  return saveDeck({
+    id: deck.id,
+    name: deck.name,
+    leaderId: deck.leaderId,
+    cards: deck.cards,
+    artPrefs,
+  });
 }
 
 export function deleteDeck(id: string) {

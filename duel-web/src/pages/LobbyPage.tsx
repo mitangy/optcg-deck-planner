@@ -302,6 +302,16 @@ export function LobbyPage() {
               Leader {selectedDeck.leaderId} · {selectedDeck.cards.length} main-deck cards
             </p>
           ) : null}
+          {selectedDeck ? (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={busy}
+              onClick={() => navigate(`/decks/${selectedDeck.id}/configure`)}
+            >
+              Configure deck
+            </button>
+          ) : null}
           {selectedDeck &&
           selectedDeck.id !== "default-st01" &&
           !selectedDeck.id.startsWith("test-") ? (
