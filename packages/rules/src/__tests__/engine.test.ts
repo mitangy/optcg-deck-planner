@@ -221,6 +221,15 @@ describe("privacy", () => {
     expect((view.opponent as { life?: unknown }).life).toBeUndefined();
   });
 
+  it("exposes printedPower and statusLabels on card views", () => {
+    const { state } = fresh(5);
+    const view = getPlayerView(state, 0);
+    expect(view.you.leader.printedPower).toBe(view.you.leader.power);
+    expect(Array.isArray(view.you.leader.statusLabels)).toBe(true);
+    state.players[0].leader.statusLabels = ["Stun"];
+    expect(getPlayerView(state, 0).you.leader.statusLabels).toContain("Stun");
+  });
+
   it("non-Rush characters are summoning sick; Rush can attack same turn", () => {
     let state = createMatch({
       seed: 7,

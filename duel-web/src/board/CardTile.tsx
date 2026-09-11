@@ -35,10 +35,13 @@ type Props = {
   defId: string;
   rested?: boolean;
   power?: number;
+  printedPower?: number | null;
   attachedDonCount?: number;
   compact?: boolean;
   selected?: boolean;
   frame?: "default" | "leader";
+  /** Status / CC chips (Rested, Summoning sick, Stun, …). */
+  statusLabels?: string[];
   /** Primary click (hand select / intent targeting). */
   onClick?: () => void;
   /** When true, click opens inspect instead of onClick (board cards). */
@@ -63,10 +66,12 @@ export function CardTile({
   defId,
   rested,
   power,
+  printedPower,
   attachedDonCount,
   compact,
   selected,
   frame = "default",
+  statusLabels,
   onClick,
   inspectOnClick = false,
   dragEnabled = false,
@@ -102,6 +107,16 @@ export function CardTile({
 
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
   const shownPower = power ?? entry.power ?? null;
+  const buffed =
+    shownPower != null &&
+    printedPower != null &&
+    shownPower !== printedPower;
+  const labels =
+    statusLabels?.length
+      ? statusLabels
+      : [
+          ...(rested ? ["Rested"] : []),
+        ];
 
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
@@ -236,8 +251,21 @@ export function CardTile({
           {entry.id}
         </div>
       )}
-      {shownPower != null ? <span className="power-badge">{shownPower}</span> : null}
+      {shownPower != null ? (
+        <span className={`power-badge${buffed ? " power-badge-buffed" : ""}`}>
+          {shownPower}
+        </span>
+      ) : null}
       {attachedDonCount ? <span className="don-badge">DON×{attachedDonCount}</span> : null}
+      {labels.length ? (
+        <div className="status-chips" aria-label="Card statuses">
+          {labels.map((label) => (
+            <span key={label} className="status-chip">
+              {label}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="card-caption">
         <div className="name">{entry.name}</div>
         <div className="meta">{`C${entry.cost}`}</div>

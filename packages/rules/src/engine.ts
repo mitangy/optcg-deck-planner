@@ -682,19 +682,41 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
   return out;
 }
 
+function isBattleDefender(state: MatchState, card: CardInstance): boolean {
+  const b = state.battle;
+  if (!b) return false;
+  if (b.target.kind === "leader") {
+    return card.id === state.players[otherSeat(b.attackerSeat)].leader.id;
+  }
+  return card.id === b.target.instanceId;
+}
+
 export function getPlayerView(state: MatchState, seat: Seat) {
   const you = state.players[seat];
   const oppSeat = otherSeat(seat);
   const opp = state.players[oppSeat];
-  const cv = (s: Seat, c: CardInstance) => ({
-    id: c.id,
-    defId: c.defId,
-    rested: c.rested,
-    attachedDonCount: c.attachedDonIds.length,
-    power: powerOf(state, s, c),
-    summoningSick: Boolean(c.summoningSick),
-    rush: Boolean(getCardDef(c.defId).rush),
-  });
+  const cv = (s: Seat, c: CardInstance) => {
+    const def = getCardDef(c.defId);
+    const statuses: string[] = [];
+    if (c.rested) statuses.push("Rested");
+    if (c.summoningSick) statuses.push("Summoning sick");
+    if (def.rush) statuses.push("Rush");
+    for (const label of c.statusLabels ?? []) {
+      if (!statuses.includes(label)) statuses.push(label);
+    }
+    return {
+      id: c.id,
+      defId: c.defId,
+      rested: c.rested,
+      attachedDonCount: c.attachedDonIds.length,
+      power: powerOf(state, s, c, isBattleDefender(state, c)),
+      printedPower: def.power ?? null,
+      summoningSick: Boolean(c.summoningSick),
+      rush: Boolean(def.rush),
+      /** Display labels: rested / sick / rush / future CC (stun, etc.). */
+      statusLabels: statuses,
+    };
+  };
   return {
     seat,
     you: {

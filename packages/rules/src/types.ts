@@ -57,6 +57,12 @@ export interface CardInstance {
    * Cleared in `beginTurn` for the active seat.
    */
   summoningSick?: boolean;
+  /**
+   * Optional crowd-control / effect labels (e.g. "Stun", "Unrestable",
+   * "Nullified"). Populated by card effects when implemented; clients render
+   * these as chips alongside rested / summoning-sick / rush.
+   */
+  statusLabels?: string[];
 }
 
 export interface DonInstance {

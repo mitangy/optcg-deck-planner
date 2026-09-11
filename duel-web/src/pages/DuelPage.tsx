@@ -21,7 +21,9 @@ export function DuelPage() {
     leave,
     clearError,
     role,
+    battleLog,
   } = useDuelSession();
+
 
   useEffect(() => {
     if (!connected && !view && !canReconnect && !matchId && !resuming) {
@@ -63,6 +65,7 @@ export function DuelPage() {
         errorBanner={errorBanner}
         matchOver={matchOver}
         spectator={role === "spectator" || Boolean(view?.spectator)}
+        battleLog={battleLog}
         onSendIntent={sendIntent}
         onLeave={async () => {
           await leave();

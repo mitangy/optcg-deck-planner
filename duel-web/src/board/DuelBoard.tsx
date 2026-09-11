@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol";
+import { BattleLogPanel } from "./BattleLogPanel";
+import type { BattleLogEntry } from "./battleLog";
 import { CardTile } from "./CardTile";
 import {
   canDragDon,
@@ -13,6 +15,7 @@ import {
 } from "./dragIntents";
 import { IntentBar } from "./IntentBar";
 import { SideField } from "./SideField";
+import { lookupCard } from "../cards/atlas";
 
 type Props = {
   view: PlayerView | null;
@@ -21,12 +24,45 @@ type Props = {
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
   spectator?: boolean;
+  battleLog?: BattleLogEntry[];
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
   onClearError: () => void;
 };
 
 const EMPTY_IDS = new Set<string>();
+
+function describeBattle(view: PlayerView): string {
+  const b = view.battle as {
+    attackerId: string;
+    target: { kind: string; instanceId?: string };
+  } | null;
+  if (!b) return "";
+  const find = (side: "you" | "opponent", id: string) => {
+    const pile = view[side];
+    if (pile.leader.id === id) return pile.leader;
+    return pile.characters.find((c) => c.id === id) ?? null;
+  };
+  const atk =
+    find("you", b.attackerId) ?? find("opponent", b.attackerId);
+  let def = null as ReturnType<typeof find>;
+  if (b.target.kind === "leader") {
+    // Defender is the non-attacker seat's leader
+    def =
+      view.you.leader.id === b.attackerId
+        ? view.opponent.leader
+        : view.you.leader;
+  } else {
+    const tid = b.target.instanceId ?? "";
+    def = find("you", tid) ?? find("opponent", tid);
+  }
+  const atkName = atk?.defId ? lookupCard(atk.defId).name : "Attacker";
+  const defName = def?.defId ? lookupCard(def.defId).name : "Defender";
+  const atkPow = atk?.power ?? "?";
+  const defPow = def?.power ?? "?";
+  return `Battle: ${atkName} (${atkPow}) → ${defName} (${defPow})`;
+}
+
 
 export function DuelBoard({
   view,
@@ -35,12 +71,14 @@ export function DuelBoard({
   errorBanner,
   matchOver,
   spectator = false,
+  battleLog = [],
   onSendIntent,
   onLeave,
   onClearError,
 }: Props) {
   const [handFilter, setHandFilter] = useState<number | null>(null);
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
+  const [logCollapsed, setLogCollapsed] = useState(false);
 
   const over = matchOver != null || view?.winner != null;
   const mySeat = seat ?? view?.seat ?? null;
@@ -151,7 +189,13 @@ export function DuelBoard({
         </button>
       ) : null}
 
-      <div className="playmat">
+            <BattleLogPanel
+        entries={battleLog}
+        collapsed={logCollapsed}
+        onToggle={() => setLogCollapsed((v) => !v)}
+      />
+
+<div className="playmat">
         <div className="playmat-inner">
           <div className="opp-hand-hint" aria-label={`Opponent hand ${opp.handCount}`}>
             <span className="opp-hand-label">Opp hand</span>
@@ -185,8 +229,8 @@ export function DuelBoard({
             {Boolean(view.battle || view.pendingTrigger) ? (
               <div className="prompt">
                 {view.pendingTrigger
-                  ? `Trigger pending: ${JSON.stringify(view.pendingTrigger)}`
-                  : `Battle: ${JSON.stringify(view.battle)}`}
+                  ? `Trigger pending (${lookupCard((view.pendingTrigger as { cardDefId: string }).cardDefId).name})`
+                  : describeBattle(view)}
               </div>
             ) : (
               <div className="midline-ornament" aria-hidden>
