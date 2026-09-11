@@ -77,7 +77,8 @@ export class DuelClient {
     const join = this.buildJoin(params);
     const create: DuelCreateOptions = {
       protocolVersion: PROTOCOL_VERSION,
-      autoSkipMulligan: true,
+      // Real matches use the rules mulligan step (Keep hand / redraw 5).
+      autoSkipMulligan: false,
       ...params.createOptions,
     };
 

@@ -45,10 +45,16 @@ export function DuelBoard({
   const over = matchOver != null || view?.winner != null;
   const mySeat = seat ?? view?.seat ?? null;
   const spectating = spectator || Boolean(view?.spectator);
+  const mulliganPhase = view?.phase === "mulligan";
+  const decidingMulligan =
+    Boolean(view) && !spectating && mulliganPhase && !view!.you.mulliganDone && !over;
   const yourTurn =
-    Boolean(view) && !spectating && view!.activeSeat === mySeat && !over;
+    Boolean(view) &&
+    !spectating &&
+    !over &&
+    (decidingMulligan || view!.activeSeat === mySeat);
   const intents = view?.legalIntents ?? [];
-  const dndEnabled = yourTurn && !spectating && !over;
+  const dndEnabled = yourTurn && !spectating && !over && !mulliganPhase;
   const costArea = view?.you.costArea ?? [];
 
   const draggableDonIds = useMemo(() => {
@@ -132,7 +138,11 @@ export function DuelBoard({
           <span>Turn {view.turnNumber}</span>
           <span className="hud-sep">·</span>
           <span>{spectating ? "Spectating" : `Seat ${mySeat}`}</span>
-          {yourTurn ? <span className="hud-turn-chip">YOUR TURN</span> : null}
+          {mulliganPhase && decidingMulligan ? (
+            <span className="hud-turn-chip">MULLIGAN</span>
+          ) : yourTurn ? (
+            <span className="hud-turn-chip">YOUR TURN</span>
+          ) : null}
           {spectating ? <span className="hud-turn-chip">SPECTATOR</span> : null}
         </div>
         <div className="hud-actions">
@@ -149,6 +159,24 @@ export function DuelBoard({
         <button type="button" className="error-banner" onClick={onClearError}>
           {errorBanner}
         </button>
+      ) : null}
+
+
+      {mulliganPhase && !spectating ? (
+        <div className="mulligan-banner" role="status">
+          {view.you.mulliganDone ? (
+            <>
+              <strong>Mulligan locked in.</strong> Waiting for the other seat
+              {view.opponent.mulliganDone ? "" : " — pass the device if this is hotseat"}.
+            </>
+          ) : (
+            <>
+              <strong>Opening hand.</strong> Keep these 5 cards, or mulligan to
+              shuffle them back and draw a new hand of 5. Life is dealt after both
+              players decide.
+            </>
+          )}
+        </div>
       ) : null}
 
       <div className="playmat">

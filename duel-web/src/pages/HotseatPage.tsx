@@ -384,7 +384,7 @@ export function HotseatPage() {
           ...auth0,
           preferredSeat: 0,
           deck: wire,
-          createOptions: { players: [wire, wire] },
+          createOptions: { players: [wire, wire], autoSkipMulligan: false },
         });
         if (!alive()) return;
         setMatchId(info.matchId);
@@ -560,6 +560,11 @@ export function HotseatPage() {
       <div className="hotseat-bar">
         <span>
           Hotseat · controlling seat {activeSeat} · {title}
+          {bag.view.phase === "mulligan"
+            ? bag.view.you.mulliganDone
+              ? " · mulligan done — pass device if needed"
+              : " · mulligan: keep or redraw"
+            : ""}
         </span>
         <div className="hotseat-bar-actions">
           <button type="button" className="btn btn-secondary" onClick={() => setActiveSeat(other)}>
