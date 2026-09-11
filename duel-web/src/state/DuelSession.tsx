@@ -25,6 +25,10 @@ import {
   resetAllSeatArtPrefs,
   setCosmeticsPublisher,
 } from "../decks/seatArtPrefs";
+import {
+  narrateEvents,
+  type BattleLogEntry,
+} from "../board/battleLog";
 
 type ConnectOpts = {
   serverUrl?: string;
@@ -54,6 +58,8 @@ type DuelSession = {
   seat: Seat | null;
   role: "player" | "spectator";
   view: PlayerView | null;
+  battleLog: BattleLogEntry[];
+  clearBattleLog: () => void;
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
   rating: number | null;
@@ -86,6 +92,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [seat, setSeat] = useState<Seat | null>(null);
   const [role, setRole] = useState<"player" | "spectator">("player");
   const [view, setView] = useState<PlayerView | null>(null);
+  const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
+  const viewRef = useRef<PlayerView | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [matchOver, setMatchOver] = useState<MatchOverMessage["result"] | null>(null);
   const [rating, setRating] = useState<number | null>(null);
@@ -116,7 +124,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setMatchId(id);
           setSeat(s);
           setRole(r);
+          viewRef.current = v;
           setView(v);
+          setBattleLog([]);
           setConnected(true);
           setCanReconnect(r === "player");
           setQueueing(false);
@@ -131,7 +141,16 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           const tok = client.getReconnectionToken();
           if (tok) persistToken(tok, id);
         },
-        onView: (v) => setView(v),
+        onView: (v) => {
+          viewRef.current = v;
+          setView(v);
+        },
+        onEvents: (events) => {
+          const turn = viewRef.current?.turnNumber ?? 1;
+          const youSeat = seatRef.current;
+          const lines = narrateEvents(events, { youSeat, turnNumber: turn });
+          if (lines.length) setBattleLog((prev) => [...prev, ...lines]);
+        },
         onCosmetics: (msg) => {
           replaceSeatArtPrefs(msg.seat, msg.artPrefs);
         },
@@ -160,6 +179,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       seat,
       role,
       view,
+      battleLog,
+      clearBattleLog: () => setBattleLog([]),
       errorBanner,
       matchOver,
       rating,
@@ -311,6 +332,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     seat,
     role,
     view,
+    battleLog,
     errorBanner,
     matchOver,
     rating,

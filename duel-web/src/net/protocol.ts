@@ -94,9 +94,14 @@ export type CardView = {
   defId: string;
   rested?: boolean;
   attachedDonCount?: number;
+  /** Live power (DON!!, stage, battle bonuses included). */
   power?: number;
+  /** Printed power before modifiers (optional). */
+  printedPower?: number | null;
   summoningSick?: boolean;
   rush?: boolean;
+  /** Rested / sick / rush / future CC labels (stun, unrestable, …). */
+  statusLabels?: string[];
 };
 
 export type PlayerView = {

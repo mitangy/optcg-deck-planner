@@ -57,6 +57,12 @@ export interface CardInstance {
    * Cleared in `beginTurn` for the active seat.
    */
   summoningSick?: boolean;
+  /**
+   * Optional crowd-control / effect labels (e.g. "Stun", "Unrestable",
+   * "Nullified"). Populated by card effects when implemented; clients render
+   * these as chips alongside rested / summoning-sick / rush.
+   */
+  statusLabels?: string[];
 }
 
 export interface DonInstance {
@@ -121,11 +127,30 @@ export type GameEvent =
   | { type: "card_played"; seat: Seat; defId: CardDefId; instanceId: InstanceId }
   | { type: "stage_replaced"; seat: Seat; trashedDefId: CardDefId }
   | { type: "character_trashed_for_space"; seat: Seat; defId: CardDefId }
-  | { type: "don_given"; seat: Seat; donId: InstanceId; targetId: InstanceId }
-  | { type: "attack_declared"; seat: Seat; attackerId: InstanceId; target: AttackTarget }
+  | {
+      type: "don_given";
+      seat: Seat;
+      donId: InstanceId;
+      targetId: InstanceId;
+      targetDefId: CardDefId;
+      newPower: number;
+    }
+  | {
+      type: "attack_declared";
+      seat: Seat;
+      attackerId: InstanceId;
+      target: AttackTarget;
+      attackerPower: number;
+      defenderPower: number;
+    }
   | { type: "blocked"; seat: Seat; blockerId: InstanceId }
   | { type: "counter_applied"; seat: Seat; defId: CardDefId; bonus: number }
-  | { type: "battle_resolved"; attackerWon: boolean }
+  | {
+      type: "battle_resolved";
+      attackerWon: boolean;
+      attackerPower: number;
+      defenderPower: number;
+    }
   | { type: "character_ko"; seat: Seat; defId: CardDefId }
   | { type: "life_taken"; seat: Seat; defId: CardDefId; toHand: boolean }
   | { type: "trigger_available"; seat: Seat; defId: CardDefId }

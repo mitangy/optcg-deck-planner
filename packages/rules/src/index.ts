@@ -30,6 +30,7 @@ export {
   assertInvariants,
   skipMulligans,
 } from "./engine.js";
+export { describeEvents } from "./describeEvents.js";
 export type {
   Seat,
   InstanceId,

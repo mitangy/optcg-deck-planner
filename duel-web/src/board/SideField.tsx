@@ -86,7 +86,9 @@ export function SideField({ side, data, compact, drag, ownerSeat, viewingSeat }:
                     compact={compact || mirrored}
                     rested={c.rested}
                     power={c.power}
+                    printedPower={c.printedPower}
                     attachedDonCount={c.attachedDonCount}
+                    statusLabels={c.statusLabels}
                     inspectOnClick
                     dropAttr={dropAttr}
                     dropHighlight={giveHl || trashHl}
@@ -113,7 +115,9 @@ export function SideField({ side, data, compact, drag, ownerSeat, viewingSeat }:
             compact={compact || mirrored}
             rested={data.leader.rested}
             power={data.leader.power}
+            printedPower={data.leader.printedPower}
             attachedDonCount={data.leader.attachedDonCount}
+            statusLabels={data.leader.statusLabels}
             frame="leader"
             inspectOnClick
             dropAttr={
