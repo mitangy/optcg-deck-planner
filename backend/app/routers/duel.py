@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import hmac
 import re
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -115,7 +117,26 @@ def mint_guest_token(
     if user is None:
         user = User(email=email, name=f"Guest {body.guest_id[:8]}", google_sub=sub)
         db.add(user)
-        db.flush()
+        try:
+            db.flush()
+            # Commit early so a concurrent mint that hits IntegrityError can
+            # re-select this row (SQLite won't expose an uncommitted insert).
+            db.commit()
+            db.refresh(user)
+        except IntegrityError:
+            # Concurrent StrictMode / double-mount mints for the same guest id.
+            db.rollback()
+            user = None
+            for _ in range(20):
+                user = db.scalar(select(User).where(User.email == email))
+                if user is not None:
+                    break
+                time.sleep(0.01)
+            if user is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Guest mint race; retry",
+                ) from None
     return _token_out(db, user, settings)
 
 
