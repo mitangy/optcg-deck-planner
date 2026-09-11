@@ -78,6 +78,15 @@ export type MatchOverMessage = {
   };
 };
 
+/** Cosmetics are non-authoritative display prefs (alt art per defId). */
+export type ArtPrefsMap = Record<string, string>;
+
+export type CosmeticsMessage = {
+  protocolVersion: ProtocolVersion;
+  seat: Seat;
+  artPrefs: ArtPrefsMap;
+};
+
 export function isProtocolVersion(v: unknown): v is ProtocolVersion {
   return v === PROTOCOL_VERSION;
 }
@@ -225,3 +234,37 @@ export function parseIntentMessage(raw: unknown): Intent {
   }
   return o.intent as Intent;
 }
+
+/** Parse client → server cosmetics update (artPrefs for the sender's seat). */
+export function parseCosmeticsMessage(raw: unknown): ArtPrefsMap {
+  if (!raw || typeof raw !== "object") {
+    throw Object.assign(new Error("cosmetics message body required"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  const o = raw as Record<string, unknown>;
+  if (!isProtocolVersion(o.protocolVersion)) {
+    throw Object.assign(new Error("Unsupported or missing protocolVersion"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  return asArtPrefsMap(o.artPrefs);
+}
+
+function asArtPrefsMap(raw: unknown): ArtPrefsMap {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw Object.assign(new Error("artPrefs object required"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  const out: ArtPrefsMap = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof k !== "string" || !k.trim()) continue;
+    if (typeof v !== "string" || !v.trim()) continue;
+    // Bound size so cosmetics cannot bloat room memory.
+    if (Object.keys(out).length >= 200) break;
+    out[k.trim()] = v.trim();
+  }
+  return out;
+}
+

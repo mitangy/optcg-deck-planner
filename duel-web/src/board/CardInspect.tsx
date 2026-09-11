@@ -1,21 +1,46 @@
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import {
+  getArtPrefsTick,
+  setSeatArtPref,
+  subscribeArtPrefs,
+  type Seat,
+} from "../decks/seatArtPrefs";
+import { setArtPref } from "../decks/storage";
 import { lookupCard } from "../cards/atlas";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 type Props = {
   defId: string;
   open: boolean;
   onClose: () => void;
+  /** Seat whose cards own this art (display). */
+  ownerSeat?: Seat;
+  /** Seat controlling the UI — alt picks update this seat's prefs. */
+  viewingSeat?: Seat;
 };
 
 /** Expanded card inspect: large art + ability text + alt-art picker. */
-export function CardInspect({ defId, open, onClose }: Props) {
+export function CardInspect({
+  defId,
+  open,
+  onClose,
+  ownerSeat,
+  viewingSeat,
+}: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
-  const [artTick, setArtTick] = useState(0);
+  const artTick = useSyncExternalStore(
+    subscribeArtPrefs,
+    getArtPrefsTick,
+    getArtPrefsTick,
+  );
   const imageUrl = useMemo(() => {
     void artTick;
-    return resolveCardImageUrl(defId) ?? entry.imageUrl;
-  }, [defId, entry.imageUrl, artTick]);
+    return (
+      resolveCardImageUrl(defId, {
+        ownerSeat: ownerSeat ?? viewingSeat,
+      }) ?? entry.imageUrl
+    );
+  }, [defId, entry.imageUrl, artTick, ownerSeat, viewingSeat]);
 
   useEffect(() => {
     if (!open) return;
@@ -29,6 +54,15 @@ export function CardInspect({ defId, open, onClose }: Props) {
   if (!open) return null;
 
   const alts = entry.altArts ?? [];
+  const prefSeat = viewingSeat ?? ownerSeat;
+
+  function applyAlt(altId: string | null) {
+    if (prefSeat === 0 || prefSeat === 1) {
+      setSeatArtPref(prefSeat, defId, altId);
+    }
+    // Persist for next match seed (local player).
+    setArtPref(defId, altId);
+  }
 
   return (
     <div
@@ -65,19 +99,14 @@ export function CardInspect({ defId, open, onClose }: Props) {
               })()}
             </p>
           </div>
-          {alts.length > 0 ? (
+          {alts.length > 0 && prefSeat != null ? (
             <div className="card-inspect-alts">
               <div className="card-inspect-effect-label">Artwork</div>
               <div className="card-inspect-alt-row">
                 <button
                   type="button"
                   className="btn btn-secondary card-inspect-alt-btn"
-                  onClick={() => {
-                    import("../decks/storage").then(({ setArtPref }) => {
-                      setArtPref(defId, null);
-                      setArtTick((n) => n + 1);
-                    });
-                  }}
+                  onClick={() => applyAlt(null)}
                 >
                   Standard
                 </button>
@@ -86,12 +115,7 @@ export function CardInspect({ defId, open, onClose }: Props) {
                     key={a.id}
                     type="button"
                     className="btn btn-secondary card-inspect-alt-btn"
-                    onClick={() => {
-                      import("../decks/storage").then(({ setArtPref }) => {
-                        setArtPref(defId, a.id);
-                        setArtTick((n) => n + 1);
-                      });
-                    }}
+                    onClick={() => applyAlt(a.id)}
                   >
                     {a.label}
                   </button>

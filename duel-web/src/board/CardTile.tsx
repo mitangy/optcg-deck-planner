@@ -1,5 +1,10 @@
-import { useMemo, useState, type MouseEvent } from "react";
+import { useMemo, useState, useSyncExternalStore, type MouseEvent } from "react";
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import {
+  getArtPrefsTick,
+  subscribeArtPrefs,
+  type Seat,
+} from "../decks/seatArtPrefs";
 import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "./CardInspect";
 
@@ -24,6 +29,10 @@ type Props = {
   onClick?: () => void;
   /** When true, click opens inspect instead of onClick (board cards). */
   inspectOnClick?: boolean;
+  /** Seat that owns this card instance (art resolution). */
+  ownerSeat?: Seat;
+  /** Seat controlling the UI (alt-art picker writes here). */
+  viewingSeat?: Seat;
 };
 
 export function CardTile({
@@ -36,15 +45,21 @@ export function CardTile({
   frame = "default",
   onClick,
   inspectOnClick = false,
+  ownerSeat,
+  viewingSeat,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
   const [imgFailed, setImgFailed] = useState(false);
   const [inspectOpen, setInspectOpen] = useState(false);
-  const [artTick, setArtTick] = useState(0);
+  const artTick = useSyncExternalStore(
+    subscribeArtPrefs,
+    getArtPrefsTick,
+    getArtPrefsTick,
+  );
   const imageUrl = useMemo(() => {
     void artTick;
-    return resolveCardImageUrl(defId);
-  }, [defId, artTick]);
+    return resolveCardImageUrl(defId, { ownerSeat });
+  }, [defId, artTick, ownerSeat]);
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
   const shownPower = power ?? entry.power ?? null;
   const className = [
@@ -78,7 +93,6 @@ export function CardTile({
           src={imageUrl}
           alt={entry.name}
           onError={() => setImgFailed(true)}
-          onLoad={() => setArtTick((n) => n)}
         />
       ) : (
         <div className="card-fallback" style={{ backgroundColor: chip }}>
@@ -122,10 +136,9 @@ export function CardTile({
       <CardInspect
         defId={defId}
         open={inspectOpen}
-        onClose={() => {
-          setInspectOpen(false);
-          setArtTick((n) => n + 1);
-        }}
+        onClose={() => setInspectOpen(false)}
+        ownerSeat={ownerSeat}
+        viewingSeat={viewingSeat ?? ownerSeat}
       />
     </>
   );

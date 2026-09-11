@@ -19,6 +19,12 @@ import type {
   PlayerView,
   Seat,
 } from "../net/protocol";
+import {
+  initSeatArtPrefsFromStorage,
+  replaceSeatArtPrefs,
+  resetAllSeatArtPrefs,
+  setCosmeticsPublisher,
+} from "../decks/seatArtPrefs";
 
 type ConnectOpts = {
   serverUrl?: string;
@@ -115,10 +121,20 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setCanReconnect(r === "player");
           setQueueing(false);
           setResuming(false);
+          if (r === "player" && (s === 0 || s === 1)) {
+            setCosmeticsPublisher((publishSeat, prefs) => {
+              if (publishSeat !== seatRef.current) return;
+              client.sendCosmetics(prefs);
+            });
+            initSeatArtPrefsFromStorage(s);
+          }
           const tok = client.getReconnectionToken();
           if (tok) persistToken(tok, id);
         },
         onView: (v) => setView(v),
+        onCosmetics: (msg) => {
+          replaceSeatArtPrefs(msg.seat, msg.artPrefs);
+        },
         onError: (err) => setErrorBanner(`${err.code}: ${err.message}`),
         onMatchOver: (msg) => {
           setMatchOver(msg.result);
@@ -268,6 +284,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       },
       async leave() {
         clearMatchResume();
+        setCosmeticsPublisher(null);
+        resetAllSeatArtPrefs();
         await client.disconnect(true);
         setConnected(false);
         setQueueing(false);

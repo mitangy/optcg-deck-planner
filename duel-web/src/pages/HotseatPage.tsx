@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
+import {
+  initSeatArtPrefsFromStorage,
+  resetAllSeatArtPrefs,
+  setCosmeticsPublisher,
+} from "../decks/seatArtPrefs";
 import { mintGuestGameToken } from "../net/api";
 import { DuelClient } from "../net/duelClient";
 import {
@@ -442,9 +447,22 @@ export function HotseatPage() {
 
   useEffect(() => {
     if (!ready) return;
+    // Shared in-process maps — no cosmetics network relay for hotseat.
+    setCosmeticsPublisher(null);
+    initSeatArtPrefsFromStorage(0);
+    initSeatArtPrefsFromStorage(1);
     persistResume();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSeat, ready]);
+
+  useEffect(() => {
+    return () => {
+      if (!parkedHotseat) {
+        setCosmeticsPublisher(null);
+        resetAllSeatArtPrefs();
+      }
+    };
+  }, []);
 
   if (!nav) return null;
 
