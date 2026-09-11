@@ -1,6 +1,8 @@
+import { useState } from "react";
 import type { CardView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
 import { DonStrip } from "./DonStrip";
+import { TrashViewer, trashNewestFirst } from "./TrashViewer";
 import { ZonePile } from "./ZonePile";
 
 type SideData = {
@@ -45,6 +47,9 @@ type Props = {
 export function SideField({ side, data, compact, drag, ownerSeat, viewingSeat }: Props) {
   const mirrored = side === "opp";
   const interactive = side === "you" && drag;
+  const [trashOpen, setTrashOpen] = useState(false);
+  const trashTop = data.trash.length ? data.trash[data.trash.length - 1] : null;
+  const trashTitle = side === "you" ? "Your trash" : "Opponent trash";
 
   return (
     <section className={`side-field side-${side}${mirrored ? " mirrored" : ""}`}>
@@ -168,9 +173,26 @@ export function SideField({ side, data, compact, drag, ownerSeat, viewingSeat }:
         </div>
 
         <div className="zone-trash">
-          <ZonePile label="Trash" count={data.trash.length} variant="trash" />
+          <ZonePile
+            label="Trash"
+            count={data.trash.length}
+            variant="trash"
+            topDefId={trashTop}
+            ownerSeat={ownerSeat}
+            onOpen={() => setTrashOpen(true)}
+          />
         </div>
       </div>
+
+      {trashOpen ? (
+        <TrashViewer
+          title={trashTitle}
+          cards={trashNewestFirst(data.trash)}
+          onClose={() => setTrashOpen(false)}
+          ownerSeat={ownerSeat}
+          viewingSeat={viewingSeat}
+        />
+      ) : null}
     </section>
   );
 }

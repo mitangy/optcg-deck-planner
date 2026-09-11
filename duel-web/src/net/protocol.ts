@@ -135,6 +135,7 @@ export type PlayerView = {
     costAreaCount: number;
     activeDonCount: number;
     turnsStarted?: number;
+    mulliganDone?: boolean;
   };
   activeSeat: Seat;
   phase: string;
@@ -292,7 +293,7 @@ function handName(view: PlayerView | undefined, handIndex: unknown): string {
 export function intentLabel(intent: Intent, view?: PlayerView): string {
   switch (intent.type) {
     case "mulligan":
-      return intent.doMulligan ? "Mulligan" : "Keep hand";
+      return intent.doMulligan ? "Mulligan (shuffle & redraw 5)" : "Keep opening hand";
     case "play_card":
       return `Play ${handName(view, intent.handIndex)}`;
     case "give_don":

@@ -102,7 +102,7 @@ export class MatchmakerRoom extends Room {
         try {
           const room = await matchMaker.createRoom("duel", {
             protocolVersion: PROTOCOL_VERSION,
-            autoSkipMulligan: true,
+            autoSkipMulligan: false,
             ranked: true,
             seatUserIds: [a.userId, b.userId],
           });
