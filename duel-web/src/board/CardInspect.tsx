@@ -38,6 +38,7 @@ export function CardInspect({
     return (
       resolveCardImageUrl(defId, {
         ownerSeat: ownerSeat ?? viewingSeat,
+        size: "large",
       }) ?? entry.imageUrl
     );
   }, [defId, entry.imageUrl, artTick, ownerSeat, viewingSeat]);
@@ -55,8 +56,13 @@ export function CardInspect({
 
   const alts = entry.altArts ?? [];
   const prefSeat = viewingSeat ?? ownerSeat;
+  // Only allow editing artwork for cards you own (or unscoped local inspect).
+  const canEditArt =
+    prefSeat != null &&
+    (ownerSeat == null || ownerSeat === prefSeat);
 
   function applyAlt(altId: string | null) {
+    if (!canEditArt) return;
     if (prefSeat === 0 || prefSeat === 1) {
       setSeatArtPref(prefSeat, defId, altId);
     }
@@ -99,7 +105,7 @@ export function CardInspect({
               })()}
             </p>
           </div>
-          {alts.length > 0 && prefSeat != null ? (
+          {alts.length > 0 && canEditArt ? (
             <div className="card-inspect-alts">
               <div className="card-inspect-effect-label">Artwork</div>
               <div className="card-inspect-alt-row">

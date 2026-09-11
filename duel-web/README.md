@@ -91,7 +91,7 @@ Do **not** edit the repo-root `vercel.json` (planner).
 
 Official card names and Bandai cardlist art URLs are for **private prototype testing only**. Public production needs rights / feature flags (Step 5).
 
-The curated atlas in this package uses **bundled** arts under `public/cards/` (Bandai CDN blocks cross-site embedding with CORP). Regenerate from `@optcg/rules` then re-mirror files into `public/cards/` when expanding the set.
+The curated atlas prefers **TCGPlayer CDN** URLs (`tcgplayer-cdn.tcgplayer.com/product/{id}_400w.jpg`), same as the deck planner. Regenerate with `cd packages/rules && npm run export-atlas` (also writes `duel-web/src/assets/tcgProducts.json` for runtime stubs). Local `/cards/` mirrors remain a fallback when no product id is mapped. Bandai cardlist hotlinks are blocked in browsers (CORP) and must not ship in atlas `imageUrl`.
 
 ## Tests
 

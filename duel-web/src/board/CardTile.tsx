@@ -1,5 +1,12 @@
-import { useMemo, useState, useSyncExternalStore, type MouseEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type MouseEvent,
+} from "react";
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import { isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
 import {
   getArtPrefsTick,
   subscribeArtPrefs,
@@ -50,6 +57,7 @@ export function CardTile({
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
   const [imgFailed, setImgFailed] = useState(false);
+  const [localFallback, setLocalFallback] = useState(false);
   const [inspectOpen, setInspectOpen] = useState(false);
   const artTick = useSyncExternalStore(
     subscribeArtPrefs,
@@ -58,8 +66,15 @@ export function CardTile({
   );
   const imageUrl = useMemo(() => {
     void artTick;
-    return resolveCardImageUrl(defId, { ownerSeat });
-  }, [defId, artTick, ownerSeat]);
+    if (localFallback) return localCardArtPath(defId);
+    return resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
+  }, [defId, artTick, localFallback, ownerSeat]);
+
+  useEffect(() => {
+    setImgFailed(false);
+    setLocalFallback(false);
+  }, [defId]);
+
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
   const shownPower = power ?? entry.power ?? null;
   const className = [
@@ -86,14 +101,19 @@ export function CardTile({
     onClick?.();
   }
 
+  function handleImgError() {
+    const primary = resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
+    if (!localFallback && isTcgplayerCdnUrl(primary)) {
+      setLocalFallback(true);
+      return;
+    }
+    setImgFailed(true);
+  }
+
   const body = (
     <>
       {!imgFailed && imageUrl ? (
-        <img
-          src={imageUrl}
-          alt={entry.name}
-          onError={() => setImgFailed(true)}
-        />
+        <img src={imageUrl} alt={entry.name} onError={handleImgError} />
       ) : (
         <div className="card-fallback" style={{ backgroundColor: chip }}>
           {entry.id}
