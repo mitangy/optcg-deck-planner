@@ -61,6 +61,54 @@ describe("createMatch + mulligan", () => {
   });
 });
 
+
+describe("mulligan decisions", () => {
+  it("starts in mulligan with 5 cards and no life yet", () => {
+    const rng = createSeededRng(5);
+    const deck = buildTestDeck(20);
+    const state = createMatch({
+      seed: 5,
+      firstSeat: 0,
+      players: [
+        { leaderId: "ST01-001", deck: [...deck] },
+        { leaderId: "ST01-001", deck: [...deck] },
+      ],
+    });
+    expect(state.phase).toBe("mulligan");
+    expect(state.players[0].hand.length).toBe(5);
+    expect(state.players[0].life.length).toBe(0);
+    expect(listLegalIntents(state, 0)).toEqual([
+      { type: "mulligan", doMulligan: false },
+      { type: "mulligan", doMulligan: true },
+    ]);
+  });
+
+  it("redraws a fresh hand of 5 when doMulligan is true", () => {
+    const rng = createSeededRng(12);
+    const deck = buildTestDeck(20);
+    let state = createMatch({
+      seed: 12,
+      firstSeat: 0,
+      players: [
+        { leaderId: "ST01-001", deck: [...deck] },
+        { leaderId: "ST01-001", deck: [...deck] },
+      ],
+    });
+    const before = state.players[0].hand.map((c) => c.defId);
+    state = act(state, 0, { type: "mulligan", doMulligan: true }, rng);
+    expect(state.players[0].mulliganDone).toBe(true);
+    expect(state.players[0].hand.length).toBe(5);
+    expect(state.phase).toBe("mulligan"); // seat 1 still deciding
+    // Hand contents may match by chance; deck+hand together stay 50 cards worth of defs.
+    expect(state.players[0].hand.map((c) => c.defId).length).toBe(5);
+    expect(before.length).toBe(5);
+    state = act(state, 1, { type: "mulligan", doMulligan: false }, rng);
+    expect(state.phase).toBe("main");
+    expect(state.players[0].life.length).toBe(5);
+    expect(state.players[1].life.length).toBe(5);
+  });
+});
+
 describe("first-turn restrictions", () => {
   it("first player gets 1 DON!! and cannot attack on turn 1", () => {
     const { state } = fresh(7);

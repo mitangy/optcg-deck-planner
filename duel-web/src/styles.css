@@ -1684,3 +1684,33 @@ img.zone-pile-face {
     min-height: 110px;
   }
 }
+
+
+/* —— Mulligan —— */
+.mulligan-banner {
+  margin: 0.5rem 0.75rem 0;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(201, 162, 39, 0.16), rgba(20, 28, 24, 0.9));
+  color: var(--ink);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.mulligan-banner strong {
+  color: var(--chrome-bright);
+}
+
+.intent-bar-mulligan h2 {
+  color: var(--chrome-bright);
+}
+
+.intent-btn-keep {
+  background: linear-gradient(180deg, #3f7a54, var(--ok)) !important;
+}
+
+.intent-btn-mulligan {
+  background: linear-gradient(180deg, #8a6238, #c48a4a) !important;
+  border-color: #e0b07055 !important;
+}

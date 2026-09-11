@@ -240,7 +240,7 @@ export function CardTile({
       {attachedDonCount ? <span className="don-badge">DON×{attachedDonCount}</span> : null}
       <div className="card-caption">
         <div className="name">{entry.name}</div>
-        <div className="meta">{`C${entry.cost}`}</div>
+        <div className="meta">{`Cost ${entry.cost}`}</div>
       </div>
       {showInspectChip ? (
         // Quiet keyboard-accessible control — prefer double-click / long-press.

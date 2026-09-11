@@ -114,6 +114,53 @@ describe("DuelRoom", () => {
     for (const id of ids0) assert.equal(dump1.includes(id), false);
   });
 
+  it("mulligan phase keeps both seats until Keep/Mulligan intents resolve", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 99,
+      autoSkipMulligan: false,
+    });
+
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+
+    const c0 = await colyseus.connectTo(room, joinOpts("m0", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("m1", 1));
+    attach(c1, bags[1]);
+
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    assert.equal(bags[0].welcome!.phase, "mulligan");
+    assert.equal(bags[0].welcome!.you.lifeCount, 0);
+    assert.equal(bags[0].welcome!.you.hand.length, 5);
+    assert.ok(
+      bags[0].welcome!.legalIntents.some(
+        (i) => i.type === "mulligan" && i.doMulligan === true,
+      ),
+    );
+
+    c0.send("intent", {
+      protocolVersion: PROTOCOL_VERSION,
+      intent: { type: "mulligan", doMulligan: true },
+    });
+    await waitUntil(() => bags[0].views.some((v) => v.you.mulliganDone), 5000);
+    assert.equal(bags[0].views.at(-1)!.phase, "mulligan");
+
+    c1.send("intent", {
+      protocolVersion: PROTOCOL_VERSION,
+      intent: { type: "mulligan", doMulligan: false },
+    });
+    await waitUntil(() => bags[0].views.some((v) => v.phase === "main"), 5000);
+    const main = bags[0].views.at(-1)!;
+    assert.equal(main.phase, "main");
+    assert.equal(main.you.lifeCount, 5);
+    assert.equal(main.you.hand.length, 5);
+  });
+
   it("illegal intent errors without advancing; legal play reaches match_over", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,

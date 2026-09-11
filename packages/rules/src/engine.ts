@@ -723,6 +723,7 @@ export function getPlayerView(state: MatchState, seat: Seat) {
       costAreaCount: opp.costArea.length,
       activeDonCount: activeDons(opp).length,
       turnsStarted: opp.turnsStarted,
+      mulliganDone: opp.mulliganDone,
     },
     activeSeat: state.activeSeat,
     phase: state.phase,
