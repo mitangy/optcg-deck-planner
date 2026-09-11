@@ -46,6 +46,7 @@ export function LobbyPage() {
   const [importName, setImportName] = useState("");
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [pendingResume, setPendingResume] = useState<ReturnType<typeof loadMatchResume>>(null);
 
   function refreshDecks(preferId?: string) {
     const seeded = ensureDefaultDeck();
@@ -60,9 +61,9 @@ export function LobbyPage() {
 
   useEffect(() => {
     refreshDecks();
-    const resume = loadMatchResume();
-    if (resume?.mode === "duel") navigate("/duel", { replace: true });
-    else if (resume?.mode === "hotseat") navigate("/hotseat", { replace: true });
+    // Offer resume instead of forcing it — browser Back from hotseat used to
+    // bounce straight back into the match and made Leave feel broken.
+    setPendingResume(loadMatchResume());
     void fetchAuthMe()
       .then((u) => {
         if (u) {
@@ -224,6 +225,39 @@ export function LobbyPage() {
           vs yourself. Private prototype only.
         </p>
 
+        {pendingResume ? (
+          <section className="lobby-section resume-banner">
+            <h2 className="lobby-section-title">Resume match?</h2>
+            <p className="meta">
+              A {pendingResume.mode === "hotseat" ? "vs-self (hotseat)" : "online"} match is still
+              saved in this tab.
+            </p>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() =>
+                  navigate(pendingResume.mode === "hotseat" ? "/hotseat" : "/duel", {
+                    replace: true,
+                  })
+                }
+              >
+                Resume
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  clearMatchResume();
+                  setPendingResume(null);
+                }}
+              >
+                Discard &amp; stay in lobby
+              </button>
+            </div>
+          </section>
+        ) : null}
+
         <section className="lobby-section">
           <h2 className="lobby-section-title">Identity</h2>
           <p className="meta">
@@ -293,7 +327,8 @@ export function LobbyPage() {
           >
             {decks.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.name} ({d.leaderId}, {d.cards.length} cards)
+                {d.name} — {d.leaderId}
+                {d.leaderId === "OP16-080" ? " Teach" : ""} ({d.cards.length} cards)
               </option>
             ))}
           </select>
@@ -301,6 +336,16 @@ export function LobbyPage() {
             <p className="meta">
               Leader {selectedDeck.leaderId} · {selectedDeck.cards.length} main-deck cards
             </p>
+          ) : null}
+          {selectedDeck ? (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={busy}
+              onClick={() => navigate(`/decks/${selectedDeck.id}/configure`)}
+            >
+              Configure deck
+            </button>
           ) : null}
           {selectedDeck &&
           selectedDeck.id !== "default-st01" &&

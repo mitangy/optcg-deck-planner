@@ -23,9 +23,12 @@ import {
 import { verifyGameToken } from "../gameToken.js";
 import {
   PROTOCOL_VERSION,
+  parseCosmeticsMessage,
   parseCreateOptions,
   parseIntentMessage,
   parseJoinOptions,
+  type ArtPrefsMap,
+  type CosmeticsMessage,
   type ErrorCode,
   type PlayerDeckWire,
   type WelcomeMessage,
@@ -69,6 +72,8 @@ export class DuelRoom extends Room {
   private presetSeatUserIds: [number, number] | undefined;
   private seats: [SeatSlot | null, SeatSlot | null] = [null, null];
   private spectators: SpectatorSlot[] = [];
+  /** Per-seat alt-art prefs (cosmetics only; not rules state). */
+  private seatArtPrefs: [ArtPrefsMap, ArtPrefsMap] = [{}, {}];
   private intentTimestamps = new Map<string, number[]>();
   private matchStarted = false;
   private matchOverSent = false;
@@ -110,6 +115,10 @@ export class DuelRoom extends Room {
           ? (message as { t?: number }).t
           : undefined;
       client.send("pong", { t });
+    });
+
+    this.onMessage("cosmetics", (client, message) => {
+      this.handleCosmetics(client, message);
     });
 
     this.log("info", "room_created", {
@@ -417,6 +426,7 @@ export class DuelRoom extends Room {
         protocolVersion: PROTOCOL_VERSION,
         view,
       });
+      this.sendStoredCosmetics(client);
     }
 
     for (const spec of this.spectators) {
@@ -426,6 +436,48 @@ export class DuelRoom extends Room {
     }
 
     this.maybeSendMatchOver();
+  }
+
+  private handleCosmetics(client: Client, message: unknown) {
+    if (this.spectatorForClient(client)) {
+      this.sendError(client, "unauthorized", "Spectators cannot set cosmetics");
+      return;
+    }
+    const seat = this.seatForClient(client);
+    if (seat === null) {
+      this.sendError(client, "unauthorized", "Not seated");
+      return;
+    }
+    let artPrefs: ArtPrefsMap;
+    try {
+      artPrefs = parseCosmeticsMessage(message);
+    } catch (e) {
+      const err = e as Error & { code?: ErrorCode };
+      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      return;
+    }
+    this.seatArtPrefs[seat] = artPrefs;
+    const payload: CosmeticsMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      seat,
+      artPrefs,
+    };
+    // Relay to everyone (including sender) so reconnecting clients stay aligned.
+    this.broadcast("cosmetics", payload);
+  }
+
+  /** Push stored seat cosmetics to one client (join / sync). */
+  private sendStoredCosmetics(client: Client) {
+    for (const seat of [0, 1] as Seat[]) {
+      const artPrefs = this.seatArtPrefs[seat];
+      if (!artPrefs || Object.keys(artPrefs).length === 0) continue;
+      const payload: CosmeticsMessage = {
+        protocolVersion: PROTOCOL_VERSION,
+        seat,
+        artPrefs,
+      };
+      client.send("cosmetics", payload);
+    }
   }
 
   private handleConcede(client: Client) {
@@ -627,6 +679,7 @@ export class DuelRoom extends Room {
       protocolVersion: PROTOCOL_VERSION,
       view,
     });
+    this.sendStoredCosmetics(client);
     if (this.match.winner !== null) {
       client.send("match_over", {
         protocolVersion: PROTOCOL_VERSION,
@@ -656,6 +709,7 @@ export class DuelRoom extends Room {
       protocolVersion: PROTOCOL_VERSION,
       view,
     });
+    this.sendStoredCosmetics(client);
     if (this.match.winner !== null) {
       client.send("match_over", {
         protocolVersion: PROTOCOL_VERSION,

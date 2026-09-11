@@ -114,6 +114,9 @@ export function DuelBoard({
 
   const you = view.you;
   const opp = view.opponent;
+  const boardSeat: Seat = mySeat ?? view.seat;
+  const oppSeat: Seat = boardSeat === 0 ? 1 : 0;
+  const viewingSeat: Seat | undefined = spectating ? undefined : boardSeat;
 
   return (
     <div
@@ -163,6 +166,8 @@ export function DuelBoard({
           <SideField
             side="opp"
             compact
+            ownerSeat={oppSeat}
+            viewingSeat={viewingSeat}
             data={{
               leader: opp.leader,
               characters: opp.characters,
@@ -192,6 +197,8 @@ export function DuelBoard({
 
           <SideField
             side="you"
+            ownerSeat={boardSeat}
+            viewingSeat={viewingSeat}
             data={{
               leader: you.leader,
               characters: you.characters,
@@ -253,6 +260,8 @@ export function DuelBoard({
                       commitDrop({ type: "play_card", handIndex: idx }, x, y)
                     }
                     onDragCancel={() => setDragPayload(null)}
+                    ownerSeat={boardSeat}
+                    viewingSeat={viewingSeat}
                   />
                 );
               })}

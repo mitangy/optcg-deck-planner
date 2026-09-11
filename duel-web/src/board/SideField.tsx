@@ -1,4 +1,4 @@
-import type { CardView } from "../net/protocol";
+import type { CardView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
 import { DonStrip } from "./DonStrip";
 import { ZonePile } from "./ZonePile";
@@ -36,9 +36,13 @@ type Props = {
   data: SideData;
   compact?: boolean;
   drag?: DragHandlers;
+  /** Seat that owns cards on this half of the board. */
+  ownerSeat?: Seat;
+  /** Seat controlling the UI (alt-art picker). */
+  viewingSeat?: Seat;
 };
 
-export function SideField({ side, data, compact, drag }: Props) {
+export function SideField({ side, data, compact, drag, ownerSeat, viewingSeat }: Props) {
   const mirrored = side === "opp";
   const interactive = side === "you" && drag;
 
@@ -81,6 +85,8 @@ export function SideField({ side, data, compact, drag }: Props) {
                     inspectOnClick
                     dropAttr={dropAttr}
                     dropHighlight={giveHl || trashHl}
+                    ownerSeat={ownerSeat}
+                    viewingSeat={viewingSeat}
                   />
                 );
               })
@@ -113,6 +119,8 @@ export function SideField({ side, data, compact, drag }: Props) {
             dropHighlight={Boolean(
               interactive && drag?.giveDonHighlightIds?.has(data.leader.id),
             )}
+            ownerSeat={ownerSeat}
+            viewingSeat={viewingSeat}
           />
         </div>
 
@@ -129,6 +137,8 @@ export function SideField({ side, data, compact, drag }: Props) {
               compact={compact || mirrored}
               rested={data.stage.rested}
               inspectOnClick
+              ownerSeat={ownerSeat}
+              viewingSeat={viewingSeat}
             />
           ) : (
             <div className="zone-slot stage-empty">Stage</div>
