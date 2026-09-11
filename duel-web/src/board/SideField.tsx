@@ -17,14 +17,30 @@ type SideData = {
   handCount?: number;
 };
 
+type DragHandlers = {
+  draggableDonIds?: ReadonlySet<string>;
+  draggingDonId?: string | null;
+  onDonDragStart?: (donId: string) => void;
+  onDonDragEnd?: (donId: string, clientX: number, clientY: number) => void;
+  onDonDragCancel?: () => void;
+  /** Instance ids highlighted as give_don drop targets. */
+  giveDonHighlightIds?: ReadonlySet<string>;
+  /** Character ids highlighted for play_card trash. */
+  playTrashHighlightIds?: ReadonlySet<string>;
+  /** Highlight stage + character zones for play_card field drop. */
+  playFieldHighlight?: boolean;
+};
+
 type Props = {
   side: "you" | "opp";
   data: SideData;
   compact?: boolean;
+  drag?: DragHandlers;
 };
 
-export function SideField({ side, data, compact }: Props) {
+export function SideField({ side, data, compact, drag }: Props) {
   const mirrored = side === "opp";
+  const interactive = side === "you" && drag;
 
   return (
     <section className={`side-field side-${side}${mirrored ? " mirrored" : ""}`}>
@@ -33,23 +49,41 @@ export function SideField({ side, data, compact }: Props) {
           <ZonePile label="Life" count={data.lifeCount} variant="life" secret />
         </div>
 
-        <div className="zone-characters">
+        <div
+          className={`zone-characters${
+            interactive && drag?.playFieldHighlight ? " drop-highlight-zone" : ""
+          }`}
+          data-dnd-drop={interactive ? "play_field" : undefined}
+        >
           <div className="zone-caption">Characters</div>
           <div className="card-row characters-row">
             {data.characters.length === 0 ? (
               <div className="zone-slot empty">—</div>
             ) : (
-              data.characters.map((c) => (
-                <CardTile
-                  key={c.id}
-                  defId={c.defId}
-                  compact={compact || mirrored}
-                  rested={c.rested}
-                  power={c.power}
-                  attachedDonCount={c.attachedDonCount}
-                  inspectOnClick
-                />
-              ))
+              data.characters.map((c) => {
+                const giveHl = Boolean(interactive && drag?.giveDonHighlightIds?.has(c.id));
+                const trashHl = Boolean(interactive && drag?.playTrashHighlightIds?.has(c.id));
+                let dropAttr: string | null = null;
+                if (interactive) {
+                  if (drag?.giveDonHighlightIds?.has(c.id)) dropAttr = `give_don:${c.id}`;
+                  else if (drag?.playTrashHighlightIds?.has(c.id)) {
+                    dropAttr = `play_trash:${c.id}`;
+                  }
+                }
+                return (
+                  <CardTile
+                    key={c.id}
+                    defId={c.defId}
+                    compact={compact || mirrored}
+                    rested={c.rested}
+                    power={c.power}
+                    attachedDonCount={c.attachedDonCount}
+                    inspectOnClick
+                    dropAttr={dropAttr}
+                    dropHighlight={giveHl || trashHl}
+                  />
+                );
+              })
             )}
             {Array.from({ length: Math.max(0, 5 - data.characters.length) }).map((_, i) => (
               <div key={`slot-${i}`} className="zone-slot" aria-hidden />
@@ -71,10 +105,23 @@ export function SideField({ side, data, compact }: Props) {
             attachedDonCount={data.leader.attachedDonCount}
             frame="leader"
             inspectOnClick
+            dropAttr={
+              interactive && drag?.giveDonHighlightIds?.has(data.leader.id)
+                ? `give_don:${data.leader.id}`
+                : null
+            }
+            dropHighlight={Boolean(
+              interactive && drag?.giveDonHighlightIds?.has(data.leader.id),
+            )}
           />
         </div>
 
-        <div className="zone-stage">
+        <div
+          className={`zone-stage${
+            interactive && drag?.playFieldHighlight ? " drop-highlight-zone" : ""
+          }`}
+          data-dnd-drop={interactive ? "play_field" : undefined}
+        >
           <div className="zone-caption">Stage</div>
           {data.stage ? (
             <CardTile
@@ -98,6 +145,11 @@ export function SideField({ side, data, compact }: Props) {
             tokens={data.costArea}
             activeCount={data.activeDonCount}
             totalCount={data.costAreaCount ?? data.costArea?.length ?? 0}
+            draggableDonIds={interactive ? drag?.draggableDonIds : undefined}
+            draggingDonId={interactive ? drag?.draggingDonId : undefined}
+            onDonDragStart={interactive ? drag?.onDonDragStart : undefined}
+            onDonDragEnd={interactive ? drag?.onDonDragEnd : undefined}
+            onDonDragCancel={interactive ? drag?.onDonDragCancel : undefined}
           />
         </div>
 
