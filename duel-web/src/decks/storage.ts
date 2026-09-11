@@ -336,7 +336,7 @@ export function ensureTestDecks(): SavedDeck[] {
   const a = upsertSeedDeck("test-op17-red", "Test OP17 red", TEST_OP17_LIST);
   const b = upsertSeedDeck(
     "test-op16-black",
-    "Test OP16 Teach (black)",
+    "Test OP16 Teach (black/yellow)",
     TEST_OP16_LIST,
   );
   return [a, b];
