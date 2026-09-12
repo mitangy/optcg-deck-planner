@@ -45,6 +45,41 @@ describe("narrateEvents", () => {
     );
   });
 
+  it("describes pending-choice ability prompts (on_play / life_trigger chain-ready queue)", () => {
+    const lines = narrateEvents(
+      [
+        {
+          type: "pending_choice_added",
+          seat: 0,
+          kind: "on_play",
+          cardDefId: "ST01-005",
+          sourceInstanceId: "c1",
+          optional: true,
+          prompt: "Usopp — On Play: draw 1 card?",
+        },
+        {
+          type: "pending_choice_resolved",
+          seat: 0,
+          kind: "on_play",
+          cardDefId: "ST01-005",
+          accepted: true,
+        },
+        {
+          type: "pending_choice_resolved",
+          seat: 1,
+          kind: "life_trigger",
+          cardDefId: "ST01-003",
+          accepted: false,
+        },
+      ],
+      { youSeat: 0, turnNumber: 3 },
+    ).map((e) => e.text);
+
+    expect(lines[0]).toMatch(/You may resolve Usopp's on play/i);
+    expect(lines[1]).toMatch(/You accept Usopp's on play/i);
+    expect(lines[2]).toMatch(/Opponent declines Karoo's life trigger/i);
+  });
+
   it("groups by turn", () => {
     const entries = [
       ...narrateEvents([{ type: "drew", seat: 0, count: 1 }], {

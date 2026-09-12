@@ -253,10 +253,10 @@ export function DuelBoard({
           />
 
           <div className="midline">
-            {Boolean(view.battle || view.pendingTrigger) ? (
+            {Boolean(view.battle || view.pendingChoices?.length) ? (
               <div className="prompt">
-                {view.pendingTrigger
-                  ? `Trigger pending (${lookupCard((view.pendingTrigger as { cardDefId: string }).cardDefId).name})`
+                {view.pendingChoices?.length
+                  ? view.pendingChoices[0].prompt
                   : describeBattle(view)}
               </div>
             ) : (

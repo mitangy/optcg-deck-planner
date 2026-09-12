@@ -126,6 +126,17 @@ function narrateOne(e: LooseEvent, youSeat: number | null): string | null {
       return `${seatLabel(e.seat, youSeat)} Trigger available (${cardName(e.defId)})`;
     case "trigger_resolved":
       return `${seatLabel(e.seat, youSeat)} Trigger ${e.accepted ? "accepted" : "declined"}`;
+    case "pending_choice_added": {
+      const kind = typeof e.kind === "string" ? e.kind.replace(/_/g, " ") : "ability";
+      return `${seatLabel(e.seat, youSeat)} may resolve ${cardName(e.cardDefId)}'s ${kind}`;
+    }
+    case "pending_choice_resolved": {
+      const kind = typeof e.kind === "string" ? e.kind.replace(/_/g, " ") : "ability";
+      const verb = e.accepted
+        ? act(e.seat, youSeat, "accept", "accepts")
+        : act(e.seat, youSeat, "decline", "declines");
+      return `${verb} ${cardName(e.cardDefId)}'s ${kind}`;
+    }
     case "game_over":
       return `★ ${seatLabel(e.winner, youSeat)} wins (${String(e.reason)})`;
     default:

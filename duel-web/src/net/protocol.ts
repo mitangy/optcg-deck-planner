@@ -89,6 +89,26 @@ export type CosmeticsMessage = {
 };
 
 
+/** Mirrors @optcg/rules PendingChoiceKind. */
+export type PendingChoiceKind =
+  | "life_trigger"
+  | "on_play"
+  | "activate_main"
+  | "when_attacking"
+  | "optional_ability";
+
+/** A single queued ask-to-trigger prompt (chain-ready: server may queue more than one). */
+export type PendingChoiceView = {
+  id: string;
+  seat: Seat;
+  kind: PendingChoiceKind;
+  cardDefId: string;
+  sourceInstanceId?: string;
+  optional: boolean;
+  /** Server-authoritative prompt text, e.g. "Usopp — On Play: draw 1 card?". */
+  prompt: string;
+};
+
 export type CardView = {
   id: string;
   defId: string;
@@ -141,7 +161,10 @@ export type PlayerView = {
   phase: string;
   turnNumber: number;
   battle: unknown;
+  /** @deprecated Use `pendingChoices[0]` (kind `"life_trigger"`). Kept for older payloads. */
   pendingTrigger: unknown;
+  /** FIFO queue of ask-to-trigger prompts; front of the queue blocks Main-phase actions for its seat. */
+  pendingChoices?: PendingChoiceView[];
   winner: Seat | null;
   winReason: string | null;
   legalIntents: Intent[];
@@ -320,8 +343,11 @@ export function intentLabel(intent: Intent, view?: PlayerView): string {
       return `Counter event ${handName(view, intent.handIndex)}`;
     case "pass_counter":
       return "Pass counter";
-    case "resolve_trigger":
-      return intent.accept ? "Accept Trigger" : "Decline Trigger";
+    case "resolve_pending_choice": {
+      const front = view?.pendingChoices?.[0];
+      const who = front ? nameForDef(front.cardDefId) ?? front.cardDefId : "ability";
+      return intent.accept ? `Accept — ${who}` : `Decline — ${who}`;
+    }
     case "end_turn":
       return "End turn";
     default:

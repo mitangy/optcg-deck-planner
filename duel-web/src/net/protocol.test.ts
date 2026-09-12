@@ -95,6 +95,29 @@ describe("protocol parsers", () => {
     );
     expect(intentLabel({ type: "mulligan", doMulligan: false })).toMatch(/Keep/i);
   });
+
+  it("labels resolve_pending_choice with the front choice's card name", () => {
+    const view = sampleView();
+    view.pendingChoices = [
+      {
+        id: "c1",
+        seat: 0,
+        kind: "on_play",
+        cardDefId: "ST01-005",
+        optional: true,
+        prompt: "Usopp — On Play: draw 1 card?",
+      },
+    ];
+    expect(intentLabel({ type: "resolve_pending_choice", accept: true }, view)).toMatch(
+      /^Accept — .*Usopp/,
+    );
+    expect(intentLabel({ type: "resolve_pending_choice", accept: false }, view)).toMatch(
+      /^Decline — .*Usopp/,
+    );
+    expect(intentLabel({ type: "resolve_pending_choice", accept: true })).toBe(
+      "Accept — ability",
+    );
+  });
 });
 
 describe("card atlas", () => {
