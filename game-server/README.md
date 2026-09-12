@@ -1,6 +1,8 @@
 # game-server — OPTCG duel runtime (Colyseus)
 
-Authoritative Colyseus match server for Steps 2–4. Loads `@optcg/rules`, seats two players in a `duel` room, runs a **ranked_queue** matchmaker, and speaks **message-based** `protocolVersion: 1` (private views — no full `MatchState` in Schema).
+Authoritative Colyseus match server for Steps 2–4. Loads `@optcg/rules`, seats two players in a `duel` room, runs a **ranked_queue** matchmaker, and speaks **message-based** `protocolVersion: 2` (private views — no full `MatchState` in Schema).
+
+**Deploy pin:** Render `optcg-game-server` tracks `cursor/duel-web-deploy-afeb`. Keep that branch fast-forwarded to `main` whenever duel-web protocol/defs change — a stale pin (e.g. GS on v1 while Vercel serves v2) makes create/join fail with a misleading **`seat reservation expired`**.
 
 ## Requirements
 
@@ -59,7 +61,7 @@ Single-process is fine for local and small staging. For **≥2 game-server proce
 
 ```ts
 {
-  protocolVersion: 1,
+  protocolVersion: 2,
   gameToken?: string,       // preferred (FastAPI POST /duel/token or /duel/dev-token)
   devUserId?: string,       // local legacy when REQUIRE_GAME_TOKEN is false
   secret?: string,
