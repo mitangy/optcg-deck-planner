@@ -261,6 +261,13 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setResuming(false);
           return false;
         }
+        // Past Colyseus grace → token is dead; skip instead of surfacing
+        // "seat reservation expired" on every late refresh.
+        if (!isResumeWithinGrace(blob.savedAt)) {
+          clearMatchResume();
+          setResuming(false);
+          return false;
+        }
         setResuming(true);
         setErrorBanner(null);
         serverUrlRef.current = blob.serverUrl;
@@ -286,7 +293,12 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         } catch (e) {
           clearMatchResume();
           setResuming(false);
-          setErrorBanner(e instanceof Error ? e.message : "Resume failed");
+          const msg = e instanceof Error ? e.message : "Resume failed";
+          // Expired grace tokens are expected after idle / free-tier sleep —
+          // don't leave a scary banner on the lobby redirect path.
+          if (!/seat reservation expired/i.test(msg)) {
+            setErrorBanner(msg);
+          }
           return false;
         }
       },
