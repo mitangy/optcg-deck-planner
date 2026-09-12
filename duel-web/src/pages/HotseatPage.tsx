@@ -11,10 +11,11 @@ import {
   resetAllSeatArtPrefs,
   setCosmeticsPublisher,
 } from "../decks/seatArtPrefs";
-import { mintGuestGameToken } from "../net/api";
+import { hotseatGuestId, mintGuestGameToken } from "../net/api";
 import { DuelClient } from "../net/duelClient";
 import {
   clearMatchResume,
+  isResumeWithinGrace,
   loadMatchResume,
   saveMatchResume,
   type HotseatResumeBlob,
@@ -28,6 +29,8 @@ type HotseatNavState = {
   useToken: boolean;
   deckWire: { leaderId: string; deck: string[] };
   deckName: string;
+  /** Optional tokens minted on the lobby (avoids cold-start race on this page). */
+  seatTokens?: [string, string];
 };
 
 type SeatBag = {
@@ -312,7 +315,17 @@ export function HotseatPage() {
       try {
         // Prefer the mount-time resume blob even when history.state is present
         // (browser refresh keeps location.state on the history entry).
-        const shouldResume = resumeHotseat;
+        // Skip resume outside Colyseus grace — doomed "seat reservation expired"
+        // attempts previously burned the watchdog before a fresh mint.
+        const shouldResume =
+          resumeHotseat && isResumeWithinGrace(resumeHotseat.savedAt)
+            ? resumeHotseat
+            : null;
+        if (resumeHotseat && !shouldResume) {
+          clearMatchResume();
+          resumeOnMount.current = null;
+          console.warn("[hotseat] resume blob past reconnect grace; starting fresh");
+        }
         // Lobby / resume may bake localhost; rewrite when the SPA is on a
         // non-loopback host so mint + matchmake hit this machine's game server.
         const gsUrl = rewriteLoopbackToPageHost(nav!.serverUrl);
@@ -350,13 +363,15 @@ export function HotseatPage() {
             // after a hard refresh (WS drop). Reclaim seats one at a time.
             await new Promise((r) => setTimeout(r, 150));
             if (!alive()) return;
+            // Keep resume attempts short so a dead token falls through quickly
+            // to a fresh mint instead of eating the whole boot budget.
             const w0 = await withTimeout(
               c0.reconnect({
                 serverUrl: resumeUrl,
                 reconnectionToken: shouldResume.seats[0].reconnectionToken,
                 attempts: 2,
               }),
-              8000,
+              4000,
               "Hotseat seat 0 reconnect",
             );
             if (!alive()) return;
@@ -366,7 +381,7 @@ export function HotseatPage() {
                 reconnectionToken: shouldResume.seats[1].reconnectionToken,
                 attempts: 2,
               }),
-              8000,
+              4000,
               "Hotseat seat 1 reconnect",
             );
             if (!alive()) return;
@@ -408,7 +423,7 @@ export function HotseatPage() {
         clearMatchResume();
         const wire = nav!.deckWire;
 
-        async function auth(suffix: string) {
+        async function auth(suffix: "a" | "b", seatIndex: 0 | 1) {
           if (!nav!.useToken) {
             return {
               serverUrl: gsUrl,
@@ -416,13 +431,18 @@ export function HotseatPage() {
               secret: nav!.secret,
             };
           }
+          const pre = nav!.seatTokens?.[seatIndex];
+          if (pre) {
+            return {
+              serverUrl: gsUrl,
+              gameToken: pre,
+              secret: nav!.secret,
+            };
+          }
           // Guest mint is always available and keeps seat identities stable
           // across refreshes via the browser guest id / userKey prefix.
-          const minted = await withTimeout(
-            mintGuestGameToken(`${nav!.userKey}-${suffix}`),
-            8000,
-            "Guest token mint",
-          );
+          // Retries + 20s/attempt absorb free-tier API cold starts.
+          const minted = await mintGuestGameToken(hotseatGuestId(nav!.userKey, suffix));
           return {
             serverUrl: gsUrl,
             gameToken: minted.token,
@@ -430,7 +450,9 @@ export function HotseatPage() {
           };
         }
 
-        const auth0 = await auth("a");
+        // Mint both seats up front (parallel) so seat 1 is not blocked behind
+        // create, and a cold API is only paid once.
+        const [auth0, auth1] = await Promise.all([auth("a", 0), auth("b", 1)]);
         if (!alive()) return;
 
         const c0 = new DuelClient();
@@ -458,15 +480,12 @@ export function HotseatPage() {
             deck: wire,
             createOptions: { players: [wire, wire], autoSkipMulligan: false },
           }),
-          12000,
+          20000,
           "Hotseat create",
         );
         if (!alive()) return;
         setMatchId(info.matchId);
         matchIdRef.current = info.matchId;
-
-        const auth1 = await auth("b");
-        if (!alive()) return;
 
         const c1 = new DuelClient();
         clients.push(c1);
@@ -489,7 +508,7 @@ export function HotseatPage() {
             preferredSeat: 1,
             deck: wire,
           }),
-          12000,
+          20000,
           "Hotseat join",
         );
         if (!alive()) return;
@@ -514,6 +533,7 @@ export function HotseatPage() {
     }
 
     // Hard ceiling so a hung mint/matchmake cannot leave the UI on Starting forever.
+    // 55s covers one failed short resume + free-tier cold mint retries + create/join.
     const bootWatchdog = window.setTimeout(() => {
       if (!alive()) return;
       clearMatchResume();
@@ -521,7 +541,7 @@ export function HotseatPage() {
       for (const c of clients) void c.disconnect(true);
       bags.current = [null, null];
       setBootError("Hotseat startup timed out — check the game server and try again");
-    }, 20000);
+    }, 55000);
 
     // Defer connect past React StrictMode's immediate remount so the first
     // mount cancels before opening sockets (avoids soft-leave on a <5s room).

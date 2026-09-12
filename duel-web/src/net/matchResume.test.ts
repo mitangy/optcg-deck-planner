@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clearMatchResume,
+  isResumeWithinGrace,
   loadMatchResume,
   saveMatchResume,
   type DuelResumeBlob,
@@ -47,7 +48,7 @@ describe("matchResume", () => {
     });
   });
 
-  it("clears stale blobs", () => {
+  it("clears stale blobs past reconnect grace (+ buffer)", () => {
     stubSessionStorage();
     // Write directly so savedAt is not refreshed by saveMatchResume.
     mem.set(
@@ -58,9 +59,33 @@ describe("matchResume", () => {
         roomId: "old",
         reconnectionToken: "tok",
         seat: 1,
-        savedAt: Date.now() - 11 * 60 * 1000,
+        // Past 60s grace + 15s buffer.
+        savedAt: Date.now() - 90 * 1000,
       }),
     );
     expect(loadMatchResume()).toBeNull();
+  });
+
+  it("keeps blobs still inside the grace window", () => {
+    stubSessionStorage();
+    mem.set(
+      "optcg.duel.matchResume.v1",
+      JSON.stringify({
+        mode: "duel",
+        serverUrl: "http://127.0.0.1:2567",
+        roomId: "fresh",
+        reconnectionToken: "tok",
+        seat: 0,
+        savedAt: Date.now() - 30 * 1000,
+      }),
+    );
+    expect(loadMatchResume()?.roomId).toBe("fresh");
+  });
+
+  it("reports reconnect grace accurately", () => {
+    const now = 1_000_000;
+    expect(isResumeWithinGrace(now - 30_000, now)).toBe(true);
+    expect(isResumeWithinGrace(now - 60_000, now)).toBe(true);
+    expect(isResumeWithinGrace(now - 60_001, now)).toBe(false);
   });
 });
