@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { expandDecklist, parseDecklist, toDecklistText } from "./parseDecklist";
-import { ensureTestDecks, validateImportedList } from "./storage";
+import { ensureTestDecks, saveDeck, validateImportedList } from "./storage";
 
 describe("parseDecklist", () => {
   it("parses OPTCGSim and egman styles", () => {
@@ -70,9 +70,8 @@ describe("validateImportedList", () => {
 });
 
 describe("ensureTestDecks", () => {
-  it("upserts Teach-named OP16 seed deck", () => {
+  function stubLocalStorage() {
     const mem = new Map<string, string>();
-    // storage.ts reads window.localStorage in the browser; stub for node vitest.
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
       value: {
@@ -85,9 +84,29 @@ describe("ensureTestDecks", () => {
         },
       },
     });
+    return mem;
+  }
+
+  it("seeds Teach-named OP16 deck once", () => {
+    stubLocalStorage();
     const decks = ensureTestDecks();
     const teach = decks.find((d) => d.id === "test-op16-black");
     expect(teach?.name).toMatch(/Teach/i);
     expect(teach?.leaderId).toBe("OP16-080");
+  });
+
+  it("does not overwrite Configure edits on re-seed", () => {
+    stubLocalStorage();
+    const first = ensureTestDecks().find((d) => d.id === "test-op16-black");
+    expect(first).toBeTruthy();
+    saveDeck({
+      id: first!.id,
+      name: "My Teach edit",
+      leaderId: first!.leaderId,
+      cards: first!.cards.slice(0, 10),
+    });
+    const again = ensureTestDecks().find((d) => d.id === "test-op16-black");
+    expect(again?.name).toBe("My Teach edit");
+    expect(again?.cards).toHaveLength(10);
   });
 });

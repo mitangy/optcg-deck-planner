@@ -7,6 +7,7 @@ import {
   deleteDeck,
   ensureDefaultDeck,
   ensureTestDecks,
+  getSelectedDeckId,
   listSavedDecks,
   saveDeck,
   setSelectedDeckId,
@@ -53,8 +54,11 @@ export function LobbyPage() {
     ensureTestDecks();
     const all = listSavedDecks();
     setDecks(all);
-    const prefer = preferId ?? selectedId;
-    const sel = all.find((d) => d.id === prefer) ?? seeded;
+    // Prefer an explicit id (post-import), then in-memory selection, then the
+    // persisted lobby choice — otherwise mount always falls back to ST01 Luffy.
+    const prefer =
+      preferId || selectedId || getSelectedDeckId() || undefined;
+    const sel = (prefer && all.find((d) => d.id === prefer)) || seeded;
     setSelectedId(sel.id);
     setSelectedDeckId(sel.id);
   }

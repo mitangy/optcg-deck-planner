@@ -98,8 +98,9 @@ describe("protocol parsers", () => {
 });
 
 describe("card atlas", () => {
-  it("resolves curated real ids with art urls", () => {
-    expect(listAtlasIds()).toEqual(
+  it("resolves curated real ids with art urls and includes cosmetics catalog", () => {
+    const ids = listAtlasIds();
+    expect(ids).toEqual(
       expect.arrayContaining([
         "ST01-001",
         "ST01-003",
@@ -107,12 +108,15 @@ describe("card atlas", () => {
         "ST01-008",
         "ST01-009",
         "ST01-014",
+        "OP01-013",
+        "OP16-080",
       ]),
     );
-    expect(listAtlasIds()).not.toContain("OP01-013");
+    expect(ids.length).toBeGreaterThan(2000);
     const luffy = lookupCard("ST01-001");
     expect(luffy.name).toMatch(/Luffy/i);
     expect(luffy.imageUrl).toMatch(/^(\/cards\/|https?:\/\/)/);
     expect(lookupCard("ST01-014").name).toMatch(/Guard Point/i);
+    expect(lookupCard("OP16-080").name).toMatch(/Teach/i);
   });
 });
