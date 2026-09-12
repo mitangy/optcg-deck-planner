@@ -156,97 +156,11 @@ export function HotseatPage() {
 
     const alive = () => !cancelled && gen === bootGen.current;
 
-    // Reclaim sockets parked by StrictMode remount — avoids token rotation.
-    // If a prior mount parked sockets without board views (welcomes arrived
-    // after cancel), drop them so resume/fresh boot is not blocked by seats
-    // still held in allowReconnection grace.
-    if (
-      parkedHotseat &&
-      !(parkedHotseat.bags[0].view && parkedHotseat.bags[1].view && parkedHotseat.matchId)
-    ) {
-      disposeParked(false);
-    }
-
-    if (
-      parkedHotseat &&
-      parkedHotseat.bags[0].view &&
-      parkedHotseat.bags[1].view &&
-      parkedHotseat.matchId
-    ) {
-      const parked = parkedHotseat;
-      bags.current = parked.bags;
-      setMatchId(parked.matchId);
-      matchIdRef.current = parked.matchId;
-      setActiveSeat(parked.activeSeat);
-      activeSeatRef.current = parked.activeSeat;
-      setResuming(false);
-      setReady(true);
-      // Re-bind handlers to the new mount's alive()/persist closures.
-      for (const bag of parked.bags) {
-        clients.push(bag.client);
-        bag.client.setHandlers({
-          onWelcome: ({ matchId: id, view }) => {
-            bag.view = view;
-            bag.connected = true;
-            if (!alive()) return;
-            setMatchId(id);
-            matchIdRef.current = id;
-            bump((n) => n + 1);
-            persistResume();
-          },
-          onView: (view) => {
-            bag.view = view;
-            if (!alive()) return;
-            bump((n) => n + 1);
-          },
-          onEvents: (events) => {
-            const turn = bag.view?.turnNumber ?? 1;
-            const lines = narrateEvents(events, {
-              youSeat: bag.seat,
-              turnNumber: turn,
-            });
-            if (lines.length) bag.battleLog = [...bag.battleLog, ...lines];
-            if (!alive()) return;
-            bump((n) => n + 1);
-          },
-          onMatchOver: (msg) => {
-            bag.matchOver = msg.result;
-            if (!alive()) return;
-            clearMatchResume();
-            bump((n) => n + 1);
-          },
-          onError: (err) => {
-            bag.error = `${err.code}: ${err.message}`;
-            if (!alive()) return;
-            bump((n) => n + 1);
-          },
-          onDisconnect: () => {
-            bag.connected = false;
-            if (!alive()) return;
-            bump((n) => n + 1);
-          },
-          onReconnectionToken: () => {
-            if (!alive()) return;
-            persistResume();
-          },
-        });
-      }
-      return () => {
-        cancelled = true;
-        parkedHotseat = {
-          bags: parked.bags,
-          matchId: matchIdRef.current ?? parked.matchId,
-          activeSeat: activeSeatRef.current,
-          timer: setTimeout(() => disposeParked(false), 500),
-        };
-      };
-    }
-
-    function wireBag(client: DuelClient, bag: SeatBag) {
-      client.setHandlers({
+    function bindBagHandlers(bag: SeatBag) {
+      bag.client.setHandlers({
         onWelcome: ({ matchId: id, view }) => {
-          // Always stash on the bag so StrictMode park/reclaim keeps views
-          // even when this mount was already cancelled.
+          // Always stash view so StrictMode park/reclaim keeps boards even
+          // when this mount was already cancelled.
           bag.view = view;
           bag.connected = true;
           if (!alive()) return;
@@ -293,13 +207,82 @@ export function HotseatPage() {
       });
     }
 
-    async function waitViews(bag0: SeatBag, bag1: SeatBag) {
-      const deadline = Date.now() + 10000;
+    async function waitViews(bag0: SeatBag, bag1: SeatBag, ms = 15000) {
+      const deadline = Date.now() + ms;
       while (Date.now() < deadline && (!bag0.view || !bag1.view)) {
         if (!alive()) return false;
         await new Promise((r) => setTimeout(r, 50));
       }
       return Boolean(bag0.view && bag1.view);
+    }
+
+    // Reclaim sockets parked by StrictMode remount — avoids token rotation.
+    // Keep bags even when views are still in flight (welcome after cancel);
+    // disposing them forced a soft-leave that Colyseus rejects when the room
+    // is younger than ~5s, which left hotseat stuck until the 25s watchdog.
+    if (parkedHotseat?.matchId && parkedHotseat.bags[0] && parkedHotseat.bags[1]) {
+      const parked = parkedHotseat;
+      parkedHotseat = null;
+      bags.current = parked.bags;
+      setMatchId(parked.matchId);
+      matchIdRef.current = parked.matchId;
+      setActiveSeat(parked.activeSeat);
+      activeSeatRef.current = parked.activeSeat;
+      setResuming(true);
+      for (const bag of parked.bags) {
+        clients.push(bag.client);
+        bindBagHandlers(bag);
+      }
+      void (async () => {
+        if (parked.bags[0].view && parked.bags[1].view) {
+          if (!alive()) return;
+          setResuming(false);
+          setReady(true);
+          return;
+        }
+        const ok = await waitViews(parked.bags[0], parked.bags[1]);
+        if (!alive()) return;
+        if (!ok) {
+          // Sockets are dead / welcomes lost — tear down consented so seats
+          // free immediately, then fall through is impossible; surface error.
+          for (const bag of parked.bags) void bag.client.disconnect(true);
+          bags.current = [null, null];
+          clearMatchResume();
+          setResuming(false);
+          setBootError(
+            "Hotseat reconnected but never received board views — try again",
+          );
+          return;
+        }
+        setResuming(false);
+        setReady(true);
+      })();
+      return () => {
+        cancelled = true;
+        if (leavingRef.current) {
+          matchIdRef.current = null;
+          bags.current = [null, null];
+          disposeParked(true);
+          for (const c of clients) void c.disconnect(true);
+          return;
+        }
+        const [b0, b1] = bags.current;
+        if (b0 && b1 && matchIdRef.current) {
+          parkedHotseat = {
+            bags: [b0, b1],
+            matchId: matchIdRef.current,
+            activeSeat: activeSeatRef.current,
+            timer: setTimeout(() => disposeParked(false), 500),
+          };
+        } else {
+          for (const c of clients) void c.disconnect(true);
+        }
+      };
+    }
+
+    function wireBag(client: DuelClient, bag: SeatBag) {
+      void client;
+      bindBagHandlers(bag);
     }
 
     async function boot() {
@@ -481,12 +464,18 @@ export function HotseatPage() {
       setBootError("Hotseat startup timed out — check the game server and try again");
     }, 25000);
 
-    void boot().finally(() => {
-      window.clearTimeout(bootWatchdog);
-    });
+    // Defer connect past React StrictMode's immediate remount so the first
+    // mount cancels before opening sockets (avoids soft-leave on a <5s room).
+    const bootDelay = window.setTimeout(() => {
+      void boot().finally(() => {
+        window.clearTimeout(bootWatchdog);
+      });
+    }, 75);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(bootDelay);
+      window.clearTimeout(bootWatchdog);
       // Intentional Leave: tear down immediately and do not re-park / re-resume.
       if (leavingRef.current) {
         matchIdRef.current = null;
@@ -506,7 +495,9 @@ export function HotseatPage() {
           timer: setTimeout(() => disposeParked(false), 500),
         };
       } else {
-        for (const c of clients) void c.disconnect(false);
+        // Consented leave frees seats immediately (soft-leave on a brand-new
+        // room fails Colyseus's min-uptime reconnect gate and blocks remount).
+        for (const c of clients) void c.disconnect(true);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
