@@ -1361,6 +1361,14 @@ button.zone-pile {
   opacity: 0.55;
 }
 
+/* Multi-select: tap a legal chip to add it to the gesture, drag any one of
+   the selected chips to attach the whole set in one drop. */
+.don-chip.don-selected {
+  outline: 2px solid #ffd54f;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px rgba(255, 213, 79, 0.45), 0 2px 5px rgba(0, 0, 0, 0.45);
+}
+
 .card-tile.card-draggable {
   cursor: grab;
 }

@@ -21,10 +21,15 @@ type SideData = {
 
 type DragHandlers = {
   draggableDonIds?: ReadonlySet<string>;
-  draggingDonId?: string | null;
+  /** DON!! ids currently carried by an in-progress drag. */
+  draggingDonIds?: ReadonlySet<string>;
+  /** DON!! ids toggled into the multi-select set. */
+  selectedDonIds?: ReadonlySet<string>;
   onDonDragStart?: (donId: string) => void;
   onDonDragEnd?: (donId: string, clientX: number, clientY: number) => void;
   onDonDragCancel?: () => void;
+  onDonToggleSelect?: (donId: string) => void;
+  onClearDonSelection?: () => void;
   /** Instance ids highlighted as give_don drop targets. */
   giveDonHighlightIds?: ReadonlySet<string>;
   /** Character ids highlighted for play_card trash. */
@@ -171,10 +176,13 @@ export function SideField({ side, data, compact, drag, ownerSeat, viewingSeat }:
             activeCount={data.activeDonCount}
             totalCount={data.costAreaCount ?? data.costArea?.length ?? 0}
             draggableDonIds={interactive ? drag?.draggableDonIds : undefined}
-            draggingDonId={interactive ? drag?.draggingDonId : undefined}
+            draggingDonIds={interactive ? drag?.draggingDonIds : undefined}
+            selectedDonIds={interactive ? drag?.selectedDonIds : undefined}
             onDonDragStart={interactive ? drag?.onDonDragStart : undefined}
             onDonDragEnd={interactive ? drag?.onDonDragEnd : undefined}
             onDonDragCancel={interactive ? drag?.onDonDragCancel : undefined}
+            onDonToggleSelect={interactive ? drag?.onDonToggleSelect : undefined}
+            onClearDonSelection={interactive ? drag?.onClearDonSelection : undefined}
           />
         </div>
 
