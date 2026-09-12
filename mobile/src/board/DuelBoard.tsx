@@ -106,10 +106,12 @@ export function DuelBoard({
           />
         </View>
 
-        {Boolean(view.battle || view.pendingTrigger) && (
+        {Boolean(view.battle || view.pendingChoices?.length || view.pendingTrigger) && (
           <View style={styles.prompt}>
             <Text style={styles.promptText}>
-              {view.pendingTrigger
+              {view.pendingChoices?.length
+                ? view.pendingChoices[0].prompt ?? "Ability pending"
+                : view.pendingTrigger
                 ? `Trigger pending: ${JSON.stringify(view.pendingTrigger)}`
                 : `Battle: ${JSON.stringify(view.battle)}`}
             </Text>

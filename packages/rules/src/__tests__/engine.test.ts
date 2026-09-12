@@ -551,6 +551,15 @@ describe("life trigger (migrated to the pending-choice queue)", () => {
 });
 
 describe("On Play optional ability (ST01-005 demo path)", () => {
+
+  const usopp = () => getCardDef("ST01-005");
+  const prevDraw = usopp().onPlayOptionalDraw;
+  beforeEach(() => {
+    usopp().onPlayOptionalDraw = 1;
+  });
+  afterEach(() => {
+    usopp().onPlayOptionalDraw = prevDraw;
+  });
   function playUsoppInMain(seed: number): {
     state: MatchState;
     rng: ReturnType<typeof createSeededRng>;

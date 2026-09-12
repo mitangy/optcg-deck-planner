@@ -118,15 +118,7 @@ const defs: CardDef[] = [
     power: 2000,
     counter: 2000,
     imageUrl: localArt("ST01-005"),
-    /**
-     * Demo/test-only hook: real ST01-005 has no On Play ability. We reuse the
-     * printed identity so it renders with full art/atlas data, and attach an
-     * optional draw so the pending-choice/prompt framework (chain / optional
-     * ability confirmation) has one concrete, easy-to-reach character path to
-     * exercise in hotseat/manual QA and unit tests.
-     */
-    onPlayOptionalDraw: 1,
-    effectText: "[On Play] (Demo) You may draw 1 card.",
+    effectText: "—",
   },
   {
     id: "ST01-014",
