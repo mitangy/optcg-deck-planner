@@ -1859,6 +1859,8 @@ img.zone-pile-face {
     width: 100%;
     height: auto;
     min-width: 0;
+    max-width: 70px;
+    margin-inline: auto;
     aspect-ratio: 5 / 7;
   }
 
