@@ -33,7 +33,21 @@ export type HotseatResumeBlob = {
 export type MatchResumeBlob = DuelResumeBlob | HotseatResumeBlob;
 
 const KEY = "optcg.duel.matchResume.v1";
-const MAX_AGE_MS = 10 * 60 * 1000; // reconnect grace is ~60s; keep blob a bit longer for UX
+/**
+ * Colyseus `allowReconnection` grace is ~60s (`RECONNECT_GRACE_SECONDS`).
+ * Keeping the blob for 10 minutes previously caused every refresh after the
+ * grace window to burn boot budget on "seat reservation expired" before a
+ * fresh hotseat mint — and free-tier cold starts then hit the mint timeout.
+ * Keep only a small buffer past grace so resume is attempted only while the
+ * server may still reclaim the seat.
+ */
+export const RECONNECT_GRACE_MS = 60 * 1000;
+export const MAX_AGE_MS = RECONNECT_GRACE_MS + 15 * 1000;
+
+/** True while Colyseus may still accept the reconnection token. */
+export function isResumeWithinGrace(savedAt: number, now = Date.now()): boolean {
+  return now - savedAt <= RECONNECT_GRACE_MS;
+}
 
 export function saveMatchResume(blob: MatchResumeBlob): void {
   try {

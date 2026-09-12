@@ -10,6 +10,7 @@ import { flushSync } from "react-dom";
 import { DuelClient } from "../net/duelClient";
 import {
   clearMatchResume,
+  isResumeWithinGrace,
   loadMatchResume,
   saveMatchResume,
 } from "../net/matchResume";

@@ -16,10 +16,12 @@ import {
 import {
   fetchAuthMe,
   googleLoginUrl,
+  hotseatGuestId,
   logoutSession,
   mintDevGameToken,
   mintGuestGameToken,
   mintSessionGameToken,
+  warmDuelServices,
   type AuthUser,
 } from "../net/api";
 import { clearMatchResume, loadMatchResume } from "../net/matchResume";
@@ -64,6 +66,8 @@ export function LobbyPage() {
     // Offer resume instead of forcing it — browser Back from hotseat used to
     // bounce straight back into the match and made Leave feel broken.
     setPendingResume(loadMatchResume());
+    // Wake free-tier Render API + game-server so hotseat mint/create is warm.
+    warmDuelServices(apiUrl, serverUrl);
     void fetchAuthMe()
       .then((u) => {
         if (u) {
@@ -139,14 +143,23 @@ export function LobbyPage() {
       if (mode === "hotseat") {
         const wire = deckToWire(selectedDeck!);
         setSelectedDeckId(selectedDeck!.id);
+        const key = hotseatUserKey();
+        // Pre-mint both seats on the lobby (with retries) so HotseatPage does
+        // not race an 8s timeout against a cold free-tier API spin-up.
+        warmDuelServices(apiUrl, serverUrl.trim());
+        const [tokA, tokB] = await Promise.all([
+          mintGuestGameToken(hotseatGuestId(key, "a")),
+          mintGuestGameToken(hotseatGuestId(key, "b")),
+        ]);
         navigate("/hotseat", {
           state: {
             serverUrl: serverUrl.trim(),
             secret: secret.trim() || undefined,
-            userKey: hotseatUserKey(),
+            userKey: key,
             useToken: true,
             deckWire: wire,
             deckName: selectedDeck!.name,
+            seatTokens: [tokA.token, tokB.token],
           },
         });
         return;
