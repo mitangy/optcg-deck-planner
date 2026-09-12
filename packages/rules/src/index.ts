@@ -42,6 +42,8 @@ export type {
   DonInstance,
   AttackTarget,
   BattleState,
+  PendingChoice,
+  PendingChoiceKind,
   PendingTrigger,
   PlayerState,
   MatchState,

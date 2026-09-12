@@ -48,6 +48,20 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288232_400w.jpg",
     "attribute": "Slash"
   },
+  "ST01-005": {
+    "id": "ST01-005",
+    "name": "Usopp",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 2000,
+    "imageUrl": "/cards/ST01-005.png",
+    "effectText": "[On Play] (Demo) You may draw 1 card.",
+    "attribute": "Strike"
+  },
   "ST01-006": {
     "id": "ST01-006",
     "name": "TonyTony.Chopper",

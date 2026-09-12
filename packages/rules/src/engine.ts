@@ -299,7 +299,16 @@ function resolveDamage(state: MatchState, events: GameEvent[]): void {
   const lifeId = def.life.shift()!;
   const lifeDef = getCardDef(lifeId);
   if ((lifeDef.triggerDraw ?? 0) > 0) {
-    state.pendingTrigger = { seat: defSeat, cardDefId: lifeId };
+    state.pendingChoices.push({
+      id: alloc(state, "choice"),
+      seat: defSeat,
+      kind: "life_trigger",
+      cardDefId: lifeId,
+      optional: true,
+      prompt: `${lifeDef.name} — Trigger: draw ${lifeDef.triggerDraw} card${
+        lifeDef.triggerDraw === 1 ? "" : "s"
+      }?`,
+    });
     state.phase = "damage";
     events.push({ type: "life_taken", seat: defSeat, defId: lifeId, toHand: false });
     events.push({ type: "trigger_available", seat: defSeat, defId: lifeId });
@@ -330,7 +339,7 @@ export function createMatch(config: CreateMatchConfig): MatchState {
     phase: "mulligan",
     turnNumber: 0,
     battle: null,
-    pendingTrigger: null,
+    pendingChoices: [],
     winner: null,
     winReason: null,
     nextId: 1,
@@ -381,20 +390,52 @@ export function applyIntent(
     return done();
   }
 
-  if (intent.type === "resolve_trigger") {
-    if (!next.pendingTrigger || next.pendingTrigger.seat !== seat) {
-      return fail(state, "no_trigger", "No pending trigger");
+  if (intent.type === "resolve_pending_choice") {
+    const front = next.pendingChoices[0];
+    if (!front || front.seat !== seat) {
+      return fail(state, "no_pending_choice", "No pending choice");
     }
-    const defId = next.pendingTrigger.cardDefId;
-    const def = getCardDef(defId);
-    if (intent.accept && (def.triggerDraw ?? 0) > 0) {
-      if (!drawN(next, seat, def.triggerDraw!, events)) return done();
+    if (!intent.accept && !front.optional) {
+      return fail(state, "mandatory_choice", "This ability cannot be declined");
     }
-    next.players[seat].hand.push(makeCard(next, defId));
-    events.push({ type: "trigger_resolved", seat, accepted: intent.accept });
-    next.pendingTrigger = null;
-    next.battle = null;
-    next.phase = "main";
+    next.pendingChoices.shift();
+    const def = getCardDef(front.cardDefId);
+
+    if (front.kind === "life_trigger") {
+      if (intent.accept && (def.triggerDraw ?? 0) > 0) {
+        if (!drawN(next, seat, def.triggerDraw!, events)) return done();
+      }
+      next.players[seat].hand.push(makeCard(next, front.cardDefId));
+      events.push({ type: "trigger_resolved", seat, accepted: intent.accept });
+    } else if (front.kind === "on_play") {
+      if (intent.accept && (def.onPlayOptionalDraw ?? 0) > 0) {
+        if (!drawN(next, seat, def.onPlayOptionalDraw!, events)) return done();
+      }
+      events.push({
+        type: "pending_choice_resolved",
+        seat,
+        kind: front.kind,
+        cardDefId: front.cardDefId,
+        accepted: intent.accept,
+      });
+    } else {
+      // Future kinds (activate_main / when_attacking / optional_ability):
+      // engine hooks land per-card; the queue + prompt framework is ready.
+      events.push({
+        type: "pending_choice_resolved",
+        seat,
+        kind: front.kind,
+        cardDefId: front.cardDefId,
+        accepted: intent.accept,
+      });
+    }
+
+    // Only the life-trigger flow repurposes phase/battle for the damage step;
+    // leave both alone for Main-phase ability prompts (e.g. On Play).
+    if (next.pendingChoices.length === 0 && next.phase === "damage") {
+      next.battle = null;
+      next.phase = "main";
+    }
     return done();
   }
 
@@ -461,7 +502,9 @@ export function applyIntent(
 
   if (seat !== next.activeSeat) return fail(state, "not_active", "Not your turn");
   if (next.phase !== "main") return fail(state, "bad_phase", `Not main (${next.phase})`);
-  if (next.pendingTrigger) return fail(state, "trigger_pending", "Resolve trigger");
+  if (next.pendingChoices.length > 0) {
+    return fail(state, "pending_choice", "Resolve pending choice");
+  }
 
   if (intent.type === "give_don") {
     const idx = player.costArea.findIndex((d) => d.id === intent.donId);
@@ -541,6 +584,29 @@ export function applyIntent(
       inst.summoningSick = !def.rush;
       player.characters.push(inst);
       events.push({ type: "card_played", seat, defId: card.defId, instanceId: inst.id });
+      if ((def.onPlayOptionalDraw ?? 0) > 0) {
+        const prompt = `${def.name} — On Play: draw ${def.onPlayOptionalDraw} card${
+          def.onPlayOptionalDraw === 1 ? "" : "s"
+        }?`;
+        next.pendingChoices.push({
+          id: alloc(next, "choice"),
+          seat,
+          kind: "on_play",
+          cardDefId: def.id,
+          sourceInstanceId: inst.id,
+          optional: true,
+          prompt,
+        });
+        events.push({
+          type: "pending_choice_added",
+          seat,
+          kind: "on_play",
+          cardDefId: def.id,
+          sourceInstanceId: inst.id,
+          optional: true,
+          prompt,
+        });
+      }
       return done();
     }
 
@@ -632,9 +698,11 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
     return out;
   }
 
-  if (state.pendingTrigger?.seat === seat && state.phase === "damage") {
-    out.push({ type: "resolve_trigger", accept: true });
-    out.push({ type: "resolve_trigger", accept: false });
+  if (state.pendingChoices.length > 0) {
+    const front = state.pendingChoices[0];
+    if (front.seat !== seat) return out;
+    out.push({ type: "resolve_pending_choice", accept: true });
+    if (front.optional) out.push({ type: "resolve_pending_choice", accept: false });
     return out;
   }
 
@@ -789,7 +857,16 @@ export function getPlayerView(state: MatchState, seat: Seat) {
     phase: state.phase,
     turnNumber: state.turnNumber,
     battle: state.battle,
-    pendingTrigger: state.pendingTrigger,
+    pendingChoices: state.pendingChoices,
+    /**
+     * @deprecated Back-compat for older clients (e.g. mobile): the front
+     * pending choice in its original `{ seat, cardDefId }` shape when it's a
+     * life trigger, else `null`. New clients should read `pendingChoices`.
+     */
+    pendingTrigger:
+      state.pendingChoices[0]?.kind === "life_trigger"
+        ? { seat: state.pendingChoices[0].seat, cardDefId: state.pendingChoices[0].cardDefId }
+        : null,
     winner: state.winner,
     winReason: state.winReason,
     legalIntents: listLegalIntents(state, seat),

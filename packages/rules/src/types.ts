@@ -37,6 +37,12 @@ export interface CardDef {
    * area to this Leader or one of your Characters (ST01-001).
    */
   leaderActivateGiveRestedDon?: boolean;
+  /**
+   * [On Play] optional draw hook — you may draw this many cards when the
+   * character enters play. Demonstrates the generic pending-choice/prompt
+   * framework end to end; not every On Play effect is implemented yet.
+   */
+  onPlayOptionalDraw?: number;
   /** Rush — may attack the turn this Character enters play. */
   rush?: boolean;
   /** Optional art URL (TCGPlayer CDN or Bandai cardlist). Display only. */
@@ -83,10 +89,41 @@ export interface BattleState {
   attackerPowerBonus: number;
 }
 
-export interface PendingTrigger {
+/**
+ * Kinds of player-facing "may I trigger this?" prompts. `life_trigger` is the
+ * original life-card accept/decline flow; the rest generalize the same queue
+ * to character/leader abilities as engine support for them lands.
+ */
+export type PendingChoiceKind =
+  | "life_trigger"
+  | "on_play"
+  | "activate_main"
+  | "when_attacking"
+  | "optional_ability";
+
+/**
+ * A single queued "may I resolve this optional/chain ability?" prompt.
+ * `MatchState.pendingChoices` is a FIFO queue: the front entry blocks Main
+ * phase actions for its `seat` until resolved via `resolve_pending_choice`,
+ * so chained character/leader abilities can stack even though the MVP only
+ * ever pushes one at a time.
+ */
+export interface PendingChoice {
+  /** Stable id for React keys / logs; not gameplay-significant. */
+  id: string;
   seat: Seat;
+  kind: PendingChoiceKind;
   cardDefId: CardDefId;
+  /** Board instance that owns the ability, when applicable. */
+  sourceInstanceId?: InstanceId;
+  /** False = the ability is mandatory; only `accept` is a legal resolution. */
+  optional: boolean;
+  /** Human-readable prompt naming the card/ability, shown to the player. */
+  prompt: string;
 }
+
+/** @deprecated Use `PendingChoice` (kind `"life_trigger"`). Kept for callers importing the old name. */
+export type PendingTrigger = PendingChoice;
 
 export interface PlayerState {
   leader: CardInstance;
@@ -112,7 +149,8 @@ export interface MatchState {
   phase: Phase;
   turnNumber: number;
   battle: BattleState | null;
-  pendingTrigger: PendingTrigger | null;
+  /** FIFO queue of pending player choices (life triggers, On Play/Activate abilities, …). */
+  pendingChoices: PendingChoice[];
   winner: Seat | null;
   winReason: "leader_battle_at_zero_life" | "deck_out" | null;
   nextId: number;
@@ -155,6 +193,22 @@ export type GameEvent =
   | { type: "life_taken"; seat: Seat; defId: CardDefId; toHand: boolean }
   | { type: "trigger_available"; seat: Seat; defId: CardDefId }
   | { type: "trigger_resolved"; seat: Seat; accepted: boolean }
+  | {
+      type: "pending_choice_added";
+      seat: Seat;
+      kind: PendingChoiceKind;
+      cardDefId: CardDefId;
+      sourceInstanceId?: InstanceId;
+      optional: boolean;
+      prompt: string;
+    }
+  | {
+      type: "pending_choice_resolved";
+      seat: Seat;
+      kind: PendingChoiceKind;
+      cardDefId: CardDefId;
+      accepted: boolean;
+    }
   | { type: "game_over"; winner: Seat; reason: NonNullable<MatchState["winReason"]> };
 
 export type Intent =
@@ -169,7 +223,8 @@ export type Intent =
   | { type: "counter_from_hand"; handIndex: number }
   | { type: "counter_event"; handIndex: number }
   | { type: "pass_counter" }
-  | { type: "resolve_trigger"; accept: boolean }
+  /** Accept/decline the front of `MatchState.pendingChoices` (life trigger or ability prompt). */
+  | { type: "resolve_pending_choice"; accept: boolean }
   | { type: "end_turn" };
 
 export interface ApplyContext {

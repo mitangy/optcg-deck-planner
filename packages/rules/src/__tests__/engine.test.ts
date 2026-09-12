@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
+import { buildTestDeck, DEFAULT_LEADER_ID, getCardDef } from "../cards/definitions.js";
 import {
   applyIntent,
   assertInvariants,
@@ -10,7 +10,7 @@ import {
   skipMulligans,
 } from "../engine.js";
 import { createSeededRng } from "../rng.js";
-import type { Intent, MatchState, Seat } from "../types.js";
+import type { Intent, MatchState, PendingChoice, Seat } from "../types.js";
 
 function fresh(seed = 1): {
   state: MatchState;
@@ -347,4 +347,300 @@ describe("privacy", () => {
     expect((view as { opponent?: { hand?: unknown } }).opponent?.hand).toBeUndefined();
   });
 
+});
+
+describe("pending-choice queue (chain-ready ability/trigger prompts)", () => {
+  it("blocks Main-phase actions and offers only the front choice's seat resolve intents", () => {
+    let { state, rng } = fresh(1);
+    state = structuredClone(state);
+    const chainA: PendingChoice = {
+      id: "choice_a",
+      seat: 0,
+      kind: "on_play",
+      cardDefId: "ST01-005",
+      optional: true,
+      prompt: "Usopp — On Play: draw 1 card?",
+    };
+    const chainB: PendingChoice = {
+      id: "choice_b",
+      seat: 1,
+      kind: "activate_main",
+      cardDefId: "ST01-001",
+      optional: true,
+      prompt: "Monkey.D.Luffy — Activate:Main?",
+    };
+    state.pendingChoices = [chainA, chainB];
+
+    // Front of the FIFO queue (seat 0) may resolve; the other seat cannot.
+    expect(listLegalIntents(state, 0)).toEqual([
+      { type: "resolve_pending_choice", accept: true },
+      { type: "resolve_pending_choice", accept: false },
+    ]);
+    expect(listLegalIntents(state, 1)).toEqual([]);
+
+    const blocked = applyIntent(state, { type: "end_turn" }, { seat: 0, rng });
+    expect(blocked.ok).toBe(false);
+    expect(blocked.error?.code).toBe("pending_choice");
+
+    const r1 = applyIntent(
+      state,
+      { type: "resolve_pending_choice", accept: false },
+      { seat: 0, rng },
+    );
+    expect(r1.ok).toBe(true);
+    state = r1.state;
+    expect(state.pendingChoices).toHaveLength(1);
+    expect(state.pendingChoices[0].id).toBe("choice_b");
+
+    // Chain advanced: seat 1 can now resolve; seat 0 has nothing pending.
+    expect(listLegalIntents(state, 1).length).toBeGreaterThan(0);
+    expect(listLegalIntents(state, 0)).toEqual([]);
+
+    const r2 = applyIntent(
+      state,
+      { type: "resolve_pending_choice", accept: true },
+      { seat: 1, rng },
+    );
+    expect(r2.ok).toBe(true);
+    expect(r2.state.pendingChoices).toHaveLength(0);
+  });
+
+  it("rejects declining a mandatory (non-optional) pending choice", () => {
+    let { state, rng } = fresh(2);
+    state = structuredClone(state);
+    state.pendingChoices = [
+      {
+        id: "choice_mandatory",
+        seat: 0,
+        kind: "optional_ability",
+        cardDefId: "ST01-001",
+        optional: false,
+        prompt: "Forced ability",
+      },
+    ];
+    expect(listLegalIntents(state, 0)).toEqual([
+      { type: "resolve_pending_choice", accept: true },
+    ]);
+    const declined = applyIntent(
+      state,
+      { type: "resolve_pending_choice", accept: false },
+      { seat: 0, rng },
+    );
+    expect(declined.ok).toBe(false);
+    expect(declined.error?.code).toBe("mandatory_choice");
+    const accepted = applyIntent(
+      state,
+      { type: "resolve_pending_choice", accept: true },
+      { seat: 0, rng },
+    );
+    expect(accepted.ok).toBe(true);
+    expect(accepted.state.pendingChoices).toHaveLength(0);
+  });
+});
+
+describe("life trigger (migrated to the pending-choice queue)", () => {
+  function forceLifeTriggerAttack(seed: number): {
+    state: MatchState;
+    rng: ReturnType<typeof createSeededRng>;
+  } {
+    let { state, rng } = fresh(seed);
+    state = act(state, 0, { type: "end_turn" }, rng);
+    state = act(state, 1, { type: "end_turn" }, rng);
+    state = structuredClone(state);
+    // Force the defender's top Life card to a known trigger-bearing card.
+    state.players[1].life[0] = "ST01-003";
+    for (const d of [...state.players[0].costArea]) {
+      if (!d.rested) {
+        const r = applyIntent(
+          state,
+          { type: "give_don", donId: d.id, targetId: state.players[0].leader.id },
+          { seat: 0, rng },
+        );
+        if (r.ok) state = r.state;
+      }
+    }
+    const attackerId = state.players[0].leader.id;
+    state = act(
+      state,
+      0,
+      { type: "declare_attack", attackerId, target: { kind: "leader" } },
+      rng,
+    );
+    state = act(state, 1, { type: "pass_block" }, rng);
+    state = act(state, 1, { type: "pass_counter" }, rng);
+    return { state, rng };
+  }
+
+  it("queues an accept/decline life-trigger choice naming the card", () => {
+    const def = getCardDef("ST01-003");
+    const originalTriggerDraw = def.triggerDraw;
+    def.triggerDraw = 2;
+    try {
+      const { state } = forceLifeTriggerAttack(21);
+      expect(state.phase).toBe("damage");
+      expect(state.pendingChoices).toHaveLength(1);
+      const choice = state.pendingChoices[0];
+      expect(choice.kind).toBe("life_trigger");
+      expect(choice.seat).toBe(1);
+      expect(choice.cardDefId).toBe("ST01-003");
+      expect(choice.optional).toBe(true);
+      expect(choice.prompt).toMatch(/Karoo/);
+
+      expect(listLegalIntents(state, 1)).toEqual([
+        { type: "resolve_pending_choice", accept: true },
+        { type: "resolve_pending_choice", accept: false },
+      ]);
+      expect(listLegalIntents(state, 0)).toEqual([]);
+    } finally {
+      def.triggerDraw = originalTriggerDraw;
+    }
+  });
+
+  it("accepting draws the trigger's cards then adds the life card to hand", () => {
+    const def = getCardDef("ST01-003");
+    const originalTriggerDraw = def.triggerDraw;
+    def.triggerDraw = 2;
+    try {
+      const { state, rng } = forceLifeTriggerAttack(21);
+      const handBefore = state.players[1].hand.length;
+      const r = applyIntent(
+        state,
+        { type: "resolve_pending_choice", accept: true },
+        { seat: 1, rng },
+      );
+      expect(r.ok).toBe(true);
+      assertInvariants(r.state);
+      expect(r.state.pendingChoices).toHaveLength(0);
+      expect(r.state.phase).toBe("main");
+      expect(r.state.battle).toBeNull();
+      // +2 drawn from the trigger, +1 the life card itself joining the hand.
+      expect(r.state.players[1].hand.length).toBe(handBefore + 3);
+      expect(r.events.some((e) => e.type === "drew" && e.count === 2)).toBe(true);
+      expect(
+        r.events.some((e) => e.type === "trigger_resolved" && e.accepted === true),
+      ).toBe(true);
+    } finally {
+      def.triggerDraw = originalTriggerDraw;
+    }
+  });
+
+  it("declining adds only the life card to hand (no draw)", () => {
+    const def = getCardDef("ST01-003");
+    const originalTriggerDraw = def.triggerDraw;
+    def.triggerDraw = 2;
+    try {
+      const { state, rng } = forceLifeTriggerAttack(21);
+      const handBefore = state.players[1].hand.length;
+      const r = applyIntent(
+        state,
+        { type: "resolve_pending_choice", accept: false },
+        { seat: 1, rng },
+      );
+      expect(r.ok).toBe(true);
+      expect(r.state.pendingChoices).toHaveLength(0);
+      expect(r.state.phase).toBe("main");
+      expect(r.state.players[1].hand.length).toBe(handBefore + 1);
+      expect(r.events.some((e) => e.type === "drew")).toBe(false);
+      expect(
+        r.events.some((e) => e.type === "trigger_resolved" && e.accepted === false),
+      ).toBe(true);
+    } finally {
+      def.triggerDraw = originalTriggerDraw;
+    }
+  });
+});
+
+describe("On Play optional ability (ST01-005 demo path)", () => {
+
+  const usopp = () => getCardDef("ST01-005");
+  const prevDraw = usopp().onPlayOptionalDraw;
+  beforeEach(() => {
+    usopp().onPlayOptionalDraw = 1;
+  });
+  afterEach(() => {
+    usopp().onPlayOptionalDraw = prevDraw;
+  });
+  function playUsoppInMain(seed: number): {
+    state: MatchState;
+    rng: ReturnType<typeof createSeededRng>;
+  } {
+    let { state, rng } = fresh(seed);
+    state = structuredClone(state);
+    state.players[0].hand = [
+      { id: "h_usopp", defId: "ST01-005", rested: false, attachedDonIds: [] },
+    ];
+    const r = applyIntent(state, { type: "play_card", handIndex: 0 }, { seat: 0, rng });
+    expect(r.ok, r.error?.message).toBe(true);
+    return { state: r.state, rng };
+  }
+
+  it("queues an On Play prompt naming the card and blocks other Main actions", () => {
+    const { state, rng } = playUsoppInMain(3);
+    expect(state.pendingChoices).toHaveLength(1);
+    const choice = state.pendingChoices[0];
+    expect(choice.kind).toBe("on_play");
+    expect(choice.seat).toBe(0);
+    expect(choice.cardDefId).toBe("ST01-005");
+    expect(choice.optional).toBe(true);
+    expect(choice.prompt).toMatch(/Usopp/);
+    expect(choice.sourceInstanceId).toBeTruthy();
+    expect(state.phase).toBe("main");
+
+    expect(listLegalIntents(state, 0)).toEqual([
+      { type: "resolve_pending_choice", accept: true },
+      { type: "resolve_pending_choice", accept: false },
+    ]);
+
+    const blocked = applyIntent(state, { type: "end_turn" }, { seat: 0, rng });
+    expect(blocked.ok).toBe(false);
+    expect(blocked.error?.code).toBe("pending_choice");
+  });
+
+  it("accepting draws a card and unblocks Main phase", () => {
+    const { state, rng } = playUsoppInMain(3);
+    const handBefore = state.players[0].hand.length;
+    const r = applyIntent(
+      state,
+      { type: "resolve_pending_choice", accept: true },
+      { seat: 0, rng },
+    );
+    expect(r.ok).toBe(true);
+    assertInvariants(r.state);
+    expect(r.state.pendingChoices).toHaveLength(0);
+    expect(r.state.players[0].hand.length).toBe(handBefore + 1);
+    expect(r.events.some((e) => e.type === "drew" && e.count === 1)).toBe(true);
+    expect(
+      r.events.some(
+        (e) =>
+          e.type === "pending_choice_resolved" &&
+          e.kind === "on_play" &&
+          e.accepted === true,
+      ),
+    ).toBe(true);
+    // Main phase actions are legal again once the queue drains.
+    const endTurn = applyIntent(r.state, { type: "end_turn" }, { seat: 0, rng });
+    expect(endTurn.ok).toBe(true);
+  });
+
+  it("declining leaves the hand unchanged", () => {
+    const { state, rng } = playUsoppInMain(3);
+    const handBefore = state.players[0].hand.length;
+    const r = applyIntent(
+      state,
+      { type: "resolve_pending_choice", accept: false },
+      { seat: 0, rng },
+    );
+    expect(r.ok).toBe(true);
+    expect(r.state.pendingChoices).toHaveLength(0);
+    expect(r.state.players[0].hand.length).toBe(handBefore);
+    expect(r.events.some((e) => e.type === "drew")).toBe(false);
+    expect(
+      r.events.some(
+        (e) =>
+          e.type === "pending_choice_resolved" &&
+          e.kind === "on_play" &&
+          e.accepted === false,
+      ),
+    ).toBe(true);
+  });
 });
