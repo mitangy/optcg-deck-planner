@@ -14,6 +14,7 @@ import {
   useSyncExternalStore,
   type PointerEvent,
 } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
   defId: string;
@@ -115,7 +116,7 @@ export function CardInspect({
     if (dy >= SWIPE_DISMISS_PX) onClose();
   }
 
-  return (
+  return createPortal(
     <div
       className="card-inspect-backdrop"
       role="dialog"
@@ -199,6 +200,7 @@ export function CardInspect({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

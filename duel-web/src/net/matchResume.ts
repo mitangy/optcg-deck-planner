@@ -21,6 +21,9 @@ export type HotseatResumeBlob = {
   useToken: boolean;
   deckWire: { leaderId: string; deck: string[] };
   deckName: string;
+  /** Opponent deck for vs-self (optional for older resume blobs). */
+  enemyDeckWire?: { leaderId: string; deck: string[] };
+  enemyDeckName?: string;
   seats: [
     { reconnectionToken: string },
     { reconnectionToken: string },

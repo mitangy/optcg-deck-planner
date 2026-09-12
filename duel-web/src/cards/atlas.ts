@@ -24,6 +24,8 @@ export type CardAtlasEntry = {
   imageUrl?: string;
   effectText?: string;
   altArts?: CardAltArt[];
+  traits?: string[];
+  hasTrigger?: boolean;
 };
 
 const atlas = atlasJson as Record<string, CardAtlasEntry>;

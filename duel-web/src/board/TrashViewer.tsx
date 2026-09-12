@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
 
@@ -27,7 +28,7 @@ export function TrashViewer({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div
       className="trash-viewer-backdrop"
       role="dialog"
@@ -66,7 +67,8 @@ export function TrashViewer({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
