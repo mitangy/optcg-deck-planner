@@ -202,7 +202,10 @@ export class DuelClient {
       } catch (e) {
         lastErr = e;
         const msg = e instanceof Error ? e.message : String(e);
-        const retryable = /seat reservation expired|reconnection/i.test(msg);
+        // Only retry the narrow race where reload beats allowReconnection setup.
+        // Broad /reconnection/i matching caused 5×12s hangs on dead tokens and
+        // tripped the Hotseat 25s startup watchdog with a generic timeout.
+        const retryable = /seat reservation expired/i.test(msg);
         if (!retryable || i === attempts - 1) throw e;
         try {
           await this.disconnect(false);
