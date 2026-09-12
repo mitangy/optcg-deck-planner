@@ -33,18 +33,43 @@ type DragHandlers = {
   playFieldHighlight?: boolean;
 };
 
+/** Tap-select a leader/character on this side for contextual actions. */
+type SelectHandlers = {
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+};
+
+/** Tap a legal attack target on this side to declare the selected attack. */
+type TargetHandlers = {
+  targetableIds: ReadonlySet<string>;
+  onSelectTarget: (id: string) => void;
+};
+
 type Props = {
   side: "you" | "opp";
   data: SideData;
   compact?: boolean;
   drag?: DragHandlers;
+  /** Enables tap-to-select on this side's leader/characters. */
+  select?: SelectHandlers;
+  /** Enables tap-to-attack on this side's leader/characters (legal targets only). */
+  target?: TargetHandlers;
   /** Seat that owns cards on this half of the board. */
   ownerSeat?: Seat;
   /** Seat controlling the UI (alt-art picker). */
   viewingSeat?: Seat;
 };
 
-export function SideField({ side, data, compact, drag, ownerSeat, viewingSeat }: Props) {
+export function SideField({
+  side,
+  data,
+  compact,
+  drag,
+  select,
+  target,
+  ownerSeat,
+  viewingSeat,
+}: Props) {
   const mirrored = side === "opp";
   const interactive = side === "you" && drag;
   const [trashOpen, setTrashOpen] = useState(false);
@@ -79,6 +104,14 @@ export function SideField({ side, data, compact, drag, ownerSeat, viewingSeat }:
                     dropAttr = `play_trash:${c.id}`;
                   }
                 }
+                const isSelectable = Boolean(select);
+                const isTargetable = Boolean(target?.targetableIds.has(c.id));
+                const isSelected = isSelectable && select!.selectedId === c.id;
+                const tapHandler = isSelectable
+                  ? () => select!.onSelect(c.id)
+                  : isTargetable
+                    ? () => target!.onSelectTarget(c.id)
+                    : undefined;
                 return (
                   <CardTile
                     key={c.id}
@@ -89,7 +122,10 @@ export function SideField({ side, data, compact, drag, ownerSeat, viewingSeat }:
                     printedPower={c.printedPower}
                     attachedDonCount={c.attachedDonCount}
                     statusLabels={c.statusLabels}
-                    inspectOnClick
+                    selected={isSelected}
+                    classNameExtra={isTargetable ? "attack-target" : undefined}
+                    inspectOnClick={!tapHandler}
+                    onClick={tapHandler}
                     dropAttr={dropAttr}
                     dropHighlight={giveHl || trashHl}
                     ownerSeat={ownerSeat}
@@ -110,27 +146,41 @@ export function SideField({ side, data, compact, drag, ownerSeat, viewingSeat }:
 
         <div className="zone-leader">
           <div className="zone-caption">Leader</div>
-          <CardTile
-            defId={data.leader.defId}
-            compact={compact || mirrored}
-            rested={data.leader.rested}
-            power={data.leader.power}
-            printedPower={data.leader.printedPower}
-            attachedDonCount={data.leader.attachedDonCount}
-            statusLabels={data.leader.statusLabels}
-            frame="leader"
-            inspectOnClick
-            dropAttr={
-              interactive && drag?.giveDonHighlightIds?.has(data.leader.id)
-                ? `give_don:${data.leader.id}`
-                : null
-            }
-            dropHighlight={Boolean(
-              interactive && drag?.giveDonHighlightIds?.has(data.leader.id),
-            )}
-            ownerSeat={ownerSeat}
-            viewingSeat={viewingSeat}
-          />
+          {(() => {
+            const leaderId = data.leader.id;
+            const isSelectable = Boolean(select);
+            const isTargetable = Boolean(target?.targetableIds.has(leaderId));
+            const isSelected = isSelectable && select!.selectedId === leaderId;
+            const tapHandler = isSelectable
+              ? () => select!.onSelect(leaderId)
+              : isTargetable
+                ? () => target!.onSelectTarget(leaderId)
+                : undefined;
+            return (
+              <CardTile
+                defId={data.leader.defId}
+                compact={compact || mirrored}
+                rested={data.leader.rested}
+                power={data.leader.power}
+                printedPower={data.leader.printedPower}
+                attachedDonCount={data.leader.attachedDonCount}
+                statusLabels={data.leader.statusLabels}
+                frame="leader"
+                selected={isSelected}
+                classNameExtra={isTargetable ? "attack-target" : undefined}
+                inspectOnClick={!tapHandler}
+                onClick={tapHandler}
+                dropAttr={
+                  interactive && drag?.giveDonHighlightIds?.has(leaderId)
+                    ? `give_don:${leaderId}`
+                    : null
+                }
+                dropHighlight={Boolean(interactive && drag?.giveDonHighlightIds?.has(leaderId))}
+                ownerSeat={ownerSeat}
+                viewingSeat={viewingSeat}
+              />
+            );
+          })()}
         </div>
 
         <div

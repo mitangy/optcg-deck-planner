@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol";
 import { BattleLogPanel } from "./BattleLogPanel";
 import type { BattleLogEntry } from "./battleLog";
@@ -14,6 +14,7 @@ import {
   type DragPayload,
 } from "./dragIntents";
 import { IntentBar } from "./IntentBar";
+import { attackTargetIdsForAttacker, findAttackIntent } from "./intentFilter";
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 
@@ -77,6 +78,7 @@ export function DuelBoard({
   onClearError,
 }: Props) {
   const [handFilter, setHandFilter] = useState<number | null>(null);
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
   const [logCollapsed, setLogCollapsed] = useState(false);
 
@@ -119,12 +121,49 @@ export function DuelBoard({
     return new Set(playCardTrashTargetIds(intents, dragPayload.handIndex));
   }, [dragPayload, intents]);
 
+  const attackTargetIds = useMemo(() => {
+    if (!dndEnabled || !selectedBoardId || !view) return EMPTY_IDS;
+    return new Set(
+      attackTargetIdsForAttacker(intents, selectedBoardId, view.opponent.leader.id),
+    );
+  }, [dndEnabled, selectedBoardId, intents, view]);
+
   function commitDrop(payload: DragPayload, clientX: number, clientY: number) {
     const drop = findDropTargetAtPoint(clientX, clientY);
     const intent = resolveDropIntent(payload, drop, intents);
     setDragPayload(null);
     if (intent) {
       setHandFilter(null);
+      setSelectedBoardId(null);
+      onSendIntent(intent);
+    }
+  }
+
+  function selectHandCard(idx: number) {
+    setSelectedBoardId(null);
+    setHandFilter((prev) => (prev === idx ? null : idx));
+  }
+
+  function selectBoardCard(id: string) {
+    setHandFilter(null);
+    setSelectedBoardId((prev) => (prev === id ? null : id));
+  }
+
+  // Drop a stale selection when the selected card leaves your board (KO'd, trashed, etc.)
+  // or the turn changes, so the intent bar never lingers on a dead selection.
+  useEffect(() => {
+    if (!selectedBoardId || !view) return;
+    const stillOnBoard =
+      view.you.leader.id === selectedBoardId ||
+      view.you.characters.some((c) => c.id === selectedBoardId);
+    if (!stillOnBoard) setSelectedBoardId(null);
+  }, [selectedBoardId, view]);
+
+  function selectAttackTarget(targetId: string) {
+    if (!view || !selectedBoardId) return;
+    const intent = findAttackIntent(intents, selectedBoardId, targetId, view.opponent.leader.id);
+    if (intent) {
+      setSelectedBoardId(null);
       onSendIntent(intent);
     }
   }
@@ -250,6 +289,11 @@ export function DuelBoard({
               costAreaCount: opp.costAreaCount,
               activeDonCount: opp.activeDonCount,
             }}
+            target={
+              attackTargetIds.size > 0
+                ? { targetableIds: attackTargetIds, onSelectTarget: selectAttackTarget }
+                : undefined
+            }
           />
 
           <div className="midline">
@@ -281,6 +325,9 @@ export function DuelBoard({
               costArea: you.costArea,
               activeDonCount: you.activeDonCount,
             }}
+            select={
+              spectating ? undefined : { selectedId: selectedBoardId, onSelect: selectBoardCard }
+            }
             drag={
               dndEnabled
                 ? {
@@ -321,7 +368,7 @@ export function DuelBoard({
                     key={c.id}
                     defId={c.defId}
                     selected={handFilter === idx}
-                    onClick={() => setHandFilter((prev) => (prev === idx ? null : idx))}
+                    onClick={() => selectHandCard(idx)}
                     dragEnabled={playable}
                     dragPayload={{ type: "play_card", handIndex: idx }}
                     onDragStart={() =>
@@ -345,8 +392,10 @@ export function DuelBoard({
           view={view}
           disabled={over}
           filterHandIndex={handFilter}
+          selectedBoardId={selectedBoardId}
           onSend={(intent) => {
             setHandFilter(null);
+            setSelectedBoardId(null);
             onSendIntent(intent);
           }}
         />

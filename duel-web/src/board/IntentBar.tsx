@@ -1,27 +1,33 @@
 import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
+import { filterIntentsForSelection } from "./intentFilter";
 
 type Props = {
   intents: Intent[];
   view?: PlayerView;
   disabled?: boolean;
   filterHandIndex?: number | null;
+  selectedBoardId?: string | null;
   onSend: (intent: Intent) => void;
 };
-
-function matchesHandFilter(intent: Intent, handIndex: number | null | undefined): boolean {
-  if (handIndex == null) return true;
-  if (typeof intent.handIndex === "number") return intent.handIndex === handIndex;
-  return true;
-}
 
 function btnClass(intent: Intent): string {
   if (intent.type !== "mulligan") return "intent-btn";
   return intent.doMulligan ? "intent-btn intent-btn-mulligan" : "intent-btn intent-btn-keep";
 }
 
-export function IntentBar({ intents, view, disabled, filterHandIndex, onSend }: Props) {
-  const shown = intents.filter((i) => matchesHandFilter(i, filterHandIndex));
+export function IntentBar({
+  intents,
+  view,
+  disabled,
+  filterHandIndex,
+  selectedBoardId,
+  onSend,
+}: Props) {
+  const handIndex = filterHandIndex ?? null;
+  const boardId = selectedBoardId ?? null;
+  const shown = filterIntentsForSelection(intents, { handIndex, boardId });
   const mulliganPhase = view?.phase === "mulligan";
+  const nothingSelected = handIndex == null && boardId == null;
 
   if (shown.length === 0) {
     return (
@@ -29,7 +35,9 @@ export function IntentBar({ intents, view, disabled, filterHandIndex, onSend }: 
         <p className="intent-empty">
           {mulliganPhase && view?.you.mulliganDone
             ? "Waiting for opponent to finish mulligan…"
-            : "No legal actions right now"}
+            : nothingSelected && intents.length > 0
+              ? "Select a card for actions"
+              : "No legal actions right now"}
         </p>
       </div>
     );
