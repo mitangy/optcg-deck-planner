@@ -110,6 +110,25 @@ const defs: CardDef[] = [
     ],
   },
   {
+    id: "ST01-005",
+    name: "Usopp",
+    type: "character",
+    colors: ["red"],
+    cost: 1,
+    power: 2000,
+    counter: 2000,
+    imageUrl: localArt("ST01-005"),
+    /**
+     * Demo/test-only hook: real ST01-005 has no On Play ability. We reuse the
+     * printed identity so it renders with full art/atlas data, and attach an
+     * optional draw so the pending-choice/prompt framework (chain / optional
+     * ability confirmation) has one concrete, easy-to-reach character path to
+     * exercise in hotseat/manual QA and unit tests.
+     */
+    onPlayOptionalDraw: 1,
+    effectText: "[On Play] (Demo) You may draw 1 card.",
+  },
+  {
     id: "ST01-014",
     name: "Guard Point",
     type: "event",
@@ -663,7 +682,9 @@ export function buildTestDeck(size = 20): CardDefId[] {
     "ST01-008",
     "ST01-008",
     "ST01-009",
-    "ST01-009",
+    // 1 copy of the demo On-Play-draw character so pending-choice prompts are
+    // reachable in default hotseat/quick-match games without deck editing.
+    "ST01-005",
     "ST01-014",
     "ST01-014",
   ];
