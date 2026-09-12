@@ -50,6 +50,91 @@ function payCost(p: PlayerState, cost: number): boolean {
   return true;
 }
 
+function cardHasTrigger(def: ReturnType<typeof getCardDef>): boolean {
+  if (def.hasTrigger) return true;
+  return Boolean(def.effectText?.includes("[Trigger]"));
+}
+
+function characterCostForPlay(state: MatchState, seat: Seat, baseCost: number): number {
+  const opp = state.players[otherSeat(seat)];
+  const oppLeader = getCardDef(opp.leader.defId);
+  const bonus = oppLeader.leaderOpponentCharacterCostBonus ?? 0;
+  // Ability is active during the Teach player's opponent's turn (= active seat is the player paying).
+  if (bonus > 0 && state.activeSeat === seat) {
+    return baseCost + bonus;
+  }
+  return baseCost;
+}
+
+function pushLeaderOnOppAttackChoices(
+  state: MatchState,
+  attackerSeat: Seat,
+  events: GameEvent[],
+): void {
+  const defSeat = otherSeat(attackerSeat);
+  const defender = state.players[defSeat];
+  if (defender.leaderOppAttackAbilityUsedThisTurn) return;
+  const leaderDef = getCardDef(defender.leader.defId);
+
+  if (leaderDef.leaderOnOppAttackTrashForPower && defender.hand.length > 0) {
+    const power = leaderDef.leaderOnOppAttackTrashForPower.power;
+    const prompt =
+      `${leaderDef.name} — On Opponent's Attack: trash 1 card from hand to give ` +
+      `one of your Leader or Characters +${power} power this battle?`;
+    const choice = {
+      id: alloc(state, "choice"),
+      seat: defSeat,
+      kind: "leader_on_opp_attack" as const,
+      cardDefId: leaderDef.id,
+      sourceInstanceId: defender.leader.id,
+      optional: true,
+      prompt,
+      abilityId: "newgate_battle_power" as const,
+    };
+    state.pendingChoices.push(choice);
+    events.push({
+      type: "pending_choice_added",
+      seat: defSeat,
+      kind: choice.kind,
+      cardDefId: choice.cardDefId,
+      sourceInstanceId: choice.sourceInstanceId,
+      optional: true,
+      prompt,
+    });
+    return;
+  }
+
+  if (leaderDef.leaderOnOppAttackTrashTriggerRetarget) {
+    const hasTriggerCard = defender.hand.some((c) => cardHasTrigger(getCardDef(c.defId)));
+    if (!hasTriggerCard) return;
+    const trait = leaderDef.leaderOnOppAttackTrashTriggerRetarget.retargetTrait;
+    const prompt =
+      `${leaderDef.name} — On Opponent's Attack: trash 1 [Trigger] card from hand to ` +
+      `redirect this attack to your Leader or a {${trait}} Character?`;
+    const choice = {
+      id: alloc(state, "choice"),
+      seat: defSeat,
+      kind: "leader_on_opp_attack" as const,
+      cardDefId: leaderDef.id,
+      sourceInstanceId: defender.leader.id,
+      optional: true,
+      prompt,
+      abilityId: "teach_redirect" as const,
+    };
+    state.pendingChoices.push(choice);
+    events.push({
+      type: "pending_choice_added",
+      seat: defSeat,
+      kind: choice.kind,
+      cardDefId: choice.cardDefId,
+      sourceInstanceId: choice.sourceInstanceId,
+      optional: true,
+      prompt,
+    });
+  }
+}
+
+
 function placeDon(p: PlayerState, n: number): number {
   let placed = 0;
   while (placed < n && p.donDeck.length > 0) {
@@ -122,6 +207,7 @@ function powerOf(
     if (card.id === state.battle.attackerId) p += state.battle.attackerPowerBonus;
     if (asDefender) p += state.battle.defenderPowerBonus;
   }
+  p += card.battlePowerBonus ?? 0;
   return p;
 }
 
@@ -153,6 +239,7 @@ function buildPlayer(state: MatchState, cfg: PlayerDeckConfig, rng: Rng): Player
     mulliganDone: false,
     turnsStarted: 0,
     leaderActivatedThisTurn: false,
+    leaderOppAttackAbilityUsedThisTurn: false,
   };
   for (let i = 0; i < 5; i++) {
     if (!player.deck.length) break;
@@ -174,6 +261,7 @@ function beginTurn(state: MatchState, events: GameEvent[]): void {
   const player = state.players[seat];
   player.turnsStarted += 1;
   player.leaderActivatedThisTurn = false;
+  player.leaderOppAttackAbilityUsedThisTurn = false;
   for (const c of player.characters) {
     c.summoningSick = false;
   }
@@ -418,6 +506,69 @@ export function applyIntent(
         cardDefId: front.cardDefId,
         accepted: intent.accept,
       });
+    } else if (front.kind === "leader_on_opp_attack") {
+      const player = next.players[seat];
+      if (intent.accept) {
+        if (
+          intent.handIndex == null ||
+          intent.handIndex < 0 ||
+          intent.handIndex >= player.hand.length
+        ) {
+          return fail(state, "bad_hand", "Choose a hand card to trash");
+        }
+        const trashed = player.hand[intent.handIndex];
+        const trashedDef = getCardDef(trashed.defId);
+
+        if (front.abilityId === "newgate_battle_power") {
+          const power = def.leaderOnOppAttackTrashForPower?.power ?? 4000;
+          if (!intent.buffTargetId) {
+            return fail(state, "bad_target", "Choose a Leader or Character to buff");
+          }
+          const target =
+            player.leader.id === intent.buffTargetId
+              ? player.leader
+              : player.characters.find((c) => c.id === intent.buffTargetId);
+          if (!target) return fail(state, "bad_target", "Buff target not on your field");
+          player.hand.splice(intent.handIndex, 1);
+          player.trash.push(trashed.defId);
+          target.battlePowerBonus = (target.battlePowerBonus ?? 0) + power;
+        } else if (front.abilityId === "teach_redirect") {
+          if (!cardHasTrigger(trashedDef)) {
+            return fail(state, "not_trigger", "Must trash a card with [Trigger]");
+          }
+          if (!intent.newTarget) {
+            return fail(state, "bad_target", "Choose a new attack target");
+          }
+          const trait =
+            def.leaderOnOppAttackTrashTriggerRetarget?.retargetTrait ??
+            "Blackbeard Pirates";
+          const newTarget = intent.newTarget;
+          if (newTarget.kind === "character") {
+            const ch = player.characters.find((c) => c.id === newTarget.instanceId);
+            if (!ch) return fail(state, "bad_target", "Retarget character missing");
+            const chDef = getCardDef(ch.defId);
+            if (!(chDef.traits ?? []).includes(trait)) {
+              return fail(state, "bad_target", `Character must have {${trait}} type`);
+            }
+          } else if (newTarget.kind !== "leader") {
+            return fail(state, "bad_target", "Invalid retarget");
+          }
+          player.hand.splice(intent.handIndex, 1);
+          player.trash.push(trashed.defId);
+          if (!next.battle) return fail(state, "no_battle", "No active battle");
+          next.battle.target = intent.newTarget;
+        } else {
+          return fail(state, "unknown_ability", "Unknown leader attack ability");
+        }
+        player.leaderOppAttackAbilityUsedThisTurn = true;
+      }
+      events.push({
+        type: "pending_choice_resolved",
+        seat,
+        kind: front.kind,
+        cardDefId: front.cardDefId,
+        accepted: intent.accept,
+      });
     } else {
       // Future kinds (activate_main / when_attacking / optional_ability):
       // engine hooks land per-card; the queue + prompt framework is ready.
@@ -433,7 +584,8 @@ export function applyIntent(
     // Only the life-trigger flow repurposes phase/battle for the damage step;
     // leave both alone for Main-phase ability prompts (e.g. On Play).
     if (next.pendingChoices.length === 0 && next.phase === "damage") {
-      next.battle = null;
+      clearBattlePowerBonuses(next);
+    next.battle = null;
       next.phase = "main";
     }
     return done();
@@ -563,7 +715,9 @@ export function applyIntent(
     if (def.type === "event" && def.eventTiming === "counter") {
       return fail(state, "counter_only", "Counter event not playable in Main");
     }
-    if (!payCost(player, def.cost)) return fail(state, "cant_pay", "Not enough DON!!");
+    const playCost =
+      def.type === "character" ? characterCostForPlay(next, seat, def.cost) : def.cost;
+    if (!payCost(player, playCost)) return fail(state, "cant_pay", "Not enough DON!!");
     player.hand.splice(intent.handIndex, 1);
 
     if (def.type === "character") {
@@ -673,10 +827,12 @@ export function applyIntent(
       defenderPower: defPow,
     });
     next.phase = "block";
+    pushLeaderOnOppAttackChoices(next, seat, events);
     return done();
   }
 
   if (intent.type === "end_turn") {
+    clearBattlePowerBonuses(next);
     next.battle = null;
     next.activeSeat = otherSeat(seat);
     next.turnNumber += 1;
@@ -755,7 +911,9 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
   player.hand.forEach((c, handIndex) => {
     const def = getCardDef(c.defId);
     if (def.type === "event" && def.eventTiming === "counter") return;
-    if (activeDons(player).length < def.cost) return;
+    const need =
+      def.type === "character" ? characterCostForPlay(state, seat, def.cost) : def.cost;
+    if (activeDons(player).length < need) return;
     if (def.type === "character" && player.characters.length >= 5) {
       for (const ch of player.characters) {
         out.push({ type: "play_card", handIndex, trashCharacterId: ch.id });
@@ -786,6 +944,13 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
     }
   }
   return out;
+}
+
+function clearBattlePowerBonuses(state: MatchState): void {
+  for (const p of state.players) {
+    delete p.leader.battlePowerBonus;
+    for (const c of p.characters) delete c.battlePowerBonus;
+  }
 }
 
 function isBattleDefender(state: MatchState, card: CardInstance): boolean {

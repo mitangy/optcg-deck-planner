@@ -147,7 +147,9 @@ const defs: CardDef[] = [
     power: 5000,
     life: 5,
     imageUrl: localArt("OP17-001"),
-    effectText: "[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card from your hand: Up to 1 of your Leader or Characters gains +4000 power during this battle.",
+    effectText:
+      "[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card from your hand: Up to 1 of your Leader or Characters gains +4000 power during this battle.",
+    leaderOnOppAttackTrashForPower: { power: 4000 },
   },
   {
     id: "OP16-080",
@@ -158,7 +160,11 @@ const defs: CardDef[] = [
     power: 5000,
     life: 4,
     imageUrl: localArt("OP16-080"),
-    effectText: "[Opponent's Turn] All of your Characters gain +1 cost.\n\n[On your Opponent's Attack] [Once Per Turn] You may trash 1 card with a [Trigger] from your hand: Change the target of that attack to this Leader or to one of your {Blackbeard Pirates} type Character cards.",
+    traits: ["Blackbeard Pirates"],
+    effectText:
+      "[Opponent's Turn] Give all of your opponent's Characters +1 cost.\n\n[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card with a [Trigger] from your hand: Change the target of that attack to this Leader or 1 of your {Blackbeard Pirates} type Characters.",
+    leaderOpponentCharacterCostBonus: 1,
+    leaderOnOppAttackTrashTriggerRetarget: { retargetTrait: "Blackbeard Pirates" },
   },
   {
     id: "OP09-118",
@@ -281,7 +287,7 @@ const defs: CardDef[] = [
     eventTiming: "main",
     imageUrl: localArt("OP17-019"),
     effectText: "[Main] Look at 5 cards from the top of your deck; reveal up to 1 card with a type including \"Whitebeard Pirates\" and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n\n[Trigger] Your Leader gains +1000 power during this turn.",
-  },
+      },
   {
     id: "ST23-001",
     name: "Uta",
@@ -327,6 +333,7 @@ const defs: CardDef[] = [
     blocker: true,
     imageUrl: localArt("EB04-058"),
     effectText: "[Blocker]\n[On Play] If you have 2 or less Life cards, add up to 1 card from the top of your deck to the top of your Life cards.",
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP09-086",
@@ -338,6 +345,7 @@ const defs: CardDef[] = [
     counter: 1000,
     imageUrl: localArt("OP09-086"),
     effectText: "This Character cannot be K.O.'d by your opponent's effects.\n\nIf your Leader has the \"Blackbeard Pirates\" type, this Character gains +1000 power for every 4 cards in your trash.",
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP09-093",
@@ -348,6 +356,7 @@ const defs: CardDef[] = [
     power: 12000,
     imageUrl: localArt("OP09-093"),
     effectText: "[Blocker]\n\n[Activate: Main] [Once Per Turn] If your Leader has the \"Blackbeard Pirates\" type and this Character was played on this turn, negate the effect of up to 1 of your opponent's Leader during this turn. Then, negate the effect of up to 1 of your opponent's Characters and that Character cannot attack until the end of your opponent's next turn.",
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP09-095",
@@ -359,6 +368,7 @@ const defs: CardDef[] = [
     counter: 1000,
     imageUrl: localArt("OP09-095"),
     effectText: "[Activate: Main] You may rest 1 of your DON!! cards and this Character: Look at 5 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.",
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP09-096",
@@ -369,6 +379,8 @@ const defs: CardDef[] = [
     eventTiming: "main",
     imageUrl: localArt("OP09-096"),
     effectText: "[Main] Look at 3 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card other than [My Era...Begins!!] and add it to your hand. Then, trash the rest.\n\n[Trigger] Activate this card's [Main] effect.",
+    hasTrigger: true,
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP09-099",
@@ -378,6 +390,7 @@ const defs: CardDef[] = [
     cost: 1,
     imageUrl: localArt("OP09-099"),
     effectText: "[Activate: Main] You may trash 1 card from your hand and rest this Stage: Look at 3 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.",
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP12-112",
@@ -389,6 +402,8 @@ const defs: CardDef[] = [
     counter: 2000,
     imageUrl: localArt("OP12-112"),
     effectText: "[Trigger] If your Leader is multicolored, draw 2 cards.",
+    hasTrigger: true,
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP14-108",
@@ -400,6 +415,8 @@ const defs: CardDef[] = [
     counter: 1000,
     imageUrl: localArt("OP14-108"),
     effectText: "[On Play] If your Leader is multicolored and your opponent has 3 or less Life cards, K.O. up to 1 of your opponent's Characters with 7000 base power or less.\n\n[Trigger] Activate this card's [On Play] effect.",
+    hasTrigger: true,
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP16-104",
@@ -411,6 +428,8 @@ const defs: CardDef[] = [
     counter: 2000,
     imageUrl: localArt("OP16-104"),
     effectText: "[When Attacking] Select up to 1 of your opponent's Characters. This Character's base power becomes the same as the selected Character's power during this turn.\n\n[Trigger] Draw 1 card and play up to 1 {Blackbeard Pirates} type Character with a cost of 1 from your trash.",
+    hasTrigger: true,
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP16-106",
@@ -422,6 +441,8 @@ const defs: CardDef[] = [
     counter: 1000,
     imageUrl: localArt("OP16-106"),
     effectText: "[On K.O.] If your Leader has the {Blackbeard Pirates} type, draw 1 card, then up to 1 of your Leader or Character cards' base power becomes 7000 during this turn.\n\n[Trigger] Activate this card's [On K.O.] effect.",
+    hasTrigger: true,
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP16-108",
@@ -432,6 +453,8 @@ const defs: CardDef[] = [
     power: 8000,
     imageUrl: localArt("OP16-108"),
     effectText: "[On Play] You may trash 1 card from your hand: Add up to 1 {Blackbeard Pirates} type card with a cost of 6 or less from your trash to the top of your Life cards face-up.\n\n[Trigger] Draw 2 cards.",
+    hasTrigger: true,
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP16-109",
@@ -443,6 +466,8 @@ const defs: CardDef[] = [
     counter: 2000,
     imageUrl: localArt("OP16-109"),
     effectText: "[On K.O.] If your Leader has the {Blackbeard Pirates} type, draw 1 card and K.O. up to 2 of your opponent's Characters with a cost of 1 or less.\n\n[Trigger] Activate this card's [On K.O.] effect.",
+    hasTrigger: true,
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP16-110",
@@ -454,6 +479,8 @@ const defs: CardDef[] = [
     counter: 1000,
     imageUrl: localArt("OP16-110"),
     effectText: "[On K.O.] Draw 1 card and rest up to 1 of your opponent's Characters with a cost of 6 or less.\n\n[Trigger] Activate this card's [On K.O.] effect.",
+    hasTrigger: true,
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP16-115",
@@ -464,6 +491,8 @@ const defs: CardDef[] = [
     eventTiming: "main",
     imageUrl: localArt("OP16-115"),
     effectText: "[Main] If your Leader has the {Blackbeard Pirates} type, add up to 1 card with a [Trigger] other than [Black Vortex] from your trash to your hand.\n\n[Trigger] Negate the effect of up to 1 of your opponent's Leader or Character cards during this turn.",
+    hasTrigger: true,
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP16-116",
@@ -474,6 +503,8 @@ const defs: CardDef[] = [
     eventTiming: "main",
     imageUrl: localArt("OP16-116"),
     effectText: "[Main] If you have 10 DON!! cards on your field, play up to 1 [Marshall.D.Teach] from your hand. Then, add up to 1 card from the top of your opponent's Life cards to the owner's hand.\n\n[Trigger] Draw 2 cards and trash 1 card from your hand.",
+    hasTrigger: true,
+    traits: ["Blackbeard Pirates"],
   },
   {
     id: "OP16-119",
@@ -484,6 +515,8 @@ const defs: CardDef[] = [
     power: 10000,
     imageUrl: localArt("OP16-119"),
     effectText: "[On Play] Look at 3 cards from the top of your deck; add up to 1 card to the top of your Life cards. Then, place the rest at the bottom of your deck in any order.\n\n[Trigger] Negate the effect of up to 1 of your opponent's Characters during this turn. Then, K.O. up to 1 of your opponent's Characters with a cost of 5 or less.",
+    hasTrigger: true,
+    traits: ["Blackbeard Pirates"],
   },
 
 ];
@@ -624,6 +657,45 @@ export type CardAtlasEntry = {
   imageUrl?: string;
   effectText?: string;
   altArts?: { id: string; label: string; imageUrl: string }[];
+  traits?: string[];
+  hasTrigger?: boolean;
+  attribute?: string;
+};
+
+/** Printed attributes for deck-builder filters (not used by the rules engine). */
+const ATTRIBUTES_BY_ID: Record<string, string> = {
+  "ST01-001": "Strike",
+  "ST01-003": "Strike",
+  "ST01-004": "Slash",
+  "ST01-005": "Strike",
+  "ST01-006": "Strike",
+  "ST01-008": "Strike",
+  "ST01-009": "Special",
+  "OP17-001": "Strike",
+  "OP16-080": "Special",
+  "OP09-118": "Slash",
+  "OP12-002": "Slash",
+  "OP16-118": "Special",
+  "OP17-002": "Slash",
+  "OP17-003": "Slash",
+  "OP17-005": "Strike",
+  "OP17-008": "Strike",
+  "OP17-015": "Strike",
+  "ST23-001": "Strike",
+  "ST30-004": "Strike",
+  "ST30-005": "Strike",
+  "EB04-058": "Special",
+  "OP09-086": "Strike",
+  "OP09-093": "Special",
+  "OP09-095": "Strike",
+  "OP12-112": "Strike",
+  "OP14-108": "Special",
+  "OP16-104": "Strike",
+  "OP16-106": "Strike",
+  "OP16-108": "Special",
+  "OP16-109": "Strike",
+  "OP16-110": "Strike",
+  "OP16-119": "Special",
 };
 
 export function buildCardAtlas(): Record<CardDefId, CardAtlasEntry> {
@@ -646,6 +718,9 @@ export function buildCardAtlas(): Record<CardDefId, CardAtlasEntry> {
       effectText: d.effectText,
       // Prefer authored alt list (e.g. local ST01 parallels); else TCGCSV alts.
       altArts: authoredAlts?.length ? authoredAlts : tcgAlts.length ? tcgAlts : undefined,
+      traits: d.traits?.length ? [...d.traits] : undefined,
+      hasTrigger: d.hasTrigger ? true : undefined,
+      attribute: d.attribute ?? ATTRIBUTES_BY_ID[d.id],
     };
   }
   return atlas;
