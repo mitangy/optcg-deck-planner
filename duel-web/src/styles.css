@@ -1841,8 +1841,25 @@ img.zone-pile-face {
     height: 46px;
   }
 
+  /* 5 character slots must stay in a single designed row on mobile — never
+     an accidental flex-wrap spill. Grid columns are `fr` sized so real card
+     tiles and empty dashed slots always share one uniform cell width, and
+     the row always resolves to exactly one line no matter how narrow the
+     side panel gets. */
   .characters-row {
-    min-height: 72px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-auto-flow: column;
+    gap: 0.28rem;
+    min-height: 0;
+  }
+
+  .characters-row .card-tile,
+  .characters-row .zone-slot {
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    aspect-ratio: 5 / 7;
   }
 
   .opp-hand-hint {
