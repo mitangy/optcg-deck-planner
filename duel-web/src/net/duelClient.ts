@@ -72,8 +72,6 @@ export class DuelClient {
     await this.disconnect();
 
     const url = params.serverUrl ?? getGameServerUrl();
-    this.client = new Client(url);
-
     const join = this.buildJoin(params);
     const create: DuelCreateOptions = {
       protocolVersion: PROTOCOL_VERSION,
@@ -82,22 +80,47 @@ export class DuelClient {
       ...params.createOptions,
     };
 
-    let room: Room;
-    if (params.roomId?.trim()) {
-      room = await this.client.joinById(params.roomId.trim(), join);
-    } else {
-      // Always `create` for the host seat so StrictMode remounts / leftover
-      // reconnect-grace rooms are not re-joined while locked at maxClients.
-      room = await this.client.create("duel", { ...create, ...join });
+    // Free-tier cold starts: HTTP matchmake can succeed while the WS claim is
+    // still waking the process. Colyseus then returns "seat reservation expired"
+    // even on brand-new create/join (not only reconnect). Retry a few times.
+    const attempts = 4;
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+      if (i > 0) {
+        await new Promise((r) => setTimeout(r, 400 * i));
+      }
+      try {
+        this.client = new Client(url);
+        let room: Room;
+        if (params.roomId?.trim()) {
+          room = await this.client.joinById(params.roomId.trim(), join);
+        } else {
+          // Always `create` for the host seat so StrictMode remounts / leftover
+          // reconnect-grace rooms are not re-joined while locked at maxClients.
+          room = await this.client.create("duel", { ...create, ...join });
+        }
+        this.room = room;
+        this.captureReconnectionToken(room);
+        this.wireDuel(room);
+
+        // Resolve as soon as the Colyseus room exists so the lobby can show the
+        // room id while waiting for the second seat (welcome arrives via handlers).
+        return { matchId: room.roomId, seat: params.preferredSeat ?? 0 };
+      } catch (e) {
+        lastErr = e;
+        const msg = e instanceof Error ? e.message : String(e);
+        const retryable = /seat reservation expired/i.test(msg);
+        try {
+          await this.disconnect(true);
+        } catch {
+          /* ignore */
+        }
+        if (!retryable || i === attempts - 1) {
+          throw e instanceof Error ? e : new Error(String(e));
+        }
+      }
     }
-
-    this.room = room;
-    this.captureReconnectionToken(room);
-    this.wireDuel(room);
-
-    // Resolve as soon as the Colyseus room exists so the lobby can show the
-    // room id while waiting for the second seat (welcome arrives via handlers).
-    return { matchId: room.roomId, seat: params.preferredSeat ?? 0 };
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
   }
 
   /** Join ranked_queue until matched, then join the duel room. */
@@ -146,14 +169,28 @@ export class DuelClient {
     }
     this.queueRoom = null;
 
-    const room = await this.client.joinById(matched.roomId, {
-      ...join,
-      preferredSeat: matched.seat,
-    });
-    this.room = room;
-    this.captureReconnectionToken(room);
-    this.wireDuel(room);
-    return { matchId: room.roomId, seat: matched.seat };
+    // Same cold-start race as connect(): retry seat reservation expired.
+    let lastJoinErr: unknown;
+    for (let i = 0; i < 4; i++) {
+      if (i > 0) await new Promise((r) => setTimeout(r, 400 * i));
+      try {
+        const room = await this.client!.joinById(matched.roomId, {
+          ...join,
+          preferredSeat: matched.seat,
+        });
+        this.room = room;
+        this.captureReconnectionToken(room);
+        this.wireDuel(room);
+        return { matchId: room.roomId, seat: matched.seat };
+      } catch (e) {
+        lastJoinErr = e;
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!/seat reservation expired/i.test(msg) || i === 3) {
+          throw e instanceof Error ? e : new Error(String(e));
+        }
+      }
+    }
+    throw lastJoinErr instanceof Error ? lastJoinErr : new Error(String(lastJoinErr));
   }
 
   async cancelQueue() {

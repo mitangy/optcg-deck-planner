@@ -1,5 +1,10 @@
 import { Room, Client, matchMaker } from "colyseus";
-import { getDevJoinSecret, getLogLevel, requireGameToken } from "../env.js";
+import {
+  getDevJoinSecret,
+  getLogLevel,
+  getSeatReservationTimeoutSeconds,
+  requireGameToken,
+} from "../env.js";
 import { verifyGameToken } from "../gameToken.js";
 import { PROTOCOL_VERSION, parseJoinOptions } from "../protocol.js";
 
@@ -21,6 +26,7 @@ export class MatchmakerRoom extends Room {
   private pairing = false;
 
   onCreate() {
+    this.seatReservationTimeout = getSeatReservationTimeoutSeconds();
     this.onMessage("cancel", (client) => {
       this.removeFromQueue(client.sessionId);
       client.send("queue_cancelled", { protocolVersion: PROTOCOL_VERSION });

@@ -129,12 +129,18 @@ export async function mintSessionGameToken(): Promise<DuelTokenResponse> {
 /**
  * Best-effort wake for free-tier Render services so the first hotseat mint /
  * Colyseus create is not the cold-start request.
+ * Awaits health so callers can optionally block until the process is up.
  */
-export function warmDuelServices(apiBase: string, gameServerUrl: string): void {
+export async function warmDuelServices(
+  apiBase: string,
+  gameServerUrl: string,
+): Promise<void> {
   const api = apiBase.replace(/\/$/, "");
   const gs = gameServerUrl.replace(/\/$/, "");
-  void fetch(`${api}/health`).catch(() => undefined);
-  void fetch(`${gs}/health`).catch(() => undefined);
+  await Promise.all([
+    fetch(`${api}/health`).catch(() => undefined),
+    fetch(`${gs}/health`).catch(() => undefined),
+  ]);
 }
 
 /**

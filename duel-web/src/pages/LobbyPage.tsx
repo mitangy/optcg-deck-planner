@@ -140,13 +140,15 @@ export function LobbyPage() {
       // Starting a new match must not auto-resume a prior room on the next
       // /hotseat or /duel mount (refresh keeps history.state).
       clearMatchResume();
+      // Await wake so create/join don't race a cold Colyseus seat reservation
+      // (15s default → "seat reservation expired" while Render is still booting).
+      await warmDuelServices(apiUrl, serverUrl.trim());
       if (mode === "hotseat") {
         const wire = deckToWire(selectedDeck!);
         setSelectedDeckId(selectedDeck!.id);
         const key = hotseatUserKey();
         // Pre-mint both seats on the lobby (with retries) so HotseatPage does
         // not race an 8s timeout against a cold free-tier API spin-up.
-        warmDuelServices(apiUrl, serverUrl.trim());
         const [tokA, tokB] = await Promise.all([
           mintGuestGameToken(hotseatGuestId(key, "a")),
           mintGuestGameToken(hotseatGuestId(key, "b")),

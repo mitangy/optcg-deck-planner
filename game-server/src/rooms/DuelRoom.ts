@@ -18,6 +18,7 @@ import {
   getDevJoinSecret,
   getLogLevel,
   getReconnectGraceSeconds,
+  getSeatReservationTimeoutSeconds,
   requireGameToken,
 } from "../env.js";
 import { verifyGameToken } from "../gameToken.js";
@@ -80,6 +81,10 @@ export class DuelRoom extends Room {
   private endReason: string | null = null;
 
   onCreate(options: unknown) {
+    // Absorb free-tier cold starts: matchmake HTTP can succeed while WS claim
+    // is still spinning up — Colyseus's 15s default then throws
+    // "seat reservation expired" on brand-new create/join.
+    this.seatReservationTimeout = getSeatReservationTimeoutSeconds();
     const parsed = parseCreateOptions(options);
     this.seed = parsed.seed;
     this.autoSkipMulligan = parsed.autoSkipMulligan;
