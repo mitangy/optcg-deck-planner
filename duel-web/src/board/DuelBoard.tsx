@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol";
 import { BattleLogPanel } from "./BattleLogPanel";
 import type { BattleLogEntry } from "./battleLog";
@@ -8,9 +8,9 @@ import {
   canDragHandCard,
   canDropPlayOnField,
   findDropTargetAtPoint,
-  giveDonTargetIds,
+  giveDonTargetIdsForAll,
   playCardTrashTargetIds,
-  resolveDropIntent,
+  resolveDropIntents,
   type DragPayload,
 } from "./dragIntents";
 import { IntentBar } from "./IntentBar";
@@ -79,6 +79,7 @@ export function DuelBoard({
   const [handFilter, setHandFilter] = useState<number | null>(null);
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
   const [logCollapsed, setLogCollapsed] = useState(false);
+  const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
 
   const over = matchOver != null || view?.winner != null;
   const mySeat = seat ?? view?.seat ?? null;
@@ -106,8 +107,41 @@ export function DuelBoard({
 
   const giveDonHighlightIds = useMemo(() => {
     if (dragPayload?.type !== "give_don") return EMPTY_IDS;
-    return new Set(giveDonTargetIds(intents, dragPayload.donId));
+    // Intersection across every dragged donId so a drop always fully succeeds.
+    return new Set(giveDonTargetIdsForAll(intents, dragPayload.donIds));
   }, [dragPayload, intents]);
+
+  // Drop stale selections (don rested/used, turn ended, etc.) whenever the
+  // legal set changes, so the highlight/selection UI never lies.
+  useEffect(() => {
+    setSelectedDonIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set([...prev].filter((id) => draggableDonIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [draggableDonIds]);
+
+  useEffect(() => {
+    if (!dndEnabled) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setSelectedDonIds(new Set());
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [dndEnabled]);
+
+  function toggleDonSelect(donId: string) {
+    setSelectedDonIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(donId)) next.delete(donId);
+      else next.add(donId);
+      return next;
+    });
+  }
+
+  function clearDonSelection() {
+    setSelectedDonIds(new Set());
+  }
 
   const playFieldHighlight = Boolean(
     dragPayload?.type === "play_card" &&
@@ -121,11 +155,14 @@ export function DuelBoard({
 
   function commitDrop(payload: DragPayload, clientX: number, clientY: number) {
     const drop = findDropTargetAtPoint(clientX, clientY);
-    const intent = resolveDropIntent(payload, drop, intents);
+    // Sequential client-side intents (no batch protocol) — one give_don per
+    // selected donId that has a legal intent to this target.
+    const toSend = resolveDropIntents(payload, drop, intents);
     setDragPayload(null);
-    if (intent) {
+    if (toSend.length > 0) {
       setHandFilter(null);
-      onSendIntent(intent);
+      for (const intent of toSend) onSendIntent(intent);
+      if (payload.type === "give_don") clearDonSelection();
     }
   }
 
@@ -285,13 +322,29 @@ export function DuelBoard({
               dndEnabled
                 ? {
                     draggableDonIds,
-                    draggingDonId:
-                      dragPayload?.type === "give_don" ? dragPayload.donId : null,
-                    onDonDragStart: (donId) =>
-                      setDragPayload({ type: "give_don", donId }),
-                    onDonDragEnd: (donId, x, y) =>
-                      commitDrop({ type: "give_don", donId }, x, y),
+                    draggingDonIds:
+                      dragPayload?.type === "give_don"
+                        ? new Set(dragPayload.donIds)
+                        : EMPTY_IDS,
+                    selectedDonIds,
+                    onDonDragStart: (donId) => {
+                      // Dragging a selected chip carries the whole selection;
+                      // dragging an unselected chip selects just that one.
+                      const donIds =
+                        selectedDonIds.size > 0 && selectedDonIds.has(donId)
+                          ? Array.from(selectedDonIds)
+                          : [donId];
+                      setSelectedDonIds(new Set(donIds));
+                      setDragPayload({ type: "give_don", donIds });
+                    },
+                    onDonDragEnd: (donId, x, y) => {
+                      const donIds =
+                        dragPayload?.type === "give_don" ? dragPayload.donIds : [donId];
+                      commitDrop({ type: "give_don", donIds }, x, y);
+                    },
                     onDonDragCancel: () => setDragPayload(null),
+                    onDonToggleSelect: toggleDonSelect,
+                    onClearDonSelection: clearDonSelection,
                     giveDonHighlightIds,
                     playTrashHighlightIds,
                     playFieldHighlight,

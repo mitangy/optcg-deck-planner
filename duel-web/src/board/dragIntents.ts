@@ -1,8 +1,10 @@
 import type { Intent } from "../net/protocol";
 
-/** Active pointer-drag payload for legal give_don / play_card intents. */
+/** Active pointer-drag payload for legal give_don / play_card intents.
+ * `donIds` carries the full multi-select (or a lone id when nothing is
+ * selected) so one gesture can attach several DON!! in sequence. */
 export type DragPayload =
-  | { type: "give_don"; donId: string }
+  | { type: "give_don"; donIds: string[] }
   | { type: "play_card"; handIndex: number };
 
 export type DropTarget =
@@ -52,6 +54,45 @@ export function matchGiveDon(
   return (
     intents.find((i) => isGiveDon(i) && i.donId === donId && i.targetId === targetId) ?? null
   );
+}
+
+/**
+ * Targets legal for EVERY donId in the set — the intersection used to
+ * highlight drop zones during a multi-DON drag so a drop always fully
+ * succeeds (every selected DON has a legal give_don there).
+ */
+export function giveDonTargetIdsForAll(intents: Intent[], donIds: string[]): string[] {
+  if (donIds.length === 0) return [];
+  let result: Set<string> | null = null;
+  for (const donId of donIds) {
+    const targets = new Set(giveDonTargetIds(intents, donId));
+    if (result === null) {
+      result = targets;
+      continue;
+    }
+    for (const t of result) {
+      if (!targets.has(t)) result.delete(t);
+    }
+  }
+  return result ? [...result] : [];
+}
+
+/**
+ * Legal give_don intents for each donId that has one landing on targetId,
+ * in donIds order. Callers send these sequentially (client-side, no batch
+ * protocol) — donIds without a legal intent to this target are skipped.
+ */
+export function matchGiveDonMulti(
+  intents: Intent[],
+  donIds: string[],
+  targetId: string,
+): Intent[] {
+  const out: Intent[] = [];
+  for (const donId of donIds) {
+    const intent = matchGiveDon(intents, donId, targetId);
+    if (intent) out.push(intent);
+  }
+  return out;
 }
 
 /** True when any legal play_card uses this hand index. */
@@ -104,23 +145,29 @@ export function matchPlayCardTrash(
   );
 }
 
-/** Map a drag payload + drop target to a legal intent (or null). */
-export function resolveDropIntent(
+/**
+ * Map a drag payload + drop target to the legal intent(s) to send, in send
+ * order. give_don with multiple donIds resolves to one intent per don that
+ * has a legal give_don to this target (client sends them sequentially).
+ */
+export function resolveDropIntents(
   payload: DragPayload | null,
   drop: DropTarget | null,
   intents: Intent[],
-): Intent | null {
-  if (!payload || !drop) return null;
+): Intent[] {
+  if (!payload || !drop) return [];
   if (payload.type === "give_don" && drop.kind === "give_don_target") {
-    return matchGiveDon(intents, payload.donId, drop.targetId);
+    return matchGiveDonMulti(intents, payload.donIds, drop.targetId);
   }
   if (payload.type === "play_card" && drop.kind === "play_field") {
-    return matchPlayCardOnField(intents, payload.handIndex);
+    const intent = matchPlayCardOnField(intents, payload.handIndex);
+    return intent ? [intent] : [];
   }
   if (payload.type === "play_card" && drop.kind === "play_trash") {
-    return matchPlayCardTrash(intents, payload.handIndex, drop.characterId);
+    const intent = matchPlayCardTrash(intents, payload.handIndex, drop.characterId);
+    return intent ? [intent] : [];
   }
-  return null;
+  return [];
 }
 
 /** Parse data-dnd-drop attribute from an element under the pointer. */
