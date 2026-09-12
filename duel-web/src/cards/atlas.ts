@@ -17,6 +17,8 @@ export type CardAtlasEntry = {
   power?: number;
   life?: number;
   counter?: number;
+  /** Combat attribute: Strike, Slash, Ranged, Special, Wisdom. */
+  attribute?: string;
   blocker?: boolean;
   rush?: boolean;
   imageUrl?: string;
