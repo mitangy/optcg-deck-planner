@@ -55,7 +55,29 @@ describe("mobile characters-row layout", () => {
     expect(gridRuleMatch).not.toBeNull();
     const body = gridRuleMatch![1];
     expect(body).toMatch(/display:\s*grid/);
-    expect(body).toMatch(/grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+    // The 52px floor per column is the load-bearing fix for tiles shrinking
+    // to illegible sizes (~39px) with overflowing badges at ~375px: instead
+    // of shrinking to fit (minmax(0, 1fr)), each column has a real minimum
+    // and the row scrolls horizontally if the container is narrower than
+    // 5 columns at their floor width.
+    expect(body).toMatch(/grid-template-columns:\s*repeat\(5,\s*minmax\(52px,\s*1fr\)\)/);
+  });
+
+  it("keeps a 5-column single-row track by preventing wrap and item reflow", () => {
+    const gridRuleMatch = mobileBlock.match(/\.characters-row\s*\{([^}]*)\}/);
+    const body = gridRuleMatch![1];
+    // A CSS grid never wraps to extra rows on its own, but guard against a
+    // future regression back to flex (which requires flex-wrap: nowrap or
+    // similar to avoid the spill) and confirm the explicit column auto-flow
+    // that keeps all 5 slots on one row.
+    expect(body).not.toMatch(/flex-wrap/);
+    expect(body).toMatch(/grid-auto-flow:\s*column/);
+  });
+
+  it("lets the row scroll horizontally instead of squeezing tiles below the floor width", () => {
+    const gridRuleMatch = mobileBlock.match(/\.characters-row\s*\{([^}]*)\}/);
+    const body = gridRuleMatch![1];
+    expect(body).toMatch(/overflow-x:\s*auto/);
   });
 
   it("sizes every card tile and empty slot in the row uniformly so they never wrap", () => {
@@ -65,7 +87,8 @@ describe("mobile characters-row layout", () => {
     expect(cellRuleMatch).not.toBeNull();
     const body = cellRuleMatch![1];
     expect(body).toMatch(/width:\s*100%/);
-    expect(body).toMatch(/min-width:\s*0/);
+    // Tiles/badges must not shrink below the ~48-56px legibility floor.
+    expect(body).toMatch(/min-width:\s*52px/);
     expect(body).toMatch(/aspect-ratio:/);
     // Capped so tiles don't balloon past their intended full size just below
     // the breakpoint and then visibly shrink again once desktop rules apply.

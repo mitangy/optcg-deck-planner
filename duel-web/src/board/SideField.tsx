@@ -66,40 +66,46 @@ export function SideField({ side, data, compact, drag, ownerSeat, viewingSeat }:
         >
           <div className="zone-caption">Characters</div>
           <div className="card-row characters-row">
-            {data.characters.length === 0 ? (
-              <div className="zone-slot empty">—</div>
-            ) : (
-              data.characters.map((c) => {
-                const giveHl = Boolean(interactive && drag?.giveDonHighlightIds?.has(c.id));
-                const trashHl = Boolean(interactive && drag?.playTrashHighlightIds?.has(c.id));
-                let dropAttr: string | null = null;
-                if (interactive) {
-                  if (drag?.giveDonHighlightIds?.has(c.id)) dropAttr = `give_don:${c.id}`;
-                  else if (drag?.playTrashHighlightIds?.has(c.id)) {
-                    dropAttr = `play_trash:${c.id}`;
-                  }
+            {data.characters.map((c) => {
+              const giveHl = Boolean(interactive && drag?.giveDonHighlightIds?.has(c.id));
+              const trashHl = Boolean(interactive && drag?.playTrashHighlightIds?.has(c.id));
+              let dropAttr: string | null = null;
+              if (interactive) {
+                if (drag?.giveDonHighlightIds?.has(c.id)) dropAttr = `give_don:${c.id}`;
+                else if (drag?.playTrashHighlightIds?.has(c.id)) {
+                  dropAttr = `play_trash:${c.id}`;
                 }
-                return (
-                  <CardTile
-                    key={c.id}
-                    defId={c.defId}
-                    compact={compact || mirrored}
-                    rested={c.rested}
-                    power={c.power}
-                    printedPower={c.printedPower}
-                    attachedDonCount={c.attachedDonCount}
-                    statusLabels={c.statusLabels}
-                    inspectOnClick
-                    dropAttr={dropAttr}
-                    dropHighlight={giveHl || trashHl}
-                    ownerSeat={ownerSeat}
-                    viewingSeat={viewingSeat}
-                  />
-                );
-              })
-            )}
+              }
+              return (
+                <CardTile
+                  key={c.id}
+                  defId={c.defId}
+                  compact={compact || mirrored}
+                  rested={c.rested}
+                  power={c.power}
+                  printedPower={c.printedPower}
+                  attachedDonCount={c.attachedDonCount}
+                  statusLabels={c.statusLabels}
+                  inspectOnClick
+                  dropAttr={dropAttr}
+                  dropHighlight={giveHl || trashHl}
+                  ownerSeat={ownerSeat}
+                  viewingSeat={viewingSeat}
+                />
+              );
+            })}
+            {/* Exactly 5 slot cells total: real character tiles plus dashed
+                fillers for the remainder. When there are zero characters this
+                renders 5 filler slots (not an extra "empty" placeholder cell
+                on top of 5 fillers). */}
             {Array.from({ length: Math.max(0, 5 - data.characters.length) }).map((_, i) => (
-              <div key={`slot-${i}`} className="zone-slot" aria-hidden />
+              <div
+                key={`slot-${i}`}
+                className={`zone-slot${data.characters.length === 0 && i === 0 ? " empty" : ""}`}
+                aria-hidden
+              >
+                {data.characters.length === 0 && i === 0 ? "—" : null}
+              </div>
             ))}
           </div>
         </div>
