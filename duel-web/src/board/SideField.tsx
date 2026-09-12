@@ -37,6 +37,8 @@ type DragHandlers = {
 type SelectHandlers = {
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** Board ids that currently have a non-global legal action (discoverability hint). */
+  actionableIds?: ReadonlySet<string>;
 };
 
 /** Tap a legal attack target on this side to declare the selected attack. */
@@ -107,11 +109,18 @@ export function SideField({
                 const isSelectable = Boolean(select);
                 const isTargetable = Boolean(target?.targetableIds.has(c.id));
                 const isSelected = isSelectable && select!.selectedId === c.id;
+                const isActionable = Boolean(select?.actionableIds?.has(c.id));
                 const tapHandler = isSelectable
                   ? () => select!.onSelect(c.id)
                   : isTargetable
                     ? () => target!.onSelectTarget(c.id)
                     : undefined;
+                const extraClass = [
+                  isTargetable ? "attack-target" : "",
+                  isActionable && !isSelected ? "has-actions" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
                 return (
                   <CardTile
                     key={c.id}
@@ -123,7 +132,7 @@ export function SideField({
                     attachedDonCount={c.attachedDonCount}
                     statusLabels={c.statusLabels}
                     selected={isSelected}
-                    classNameExtra={isTargetable ? "attack-target" : undefined}
+                    classNameExtra={extraClass || undefined}
                     inspectOnClick={!tapHandler}
                     onClick={tapHandler}
                     dropAttr={dropAttr}
@@ -151,11 +160,18 @@ export function SideField({
             const isSelectable = Boolean(select);
             const isTargetable = Boolean(target?.targetableIds.has(leaderId));
             const isSelected = isSelectable && select!.selectedId === leaderId;
+            const isActionable = Boolean(select?.actionableIds?.has(leaderId));
             const tapHandler = isSelectable
               ? () => select!.onSelect(leaderId)
               : isTargetable
                 ? () => target!.onSelectTarget(leaderId)
                 : undefined;
+            const extraClass = [
+              isTargetable ? "attack-target" : "",
+              isActionable && !isSelected ? "has-actions" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
             return (
               <CardTile
                 defId={data.leader.defId}
@@ -167,7 +183,7 @@ export function SideField({
                 statusLabels={data.leader.statusLabels}
                 frame="leader"
                 selected={isSelected}
-                classNameExtra={isTargetable ? "attack-target" : undefined}
+                classNameExtra={extraClass || undefined}
                 inspectOnClick={!tapHandler}
                 onClick={tapHandler}
                 dropAttr={

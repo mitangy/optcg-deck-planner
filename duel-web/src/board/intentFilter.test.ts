@@ -77,6 +77,25 @@ describe("filterIntentsForSelection", () => {
   });
 });
 
+
+describe("pending-choice / trigger globals", () => {
+  it("always surfaces resolve_trigger and resolve_pending_choice with no selection", () => {
+    const pending: Intent[] = [
+      { type: "resolve_pending_choice", accept: true } as Intent,
+      { type: "resolve_pending_choice", accept: false } as Intent,
+      { type: "resolve_trigger", accept: true } as Intent,
+      { type: "play_card", handIndex: 0 },
+      { type: "declare_attack", attackerId: "c1", target: { kind: "leader" } },
+    ];
+    const shown = filterIntentsForSelection(pending, {});
+    expect(shown.map((i) => i.type).sort()).toEqual([
+      "resolve_pending_choice",
+      "resolve_pending_choice",
+      "resolve_trigger",
+    ]);
+  });
+});
+
 describe("matchesBoardId / hasBoardActions", () => {
   it("matches attacker, target, blocker and donId roles", () => {
     expect(matchesBoardId({ type: "declare_attack", attackerId: "c1" } as Intent, "c1")).toBe(

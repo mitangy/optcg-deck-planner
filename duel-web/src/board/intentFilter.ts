@@ -5,7 +5,9 @@ const GLOBAL_INTENT_TYPES = new Set<string>([
   "end_turn",
   "pass_block",
   "pass_counter",
+  // Life-trigger legacy name + generalized pending-choice (ability prompts PR).
   "resolve_trigger",
+  "resolve_pending_choice",
   "mulligan",
 ]);
 

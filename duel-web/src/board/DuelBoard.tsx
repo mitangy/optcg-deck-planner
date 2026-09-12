@@ -14,7 +14,11 @@ import {
   type DragPayload,
 } from "./dragIntents";
 import { IntentBar } from "./IntentBar";
-import { attackTargetIdsForAttacker, findAttackIntent } from "./intentFilter";
+import {
+  attackTargetIdsForAttacker,
+  findAttackIntent,
+  hasBoardActions,
+} from "./intentFilter";
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 
@@ -120,6 +124,16 @@ export function DuelBoard({
     if (dragPayload?.type !== "play_card") return EMPTY_IDS;
     return new Set(playCardTrashTargetIds(intents, dragPayload.handIndex));
   }, [dragPayload, intents]);
+
+  const actionableBoardIds = useMemo(() => {
+    if (!view) return EMPTY_IDS;
+    const ids = new Set<string>();
+    const candidates = [view.you.leader.id, ...view.you.characters.map((c) => c.id)];
+    for (const id of candidates) {
+      if (hasBoardActions(intents, id)) ids.add(id);
+    }
+    return ids;
+  }, [view, intents]);
 
   const attackTargetIds = useMemo(() => {
     if (!dndEnabled || !selectedBoardId || !view) return EMPTY_IDS;
@@ -326,7 +340,13 @@ export function DuelBoard({
               activeDonCount: you.activeDonCount,
             }}
             select={
-              spectating ? undefined : { selectedId: selectedBoardId, onSelect: selectBoardCard }
+              spectating
+                ? undefined
+                : {
+                    selectedId: selectedBoardId,
+                    onSelect: selectBoardCard,
+                    actionableIds: actionableBoardIds,
+                  }
             }
             drag={
               dndEnabled
