@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
+import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { IntentBar } from "./IntentBar";
 
 type Props = {
@@ -118,6 +119,19 @@ export function DuelBoard({
           </View>
         )}
 
+        {!spectating &&
+        view.pendingChoices?.[0]?.kind === "order_effects" &&
+        view.pendingChoices[0].seat === mySeat ? (
+          <EffectOrderPrompt
+            key={view.pendingChoices[0].id}
+            choice={view.pendingChoices[0]}
+            onSend={(intent) => {
+              setHandFilter(null);
+              onSendIntent(intent);
+            }}
+          />
+        ) : null}
+
         <Text style={[styles.zoneLabel, { marginTop: 16 }]}>You</Text>
         <View style={styles.row}>
           <CardTile
@@ -169,7 +183,11 @@ export function DuelBoard({
 
       {!spectating ? (
         <IntentBar
-          intents={view.legalIntents}
+          intents={
+            view.pendingChoices?.[0]?.kind === "order_effects"
+              ? view.legalIntents.filter((i) => i.type !== "order_pending_effects")
+              : view.legalIntents
+          }
           view={view}
           disabled={over}
           filterHandIndex={handFilter}

@@ -481,6 +481,7 @@ export function DuelBoard({
       view.pendingChoices?.[0]?.kind === "order_effects" &&
       view.pendingChoices[0].seat === mySeat ? (
         <EffectOrderPrompt
+          key={view.pendingChoices[0].id}
           choice={view.pendingChoices[0]}
           onSend={(intent) => {
             setHandFilter(null);
