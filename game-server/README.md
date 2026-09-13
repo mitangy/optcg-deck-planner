@@ -48,6 +48,16 @@ Dev tools (non-production):
 | `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` |
 | `NODE_ENV` | unset | Set `production` to disable playground/monitor |
 
+## Render Blueprint
+
+Staging/prod for this service is declared in the repo-root [`render.yaml`](../render.yaml) alongside `optcg-api`:
+
+- Service name: `optcg-game-server` (must match the existing Render service to adopt in place)
+- Shared env group: `optcg-duel-shared` → `GAME_TOKEN_SECRET` + `DUEL_INGEST_SECRET` (same values as the API)
+- Explicit `COLYSEUS_SEAT_RESERVATION_TIME=90` for free-tier cold starts
+
+After merging Blueprint changes: **Dashboard → Blueprint → Sync**, fill any `sync: false` secrets once, then **Manual Deploy** if the service was previously dashboard-only. Runtime is Node (not Docker) so it matches the live free-tier service — `game-server/Dockerfile` remains for container builds.
+
 ### Multi-instance / Redis
 
 Single-process is fine for local and small staging. For **≥2 game-server processes**, set `REDIS_URL` and use Colyseus Redis presence (document in deploy notes). Matchmaker pairing is in-process FIFO today — sticky load balancing or a shared queue is required before horizontal matchmaking.

@@ -1,3 +1,23 @@
+# Render Blueprint — API + Colyseus game-server.
+# Frontend (deck planner + duel-web) stays on Vercel.
+#
+# First-time / existing services:
+# - Dashboard names must match (`optcg-api`, `optcg-game-server`) for adopt-in-place.
+# - Create env group `optcg-duel-shared` values once (GAME_TOKEN_SECRET, DUEL_INGEST_SECRET)
+#   and use the SAME values on both services. Do not commit secret values here.
+# - After merge: Blueprint Sync in Render, then Manual Deploy game-server if it was
+#   previously dashboard-only.
+
+envVarGroups:
+  - name: optcg-duel-shared
+    envVars:
+      # HMAC secret for short-lived Colyseus join tokens (API mints, game-server verifies).
+      - key: GAME_TOKEN_SECRET
+        sync: false
+      # Match-result ingest header (game-server → API).
+      - key: DUEL_INGEST_SECRET
+        sync: false
+
 services:
   - type: web
     name: optcg-api
@@ -9,7 +29,12 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
+    buildFilter:
+      paths:
+        - backend/**
+        - render.yaml
     envVars:
+      - fromGroup: optcg-duel-shared
       - key: DATABASE_URL
         sync: false
       - key: SESSION_SECRET
@@ -28,3 +53,48 @@ services:
         value: "true"
       - key: CATALOG_SYNC_TOKEN
         generateValue: true
+      # Staging duel-web / Expo: cookie-free POST /duel/dev-token (not /auth/dev-login).
+      - key: ENABLE_DUEL_DEV_TOKEN
+        value: "true"
+      - key: DUEL_CORS_ORIGINS
+        value: https://optcg-duel-web.vercel.app,https://optcg-duel-web-miko21.vercel.app
+
+  - type: web
+    name: optcg-game-server
+    # Node (not Docker): runtime is immutable on Render — existing dashboard
+    # service is Node. Dockerfile remains available for local/prod container builds.
+    runtime: node
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    # Install workspaces from repo root so @optcg/rules resolves.
+    buildCommand: npm ci --workspace=@optcg/rules --workspace=@optcg/game-server
+    startCommand: npm run start -w @optcg/game-server
+    buildFilter:
+      paths:
+        - game-server/**
+        - packages/rules/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    envVars:
+      - fromGroup: optcg-duel-shared
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      # Reject legacy devUserId-only joins in staging/prod.
+      - key: REQUIRE_GAME_TOKEN
+        value: "true"
+      # Public FastAPI base used for match ingest (Render service URL).
+      - key: API_BASE_URL
+        value: https://optcg-api-nutb.onrender.com
+      # Free-tier cold starts: matchmake HTTP can beat WS consume past Colyseus's 15s default.
+      - key: COLYSEUS_SEAT_RESERVATION_TIME
+        value: "90"
+      - key: RECONNECT_GRACE_SECONDS
+        value: "60"
+      - key: CORS_ORIGINS
+        value: https://optcg-duel-web.vercel.app,https://optcg-duel-web-miko21.vercel.app
+      - key: LOG_LEVEL
+        value: info
