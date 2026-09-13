@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
+import { BuildTag } from "../BuildTag";
 import { getApiBaseUrl, getGameServerUrl } from "../config";
 import {
   deckToWire,
@@ -258,6 +259,7 @@ export function LobbyPage() {
           Import planner-style decklists, choose your deck, inspect alt arts in-match, or hotseat
           vs yourself. Private prototype only.
         </p>
+        <BuildTag className="build-tag-lobby" />
 
         {pendingResume ? (
           <section className="lobby-section resume-banner">

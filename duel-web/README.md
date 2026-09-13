@@ -33,6 +33,7 @@ cp ../../duel-web/src/assets/cardAtlas.json ../../duel-web/public/cardAtlas.json
 | `VITE_GAME_SERVER_URL` | `http://localhost:2567` | Colyseus HTTP(S); SDK uses WS/WSS |
 | `VITE_API_URL` | `http://localhost:8000` | FastAPI for `/duel/dev-token` and ratings |
 | `VITE_DEV_JOIN_SECRET` | (optional) | Must match game-server `DEV_JOIN_SECRET` |
+| `VITE_GIT_SHA` | (auto) | Short commit hash for the lobby build tag; set automatically from `VERCEL_GIT_COMMIT_SHA` / local `git` |
 
 Copy `.env.example` → `.env` for local overrides. Staging/production bake `VITE_*` at **build** time on Vercel.
 
