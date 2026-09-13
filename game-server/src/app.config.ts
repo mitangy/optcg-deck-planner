@@ -5,6 +5,8 @@ import {
   playground,
 } from "colyseus";
 import { getDefsHealthSnapshot } from "@optcg/rules";
+import { getSeatReservationSeconds } from "./env.js";
+import { PROTOCOL_VERSION } from "./protocol.js";
 import { DuelRoom } from "./rooms/DuelRoom.js";
 import { MatchmakerRoom } from "./rooms/MatchmakerRoom.js";
 
@@ -20,6 +22,11 @@ const server = defineServer({
         ok: true,
         service: "optcg-game-server",
         rooms: ["duel", "ranked_queue"],
+        // Catch client/server skew (v2 client vs stale v1 GS surfaces as
+        // misleading "seat reservation expired" on create).
+        protocolVersion: PROTOCOL_VERSION,
+        // Confirm COLYSEUS_SEAT_RESERVATION_TIME landed on the Render pin.
+        seatReservationSeconds: getSeatReservationSeconds(),
         // Catch stale deploys missing curated stubs (e.g. Teach OP16-080).
         defs: getDefsHealthSnapshot(),
       });
