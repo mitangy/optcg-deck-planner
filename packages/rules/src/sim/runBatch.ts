@@ -14,7 +14,7 @@ function actingSeat(state: MatchState): Seat {
     if (!state.players[0].mulliganDone) return 0;
     return 1;
   }
-  if (state.pendingTrigger) return state.pendingTrigger.seat;
+  if (state.pendingChoices.length > 0) return state.pendingChoices[0].seat;
   if (state.phase === "block" || state.phase === "counter") {
     return state.battle ? (state.battle.attackerSeat === 0 ? 1 : 0) : state.activeSeat;
   }

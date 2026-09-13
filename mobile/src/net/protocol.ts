@@ -5,7 +5,7 @@
 
 import { lookupCard } from "../cards/atlas";
 
-export const PROTOCOL_VERSION = 1 as const;
+export const PROTOCOL_VERSION = 2 as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
 export type Seat = 0 | 1;
@@ -118,6 +118,7 @@ export type PlayerView = {
   turnNumber: number;
   battle: unknown;
   pendingTrigger: unknown;
+  pendingChoices?: Array<{ prompt?: string; kind?: string; cardDefId?: string }>;
   winner: Seat | null;
   winReason: string | null;
   legalIntents: Intent[];
@@ -273,6 +274,8 @@ export function intentLabel(intent: Intent, view?: PlayerView): string {
       return `Counter event ${handName(view, intent.handIndex)}`;
     case "pass_counter":
       return "Pass counter";
+    case "resolve_pending_choice":
+      return intent.accept ? "Accept ability" : "Decline ability";
     case "resolve_trigger":
       return intent.accept ? "Accept Trigger" : "Decline Trigger";
     case "end_turn":

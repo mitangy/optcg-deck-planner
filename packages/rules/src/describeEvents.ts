@@ -79,6 +79,16 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
           `Seat ${e.seat} Trigger ${e.accepted ? "accepted" : "declined"}`,
         );
         break;
+      case "pending_choice_added":
+        lines.push(
+          `Seat ${e.seat} may resolve ${getCardDef(e.cardDefId).name}'s ${e.kind.replace(/_/g, " ")} (${e.prompt})`,
+        );
+        break;
+      case "pending_choice_resolved":
+        lines.push(
+          `Seat ${e.seat} ${e.accepted ? "accepts" : "declines"} ${getCardDef(e.cardDefId).name}'s ${e.kind.replace(/_/g, " ")}`,
+        );
+        break;
       case "game_over":
         lines.push(`★ Seat ${e.winner} wins (${e.reason})`);
         break;

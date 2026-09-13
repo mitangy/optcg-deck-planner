@@ -14,7 +14,7 @@ function actingSeat(state: MatchState): Seat {
     if (!state.players[0].mulliganDone) return 0;
     return 1;
   }
-  if (state.pendingTrigger) return state.pendingTrigger.seat;
+  if (state.pendingChoices.length > 0) return state.pendingChoices[0].seat;
   if (state.phase === "block" || state.phase === "counter") {
     return state.battle ? (state.battle.attackerSeat === 0 ? 1 : 0) : state.activeSeat;
   }
@@ -61,6 +61,14 @@ function describeEvents(events: GameEvent[]): string[] {
         break;
       case "trigger_resolved":
         lines.push(`  P${e.seat} Trigger ${e.accepted ? "accepted" : "declined"}`);
+        break;
+      case "pending_choice_added":
+        lines.push(`  P${e.seat} prompted: ${e.prompt}`);
+        break;
+      case "pending_choice_resolved":
+        lines.push(
+          `  P${e.seat} ${e.accepted ? "accepts" : "declines"} ${getCardDef(e.cardDefId).name}'s ${e.kind.replace(/_/g, " ")}`,
+        );
         break;
       case "game_over":
         lines.push(`  ★ P${e.winner} wins (${e.reason})`);

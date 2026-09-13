@@ -5,12 +5,14 @@ import {
   canDragHandCard,
   canDropPlayOnField,
   giveDonTargetIds,
+  giveDonTargetIdsForAll,
   matchGiveDon,
+  matchGiveDonMulti,
   matchPlayCardOnField,
   matchPlayCardTrash,
   parseDropAttr,
   playCardTrashTargetIds,
-  resolveDropIntent,
+  resolveDropIntents,
 } from "./dragIntents";
 
 const intents: Intent[] = [
@@ -49,6 +51,28 @@ describe("canDragDon / giveDonTargetIds", () => {
   });
 });
 
+describe("multi-select DON!! drag helpers", () => {
+  it("intersects targets legal for every donId in the set", () => {
+    // d1 -> {leader, c1}, d2 -> {leader}: only "leader" works for both.
+    expect(giveDonTargetIdsForAll(intents, ["d1", "d2"])).toEqual(["leader"]);
+    expect(giveDonTargetIdsForAll(intents, ["d1"]).sort()).toEqual(["c1", "leader"]);
+    expect(giveDonTargetIdsForAll(intents, [])).toEqual([]);
+    expect(giveDonTargetIdsForAll(intents, ["d1", "missing"])).toEqual([]);
+  });
+
+  it("resolves one give_don intent per donId with a legal drop, in order", () => {
+    expect(matchGiveDonMulti(intents, ["d1", "d2"], "leader")).toEqual([
+      { type: "give_don", donId: "d1", targetId: "leader" },
+      { type: "give_don", donId: "d2", targetId: "leader" },
+    ]);
+    // d2 has no legal give_don to c1 — only d1's intent comes back.
+    expect(matchGiveDonMulti(intents, ["d1", "d2"], "c1")).toEqual([
+      { type: "give_don", donId: "d1", targetId: "c1" },
+    ]);
+    expect(matchGiveDonMulti(intents, ["missing"], "leader")).toEqual([]);
+  });
+});
+
 describe("play_card drag / drop matching", () => {
   it("allows hand drag when play_card exists for index", () => {
     expect(canDragHandCard(intents, 0)).toBe(true);
@@ -78,56 +102,69 @@ describe("play_card drag / drop matching", () => {
   });
 });
 
-describe("resolveDropIntent", () => {
-  it("resolves give_don drag onto matching target", () => {
+describe("resolveDropIntents", () => {
+  it("resolves a single-don give_don drag onto matching target", () => {
     expect(
-      resolveDropIntent(
-        { type: "give_don", donId: "d1" },
+      resolveDropIntents(
+        { type: "give_don", donIds: ["d1"] },
         { kind: "give_don_target", targetId: "leader" },
         intents,
       ),
-    ).toEqual({ type: "give_don", donId: "d1", targetId: "leader" });
+    ).toEqual([{ type: "give_don", donId: "d1", targetId: "leader" }]);
+  });
+
+  it("resolves a multi-don give_don drag as sequential intents", () => {
+    expect(
+      resolveDropIntents(
+        { type: "give_don", donIds: ["d1", "d2"] },
+        { kind: "give_don_target", targetId: "leader" },
+        intents,
+      ),
+    ).toEqual([
+      { type: "give_don", donId: "d1", targetId: "leader" },
+      { type: "give_don", donId: "d2", targetId: "leader" },
+    ]);
   });
 
   it("rejects mismatched drop kinds", () => {
     expect(
-      resolveDropIntent(
-        { type: "give_don", donId: "d1" },
+      resolveDropIntents(
+        { type: "give_don", donIds: ["d1"] },
         { kind: "play_field" },
         intents,
       ),
-    ).toBeNull();
+    ).toEqual([]);
     expect(
-      resolveDropIntent(
+      resolveDropIntents(
         { type: "play_card", handIndex: 0 },
         { kind: "give_don_target", targetId: "leader" },
         intents,
       ),
-    ).toBeNull();
+    ).toEqual([]);
   });
 
   it("resolves play_card field and trash drops", () => {
     expect(
-      resolveDropIntent(
+      resolveDropIntents(
         { type: "play_card", handIndex: 0 },
         { kind: "play_field" },
         intents,
       ),
-    ).toEqual({ type: "play_card", handIndex: 0 });
+    ).toEqual([{ type: "play_card", handIndex: 0 }]);
     expect(
-      resolveDropIntent(
+      resolveDropIntents(
         { type: "play_card", handIndex: 2 },
         { kind: "play_field" },
         intents,
       ),
-    ).toBeNull();
+    ).toEqual([]);
     expect(
-      resolveDropIntent(
+      resolveDropIntents(
         { type: "play_card", handIndex: 2 },
         { kind: "play_trash", characterId: "c1" },
         intents,
       ),
-    ).toEqual({ type: "play_card", handIndex: 2, trashCharacterId: "c1" });
+    ).toEqual([{ type: "play_card", handIndex: 2, trashCharacterId: "c1" }]);
   });
 });
 

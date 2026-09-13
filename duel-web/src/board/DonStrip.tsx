@@ -1,3 +1,4 @@
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { DON_CARD_ART } from "./donArt";
 import { usePointerDrag } from "./usePointerDrag";
 
@@ -12,27 +13,37 @@ type Props = {
   side: "you" | "opp";
   /** DON!! ids that have a legal give_don intent. */
   draggableDonIds?: ReadonlySet<string>;
-  /** Currently dragged don id (for opacity). */
-  draggingDonId?: string | null;
+  /** DON!! ids currently carried by an in-progress drag (for opacity). */
+  draggingDonIds?: ReadonlySet<string>;
+  /** DON!! ids toggled into the multi-select set. */
+  selectedDonIds?: ReadonlySet<string>;
   onDonDragStart?: (donId: string) => void;
   onDonDragEnd?: (donId: string, clientX: number, clientY: number) => void;
   onDonDragCancel?: () => void;
+  /** Tap/click a legal chip to toggle it into the multi-select set. */
+  onDonToggleSelect?: (donId: string) => void;
+  /** Tap the empty cost-area background to clear the multi-select set. */
+  onClearDonSelection?: () => void;
 };
 
 function DonChip({
   token,
   canDrag,
   isDragging,
+  isSelected,
   onDonDragStart,
   onDonDragEnd,
   onDonDragCancel,
+  onToggleSelect,
 }: {
   token: DonToken;
   canDrag: boolean;
   isDragging: boolean;
+  isSelected: boolean;
   onDonDragStart?: (donId: string) => void;
   onDonDragEnd?: (donId: string, clientX: number, clientY: number) => void;
   onDonDragCancel?: () => void;
+  onToggleSelect?: (donId: string) => void;
 }) {
   const { bind, dragging } = usePointerDrag({
     enabled: canDrag,
@@ -44,30 +55,28 @@ function DonChip({
 
   const className = `don-chip${token.rested ? " rested" : " active"}${
     canDrag ? " don-draggable" : ""
-  }${dragging || isDragging ? " don-dragging" : ""}`;
+  }${dragging || isDragging ? " don-dragging" : ""}${isSelected ? " don-selected" : ""}`;
+
+  const label = canDrag
+    ? "Tap to select, or drag onto Leader or Character to give DON!!"
+    : token.rested
+      ? "Rested DON!!"
+      : "Active DON!!";
 
   // Button host (not bare <img>) so pointer capture / touch drag is reliable.
   return (
     <button
       type="button"
-      className={`don-chip-btn${canDrag ? " is-draggable" : ""}`}
-      aria-label={
-        canDrag
-          ? "Drag onto Leader or Character to give DON!!"
-          : token.rested
-            ? "Rested DON!!"
-            : "Active DON!!"
-      }
-      title={
-        canDrag
-          ? "Drag onto Leader or Character to give DON!!"
-          : token.rested
-            ? "Rested DON!!"
-            : "Active DON!!"
-      }
+      className={`don-chip-btn${canDrag ? " is-draggable" : ""}${
+        isSelected ? " is-selected" : ""
+      }`}
+      aria-label={label}
+      aria-pressed={canDrag ? isSelected : undefined}
+      title={label}
       disabled={!canDrag}
       // Keep HTML5 DnD off; pointer drag owns the gesture.
       draggable={false}
+      onClick={canDrag ? () => onToggleSelect?.(token.id) : undefined}
       {...bind}
     >
       <img src={DON_CARD_ART} alt="" className={className} draggable={false} />
@@ -81,10 +90,13 @@ export function DonStrip({
   totalCount,
   side,
   draggableDonIds,
-  draggingDonId,
+  draggingDonIds,
+  selectedDonIds,
   onDonDragStart,
   onDonDragEnd,
   onDonDragCancel,
+  onDonToggleSelect,
+  onClearDonSelection,
 }: Props) {
   const items: DonToken[] =
     tokens ??
@@ -92,6 +104,13 @@ export function DonStrip({
       id: `${side}-don-${i}`,
       rested: i >= (activeCount ?? 0),
     }));
+
+  function handleRailClick(e: ReactMouseEvent<HTMLDivElement>) {
+    const target = e.target as HTMLElement;
+    if (!target.closest(".don-chip-btn")) {
+      onClearDonSelection?.();
+    }
+  }
 
   return (
     <div className={`don-strip don-strip-${side}`} aria-label={`${side} DON cost area`}>
@@ -103,7 +122,7 @@ export function DonStrip({
             : `${activeCount ?? 0}/${totalCount ?? 0}`}
         </span>
       </div>
-      <div className="don-strip-rail">
+      <div className="don-strip-rail" onClick={handleRailClick}>
         {items.length === 0 ? (
           <span className="don-empty">Empty</span>
         ) : (
@@ -114,10 +133,12 @@ export function DonStrip({
                 key={t.id}
                 token={t}
                 canDrag={canDrag}
-                isDragging={draggingDonId === t.id}
+                isDragging={Boolean(draggingDonIds?.has(t.id))}
+                isSelected={Boolean(selectedDonIds?.has(t.id))}
                 onDonDragStart={onDonDragStart}
                 onDonDragEnd={onDonDragEnd}
                 onDonDragCancel={onDonDragCancel}
+                onToggleSelect={onDonToggleSelect}
               />
             );
           })

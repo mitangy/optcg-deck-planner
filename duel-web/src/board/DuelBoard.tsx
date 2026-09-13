@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol";
 import { BattleLogPanel } from "./BattleLogPanel";
 import type { BattleLogEntry } from "./battleLog";
@@ -8,12 +8,17 @@ import {
   canDragHandCard,
   canDropPlayOnField,
   findDropTargetAtPoint,
-  giveDonTargetIds,
+  giveDonTargetIdsForAll,
   playCardTrashTargetIds,
-  resolveDropIntent,
+  resolveDropIntents,
   type DragPayload,
 } from "./dragIntents";
 import { IntentBar } from "./IntentBar";
+import {
+  attackTargetIdsForAttacker,
+  findAttackIntent,
+  hasBoardActions,
+} from "./intentFilter";
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 
@@ -77,8 +82,10 @@ export function DuelBoard({
   onClearError,
 }: Props) {
   const [handFilter, setHandFilter] = useState<number | null>(null);
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
   const [logCollapsed, setLogCollapsed] = useState(false);
+  const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
 
   const over = matchOver != null || view?.winner != null;
   const mySeat = seat ?? view?.seat ?? null;
@@ -106,8 +113,41 @@ export function DuelBoard({
 
   const giveDonHighlightIds = useMemo(() => {
     if (dragPayload?.type !== "give_don") return EMPTY_IDS;
-    return new Set(giveDonTargetIds(intents, dragPayload.donId));
+    // Intersection across every dragged donId so a drop always fully succeeds.
+    return new Set(giveDonTargetIdsForAll(intents, dragPayload.donIds));
   }, [dragPayload, intents]);
+
+  // Drop stale selections (don rested/used, turn ended, etc.) whenever the
+  // legal set changes, so the highlight/selection UI never lies.
+  useEffect(() => {
+    setSelectedDonIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set([...prev].filter((id) => draggableDonIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [draggableDonIds]);
+
+  useEffect(() => {
+    if (!dndEnabled) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setSelectedDonIds(new Set());
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [dndEnabled]);
+
+  function toggleDonSelect(donId: string) {
+    setSelectedDonIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(donId)) next.delete(donId);
+      else next.add(donId);
+      return next;
+    });
+  }
+
+  function clearDonSelection() {
+    setSelectedDonIds(new Set());
+  }
 
   const playFieldHighlight = Boolean(
     dragPayload?.type === "play_card" &&
@@ -119,12 +159,62 @@ export function DuelBoard({
     return new Set(playCardTrashTargetIds(intents, dragPayload.handIndex));
   }, [dragPayload, intents]);
 
+  const actionableBoardIds = useMemo(() => {
+    if (!view) return EMPTY_IDS;
+    const ids = new Set<string>();
+    const candidates = [view.you.leader.id, ...view.you.characters.map((c) => c.id)];
+    for (const id of candidates) {
+      if (hasBoardActions(intents, id)) ids.add(id);
+    }
+    return ids;
+  }, [view, intents]);
+
+  const attackTargetIds = useMemo(() => {
+    if (!dndEnabled || !selectedBoardId || !view) return EMPTY_IDS;
+    return new Set(
+      attackTargetIdsForAttacker(intents, selectedBoardId, view.opponent.leader.id),
+    );
+  }, [dndEnabled, selectedBoardId, intents, view]);
+
   function commitDrop(payload: DragPayload, clientX: number, clientY: number) {
     const drop = findDropTargetAtPoint(clientX, clientY);
-    const intent = resolveDropIntent(payload, drop, intents);
+    // Sequential client-side intents (no batch protocol) — one give_don per
+    // selected donId that has a legal intent to this target.
+    const toSend = resolveDropIntents(payload, drop, intents);
     setDragPayload(null);
-    if (intent) {
+    if (toSend.length > 0) {
       setHandFilter(null);
+      setSelectedBoardId(null);
+      for (const intent of toSend) onSendIntent(intent);
+      if (payload.type === "give_don") clearDonSelection();
+    }
+  }
+
+  function selectHandCard(idx: number) {
+    setSelectedBoardId(null);
+    setHandFilter((prev) => (prev === idx ? null : idx));
+  }
+
+  function selectBoardCard(id: string) {
+    setHandFilter(null);
+    setSelectedBoardId((prev) => (prev === id ? null : id));
+  }
+
+  // Drop a stale selection when the selected card leaves your board (KO'd, trashed, etc.)
+  // or the turn changes, so the intent bar never lingers on a dead selection.
+  useEffect(() => {
+    if (!selectedBoardId || !view) return;
+    const stillOnBoard =
+      view.you.leader.id === selectedBoardId ||
+      view.you.characters.some((c) => c.id === selectedBoardId);
+    if (!stillOnBoard) setSelectedBoardId(null);
+  }, [selectedBoardId, view]);
+
+  function selectAttackTarget(targetId: string) {
+    if (!view || !selectedBoardId) return;
+    const intent = findAttackIntent(intents, selectedBoardId, targetId, view.opponent.leader.id);
+    if (intent) {
+      setSelectedBoardId(null);
       onSendIntent(intent);
     }
   }
@@ -250,13 +340,18 @@ export function DuelBoard({
               costAreaCount: opp.costAreaCount,
               activeDonCount: opp.activeDonCount,
             }}
+            target={
+              attackTargetIds.size > 0
+                ? { targetableIds: attackTargetIds, onSelectTarget: selectAttackTarget }
+                : undefined
+            }
           />
 
           <div className="midline">
-            {Boolean(view.battle || view.pendingTrigger) ? (
+            {Boolean(view.battle || view.pendingChoices?.length) ? (
               <div className="prompt">
-                {view.pendingTrigger
-                  ? `Trigger pending (${lookupCard((view.pendingTrigger as { cardDefId: string }).cardDefId).name})`
+                {view.pendingChoices?.length
+                  ? view.pendingChoices[0].prompt
                   : describeBattle(view)}
               </div>
             ) : (
@@ -281,17 +376,42 @@ export function DuelBoard({
               costArea: you.costArea,
               activeDonCount: you.activeDonCount,
             }}
+            select={
+              spectating
+                ? undefined
+                : {
+                    selectedId: selectedBoardId,
+                    onSelect: selectBoardCard,
+                    actionableIds: actionableBoardIds,
+                  }
+            }
             drag={
               dndEnabled
                 ? {
                     draggableDonIds,
-                    draggingDonId:
-                      dragPayload?.type === "give_don" ? dragPayload.donId : null,
-                    onDonDragStart: (donId) =>
-                      setDragPayload({ type: "give_don", donId }),
-                    onDonDragEnd: (donId, x, y) =>
-                      commitDrop({ type: "give_don", donId }, x, y),
+                    draggingDonIds:
+                      dragPayload?.type === "give_don"
+                        ? new Set(dragPayload.donIds)
+                        : EMPTY_IDS,
+                    selectedDonIds,
+                    onDonDragStart: (donId) => {
+                      // Dragging a selected chip carries the whole selection;
+                      // dragging an unselected chip selects just that one.
+                      const donIds =
+                        selectedDonIds.size > 0 && selectedDonIds.has(donId)
+                          ? Array.from(selectedDonIds)
+                          : [donId];
+                      setSelectedDonIds(new Set(donIds));
+                      setDragPayload({ type: "give_don", donIds });
+                    },
+                    onDonDragEnd: (donId, x, y) => {
+                      const donIds =
+                        dragPayload?.type === "give_don" ? dragPayload.donIds : [donId];
+                      commitDrop({ type: "give_don", donIds }, x, y);
+                    },
                     onDonDragCancel: () => setDragPayload(null),
+                    onDonToggleSelect: toggleDonSelect,
+                    onClearDonSelection: clearDonSelection,
                     giveDonHighlightIds,
                     playTrashHighlightIds,
                     playFieldHighlight,
@@ -321,7 +441,7 @@ export function DuelBoard({
                     key={c.id}
                     defId={c.defId}
                     selected={handFilter === idx}
-                    onClick={() => setHandFilter((prev) => (prev === idx ? null : idx))}
+                    onClick={() => selectHandCard(idx)}
                     dragEnabled={playable}
                     dragPayload={{ type: "play_card", handIndex: idx }}
                     onDragStart={() =>
@@ -345,8 +465,10 @@ export function DuelBoard({
           view={view}
           disabled={over}
           filterHandIndex={handFilter}
+          selectedBoardId={selectedBoardId}
           onSend={(intent) => {
             setHandFilter(null);
+            setSelectedBoardId(null);
             onSendIntent(intent);
           }}
         />
