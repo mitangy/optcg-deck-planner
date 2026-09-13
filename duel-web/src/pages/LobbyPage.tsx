@@ -389,16 +389,20 @@ export function LobbyPage() {
             ))}
           </select>
 
-          {selectedDeck ? (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              disabled={busy}
-              onClick={() => navigate(`/decks/${selectedDeck.id}/configure`)}
-            >
-              Configure deck
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={busy}
+            onClick={() =>
+              navigate(
+                selectedDeck
+                  ? `/decks/${selectedDeck.id}/configure`
+                  : "/decks/configure",
+              )
+            }
+          >
+            Configure decks
+          </button>
           {selectedDeck &&
           
           !selectedDeck.id.startsWith("test-") ? (
