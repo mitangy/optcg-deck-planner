@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
+import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { IntentBar } from "./IntentBar";
 
 type Props = {
@@ -106,17 +107,40 @@ export function DuelBoard({
           />
         </View>
 
-        {Boolean(view.battle || view.pendingChoices?.length || view.pendingTrigger) && (
-          <View style={styles.prompt}>
-            <Text style={styles.promptText}>
-              {view.pendingChoices?.length
-                ? view.pendingChoices[0].prompt ?? "Ability pending"
-                : view.pendingTrigger
-                ? `Trigger pending: ${JSON.stringify(view.pendingTrigger)}`
-                : `Battle: ${JSON.stringify(view.battle)}`}
-            </Text>
-          </View>
-        )}
+        {(() => {
+          const front = view.pendingChoices?.[0];
+          const orderingEffects =
+            !spectating && front?.kind === "order_effects" && front.seat === mySeat;
+          // Skip the generic pending banner while EffectOrderPrompt owns the UI.
+          const showStatusBanner = Boolean(
+            view.battle || view.pendingTrigger || (front && !orderingEffects),
+          );
+          return (
+            <>
+              {showStatusBanner ? (
+                <View style={styles.prompt}>
+                  <Text style={styles.promptText}>
+                    {front
+                      ? front.prompt ?? "Ability pending"
+                      : view.pendingTrigger
+                        ? `Trigger pending: ${JSON.stringify(view.pendingTrigger)}`
+                        : `Battle: ${JSON.stringify(view.battle)}`}
+                  </Text>
+                </View>
+              ) : null}
+              {orderingEffects ? (
+                <EffectOrderPrompt
+                  key={front!.id}
+                  choice={front!}
+                  onSend={(intent) => {
+                    setHandFilter(null);
+                    onSendIntent(intent);
+                  }}
+                />
+              ) : null}
+            </>
+          );
+        })()}
 
         <Text style={[styles.zoneLabel, { marginTop: 16 }]}>You</Text>
         <View style={styles.row}>
@@ -169,7 +193,11 @@ export function DuelBoard({
 
       {!spectating ? (
         <IntentBar
-          intents={view.legalIntents}
+          intents={
+            view.pendingChoices?.[0]?.kind === "order_effects"
+              ? view.legalIntents.filter((i) => i.type !== "order_pending_effects")
+              : view.legalIntents
+          }
           view={view}
           disabled={over}
           filterHandIndex={handFilter}

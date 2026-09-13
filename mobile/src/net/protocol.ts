@@ -81,6 +81,29 @@ export type CardView = {
   rush?: boolean;
 };
 
+/** Mirrors @optcg/rules pending choice (protocol v3 includes order_effects). */
+export type PendingChoiceKind =
+  | "life_trigger"
+  | "on_play"
+  | "activate_main"
+  | "when_attacking"
+  | "optional_ability"
+  | "leader_on_opp_attack"
+  | "order_effects";
+
+export type PendingChoiceView = {
+  id: string;
+  seat: Seat;
+  kind: PendingChoiceKind | string;
+  cardDefId: string;
+  sourceInstanceId?: string;
+  optional?: boolean;
+  prompt?: string;
+  abilityId?: string;
+  /** Present when kind is order_effects — controller must permute via order_pending_effects. */
+  unorderedChoices?: PendingChoiceView[];
+};
+
 export type PlayerView = {
   seat: Seat;
   spectator?: boolean;
@@ -118,7 +141,7 @@ export type PlayerView = {
   turnNumber: number;
   battle: unknown;
   pendingTrigger: unknown;
-  pendingChoices?: Array<{ prompt?: string; kind?: string; cardDefId?: string }>;
+  pendingChoices?: PendingChoiceView[];
   winner: Seat | null;
   winReason: string | null;
   legalIntents: Intent[];
@@ -278,6 +301,8 @@ export function intentLabel(intent: Intent, view?: PlayerView): string {
       return intent.accept ? "Accept ability" : "Decline ability";
     case "resolve_trigger":
       return intent.accept ? "Accept Trigger" : "Decline Trigger";
+    case "order_pending_effects":
+      return "Confirm effect order";
     case "end_turn":
       return "End turn";
     default:

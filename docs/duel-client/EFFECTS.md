@@ -76,6 +76,17 @@ Illegal permutations (duplicates, missing ids, wrong length) fail closed.
   sims/bots. Live clients must show a reorder UI (`EffectOrderPrompt`) so the
   player can send any permutation — do not treat the default legal intent as
   the only choice.
+- Remount the prompt with `key={choice.id}` so local reorder state resets when
+  a later order window opens (do not reuse a stale list from a previous choice).
+- **duel-web** and **mobile** both ship `EffectOrderPrompt`. Today most windows
+  still enqueue a single choice, so the prompt is uncommon until When Attacking
+  / multi-On-Play batches land.
+
+### Deploy coupling (protocol v3)
+
+Ship **game-server + duel-web + mobile** on protocol 3 together. A v2 client
+cannot join a v3 room (and vice versa). Prefer releasing the server bump in the
+same window as both clients; avoid mixed-version production traffic.
 
 
 ## Coverage policy
