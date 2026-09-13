@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { rewriteLoopbackToPageHost } from "../config";
+import { getApiBaseUrl, rewriteLoopbackToPageHost } from "../config";
 import { DuelBoard } from "../board/DuelBoard";
 import {
   narrateEvents,
@@ -11,7 +11,7 @@ import {
   resetAllSeatArtPrefs,
   setCosmeticsPublisher,
 } from "../decks/seatArtPrefs";
-import { hotseatGuestId, mintGuestGameToken } from "../net/api";
+import { awaitDuelServicesReady, hotseatGuestId, mintGuestGameToken } from "../net/api";
 import { DuelClient } from "../net/duelClient";
 import {
   clearMatchResume,
@@ -140,6 +140,8 @@ export function HotseatPage() {
   const [bootKey, setBootKey] = useState(0);
   const [ready, setReady] = useState(false);
   const [resuming, setResuming] = useState(Boolean(resumeHotseat));
+  /** Extra boot phase label (waking servers / minting) for the Starting screen. */
+  const [bootPhase, setBootPhase] = useState<string | null>(null);
   const bags = useRef<[SeatBag | null, SeatBag | null]>([null, null]);
   const [, bump] = useState(0);
   const bootGen = useRef(0);
@@ -436,6 +438,12 @@ export function HotseatPage() {
         const wire = nav!.deckWire;
         const enemyWire = nav!.enemyDeckWire ?? wire;
 
+        // Wake API + game-server here (visible Starting UI) instead of blocking
+        // the lobby with grayed buttons for up to 20s.
+        setBootPhase("Waking API & game server…");
+        await awaitDuelServicesReady(getApiBaseUrl(), gsUrl, 25000);
+        if (!alive()) return;
+
         async function auth(suffix: "a" | "b", seatIndex: 0 | 1) {
           if (!nav!.useToken) {
             return {
@@ -463,11 +471,13 @@ export function HotseatPage() {
           };
         }
 
+        setBootPhase("Minting seat tokens…");
         // Mint both seats up front (parallel) so seat 1 is not blocked behind
         // create, and a cold API is only paid once.
         const [auth0, auth1] = await Promise.all([auth("a", 0), auth("b", 1)]);
         if (!alive()) return;
 
+        setBootPhase("Creating match…");
         const c0 = new DuelClient();
         clients.push(c0);
         const bag0: SeatBag = {
@@ -486,6 +496,8 @@ export function HotseatPage() {
         bags.current[0] = bag0;
         wireBag(c0, bag0);
 
+        // 50s allows up to ~3 seat-reservation retries against a 15s default
+        // GS pin while the Render deploy branch catches up to the 90s setting.
         const info = await withTimeout(
           c0.connect({
             ...auth0,
@@ -496,13 +508,14 @@ export function HotseatPage() {
               autoSkipMulligan: false,
             },
           }),
-          20000,
+          50000,
           "Hotseat create",
         );
         if (!alive()) return;
         setMatchId(info.matchId);
         matchIdRef.current = info.matchId;
 
+        setBootPhase("Joining second seat…");
         const c1 = new DuelClient();
         clients.push(c1);
         const bag1: SeatBag = {
@@ -524,11 +537,12 @@ export function HotseatPage() {
             preferredSeat: 1,
             deck: enemyWire,
           }),
-          20000,
+          50000,
           "Hotseat join",
         );
         if (!alive()) return;
 
+        setBootPhase(null);
         persistResume();
         if (!(await waitViews(bag0, bag1, 10000))) {
           if (!alive()) return;
@@ -541,6 +555,7 @@ export function HotseatPage() {
         if (alive()) {
           clearMatchResume();
           setResuming(false);
+          setBootPhase(null);
           for (const c of clients) void c.disconnect(true);
           bags.current = [null, null];
           setBootError(isSeatReservationExpiredError(e) ? seatReservationUserMessage() : e instanceof Error ? e.message : "Hotseat failed");
@@ -549,15 +564,16 @@ export function HotseatPage() {
     }
 
     // Hard ceiling so a hung mint/matchmake cannot leave the UI on Starting forever.
-    // 55s covers one failed short resume + free-tier cold mint retries + create/join.
+    // Covers wake + mint retries + create/join seat-reservation retries.
     const bootWatchdog = window.setTimeout(() => {
       if (!alive()) return;
       clearMatchResume();
       setResuming(false);
+      setBootPhase(null);
       for (const c of clients) void c.disconnect(true);
       bags.current = [null, null];
       setBootError("Hotseat startup timed out — check the game server and try again");
-    }, 55000);
+    }, 120000);
 
     // Defer connect past React StrictMode's immediate remount so the first
     // mount cancels before opening sockets (avoids soft-leave on a <5s room).
@@ -664,6 +680,7 @@ export function HotseatPage() {
               disposeParked(true);
               setReady(false);
               setResuming(false);
+              setBootPhase(null);
               setMatchId(null);
               matchIdRef.current = null;
               setBootError(null);
@@ -684,13 +701,23 @@ export function HotseatPage() {
     return (
       <div className="duel-root">
         <div className="hotseat-bar">
-          <span>{resuming ? `Reconnecting (${title})…` : `Starting hotseat (${title})…`}</span>
+          <span>
+            {resuming
+              ? `Reconnecting (${title})…`
+              : bootPhase
+                ? `${bootPhase} (${title})`
+                : `Starting hotseat (${title})…`}
+          </span>
           <button type="button" className="btn btn-secondary" onClick={() => void leave()}>
             Leave
           </button>
         </div>
         <div className="loading arena-loading">
-          {resuming ? `Reconnecting both seats (${title})…` : `Starting hotseat (${title})…`}
+          {resuming
+            ? `Reconnecting both seats (${title})…`
+            : bootPhase
+              ? `${bootPhase} (${title})`
+              : `Starting hotseat (${title})…`}
         </div>
       </div>
     );
