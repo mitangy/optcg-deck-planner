@@ -60,3 +60,18 @@ export {
   type LeaderAbilityEntry,
   type LeaderAbilityTiming,
 } from "./cards/leaderAbilities.js";
+export {
+  EFFECT_CATALOG,
+  buildEffectCatalog,
+  effectsForCard,
+  effectsForDef,
+  summarizeEffectCoverage,
+  type CardEffectEntry,
+  type EffectStatus,
+  type EffectTiming,
+} from "./cards/effectCatalog.js";
+export {
+  applyEffectOrder,
+  enqueuePendingChoices,
+  sortByApnap,
+} from "./effectOrder.js";

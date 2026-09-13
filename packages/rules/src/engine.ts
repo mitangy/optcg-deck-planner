@@ -3,6 +3,7 @@ import {
   getCardDef,
   normalizeCardDefId,
 } from "./cards/definitions.js";
+import { applyEffectOrder, enqueuePendingChoices } from "./effectOrder.js";
 import { createSeededRng, type Rng } from "./rng.js";
 import type {
   ApplyContext,
@@ -15,10 +16,14 @@ import type {
   GameEvent,
   Intent,
   MatchState,
+  PendingChoice,
   PlayerDeckConfig,
   PlayerState,
   Seat,
 } from "./types.js";
+
+/** Re-export for callers that need to queue multi-effect windows. */
+export { enqueuePendingChoices, applyEffectOrder, sortByApnap } from "./effectOrder.js";
 
 function otherSeat(seat: Seat): Seat {
   return seat === 0 ? 1 : 0;
@@ -478,10 +483,28 @@ export function applyIntent(
     return done();
   }
 
+  if (intent.type === "order_pending_effects") {
+    const front = next.pendingChoices[0];
+    if (!front || front.seat !== seat || front.kind !== "order_effects") {
+      return fail(state, "no_order_choice", "No effect-order choice pending");
+    }
+    if (!applyEffectOrder(next, intent.orderedIds, events)) {
+      return fail(state, "bad_order", "orderedIds must permute the pending effects");
+    }
+    return done();
+  }
+
   if (intent.type === "resolve_pending_choice") {
     const front = next.pendingChoices[0];
     if (!front || front.seat !== seat) {
       return fail(state, "no_pending_choice", "No pending choice");
+    }
+    if (front.kind === "order_effects") {
+      return fail(
+        state,
+        "need_order",
+        "Choose effect order with order_pending_effects first",
+      );
     }
     if (!intent.accept && !front.optional) {
       return fail(state, "mandatory_choice", "This ability cannot be declined");
@@ -857,6 +880,12 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
   if (state.pendingChoices.length > 0) {
     const front = state.pendingChoices[0];
     if (front.seat !== seat) return out;
+    if (front.kind === "order_effects") {
+      // Default legal order = current unorderedChoices sequence (sim-friendly).
+      const ids = (front.unorderedChoices ?? []).map((c) => c.id);
+      out.push({ type: "order_pending_effects", orderedIds: ids });
+      return out;
+    }
     out.push({ type: "resolve_pending_choice", accept: true });
     if (front.optional) out.push({ type: "resolve_pending_choice", accept: false });
     return out;
