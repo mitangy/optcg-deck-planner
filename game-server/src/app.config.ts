@@ -5,10 +5,7 @@ import {
   playground,
 } from "colyseus";
 import { getDefsHealthSnapshot } from "@optcg/rules";
-<<<<<<< HEAD
-=======
 import { getSeatReservationSeconds } from "./env.js";
->>>>>>> cursor/hotseat-seat-claim-fix-863f
 import { PROTOCOL_VERSION } from "./protocol.js";
 import { DuelRoom } from "./rooms/DuelRoom.js";
 import { MatchmakerRoom } from "./rooms/MatchmakerRoom.js";
@@ -28,11 +25,8 @@ const server = defineServer({
         // Catch client/server skew (v2 client vs stale v1 GS surfaces as
         // misleading "seat reservation expired" on create).
         protocolVersion: PROTOCOL_VERSION,
-<<<<<<< HEAD
-=======
         // Confirm COLYSEUS_SEAT_RESERVATION_TIME landed on the Render pin.
         seatReservationSeconds: getSeatReservationSeconds(),
->>>>>>> cursor/hotseat-seat-claim-fix-863f
         // Catch stale deploys missing curated stubs (e.g. Teach OP16-080).
         defs: getDefsHealthSnapshot(),
       });
