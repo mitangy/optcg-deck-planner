@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { CardInspect } from "../board/CardInspect";
 import { lookupCard } from "../cards/atlas";
 import {
+  hasActiveCardSearch,
   listAtlasColors,
   listAtlasCounters,
   listAtlasTypes,
@@ -18,7 +20,10 @@ import {
 } from "../decks/editDeck";
 import { groupDeckStacks } from "../decks/groupStacks";
 import {
+  ensureDefaultDeck,
   getSavedDeck,
+  getSelectedDeckId,
+  listSavedDecks,
   setDeckArtPref,
   setSelectedDeckId,
   type SavedDeck,
@@ -38,12 +43,16 @@ function StackCard({
   defId,
   count,
   editable,
+  selected,
+  onSelect,
   onChanged,
 }: {
   deck: SavedDeck;
   defId: string;
   count: number;
   editable: boolean;
+  selected: boolean;
+  onSelect: () => void;
   onChanged: () => void;
 }) {
   const entry = lookupCard(defId);
@@ -76,23 +85,36 @@ function StackCard({
   }
 
   return (
-    <article className="deck-stack">
-      <div className="deck-stack-art">
-        {imageUrl ? (
-          <img src={imageUrl} alt={entry.name} className="deck-stack-img" />
-        ) : (
-          <div className="deck-stack-fallback">{defId}</div>
-        )}
-        <span className="deck-stack-badge" aria-label={`${count} copies`}>
-          ×{count}
-        </span>
-      </div>
+    <article
+      className={`deck-stack${selected ? " selected" : ""}`}
+      data-selected={selected ? "true" : undefined}
+    >
+      <button
+        type="button"
+        className="deck-stack-art-btn"
+        onClick={onSelect}
+        aria-pressed={selected}
+        aria-label={`View details for ${entry.name}`}
+      >
+        <div className="deck-stack-art">
+          {imageUrl ? (
+            <img src={imageUrl} alt="" className="deck-stack-img" />
+          ) : (
+            <div className="deck-stack-fallback">{defId}</div>
+          )}
+          <span className="deck-stack-badge" aria-label={`${count} copies`}>
+            ×{count}
+          </span>
+        </div>
+      </button>
       <div className="deck-stack-meta">
-        <div className="deck-stack-name">{entry.name}</div>
-        <div className="deck-stack-id">{defId}</div>
-        {entry.attribute ? (
-          <div className="deck-stack-id">{entry.attribute}</div>
-        ) : null}
+        <button type="button" className="deck-stack-name-btn" onClick={onSelect}>
+          <div className="deck-stack-name">{entry.name}</div>
+          <div className="deck-stack-id">{defId}</div>
+          {entry.attribute ? (
+            <div className="deck-stack-id">{entry.attribute}</div>
+          ) : null}
+        </button>
         {editable ? (
           <div className="deck-stack-edit">
             <button
@@ -158,8 +180,20 @@ function toggleInList(list: string[], value: string): string[] {
     : [...list, value];
 }
 
+function resolveInitialDeckId(paramId: string | undefined): string | null {
+  if (paramId) {
+    const hit = getSavedDeck(paramId);
+    if (hit) return hit.id;
+  }
+  ensureDefaultDeck();
+  const selected = getSelectedDeckId();
+  if (selected && getSavedDeck(selected)) return selected;
+  return listSavedDecks()[0]?.id ?? null;
+}
+
 export function DeckConfigurePage() {
-  const { deckId } = useParams<{ deckId: string }>();
+  const { deckId: routeDeckId } = useParams<{ deckId?: string }>();
+  const navigate = useNavigate();
   const [tick, setTick] = useState(0);
   const [query, setQuery] = useState("");
   const [colors, setColors] = useState<string[]>([]);
@@ -173,15 +207,32 @@ export function DeckConfigurePage() {
   const [blocker, setBlocker] = useState<"" | "yes" | "no">("");
   const [rush, setRush] = useState<"" | "yes" | "no">("");
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [inspectDefId, setInspectDefId] = useState<string | null>(null);
+
+  const allDecks = useMemo(() => {
+    void tick;
+    ensureDefaultDeck();
+    return listSavedDecks();
+  }, [tick]);
+
+  const activeDeckId = useMemo(() => {
+    void tick;
+    return resolveInitialDeckId(routeDeckId);
+  }, [routeDeckId, tick]);
 
   const deck = useMemo(() => {
     void tick;
-    return deckId ? getSavedDeck(deckId) : undefined;
-  }, [deckId, tick]);
+    return activeDeckId ? getSavedDeck(activeDeckId) : undefined;
+  }, [activeDeckId, tick]);
 
   useEffect(() => {
-    if (deck) setSelectedDeckId(deck.id);
-  }, [deck]);
+    if (!deck) return;
+    setSelectedDeckId(deck.id);
+    // Keep URL in sync when entering via /decks/configure or switching decks.
+    if (routeDeckId !== deck.id) {
+      navigate(`/decks/${deck.id}/configure`, { replace: true });
+    }
+  }, [deck, routeDeckId, navigate]);
 
   const stacks = useMemo(
     () => (deck ? groupDeckStacks(deck.leaderId, deck.cards) : null),
@@ -192,12 +243,12 @@ export function DeckConfigurePage() {
   const typeOpts = useMemo(() => listAtlasTypes(), []);
   const counterOpts = useMemo(() => listAtlasCounters(), []);
 
-  const results = useMemo(() => {
+  const searchFilters = useMemo(() => {
     const counterVal =
       counter === "" || counter === "none"
         ? null
         : Number.parseInt(counter, 10);
-    return searchAtlas({
+    return {
       query,
       colors,
       types,
@@ -216,7 +267,7 @@ export function DeckConfigurePage() {
       blocker: blocker === "" ? null : blocker === "yes",
       rush: rush === "" ? null : rush === "yes",
       excludeLeaders: true,
-    });
+    };
   }, [
     query,
     colors,
@@ -231,7 +282,13 @@ export function DeckConfigurePage() {
     rush,
   ]);
 
-  if (!deckId || !deck || !stacks) {
+  const browsing = hasActiveCardSearch(searchFilters);
+  const results = useMemo(
+    () => (browsing ? searchAtlas(searchFilters) : []),
+    [browsing, searchFilters],
+  );
+
+  if (!activeDeckId || !deck || !stacks) {
     return <Navigate to="/" replace />;
   }
 
@@ -266,6 +323,14 @@ export function DeckConfigurePage() {
     refresh();
   }
 
+  function onSwitchDeck(nextId: string) {
+    if (!nextId || nextId === currentDeck.id) return;
+    setInspectDefId(null);
+    setSelectedDeckId(nextId);
+    navigate(`/decks/${nextId}/configure`);
+    refresh();
+  }
+
   return (
     <div className="app-shell">
       <div className="deck-config">
@@ -273,11 +338,25 @@ export function DeckConfigurePage() {
           <Link to="/" className="btn btn-secondary deck-config-back">
             ← Lobby
           </Link>
-          <div>
+          <div className="deck-config-heading">
             <h1 className="deck-config-title">Configure deck</h1>
+            <label className="deck-config-switcher">
+              <span className="meta">Editing</span>
+              <select
+                aria-label="Deck to edit"
+                value={currentDeck.id}
+                onChange={(e) => onSwitchDeck(e.target.value)}
+              >
+                {allDecks.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} — {d.leaderId} ({d.cards.length} cards)
+                  </option>
+                ))}
+              </select>
+            </label>
             <p className="meta">
-              {currentDeck.name} · leader {currentDeck.leaderId} ·{" "}
-              {currentDeck.cards.length}/{MAX_MAIN_DECK_SIZE} main
+              Leader {currentDeck.leaderId} · {currentDeck.cards.length}/
+              {MAX_MAIN_DECK_SIZE} main
             </p>
           </div>
         </header>
@@ -443,7 +522,11 @@ export function DeckConfigurePage() {
                 >
                   Clear filters
                 </button>
-                <span className="meta">{results.length} matches</span>
+                {browsing ? (
+                  <span className="meta">{results.length} matches</span>
+                ) : (
+                  <span className="meta">Search or filter to browse the catalog</span>
+                )}
               </div>
             </div>
 
@@ -453,50 +536,71 @@ export function DeckConfigurePage() {
               </p>
             ) : null}
 
-            <ul className="deck-search-results">
-              {results.map((entry) => {
-                const inDeck = countCardInDeck(currentDeck, entry.id);
-                const imageUrl =
-                  resolveCardImageUrl(entry.id, currentDeck) ?? entry.imageUrl;
-                const atCap = inDeck >= MAX_COPIES_PER_CARD;
-                const deckFull =
-                  currentDeck.cards.length >= MAX_MAIN_DECK_SIZE;
-                return (
-                  <li key={entry.id} className="deck-search-row">
-                    <div className="deck-search-thumb">
-                      {imageUrl ? (
-                        <img src={imageUrl} alt="" />
-                      ) : (
-                        <span>{entry.id}</span>
-                      )}
-                    </div>
-                    <div className="deck-search-meta">
-                      <div className="deck-stack-name">{entry.name}</div>
-                      <div className="deck-stack-id">
-                        {entry.id}
-                        {entry.attribute ? ` · ${entry.attribute}` : ""}
-                        {` · ${entry.type}`}
-                        {entry.colors.length
-                          ? ` · ${entry.colors.join("/")}`
-                          : ""}
-                        {entry.counter != null ? ` · +${entry.counter}` : ""}
-                        {` · cost ${entry.cost}`}
-                        {entry.power != null ? ` · ${entry.power}` : ""}
-                        {inDeck > 0 ? ` · in deck ×${inDeck}` : ""}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-primary deck-search-add"
-                      disabled={atCap || deckFull}
-                      onClick={() => onAdd(entry.id)}
-                    >
-                      Add
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            {browsing ? (
+              <ul className="deck-search-results">
+                {results.length === 0 ? (
+                  <li className="deck-search-empty meta">No cards match.</li>
+                ) : (
+                  results.map((entry) => {
+                    const inDeck = countCardInDeck(currentDeck, entry.id);
+                    const imageUrl =
+                      resolveCardImageUrl(entry.id, currentDeck) ??
+                      entry.imageUrl;
+                    const atCap = inDeck >= MAX_COPIES_PER_CARD;
+                    const deckFull =
+                      currentDeck.cards.length >= MAX_MAIN_DECK_SIZE;
+                    return (
+                      <li key={entry.id} className="deck-search-row">
+                        <button
+                          type="button"
+                          className="deck-search-open"
+                          onClick={() => setInspectDefId(entry.id)}
+                          aria-label={`View details for ${entry.name}`}
+                        >
+                          <div className="deck-search-thumb">
+                            {imageUrl ? (
+                              <img src={imageUrl} alt="" />
+                            ) : (
+                              <span>{entry.id}</span>
+                            )}
+                          </div>
+                          <div className="deck-search-meta">
+                            <div className="deck-stack-name">{entry.name}</div>
+                            <div className="deck-stack-id">
+                              {entry.id}
+                              {entry.attribute ? ` · ${entry.attribute}` : ""}
+                              {` · ${entry.type}`}
+                              {entry.colors.length
+                                ? ` · ${entry.colors.join("/")}`
+                                : ""}
+                              {entry.counter != null
+                                ? ` · +${entry.counter}`
+                                : ""}
+                              {` · cost ${entry.cost}`}
+                              {entry.power != null ? ` · ${entry.power}` : ""}
+                              {inDeck > 0 ? ` · in deck ×${inDeck}` : ""}
+                            </div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary deck-search-add"
+                          disabled={atCap || deckFull}
+                          onClick={() => onAdd(entry.id)}
+                        >
+                          Add
+                        </button>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            ) : (
+              <p className="deck-search-idle meta" role="status">
+                Type a search or apply a filter to show matching cards from the
+                catalog. Your current deck list is below.
+              </p>
+            )}
           </div>
         </section>
 
@@ -508,6 +612,8 @@ export function DeckConfigurePage() {
               defId={stacks.leader.defId}
               count={stacks.leader.count}
               editable={false}
+              selected={inspectDefId === stacks.leader.defId}
+              onSelect={() => setInspectDefId(stacks.leader.defId)}
               onChanged={refresh}
             />
           </div>
@@ -529,6 +635,8 @@ export function DeckConfigurePage() {
                   defId={s.defId}
                   count={s.count}
                   editable
+                  selected={inspectDefId === s.defId}
+                  onSelect={() => setInspectDefId(s.defId)}
                   onChanged={refresh}
                 />
               ))}
@@ -536,6 +644,16 @@ export function DeckConfigurePage() {
           )}
         </section>
       </div>
+
+      {inspectDefId ? (
+        <CardInspect
+          defId={inspectDefId}
+          open
+          deck={currentDeck}
+          onDeckArtChange={refresh}
+          onClose={() => setInspectDefId(null)}
+        />
+      ) : null}
     </div>
   );
 }

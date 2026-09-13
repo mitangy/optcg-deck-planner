@@ -5,7 +5,11 @@ import {
   subscribeArtPrefs,
   type Seat,
 } from "../decks/seatArtPrefs";
-import { setArtPref } from "../decks/storage";
+import {
+  setArtPref,
+  setDeckArtPref,
+  type SavedDeck,
+} from "../decks/storage";
 import { lookupCard } from "../cards/atlas";
 import {
   useEffect,
@@ -24,6 +28,13 @@ type Props = {
   ownerSeat?: Seat;
   /** Seat controlling the UI — alt picks update this seat's prefs. */
   viewingSeat?: Seat;
+  /**
+   * Saved deck for configure-page inspect: resolves deck-scoped art and
+   * writes alt picks via `setDeckArtPref` (no duel seats involved).
+   */
+  deck?: SavedDeck;
+  /** Fired after a deck-scoped art pref changes so the parent can refresh. */
+  onDeckArtChange?: () => void;
 };
 
 const SWIPE_DISMISS_PX = 80;
@@ -35,6 +46,8 @@ export function CardInspect({
   onClose,
   ownerSeat,
   viewingSeat,
+  deck,
+  onDeckArtChange,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
   const artTick = useSyncExternalStore(
@@ -46,11 +59,12 @@ export function CardInspect({
     void artTick;
     return (
       resolveCardImageUrl(defId, {
+        deck: deck ?? null,
         ownerSeat: ownerSeat ?? viewingSeat,
         size: "large",
       }) ?? entry.imageUrl
     );
-  }, [defId, entry.imageUrl, artTick, ownerSeat, viewingSeat]);
+  }, [defId, entry.imageUrl, artTick, ownerSeat, viewingSeat, deck]);
 
   const sheetRef = useRef<HTMLDivElement>(null);
   const swipeStartY = useRef<number | null>(null);
@@ -77,12 +91,19 @@ export function CardInspect({
 
   const alts = entry.altArts ?? [];
   const prefSeat = viewingSeat ?? ownerSeat;
-  // Only allow editing artwork for cards you own (or unscoped local inspect).
-  const canEditArt =
-    prefSeat != null && (ownerSeat == null || ownerSeat === prefSeat);
+  // Deck-configure inspect can edit deck-scoped art without seats.
+  // In-match: only allow editing artwork for cards you own (or unscoped).
+  const canEditArt = deck
+    ? true
+    : prefSeat != null && (ownerSeat == null || ownerSeat === prefSeat);
 
   function applyAlt(altId: string | null) {
     if (!canEditArt) return;
+    if (deck) {
+      setDeckArtPref(deck.id, defId, altId);
+      onDeckArtChange?.();
+      return;
+    }
     if (prefSeat === 0 || prefSeat === 1) {
       setSeatArtPref(prefSeat, defId, altId);
     }

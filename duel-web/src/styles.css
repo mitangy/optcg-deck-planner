@@ -436,12 +436,40 @@ button {
   justify-content: center;
 }
 
+.deck-config-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
 .deck-config-title {
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(1.6rem, 5vw, 2.1rem);
   color: var(--chrome-bright);
   letter-spacing: 0.04em;
+}
+
+.deck-config-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 28rem;
+}
+
+.deck-config-switcher select {
+  width: 100%;
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 0.5rem 0.55rem;
+  font: inherit;
+  font-size: 0.85rem;
+  min-height: 40px;
 }
 
 .deck-config-section {
@@ -467,6 +495,48 @@ button {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.55rem;
+}
+
+.deck-stack.selected {
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 1px var(--chrome);
+}
+
+.deck-stack-art-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.deck-stack-art-btn:focus-visible {
+  outline: 2px solid var(--chrome);
+  outline-offset: 2px;
+}
+
+.deck-stack-name-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.deck-stack-name-btn:focus-visible {
+  outline: 2px solid var(--chrome);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .deck-stack-art {
@@ -683,6 +753,15 @@ button {
   gap: 0.65rem;
 }
 
+.deck-search-idle {
+  margin: 0;
+  padding: 0.85rem 0.95rem;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: var(--arena-panel);
+  line-height: 1.4;
+}
+
 .deck-search-results {
   list-style: none;
   margin: 0;
@@ -699,7 +778,7 @@ button {
 
 .deck-search-row {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.65rem;
   align-items: center;
   padding: 0.45rem 0.55rem;
@@ -709,6 +788,28 @@ button {
 
 .deck-search-row:last-child {
   border-bottom: none;
+}
+
+.deck-search-open {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.deck-search-open:focus-visible {
+  outline: 2px solid var(--chrome);
+  outline-offset: 2px;
 }
 
 .deck-search-thumb {
@@ -748,11 +849,14 @@ button {
   }
 
   .deck-search-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .deck-search-open {
     grid-template-columns: 40px minmax(0, 1fr);
   }
 
   .deck-search-add {
-    grid-column: 1 / -1;
     width: 100%;
   }
 }
