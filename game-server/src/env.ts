@@ -48,6 +48,17 @@ export function getReconnectGraceSeconds(): number {
   return Number.isFinite(n) && n > 0 ? n : 60;
 }
 
+/**
+ * How long Colyseus holds a matchmake seat before the WebSocket must consume it.
+ * Default 15s is too short for free-tier cold starts (HTTP matchmake succeeds,
+ * then WS connect races the reservation → "seat reservation expired.").
+ */
+export function getSeatReservationSeconds(): number {
+  const raw = process.env.COLYSEUS_SEAT_RESERVATION_TIME ?? "90";
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 90;
+}
+
 /** Comma-separated browser origins allowed for CORS (duel-web / Expo web). */
 export function getCorsOrigins(): string[] {
   const raw =

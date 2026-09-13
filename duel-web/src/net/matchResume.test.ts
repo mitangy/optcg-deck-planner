@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clearMatchResume,
   isResumeWithinGrace,
+  isSeatReservationExpiredError,
+  seatReservationUserMessage,
   loadMatchResume,
   saveMatchResume,
   type DuelResumeBlob,
@@ -87,5 +89,17 @@ describe("matchResume", () => {
     expect(isResumeWithinGrace(now - 30_000, now)).toBe(true);
     expect(isResumeWithinGrace(now - 60_000, now)).toBe(true);
     expect(isResumeWithinGrace(now - 60_001, now)).toBe(false);
+  });
+});
+
+describe("seat reservation errors", () => {
+  it("detects Colyseus seat reservation expired messages", () => {
+    expect(isSeatReservationExpiredError("seat reservation expired.")).toBe(true);
+    expect(isSeatReservationExpiredError(new Error("seat reservation expired"))).toBe(true);
+    expect(isSeatReservationExpiredError("room not found")).toBe(false);
+  });
+
+  it("exposes a non-Colyseus user message", () => {
+    expect(seatReservationUserMessage().toLowerCase()).not.toContain("seat reservation expired");
   });
 });

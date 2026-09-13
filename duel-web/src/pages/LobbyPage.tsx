@@ -22,6 +22,7 @@ import {
   mintDevGameToken,
   mintGuestGameToken,
   mintSessionGameToken,
+  awaitDuelServicesReady,
   warmDuelServices,
   type AuthUser,
 } from "../net/api";
@@ -160,6 +161,9 @@ export function LobbyPage() {
         // Pre-mint both seats on the lobby (with retries) so HotseatPage does
         // not race an 8s timeout against a cold free-tier API spin-up.
         warmDuelServices(apiUrl, serverUrl.trim());
+        // Wait for game-server wake so Colyseus create does not lose the
+        // default seat-reservation race on free-tier cold starts.
+        await awaitDuelServicesReady(apiUrl, serverUrl.trim(), 20000);
         const [tokA, tokB] = await Promise.all([
           mintGuestGameToken(hotseatGuestId(key, "a")),
           mintGuestGameToken(hotseatGuestId(key, "b")),
