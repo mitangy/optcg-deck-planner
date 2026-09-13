@@ -77,12 +77,12 @@ def normalize_colors(raw: str | None) -> list[str]:
     if not raw:
         return []
     out: list[str] = []
-    for part in re.split(r"[;/,re.split(r"[/,&]"]", raw):
+    for part in re.split(r"[;/,&]", raw):
         c = part.strip().lower()
         if c:
-            out.append(c.capitalize() if c != "don!!" else "Don")
-    # Prefer Title Case for Red/Blue/…
-    return [c.lower() for c in out]
+            # Keep lowercase to match curated atlas / filters.
+            out.append("don" if c in {"don", "don!!"} else c)
+    return out
 
 
 def normalize_attribute(raw: str | None) -> str | None:
