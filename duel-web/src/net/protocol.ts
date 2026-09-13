@@ -1,11 +1,11 @@
 /**
- * Wire types for protocolVersion 1 — mirrored from game-server/src/protocol.ts.
+ * Wire types for protocolVersion 3 — mirrored from game-server/src/protocol.ts.
  * Do not import @optcg/rules into the app.
  */
 
 import { lookupCard } from "../cards/atlas";
 
-export const PROTOCOL_VERSION = 2 as const;
+export const PROTOCOL_VERSION = 3 as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
 export type Seat = 0 | 1;
@@ -96,7 +96,9 @@ export type PendingChoiceKind =
   | "activate_main"
   | "when_attacking"
   | "optional_ability"
-  | "leader_on_opp_attack";
+  | "leader_on_opp_attack"
+  /** Controller must reorder 2+ simultaneous effects before they resolve. */
+  | "order_effects";
 
 /** A single queued ask-to-trigger prompt (chain-ready: server may queue more than one). */
 export type PendingChoiceView = {
@@ -110,6 +112,12 @@ export type PendingChoiceView = {
   prompt: string;
   /** Present for leader On-Opponent's-Attack abilities (Teach / Newgate). */
   abilityId?: "newgate_battle_power" | "teach_redirect";
+  /**
+   * When `kind` is `order_effects`, the simultaneous abilities the controller
+   * must permute via `order_pending_effects` (players may rearrange freely;
+   * `legalIntents` only lists a default sim-friendly order).
+   */
+  unorderedChoices?: PendingChoiceView[];
 };
 
 export type CardView = {
@@ -351,6 +359,8 @@ export function intentLabel(intent: Intent, view?: PlayerView): string {
       const who = front ? nameForDef(front.cardDefId) ?? front.cardDefId : "ability";
       return intent.accept ? `Accept — ${who}` : `Decline — ${who}`;
     }
+    case "order_pending_effects":
+      return "Confirm effect order";
     case "end_turn":
       return "End turn";
     default:

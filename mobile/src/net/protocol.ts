@@ -1,11 +1,11 @@
 /**
- * Wire types for protocolVersion 1 — mirrored from game-server/src/protocol.ts.
+ * Wire types for protocolVersion 3 — mirrored from game-server/src/protocol.ts.
  * Do not import @optcg/rules into the app.
  */
 
 import { lookupCard } from "../cards/atlas";
 
-export const PROTOCOL_VERSION = 2 as const;
+export const PROTOCOL_VERSION = 3 as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
 export type Seat = 0 | 1;

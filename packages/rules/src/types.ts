@@ -123,14 +123,18 @@ export type PendingChoiceKind =
   | "activate_main"
   | "when_attacking"
   | "optional_ability"
-  | "leader_on_opp_attack";
+  | "leader_on_opp_attack"
+  /** Controller must pick resolution order for 2+ simultaneous effects. */
+  | "order_effects";
 
 /**
  * A single queued "may I resolve this optional/chain ability?" prompt.
  * `MatchState.pendingChoices` is a FIFO queue: the front entry blocks Main
- * phase actions for its `seat` until resolved via `resolve_pending_choice`,
- * so chained character/leader abilities can stack even though the MVP only
- * ever pushes one at a time.
+ * phase actions for its `seat` until resolved via `resolve_pending_choice`
+ * (or `order_pending_effects` when `kind` is `order_effects`), so chained
+ * character/leader abilities can stack. When multiple effects trigger for the
+ * same controller at once, an `order_effects` wrapper is inserted first so the
+ * player chooses order (APNAP still puts the turn player ahead of the opponent).
  */
 export interface PendingChoice {
   /** Stable id for React keys / logs; not gameplay-significant. */
@@ -149,6 +153,11 @@ export interface PendingChoice {
    * Clients use this to render trash/retarget pickers.
    */
   abilityId?: "newgate_battle_power" | "teach_redirect";
+  /**
+   * When `kind` is `order_effects`, the simultaneous abilities the controller
+   * must permute via `order_pending_effects`.
+   */
+  unorderedChoices?: PendingChoice[];
 }
 
 /** @deprecated Use `PendingChoice` (kind `"life_trigger"`). Kept for callers importing the old name. */
@@ -265,6 +274,11 @@ export type Intent =
       /** New attack target after Teach redirect. */
       newTarget?: AttackTarget;
     }
+  /**
+   * Choose resolution order for the front `order_effects` pending choice.
+   * `orderedIds` must be a permutation of that choice's `unorderedChoices` ids.
+   */
+  | { type: "order_pending_effects"; orderedIds: string[] }
   | { type: "end_turn" };
 
 export interface ApplyContext {

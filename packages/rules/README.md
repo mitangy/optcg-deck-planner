@@ -82,9 +82,11 @@ Decks in tests/sims use **20 cards** (≤4 copies each) from this set — not fu
 - Thousand Sunny / Jet Pistol KO / other ST01 prints deferred until hooks exist  
 - No full 50-card / color-identity / 4-of constructed validation yet  
 - Trigger handling is minimal (`triggerDraw` only; no curated Trigger print in the default set)  
+- Most curated OP09/OP16/OP17 character/event clauses are **documented stubs** in `EFFECT_CATALOG` — see [`docs/duel-client/EFFECTS.md`](../../docs/duel-client/EFFECTS.md) for timing coverage and APNAP / controller-order rules (`order_effects` pending choice)  
 - No timer / disconnect / multiplayer transport (owned by game-server / later steps)  
 
 ## Manuals
 
 - [Rule Manual](https://en.onepiece-cardgame.com/pdf/rule_manual.pdf)  
 - [Comprehensive Rules](https://en.onepiece-cardgame.com/pdf/rule_comprehensive.pdf)  
+- [Effects catalog & resolution order](../../docs/duel-client/EFFECTS.md)  

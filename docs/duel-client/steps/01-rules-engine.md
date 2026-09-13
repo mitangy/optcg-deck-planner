@@ -140,7 +140,7 @@ Use these only where the manual leaves implementation choices; update if Compreh
 |-------|----------------------------|
 | Life stack orientation | Life[0] = next damage card (top). Document in README. |
 | Power from given DON!! | +1000 per attached DON!! **only on the card’s controller’s turn** (per manual). |
-| Simultaneous effects | Turn player’s effects first, then opponent (manual). Within one player, controller chooses order. |
+| Simultaneous effects | Turn player’s effects first, then opponent (manual). Within one player, controller chooses order. Implemented via `enqueuePendingChoices` / `order_effects` — see [`EFFECTS.md`](../EFFECTS.md). |
 | Unsupported keywords on a card definition | Card cannot be included in Step 1 legal data; or effect no-ops **only if** tests say so and README “Known gaps” lists it — prefer omitting the card. |
 
 ---
@@ -241,7 +241,9 @@ packages/rules/
     cards/
       registry.ts
       definitions.ts
-      effects.ts
+      effectCatalog.ts   # curated print → timing/status rows
+      effectOrder.ts     # APNAP + controller order_effects window
+      # effects.ts (per-card resolvers) — incremental; stubs listed in EFFECT_CATALOG
     sim/
       randomPlay.ts
       runBatch.ts
