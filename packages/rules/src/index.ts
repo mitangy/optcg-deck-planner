@@ -54,3 +54,24 @@ export type {
   PlayerDeckConfig,
   CreateMatchConfig,
 } from "./types.js";
+
+export {
+  LEADER_ABILITY_CATALOG,
+  type LeaderAbilityEntry,
+  type LeaderAbilityTiming,
+} from "./cards/leaderAbilities.js";
+export {
+  EFFECT_CATALOG,
+  buildEffectCatalog,
+  effectsForCard,
+  effectsForDef,
+  summarizeEffectCoverage,
+  type CardEffectEntry,
+  type EffectStatus,
+  type EffectTiming,
+} from "./cards/effectCatalog.js";
+export {
+  applyEffectOrder,
+  enqueuePendingChoices,
+  sortByApnap,
+} from "./effectOrder.js";

@@ -102,5 +102,11 @@ describe("searchAtlas filters", () => {
 
     const byName = searchAtlas({ query: "chopper" });
     expect(byName.some((e) => e.id === "ST01-006")).toBe(true);
+
+    const teach = searchAtlas({ query: "teach" });
+    expect(teach.some((e) => e.id === "OP16-080")).toBe(true);
+    expect(searchAtlas({ query: "OP01-013" }).some((e) => e.id === "OP01-013")).toBe(
+      true,
+    );
   });
 });

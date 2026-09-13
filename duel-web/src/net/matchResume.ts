@@ -21,6 +21,9 @@ export type HotseatResumeBlob = {
   useToken: boolean;
   deckWire: { leaderId: string; deck: string[] };
   deckName: string;
+  /** Opponent deck for vs-self (optional for older resume blobs). */
+  enemyDeckWire?: { leaderId: string; deck: string[] };
+  enemyDeckName?: string;
   seats: [
     { reconnectionToken: string },
     { reconnectionToken: string },
@@ -92,4 +95,16 @@ export function clearMatchResume(): void {
   } catch {
     /* ignore */
   }
+}
+
+
+/** Colyseus matchmake/reconnect failure when the reserved seat timed out. */
+export function isSeatReservationExpiredError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  return /seat reservation expired/i.test(msg);
+}
+
+/** User-facing copy — never show the raw Colyseus string in the boot UI. */
+export function seatReservationUserMessage(): string {
+  return "Could not claim a seat (server was slow to accept the join). Retrying usually works.";
 }

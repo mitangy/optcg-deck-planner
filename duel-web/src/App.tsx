@@ -10,6 +10,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/" element={<LobbyPage />} />
+      <Route path="/decks/configure" element={<DeckConfigurePage />} />
       <Route path="/decks/:deckId/configure" element={<DeckConfigurePage />} />
       <Route path="/duel" element={<DuelPage />} />
       <Route path="/hotseat" element={<HotseatPage />} />

@@ -31,7 +31,7 @@
     "power": 3000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288230_400w.jpg",
-    "effectText": "\u2014",
+    "effectText": "—",
     "attribute": "Strike"
   },
   "ST01-004": {
@@ -47,20 +47,6 @@
     "rush": true,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288232_400w.jpg",
     "attribute": "Slash"
-  },
-  "ST01-005": {
-    "id": "ST01-005",
-    "name": "Usopp",
-    "type": "character",
-    "colors": [
-      "red"
-    ],
-    "cost": 1,
-    "power": 2000,
-    "counter": 2000,
-    "imageUrl": "/cards/ST01-005.png",
-    "effectText": "[On Play] (Demo) You may draw 1 card.",
-    "attribute": "Strike"
   },
   "ST01-006": {
     "id": "ST01-006",
@@ -99,7 +85,7 @@
     "power": 5000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288237_400w.jpg",
-    "effectText": "\u2014",
+    "effectText": "—",
     "altArts": [
       {
         "id": "p1",
@@ -125,7 +111,7 @@
     "power": 4000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288238_400w.jpg",
-    "effectText": "\u2014",
+    "effectText": "—",
     "altArts": [
       {
         "id": "p1",
@@ -139,6 +125,20 @@
       }
     ],
     "attribute": "Special"
+  },
+  "ST01-005": {
+    "id": "ST01-005",
+    "name": "Usopp",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 2000,
+    "imageUrl": "/cards/ST01-005.png",
+    "effectText": "—",
+    "attribute": "Strike"
   },
   "ST01-014": {
     "id": "ST01-014",
@@ -196,13 +196,16 @@
     "power": 5000,
     "life": 4,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg",
-    "effectText": "[Opponent's Turn] All of your Characters gain +1 cost.\n\n[On your Opponent's Attack] [Once Per Turn] You may trash 1 card with a [Trigger] from your hand: Change the target of that attack to this Leader or to one of your {Blackbeard Pirates} type Character cards.",
+    "effectText": "[Opponent's Turn] Give all of your opponent's Characters +1 cost.\n\n[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card with a [Trigger] from your hand: Change the target of that attack to this Leader or 1 of your {Blackbeard Pirates} type Characters.",
     "altArts": [
       {
         "id": "p1",
         "label": "Alternate Art",
         "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/694628_400w.jpg"
       }
+    ],
+    "traits": [
+      "Blackbeard Pirates"
     ],
     "attribute": "Special"
   },
@@ -242,7 +245,7 @@
     "power": 6000,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/643725_400w.jpg",
-    "effectText": "\u2014",
+    "effectText": "—",
     "attribute": "Slash"
   },
   "OP12-018": {
@@ -407,7 +410,7 @@
     "counter": 2000,
     "blocker": true,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/633761_400w.jpg",
-    "effectText": "If you have a Character with 10000 power or more, give this card in your hand \u22124 cost.\n[Blocker]",
+    "effectText": "If you have a Character with 10000 power or more, give this card in your hand −4 cost.\n[Blocker]",
     "attribute": "Strike"
   },
   "ST30-004": {
@@ -442,7 +445,7 @@
     "power": 6000,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/695423_400w.jpg",
-    "effectText": "\u2014",
+    "effectText": "—",
     "altArts": [
       {
         "id": "p1",
@@ -472,6 +475,9 @@
         "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/685330_400w.jpg"
       }
     ],
+    "traits": [
+      "Blackbeard Pirates"
+    ],
     "attribute": "Special"
   },
   "OP09-086": {
@@ -486,6 +492,9 @@
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597027_400w.jpg",
     "effectText": "This Character cannot be K.O.'d by your opponent's effects.\n\nIf your Leader has the \"Blackbeard Pirates\" type, this Character gains +1000 power for every 4 cards in your trash.",
+    "traits": [
+      "Blackbeard Pirates"
+    ],
     "attribute": "Strike"
   },
   "OP09-093": {
@@ -511,6 +520,9 @@
         "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597036_400w.jpg"
       }
     ],
+    "traits": [
+      "Blackbeard Pirates"
+    ],
     "attribute": "Special"
   },
   "OP09-095": {
@@ -525,6 +537,9 @@
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597039_400w.jpg",
     "effectText": "[Activate: Main] You may rest 1 of your DON!! cards and this Character: Look at 5 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.",
+    "traits": [
+      "Blackbeard Pirates"
+    ],
     "attribute": "Strike"
   },
   "OP09-096": {
@@ -536,7 +551,11 @@
     ],
     "cost": 1,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597040_400w.jpg",
-    "effectText": "[Main] Look at 3 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card other than [My Era...Begins!!] and add it to your hand. Then, trash the rest.\n\n[Trigger] Activate this card's [Main] effect."
+    "effectText": "[Main] Look at 3 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card other than [My Era...Begins!!] and add it to your hand. Then, trash the rest.\n\n[Trigger] Activate this card's [Main] effect.",
+    "traits": [
+      "Blackbeard Pirates"
+    ],
+    "hasTrigger": true
   },
   "OP09-099": {
     "id": "OP09-099",
@@ -547,7 +566,10 @@
     ],
     "cost": 1,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597043_400w.jpg",
-    "effectText": "[Activate: Main] You may trash 1 card from your hand and rest this Stage: Look at 3 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card and add it to your hand. Then, place the rest at the bottom of your deck in any order."
+    "effectText": "[Activate: Main] You may trash 1 card from your hand and rest this Stage: Look at 3 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.",
+    "traits": [
+      "Blackbeard Pirates"
+    ]
   },
   "OP12-112": {
     "id": "OP12-112",
@@ -561,6 +583,10 @@
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/643859_400w.jpg",
     "effectText": "[Trigger] If your Leader is multicolored, draw 2 cards.",
+    "traits": [
+      "Blackbeard Pirates"
+    ],
+    "hasTrigger": true,
     "attribute": "Strike"
   },
   "OP14-108": {
@@ -587,6 +613,10 @@
         "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712120_400w.jpg"
       }
     ],
+    "traits": [
+      "Blackbeard Pirates"
+    ],
+    "hasTrigger": true,
     "attribute": "Special"
   },
   "OP16-104": {
@@ -601,6 +631,10 @@
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696086_400w.jpg",
     "effectText": "[When Attacking] Select up to 1 of your opponent's Characters. This Character's base power becomes the same as the selected Character's power during this turn.\n\n[Trigger] Draw 1 card and play up to 1 {Blackbeard Pirates} type Character with a cost of 1 from your trash.",
+    "traits": [
+      "Blackbeard Pirates"
+    ],
+    "hasTrigger": true,
     "attribute": "Strike"
   },
   "OP16-106": {
@@ -615,6 +649,10 @@
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696088_400w.jpg",
     "effectText": "[On K.O.] If your Leader has the {Blackbeard Pirates} type, draw 1 card, then up to 1 of your Leader or Character cards' base power becomes 7000 during this turn.\n\n[Trigger] Activate this card's [On K.O.] effect.",
+    "traits": [
+      "Blackbeard Pirates"
+    ],
+    "hasTrigger": true,
     "attribute": "Strike"
   },
   "OP16-108": {
@@ -635,6 +673,10 @@
         "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696091_400w.jpg"
       }
     ],
+    "traits": [
+      "Blackbeard Pirates"
+    ],
+    "hasTrigger": true,
     "attribute": "Special"
   },
   "OP16-109": {
@@ -649,6 +691,10 @@
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696092_400w.jpg",
     "effectText": "[On K.O.] If your Leader has the {Blackbeard Pirates} type, draw 1 card and K.O. up to 2 of your opponent's Characters with a cost of 1 or less.\n\n[Trigger] Activate this card's [On K.O.] effect.",
+    "traits": [
+      "Blackbeard Pirates"
+    ],
+    "hasTrigger": true,
     "attribute": "Strike"
   },
   "OP16-110": {
@@ -663,6 +709,10 @@
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696093_400w.jpg",
     "effectText": "[On K.O.] Draw 1 card and rest up to 1 of your opponent's Characters with a cost of 6 or less.\n\n[Trigger] Activate this card's [On K.O.] effect.",
+    "traits": [
+      "Blackbeard Pirates"
+    ],
+    "hasTrigger": true,
     "attribute": "Strike"
   },
   "OP16-115": {
@@ -674,7 +724,11 @@
     ],
     "cost": 1,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696098_400w.jpg",
-    "effectText": "[Main] If your Leader has the {Blackbeard Pirates} type, add up to 1 card with a [Trigger] other than [Black Vortex] from your trash to your hand.\n\n[Trigger] Negate the effect of up to 1 of your opponent's Leader or Character cards during this turn."
+    "effectText": "[Main] If your Leader has the {Blackbeard Pirates} type, add up to 1 card with a [Trigger] other than [Black Vortex] from your trash to your hand.\n\n[Trigger] Negate the effect of up to 1 of your opponent's Leader or Character cards during this turn.",
+    "traits": [
+      "Blackbeard Pirates"
+    ],
+    "hasTrigger": true
   },
   "OP16-116": {
     "id": "OP16-116",
@@ -692,7 +746,11 @@
         "label": "Alternate Art",
         "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696100_400w.jpg"
       }
-    ]
+    ],
+    "traits": [
+      "Blackbeard Pirates"
+    ],
+    "hasTrigger": true
   },
   "OP16-119": {
     "id": "OP16-119",
@@ -712,6 +770,10 @@
         "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/695757_400w.jpg"
       }
     ],
+    "traits": [
+      "Blackbeard Pirates"
+    ],
+    "hasTrigger": true,
     "attribute": "Special"
   }
 }

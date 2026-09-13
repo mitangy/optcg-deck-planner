@@ -137,6 +137,32 @@ export function warmDuelServices(apiBase: string, gameServerUrl: string): void {
   void fetch(`${gs}/health`).catch(() => undefined);
 }
 
+/** Poll until game-server /health responds or budget expires (free-tier wake). */
+export async function awaitDuelServicesReady(
+  apiBase: string,
+  gameServerUrl: string,
+  budgetMs = 25000,
+): Promise<boolean> {
+  const api = apiBase.replace(/\/$/, "");
+  const gs = gameServerUrl.replace(/\/$/, "");
+  const deadline = Date.now() + budgetMs;
+  let delay = 400;
+  while (Date.now() < deadline) {
+    try {
+      const [a, g] = await Promise.all([
+        fetch(`${api}/health`).then((r) => r.ok),
+        fetch(`${gs}/health`).then((r) => r.ok),
+      ]);
+      if (a && g) return true;
+    } catch {
+      /* still cold */
+    }
+    await new Promise((r) => setTimeout(r, delay));
+    delay = Math.min(delay * 1.5, 2500);
+  }
+  return false;
+}
+
 /**
  * Build a guest_id that always satisfies the API regex (8–64 of [A-Za-z0-9_-]).
  * Hotseat appends `-a` / `-b` so two seats never share one rated identity.

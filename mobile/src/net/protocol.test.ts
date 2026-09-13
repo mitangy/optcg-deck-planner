@@ -115,6 +115,14 @@ describe("protocol parsers", () => {
   });
 });
 
+describe("intentLabel", () => {
+  it("labels order_pending_effects", () => {
+    expect(intentLabel({ type: "order_pending_effects", orderedIds: ["a", "b"] })).toMatch(
+      /order|effect/i,
+    );
+  });
+});
+
 describe("card atlas", () => {
   it("resolves curated real ids with art urls", () => {
     expect(listAtlasIds()).toEqual(

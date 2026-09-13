@@ -24,7 +24,13 @@ How to add a playable OPTCG card to the digital duel without changing the Colyse
 | **Rush** (+ summoning sickness) | **Step 5** | **ST01-004 Sanji** |
 | Main/Trigger draw | engine-ready, unused | — |
 | Stage leader power | engine-ready, unused | — |
-| Double Attack, Banish, DON!!×N, Main KO, On Play | not yet | deferred |
+| On Play optional draw | framework shipped | test-injected / demo hook |
+| Double Attack, Banish, DON!!×N, Main KO, full On Play suite | not yet | deferred — see `docs/duel-client/EFFECTS.md` |
+
+Printed timings for every curated def are listed in `EFFECT_CATALOG`
+(`packages/rules/src/cards/effectCatalog.ts`) with `implemented` / `stub` /
+`keyword` status. Simultaneous effects use APNAP + controller order
+(`order_effects` pending choice) — see `docs/duel-client/EFFECTS.md`.
 
 ## Legal / IP
 

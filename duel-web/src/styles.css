@@ -171,7 +171,7 @@ button {
 .card-inspect-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 200;
   background: rgba(4, 8, 12, 0.82);
   display: flex;
   align-items: flex-end;
@@ -436,12 +436,40 @@ button {
   justify-content: center;
 }
 
+.deck-config-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
 .deck-config-title {
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(1.6rem, 5vw, 2.1rem);
   color: var(--chrome-bright);
   letter-spacing: 0.04em;
+}
+
+.deck-config-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 28rem;
+}
+
+.deck-config-switcher select {
+  width: 100%;
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 0.5rem 0.55rem;
+  font: inherit;
+  font-size: 0.85rem;
+  min-height: 40px;
 }
 
 .deck-config-section {
@@ -467,6 +495,48 @@ button {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.55rem;
+}
+
+.deck-stack.selected {
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 1px var(--chrome);
+}
+
+.deck-stack-art-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.deck-stack-art-btn:focus-visible {
+  outline: 2px solid var(--chrome);
+  outline-offset: 2px;
+}
+
+.deck-stack-name-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.deck-stack-name-btn:focus-visible {
+  outline: 2px solid var(--chrome);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .deck-stack-art {
@@ -683,6 +753,15 @@ button {
   gap: 0.65rem;
 }
 
+.deck-search-idle {
+  margin: 0;
+  padding: 0.85rem 0.95rem;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: var(--arena-panel);
+  line-height: 1.4;
+}
+
 .deck-search-results {
   list-style: none;
   margin: 0;
@@ -699,7 +778,7 @@ button {
 
 .deck-search-row {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.65rem;
   align-items: center;
   padding: 0.45rem 0.55rem;
@@ -709,6 +788,28 @@ button {
 
 .deck-search-row:last-child {
   border-bottom: none;
+}
+
+.deck-search-open {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.deck-search-open:focus-visible {
+  outline: 2px solid var(--chrome);
+  outline-offset: 2px;
 }
 
 .deck-search-thumb {
@@ -748,11 +849,14 @@ button {
   }
 
   .deck-search-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .deck-search-open {
     grid-template-columns: 40px minmax(0, 1fr);
   }
 
   .deck-search-add {
-    grid-column: 1 / -1;
     width: 100%;
   }
 }
@@ -854,6 +958,8 @@ button {
 }
 
 .hud-bar {
+  /* Above battle-log (z-index 12) so in-HUD Leave is never click-blocked. */
+  z-index: 40;
   display: grid;
   grid-template-columns: auto 1fr auto;
   gap: 0.75rem;
@@ -911,6 +1017,8 @@ button {
 }
 
 .hud-actions {
+  position: relative;
+  z-index: 30;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1184,7 +1292,7 @@ button.zone-pile {
 .trash-viewer-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: 190;
   background: rgba(4, 8, 12, 0.82);
   display: flex;
   align-items: center;
@@ -1522,7 +1630,7 @@ img.zone-pile-face {
 
 .hand-rail-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.35rem;
 }
@@ -1942,9 +2050,10 @@ img.zone-pile-face {
 /* —— Battle log —— */
 .battle-log {
   position: absolute;
-  top: 3.5rem;
+  top: 3.75rem;
   right: 0.5rem;
-  z-index: 15;
+  z-index: 12;
+  pointer-events: auto;
   width: min(280px, 42vw);
   max-height: min(48vh, 420px);
   display: flex;
@@ -2106,4 +2215,143 @@ img.zone-pile-face {
 /* Discoverability: board cards with contextual actions available */
 .card-tile.has-actions {
   box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.55);
+}
+
+
+/* —— Hand collapse —— */
+.hand-rail-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.hand-rail-head .hand-rail-title {
+  flex: 1;
+}
+.hand-collapse-btn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  min-height: 28px;
+}
+.hand-collapse-btn:hover {
+  color: var(--ink);
+  border-color: var(--chrome);
+}
+.hand-rail.collapsed {
+  padding-bottom: 0.35rem;
+}
+.hand-rail.collapsed .hand-row {
+  display: none;
+}
+
+/* —— Leader ability prompt —— */
+.ability-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 7.5rem;
+  transform: translateX(-50%);
+  z-index: 25;
+  width: min(420px, calc(100vw - 1.5rem));
+  background: rgba(12, 18, 28, 0.96);
+  border: 1px solid var(--chrome);
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+.ability-prompt h3 {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  color: var(--chrome-bright);
+}
+.ability-prompt p {
+  margin: 0 0 0.55rem;
+  font-size: 0.75rem;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.ability-prompt-section {
+  margin: 0.45rem 0;
+}
+.ability-prompt-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+.ability-prompt-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.ability-chip {
+  border: 1px solid var(--line);
+  background: var(--arena-mid);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.ability-chip.selected {
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 1px var(--chrome);
+}
+.ability-prompt-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
+
+
+/* —— Simultaneous effect order prompt —— */
+.effect-order-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.effect-order-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--arena-mid);
+}
+.effect-order-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  font-size: 0.72rem;
+  color: var(--ink);
+}
+.effect-order-text strong {
+  font-size: 0.78rem;
+  color: var(--chrome-bright);
+}
+.effect-order-move {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+.effect-order-move .ability-chip:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }

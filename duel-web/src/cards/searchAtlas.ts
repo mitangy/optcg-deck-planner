@@ -1,7 +1,8 @@
-import atlasJson from "../assets/cardAtlas.json";
-import { lookupCard, type CardAtlasEntry } from "./atlas";
-
-const atlas = atlasJson as Record<string, CardAtlasEntry>;
+import {
+  listAtlasIds,
+  lookupCard,
+  type CardAtlasEntry,
+} from "./atlas";
 
 export type CardSearchFilters = {
   /** Free-text match against id, name, or effect text. */
@@ -37,12 +38,12 @@ function matchesQuery(entry: CardAtlasEntry, q: string): boolean {
 }
 
 export function listAtlasEntries(): CardAtlasEntry[] {
-  return Object.keys(atlas).map((id) => lookupCard(id));
+  return listAtlasIds().map((id) => lookupCard(id));
 }
 
 export function listAtlasColors(): string[] {
   const set = new Set<string>();
-  for (const e of Object.values(atlas)) {
+  for (const e of listAtlasEntries()) {
     for (const c of e.colors ?? []) set.add(c);
   }
   return [...set].sort();
@@ -50,7 +51,7 @@ export function listAtlasColors(): string[] {
 
 export function listAtlasTypes(): string[] {
   const set = new Set<string>();
-  for (const e of Object.values(atlas)) {
+  for (const e of listAtlasEntries()) {
     if (e.type) set.add(e.type);
   }
   return [...set].sort();
@@ -58,7 +59,7 @@ export function listAtlasTypes(): string[] {
 
 export function listAtlasAttributes(): string[] {
   const set = new Set<string>();
-  for (const e of Object.values(atlas)) {
+  for (const e of listAtlasEntries()) {
     if (e.attribute) set.add(e.attribute);
   }
   return [...set].sort();
@@ -66,7 +67,7 @@ export function listAtlasAttributes(): string[] {
 
 export function listAtlasCounters(): number[] {
   const set = new Set<number>();
-  for (const e of Object.values(atlas)) {
+  for (const e of listAtlasEntries()) {
     if (typeof e.counter === "number") set.add(e.counter);
   }
   return [...set].sort((a, b) => a - b);
@@ -110,4 +111,24 @@ export function searchAtlas(filters: CardSearchFilters = {}): CardAtlasEntry[] {
       return true;
     })
     .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * True when the user has typed a query or applied any filter — used to gate
+ * the full catalog scroll list on the deck configure page.
+ */
+export function hasActiveCardSearch(filters: CardSearchFilters = {}): boolean {
+  if ((filters.query ?? "").trim().length > 0) return true;
+  if ((filters.colors ?? []).length > 0) return true;
+  if ((filters.types ?? []).length > 0) return true;
+  if ((filters.attributes ?? []).length > 0) return true;
+  if (filters.counterNone) return true;
+  if (filters.counter != null && filters.counter !== undefined) return true;
+  if (filters.costMin != null) return true;
+  if (filters.costMax != null) return true;
+  if (filters.powerMin != null) return true;
+  if (filters.powerMax != null) return true;
+  if (filters.blocker === true || filters.blocker === false) return true;
+  if (filters.rush === true || filters.rush === false) return true;
+  return false;
 }

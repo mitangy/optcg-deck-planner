@@ -47,10 +47,31 @@ export interface CardDef {
   rush?: boolean;
   /** Optional art URL (TCGPlayer CDN or Bandai cardlist). Display only. */
   imageUrl?: string;
+  /** Combat attribute for deck filters / inspect (Strike, Slash, …). Display only. */
+  attribute?: string;
   /** Printed ability / effect text for client inspect UI (display only). */
   effectText?: string;
   /** Alternate printings (display only). */
   altArts?: { id: string; label: string; imageUrl: string }[];
+  /** Card types/traits printed on the card (e.g. "Blackbeard Pirates"). */
+  traits?: string[];
+  /** True when the card has a printed [Trigger] effect. */
+  hasTrigger?: boolean;
+  /**
+   * [Opponent's Turn] Give all of your opponent's Characters +N cost
+   * (Teach OP16-080).
+   */
+  leaderOpponentCharacterCostBonus?: number;
+  /**
+   * [On Opponent's Attack] [Once Per Turn] Trash 1 hand card: give a chosen
+   * own Leader/Character +power this battle (Newgate OP17-001).
+   */
+  leaderOnOppAttackTrashForPower?: { power: number };
+  /**
+   * [On Opponent's Attack] [Once Per Turn] Trash 1 Trigger hand card: retarget
+   * the attack to this Leader or a Character with `retargetTrait` (Teach).
+   */
+  leaderOnOppAttackTrashTriggerRetarget?: { retargetTrait: string };
 }
 
 export interface CardInstance {
@@ -69,6 +90,8 @@ export interface CardInstance {
    * these as chips alongside rested / summoning-sick / rush.
    */
   statusLabels?: string[];
+  /** Temporary power bonus for the current battle (cleared when battle ends). */
+  battlePowerBonus?: number;
 }
 
 export interface DonInstance {
@@ -99,14 +122,19 @@ export type PendingChoiceKind =
   | "on_play"
   | "activate_main"
   | "when_attacking"
-  | "optional_ability";
+  | "optional_ability"
+  | "leader_on_opp_attack"
+  /** Controller must pick resolution order for 2+ simultaneous effects. */
+  | "order_effects";
 
 /**
  * A single queued "may I resolve this optional/chain ability?" prompt.
  * `MatchState.pendingChoices` is a FIFO queue: the front entry blocks Main
- * phase actions for its `seat` until resolved via `resolve_pending_choice`,
- * so chained character/leader abilities can stack even though the MVP only
- * ever pushes one at a time.
+ * phase actions for its `seat` until resolved via `resolve_pending_choice`
+ * (or `order_pending_effects` when `kind` is `order_effects`), so chained
+ * character/leader abilities can stack. When multiple effects trigger for the
+ * same controller at once, an `order_effects` wrapper is inserted first so the
+ * player chooses order (APNAP still puts the turn player ahead of the opponent).
  */
 export interface PendingChoice {
   /** Stable id for React keys / logs; not gameplay-significant. */
@@ -120,6 +148,16 @@ export interface PendingChoice {
   optional: boolean;
   /** Human-readable prompt naming the card/ability, shown to the player. */
   prompt: string;
+  /**
+   * Structured leader-ability id when `kind` is `leader_on_opp_attack`.
+   * Clients use this to render trash/retarget pickers.
+   */
+  abilityId?: "newgate_battle_power" | "teach_redirect";
+  /**
+   * When `kind` is `order_effects`, the simultaneous abilities the controller
+   * must permute via `order_pending_effects`.
+   */
+  unorderedChoices?: PendingChoice[];
 }
 
 /** @deprecated Use `PendingChoice` (kind `"life_trigger"`). Kept for callers importing the old name. */
@@ -140,6 +178,8 @@ export interface PlayerState {
   turnsStarted: number;
   /** Cleared at turn start (`beginTurn`). Once-per-turn Leader Activate:Main. */
   leaderActivatedThisTurn: boolean;
+  /** Cleared at turn start. Once-per-turn On-Opponent's-Attack leader ability. */
+  leaderOppAttackAbilityUsedThisTurn: boolean;
 }
 
 export interface MatchState {
@@ -224,7 +264,21 @@ export type Intent =
   | { type: "counter_event"; handIndex: number }
   | { type: "pass_counter" }
   /** Accept/decline the front of `MatchState.pendingChoices` (life trigger or ability prompt). */
-  | { type: "resolve_pending_choice"; accept: boolean }
+  | {
+      type: "resolve_pending_choice";
+      accept: boolean;
+      /** Hand index to trash when accepting Newgate/Teach attack abilities. */
+      handIndex?: number;
+      /** Own Leader/Character gaining battle power (Newgate). */
+      buffTargetId?: InstanceId;
+      /** New attack target after Teach redirect. */
+      newTarget?: AttackTarget;
+    }
+  /**
+   * Choose resolution order for the front `order_effects` pending choice.
+   * `orderedIds` must be a permutation of that choice's `unorderedChoices` ids.
+   */
+  | { type: "order_pending_effects"; orderedIds: string[] }
   | { type: "end_turn" };
 
 export interface ApplyContext {
