@@ -11,6 +11,7 @@ import { DuelClient } from "../net/duelClient";
 import {
   clearMatchResume,
   isResumeWithinGrace,
+  isSeatReservationExpiredError,
   loadMatchResume,
   saveMatchResume,
 } from "../net/matchResume";
@@ -155,7 +156,10 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         onCosmetics: (msg) => {
           replaceSeatArtPrefs(msg.seat, msg.artPrefs);
         },
-        onError: (err) => setErrorBanner(`${err.code}: ${err.message}`),
+        onError: (err) => {
+          if (isSeatReservationExpiredError(err.message)) return;
+          setErrorBanner(`${err.code}: ${err.message}`);
+        },
         onMatchOver: (msg) => {
           setMatchOver(msg.result);
           setCanReconnect(false);
@@ -245,15 +249,25 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       async reconnect() {
         setErrorBanner(null);
         wireHandlers();
-        const info = await client.reconnect({
-          serverUrl: serverUrlRef.current ?? undefined,
-        });
-        seatRef.current = info.seat;
-        setMatchId(info.matchId);
-        setSeat(info.seat);
-        setConnected(true);
-        setCanReconnect(true);
-        setResuming(false);
+        try {
+          const info = await client.reconnect({
+            serverUrl: serverUrlRef.current ?? undefined,
+          });
+          seatRef.current = info.seat;
+          setMatchId(info.matchId);
+          setSeat(info.seat);
+          setConnected(true);
+          setCanReconnect(true);
+          setResuming(false);
+        } catch (e) {
+          clearMatchResume();
+          setCanReconnect(false);
+          setResuming(false);
+          if (!isSeatReservationExpiredError(e)) {
+            setErrorBanner(e instanceof Error ? e.message : "Reconnect failed");
+          }
+          throw e;
+        }
       },
       async tryResumeFromStorage() {
         const blob = loadMatchResume();
@@ -296,7 +310,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           const msg = e instanceof Error ? e.message : "Resume failed";
           // Expired grace tokens are expected after idle / free-tier sleep —
           // don't leave a scary banner on the lobby redirect path.
-          if (!/seat reservation expired/i.test(msg)) {
+          if (!isSeatReservationExpiredError(msg)) {
             setErrorBanner(msg);
           }
           return false;

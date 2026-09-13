@@ -18,6 +18,7 @@ import {
   getDevJoinSecret,
   getLogLevel,
   getReconnectGraceSeconds,
+  getSeatReservationSeconds,
   requireGameToken,
 } from "../env.js";
 import { verifyGameToken } from "../gameToken.js";
@@ -80,6 +81,9 @@ export class DuelRoom extends Room {
   private endReason: string | null = null;
 
   onCreate(options: unknown) {
+    // Free-tier cold starts need >15s between matchmake HTTP and WS consume.
+    this.seatReservationTimeout = getSeatReservationSeconds();
+
     const parsed = parseCreateOptions(options);
     this.seed = parsed.seed;
     this.autoSkipMulligan = parsed.autoSkipMulligan;
@@ -247,7 +251,9 @@ export class DuelRoom extends Room {
     const seat = this.seatForClient(client);
     if (seat === null) return;
 
-    if (this.matchOverSent || !this.matchStarted) {
+    // Still allow reclaim before the match starts (hotseat StrictMode / refresh
+    // during the seat-1 join window). Only skip once the match is over.
+    if (this.matchOverSent) {
       this.clearSeat(client.sessionId);
       return;
     }

@@ -16,8 +16,10 @@ import { DuelClient } from "../net/duelClient";
 import {
   clearMatchResume,
   isResumeWithinGrace,
+  isSeatReservationExpiredError,
   loadMatchResume,
   saveMatchResume,
+  seatReservationUserMessage,
   type HotseatResumeBlob,
 } from "../net/matchResume";
 import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol";
@@ -223,6 +225,9 @@ export function HotseatPage() {
           bump((n) => n + 1);
         },
         onError: (err) => {
+          // Colyseus seat-reservation races are recovered via reconnect/mint —
+          // never pin them on the board banner.
+          if (isSeatReservationExpiredError(err.message)) return;
           bag.error = `${err.code}: ${err.message}`;
           if (!alive()) return;
           bump((n) => n + 1);
@@ -538,7 +543,7 @@ export function HotseatPage() {
           setResuming(false);
           for (const c of clients) void c.disconnect(true);
           bags.current = [null, null];
-          setBootError(e instanceof Error ? e.message : "Hotseat failed");
+          setBootError(isSeatReservationExpiredError(e) ? seatReservationUserMessage() : e instanceof Error ? e.message : "Hotseat failed");
         }
       }
     }

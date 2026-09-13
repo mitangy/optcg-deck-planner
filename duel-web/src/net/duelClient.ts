@@ -16,6 +16,7 @@ import {
   type Seat,
 } from "./protocol";
 import { Client, type Room } from "@colyseus/sdk";
+import { isSeatReservationExpiredError } from "./matchResume";
 
 export type DuelClientHandlers = {
   onWelcome?: (info: {
@@ -69,35 +70,55 @@ export class DuelClient {
   }
 
   async connect(params: ConnectParams): Promise<{ matchId: string; seat: Seat }> {
-    await this.disconnect();
-
     const url = params.serverUrl ?? getGameServerUrl();
-    this.client = new Client(url);
+    const attempts = 3;
+    let lastErr: unknown;
 
-    const join = this.buildJoin(params);
-    const create: DuelCreateOptions = {
-      protocolVersion: PROTOCOL_VERSION,
-      // Real matches use the rules mulligan step (Keep hand / redraw 5).
-      autoSkipMulligan: false,
-      ...params.createOptions,
-    };
+    for (let i = 0; i < attempts; i++) {
+      if (i > 0) {
+        await new Promise((r) => setTimeout(r, 400 * i));
+      }
+      try {
+        await this.disconnect();
+        this.client = new Client(url);
 
-    let room: Room;
-    if (params.roomId?.trim()) {
-      room = await this.client.joinById(params.roomId.trim(), join);
-    } else {
-      // Always `create` for the host seat so StrictMode remounts / leftover
-      // reconnect-grace rooms are not re-joined while locked at maxClients.
-      room = await this.client.create("duel", { ...create, ...join });
+        const join = this.buildJoin(params);
+        const create: DuelCreateOptions = {
+          protocolVersion: PROTOCOL_VERSION,
+          // Real matches use the rules mulligan step (Keep hand / redraw 5).
+          autoSkipMulligan: false,
+          ...params.createOptions,
+        };
+
+        let room: Room;
+        if (params.roomId?.trim()) {
+          room = await this.client.joinById(params.roomId.trim(), join);
+        } else {
+          // Always `create` for the host seat so StrictMode remounts / leftover
+          // reconnect-grace rooms are not re-joined while locked at maxClients.
+          room = await this.client.create("duel", { ...create, ...join });
+        }
+
+        this.room = room;
+        this.captureReconnectionToken(room);
+        this.wireDuel(room);
+
+        // Resolve as soon as the Colyseus room exists so the lobby can show the
+        // room id while waiting for the second seat (welcome arrives via handlers).
+        return { matchId: room.roomId, seat: params.preferredSeat ?? 0 };
+      } catch (e) {
+        lastErr = e;
+        // Free-tier cold starts: matchmake HTTP can succeed then WS consume
+        // loses the 15–90s seat reservation race → retry a fresh create/join.
+        if (!isSeatReservationExpiredError(e) || i === attempts - 1) throw e;
+        try {
+          await this.disconnect(true);
+        } catch {
+          /* ignore */
+        }
+      }
     }
-
-    this.room = room;
-    this.captureReconnectionToken(room);
-    this.wireDuel(room);
-
-    // Resolve as soon as the Colyseus room exists so the lobby can show the
-    // room id while waiting for the second seat (welcome arrives via handlers).
-    return { matchId: room.roomId, seat: params.preferredSeat ?? 0 };
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
   }
 
   /** Join ranked_queue until matched, then join the duel room. */
@@ -205,7 +226,7 @@ export class DuelClient {
         // Only retry the narrow race where reload beats allowReconnection setup.
         // Broad /reconnection/i matching caused 5×12s hangs on dead tokens and
         // tripped the Hotseat 25s startup watchdog with a generic timeout.
-        const retryable = /seat reservation expired/i.test(msg);
+        const retryable = isSeatReservationExpiredError(msg);
         if (!retryable || i === attempts - 1) throw e;
         try {
           await this.disconnect(false);
