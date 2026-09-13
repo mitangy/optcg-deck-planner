@@ -72,6 +72,11 @@ export interface CardDef {
    * the attack to this Leader or a Character with `retargetTrait` (Teach).
    */
   leaderOnOppAttackTrashTriggerRetarget?: { retargetTrait: string };
+  /**
+   * [When Attacking] Trash 1 hand card: reveal top of deck; if its type includes
+   * `revealTrait`, draw `draw` cards (Rocks.D.Xebec OP17-039).
+   */
+  leaderWhenAttackingTrashRevealDraw?: { revealTrait: string; draw: number };
 }
 
 export interface CardInstance {
@@ -149,10 +154,10 @@ export interface PendingChoice {
   /** Human-readable prompt naming the card/ability, shown to the player. */
   prompt: string;
   /**
-   * Structured leader-ability id when `kind` is `leader_on_opp_attack`.
-   * Clients use this to render trash/retarget pickers.
+   * Structured leader-ability id for attack-window prompts.
+   * Clients use this to render trash / retarget / reveal pickers.
    */
-  abilityId?: "newgate_battle_power" | "teach_redirect";
+  abilityId?: "newgate_battle_power" | "teach_redirect" | "rocks_reveal_draw";
   /**
    * When `kind` is `order_effects`, the simultaneous abilities the controller
    * must permute via `order_pending_effects`.
@@ -233,6 +238,13 @@ export type GameEvent =
   | { type: "life_taken"; seat: Seat; defId: CardDefId; toHand: boolean }
   | { type: "trigger_available"; seat: Seat; defId: CardDefId }
   | { type: "trigger_resolved"; seat: Seat; accepted: boolean }
+  | {
+      type: "card_revealed";
+      seat: Seat;
+      defId: CardDefId;
+      /** True when the reveal satisfied a trait check (e.g. Rocks Pirates). */
+      matchedTrait?: boolean;
+    }
   | {
       type: "pending_choice_added";
       seat: Seat;

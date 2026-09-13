@@ -209,6 +209,23 @@
     ],
     "attribute": "Special"
   },
+  "OP17-039": {
+    "id": "OP17-039",
+    "name": "Rocks.D.Xebec",
+    "type": "leader",
+    "colors": [
+      "blue"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "life": 5,
+    "imageUrl": "/cards/OP17-039.png",
+    "effectText": "[When Attacking] You may trash 1 card from your hand: Reveal 1 card from the top of your deck. If the revealed card's type includes \"Rocks Pirates\", draw 2 cards.",
+    "traits": [
+      "Rocks Pirates"
+    ],
+    "attribute": "Slash"
+  },
   "OP09-118": {
     "id": "OP09-118",
     "name": "Gol.D.Roger",

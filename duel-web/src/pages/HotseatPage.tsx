@@ -506,6 +506,7 @@ export function HotseatPage() {
             createOptions: {
               players: [wire, enemyWire],
               autoSkipMulligan: false,
+              ranked: false,
             },
           }),
           50000,

@@ -22,6 +22,10 @@ type Options<T> = {
 /**
  * Pointer-based drag with a small movement threshold so clicks still work.
  * Keeps HTML5 `draggable` off — callers should leave `draggable={false}`.
+ *
+ * Horizontal pans are left to the parent scroll container (hand rail): we only
+ * start a drag when movement is primarily vertical / diagonal, and we delay
+ * pointer capture until the drag actually begins.
  */
 export function usePointerDrag<T>({
   enabled,
@@ -57,7 +61,7 @@ export function usePointerDrag<T>({
         armed: true,
         started: false,
       };
-      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      // Do not capture yet — capturing on down blocks parent overflow-x scroll.
     },
     [enabled],
   );
@@ -68,9 +72,21 @@ export function usePointerDrag<T>({
       if (!s?.armed || s.pointerId !== e.pointerId) return;
       const dx = e.clientX - s.x;
       const dy = e.clientY - s.y;
-      if (!s.started && Math.hypot(dx, dy) >= thresholdPx) {
+      const dist = Math.hypot(dx, dy);
+      if (!s.started) {
+        if (dist < thresholdPx) return;
+        // Prefer native horizontal scroll over treating a sideways pan as a drag.
+        if (Math.abs(dx) > Math.abs(dy)) {
+          s.armed = false;
+          return;
+        }
         s.started = true;
         setDragging(true);
+        try {
+          (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+        } catch {
+          /* ignore */
+        }
         onDragStart?.(payload);
       }
     },
@@ -127,7 +143,10 @@ export function usePointerDrag<T>({
           onPointerUp,
           onPointerCancel,
           onClickCapture,
-          style: { touchAction: "none" as const },
+          // pan-x lets the hand row scroll; switches to none once dragging.
+          style: {
+            touchAction: (dragging ? "none" : "pan-x") as "none" | "pan-x",
+          },
         }
       : {},
   };

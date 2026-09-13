@@ -30,7 +30,13 @@ export type DuelCreateOptions = {
   protocolVersion?: ProtocolVersion;
   seed?: number;
   autoSkipMulligan?: boolean;
+  /** False for private / hotseat; ranked queue sets true (forces 30s turns). */
+  ranked?: boolean;
   players?: [PlayerDeckWire, PlayerDeckWire];
+  timer?: {
+    turnSeconds?: number;
+    matchSeconds?: number;
+  };
 };
 
 /** Prefer sending objects from view.legalIntents unchanged. */
@@ -78,6 +84,16 @@ export type MatchOverMessage = {
   };
 };
 
+/** Server clock snapshot (optional — absent when both clocks are off). */
+export type TimerMessage = {
+  protocolVersion: ProtocolVersion;
+  turnSeconds: number | null;
+  matchSeconds: number | null;
+  turnEndsAt: number | null;
+  matchEndsAt: number | null;
+  activeSeat: Seat;
+};
+
 
 /** Cosmetics are non-authoritative display prefs (alt art per defId). */
 export type ArtPrefsMap = Record<string, string>;
@@ -111,7 +127,7 @@ export type PendingChoiceView = {
   /** Server-authoritative prompt text, e.g. "Usopp — On Play: draw 1 card?". */
   prompt: string;
   /** Present for leader On-Opponent's-Attack abilities (Teach / Newgate). */
-  abilityId?: "newgate_battle_power" | "teach_redirect";
+  abilityId?: "newgate_battle_power" | "teach_redirect" | "rocks_reveal_draw";
   /**
    * When `kind` is `order_effects`, the simultaneous abilities the controller
    * must permute via `order_pending_effects` (players may rearrange freely;
@@ -267,6 +283,22 @@ export function parseMatchOver(raw: unknown): MatchOverMessage {
       winner: result.winner,
       reason: typeof result.reason === "string" ? result.reason : "unknown",
     },
+  };
+}
+
+export function parseTimer(raw: unknown): TimerMessage {
+  if (!raw || typeof raw !== "object") throw new Error("timer body required");
+  const o = raw as Record<string, unknown>;
+  const asNullableNumber = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? v : null;
+  const activeSeat = o.activeSeat === 1 ? 1 : 0;
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    turnSeconds: asNullableNumber(o.turnSeconds),
+    matchSeconds: asNullableNumber(o.matchSeconds),
+    turnEndsAt: asNullableNumber(o.turnEndsAt),
+    matchEndsAt: asNullableNumber(o.matchEndsAt),
+    activeSeat,
   };
 }
 

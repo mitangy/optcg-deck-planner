@@ -79,6 +79,12 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
           `Seat ${e.seat} Trigger ${e.accepted ? "accepted" : "declined"}`,
         );
         break;
+      case "card_revealed":
+        lines.push(
+          `Seat ${e.seat} reveals ${getCardDef(e.defId).name}` +
+            (e.matchedTrait ? " (trait matched)" : ""),
+        );
+        break;
       case "pending_choice_added":
         lines.push(
           `Seat ${e.seat} may resolve ${getCardDef(e.cardDefId).name}'s ${e.kind.replace(/_/g, " ")} (${e.prompt})`,

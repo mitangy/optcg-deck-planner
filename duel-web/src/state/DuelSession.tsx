@@ -20,6 +20,7 @@ import type {
   MatchOverMessage,
   PlayerView,
   Seat,
+  TimerMessage,
 } from "../net/protocol";
 import {
   initSeatArtPrefsFromStorage,
@@ -42,10 +43,15 @@ type ConnectOpts = {
   role?: "player" | "spectator";
   deck?: { leaderId: string; deck: string[] };
   createOptions?: {
+    ranked?: boolean;
     players?: [
       { leaderId: string; deck: string[] },
       { leaderId: string; deck: string[] },
     ];
+    timer?: {
+      turnSeconds?: number;
+      matchSeconds?: number;
+    };
   };
 };
 
@@ -64,6 +70,7 @@ type DuelSession = {
   clearBattleLog: () => void;
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
+  timer: TimerMessage | null;
   rating: number | null;
   lastServerUrl: string | null;
   connect: (opts: ConnectOpts) => Promise<void>;
@@ -98,6 +105,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const viewRef = useRef<PlayerView | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [matchOver, setMatchOver] = useState<MatchOverMessage["result"] | null>(null);
+  const [timer, setTimer] = useState<TimerMessage | null>(null);
   const [rating, setRating] = useState<number | null>(null);
   const [lastServerUrl, setLastServerUrl] = useState<string | null>(null);
 
@@ -165,6 +173,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setCanReconnect(false);
           clearMatchResume();
         },
+        onTimer: (msg) => setTimer(msg),
         onDisconnect: () => {
           setConnected(false);
           setQueueing(false);
@@ -188,12 +197,14 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       clearBattleLog: () => setBattleLog([]),
       errorBanner,
       matchOver,
+      timer,
       rating,
       lastServerUrl,
       setRating,
       async connect(opts) {
         setErrorBanner(null);
         setMatchOver(null);
+        setTimer(null);
         setView(null);
         setQueueing(false);
         setResuming(false);
@@ -217,6 +228,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       async queueRanked(opts) {
         setErrorBanner(null);
         setMatchOver(null);
+        setTimer(null);
         setView(null);
         setQueueing(true);
         setResuming(false);
@@ -345,6 +357,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setRole("player");
         setView(null);
         setMatchOver(null);
+        setTimer(null);
       },
       clearError() {
         setErrorBanner(null);
@@ -362,6 +375,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     battleLog,
     errorBanner,
     matchOver,
+    timer,
     rating,
     lastServerUrl,
   ]);

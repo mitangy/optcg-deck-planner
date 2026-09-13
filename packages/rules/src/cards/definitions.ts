@@ -167,6 +167,21 @@ const defs: CardDef[] = [
     leaderOnOppAttackTrashTriggerRetarget: { retargetTrait: "Blackbeard Pirates" },
   },
   {
+    id: "OP17-039",
+    name: "Rocks.D.Xebec",
+    type: "leader",
+    colors: ["blue"],
+    cost: 0,
+    power: 5000,
+    life: 5,
+    imageUrl: localArt("OP17-039"),
+    traits: ["Rocks Pirates"],
+    attribute: "Slash",
+    effectText:
+      '[When Attacking] You may trash 1 card from your hand: Reveal 1 card from the top of your deck. If the revealed card\'s type includes "Rocks Pirates", draw 2 cards.',
+    leaderWhenAttackingTrashRevealDraw: { revealTrait: "Rocks Pirates", draw: 2 },
+  },
+  {
     id: "OP09-118",
     name: "Gol.D.Roger",
     type: "character",
@@ -579,6 +594,7 @@ export function ensureCardDef(
     return existing;
   }
 
+  const traits = TRAITS_BY_ID[key];
   const stub: CardDef = opts.asLeader
     ? {
         id: key,
@@ -590,6 +606,7 @@ export function ensureCardDef(
         life: 5,
         imageUrl: localArt(key),
         effectText: "—",
+        ...(traits ? { traits: [...traits] } : {}),
       }
     : {
         id: key,
@@ -601,6 +618,7 @@ export function ensureCardDef(
         counter: 1000,
         imageUrl: localArt(key),
         effectText: "—",
+        ...(traits ? { traits: [...traits] } : {}),
       };
 
   defs.push(stub);
@@ -662,6 +680,22 @@ export type CardAtlasEntry = {
   attribute?: string;
 };
 
+/**
+ * Known printed types for auto-stubbed ids (reveal / trait checks). Curated
+ * defs already set `traits` explicitly; stubs fall back to this map.
+ */
+const TRAITS_BY_ID: Record<string, string[]> = {
+  "OP17-039": ["Rocks Pirates"],
+  "OP17-040": ["Rocks Pirates"],
+  "OP17-042": ["Rocks Pirates"],
+  "OP17-044": ["Rocks Pirates"],
+  "OP17-048": ["Rocks Pirates"],
+  "OP17-055": ["Rocks Pirates"],
+  "OP17-056": ["Rocks Pirates"],
+  "OP17-057": ["Rocks Pirates"],
+  "OP17-118": ["Rocks Pirates"],
+};
+
 /** Printed attributes for deck-builder filters (not used by the rules engine). */
 const ATTRIBUTES_BY_ID: Record<string, string> = {
   "ST01-001": "Strike",
@@ -672,6 +706,7 @@ const ATTRIBUTES_BY_ID: Record<string, string> = {
   "ST01-008": "Strike",
   "ST01-009": "Special",
   "OP17-001": "Strike",
+  "OP17-039": "Slash",
   "OP16-080": "Special",
   "OP09-118": "Slash",
   "OP12-002": "Slash",

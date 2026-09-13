@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTestDeck,
+  ensureCardDef,
   getCardDef,
   listCardDefs,
 } from "../cards/definitions.js";
@@ -64,14 +65,19 @@ function untilCanAttack(
 }
 
 describe("leader ability catalog", () => {
-  it("documents implemented Teach / Newgate / Luffy hooks", () => {
+  it("documents implemented Teach / Newgate / Luffy / Rocks hooks", () => {
     expect(LEADER_ABILITY_CATALOG.some((e) => e.leaderId === "OP16-080")).toBe(true);
     expect(LEADER_ABILITY_CATALOG.some((e) => e.leaderId === "OP17-001")).toBe(true);
+    expect(LEADER_ABILITY_CATALOG.some((e) => e.leaderId === "OP17-039")).toBe(true);
     expect(getCardDef("OP16-080").leaderOnOppAttackTrashTriggerRetarget?.retargetTrait).toBe(
       "Blackbeard Pirates",
     );
     expect(getCardDef("OP17-001").leaderOnOppAttackTrashForPower?.power).toBe(4000);
     expect(getCardDef("OP16-080").leaderOpponentCharacterCostBonus).toBe(1);
+    expect(getCardDef("OP17-039").leaderWhenAttackingTrashRevealDraw).toEqual({
+      revealTrait: "Rocks Pirates",
+      draw: 2,
+    });
   });
 });
 
@@ -173,5 +179,130 @@ describe("Newgate on-opp-attack power", () => {
 
     expect(state.players[1].leader.battlePowerBonus).toBe(4000);
     expect(state.players[1].trash).toContain("ST01-003");
+  });
+});
+
+describe("Rocks when-attacking reveal draw", () => {
+  it("trashes a card, reveals top, and draws 2 when trait matches", () => {
+    let { state, rng } = matchWithLeaders("OP17-039", "ST01-001");
+    state = untilCanAttack(state, 0, rng);
+
+    // Ensure trait lookup for a Rocks Pirates id (auto-stubbed with TRAITS_BY_ID).
+    state.players[0].hand = [
+      {
+        id: "h1",
+        defId: "ST01-003",
+        rested: false,
+        attachedDonIds: [],
+      },
+    ];
+    // Put a Rocks Pirates card on top of the deck (stub gains traits via TRAITS_BY_ID).
+    ensureCardDef("OP17-118");
+    state.players[0].deck = ["OP17-118", ...state.players[0].deck];
+
+    const handBefore = state.players[0].hand.length;
+    const deckBefore = state.players[0].deck.length;
+
+    state = act(
+      state,
+      0,
+      {
+        type: "declare_attack",
+        attackerId: state.players[0].leader.id,
+        target: { kind: "leader" },
+      },
+      rng,
+    );
+
+    expect(state.pendingChoices[0]?.kind).toBe("when_attacking");
+    expect(state.pendingChoices[0]?.abilityId).toBe("rocks_reveal_draw");
+
+    state = act(
+      state,
+      0,
+      {
+        type: "resolve_pending_choice",
+        accept: true,
+        handIndex: 0,
+      },
+      rng,
+    );
+
+    expect(state.pendingChoices).toHaveLength(0);
+    expect(state.players[0].trash).toContain("ST01-003");
+    // Trashed 1, then drew 2 (including the revealed Rocks card from top).
+    expect(state.players[0].hand.length).toBe(handBefore - 1 + 2);
+    expect(state.players[0].deck.length).toBe(deckBefore - 2);
+    expect(state.players[0].hand.some((c) => c.defId === "OP17-118")).toBe(true);
+  });
+
+  it("reveals without drawing when top is not Rocks Pirates", () => {
+    let { state, rng } = matchWithLeaders("OP17-039", "ST01-001");
+    state = untilCanAttack(state, 0, rng);
+
+    state.players[0].hand = [
+      {
+        id: "h1",
+        defId: "ST01-003",
+        rested: false,
+        attachedDonIds: [],
+      },
+    ];
+    state.players[0].deck = ["ST01-004", ...state.players[0].deck];
+    const deckTop = state.players[0].deck[0];
+    const handBefore = state.players[0].hand.length;
+
+    state = act(
+      state,
+      0,
+      {
+        type: "declare_attack",
+        attackerId: state.players[0].leader.id,
+        target: { kind: "leader" },
+      },
+      rng,
+    );
+    state = act(
+      state,
+      0,
+      { type: "resolve_pending_choice", accept: true, handIndex: 0 },
+      rng,
+    );
+
+    expect(state.players[0].hand.length).toBe(handBefore - 1);
+    expect(state.players[0].deck[0]).toBe(deckTop);
+  });
+
+  it("does not prompt when a Character attacks (Leader When Attacking only)", () => {
+    let { state, rng } = matchWithLeaders("OP17-039", "ST01-001");
+    state = untilCanAttack(state, 0, rng);
+
+    state.players[0].hand = [
+      { id: "h1", defId: "ST01-003", rested: false, attachedDonIds: [] },
+    ];
+    state.players[0].characters = [
+      {
+        id: "ch1",
+        defId: "ST01-004",
+        rested: false,
+        attachedDonIds: [],
+        summoningSick: false,
+      },
+    ];
+
+    state = act(
+      state,
+      0,
+      {
+        type: "declare_attack",
+        attackerId: "ch1",
+        target: { kind: "leader" },
+      },
+      rng,
+    );
+
+    expect(state.pendingChoices.some((c) => c.abilityId === "rocks_reveal_draw")).toBe(
+      false,
+    );
   });
 });

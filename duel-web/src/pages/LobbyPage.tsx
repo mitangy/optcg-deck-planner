@@ -30,6 +30,28 @@ import { useDuelSession } from "../state/DuelSession";
 
 type AuthMode = "guest" | "google" | "dev";
 
+/** Which play mode the user is configuring after clicking an action. */
+type SetupMode = "hotseat" | "create" | "join" | "queue" | "spectate" | null;
+
+/** Private-room timer presets (ranked always forces 30s turns). */
+type TimerPreset = "off" | "turn_30" | "match_30m" | "turn_30_match_30m";
+
+function timerFromPreset(preset: TimerPreset): {
+  turnSeconds?: number;
+  matchSeconds?: number;
+} {
+  switch (preset) {
+    case "turn_30":
+      return { turnSeconds: 30 };
+    case "match_30m":
+      return { matchSeconds: 30 * 60 };
+    case "turn_30_match_30m":
+      return { turnSeconds: 30, matchSeconds: 30 * 60 };
+    default:
+      return {};
+  }
+}
+
 export function LobbyPage() {
   const showDevKey =
     import.meta.env.DEV || import.meta.env.VITE_SHOW_DEV_KEY === "true";
@@ -55,6 +77,9 @@ export function LobbyPage() {
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [pendingResume, setPendingResume] = useState<ReturnType<typeof loadMatchResume>>(null);
+
+  const [setupMode, setSetupMode] = useState<SetupMode>(null);
+  const [timerPreset, setTimerPreset] = useState<TimerPreset>("off");
 
   function refreshDecks(preferId?: string) {
     const seeded = ensureDefaultDeck();
@@ -136,27 +161,34 @@ export function LobbyPage() {
     return userKey.trim() || "web-dev";
   }
 
-  async function go(mode: "create" | "join" | "queue" | "hotseat" | "spectate") {
+  function openSetup(mode: Exclude<SetupMode, null>) {
+    setError(null);
+    setSetupMode(mode);
+    if (mode === "create") setTimerPreset("off");
+  }
+
+  async function confirmSetup() {
+    if (!setupMode) return;
     if (authMode === "dev" && !userKey.trim()) {
       setError("user key is required for dev auth");
       return;
     }
-    if ((mode === "join" || mode === "spectate") && !roomId.trim()) {
+    if ((setupMode === "join" || setupMode === "spectate") && !roomId.trim()) {
       setError("Room id required to join / spectate");
       return;
     }
-    if (mode !== "spectate" && !selectedDeck) {
+    if (setupMode !== "spectate" && !selectedDeck) {
       setError("Select a deck first");
       return;
     }
     setBusy(true);
-    setBusyStatus(mode === "hotseat" ? "Starting vs-self…" : "Working…");
+    setBusyStatus(setupMode === "hotseat" ? "Starting vs-self…" : "Working…");
     setError(null);
     try {
       // Starting a new match must not auto-resume a prior room on the next
       // /hotseat or /duel mount (refresh keeps history.state).
       clearMatchResume();
-      if (mode === "hotseat") {
+      if (setupMode === "hotseat") {
         const wire = deckToWire(selectedDeck!);
         setSelectedDeckId(selectedDeck!.id);
         const key = hotseatUserKey();
@@ -181,14 +213,14 @@ export function LobbyPage() {
         return;
       }
       const opts = await authOpts();
-      if (mode === "queue") {
+      if (setupMode === "queue") {
         const wire = deckToWire(selectedDeck!);
         setSelectedDeckId(selectedDeck!.id);
         await queueRanked({ ...opts, deck: wire });
         navigate("/duel");
         return;
       }
-      if (mode === "spectate") {
+      if (setupMode === "spectate") {
         await connect({
           ...opts,
           roomId: roomId.trim(),
@@ -199,15 +231,18 @@ export function LobbyPage() {
       }
       const wire = deckToWire(selectedDeck!);
       setSelectedDeckId(selectedDeck!.id);
+      const timer = timerFromPreset(timerPreset);
       await connect({
         ...opts,
-        roomId: mode === "join" ? roomId.trim() : undefined,
-        preferredSeat: mode === "create" ? 0 : undefined,
+        roomId: setupMode === "join" ? roomId.trim() : undefined,
+        preferredSeat: setupMode === "create" ? 0 : undefined,
         deck: wire,
         createOptions:
-          mode === "create"
+          setupMode === "create"
             ? {
+                ranked: false,
                 players: [wire, wire],
+                timer,
               }
             : undefined,
       });
@@ -245,6 +280,19 @@ export function LobbyPage() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
   }
+
+  const setupTitle =
+    setupMode === "hotseat"
+      ? "Play vs yourself"
+      : setupMode === "create"
+        ? "Create duel"
+        : setupMode === "join"
+          ? "Join by room id"
+          : setupMode === "queue"
+            ? "Ranked queue"
+            : setupMode === "spectate"
+              ? "Spectate room"
+              : null;
 
   return (
     <div className="app-shell">
@@ -344,52 +392,15 @@ export function LobbyPage() {
                   : "Complete Google sign-in, then return here"
                 : "Dev key mint via POST /duel/dev-token"}
           </p>
-          <p className="meta">
-            Guest is enough for local / hotseat play. Google must return to this
-            duel-web origin (allowlisted in API <code>DUEL_CORS_ORIGINS</code>);
-            if you land on the planner <code>/login</code> page, the duel origin
-            was not allowlisted — that is not correct for duel-web.
-          </p>
           {ratingLabel ? <p className="meta">Rating: {ratingLabel}</p> : null}
         </section>
 
         <section className="lobby-section">
-          <h2 className="lobby-section-title">Your decks</h2>
-          <label htmlFor="deck">Active deck</label>
-          <select
-            id="deck"
-            value={selectedId}
-            onChange={(e) => {
-              setSelectedId(e.target.value);
-              setSelectedDeckId(e.target.value);
-            }}
-          >
-            {decks.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name} — {d.leaderId}
-                {d.leaderId === "OP16-080" ? " Teach" : ""} ({d.cards.length} cards)
-              </option>
-            ))}
-          </select>
-          {selectedDeck ? (
-            <p className="meta">
-              Leader {selectedDeck.leaderId} · {selectedDeck.cards.length} main-deck cards
-            </p>
-          ) : null}
-
-          <label htmlFor="enemy-deck">Enemy deck (vs yourself)</label>
-          <select
-            id="enemy-deck"
-            value={opponentDeckId}
-            onChange={(e) => setOpponentDeckId(e.target.value)}
-          >
-            {decks.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name} — {d.leaderId} ({d.cards.length} cards)
-              </option>
-            ))}
-          </select>
-
+          <h2 className="lobby-section-title">Deck library</h2>
+          <p className="meta">
+            Import and configure decks here. Match modes ask which deck to use after you pick them
+            below.
+          </p>
           <button
             type="button"
             className="btn btn-secondary"
@@ -404,9 +415,7 @@ export function LobbyPage() {
           >
             Configure decks
           </button>
-          {selectedDeck &&
-          
-          !selectedDeck.id.startsWith("test-") ? (
+          {selectedDeck && !selectedDeck.id.startsWith("test-") ? (
             <button
               type="button"
               className="btn btn-danger"
@@ -477,15 +486,6 @@ export function LobbyPage() {
             onChange={(e) => setSecret(e.target.value)}
             placeholder="matches DEV_JOIN_SECRET"
           />
-
-          <label htmlFor="room">Room id (manual join)</label>
-          <input
-            id="room"
-            autoCapitalize="off"
-            value={roomId}
-            onChange={(e) => setRoomId(e.target.value)}
-            placeholder="paste from other browser"
-          />
         </section>
 
         {error ? <p className="error-text">{error}</p> : null}
@@ -495,37 +495,35 @@ export function LobbyPage() {
         <div className="actions">
           <button
             type="button"
-            className="btn btn-primary"
+            className={`btn ${setupMode === "hotseat" ? "btn-primary" : "btn-secondary"}`}
             disabled={busy || queueing}
-            onClick={() => void go("hotseat")}
+            onClick={() => openSetup("hotseat")}
           >
-            {busy && busyStatus?.includes("vs-self")
-              ? busyStatus
-              : "Play locally vs yourself"}
+            Play locally vs yourself
           </button>
           <button
             type="button"
-            className="btn btn-secondary"
+            className={`btn ${setupMode === "create" ? "btn-primary" : "btn-secondary"}`}
             disabled={busy || queueing}
-            onClick={() => void go("create")}
+            onClick={() => openSetup("create")}
           >
             Create duel
           </button>
           <button
             type="button"
-            className="btn btn-secondary"
+            className={`btn ${setupMode === "join" ? "btn-primary" : "btn-secondary"}`}
             disabled={busy || queueing}
-            onClick={() => void go("join")}
+            onClick={() => openSetup("join")}
           >
             Join by room id
           </button>
           <button
             type="button"
-            className="btn btn-secondary"
+            className={`btn ${setupMode === "queue" ? "btn-primary" : "btn-secondary"}`}
             disabled={busy || queueing}
-            onClick={() => void go("queue")}
+            onClick={() => openSetup("queue")}
           >
-            {busy || queueing ? "Working…" : "Ranked queue"}
+            {queueing ? "In queue…" : "Ranked queue"}
           </button>
           {queueing ? (
             <button type="button" className="btn btn-danger" onClick={() => void cancelQueue()}>
@@ -534,13 +532,144 @@ export function LobbyPage() {
           ) : null}
           <button
             type="button"
-            className="btn btn-secondary"
+            className={`btn ${setupMode === "spectate" ? "btn-primary" : "btn-secondary"}`}
             disabled={busy || queueing}
-            onClick={() => void go("spectate")}
+            onClick={() => openSetup("spectate")}
           >
             Spectate room
           </button>
         </div>
+
+        {setupMode && setupTitle ? (
+          <section className="lobby-section lobby-setup-panel" aria-label={setupTitle}>
+            <h2 className="lobby-section-title">{setupTitle}</h2>
+
+            {setupMode === "hotseat" ? (
+              <>
+                <p className="meta">Choose your deck and the enemy deck for this device.</p>
+                <label htmlFor="setup-deck">Your deck</label>
+                <select
+                  id="setup-deck"
+                  value={selectedId}
+                  onChange={(e) => {
+                    setSelectedId(e.target.value);
+                    setSelectedDeckId(e.target.value);
+                  }}
+                >
+                  {decks.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} — {d.leaderId}
+                      {d.leaderId === "OP16-080" ? " Teach" : ""}
+                      {d.leaderId === "OP17-039" ? " Rocks" : ""} ({d.cards.length} cards)
+                    </option>
+                  ))}
+                </select>
+                <label htmlFor="enemy-deck">Enemy deck</label>
+                <select
+                  id="enemy-deck"
+                  value={opponentDeckId}
+                  onChange={(e) => setOpponentDeckId(e.target.value)}
+                >
+                  {decks.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} — {d.leaderId} ({d.cards.length} cards)
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : null}
+
+            {setupMode === "create" || setupMode === "join" || setupMode === "queue" ? (
+              <>
+                <label htmlFor="setup-deck-online">Your deck</label>
+                <select
+                  id="setup-deck-online"
+                  value={selectedId}
+                  onChange={(e) => {
+                    setSelectedId(e.target.value);
+                    setSelectedDeckId(e.target.value);
+                  }}
+                >
+                  {decks.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} — {d.leaderId}
+                      {d.leaderId === "OP16-080" ? " Teach" : ""}
+                      {d.leaderId === "OP17-039" ? " Rocks" : ""} ({d.cards.length} cards)
+                    </option>
+                  ))}
+                </select>
+                {selectedDeck ? (
+                  <p className="meta">
+                    Leader {selectedDeck.leaderId} · {selectedDeck.cards.length} main-deck cards
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+
+            {setupMode === "create" ? (
+              <>
+                <label htmlFor="timer-preset">Timer</label>
+                <select
+                  id="timer-preset"
+                  value={timerPreset}
+                  onChange={(e) => setTimerPreset(e.target.value as TimerPreset)}
+                >
+                  <option value="off">No timer</option>
+                  <option value="turn_30">30 second turns</option>
+                  <option value="match_30m">30 minute match</option>
+                  <option value="turn_30_match_30m">30s turns + 30 min match</option>
+                </select>
+                <p className="meta">Private rooms are unranked. Ranked queue always uses 30s turns.</p>
+              </>
+            ) : null}
+
+            {setupMode === "queue" ? (
+              <p className="meta">Ranked always enforces 30 second player turns.</p>
+            ) : null}
+
+            {setupMode === "join" || setupMode === "spectate" ? (
+              <>
+                <label htmlFor="room">Room id</label>
+                <input
+                  id="room"
+                  autoCapitalize="off"
+                  value={roomId}
+                  onChange={(e) => setRoomId(e.target.value)}
+                  placeholder="paste from other browser"
+                />
+              </>
+            ) : null}
+
+            <div className="actions" style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={busy || queueing}
+                onClick={() => void confirmSetup()}
+              >
+                {busy && busyStatus
+                  ? busyStatus
+                  : setupMode === "hotseat"
+                    ? "Start vs yourself"
+                    : setupMode === "create"
+                      ? "Create room"
+                      : setupMode === "join"
+                        ? "Join room"
+                        : setupMode === "queue"
+                          ? "Enter ranked queue"
+                          : "Spectate"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={busy}
+                onClick={() => setSetupMode(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        ) : null}
       </form>
     </div>
   );
