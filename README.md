@@ -59,6 +59,8 @@ Render's **free** plan cold-sleeps after ~15 min idle, so the first `/api/*` req
 
 Production frontend should use same-origin `/api` — **leave `VITE_API_URL` unset** (or use a relative path like `/api`) in production. Do **not** point `VITE_API_URL` at the raw Render host: cross-origin API calls make the session cookie third-party and break login on mobile Safari, defeating the `/api` rewrite. The production build enforces this and fails if `VITE_API_URL` is an absolute `http(s)://` URL (see `frontend/vite.config.ts`).
 
+The SPA shows a short **build tag** (git SHA) in the top bar / login card so you can confirm which commit a deploy is running. It is baked in at build time from `VERCEL_GIT_COMMIT_SHA` (on Vercel) or `git rev-parse --short HEAD` locally — override with `VITE_GIT_SHA` if needed.
+
 The `/api/*` rewrite target (the Render host) is hardcoded in the root `vercel.json`. If the Render service is renamed or its URL changes, update `vercel.json` and redeploy Vercel, or all `/api` traffic breaks.
 
 Prod also **fails fast** on insecure defaults: with an `https://` `FRONTEND_ORIGIN` the API refuses to start unless `SESSION_SECRET` and `CATALOG_SYNC_TOKEN` are set to strong (non-default) values and `ENABLE_DEV_LOGIN` is false. Render generates `SESSION_SECRET` / `CATALOG_SYNC_TOKEN` via `render.yaml`.

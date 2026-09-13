@@ -37,6 +37,7 @@ import {
   useShowAltArts,
   type SortKey,
 } from "./cardListControls";
+import { BuildTag } from "./BuildTag";
 import { cardImageUrl } from "./cardImage";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
 import { CardScanner, useImageDrop } from "./CardScanner";
@@ -445,6 +446,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
             <NavLink to="/import">Import</NavLink>
           </nav>
           <div className="user">
+            <BuildTag />
             <span className="user-name" title={user.email}>
               {shortName}
             </span>
@@ -548,6 +550,7 @@ function LoginPage() {
         )}
         {err && <p className="error">{err}</p>}
         {import.meta.env.DEV && <p className="hint">API: {api.apiUrl}</p>}
+        <BuildTag className="build-tag-login" />
       </div>
     </div>
   );
@@ -3134,6 +3137,7 @@ function PublicSharePage() {
             </Link>
           </div>
           <div className="user">
+            <BuildTag />
             <Link className="btn secondary" to="/login">
               Sign in
             </Link>

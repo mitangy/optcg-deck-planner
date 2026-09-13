@@ -11,6 +11,7 @@ import {
   GroupBuyOrderUpdate,
   money,
 } from "./api";
+import { BuildTag } from "./BuildTag";
 import { CardLayoutToggle, useCardLayout } from "./CardLayout";
 import {
   buildFilterSummary,
@@ -1921,6 +1922,7 @@ export function PublicGroupBuyPage() {
             </Link>
           </div>
           <div className="user">
+            <BuildTag />
             <Link className="btn secondary" to="/login">
               Sign in
             </Link>
