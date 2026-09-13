@@ -17,12 +17,10 @@ import {
 import {
   fetchAuthMe,
   googleLoginUrl,
-  hotseatGuestId,
   logoutSession,
   mintDevGameToken,
   mintGuestGameToken,
   mintSessionGameToken,
-  awaitDuelServicesReady,
   warmDuelServices,
   type AuthUser,
 } from "../net/api";
@@ -44,6 +42,8 @@ export function LobbyPage() {
   const [authMode, setAuthMode] = useState<AuthMode>("guest");
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Short status while buttons are disabled (vs-self warm/mint). */
+  const [busyStatus, setBusyStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ratingLabel, setRatingLabel] = useState<string | null>(null);
 
@@ -149,6 +149,7 @@ export function LobbyPage() {
       return;
     }
     setBusy(true);
+    setBusyStatus(mode === "hotseat" ? "Starting vs-self…" : "Working…");
     setError(null);
     try {
       // Starting a new match must not auto-resume a prior room on the next
@@ -158,18 +159,12 @@ export function LobbyPage() {
         const wire = deckToWire(selectedDeck!);
         setSelectedDeckId(selectedDeck!.id);
         const key = hotseatUserKey();
-        // Pre-mint both seats on the lobby (with retries) so HotseatPage does
-        // not race an 8s timeout against a cold free-tier API spin-up.
-        warmDuelServices(apiUrl, serverUrl.trim());
-        // Wait for game-server wake so Colyseus create does not lose the
-        // default seat-reservation race on free-tier cold starts.
-        await awaitDuelServicesReady(apiUrl, serverUrl.trim(), 20000);
-        const [tokA, tokB] = await Promise.all([
-          mintGuestGameToken(hotseatGuestId(key, "a")),
-          mintGuestGameToken(hotseatGuestId(key, "b")),
-        ]);
         const enemy =
           decks.find((d) => d.id === opponentDeckId) ?? selectedDeck!;
+        // Fire-and-forget wake only — do not block the lobby on free-tier API
+        // cold starts (that grayed every button for up to ~20s). HotseatPage
+        // awaits readiness + mints with a visible Starting screen.
+        warmDuelServices(apiUrl, serverUrl.trim());
         navigate("/hotseat", {
           state: {
             serverUrl: serverUrl.trim(),
@@ -180,7 +175,6 @@ export function LobbyPage() {
             enemyDeckWire: deckToWire(enemy),
             deckName: selectedDeck!.name,
             enemyDeckName: enemy.name,
-            seatTokens: [tokA.token, tokB.token],
           },
         });
         return;
@@ -221,6 +215,7 @@ export function LobbyPage() {
       setError(e instanceof Error ? e.message : "Connect failed");
     } finally {
       setBusy(false);
+      setBusyStatus(null);
     }
   }
 
@@ -492,6 +487,7 @@ export function LobbyPage() {
         </section>
 
         {error ? <p className="error-text">{error}</p> : null}
+        {busyStatus ? <p className="meta">{busyStatus}</p> : null}
         {queueing ? <p className="meta">In ranked queue…</p> : null}
 
         <div className="actions">
@@ -501,7 +497,9 @@ export function LobbyPage() {
             disabled={busy || queueing}
             onClick={() => void go("hotseat")}
           >
-            Play locally vs yourself
+            {busy && busyStatus?.includes("vs-self")
+              ? busyStatus
+              : "Play locally vs yourself"}
           </button>
           <button
             type="button"

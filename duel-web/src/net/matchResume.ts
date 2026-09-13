@@ -106,5 +106,5 @@ export function isSeatReservationExpiredError(err: unknown): boolean {
 
 /** User-facing copy — never show the raw Colyseus string in the boot UI. */
 export function seatReservationUserMessage(): string {
-  return "Could not claim a seat (server was slow to accept the join). Retrying usually works.";
+  return "Could not claim a seat (game server was slow to accept the join). Tap Retry — usually works once the server is warm.";
 }

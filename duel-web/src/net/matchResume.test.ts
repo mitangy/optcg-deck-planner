@@ -101,5 +101,6 @@ describe("seat reservation errors", () => {
 
   it("exposes a non-Colyseus user message", () => {
     expect(seatReservationUserMessage().toLowerCase()).not.toContain("seat reservation expired");
+    expect(seatReservationUserMessage().toLowerCase()).toContain("claim a seat");
   });
 });

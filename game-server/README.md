@@ -2,7 +2,11 @@
 
 Authoritative Colyseus match server for Steps 2–4. Loads `@optcg/rules`, seats two players in a `duel` room, runs a **ranked_queue** matchmaker, and speaks **message-based** `protocolVersion: 2` (private views — no full `MatchState` in Schema).
 
+<<<<<<< HEAD
 **Deploy pin:** Render `optcg-game-server` tracks `cursor/duel-web-deploy-afeb`. Keep that branch fast-forwarded to `main` whenever duel-web protocol/defs change — a stale pin (e.g. GS on v1 while Vercel serves v2) makes create/join fail with a misleading **`seat reservation expired`**.
+=======
+**Deploy pin:** Render `optcg-game-server` tracks `cursor/duel-web-deploy-afeb`. Keep that branch fast-forwarded to `main` whenever duel-web protocol/defs or Colyseus seat settings change — a stale pin (e.g. GS on v1 / default 15s seat reservation while Vercel serves newer clients) makes create/join fail with a misleading **`seat reservation expired`**. `/health` exposes `protocolVersion` and `seatReservationSeconds` for a quick check.
+>>>>>>> cursor/hotseat-seat-claim-fix-863f
 
 ## Requirements
 
