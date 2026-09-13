@@ -29,6 +29,9 @@ type HotseatNavState = {
   useToken: boolean;
   deckWire: { leaderId: string; deck: string[] };
   deckName: string;
+  /** Opponent deck for vs-self; falls back to `deckWire` when omitted (legacy resume). */
+  enemyDeckWire?: { leaderId: string; deck: string[] };
+  enemyDeckName?: string;
   /** Optional tokens minted on the lobby (avoids cold-start race on this page). */
   seatTokens?: [string, string];
 };
@@ -51,6 +54,8 @@ function navFromResume(blob: HotseatResumeBlob): HotseatNavState {
     useToken: blob.useToken,
     deckWire: blob.deckWire,
     deckName: blob.deckName,
+    enemyDeckWire: blob.enemyDeckWire,
+    enemyDeckName: blob.enemyDeckName,
   };
 }
 
@@ -161,6 +166,8 @@ export function HotseatPage() {
       useToken: nav.useToken,
       deckWire: nav.deckWire,
       deckName: nav.deckName,
+      enemyDeckWire: nav.enemyDeckWire,
+      enemyDeckName: nav.enemyDeckName,
       seats: [{ reconnectionToken: t0 }, { reconnectionToken: t1 }],
       activeSeat: activeSeatRef.current,
       savedAt: Date.now(),
@@ -422,6 +429,7 @@ export function HotseatPage() {
         // Fresh match from lobby navigation (or after failed resume).
         clearMatchResume();
         const wire = nav!.deckWire;
+        const enemyWire = nav!.enemyDeckWire ?? wire;
 
         async function auth(suffix: "a" | "b", seatIndex: 0 | 1) {
           if (!nav!.useToken) {
@@ -478,7 +486,10 @@ export function HotseatPage() {
             ...auth0,
             preferredSeat: 0,
             deck: wire,
-            createOptions: { players: [wire, wire], autoSkipMulligan: false },
+            createOptions: {
+              players: [wire, enemyWire],
+              autoSkipMulligan: false,
+            },
           }),
           20000,
           "Hotseat create",
@@ -506,7 +517,7 @@ export function HotseatPage() {
             ...auth1,
             roomId: info.matchId,
             preferredSeat: 1,
-            deck: wire,
+            deck: enemyWire,
           }),
           20000,
           "Hotseat join",

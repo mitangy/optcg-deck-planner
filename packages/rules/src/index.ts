@@ -54,3 +54,9 @@ export type {
   PlayerDeckConfig,
   CreateMatchConfig,
 } from "./types.js";
+
+export {
+  LEADER_ABILITY_CATALOG,
+  type LeaderAbilityEntry,
+  type LeaderAbilityTiming,
+} from "./cards/leaderAbilities.js";

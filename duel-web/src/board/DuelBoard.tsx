@@ -13,6 +13,7 @@ import {
   resolveDropIntents,
   type DragPayload,
 } from "./dragIntents";
+import { AbilityPrompt } from "./AbilityPrompt";
 import { IntentBar } from "./IntentBar";
 import {
   attackTargetIdsForAttacker,
@@ -84,7 +85,8 @@ export function DuelBoard({
   const [handFilter, setHandFilter] = useState<number | null>(null);
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
-  const [logCollapsed, setLogCollapsed] = useState(false);
+  const [logCollapsed, setLogCollapsed] = useState(true);
+  const [handCollapsed, setHandCollapsed] = useState(false);
   const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
 
   const over = matchOver != null || view?.winner != null;
@@ -422,12 +424,27 @@ export function DuelBoard({
         </div>
       </div>
 
-      <div className="hand-rail">
+      <div className={`hand-rail${handCollapsed ? " collapsed" : ""}`}>
         <div className="hand-rail-head">
           <span className="hand-rail-title">{spectating ? "Seat hand (hidden)" : "Hand"}</span>
           <span className="hand-rail-count">
             {spectating ? (you.handCount ?? 0) : you.hand.length}
           </span>
+          {!spectating ? (
+            <button
+              type="button"
+              className="hand-collapse-btn"
+              onClick={() => {
+                setHandCollapsed((v) => {
+                  const next = !v;
+                  if (next) setHandFilter(null);
+                  return next;
+                });
+              }}
+            >
+              {handCollapsed ? "Show" : "Hide"}
+            </button>
+          ) : null}
         </div>
         <div className="hand-row">
           {spectating
@@ -459,9 +476,27 @@ export function DuelBoard({
         </div>
       </div>
 
+      {!spectating &&
+      view.pendingChoices?.[0]?.abilityId &&
+      view.pendingChoices[0].seat === mySeat ? (
+        <AbilityPrompt
+          view={view}
+          choice={view.pendingChoices[0]}
+          onSend={(intent) => {
+            setHandFilter(null);
+            setSelectedBoardId(null);
+            onSendIntent(intent);
+          }}
+        />
+      ) : null}
+
       {!spectating ? (
         <IntentBar
-          intents={view.legalIntents}
+          intents={
+            view.pendingChoices?.[0]?.abilityId
+              ? view.legalIntents.filter((i) => i.type !== "resolve_pending_choice")
+              : view.legalIntents
+          }
           view={view}
           disabled={over}
           filterHandIndex={handFilter}

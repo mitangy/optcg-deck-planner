@@ -25,6 +25,8 @@ export type CardAtlasEntry = {
   imageUrl?: string;
   effectText?: string;
   altArts?: CardAltArt[];
+  traits?: string[];
+  hasTrigger?: boolean;
 };
 
 /** Curated playable prints (rules package export). */

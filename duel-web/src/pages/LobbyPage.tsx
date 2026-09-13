@@ -31,6 +31,8 @@ import { useDuelSession } from "../state/DuelSession";
 type AuthMode = "guest" | "google" | "dev";
 
 export function LobbyPage() {
+  const showDevKey =
+    import.meta.env.DEV || import.meta.env.VITE_SHOW_DEV_KEY === "true";
   const navigate = useNavigate();
   const { connect, queueRanked, cancelQueue, queueing, setRating } = useDuelSession();
   const [serverUrl, setServerUrl] = useState(getGameServerUrl());
@@ -46,6 +48,7 @@ export function LobbyPage() {
 
   const [decks, setDecks] = useState<SavedDeck[]>([]);
   const [selectedId, setSelectedId] = useState("");
+  const [opponentDeckId, setOpponentDeckId] = useState("");
   const [importName, setImportName] = useState("");
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -63,6 +66,12 @@ export function LobbyPage() {
     const sel = (prefer && all.find((d) => d.id === prefer)) || seeded;
     setSelectedId(sel.id);
     setSelectedDeckId(sel.id);
+    setOpponentDeckId((prev) => {
+      if (prev && all.some((d) => d.id === prev)) return prev;
+      // Prefer a different constructed deck for the enemy when available.
+      const other = all.find((d) => d.id !== sel.id) ?? sel;
+      return other.id;
+    });
   }
 
   useEffect(() => {
@@ -155,6 +164,8 @@ export function LobbyPage() {
           mintGuestGameToken(hotseatGuestId(key, "a")),
           mintGuestGameToken(hotseatGuestId(key, "b")),
         ]);
+        const enemy =
+          decks.find((d) => d.id === opponentDeckId) ?? selectedDeck!;
         navigate("/hotseat", {
           state: {
             serverUrl: serverUrl.trim(),
@@ -162,7 +173,9 @@ export function LobbyPage() {
             userKey: key,
             useToken: true,
             deckWire: wire,
+            enemyDeckWire: deckToWire(enemy),
             deckName: selectedDeck!.name,
+            enemyDeckName: enemy.name,
             seatTokens: [tokA.token, tokB.token],
           },
         });
@@ -293,14 +306,16 @@ export function LobbyPage() {
             <a className="btn btn-secondary" href={googleLoginUrl()}>
               Sign in with Google
             </a>
-            <button
-              type="button"
-              className={`btn ${authMode === "dev" ? "btn-primary" : "btn-secondary"}`}
-              disabled={busy}
-              onClick={() => setAuthMode("dev")}
-            >
-              Dev key
-            </button>
+            {showDevKey ? (
+              <button
+                type="button"
+                className={`btn ${authMode === "dev" ? "btn-primary" : "btn-secondary"}`}
+                disabled={busy}
+                onClick={() => setAuthMode("dev")}
+              >
+                Dev key
+              </button>
+            ) : null}
             {authUser ? (
               <button
                 type="button"
@@ -328,6 +343,12 @@ export function LobbyPage() {
                   : "Complete Google sign-in, then return here"
                 : "Dev key mint via POST /duel/dev-token"}
           </p>
+          <p className="meta">
+            Guest is enough for local / hotseat play. Google must return to this
+            duel-web origin (allowlisted in API <code>DUEL_CORS_ORIGINS</code>);
+            if you land on the planner <code>/login</code> page, the duel origin
+            was not allowlisted — that is not correct for duel-web.
+          </p>
           {ratingLabel ? <p className="meta">Rating: {ratingLabel}</p> : null}
         </section>
 
@@ -354,6 +375,20 @@ export function LobbyPage() {
               Leader {selectedDeck.leaderId} · {selectedDeck.cards.length} main-deck cards
             </p>
           ) : null}
+
+          <label htmlFor="enemy-deck">Enemy deck (vs yourself)</label>
+          <select
+            id="enemy-deck"
+            value={opponentDeckId}
+            onChange={(e) => setOpponentDeckId(e.target.value)}
+          >
+            {decks.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name} — {d.leaderId} ({d.cards.length} cards)
+              </option>
+            ))}
+          </select>
+
           {selectedDeck ? (
             <button
               type="button"
@@ -365,7 +400,7 @@ export function LobbyPage() {
             </button>
           ) : null}
           {selectedDeck &&
-          selectedDeck.id !== "default-st01" &&
+          
           !selectedDeck.id.startsWith("test-") ? (
             <button
               type="button"

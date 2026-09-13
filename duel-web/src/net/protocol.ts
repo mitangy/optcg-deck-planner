@@ -95,7 +95,8 @@ export type PendingChoiceKind =
   | "on_play"
   | "activate_main"
   | "when_attacking"
-  | "optional_ability";
+  | "optional_ability"
+  | "leader_on_opp_attack";
 
 /** A single queued ask-to-trigger prompt (chain-ready: server may queue more than one). */
 export type PendingChoiceView = {
@@ -107,6 +108,8 @@ export type PendingChoiceView = {
   optional: boolean;
   /** Server-authoritative prompt text, e.g. "Usopp — On Play: draw 1 card?". */
   prompt: string;
+  /** Present for leader On-Opponent's-Attack abilities (Teach / Newgate). */
+  abilityId?: "newgate_battle_power" | "teach_redirect";
 };
 
 export type CardView = {

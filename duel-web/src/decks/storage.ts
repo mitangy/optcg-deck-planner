@@ -14,7 +14,7 @@ export type SavedDeck = {
   id: string;
   name: string;
   leaderId: string;
-  /** Main deck card ids (no leader), length typically 20 for the prototype pool. */
+  /** Main deck card ids (no leader); constructed lists are 50 cards. */
   cards: string[];
   /** Preferred alt art id per card def (`p1`, `p2`, …). */
   artPrefs?: Record<string, string>;
@@ -244,39 +244,23 @@ export function setArtPref(cardId: string, altId: string | null) {
   localStorage.setItem(ART_PREFS_KEY, JSON.stringify(prefs));
 }
 
-/** Default ST01 test deck seeded into storage once. */
+/**
+ * Ensure constructed test decks exist and drop the legacy 20-card ST01 seed.
+ * Returns the currently selected deck (or the first test deck).
+ */
 export function ensureDefaultDeck(): SavedDeck {
-  const existing = listSavedDecks();
-  const found = existing.find((d) => d.id === "default-st01");
-  if (found) return found;
-  const cards = [
-    "ST01-003",
-    "ST01-003",
-    "ST01-003",
-    "ST01-003",
-    "ST01-006",
-    "ST01-006",
-    "ST01-006",
-    "ST01-006",
-    "ST01-008",
-    "ST01-008",
-    "ST01-008",
-    "ST01-008",
-    "ST01-009",
-    "ST01-009",
-    "ST01-009",
-    "ST01-009",
-    "ST01-014",
-    "ST01-014",
-    "ST01-014",
-    "ST01-014",
-  ];
-  return saveDeck({
-    id: "default-st01",
-    name: "ST01 Straw Hat (test)",
-    leaderId: "ST01-001",
-    cards,
-  });
+  const kept = listSavedDecks().filter((d) => d.id !== "default-st01");
+  if (kept.length !== listSavedDecks().length) {
+    writeAll(kept);
+    if (getSelectedDeckId() === "default-st01") setSelectedDeckId(null);
+  }
+  const tests = ensureTestDecks();
+  const all = listSavedDecks();
+  const preferred =
+    all.find((d) => d.id === getSelectedDeckId()) ?? tests[0] ?? all[0];
+  if (!preferred) throw new Error("No decks available");
+  if (!getSelectedDeckId()) setSelectedDeckId(preferred.id);
+  return preferred;
 }
 
 export function deckToWire(deck: SavedDeck): { leaderId: string; deck: string[] } {
