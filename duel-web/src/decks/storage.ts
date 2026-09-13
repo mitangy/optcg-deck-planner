@@ -318,7 +318,10 @@ const TEST_OP16_LIST = `1xOP16-080
 2xOP16-116
 4xOP16-119`;
 
-function upsertSeedDeck(id: string, name: string, list: string): SavedDeck {
+/** Insert a seed deck only if missing — never clobber Configure edits. */
+function ensureSeedDeck(id: string, name: string, list: string): SavedDeck {
+  const existing = listSavedDecks().find((d) => d.id === id);
+  if (existing) return existing;
   const v = validateImportedList(list);
   if (!v.ok || !v.leaderId) {
     throw new Error(`Seed deck ${id} invalid: ${v.errors.join("; ")}`);
@@ -331,10 +334,10 @@ function upsertSeedDeck(id: string, name: string, list: string): SavedDeck {
   });
 }
 
-/** Seed the two constructed test decks (idempotent upsert). */
+/** Seed the two constructed test decks once (insert-if-absent). */
 export function ensureTestDecks(): SavedDeck[] {
-  const a = upsertSeedDeck("test-op17-red", "Test OP17 red", TEST_OP17_LIST);
-  const b = upsertSeedDeck(
+  const a = ensureSeedDeck("test-op17-red", "Test OP17 red", TEST_OP17_LIST);
+  const b = ensureSeedDeck(
     "test-op16-black",
     "Test OP16 Teach (black/yellow)",
     TEST_OP16_LIST,
