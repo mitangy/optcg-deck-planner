@@ -2208,3 +2208,46 @@ img.zone-pile-face {
   gap: 0.5rem;
   margin-top: 0.55rem;
 }
+
+
+/* —— Simultaneous effect order prompt —— */
+.effect-order-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.effect-order-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--arena-mid);
+}
+.effect-order-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  font-size: 0.72rem;
+  color: var(--ink);
+}
+.effect-order-text strong {
+  font-size: 0.78rem;
+  color: var(--chrome-bright);
+}
+.effect-order-move {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+.effect-order-move .ability-chip:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

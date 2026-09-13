@@ -14,6 +14,7 @@ import {
   type DragPayload,
 } from "./dragIntents";
 import { AbilityPrompt } from "./AbilityPrompt";
+import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { IntentBar } from "./IntentBar";
 import {
   attackTargetIdsForAttacker,
@@ -477,8 +478,19 @@ export function DuelBoard({
       </div>
 
       {!spectating &&
-      view.pendingChoices?.[0]?.abilityId &&
+      view.pendingChoices?.[0]?.kind === "order_effects" &&
       view.pendingChoices[0].seat === mySeat ? (
+        <EffectOrderPrompt
+          choice={view.pendingChoices[0]}
+          onSend={(intent) => {
+            setHandFilter(null);
+            setSelectedBoardId(null);
+            onSendIntent(intent);
+          }}
+        />
+      ) : !spectating &&
+        view.pendingChoices?.[0]?.abilityId &&
+        view.pendingChoices[0].seat === mySeat ? (
         <AbilityPrompt
           view={view}
           choice={view.pendingChoices[0]}
@@ -493,8 +505,13 @@ export function DuelBoard({
       {!spectating ? (
         <IntentBar
           intents={
+            view.pendingChoices?.[0]?.kind === "order_effects" ||
             view.pendingChoices?.[0]?.abilityId
-              ? view.legalIntents.filter((i) => i.type !== "resolve_pending_choice")
+              ? view.legalIntents.filter(
+                  (i) =>
+                    i.type !== "resolve_pending_choice" &&
+                    i.type !== "order_pending_effects",
+                )
               : view.legalIntents
           }
           view={view}

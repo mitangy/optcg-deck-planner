@@ -118,6 +118,11 @@ describe("protocol parsers", () => {
       "Accept — ability",
     );
   });
+  it("labels order_pending_effects", () => {
+    expect(intentLabel({ type: "order_pending_effects", orderedIds: ["a", "b"] })).toMatch(
+      /order|effect/i,
+    );
+  });
 });
 
 describe("card atlas", () => {

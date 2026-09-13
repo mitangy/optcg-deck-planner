@@ -57,6 +57,27 @@ then resolved with the existing `resolve_pending_choice` flow.
 
 Illegal permutations (duplicates, missing ids, wrong length) fail closed.
 
+### Live wiring (engine)
+
+`enqueuePendingChoices` is called from live trigger sites — not only unit tests:
+
+- **Attack declaration** — `enqueueAttackDeclarationTriggers` collects defender
+  leader On-Opponent's-Attack (and is the batch point for future When Attacking /
+  Stage triggers) then enqueues with the attacker as turn player.
+- **Life damage triggers** — optional Trigger prompts enqueue through the helper.
+- **On Play** — optional On Play prompts enqueue through the helper (so multiple
+  On Play clauses in one window can wrap in `order_effects`).
+
+### Client protocol & UI
+
+- Wire protocol **v3** adds `order_effects` + `unorderedChoices` on pending
+  choice views and recognizes `order_pending_effects`.
+- `listLegalIntents` still emits a **default** order (original sequence) for
+  sims/bots. Live clients must show a reorder UI (`EffectOrderPrompt`) so the
+  player can send any permutation — do not treat the default legal intent as
+  the only choice.
+
+
 ## Coverage policy
 
 - Every curated `listCardDefs()` id must appear in `EFFECT_CATALOG` (enforced by tests).

@@ -150,3 +150,30 @@ describe("effect order (APNAP + controller choice)", () => {
     expect(applyEffectOrder(state, ["c1", "missing"], events)).toBe(false);
   });
 });
+
+describe("live trigger paths call enqueuePendingChoices", () => {
+  it("batches same-seat attack-window effects into order_effects for the controller", () => {
+    const state = baseState();
+    const events: GameEvent[] = [];
+    // Mimic collectAttackDeclarationTriggers returning 2 same-seat prompts
+    // (future When Attacking + On Opp Attack on one seat).
+    enqueuePendingChoices(
+      state,
+      [
+        choice({ id: "window_a", seat: 1, cardDefId: "OP16-080" }),
+        choice({ id: "window_b", seat: 1, cardDefId: "ST01-001" }),
+      ],
+      0, // attacker / turn player
+      events,
+    );
+    expect(state.pendingChoices).toHaveLength(1);
+    expect(state.pendingChoices[0]!.kind).toBe("order_effects");
+    expect(state.pendingChoices[0]!.seat).toBe(1);
+    expect(state.pendingChoices[0]!.unorderedChoices?.map((c) => c.id)).toEqual([
+      "window_a",
+      "window_b",
+    ]);
+    expect(events.some((e) => e.type === "pending_choice_added")).toBe(true);
+  });
+});
+
