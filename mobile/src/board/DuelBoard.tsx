@@ -107,30 +107,40 @@ export function DuelBoard({
           />
         </View>
 
-        {Boolean(view.battle || view.pendingChoices?.length || view.pendingTrigger) && (
-          <View style={styles.prompt}>
-            <Text style={styles.promptText}>
-              {view.pendingChoices?.length
-                ? view.pendingChoices[0].prompt ?? "Ability pending"
-                : view.pendingTrigger
-                ? `Trigger pending: ${JSON.stringify(view.pendingTrigger)}`
-                : `Battle: ${JSON.stringify(view.battle)}`}
-            </Text>
-          </View>
-        )}
-
-        {!spectating &&
-        view.pendingChoices?.[0]?.kind === "order_effects" &&
-        view.pendingChoices[0].seat === mySeat ? (
-          <EffectOrderPrompt
-            key={view.pendingChoices[0].id}
-            choice={view.pendingChoices[0]}
-            onSend={(intent) => {
-              setHandFilter(null);
-              onSendIntent(intent);
-            }}
-          />
-        ) : null}
+        {(() => {
+          const front = view.pendingChoices?.[0];
+          const orderingEffects =
+            !spectating && front?.kind === "order_effects" && front.seat === mySeat;
+          // Skip the generic pending banner while EffectOrderPrompt owns the UI.
+          const showStatusBanner = Boolean(
+            view.battle || view.pendingTrigger || (front && !orderingEffects),
+          );
+          return (
+            <>
+              {showStatusBanner ? (
+                <View style={styles.prompt}>
+                  <Text style={styles.promptText}>
+                    {front
+                      ? front.prompt ?? "Ability pending"
+                      : view.pendingTrigger
+                        ? `Trigger pending: ${JSON.stringify(view.pendingTrigger)}`
+                        : `Battle: ${JSON.stringify(view.battle)}`}
+                  </Text>
+                </View>
+              ) : null}
+              {orderingEffects ? (
+                <EffectOrderPrompt
+                  key={front!.id}
+                  choice={front!}
+                  onSend={(intent) => {
+                    setHandFilter(null);
+                    onSendIntent(intent);
+                  }}
+                />
+              ) : null}
+            </>
+          );
+        })()}
 
         <Text style={[styles.zoneLabel, { marginTop: 16 }]}>You</Text>
         <View style={styles.row}>

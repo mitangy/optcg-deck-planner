@@ -301,9 +301,9 @@ export function intentLabel(intent: Intent, view?: PlayerView): string {
       return intent.accept ? "Accept ability" : "Decline ability";
     case "resolve_trigger":
       return intent.accept ? "Accept Trigger" : "Decline Trigger";
-        case "order_pending_effects":
+    case "order_pending_effects":
       return "Confirm effect order";
-case "end_turn":
+    case "end_turn":
       return "End turn";
     default:
       return intent.type;
