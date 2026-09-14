@@ -2319,8 +2319,71 @@ img.zone-pile-face {
     padding: 0.85rem 1.25rem 0.5rem;
   }
 
+  /* Wider board so the middle character column can dominate (~80%). */
+  .playmat-inner {
+    max-width: min(1480px, 96vw);
+  }
+
+  /* Side columns stay narrow; middle (characters) gets the bulk of the row. */
+  .side-grid {
+    grid-template-columns: minmax(72px, 10%) minmax(0, 1fr) minmax(72px, 10%);
+  }
+
+  /* Modest desktop scale for board tiles / piles (hand overrides below). */
+  .card-tile.full {
+    width: 104px;
+    height: 146px;
+  }
+
+  .card-tile.compact {
+    width: 72px;
+    height: 100px;
+  }
+
+  .zone-slot {
+    width: 64px;
+    height: 90px;
+  }
+
+  .zone-pile {
+    width: 72px;
+  }
+
+  .zone-pile-stack {
+    width: 48px;
+    height: 64px;
+  }
+
+  /* 5 character slots fill the middle column (~80% of board width). */
   .characters-row {
-    min-height: 110px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: 100%;
+    gap: 0.45rem;
+    min-height: 0;
+  }
+
+  .characters-row .card-tile,
+  .characters-row .zone-slot {
+    width: 100%;
+    height: auto;
+    max-width: none;
+    margin-inline: 0;
+    aspect-ratio: 5 / 7;
+  }
+
+  .hand-row-inner {
+    padding: 1.55rem 0.2rem 0.65rem;
+  }
+
+  .hand-row-inner .card-tile.full {
+    width: 118px;
+    height: 164px;
+  }
+
+  /* Clear the taller hand rail when ability prompts float above it. */
+  .ability-prompt {
+    bottom: 10rem;
   }
 }
 
