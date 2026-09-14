@@ -52,8 +52,10 @@ type Props = {
   statusLabels?: string[];
   /** Primary click (hand select / intent targeting). */
   onClick?: () => void;
-  /** When true, click opens inspect instead of onClick (board cards). */
+  /** When true, single click opens inspect instead of onClick (trash viewer only). */
   inspectOnClick?: boolean;
+  /** Long-press / double-click inspect when true (field cards without onClick). */
+  inspectGestures?: boolean;
   /** HTML5 drag stays off; pointer drag when set. */
   dragEnabled?: boolean;
   dragPayload?: unknown;
@@ -68,6 +70,8 @@ type Props = {
   ownerSeat?: Seat;
   /** Seat controlling the UI (alt-art picker writes here). */
   viewingSeat?: Seat;
+  /** Server-authoritative play cost (Teach tax, etc.) when in Main. */
+  playCost?: number;
 };
 
 export function CardTile({
@@ -82,6 +86,7 @@ export function CardTile({
   statusLabels,
   onClick,
   inspectOnClick = false,
+  inspectGestures = false,
   dragEnabled = false,
   dragPayload,
   onDragStart,
@@ -92,6 +97,7 @@ export function CardTile({
   classNameExtra,
   ownerSeat,
   viewingSeat,
+  playCost,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
   const [imgFailed, setImgFailed] = useState(false);
@@ -242,8 +248,10 @@ export function CardTile({
     setImgFailed(true);
   }
 
-  const interactive = Boolean(onClick || inspectOnClick || dragEnabled);
-  const showInspectChip = !inspectOnClick;
+  const canInspect =
+    inspectOnClick || inspectGestures || Boolean(onClick) || dragEnabled;
+  const interactive = Boolean(onClick || inspectOnClick || dragEnabled || inspectGestures);
+  const showInspectChip = canInspect && !inspectOnClick;
 
   const body = (
     <>
@@ -279,7 +287,18 @@ export function CardTile({
       ) : null}
       <div className="card-caption">
         <div className="name">{entry.name}</div>
-        <div className="meta">{`Cost ${entry.cost}`}</div>
+        <div
+          className={`meta${playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}`}
+          title={
+            playCost != null && playCost !== entry.cost
+              ? `Effective cost ${playCost} (printed ${entry.cost})`
+              : undefined
+          }
+        >
+          {playCost != null && playCost !== entry.cost
+            ? `Cost ${playCost}`
+            : `Cost ${entry.cost}`}
+        </div>
       </div>
       {showInspectChip ? (
         // Quiet keyboard-accessible control — prefer double-click / long-press.

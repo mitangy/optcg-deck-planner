@@ -188,6 +188,37 @@ def main() -> None:
     out.write_text(json.dumps(catalog, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"wrote {len(catalog)} cards → {out} ({out.stat().st_size // 1024} KiB)")
 
+    # Slim gameplay metadata for @optcg/rules auto-stubs (cost/type/name).
+    rules_meta: dict[str, dict] = {}
+    for card_id, row in catalog.items():
+        meta: dict = {
+            "cost": row.get("cost", 0),
+            "type": row.get("type", "character"),
+            "name": row.get("name", card_id),
+        }
+        if row.get("colors"):
+            meta["colors"] = row["colors"]
+        if row.get("power") is not None:
+            meta["power"] = row["power"]
+        if row.get("counter") is not None:
+            meta["counter"] = row["counter"]
+        if row.get("life") is not None:
+            meta["life"] = row["life"]
+        if row.get("blocker"):
+            meta["blocker"] = True
+        if row.get("rush"):
+            meta["rush"] = True
+        if row.get("type") == "event":
+            text = row.get("effectText") or ""
+            meta["eventTiming"] = "counter" if text.lstrip().lower().startswith("[counter]") else "main"
+        rules_meta[card_id] = meta
+    meta_out = root / "packages" / "rules" / "src" / "cards" / "catalogMeta.json"
+    meta_out.write_text(
+        json.dumps(rules_meta, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    print(f"wrote {len(rules_meta)} rules meta → {meta_out} ({meta_out.stat().st_size // 1024} KiB)")
+
 
 if __name__ == "__main__":
     main()

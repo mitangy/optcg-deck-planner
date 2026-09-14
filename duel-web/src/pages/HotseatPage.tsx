@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getApiBaseUrl, rewriteLoopbackToPageHost } from "../config";
 import { DuelBoard } from "../board/DuelBoard";
+import { applyHotseatAutoPass } from "../board/hotseatAutoPass";
 import { hotseatControlSeat } from "../board/hotseatControlSeat";
 import {
   narrateEvents,
@@ -150,6 +151,8 @@ export function HotseatPage() {
   const leavingRef = useRef(false);
   const activeSeatRef = useRef(activeSeat);
   activeSeatRef.current = activeSeat;
+  const lastNeededSeatRef = useRef<Seat | null>(null);
+  const manualPassRef = useRef(false);
   const matchIdRef = useRef(matchId);
   matchIdRef.current = matchId;
 
@@ -633,19 +636,30 @@ export function HotseatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSeat, ready]);
 
-  // Auto-pass the device when the other seat must resolve a leader ability
-  // (Newgate / Teach), block/counter, or take their turn — otherwise AbilityPrompt
-  // never appears because it is gated on seat === controlling seat.
+  // Auto-pass when the game moment changes (pending choice, block/counter,
+  // mulligan, turn advance). Manual Pass is kept until that moment changes.
   useEffect(() => {
     if (!ready) return;
     const v0 = bags.current[0]?.view ?? null;
     const v1 = bags.current[1]?.view ?? null;
-    const view = bags.current[activeSeatRef.current]?.view ?? v0 ?? v1;
-    const needed = hotseatControlSeat(view, v0, v1);
-    if (needed != null && needed !== activeSeatRef.current) {
-      setActiveSeat(needed);
+    const needed = hotseatControlSeat(v0 ?? v1, v0, v1);
+    const next = applyHotseatAutoPass({
+      needed,
+      activeSeat: activeSeatRef.current,
+      lastNeeded: lastNeededSeatRef.current,
+      manualPass: manualPassRef.current,
+    });
+    lastNeededSeatRef.current = next.lastNeeded;
+    manualPassRef.current = next.manualPass;
+    if (next.activeSeat !== activeSeatRef.current) {
+      setActiveSeat(next.activeSeat);
     }
-  }, [ready, viewTick, activeSeat]);
+  }, [ready, viewTick]);
+
+  function passDevice(to: Seat) {
+    manualPassRef.current = true;
+    setActiveSeat(to);
+  }
 
   useEffect(() => {
     return () => {
@@ -716,18 +730,6 @@ export function HotseatPage() {
   if (!ready || !bag?.view) {
     return (
       <div className="duel-root">
-        <div className="hotseat-bar">
-          <span>
-            {resuming
-              ? `Reconnecting (${title})…`
-              : bootPhase
-                ? `${bootPhase} (${title})`
-                : `Starting hotseat (${title})…`}
-          </span>
-          <button type="button" className="btn btn-secondary" onClick={() => void leave()}>
-            Leave
-          </button>
-        </div>
         <div className="loading arena-loading">
           {resuming
             ? `Reconnecting both seats (${title})…`
@@ -735,30 +737,17 @@ export function HotseatPage() {
               ? `${bootPhase} (${title})`
               : `Starting hotseat (${title})…`}
         </div>
+        <div style={{ display: "flex", justifyContent: "center", padding: "0 16px 16px" }}>
+          <button type="button" className="btn btn-secondary" onClick={() => void leave()}>
+            Back to lobby
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="duel-root">
-      <div className="hotseat-bar">
-        <span>
-          Hotseat · controlling seat {activeSeat} · {title}
-          {bag.view.phase === "mulligan"
-            ? bag.view.you.mulliganDone
-              ? " · mulligan done — pass device if needed"
-              : " · mulligan: keep or redraw"
-            : ""}
-        </span>
-        <div className="hotseat-bar-actions">
-          <button type="button" className="btn btn-secondary" onClick={() => setActiveSeat(other)}>
-            Pass device → seat {other}
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => void leave()}>
-            Leave match
-          </button>
-        </div>
-      </div>
       <DuelBoard
         view={bag.view}
         seat={activeSeat}
@@ -766,8 +755,10 @@ export function HotseatPage() {
         errorBanner={bag.error}
         matchOver={bag.matchOver}
         battleLog={bag.battleLog}
+        hotseatPass={{ otherSeat: other, onPass: () => passDevice(other) }}
+        leaveLabel="Leave match"
         onSendIntent={sendIntent}
-        onLeave={leave}
+        onLeave={() => void leave()}
         onClearError={() => {
           if (bags.current[activeSeat]) bags.current[activeSeat]!.error = null;
           bump((n) => n + 1);
