@@ -94,7 +94,14 @@ export const DEMO_VIEW: PlayerView = {
         statusLabels: [],
       },
     ],
-    stage: null,
+    stage: {
+      id: "y-stage",
+      defId: "OP16-021",
+      rested: false,
+      power: 0,
+      printedPower: 0,
+      statusLabels: [],
+    },
     hand: [
       { id: "y-h1", defId: "ST01-003" },
       { id: "y-h2", defId: "ST01-006" },
@@ -173,7 +180,30 @@ export const DEMO_VIEW: PlayerView = {
     { type: "give_don", donId: "d1", targetId: "y-leader" },
     { type: "give_don", donId: "d1", targetId: "y-c1" },
     { type: "give_don", donId: "d2", targetId: "y-leader" },
-    { type: "activate_leader", targetId: "y-leader" },
+    {
+      type: "activate_ability",
+      sourceId: "y-leader",
+      abilityId: "leader_give_rested_don",
+      targetId: "y-leader",
+    },
+    {
+      type: "activate_ability",
+      sourceId: "y-leader",
+      abilityId: "leader_give_rested_don",
+      targetId: "y-c1",
+    },
+    {
+      type: "activate_ability",
+      sourceId: "y-stage",
+      abilityId: "stage_trash_give_rested_don",
+      targetId: "y-leader",
+    },
+    {
+      type: "activate_ability",
+      sourceId: "y-stage",
+      abilityId: "stage_trash_give_rested_don",
+      targetId: "y-c1",
+    },
   ],
 };
 
