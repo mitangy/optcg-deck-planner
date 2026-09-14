@@ -9,6 +9,12 @@ export function zonePileCountLabel(count: number, expectedCount?: number): strin
   return "0";
 }
 
+/** Visible face-down cards in the life fan — one per life, capped at 5. */
+export function lifePileFaceCount(count: number): number {
+  if (count <= 0) return 0;
+  return Math.min(count, 5);
+}
+
 type Props = {
   label: string;
   count: number;
@@ -40,8 +46,14 @@ export function ZonePile({
         ? resolveCardImageUrl(topDefId, { ownerSeat, size: "thumb" })
         : null;
 
-  const body = (
-    <>
+  const stack =
+    variant === "life" ? (
+      <div className="zone-pile-stack" aria-hidden>
+        {Array.from({ length: lifePileFaceCount(count) }, (_, i) => (
+          <span key={i} className="zone-pile-face" />
+        ))}
+      </div>
+    ) : (
       <div className="zone-pile-stack" aria-hidden>
         <span className="zone-pile-face" />
         <span className="zone-pile-face mid" />
@@ -51,6 +63,11 @@ export function ZonePile({
           <span className="zone-pile-face top" />
         )}
       </div>
+    );
+
+  const body = (
+    <>
+      {stack}
       <div className="zone-pile-meta">
         <span className="zone-pile-label">{label}</span>
         <span className="zone-pile-count">{countLabel}</span>

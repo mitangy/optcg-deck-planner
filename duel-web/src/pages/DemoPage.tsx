@@ -94,7 +94,12 @@ export const DEMO_VIEW: PlayerView = {
         statusLabels: [],
       },
     ],
-    stage: null,
+    stage: {
+      id: "y-stage",
+      defId: "OP09-099",
+      rested: false,
+      statusLabels: [],
+    },
     hand: [
       { id: "y-h1", defId: "ST01-003" },
       { id: "y-h2", defId: "ST01-006" },
