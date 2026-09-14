@@ -7,6 +7,8 @@ export type CardAltArt = {
   id: string;
   label: string;
   imageUrl: string;
+  /** TCGPlayer product id when known (aligns with planner printings). */
+  productId?: number;
 };
 
 export type CardAtlasEntry = {
@@ -23,6 +25,8 @@ export type CardAtlasEntry = {
   blocker?: boolean;
   rush?: boolean;
   imageUrl?: string;
+  /** TCGPlayer product id for the preferred face when known. */
+  productId?: number;
   effectText?: string;
   altArts?: CardAltArt[];
   traits?: string[];
@@ -81,7 +85,14 @@ function mergeAltArts(
       if (prev && isLocalCardsUrl(alt.imageUrl) && !isLocalCardsUrl(prev.imageUrl)) {
         continue;
       }
-      byId.set(alt.id, { id: alt.id, label: alt.label, imageUrl: alt.imageUrl });
+      const next: CardAltArt = {
+        id: alt.id,
+        label: alt.label,
+        imageUrl: alt.imageUrl,
+      };
+      const productId = alt.productId ?? prev?.productId;
+      if (productId != null) next.productId = productId;
+      byId.set(alt.id, next);
     }
   }
   if (byId.size === 0) return undefined;
@@ -104,13 +115,18 @@ function fromCatalog(defId: string): CardAtlasEntry | undefined {
     blocker: hit.blocker,
     rush: hit.rush,
     imageUrl: hit.imageUrl,
+    productId: hit.productId,
     effectText: hit.effectText,
     altArts: hit.altArts?.length
-      ? hit.altArts.map((a) => ({
-          id: a.id,
-          label: a.label ?? a.id,
-          imageUrl: a.imageUrl,
-        }))
+      ? hit.altArts.map((a) => {
+          const alt: CardAltArt = {
+            id: a.id,
+            label: a.label ?? a.id,
+            imageUrl: a.imageUrl,
+          };
+          if (a.productId != null) alt.productId = a.productId;
+          return alt;
+        })
       : undefined,
   };
 }
@@ -145,6 +161,7 @@ function resolveAtlasEntry(defId: string): CardAtlasEntry | undefined {
   return {
     ...base,
     imageUrl,
+    productId: base.productId ?? catalogHit?.productId,
     altArts,
   };
 }

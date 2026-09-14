@@ -27,12 +27,13 @@ export function tcgArtForCard(cardId: string): string | undefined {
 
 export function tcgAltsForCard(
   cardId: string,
-): { id: string; label: string; imageUrl: string }[] {
+): { id: string; label: string; imageUrl: string; productId?: number }[] {
   const hit = TCG_PRODUCTS[cardId];
   if (!hit?.alts?.length) return [];
   return hit.alts.map((a) => ({
     id: a.id,
     label: a.label,
     imageUrl: tcgProductImageUrl(a.productId, "thumb"),
+    productId: a.productId,
   }));
 }
