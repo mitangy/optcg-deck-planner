@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getApiBaseUrl, rewriteLoopbackToPageHost } from "../config";
 import { DuelBoard } from "../board/DuelBoard";
+import { applyHotseatAutoPass } from "../board/hotseatAutoPass";
 import { hotseatControlSeat } from "../board/hotseatControlSeat";
 import {
   narrateEvents,
@@ -150,6 +151,8 @@ export function HotseatPage() {
   const leavingRef = useRef(false);
   const activeSeatRef = useRef(activeSeat);
   activeSeatRef.current = activeSeat;
+  const lastNeededSeatRef = useRef<Seat | null>(null);
+  const manualPassRef = useRef(false);
   const matchIdRef = useRef(matchId);
   matchIdRef.current = matchId;
 
@@ -633,18 +636,30 @@ export function HotseatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSeat, ready]);
 
-  // Auto-pass the device when the other seat must resolve a leader ability
-  // (Newgate / Teach), block/counter, or take their turn — otherwise AbilityPrompt
-  // never appears because it is gated on seat === controlling seat.
+  // Auto-pass when the game moment changes (pending choice, block/counter,
+  // mulligan, turn advance). Manual Pass is kept until that moment changes.
   useEffect(() => {
     if (!ready) return;
     const v0 = bags.current[0]?.view ?? null;
     const v1 = bags.current[1]?.view ?? null;
     const needed = hotseatControlSeat(v0 ?? v1, v0, v1);
-    if (needed != null && needed !== activeSeatRef.current) {
-      setActiveSeat(needed);
+    const next = applyHotseatAutoPass({
+      needed,
+      activeSeat: activeSeatRef.current,
+      lastNeeded: lastNeededSeatRef.current,
+      manualPass: manualPassRef.current,
+    });
+    lastNeededSeatRef.current = next.lastNeeded;
+    manualPassRef.current = next.manualPass;
+    if (next.activeSeat !== activeSeatRef.current) {
+      setActiveSeat(next.activeSeat);
     }
-  }, [ready, viewTick, activeSeat]);
+  }, [ready, viewTick]);
+
+  function passDevice(to: Seat) {
+    manualPassRef.current = true;
+    setActiveSeat(to);
+  }
 
   useEffect(() => {
     return () => {
@@ -735,7 +750,7 @@ export function HotseatPage() {
         errorBanner={bag.error}
         matchOver={bag.matchOver}
         battleLog={bag.battleLog}
-        hotseatPass={{ otherSeat: other, onPass: () => setActiveSeat(other) }}
+        hotseatPass={{ otherSeat: other, onPass: () => passDevice(other) }}
         leaveLabel="Leave match"
         onSendIntent={sendIntent}
         onLeave={() => void leave()}
