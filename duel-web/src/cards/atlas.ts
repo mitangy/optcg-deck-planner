@@ -7,6 +7,8 @@ export type CardAltArt = {
   id: string;
   label: string;
   imageUrl: string;
+  /** TCGPlayer product id when known (aligns with planner printings). */
+  productId?: number;
 };
 
 export type CardAtlasEntry = {
@@ -23,10 +25,21 @@ export type CardAtlasEntry = {
   blocker?: boolean;
   rush?: boolean;
   imageUrl?: string;
+  /** TCGPlayer product id for the preferred face when known. */
+  productId?: number;
   effectText?: string;
   altArts?: CardAltArt[];
   traits?: string[];
   hasTrigger?: boolean;
+};
+
+/**
+ * Raw cosmetics JSON omits empty arrays/nulls (e.g. no `colors`), so it is not
+ * a full CardAtlasEntry until `fromCatalog` normalizes defaults.
+ */
+type CosmeticsCatalogRow = Omit<Partial<CardAtlasEntry>, "altArts"> & {
+  id?: string;
+  altArts?: Array<Partial<CardAltArt> & Pick<CardAltArt, "id" | "imageUrl">>;
 };
 
 /** Curated playable prints (rules package export). */
@@ -36,7 +49,7 @@ const curated = atlasJson as Record<string, CardAtlasEntry>;
  * Cosmetics catalog for every English OPTCG number we know about (TCGCSV).
  * Used for Deck Configure search / art; gameplay still auto-stubs missing defs.
  */
-const catalog = catalogJson as Record<string, CardAtlasEntry>;
+const catalog = catalogJson as Record<string, CosmeticsCatalogRow>;
 
 /** Session stubs for OPTCG ids imported beyond curated + catalog. */
 const runtimeStubs = new Map<string, CardAtlasEntry>();
@@ -66,7 +79,14 @@ function mergeAltArts(
       if (prev && isLocalCardsUrl(alt.imageUrl) && !isLocalCardsUrl(prev.imageUrl)) {
         continue;
       }
-      byId.set(alt.id, { id: alt.id, label: alt.label, imageUrl: alt.imageUrl });
+      const next: CardAltArt = {
+        id: alt.id,
+        label: alt.label,
+        imageUrl: alt.imageUrl,
+      };
+      const productId = alt.productId ?? prev?.productId;
+      if (productId != null) next.productId = productId;
+      byId.set(alt.id, next);
     }
   }
   if (byId.size === 0) return undefined;
@@ -89,13 +109,18 @@ function fromCatalog(defId: string): CardAtlasEntry | undefined {
     blocker: hit.blocker,
     rush: hit.rush,
     imageUrl: hit.imageUrl,
+    productId: hit.productId,
     effectText: hit.effectText,
     altArts: hit.altArts?.length
-      ? hit.altArts.map((a) => ({
-          id: a.id,
-          label: a.label,
-          imageUrl: a.imageUrl,
-        }))
+      ? hit.altArts.map((a) => {
+          const alt: CardAltArt = {
+            id: a.id,
+            label: a.label ?? a.id,
+            imageUrl: a.imageUrl,
+          };
+          if (a.productId != null) alt.productId = a.productId;
+          return alt;
+        })
       : undefined,
   };
 }
@@ -130,6 +155,7 @@ function resolveAtlasEntry(defId: string): CardAtlasEntry | undefined {
   return {
     ...base,
     imageUrl,
+    productId: base.productId ?? catalogHit?.productId,
     altArts,
   };
 }

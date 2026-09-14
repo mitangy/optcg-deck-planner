@@ -12,7 +12,8 @@ How to add a playable OPTCG card to the digital duel without changing the Colyse
 3. **Sims** — `cd packages/rules && npm test && npm run sim`.
 4. **Atlas** — `cd packages/rules && npm run export-atlas` (writes mobile + `duel-web` atlas JSON).
 5. **Web arts** — Prefer TCGPlayer CDN URLs (same as the deck planner). Map product ids in `packages/rules/src/cards/tcgProducts.ts`; `localArt()` / atlas export emit `https://tcgplayer-cdn.tcgplayer.com/product/{id}_400w.jpg`. Clients rewrite to `_in_1000x1000` for inspect via `duel-web/src/cards/cardImage.ts` (mirrors `frontend/src/cardImage.ts`). Bandai CDN blocks browser hotlink (CORP) — do not ship `onepiece-cardgame.com` in `imageUrl`. Fall back to local `/cards/{id}.png` only when no product id is mapped yet. **Stub defs must use the printed name/cost/type for that card number** so CDN art matches the caption (scrambled placeholder names look like “wrong artwork”).
-6. **Ship** — no protocol / room changes required; clients already render by `defId`.
+6. **Cosmetics catalog (build artifact)** — `duel-web/src/assets/cardCatalog.json` is the committed art/search catalog (id, name, imageUrl, optional `productId`, `altArts[]` with `p1`/`p2`… labels). Regenerate via `scripts/build_cosmetics_catalog.py` (full TCGCSV pull, also refreshes gameplay meta) or `scripts/export_cosmetics_from_planner_db.py` (reads planner `catalog_cards` / `catalog_printings` from local SQLite / `DATABASE_URL` and **merges** art + productIds + alts onto the existing JSON so effectText/cost/power stay intact). Optional: `scripts/backfill_cosmetics_product_ids.py` parses `product/{id}_` from existing imageUrls without a network fetch. Do **not** query Postgres (or the planner API) from duel-web or the Colyseus game-server for card art on the hot path — keep the JSON build artifact.
+7. **Ship** — no protocol / room changes required; clients already render by `defId`.
 
 ## Keyword budget (Step 5)
 
