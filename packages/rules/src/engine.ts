@@ -30,6 +30,21 @@ function otherSeat(seat: Seat): Seat {
   return seat === 0 ? 1 : 0;
 }
 
+/** Choices that need handIndex, targets, or reorder — not a bare accept. */
+function pendingChoiceNeedsStructuredIntent(front: PendingChoice): boolean {
+  if (front.kind === "order_effects") return true;
+  if (front.kind === "on_play") {
+    return (
+      front.abilityId === "on_play_hand_to_deck" ||
+      front.abilityId === "on_play_life_choice"
+    );
+  }
+  if (front.kind === "leader_on_opp_attack" || front.kind === "when_attacking") {
+    return true;
+  }
+  return false;
+}
+
 function alloc(state: MatchState, prefix: string): string {
   const id = `${prefix}_${state.nextId}`;
   state.nextId += 1;
@@ -1122,6 +1137,14 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
       // — do not treat this single legal intent as the only player choice.
       const ids = (front.unorderedChoices ?? []).map((c) => c.id);
       out.push({ type: "order_pending_effects", orderedIds: ids });
+      return out;
+    }
+    if (pendingChoiceNeedsStructuredIntent(front)) {
+      // Mandatory structured prompts need hand/target picks — no bare accept for timers.
+      if (!front.optional) return out;
+      // Optional structured: Accept/Decline; client supplies fields when accepting.
+      out.push({ type: "resolve_pending_choice", accept: true });
+      out.push({ type: "resolve_pending_choice", accept: false });
       return out;
     }
     out.push({ type: "resolve_pending_choice", accept: true });

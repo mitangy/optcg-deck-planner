@@ -65,6 +65,22 @@ describe("On Play — Charlotte Linlin / Borsalino hooks", () => {
     expect(resolved.state.pendingChoices).toHaveLength(0);
   });
 
+  it("EB03-034 hand→deck prompt has no bare accept for turn timers", () => {
+    const { rng } = fresh(8);
+    let state = withActiveDons(fresh(8).state, 0, 8);
+    state = structuredClone(state);
+    state.players[0].hand = [
+      { id: "h_linlin", defId: "EB03-034", rested: false, attachedDonIds: [] },
+      { id: "h_extra", defId: "ST01-003", rested: false, attachedDonIds: [] },
+    ];
+    const played = applyIntent(state, { type: "play_card", handIndex: 0 }, { seat: 0, rng });
+    expect(played.ok, played.error?.message).toBe(true);
+    const legal = listLegalIntents(played.state, 0);
+    expect(
+      legal.some((i) => i.type === "resolve_pending_choice" && i.accept),
+    ).toBe(false);
+  });
+
   it("OP17-112 draws then can add deck top to Life", () => {
     const { rng } = fresh(11);
     let state = withActiveDons(fresh(11).state, 0, 10);

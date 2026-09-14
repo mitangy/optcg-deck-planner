@@ -771,8 +771,12 @@ export class DuelRoom extends Room {
       if (front.optional) {
         return { type: "resolve_pending_choice", accept: false };
       }
-      // Mandatory: keep hand / accept without extras when legal.
-      return legal.find((i) => i.type === "resolve_pending_choice" && i.accept) ?? null;
+      // Mandatory structured prompts (On Play hand pick, etc.) cannot auto-resolve.
+      const bareAccept = legal.find(
+        (i) => i.type === "resolve_pending_choice" && i.accept,
+      );
+      if (!bareAccept) return null;
+      return bareAccept;
     }
     if (this.match.phase === "mulligan") {
       return { type: "mulligan", doMulligan: false };

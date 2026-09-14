@@ -737,6 +737,11 @@ export function HotseatPage() {
               ? `${bootPhase} (${title})`
               : `Starting hotseat (${title})…`}
         </div>
+        <div style={{ display: "flex", justifyContent: "center", padding: "0 16px 16px" }}>
+          <button type="button" className="btn btn-secondary" onClick={() => void leave()}>
+            Back to lobby
+          </button>
+        </div>
       </div>
     );
   }

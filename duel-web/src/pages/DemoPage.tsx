@@ -187,7 +187,6 @@ export function DemoPage() {
         errorBanner={null}
         matchOver={null}
         battleLog={DEMO_BATTLE_LOG}
-        hotseatPass={{ otherSeat: 1, onPass: () => undefined }}
         leaveLabel="Leave match"
         onSendIntent={() => undefined}
         onLeave={() => {
