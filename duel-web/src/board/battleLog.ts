@@ -122,6 +122,8 @@ function narrateOne(e: LooseEvent, youSeat: number | null): string | null {
       return `${act(e.seat, youSeat, "take", "takes")} Life (${cardName(e.defId)}${
         e.toHand ? " → hand" : ", Trigger pending"
       })`;
+    case "life_added":
+      return `${seatLabel(e.seat, youSeat)} adds ${cardName(e.defId)} to Life (deck top)`;
     case "trigger_available":
       return `${seatLabel(e.seat, youSeat)} Trigger available (${cardName(e.defId)})`;
     case "trigger_resolved":

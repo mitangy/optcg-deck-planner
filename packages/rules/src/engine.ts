@@ -1,6 +1,7 @@
 import {
   ensureDefsForPlayers,
   getCardDef,
+  getOnPlayHooks,
   normalizeCardDefId,
 } from "./cards/definitions.js";
 import { applyEffectOrder, enqueuePendingChoices } from "./effectOrder.js";
@@ -349,6 +350,124 @@ function drawN(state: MatchState, seat: Seat, n: number, events: GameEvent[]): b
   return true;
 }
 
+/** Life top is index 0 (same end `resolveDamage` takes from). */
+function addDeckTopToLife(
+  state: MatchState,
+  seat: Seat,
+  events: GameEvent[],
+): boolean {
+  const player = state.players[seat];
+  if (!player.deck.length) return false;
+  const defId = player.deck.shift()!;
+  player.life.unshift(defId);
+  events.push({ type: "life_added", seat, defId, source: "deck_top" });
+  return true;
+}
+
+function collectOnPlayChoices(
+  state: MatchState,
+  seat: Seat,
+  inst: CardInstance,
+  def: ReturnType<typeof getCardDef>,
+): PendingChoice[] {
+  const hooks = getOnPlayHooks(def);
+  const player = state.players[seat];
+  const opp = state.players[otherSeat(seat)];
+  const out: PendingChoice[] = [];
+
+  if (hooks.onPlayLowLifeAddLife) {
+    const { maxLife } = hooks.onPlayLowLifeAddLife;
+    if (player.life.length <= maxLife && player.deck.length > 0) {
+      out.push({
+        id: alloc(state, "choice"),
+        seat,
+        kind: "on_play",
+        cardDefId: def.id,
+        sourceInstanceId: inst.id,
+        optional: true,
+        prompt: `${def.name} — On Play: add the top card of your deck to your Life cards?`,
+        abilityId: "on_play_add_life",
+      });
+    }
+  }
+
+  if (hooks.onPlayDrawThenLifeChoice) {
+    const canOwn = player.deck.length > 0;
+    const canOpp = opp.life.length > 0;
+    if (canOwn || canOpp) {
+      out.push({
+        id: alloc(state, "choice"),
+        seat,
+        kind: "on_play",
+        cardDefId: def.id,
+        sourceInstanceId: inst.id,
+        optional: true,
+        prompt:
+          `${def.name} — On Play: add your deck top to Life, or add the top of ` +
+          `opponent's Life to their hand?`,
+        abilityId: "on_play_life_choice",
+      });
+    }
+  }
+
+  if (hooks.onPlayDrawHandToDeckDon) {
+    if (player.hand.length > 0) {
+      out.push({
+        id: alloc(state, "choice"),
+        seat,
+        kind: "on_play",
+        cardDefId: def.id,
+        sourceInstanceId: inst.id,
+        optional: false,
+        prompt: `${def.name} — On Play: choose a card from your hand to place on top of your deck.`,
+        abilityId: "on_play_hand_to_deck",
+      });
+    }
+  }
+
+  if (hooks.onPlayOptionalDraw > 0) {
+    out.push({
+      id: alloc(state, "choice"),
+      seat,
+      kind: "on_play",
+      cardDefId: def.id,
+      sourceInstanceId: inst.id,
+      optional: true,
+      prompt: `${def.name} — On Play: draw ${hooks.onPlayOptionalDraw} card${
+        hooks.onPlayOptionalDraw === 1 ? "" : "s"
+      }?`,
+    });
+  }
+
+  return out;
+}
+
+function applyOnPlayEnterPlay(
+  state: MatchState,
+  seat: Seat,
+  inst: CardInstance,
+  def: ReturnType<typeof getCardDef>,
+  events: GameEvent[],
+): void {
+  const hooks = getOnPlayHooks(def);
+  const player = state.players[seat];
+
+  if (hooks.onPlayDraw > 0) {
+    if (!drawN(state, seat, hooks.onPlayDraw, events)) return;
+  }
+
+  const choices = collectOnPlayChoices(state, seat, inst, def);
+  if (choices.length > 0) {
+    enqueuePendingChoices(state, choices, seat, events);
+    return;
+  }
+
+  if (hooks.onPlayDrawHandToDeckDon && player.hand.length === 0) {
+    const placed = placeDon(player, 1);
+    if (placed > 0) events.push({ type: "don_placed", seat, count: placed });
+  }
+}
+
 function resolveDamage(state: MatchState, events: GameEvent[]): void {
   const battle = state.battle!;
   const atkSeat = battle.attackerSeat;
@@ -557,8 +676,41 @@ export function applyIntent(
       next.players[seat].hand.push(makeCard(next, front.cardDefId));
       events.push({ type: "trigger_resolved", seat, accepted: intent.accept });
     } else if (front.kind === "on_play") {
-      if (intent.accept && (def.onPlayOptionalDraw ?? 0) > 0) {
-        if (!drawN(next, seat, def.onPlayOptionalDraw!, events)) return done();
+      const hooks = getOnPlayHooks(def);
+      const player = next.players[seat];
+      const opp = next.players[otherSeat(seat)];
+
+      if (intent.accept && front.abilityId === "on_play_add_life") {
+        addDeckTopToLife(next, seat, events);
+      } else if (intent.accept && front.abilityId === "on_play_life_choice") {
+        if (intent.onPlayChoice === "own_life") {
+          if (!addDeckTopToLife(next, seat, events)) {
+            return fail(state, "empty_deck", "No card to add to Life");
+          }
+        } else if (intent.onPlayChoice === "opp_life") {
+          if (!opp.life.length) {
+            return fail(state, "empty_life", "Opponent has no Life cards");
+          }
+          const lifeId = opp.life.shift()!;
+          opp.hand.push(makeCard(next, lifeId));
+          events.push({ type: "life_taken", seat: otherSeat(seat), defId: lifeId, toHand: true });
+        } else {
+          return fail(state, "bad_choice", "Choose own Life or opponent Life");
+        }
+      } else if (front.abilityId === "on_play_hand_to_deck") {
+        if (
+          intent.handIndex == null ||
+          intent.handIndex < 0 ||
+          intent.handIndex >= player.hand.length
+        ) {
+          return fail(state, "bad_hand", "Choose a hand card for deck top");
+        }
+        const [card] = player.hand.splice(intent.handIndex, 1);
+        player.deck.unshift(card.defId);
+        const placed = placeDon(player, 1);
+        if (placed > 0) events.push({ type: "don_placed", seat, count: placed });
+      } else if (intent.accept && hooks.onPlayOptionalDraw > 0) {
+        if (!drawN(next, seat, hooks.onPlayOptionalDraw, events)) return done();
       }
       events.push({
         type: "pending_choice_resolved",
@@ -849,29 +1001,7 @@ export function applyIntent(
       inst.summoningSick = !def.rush;
       player.characters.push(inst);
       events.push({ type: "card_played", seat, defId: card.defId, instanceId: inst.id });
-      if ((def.onPlayOptionalDraw ?? 0) > 0) {
-        const prompt = `${def.name} — On Play: draw ${def.onPlayOptionalDraw} card${
-          def.onPlayOptionalDraw === 1 ? "" : "s"
-        }?`;
-        // Batch On Play (and future simultaneous On Play clauses) through
-        // enqueue so multi-effect windows get order_effects automatically.
-        enqueuePendingChoices(
-          next,
-          [
-            {
-              id: alloc(next, "choice"),
-              seat,
-              kind: "on_play",
-              cardDefId: def.id,
-              sourceInstanceId: inst.id,
-              optional: true,
-              prompt,
-            },
-          ],
-          seat,
-          events,
-        );
-      }
+      applyOnPlayEnterPlay(next, seat, inst, def, events);
       return done();
     }
 

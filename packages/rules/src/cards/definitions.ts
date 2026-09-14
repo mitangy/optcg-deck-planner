@@ -348,7 +348,38 @@ const defs: CardDef[] = [
     blocker: true,
     imageUrl: localArt("EB04-058"),
     effectText: "[Blocker]\n[On Play] If you have 2 or less Life cards, add up to 1 card from the top of your deck to the top of your Life cards.",
+    onPlayLowLifeAddLife: { maxLife: 2 },
     traits: ["Blackbeard Pirates"],
+  },
+  {
+    id: "EB03-034",
+    name: "Charlotte Linlin",
+    type: "character",
+    colors: ["yellow"],
+    cost: 7,
+    power: 8000,
+    counter: 1000,
+    onPlayDraw: 1,
+    onPlayDrawHandToDeckDon: true,
+    imageUrl: localArt("EB03-034"),
+    effectText:
+      "[On Play] Draw 1 card and place 1 card from your hand at the top of your deck. Then, add up to 1 DON!! card from your DON!! deck and set it as active.\n\n[On K.O.] DON!! 1: Add up to 1 card from the top of your deck to the top of your Life cards.",
+    traits: ["Big Mom Pirates"],
+  },
+  {
+    id: "OP17-112",
+    name: "Charlotte Linlin",
+    type: "character",
+    colors: ["yellow"],
+    cost: 10,
+    power: 10000,
+    counter: 1000,
+    onPlayDraw: 1,
+    onPlayDrawThenLifeChoice: true,
+    imageUrl: localArt("OP17-112"),
+    effectText:
+      "[Your Turn] The base power of all of your Characters with a [Trigger] and 4000 base power becomes 8000.\n\n[On Play] Draw 1 card, then choose one:\n• Add up to 1 card from the top of your deck to the top of your Life cards.\n• Add up to 1 card from the top of your opponent's Life cards to the owner's hand.",
+    traits: ["Big Mom Pirates"],
   },
   {
     id: "OP09-086",
@@ -551,6 +582,46 @@ for (const d of defs) {
 void bandaiArt;
 
 const byId = new Map(defs.map((d) => [d.id, d]));
+
+/** On Play hooks for catalog ids not yet fully curated (stubs still resolve). */
+const ON_PLAY_BY_ID: Partial<
+  Record<
+    CardDefId,
+    Pick<
+      CardDef,
+      | "onPlayDraw"
+      | "onPlayOptionalDraw"
+      | "onPlayLowLifeAddLife"
+      | "onPlayDrawThenLifeChoice"
+      | "onPlayDrawHandToDeckDon"
+    >
+  >
+> = {
+  "EB03-034": { onPlayDraw: 1, onPlayDrawHandToDeckDon: true },
+  "OP17-112": { onPlayDraw: 1, onPlayDrawThenLifeChoice: true },
+  "EB04-058": { onPlayLowLifeAddLife: { maxLife: 2 } },
+};
+
+export type OnPlayHooks = {
+  onPlayDraw: number;
+  onPlayOptionalDraw: number;
+  onPlayLowLifeAddLife?: { maxLife: number };
+  onPlayDrawThenLifeChoice: boolean;
+  onPlayDrawHandToDeckDon: boolean;
+};
+
+export function getOnPlayHooks(def: CardDef): OnPlayHooks {
+  const extra = ON_PLAY_BY_ID[normalizeCardDefId(def.id)] ?? {};
+  return {
+    onPlayDraw: extra.onPlayDraw ?? def.onPlayDraw ?? 0,
+    onPlayOptionalDraw: extra.onPlayOptionalDraw ?? def.onPlayOptionalDraw ?? 0,
+    onPlayLowLifeAddLife: extra.onPlayLowLifeAddLife ?? def.onPlayLowLifeAddLife,
+    onPlayDrawThenLifeChoice:
+      extra.onPlayDrawThenLifeChoice ?? def.onPlayDrawThenLifeChoice ?? false,
+    onPlayDrawHandToDeckDon:
+      extra.onPlayDrawHandToDeckDon ?? def.onPlayDrawHandToDeckDon ?? false,
+  };
+}
 
 export const DEFAULT_LEADER_ID: CardDefId = "ST01-001";
 

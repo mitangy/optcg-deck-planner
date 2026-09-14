@@ -14,6 +14,7 @@ import {
   type DragPayload,
 } from "./dragIntents";
 import { AbilityPrompt } from "./AbilityPrompt";
+import { OnPlayPrompt } from "./OnPlayPrompt";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { IntentBar } from "./IntentBar";
 import {
@@ -44,11 +45,21 @@ type Props = {
 
 const EMPTY_IDS = new Set<string>();
 
+function needsOnPlayPrompt(choice: NonNullable<PlayerView["pendingChoices"]>[number]) {
+  return (
+    choice.kind === "on_play" &&
+    (choice.abilityId === "on_play_life_choice" ||
+      choice.abilityId === "on_play_hand_to_deck")
+  );
+}
+
 function needsStructuredAbilityPrompt(choice: NonNullable<PlayerView["pendingChoices"]>[number]) {
   return (
-    Boolean(choice.abilityId) ||
     choice.kind === "when_attacking" ||
-    choice.kind === "leader_on_opp_attack"
+    choice.kind === "leader_on_opp_attack" ||
+    choice.abilityId === "newgate_battle_power" ||
+    choice.abilityId === "teach_redirect" ||
+    choice.abilityId === "rocks_reveal_draw"
   );
 }
 
@@ -576,6 +587,19 @@ export function DuelBoard({
         />
       ) : !spectating &&
         view.pendingChoices?.[0] &&
+        needsOnPlayPrompt(view.pendingChoices[0]) &&
+        view.pendingChoices[0].seat === mySeat ? (
+        <OnPlayPrompt
+          view={view}
+          choice={view.pendingChoices[0]}
+          onSend={(intent) => {
+            setHandFilter(null);
+            setSelectedBoardId(null);
+            onSendIntent(intent);
+          }}
+        />
+      ) : !spectating &&
+        view.pendingChoices?.[0] &&
         needsStructuredAbilityPrompt(view.pendingChoices[0]) &&
         view.pendingChoices[0].seat === mySeat ? (
         <AbilityPrompt
@@ -602,7 +626,8 @@ export function DuelBoard({
           intents={
             view.pendingChoices?.[0]?.seat === mySeat &&
             (view.pendingChoices[0].kind === "order_effects" ||
-              needsStructuredAbilityPrompt(view.pendingChoices[0]))
+              needsStructuredAbilityPrompt(view.pendingChoices[0]) ||
+              needsOnPlayPrompt(view.pendingChoices[0]))
               ? view.legalIntents.filter(
                   (i) =>
                     i.type !== "resolve_pending_choice" &&
