@@ -52,8 +52,10 @@ type Props = {
   statusLabels?: string[];
   /** Primary click (hand select / intent targeting). */
   onClick?: () => void;
-  /** When true, click opens inspect instead of onClick (board cards). */
+  /** When true, single click opens inspect instead of onClick (trash viewer only). */
   inspectOnClick?: boolean;
+  /** Long-press / double-click inspect when true (field cards without onClick). */
+  inspectGestures?: boolean;
   /** HTML5 drag stays off; pointer drag when set. */
   dragEnabled?: boolean;
   dragPayload?: unknown;
@@ -84,6 +86,7 @@ export function CardTile({
   statusLabels,
   onClick,
   inspectOnClick = false,
+  inspectGestures = false,
   dragEnabled = false,
   dragPayload,
   onDragStart,
@@ -245,8 +248,10 @@ export function CardTile({
     setImgFailed(true);
   }
 
-  const interactive = Boolean(onClick || inspectOnClick || dragEnabled);
-  const showInspectChip = !inspectOnClick;
+  const canInspect =
+    inspectOnClick || inspectGestures || Boolean(onClick) || dragEnabled;
+  const interactive = Boolean(onClick || inspectOnClick || dragEnabled || inspectGestures);
+  const showInspectChip = canInspect && !inspectOnClick;
 
   const body = (
     <>
