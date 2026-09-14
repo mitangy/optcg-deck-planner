@@ -110,13 +110,30 @@ describe("hotseatControlSeat", () => {
     expect(hotseatControlSeat(view)).toBe(1);
   });
 
-  it("hands off to the block/counter defender", () => {
+  it("keeps attacker during block with empty pending (await attack triggers)", () => {
     const view = baseView(0, {
       activeSeat: 0,
       phase: "block",
       battle: { attackerSeat: 0 },
+      pendingChoices: [],
     });
-    expect(hotseatControlSeat(view)).toBe(1);
+    expect(hotseatControlSeat(view)).toBe(0);
+  });
+
+  it("keeps attacker seat 0 on block + empty pending + attackerSeat 0", () => {
+    const stale = baseView(1, {
+      activeSeat: 0,
+      phase: "block",
+      battle: { attackerSeat: 0 },
+      pendingChoices: [],
+    });
+    const alsoEmpty = baseView(0, {
+      activeSeat: 0,
+      phase: "block",
+      battle: { attackerSeat: 0 },
+      pendingChoices: [],
+    });
+    expect(hotseatControlSeat(stale, alsoEmpty, stale)).toBe(0);
   });
 
   it("prefers unfinished mulligan over turn player", () => {

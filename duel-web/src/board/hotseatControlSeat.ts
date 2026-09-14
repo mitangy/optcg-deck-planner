@@ -18,8 +18,14 @@ function frontPendingChoice(
  * Which seat should hold the device in hotseat so the player who can act
  * sees AbilityPrompt / IntentBar (e.g. Rocks When Attacking, Newgate on attack).
  *
- * Priority: pending choice → block/counter defender → unfinished mulligan →
- * turn player. Returns null when no automatic handoff is needed.
+ * Priority: pending choice → attack-window hold on attacker (block/counter with
+ * empty pending) → unfinished mulligan → turn player. Returns null when no
+ * automatic handoff is needed.
+ *
+ * During block/counter, do NOT hand to the defender while pending is briefly
+ * empty after declare_attack — Rocks/Teach triggers arrive a tick later.
+ * Keep control on the attacker until a pending choice appears (or the attacker
+ * manually Passes once the attack window is known empty).
  *
  * Pass both seat views when available — pending queues are global, and either
  * socket can briefly lag behind during Colyseus event/view delivery.
@@ -43,8 +49,10 @@ export function hotseatControlSeat(
   if (phase === "block" || phase === "counter") {
     const battle = (v0?.battle ?? v1?.battle ?? primary.battle) as BattleWire | null | undefined;
     const attacker = battle?.attackerSeat;
+    // Keep attacker until pending When Attacking / On Opponent's Attack arrives.
+    // Handing to the defender on an empty queue skips Rocks in vs-self hotseat.
     if (attacker === 0 || attacker === 1) {
-      return attacker === 0 ? 1 : 0;
+      return attacker;
     }
   }
 

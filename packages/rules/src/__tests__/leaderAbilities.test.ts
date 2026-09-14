@@ -327,4 +327,45 @@ describe("Rocks when-attacking reveal draw", () => {
     expect(blocked.ok).toBe(false);
     expect(blocked.error?.code).toBe("pending_choice");
   });
+
+  it("Rocks vs Teach enqueues simultaneous pending in APNAP order [rocks, teach]", () => {
+    let { state, rng } = matchWithLeaders("OP17-039", "OP16-080");
+    state = untilCanAttack(state, 0, rng);
+
+    state.players[0].hand = [
+      { id: "h1", defId: "ST01-003", rested: false, attachedDonIds: [] },
+    ];
+    state.players[0].deck = ["ST01-004", ...state.players[0].deck];
+
+    const triggerCard = listCardDefs().find(
+      (c) => c.hasTrigger || c.effectText?.includes("[Trigger]"),
+    );
+    expect(triggerCard).toBeTruthy();
+    state.players[1].hand = [
+      {
+        id: "trig1",
+        defId: triggerCard!.id,
+        rested: false,
+        attachedDonIds: [],
+      },
+    ];
+
+    state = act(
+      state,
+      0,
+      {
+        type: "declare_attack",
+        attackerId: state.players[0].leader.id,
+        target: { kind: "leader" },
+      },
+      rng,
+    );
+
+    expect(state.pendingChoices.map((c) => c.abilityId)).toEqual([
+      "rocks_reveal_draw",
+      "teach_redirect",
+    ]);
+    expect(state.pendingChoices[0]?.seat).toBe(0);
+    expect(state.pendingChoices[1]?.seat).toBe(1);
+  });
 });
