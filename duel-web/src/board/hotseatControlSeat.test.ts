@@ -111,11 +111,13 @@ describe("hotseatControlSeat", () => {
   });
 
   it("keeps attacker during block with empty pending (await attack triggers)", () => {
+    // No pass_block yet — engine still resolving When Attacking window.
     const view = baseView(0, {
       activeSeat: 0,
       phase: "block",
       battle: { attackerSeat: 0 },
       pendingChoices: [],
+      legalIntents: [],
     });
     expect(hotseatControlSeat(view)).toBe(0);
   });
@@ -126,14 +128,34 @@ describe("hotseatControlSeat", () => {
       phase: "block",
       battle: { attackerSeat: 0 },
       pendingChoices: [],
+      legalIntents: [],
     });
     const alsoEmpty = baseView(0, {
       activeSeat: 0,
       phase: "block",
       battle: { attackerSeat: 0 },
       pendingChoices: [],
+      legalIntents: [],
     });
     expect(hotseatControlSeat(stale, alsoEmpty, stale)).toBe(0);
+  });
+
+  it("hands to defender once block intents are legal (triggers drained)", () => {
+    const attackerView = baseView(0, {
+      activeSeat: 0,
+      phase: "block",
+      battle: { attackerSeat: 0 },
+      pendingChoices: [],
+      legalIntents: [],
+    });
+    const defenderView = baseView(1, {
+      activeSeat: 0,
+      phase: "block",
+      battle: { attackerSeat: 0 },
+      pendingChoices: [],
+      legalIntents: [{ type: "pass_block" }],
+    });
+    expect(hotseatControlSeat(attackerView, attackerView, defenderView)).toBe(1);
   });
 
   it("prefers unfinished mulligan over turn player", () => {
