@@ -314,6 +314,15 @@ button {
   white-space: pre-wrap;
 }
 
+.card-inspect-effect .card-inspect-ability-note {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--muted);
+  font-style: italic;
+  white-space: normal;
+}
+
 .card-inspect-alt-row {
   display: flex;
   flex-wrap: wrap;

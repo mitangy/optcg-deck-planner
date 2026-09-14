@@ -246,3 +246,54 @@ export function summarizeEffectCoverage(): {
     stub: count("stub"),
   };
 }
+
+/**
+ * Aggregate EFFECT_CATALOG statuses into a client-facing abilitySupport label.
+ * Never invents resolution — stubs/partials stay non-ok.
+ */
+export type AbilitySupport =
+  | "none"
+  | "keywords"
+  | "ok"
+  | "partial"
+  | "unsupported";
+
+export function abilitySupportFromEntries(
+  entries: readonly CardEffectEntry[],
+): AbilitySupport {
+  if (entries.length === 0) return "none";
+  if (
+    entries.length === 1 &&
+    entries[0]!.status === "implemented" &&
+    /no printed effect/i.test(entries[0]!.summary)
+  ) {
+    return "none";
+  }
+  const statuses = entries.map((e) => e.status);
+  if (statuses.every((s) => s === "keyword")) return "keywords";
+  if (statuses.some((s) => s === "stub")) return "unsupported";
+  if (statuses.some((s) => s === "partial")) return "partial";
+  if (statuses.every((s) => s === "implemented" || s === "keyword")) {
+    return statuses.every((s) => s === "keyword") ? "keywords" : "ok";
+  }
+  return "unsupported";
+}
+
+export function abilitySupportForDef(def: CardDef): AbilitySupport {
+  return abilitySupportFromEntries(effectsForDef(def));
+}
+
+/** Attach abilitySupport to each atlas entry from curated effect catalog rows. */
+export function enrichAtlasAbilitySupport<
+  T extends { abilitySupport?: AbilitySupport },
+>(atlas: Record<string, T>): Record<string, T> {
+  for (const id of Object.keys(atlas)) {
+    const def = listCardDefs().find((d) => d.id === id);
+    if (!def) continue;
+    atlas[id] = {
+      ...atlas[id],
+      abilitySupport: abilitySupportForDef(def),
+    };
+  }
+  return atlas;
+}

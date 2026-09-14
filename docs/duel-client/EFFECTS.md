@@ -17,6 +17,14 @@ Inspect UI continues to show `CardDef.effectText`. **Display text alone is not
 rules authority** — a row must be `implemented` (or `keyword`) before the engine
 is allowed to change game state for that clause.
 
+Auto-stubbed ids (`ensureCardDef`) may carry printed `effectText` copied from
+cosmetics meta (`catalogMeta.json` ← `cardCatalog.json` / TCGCSV). That text is
+for inspect/reference only; stubs still get **no** invented engine hooks.
+`export-atlas` writes an `abilitySupport` field (`none` / `keywords` / `ok` /
+`partial` / `unsupported`) from EFFECT_CATALOG statuses. duel-web CardInspect
+shows a short note when support is `unsupported` or `partial` — never treat the
+note (or the printed text) as proof the clause resolves.
+
 ## Timing glossary
 
 | Timing tag | Typical window | Engine status today |

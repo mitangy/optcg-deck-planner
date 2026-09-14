@@ -12,6 +12,10 @@ import {
 } from "../decks/storage";
 import { lookupCard } from "../cards/atlas";
 import {
+  abilitySupportNote,
+  resolveAbilitySupport,
+} from "../cards/abilitySupport";
+import {
   useEffect,
   useMemo,
   useRef,
@@ -186,6 +190,11 @@ export function CardInspect({
                   return t;
                 })()}
               </p>
+              {(() => {
+                const note = abilitySupportNote(resolveAbilitySupport(entry));
+                if (!note) return null;
+                return <p className="card-inspect-ability-note">{note}</p>;
+              })()}
             </div>
             {alts.length > 0 && canEditArt ? (
               <div className="card-inspect-alts">

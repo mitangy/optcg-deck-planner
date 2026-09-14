@@ -251,6 +251,10 @@ def main() -> None:
             meta["blocker"] = True
         if row.get("rush"):
             meta["rush"] = True
+        # Printed ability text for auto-stubs / inspect (not rules authority).
+        effect_text = row.get("effectText")
+        if isinstance(effect_text, str) and effect_text.strip() and effect_text.strip() not in ("—", "-"):
+            meta["effectText"] = effect_text.strip()
         if row.get("type") == "event":
             text = row.get("effectText") or ""
             meta["eventTiming"] = "counter" if text.lstrip().lower().startswith("[counter]") else "main"

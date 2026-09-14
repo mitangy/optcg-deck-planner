@@ -669,6 +669,12 @@ export function ensureCardDef(
 
   const traits = TRAITS_BY_ID[key];
   const meta = catalogMetaFor(key);
+  const printed =
+    meta?.effectText?.trim() &&
+    meta.effectText.trim() !== "—" &&
+    meta.effectText.trim() !== "-"
+      ? meta.effectText.trim()
+      : "—";
   const stub: CardDef = opts.asLeader
     ? {
         id: key,
@@ -679,7 +685,7 @@ export function ensureCardDef(
         power: meta?.power ?? 5000,
         life: meta?.life ?? 5,
         imageUrl: localArt(key),
-        effectText: "—",
+        effectText: printed,
         ...(traits ? { traits: [...traits] } : {}),
       }
     : (() => {
@@ -691,7 +697,7 @@ export function ensureCardDef(
           colors: meta?.colors?.length ? [...meta.colors] : ["red"],
           cost: meta?.cost ?? 2,
           imageUrl: localArt(key),
-          effectText: "—",
+          effectText: printed,
           ...(traits ? { traits: [...traits] } : {}),
         };
         if (type === "character") {
@@ -770,6 +776,11 @@ export type CardAtlasEntry = {
   traits?: string[];
   hasTrigger?: boolean;
   attribute?: string;
+  /**
+   * Duel resolution support for printed abilities (export-time).
+   * Display text alone is never rules authority.
+   */
+  abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unsupported";
 };
 
 /**

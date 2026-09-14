@@ -31,15 +31,21 @@ export type CardAtlasEntry = {
   altArts?: CardAltArt[];
   traits?: string[];
   hasTrigger?: boolean;
+  /**
+   * From curated atlas export (EFFECT_CATALOG aggregate). Cosmetics-only
+   * entries omit this; CardInspect falls back to abilitySupport heuristics.
+   */
+  abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unsupported";
 };
 
 /**
  * Raw cosmetics JSON omits empty arrays/nulls (e.g. no `colors`), so it is not
  * a full CardAtlasEntry until `fromCatalog` normalizes defaults.
  */
-type CosmeticsCatalogRow = Omit<Partial<CardAtlasEntry>, "altArts"> & {
+type CosmeticsCatalogRow = Omit<Partial<CardAtlasEntry>, "altArts" | "abilitySupport"> & {
   id?: string;
   altArts?: Array<Partial<CardAltArt> & Pick<CardAltArt, "id" | "imageUrl">>;
+  abilitySupport?: CardAtlasEntry["abilitySupport"];
 };
 
 /** Curated playable prints (rules package export). */
