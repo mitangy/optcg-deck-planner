@@ -697,6 +697,9 @@ export function applyIntent(
   }
 
   if (intent.type === "pass_block" || intent.type === "declare_block") {
+    if (next.pendingChoices.length > 0) {
+      return fail(state, "pending_choice", "Resolve pending abilities first");
+    }
     if (next.phase !== "block") return fail(state, "bad_phase", "Not block step");
     if (!next.battle || seat === next.battle.attackerSeat) {
       return fail(state, "not_defender", "Only defender blocks");
@@ -720,6 +723,9 @@ export function applyIntent(
     intent.type === "counter_from_hand" ||
     intent.type === "counter_event"
   ) {
+    if (next.pendingChoices.length > 0) {
+      return fail(state, "pending_choice", "Resolve pending abilities first");
+    }
     if (next.phase !== "counter") return fail(state, "bad_phase", "Not counter");
     if (!next.battle || seat === next.battle.attackerSeat) {
       return fail(state, "not_defender", "Only defender counters");

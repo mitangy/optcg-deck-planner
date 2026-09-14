@@ -33,12 +33,23 @@ type Props = {
   timer?: TimerMessage | null;
   spectator?: boolean;
   battleLog?: BattleLogEntry[];
+  /** Hotseat: compact pass-device control in the HUD (replaces the old top banner). */
+  hotseatPass?: { otherSeat: Seat; onPass: () => void };
+  leaveLabel?: string;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
   onClearError: () => void;
 };
 
 const EMPTY_IDS = new Set<string>();
+
+function needsStructuredAbilityPrompt(choice: NonNullable<PlayerView["pendingChoices"]>[number]) {
+  return (
+    Boolean(choice.abilityId) ||
+    choice.kind === "when_attacking" ||
+    choice.kind === "leader_on_opp_attack"
+  );
+}
 
 function formatCountdown(endsAt: number | null | undefined, now: number): string | null {
   if (endsAt == null) return null;
@@ -89,6 +100,8 @@ export function DuelBoard({
   timer = null,
   spectator = false,
   battleLog = [],
+  hotseatPass,
+  leaveLabel = "Leave",
   onSendIntent,
   onLeave,
   onClearError,
@@ -265,7 +278,7 @@ export function DuelBoard({
               Room {matchId ?? "—"}
             </span>
             <button type="button" className="leave-btn" onClick={onLeave}>
-              Leave
+              {leaveLabel}
             </button>
           </div>
         </header>
@@ -322,8 +335,18 @@ export function DuelBoard({
           <span className="match-id" title={matchId ?? undefined}>
             Room {matchId ?? "—"}
           </span>
+          {hotseatPass ? (
+            <button
+              type="button"
+              className="hud-pass-btn"
+              title={`Pass device to seat ${hotseatPass.otherSeat}`}
+              onClick={hotseatPass.onPass}
+            >
+              Pass → {hotseatPass.otherSeat}
+            </button>
+          ) : null}
           <button type="button" className="leave-btn" onClick={onLeave}>
-            Leave
+            {leaveLabel}
           </button>
         </div>
       </header>
@@ -490,32 +513,34 @@ export function DuelBoard({
           ) : null}
         </div>
         <div className="hand-row" ref={handRowRef}>
-          {spectating
-            ? Array.from({ length: Math.min(you.handCount ?? 0, 8) }).map((_, i) => (
-                <span key={i} className="card-back hand-back" />
-              ))
-            : you.hand.map((c, idx) => {
-                const playable = dndEnabled && canDragHandCard(intents, idx);
-                return (
-                  <CardTile
-                    key={c.id}
-                    defId={c.defId}
-                    selected={handFilter === idx}
-                    onClick={() => selectHandCard(idx)}
-                    dragEnabled={playable}
-                    dragPayload={{ type: "play_card", handIndex: idx }}
-                    onDragStart={() =>
-                      setDragPayload({ type: "play_card", handIndex: idx })
-                    }
-                    onDragEnd={(x, y) =>
-                      commitDrop({ type: "play_card", handIndex: idx }, x, y)
-                    }
-                    onDragCancel={() => setDragPayload(null)}
-                    ownerSeat={boardSeat}
-                    viewingSeat={viewingSeat}
-                  />
-                );
-              })}
+          <div className="hand-row-inner">
+            {spectating
+              ? Array.from({ length: Math.min(you.handCount ?? 0, 8) }).map((_, i) => (
+                  <span key={i} className="card-back hand-back" />
+                ))
+              : you.hand.map((c, idx) => {
+                  const playable = dndEnabled && canDragHandCard(intents, idx);
+                  return (
+                    <CardTile
+                      key={c.id}
+                      defId={c.defId}
+                      selected={handFilter === idx}
+                      onClick={() => selectHandCard(idx)}
+                      dragEnabled={playable}
+                      dragPayload={{ type: "play_card", handIndex: idx }}
+                      onDragStart={() =>
+                        setDragPayload({ type: "play_card", handIndex: idx })
+                      }
+                      onDragEnd={(x, y) =>
+                        commitDrop({ type: "play_card", handIndex: idx }, x, y)
+                      }
+                      onDragCancel={() => setDragPayload(null)}
+                      ownerSeat={boardSeat}
+                      viewingSeat={viewingSeat}
+                    />
+                  );
+                })}
+          </div>
         </div>
       </div>
 
@@ -532,7 +557,8 @@ export function DuelBoard({
           }}
         />
       ) : !spectating &&
-        view.pendingChoices?.[0]?.abilityId &&
+        view.pendingChoices?.[0] &&
+        needsStructuredAbilityPrompt(view.pendingChoices[0]) &&
         view.pendingChoices[0].seat === mySeat ? (
         <AbilityPrompt
           view={view}
@@ -558,7 +584,7 @@ export function DuelBoard({
           intents={
             view.pendingChoices?.[0]?.seat === mySeat &&
             (view.pendingChoices[0].kind === "order_effects" ||
-              Boolean(view.pendingChoices[0].abilityId))
+              needsStructuredAbilityPrompt(view.pendingChoices[0]))
               ? view.legalIntents.filter(
                   (i) =>
                     i.type !== "resolve_pending_choice" &&

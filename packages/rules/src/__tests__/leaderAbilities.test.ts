@@ -305,4 +305,26 @@ describe("Rocks when-attacking reveal draw", () => {
       false,
     );
   });
+
+  it("blocks pass_block until When Attacking is resolved", () => {
+    let { state, rng } = matchWithLeaders("OP17-039", "ST01-001");
+    state = untilCanAttack(state, 0, rng);
+    state.players[0].hand = [
+      { id: "h1", defId: "ST01-003", rested: false, attachedDonIds: [] },
+    ];
+    state = act(
+      state,
+      0,
+      {
+        type: "declare_attack",
+        attackerId: state.players[0].leader.id,
+        target: { kind: "leader" },
+      },
+      rng,
+    );
+    expect(state.pendingChoices[0]?.abilityId).toBe("rocks_reveal_draw");
+    const blocked = applyIntent(state, { type: "pass_block" }, { seat: 1, rng });
+    expect(blocked.ok).toBe(false);
+    expect(blocked.error?.code).toBe("pending_choice");
+  });
 });

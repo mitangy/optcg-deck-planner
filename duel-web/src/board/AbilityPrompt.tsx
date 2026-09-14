@@ -19,7 +19,15 @@ export function AbilityPrompt({ view, choice, onSend }: Props) {
   const [retargetLeader, setRetargetLeader] = useState(true);
   const [retargetCharId, setRetargetCharId] = useState<string | null>(null);
 
-  const abilityId = choice.abilityId;
+  const abilityId =
+    choice.abilityId ??
+    (choice.kind === "when_attacking" && choice.cardDefId === "OP17-039"
+      ? "rocks_reveal_draw"
+      : choice.kind === "leader_on_opp_attack" && choice.cardDefId === "OP17-001"
+        ? "newgate_battle_power"
+        : choice.kind === "leader_on_opp_attack" && choice.cardDefId === "OP16-080"
+          ? "teach_redirect"
+          : undefined);
 
   const handOptions = useMemo(() => {
     return view.you.hand
