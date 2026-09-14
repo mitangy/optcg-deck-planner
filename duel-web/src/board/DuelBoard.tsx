@@ -604,6 +604,7 @@ export function DuelBoard({
         needsStructuredAbilityPrompt(view.pendingChoices[0]) &&
         view.pendingChoices[0].seat === mySeat ? (
         <AbilityPrompt
+          key={view.pendingChoices[0].id}
           view={view}
           choice={view.pendingChoices[0]}
           onSend={(intent) => {
@@ -624,18 +625,24 @@ export function DuelBoard({
 
       {!spectating ? (
         <IntentBar
-          intents={
-            view.pendingChoices?.[0]?.seat === mySeat &&
-            (view.pendingChoices[0].kind === "order_effects" ||
-              needsStructuredAbilityPrompt(view.pendingChoices[0]) ||
-              needsOnPlayPrompt(view.pendingChoices[0]))
-              ? view.legalIntents.filter(
-                  (i) =>
-                    i.type !== "resolve_pending_choice" &&
-                    i.type !== "order_pending_effects",
-                )
-              : view.legalIntents
-          }
+          intents={(() => {
+            const front = view.pendingChoices?.[0];
+            // AbilityPrompt / OnPlay / EffectOrder own Accept/Decline — never
+            // surface bare resolve_pending_choice for structured attack-window
+            // abilities (when_attacking / leader_on_opp_attack), even if the
+            // hotseat seat briefly mismatches the choice owner.
+            const structuredOwns =
+              front &&
+              (front.kind === "order_effects" ||
+                needsStructuredAbilityPrompt(front) ||
+                needsOnPlayPrompt(front));
+            if (!structuredOwns) return view.legalIntents;
+            return view.legalIntents.filter(
+              (i) =>
+                i.type !== "resolve_pending_choice" &&
+                i.type !== "order_pending_effects",
+            );
+          })()}
           view={view}
           disabled={over}
           filterHandIndex={handFilter}
