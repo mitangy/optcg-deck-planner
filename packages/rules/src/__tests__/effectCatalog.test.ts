@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { buildTestDeck, listCardDefs } from "../cards/definitions.js";
+import {
+  buildTestDeck,
+  getCardDef,
+  listCardDefs,
+} from "../cards/definitions.js";
 import {
   EFFECT_CATALOG,
+  abilitySupportForDef,
   effectsForCard,
+  effectsForDef,
   summarizeEffectCoverage,
 } from "../cards/effectCatalog.js";
 import { LEADER_ABILITY_CATALOG } from "../cards/leaderAbilities.js";
@@ -75,6 +81,17 @@ describe("effect catalog", () => {
     expect(cov.total).toBe(EFFECT_CATALOG.length);
     expect(cov.implemented + cov.partial + cov.keyword + cov.stub).toBe(cov.total);
     expect(cov.stub).toBeGreaterThan(0);
+  });
+
+  it("abilitySupport: vanilla / keywords / ok / unsupported", () => {
+    expect(abilitySupportForDef(getCardDef("ST01-003"))).toBe("none");
+    expect(abilitySupportForDef(getCardDef("ST01-006"))).toBe("keywords");
+    expect(abilitySupportForDef(getCardDef("ST01-001"))).toBe("ok");
+    // Curated stub text without matching hooks stays unsupported.
+    const roger = getCardDef("OP09-118");
+    const statuses = effectsForDef(roger).map((e) => e.status);
+    expect(statuses.some((s) => s === "stub")).toBe(true);
+    expect(abilitySupportForDef(roger)).toBe("unsupported");
   });
 });
 

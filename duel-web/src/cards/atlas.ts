@@ -27,6 +27,11 @@ export type CardAtlasEntry = {
   altArts?: CardAltArt[];
   traits?: string[];
   hasTrigger?: boolean;
+  /**
+   * From curated atlas export (EFFECT_CATALOG aggregate). Cosmetics-only
+   * entries omit this; CardInspect falls back to abilitySupport heuristics.
+   */
+  abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unsupported";
 };
 
 /** Curated playable prints (rules package export). */

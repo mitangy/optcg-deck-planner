@@ -7,9 +7,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { buildCardAtlas } from "../cards/definitions.js";
+import { enrichAtlasAbilitySupport } from "../cards/effectCatalog.js";
 import { TCG_PRODUCTS } from "../cards/tcgProducts.js";
 
-const atlas = buildCardAtlas();
+const atlas = enrichAtlasAbilitySupport(buildCardAtlas());
 const json = `${JSON.stringify(atlas, null, 2)}\n`;
 const productsJson = `${JSON.stringify(TCG_PRODUCTS, null, 2)}\n`;
 

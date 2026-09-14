@@ -70,9 +70,13 @@ export {
   effectsForCard,
   effectsForDef,
   summarizeEffectCoverage,
+  abilitySupportForDef,
+  abilitySupportFromEntries,
+  enrichAtlasAbilitySupport,
   type CardEffectEntry,
   type EffectStatus,
   type EffectTiming,
+  type AbilitySupport,
 } from "./cards/effectCatalog.js";
 export {
   applyEffectOrder,

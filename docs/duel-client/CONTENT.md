@@ -33,6 +33,12 @@ Printed timings for every curated def are listed in `EFFECT_CATALOG`
 `keyword` status. Simultaneous effects use APNAP + controller order
 (`order_effects` pending choice) — see `docs/duel-client/EFFECTS.md`.
 
+Unknown OPTCG numbers still get vanilla auto-stubs via `ensureCardDef`, which
+may copy **printed** `effectText` from `catalogMeta.json` (synced from the
+cosmetics catalog). That does **not** mark the ability implemented — CardInspect
+shows “Not implemented in duel yet” when atlas `abilitySupport` / heuristics say
+so. Never invent resolution from text.
+
 ## Legal / IP
 
 Private prototype only. Public builds must gate real names/art via client flags (`VITE_SHOW_OFFICIAL_IDENTITY` / `EXPO_PUBLIC_SHOW_OFFICIAL_IDENTITY`) until rights review (ADR-008).
