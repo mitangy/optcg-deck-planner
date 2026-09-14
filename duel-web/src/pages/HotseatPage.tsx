@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getApiBaseUrl, rewriteLoopbackToPageHost } from "../config";
 import { DuelBoard } from "../board/DuelBoard";
+import { hotseatControlSeat } from "../board/hotseatControlSeat";
 import {
   narrateEvents,
   type BattleLogEntry,
@@ -143,7 +144,7 @@ export function HotseatPage() {
   /** Extra boot phase label (waking servers / minting) for the Starting screen. */
   const [bootPhase, setBootPhase] = useState<string | null>(null);
   const bags = useRef<[SeatBag | null, SeatBag | null]>([null, null]);
-  const [, bump] = useState(0);
+  const [viewTick, bump] = useState(0);
   const bootGen = useRef(0);
   /** When true, skip resume persist + socket park so Leave / Back can exit. */
   const leavingRef = useRef(false);
@@ -631,6 +632,20 @@ export function HotseatPage() {
     persistResume();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSeat, ready]);
+
+  // Auto-pass the device when the other seat must resolve a leader ability
+  // (Newgate / Teach), block/counter, or take their turn — otherwise AbilityPrompt
+  // never appears because it is gated on seat === controlling seat.
+  useEffect(() => {
+    if (!ready) return;
+    const v0 = bags.current[0]?.view ?? null;
+    const v1 = bags.current[1]?.view ?? null;
+    const view = bags.current[activeSeatRef.current]?.view ?? v0 ?? v1;
+    const needed = hotseatControlSeat(view, v0, v1);
+    if (needed != null && needed !== activeSeatRef.current) {
+      setActiveSeat(needed);
+    }
+  }, [ready, viewTick, activeSeat]);
 
   useEffect(() => {
     return () => {

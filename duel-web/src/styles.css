@@ -2351,6 +2351,16 @@ img.zone-pile-face {
   margin-top: 0.55rem;
 }
 
+.ability-prompt-waiting {
+  border-style: dashed;
+  opacity: 0.95;
+}
+.ability-prompt-waiting .meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
 
 /* —— Simultaneous effect order prompt —— */
 .effect-order-list {

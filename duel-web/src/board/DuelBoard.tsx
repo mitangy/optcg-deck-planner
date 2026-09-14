@@ -543,13 +543,22 @@ export function DuelBoard({
             onSendIntent(intent);
           }}
         />
+      ) : !spectating &&
+        view.pendingChoices?.[0] &&
+        view.pendingChoices[0].seat !== mySeat ? (
+        <div className="ability-prompt ability-prompt-waiting" role="status">
+          <h3>Waiting for opponent</h3>
+          <p>{view.pendingChoices[0].prompt}</p>
+          <p className="meta">They are resolving a leader ability or effect choice.</p>
+        </div>
       ) : null}
 
       {!spectating ? (
         <IntentBar
           intents={
-            view.pendingChoices?.[0]?.kind === "order_effects" ||
-            view.pendingChoices?.[0]?.abilityId
+            view.pendingChoices?.[0]?.seat === mySeat &&
+            (view.pendingChoices[0].kind === "order_effects" ||
+              Boolean(view.pendingChoices[0].abilityId))
               ? view.legalIntents.filter(
                   (i) =>
                     i.type !== "resolve_pending_choice" &&

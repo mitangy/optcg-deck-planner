@@ -9,6 +9,9 @@ const GLOBAL_INTENT_TYPES = new Set<string>([
   "resolve_trigger",
   "resolve_pending_choice",
   "mulligan",
+  // Activate: Main (e.g. ST01 Luffy) — must be reachable without a prior board
+  // tap, otherwise players never see the leader ability when it is legal.
+  "activate_leader",
 ]);
 
 export type IntentSelection = {
@@ -45,7 +48,8 @@ export function matchesBoardId(intent: Intent, boardId: string): boolean {
 
 /**
  * Contextual actions for the current selection:
- * - Nothing selected: only phase-global actions (end_turn, pass_*, resolve_trigger, mulligan).
+ * - Nothing selected: phase-global actions (end_turn, pass_*, resolve_*, mulligan,
+ *   activate_leader) so Activate:Main is always visible when legal.
  * - Hand card selected: play_card / counter_from_hand / counter_event for that index + globals.
  * - Board card selected: intents where that id is the attacker, activator/target, give_don
  *   target, or blocker + globals.
