@@ -1,40 +1,56 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { DeckEditor } from "../board/DeckEditor";
+import { DeckImportPanel } from "../board/DeckImportPanel";
 import { MAX_MAIN_DECK_SIZE } from "../decks/editDeck";
 import {
-  ensureDefaultDeck,
   getSavedDeck,
-  listSavedDecks,
+  importIntoSavedDeck,
   setSelectedDeckId,
 } from "../decks/storage";
 
 export function DeckConfigurePage() {
   const { deckId } = useParams<{ deckId: string }>();
   const [tick, setTick] = useState(0);
+  const [importText, setImportText] = useState("");
+  const [importErr, setImportErr] = useState<string | null>(null);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
 
-  const resolvedId = useMemo(() => {
+  const deck = useMemo(() => {
     void tick;
-    ensureDefaultDeck();
-    if (deckId) {
-      const hit = getSavedDeck(deckId);
-      if (hit) return hit.id;
-    }
-    return listSavedDecks()[0]?.id ?? null;
+    return deckId ? getSavedDeck(deckId) : undefined;
   }, [deckId, tick]);
-
-  const deck = resolvedId ? getSavedDeck(resolvedId) : undefined;
 
   useEffect(() => {
     if (deck) setSelectedDeckId(deck.id);
   }, [deck]);
 
-  if (!resolvedId || !deck) {
+  if (!deckId || !deck) {
     return <Navigate to="/decks" replace />;
   }
 
-  if (deckId !== resolvedId) {
-    return <Navigate to={`/decks/${resolvedId}/configure`} replace />;
+  function refresh() {
+    setTick((n) => n + 1);
+  }
+
+  function onImportIntoDeck() {
+    setImportErr(null);
+    setImportMsg(null);
+    setImportBusy(true);
+    const result = importIntoSavedDeck(deckId!, importText);
+    setImportBusy(false);
+    if (!result.ok) {
+      setImportErr(result.errors.join(" · ") || "Import failed");
+      return;
+    }
+    setImportText("");
+    refresh();
+    setImportMsg(
+      `Imported (${result.deck.cards.length} main)${
+        result.warnings.length ? ` — ${result.warnings.join(" ")}` : ""
+      }`,
+    );
   }
 
   return (
@@ -52,11 +68,16 @@ export function DeckConfigurePage() {
           </div>
         </header>
 
-        <DeckEditor
-          deckId={deck.id}
-          refreshKey={tick}
-          onDeckChanged={() => setTick((n) => n + 1)}
+        <DeckImportPanel
+          importText={importText}
+          onImportTextChange={setImportText}
+          onImport={onImportIntoDeck}
+          busy={importBusy}
+          error={importErr}
+          message={importMsg}
         />
+
+        <DeckEditor deckId={deck.id} refreshKey={tick} onDeckChanged={refresh} />
       </div>
     </div>
   );

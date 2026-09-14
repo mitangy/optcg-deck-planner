@@ -236,12 +236,18 @@ export function importIntoSavedDeck(deckId: string, text: string): ImportIntoDec
   if (!existing) {
     return { ok: false, errors: ["Deck not found"], warnings: [] };
   }
+  const inDeckIds = new Set([v.leaderId, ...v.cards]);
+  const artPrefs = existing.artPrefs
+    ? Object.fromEntries(
+        Object.entries(existing.artPrefs).filter(([defId]) => inDeckIds.has(defId)),
+      )
+    : undefined;
   const deck = saveDeck({
     id: deckId,
     name: existing.name,
     leaderId: v.leaderId,
     cards: v.cards,
-    artPrefs: existing.artPrefs,
+    artPrefs: artPrefs && Object.keys(artPrefs).length > 0 ? artPrefs : undefined,
   });
   return { ok: true, deck, warnings: v.warnings };
 }

@@ -10,6 +10,8 @@ type Props = {
   heading?: string;
   hint?: string;
   buttonLabel?: string;
+  /** When false, only show paste UI (e.g. new-deck create form uses Submit). */
+  showImportButton?: boolean;
 };
 
 export function DeckImportPanel({
@@ -22,6 +24,7 @@ export function DeckImportPanel({
   heading = "Import deck list",
   hint = "OPTCGSim / planner format — one card per line like 4xST01-003. Replaces leader and main deck.",
   buttonLabel = "Import into deck",
+  showImportButton = true,
 }: Props) {
   const [clipErr, setClipErr] = useState<string | null>(null);
 
@@ -64,14 +67,16 @@ export function DeckImportPanel({
         </p>
       ) : null}
       {message ? <p className="meta">{message}</p> : null}
-      <button
-        type="button"
-        className="btn btn-secondary"
-        disabled={busy || !importText.trim()}
-        onClick={onImport}
-      >
-        {busy ? "Importing…" : buttonLabel}
-      </button>
+      {showImportButton ? (
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy || !importText.trim()}
+          onClick={onImport}
+        >
+          {busy ? "Importing…" : buttonLabel}
+        </button>
+      ) : null}
     </section>
   );
 }

@@ -32,9 +32,6 @@ function DeckRow({
           </div>
         </div>
       </button>
-      <Link to={`/decks/${deck.id}/configure`} className="btn btn-secondary deck-list-edit">
-        Edit
-      </Link>
       {canDelete ? (
         <button type="button" className="btn btn-danger deck-list-delete" onClick={onDelete}>
           Delete
@@ -98,6 +95,13 @@ export function DeckListPage() {
                   navigate(`/decks/${deck.id}/configure`);
                 }}
                 onDelete={() => {
+                  if (
+                    !window.confirm(
+                      `Delete “${deck.name}”? This cannot be undone.`,
+                    )
+                  ) {
+                    return;
+                  }
                   deleteDeck(deck.id);
                   refresh();
                 }}

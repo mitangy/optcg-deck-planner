@@ -6,6 +6,7 @@ import {
   deleteDeck,
   getSavedDeck,
   importIntoSavedDeck,
+  saveDeck,
 } from "./storage";
 
 const memory = new Map<string, string>();
@@ -73,5 +74,35 @@ describe("importIntoSavedDeck", () => {
     if (!result.ok) return;
     expect(getSavedDeck(blank.id)?.cards.length).toBe(8);
     deleteDeck(blank.id);
+  });
+
+  it("rejects invalid decklist text", () => {
+    const blank = createBlankDeck("Bad import");
+    const result = importIntoSavedDeck(blank.id, "not a deck");
+    expect(result.ok).toBe(false);
+    deleteDeck(blank.id);
+  });
+
+  it("returns error when deck id is missing", () => {
+    const result = importIntoSavedDeck("missing-id", SAMPLE);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toContain("Deck not found");
+  });
+
+  it("drops art prefs for cards removed by import", () => {
+    const deck = createBlankDeck("Art prefs");
+    saveDeck({
+      id: deck.id,
+      name: deck.name,
+      leaderId: deck.leaderId,
+      cards: ["ST01-009"],
+      artPrefs: { "ST01-006": "p1", "ST01-009": "p2" },
+    });
+    const result = importIntoSavedDeck(deck.id, SAMPLE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(getSavedDeck(deck.id)?.artPrefs).toEqual({ "ST01-006": "p1" });
+    deleteDeck(deck.id);
   });
 });
