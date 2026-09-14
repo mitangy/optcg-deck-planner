@@ -23,6 +23,7 @@ import {
 } from "./intentFilter";
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
+import { sortHandIndices } from "./handSort";
 
 type Props = {
   view: PlayerView | null;
@@ -111,6 +112,7 @@ export function DuelBoard({
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
   const [logCollapsed, setLogCollapsed] = useState(true);
   const [handCollapsed, setHandCollapsed] = useState(false);
+  const [handSorted, setHandSorted] = useState(false);
   const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => Date.now());
   const handRowRef = useRef<HTMLDivElement | null>(null);
@@ -216,6 +218,11 @@ export function DuelBoard({
     }
     return ids;
   }, [view, intents]);
+
+  const handDisplayIndices = useMemo(() => {
+    if (!view || spectating || !handSorted) return null;
+    return sortHandIndices(view.you.hand, (defId) => lookupCard(defId).cost);
+  }, [view, spectating, handSorted]);
 
   const attackTargetIds = useMemo(() => {
     if (!dndEnabled || !selectedBoardId || !view) return EMPTY_IDS;
@@ -497,19 +504,29 @@ export function DuelBoard({
             {spectating ? (you.handCount ?? 0) : you.hand.length}
           </span>
           {!spectating ? (
-            <button
-              type="button"
-              className="hand-collapse-btn"
-              onClick={() => {
-                setHandCollapsed((v) => {
-                  const next = !v;
-                  if (next) setHandFilter(null);
-                  return next;
-                });
-              }}
-            >
-              {handCollapsed ? "Show" : "Hide"}
-            </button>
+            <div className="hand-rail-actions">
+              <button
+                type="button"
+                className={`hand-rail-btn${handSorted ? " active" : ""}`}
+                aria-pressed={handSorted}
+                onClick={() => setHandSorted((v) => !v)}
+              >
+                Sort
+              </button>
+              <button
+                type="button"
+                className="hand-rail-btn"
+                onClick={() => {
+                  setHandCollapsed((v) => {
+                    const next = !v;
+                    if (next) setHandFilter(null);
+                    return next;
+                  });
+                }}
+              >
+                {handCollapsed ? "Show" : "Hide"}
+              </button>
+            </div>
           ) : null}
         </div>
         <div className="hand-row" ref={handRowRef}>
@@ -518,7 +535,8 @@ export function DuelBoard({
               ? Array.from({ length: Math.min(you.handCount ?? 0, 8) }).map((_, i) => (
                   <span key={i} className="card-back hand-back" />
                 ))
-              : you.hand.map((c, idx) => {
+              : (handDisplayIndices ?? you.hand.map((_, i) => i)).map((idx) => {
+                  const c = you.hand[idx]!;
                   const playable = dndEnabled && canDragHandCard(intents, idx);
                   return (
                     <CardTile

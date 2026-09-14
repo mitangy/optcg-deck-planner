@@ -2305,8 +2305,14 @@ img.zone-pile-face {
 .hand-rail-head .hand-rail-title {
   flex: 1;
 }
-.hand-collapse-btn {
+.hand-rail-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+.hand-rail-btn {
   background: transparent;
   border: 1px solid var(--line);
   color: var(--muted);
@@ -2319,9 +2325,14 @@ img.zone-pile-face {
   cursor: pointer;
   min-height: 28px;
 }
-.hand-collapse-btn:hover {
+.hand-rail-btn:hover {
   color: var(--ink);
   border-color: var(--chrome);
+}
+.hand-rail-btn.active {
+  color: var(--ink);
+  border-color: var(--gold);
+  background: rgba(201, 162, 39, 0.12);
 }
 .hand-rail.collapsed {
   padding-bottom: 0.35rem;
