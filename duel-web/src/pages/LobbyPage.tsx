@@ -5,14 +5,11 @@ import { BuildTag } from "../BuildTag";
 import { getApiBaseUrl, getGameServerUrl } from "../config";
 import {
   deckToWire,
-  deleteDeck,
   ensureDefaultDeck,
   ensureTestDecks,
   getSelectedDeckId,
   listSavedDecks,
-  saveDeck,
   setSelectedDeckId,
-  validateImportedList,
   type SavedDeck,
 } from "../decks/storage";
 import {
@@ -73,9 +70,6 @@ export function LobbyPage() {
   const [decks, setDecks] = useState<SavedDeck[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [opponentDeckId, setOpponentDeckId] = useState("");
-  const [importName, setImportName] = useState("");
-  const [importText, setImportText] = useState("");
-  const [importMsg, setImportMsg] = useState<string | null>(null);
   const [pendingResume, setPendingResume] = useState<ReturnType<typeof loadMatchResume>>(null);
 
   const [setupMode, setSetupMode] = useState<SetupMode>(null);
@@ -255,28 +249,6 @@ export function LobbyPage() {
     }
   }
 
-  function onImport() {
-    setImportMsg(null);
-    const v = validateImportedList(importText);
-    if (!v.ok || !v.leaderId) {
-      setImportMsg(v.errors.join(" · ") || "Import failed");
-      return;
-    }
-    const saved = saveDeck({
-      name: importName.trim() || `Imported ${v.leaderId}`,
-      leaderId: v.leaderId,
-      cards: v.cards,
-    });
-    setImportText("");
-    setImportName("");
-    setImportMsg(
-      `Saved “${saved.name}” (${saved.cards.length} cards)${
-        v.warnings.length ? ` — ${v.warnings.join(" ")}` : ""
-      }`,
-    );
-    refreshDecks(saved.id);
-  }
-
   function onSubmit(e: FormEvent) {
     e.preventDefault();
   }
@@ -299,8 +271,8 @@ export function LobbyPage() {
       <form className="lobby lobby-wide" onSubmit={onSubmit}>
         <h1 className="lobby-brand">OPTCG Duel</h1>
         <p className="lobby-sub">
-          Import planner-style decklists, choose your deck, inspect alt arts in-match, or hotseat
-          vs yourself. Private prototype only.
+          Configure decks, choose your list for matches, inspect alt arts in-match, or hotseat vs
+          yourself. Private prototype only.
         </p>
         <BuildTag className="build-tag-lobby" />
 
@@ -396,59 +368,18 @@ export function LobbyPage() {
         </section>
 
         <section className="lobby-section">
-          <h2 className="lobby-section-title">Deck library</h2>
+          <h2 className="lobby-section-title">Decks</h2>
           <p className="meta">
-            Import and configure decks here. Match modes ask which deck to use after you pick them
-            below.
+            Manage saved decks on the decks page. Match modes below ask which deck to use.
           </p>
           <button
             type="button"
             className="btn btn-secondary"
             disabled={busy}
-            onClick={() =>
-              navigate(
-                selectedDeck
-                  ? `/decks/${selectedDeck.id}/configure`
-                  : "/decks/configure",
-              )
-            }
+            onClick={() => navigate("/decks")}
           >
-            Configure decks
+            Manage decks
           </button>
-          {selectedDeck && !selectedDeck.id.startsWith("test-") ? (
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={busy}
-              onClick={() => {
-                deleteDeck(selectedDeck.id);
-                refreshDecks();
-              }}
-            >
-              Delete selected deck
-            </button>
-          ) : null}
-
-          <label htmlFor="import-name">Import name</label>
-          <input
-            id="import-name"
-            value={importName}
-            onChange={(e) => setImportName(e.target.value)}
-            placeholder="My red ST01"
-          />
-          <label htmlFor="import-text">Decklist (OPTCGSim / planner paste)</label>
-          <textarea
-            id="import-text"
-            className="lobby-textarea"
-            rows={6}
-            value={importText}
-            onChange={(e) => setImportText(e.target.value)}
-            placeholder={"1xST01-001\n4xST01-003\n4xST01-006\n4xST01-008\n4xST01-009\n4xST01-014"}
-          />
-          <button type="button" className="btn btn-secondary" onClick={onImport}>
-            Import &amp; save deck
-          </button>
-          {importMsg ? <p className="meta">{importMsg}</p> : null}
         </section>
 
         <section className="lobby-section">
