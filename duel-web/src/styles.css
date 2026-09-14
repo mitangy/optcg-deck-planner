@@ -529,6 +529,9 @@ button {
 .deck-list-open {
   flex: 1 1 12rem;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   text-align: left;
   background: transparent;
   border: none;
@@ -536,6 +539,29 @@ button {
   font: inherit;
   padding: 0.35rem 0.45rem;
   cursor: pointer;
+}
+
+.deck-list-leader {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 56px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  object-fit: cover;
+  object-position: center top;
+  background: #0e1620;
+}
+
+.deck-list-leader-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: center;
+  padding: 0.15rem;
+  line-height: 1.1;
 }
 
 .deck-list-open:hover {
@@ -1795,6 +1821,9 @@ img.zone-pile-face {
 }
 
 .hand-row {
+  /* Keep overflow-y clip + enough top padding on the inner row so hover/selected
+     lift (-10px) and card tops are not sheared off. overflow-y:visible is not
+     viable while overflow-x is auto (CSS forces the other axis to auto). */
   overflow-x: auto;
   overflow-y: hidden;
   min-height: 0;
@@ -1809,13 +1838,34 @@ img.zone-pile-face {
   display: flex;
   gap: 0.55rem;
   align-items: flex-start;
-  /* Top padding is lift room — cards sit below it so -10px stays inside the rail. */
-  padding: 1rem 0.15rem 0.5rem;
+  /* Top padding is lift room — cards sit below it so -10px + shadow stay visible. */
+  padding: 1.35rem 0.15rem 0.55rem;
   min-height: 0;
 }
 
 .hand-row-inner .card-tile {
   transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+/* Full-bleed art in hand — caption overlays the bottom; contain keeps cost/top visible. */
+.hand-row-inner .card-tile img,
+.hand-row-inner .card-tile .card-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  flex: none;
+  object-fit: contain;
+  object-position: center top;
+  background: #0e1620;
+}
+
+.hand-row-inner .card-tile .card-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
 }
 
 .hand-row-inner .card-tile:hover,
@@ -1896,6 +1946,8 @@ img.zone-pile-face {
   flex: 1;
   width: 100%;
   object-fit: cover;
+  /* Prefer the top of the scan (cost / name) — caption sits below the art. */
+  object-position: center top;
   min-height: 0;
 }
 
@@ -2190,7 +2242,7 @@ img.zone-pile-face {
   }
 
   .hand-row-inner {
-    padding-top: 0.75rem;
+    padding-top: 1.1rem;
   }
 
   .hand-row-inner .card-tile.full {
