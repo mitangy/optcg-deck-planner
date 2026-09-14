@@ -16,6 +16,8 @@ export type CatalogMetaRow = {
   blocker?: boolean;
   rush?: boolean;
   eventTiming?: "main" | "counter";
+  /** Printed ability text from cosmetics catalog (display / stubs only). */
+  effectText?: string;
 };
 
 const catalog = raw as Record<string, CatalogMetaRow>;
