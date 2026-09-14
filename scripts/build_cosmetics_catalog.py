@@ -197,9 +197,7 @@ def main() -> None:
         )
         best = dict(rows_sorted[0])
         best.pop("_special", None)
-        primary_pid = int(best.pop("_productId", 0) or 0)
-        if primary_pid > 0:
-            best["productId"] = primary_pid
+        best.pop("_productId", None)
         # Special / parallel printings become selectable alt arts in Deck Configure.
         alt_arts: list[dict] = []
         seen_urls: set[str] = set()
@@ -213,15 +211,13 @@ def main() -> None:
             if not url or url in seen_urls:
                 continue
             seen_urls.add(url)
-            alt: dict = {
-                "id": f"p{len(alt_arts) + 1}",
-                "label": alt_label(str(row.get("name") or "")),
-                "imageUrl": url,
-            }
-            alt_pid = int(row.get("_productId") or 0)
-            if alt_pid > 0:
-                alt["productId"] = alt_pid
-            alt_arts.append(alt)
+            alt_arts.append(
+                {
+                    "id": f"p{len(alt_arts) + 1}",
+                    "label": alt_label(str(row.get("name") or "")),
+                    "imageUrl": url,
+                }
+            )
         if alt_arts:
             best["altArts"] = alt_arts
         # Drop nullish optional fields to keep JSON smaller.
