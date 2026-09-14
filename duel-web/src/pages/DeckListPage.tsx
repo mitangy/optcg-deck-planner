@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
+import { resolveCardImageUrl } from "../decks/artPrefs";
 import {
   deleteDeck,
   ensureDefaultDeck,
@@ -20,11 +21,24 @@ function DeckRow({
   onDelete: () => void;
 }) {
   const leader = lookupCard(deck.leaderId);
+  const leaderArt = resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" });
   const canDelete = !deck.id.startsWith("test-");
 
   return (
     <li className="deck-list-row">
       <button type="button" className="deck-list-open" onClick={onOpen}>
+        {leaderArt ? (
+          <img
+            className="deck-list-leader"
+            src={leaderArt}
+            alt=""
+            loading="lazy"
+          />
+        ) : (
+          <span className="deck-list-leader deck-list-leader-fallback" aria-hidden>
+            {deck.leaderId}
+          </span>
+        )}
         <div className="deck-list-meta">
           <div className="deck-list-name">{deck.name}</div>
           <div className="deck-list-sub">
