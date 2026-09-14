@@ -90,6 +90,9 @@ function statusFor(
   if (timing === "activate_main" && def.leaderActivateGiveRestedDon) {
     return { status: "implemented", hook: "leaderActivateGiveRestedDon" };
   }
+  if (timing === "activate_main" && def.stageActivateTrashGiveRestedDon) {
+    return { status: "implemented", hook: "stageActivateTrashGiveRestedDon" };
+  }
   if (timing === "opponent_turn" && def.leaderOpponentCharacterCostBonus) {
     return { status: "implemented", hook: "leaderOpponentCharacterCostBonus" };
   }

@@ -4,6 +4,10 @@ import {
   getOnPlayHooks,
   normalizeCardDefId,
 } from "./cards/definitions.js";
+import {
+  ABILITY_LEADER_GIVE_RESTED_DON,
+  ABILITY_STAGE_TRASH_GIVE_RESTED_DON,
+} from "./cards/abilityIds.js";
 import { applyEffectOrder, enqueuePendingChoices } from "./effectOrder.js";
 import { createSeededRng, type Rng } from "./rng.js";
 import type {
@@ -227,6 +231,38 @@ function returnDonsRested(p: PlayerState, card: CardInstance): void {
 function findBoard(p: PlayerState, id: string): CardInstance | null {
   if (p.leader.id === id) return p.leader;
   return p.characters.find((c) => c.id === id) ?? null;
+}
+
+/** Leader, characters, or Stage — for Activate:Main sources. */
+function findBoardOrStage(p: PlayerState, id: string): CardInstance | null {
+  if (p.leader.id === id) return p.leader;
+  if (p.stage?.id === id) return p.stage;
+  return p.characters.find((c) => c.id === id) ?? null;
+}
+
+/** Attach one rested cost-area DON!! to a Leader/Character; returns false if none. */
+function attachOneRestedDon(
+  state: MatchState,
+  seat: Seat,
+  target: CardInstance,
+  events: GameEvent[],
+): boolean {
+  const player = state.players[seat];
+  const donIdx = player.costArea.findIndex((d) => d.rested);
+  if (donIdx < 0) return false;
+  const [don] = player.costArea.splice(donIdx, 1);
+  don.attachedTo = target.id;
+  target.attachedDonIds.push(don.id);
+  player.attachedDons.push(don);
+  events.push({
+    type: "don_given",
+    seat,
+    donId: don.id,
+    targetId: target.id,
+    targetDefId: target.defId,
+    newPower: powerOf(state, seat, target),
+  });
+  return true;
 }
 
 /** Board card targeted by the current battle (leader or character). */
@@ -966,24 +1002,69 @@ export function applyIntent(
     if (player.leaderActivatedThisTurn) {
       return fail(state, "once_per_turn", "Activate:Main already used");
     }
-    const donIdx = player.costArea.findIndex((d) => d.rested);
-    if (donIdx < 0) return fail(state, "no_rested_don", "Need a rested DON!!");
     const target = findBoard(player, intent.targetId);
     if (!target) return fail(state, "bad_target", "Invalid Activate:Main target");
-    const [don] = player.costArea.splice(donIdx, 1);
-    don.attachedTo = target.id;
-    target.attachedDonIds.push(don.id);
-    player.attachedDons.push(don);
+    if (!attachOneRestedDon(next, seat, target, events)) {
+      return fail(state, "no_rested_don", "Need a rested DON!!");
+    }
     player.leaderActivatedThisTurn = true;
-    events.push({
-      type: "don_given",
-      seat,
-      donId: don.id,
-      targetId: target.id,
-      targetDefId: target.defId,
-      newPower: powerOf(state, seat, target),
-    });
     return done();
+  }
+
+  if (intent.type === "activate_ability") {
+    const source = findBoardOrStage(player, intent.sourceId);
+    if (!source) return fail(state, "bad_source", "Invalid ability source");
+
+    if (intent.abilityId === ABILITY_LEADER_GIVE_RESTED_DON) {
+      if (source.id !== player.leader.id) {
+        return fail(state, "bad_source", "Ability source must be Leader");
+      }
+      const leaderDef = getCardDef(player.leader.defId);
+      if (!leaderDef.leaderActivateGiveRestedDon) {
+        return fail(state, "no_activate", "Leader has no Activate:Main");
+      }
+      if (player.leaderActivatedThisTurn) {
+        return fail(state, "once_per_turn", "Activate:Main already used");
+      }
+      if (intent.targetId == null) {
+        return fail(state, "bad_target", "Activate:Main needs a target");
+      }
+      const target = findBoard(player, intent.targetId);
+      if (!target) return fail(state, "bad_target", "Invalid Activate:Main target");
+      if (!attachOneRestedDon(next, seat, target, events)) {
+        return fail(state, "no_rested_don", "Need a rested DON!!");
+      }
+      player.leaderActivatedThisTurn = true;
+      return done();
+    }
+
+    if (intent.abilityId === ABILITY_STAGE_TRASH_GIVE_RESTED_DON) {
+      if (!player.stage || source.id !== player.stage.id) {
+        return fail(state, "bad_source", "Ability source must be your Stage");
+      }
+      const stageDef = getCardDef(player.stage.defId);
+      if (!stageDef.stageActivateTrashGiveRestedDon) {
+        return fail(state, "no_activate", "Stage has no Activate:Main");
+      }
+      if (intent.targetId == null) {
+        return fail(state, "bad_target", "Activate:Main needs a target");
+      }
+      const target = findBoard(player, intent.targetId);
+      if (!target) return fail(state, "bad_target", "Invalid Activate:Main target");
+      if (!player.costArea.some((d) => d.rested)) {
+        return fail(state, "no_rested_don", "Need a rested DON!!");
+      }
+      const trashed = player.stage;
+      player.stage = null;
+      player.trash.push(trashed.defId);
+      events.push({ type: "stage_trashed", seat, defId: trashed.defId });
+      if (!attachOneRestedDon(next, seat, target, events)) {
+        return fail(state, "no_rested_don", "Need a rested DON!!");
+      }
+      return done();
+    }
+
+    return fail(state, "unknown_ability", `Unknown ability ${intent.abilityId}`);
   }
 
   if (intent.type === "play_card") {
@@ -1192,9 +1273,29 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
     !player.leaderActivatedThisTurn &&
     player.costArea.some((d) => d.rested)
   ) {
-    out.push({ type: "activate_leader", targetId: player.leader.id });
-    for (const ch of player.characters) {
-      out.push({ type: "activate_leader", targetId: ch.id });
+    for (const t of [player.leader, ...player.characters]) {
+      out.push({
+        type: "activate_ability",
+        sourceId: player.leader.id,
+        abilityId: ABILITY_LEADER_GIVE_RESTED_DON,
+        targetId: t.id,
+      });
+    }
+  }
+
+  if (
+    player.stage &&
+    getCardDef(player.stage.defId).stageActivateTrashGiveRestedDon &&
+    player.costArea.some((d) => d.rested)
+  ) {
+    const stageId = player.stage.id;
+    for (const t of [player.leader, ...player.characters]) {
+      out.push({
+        type: "activate_ability",
+        sourceId: stageId,
+        abilityId: ABILITY_STAGE_TRASH_GIVE_RESTED_DON,
+        targetId: t.id,
+      });
     }
   }
 

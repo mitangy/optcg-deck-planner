@@ -61,6 +61,10 @@ export {
   type LeaderAbilityTiming,
 } from "./cards/leaderAbilities.js";
 export {
+  ABILITY_LEADER_GIVE_RESTED_DON,
+  ABILITY_STAGE_TRASH_GIVE_RESTED_DON,
+} from "./cards/abilityIds.js";
+export {
   EFFECT_CATALOG,
   buildEffectCatalog,
   effectsForCard,

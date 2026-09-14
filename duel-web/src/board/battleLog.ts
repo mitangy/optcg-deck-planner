@@ -86,6 +86,8 @@ function narrateOne(e: LooseEvent, youSeat: number | null): string | null {
     }
     case "stage_replaced":
       return `${act(e.seat, youSeat, "replace", "replaces")} Stage (trashes ${cardName(e.trashedDefId)})`;
+    case "stage_trashed":
+      return `${act(e.seat, youSeat, "trash", "trashes")} Stage ${cardName(e.defId)}`;
     case "character_trashed_for_space":
       return `${act(e.seat, youSeat, "trash", "trashes")} ${cardName(e.defId)} for board space`;
     case "don_given": {

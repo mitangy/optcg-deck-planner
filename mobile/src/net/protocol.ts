@@ -250,10 +250,14 @@ function findBoardName(view: PlayerView | undefined, instanceId: unknown): strin
   if (!view || instanceId == null) return shortId(instanceId);
   const id = String(instanceId);
   if (view.you.leader.id === id) return nameForDef(view.you.leader.defId) ?? shortId(id);
+  if (view.you.stage?.id === id) return nameForDef(view.you.stage.defId) ?? shortId(id);
   const ch = view.you.characters.find((c) => c.id === id);
   if (ch) return nameForDef(ch.defId) ?? shortId(id);
   if (view.opponent.leader.id === id) {
     return nameForDef(view.opponent.leader.defId) ?? shortId(id);
+  }
+  if (view.opponent.stage?.id === id) {
+    return nameForDef(view.opponent.stage.defId) ?? shortId(id);
   }
   const och = view.opponent.characters.find((c) => c.id === id);
   if (och) return nameForDef(och.defId) ?? shortId(id);
@@ -277,6 +281,12 @@ export function intentLabel(intent: Intent, view?: PlayerView): string {
       return `Give DON → ${findBoardName(view, intent.targetId)}`;
     case "activate_leader":
       return `Activate Leader → ${findBoardName(view, intent.targetId)}`;
+    case "activate_ability": {
+      const source = findBoardName(view, intent.sourceId);
+      const target =
+        intent.targetId != null ? findBoardName(view, intent.targetId) : null;
+      return target ? `Activate ${source} → ${target}` : `Activate ${source}`;
+    }
     case "declare_attack": {
       const target = intent.target as { kind?: string; instanceId?: string } | undefined;
       if (target?.kind === "leader") {

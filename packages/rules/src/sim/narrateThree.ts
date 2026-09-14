@@ -79,6 +79,9 @@ function describeEvents(events: GameEvent[]): string[] {
       case "stage_replaced":
         lines.push(`  P${e.seat} replaces Stage`);
         break;
+      case "stage_trashed":
+        lines.push(`  P${e.seat} trashes Stage ${getCardDef(e.defId).name}`);
+        break;
       default:
         break;
     }

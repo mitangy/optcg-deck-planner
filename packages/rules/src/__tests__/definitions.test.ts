@@ -33,6 +33,13 @@ describe("Step 5 curated defs", () => {
     expect(luffy.life).toBe(5);
     expect(luffy.leaderActivateGiveRestedDon).toBe(true);
 
+    expect(getCardDef("OP16-021")).toMatchObject({
+      name: "Moby Dick",
+      type: "stage",
+      cost: 1,
+      stageActivateTrashGiveRestedDon: true,
+    });
+
     expect(getCardDef("ST01-003")).toMatchObject({
       name: "Karoo",
       cost: 1,

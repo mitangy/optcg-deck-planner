@@ -38,6 +38,11 @@ export interface CardDef {
    */
   leaderActivateGiveRestedDon?: boolean;
   /**
+   * Stage Activate: Main — trash this Stage, then attach 1 rested DON!! from
+   * cost area to Leader or a Character (OP16-021 Moby Dick).
+   */
+  stageActivateTrashGiveRestedDon?: boolean;
+  /**
    * [On Play] optional draw hook — you may draw this many cards when the
    * character enters play. Demonstrates the generic pending-choice/prompt
    * framework end to end; not every On Play effect is implemented yet.
@@ -229,6 +234,8 @@ export type GameEvent =
       costPaid: number;
     }
   | { type: "stage_replaced"; seat: Seat; trashedDefId: CardDefId }
+  /** Stage trashed as an Activate:Main (or similar) cost. */
+  | { type: "stage_trashed"; seat: Seat; defId: CardDefId }
   | { type: "character_trashed_for_space"; seat: Seat; defId: CardDefId }
   | {
       type: "don_given";
@@ -288,7 +295,21 @@ export type Intent =
   | { type: "mulligan"; doMulligan: boolean }
   | { type: "play_card"; handIndex: number; trashCharacterId?: InstanceId }
   | { type: "give_don"; donId: InstanceId; targetId: InstanceId }
-  /** Attach 1 rested cost-area DON!! to Leader/Character (once per turn). */
+  /**
+   * Activate:Main (or similar) on a board source. `abilityId` selects the hook;
+   * `targetId` is used when the ability needs a Leader/Character recipient.
+   */
+  | {
+      type: "activate_ability";
+      sourceId: InstanceId;
+      abilityId: string;
+      targetId?: InstanceId;
+    }
+  /**
+   * Legacy ST01-001 Activate:Main — attach 1 rested cost-area DON!! to
+   * Leader/Character (once per turn). Prefer `activate_ability` with
+   * `leader_give_rested_don`; still accepted by `applyIntent`.
+   */
   | { type: "activate_leader"; targetId: InstanceId }
   | { type: "declare_attack"; attackerId: InstanceId; target: AttackTarget }
   | { type: "declare_block"; blockerId: InstanceId }

@@ -225,14 +225,37 @@ export function SideField({
         >
           <div className="zone-caption">Stage</div>
           {data.stage ? (
-            <CardTile
-              defId={data.stage.defId}
-              compact={compact || mirrored}
-              rested={data.stage.rested}
-              inspectGestures
-              ownerSeat={ownerSeat}
-              viewingSeat={viewingSeat}
-            />
+            (() => {
+              const stageId = data.stage!.id;
+              const isSelectable = Boolean(select);
+              const isTargetable = Boolean(target?.targetableIds.has(stageId));
+              const isSelected = isSelectable && select!.selectedId === stageId;
+              const isActionable = Boolean(select?.actionableIds?.has(stageId));
+              const tapHandler = isSelectable
+                ? () => select!.onSelect(stageId)
+                : isTargetable
+                  ? () => target!.onSelectTarget(stageId)
+                  : undefined;
+              const extraClass = [
+                isTargetable ? "attack-target" : "",
+                isActionable && !isSelected ? "has-actions" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return (
+                <CardTile
+                  defId={data.stage!.defId}
+                  compact={compact || mirrored}
+                  rested={data.stage!.rested}
+                  selected={isSelected}
+                  classNameExtra={extraClass || undefined}
+                  inspectGestures
+                  onClick={tapHandler}
+                  ownerSeat={ownerSeat}
+                  viewingSeat={viewingSeat}
+                />
+              );
+            })()
           ) : (
             <div className="zone-slot stage-empty">Stage</div>
           )}

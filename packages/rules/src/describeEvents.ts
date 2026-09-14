@@ -30,6 +30,11 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
           `Seat ${e.seat} replaces Stage (trashes ${getCardDef(e.trashedDefId).name})`,
         );
         break;
+      case "stage_trashed":
+        lines.push(
+          `Seat ${e.seat} trashes Stage ${getCardDef(e.defId).name}`,
+        );
+        break;
       case "character_trashed_for_space":
         lines.push(
           `Seat ${e.seat} trashes ${getCardDef(e.defId).name} for board space`,

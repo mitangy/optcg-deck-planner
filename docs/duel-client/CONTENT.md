@@ -21,6 +21,7 @@ How to add a playable OPTCG card to the digital duel without changing the Colyse
 | Blocker | shipped | ST01-006 Chopper |
 | Counter event bonus | shipped | ST01-014 Guard Point |
 | Leader Activate:Main (rested DON!!) | shipped | ST01-001 Luffy |
+| Stage Activate:Main (trash → rested DON!!) | shipped | OP16-021 Moby Dick |
 | **Rush** (+ summoning sickness) | **Step 5** | **ST01-004 Sanji** |
 | Main/Trigger draw | engine-ready, unused | — |
 | Stage leader power | engine-ready, unused | — |
