@@ -28,13 +28,9 @@ const intents: Intent[] = [
 ];
 
 describe("filterIntentsForSelection", () => {
-  it("shows phase-global actions and Activate:Main when nothing is selected", () => {
+  it("shows phase-global actions when nothing is selected", () => {
     const shown = filterIntentsForSelection(intents, {});
-    expect(shown).toEqual([
-      { type: "end_turn" },
-      { type: "activate_leader", targetId: "leader" },
-      { type: "activate_leader", targetId: "c1" },
-    ]);
+    expect(shown).toEqual([{ type: "end_turn" }]);
   });
 
   it("shows play_card/counter for the selected hand index plus globals", () => {
@@ -42,8 +38,6 @@ describe("filterIntentsForSelection", () => {
     expect(shown).toEqual([
       { type: "end_turn" },
       { type: "play_card", handIndex: 0 },
-      { type: "activate_leader", targetId: "leader" },
-      { type: "activate_leader", targetId: "c1" },
     ]);
   });
 
@@ -51,8 +45,6 @@ describe("filterIntentsForSelection", () => {
     const shown = filterIntentsForSelection(intents, { handIndex: 3 });
     expect(shown).toEqual([
       { type: "end_turn" },
-      { type: "activate_leader", targetId: "leader" },
-      { type: "activate_leader", targetId: "c1" },
       { type: "counter_from_hand", handIndex: 3 },
     ]);
   });
@@ -63,8 +55,6 @@ describe("filterIntentsForSelection", () => {
       { type: "end_turn" },
       { type: "give_don", donId: "d1", targetId: "leader" },
       { type: "activate_leader", targetId: "leader" },
-      // Activate:Main stays global so other legal targets remain reachable.
-      { type: "activate_leader", targetId: "c1" },
       { type: "declare_attack", attackerId: "leader", target: { kind: "leader" } },
       {
         type: "declare_attack",
@@ -78,8 +68,6 @@ describe("filterIntentsForSelection", () => {
     const shown = filterIntentsForSelection(intents, { boardId: "c2" });
     expect(shown).toEqual([
       { type: "end_turn" },
-      { type: "activate_leader", targetId: "leader" },
-      { type: "activate_leader", targetId: "c1" },
       { type: "declare_block", blockerId: "c2" },
     ]);
   });
@@ -89,18 +77,12 @@ describe("filterIntentsForSelection", () => {
     expect(shown).toEqual([
       { type: "end_turn" },
       { type: "play_card", handIndex: 0 },
-      { type: "activate_leader", targetId: "leader" },
-      { type: "activate_leader", targetId: "c1" },
     ]);
   });
 
   it("returns only globals for a board id with no actions", () => {
     const shown = filterIntentsForSelection(intents, { boardId: "no-actions" });
-    expect(shown).toEqual([
-      { type: "end_turn" },
-      { type: "activate_leader", targetId: "leader" },
-      { type: "activate_leader", targetId: "c1" },
-    ]);
+    expect(shown).toEqual([{ type: "end_turn" }]);
   });
 });
 

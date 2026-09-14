@@ -187,6 +187,7 @@ export function DemoPage() {
         errorBanner={null}
         matchOver={null}
         battleLog={DEMO_BATTLE_LOG}
+        leaveLabel="Leave match"
         onSendIntent={() => undefined}
         onLeave={() => {
           window.location.href = "/";

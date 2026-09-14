@@ -21,7 +21,9 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
         lines.push(`Seat ${e.seat} places ${e.count} DON!!`);
         break;
       case "card_played":
-        lines.push(`Seat ${e.seat} plays ${getCardDef(e.defId).name}`);
+        lines.push(
+          `Seat ${e.seat} plays ${getCardDef(e.defId).name} (rests ${e.costPaid} DON!!)`,
+        );
         break;
       case "stage_replaced":
         lines.push(

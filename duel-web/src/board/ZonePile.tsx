@@ -2,11 +2,19 @@ import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import { DON_CARD_ART } from "./donArt";
 
+/** Life/deck pile count label — never secret (life used to show "??"). */
+export function zonePileCountLabel(count: number, expectedCount?: number): string {
+  if (count > 0) return String(count);
+  if (expectedCount != null && expectedCount > 0) return `0 / ${expectedCount}`;
+  return "0";
+}
+
 type Props = {
   label: string;
   count: number;
   variant?: "life" | "deck" | "don" | "trash";
-  secret?: boolean;
+  /** Leader printed life — shown as a hint when count is still 0 (pre-mulligan). */
+  expectedCount?: number;
   /** Optional top-face art (trash top card). */
   topDefId?: string | null;
   ownerSeat?: Seat;
@@ -18,12 +26,13 @@ export function ZonePile({
   label,
   count,
   variant = "deck",
-  secret,
+  expectedCount,
   topDefId,
   ownerSeat,
   onOpen,
 }: Props) {
   const openable = Boolean(onOpen);
+  const countLabel = zonePileCountLabel(count, expectedCount);
   const topArt =
     variant === "don"
       ? DON_CARD_ART
@@ -44,7 +53,7 @@ export function ZonePile({
       </div>
       <div className="zone-pile-meta">
         <span className="zone-pile-label">{label}</span>
-        <span className="zone-pile-count">{secret ? "??" : count}</span>
+        <span className="zone-pile-count">{countLabel}</span>
       </div>
     </>
   );
@@ -66,7 +75,7 @@ export function ZonePile({
   return (
     <div
       className={`zone-pile zone-pile-${variant}${onOpen ? " zone-pile-empty" : ""}`}
-      title={`${label}: ${count}`}
+      title={`${label}: ${countLabel}`}
     >
       {body}
     </div>

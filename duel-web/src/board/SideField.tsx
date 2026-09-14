@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { lookupCard } from "../cards/atlas";
 import type { CardView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
 import { DonStrip } from "./DonStrip";
@@ -82,12 +83,18 @@ export function SideField({
   const [trashOpen, setTrashOpen] = useState(false);
   const trashTop = data.trash.length ? data.trash[data.trash.length - 1] : null;
   const trashTitle = side === "you" ? "Your trash" : "Opponent trash";
+  const leaderLife = lookupCard(data.leader.defId).life;
 
   return (
     <section className={`side-field side-${side}${mirrored ? " mirrored" : ""}`}>
       <div className="side-grid">
         <div className="zone-life">
-          <ZonePile label="Life" count={data.lifeCount} variant="life" secret />
+          <ZonePile
+            label="Life"
+            count={data.lifeCount}
+            variant="life"
+            expectedCount={leaderLife ?? undefined}
+          />
         </div>
 
         <div
@@ -135,7 +142,7 @@ export function SideField({
                   statusLabels={c.statusLabels}
                   selected={isSelected}
                   classNameExtra={extraClass || undefined}
-                  inspectOnClick={!tapHandler}
+                  inspectGestures
                   onClick={tapHandler}
                   dropAttr={dropAttr}
                   dropHighlight={giveHl || trashHl}
@@ -195,7 +202,7 @@ export function SideField({
                 frame="leader"
                 selected={isSelected}
                 classNameExtra={extraClass || undefined}
-                inspectOnClick={!tapHandler}
+                inspectGestures
                 onClick={tapHandler}
                 dropAttr={
                   interactive && drag?.giveDonHighlightIds?.has(leaderId)
@@ -222,7 +229,7 @@ export function SideField({
               defId={data.stage.defId}
               compact={compact || mirrored}
               rested={data.stage.rested}
-              inspectOnClick
+              inspectGestures
               ownerSeat={ownerSeat}
               viewingSeat={viewingSeat}
             />

@@ -127,7 +127,13 @@ export type PendingChoiceView = {
   /** Server-authoritative prompt text, e.g. "Usopp — On Play: draw 1 card?". */
   prompt: string;
   /** Present for leader On-Opponent's-Attack abilities (Teach / Newgate). */
-  abilityId?: "newgate_battle_power" | "teach_redirect" | "rocks_reveal_draw";
+  abilityId?:
+    | "newgate_battle_power"
+    | "teach_redirect"
+    | "rocks_reveal_draw"
+    | "on_play_add_life"
+    | "on_play_life_choice"
+    | "on_play_hand_to_deck";
   /**
    * When `kind` is `order_effects`, the simultaneous abilities the controller
    * must permute via `order_pending_effects` (players may rearrange freely;
@@ -159,7 +165,7 @@ export type PlayerView = {
     leader: CardView;
     characters: CardView[];
     stage: CardView | null;
-    hand: { id: string; defId: string }[];
+    hand: { id: string; defId: string; playCost?: number }[];
     handCount?: number;
     deckCount: number;
     trash: string[];

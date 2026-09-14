@@ -111,6 +111,15 @@ function statusFor(
   if (timing === "on_play" && def.onPlayOptionalDraw) {
     return { status: "implemented", hook: "onPlayOptionalDraw" };
   }
+  if (
+    timing === "on_play" &&
+    (def.onPlayDraw ||
+      def.onPlayLowLifeAddLife ||
+      def.onPlayDrawThenLifeChoice ||
+      def.onPlayDrawHandToDeckDon)
+  ) {
+    return { status: "implemented", hook: "onPlayHooks" };
+  }
   if (timing === "counter" && def.counterPowerBonus) {
     if (/then/i.test(clause)) {
       return { status: "partial", hook: "counterPowerBonus" };

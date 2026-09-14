@@ -43,6 +43,14 @@ export interface CardDef {
    * framework end to end; not every On Play effect is implemented yet.
    */
   onPlayOptionalDraw?: number;
+  /** Auto-draw when this Character enters play (before On Play prompts). */
+  onPlayDraw?: number;
+  /** Optional: add deck top to Life when controller has ≤ maxLife life cards. */
+  onPlayLowLifeAddLife?: { maxLife: number };
+  /** After onPlayDraw, optional: own deck top → Life or opp Life top → opp hand. */
+  onPlayDrawThenLifeChoice?: boolean;
+  /** After onPlayDraw, pick a hand card for deck top, then add 1 active DON!!. */
+  onPlayDrawHandToDeckDon?: boolean;
   /** Rush — may attack the turn this Character enters play. */
   rush?: boolean;
   /** Optional art URL (TCGPlayer CDN or Bandai cardlist). Display only. */
@@ -157,7 +165,13 @@ export interface PendingChoice {
    * Structured leader-ability id for attack-window prompts.
    * Clients use this to render trash / retarget / reveal pickers.
    */
-  abilityId?: "newgate_battle_power" | "teach_redirect" | "rocks_reveal_draw";
+  abilityId?:
+    | "newgate_battle_power"
+    | "teach_redirect"
+    | "rocks_reveal_draw"
+    | "on_play_add_life"
+    | "on_play_life_choice"
+    | "on_play_hand_to_deck";
   /**
    * When `kind` is `order_effects`, the simultaneous abilities the controller
    * must permute via `order_pending_effects`.
@@ -207,7 +221,13 @@ export type GameEvent =
   | { type: "phase_changed"; phase: Phase; activeSeat: Seat }
   | { type: "drew"; seat: Seat; count: number }
   | { type: "don_placed"; seat: Seat; count: number }
-  | { type: "card_played"; seat: Seat; defId: CardDefId; instanceId: InstanceId }
+  | {
+      type: "card_played";
+      seat: Seat;
+      defId: CardDefId;
+      instanceId: InstanceId;
+      costPaid: number;
+    }
   | { type: "stage_replaced"; seat: Seat; trashedDefId: CardDefId }
   | { type: "character_trashed_for_space"; seat: Seat; defId: CardDefId }
   | {
@@ -236,6 +256,7 @@ export type GameEvent =
     }
   | { type: "character_ko"; seat: Seat; defId: CardDefId }
   | { type: "life_taken"; seat: Seat; defId: CardDefId; toHand: boolean }
+  | { type: "life_added"; seat: Seat; defId: CardDefId; source: "deck_top" }
   | { type: "trigger_available"; seat: Seat; defId: CardDefId }
   | { type: "trigger_resolved"; seat: Seat; accepted: boolean }
   | {
@@ -285,6 +306,8 @@ export type Intent =
       buffTargetId?: InstanceId;
       /** New attack target after Teach redirect. */
       newTarget?: AttackTarget;
+      /** On Play life-branch choice (OP17-112). */
+      onPlayChoice?: "own_life" | "opp_life";
     }
   /**
    * Choose resolution order for the front `order_effects` pending choice.
