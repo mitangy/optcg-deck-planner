@@ -506,6 +506,102 @@ button {
   border-top: 1px solid var(--line);
 }
 
+.deck-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.deck-list-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.45rem;
+  background: var(--arena-panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.45rem;
+}
+
+.deck-list-open {
+  flex: 1 1 12rem;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0.35rem 0.45rem;
+  cursor: pointer;
+}
+
+.deck-list-open:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+}
+
+.deck-list-name {
+  font-weight: 600;
+  color: var(--chrome-bright);
+}
+
+.deck-list-sub {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+}
+
+.deck-list-new {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+.deck-list-edit,
+.deck-list-delete {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.deck-import-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.deck-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.deck-new-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.deck-new-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--chrome);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
 .deck-stack-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));

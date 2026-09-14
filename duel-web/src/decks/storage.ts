@@ -210,6 +210,66 @@ export function deleteDeck(id: string) {
   if (getSelectedDeckId() === id) setSelectedDeckId(null);
 }
 
+/** Default leader placeholder for a blank deck (replace via import or manual edits). */
+export const BLANK_DECK_LEADER_ID = "ST01-001";
+
+export type ImportIntoDeckResult =
+  | { ok: true; deck: SavedDeck; warnings: string[] }
+  | { ok: false; errors: string[]; warnings: string[] };
+
+/** Create an empty main deck with a placeholder leader. */
+export function createBlankDeck(name: string): SavedDeck {
+  return saveDeck({
+    name: name.trim() || "Untitled deck",
+    leaderId: BLANK_DECK_LEADER_ID,
+    cards: [],
+  });
+}
+
+/** Replace leader + main deck from an OPTCGSim / planner paste. */
+export function importIntoSavedDeck(deckId: string, text: string): ImportIntoDeckResult {
+  const v = validateImportedList(text);
+  if (!v.ok || !v.leaderId) {
+    return { ok: false, errors: v.errors, warnings: v.warnings };
+  }
+  const existing = getSavedDeck(deckId);
+  if (!existing) {
+    return { ok: false, errors: ["Deck not found"], warnings: [] };
+  }
+  const inDeckIds = new Set([v.leaderId, ...v.cards]);
+  const artPrefs = existing.artPrefs
+    ? Object.fromEntries(
+        Object.entries(existing.artPrefs).filter(([defId]) => inDeckIds.has(defId)),
+      )
+    : undefined;
+  const deck = saveDeck({
+    id: deckId,
+    name: existing.name,
+    leaderId: v.leaderId,
+    cards: v.cards,
+    artPrefs: artPrefs && Object.keys(artPrefs).length > 0 ? artPrefs : undefined,
+  });
+  return { ok: true, deck, warnings: v.warnings };
+}
+
+/** Create a deck from import text, or blank when text is empty. */
+export function createDeckFromInput(name: string, text: string): ImportIntoDeckResult {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return { ok: true, deck: createBlankDeck(name), warnings: [] };
+  }
+  const v = validateImportedList(trimmed);
+  if (!v.ok || !v.leaderId) {
+    return { ok: false, errors: v.errors, warnings: v.warnings };
+  }
+  const deck = saveDeck({
+    name: name.trim() || `Imported ${v.leaderId}`,
+    leaderId: v.leaderId,
+    cards: v.cards,
+  });
+  return { ok: true, deck, warnings: v.warnings };
+}
+
 export function getSelectedDeckId(): string | null {
   return localStorage.getItem(SELECTED_KEY);
 }
