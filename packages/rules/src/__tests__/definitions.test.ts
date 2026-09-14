@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTestDeck,
+  ensureCardDef,
   ensureDefsForPlayers,
   getCardDef,
   getDefsHealthSnapshot,
@@ -169,5 +170,17 @@ describe("constructed seed stubs + auto-stub", () => {
       type: "character",
       power: 3000,
     });
+  });
+
+  it("auto-stub copies printed effectText from catalog meta without inventing hooks", () => {
+    ensureCardDef("OP17-049");
+    const linlin = getCardDef("OP17-049");
+    expect(linlin.effectText).toMatch(/\[On Play\]/i);
+    expect(linlin.effectText).not.toBe("—");
+    // Still a vanilla stub: no On Play engine hooks invented from text.
+    expect(linlin.onPlayDraw).toBeUndefined();
+    expect(linlin.onPlayOptionalDraw).toBeUndefined();
+    expect(linlin.onPlayLowLifeAddLife).toBeUndefined();
+    expect(linlin.onPlayDrawThenLifeChoice).toBeUndefined();
   });
 });
