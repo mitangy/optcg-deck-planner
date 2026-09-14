@@ -22,17 +22,20 @@ function DeckRow({
 }) {
   const leader = lookupCard(deck.leaderId);
   const leaderArt = resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" });
+  const [failedArtSrc, setFailedArtSrc] = useState<string | null>(null);
   const canDelete = !deck.id.startsWith("test-");
+  const showArt = Boolean(leaderArt) && leaderArt !== failedArtSrc;
 
   return (
     <li className="deck-list-row">
       <button type="button" className="deck-list-open" onClick={onOpen}>
-        {leaderArt ? (
+        {showArt ? (
           <img
             className="deck-list-leader"
-            src={leaderArt}
+            src={leaderArt!}
             alt=""
             loading="lazy"
+            onError={() => setFailedArtSrc(leaderArt ?? null)}
           />
         ) : (
           <span className="deck-list-leader deck-list-leader-fallback" aria-hidden>

@@ -80,7 +80,9 @@ describe("resolveCardImageUrl with deck artPrefs", () => {
       artPrefs: { "ST01-006": "p2" },
     });
     const url = resolveCardImageUrl("ST01-006", deck);
-    expect(url).toContain("ST01-006_p2");
+    expect(url).toBe(
+      "https://tcgplayer-cdn.tcgplayer.com/product/501749_400w.jpg",
+    );
     const standard = resolveCardImageUrl("ST01-006", {
       ...deck,
       artPrefs: undefined,

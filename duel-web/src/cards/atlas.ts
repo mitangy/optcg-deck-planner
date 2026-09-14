@@ -1,7 +1,7 @@
 import atlasJson from "../assets/cardAtlas.json";
 import catalogJson from "../assets/cardCatalog.json";
 import { showOfficialIdentity } from "../legal";
-import { tcgArtForCard } from "./tcgArt";
+import { tcgAltsForCard, tcgArtForCard } from "./tcgArt";
 
 export type CardAltArt = {
   id: string;
@@ -48,6 +48,31 @@ export function isOptcgCardId(id: string): boolean {
   return OPTCG_CARD_ID_RE.test(id.trim().toUpperCase());
 }
 
+/** Local `/cards/...` mirrors are often missing in deploy; prefer CDN. */
+function isLocalCardsUrl(url: string | undefined): boolean {
+  return !!url && (url.startsWith("/cards/") || url.startsWith("cards/"));
+}
+
+function mergeAltArts(
+  ...lists: (CardAltArt[] | undefined)[]
+): CardAltArt[] | undefined {
+  const byId = new Map<string, CardAltArt>();
+  for (const list of lists) {
+    if (!list?.length) continue;
+    for (const alt of list) {
+      if (!alt?.id || !alt.imageUrl) continue;
+      const prev = byId.get(alt.id);
+      // Prefer CDN over missing local mirrors when the same alt id collides.
+      if (prev && isLocalCardsUrl(alt.imageUrl) && !isLocalCardsUrl(prev.imageUrl)) {
+        continue;
+      }
+      byId.set(alt.id, { id: alt.id, label: alt.label, imageUrl: alt.imageUrl });
+    }
+  }
+  if (byId.size === 0) return undefined;
+  return [...byId.values()];
+}
+
 function fromCatalog(defId: string): CardAtlasEntry | undefined {
   const hit = catalog[defId];
   if (!hit) return undefined;
@@ -65,6 +90,47 @@ function fromCatalog(defId: string): CardAtlasEntry | undefined {
     rush: hit.rush,
     imageUrl: hit.imageUrl,
     effectText: hit.effectText,
+    altArts: hit.altArts?.length
+      ? hit.altArts.map((a) => ({
+          id: a.id,
+          label: a.label,
+          imageUrl: a.imageUrl,
+        }))
+      : undefined,
+  };
+}
+
+/**
+ * Resolve curated + catalog + TCG product map into a single display entry.
+ * Curated wins for gameplay identity; CDN catalog / tcgProducts fill missing art.
+ */
+function resolveAtlasEntry(defId: string): CardAtlasEntry | undefined {
+  const curatedHit = curated[defId];
+  const catalogHit = fromCatalog(defId);
+  const stubHit = runtimeStubs.get(defId);
+  const base = curatedHit ?? catalogHit ?? stubHit;
+  if (!base) return undefined;
+
+  const catalogUrl = catalogHit?.imageUrl;
+  const tcgUrl = tcgArtForCard(defId);
+  let imageUrl = base.imageUrl;
+  if (isLocalCardsUrl(imageUrl)) {
+    if (catalogUrl && !isLocalCardsUrl(catalogUrl)) imageUrl = catalogUrl;
+    else if (tcgUrl) imageUrl = tcgUrl;
+  } else if (!imageUrl) {
+    imageUrl = (catalogUrl && !isLocalCardsUrl(catalogUrl) ? catalogUrl : undefined) ?? tcgUrl;
+  }
+
+  const altArts = mergeAltArts(
+    base.altArts,
+    catalogHit?.altArts,
+    tcgAltsForCard(defId),
+  );
+
+  return {
+    ...base,
+    imageUrl,
+    altArts,
   };
 }
 
@@ -82,6 +148,7 @@ export function stubAtlasEntry(
 ): CardAtlasEntry {
   const id = defId.trim().toUpperCase();
   const imageUrl = tcgArtForCard(id) ?? `/cards/${id}.png`;
+  const altArts = tcgAltsForCard(id);
   if (type === "leader") {
     return {
       id,
@@ -93,6 +160,7 @@ export function stubAtlasEntry(
       life: 5,
       imageUrl,
       effectText: "—",
+      altArts: altArts.length ? altArts : undefined,
     };
   }
   return {
@@ -105,6 +173,7 @@ export function stubAtlasEntry(
     counter: 1000,
     imageUrl,
     effectText: "—",
+    altArts: altArts.length ? altArts : undefined,
   };
 }
 
@@ -119,8 +188,7 @@ export function registerAtlasStub(
 }
 
 export function lookupCard(defId: string): CardAtlasEntry {
-  const hit =
-    curated[defId] ?? fromCatalog(defId) ?? runtimeStubs.get(defId);
+  const hit = resolveAtlasEntry(defId);
   const base =
     hit ??
     (isOptcgCardId(defId)

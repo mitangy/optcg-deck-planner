@@ -15,6 +15,10 @@ export const TCG_PRODUCTS: Record<
     "productId": 288232,
     "alts": []
   },
+  "ST01-005": {
+    "productId": 288234,
+    "alts": []
+  },
   "ST01-006": {
     "productId": 288235,
     "alts": []
@@ -131,6 +135,24 @@ export const TCG_PRODUCTS: Record<
   },
   "OP17-019": {
     "productId": 712602,
+    "alts": []
+  },
+  "OP17-039": {
+    "productId": 712086,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 710591
+      }
+    ]
+  },
+  "OP17-112": {
+    "productId": 711325,
+    "alts": []
+  },
+  "EB03-034": {
+    "productId": 672781,
     "alts": []
   },
   "ST23-001": {

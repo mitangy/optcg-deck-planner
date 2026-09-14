@@ -133,6 +133,23 @@ describe("constructed seed stubs + auto-stub", () => {
     }
   });
 
+  it("maps Rocks.D.Xebec (OP17-039) to TCGPlayer CDN art + alt art", () => {
+    const rocks = getCardDef("OP17-039");
+    expect(rocks.imageUrl).toBe(
+      "https://tcgplayer-cdn.tcgplayer.com/product/712086_400w.jpg",
+    );
+    expect(rocks.altArts?.some((a) => a.id === "p1")).toBe(true);
+    expect(rocks.altArts?.find((a) => a.id === "p1")?.imageUrl).toBe(
+      "https://tcgplayer-cdn.tcgplayer.com/product/710591_400w.jpg",
+    );
+  });
+
+  it("maps ST01-005 to TCGPlayer CDN art", () => {
+    expect(getCardDef("ST01-005").imageUrl).toBe(
+      "https://tcgplayer-cdn.tcgplayer.com/product/288234_400w.jpg",
+    );
+  });
+
   it("auto-stubs unknown OPTCG ids via ensureDefsForPlayers", () => {
     const id = "OP99-001";
     expect(() => getCardDef(id)).toThrow(/Unknown card def/);

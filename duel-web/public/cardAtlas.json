@@ -136,7 +136,7 @@
     "cost": 1,
     "power": 2000,
     "counter": 2000,
-    "imageUrl": "/cards/ST01-005.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288234_400w.jpg",
     "effectText": "—",
     "attribute": "Strike"
   },
@@ -219,8 +219,15 @@
     "cost": 0,
     "power": 5000,
     "life": 5,
-    "imageUrl": "/cards/OP17-039.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712086_400w.jpg",
     "effectText": "[When Attacking] You may trash 1 card from your hand: Reveal 1 card from the top of your deck. If the revealed card's type includes \"Rocks Pirates\", draw 2 cards.",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/710591_400w.jpg"
+      }
+    ],
     "traits": [
       "Rocks Pirates"
     ],
@@ -496,6 +503,38 @@
       "Blackbeard Pirates"
     ],
     "attribute": "Special"
+  },
+  "EB03-034": {
+    "id": "EB03-034",
+    "name": "Charlotte Linlin",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 7,
+    "power": 8000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/672781_400w.jpg",
+    "effectText": "[On Play] Draw 1 card and place 1 card from your hand at the top of your deck. Then, add up to 1 DON!! card from your DON!! deck and set it as active.\n\n[On K.O.] DON!! 1: Add up to 1 card from the top of your deck to the top of your Life cards.",
+    "traits": [
+      "Big Mom Pirates"
+    ]
+  },
+  "OP17-112": {
+    "id": "OP17-112",
+    "name": "Charlotte Linlin",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 10,
+    "power": 10000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/711325_400w.jpg",
+    "effectText": "[Your Turn] The base power of all of your Characters with a [Trigger] and 4000 base power becomes 8000.\n\n[On Play] Draw 1 card, then choose one:\n• Add up to 1 card from the top of your deck to the top of your Life cards.\n• Add up to 1 card from the top of your opponent's Life cards to the owner's hand.",
+    "traits": [
+      "Big Mom Pirates"
+    ]
   },
   "OP09-086": {
     "id": "OP09-086",
