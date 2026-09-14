@@ -105,6 +105,23 @@ def is_special(name: str) -> bool:
     return any(m in n for m in SPECIAL_MARKERS)
 
 
+def alt_label(name: str) -> str:
+    n = name.lower()
+    if "manga" in n:
+        return "Manga Rare"
+    if "treasure rare" in n or re.search(r"\btr\b", n):
+        return "Treasure Rare"
+    if "illustration rare" in n:
+        return "Illustration Rare"
+    if "winner" in n or "championship" in n:
+        return "Promo"
+    if "promo" in n:
+        return "Promo"
+    if "alternate art" in n or "alt art" in n or "parallel" in n:
+        return "Alternate Art"
+    return "Special Art"
+
+
 def effect_has(flag: str, text: str) -> bool:
     return flag.lower() in text.lower()
 
@@ -181,6 +198,28 @@ def main() -> None:
         best = dict(rows_sorted[0])
         best.pop("_special", None)
         best.pop("_productId", None)
+        # Special / parallel printings become selectable alt arts in Deck Configure.
+        alt_arts: list[dict] = []
+        seen_urls: set[str] = set()
+        primary_url = best.get("imageUrl") or ""
+        if primary_url:
+            seen_urls.add(primary_url)
+        for row in rows_sorted[1:]:
+            if not row.get("_special"):
+                continue
+            url = row.get("imageUrl") or ""
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            alt_arts.append(
+                {
+                    "id": f"p{len(alt_arts) + 1}",
+                    "label": alt_label(str(row.get("name") or "")),
+                    "imageUrl": url,
+                }
+            )
+        if alt_arts:
+            best["altArts"] = alt_arts
         # Drop nullish optional fields to keep JSON smaller.
         catalog[card_id] = {k: v for k, v in best.items() if v is not None and v != []}
 

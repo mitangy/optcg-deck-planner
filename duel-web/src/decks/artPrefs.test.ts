@@ -18,8 +18,12 @@ describe("resolveCardImageUrl seat scoping", () => {
     const seat0 = resolveCardImageUrl("ST01-006", { ownerSeat: 0 });
     const seat1 = resolveCardImageUrl("ST01-006", { ownerSeat: 1 });
 
-    expect(seat0).toBe("/cards/ST01-006_p1.webp");
-    expect(seat1).toBe("/cards/ST01-006_p2.webp");
+    expect(seat0).toBe(
+      "https://tcgplayer-cdn.tcgplayer.com/product/485267_400w.jpg",
+    );
+    expect(seat1).toBe(
+      "https://tcgplayer-cdn.tcgplayer.com/product/501749_400w.jpg",
+    );
     expect(seat0).not.toBe(seat1);
   });
 
@@ -30,7 +34,9 @@ describe("resolveCardImageUrl seat scoping", () => {
 
     const a = resolveCardImageUrl("ST01-006", { ownerSeat: 0 });
     const b = resolveCardImageUrl("ST01-006", { ownerSeat: 0 });
-    expect(a).toBe("/cards/ST01-006_p1.webp");
+    expect(a).toBe(
+      "https://tcgplayer-cdn.tcgplayer.com/product/485267_400w.jpg",
+    );
     expect(b).toBe(a);
 
     // Opponent seat unchanged (standard / default atlas art = TCGplayer CDN).
@@ -47,7 +53,7 @@ describe("resolveCardImageUrl seat scoping", () => {
       /tcgplayer-cdn\.tcgplayer\.com\/product\/\d+/,
     );
     expect(resolveCardImageUrl("ST01-006", { ownerSeat: 1 })).toBe(
-      "/cards/ST01-006_p2.webp",
+      "https://tcgplayer-cdn.tcgplayer.com/product/501749_400w.jpg",
     );
   });
 });
