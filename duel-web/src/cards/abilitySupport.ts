@@ -31,7 +31,7 @@ function meaningfulRemainder(text: string): string {
     .replace(/\r/g, "")
     .replace(KEYWORD_ONLY_RE, " ")
     .replace(TIMING_TAG_RE, " ")
-    .replace(/[—\-–]/s+/g, " ")
+    .replace(/\u2014|\u2013|-/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
