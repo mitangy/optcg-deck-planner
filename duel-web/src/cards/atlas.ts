@@ -34,6 +34,16 @@ export type CardAtlasEntry = {
   abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unsupported";
 };
 
+/**
+ * Raw cosmetics JSON omits empty arrays/nulls (e.g. no `colors`), so it is not
+ * a full CardAtlasEntry until `fromCatalog` normalizes defaults.
+ */
+type CosmeticsCatalogRow = Omit<Partial<CardAtlasEntry>, "altArts" | "abilitySupport"> & {
+  id?: string;
+  altArts?: Array<Partial<CardAltArt> & Pick<CardAltArt, "id" | "imageUrl">>;
+  abilitySupport?: CardAtlasEntry["abilitySupport"];
+};
+
 /** Curated playable prints (rules package export). */
 const curated = atlasJson as Record<string, CardAtlasEntry>;
 
@@ -41,7 +51,7 @@ const curated = atlasJson as Record<string, CardAtlasEntry>;
  * Cosmetics catalog for every English OPTCG number we know about (TCGCSV).
  * Used for Deck Configure search / art; gameplay still auto-stubs missing defs.
  */
-const catalog = catalogJson as Record<string, CardAtlasEntry>;
+const catalog = catalogJson as Record<string, CosmeticsCatalogRow>;
 
 /** Session stubs for OPTCG ids imported beyond curated + catalog. */
 const runtimeStubs = new Map<string, CardAtlasEntry>();
@@ -98,7 +108,7 @@ function fromCatalog(defId: string): CardAtlasEntry | undefined {
     altArts: hit.altArts?.length
       ? hit.altArts.map((a) => ({
           id: a.id,
-          label: a.label,
+          label: a.label ?? a.id,
           imageUrl: a.imageUrl,
         }))
       : undefined,
