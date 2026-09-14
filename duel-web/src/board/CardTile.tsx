@@ -68,6 +68,8 @@ type Props = {
   ownerSeat?: Seat;
   /** Seat controlling the UI (alt-art picker writes here). */
   viewingSeat?: Seat;
+  /** Server-authoritative play cost (Teach tax, etc.) when in Main. */
+  playCost?: number;
 };
 
 export function CardTile({
@@ -92,6 +94,7 @@ export function CardTile({
   classNameExtra,
   ownerSeat,
   viewingSeat,
+  playCost,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
   const [imgFailed, setImgFailed] = useState(false);
@@ -279,7 +282,18 @@ export function CardTile({
       ) : null}
       <div className="card-caption">
         <div className="name">{entry.name}</div>
-        <div className="meta">{`Cost ${entry.cost}`}</div>
+        <div
+          className={`meta${playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}`}
+          title={
+            playCost != null && playCost !== entry.cost
+              ? `Effective cost ${playCost} (printed ${entry.cost})`
+              : undefined
+          }
+        >
+          {playCost != null && playCost !== entry.cost
+            ? `Cost ${playCost}`
+            : `Cost ${entry.cost}`}
+        </div>
       </div>
       {showInspectChip ? (
         // Quiet keyboard-accessible control — prefer double-click / long-press.

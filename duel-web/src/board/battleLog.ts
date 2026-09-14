@@ -79,8 +79,11 @@ function narrateOne(e: LooseEvent, youSeat: number | null): string | null {
       return `${act(e.seat, youSeat, "draw", "draws")} ${Number(e.count) || 1}`;
     case "don_placed":
       return `${act(e.seat, youSeat, "place", "places")} ${Number(e.count) || 0} DON!!`;
-    case "card_played":
-      return `${act(e.seat, youSeat, "play", "plays")} ${cardName(e.defId)}`;
+    case "card_played": {
+      const paid =
+        typeof e.costPaid === "number" ? ` (rests ${e.costPaid} DON!!)` : "";
+      return `${act(e.seat, youSeat, "play", "plays")} ${cardName(e.defId)}${paid}`;
+    }
     case "stage_replaced":
       return `${act(e.seat, youSeat, "replace", "replaces")} Stage (trashes ${cardName(e.trashedDefId)})`;
     case "character_trashed_for_space":

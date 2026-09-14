@@ -221,7 +221,13 @@ export type GameEvent =
   | { type: "phase_changed"; phase: Phase; activeSeat: Seat }
   | { type: "drew"; seat: Seat; count: number }
   | { type: "don_placed"; seat: Seat; count: number }
-  | { type: "card_played"; seat: Seat; defId: CardDefId; instanceId: InstanceId }
+  | {
+      type: "card_played";
+      seat: Seat;
+      defId: CardDefId;
+      instanceId: InstanceId;
+      costPaid: number;
+    }
   | { type: "stage_replaced"; seat: Seat; trashedDefId: CardDefId }
   | { type: "character_trashed_for_space"; seat: Seat; defId: CardDefId }
   | {

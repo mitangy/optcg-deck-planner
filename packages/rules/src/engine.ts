@@ -1000,7 +1000,13 @@ export function applyIntent(
       // Official: Characters cannot attack the turn they enter play unless Rush.
       inst.summoningSick = !def.rush;
       player.characters.push(inst);
-      events.push({ type: "card_played", seat, defId: card.defId, instanceId: inst.id });
+      events.push({
+        type: "card_played",
+        seat,
+        defId: card.defId,
+        instanceId: inst.id,
+        costPaid: playCost,
+      });
       applyOnPlayEnterPlay(next, seat, inst, def, events);
       return done();
     }
@@ -1013,13 +1019,25 @@ export function applyIntent(
       const inst = makeCard(next, card.defId);
       inst.id = card.id;
       player.stage = inst;
-      events.push({ type: "card_played", seat, defId: card.defId, instanceId: inst.id });
+      events.push({
+        type: "card_played",
+        seat,
+        defId: card.defId,
+        instanceId: inst.id,
+        costPaid: playCost,
+      });
       return done();
     }
 
     if (def.type === "event" && def.eventTiming === "main") {
       player.trash.push(card.defId);
-      events.push({ type: "card_played", seat, defId: card.defId, instanceId: card.id });
+      events.push({
+        type: "card_played",
+        seat,
+        defId: card.defId,
+        instanceId: card.id,
+        costPaid: playCost,
+      });
       if ((def.mainDraw ?? 0) > 0) {
         if (!drawN(next, seat, def.mainDraw!, events)) return done();
       }
@@ -1243,7 +1261,23 @@ export function getPlayerView(state: MatchState, seat: Seat) {
       leader: cv(seat, you.leader),
       characters: you.characters.map((c) => cv(seat, c)),
       stage: you.stage ? cv(seat, you.stage) : null,
-      hand: you.hand.map((c) => ({ id: c.id, defId: c.defId })),
+      hand: you.hand.map((c) => {
+        const def = getCardDef(c.defId);
+        const row: { id: string; defId: string; playCost?: number } = {
+          id: c.id,
+          defId: c.defId,
+        };
+        if (state.phase === "main" && state.activeSeat === seat) {
+          if (def.type === "character") {
+            row.playCost = characterCostForPlay(state, seat, def.cost);
+          } else if (def.type === "event" && def.eventTiming === "main") {
+            row.playCost = def.cost;
+          } else if (def.type === "stage") {
+            row.playCost = def.cost;
+          }
+        }
+        return row;
+      }),
       deckCount: you.deck.length,
       trash: [...you.trash],
       lifeCount: you.life.length,

@@ -165,7 +165,7 @@ export type PlayerView = {
     leader: CardView;
     characters: CardView[];
     stage: CardView | null;
-    hand: { id: string; defId: string }[];
+    hand: { id: string; defId: string; playCost?: number }[];
     handCount?: number;
     deckCount: number;
     trash: string[];

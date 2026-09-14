@@ -1855,6 +1855,9 @@ img.zone-pile-face {
   overflow: hidden;
 }
 
+.card-caption .meta-cost-modified {
+  color: #ffd54f;
+}
 .card-caption .meta {
   color: #b0bec5;
   font-size: 0.55rem;

@@ -1,4 +1,5 @@
 import type { CardDef, CardDefId } from "../types.js";
+import { catalogMetaFor, catalogTypeFor } from "./catalogMeta.js";
 import { tcgAltsForCard, tcgArtForCard } from "./tcgArt.js";
 
 /** Bandai EN cardlist art keyed by official card number (often CORP-blocked in browsers). */
@@ -666,31 +667,50 @@ export function ensureCardDef(
   }
 
   const traits = TRAITS_BY_ID[key];
+  const meta = catalogMetaFor(key);
   const stub: CardDef = opts.asLeader
     ? {
         id: key,
-        name: `${key} (stub)`,
+        name: meta?.name ?? `${key} (stub)`,
         type: "leader",
-        colors: ["red"],
+        colors: meta?.colors?.length ? [...meta.colors] : ["red"],
         cost: 0,
-        power: 5000,
-        life: 5,
+        power: meta?.power ?? 5000,
+        life: meta?.life ?? 5,
         imageUrl: localArt(key),
         effectText: "—",
         ...(traits ? { traits: [...traits] } : {}),
       }
-    : {
-        id: key,
-        name: `${key} (stub)`,
-        type: "character",
-        colors: ["red"],
-        cost: 2,
-        power: 3000,
-        counter: 1000,
-        imageUrl: localArt(key),
-        effectText: "—",
-        ...(traits ? { traits: [...traits] } : {}),
-      };
+    : (() => {
+        const type = catalogTypeFor(key);
+        const base = {
+          id: key,
+          name: meta?.name ?? `${key} (stub)`,
+          type,
+          colors: meta?.colors?.length ? [...meta.colors] : ["red"],
+          cost: meta?.cost ?? 2,
+          imageUrl: localArt(key),
+          effectText: "—",
+          ...(traits ? { traits: [...traits] } : {}),
+        };
+        if (type === "character") {
+          return {
+            ...base,
+            power: meta?.power ?? 3000,
+            counter: meta?.counter ?? 1000,
+            ...(meta?.blocker ? { blocker: true } : {}),
+            ...(meta?.rush ? { rush: true } : {}),
+          };
+        }
+        if (type === "event") {
+          return {
+            ...base,
+            eventTiming: meta?.eventTiming ?? "main",
+            ...(meta?.counter != null ? { counterPowerBonus: meta.counter } : {}),
+          };
+        }
+        return base;
+      })();
 
   defs.push(stub);
   byId.set(key, stub);
