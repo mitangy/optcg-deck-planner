@@ -102,6 +102,12 @@ function statusFor(
       hook: "leaderOnOppAttackTrashTriggerRetarget",
     };
   }
+  if (timing === "when_attacking" && def.leaderWhenAttackingTrashRevealDraw) {
+    return {
+      status: "implemented",
+      hook: "leaderWhenAttackingTrashRevealDraw",
+    };
+  }
   if (timing === "on_play" && def.onPlayOptionalDraw) {
     return { status: "implemented", hook: "onPlayOptionalDraw" };
   }

@@ -112,6 +112,8 @@ export class MatchmakerRoom extends Room {
             autoSkipMulligan: false,
             ranked: true,
             seatUserIds: [a.userId, b.userId],
+            // Ranked always enforces 30s turns (also forced in parseCreateOptions).
+            timer: { turnSeconds: 30 },
           });
           a.client.send("matched", {
             protocolVersion: PROTOCOL_VERSION,

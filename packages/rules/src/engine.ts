@@ -73,56 +73,84 @@ function characterCostForPlay(state: MatchState, seat: Seat, baseCost: number): 
 
 /**
  * Collect simultaneous post-declare-attack triggers for the attack window.
- * Today: defender leader On-Opponent's-Attack. Future: attacker When Attacking,
- * Stage/Character On Opp Attack, etc. — append into the same batch so
- * `enqueuePendingChoices` can APNAP + offer controller reorder.
+ * Attacker [When Attacking] (e.g. Rocks) and defender [On Opponent's Attack]
+ * (Newgate / Teach) share this batch so `enqueuePendingChoices` can APNAP +
+ * offer controller reorder.
  */
 function collectAttackDeclarationTriggers(
   state: MatchState,
   attackerSeat: Seat,
 ): PendingChoice[] {
   const out: PendingChoice[] = [];
+  const attacker = state.players[attackerSeat];
+  const atkLeaderDef = getCardDef(attacker.leader.defId);
+
+  // Leader When Attacking — only when the Leader itself is the attacker.
+  if (
+    state.battle?.attackerId === attacker.leader.id &&
+    atkLeaderDef.leaderWhenAttackingTrashRevealDraw &&
+    attacker.hand.length > 0 &&
+    attacker.deck.length > 0
+  ) {
+    const trait = atkLeaderDef.leaderWhenAttackingTrashRevealDraw.revealTrait;
+    const draw = atkLeaderDef.leaderWhenAttackingTrashRevealDraw.draw;
+    out.push({
+      id: alloc(state, "choice"),
+      seat: attackerSeat,
+      kind: "when_attacking",
+      cardDefId: atkLeaderDef.id,
+      sourceInstanceId: attacker.leader.id,
+      optional: true,
+      prompt:
+        `${atkLeaderDef.name} — When Attacking: trash 1 card from hand to reveal ` +
+        `the top of your deck; if its type includes {${trait}}, draw ${draw}?`,
+      abilityId: "rocks_reveal_draw",
+    });
+  }
+
   const defSeat = otherSeat(attackerSeat);
   const defender = state.players[defSeat];
-  if (defender.leaderOppAttackAbilityUsedThisTurn) return out;
-  const leaderDef = getCardDef(defender.leader.defId);
+  if (!defender.leaderOppAttackAbilityUsedThisTurn) {
+    const leaderDef = getCardDef(defender.leader.defId);
 
-  if (leaderDef.leaderOnOppAttackTrashForPower && defender.hand.length > 0) {
-    const power = leaderDef.leaderOnOppAttackTrashForPower.power;
-    const prompt =
-      `${leaderDef.name} — On Opponent's Attack: trash 1 card from hand to give ` +
-      `one of your Leader or Characters +${power} power this battle?`;
-    out.push({
-      id: alloc(state, "choice"),
-      seat: defSeat,
-      kind: "leader_on_opp_attack",
-      cardDefId: leaderDef.id,
-      sourceInstanceId: defender.leader.id,
-      optional: true,
-      prompt,
-      abilityId: "newgate_battle_power",
-    });
-    return out;
+    if (leaderDef.leaderOnOppAttackTrashForPower && defender.hand.length > 0) {
+      const power = leaderDef.leaderOnOppAttackTrashForPower.power;
+      const prompt =
+        `${leaderDef.name} — On Opponent's Attack: trash 1 card from hand to give ` +
+        `one of your Leader or Characters +${power} power this battle?`;
+      out.push({
+        id: alloc(state, "choice"),
+        seat: defSeat,
+        kind: "leader_on_opp_attack",
+        cardDefId: leaderDef.id,
+        sourceInstanceId: defender.leader.id,
+        optional: true,
+        prompt,
+        abilityId: "newgate_battle_power",
+      });
+    } else if (leaderDef.leaderOnOppAttackTrashTriggerRetarget) {
+      const hasTriggerCard = defender.hand.some((c) =>
+        cardHasTrigger(getCardDef(c.defId)),
+      );
+      if (hasTriggerCard) {
+        const trait = leaderDef.leaderOnOppAttackTrashTriggerRetarget.retargetTrait;
+        const prompt =
+          `${leaderDef.name} — On Opponent's Attack: trash 1 [Trigger] card from hand to ` +
+          `redirect this attack to your Leader or a {${trait}} Character?`;
+        out.push({
+          id: alloc(state, "choice"),
+          seat: defSeat,
+          kind: "leader_on_opp_attack",
+          cardDefId: leaderDef.id,
+          sourceInstanceId: defender.leader.id,
+          optional: true,
+          prompt,
+          abilityId: "teach_redirect",
+        });
+      }
+    }
   }
 
-  if (leaderDef.leaderOnOppAttackTrashTriggerRetarget) {
-    const hasTriggerCard = defender.hand.some((c) => cardHasTrigger(getCardDef(c.defId)));
-    if (!hasTriggerCard) return out;
-    const trait = leaderDef.leaderOnOppAttackTrashTriggerRetarget.retargetTrait;
-    const prompt =
-      `${leaderDef.name} — On Opponent's Attack: trash 1 [Trigger] card from hand to ` +
-      `redirect this attack to your Leader or a {${trait}} Character?`;
-    out.push({
-      id: alloc(state, "choice"),
-      seat: defSeat,
-      kind: "leader_on_opp_attack",
-      cardDefId: leaderDef.id,
-      sourceInstanceId: defender.leader.id,
-      optional: true,
-      prompt,
-      abilityId: "teach_redirect",
-    });
-  }
   return out;
 }
 
@@ -602,8 +630,52 @@ export function applyIntent(
         cardDefId: front.cardDefId,
         accepted: intent.accept,
       });
+    } else if (front.kind === "when_attacking") {
+      const player = next.players[seat];
+      if (intent.accept) {
+        if (front.abilityId !== "rocks_reveal_draw") {
+          return fail(state, "unknown_ability", "Unknown when-attacking ability");
+        }
+        if (
+          intent.handIndex == null ||
+          intent.handIndex < 0 ||
+          intent.handIndex >= player.hand.length
+        ) {
+          return fail(state, "bad_hand", "Choose a hand card to trash");
+        }
+        if (player.deck.length === 0) {
+          return fail(state, "empty_deck", "No card to reveal");
+        }
+        const cfg = def.leaderWhenAttackingTrashRevealDraw;
+        if (!cfg) {
+          return fail(state, "unknown_ability", "Leader missing reveal-draw hook");
+        }
+        const [trashed] = player.hand.splice(intent.handIndex, 1);
+        player.trash.push(trashed.defId);
+        const revealedId = player.deck[0]!;
+        const revealedDef = getCardDef(revealedId);
+        const matched = (revealedDef.traits ?? []).some(
+          (t) => t.includes(cfg.revealTrait) || cfg.revealTrait.includes(t),
+        );
+        events.push({
+          type: "card_revealed",
+          seat,
+          defId: revealedId,
+          matchedTrait: matched,
+        });
+        if (matched) {
+          if (!drawN(next, seat, cfg.draw, events)) return done();
+        }
+      }
+      events.push({
+        type: "pending_choice_resolved",
+        seat,
+        kind: front.kind,
+        cardDefId: front.cardDefId,
+        accepted: intent.accept,
+      });
     } else {
-      // Future kinds (activate_main / when_attacking / optional_ability):
+      // Future kinds (activate_main / optional_ability):
       // engine hooks land per-card; the queue + prompt framework is ready.
       events.push({
         type: "pending_choice_resolved",

@@ -126,6 +126,10 @@ function narrateOne(e: LooseEvent, youSeat: number | null): string | null {
       return `${seatLabel(e.seat, youSeat)} Trigger available (${cardName(e.defId)})`;
     case "trigger_resolved":
       return `${seatLabel(e.seat, youSeat)} Trigger ${e.accepted ? "accepted" : "declined"}`;
+    case "card_revealed":
+      return `${seatLabel(e.seat, youSeat)} reveals ${cardName(e.defId)}${
+        e.matchedTrait ? " (Rocks Pirates)" : ""
+      }`;
     case "pending_choice_added": {
       const kind = typeof e.kind === "string" ? e.kind.replace(/_/g, " ") : "ability";
       return `${seatLabel(e.seat, youSeat)} may resolve ${cardName(e.cardDefId)}'s ${kind}`;

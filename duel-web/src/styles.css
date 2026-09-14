@@ -81,6 +81,16 @@ button {
   border-top: 1px solid var(--line);
 }
 
+.lobby-setup-panel {
+  border: 1px solid var(--chrome);
+  border-radius: 10px;
+  padding: 1rem 1.1rem 1.15rem;
+  background:
+    linear-gradient(180deg, rgba(201, 162, 39, 0.1), transparent 55%),
+    var(--arena-panel);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
 .lobby-section-title {
   margin: 0;
   font-size: 0.95rem;
@@ -1032,6 +1042,13 @@ button {
   letter-spacing: 0.06em;
 }
 
+.hud-turn-chip.hud-timer {
+  font-variant-numeric: tabular-nums;
+  border-color: rgba(120, 180, 220, 0.55);
+  background: rgba(80, 140, 180, 0.18);
+  color: #c8e4f5;
+}
+
 .hud-actions {
   position: relative;
   z-index: 30;
@@ -1667,8 +1684,13 @@ img.zone-pile-face {
   display: flex;
   gap: 0.55rem;
   overflow-x: auto;
+  overflow-y: hidden;
   padding: 0.35rem 0.15rem 0.5rem;
   min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
 }
 
 .hand-row .card-tile {
@@ -2327,6 +2349,16 @@ img.zone-pile-face {
   display: flex;
   gap: 0.5rem;
   margin-top: 0.55rem;
+}
+
+.ability-prompt-waiting {
+  border-style: dashed;
+  opacity: 0.95;
+}
+.ability-prompt-waiting .meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.7rem;
+  color: var(--muted);
 }
 
 

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Intent, MatchOverMessage, PlayerView, Seat, TimerMessage } from "../net/protocol";
 import { BattleLogPanel } from "./BattleLogPanel";
 import type { BattleLogEntry } from "./battleLog";
 import { CardTile } from "./CardTile";
@@ -30,6 +30,7 @@ type Props = {
   matchId: string | null;
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
+  timer?: TimerMessage | null;
   spectator?: boolean;
   battleLog?: BattleLogEntry[];
   onSendIntent: (intent: Intent) => void;
@@ -38,6 +39,14 @@ type Props = {
 };
 
 const EMPTY_IDS = new Set<string>();
+
+function formatCountdown(endsAt: number | null | undefined, now: number): string | null {
+  if (endsAt == null) return null;
+  const sec = Math.max(0, Math.ceil((endsAt - now) / 1000));
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
+}
 
 function describeBattle(view: PlayerView): string {
   const b = view.battle as {
@@ -77,6 +86,7 @@ export function DuelBoard({
   matchId,
   errorBanner,
   matchOver,
+  timer = null,
   spectator = false,
   battleLog = [],
   onSendIntent,
@@ -89,6 +99,28 @@ export function DuelBoard({
   const [logCollapsed, setLogCollapsed] = useState(true);
   const [handCollapsed, setHandCollapsed] = useState(false);
   const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
+  const [now, setNow] = useState(() => Date.now());
+  const handRowRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!timer?.turnEndsAt && !timer?.matchEndsAt) return;
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, [timer?.turnEndsAt, timer?.matchEndsAt]);
+
+  // Trackpad / mouse wheel → horizontal hand scroll when the row overflows.
+  useEffect(() => {
+    const el = handRowRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return;
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [handCollapsed, view?.you.hand.length]);
 
   const over = matchOver != null || view?.winner != null;
   const mySeat = seat ?? view?.seat ?? null;
@@ -275,6 +307,16 @@ export function DuelBoard({
             <span className="hud-turn-chip">YOUR TURN</span>
           ) : null}
           {spectating ? <span className="hud-turn-chip">SPECTATOR</span> : null}
+          {formatCountdown(timer?.turnEndsAt, now) ? (
+            <span className="hud-turn-chip hud-timer" title="Turn clock">
+              Turn {formatCountdown(timer?.turnEndsAt, now)}
+            </span>
+          ) : null}
+          {formatCountdown(timer?.matchEndsAt, now) ? (
+            <span className="hud-turn-chip hud-timer" title="Match clock">
+              Match {formatCountdown(timer?.matchEndsAt, now)}
+            </span>
+          ) : null}
         </div>
         <div className="hud-actions">
           <span className="match-id" title={matchId ?? undefined}>
@@ -447,7 +489,7 @@ export function DuelBoard({
             </button>
           ) : null}
         </div>
-        <div className="hand-row">
+        <div className="hand-row" ref={handRowRef}>
           {spectating
             ? Array.from({ length: Math.min(you.handCount ?? 0, 8) }).map((_, i) => (
                 <span key={i} className="card-back hand-back" />
@@ -501,13 +543,22 @@ export function DuelBoard({
             onSendIntent(intent);
           }}
         />
+      ) : !spectating &&
+        view.pendingChoices?.[0] &&
+        view.pendingChoices[0].seat !== mySeat ? (
+        <div className="ability-prompt ability-prompt-waiting" role="status">
+          <h3>Waiting for opponent</h3>
+          <p>{view.pendingChoices[0].prompt}</p>
+          <p className="meta">They are resolving a leader ability or effect choice.</p>
+        </div>
       ) : null}
 
       {!spectating ? (
         <IntentBar
           intents={
-            view.pendingChoices?.[0]?.kind === "order_effects" ||
-            view.pendingChoices?.[0]?.abilityId
+            view.pendingChoices?.[0]?.seat === mySeat &&
+            (view.pendingChoices[0].kind === "order_effects" ||
+              Boolean(view.pendingChoices[0].abilityId))
               ? view.legalIntents.filter(
                   (i) =>
                     i.type !== "resolve_pending_choice" &&

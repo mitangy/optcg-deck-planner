@@ -22,6 +22,7 @@ export function DuelPage() {
     clearError,
     role,
     battleLog,
+    timer,
   } = useDuelSession();
 
 
@@ -64,6 +65,7 @@ export function DuelPage() {
         matchId={matchId}
         errorBanner={errorBanner}
         matchOver={matchOver}
+        timer={timer}
         spectator={role === "spectator" || Boolean(view?.spectator)}
         battleLog={battleLog}
         onSendIntent={sendIntent}

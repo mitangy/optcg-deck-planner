@@ -34,6 +34,14 @@ export type DuelCreateOptions = {
   /** Default true for Step 2 scripts. */
   autoSkipMulligan?: boolean;
   players?: [PlayerDeckWire, PlayerDeckWire];
+  /**
+   * Optional clocks. Ranked queue always forces turnSeconds=30.
+   * Omit / 0 = disabled for that clock.
+   */
+  timer?: {
+    turnSeconds?: number;
+    matchSeconds?: number;
+  };
 };
 
 export type ErrorCode =
@@ -151,6 +159,7 @@ export function parseCreateOptions(raw: unknown): {
   ranked: boolean;
   seatUserIds?: [number, number];
   players?: [PlayerDeckWire, PlayerDeckWire];
+  timer: { turnSeconds: number | null; matchSeconds: number | null };
 } {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   if (o.protocolVersion !== undefined && !isProtocolVersion(o.protocolVersion)) {
@@ -187,6 +196,24 @@ export function parseCreateOptions(raw: unknown): {
     const [a, b] = o.players as [unknown, unknown];
     players = [asPlayerDeck(a), asPlayerDeck(b)];
   }
+  const timerRaw =
+    o.timer && typeof o.timer === "object"
+      ? (o.timer as Record<string, unknown>)
+      : {};
+  let turnSeconds =
+    typeof timerRaw.turnSeconds === "number" && Number.isFinite(timerRaw.turnSeconds)
+      ? Math.max(0, Math.floor(timerRaw.turnSeconds))
+      : null;
+  let matchSeconds =
+    typeof timerRaw.matchSeconds === "number" && Number.isFinite(timerRaw.matchSeconds)
+      ? Math.max(0, Math.floor(timerRaw.matchSeconds))
+      : null;
+  if (turnSeconds === 0) turnSeconds = null;
+  if (matchSeconds === 0) matchSeconds = null;
+  // Ranked always enforces 30s player turns (match clock remains optional).
+  if (ranked) {
+    turnSeconds = 30;
+  }
   return {
     protocolVersion: PROTOCOL_VERSION,
     seed,
@@ -194,6 +221,7 @@ export function parseCreateOptions(raw: unknown): {
     ranked,
     seatUserIds,
     players,
+    timer: { turnSeconds, matchSeconds },
   };
 }
 

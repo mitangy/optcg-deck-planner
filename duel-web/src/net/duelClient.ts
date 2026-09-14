@@ -3,6 +3,7 @@ import {
   parseCosmetics,
   parseError,
   parseMatchOver,
+  parseTimer,
   parseView,
   parseWelcome,
   type ArtPrefsMap,
@@ -14,6 +15,7 @@ import {
   type MatchOverMessage,
   type PlayerView,
   type Seat,
+  type TimerMessage,
 } from "./protocol";
 import { Client, type Room } from "@colyseus/sdk";
 import { isSeatReservationExpiredError } from "./matchResume";
@@ -30,6 +32,7 @@ export type DuelClientHandlers = {
   onError?: (err: ErrorMessage) => void;
   onMatchOver?: (msg: MatchOverMessage) => void;
   onCosmetics?: (msg: CosmeticsMessage) => void;
+  onTimer?: (msg: TimerMessage) => void;
   onDisconnect?: (code: number) => void;
   onQueued?: (position: number) => void;
   onMatched?: (info: { roomId: string; seat: Seat; ranked: boolean }) => void;
@@ -397,6 +400,14 @@ export class DuelClient {
           code: "bad_protocol",
           message: e instanceof Error ? e.message : "Bad cosmetics",
         });
+      }
+    });
+
+    room.onMessage("timer", (raw: unknown) => {
+      try {
+        this.handlers.onTimer?.(parseTimer(raw));
+      } catch {
+        /* ignore malformed timer snapshots */
       }
     });
 

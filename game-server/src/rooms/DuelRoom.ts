@@ -7,6 +7,7 @@ import {
   DEFAULT_LEADER_ID,
   getPlayerView,
   getSpectatorView,
+  listLegalIntents,
   skipMulligans,
   type GameEvent,
   type Intent,
@@ -79,6 +80,12 @@ export class DuelRoom extends Room {
   private matchStarted = false;
   private matchOverSent = false;
   private endReason: string | null = null;
+  private turnSeconds: number | null = null;
+  private matchSeconds: number | null = null;
+  private turnEndsAt: number | null = null;
+  private matchEndsAt: number | null = null;
+  private timerInterval: ReturnType<typeof setInterval> | null = null;
+  private lastTimerActiveSeat: Seat | null = null;
 
   onCreate(options: unknown) {
     // Free-tier cold starts need >15s between matchmake HTTP and WS consume.
@@ -92,6 +99,8 @@ export class DuelRoom extends Room {
       this.seatDecks = [parsed.players[0], parsed.players[1]];
     }
     this.ranked = parsed.ranked;
+    this.turnSeconds = parsed.timer.turnSeconds;
+    this.matchSeconds = parsed.timer.matchSeconds;
     this.presetSeatUserIds = parsed.seatUserIds;
     this.matchId = this.roomId;
     this.state.matchId = this.matchId;
@@ -129,7 +138,14 @@ export class DuelRoom extends Room {
       matchId: this.matchId,
       seed: this.seed,
       ranked: this.ranked,
+      turnSeconds: this.turnSeconds,
+      matchSeconds: this.matchSeconds,
     });
+  }
+
+  onDispose() {
+    this.clearTimerLoop();
+    this.log("info", "room_disposed", { matchId: this.matchId });
   }
 
   onAuth(_client: Client, options: unknown) {
@@ -279,10 +295,6 @@ export class DuelRoom extends Room {
       });
       this.clearSeat(client.sessionId);
     }
-  }
-
-  onDispose() {
-    this.log("info", "room_disposed", { matchId: this.matchId });
   }
 
   private resolveIdentity(options: unknown): {
@@ -441,6 +453,10 @@ export class DuelRoom extends Room {
       this.sendSpectatorSync(client, spec.cameraSeat);
     }
 
+    this.armMatchClock();
+    this.refreshTurnClock();
+    this.ensureTimerLoop();
+    this.broadcastTimer();
     this.maybeSendMatchOver();
   }
 
@@ -563,6 +579,7 @@ export class DuelRoom extends Room {
     this.match = result.state;
     this.syncPublicState();
     this.broadcastViews(result.events);
+    this.onMatchAdvanced();
     this.maybeSendMatchOver();
   }
 
@@ -595,6 +612,181 @@ export class DuelRoom extends Room {
         view,
       });
     }
+  }
+
+
+  private clearTimerLoop() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  private ensureTimerLoop() {
+    if (this.timerInterval) return;
+    if (this.turnSeconds == null && this.matchSeconds == null) return;
+    this.timerInterval = setInterval(() => this.tickTimers(), 250);
+  }
+
+  private armMatchClock() {
+    if (this.matchSeconds == null) {
+      this.matchEndsAt = null;
+      return;
+    }
+    this.matchEndsAt = Date.now() + this.matchSeconds * 1000;
+  }
+
+  private refreshTurnClock() {
+    if (!this.match || this.turnSeconds == null) {
+      this.turnEndsAt = null;
+      this.lastTimerActiveSeat = this.match?.activeSeat ?? null;
+      return;
+    }
+    this.turnEndsAt = Date.now() + this.turnSeconds * 1000;
+    this.lastTimerActiveSeat = this.match.activeSeat;
+  }
+
+  private onMatchAdvanced() {
+    if (!this.match) return;
+    if (this.match.winner !== null) {
+      this.clearTimerLoop();
+      this.turnEndsAt = null;
+      this.broadcastTimer();
+      return;
+    }
+    if (this.lastTimerActiveSeat !== this.match.activeSeat) {
+      this.refreshTurnClock();
+    }
+    this.ensureTimerLoop();
+    this.broadcastTimer();
+  }
+
+  private broadcastTimer() {
+    this.broadcast("timer", {
+      protocolVersion: PROTOCOL_VERSION,
+      turnSeconds: this.turnSeconds,
+      matchSeconds: this.matchSeconds,
+      turnEndsAt: this.turnEndsAt,
+      matchEndsAt: this.matchEndsAt,
+      activeSeat: this.match?.activeSeat ?? 0,
+    });
+  }
+
+  private tickTimers() {
+    if (!this.match || this.match.winner !== null || this.matchOverSent) {
+      this.clearTimerLoop();
+      return;
+    }
+    const now = Date.now();
+    if (this.matchEndsAt != null && now >= this.matchEndsAt) {
+      this.expireMatchClock();
+      return;
+    }
+    if (this.turnEndsAt != null && now >= this.turnEndsAt) {
+      this.expireTurnClock();
+    }
+  }
+
+  private expireMatchClock() {
+    if (!this.match || this.match.winner !== null) return;
+    const loser = this.match.activeSeat;
+    const winner = (1 - loser) as Seat;
+    this.endReason = "match_timeout";
+    this.match = {
+      ...this.match,
+      winner,
+      winReason: "leader_battle_at_zero_life",
+      phase: "game_over",
+    };
+    this.syncPublicState();
+    this.clearTimerLoop();
+    this.broadcastTimer();
+    this.log("info", "match_timeout", { matchId: this.matchId, winner, loser });
+    this.maybeSendMatchOver();
+  }
+
+  private expireTurnClock() {
+    if (!this.match || !this.rng || this.match.winner !== null) return;
+    const seat = this.actingSeatForTimer();
+    if (seat === null) {
+      // Nobody to auto-act; refresh so we do not tight-loop.
+      this.refreshTurnClock();
+      this.broadcastTimer();
+      return;
+    }
+    const intent = this.autoIntentForSeat(seat);
+    if (!intent) {
+      this.refreshTurnClock();
+      this.broadcastTimer();
+      return;
+    }
+    this.log("info", "turn_timeout", {
+      matchId: this.matchId,
+      seat,
+      intentType: intent.type,
+    });
+    const before = this.match;
+    const result = applyIntent(before, intent, { seat, rng: this.rng });
+    if (!result.ok) {
+      this.refreshTurnClock();
+      this.broadcastTimer();
+      return;
+    }
+    this.match = result.state;
+    this.syncPublicState();
+    this.broadcastViews(result.events);
+    this.onMatchAdvanced();
+    this.maybeSendMatchOver();
+  }
+
+  /** Seat that must act now (pending choice owner, or battle defender, or active). */
+  private actingSeatForTimer(): Seat | null {
+    if (!this.match) return null;
+    const front = this.match.pendingChoices[0];
+    if (front) return front.seat;
+    if (
+      (this.match.phase === "block" || this.match.phase === "counter") &&
+      this.match.battle
+    ) {
+      return (1 - this.match.battle.attackerSeat) as Seat;
+    }
+    if (this.match.phase === "mulligan") {
+      const p0 = this.match.players[0];
+      const p1 = this.match.players[1];
+      if (!p0.mulliganDone) return 0;
+      if (!p1.mulliganDone) return 1;
+      return null;
+    }
+    return this.match.activeSeat;
+  }
+
+  private autoIntentForSeat(seat: Seat): Intent | null {
+    if (!this.match) return null;
+    const legal = listLegalIntents(this.match, seat);
+    const front = this.match.pendingChoices[0];
+    if (front && front.seat === seat) {
+      if (front.kind === "order_effects") {
+        return legal.find((i) => i.type === "order_pending_effects") ?? null;
+      }
+      if (front.optional) {
+        return { type: "resolve_pending_choice", accept: false };
+      }
+      // Mandatory: keep hand / accept without extras when legal.
+      return legal.find((i) => i.type === "resolve_pending_choice" && i.accept) ?? null;
+    }
+    if (this.match.phase === "mulligan") {
+      return { type: "mulligan", doMulligan: false };
+    }
+    if (this.match.phase === "block") {
+      return legal.find((i) => i.type === "pass_block") ?? null;
+    }
+    if (this.match.phase === "counter") {
+      return legal.find((i) => i.type === "pass_counter") ?? null;
+    }
+    if (this.match.phase === "main") {
+      return legal.find((i) => i.type === "end_turn") ?? null;
+    }
+    return null;
   }
 
   private maybeSendMatchOver() {
@@ -686,6 +878,14 @@ export class DuelRoom extends Room {
       view,
     });
     this.sendStoredCosmetics(client);
+    client.send("timer", {
+      protocolVersion: PROTOCOL_VERSION,
+      turnSeconds: this.turnSeconds,
+      matchSeconds: this.matchSeconds,
+      turnEndsAt: this.turnEndsAt,
+      matchEndsAt: this.matchEndsAt,
+      activeSeat: this.match.activeSeat,
+    });
     if (this.match.winner !== null) {
       client.send("match_over", {
         protocolVersion: PROTOCOL_VERSION,

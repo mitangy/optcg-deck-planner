@@ -9,7 +9,8 @@
 export type LeaderAbilityTiming =
   | "activate_main"
   | "opponent_turn_static"
-  | "on_opp_attack";
+  | "on_opp_attack"
+  | "when_attacking";
 
 export type LeaderAbilityEntry = {
   leaderId: string;
@@ -51,6 +52,14 @@ export const LEADER_ABILITY_CATALOG: readonly LeaderAbilityEntry[] = [
     timing: "on_opp_attack",
     summary:
       "On Opponent's Attack [Once Per Turn] — trash 1 [Trigger] from hand: redirect attack to this Leader or a {Blackbeard Pirates} Character.",
+    status: "implemented",
+  },
+  {
+    leaderId: "OP17-039",
+    name: "Rocks.D.Xebec",
+    timing: "when_attacking",
+    summary:
+      'When Attacking — trash 1 hand card: reveal top of deck; if type includes "Rocks Pirates", draw 2.',
     status: "implemented",
   },
 ] as const;

@@ -9,8 +9,9 @@ type Props = {
 };
 
 /**
- * Structured picker for leader On-Opponent's-Attack abilities (Teach / Newgate).
- * Plain Accept is not enough — the engine needs handIndex (+ target).
+ * Structured picker for leader attack-window abilities
+ * (Teach / Newgate / Rocks). Plain Accept is not enough — the engine needs
+ * handIndex (+ target for Newgate/Teach).
  */
 export function AbilityPrompt({ view, choice, onSend }: Props) {
   const [handIndex, setHandIndex] = useState<number | null>(null);
@@ -54,7 +55,9 @@ export function AbilityPrompt({ view, choice, onSend }: Props) {
       ? buffTargetId != null
       : abilityId === "teach_redirect"
         ? retargetLeader || retargetCharId != null
-        : false);
+        : abilityId === "rocks_reveal_draw"
+          ? true
+          : false);
 
   function accept() {
     if (!canAccept || handIndex == null) return;
@@ -76,6 +79,14 @@ export function AbilityPrompt({ view, choice, onSend }: Props) {
           ? { kind: "leader" }
           : { kind: "character", instanceId: retargetCharId! },
       });
+      return;
+    }
+    if (abilityId === "rocks_reveal_draw") {
+      onSend({
+        type: "resolve_pending_choice",
+        accept: true,
+        handIndex,
+      });
     }
   }
 
@@ -84,7 +95,9 @@ export function AbilityPrompt({ view, choice, onSend }: Props) {
       ? "Teach — redirect attack"
       : abilityId === "newgate_battle_power"
         ? "Newgate — battle power"
-        : "Leader ability";
+        : abilityId === "rocks_reveal_draw"
+          ? "Rocks — reveal & draw"
+          : "Leader ability";
 
   return (
     <div className="ability-prompt" role="dialog" aria-label={title}>
@@ -160,6 +173,13 @@ export function AbilityPrompt({ view, choice, onSend }: Props) {
             ))}
           </div>
         </div>
+      ) : null}
+
+      {abilityId === "rocks_reveal_draw" ? (
+        <p className="meta">
+          Confirm trashes the selected card, reveals the top of your deck, and draws 2 if it is a
+          Rocks Pirates type card.
+        </p>
       ) : null}
 
       <div className="ability-prompt-actions">

@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol";
+import { AbilityPrompt } from "./AbilityPrompt";
 import { CardTile } from "./CardTile";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { IntentBar } from "./IntentBar";
@@ -111,9 +112,16 @@ export function DuelBoard({
           const front = view.pendingChoices?.[0];
           const orderingEffects =
             !spectating && front?.kind === "order_effects" && front.seat === mySeat;
-          // Skip the generic pending banner while EffectOrderPrompt owns the UI.
+          const abilityPrompt =
+            !spectating &&
+            Boolean(front?.abilityId) &&
+            front?.seat === mySeat &&
+            !orderingEffects;
+          // Skip the generic pending banner while a structured prompt owns the UI.
           const showStatusBanner = Boolean(
-            view.battle || view.pendingTrigger || (front && !orderingEffects),
+            view.battle ||
+              view.pendingTrigger ||
+              (front && !orderingEffects && !abilityPrompt),
           );
           return (
             <>
@@ -132,6 +140,17 @@ export function DuelBoard({
                 <EffectOrderPrompt
                   key={front!.id}
                   choice={front!}
+                  onSend={(intent) => {
+                    setHandFilter(null);
+                    onSendIntent(intent);
+                  }}
+                />
+              ) : null}
+              {abilityPrompt && front ? (
+                <AbilityPrompt
+                  key={front.id}
+                  view={view}
+                  choice={front}
                   onSend={(intent) => {
                     setHandFilter(null);
                     onSendIntent(intent);
@@ -194,8 +213,13 @@ export function DuelBoard({
       {!spectating ? (
         <IntentBar
           intents={
-            view.pendingChoices?.[0]?.kind === "order_effects"
-              ? view.legalIntents.filter((i) => i.type !== "order_pending_effects")
+            view.pendingChoices?.[0]?.kind === "order_effects" ||
+            view.pendingChoices?.[0]?.abilityId
+              ? view.legalIntents.filter(
+                  (i) =>
+                    i.type !== "order_pending_effects" &&
+                    i.type !== "resolve_pending_choice",
+                )
               : view.legalIntents
           }
           view={view}
