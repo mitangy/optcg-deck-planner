@@ -63,6 +63,13 @@ describe("effect catalog", () => {
     }
   });
 
+  it("marks Moby Dick Stage Activate:Main as implemented", () => {
+    const rows = effectsForCard("OP16-021");
+    const activate = rows.find((r) => r.timing === "activate_main");
+    expect(activate?.status).toBe("implemented");
+    expect(activate?.hook).toBe("stageActivateTrashGiveRestedDon");
+  });
+
   it("reports coverage totals", () => {
     const cov = summarizeEffectCoverage();
     expect(cov.total).toBe(EFFECT_CATALOG.length);

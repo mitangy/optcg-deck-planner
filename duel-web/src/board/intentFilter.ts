@@ -14,7 +14,7 @@ const GLOBAL_INTENT_TYPES = new Set<string>([
 export type IntentSelection = {
   /** Selected hand card index, or null if none selected. */
   handIndex?: number | null;
-  /** Selected board card instance id (leader/character), or null if none selected. */
+  /** Selected board card instance id (leader/character/stage), or null if none selected. */
   boardId?: string | null;
 };
 
@@ -35,6 +35,17 @@ function matchesHand(intent: Intent, handIndex: number): boolean {
 
 /** True when a legal intent references this board instance id in any actionable role. */
 export function matchesBoardId(intent: Intent, boardId: string): boolean {
+  // Activate:Main is filtered by the ability source (leader/character/stage), not
+  // the DON!! recipient — so selecting Stage/Luffy surfaces Activate in IntentBar.
+  if (intent.type === "activate_ability" || intent.type === "activate_leader") {
+    if (intent.sourceId === boardId) return true;
+    // Legacy activate_leader without sourceId: treat as leader-sourced when the
+    // selected id is the give target only if sourceId is absent (tests/compat).
+    if (intent.type === "activate_leader" && intent.sourceId == null) {
+      return intent.targetId === boardId;
+    }
+    return false;
+  }
   return (
     intent.attackerId === boardId ||
     intent.targetId === boardId ||

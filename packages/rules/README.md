@@ -43,7 +43,8 @@ SIM_GAMES=200 npm run sim
 - First-turn: no draw / 1 DON!! for first player; **no attacks on each player’s first turn**  
 - Costs: rest active DON!! in cost area  
 - Give DON!!: +1000 power on controller’s turn; returned active on Refresh; rested if character leaves  
-- Leader Activate:Main (`activate_leader`): attach 1 **rested** cost-area DON!! once per turn (cleared at `beginTurn`)  
+- Leader Activate:Main (`activate_ability` / legacy `activate_leader`): attach 1 **rested** cost-area DON!! once per turn (cleared at `beginTurn`)  
+- Stage Activate:Main (`activate_ability` + `stage_trash_give_rested_don`): trash Stage, then attach 1 rested DON!! (OP16-021)  
 - Battle: Attack → Block → Counter → Damage  
 - Victory: win Leader battle at **0 Life**; or opponent **deck-out**  
 - Privacy: `getPlayerView` hides opponent hand ids, deck order, Life faces, DON!! deck order  
@@ -54,7 +55,8 @@ Default duels use official ST01 numbers that map 1:1 onto engine hooks. Unsuppor
 
 | ID | Name | Role / hooks |
 |----|------|----------------|
-| `ST01-001` | Monkey.D.Luffy | Leader 5000 / Life 5 / **Activate:Main** give 1 rested DON!! (`activate_leader`) |
+| `ST01-001` | Monkey.D.Luffy | Leader 5000 / Life 5 / **Activate:Main** give 1 rested DON!! (`activate_ability`) |
+| `OP16-021` | Moby Dick | Stage / **Activate:Main** trash Stage → give 1 rested DON!! |
 | `ST01-003` | Karoo | Character 1 / 3000 / Counter 1000 |
 | `ST01-006` | TonyTony.Chopper | Character 1 / 1000 / **Blocker** |
 | `ST01-008` | Nico Robin | Character 3 / 5000 / Counter 1000 |
@@ -71,13 +73,14 @@ Decks in tests/sims use **20 cards** (≤4 copies each) from this set — not fu
 |-------|--------|
 | Life stack | `life[0]` = next damage card |
 | Given DON!! power | +1000 only on controller’s turn |
-| `activate_leader` | Attaches one **rested** cost-area DON!! to Leader or own Character; once per turn; flag clears at turn start (`beginTurn`) before Refresh |
+| `activate_ability` | Generic Activate:Main — `sourceId` + `abilityId` (+ optional `targetId`). Luffy: `leader_give_rested_don`; Moby Dick: `stage_trash_give_rested_don` |
+| `activate_leader` | Legacy Luffy Activate:Main (still applied); prefer `activate_ability` |
 | `give_don` | Still requires an **unrested** cost-area DON!! (standard attach) |
 | Unsupported keywords | Omitted from subset (see Known gaps) |
 
 ## Known gaps (vs full Comprehensive Rules)
 
-- Keywords not on the subset (Double Attack, Banish, DON!!×N When Attacking, Stage Activate:Main, Main KO events, etc.)  
+- Keywords not on the subset (Double Attack, Banish, DON!!×N When Attacking, Main KO events, etc.)  
 - Rush **is** implemented (ST01-004 Sanji) with Character summoning sickness  
 - Thousand Sunny / Jet Pistol KO / other ST01 prints deferred until hooks exist  
 - No full 50-card / color-identity / 4-of constructed validation yet  

@@ -186,24 +186,60 @@ describe("ST01-001 Activate:Main", () => {
     const leaderId = state.players[0].leader.id;
     const legal = listLegalIntents(state, 0);
     expect(
-      legal.some((i) => i.type === "activate_leader" && i.targetId === leaderId),
+      legal.some(
+        (i) =>
+          i.type === "activate_ability" &&
+          i.sourceId === leaderId &&
+          i.abilityId === "leader_give_rested_don" &&
+          i.targetId === leaderId,
+      ),
     ).toBe(true);
 
     const before = getPlayerView(state, 0).you.leader.power;
-    state = act(state, 0, { type: "activate_leader", targetId: leaderId }, rng);
+    state = act(
+      state,
+      0,
+      {
+        type: "activate_ability",
+        sourceId: leaderId,
+        abilityId: "leader_give_rested_don",
+        targetId: leaderId,
+      },
+      rng,
+    );
     expect(getPlayerView(state, 0).you.leader.power).toBe(before + 1000);
     expect(state.players[0].leaderActivatedThisTurn).toBe(true);
     expect(
-      listLegalIntents(state, 0).some((i) => i.type === "activate_leader"),
+      listLegalIntents(state, 0).some(
+        (i) => i.type === "activate_ability" && i.abilityId === "leader_give_rested_don",
+      ),
     ).toBe(false);
 
     const second = applyIntent(
       state,
-      { type: "activate_leader", targetId: leaderId },
+      {
+        type: "activate_ability",
+        sourceId: leaderId,
+        abilityId: "leader_give_rested_don",
+        targetId: leaderId,
+      },
       { seat: 0, rng },
     );
     expect(second.ok).toBe(false);
     expect(second.error?.code).toBe("once_per_turn");
+  });
+
+  it("still accepts legacy activate_leader intents", () => {
+    let { state, rng } = fresh(3);
+    state = act(state, 0, { type: "end_turn" }, rng);
+    state = act(state, 1, { type: "end_turn" }, rng);
+    state = structuredClone(state);
+    state.players[0].costArea.find((d) => !d.rested)!.rested = true;
+    const leaderId = state.players[0].leader.id;
+    const before = getPlayerView(state, 0).you.leader.power;
+    state = act(state, 0, { type: "activate_leader", targetId: leaderId }, rng);
+    expect(getPlayerView(state, 0).you.leader.power).toBe(before + 1000);
+    expect(state.players[0].leaderActivatedThisTurn).toBe(true);
   });
 
   it("clears once-per-turn flag at the next turn start", () => {
@@ -215,7 +251,12 @@ describe("ST01-001 Activate:Main", () => {
     state = act(
       state,
       0,
-      { type: "activate_leader", targetId: state.players[0].leader.id },
+      {
+        type: "activate_ability",
+        sourceId: state.players[0].leader.id,
+        abilityId: "leader_give_rested_don",
+        targetId: state.players[0].leader.id,
+      },
       rng,
     );
     expect(state.players[0].leaderActivatedThisTurn).toBe(true);
@@ -223,6 +264,95 @@ describe("ST01-001 Activate:Main", () => {
     state = act(state, 1, { type: "end_turn" }, rng);
     expect(state.activeSeat).toBe(0);
     expect(state.players[0].leaderActivatedThisTurn).toBe(false);
+  });
+});
+
+describe("OP16-021 Moby Dick Stage Activate:Main", () => {
+  it("trashes Stage and gives one rested DON!! to Leader or Character", () => {
+    let { state, rng } = fresh(11);
+    state = act(state, 0, { type: "end_turn" }, rng);
+    state = act(state, 1, { type: "end_turn" }, rng);
+    state = structuredClone(state);
+
+    // Place Moby Dick on Stage and ensure a rested cost-area DON!!.
+    const stage = {
+      id: "stage-moby",
+      defId: "OP16-021",
+      rested: false,
+      attachedDonIds: [] as string[],
+    };
+    state.players[0].stage = stage;
+    state.players[0].costArea.find((d) => !d.rested)!.rested = true;
+
+    const leaderId = state.players[0].leader.id;
+    const legal = listLegalIntents(state, 0);
+    expect(
+      legal.some(
+        (i) =>
+          i.type === "activate_ability" &&
+          i.sourceId === stage.id &&
+          i.abilityId === "stage_trash_give_rested_don" &&
+          i.targetId === leaderId,
+      ),
+    ).toBe(true);
+
+    const before = getPlayerView(state, 0).you.leader.power;
+    const trashBefore = state.players[0].trash.length;
+    state = act(
+      state,
+      0,
+      {
+        type: "activate_ability",
+        sourceId: stage.id,
+        abilityId: "stage_trash_give_rested_don",
+        targetId: leaderId,
+      },
+      rng,
+    );
+    expect(state.players[0].stage).toBeNull();
+    expect(state.players[0].trash[state.players[0].trash.length - 1]).toBe("OP16-021");
+    expect(state.players[0].trash.length).toBe(trashBefore + 1);
+    expect(getPlayerView(state, 0).you.leader.power).toBe(before + 1000);
+    expect(
+      listLegalIntents(state, 0).some(
+        (i) =>
+          i.type === "activate_ability" && i.abilityId === "stage_trash_give_rested_don",
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects Stage Activate without a rested DON!!", () => {
+    let { state, rng } = fresh(11);
+    state = act(state, 0, { type: "end_turn" }, rng);
+    state = act(state, 1, { type: "end_turn" }, rng);
+    state = structuredClone(state);
+    state.players[0].stage = {
+      id: "stage-moby",
+      defId: "OP16-021",
+      rested: false,
+      attachedDonIds: [],
+    };
+    for (const d of state.players[0].costArea) d.rested = false;
+
+    expect(
+      listLegalIntents(state, 0).some(
+        (i) =>
+          i.type === "activate_ability" && i.abilityId === "stage_trash_give_rested_don",
+      ),
+    ).toBe(false);
+
+    const r = applyIntent(
+      state,
+      {
+        type: "activate_ability",
+        sourceId: "stage-moby",
+        abilityId: "stage_trash_give_rested_don",
+        targetId: state.players[0].leader.id,
+      },
+      { seat: 0, rng },
+    );
+    expect(r.ok).toBe(false);
+    expect(r.error?.code).toBe("no_rested_don");
   });
 });
 

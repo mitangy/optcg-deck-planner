@@ -14,8 +14,30 @@ const intents: Intent[] = [
   { type: "play_card", handIndex: 2, trashCharacterId: "c1" },
   { type: "give_don", donId: "d1", targetId: "leader" },
   { type: "give_don", donId: "d1", targetId: "c1" },
-  { type: "activate_leader", targetId: "leader" },
-  { type: "activate_leader", targetId: "c1" },
+  {
+    type: "activate_ability",
+    sourceId: "leader",
+    abilityId: "leader_give_rested_don",
+    targetId: "leader",
+  },
+  {
+    type: "activate_ability",
+    sourceId: "leader",
+    abilityId: "leader_give_rested_don",
+    targetId: "c1",
+  },
+  {
+    type: "activate_ability",
+    sourceId: "stage1",
+    abilityId: "stage_trash_give_rested_don",
+    targetId: "leader",
+  },
+  {
+    type: "activate_ability",
+    sourceId: "stage1",
+    abilityId: "stage_trash_give_rested_don",
+    targetId: "c1",
+  },
   { type: "declare_attack", attackerId: "leader", target: { kind: "leader" } },
   {
     type: "declare_attack",
@@ -54,13 +76,52 @@ describe("filterIntentsForSelection", () => {
     expect(shown).toEqual([
       { type: "end_turn" },
       { type: "give_don", donId: "d1", targetId: "leader" },
-      { type: "activate_leader", targetId: "leader" },
+      {
+        type: "activate_ability",
+        sourceId: "leader",
+        abilityId: "leader_give_rested_don",
+        targetId: "leader",
+      },
+      {
+        type: "activate_ability",
+        sourceId: "leader",
+        abilityId: "leader_give_rested_don",
+        targetId: "c1",
+      },
       { type: "declare_attack", attackerId: "leader", target: { kind: "leader" } },
       {
         type: "declare_attack",
         attackerId: "leader",
         target: { kind: "character", instanceId: "opp-c1" },
       },
+    ]);
+  });
+
+  it("shows Stage Activate:Main intents when the Stage source is selected", () => {
+    const shown = filterIntentsForSelection(intents, { boardId: "stage1" });
+    expect(shown).toEqual([
+      { type: "end_turn" },
+      {
+        type: "activate_ability",
+        sourceId: "stage1",
+        abilityId: "stage_trash_give_rested_don",
+        targetId: "leader",
+      },
+      {
+        type: "activate_ability",
+        sourceId: "stage1",
+        abilityId: "stage_trash_give_rested_don",
+        targetId: "c1",
+      },
+    ]);
+  });
+
+  it("does not treat Activate recipient as the source when selecting a character", () => {
+    const shown = filterIntentsForSelection(intents, { boardId: "c1" });
+    expect(shown).toEqual([
+      { type: "end_turn" },
+      { type: "give_don", donId: "d1", targetId: "c1" },
+      { type: "declare_attack", attackerId: "c1", target: { kind: "leader" } },
     ]);
   });
 
@@ -105,7 +166,7 @@ describe("pending-choice / trigger globals", () => {
 });
 
 describe("matchesBoardId / hasBoardActions", () => {
-  it("matches attacker, target, blocker and donId roles", () => {
+  it("matches attacker, target, blocker, donId, and activate sourceId roles", () => {
     expect(matchesBoardId({ type: "declare_attack", attackerId: "c1" } as Intent, "c1")).toBe(
       true,
     );
@@ -114,11 +175,34 @@ describe("matchesBoardId / hasBoardActions", () => {
       true,
     );
     expect(matchesBoardId({ type: "give_don", donId: "c1" } as Intent, "c1")).toBe(true);
+    expect(
+      matchesBoardId(
+        {
+          type: "activate_ability",
+          sourceId: "stage1",
+          abilityId: "stage_trash_give_rested_don",
+          targetId: "leader",
+        } as Intent,
+        "stage1",
+      ),
+    ).toBe(true);
+    expect(
+      matchesBoardId(
+        {
+          type: "activate_ability",
+          sourceId: "stage1",
+          abilityId: "stage_trash_give_rested_don",
+          targetId: "leader",
+        } as Intent,
+        "leader",
+      ),
+    ).toBe(false);
     expect(matchesBoardId({ type: "end_turn" } as Intent, "c1")).toBe(false);
   });
 
   it("hasBoardActions is true only when a non-global intent references the id", () => {
     expect(hasBoardActions(intents, "leader")).toBe(true);
+    expect(hasBoardActions(intents, "stage1")).toBe(true);
     expect(hasBoardActions(intents, "c2")).toBe(true);
     expect(hasBoardActions(intents, "nope")).toBe(false);
   });

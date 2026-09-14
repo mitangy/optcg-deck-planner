@@ -223,7 +223,11 @@ export function DuelBoard({
   const actionableBoardIds = useMemo(() => {
     if (!view) return EMPTY_IDS;
     const ids = new Set<string>();
-    const candidates = [view.you.leader.id, ...view.you.characters.map((c) => c.id)];
+    const candidates = [
+      view.you.leader.id,
+      ...view.you.characters.map((c) => c.id),
+      ...(view.you.stage ? [view.you.stage.id] : []),
+    ];
     for (const id of candidates) {
       if (hasBoardActions(intents, id)) ids.add(id);
     }
@@ -272,7 +276,8 @@ export function DuelBoard({
     if (!selectedBoardId || !view) return;
     const stillOnBoard =
       view.you.leader.id === selectedBoardId ||
-      view.you.characters.some((c) => c.id === selectedBoardId);
+      view.you.characters.some((c) => c.id === selectedBoardId) ||
+      view.you.stage?.id === selectedBoardId;
     if (!stillOnBoard) setSelectedBoardId(null);
   }, [selectedBoardId, view]);
 

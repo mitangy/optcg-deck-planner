@@ -220,6 +220,7 @@ const defs: CardDef[] = [
     colors: ["red"],
     cost: 1,
     imageUrl: localArt("OP16-021"),
+    stageActivateTrashGiveRestedDon: true,
     effectText: "[On Play] If your Leader has the {Whitebeard Pirates} type, look at 3 cards from the top of your deck and add up to 1 card to your hand. Then, place the rest at the bottom of your deck in any order.\n\n\n[Activate:Main] You may trash this Stage: Give up to 1 rested DON!! card to your Leader or 1 of your Characters.",
   },
   {

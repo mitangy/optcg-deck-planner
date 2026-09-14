@@ -93,6 +93,17 @@ describe("protocol parsers", () => {
     expect(intentLabel({ type: "activate_leader", targetId: "L0" }, view)).toMatch(
       /Activate Leader/,
     );
+    expect(
+      intentLabel(
+        {
+          type: "activate_ability",
+          sourceId: "L0",
+          abilityId: "leader_give_rested_don",
+          targetId: "L0",
+        },
+        view,
+      ),
+    ).toMatch(/Activate .* →/);
     expect(intentLabel({ type: "mulligan", doMulligan: false })).toMatch(/Keep/i);
   });
 
