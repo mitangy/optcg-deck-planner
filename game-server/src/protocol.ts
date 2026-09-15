@@ -181,8 +181,14 @@ export function parseCreateOptions(raw: unknown): {
       });
     }
     const [a, b] = o.seatUserIds as [unknown, unknown];
-    if (typeof a !== "number" || typeof b !== "number") {
-      throw Object.assign(new Error("seatUserIds must be numbers"), {
+    if (
+      typeof a !== "number" ||
+      typeof b !== "number" ||
+      !Number.isSafeInteger(a) ||
+      !Number.isSafeInteger(b) ||
+      a === b
+    ) {
+      throw Object.assign(new Error("seatUserIds must be distinct integers"), {
         code: "bad_protocol" as const,
       });
     }
