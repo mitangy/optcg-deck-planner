@@ -2,6 +2,7 @@ import { Room, Client, matchMaker } from "colyseus";
 import {
   getDevJoinSecret,
   getLogLevel,
+  getRankedMatchCreateSecret,
   getSeatReservationSeconds,
   requireGameToken,
 } from "../env.js";
@@ -111,6 +112,7 @@ export class MatchmakerRoom extends Room {
             protocolVersion: PROTOCOL_VERSION,
             autoSkipMulligan: false,
             ranked: true,
+            rankedAttestation: getRankedMatchCreateSecret(),
             seatUserIds: [a.userId, b.userId],
             // Ranked always enforces 30s turns (also forced in parseCreateOptions).
             timer: { turnSeconds: 30 },

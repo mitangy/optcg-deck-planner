@@ -17,6 +17,7 @@ import {
 } from "@optcg/rules";
 import {
   getDevJoinSecret,
+  isRankedMatchCreateAttested,
   getLogLevel,
   getReconnectGraceSeconds,
   getSeatReservationSeconds,
@@ -98,7 +99,13 @@ export class DuelRoom extends Room {
     if (parsed.players) {
       this.seatDecks = [parsed.players[0], parsed.players[1]];
     }
-    this.ranked = parsed.ranked;
+    // Never trust a browser-provided `ranked: true`. Only the in-process
+    // matchmaker can supply the server-only capability needed for Elo matches.
+    const attestation =
+      options && typeof options === "object"
+        ? (options as { rankedAttestation?: unknown }).rankedAttestation
+        : undefined;
+    this.ranked = parsed.ranked && isRankedMatchCreateAttested(attestation);
     this.turnSeconds = parsed.timer.turnSeconds;
     this.matchSeconds = parsed.timer.matchSeconds;
     this.presetSeatUserIds = parsed.seatUserIds;
