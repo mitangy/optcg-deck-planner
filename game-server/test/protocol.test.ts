@@ -48,6 +48,23 @@ describe("protocol parsers", () => {
     assert.deepEqual(j.deck?.deck, ["ST01-003", "ST01-006"]);
   });
 
+  it("bounds and normalizes wire deck card ids", () => {
+    const j = parseJoinOptions({
+      protocolVersion: PROTOCOL_VERSION,
+      devUserId: "dev-1",
+      deck: { leaderId: " st01-001 ", deck: [" st01-003 "] },
+    });
+    assert.deepEqual(j.deck, { leaderId: "ST01-001", deck: ["ST01-003"] });
+    assert.throws(
+      () => parseJoinOptions({ protocolVersion: PROTOCOL_VERSION, devUserId: "dev-1", deck: { leaderId: "ST01-001", deck: Array(201).fill("ST01-003") } }),
+      /at most 200/,
+    );
+    assert.throws(
+      () => parseJoinOptions({ protocolVersion: PROTOCOL_VERSION, devUserId: "dev-1", deck: { leaderId: "ST01-001", deck: ["bad id"] } }),
+      /valid card id/,
+    );
+  });
+
   it("defaults create options", () => {
     const c = parseCreateOptions({});
     assert.equal(c.autoSkipMulligan, true);

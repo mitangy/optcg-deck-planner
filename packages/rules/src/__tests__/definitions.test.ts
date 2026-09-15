@@ -158,8 +158,8 @@ describe("constructed seed stubs + auto-stub", () => {
     );
   });
 
-  it("auto-stubs unknown OPTCG ids via ensureDefsForPlayers", () => {
-    const id = "OP99-001";
+  it("auto-stubs catalog-backed ids via ensureDefsForPlayers", () => {
+    const id = "OP16-119";
     expect(() => getCardDef(id)).toThrow(/Unknown card def/);
     ensureDefsForPlayers([
       { leaderId: "ST01-001", deck: [id, id] },
@@ -170,6 +170,14 @@ describe("constructed seed stubs + auto-stub", () => {
       type: "character",
       power: 3000,
     });
+  });
+
+  it("rejects unknown ids without growing the global definitions", () => {
+    const before = getDefsHealthSnapshot().defsCount;
+    expect(() => ensureDefsForPlayers([
+      { leaderId: "ST01-001", deck: ["OP99-999"] },
+    ])).toThrow("Unknown card def");
+    expect(getDefsHealthSnapshot().defsCount).toBe(before);
   });
 
   it("auto-stub copies printed effectText from catalog meta without inventing hooks", () => {

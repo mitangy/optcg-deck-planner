@@ -233,10 +233,29 @@ function asPlayerDeck(raw: unknown): PlayerDeckWire {
   if (typeof o.leaderId !== "string" || !Array.isArray(o.deck)) {
     throw Object.assign(new Error("leaderId + deck[] required"), { code: "bad_protocol" as const });
   }
-  if (!o.deck.every((x) => typeof x === "string")) {
-    throw Object.assign(new Error("deck must be string[]"), { code: "bad_protocol" as const });
+  if (o.deck.length > 200) {
+    throw Object.assign(new Error("deck may contain at most 200 cards"), {
+      code: "bad_protocol" as const,
+    });
   }
-  return { leaderId: o.leaderId, deck: o.deck as string[] };
+  const normalizeId = (value: unknown, field: string): string => {
+    if (typeof value !== "string") {
+      throw Object.assign(new Error(`${field} must be a card id`), {
+        code: "bad_protocol" as const,
+      });
+    }
+    const id = value.trim().toUpperCase();
+    if (!/^[A-Z0-9_-]{1,32}$/.test(id)) {
+      throw Object.assign(new Error(`${field} is not a valid card id`), {
+        code: "bad_protocol" as const,
+      });
+    }
+    return id;
+  };
+  return {
+    leaderId: normalizeId(o.leaderId, "leaderId"),
+    deck: o.deck.map((id) => normalizeId(id, "deck entry")),
+  };
 }
 
 export function parseIntentMessage(raw: unknown): Intent {
