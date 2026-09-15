@@ -1,3 +1,7 @@
+import { randomBytes, timingSafeEqual } from "node:crypto";
+
+const localRankedMatchCreateSecret = randomBytes(32).toString("base64url");
+
 export function getPort(): number {
   const raw = process.env.PORT ?? "2567";
   const port = Number(raw);
@@ -26,6 +30,23 @@ export function getGameTokenSecret(): string {
     process.env.SESSION_SECRET?.trim() ||
     "dev-change-me-in-production"
   );
+}
+
+/**
+ * Internal capability used only when the matchmaker creates a ranked room.
+ * A random per-process fallback keeps local development zero-config while
+ * preventing a browser from forging the value. Multi-process deployments
+ * should set RANKED_MATCH_CREATE_SECRET to a shared secret.
+ */
+export function getRankedMatchCreateSecret(): string {
+  return process.env.RANKED_MATCH_CREATE_SECRET?.trim() || localRankedMatchCreateSecret;
+}
+
+export function isRankedMatchCreateAttested(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const expected = Buffer.from(getRankedMatchCreateSecret());
+  const supplied = Buffer.from(value);
+  return supplied.length === expected.length && timingSafeEqual(supplied, expected);
 }
 
 /** When true, join requires a valid gameToken (devUserId-only rejected). */
