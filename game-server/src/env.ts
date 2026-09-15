@@ -37,6 +37,12 @@ export function getApiBaseUrl(): string {
   return (process.env.API_BASE_URL ?? "http://localhost:8000").replace(/\/$/, "");
 }
 
+/** Shared Postgres used for durable match-result delivery in production. */
+export function getMatchOutboxDatabaseUrl(): string | undefined {
+  const value = process.env.MATCH_OUTBOX_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim();
+  return value || undefined;
+}
+
 export function getDuelIngestSecret(): string {
   return process.env.DUEL_INGEST_SECRET?.trim() || "dev-duel-ingest";
 }
