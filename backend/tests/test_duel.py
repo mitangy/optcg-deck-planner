@@ -108,6 +108,7 @@ def test_dev_token_and_match_ingest(client):
     assert board.status_code == 200
     entries = board.json()["entries"]
     assert entries[0]["user_id"] == alice["user_id"]
+    assert all("email" not in entry for entry in entries)
 
     db = SessionLocal()
     try:
