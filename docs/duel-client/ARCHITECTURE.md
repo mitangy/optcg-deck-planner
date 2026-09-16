@@ -72,7 +72,11 @@ Three web surfaces stay distinct:
 - Pure, headless TypeScript: no React, no Colyseus imports.
 - **Authority:** official OPTCG Rule Manual + Comprehensive Rules (card text wins when present).
 - Encodes official zones, turn phases (Refresh → Draw → DON!! → Main → End), DON!! economy (deck / cost / give), Life cards, and battle steps (Attack → Block → Counter → Damage → End).
-- Card definition schema is data-driven; Step 1 uses a tiny placeholder subset that still exercises real structure (Blocker, Counter, Stage, etc.).
+- Current implementation is a hybrid: typed card data plus specialized engine hooks. It does not yet interpret a general declarative ability schema.
+- Approved target (2026-09-16, ADR-017): separate serializable match state, a deterministic rules runtime, and a versioned, validated card registry. Abilities compose conditions, costs, selectors, operations, timing, limits, and durations. Typed authoring must compile to JSON-compatible data; moving files to JSON alone is insufficient.
+- Resolve abilities through serializable continuations, a rules-aware timing dispatcher, shared zone operations, and a common modifier pipeline. Keep internal rules events separate from projected client events; server views, legal actions, and combat share the same derived queries.
+- Pin registry/rules/state versions per match, preserve hidden information through reconnect/replay projections, and migrate curated abilities off legacy hooks before broad catalog expansion. New cards using existing mechanics must require only data and fixtures; new mechanics extend reusable primitives with tests.
+- Migration sequence, compatibility gates, exception policy, and acceptance criteria live in [ABILITY_IMPLEMENTATION_PLAN.md](./ABILITY_IMPLEMENTATION_PLAN.md).
 - Deterministic given `(state, intent, rng_seed)` so CI can replay matches.
 - Exhaustive unit tests + batch simulation harness; README must list known gaps vs comprehensive rules (never silent house rules).
 
