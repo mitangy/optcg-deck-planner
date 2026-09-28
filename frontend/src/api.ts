@@ -242,6 +242,8 @@ export type GroupBuyMember = {
   display_name: string;
   role: string;
   deck_ids: number[] | null;
+  /** Member's Copies needed mode; null/absent once quantities are frozen. */
+  sum_across_leaders?: boolean | null;
   cards_still_needed: number;
   remaining_market: number;
   card_cost?: number;

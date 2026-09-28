@@ -255,6 +255,9 @@ class GroupBuyMemberOut(BaseModel):
     display_name: str
     role: str
     deck_ids: list[int] | None = None
+    # Member's shopping "Copies needed" mode (True = separate per leader).
+    # None once quantities are frozen, since the live setting no longer applies.
+    sum_across_leaders: bool | None = None
     cards_still_needed: int = 0
     remaining_market: float = 0.0
     card_cost: float = 0.0

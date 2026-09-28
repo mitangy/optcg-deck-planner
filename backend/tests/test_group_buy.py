@@ -142,6 +142,12 @@ def test_sum_across_leaders_member_need_and_alt_pricing(db, two_players):
     assert "2-1009" in lines
     assert "7-1001" in lines
 
+    # Members show their mode while open; hidden once quantities are frozen.
+    modes = {m.display_name: m.sum_across_leaders for m in detail.members}
+    assert modes == {"Host": True, "Friend": False}
+    locked = group_buy.lock_group_buy(db, host, created.id)
+    assert all(m.sum_across_leaders is None for m in locked.members)
+
 
 def test_member_cannot_lock(db, two_players):
     host, friend = two_players
