@@ -59,6 +59,10 @@ services:
       - key: DUEL_CORS_ORIGINS
         value: https://optcgduel.app,https://optcg-duel-web.vercel.app,https://optcg-duel-web-miko21.vercel.app
       # Vercel branch URLs (optcg-duel-web-git-<branch>-miko21.vercel.app): CORS without credentials (see backend/app/cors.py).
+      # SPAs that proxy /api here and host their own Google callback
+      # ({origin}/api/auth/callback, registered in Google Cloud Console).
+      - key: OAUTH_CALLBACK_ORIGINS
+        value: https://optcgduel.app
       - key: DUEL_CORS_ORIGIN_REGEX
         value: 'https://optcg-duel-web-git-[a-z0-9-]+-miko21\.vercel\.app'
 

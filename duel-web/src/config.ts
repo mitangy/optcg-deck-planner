@@ -27,6 +27,11 @@ export function getGameServerUrl(): string {
   return rewriteLoopbackToPageHost(raw);
 }
 
+/**
+ * FastAPI base. Production uses same-origin `/api` (Vercel rewrite → Render) so
+ * the session cookie is first-party and Google login starts and ends on this
+ * host; local dev talks to the API directly.
+ */
 export function getApiBaseUrl(): string {
   // Default host must match backend BACKEND_PUBLIC_URL (localhost, not 127.0.0.1)
   // so OAuth nonce cookies survive the Google redirect round-trip.

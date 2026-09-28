@@ -205,7 +205,8 @@ export async function logoutSession(): Promise<void> {
 
 /** Start Google OAuth; `returnTo` must be an allowlisted duel-web origin. */
 export function googleLoginUrl(returnTo: string = window.location.origin): string {
-  const u = new URL(`${getApiBaseUrl()}/auth/google`);
+  // Base may be relative (`/api`); resolve against the page.
+  const u = new URL(`${getApiBaseUrl()}/auth/google`, window.location.origin);
   u.searchParams.set("return_to", returnTo);
   return u.toString();
 }

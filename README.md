@@ -75,7 +75,8 @@ Prod also **fails fast** on insecure defaults: with an `https://` `FRONTEND_ORIG
 ### Google OAuth
 In Google Cloud Console (OAuth Web client):
 - Authorized redirect URI: `https://optcg-deck-planner.app/api/auth/callback` (must match `BACKEND_PUBLIC_URL` + `/auth/callback`)
-- Authorized JS origins: `https://optcg-deck-planner.app` + `http://localhost:5173`
+- Duel app redirect URI: `https://optcgduel.app/api/auth/callback` (duel-web proxies `/api`; enabled by `OAUTH_CALLBACK_ORIGINS`)
+- Authorized JS origins: `https://optcg-deck-planner.app` + `https://optcgduel.app` + `http://localhost:5173`
 - `FRONTEND_ORIGIN` and `BACKEND_PUBLIC_URL` must share a host (both `optcg-deck-planner.app`); a mismatch flips the session cookie to `SameSite=None`
 - Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` on Render
 
