@@ -21,9 +21,10 @@ Auto-stubbed ids (`ensureCardDef`) may carry printed `effectText` copied from
 cosmetics meta (`catalogMeta.json` ← `cardCatalog.json` / TCGCSV). That text is
 for inspect/reference only; stubs still get **no** invented engine hooks.
 `export-atlas` writes an `abilitySupport` field (`none` / `keywords` / `ok` /
-`partial` / `unsupported`) from EFFECT_CATALOG statuses. duel-web CardInspect
-shows a short note when support is `unsupported` or `partial` — never treat the
-note (or the printed text) as proof the clause resolves.
+`partial` / `unsupported`) from explicit reviewed EFFECT_CATALOG statuses.
+Cosmetics-only cards are `unverified`; text and keyword scans never grant rules
+support. duel-web CardInspect shows a short note for `unverified`, `unsupported`,
+and `partial` cards.
 
 ## Timing glossary
 
@@ -33,12 +34,21 @@ note (or the printed text) as proof the clause resolves.
 | `[On Play]` | After a Character/Stage enters play | Optional-draw hook exists; most curated On Play texts are stub |
 | `[When Attacking]` | After attack declaration | Stub (framework kind `when_attacking` reserved) |
 | `[On K.O.]` | When the Character is KO'd | Stub |
-| `[Opponent's Turn]` | Static while it is the opponent's turn | Teach cost tax implemented |
+| `[Opponent's Turn]` | Static while it is the opponent's turn | Teach field-cost modifier remains stubbed |
 | `[On Your Opponent's Attack]` | After opponent declares attack, before Block | Newgate / Teach leaders implemented |
-| `[Trigger]` | Optional when taken as Life damage | `triggerDraw` only; other Trigger effects stub / keyword |
+| `[Trigger]` | Optional when taken as Life damage | Draw and OP09-096 Main-effect activation are implemented; other printed Trigger text remains stubbed |
 | `[Counter]` | Counter step | Flat `counterPowerBonus` implemented; extra "Then…" clauses partial/stub |
-| `[Main]` (Event) | Main event resolution | `mainDraw` only when encoded; search/KO events stub |
+| `[Main]` (Event) | Main event resolution | Encoded draw and top-deck search effects resolve; KO and other unique event clauses remain stubbed |
 | `[Blocker]` / `[Rush]` | Keyword | Keyword flags implemented |
+
+Top-deck searches use opaque option handles and server-side validation. Candidate
+identities and eligibility are projected only to the choosing seat; opponents and
+spectators receive the option count. The shared slice covers Laffitte, Fullalead,
+Moby Dick, My Era...Begins!!, and I Don't Have Time to Chat with Snot-Nosed Brats,
+including ordered bottom-deck remainders and the My Era Life Trigger.
+
+Static modifiers currently include OP17-112's Trigger-character base-power aura
+and OP09-086's four-card trash scaling while its leader condition is satisfied.
 
 ## Simultaneous effects — resolution order
 
@@ -113,8 +123,9 @@ cd packages/rules && npx tsx -e "import { summarizeEffectCoverage } from './src/
 ```
 
 Expect many `stub` rows for OP09 / OP16 / OP17 characters and events until
-per-timing resolvers land. Leaders ST01-001 / OP17-001 / OP16-080 should remain
-`implemented` for their encoded timings.
+per-timing resolvers land. A card with one implemented row and any stub row is
+reported as `partial`. `buildCardSupportManifest()` accounts for every bundled
+catalog ID and reports all non-curated cards as `unverified`.
 
 ## Related docs
 

@@ -89,6 +89,9 @@ services:
       # Public FastAPI base used for match ingest (Render service URL).
       - key: API_BASE_URL
         value: https://optcg-api-nutb.onrender.com
+      # Durable game-server outbox. Set this to the same Neon Postgres URL as the API.
+      - key: MATCH_OUTBOX_DATABASE_URL
+        sync: false
       # Free-tier cold starts: matchmake HTTP can beat WS consume past Colyseus's 15s default.
       - key: COLYSEUS_SEAT_RESERVATION_TIME
         value: "90"

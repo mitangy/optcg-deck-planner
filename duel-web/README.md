@@ -1,6 +1,6 @@
 # duel-web — OPTCG Duel (Vite web frontend)
 
-Dedicated **Vite + React** SPA for the browser duel product (Step 4.5 / ADR-014). Speaks Colyseus `protocolVersion: 1`, renders server `legalIntents`, and uses Step 4 bearer game tokens.
+Dedicated **Vite + React** SPA for the browser duel product (Step 4.5 / ADR-014). Speaks Colyseus `protocolVersion: 5` (generic choice prompts), renders server `legalIntents`, and uses Step 4 bearer game tokens.
 
 This package is **outside** root npm workspaces (same isolation as `frontend/` and `mobile/`). It is **not** the deck planner (`frontend/`) and **not** Expo web export.
 

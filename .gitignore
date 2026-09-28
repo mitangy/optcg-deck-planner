@@ -16,3 +16,6 @@ build/
 .coverage
 htmlcov/
 *.tsbuildinfo
+
+# mutation-check crash-recovery journal
+tools/mutation-check/.pending-restore.json

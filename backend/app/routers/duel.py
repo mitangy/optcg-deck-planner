@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import hmac
+import hashlib
 import re
 import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -40,11 +43,16 @@ _GUEST_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{8,64}$")
 
 
 def _get_or_create_rating(db: Session, user_id: int) -> DuelRating:
+    # Token minting and the first result can race to initialize a rating. Keep
+    # initialization atomic without rolling back the surrounding match transaction.
+    insert = sqlite_insert if db.get_bind().dialect.name == "sqlite" else pg_insert
+    db.execute(
+        insert(DuelRating)
+        .values(user_id=user_id, rating=INITIAL_RATING, games_played=0)
+        .on_conflict_do_nothing(index_elements=[DuelRating.user_id])
+    )
     row = db.get(DuelRating, user_id)
-    if row is None:
-        row = DuelRating(user_id=user_id, rating=INITIAL_RATING, games_played=0)
-        db.add(row)
-        db.flush()
+    assert row is not None
     return row
 
 
@@ -165,8 +173,26 @@ def ingest_match(
     if body.seat0_user_id == body.seat1_user_id:
         raise HTTPException(status_code=400, detail="Seats must be different users")
 
+    # Acquire locks before any result/rating read. The match lock serializes
+    # retries even when a conflicting submission names completely different users.
+    # Sorted user locks serialize different matches involving the same players
+    # without deadlocking when the players occupy opposite seats.
+    if db.get_bind().dialect.name == "sqlite":
+        db.execute(text("BEGIN IMMEDIATE"))
+    else:
+        lock_id = int.from_bytes(
+            hashlib.sha256(f"duel-match:{body.match_id}".encode()).digest()[:8],
+            byteorder="big", signed=True,
+        )
+        db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_id})
+
     existing = db.scalar(select(DuelMatch).where(DuelMatch.match_id == body.match_id))
     if existing is not None:
+        if any(
+            getattr(existing, field) != getattr(body, field)
+            for field in ("seat0_user_id", "seat1_user_id", "winner_seat", "reason", "ranked")
+        ):
+            raise HTTPException(status_code=409, detail="Conflicting result for match_id")
         return DuelMatchOut(
             match_id=existing.match_id,
             created=False,
@@ -177,8 +203,8 @@ def ingest_match(
             seat1_rating_after=existing.seat1_rating_after,
         )
 
-    for uid in (body.seat0_user_id, body.seat1_user_id):
-        if db.get(User, uid) is None:
+    for uid in sorted((body.seat0_user_id, body.seat1_user_id)):
+        if db.scalar(select(User.id).where(User.id == uid).with_for_update()) is None:
             raise HTTPException(status_code=400, detail=f"Unknown user_id {uid}")
 
     r0 = _get_or_create_rating(db, body.seat0_user_id)

@@ -1,194 +1,102 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  buildTestDeck,
-  ensureCardDef,
-  ensureDefsForPlayers,
-  getCardDef,
-  getDefsHealthSnapshot,
-  listCardDefs,
-} from "../cards/definitions.js";
+import { ABILITY_REGISTRY, abilitiesFor, buildAbilityRegistry, RegistryValidationError } from "../cards/abilities.js";
+import { listCardDataIds } from "../cards/cardData.js";
+import { buildCardAtlas, ensureCardDef, ensureDefsForPlayers, getCardDef, getDefsHealthSnapshot, listCardDefs, normalizeCardDefId } from "../cards/definitions.js";
+import { abilitySupportForCard, buildCardSupportManifest, unsupportedCardsForDeck } from "../cards/effectCatalog.js";
+import { CARD_SOURCE_RECORDS, cardSourceRecord } from "../cards/sourceRecords.js";
+import { generateAbilities, serializeGenerated } from "../tools/cardText/generate.js";
 
-describe("Step 5 curated defs", () => {
-  it("ships ST01 curated ids including Rush Sanji (plus later seed stubs)", () => {
-    const ids = listCardDefs().map((d) => d.id);
-    for (const id of [
-      "ST01-001",
-      "ST01-003",
-      "ST01-004",
-      "ST01-006",
-      "ST01-008",
-      "ST01-009",
-      "ST01-014",
-    ]) {
-      expect(ids).toContain(id);
-    }
-    expect(ids).not.toContain("OP01-013");
-    expect(ids).not.toContain("ST01-002");
-    expect(ids).not.toContain("ST01-017");
+describe("card data", () => {
+  it("covers every catalog id (official list plus flagged bundled rows)", () => {
+    const ids = listCardDataIds();
+    expect(ids.length).toBe(2834);
+    const official = listCardDefs().filter((d) => d.dataSource === "bandai");
+    expect(official.length).toBe(2785);
+    expect(listCardDefs().filter((d) => d.dataSource === "bundled").length).toBe(49);
   });
 
-  it("matches Bandai print identity for each curated card", () => {
-    const luffy = getCardDef("ST01-001");
-    expect(luffy.name).toBe("Monkey.D.Luffy");
-    expect(luffy.power).toBe(5000);
-    expect(luffy.life).toBe(5);
-    expect(luffy.leaderActivateGiveRestedDon).toBe(true);
-
-    expect(getCardDef("OP16-021")).toMatchObject({
-      name: "Moby Dick",
-      type: "stage",
-      cost: 1,
-      stageActivateTrashGiveRestedDon: true,
-    });
-
-    expect(getCardDef("ST01-003")).toMatchObject({
-      name: "Karoo",
-      cost: 1,
-      power: 3000,
-      counter: 1000,
-    });
-    expect(getCardDef("ST01-004")).toMatchObject({
-      name: "Sanji",
-      cost: 2,
-      power: 4000,
-      counter: 1000,
-      rush: true,
-    });
-    expect(getCardDef("ST01-006")).toMatchObject({
-      name: "TonyTony.Chopper",
-      cost: 1,
-      power: 1000,
-      blocker: true,
-    });
-    expect(getCardDef("ST01-008")).toMatchObject({
-      name: "Nico Robin",
-      cost: 3,
-      power: 5000,
-      counter: 1000,
-    });
-    expect(getCardDef("ST01-009")).toMatchObject({
-      name: "Nefeltari Vivi",
-      cost: 2,
-      power: 4000,
-      counter: 1000,
-    });
-
-    const guard = getCardDef("ST01-014");
-    expect(guard.name).toBe("Guard Point");
-    expect(guard.eventTiming).toBe("counter");
-    expect(guard.counterPowerBonus).toBe(3000);
-    expect(guard.mainDraw).toBeUndefined();
+  it("carries the confirmed ST01 and Teach corrections from official data", () => {
+    expect(getCardDef("ST01-004")).toMatchObject({ name: "Sanji", cost: 2, power: 4000 });
+    expect(getCardDef("ST01-004").counter).toBeUndefined();
+    expect(getCardDef("ST01-005")).toMatchObject({ name: "Jinbe", cost: 3, power: 5000 });
+    expect(getCardDef("ST01-005").counter).toBeUndefined();
+    expect(getCardDef("ST01-001").effectText).not.toMatch(/rest this Leader/i);
+    expect(getCardDef("OP16-080").effectText).toMatch(/Opponent's Turn/);
+    expect(getCardDef("ST01-003").counter).toBe(1000);
+    expect(getCardDef("OP17-001").traits).toEqual(expect.arrayContaining(["Whitebeard Pirates"]));
   });
 
-  it("builds a 20-card deck only from curated characters/events", () => {
-    const deck = buildTestDeck(20);
-    expect(deck).toHaveLength(20);
-    for (const id of deck) {
-      expect(listCardDefs().some((d) => d.id === id)).toBe(true);
-      expect(getCardDef(id).type).not.toBe("leader");
-    }
-  });
-});
-
-describe("constructed seed stubs + auto-stub", () => {
-  it("resolves OP16-080 Teach leader with printed dual color + TCGPlayer CDN art", () => {
-    const teach = getCardDef("OP16-080");
-    expect(teach.type).toBe("leader");
-    expect(teach.name).toBe("Marshall.D.Teach");
-    expect(teach.colors).toEqual(["black", "yellow"]);
-    expect(teach.life).toBe(4);
-    expect(teach.imageUrl).toBe(
-      "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg",
-    );
+  it("maps parallel-art ids to the base card; unknown ids are unverified and never defined", () => {
+    expect(normalizeCardDefId("op01-016_p1")).toBe("OP01-016");
+    expect(ensureCardDef("op01-016_p1").id).toBe("OP01-016");
+    expect(() => ensureCardDef("ZZ99-001")).toThrow(/Unknown card def/);
+    expect(abilitySupportForCard("ZZ99-001")).toBe("unverified");
   });
 
-  it("exposes OP16-080 in the health snapshot for deploy checks", () => {
-    const snap = getDefsHealthSnapshot();
-    expect(snap.hasOP16080).toBe(true);
-    expect(snap.defsCount).toBeGreaterThan(0);
-  });
-
-  it("matches printed Teach-deck identities (CDN art keys align with names)", () => {
-    expect(getCardDef("OP16-104")).toMatchObject({
-      name: "Catarina Devon",
-      type: "character",
-      cost: 4,
-      power: 3000,
-    });
-    expect(getCardDef("OP16-109")).toMatchObject({
-      name: "Doc Q",
-      cost: 1,
-      power: 0,
-    });
-    expect(getCardDef("OP16-115")).toMatchObject({
-      name: "Black Vortex",
-      type: "event",
-      cost: 1,
-      eventTiming: "main",
-    });
-    expect(getCardDef("EB04-058")).toMatchObject({
-      name: "Borsalino",
-      blocker: true,
-      cost: 5,
-    });
-    expect(getCardDef("OP09-096").type).toBe("event");
-    expect(getCardDef("OP09-099").type).toBe("stage");
-  });
-
-  it("does not ship Bandai hotlink URLs on curated imageUrl fields", () => {
-    for (const d of listCardDefs()) {
-      expect(d.imageUrl ?? "").not.toMatch(/onepiece-cardgame\.com/);
-    }
-  });
-
-  it("maps Rocks.D.Xebec (OP17-039) to TCGPlayer CDN art + alt art", () => {
-    const rocks = getCardDef("OP17-039");
-    expect(rocks.imageUrl).toBe(
-      "https://tcgplayer-cdn.tcgplayer.com/product/712086_400w.jpg",
-    );
-    expect(rocks.altArts?.some((a) => a.id === "p1")).toBe(true);
-    expect(rocks.altArts?.find((a) => a.id === "p1")?.imageUrl).toBe(
-      "https://tcgplayer-cdn.tcgplayer.com/product/710591_400w.jpg",
-    );
-  });
-
-  it("maps ST01-005 to TCGPlayer CDN art", () => {
-    expect(getCardDef("ST01-005").imageUrl).toBe(
-      "https://tcgplayer-cdn.tcgplayer.com/product/288234_400w.jpg",
-    );
-  });
-
-  it("auto-stubs catalog-backed ids via ensureDefsForPlayers", () => {
-    const id = "EB05-025";
-    expect(() => getCardDef(id)).toThrow(/Unknown card def/);
-    ensureDefsForPlayers([
-      { leaderId: "ST01-001", deck: [id, id] },
-      { leaderId: "OP16-080", deck: [id, id] },
-    ]);
-    expect(getCardDef(id)).toMatchObject({
-      id,
-      type: "character",
-      power: 3000,
-    });
-  });
-
-  it("rejects unknown ids without growing the global definitions", () => {
+  it("validates match decks without growing the global definitions", () => {
     const before = getDefsHealthSnapshot().defsCount;
-    expect(() => ensureDefsForPlayers([
-      { leaderId: "ST01-001", deck: ["OP99-999"] },
-    ])).toThrow("Unknown card def");
+    expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["EB05-025", "op01-016_p1"] }])).not.toThrow();
+    expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["OP99-999"] }])).toThrow("Unknown card def");
+    expect(() => ensureDefsForPlayers([{ leaderId: "OP99-001", deck: [] }])).toThrow("Unknown or invalid leader");
+    // A real card that is not a Leader cannot lead a deck.
+    expect(() => ensureDefsForPlayers([{ leaderId: "ST01-003", deck: [] }])).toThrow("Unknown or invalid leader");
     expect(getDefsHealthSnapshot().defsCount).toBe(before);
   });
 
-  it("auto-stub copies printed effectText from catalog meta without inventing hooks", () => {
-    ensureCardDef("OP17-049");
-    const linlin = getCardDef("OP17-049");
-    expect(linlin.effectText).toMatch(/\[On Play\]/i);
-    expect(linlin.effectText).not.toBe("—");
-    // Still a vanilla stub: no On Play engine hooks invented from text.
-    expect(linlin.onPlayDraw).toBeUndefined();
-    expect(linlin.onPlayOptionalDraw).toBeUndefined();
-    expect(linlin.onPlayLowLifeAddLife).toBeUndefined();
-    expect(linlin.onPlayDrawThenLifeChoice).toBeUndefined();
+  it("does not infer keywords from text mentions", () => {
+    // Roger's text mentions an opponent activating [Blocker]; he has Rush, not Blocker.
+    const atlas = buildCardAtlas();
+    expect(atlas["OP09-118"]?.blocker).toBeUndefined();
+    expect(atlas["OP09-118"]?.rush).toBe(true);
+    expect(atlas["ST01-006"]?.blocker).toBe(true);
+    expect(atlas["ST01-004"]?.rush).toBeUndefined();
+  });
+
+  it("records provenance for every card", () => {
+    expect(Object.keys(CARD_SOURCE_RECORDS).length).toBe(2834);
+    expect(cardSourceRecord("ST01-005")?.fields).toMatchObject({ identity: "verified", counter: "verified", errata: "unknown" });
+    expect(cardSourceRecord("EB05-002")?.fields.identity).toBe("unverified");
+  });
+});
+
+describe("ability registry", () => {
+  it("validates every card and matches deterministic regeneration", () => {
+    expect(ABILITY_REGISTRY.cards.size).toBe(2834);
+    const text = serializeGenerated(generateAbilities());
+    const current = readFileSync(resolve(__dirname, "../cards/generated/abilities.json"), "utf8").replace(/\r\n/g, "\n");
+    expect(current === text, "generated abilities.json is stale: run npx tsx src/tools/cardText/generate.ts").toBe(true);
+    expect(serializeGenerated(generateAbilities()) === text).toBe(true);
+  });
+
+  it("rejects unknown operations, fields, and duplicate ability ids with paths", () => {
+    const base = { id: "X-1", schemaVersion: 2, unsupported: [], status: "supported", origin: "manual" };
+    const bad = (abilities: unknown[]) => () => buildAbilityRegistry({ "X-1": { ...base, abilities } });
+    expect(bad([{ id: "a", trigger: "on_play", text: "", effect: { do: "teleport" } }])).toThrow(/cards\[X-1\]\.abilities\[0\]\.effect\.do: unknown variant teleport/);
+    expect(bad([{ id: "a", trigger: "on_play", text: "", effect: { do: "draw", player: "you", count: 1, extra: true } }])).toThrow(/extra: unknown field/);
+    expect(bad([{ id: "a", trigger: "on_play", text: "", effect: { do: "nothing" } }, { id: "a", trigger: "main", text: "", effect: { do: "nothing" } }])).toThrow(RegistryValidationError);
+    expect(bad([{ id: "a", trigger: "static", text: "" }])).toThrow(/static ability requires statics/);
+  });
+
+  it("keeps printed abilities immutable at runtime", () => {
+    const ability = abilitiesFor("OP01-016")[0]!;
+    expect(Object.isFrozen(ability)).toBe(true);
+    expect(() => { (ability as { id: string }).id = "x"; }).toThrow();
+  });
+});
+
+describe("support manifest and ranked gate", () => {
+  it("labels every catalog card and blocks decks with unsupported cards", () => {
+    const manifest = buildCardSupportManifest();
+    expect(Object.keys(manifest).length).toBe(2834);
+    expect(manifest["ST01-003"]).toBe("none");
+    expect(manifest["ST01-006"]).toBe("keywords");
+    expect(manifest["OP01-016"]).toBe("ok");
+    // Every catalog card's printed text is implemented (generated or reviewed manual definitions).
+    expect(Object.values(manifest).filter((s) => s === "unsupported" || s === "partial")).toEqual([]);
+    // Unknown ids still play as unverified stubs and are blocked from ranked decks.
+    expect(unsupportedCardsForDeck({ leaderId: "ST01-001", deck: ["ST01-003", "OP99-999"] })).toEqual([{ cardId: "OP99-999", support: "unverified" }]);
+    expect(unsupportedCardsForDeck({ leaderId: "ST01-001", deck: ["ST01-003", "OP01-016"] })).toEqual([]);
   });
 });

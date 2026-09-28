@@ -207,11 +207,100 @@ export const DEMO_VIEW: PlayerView = {
   ],
 };
 
+const DEMO_LOOK_OPTIONS = [
+  { id: "o0", defId: "OP09-086", zone: "deck" as const, ownerSeat: 0 as const, eligible: true },
+  { id: "o1", defId: "ST01-003", zone: "deck" as const, ownerSeat: 0 as const, eligible: false },
+  { id: "o2", defId: "OP09-095", zone: "deck" as const, ownerSeat: 0 as const, eligible: true },
+  { id: "o3", defId: "ST01-008", zone: "deck" as const, ownerSeat: 0 as const, eligible: false },
+  { id: "o4", defId: "OP09-099", zone: "deck" as const, ownerSeat: 0 as const, eligible: true },
+];
+
+function demoChoice(choice: NonNullable<PlayerView["pendingChoices"]>[number]): PlayerView {
+  return {
+    ...DEMO_VIEW,
+    phase: "main",
+    battle: null,
+    pendingChoices: [choice],
+    legalIntents: [{ type: "resolve_pending_choice", accept: true }],
+  };
+}
+
+/** Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|order|mode`). */
+export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
+  look: demoChoice({
+    id: "demo-look",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP09-095",
+    sourceInstanceId: "y-c1",
+    optional: false,
+    prompt: "Laffitte — look at the top 5 cards, choose up to 1, then place the rest at the bottom of the deck in any order.",
+    privateToSeat: 0,
+    optionCount: 5,
+    request: {
+      type: "look",
+      options: DEMO_LOOK_OPTIONS,
+      minSelect: 0,
+      maxSelect: 1,
+      groups: [{ label: "Up to 1: add to hand", max: 1, eligibleIds: ["o0", "o2", "o4"] }],
+      rest: "deck_bottom",
+      restLabel: "place the rest at the bottom of the deck in any order",
+    },
+  }),
+  select: demoChoice({
+    id: "demo-select",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP01-017",
+    optional: false,
+    prompt: "Nico Robin — choose up to 1 card to K.O.",
+    request: {
+      type: "select",
+      min: 0,
+      max: 1,
+      options: [
+        { id: "o0", defId: "OP09-086", zone: "character", ownerSeat: 1, instanceId: "o-c1", eligible: true },
+        { id: "o1", defId: "ST01-006", zone: "character", ownerSeat: 1, instanceId: "o-c2", eligible: true, rested: true },
+      ],
+    },
+  }),
+  confirm: demoChoice({
+    id: "demo-confirm",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP02-062",
+    optional: true,
+    prompt: "Monkey.D.Luffy — pay the cost to activate: [On Play] You may trash 2 cards from your hand: Return up to 1 Character with a cost of 4 or less to the owner's hand.",
+    request: { type: "confirm" },
+  }),
+  order: demoChoice({
+    id: "demo-order",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP03-099",
+    optional: false,
+    prompt: "Charlotte Katakuri — place each card at the top or bottom of the Life cards.",
+    privateToSeat: 0,
+    request: { type: "order", destination: "life", allowTopOrBottom: true, options: DEMO_LOOK_OPTIONS.slice(0, 2).map((o) => ({ ...o, zone: "life" as const })) },
+  }),
+  mode: demoChoice({
+    id: "demo-mode",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "EB01-052",
+    optional: false,
+    prompt: "Choose one.",
+    request: { type: "mode", options: [{ id: "m0", label: "Look at all of your opponent's Life cards", eligible: true }, { id: "m1", label: "Turn all of your Life cards face-down", eligible: true }] },
+  }),
+};
+
 export function DemoPage() {
+  const prompt = new URLSearchParams(window.location.search).get("prompt");
+  const view = (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW;
   return (
     <div className="duel-root">
       <DuelBoard
-        view={DEMO_VIEW}
+        view={view}
         seat={0}
         matchId="demo-playmat"
         errorBanner={null}

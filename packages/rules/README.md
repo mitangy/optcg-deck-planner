@@ -49,21 +49,24 @@ SIM_GAMES=200 npm run sim
 - Victory: win Leader battle at **0 Life**; or opponent **deck-out**  
 - Privacy: `getPlayerView` hides opponent hand ids, deck order, Life faces, DON!! deck order  
 
-## Step 3.5 curated real cards
+## Curated card definitions
 
-Default duels use official ST01 numbers that map 1:1 onto engine hooks. Unsupported prints are omitted (not silent house rules).
+The rules package currently has 44 curated definitions. `EFFECT_CATALOG` records
+each printed clause as implemented, partial, keyword-only, or stub. Default test
+duels use only cards whose full support status is `none`, `keywords`, or `ok`.
 
 | ID | Name | Role / hooks |
 |----|------|----------------|
 | `ST01-001` | Monkey.D.Luffy | Leader 5000 / Life 5 / **Activate:Main** give 1 rested DON!! (`activate_ability`) |
-| `OP16-021` | Moby Dick | Stage / **Activate:Main** trash Stage → give 1 rested DON!! |
+| `OP16-021` | Moby Dick | Stage / partial: leader-gated On Play search works; Activate:Main still requires a target instead of allowing zero |
 | `ST01-003` | Karoo | Character 1 / 3000 / Counter 1000 |
 | `ST01-006` | TonyTony.Chopper | Character 1 / 1000 / **Blocker** |
 | `ST01-008` | Nico Robin | Character 3 / 5000 / Counter 1000 |
 | `ST01-009` | Nefeltari Vivi | Character 2 / 4000 / Counter 1000 |
-| `ST01-014` | Guard Point | Counter event / **+3000** |
+| `ST01-014` | Guard Point | Partial: Counter +3000 works; Trigger and target choice do not |
 
-Art URLs point at Bandai EN cardlist images for private prototypes. Clients should consume `buildCardAtlas()` / `export-atlas` JSON — not invent legality from cosmetics.
+Art URLs prefer TCGPlayer CDN and remain display-only. Clients consume
+`buildCardAtlas()` / `export-atlas` JSON and never infer legality from cosmetics.
 
 Decks in tests/sims use **20 cards** (≤4 copies each) from this set — not full 50-card constructed.
 
@@ -81,12 +84,19 @@ Decks in tests/sims use **20 cards** (≤4 copies each) from this set — not fu
 ## Known gaps (vs full Comprehensive Rules)
 
 - Keywords not on the subset (Double Attack, Banish, DON!!×N When Attacking, Main KO events, etc.)  
-- Rush **is** implemented (ST01-004 Sanji) with Character summoning sickness  
+- Unconditional Rush and ST01-004 Sanji's conditional DON!!×2 Rush are implemented.
 - Thousand Sunny / Jet Pistol KO / other ST01 prints deferred until hooks exist  
 - No full 50-card / color-identity / 4-of constructed validation yet  
-- Trigger handling is minimal (`triggerDraw` only; no curated Trigger print in the default set)  
-- Most curated OP09/OP16/OP17 character/event clauses are **documented stubs** in `EFFECT_CATALOG` — see [`docs/duel-client/EFFECTS.md`](../../docs/duel-client/EFFECTS.md) for timing coverage and APNAP / controller-order rules (`order_effects` pending choice)  
-- No timer / disconnect / multiplayer transport (owned by game-server / later steps)  
+- Trigger handling covers life-trigger draws, Leader bonuses, and selected Main/On Play activations for the verified subset; `hasTrigger` alone still marks eligibility without resolving unverified printed Trigger text.
+- Private top-deck search, filtered selection, and remainder ordering are implemented for `OP09-095`, `OP09-099`, `OP16-021`, `OP09-096`, and `OP17-019`.
+- OP17-112's continuous 4000-power Trigger aura and OP09-086's Blackbeard trash-scaling power modifier are implemented; OP09-086's effect-KO immunity remains partial until effect-based K.O. resolution is available.
+- OP17-003 Rush: Character and its rested-target On Play debuff, plus OP17-005's conditional hand cost and OP17-005/OP17-008 Leader base-power replacements, are implemented.
+- OP16-080's opponent-turn Character cost aura, OP09-118's zero-Life blocker win condition, OP16-104's attack power copy, OP14-108's conditional K.O., OP16-119's On Play Life search, and verified counter power penalties are implemented or explicitly marked partial where optional target restrictions remain.
+- Battle and effect K.O. paths now fire the supported On K.O. draw hooks for the Blackbeard cards in the curated subset.
+- OP16-118's +2000 hand Counter aura is enforced during Counter validation.
+- Most curated OP09/OP16/OP17 character/event clauses are **documented stubs** in `EFFECT_CATALOG`; all other bundled catalog cards are explicitly `unverified`.
+- Ranked rooms reject decks containing `partial`, `unsupported`, or `unverified` cards; unranked rooms retain prototype deck freedom.
+- No timer / disconnect / multiplayer transport (owned by game-server / later steps).
 
 ## Manuals
 

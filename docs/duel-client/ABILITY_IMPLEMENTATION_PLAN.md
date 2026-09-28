@@ -1,6 +1,24 @@
 # Duel engine and complete card abilities — implementation plan
 
-**Status: approved direction, revised 2026-09-16. Restructuring existing code is authorized to build a robust engine that makes cards easy to add. The reusable runtime migration is planned, not implemented. Official full-catalog reconciliation remains in progress.**
+## Revision 2026-09-27b — execution strategy (supersedes conflicting guidance below)
+
+The review of the plan below found five problems. The first two block completion; the other three slow it down. These decisions replace the conflicting parts of the older sections. Those sections remain as the audit history.
+
+1. **Authoring throughput.** The plan authors every card by hand, one at a time. 2,460 official cards carry ability text, and 44 took weeks. **Decision:** a deterministic, offline *authoring compiler* (`packages/rules/tools/cardText/`) translates the official Bandai text into DSL. Its output (`src/cards/generated/abilities.json`) is checked in and diffable, and a test verifies it matches regeneration. The compiler must consume an entire clause. Otherwise the clause is recorded as unsupported, with its text, and the card cannot be ranked-eligible. The runtime never reads English. Hand-written DSL overrides (`src/cards/manualAbilities.ts`) take precedence card by card for text the grammar cannot express or gets wrong.
+2. **Coupled engine.** Incremental migration keeps two execution paths alive and makes every card slice pay for the legacy adapter. **Decision:** replace the legacy per-card engine with one generic runtime in a single cut-over. Curated cards become ordinary data. Legacy `CardDef` hook fields, per-ability prompt kinds and ID-specific dispatch are deleted. Old tests that enforced legacy prompt shapes are rewritten against the generic contract, and their behavior assertions are kept.
+3. **Card data.** Stats, counters and traits come from a generated `src/cards/cardData.json`, built from the official Bandai candidate snapshot by `tools/buildCardData.ts`, with source provenance. The 49 IDs that official English lists lack keep their bundled values and are flagged `unverified`. `catalogMeta.json` stays only for those rows.
+4. **Prompt protocol.** A per-ability `abilityId` prompt does not scale to thousands of cards. **Decision:** protocol **5** has one generic choice request with five shapes: `confirm`, `select` (min/max over opaque option handles), `mode`, `order`, and `look` (select from privately revealed cards, then order the remainder). Each client gets one generic prompt component. The timer and bot fallback always has a legal default: the minimum selection, or decline when optional.
+5. **Script isolation.** Scripts are first-party modules checked into the repo. Clients never supply them. A sandbox therefore guards against no real threat, and its cost is a runner outside the synchronous engine. **Decision:** `CustomScript` modules receive a frozen capability context (queries, commands that validate their inputs, seeded RNG, choice requests). A test fails if a script module imports anything except the capability types. Continuations remain JSON (`scriptId`, `version`, `step`, bindings). Bespoke effects prefer manual DSL; a script is the last resort.
+
+**Completion definition (unchanged in spirit):** a card counts as supported only when every clause maps to executable DSL, a manual override, or a script. The generated support manifest reports supported, partial and unsupported cards per set. Ranked play rejects anything not fully supported. Casual play allows partial cards and marks their unsupported clauses in the inspect UI.
+
+**Progress for this revision is recorded in the "Implementation log (2026-09-27b)" section at the end of this document.**
+
+**Status: implementation in progress, revised 2026-09-27. Restructuring existing code is authorized to build a robust engine that makes cards easy to add. The first schema-validated search slice and serializable runtime contracts are implemented locally. The target architecture now explicitly combines a JSON DSL baseline with isolated `CustomScript` hooks; that script runner remains to be implemented. Official full-catalog reconciliation remains in progress.**
+
+### Checkpoint validation (2026-09-27)
+
+Passing: 159 rules tests, 18 game-server tests, 137 duel-web tests, 6 mobile protocol tests, and 7 offline Bandai-import tests. Rules/server/mobile typechecks and duel-web production build pass. The build reports its existing large-bundle warning. Backend duel tests could not start with `py -3` because that Python environment lacks `pytest`; backend writeback changes are included in the checkpoint but are not verified by that test run. Prior responsive prompt screenshots are retained as review evidence; native/live-match walkthrough and full-catalog acceptance remain open. The 2,790 fallback IDs remain unverified, and 44 curated definitions do not yet establish complete ability coverage.
 
 Audit date: 2026-09-14. Repository baseline: `b1eefd89b0d761c561b5d3317dec453c615e68f3`.
 
@@ -167,9 +185,27 @@ Keep `packages/rules` headless and server-authoritative, with three explicit bou
 |---|---|
 | Serializable state | Instances in every zone, visibility, turn/battle state, modifiers, use limits, deterministic ID/RNG state, pending resolutions, and choices. No functions, closures, or live event listeners in match state. |
 | Generic rules runtime | Validate intents, evaluate conditions/selectors, pay costs, execute operations, calculate derived values, dispatch timing windows, process replacements, and project private views. |
-| Versioned card registry | Verified printed metadata and declarative abilities composed from supported primitives. Art and display text remain separate from executable semantics. |
+| Versioned card registry | Verified printed metadata, declarative abilities, and explicit references to reviewed isolated scripts for exceptional effects. Art and display text remain separate from executable semantics. |
 
-**Card format:** introduce a versioned, runtime-validated schema for `abilities[]`. Use typed TypeScript builders initially if they improve authoring, but require their output to be plain JSON-compatible data validated by the same schema as JSON imports. No executable callbacks embedded in card definitions, English-text interpretation, or arbitrary script evaluation. The registry compiler rejects unknown operations, invalid references, impossible schema combinations, and duplicate ability IDs with card/ability/path diagnostics. Validate once when building/loading the registry, not on every action.
+**Card format:** introduce a versioned, runtime-validated schema for `abilities[]`. Use typed TypeScript builders initially if they improve authoring, but require their output to be plain JSON-compatible data validated by the same schema as JSON imports. Definitions may reference isolated script files through the explicit `CustomScript` operation below; they must not contain inline executable callbacks, interpreted English, or arbitrary source to evaluate. The registry compiler rejects unknown operations, invalid script references/parameters, impossible schema combinations, and duplicate ability IDs with card/ability/path diagnostics. Validate once when building/loading the registry, not on every action.
+
+#### Hybrid architecture decision (2026-09-27)
+
+**Approved direction:** use a data-driven baseline with scripted hooks for edge cases across Characters, Leaders, Events, and Stages. Target roughly 90% of behavior in the JSON DSL: printed costs/power, standard payments, keywords such as Rush and Blocker, timing windows, conditions, and common operations. This is an authoring target, not measured current coverage or a quota that forces unusual effects into the DSL.
+
+Exceptional abilities reference a checked-in, reviewed JavaScript module using plain data, for example:
+
+```json
+{"type":"CustomScript","scriptId":"card_specific_effect","version":1,"params":{}}
+```
+
+The compiler resolves this reference through a versioned script manifest to a specific isolated file. Colyseus invokes the shared authoritative rules runtime; the runtime dispatches `CustomScript` through one generic runner, without per-card server or engine switches. Script authoring remains separate from transport, matchmaking, and core timing logic. Never load script paths or executable source supplied by a client.
+
+Scripts receive a restricted effect context and capabilities for existing queries, validated commands, seeded randomness, and private choices. They cannot directly mutate match state or access filesystem, network, wall-clock time, unseeded randomness, or mutable host globals. Select and document an isolation mechanism that actually enforces these restrictions and bounded execution; an ordinary imported function or Node `vm` alone is not sufficient isolation. Keep synchronous `applyIntent` where practical, documenting any runner-host change needed before integration.
+
+Paused scripts return a JSON-compatible continuation (script/version, step, bound values); never persist a JavaScript closure or call stack. Resume through the same scheduler and choice validation as DSL programs. Bound execution and define deterministic failure handling without committing partial script-step mutations, replaying paid costs, silently skipping effects, or inventing a match winner. Pin script code hashes and capability API versions with each match's registry/rules versions.
+
+**Status:** the registry and generic search/draw execution have begun; `CustomScript`, its manifest, isolated runner, and script acceptance fixtures are required future work. This plan update does not claim they already exist.
 
 Each ability declares a stable ID, kind (continuous, triggered, activated, replacement, or rule/deck-construction), applicable zones and timing windows, conditions, costs, limits, selectors, ordered operations, and durations as applicable. A shared body can be invoked by a Life Trigger without falsely dispatching On Play or On K.O. Costs and effects are distinct: a condition, an optional payment, and an optional target selection must not be interchangeable.
 
@@ -183,7 +219,7 @@ Specify timing/priority, simultaneous-effect ordering, nested triggers, mandator
 
 **Modifier pipeline:** distinguish printed values, base-value replacement, additive changes, costs in each zone, counter values, keyword grants/removals, restrictions, and negation. Keep printed definitions immutable. Specify precedence/dependencies from verified rules, not a guessed universal ordering. Model turn/battle/next-turn expiration and source dependencies explicitly; recompute continuous conditions as state changes. The same derived queries drive legality, combat, and server-projected display values. Use limits bind to the correct ability/source lifetime and survive reconnect.
 
-**Extension policy:** a card using existing primitives requires only a definition, source record, and meaningful fixtures. A genuinely new mechanic adds a reusable primitive/resolver and its tests, then card data. Permit a narrowly scoped, versioned resolver registry for irreducible exceptions; each exception needs a documented reason, serializable parameters, privacy/continuation support, and tests. No new per-card branches in the core loop or unbounded growth of `CardDef` booleans. Track resolver-backed exceptions explicitly in coverage and review them for shared patterns.
+**Extension policy:** a card using existing primitives requires only a definition, source record, and meaningful fixtures. A broadly shared new mechanic adds a reusable primitive and its tests, then card data. A bespoke interaction may instead add an isolated script module, manifest entry, and `CustomScript` reference; do not require every exception to become a core-engine primitive. Each script needs a documented reason, validated serializable parameters, privacy/continuation support, and behavior tests. No new per-card branches in the core loop or Colyseus server, or unbounded growth of `CardDef` booleans. Track DSL-only, script-backed, legacy, and unsupported abilities separately in coverage; review recurring script patterns for promotion into shared primitives.
 
 Suggested module boundaries (final filenames can follow implementation needs):
 
@@ -193,12 +229,14 @@ packages/rules/src/
   registry/       schema, validation/compiler, immutable registry
   cards/          verified definitions, source records, generated coverage
   runtime/        intents, scheduler, timing, costs, operations, replacements
+  scripts/        versioned manifest and isolated bespoke card modules
+  scripting/      runner boundary, capability API, budgets, continuations
   queries/        predicates, selectors, derived stats, legality
   projection/     player/spectator views, choices, public events
   engine.ts       compatibility facade during migration
 ```
 
-**Reproducibility:** pin each match to registry content hash, rules version, state version, and protocol version. Save RNG progression, accepted inputs, and resumable frames for deterministic replay. Do not hot-swap card behavior in running matches. Reject incompatible snapshots or migrate them explicitly; retain the prior runtime for existing rooms or drain those rooms during rollout. A release rollback must not silently load a new snapshot into an incompatible engine.
+**Reproducibility:** pin each match to registry content hash (including gameplay metadata, script manifest/code hashes, and capability API versions), rules version, state version, and protocol version. Save RNG progression, accepted inputs, and resumable frames for deterministic replay. Do not hot-swap card behavior in running matches. Reject incompatible snapshots or migrate them explicitly; retain the prior runtime for existing rooms or drain those rooms during rollout. A release rollback must not silently load a new snapshot into an incompatible engine.
 
 ### Delivery order and gates
 
@@ -219,13 +257,47 @@ Full-catalog source reconciliation may progress alongside engine work, but a car
 5. Update inaccurate documentation and establish a runnable local test baseline, including the missing Windows native dependency.
 6. Refresh the historical inventory against the current working tree. Record verified behavior fixtures for existing curated effects, current test results, and unresolved defects separately. The native dependency failure in the earlier audit must be rechecked, not assumed to remain present.
 
-**Exit:** every catalog ID is accounted for; no unsupported clause is marked implemented, and no unknown counter or keyword becomes a fabricated rule.
+#### Card data source decision — arjunkai/optcg-api review (2026-09-16)
+
+**Decision:** retain TCGCSV for prices, TCGPlayer product IDs, and existing printing/art mappings. Add an official Bandai gameplay-metadata import pipeline, adapting the useful parts of `arjunkai/optcg-api`'s scraper where appropriate. Do not replace our database with its hosted API or introduce live card-data requests during matches. This is planned work, not an implemented migration.
+
+Findings from the repository review and local catalog inspection:
+
+| Area | Evidence and implication |
+|---|---|
+| Current metadata | Our generated `catalogMeta.json` contains 2,834 IDs and 2,550 nonempty effect-text values, but no structured traits or separate Trigger text field. These counts describe stored data, not verified abilities. The generator infers keywords from text; replace that inference with reviewed executable definitions. |
+| Upstream metadata | Their Bandai scraper extracts traits, attributes, counter, effect text, and separate Trigger text. This is useful input for reconciliation, but printed text does not implement abilities. [Scraper source](https://github.com/arjunkai/optcg-api/blob/main/scraper.py) |
+| Field compatibility | Their scraper stores Leader Life in `cost`; normalize it into our separate Life field. Their schema separates base-card and parallel IDs; preserve that distinction when mapping to our gameplay IDs and existing cosmetic selections. [Schema](https://github.com/arjunkai/optcg-api/blob/main/schema.sql) |
+| Coverage | Their README advertises OP01–OP15 and ST01–ST29 and counts alternate printings. Our snapshot includes IDs through OP18/ST36, with incomplete sets. Neither count establishes complete coverage; compare canonical IDs by set and locale. Live upstream completeness was not verified. [README](https://github.com/arjunkai/optcg-api#readme) |
+| Hosted access | A direct unauthenticated card request returned `401` with `api key required`. The project documents approved access and origin restrictions. Do not make this service a required dependency. [Access policy](https://github.com/arjunkai/optcg-api#code-data-and-access) |
+| Reuse | The code is MIT-licensed; its policy distinguishes code licensing from data rights and recommends running the scrape pipeline against upstream sources. Preserve license attribution for reused code; do not assume the code license grants reuse rights to the hosted database or art. [License](https://github.com/arjunkai/optcg-api/blob/main/LICENSE), [data policy](https://github.com/arjunkai/optcg-api#code-data-and-access) |
+
+Required Phase 1 implementation work:
+
+1. Add an importer for Bandai's official card list, with a pinned scraper revision and raw source snapshots. Keep ingestion separate from rules execution and the pricing sync; do not require deploying the upstream project's Workers/D1/R2 stack.
+2. Normalize canonical card IDs, printing IDs, locale, card type, colors, traits, attributes, printed power/counter, Character/Event/Stage cost, Leader Life, effect text, and separate Trigger text. Preserve unknown values explicitly; distinguish a verified absent counter/ability from a missing field. Do not infer unconditional keywords from mentions in text.
+3. Record source URL, retrieval time, source/content revision or hash, and field-level verification status. Track reviewed corrections and official errata separately so refreshes cannot silently overwrite them. Import success alone does not mark a card verified or implemented.
+4. Produce a reconciliation report against the bundled inventory and curated definitions: missing/additional IDs, incomplete sets, duplicate printings, missing fields, and conflicting stats/text/traits. Use official evidence to resolve conflicts; retain unresolved entries as unverified. Preserve TCGPlayer product IDs and existing cosmetic mappings when joining metadata.
+5. Generate deterministic, versioned local metadata snapshots consumed by `packages/rules` and client atlas generation. Publish only validated snapshots, retain the last valid snapshot on fetch/parse failure, and pin gameplay data together with the rules/registry version for a match. External updates must not change an ongoing match.
+6. Add fixture-based import/normalization checks for all four gameplay card types, Leader Life mapping, null versus absent values, separate Triggers, conditional keyword text, duplicate/alternate printings, conflict detection, and failed/partial refreshes. Verify regeneration is deterministic and report catalog additions explicitly without shrinking the original ability scope.
+
+**Data pipeline acceptance:** demonstrate the import → reconciliation → reviewed snapshot → rules/atlas path, with source provenance and unchanged pricing/printing associations. No runtime API dependency, silent loss of catalog IDs, or automatic support promotion. Continue the ability-runtime phases below; this pipeline strengthens source verification and does not replace executable ability authoring or tests.
+
+**Implementation progress (2026-09-16):** `scripts/import_bandai_metadata.py` now collects explicitly requested Bandai series into content-addressed raw HTML and normalized candidate JSON, with source hashes/timestamps, unknown/unverified field states, separate Trigger text, Leader Life normalization, and a scoped reconciliation report. Candidate generation is deterministic for the same input; a failed refresh preserves the previous candidate manifest. It does not publish reviewed gameplay metadata or modify prices/cosmetics. A live ST01 import returned 17 printings and 11 text differences against the bundled metadata (including whitespace, storefront disclaimers, and combined Trigger text); these are review findings, not 11 confirmed rule defects. Five offline tests pass via `py -3 -m unittest discover -s scripts -p test_bandai_metadata.py`. Run the collector with `py -3 scripts/import_bandai_metadata.py --series 569001 --output artifacts/bandai`; repeat `--series` for additional sets. Full-set discovery/completeness checks, curated-definition reconciliation, reviewed corrections/errata, and publication into rules/atlas remain open, so the data pipeline exit gate is not met.
+
+**Full discovery update (2026-09-16):** the collector now supports `--all-series`, discovers the official English series list, preserves the discovery-page source, and publishes a candidate only after all listed series succeed. The live run covered 60 series, 4,843 printings, and 2,785 base IDs, all already present in our bundled inventory. There are 49 bundled IDs absent from those fetched base rows; retain them as unresolved rather than deleting them or inferring that they are invalid. The report found 2,466 field differences and 7,325 populated candidate fields absent from stored metadata; these counts do not establish rule defects or verified values. See [reconciliation summary and exact missing IDs](audits/bandai_reconciliation_2026-09-16.json). Raw sources and the detailed candidate/report are under `artifacts/bandai-full/`. Seven offline collector tests and two source-ledger tests pass. The ledger no longer promotes traits/errata based solely on earlier card corrections. Reviewed publication, errata reconciliation, and rules/atlas integration remain open.
+
+**Exit:** every catalog ID is accounted for; the data pipeline acceptance criteria above pass; no unsupported clause is marked implemented, and no unknown counter or keyword becomes a fabricated rule.
 
 ### Phase 2 — Shared effect execution and private choices
+
+**Registry validation update (2026-09-16):** runtime validation now checks nested conditions, costs, selectors, operation targets/durations/numeric fields, unknown operation fields, timing/kind mismatches, and JSON compatibility before cross-reference traversal. Malformed definitions report paths including the card ID instead of crashing later on missing arrays. Compilation clones and deeply freezes programs and exposes read-only map views, preventing authoring-object or nested mutations from invalidating the registry hash. Validation: rules/server typechecks, the 128-test rules suite before the final timing checks, all 16 targeted registry tests after those checks, and 18 server tests. This does not establish generic scheduler completion or full-catalog support.
 
 **Phase 2A — Registry and state contracts:** implement the versioned schema, registry validation, stable instance model, snapshot/RNG/version contract, and a temporary legacy adapter. Add schema rejection and snapshot round-trip tests. Pin one execution route per ability so the adapter and the new runtime cannot both fire it.
 
 **Phase 2B — Generic runtime:** implement effect contexts, frames/continuations, predicates/selectors, payments, operations, timing dispatch, and private choice projections for the slice below. Separate internal rules events from client events. Make legacy paths call shared infrastructure during migration rather than maintaining two independent implementations of costs, movement, or visibility.
+
+**Required hybrid additions to Phase 2A–2B:** extend the schema/compiler with `CustomScript`, a versioned manifest, parameter validation, and missing-module/version rejection. Implement the isolated runner, capability API, execution budgets, deterministic failure policy, and serializable script continuation in Phase 2B. Test capability restrictions, unknown references, budget exhaustion, invalid commands, no partial step commits, private choices, and identical replay/resume results. These are open requirements alongside the existing DSL migration.
 
 **Phase 2C — End-to-end migration:** migrate Laffitte, Fullalead, Moby Dick, and My Era to declarative abilities and the same generic search/movement operations. Include activated, On Play, Main, and Life Trigger entry points. Prove repeated copies, legal zero selections, ordered remainders, invalid/stale choices, timer resolution, and reconnect mid-effect through the server and both client contracts.
 
@@ -246,9 +318,28 @@ projection; reconnect uses the same projected `getPlayerView` snapshot path.
 
 **Exit:** these searches work through duel-web, cannot leak cards, reject invalid selections, and resume safely after disconnect or timeout.
 
+**Architecture migration status (2026-09-16):** a versioned runtime-validated
+ability schema, deterministic registry hash, match/rules/RNG version contract,
+snapshot validation, serializable resolution frames, and stable hidden-zone
+instance ledger now back the Laffitte, Fullalead, Moby Dick, and My Era search
+slice. Their specialized definition fields and activated dispatch branches were
+removed. Tests reject invalid registry programs, round-trip a paused private
+search, compare resumed and uninterrupted results, and verify that the selected
+card keeps its instance identity. The legacy adapter remains for abilities that
+have not yet migrated; this update does not satisfy the all-curated migration or
+full-catalog exit gates.
+
 **Additional architecture exit gate:** the slice executes through schema-validated ability programs without slice-specific resolution branches. Serialize/restore a paused search and obtain the same final state/events and RNG progression as uninterrupted execution. Compare old/new results only for verified legacy behavior; separately test corrected rules. Existing search functionality alone does not meet this gate.
 
+**Continuation update (2026-09-16):** the shared sequential runner now pauses at a search, resumes at the next operation, and stores parent/child frames for invoked abilities. Repeated searches use the current operation index rather than always selecting the first search in a program. My Era's Main and Life Trigger enter through registry windows, and its Trigger executes the declared invocation. A nested-program regression covers three successive searches, intervening operations, parent return, and equal results after JSON restoration; existing search snapshot tests remain green. Rules typecheck and 130 tests pass; server typecheck and 18 tests passed for the runner integration before the final Main/Trigger dispatch cleanup. Sequential operation coverage, general timing dispatch, and full migration remain incomplete.
+
+**Snapshot/RNG update (2026-09-16):** RNG restoration now derives Mulberry32 state directly from its validated seed/cursor instead of replaying every previous draw on each action. Tests compare 10,000 outputs for five seeds against the previous algorithm, resume shuffled output, and exercise cursors beyond 2^32 and invalid/exhausted states. Rules version is now `0.2.1`; incompatible older snapshots are rejected. Snapshot checks additionally validate continuation positions, ability/source references, parent invocation links, duplicate/orphaned frames, and paused-search binding lengths. Tests cover corrupted continuations and round-trip My Era's actual nested Trigger frames. Rules typecheck and all 151 rules tests pass. Full match-state validation, stable identity across every legacy zone movement, and match-server persistence remain separate open requirements.
+
 ### Phase 3 — Modifiers, costs, and combat keywords
+
+**Keyword migration update (2026-09-16):** curated Blocker and Rush now execute through registry grants, including Uta's Blocker alongside its hand-cost ability. Static `CardDef.blocker`/`rush` fields are removed; unconditional atlas keywords and coverage hooks derive from the registry. Newly played Characters retain their turn-entry restriction internally, so current Rush grants and negation determine immediate attacks dynamically. Ordinary Rush permits Leader attacks; Rush: Character alone does not. All 135 rules tests pass, including negation for Roger and all four curated Blocker cards, and the desktop/mobile atlases were regenerated. This migrates existing keyword cards without claiming support for the remaining keyword families or fallback catalog.
+
+**Runtime correction update (2026-09-16):** continuous abilities now check their source zone before evaluating conditions, preventing hand-cost conditions from recursively evaluating field power. Ace uses an explicit counter replacement operation, so multiple copies do not stack. Teach uses a separate field-cost operation for board targeting and projected field cost; desktop/mobile cost-limited prompts consume that value. Devon's copied base power now participates in power calculation and expires at the end of the turn, as do turn-scoped Character/Leader replacements. Regression checks: rules typecheck and 116 tests, duel-web build and 137 tests, server typecheck, and syntax checks for the two changed mobile files. Full mobile typecheck and interactive prompt review remain outstanding; these checks do not complete the modifier or UI acceptance gates.
 
 1. Separate printed/base/current power, field cost, hand play cost, and counter value. Add continuous and duration-limited modifiers with explicit expiration and source-departure semantics.
 2. Add general per-source/per-ability use tracking, played-this-turn state, DON requirements and payments (rest, return, attach), hand/reveal/trash costs, trait/name/color conditions, and effect negation.
@@ -261,6 +352,16 @@ projection; reconnect uses the same projected `getPlayerView` snapshot path.
 
 ### Phase 4 — Zone movement, Life Triggers, and replacement effects
 
+**Draw-program migration (2026-09-17):** added a schema-validated `draw_cards` sequential operation. Baby 5 OP12-112 and Shiryu OP16-108 now use registry Life Trigger programs; Baby 5's multicolored-Leader predicate is declarative, and their specialized draw fields/conditional hook were removed. Their Trigger text was checked against the captured official Bandai snapshot. Sequential execution stops and clears pending continuations when drawing ends the game. The 154 existing rules tests and five new draw-program tests pass, covering draw count, original instance identity, condition failure, declining to hand, and deck-out; rules typecheck passes. Devon's combined draw/play Trigger and other legacy draw paths still require migration.
+
+**Responsive prompt review (2026-09-16):** `node scripts/review_trash_prompt.cjs` exercises the actual desktop `OnPlayPrompt` component served by Vite at port 5174 in headless Edge (or Chrome via `CHROME_PATH`). At 375px and 1200px it verifies one selected duplicate, exact option-ID submission, selection reset on a new prompt, and no horizontal overflow. Screenshots `artifacts/trash_prompt_375.png` and `artifacts/trash_prompt_1200.png` were inspected. This is a component-level responsive-web review; native mobile and an end-to-end live-match walkthrough remain open.
+
+**Mobile validation update (2026-09-17):** installed the existing locked mobile dependencies with `npm ci`. Full `npm run typecheck` now passes after adding the generated atlas metadata fields used by the prompt (including traits). All six mobile tests pass; the stale Sanji unconditional-Rush expectation now checks conditional behavior is left to the server, alongside Roger's unconditional flag and trait/Trigger metadata. The dependency install reported that Metro/React Native require a newer Node release than this shell's v22.8.0; use a supported runtime before native launch/build validation. Native-device interaction and full live-match walkthrough remain open, but mobile validation is no longer limited to syntax checks.
+
+**Trash-choice migration update (2026-09-16):** trash-to-Life, trash-to-hand, and trash-to-field prompts now submit `selectedTrashOptionId`, an opaque per-prompt handle bound to the selected instance. Internal instance bindings are stripped from projected options; stale/moved copies are rejected without mutation. Both clients select duplicate cards independently; desktop On Play prompts remount by choice ID to clear stale selections. Protocol is now **4** across rules/server/desktop/mobile, requiring coordinated deployment. The definition-ID submission field is removed. Validation: 154 rules tests, 18 server tests, 137 desktop tests, rules/server typechecks, and desktop build (before the final prompt-key change); changed mobile files pass syntax checks. Interactive desktop/mobile prompt review and full mobile typecheck remain open.
+
+**Identity migration update (2026-09-16):** shared `putInZone`/`takeFromZone` helpers now preserve definition/instance pairing for discard costs, Counter/Main Event disposal, Character K.O., field-space trashing, Stage replacement, trash retrieval/play/revival, trash-to-Life, hand-to-deck, and effect Life-to-hand moves. Marco's self-revival records and retrieves the actual K.O.'d instance instead of the first matching card number in trash. The 151 existing rules tests pass with the duplicate-Marco regression; two additional integration tests verify middle-trash retrieval and Stage replacement identity. Rules/server typechecks pass. Remaining work includes replacing definition-ID selection in legacy trash prompts, auditing all paired-array mutations, and removing silent identity-ledger repair after fixtures and state construction use explicit identities consistently. This update does not satisfy the complete zone/identity gate.
+
 1. Centralize zone movement with causes: play, effect/battle K.O., other trash, hand return, deck top/bottom, Life movement. Ensure replaying a card triggers the right entry effects and handles a full field.
 2. Model Life visibility and ordering; implement all Trigger bodies, including “activate Main/On Play/On K.O.” without pretending that the referenced event actually occurred. Correct accepted/declined Trigger destinations and damage continuation.
 3. Add K.O. restrictions, removal replacement, last-known source information, recursion handling, and effect immunity versus negation. Resolve simultaneous rule outcomes, deck exhaustion, and explicit special victories.
@@ -271,6 +372,8 @@ projection; reconnect uses the same projected `getPlayerView` snapshot path.
 **Migration exit:** every curated ability has one registry-backed execution route. Remove migrated booleans, ID-specific dispatch, obsolete prompt branches, and the legacy adapter after their last consumer moves. Update support/atlas generation from the validated registry plus reviewed source/test evidence; parsing printed tags remains an audit aid only. No broad expansion while curated cards still require the legacy dispatcher.
 
 ### Phase 5 — Finish every catalog card in reviewable batches
+
+**Additional entry gate — script-backed card addition:** implement an officially verified complex card through a separate script file and `CustomScript` definition, using the established capability API with zero card-specific engine/server/protocol branches. Include meaningful edge-case, privacy, and replay fixtures; prove serialize/resume for a script that requests a choice. This supplements the data-only gate below. Report both authoring routes in each batch ledger.
 
 **Entry gate — easy card addition:** add at least three previously unsupported, officially verified cards using existing primitives, covering different timing/operation combinations and at least two card types. Each change may touch definitions, source/coverage records, fixtures, and generated artifacts, but must require **zero core-engine, game-server, protocol, or client-prompt changes**. At least one must compose multiple operations. Record changed paths and authoring friction. If this fails, repair the abstraction before expanding the catalog. Cards introducing a genuinely new mechanic follow the extension policy and do not count toward this gate.
 
@@ -290,6 +393,7 @@ projection; reconnect uses the same projected `getPlayerView` snapshot path.
 - Test cost failure, zero eligible targets, zero selection, empty decks/life, duplicate cards, full Character/Stage zones, source removal, immunity versus replacement, buff expiration, negation of granted keywords, and multi-trigger chains.
 - Add property/invariant tests for instance uniqueness and zone conservation, DON conservation, stable source/use-limit tracking, invalid-intent state/RNG immutability, and equivalence of uninterrupted versus serialized/resumed execution. Add adversarial hidden-information tests for every viewer and choice family.
 - Validate the registry and coverage in CI. Reject unknown operations, broken effect references, duplicate IDs, unsupported primitives marked complete, and changed definitions with stale review evidence. Keep registry compilation deterministic and generated artifacts reproducible.
+- Validate script manifests, code hashes, capability versions, isolation/budget enforcement, and deterministic script failure/replay in CI. Exercise script-backed effects through server timers, reconnect, and both clients using shared choice contracts. A script reference alone never establishes implemented support.
 - Measure representative complex resolution windows and legal-action generation before and after migration. Establish and record regression budgets from that baseline; avoid combinatorial target enumeration. Bound interpreter work and detect non-progressing loops with diagnostic traces, without silently skipping mandatory rules or awarding a fabricated win.
 - Completion report: coverage totals by type/set, tested card IDs, data sources, unresolved count (must be zero), and deployment compatibility. Deployment is a separate action from this planning approval.
 
@@ -315,4 +419,48 @@ This is a substantial rules-and-content project. Deliver it in independently ver
 
 The plan direction is approved, including restructuring existing code for a robust, extensible game engine (2026-09-16). No additional architecture approval is required merely because a slice refactors working code. Complete the development-readiness checklist using source verification, concrete contracts, and acceptance fixtures for each slice.
 
-The next implementation milestone is **Phase 2A plus the Phase 1 regression/source baseline needed for it**, followed by the generic search migration in Phase 2B–2C. Do not resume adding isolated card hooks as the default expansion strategy. Deliver independently verified slices through all acceptance gates; deployment remains separate from this documentation update.
+The registry/search migration is underway, with shared draw programs and curated behavior corrections also implemented. The next milestone is to finish the remaining Phase 2 contracts and curated migration, including the approved hybrid script boundary, while completing Phase 1 source verification. Use declarative data for the baseline and isolated script modules for bespoke effects; do not resume per-card core/server branches. Deliver independently verified slices through all acceptance gates; deployment remains separate from this documentation update.
+
+## Implementation log (2026-09-27b)
+
+Branch `claude/durable-match-writeback-impl-0ca3c3`, based on `codex/durable-match-writeback`.
+
+### What shipped
+
+- **Single cut-over to a generic runtime** (`packages/rules/src/engine/`). The legacy per-card engine, `registry/`, `runtime/`, `effectOrder.ts` and the tests that enforced legacy prompt shapes are deleted. Abilities compile to flat, resumable instruction lists (`effects/compile.ts`). A paused program is a JSON `ResolutionFrame` (instruction index plus bindings), so any mid-effect state snapshots and resumes exactly. Triggers queue in batches: the turn player's triggers resolve first, and a player with several simultaneous triggers chooses their order.
+- **Official card data.** `tools/buildCardData.ts` builds `cards/cardData.json` from the Bandai candidate snapshot, replayed with importer v3, which also fixes the lost `<Slash>`-style attributes. The 49 IDs missing from the official English lists keep their bundled rows and are marked `bundled`. Printing suffixes on promo names (e.g. "Trafalgar Law (Event Pack Vol. 4)") are stripped so that name-based effects match.
+- **Authoring compiler** (`tools/cardText/`). It normalizes the official text, then applies phrase and grammar rules to produce `cards/generated/abilities.json`, which is checked in. A test fails when the file is stale. A clause the compiler cannot fully consume is recorded verbatim as unsupported.
+- **Reviewed manual definitions** (`cards/manualAbilities.ts`), 206 cards. A `patch` entry replaces only the generated clauses its `text` names. If a patch no longer matches an unsupported clause, the registry fails to load, so a patch goes stale loudly once the grammar learns its clause. `tools/cardText/checkManual.ts` checks that every name and type a manual entry references exists in the catalog.
+- **Protocol 5.** A single generic choice request comes in five shapes: `confirm`, `select`, `mode`, `order` and `look`. duel-web and mobile each render it with one `ChoicePrompt`. Views redact hidden options: face-down Life, the opponent's hand, and private looks.
+- **Game and deck rules printed on Leaders.** Deck-out variants (OP15-022, P-117), DON!! placement (OP13-003), the start-of-game Stage (OP13-079), face-up Life handling (ST13-003), and deck-construction limits via `deckConstructionErrors`. The limits also ship in the atlas as `deckRules`, and duel-web's deck import enforces them.
+
+### Coverage
+
+| | Cards |
+|---|---|
+| Catalog | 2,834 |
+| Every printed clause implemented | 2,550 |
+| Vanilla (no ability text) | 284 |
+| Partial / unsupported | 0 |
+
+The grammar alone covers 2,344 cards (plus the 284 vanilla). The rest use manual patches. No card needed a `CustomScript`, so the script runner (decision 5) stays unimplemented. That is deliberate: every bespoke effect fit in DSL plus a small set of generic primitives.
+
+### Verification
+
+- Rules: 102 tests, covering primitive behavior (one real card per primitive, asserting state changes so silent no-ops fail), the 44 originally curated cards as regression fixtures, and the manual-definition primitives.
+- Full-catalog fuzz sweep (`npx tsx src/sim/fuzz.ts --sweep 10 2`): 0 errors or invariant violations. 2,427 of 2,997 triggered or activated abilities actually fired. The other 570 never met their conditions in random focused decks, so they are type-checked and validated but not exercised.
+- game-server: 18 tests. duel-web: 130 tests plus a production build (large-bundle warning; the full atlas adds about 146 KB gzip). Mobile: 6 tests plus a typecheck.
+
+### Known limitations and interpretations
+
+- **Semantic review is sampled, not exhaustive.** The compiler only emits DSL for clauses it fully consumes, and random samples were audited against the printed text. Individual generated cards can still be wrong in ways the fuzzer cannot see: a legal but incorrect effect. Report per card and fix with a grammar rule or a manual patch.
+- Rulings chosen where the text is ambiguous:
+  - OP01-063 picks the opponent's hand card at random, because the choice is blind.
+  - OP01-062 tracks "haven't drawn using this Leader's effect" as once per turn.
+  - OP12-040 draws once per trashed card, which gives the same total.
+  - OP15-098 treats a battle K.O. as "removed by your opponent".
+  - OP15-080 checks "no other [Oars]" on your own field.
+  - OP10-058 only lets you choose a cost-4-or-less card as the rested second card.
+  - OP13-079 automatically plays the first {Mary Geoise} Stage in the deck at game start.
+- Three bundled cards had garbled source text: EB05-005, P-118 and P-142. Their definitions follow the printed card, not the snapshot text. Re-verify them when official English data appears.
+- Not done in this revision: native/live-match walkthrough recordings, and backend `pytest` for the writeback path (the environment lacks `pytest`).

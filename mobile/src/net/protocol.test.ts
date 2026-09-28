@@ -146,12 +146,18 @@ describe("card atlas", () => {
         "ST01-014",
       ]),
     );
-    expect(listAtlasIds()).not.toContain("OP01-013");
+    // The atlas now carries every official card, not only the curated seed set.
+    expect(listAtlasIds()).toContain("OP01-013");
+    expect(listAtlasIds().length).toBeGreaterThanOrEqual(2834);
     const luffy = lookupCard("ST01-001");
     expect(luffy.name).toMatch(/Luffy/i);
     // Atlas may store Vite-relative `/cards/...`; lookup resolves to https for RN.
     expect(luffy.imageUrl).toMatch(/^https?:\/\//);
     expect(lookupCard("ST01-014").name).toMatch(/Guard Point/i);
-    expect(lookupCard("ST01-004").rush).toBe(true);
+    // Conditional Rush is projected by the server from attached DON!! state.
+    expect(lookupCard("ST01-004").rush).toBeUndefined();
+    expect(lookupCard("OP09-118").rush).toBe(true);
+    expect(lookupCard("OP12-002").traits).toContain("Whitebeard Pirates");
+    expect(lookupCard("ST01-014").hasTrigger).toBe(true);
   });
 });

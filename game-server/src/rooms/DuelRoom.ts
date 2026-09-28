@@ -7,8 +7,10 @@ import {
   DEFAULT_LEADER_ID,
   getPlayerView,
   getSpectatorView,
+  projectGameEvents,
   listLegalIntents,
   skipMulligans,
+  unsupportedCardsForDeck,
   type GameEvent,
   type Intent,
   type MatchState,
@@ -19,6 +21,7 @@ import {
   getDevJoinSecret,
   isRankedMatchCreateAttested,
   getLogLevel,
+  getMatchOutboxDatabaseUrl,
   getReconnectGraceSeconds,
   getSeatReservationSeconds,
   requireGameToken,
@@ -36,7 +39,7 @@ import {
   type PlayerDeckWire,
   type WelcomeMessage,
 } from "../protocol.js";
-import { postMatchResult } from "../writeback.js";
+import { postMatchResult, type MatchResultPayload } from "../writeback.js";
 import { DuelPublicState } from "./schema/DuelPublicState.js";
 
 type SeatSlot = {
@@ -80,6 +83,8 @@ export class DuelRoom extends Room {
   private intentTimestamps = new Map<string, number[]>();
   private matchStarted = false;
   private matchOverSent = false;
+  private resultPending: Promise<void> | null = null;
+  private matchUserIds: [number, number] | null = null;
   private endReason: string | null = null;
   private turnSeconds: number | null = null;
   private matchSeconds: number | null = null;
@@ -96,6 +101,18 @@ export class DuelRoom extends Room {
     this.seed = parsed.seed;
     this.autoSkipMulligan = parsed.autoSkipMulligan;
     this.createPlayers = parsed.players;
+    if (parsed.ranked && parsed.players) {
+      for (const deck of parsed.players) {
+        const issues = unsupportedCardsForDeck(deck);
+        if (issues.length > 0) {
+          throw new Error(
+            `Ranked deck contains unsupported cards: ${issues
+              .map((issue) => `${issue.cardId} (${issue.support})`)
+              .join(", ")}`,
+          );
+        }
+      }
+    }
     if (parsed.players) {
       this.seatDecks = [parsed.players[0], parsed.players[1]];
     }
@@ -153,6 +170,12 @@ export class DuelRoom extends Room {
   onDispose() {
     this.clearTimerLoop();
     this.log("info", "room_disposed", { matchId: this.matchId });
+  }
+
+  async onBeforeShutdown() {
+    // Do not dispose a completed match before its result is durably queued.
+    await this.resultPending;
+    super.onBeforeShutdown();
   }
 
   onAuth(_client: Client, options: unknown) {
@@ -237,6 +260,21 @@ export class DuelRoom extends Room {
         this.sendError(client, "match_not_ready", "Waiting for duel to start");
       }
       return;
+    }
+
+    if (this.ranked && identity.deck) {
+      const issues = unsupportedCardsForDeck(identity.deck);
+      if (issues.length > 0) {
+        this.sendError(
+          client,
+          "unsupported_deck",
+          `Ranked deck contains unsupported cards: ${issues
+            .map((issue) => `${issue.cardId} (${issue.support})`)
+            .join(", ")}`,
+        );
+        client.leave();
+        return;
+      }
     }
 
     if (reservedSeat !== null && this.seats[reservedSeat]) {
@@ -464,7 +502,6 @@ export class DuelRoom extends Room {
   }
 
   private startMatch() {
-    this.matchStarted = true;
     this.rng = createSeededRng(this.seed);
     const deckA = this.seatDecks[0]?.deck ?? this.createPlayers?.[0]?.deck ?? buildTestDeck(20);
     const deckB = this.seatDecks[1]?.deck ?? this.createPlayers?.[1]?.deck ?? buildTestDeck(20);
@@ -487,6 +524,8 @@ export class DuelRoom extends Room {
     }
 
     this.match = match;
+    this.matchStarted = true;
+    this.matchUserIds = [this.seats[0]!.userId, this.seats[1]!.userId];
     this.syncPublicState();
     this.log("info", "match_start", { matchId: this.matchId, seed: this.seed });
 
@@ -655,7 +694,7 @@ export class DuelRoom extends Room {
       const view = getPlayerView(this.match, slot.seat);
       client.send("events", {
         protocolVersion: PROTOCOL_VERSION,
-        events,
+        events: projectGameEvents(events, slot.seat),
       });
       client.send("view", {
         protocolVersion: PROTOCOL_VERSION,
@@ -668,7 +707,7 @@ export class DuelRoom extends Room {
       const view = getSpectatorView(this.match, spec.cameraSeat);
       client.send("events", {
         protocolVersion: PROTOCOL_VERSION,
-        events,
+        events: projectGameEvents(events, null),
       });
       client.send("view", {
         protocolVersion: PROTOCOL_VERSION,
@@ -857,23 +896,25 @@ export class DuelRoom extends Room {
   }
 
   private maybeSendMatchOver() {
-    if (!this.match || this.match.winner === null || this.matchOverSent) return;
-    this.matchOverSent = true;
+    if (!this.match || this.match.winner === null || this.matchOverSent || this.resultPending) return;
     const result = {
       winner: this.match.winner,
       reason: this.endReason ?? this.match.winReason ?? "unknown",
     };
-    this.log("info", "match_end", { matchId: this.matchId, ...result });
-    this.broadcast("match_over", {
-      protocolVersion: PROTOCOL_VERSION,
-      result,
+    const autoDispose = this.autoDispose;
+    this.autoDispose = false;
+    this.resultPending = this.writebackResult(result.winner, result.reason).then(() => {
+      this.matchOverSent = true;
+      this.log("info", "match_end", { matchId: this.matchId, ...result });
+      this.broadcast("match_over", { protocolVersion: PROTOCOL_VERSION, result });
+      this.autoDispose = autoDispose;
+      if (autoDispose && this.clients.length === 0) void this.disconnect().catch(() => undefined);
     });
-    void this.writebackResult(result.winner, result.reason);
   }
 
   private async writebackResult(winner: Seat, reason: string) {
-    const s0 = this.seats[0]?.userId ?? this.presetSeatUserIds?.[0];
-    const s1 = this.seats[1]?.userId ?? this.presetSeatUserIds?.[1];
+    const s0 = this.matchUserIds?.[0];
+    const s1 = this.matchUserIds?.[1];
     if (s0 == null || s1 == null) {
       this.log("warn", "match_ingest_skip", {
         matchId: this.matchId,
@@ -889,14 +930,33 @@ export class DuelRoom extends Room {
       });
       return;
     }
-    await postMatchResult({
+    if (!getMatchOutboxDatabaseUrl() && process.env.NODE_ENV !== "production") {
+      this.log("warn", "match_ingest_skip", { matchId: this.matchId, reason: "local_outbox_disabled" });
+      return;
+    }
+    const payload: MatchResultPayload = {
       match_id: this.matchId,
       seat0_user_id: s0,
       seat1_user_id: s1,
       winner_seat: winner,
       reason,
       ranked: this.ranked,
-    });
+    };
+    // Keep the immutable payload and room alive across transient database outages.
+    // A process crash before the first commit remains outside this outbox guarantee.
+    for (;;) {
+      try {
+        await this.persistMatchResult(payload);
+        return;
+      } catch {
+        this.log("warn", "match_enqueue_failed", { matchId: this.matchId });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  protected persistMatchResult(payload: MatchResultPayload): Promise<void> {
+    return postMatchResult(payload);
   }
 
   private syncPublicState() {
@@ -953,7 +1013,7 @@ export class DuelRoom extends Room {
       matchEndsAt: this.matchEndsAt,
       activeSeat: this.match.activeSeat,
     });
-    if (this.match.winner !== null) {
+    if (this.match.winner !== null && this.matchOverSent) {
       client.send("match_over", {
         protocolVersion: PROTOCOL_VERSION,
         result: {
@@ -983,7 +1043,7 @@ export class DuelRoom extends Room {
       view,
     });
     this.sendStoredCosmetics(client);
-    if (this.match.winner !== null) {
+    if (this.match.winner !== null && this.matchOverSent) {
       client.send("match_over", {
         protocolVersion: PROTOCOL_VERSION,
         result: {

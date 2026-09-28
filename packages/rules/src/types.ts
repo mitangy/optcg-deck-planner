@@ -1,4 +1,5 @@
 import type { Rng } from "./rng.js";
+import type { Keyword, PlayerRestriction, Restriction, Filter, Placement } from "./effects/types.js";
 
 export type Seat = 0 | 1;
 export type InstanceId = string;
@@ -13,10 +14,12 @@ export type Phase =
   | "block"
   | "counter"
   | "damage"
+  | "end"
   | "game_over";
 
 export type CardType = "leader" | "character" | "event" | "stage";
 
+/** Printed card metadata. Executable behavior lives in the ability registry. */
 export interface CardDef {
   id: CardDefId;
   name: string;
@@ -25,71 +28,21 @@ export interface CardDef {
   cost: number;
   power?: number;
   life?: number;
+  /** Printed Counter value; absent when the card has none. */
   counter?: number;
-  blocker?: boolean;
+  /** Events: timing tags present in the printed text. */
   eventTiming?: "main" | "counter";
-  stageLeaderPowerBonus?: number;
-  counterPowerBonus?: number;
-  mainDraw?: number;
-  triggerDraw?: number;
-  /**
-   * Leader Activate: Main [Once Per Turn] — attach 1 rested DON!! from cost
-   * area to this Leader or one of your Characters (ST01-001).
-   */
-  leaderActivateGiveRestedDon?: boolean;
-  /**
-   * Stage Activate: Main — trash this Stage, then attach 1 rested DON!! from
-   * cost area to Leader or a Character (OP16-021 Moby Dick).
-   */
-  stageActivateTrashGiveRestedDon?: boolean;
-  /**
-   * [On Play] optional draw hook — you may draw this many cards when the
-   * character enters play. Demonstrates the generic pending-choice/prompt
-   * framework end to end; not every On Play effect is implemented yet.
-   */
-  onPlayOptionalDraw?: number;
-  /** Auto-draw when this Character enters play (before On Play prompts). */
-  onPlayDraw?: number;
-  /** Optional: add deck top to Life when controller has ≤ maxLife life cards. */
-  onPlayLowLifeAddLife?: { maxLife: number };
-  /** After onPlayDraw, optional: own deck top → Life or opp Life top → opp hand. */
-  onPlayDrawThenLifeChoice?: boolean;
-  /** After onPlayDraw, pick a hand card for deck top, then add 1 active DON!!. */
-  onPlayDrawHandToDeckDon?: boolean;
-  /** Rush — may attack the turn this Character enters play. */
-  rush?: boolean;
-  /** Optional art URL (TCGPlayer CDN or Bandai cardlist). Display only. */
   imageUrl?: string;
-  /** Combat attribute for deck filters / inspect (Strike, Slash, …). Display only. */
   attribute?: string;
-  /** Printed ability / effect text for client inspect UI (display only). */
+  /** Printed text excluding the [Trigger] clause (display only). */
   effectText?: string;
-  /** Alternate printings (display only). */
+  /** Printed [Trigger] clause (display only). */
+  triggerText?: string;
   altArts?: { id: string; label: string; imageUrl: string }[];
-  /** Card types/traits printed on the card (e.g. "Blackbeard Pirates"). */
   traits?: string[];
-  /** True when the card has a printed [Trigger] effect. */
   hasTrigger?: boolean;
-  /**
-   * [Opponent's Turn] Give all of your opponent's Characters +N cost
-   * (Teach OP16-080).
-   */
-  leaderOpponentCharacterCostBonus?: number;
-  /**
-   * [On Opponent's Attack] [Once Per Turn] Trash 1 hand card: give a chosen
-   * own Leader/Character +power this battle (Newgate OP17-001).
-   */
-  leaderOnOppAttackTrashForPower?: { power: number };
-  /**
-   * [On Opponent's Attack] [Once Per Turn] Trash 1 Trigger hand card: retarget
-   * the attack to this Leader or a Character with `retargetTrait` (Teach).
-   */
-  leaderOnOppAttackTrashTriggerRetarget?: { retargetTrait: string };
-  /**
-   * [When Attacking] Trash 1 hand card: reveal top of deck; if its type includes
-   * `revealTrait`, draw `draw` cards (Rocks.D.Xebec OP17-039).
-   */
-  leaderWhenAttackingTrashRevealDraw?: { revealTrait: string; draw: number };
+  /** `bandai` when verified against the official card list snapshot. */
+  dataSource?: "bandai" | "bundled" | "stub";
 }
 
 export interface CardInstance {
@@ -97,25 +50,21 @@ export interface CardInstance {
   defId: CardDefId;
   rested: boolean;
   attachedDonIds: InstanceId[];
-  /**
-   * Characters only: cannot attack until owner's next turn start unless Rush.
-   * Cleared in `beginTurn` for the active seat.
-   */
+  /** Characters only: cannot attack until owner's next turn start unless Rush. */
   summoningSick?: boolean;
-  /**
-   * Optional crowd-control / effect labels (e.g. "Stun", "Unrestable",
-   * "Nullified"). Populated by card effects when implemented; clients render
-   * these as chips alongside rested / summoning-sick / rush.
-   */
+  /** Absolute turn number this card entered the field. */
+  playedTurn?: number;
+  /** Once-per-turn ability id → absolute turn number of last use. */
+  usedAbilities?: Record<string, number>;
   statusLabels?: string[];
-  /** Temporary power bonus for the current battle (cleared when battle ends). */
-  battlePowerBonus?: number;
 }
 
 export interface DonInstance {
   id: InstanceId;
   rested: boolean;
   attachedTo: InstanceId | null;
+  /** Stays rested through its owner's next Refresh Phase. */
+  noRefresh?: boolean;
 }
 
 export type AttackTarget =
@@ -126,65 +75,127 @@ export interface BattleState {
   attackerSeat: Seat;
   attackerId: InstanceId;
   target: AttackTarget;
+  /** Instance originally attacked (before Blocker/redirect). */
+  originalTargetId?: InstanceId;
+  blockerId?: InstanceId;
+  /** Kept for client compatibility: always 0 (battle buffs are modifiers). */
   defenderPowerBonus: number;
   attackerPowerBonus: number;
+  /** Remaining damage to deal during the damage step. */
+  damageRemaining?: number;
+  /** "Battles your opponent's Character" events were dispatched for this battle. */
+  endDispatched?: boolean;
 }
 
-/**
- * Kinds of player-facing "may I trigger this?" prompts. `life_trigger` is the
- * original life-card accept/decline flow; the rest generalize the same queue
- * to character/leader abilities as engine support for them lands.
- */
+export type ModifierEffect =
+  | { type: "power"; amount: number }
+  | { type: "cost"; amount: number }
+  | { type: "base_power"; value: number }
+  | { type: "set_power"; value: number }
+  | { type: "set_cost"; value: number }
+  | { type: "keyword"; keyword: Keyword }
+  | { type: "restrict"; restriction: Restriction; value?: number; attribute?: string; filter?: Filter }
+  /** Card gains an attribute (e.g. <Slash>). */
+  | { type: "attribute"; attribute: string }
+  /** Per-turn marker (e.g. "battled_character"). */
+  | { type: "flag"; flag: string }
+  /** A replacement ability granted to a player for a duration (from an Event). */
+  | { type: "granted"; abilityId: string; sourceDefId: CardDefId }
+  | { type: "negate" }
+  | { type: "player_restrict"; restriction: PlayerRestriction; filter?: Filter }
+  | { type: "play_cost"; filter: Filter; amount: number; once?: boolean };
+
+export type ModifierExpiry =
+  | { kind: "battle" }
+  | { kind: "end_of_turn"; turn: number }
+  | { kind: "start_of_turn"; turn: number }
+  | { kind: "next_refresh"; seat: Seat }
+  | { kind: "permanent" };
+
+export interface Modifier {
+  id: string;
+  /** Seat controlling the effect that created this modifier. */
+  sourceSeat: Seat;
+  sourceId?: InstanceId;
+  target: { kind: "card"; id: InstanceId } | { kind: "player"; seat: Seat };
+  effect: ModifierEffect;
+  expires: ModifierExpiry;
+}
+
 export type PendingChoiceKind =
   | "life_trigger"
-  | "on_play"
-  | "activate_main"
-  | "when_attacking"
-  | "optional_ability"
-  | "leader_on_opp_attack"
+  /** Generic effect prompt; see `request`. */
+  | "effect"
   /** Controller must pick resolution order for 2+ simultaneous effects. */
   | "order_effects";
 
+export interface ChoiceOption {
+  /** Opaque handle submitted by clients. */
+  id: string;
+  /** Card definition, or "HIDDEN" when the viewer may not see it. */
+  defId?: CardDefId;
+  /** Human-readable label for non-card options. */
+  label?: string;
+  zone?: "leader" | "character" | "stage" | "hand" | "trash" | "deck" | "life" | "don" | "resolving";
+  ownerSeat?: Seat;
+  /** Public field instance (never set for hidden-zone cards). */
+  instanceId?: InstanceId;
+  eligible: boolean;
+  rested?: boolean;
+}
+
+export type ChoiceRequest =
+  /** Yes / no. `accept: false` declines. */
+  | { type: "confirm" }
+  /** Pick between `min` and `max` eligible options. */
+  | { type: "select"; min: number; max: number; options: ChoiceOption[] }
+  /** Pick exactly one labeled mode. */
+  | { type: "mode"; options: ChoiceOption[] }
+  /** Order every option (first = placed first / top-most). */
+  | { type: "order"; options: ChoiceOption[]; destination: string; allowTopOrBottom?: boolean }
+  /**
+   * Privately look at cards: select up to `maxSelect` eligible cards, then
+   * order the rest for `rest` placement (top-or-bottom split when allowed).
+   */
+  | {
+      type: "look";
+      options: ChoiceOption[];
+      minSelect: number;
+      maxSelect: number;
+      groups: { label: string; max: number; eligibleIds: string[] }[];
+      rest: Placement | "look_only";
+      restLabel: string;
+    };
+
 /**
- * A single queued "may I resolve this optional/chain ability?" prompt.
- * `MatchState.pendingChoices` is a FIFO queue: the front entry blocks Main
- * phase actions for its `seat` until resolved via `resolve_pending_choice`
- * (or `order_pending_effects` when `kind` is `order_effects`), so chained
- * character/leader abilities can stack. When multiple effects trigger for the
- * same controller at once, an `order_effects` wrapper is inserted first so the
- * player chooses order (APNAP still puts the turn player ahead of the opponent).
+ * A queued player decision. The front entry blocks all other intents until
+ * resolved via `resolve_pending_choice` (or `order_pending_effects`).
  */
 export interface PendingChoice {
-  /** Stable id for React keys / logs; not gameplay-significant. */
   id: string;
+  /** Resolution frame awaiting this choice (internal; stripped from views). */
+  resolutionFrameId?: string;
   seat: Seat;
   kind: PendingChoiceKind;
   cardDefId: CardDefId;
-  /** Board instance that owns the ability, when applicable. */
   sourceInstanceId?: InstanceId;
-  /** False = the ability is mandatory; only `accept` is a legal resolution. */
+  /** True when declining (accept: false) is legal. */
   optional: boolean;
-  /** Human-readable prompt naming the card/ability, shown to the player. */
   prompt: string;
-  /**
-   * Structured leader-ability id for attack-window prompts.
-   * Clients use this to render trash / retarget / reveal pickers.
-   */
-  abilityId?:
-    | "newgate_battle_power"
-    | "teach_redirect"
-    | "rocks_reveal_draw"
-    | "on_play_add_life"
-    | "on_play_life_choice"
-    | "on_play_hand_to_deck";
-  /**
-   * When `kind` is `order_effects`, the simultaneous abilities the controller
-   * must permute via `order_pending_effects`.
-   */
+  request?: ChoiceRequest;
+  /** Seat allowed to see private option identities. */
+  privateToSeat?: Seat;
+  /** Hide the source card identity and prompt from every other viewer. */
+  hideCardDefFromOthers?: boolean;
+  /** Public count retained when private options are redacted. */
+  optionCount?: number;
+  /** order_effects: the simultaneous abilities to permute. */
   unorderedChoices?: PendingChoice[];
+  /** Internal: option id → card instance / value binding. Stripped from views. */
+  bindings?: Record<string, string>;
 }
 
-/** @deprecated Use `PendingChoice` (kind `"life_trigger"`). Kept for callers importing the old name. */
+/** @deprecated Use `PendingChoice`. */
 export type PendingTrigger = PendingChoice;
 
 export interface PlayerState {
@@ -195,30 +206,117 @@ export interface PlayerState {
   deck: CardDefId[];
   trash: CardDefId[];
   life: CardDefId[];
+  /** Stable internal identities for cards in hidden/public non-field zones. */
+  zoneInstanceIds: {
+    deck: InstanceId[];
+    trash: InstanceId[];
+    life: InstanceId[];
+  };
+  /** Parallel to `life`: true entries are publicly face-up. */
+  faceUpLife: boolean[];
+  /** Cards being resolved (Events, accepted Life Triggers). */
+  resolving: CardInstance[];
   donDeck: DonInstance[];
   costArea: DonInstance[];
   attachedDons: DonInstance[];
   mulliganDone: boolean;
   turnsStarted: number;
-  /** Cleared at turn start (`beginTurn`). Once-per-turn Leader Activate:Main. */
-  leaderActivatedThisTurn: boolean;
-  /** Cleared at turn start. Once-per-turn On-Opponent's-Attack leader ability. */
-  leaderOppAttackAbilityUsedThisTurn: boolean;
+  /** DON!! cards this player owns in total (10 unless a rule changes it). */
+  donTotal?: number;
+  /** What happened this turn, for "during this turn" conditions. Reset when a turn starts. */
+  turnLog?: TurnLog;
 }
 
+/** A triggered ability waiting to start resolution. */
+export interface QueuedTrigger {
+  id: string;
+  seat: Seat;
+  sourceInstanceId: InstanceId;
+  sourceDefId: CardDefId;
+  abilityId: string;
+  window: string;
+  /** Card that caused an event trigger (e.g. the K.O.'d Character). */
+  eventCardId?: InstanceId;
+  /** Batch number: triggers queued by the same game action share a batch. */
+  batch: number;
+  /** Set once the controller has ordered this trigger among simultaneous ones. */
+  ordered?: boolean;
+  /** Delayed effect index (the ability's n-th `delay` node) instead of the ability itself. */
+  delayIndex?: number;
+  /** Bindings captured by a delayed effect. */
+  vars?: Record<string, BindingValue>;
+}
+
+/** Turn/battle procedure continuation, advanced when no effects are pending. */
+export type EngineStep =
+  | { kind: "after_attack_triggers" }
+  | { kind: "after_block_triggers" }
+  | { kind: "damage" }
+  | { kind: "battle_ko"; targetSeat: Seat; targetId: InstanceId; replaced?: boolean }
+  | { kind: "life_damage" }
+  /** Effect damage outside battle (Life to hand with Trigger checks). */
+  | { kind: "effect_damage"; seat: Seat; remaining: number }
+  | { kind: "end_battle" }
+  | { kind: "end_phase" }
+  | { kind: "start_turn_triggers" };
+
 export interface MatchState {
+  stateVersion: 3;
+  rulesVersion: string;
+  protocolVersion: 5;
+  registryHash: string;
+  rng: { seed: number; cursor: number };
   players: [PlayerState, PlayerState];
   activeSeat: Seat;
   firstSeat: Seat;
   phase: Phase;
   turnNumber: number;
   battle: BattleState | null;
-  /** FIFO queue of pending player choices (life triggers, On Play/Activate abilities, …). */
   pendingChoices: PendingChoice[];
+  /** Serializable continuations for executing ability programs (stack; last runs). */
+  resolutionFrames: ResolutionFrame[];
+  triggerQueue: QueuedTrigger[];
+  modifiers: Modifier[];
+  steps: EngineStep[];
+  extraTurns: Seat[];
+  /** One-shot effects scheduled for the end of the current turn. */
+  delayed: DelayedEffect[];
   winner: Seat | null;
-  winReason: "leader_battle_at_zero_life" | "deck_out" | null;
+  winReason: "leader_battle_at_zero_life" | "deck_out" | "card_effect" | null;
   nextId: number;
+  triggerBatch: number;
   lastEvents: GameEvent[];
+}
+
+export type BindingValue = string | string[] | number | boolean | null;
+
+/** A delayed effect: the `index`-th `delay` node of an ability, run at end of turn / battle. */
+export interface DelayedEffect {
+  /** "opponent_main": at the start of the controller's opponent's next Main Phase. */
+  when?: "end_of_turn" | "end_of_battle" | "opponent_main";
+  /** Bindings captured when the delayed effect was created (e.g. the played card). */
+  vars?: Record<string, BindingValue>;
+  id: string;
+  seat: Seat;
+  sourceInstanceId: InstanceId;
+  sourceDefId: CardDefId;
+  abilityId: string;
+  index: number;
+  turn: number;
+}
+
+export interface ResolutionFrame {
+  id: string;
+  seat: Seat;
+  sourceInstanceId: InstanceId;
+  sourceDefId: CardDefId;
+  abilityId: string;
+  window: string;
+  /** Instruction pointer into the compiled program. */
+  operationIndex: number;
+  bindings: Record<string, BindingValue>;
+  /** Program kind: an ability, or an engine-generated interrupt program. */
+  program?: "ability" | "replacement" | "trash_for_space" | "attack_tax";
 }
 
 export type GameEvent =
@@ -226,114 +324,51 @@ export type GameEvent =
   | { type: "phase_changed"; phase: Phase; activeSeat: Seat }
   | { type: "drew"; seat: Seat; count: number }
   | { type: "don_placed"; seat: Seat; count: number }
-  | {
-      type: "card_played";
-      seat: Seat;
-      defId: CardDefId;
-      instanceId: InstanceId;
-      costPaid: number;
-    }
+  | { type: "card_played"; seat: Seat; defId: CardDefId; instanceId: InstanceId; costPaid: number }
   | { type: "stage_replaced"; seat: Seat; trashedDefId: CardDefId }
-  /** Stage trashed as an Activate:Main (or similar) cost. */
   | { type: "stage_trashed"; seat: Seat; defId: CardDefId }
   | { type: "character_trashed_for_space"; seat: Seat; defId: CardDefId }
-  | {
-      type: "don_given";
-      seat: Seat;
-      donId: InstanceId;
-      targetId: InstanceId;
-      targetDefId: CardDefId;
-      newPower: number;
-    }
-  | {
-      type: "attack_declared";
-      seat: Seat;
-      attackerId: InstanceId;
-      target: AttackTarget;
-      attackerPower: number;
-      defenderPower: number;
-    }
+  | { type: "don_given"; seat: Seat; donId: InstanceId; targetId: InstanceId; targetDefId: CardDefId; newPower: number }
+  | { type: "attack_declared"; seat: Seat; attackerId: InstanceId; target: AttackTarget; attackerPower: number; defenderPower: number }
   | { type: "blocked"; seat: Seat; blockerId: InstanceId }
   | { type: "counter_applied"; seat: Seat; defId: CardDefId; bonus: number }
-  | {
-      type: "battle_resolved";
-      attackerWon: boolean;
-      attackerPower: number;
-      defenderPower: number;
-    }
+  | { type: "battle_resolved"; attackerWon: boolean; attackerPower: number; defenderPower: number }
   | { type: "character_ko"; seat: Seat; defId: CardDefId }
   | { type: "life_taken"; seat: Seat; defId: CardDefId; toHand: boolean }
-  | { type: "life_added"; seat: Seat; defId: CardDefId; source: "deck_top" }
+  | { type: "life_added"; seat: Seat; defId: CardDefId; source: "deck_top" | "hand" | "field" | "trash"; faceUp?: boolean }
   | { type: "trigger_available"; seat: Seat; defId: CardDefId }
   | { type: "trigger_resolved"; seat: Seat; accepted: boolean }
-  | {
-      type: "card_revealed";
-      seat: Seat;
-      defId: CardDefId;
-      /** True when the reveal satisfied a trait check (e.g. Rocks Pirates). */
-      matchedTrait?: boolean;
-    }
-  | {
-      type: "pending_choice_added";
-      seat: Seat;
-      kind: PendingChoiceKind;
-      cardDefId: CardDefId;
-      sourceInstanceId?: InstanceId;
-      optional: boolean;
-      prompt: string;
-    }
-  | {
-      type: "pending_choice_resolved";
-      seat: Seat;
-      kind: PendingChoiceKind;
-      cardDefId: CardDefId;
-      accepted: boolean;
-    }
+  | { type: "card_revealed"; seat: Seat; defId: CardDefId; matchedTrait?: boolean }
+  | { type: "power_buff_applied"; seat: Seat; targetDefId: CardDefId; amount: number; duration: "turn" | "battle" | "other" }
+  | { type: "card_moved"; seat: Seat; defId: CardDefId; from: string; to: string; hidden?: boolean }
+  | { type: "ability_activated"; seat: Seat; defId: CardDefId; abilityId: string; text: string }
+  | { type: "pending_choice_added"; seat: Seat; kind: PendingChoiceKind; cardDefId: CardDefId; sourceInstanceId?: InstanceId; optional: boolean; prompt: string; privateToSeat?: Seat; hideCardDefFromOthers?: boolean }
+  | { type: "pending_choice_resolved"; seat: Seat; kind: PendingChoiceKind; cardDefId: CardDefId; accepted: boolean; privateToSeat?: Seat; hideCardDefFromOthers?: boolean }
   | { type: "game_over"; winner: Seat; reason: NonNullable<MatchState["winReason"]> };
 
 export type Intent =
   | { type: "mulligan"; doMulligan: boolean }
   | { type: "play_card"; handIndex: number; trashCharacterId?: InstanceId }
   | { type: "give_don"; donId: InstanceId; targetId: InstanceId }
-  /**
-   * Activate:Main (or similar) on a board source. `abilityId` selects the hook;
-   * `targetId` is used when the ability needs a Leader/Character recipient.
-   */
-  | {
-      type: "activate_ability";
-      sourceId: InstanceId;
-      abilityId: string;
-      targetId?: InstanceId;
-    }
-  /**
-   * Legacy ST01-001 Activate:Main — attach 1 rested cost-area DON!! to
-   * Leader/Character (once per turn). Prefer `activate_ability` with
-   * `leader_give_rested_don`; still accepted by `applyIntent`.
-   */
-  | { type: "activate_leader"; targetId: InstanceId }
+  /** Activate:Main on a board source (Leader, Character, or Stage). */
+  | { type: "activate_ability"; sourceId: InstanceId; abilityId: string; targetId?: InstanceId }
   | { type: "declare_attack"; attackerId: InstanceId; target: AttackTarget }
   | { type: "declare_block"; blockerId: InstanceId }
   | { type: "pass_block" }
   | { type: "counter_from_hand"; handIndex: number }
   | { type: "counter_event"; handIndex: number }
   | { type: "pass_counter" }
-  /** Accept/decline the front of `MatchState.pendingChoices` (life trigger or ability prompt). */
+  /** Resolve the front of `pendingChoices`. */
   | {
       type: "resolve_pending_choice";
       accept: boolean;
-      /** Hand index to trash when accepting Newgate/Teach attack abilities. */
-      handIndex?: number;
-      /** Own Leader/Character gaining battle power (Newgate). */
-      buffTargetId?: InstanceId;
-      /** New attack target after Teach redirect. */
-      newTarget?: AttackTarget;
-      /** On Play life-branch choice (OP17-112). */
-      onPlayChoice?: "own_life" | "opp_life";
+      /** Selected option handles (select / look / mode). */
+      selectedOptionIds?: string[];
+      /** Every unselected option handle in placement order (order / look). */
+      orderedOptionIds?: string[];
+      /** Subset of `orderedOptionIds` placed on top when top-or-bottom is allowed. */
+      topOptionIds?: string[];
     }
-  /**
-   * Choose resolution order for the front `order_effects` pending choice.
-   * `orderedIds` must be a permutation of that choice's `unorderedChoices` ids.
-   */
   | { type: "order_pending_effects"; orderedIds: string[] }
   | { type: "end_turn" };
 
@@ -358,4 +393,14 @@ export interface CreateMatchConfig {
   seed: number;
   firstSeat?: Seat;
   players: [PlayerDeckConfig, PlayerDeckConfig];
+}
+
+export interface TurnLog {
+  turn: number;
+  /** Events activated by this player (def ids). */
+  events: CardDefId[];
+  /** This player's Characters K.O.'d (def ids). */
+  koed: CardDefId[];
+  /** Cards trashed from this player's hand by effects. */
+  handTrashed: number;
 }

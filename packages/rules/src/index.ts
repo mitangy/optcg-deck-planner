@@ -1,10 +1,15 @@
-export { createSeededRng, type Rng } from "./rng.js";
+export { createSeededRng, type Rng, type RngState } from "./rng.js";
+export { EFFECT_SCHEMA_VERSION } from "./effects/types.js";
+export type { Ability, CardAbilities, Effect, Cond, Cost, Static, Trigger, SupportStatus } from "./effects/types.js";
+export { ABILITY_REGISTRY, REGISTRY_HASH, abilitiesFor, abilityById, cardAbilities, buildAbilityRegistry, RegistryValidationError } from "./cards/abilities.js";
+export { MATCH_STATE_VERSION, RULES_PROTOCOL_VERSION, RULES_VERSION, serializeMatch, deserializeMatch, validateMatchContract, IncompatibleSnapshotError } from "./state/snapshot.js";
 export {
   getCardDef,
   listCardDefs,
   hasCardDef,
   ensureCardDef,
   ensureDefsForPlayers,
+  isCuratedCardDef,
   normalizeCardDefId,
   buildTestDeck,
   buildCardAtlas,
@@ -12,23 +17,27 @@ export {
   DEFAULT_LEADER_ID,
   type CardAtlasEntry,
 } from "./cards/definitions.js";
-export {
-  TCG_PRODUCTS,
-} from "./cards/tcgProducts.js";
-export {
-  tcgArtForCard,
-  tcgAltsForCard,
-  tcgProductImageUrl,
-  listTcgMappedCardIds,
-} from "./cards/tcgArt.js";
+export { cardDataFor, listCardDataIds, CARD_DATA_CANDIDATE, type CardDataRow } from "./cards/cardData.js";
+export { TCG_PRODUCTS } from "./cards/tcgProducts.js";
+export { CARD_SOURCE_RECORDS, cardSourceRecord, type CardSourceRecord, type FieldVerification } from "./cards/sourceRecords.js";
+export { tcgArtForCard, tcgAltsForCard, tcgProductImageUrl, listTcgMappedCardIds } from "./cards/tcgArt.js";
 export {
   createMatch,
   applyIntent,
   listLegalIntents,
   getPlayerView,
   getSpectatorView,
+  projectGameEvents,
+  projectPendingChoice,
   assertInvariants,
   skipMulligans,
+  powerOf,
+  costOf,
+  playCostOf,
+  counterOf,
+  keywordsOf,
+  hasKeyword,
+  isNegated,
 } from "./engine.js";
 export { describeEvents } from "./describeEvents.js";
 export type {
@@ -42,11 +51,16 @@ export type {
   DonInstance,
   AttackTarget,
   BattleState,
+  ChoiceOption,
+  ChoiceRequest,
   PendingChoice,
   PendingChoiceKind,
   PendingTrigger,
   PlayerState,
   MatchState,
+  Modifier,
+  QueuedTrigger,
+  ResolutionFrame,
   GameEvent,
   Intent,
   ApplyContext,
@@ -54,32 +68,20 @@ export type {
   PlayerDeckConfig,
   CreateMatchConfig,
 } from "./types.js";
-
-export {
-  LEADER_ABILITY_CATALOG,
-  type LeaderAbilityEntry,
-  type LeaderAbilityTiming,
-} from "./cards/leaderAbilities.js";
-export {
-  ABILITY_LEADER_GIVE_RESTED_DON,
-  ABILITY_STAGE_TRASH_GIVE_RESTED_DON,
-} from "./cards/abilityIds.js";
 export {
   EFFECT_CATALOG,
   buildEffectCatalog,
   effectsForCard,
   effectsForDef,
   summarizeEffectCoverage,
+  abilitySupportForCard,
   abilitySupportForDef,
-  abilitySupportFromEntries,
   enrichAtlasAbilitySupport,
+  buildCardSupportManifest,
+  summarizeCardSupportManifest,
+  unsupportedCardsForDeck,
   type CardEffectEntry,
-  type EffectStatus,
-  type EffectTiming,
   type AbilitySupport,
+  type CardSupportIssue,
 } from "./cards/effectCatalog.js";
-export {
-  applyEffectOrder,
-  enqueuePendingChoices,
-  sortByApnap,
-} from "./effectOrder.js";
+export { deckConstructionErrors } from "./cards/deckRules.js";

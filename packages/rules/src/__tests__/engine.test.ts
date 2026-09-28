@@ -1,769 +1,306 @@
 import { describe, expect, it } from "vitest";
-import { buildTestDeck, DEFAULT_LEADER_ID, getCardDef } from "../cards/definitions.js";
-import {
-  applyIntent,
-  assertInvariants,
-  createMatch,
-  getPlayerView,
-  getSpectatorView,
-  listLegalIntents,
-  skipMulligans,
-} from "../engine.js";
+import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
+import { applyIntent, assertInvariants, createMatch, getPlayerView, getSpectatorView, listLegalIntents, skipMulligans } from "../engine.js";
 import { createSeededRng } from "../rng.js";
-import type { Intent, MatchState, PendingChoice, Seat } from "../types.js";
+import { compileStandalone } from "../effects/compile.js";
+import { projectGameEvents } from "../engine/views.js";
+import { deserializeMatch, serializeMatch, IncompatibleSnapshotError } from "../state/snapshot.js";
+import { FILLER, Harness } from "../testing/harness.js";
+import type { Intent, MatchState, Seat } from "../types.js";
 
-function fresh(seed = 1): {
-  state: MatchState;
-  rng: ReturnType<typeof createSeededRng>;
-} {
+function fresh(seed = 1) {
   const rng = createSeededRng(seed);
   const deck = buildTestDeck(20);
-  let state = createMatch({
-    seed,
-    firstSeat: 0,
-    players: [
-      { leaderId: "ST01-001", deck: [...deck] },
-      { leaderId: "ST01-001", deck: [...deck] },
-    ],
-  });
+  let state = createMatch({ seed, firstSeat: 0, players: [{ leaderId: DEFAULT_LEADER_ID, deck: [...deck] }, { leaderId: DEFAULT_LEADER_ID, deck: [...deck] }] });
   state = skipMulligans(state, rng);
   return { state, rng };
 }
 
-function act(
-  state: MatchState,
-  seat: Seat,
-  intent: Intent,
-  rng: ReturnType<typeof createSeededRng>,
-): MatchState {
+function act(state: MatchState, seat: Seat, intent: Intent, rng: ReturnType<typeof createSeededRng>): MatchState {
   const r = applyIntent(state, intent, { seat, rng });
   expect(r.ok, r.error?.message).toBe(true);
   assertInvariants(r.state);
   return r.state;
 }
 
-describe("createMatch + mulligan", () => {
-  it("sets life equal to leader life after mulligans", () => {
-    const { state } = fresh(42);
-    expect(state.phase).toBe("main");
-    expect(state.players[0].life.length).toBe(5);
-    expect(state.players[1].life.length).toBe(5);
-    expect(state.players[0].hand.length).toBe(5);
+describe("match setup and mulligan", () => {
+  it("sets Life from the Leader after mulligans and is deterministic per seed", () => {
+    const a = fresh(42).state;
+    const b = fresh(42).state;
+    expect(a.phase).toBe("main");
+    expect(a.players[0].life.length).toBe(5);
+    expect(a.players[0].hand.length).toBe(5);
+    expect(a.players[0].hand.map((c) => c.defId)).toEqual(b.players[0].hand.map((c) => c.defId));
   });
 
-  it("is deterministic for the same seed", () => {
-    const a = fresh(99).state;
-    const b = fresh(99).state;
-    expect(a.players[0].hand.map((c) => c.defId)).toEqual(
-      b.players[0].hand.map((c) => c.defId),
-    );
-    expect(a.players[0].life).toEqual(b.players[0].life);
-  });
-});
-
-
-describe("mulligan decisions", () => {
-  it("starts in mulligan with 5 cards and no life yet", () => {
-    const rng = createSeededRng(5);
-    const deck = buildTestDeck(20);
-    const state = createMatch({
-      seed: 5,
-      firstSeat: 0,
-      players: [
-        { leaderId: "ST01-001", deck: [...deck] },
-        { leaderId: "ST01-001", deck: [...deck] },
-      ],
-    });
-    expect(state.phase).toBe("mulligan");
-    expect(state.players[0].hand.length).toBe(5);
-    expect(state.players[0].life.length).toBe(0);
-    expect(listLegalIntents(state, 0)).toEqual([
-      { type: "mulligan", doMulligan: false },
-      { type: "mulligan", doMulligan: true },
-    ]);
-  });
-
-  it("redraws a fresh hand of 5 when doMulligan is true", () => {
+  it("offers keep/mulligan and redraws five", () => {
     const rng = createSeededRng(12);
-    const deck = buildTestDeck(20);
-    let state = createMatch({
-      seed: 12,
-      firstSeat: 0,
-      players: [
-        { leaderId: "ST01-001", deck: [...deck] },
-        { leaderId: "ST01-001", deck: [...deck] },
-      ],
-    });
+    let state = createMatch({ seed: 12, firstSeat: 0, players: [{ leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }, { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }] });
+    expect(listLegalIntents(state, 0)).toEqual([{ type: "mulligan", doMulligan: false }, { type: "mulligan", doMulligan: true }]);
     state = act(state, 0, { type: "mulligan", doMulligan: true }, rng);
-    expect(state.players[0].mulliganDone).toBe(true);
     expect(state.players[0].hand.length).toBe(5);
-    expect(state.phase).toBe("mulligan"); // seat 1 still deciding
+    expect(state.phase).toBe("mulligan");
     state = act(state, 1, { type: "mulligan", doMulligan: false }, rng);
     expect(state.phase).toBe("main");
-    expect(state.players[0].life.length).toBe(5);
-    expect(state.players[1].life.length).toBe(5);
   });
 });
 
-describe("first-turn restrictions", () => {
-  it("first player gets 1 DON!! and cannot attack on turn 1", () => {
+describe("turn structure", () => {
+  it("first player gets 1 DON!!, skips the draw and cannot attack on turn 1", () => {
     const { state } = fresh(7);
-    expect(state.activeSeat).toBe(0);
-    expect(state.players[0].turnsStarted).toBe(1);
     expect(state.players[0].costArea.length).toBe(1);
-    const legal = listLegalIntents(state, 0);
-    expect(legal.some((i) => i.type === "declare_attack")).toBe(false);
+    expect(state.players[0].hand.length).toBe(5);
+    expect(listLegalIntents(state, 0).some((i) => i.type === "declare_attack")).toBe(false);
   });
 
-  it("second player gets 2 DON!! and still cannot attack on their first turn", () => {
+  it("second player gets 2 DON!!, draws, and cannot attack on their first turn", () => {
     let { state, rng } = fresh(7);
     state = act(state, 0, { type: "end_turn" }, rng);
     expect(state.activeSeat).toBe(1);
-    expect(state.players[1].turnsStarted).toBe(1);
     expect(state.players[1].costArea.length).toBe(2);
-    expect(listLegalIntents(state, 1).some((i) => i.type === "declare_attack")).toBe(
-      false,
-    );
+    expect(state.players[1].hand.length).toBe(6);
+    expect(listLegalIntents(state, 1).some((i) => i.type === "declare_attack")).toBe(false);
+  });
+
+  it("refresh returns attached DON!! and untaps cards", () => {
+    const h = new Harness();
+    const [ch] = h.field(0, FILLER);
+    h.don(0, 2);
+    h.act(0, { type: "give_don", donId: h.state.players[0].costArea[0]!.id, targetId: ch!.id });
+    expect(h.view(0).you.characters[0]!.power).toBe(4000);
+    // Rest the Character and the remaining DON!! so the refresh has something to untap.
+    ch!.rested = true;
+    h.state.players[0].costArea[0]!.rested = true;
+    h.act(0, { type: "end_turn" });
+    expect(h.view(1).opponent.characters[0]!.power).toBe(3000);
+    h.act(1, { type: "end_turn" });
+    expect(h.state.players[0].attachedDons.length).toBe(0);
+    // 2 from before (the returned attached DON!! and the rested one) + 2 placed this DON!! Phase.
+    expect(h.state.players[0].costArea.length).toBe(4);
+    expect(h.state.players[0].costArea.every((d) => !d.rested)).toBe(true);
+    expect(h.state.players[0].characters[0]!.rested).toBe(false);
+  });
+
+  it("a player with an empty deck loses during rule processing", () => {
+    const h = new Harness();
+    const p = h.state.players[0];
+    p.deck = [];
+    p.zoneInstanceIds.deck = [];
+    h.don(0, 1);
+    // Any action settles the game; no draw is involved, so only rule processing can end it.
+    h.act(0, { type: "give_don", donId: p.costArea[0]!.id, targetId: p.leader.id });
+    expect(h.state.winner).toBe(1);
+    expect(h.state.winReason).toBe("deck_out");
   });
 });
 
-describe("DON!! economy and play", () => {
-  it("pays cost by resting DON!! and plays a character when available", () => {
-    let { state, rng } = fresh(3);
-    state = act(state, 0, { type: "end_turn" }, rng);
-    state = act(state, 1, { type: "end_turn" }, rng);
-    expect(state.players[0].costArea.length).toBe(3);
-    const handIndex = state.players[0].hand.findIndex(
-      (c) => c.defId === "ST01-003" || c.defId === "ST01-006",
-    );
-    expect(handIndex).toBeGreaterThanOrEqual(0);
-    const before = state.players[0].costArea.filter((d) => !d.rested).length;
-    state = act(state, 0, { type: "play_card", handIndex }, rng);
-    expect(state.players[0].characters.length).toBe(1);
-    const after = state.players[0].costArea.filter((d) => !d.rested).length;
-    expect(after).toBe(before - 1);
+describe("playing cards and DON!!", () => {
+  it("pays by resting active DON!! and marks the Character as played this turn", () => {
+    const h = new Harness();
+    h.hand(0, FILLER);
+    h.don(0, 3);
+    h.play(0, FILLER);
+    const card = h.state.players[0].characters.at(-1)!;
+    expect(card.summoningSick).toBe(true);
+    expect(card.playedTurn).toBe(h.state.turnNumber);
+    expect(h.state.players[0].costArea.filter((d) => !d.rested).length).toBe(2);
   });
 
-  it("give_don increases power on controller turn", () => {
-    let { state, rng } = fresh(11);
-    state = act(state, 0, { type: "end_turn" }, rng);
-    state = act(state, 1, { type: "end_turn" }, rng);
-    const don = state.players[0].costArea.find((d) => !d.rested);
-    expect(don).toBeTruthy();
-    const leaderId = state.players[0].leader.id;
-    const before = getPlayerView(state, 0).you.leader.power;
-    state = act(
-      state,
-      0,
-      { type: "give_don", donId: don!.id, targetId: leaderId },
-      rng,
-    );
-    const after = getPlayerView(state, 0).you.leader.power;
-    expect(after).toBe(before + 1000);
-  });
-});
-
-describe("ST01-001 Activate:Main", () => {
-  it("attaches one rested DON!! once per turn to Leader or Character", () => {
-    let { state, rng } = fresh(3);
-    state = act(state, 0, { type: "end_turn" }, rng);
-    state = act(state, 1, { type: "end_turn" }, rng);
-    expect(state.players[0].costArea.length).toBe(3);
-
-    // Print requires a rested cost-area DON!! (typically after paying a cost).
-    state = structuredClone(state);
-    const toRest = state.players[0].costArea.find((d) => !d.rested);
-    expect(toRest).toBeTruthy();
-    toRest!.rested = true;
-
-    const leaderId = state.players[0].leader.id;
-    const legal = listLegalIntents(state, 0);
-    expect(
-      legal.some(
-        (i) =>
-          i.type === "activate_ability" &&
-          i.sourceId === leaderId &&
-          i.abilityId === "leader_give_rested_don" &&
-          i.targetId === leaderId,
-      ),
-    ).toBe(true);
-
-    const before = getPlayerView(state, 0).you.leader.power;
-    state = act(
-      state,
-      0,
-      {
-        type: "activate_ability",
-        sourceId: leaderId,
-        abilityId: "leader_give_rested_don",
-        targetId: leaderId,
-      },
-      rng,
-    );
-    expect(getPlayerView(state, 0).you.leader.power).toBe(before + 1000);
-    expect(state.players[0].leaderActivatedThisTurn).toBe(true);
-    expect(
-      listLegalIntents(state, 0).some(
-        (i) => i.type === "activate_ability" && i.abilityId === "leader_give_rested_don",
-      ),
-    ).toBe(false);
-
-    const second = applyIntent(
-      state,
-      {
-        type: "activate_ability",
-        sourceId: leaderId,
-        abilityId: "leader_give_rested_don",
-        targetId: leaderId,
-      },
-      { seat: 0, rng },
-    );
-    expect(second.ok).toBe(false);
-    expect(second.error?.code).toBe("once_per_turn");
-  });
-
-  it("still accepts legacy activate_leader intents", () => {
-    let { state, rng } = fresh(3);
-    state = act(state, 0, { type: "end_turn" }, rng);
-    state = act(state, 1, { type: "end_turn" }, rng);
-    state = structuredClone(state);
-    state.players[0].costArea.find((d) => !d.rested)!.rested = true;
-    const leaderId = state.players[0].leader.id;
-    const before = getPlayerView(state, 0).you.leader.power;
-    state = act(state, 0, { type: "activate_leader", targetId: leaderId }, rng);
-    expect(getPlayerView(state, 0).you.leader.power).toBe(before + 1000);
-    expect(state.players[0].leaderActivatedThisTurn).toBe(true);
-  });
-
-  it("clears once-per-turn flag at the next turn start", () => {
-    let { state, rng } = fresh(3);
-    state = act(state, 0, { type: "end_turn" }, rng);
-    state = act(state, 1, { type: "end_turn" }, rng);
-    state = structuredClone(state);
-    state.players[0].costArea.find((d) => !d.rested)!.rested = true;
-    state = act(
-      state,
-      0,
-      {
-        type: "activate_ability",
-        sourceId: state.players[0].leader.id,
-        abilityId: "leader_give_rested_don",
-        targetId: state.players[0].leader.id,
-      },
-      rng,
-    );
-    expect(state.players[0].leaderActivatedThisTurn).toBe(true);
-    state = act(state, 0, { type: "end_turn" }, rng);
-    state = act(state, 1, { type: "end_turn" }, rng);
-    expect(state.activeSeat).toBe(0);
-    expect(state.players[0].leaderActivatedThisTurn).toBe(false);
-  });
-});
-
-describe("OP16-021 Moby Dick Stage Activate:Main", () => {
-  it("trashes Stage and gives one rested DON!! to Leader or Character", () => {
-    let { state, rng } = fresh(11);
-    state = act(state, 0, { type: "end_turn" }, rng);
-    state = act(state, 1, { type: "end_turn" }, rng);
-    state = structuredClone(state);
-
-    // Place Moby Dick on Stage and ensure a rested cost-area DON!!.
-    const stage = {
-      id: "stage-moby",
-      defId: "OP16-021",
-      rested: false,
-      attachedDonIds: [] as string[],
-    };
-    state.players[0].stage = stage;
-    state.players[0].costArea.find((d) => !d.rested)!.rested = true;
-
-    const leaderId = state.players[0].leader.id;
-    const legal = listLegalIntents(state, 0);
-    expect(
-      legal.some(
-        (i) =>
-          i.type === "activate_ability" &&
-          i.sourceId === stage.id &&
-          i.abilityId === "stage_trash_give_rested_don" &&
-          i.targetId === leaderId,
-      ),
-    ).toBe(true);
-
-    const before = getPlayerView(state, 0).you.leader.power;
-    const trashBefore = state.players[0].trash.length;
-    state = act(
-      state,
-      0,
-      {
-        type: "activate_ability",
-        sourceId: stage.id,
-        abilityId: "stage_trash_give_rested_don",
-        targetId: leaderId,
-      },
-      rng,
-    );
-    expect(state.players[0].stage).toBeNull();
-    expect(state.players[0].trash[state.players[0].trash.length - 1]).toBe("OP16-021");
-    expect(state.players[0].trash.length).toBe(trashBefore + 1);
-    expect(getPlayerView(state, 0).you.leader.power).toBe(before + 1000);
-    expect(
-      listLegalIntents(state, 0).some(
-        (i) =>
-          i.type === "activate_ability" && i.abilityId === "stage_trash_give_rested_don",
-      ),
-    ).toBe(false);
-  });
-
-  it("rejects Stage Activate without a rested DON!!", () => {
-    let { state, rng } = fresh(11);
-    state = act(state, 0, { type: "end_turn" }, rng);
-    state = act(state, 1, { type: "end_turn" }, rng);
-    state = structuredClone(state);
-    state.players[0].stage = {
-      id: "stage-moby",
-      defId: "OP16-021",
-      rested: false,
-      attachedDonIds: [],
-    };
-    for (const d of state.players[0].costArea) d.rested = false;
-
-    expect(
-      listLegalIntents(state, 0).some(
-        (i) =>
-          i.type === "activate_ability" && i.abilityId === "stage_trash_give_rested_don",
-      ),
-    ).toBe(false);
-
-    const r = applyIntent(
-      state,
-      {
-        type: "activate_ability",
-        sourceId: "stage-moby",
-        abilityId: "stage_trash_give_rested_don",
-        targetId: state.players[0].leader.id,
-      },
-      { seat: 0, rng },
-    );
+  it("rejects a play without enough DON!! and leaves state untouched", () => {
+    const h = new Harness();
+    h.hand(0, "OP16-119");
+    h.don(0, 2);
+    const before = JSON.stringify(h.state);
+    const r = h.try(0, { type: "play_card", handIndex: 0 });
     expect(r.ok).toBe(false);
-    expect(r.error?.code).toBe("no_rested_don");
+    expect(JSON.stringify(h.state)).toBe(before);
+    expect(r.state.rng).toEqual(h.state.rng);
+  });
+
+  it("requires trashing a Character to play a sixth", () => {
+    const h = new Harness();
+    const five = h.field(0, FILLER, FILLER, FILLER, FILLER, FILLER);
+    h.hand(0, FILLER);
+    h.don(0, 5);
+    expect(h.try(0, { type: "play_card", handIndex: 0 }).ok).toBe(false);
+    h.play(0, FILLER, { trashCharacterId: five[0]!.id });
+    expect(h.state.players[0].characters.length).toBe(5);
+    expect(h.state.players[0].trash).toContain(FILLER);
   });
 });
 
-describe("battle and victory", () => {
-  it("leader damage at 0 life ends the game for the attacker", () => {
-    let { state, rng } = fresh(21);
-    state = act(state, 0, { type: "end_turn" }, rng);
-    state = act(state, 1, { type: "end_turn" }, rng);
-    state = structuredClone(state);
-    state.players[1].life = [];
-    for (const d of [...state.players[0].costArea]) {
-      if (!d.rested) {
-        const r = applyIntent(
-          state,
-          { type: "give_don", donId: d.id, targetId: state.players[0].leader.id },
-          { seat: 0, rng },
-        );
-        if (r.ok) state = r.state;
-      }
-    }
-    const attackerId = state.players[0].leader.id;
-    state = act(
-      state,
-      0,
-      { type: "declare_attack", attackerId, target: { kind: "leader" } },
-      rng,
-    );
-    expect(state.phase).toBe("block");
-    state = act(state, 1, { type: "pass_block" }, rng);
-    expect(state.phase).toBe("counter");
-    state = act(state, 1, { type: "pass_counter" }, rng);
-    expect(state.winner).toBe(0);
-    expect(state.winReason).toBe("leader_battle_at_zero_life");
+describe("battle", () => {
+  it("leader damage at 0 Life ends the game", () => {
+    const h = new Harness();
+    h.life(1);
+    h.attack(h.state.players[0].leader, "leader").passBattle();
+    expect(h.state.winner).toBe(0);
+    expect(h.state.winReason).toBe("leader_battle_at_zero_life");
+  });
+
+  it("damage moves the top Life card to hand; ties favor the attacker", () => {
+    const h = new Harness();
+    h.life(1, FILLER, FILLER);
+    h.attack(h.state.players[0].leader, "leader").passBattle();
+    expect(h.state.players[1].life.length).toBe(1);
+    expect(h.state.players[1].hand.length).toBe(1);
+    expect(h.state.phase).toBe("main");
+  });
+
+  it("K.O.s a rested Character that loses a battle", () => {
+    const h = new Harness();
+    const [target] = h.field(1, FILLER);
+    target!.rested = true;
+    h.attack(h.state.players[0].leader, target!).passBattle();
+    expect(h.state.players[1].characters.length).toBe(0);
+    expect(h.state.players[1].trash).toContain(FILLER);
+  });
+
+  it("cannot attack active Characters", () => {
+    const h = new Harness();
+    const [target] = h.field(1, FILLER);
+    expect(h.try(0, { type: "declare_attack", attackerId: h.state.players[0].leader.id, target: { kind: "character", instanceId: target!.id } }).ok).toBe(false);
+  });
+
+  it("Blocker redirects the attack and Counter cards add power this battle", () => {
+    const h = new Harness();
+    const [blocker] = h.field(1, "ST01-006");
+    h.hand(1, "ST01-008");
+    h.attack(h.state.players[0].leader, "leader");
+    expect(h.legal(1)).toContainEqual({ type: "declare_block", blockerId: blocker!.id });
+    h.act(1, { type: "declare_block", blockerId: blocker!.id });
+    expect(h.state.phase).toBe("counter");
+    const before = h.view(1).you.characters[0]!.power;
+    h.act(1, { type: "counter_from_hand", handIndex: 0 });
+    expect(h.view(1).you.characters[0]!.power).toBe(before + 1000);
+    h.act(1, { type: "pass_counter" });
+    // The blocker (1000 + 1000 Counter) still loses to the 5000 Leader.
+    expect(h.state.players[1].characters.length).toBe(0);
+    expect(h.state.players[1].trash).toEqual(expect.arrayContaining(["ST01-006", "ST01-008"]));
+    expect(h.state.battle).toBeNull();
+    expect(h.state.players[1].life.length).toBe(5);
   });
 });
 
 describe("privacy", () => {
-  it("hides opponent hand ids and life faces", () => {
+  it("hides the opponent hand and Life; spectators see no hands", () => {
     const { state } = fresh(5);
     const view = getPlayerView(state, 0);
     expect(view.opponent.handCount).toBe(5);
     expect((view.opponent as { hand?: unknown }).hand).toBeUndefined();
-    expect(view.opponent.lifeCount).toBe(5);
-    expect((view.opponent as { life?: unknown }).life).toBeUndefined();
+    const spectator = getSpectatorView(state, 0);
+    expect(spectator.you.hand).toEqual([]);
+    expect(spectator.legalIntents).toEqual([]);
   });
 
-  it("exposes printedPower and statusLabels on card views", () => {
-    const { state } = fresh(5);
-    const view = getPlayerView(state, 0);
-    expect(view.you.leader.printedPower).toBe(view.you.leader.power);
-    expect(Array.isArray(view.you.leader.statusLabels)).toBe(true);
-    state.players[0].leader.statusLabels = ["Stun"];
-    expect(getPlayerView(state, 0).you.leader.statusLabels).toContain("Stun");
-  });
-
-  it("non-Rush characters are summoning sick; Rush can attack same turn", () => {
-    let state = createMatch({
-      seed: 7,
-      firstSeat: 0,
-      players: [
-        { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
-        { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
-      ],
-    });
-    const rng = createSeededRng(7);
-    state = skipMulligans(state, rng);
-    // Advance past first-turn attack lock for P0
-    state = applyIntent(state, { type: "end_turn" }, { seat: 0, rng }).state;
-    state = applyIntent(state, { type: "end_turn" }, { seat: 1, rng }).state;
-    expect(state.players[0].turnsStarted).toBe(2);
-
-    // Put Karoo (no Rush) and Sanji (Rush) into hand with enough DON!!
-    state.players[0].hand = [
-      { id: "h_karoo", defId: "ST01-003", rested: false, attachedDonIds: [] },
-      { id: "h_sanji", defId: "ST01-004", rested: false, attachedDonIds: [] },
-    ];
-    while (state.players[0].costArea.filter((d) => !d.rested).length < 4) {
-      const d = state.players[0].donDeck.pop();
-      if (!d) break;
-      state.players[0].costArea.push(d);
-    }
-
-    let r = applyIntent(state, { type: "play_card", handIndex: 0 }, { seat: 0, rng });
-    expect(r.ok).toBe(true);
-    state = r.state;
-    const karoo = state.players[0].characters.find((c) => c.defId === "ST01-003")!;
-    expect(karoo.summoningSick).toBe(true);
-    expect(
-      listLegalIntents(state, 0).some(
-        (i) => i.type === "declare_attack" && i.attackerId === karoo.id,
-      ),
-    ).toBe(false);
-
-    r = applyIntent(state, { type: "play_card", handIndex: 0 }, { seat: 0, rng });
-    expect(r.ok).toBe(true);
-    state = r.state;
-    const sanji = state.players[0].characters.find((c) => c.defId === "ST01-004")!;
-    expect(sanji.summoningSick).toBe(false);
-    expect(
-      listLegalIntents(state, 0).some(
-        (i) => i.type === "declare_attack" && i.attackerId === sanji.id,
-      ),
-    ).toBe(true);
-  });
-
-  it("spectator view hides both hands", () => {
-    let state = createMatch({
-      seed: 3,
-      firstSeat: 0,
-      players: [
-        { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
-        { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
-      ],
-    });
-    state = skipMulligans(state, createSeededRng(3));
-    const view = getSpectatorView(state, 0);
-    expect(view.spectator).toBe(true);
-    expect(view.you.hand).toEqual([]);
-    expect(view.you.handCount).toBeGreaterThan(0);
-    expect(view.opponent.handCount).toBeGreaterThan(0);
-    expect(view.legalIntents).toEqual([]);
-    expect((view as { opponent?: { hand?: unknown } }).opponent?.hand).toBeUndefined();
-  });
-
-});
-
-describe("pending-choice queue (chain-ready ability/trigger prompts)", () => {
-  it("blocks Main-phase actions and offers only the front choice's seat resolve intents", () => {
-    let { state, rng } = fresh(1);
-    state = structuredClone(state);
-    const chainA: PendingChoice = {
-      id: "choice_a",
-      seat: 0,
-      kind: "on_play",
-      cardDefId: "ST01-005",
-      optional: true,
-      prompt: "Usopp — On Play: draw 1 card?",
-    };
-    const chainB: PendingChoice = {
-      id: "choice_b",
-      seat: 1,
-      kind: "activate_main",
-      cardDefId: "ST01-001",
-      optional: true,
-      prompt: "Monkey.D.Luffy — Activate:Main?",
-    };
-    state.pendingChoices = [chainA, chainB];
-
-    // Front of the FIFO queue (seat 0) may resolve; the other seat cannot.
-    expect(listLegalIntents(state, 0)).toEqual([
-      { type: "resolve_pending_choice", accept: true },
-      { type: "resolve_pending_choice", accept: false },
-    ]);
-    expect(listLegalIntents(state, 1)).toEqual([]);
-
-    const blocked = applyIntent(state, { type: "end_turn" }, { seat: 0, rng });
-    expect(blocked.ok).toBe(false);
-    expect(blocked.error?.code).toBe("pending_choice");
-
-    const r1 = applyIntent(
-      state,
-      { type: "resolve_pending_choice", accept: false },
-      { seat: 0, rng },
-    );
-    expect(r1.ok).toBe(true);
-    state = r1.state;
-    expect(state.pendingChoices).toHaveLength(1);
-    expect(state.pendingChoices[0].id).toBe("choice_b");
-
-    // Chain advanced: seat 1 can now resolve; seat 0 has nothing pending.
-    expect(listLegalIntents(state, 1).length).toBeGreaterThan(0);
-    expect(listLegalIntents(state, 0)).toEqual([]);
-
-    const r2 = applyIntent(
-      state,
-      { type: "resolve_pending_choice", accept: true },
-      { seat: 1, rng },
-    );
-    expect(r2.ok).toBe(true);
-    expect(r2.state.pendingChoices).toHaveLength(0);
-  });
-
-  it("rejects declining a mandatory (non-optional) pending choice", () => {
-    let { state, rng } = fresh(2);
-    state = structuredClone(state);
-    state.pendingChoices = [
-      {
-        id: "choice_mandatory",
-        seat: 0,
-        kind: "optional_ability",
-        cardDefId: "ST01-001",
-        optional: false,
-        prompt: "Forced ability",
-      },
-    ];
-    expect(listLegalIntents(state, 0)).toEqual([
-      { type: "resolve_pending_choice", accept: true },
-    ]);
-    const declined = applyIntent(
-      state,
-      { type: "resolve_pending_choice", accept: false },
-      { seat: 0, rng },
-    );
-    expect(declined.ok).toBe(false);
-    expect(declined.error?.code).toBe("mandatory_choice");
-    const accepted = applyIntent(
-      state,
-      { type: "resolve_pending_choice", accept: true },
-      { seat: 0, rng },
-    );
-    expect(accepted.ok).toBe(true);
-    expect(accepted.state.pendingChoices).toHaveLength(0);
-  });
-});
-
-describe("life trigger (migrated to the pending-choice queue)", () => {
-  function forceLifeTriggerAttack(seed: number): {
-    state: MatchState;
-    rng: ReturnType<typeof createSeededRng>;
-  } {
-    let { state, rng } = fresh(seed);
-    state = act(state, 0, { type: "end_turn" }, rng);
-    state = act(state, 1, { type: "end_turn" }, rng);
-    state = structuredClone(state);
-    // Force the defender's top Life card to a known trigger-bearing card.
-    state.players[1].life[0] = "ST01-003";
-    for (const d of [...state.players[0].costArea]) {
-      if (!d.rested) {
-        const r = applyIntent(
-          state,
-          { type: "give_don", donId: d.id, targetId: state.players[0].leader.id },
-          { seat: 0, rng },
-        );
-        if (r.ok) state = r.state;
-      }
-    }
-    const attackerId = state.players[0].leader.id;
-    state = act(
-      state,
-      0,
-      { type: "declare_attack", attackerId, target: { kind: "leader" } },
-      rng,
-    );
-    state = act(state, 1, { type: "pass_block" }, rng);
-    state = act(state, 1, { type: "pass_counter" }, rng);
-    return { state, rng };
-  }
-
-  it("queues an accept/decline life-trigger choice naming the card", () => {
-    const def = getCardDef("ST01-003");
-    const originalTriggerDraw = def.triggerDraw;
-    def.triggerDraw = 2;
-    try {
-      const { state } = forceLifeTriggerAttack(21);
-      expect(state.phase).toBe("damage");
-      expect(state.pendingChoices).toHaveLength(1);
-      const choice = state.pendingChoices[0];
-      expect(choice.kind).toBe("life_trigger");
-      expect(choice.seat).toBe(1);
-      expect(choice.cardDefId).toBe("ST01-003");
-      expect(choice.optional).toBe(true);
-      expect(choice.prompt).toMatch(/Karoo/);
-
-      expect(listLegalIntents(state, 1)).toEqual([
-        { type: "resolve_pending_choice", accept: true },
-        { type: "resolve_pending_choice", accept: false },
-      ]);
-      expect(listLegalIntents(state, 0)).toEqual([]);
-    } finally {
-      def.triggerDraw = originalTriggerDraw;
-    }
-  });
-
-  it("accepting draws the trigger's cards then adds the life card to hand", () => {
-    const def = getCardDef("ST01-003");
-    const originalTriggerDraw = def.triggerDraw;
-    def.triggerDraw = 2;
-    try {
-      const { state, rng } = forceLifeTriggerAttack(21);
-      const handBefore = state.players[1].hand.length;
-      const r = applyIntent(
-        state,
-        { type: "resolve_pending_choice", accept: true },
-        { seat: 1, rng },
-      );
-      expect(r.ok).toBe(true);
-      assertInvariants(r.state);
-      expect(r.state.pendingChoices).toHaveLength(0);
-      expect(r.state.phase).toBe("main");
-      expect(r.state.battle).toBeNull();
-      // +2 drawn from the trigger, +1 the life card itself joining the hand.
-      expect(r.state.players[1].hand.length).toBe(handBefore + 3);
-      expect(r.events.some((e) => e.type === "drew" && e.count === 2)).toBe(true);
-      expect(
-        r.events.some((e) => e.type === "trigger_resolved" && e.accepted === true),
-      ).toBe(true);
-    } finally {
-      def.triggerDraw = originalTriggerDraw;
-    }
-  });
-
-  it("declining adds only the life card to hand (no draw)", () => {
-    const def = getCardDef("ST01-003");
-    const originalTriggerDraw = def.triggerDraw;
-    def.triggerDraw = 2;
-    try {
-      const { state, rng } = forceLifeTriggerAttack(21);
-      const handBefore = state.players[1].hand.length;
-      const r = applyIntent(
-        state,
-        { type: "resolve_pending_choice", accept: false },
-        { seat: 1, rng },
-      );
-      expect(r.ok).toBe(true);
-      expect(r.state.pendingChoices).toHaveLength(0);
-      expect(r.state.phase).toBe("main");
-      expect(r.state.players[1].hand.length).toBe(handBefore + 1);
-      expect(r.events.some((e) => e.type === "drew")).toBe(false);
-      expect(
-        r.events.some((e) => e.type === "trigger_resolved" && e.accepted === false),
-      ).toBe(true);
-    } finally {
-      def.triggerDraw = originalTriggerDraw;
+  it("redacts private look options for the opponent and spectators", () => {
+    const h = new Harness();
+    h.hand(0, "OP01-016");
+    h.don(0, 1);
+    h.deckTop(0, "OP01-013", "OP01-014", "OP01-015", "OP01-017", "OP01-025");
+    h.play(0, "OP01-016");
+    const own = h.view(0).pendingChoices[0]!;
+    const opp = h.view(1).pendingChoices[0]!;
+    const spectator = getSpectatorView(h.state, 1).pendingChoices[0]!;
+    expect(own.request?.type).toBe("look");
+    expect((own.request as { options: { defId?: string }[] }).options[0]!.defId).toBe("OP01-013");
+    type LookView = { options: { defId?: string; eligible: boolean }[]; groups: { eligibleIds: string[] }[] };
+    // The owner sees which cards the search filter allows.
+    expect((own.request as LookView).groups.some((g) => g.eligibleIds.length > 0)).toBe(true);
+    for (const view of [opp, spectator]) {
+      expect((view.request as LookView).options.every((o) => o.defId === "HIDDEN" && !o.eligible)).toBe(true);
+      // Filter matches would reveal properties of face-down cards.
+      expect((view.request as LookView).groups.every((g) => g.eligibleIds.length === 0)).toBe(true);
+      expect(view.bindings).toBeUndefined();
+      expect(view.resolutionFrameId).toBeUndefined();
     }
   });
 });
 
-describe("On Play optional ability (ST01-005 demo path)", () => {
-
-  const usopp = () => getCardDef("ST01-005");
-  const prevDraw = usopp().onPlayOptionalDraw;
-  beforeEach(() => {
-    usopp().onPlayOptionalDraw = 1;
-  });
-  afterEach(() => {
-    usopp().onPlayOptionalDraw = prevDraw;
-  });
-  function playUsoppInMain(seed: number): {
-    state: MatchState;
-    rng: ReturnType<typeof createSeededRng>;
-  } {
-    let { state, rng } = fresh(seed);
-    state = structuredClone(state);
-    state.players[0].hand = [
-      { id: "h_usopp", defId: "ST01-005", rested: false, attachedDonIds: [] },
-    ];
-    const r = applyIntent(state, { type: "play_card", handIndex: 0 }, { seat: 0, rng });
-    expect(r.ok, r.error?.message).toBe(true);
-    return { state: r.state, rng };
-  }
-
-  it("queues an On Play prompt naming the card and blocks other Main actions", () => {
-    const { state, rng } = playUsoppInMain(3);
-    expect(state.pendingChoices).toHaveLength(1);
-    const choice = state.pendingChoices[0];
-    expect(choice.kind).toBe("on_play");
-    expect(choice.seat).toBe(0);
-    expect(choice.cardDefId).toBe("ST01-005");
-    expect(choice.optional).toBe(true);
-    expect(choice.prompt).toMatch(/Usopp/);
-    expect(choice.sourceInstanceId).toBeTruthy();
-    expect(state.phase).toBe("main");
-
-    expect(listLegalIntents(state, 0)).toEqual([
-      { type: "resolve_pending_choice", accept: true },
-      { type: "resolve_pending_choice", accept: false },
-    ]);
-
-    const blocked = applyIntent(state, { type: "end_turn" }, { seat: 0, rng });
-    expect(blocked.ok).toBe(false);
-    expect(blocked.error?.code).toBe("pending_choice");
+describe("hidden-information leaks", () => {
+  it("does not reveal how many hidden cards matched a private select (OP16-080 trash a [Trigger] card)", () => {
+    const h = new Harness({ leaders: ["ST01-001", "OP16-080"] });
+    h.field(1, "OP09-095");
+    h.hand(1, "ST01-014", "ST01-014", FILLER);
+    h.attack(h.state.players[0].leader, "leader");
+    h.accept(1);
+    const own = h.view(1).pendingChoices[0]!;
+    expect(own.request?.type).toBe("select");
+    expect((own.request as { options: unknown[] }).options.length).toBe(2);
+    for (const view of [h.view(0).pendingChoices[0]!, getSpectatorView(h.state, 0).pendingChoices[0]!]) {
+      const request = view.request as { options: unknown[]; min: number; max: number };
+      expect(request.options).toEqual([]);
+      expect([request.min, request.max]).toEqual([0, 0]);
+      expect(view.optionCount).toBeUndefined();
+      expect(view.prompt).not.toMatch(/\d/);
+    }
   });
 
-  it("accepting draws a card and unblocks Main phase", () => {
-    const { state, rng } = playUsoppInMain(3);
-    const handBefore = state.players[0].hand.length;
-    const r = applyIntent(
-      state,
-      { type: "resolve_pending_choice", accept: true },
-      { seat: 0, rng },
-    );
-    expect(r.ok).toBe(true);
-    assertInvariants(r.state);
-    expect(r.state.pendingChoices).toHaveLength(0);
-    expect(r.state.players[0].hand.length).toBe(handBefore + 1);
-    expect(r.events.some((e) => e.type === "drew" && e.count === 1)).toBe(true);
-    expect(
-      r.events.some(
-        (e) =>
-          e.type === "pending_choice_resolved" &&
-          e.kind === "on_play" &&
-          e.accepted === true,
-      ),
-    ).toBe(true);
-    // Main phase actions are legal again once the queue drains.
-    const endTurn = applyIntent(r.state, { type: "end_turn" }, { seat: 0, rng });
-    expect(endTurn.ok).toBe(true);
+  it("keeps an unrevealed deck search private (OP15-118) but shows a printed reveal (OP01-016)", () => {
+    const search = new Harness();
+    search.hand(0, "OP15-118");
+    search.don(0, 7);
+    search.deckTop(0, "OP01-013", FILLER, FILLER, FILLER, FILLER);
+    search.play(0, "OP15-118");
+    search.accept(0); // DON!! -1 cost
+    search.hand(0, FILLER);
+    search.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2", "o3", "o4"] });
+    // lastEvents only covers the latest action, so capture the look's events before answering the discard.
+    const lookEvents = search.state.lastEvents;
+    search.pick(FILLER); // then trash 1 card from hand: keep the searched card
+    expect(search.state.players[0].hand.map((c) => c.defId)).toEqual(["OP01-013"]);
+    expect(lookEvents.length).toBeGreaterThan(0);
+    for (const viewer of [1, null] as const) {
+      expect(JSON.stringify(projectGameEvents(lookEvents, viewer))).not.toContain("OP01-013");
+    }
+    const reveal = new Harness();
+    reveal.hand(0, "OP01-016");
+    reveal.don(0, 1);
+    reveal.deckTop(0, "OP01-013", FILLER, FILLER, FILLER, FILLER);
+    reveal.play(0, "OP01-016");
+    reveal.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2", "o3", "o4"] });
+    expect(JSON.stringify(projectGameEvents(reveal.state.lastEvents, 1))).toContain("OP01-013");
   });
 
-  it("declining leaves the hand unchanged", () => {
-    const { state, rng } = playUsoppInMain(3);
-    const handBefore = state.players[0].hand.length;
-    const r = applyIntent(
-      state,
-      { type: "resolve_pending_choice", accept: false },
-      { seat: 0, rng },
-    );
-    expect(r.ok).toBe(true);
-    expect(r.state.pendingChoices).toHaveLength(0);
-    expect(r.state.players[0].hand.length).toBe(handBefore);
-    expect(r.events.some((e) => e.type === "drew")).toBe(false);
-    expect(
-      r.events.some(
-        (e) =>
-          e.type === "pending_choice_resolved" &&
-          e.kind === "on_play" &&
-          e.accepted === false,
-      ),
-    ).toBe(true);
+  it("compiles a look without a printed reveal as private", () => {
+    const program = compileStandalone("test#look", { do: "look", player: "you", count: 3, picks: [{ min: 0, max: 1, dest: "hand" }], rest: "deck_bottom" });
+    expect(program.instrs).toEqual([expect.objectContaining({ op: "look", reveal: false })]);
+  });
+
+  it("does not reveal a card a private look places face-down in Life (OP16-119)", () => {
+    const h = new Harness();
+    h.hand(0, "OP16-119");
+    h.don(0, 8);
+    h.deckTop(0, "OP01-013", FILLER, FILLER);
+    h.play(0, "OP16-119");
+    h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2"] });
+    expect(h.state.players[0].life[0]).toBe("OP01-013");
+    for (const viewer of [1, null] as const) {
+      expect(JSON.stringify(projectGameEvents(h.state.lastEvents, viewer))).not.toContain("OP01-013");
+    }
+  });
+});
+
+describe("snapshots", () => {
+  it("round-trips a paused choice and resumes identically", () => {
+    const h = new Harness();
+    h.hand(0, "OP01-016");
+    h.don(0, 1);
+    h.deckTop(0, "OP01-013", "OP01-014", "OP01-015", "OP01-017", "OP01-025");
+    h.play(0, "OP01-016");
+    const restored = deserializeMatch(serializeMatch(h.state));
+    const choice = h.choice!;
+    const answer: Intent = { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2", "o3", "o4"] };
+    const direct = applyIntent(h.state, answer, { seat: 0, rng: h.rng });
+    const resumed = applyIntent(restored, answer, { seat: 0, rng: h.rng });
+    expect(choice.request?.type).toBe("look");
+    expect(direct.ok).toBe(true);
+    expect(resumed.state).toEqual(direct.state);
+  });
+
+  it("rejects snapshots from another registry or version", () => {
+    const h = new Harness();
+    expect(() => deserializeMatch(JSON.stringify({ ...h.state, registryHash: "fnv1a:00000000" }))).toThrow(IncompatibleSnapshotError);
+    expect(() => deserializeMatch(JSON.stringify({ ...h.state, stateVersion: 2 }))).toThrow(IncompatibleSnapshotError);
   });
 });

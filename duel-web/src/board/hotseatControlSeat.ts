@@ -33,7 +33,7 @@ function seatHasBlockOrCounterIntents(
 
 /**
  * Which seat should hold the device in hotseat so the player who can act
- * sees AbilityPrompt / IntentBar (e.g. Rocks When Attacking, Newgate on attack).
+ * sees ChoicePrompt / IntentBar (e.g. When Attacking or On Opponent's Attack choices).
  *
  * Priority: pending choice → attack-window hold on attacker (block/counter with
  * empty pending and no block/counter intents yet) → defender once block/counter

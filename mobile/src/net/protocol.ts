@@ -1,11 +1,11 @@
 /**
- * Wire types for protocolVersion 3 — mirrored from game-server/src/protocol.ts.
+ * Wire types for protocolVersion 5 — mirrored from game-server/src/protocol.ts.
  * Do not import @optcg/rules into the app.
  */
 
 import { lookupCard } from "../cards/atlas";
 
-export const PROTOCOL_VERSION = 3 as const;
+export const PROTOCOL_VERSION = 5 as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
 export type Seat = 0 | 1;
@@ -77,29 +77,56 @@ export type CardView = {
   rested?: boolean;
   attachedDonCount?: number;
   power?: number;
+  fieldCost?: number;
   summoningSick?: boolean;
   rush?: boolean;
+  keywords?: string[];
+  statusLabels?: string[];
 };
 
-/** Mirrors @optcg/rules pending choice (protocol v3 includes order_effects). */
-export type PendingChoiceKind =
-  | "life_trigger"
-  | "on_play"
-  | "activate_main"
-  | "when_attacking"
-  | "optional_ability"
-  | "leader_on_opp_attack"
-  | "order_effects";
+/** Mirrors @optcg/rules PendingChoiceKind. */
+export type PendingChoiceKind = "life_trigger" | "effect" | "order_effects";
+
+/** Mirrors @optcg/rules ChoiceOption. Hidden cards arrive as defId "HIDDEN". */
+export type ChoiceOptionView = {
+  id: string;
+  defId?: string;
+  label?: string;
+  zone?: string;
+  ownerSeat?: Seat;
+  instanceId?: string;
+  eligible: boolean;
+  rested?: boolean;
+};
+
+/** Mirrors @optcg/rules ChoiceRequest. */
+export type ChoiceRequestView =
+  | { type: "confirm" }
+  | { type: "select"; min: number; max: number; options: ChoiceOptionView[] }
+  | { type: "mode"; options: ChoiceOptionView[] }
+  | { type: "order"; options: ChoiceOptionView[]; destination: string; allowTopOrBottom?: boolean }
+  | {
+      type: "look";
+      options: ChoiceOptionView[];
+      minSelect: number;
+      maxSelect: number;
+      groups: { label: string; max: number; eligibleIds: string[] }[];
+      rest: string;
+      restLabel: string;
+    };
 
 export type PendingChoiceView = {
   id: string;
   seat: Seat;
-  kind: PendingChoiceKind | string;
+  kind: PendingChoiceKind;
   cardDefId: string;
   sourceInstanceId?: string;
   optional?: boolean;
   prompt?: string;
-  abilityId?: string;
+  request?: ChoiceRequestView;
+  privateToSeat?: Seat;
+  hideCardDefFromOthers?: boolean;
+  optionCount?: number;
   /** Present when kind is order_effects — controller must permute via order_pending_effects. */
   unorderedChoices?: PendingChoiceView[];
 };
@@ -117,6 +144,7 @@ export type PlayerView = {
     deckCount: number;
     trash: string[];
     lifeCount: number;
+    faceUpLife?: Array<{ index: number; defId: string }>;
     donDeckCount: number;
     costArea: { id: string; rested: boolean }[];
     activeDonCount: number;
@@ -131,6 +159,7 @@ export type PlayerView = {
     deckCount: number;
     trash: string[];
     lifeCount: number;
+    faceUpLife?: Array<{ index: number; defId: string }>;
     donDeckCount: number;
     costAreaCount: number;
     activeDonCount: number;
@@ -158,6 +187,13 @@ export function assertNoOpponentHand(view: PlayerView): void {
   }
   if (typeof opp.handCount !== "number") {
     throw new Error("opponent.handCount missing");
+  }
+  for (const choice of view.pendingChoices ?? []) {
+    const request = choice.request;
+    const hiddenViewer = view.spectator || (choice.privateToSeat != null && choice.privateToSeat !== view.seat);
+    if (hiddenViewer && request && "options" in request && request.options.some((o) => o.defId && o.defId !== "HIDDEN" && !o.instanceId)) {
+      throw new Error("privacy leak: private choice options visible to this viewer");
+    }
   }
 }
 
@@ -308,9 +344,7 @@ export function intentLabel(intent: Intent, view?: PlayerView): string {
     case "pass_counter":
       return "Pass counter";
     case "resolve_pending_choice":
-      return intent.accept ? "Accept ability" : "Decline ability";
-    case "resolve_trigger":
-      return intent.accept ? "Accept Trigger" : "Decline Trigger";
+      return intent.accept ? "Resolve effect" : "Decline effect";
     case "order_pending_effects":
       return "Confirm effect order";
     case "end_turn":

@@ -1,0 +1,311 @@
+{
+  "additionalIds": [],
+  "baseCardCount": 2785,
+  "candidate": "candidate-f2899c46d16c2416200849d6cacbdbf44f425509fde7716be4b41ff131eb4c42.json",
+  "conflictCount": 2466,
+  "missingIds": [
+    "EB05-002",
+    "EB05-005",
+    "EB05-007",
+    "EB05-010",
+    "EB05-011",
+    "EB05-013",
+    "EB05-016",
+    "EB05-017",
+    "EB05-022",
+    "EB05-023",
+    "EB05-025",
+    "EB05-035",
+    "EB05-036",
+    "EB05-038",
+    "EB05-042",
+    "EB05-045",
+    "EB05-047",
+    "EB05-051",
+    "EB05-054",
+    "EB05-056",
+    "EB05-057",
+    "OP18-021",
+    "OP18-031",
+    "OP18-119",
+    "P-038",
+    "P-040",
+    "P-064",
+    "P-066",
+    "P-067",
+    "P-080",
+    "P-086",
+    "P-108",
+    "P-114",
+    "P-116",
+    "P-118",
+    "P-136",
+    "P-137",
+    "P-138",
+    "P-139",
+    "P-140",
+    "P-141",
+    "P-142",
+    "P-143",
+    "P-144",
+    "P-145",
+    "P-146",
+    "P-147",
+    "P-148",
+    "P-149"
+  ],
+  "missingMetadataFieldCount": 7325,
+  "printingCount": 4843,
+  "seriesCount": 60,
+  "setCounts": {
+    "EB01": {
+      "bundledIds": 61,
+      "officialBaseIds": 61
+    },
+    "EB02": {
+      "bundledIds": 61,
+      "officialBaseIds": 61
+    },
+    "EB03": {
+      "bundledIds": 62,
+      "officialBaseIds": 62
+    },
+    "EB04": {
+      "bundledIds": 61,
+      "officialBaseIds": 61
+    },
+    "EB05": {
+      "bundledIds": 21,
+      "officialBaseIds": 0
+    },
+    "OP01": {
+      "bundledIds": 121,
+      "officialBaseIds": 121
+    },
+    "OP02": {
+      "bundledIds": 121,
+      "officialBaseIds": 121
+    },
+    "OP03": {
+      "bundledIds": 123,
+      "officialBaseIds": 123
+    },
+    "OP04": {
+      "bundledIds": 119,
+      "officialBaseIds": 119
+    },
+    "OP05": {
+      "bundledIds": 119,
+      "officialBaseIds": 119
+    },
+    "OP06": {
+      "bundledIds": 119,
+      "officialBaseIds": 119
+    },
+    "OP07": {
+      "bundledIds": 119,
+      "officialBaseIds": 119
+    },
+    "OP08": {
+      "bundledIds": 119,
+      "officialBaseIds": 119
+    },
+    "OP09": {
+      "bundledIds": 119,
+      "officialBaseIds": 119
+    },
+    "OP10": {
+      "bundledIds": 119,
+      "officialBaseIds": 119
+    },
+    "OP11": {
+      "bundledIds": 119,
+      "officialBaseIds": 119
+    },
+    "OP12": {
+      "bundledIds": 119,
+      "officialBaseIds": 119
+    },
+    "OP13": {
+      "bundledIds": 120,
+      "officialBaseIds": 120
+    },
+    "OP14": {
+      "bundledIds": 120,
+      "officialBaseIds": 120
+    },
+    "OP15": {
+      "bundledIds": 119,
+      "officialBaseIds": 119
+    },
+    "OP16": {
+      "bundledIds": 119,
+      "officialBaseIds": 119
+    },
+    "OP17": {
+      "bundledIds": 119,
+      "officialBaseIds": 119
+    },
+    "OP18": {
+      "bundledIds": 3,
+      "officialBaseIds": 0
+    },
+    "P": {
+      "bundledIds": 131,
+      "officialBaseIds": 106
+    },
+    "PRB01": {
+      "bundledIds": 1,
+      "officialBaseIds": 1
+    },
+    "PRB02": {
+      "bundledIds": 18,
+      "officialBaseIds": 18
+    },
+    "ST01": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST02": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST03": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST04": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST05": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST06": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST07": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST08": {
+      "bundledIds": 15,
+      "officialBaseIds": 15
+    },
+    "ST09": {
+      "bundledIds": 15,
+      "officialBaseIds": 15
+    },
+    "ST10": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST11": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST12": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST13": {
+      "bundledIds": 19,
+      "officialBaseIds": 19
+    },
+    "ST14": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST15": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST16": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST17": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST18": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST19": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST20": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST21": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST22": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST23": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST24": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST25": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST26": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST27": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST28": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST29": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST30": {
+      "bundledIds": 17,
+      "officialBaseIds": 17
+    },
+    "ST31": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST32": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST33": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST34": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST35": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    },
+    "ST36": {
+      "bundledIds": 5,
+      "officialBaseIds": 5
+    }
+  },
+  "sourceManifest": "artifacts/bandai-full/latest-candidate.json"
+}

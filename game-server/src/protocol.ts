@@ -1,10 +1,10 @@
 /**
- * Duel wire protocol — protocolVersion 3.
+ * Duel wire protocol — protocolVersion 5 (generic effect choice requests).
  * Intents / views come from @optcg/rules; this module only validates envelopes.
  */
 import type { GameEvent, Intent, Seat } from "@optcg/rules";
 
-export const PROTOCOL_VERSION = 3 as const;
+export const PROTOCOL_VERSION = 5 as const;
 
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
