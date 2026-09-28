@@ -14,6 +14,7 @@ FastAPI + Vite/React app for tracking One Piece TCG decks, Owned counts across y
 ## Local development
 
 ### Backend
+Python 3.12 (`backend/.python-version`). `requirements.txt` is a generated lock; to change dependencies, edit `requirements.in` and regenerate it with the command in the lock file header.
 ```bash
 cd backend
 py -3 -m pip install -r requirements.txt
