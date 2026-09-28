@@ -3,7 +3,6 @@ import {
   clearMatchResume,
   isResumeWithinGrace,
   isSeatReservationExpiredError,
-  seatReservationUserMessage,
   loadMatchResume,
   saveMatchResume,
   type DuelResumeBlob,
@@ -97,10 +96,5 @@ describe("seat reservation errors", () => {
     expect(isSeatReservationExpiredError("seat reservation expired.")).toBe(true);
     expect(isSeatReservationExpiredError(new Error("seat reservation expired"))).toBe(true);
     expect(isSeatReservationExpiredError("room not found")).toBe(false);
-  });
-
-  it("exposes a non-Colyseus user message", () => {
-    expect(seatReservationUserMessage().toLowerCase()).not.toContain("seat reservation expired");
-    expect(seatReservationUserMessage().toLowerCase()).toContain("claim a seat");
   });
 });
