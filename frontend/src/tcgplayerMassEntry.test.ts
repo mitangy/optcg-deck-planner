@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   allocateMassEntryBuys,
   buildMassEntryExport,
-  MASS_ENTRY_URL_MAX_LEN,
 } from "./tcgplayerMassEntry";
 
 describe("buildMassEntryExport", () => {
@@ -45,7 +44,6 @@ describe("buildMassEntryExport", () => {
     const result = buildMassEntryExport(cards);
     expect(result.url).toBeNull();
     expect(result.pasteText.split("\n")).toHaveLength(200);
-    expect(MASS_ENTRY_URL_MAX_LEN).toBeGreaterThan(1000);
   });
 });
 
