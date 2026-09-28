@@ -25,6 +25,7 @@ from app.rate_limit import RateLimiter, client_ip
 from app.schemas import (
     DuelDevTokenIn,
     DuelGuestTokenIn,
+    DuelLeaderboardEntryOut,
     DuelLeaderboardOut,
     DuelMatchIngest,
     DuelMatchOut,
@@ -279,9 +280,8 @@ def leaderboard(
         .limit(limit)
     ).all()
     entries = [
-        DuelRatingOut(
+        DuelLeaderboardEntryOut(
             user_id=user.id,
-            email=user.email,
             name=user.name,
             rating=rating.rating,
             games_played=rating.games_played,
