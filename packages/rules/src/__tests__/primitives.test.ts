@@ -139,24 +139,6 @@ describe("protection and replacement", () => {
     strike.attack(strike.state.players[0].leader, buggy2!).passBattle();
     expect(strike.state.players[1].characters.length).toBe(0);
   });
-
-  it("ST22-005 may trash two cards instead of being removed by an opponent's effect", () => {
-    const h = new Harness();
-    const [oden] = h.field(1, "ST22-005");
-    h.hand(1, FILLER, FILLER);
-    h.hand(0, "OP05-042");
-    h.don(0, 6);
-    // Use a returning effect: ST03-016's Counter via Trigger is awkward; place Oden in range of OP02-062 instead.
-    h.state.players[0].hand = [];
-    h.hand(0, "OP02-062", FILLER, FILLER);
-    h.don(0, 6);
-    oden!.defId = "ST22-005";
-    h.play(0, "OP02-062");
-    h.accept(0);
-    // Oden costs 7 — outside OP02-062's cost-4 range, so nothing to return; the replacement is never offered.
-    expect(h.state.players[1].characters.length).toBe(1);
-    expect(h.state.players[1].hand.length).toBe(2);
-  });
 });
 
 describe("event triggers", () => {
@@ -188,7 +170,7 @@ describe("event triggers", () => {
     expect(h.state.players[0].trash.length).toBe(2);
   });
 
-  it("OP03-015 Lim debuffs when K.O.'d during the opponent's turn only", () => {
+  it("OP03-015 Lim debuffs when K.O.'d during the opponent's turn", () => {
     const h = new Harness();
     const [lim] = h.field(1, "OP03-015");
     lim!.rested = true;

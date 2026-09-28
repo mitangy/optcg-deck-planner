@@ -284,7 +284,6 @@ describe("DuelRoom", () => {
       protocolVersion: PROTOCOL_VERSION,
       seed: 99,
       autoSkipMulligan: true,
-      ranked: false,
       players: [customDeck, customDeck],
     });
 

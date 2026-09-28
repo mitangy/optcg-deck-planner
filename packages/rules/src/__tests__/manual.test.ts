@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { deckConstructionErrors } from "../cards/deckRules.js";
+import { deserializeMatch, serializeMatch } from "../state/snapshot.js";
 import { FILLER, Harness } from "../testing/harness.js";
 
 describe("choose a cost and reveal (OP11-081)", () => {
@@ -178,6 +179,26 @@ describe("player rules", () => {
     expect(deckConstructionErrors("OP12-001", ["OP09-076", "OP01-051"])).toEqual([expect.stringContaining("OP01-051")]);
     expect(deckConstructionErrors("OP12-001", ["OP09-076"])).toEqual([]);
     expect(deckConstructionErrors("ST01-001", ["OP01-051"])).toEqual([]);
+  });
+});
+
+describe("attack tax (OP08-043)", () => {
+  it("makes the opponent trash 2 cards to attack, and a paused tax survives a snapshot", () => {
+    const h = new Harness({ leaders: ["OP17-001", "ST01-001"] });
+    h.life(0, FILLER);
+    h.hand(0, "OP08-043");
+    h.don(0, 10);
+    const [attacker] = h.field(1, FILLER);
+    h.play(0, "OP08-043");
+    h.act(0, { type: "end_turn" });
+    h.hand(1, FILLER, FILLER, FILLER);
+    const handBefore = h.state.players[1].hand.length;
+    h.attack(attacker!, "leader");
+    expect(h.choice?.request?.type).toBe("select");
+    expect(() => deserializeMatch(serializeMatch(h.state))).not.toThrow();
+    h.pick(FILLER, FILLER);
+    expect(h.state.players[1].hand.length).toBe(handBefore - 2);
+    expect(h.state.players[1].trash.filter((id) => id === FILLER).length).toBe(2);
   });
 });
 

@@ -38,13 +38,10 @@ describe("validateImportedList", () => {
   });
 
   it("enforces Leader deck-construction rules (OP12-001: no cost 5+)", () => {
-    const bad = validateImportedList("1xOP12-001
-4xST01-003
-1xOP01-051");
+    const bad = validateImportedList("1xOP12-001\n4xST01-003\n1xOP01-051");
     expect(bad.ok).toBe(false);
     expect(bad.errors.join(" ")).toContain("OP01-051");
-    expect(validateImportedList("1xOP12-001
-4xST01-003").ok).toBe(true);
+    expect(validateImportedList("1xOP12-001\n4xST01-003").ok).toBe(true);
   });
 
   it("rejects over-4 but allows uncurated OPTCG ids as stubs", () => {

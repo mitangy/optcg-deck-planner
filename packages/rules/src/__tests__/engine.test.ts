@@ -66,20 +66,28 @@ describe("turn structure", () => {
     h.don(0, 2);
     h.act(0, { type: "give_don", donId: h.state.players[0].costArea[0]!.id, targetId: ch!.id });
     expect(h.view(0).you.characters[0]!.power).toBe(4000);
+    // Rest the Character and the remaining DON!! so the refresh has something to untap.
+    ch!.rested = true;
+    h.state.players[0].costArea[0]!.rested = true;
     h.act(0, { type: "end_turn" });
     expect(h.view(1).opponent.characters[0]!.power).toBe(3000);
     h.act(1, { type: "end_turn" });
     expect(h.state.players[0].attachedDons.length).toBe(0);
+    // 2 from before (the returned attached DON!! and the rested one) + 2 placed this DON!! Phase.
+    expect(h.state.players[0].costArea.length).toBe(4);
     expect(h.state.players[0].costArea.every((d) => !d.rested)).toBe(true);
+    expect(h.state.players[0].characters[0]!.rested).toBe(false);
   });
 
   it("a player with an empty deck loses during rule processing", () => {
     const h = new Harness();
-    const p = h.state.players[1];
+    const p = h.state.players[0];
     p.deck = [];
     p.zoneInstanceIds.deck = [];
-    h.act(0, { type: "end_turn" });
-    expect(h.state.winner).toBe(0);
+    h.don(0, 1);
+    // Any action settles the game; no draw is involved, so only rule processing can end it.
+    h.act(0, { type: "give_don", donId: p.costArea[0]!.id, targetId: p.leader.id });
+    expect(h.state.winner).toBe(1);
     expect(h.state.winReason).toBe("deck_out");
   });
 });

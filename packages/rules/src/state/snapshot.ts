@@ -41,7 +41,8 @@ function validateContinuations(state: MatchState): void {
     if (frame.seat !== 0 && frame.seat !== 1) invalid(`${frame.id}: invalid seat`);
     if (typeof frame.sourceInstanceId !== "string" || typeof frame.sourceDefId !== "string") invalid(`${frame.id}: missing source`);
     let length: number;
-    if (frame.program === "trash_for_space") length = 2;
+    // Engine-generated programs (not card abilities) have fixed two-instruction bodies.
+    if (frame.program === "trash_for_space" || frame.program === "attack_tax") length = 2;
     else if (typeof frame.bindings._delay === "number") length = Number.MAX_SAFE_INTEGER;
     else {
       const entry = abilityById(frame.abilityId);

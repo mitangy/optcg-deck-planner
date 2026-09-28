@@ -23,9 +23,11 @@ describe("snapshot RNG restoration", () => {
   });
 
   it("restores large cursors immediately and preserves uint32 wraparound", () => {
-    const small = createSeededRng({ seed: 42, cursor: 7 });
+    // Compare against real sequential output, not another restored generator.
+    const sequential = legacy(42);
+    for (let i = 0; i < 7; i++) sequential();
     const large = createSeededRng({ seed: 42, cursor: 2 ** 32 + 7 });
-    expect(large.next()).toBe(small.next());
+    expect(large.next()).toBe(sequential());
     expect(large.snapshot().cursor).toBe(2 ** 32 + 8);
   });
 
