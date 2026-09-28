@@ -104,6 +104,8 @@ export interface Filter {
   any?: Filter[];
   /** Every sub-filter must match (ranges such as "5000 to 7000 power"). */
   all?: Filter[];
+  /** Number of DON!! cards given to the card. */
+  donGiven?: Cmp;
 }
 
 export interface Selector {
@@ -151,6 +153,7 @@ export type Restriction =
 
 export type PlayerRestriction =
   | "cannot_play_characters"
+  | "cannot_play_cards_from_hand"
   | "cannot_play_events"
   | "cannot_add_life_to_hand_by_effect"
   | "cannot_attack_leader"
@@ -263,7 +266,7 @@ export type Effect =
   /** Pay costs without an optional prompt (e.g. mandatory costs inside a sequence). */
   | { do: "pay"; costs: Cost[]; then: Effect; bind?: string }
   | { do: "choose_one"; options: { label: string; effect: Effect }[]; chooser?: Rel }
-  | { do: "select"; bind: string; selector: Selector; min: number; max: number; chooser?: Rel; totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean }
+  | { do: "select"; bind: string; selector: Selector; min: number; max: number; chooser?: Rel; totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean; random?: boolean }
   | { do: "draw"; player: Rel; count: Value }
   | { do: "ko"; target: Target }
   | { do: "rest"; target: Target }

@@ -344,8 +344,9 @@ function execSelect(sim: Sim, frame: ResolutionFrame, instr: Extract<Instr, { op
   const ctx = frameCtx(frame);
   const chooser = instr.chooser === "you" ? frame.seat : otherSeat(frame.seat);
   const list = candidates(state, ctx, instr.selector);
-  const max = Math.min(instr.max, list.length);
-  const min = Math.min(instr.min, max);
+  const valueCount = instr.countValue != null ? Math.max(0, evalValue(state, ctx, instr.countValue)) : null;
+  const max = Math.min(valueCount ?? instr.max, list.length);
+  const min = Math.min(valueCount ?? instr.min, max);
   if (max === 0) { frame.bindings[instr.bind] = []; return "next"; }
   if (instr.random) {
     frame.bindings[instr.bind] = sim.rng.shuffle(list.map((l) => l.id)).slice(0, max);

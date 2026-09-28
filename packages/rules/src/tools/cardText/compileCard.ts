@@ -56,6 +56,13 @@ function header(tags: string[]): Header {
 }
 
 const EVENT_RULES: [RegExp, (m: RegExpExecArray, ctx: Ctx) => EventTrigger | null][] = [
+  [/^when a DON!! card on (?:the|your) field is returned to your DON!! deck$/i, () => ({ event: "don_returned", player: "you" })],
+  [/^when your opponent attacks$/i, () => ({ event: "attack_declared", player: "opponent" })],
+  [/^when your opponent's character attacks$/i, () => ({ event: "attack_declared", player: "opponent", filter: { types: ["character"] } })],
+  [/^when (?:a card is removed from )?your or your opponent's life cards?(?: is removed)?$/i, () => ({ event: "life_removed", player: "any" })],
+  [/^when your opponent activates an event or \[Trigger\]$/i, () => ({ event: "event_activated", player: "opponent" })],
+  [/^when you play a character with a \[Trigger\]$/i, () => ({ event: "character_played", player: "you", filter: { hasTrigger: true } })],
+  [/^when your (.+?) is removed from the field by your opponent's effect(?: or KO'd)?$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_removed_by_effect", player: "you", byOpponentEffect: true, ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
   [/^when (?:this leader or any of your characters|any of your characters or this leader) (?:is|are) given a DON!! card$/i, () => ({ event: "don_given", player: "you" })],
   [/^when your opponent activates (?:a )?\[Blocker\]$/i, () => ({ event: "blocker_activated", player: "opponent" })],
   [/^when this character battles and KOs your opponent's character$/i, () => ({ event: "battle_ko_opponent", player: "you" })],
@@ -230,6 +237,21 @@ function compileUntimed(h: Header, body: string, ctx: Ctx, nextId: () => string)
   // Replacement effects.
   const replacement = parseReplacement(body, ctx);
   if (replacement) return [{ id: nextId(), trigger: "replacement", ...base, ...(h.conditions.length ? { conditions: h.conditions } : {}), replacement }];
+  // "This effect can be activated when X. EFFECT" / "... at the start of your turn."
+  const activatedWhen = /^this effect can be activated (when .+?|at the start of your turn)\. (.+)$/i.exec(body);
+  if (activatedWhen) {
+    if (/start of your turn/i.test(activatedWhen[1]!)) {
+      const parsed = parseEffectBody(activatedWhen[2]!, ctx, sentences);
+      return parsed.effect ? [{ id: nextId(), trigger: "start_of_your_turn", ...base, ...(h.conditions.length ? { conditions: h.conditions } : {}), effect: parsed.effect }] : null;
+    }
+    return compileUntimed(h, activatedWhen[1]! + ", " + activatedWhen[2]!, ctx, nextId);
+  }
+  // Costs before an event trigger: "You may trash 2 cards from your hand: When ..., ...".
+  const costFirst = splitCostBody(body, ctx);
+  if (costFirst && /^when /i.test(costFirst.rest)) {
+    const inner = compileUntimed(h, costFirst.rest, ctx, nextId);
+    return inner ? inner.map((a) => ({ ...a, costs: [...(a.costs ?? []), ...costFirst.costs] })) : null;
+  }
   // Event triggers ("When ..., ...").
   const ev = parseEventTrigger(body, ctx);
   if (ev) {

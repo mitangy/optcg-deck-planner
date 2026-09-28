@@ -143,6 +143,7 @@ function canBlockWith(state: MatchState, seat: Seat, blocker: CardInstance): boo
 function characterPlayable(state: MatchState, seat: Seat, card: CardInstance): boolean {
   const def = getCardDef(card.defId);
   if (def.type === "character" && playerRestricted(state, seat, "cannot_play_characters", card)) return false;
+  if (playerRestricted(state, seat, "cannot_play_cards_from_hand", card)) return false;
   if (def.type === "event") {
     if (playerRestricted(state, seat, "cannot_play_events")) return false;
     const ability = mainAbility(def.id, "main");

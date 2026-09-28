@@ -75,6 +75,8 @@ export function normalizeText(input: string): string {
   text = text.replace(/DON!!\s*-\s*(\d+)/g, "DON!! -$1");
   text = text.replace(/\[DON!!\s*x\s*(\d+)\]/gi, "[DON!! x$1]");
   text = text.replace(/\s+/g, " ").trim();
+  // Some choose-one lists use " - " instead of "•" bullets.
+  text = text.replace(/(chooses? one:|choose one:)((?: - [^•]+?)+)(?=$| \[)/gi, (_m, head: string, list: string) => head + list.replace(/ - (?=[A-Z])/g, " • "));
   // A leading ":" is left behind when a cost symbol (➀) precedes it.
   text = text.replace(/\] : /g, "] ").replace(/\] :/g, "] ");
   return text;

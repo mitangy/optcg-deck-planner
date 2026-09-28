@@ -6,7 +6,7 @@
 import type { Ability, Cond, Cost, Effect, LookPick, Placement, Rel, Selector, Target, Value } from "./types.js";
 
 export type Instr =
-  | { op: "select"; bind: string; selector: Selector; min: number; max: number; chooser: Rel; totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean; purpose: string; random?: boolean }
+  | { op: "select"; bind: string; selector: Selector; min: number; max: number; chooser: Rel; totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean; purpose: string; random?: boolean; countValue?: Value }
   /** Schedule the ability's `index`-th delayed effect for the end of this turn. */
   | { op: "delay"; index: number; when: "end_of_turn" | "end_of_battle" }
   /** Yes/no. When `costs` is set the prompt is skipped (as "no") unless they are payable. */
@@ -225,7 +225,7 @@ export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { 
       return;
     }
     case "select":
-      out.push({ op: "select", bind: effect.bind, selector: effect.selector, min: effect.min, max: effect.max, chooser: effect.chooser ?? "you", ...(effect.totalCostAtMost != null ? { totalCostAtMost: effect.totalCostAtMost } : {}), ...(effect.totalPowerAtMost != null ? { totalPowerAtMost: effect.totalPowerAtMost } : {}), ...(effect.distinctNames ? { distinctNames: true } : {}), purpose: "select" });
+      out.push({ op: "select", bind: effect.bind, selector: effect.selector, min: effect.min, max: effect.max, chooser: effect.chooser ?? "you", ...(effect.totalCostAtMost != null ? { totalCostAtMost: effect.totalCostAtMost } : {}), ...(effect.totalPowerAtMost != null ? { totalPowerAtMost: effect.totalPowerAtMost } : {}), ...(effect.distinctNames ? { distinctNames: true } : {}), ...(effect.random ? { random: true } : {}), purpose: "select" });
       return;
     case "delay":
       out.push({ op: "delay", index: ctx.delays++, when: effect.when });
@@ -233,7 +233,7 @@ export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { 
     case "discard": {
       const count = typeof effect.count === "number" ? effect.count : 0;
       const bind = "_discard";
-      out.push({ op: "select", bind, selector: { player: effect.player, zone: "hand", ...(effect.filter ? { filter: effect.filter } : {}) }, min: effect.min ?? count, max: count, chooser: effect.chooser ?? effect.player, purpose: "trash from hand", ...(effect.random ? { random: true } : {}) });
+      out.push({ op: "select", bind, selector: { player: effect.player, zone: "hand", ...(effect.filter ? { filter: effect.filter } : {}) }, min: effect.min ?? count, max: count, chooser: effect.chooser ?? effect.player, purpose: "trash from hand", ...(effect.random ? { random: true } : {}), ...(typeof effect.count === "number" ? {} : { countValue: effect.count }) });
       out.push({ op: "act", effect: { do: "to_trash", target: { ref: "var", name: bind } } });
       return;
     }

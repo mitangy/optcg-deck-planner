@@ -363,6 +363,7 @@ export function filterMatches(state: MatchState, ctx: EvalCtx, f: Filter, loc: L
   if (f.faceUp != null && (loc.zone !== "life" || Boolean(state.players[loc.seat].faceUpLife[loc.index]) !== f.faceUp)) return false;
   if (f.any && !f.any.some((sub) => filterMatches(state, ctx, sub, loc))) return false;
   if (f.all && !f.all.every((sub) => filterMatches(state, ctx, sub, loc))) return false;
+  if (f.donGiven && !cmp(f.donGiven.op, card?.attachedDonIds.length ?? 0, evalValue(state, ctx, f.donGiven.value))) return false;
   return true;
 }
 

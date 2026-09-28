@@ -76,6 +76,8 @@ export function parseCountPhrase(text: string, ctx: Ctx): CountExpr | null {
     [/^the total of your and your opponent's life cards$/i, () => ({ of: "life", player: "any" })],
     [/^(your|your opponent's) leader's power$/i, (m) => ({ of: "leader_power", player: who(m[1]!) })],
     [/^your number of life cards$/i, () => ({ of: "life", player: "you" })],
+    [/^(?:of )?(your|your opponent's) rested DON!! cards$/i, (m) => ({ of: "don_rested", player: who(m[1]!) })],
+    [/^DON!! cards? given to that character$/i, () => ({ of: "don_attached_self" })],
     [/^cards? in (your|your opponent's) hand$/i, (m) => ({ of: "hand", player: who(m[1]!) })],
     [/^cards? in (your|your opponent's) trash$/i, (m) => ({ of: "trash", player: who(m[1]!) })],
     [/^(?:the )?number you returned to your deck$/i, () => ({ of: "var", name: "_affected" })],
@@ -83,6 +85,11 @@ export function parseCountPhrase(text: string, ctx: Ctx): CountExpr | null {
     [/^DON!! cards given to this (?:character|leader)$/i, () => ({ of: "don_attached_self" })],
   ];
   for (const [re, build] of rules) { const m = re.exec(t); if (m) return build(m); }
+  const inTrash = /^(.+?) in (your|your opponent's) trash$/i.exec(t);
+  if (inTrash) {
+    const p = parseCardPhrase("all " + inTrash[1]!, ctx, { zone: "trash" });
+    if (p) return { of: "cards", selector: { ...p.selector, player: who(inTrash[2]!), zone: "trash" } };
+  }
   const cards = /^(.+)$/.exec(t);
   if (cards) {
     const phrase = parseCardPhrase(cards[1]!, ctx, { allowBare: true });
@@ -114,6 +121,11 @@ function parseQualifiers(text: string, ctx: Ctx, filter: Filter, extra: { totalC
     if ((m = take(/^(?:with |and )?(?:the )?§Q(\d+)§(?: or §Q(\d+)§)? attribute/i))) { filter.attributes = [ctx.ph.quotes[Number(m[1])]!, ...(m[2] ? [ctx.ph.quotes[Number(m[2])]!] : [])]; continue; }
     if ((m = take(/^with (?:a )?trigger/i))) { filter.hasTrigger = true; continue; }
     if ((m = take(/^with different card names/i))) { extra.distinctNames = true; continue; }
+    if ((m = take(/^(?:that has|with) (\d+) or more DON!! cards given/i))) { filter.donGiven = { op: ">=", value: num(m[1]!) }; continue; }
+    if ((m = take(/^with (?:a|any) DON!! cards? given/i))) { filter.donGiven = { op: ">=", value: 1 }; continue; }
+    if ((m = take(/^with a (base )?cost (\d+) or (less|more)/))) { (m[1] ? (filter.baseCost = cmp(m[3]!, num(m[2]!))) : (filter.cost = cmp(m[3]!, num(m[2]!)))); continue; }
+    if ((m = take(/^with a base power of (\d+)(?! or)/))) { filter.basePower = cmp("", num(m[1]!)); continue; }
+    if ((m = take(/^that do(?:es)? not have a type including (§Q\d+§)/))) { const q = quote(m[1]!, ctx); if (!q) return false; filter.notTraitIncludes = [q]; continue; }
     if ((m = take(/^(?:with )?(?:a |an )?(base )?cost of (\d+) or (less|more)/))) { (m[1] ? (filter.baseCost = cmp(m[3]!, num(m[2]!))) : (filter.cost = cmp(m[3]!, num(m[2]!)))); continue; }
     if ((m = take(/^(?:with )?(?:a |an )?(base )?cost of (\d+)(?! or)/))) { (m[1] ? (filter.baseCost = cmp("", num(m[2]!))) : (filter.cost = cmp("", num(m[2]!)))); continue; }
     if ((m = take(/^(?:with )?(?:a |an )?(base )?cost (?:equal to or less than|of or less than) (.+?)(?=(?: and | other than |,|$))/))) {
@@ -227,6 +239,16 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
       text = text.slice(m[0].length); continue;
     }
     if ((m = /^<(\w+)>(?: or <(\w+)>)? attribute /.exec(text))) { filter.attributes = [m[1]!, ...(m[2] ? [m[2]] : [])]; text = text.slice(m[0].length); continue; }
+    if ((m = /^(\d+) cost /.exec(text))) { filter.cost = { op: "==", value: num(m[1]!) }; text = text.slice(m[0].length); continue; }
+    if ((m = /^(§N\d+§(?:(?:, | or )§N\d+§)*) or (?:(red|green|blue|purple|black|yellow) )?(Event|Character|Stage)( cards?)? ?/.exec(text)) && /^(?:$|with |other than )/.test(text.slice(m[0].length))) {
+      const names = nameList(m[1]!, ctx); if (!names) return null;
+      const other: Filter = { types: [m[3]!.toLowerCase() as "event"], ...(m[2] ? { colors: [m[2].toLowerCase()] } : {}) };
+      filter.any = [{ names }, other]; text = "cards " + text.slice(m[0].length); continue;
+    }
+    if ((m = /^(§T\d+§(?:(?:, | or )§T\d+§)*) type (?:cards?|characters?|character cards?) or (?:cards?|characters?|character cards?) with a type including (§Q\d+§) ?/.exec(text))) {
+      const traits = traitList(m[1]!, ctx); const q = quote(m[2]!, ctx); if (!traits || !q) return null;
+      filter.any = [{ traits }, { traitIncludes: [q] }]; text = (/character/i.test(m[0]) ? "character cards " : "cards ") + text.slice(m[0].length); continue;
+    }
     if ((m = /^(§N\d+§(?:(?:, | or )§N\d+§)*) or (§T\d+§(?:(?:, | or |, or )§T\d+§)*) type /.exec(text))) {
       const names = nameList(m[1]!, ctx); const traits = traitList(m[2]!, ctx); if (!names || !traits) return null;
       filter.any = [{ names }, { traits }]; text = text.slice(m[0].length); continue;

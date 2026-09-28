@@ -41,7 +41,7 @@ const cmpOp = oneOf("<=", ">=", "==", "<", ">", "!=");
 const keyword = oneOf("blocker", "rush", "rush_character", "double_attack", "banish", "unblockable");
 const duration = oneOf("battle", "turn", "until_start_of_your_next_turn", "until_end_of_opponent_next_turn", "until_end_of_your_next_turn", "permanent");
 const restriction = oneOf("cannot_attack", "cannot_attack_leader", "cannot_block", "cannot_be_ko", "cannot_be_ko_by_effect", "cannot_be_ko_by_opponent_effect", "cannot_be_ko_in_battle", "cannot_be_removed_by_opponent_effect", "cannot_be_rested_by_opponent_effect", "cannot_be_rested", "cannot_be_ko_in_battle_by_attribute", "cannot_be_returned_by_opponent_effect", "no_refresh", "can_attack_active", "cannot_be_blocked_by_power_or_less", "cannot_be_blocked_by_cost_or_less", "cannot_activate_blocker");
-const playerRestriction = oneOf("cannot_play_characters", "cannot_play_events", "cannot_add_life_to_hand_by_effect", "cannot_attack_leader", "cannot_draw_by_effect", "cannot_set_don_active", "cannot_set_don_active_by_character_effects");
+const playerRestriction = oneOf("cannot_play_characters", "cannot_play_cards_from_hand", "cannot_play_events", "cannot_add_life_to_hand_by_effect", "cannot_attack_leader", "cannot_draw_by_effect", "cannot_set_don_active", "cannot_set_don_active_by_character_effects");
 const zone = oneOf("leader", "character", "leader_or_character", "stage", "field", "hand", "trash", "hand_or_trash", "deck", "life", "deck_top", "don", "resolving");
 const cardType = oneOf("leader", "character", "event", "stage");
 const strings = arr(str, 1);
@@ -74,7 +74,7 @@ const filter: V = obj({}, {
   types: arr(cardType, 1), traits: strings, traitIncludes: strings, notTraits: strings, names: strings, notNames: strings, nameIncludes: strings,
   colors: strings, multicolor: bool, attributes: strings, cost: cmp, baseCost: cmp, power: cmp, basePower: cmp, counter: cmp, hasCounter: bool,
   hasTrigger: bool, rested: bool, keyword, playedThisTurn: bool, excludeSelf: bool, excludeVar: str, inVar: str, faceUp: bool, any: arr(lazy(() => filter), 1),
-  notTraitIncludes: strings, vanilla: bool, textIncludes: strings, textExcludes: strings, all: arr(lazy(() => filter), 1),
+  notTraitIncludes: strings, vanilla: bool, textIncludes: strings, textExcludes: strings, all: arr(lazy(() => filter), 1), donGiven: cmp,
 });
 const selector: V = obj({ player: relAny, zone }, { filter, also: arr(lazy(() => selector), 1) });
 
@@ -155,7 +155,7 @@ const effect: V = tagged("do", {
   may: variant("do", "may", { then: lazy(() => effect) }, { costs: arr(cost, 1), prompt: str, bind: str, chooser: rel }),
   pay: variant("do", "pay", { costs: arr(cost, 1), then: lazy(() => effect) }, { bind: str }),
   choose_one: variant("do", "choose_one", { options: arr(obj({ label: str, effect: lazy(() => effect) }), 2) }, { chooser: rel }),
-  select: variant("do", "select", { bind: str, selector, min: int(0), max: int(0) }, { chooser: rel, totalCostAtMost: value, totalPowerAtMost: value, distinctNames: bool }),
+  select: variant("do", "select", { bind: str, selector, min: int(0), max: int(0) }, { chooser: rel, totalCostAtMost: value, totalPowerAtMost: value, distinctNames: bool, random: bool }),
   draw: variant("do", "draw", { player: rel, count: value }),
   ko: variant("do", "ko", { target }),
   rest: variant("do", "rest", { target }),

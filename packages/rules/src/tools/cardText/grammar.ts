@@ -87,6 +87,18 @@ function signed(text: string): number {
 // ---------------------------------------------------------------------------
 
 const COND_RULES: Rule<Cond>[] = [
+  [/^your leader is (§N\d+§) or multicolored$/i, (m, ctx) => { const n = nameList(m[1]!, ctx); return n ? { c: "or", conds: [{ c: "leader_name", names: n }, { c: "leader_multicolor" }] } : null; }],
+  [/^your leader's colors include (red|green|blue|purple|black|yellow)$/i, (m) => ({ c: "leader_color", colors: [m[1]!.toLowerCase()] })],
+  [/^(your|your opponent's) leader has the <(\w+)> attribute$/i, (m) => ({ c: "exists", selector: { player: rel(m[1]!), zone: "leader", filter: { attributes: [m[2]!] } } })],
+  [/^your leader has the (§T\d+§) type or the <(\w+)> attribute$/i, (m, ctx) => { const t = traitList(m[1]!, ctx); return t ? { c: "or", conds: [{ c: "leader_trait", traits: t }, { c: "exists", selector: { player: "you", zone: "leader", filter: { attributes: [m[2]!] } } }] } : null; }],
+  [/^the number of your life cards is equal to or less than the number of your opponent's life cards$/i, () => ({ c: "compare", left: { count: { of: "life", player: "you" } }, op: "<=", right: { count: { of: "life", player: "opponent" } } })],
+  [/^the number of cards in your hand is at least (\d+) less than the number in your opponent's hand$/i, (m) => ({ c: "compare", left: { count: { of: "hand", player: "you" }, plus: num(m[1]!) }, op: "<=", right: { count: { of: "hand", player: "opponent" } } })],
+  [/^the number of your characters is at least (\d+) less than the number of your opponent's characters$/i, (m) => ({ c: "compare", left: { count: { of: "cards", selector: { player: "you", zone: "character" } }, plus: num(m[1]!) }, op: "<=", right: { count: { of: "cards", selector: { player: "opponent", zone: "character" } } } })],
+  [/^(you|your opponent) (?:has|have) a total of (\d+) or more given DON!! cards$/i, (m) => ({ c: "compare", left: { count: { of: "don_attached_total", player: rel(m[1]!) } }, op: ">=", right: num(m[2]!) })],
+  [/^(you|your opponent) (?:has|have) any DON!! cards given$/i, (m) => ({ c: "compare", left: { count: { of: "don_attached_total", player: rel(m[1]!) } }, op: ">=", right: 1 })],
+  [/^(?:there is|(you|your opponent) (?:has|have)) a character with a cost of (\d+) or with a cost of (\d+) or more$/i, (m) => ({ c: "exists", selector: { player: m[1] ? rel(m[1]) : "any", zone: "character", filter: { any: [{ cost: { op: "==", value: num(m[2]!) } }, { cost: { op: ">=", value: num(m[3]!) } }] } } })],
+  [/^your deck has (\d+) cards$/i, (m) => ({ c: "compare", left: { count: { of: "deck", player: "you" } }, op: "==", right: num(m[1]!) })],
+  [/^you only have (§T\d+§) type characters$/i, (m, ctx) => { const t = traitList(m[1]!, ctx); return t ? { c: "none", selector: { player: "you", zone: "character", filter: { notTraits: t } } } : null; }],
   [/^(?:the trashed card) (?:is|has) (.+)$/i, (m, ctx) => { const body = m[1]!; const p = parseCardPhrase(/^(?:a|an|\d) /i.test(body) ? body : "all cards " + body, ctx) ?? parseCardPhrase("all cards with " + body, ctx); return p ? { c: "var_all_match", name: "_cost", filter: p.selector.filter ?? {} } : null; }],
   [/^(?:that character) (?:is|has) (.+)$/i, (m, ctx) => { const body = m[1]!; const p = parseCardPhrase("all cards with " + body, ctx) ?? parseCardPhrase("all cards " + body, ctx); return p ? { c: "var_all_match", name: "_last", filter: p.selector.filter ?? {} } : null; }],
   [/^this (?:character|leader) has (\d+) power or (more|less)$/i, (m) => ({ c: "compare", left: { count: { of: "self_power" } }, op: m[2]!.toLowerCase() === "more" ? ">=" : "<=", right: num(m[1]!) })],
@@ -329,11 +341,12 @@ function parseLookPicks(text: string, ctx: Ctx): LookPick[] | null {
   const t = text.trim().replace(/^and /i, "");
   let m: RegExpExecArray | null;
   if ((m = /^(?:reveal )?up to (\d+|a total of \d+) (.+?) and (add (?:it|them) to your hand|play (?:it|them)(?: rested)?|add it to the top of your life cards|trash (?:it|them))$/i.exec(t))) {
-    const dest = lookDest(m[3]!); if (!dest) return null;
+    const dest = lookDest(m[3]!);
     const count = m[1]!.replace("a total of ", "");
-    const pick = pickFrom(count, m[2]!, dest, ctx); return pick ? [pick] : null;
+    const pick = dest ? pickFrom(count, m[2]!, dest, ctx) : null; if (pick) return [pick];
   }
-  if ((m = /^add up to (\d+) (.+?) to your hand$/i.exec(t))) { const pick = pickFrom(m[1]!, m[2]!, "hand", ctx); return pick ? [pick] : null; }
+  if ((m = /^(?:reveal )?a total of up to (\d+) (.+?) and (add (?:it|them) to your hand)$/i.exec(t))) { const pick = pickFrom(m[1]!, m[2]!, "hand", ctx); if (pick) return [pick]; }
+  if ((m = /^add up to (\d+) (.+?) to your hand$/i.exec(t))) { const pick = pickFrom(m[1]!, m[2]!, "hand", ctx); if (pick) return [pick]; }
   if ((m = /^reveal up to (\d+) (.+?) or up to (\d+) (.+?) and add (?:it|them) to your hand$/i.exec(t))) {
     const a = pickFrom(m[1]!, m[2]!, "hand", ctx); const b = pickFrom(m[3]!, m[4]!, "hand", ctx);
     if (a && b) return [{ min: 0, max: Math.max(a.max, b.max), dest: "hand", filter: { any: [a.filter ?? {}, b.filter ?? {}] } }];
@@ -350,6 +363,25 @@ function parseLookPicks(text: string, ctx: Ctx): LookPick[] | null {
 type EffectRule = Rule<Effect>;
 
 const EFFECT_RULES: EffectRule[] = [
+  [/^rest this (?:character|leader) and (up to \d+ .+)$/i, (m, ctx) => { const t = fieldTarget(m[1]!, ctx); return t ? { do: "seq", steps: [{ do: "rest", target: { ref: "self" } }, { do: "rest", target: t }] } : null; }],
+  [/^(?:then, )?your opponent adds (\d+) cards? from the top of their life cards to their hand$/i, (m) => ({ do: "life_to_hand", player: "opponent", count: num(m[1]!), position: "top" })],
+  [/^you take (\d+) damage$/i, (m) => ({ do: "damage", player: "you", count: num(m[1]!) })],
+  [/^trash all cards from your hand$/i, () => ({ do: "to_trash", target: { ref: "all", selector: { player: "you", zone: "hand" } } })],
+  [/^trash cards from your hand until you have (\d+) cards in your hand$/i, (m) => ({ do: "discard", player: "you", count: { count: { of: "hand", player: "you" }, plus: -num(m[1]!) } })],
+  [/^you and your opponent trash cards from your hands until you each have (\d+) cards in your hands$/i, (m) => ({ do: "seq", steps: [{ do: "discard", player: "you", count: { count: { of: "hand", player: "you" }, plus: -num(m[1]!) } }, { do: "discard", player: "opponent", chooser: "opponent", count: { count: { of: "hand", player: "opponent" }, plus: -num(m[1]!) } }] })],
+  [/^you cannot attack a leader (during this turn)$/i, () => ({ do: "player_restrict", player: "you", restriction: "cannot_attack_leader", duration: "turn" })],
+  [/^you cannot play cards from your hand (during this turn)$/i, () => ({ do: "player_restrict", player: "you", restriction: "cannot_play_cards_from_hand", duration: "turn" })],
+  [/^your opponent places (\d+) (.+?) from their trash at the (top|bottom) of their deck(?: in any order)?$/i, (m, ctx) => { const p = parseCardPhrase("all " + m[2]!, ctx, { zone: "trash" }); return p ? { do: "to_deck", target: { ref: "choose", selector: { ...p.selector, player: "opponent", zone: "trash" }, min: num(m[1]!), max: num(m[1]!), chooser: "opponent" }, position: m[3]!.toLowerCase() as "top" | "bottom" } : null; }],
+  [/^your opponent plays (up to \d+ .+?) from their hand$/i, (m, ctx) => { const p = parseCardPhrase(m[1]!, ctx, { zone: "hand" }); if (!p) return null; const t = toTarget({ ...p, selector: { ...p.selector, player: "opponent", zone: "hand" } }); return t.ref === "choose" ? { do: "play", target: { ...t, chooser: "opponent" } } : null; }],
+  [/^your opponent may add (\d+) DON!! cards? from their DON!! deck and set (?:it|them) as active$/i, (m) => ({ do: "may", chooser: "opponent", then: { do: "add_don", player: "opponent", count: num(m[1]!), rested: false }, prompt: "add DON!! from your DON!! deck" })],
+  [/^give your leader and all of your characters up to (\d+) rested DON!! cards? each$/i, (m) => ({ do: "seq", steps: [{ do: "give_don", target: { ref: "leader", player: "you" }, count: num(m[1]!), donState: "rested" }, { do: "give_don", target: { ref: "all", selector: { player: "you", zone: "character" } }, count: num(m[1]!), donState: "rested" }] })],
+  [new RegExp("^(up to \\d+ .+?) cannot activate \\[Blocker\\] " + DUR + "$", "i"), (m, ctx) => { const t = fieldTarget(m[1]!, ctx); const d = parseDuration(m[2]); return t && d ? { do: "restrict", target: t, restriction: "cannot_block", duration: d } : null; }],
+  [new RegExp("^all of your opponent's (.+?) cannot activate \\[Blocker\\] " + DUR + "$", "i"), (m, ctx) => { const p = parseCardPhrase("all your opponent's " + m[1]!, ctx); const d = parseDuration(m[2]); return p && d ? { do: "restrict", target: { ref: "all", selector: p.selector }, restriction: "cannot_block", duration: d } : null; }],
+  [/^(up to \d+ .+?) can attack characters on the turn in which (?:it is|they are) played$/i, (m, ctx) => { const t = fieldTarget(m[1]!, ctx); return t ? { do: "keyword", target: t, keyword: "rush_character", duration: "turn" } : null; }],
+  [/^set this character or up to (\d+) of your DON!! cards as active$/i, (m) => ({ do: "choose_one", options: [{ label: "Set this Character as active", effect: { do: "activate", target: { ref: "self" } } }, { label: "Set up to " + m[1] + " DON!! as active", effect: { do: "set_don_active", count: num(m[1]!) } }] })],
+  [new RegExp("^negate the effects? of (.+?) and give that card ([+-]\\d+) power " + DUR + "$", "i"), (m, ctx) => { const t = fieldTarget(m[1]!, ctx); const d = parseDuration(m[3]); return t && d ? { do: "seq", steps: [{ do: "negate", target: t, duration: d }, { do: "power", target: { ref: "var", name: "_last" }, amount: signed(m[2]!), duration: d }] } : null; }],
+  [new RegExp("^negate the effects? of (.+?) and that character cannot attack " + DUR + "$", "i"), (m, ctx) => { const t = fieldTarget(m[1]!, ctx); const d = parseDuration(m[2]); return t && d ? { do: "seq", steps: [{ do: "negate", target: t, duration: d }, { do: "restrict", target: { ref: "var", name: "_last" }, restriction: "cannot_attack", duration: d }] } : null; }],
+  [new RegExp("^give (up to \\d+ of .+?) ([+-]\\d+) power " + DUR + " and this character gains \\[(Rush|Blocker|Double Attack|Banish)\\]$", "i"), (m, ctx) => { const t = fieldTarget(m[1]!, ctx); const d = parseDuration(m[3]); const k = keywordOf(m[4]!); return t && d && k ? { do: "seq", steps: [{ do: "power", target: t, amount: signed(m[2]!), duration: d }, { do: "keyword", target: { ref: "self" }, keyword: k, duration: d }] } : null; }],
   [/^if (?:the selected card|that card|that character) attacks during this turn, your opponent cannot activate \[Blocker\]$/i, () => ({ do: "keyword", target: { ref: "var", name: "_last" }, keyword: "unblockable", duration: "turn" })],
   [/^draw (?:a card|\d+ cards?) for each of (.+)$/i, (m, ctx) => { const p = parseCardPhrase("all " + m[1]!, ctx); return p ? { do: "draw", player: "you", count: { count: { of: "cards", selector: p.selector } } } : null; }],
   [/^draw cards? so that you have (\d+) cards in your hand$/i, (m) => ({ do: "draw", player: "you", count: { count: { of: "hand", player: "you" }, times: -1, plus: num(m[1]!) } })],
@@ -504,7 +536,7 @@ const EFFECT_RULES: EffectRule[] = [
   [/^turn all of your life cards face-(up|down)$/i, (m) => ({ do: "life_face", player: "you", count: 99, faceUp: m[1] === "up" })],
   [/^look at (\d+) cards? from the top of (your|your opponent's) deck and place them at the top or bottom of the deck in any order$/i, (m) => ({ do: "look", player: rel(m[2]!), count: num(m[1]!), picks: [], rest: "top_or_bottom" })],
   [/^look at (\d+) cards? from the top of (your|your opponent's) deck$/i, (m) => ({ do: "look", player: rel(m[2]!), count: num(m[1]!), picks: [], rest: "deck_top" })],
-  [/^look at (\d+) cards? from the top of your deck; (.+)$/i, (m, ctx) => { const picks = parseLookPicks(m[2]!, ctx); return picks ? { do: "look", player: "you", count: num(m[1]!), picks, rest: "deck_bottom", reveal: /\breveal\b/i.test(m[2]!) } : null; }],
+  [/^look at (?:up to )?(\d+) cards? from the top of your deck; (.+?)(?:, then place the rest at the bottom of your deck(?: in any order)?)?$/i, (m, ctx) => { const picks = parseLookPicks(m[2]!, ctx); return picks ? { do: "look", player: "you", count: num(m[1]!), picks, rest: "deck_bottom", reveal: /\breveal\b/i.test(m[2]!) } : null; }],
   [/^look at (\d+) cards? from the top of your deck and (.+)$/i, (m, ctx) => { const picks = parseLookPicks(m[2]!, ctx); return picks ? { do: "look", player: "you", count: num(m[1]!), picks, rest: "deck_bottom", reveal: /\breveal\b/i.test(m[2]!) } : null; }],
   [/^look at up to (\d+) cards? from the top of (your|your opponent's|your or your opponent's) life cards(?:,)? and place (?:it|them) at the top or bottom of the life cards(?: in any order)?$/i, (m) => ({ do: "look_life", player: /or your opponent/i.test(m[2]!) ? "any" : rel(m[2]!), count: num(m[1]!), rest: "top_or_bottom" })],
   [/^look at all of your life cards and place them back in any order$/i, () => ({ do: "look_life", player: "you", count: 99, rest: "any_order" })],
@@ -604,7 +636,7 @@ export function parseConditionalClause(text: string, ctx: Ctx): Effect | null {
     const eff = parseStatementBody(body.slice(index + 2), ctx);
     if (eff) return { do: "if", cond, then: eff };
   }
-  return null;
+  return firstMatch(t, EFFECT_RULES, ctx);
 }
 
 /** An effect body that may itself contain a "you may X: Y" cost prefix or conditionals. */
