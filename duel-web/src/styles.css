@@ -2776,7 +2776,9 @@ img.zone-pile-face {
 /* —— Generic choice prompt (protocol 5) —— */
 .choice-prompt {
   width: min(560px, calc(100vw - 1.5rem));
-  max-height: min(70dvh, 640px);
+  /* Stay below the top bar and above the hand rail at any viewport height. */
+  max-height: min(640px, calc(100dvh - 12rem));
+  background: rgb(12, 18, 28);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -2839,6 +2841,8 @@ img.zone-pile-face {
   color: var(--muted);
 }
 .choice-order-name {
+  font-size: 0.75rem;
+  color: var(--ink);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
