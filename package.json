@@ -10,7 +10,8 @@
     "test:rules": "npm run test -w @optcg/rules",
     "test:game-server": "npm run test -w @optcg/game-server",
     "start:game-server": "npm run start -w @optcg/game-server",
-    "dev:game-server": "npm run dev -w @optcg/game-server"
+    "dev:game-server": "npm run dev -w @optcg/game-server",
+    "test:mutation": "node tools/mutation-check/run.cjs"
   },
   "engines": {
     "node": ">=22"
