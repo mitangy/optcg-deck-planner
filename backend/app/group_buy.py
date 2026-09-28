@@ -447,6 +447,11 @@ def _detail_from_group(
                 display_name=_display_name(member.user),
                 role=member.role,
                 deck_ids=_parse_deck_ids(member.deck_ids_json) if not read_only else None,
+                sum_across_leaders=(
+                    None
+                    if group.status in FROZEN_STATUSES
+                    else bool(getattr(member.user, "sum_across_leaders", False))
+                ),
                 cards_still_needed=copies_n,
                 remaining_market=market,
                 card_cost=settle.card_cost if settle else 0.0,

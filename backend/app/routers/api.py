@@ -16,6 +16,8 @@ from app.models import CatalogMeta, User
 from app.rate_limit import RateLimiter, client_ip
 from app.recent_sales import fetch_recent_sales
 from app.schemas import (
+    UserOut,
+    UserPreferencesUpdate,
     CatalogCardResult,
     CatalogStatus,
     CardPrintingResult,
@@ -254,6 +256,20 @@ def get_shopping(
 ):
     """Optional deck_ids filters Need/Still Need to only the selected decks."""
     return services.shopping_list(db, user, deck_ids=deck_ids)
+
+
+@router.patch("/preferences", response_model=UserOut)
+def patch_preferences(
+    body: UserPreferencesUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Update per-user settings (e.g. how shopping Need combines decks)."""
+    if body.sum_across_leaders is not None:
+        user.sum_across_leaders = body.sum_across_leaders
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @router.put("/owned/{card_id}")

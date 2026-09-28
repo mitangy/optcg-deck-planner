@@ -51,7 +51,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export type User = { id: number; email: string; name: string };
+export type User = {
+  id: number;
+  email: string;
+  name: string;
+  /** Shopping Need sums copies across distinct leaders instead of max across decks. */
+  sum_across_leaders?: boolean;
+};
 
 export type DeckSummary = {
   id: number;
@@ -103,8 +109,12 @@ export type CardView = {
   card_type: string;
   cost: number | string | null;
   needed: number;
+  /** Total owned, shared by every deck (what the Owned stepper edits). */
   owned: number;
   still_need: number;
+  /** Separate per leader: copies leaders earlier in deck order use first (0 when shared). */
+  earlier_leaders_need?: number;
+  earlier_leaders?: string[];
   market_price: number | null;
   low_price: number | null;
   image_url: string;
@@ -171,7 +181,21 @@ export type ShoppingItem = {
   primary_leader_card_id?: string | null;
   primary_leader_name?: string | null;
   leader_count?: number;
+  /** Per-leader Need in deck order; only set when 2+ leaders use the card. */
+  need_by_leader?: { label: string; need: number }[];
+  /** True when `need` adds need_by_leader together; false when it takes the max. */
+  need_summed?: boolean;
 };
+
+/** "Need 7 = Luffy 4 + Sabo 3" / "Need 4 = most of Luffy 4, Sabo 3"; "" for one leader. */
+export function needBreakdownLabel(item: ShoppingItem): string {
+  const parts = item.need_by_leader ?? [];
+  if (parts.length < 2) return "";
+  const each = parts.map((p) => `${p.label} ${p.need}`);
+  return item.need_summed
+    ? `Need ${item.need} = ${each.join(" + ")}`
+    : `Need ${item.need} = most of ${each.join(", ")}`;
+}
 
 export type RecentSale = {
   price: number;
@@ -222,6 +246,8 @@ export type GroupBuyMember = {
   display_name: string;
   role: string;
   deck_ids: number[] | null;
+  /** Member's Copies needed mode; null/absent once quantities are frozen. */
+  sum_across_leaders?: boolean | null;
   cards_still_needed: number;
   remaining_market: number;
   card_cost?: number;
@@ -351,6 +377,8 @@ export const api = {
   apiUrl: API_URL,
   me: () => request<User | null>("/auth/me"),
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
+  updatePreferences: (body: { sum_across_leaders?: boolean }) =>
+    request<User>("/preferences", { method: "PATCH", body: JSON.stringify(body) }),
   claim: (ticket: string) =>
     request<User>("/auth/claim", { method: "POST", body: JSON.stringify({ ticket }) }),
   devLogin: () => request<User>("/auth/dev-login", { method: "POST" }),

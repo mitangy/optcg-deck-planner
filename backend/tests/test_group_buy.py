@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import select
 
 from app import group_buy, services
-from app.models import Owned
+from app.models import Deck, Owned
 from app.schemas import GroupBuyOrderUpdate, GroupBuyReceiptApplyRequest
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
@@ -113,6 +113,40 @@ def test_export_allocates_alt_wants_not_whole_line(db, two_players):
     assert "6-1009" not in lines
     assert "5-1002" in lines  # OP01-002 unchanged
     assert export.copy_count == 11
+
+
+def test_sum_across_leaders_member_need_and_alt_pricing(db, two_players):
+    """A member's sum_across_leaders setting flows into group buy qty, AA split and export."""
+    host, friend = two_players
+    # Host adds a second-leader deck using 3 more OP01-001.
+    first = next(d for d in services.list_decks(db, host) if d.name == "Host Deck")
+    second = add_deck_with_cards(db, host, "Host Deck 2", {"OP01-001": 3})
+    db.get(Deck, first.id).leader_card_id = "LEAD-A"
+    second.leader_card_id = "LEAD-B"
+    host.sum_across_leaders = True
+    db.commit()
+
+    created = group_buy.create_group_buy(db, host, "Sum mode")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    # 4 + 3 need − 1 owned = 6 still needed for host.
+    services.set_user_card_printing(db, host, "OP01-001", 1009, 2)
+    detail = group_buy.get_group_buy(db, host, created.id)
+    line = next(l for l in detail.lines if l.card_id == "OP01-001")
+    assert {m.display_name: m.qty for m in line.members} == {"Host": 6, "Friend": 3}
+    assert line.my_need == 7
+    assert next(a.wanted for a in line.alt_arts if a.product_id == 1009) == 2
+    # Host 2×AA + 4×standard, friend 3×standard.
+    assert line.remaining_cost == round(2 * 9.0 + 7 * 2.5, 2)
+
+    lines = group_buy.export_tcgplayer(db, host, created.id).paste_text.splitlines()
+    assert "2-1009" in lines
+    assert "7-1001" in lines
+
+    # Members show their mode while open; hidden once quantities are frozen.
+    modes = {m.display_name: m.sum_across_leaders for m in detail.members}
+    assert modes == {"Host": True, "Friend": False}
+    locked = group_buy.lock_group_buy(db, host, created.id)
+    assert all(m.sum_across_leaders is None for m in locked.members)
 
 
 def test_member_cannot_lock(db, two_players):

@@ -7,8 +7,13 @@ class UserOut(BaseModel):
     id: int
     email: str
     name: str
+    sum_across_leaders: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class UserPreferencesUpdate(BaseModel):
+    sum_across_leaders: bool | None = None
 
 
 class DeckCreate(BaseModel):
@@ -111,8 +116,14 @@ class CardView(BaseModel):
     card_type: str = ""
     cost: int | str | None = None
     needed: int
+    # Total owned (shared across every deck — what the Owned stepper edits).
     owned: int
     still_need: int
+    # "Separate per leader": copies that leaders earlier in deck order need
+    # first. still_need = needed − (owned − earlier_leaders_need), floored at 0.
+    # Always 0 when copies are shared between leaders.
+    earlier_leaders_need: int = 0
+    earlier_leaders: list[str] = []
     market_price: float | None = None
     low_price: float | None = None
     image_url: str = ""
@@ -133,6 +144,11 @@ class DeckDetail(BaseModel):
     cards: list[CardView]
     main_cards: int = 0
     don_cards: int = 0
+
+
+class LeaderNeed(BaseModel):
+    label: str
+    need: int
 
 
 class ShoppingItem(BaseModel):
@@ -159,6 +175,11 @@ class ShoppingItem(BaseModel):
     primary_leader_card_id: str | None = None
     primary_leader_name: str | None = None
     leader_count: int = 1
+    # Per-leader Need (max within each leader), in deck order. Explains how
+    # ``need`` was combined; only set when more than one leader uses the card.
+    need_by_leader: list[LeaderNeed] = Field(default_factory=list)
+    # Whether ``need`` sums need_by_leader (True) or takes its max (False).
+    need_summed: bool = False
 
 
 class ShoppingResponse(BaseModel):
@@ -240,6 +261,9 @@ class GroupBuyMemberOut(BaseModel):
     display_name: str
     role: str
     deck_ids: list[int] | None = None
+    # Member's shopping "Copies needed" mode (True = separate per leader).
+    # None once quantities are frozen, since the live setting no longer applies.
+    sum_across_leaders: bool | None = None
     cards_still_needed: int = 0
     remaining_market: float = 0.0
     card_cost: float = 0.0

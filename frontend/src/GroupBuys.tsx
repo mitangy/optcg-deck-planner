@@ -137,6 +137,24 @@ function MemberSwatch({
   );
 }
 
+/** Member's shopping "Copies needed" mode; hidden once quantities are frozen. */
+function MemberModeTag({ member }: { member: GroupBuyMember }) {
+  if (member.sum_across_leaders == null) return null;
+  const separate = member.sum_across_leaders;
+  return (
+    <span
+      className={`member-mode-tag${separate ? " separate" : ""}`}
+      title={
+        separate
+          ? "Copies needed: separate per leader. Their counts add up across different leaders (Luffy 4 + Sabo 3 = 7)."
+          : "Copies needed: shared between leaders. Their counts use the most any one deck needs (Luffy 4, Sabo 3 = 4)."
+      }
+    >
+      {separate ? "Separate per leader" : "Shared between leaders"}
+    </span>
+  );
+}
+
 function MemberBreakdown({
   line,
   members,
@@ -1214,6 +1232,7 @@ export function GroupBuyDetailPage() {
                   {m.display_name}
                   {m.role === "host" ? " (host)" : ""}
                 </strong>
+                <MemberModeTag member={m} />
                 <span className="muted">
                   {" "}
                   · {m.cards_still_needed} copies · cards {money(m.card_cost ?? m.remaining_market)}
@@ -1959,6 +1978,7 @@ export function PublicGroupBuyPage() {
                       {m.display_name}
                       {m.role === "host" ? " (host)" : ""}
                     </strong>
+                    <MemberModeTag member={m} />
                     <span className="muted">
                       {" "}
                       · {m.cards_still_needed} copies · cards {money(m.card_cost ?? m.remaining_market)}
