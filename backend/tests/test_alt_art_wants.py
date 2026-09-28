@@ -146,6 +146,84 @@ def test_set_user_card_printing_syncs_across_decks(db):
     assert rows[d2.id] == 1
 
 
+def _alt_rows(db, card_id):
+    from app.models import DeckCardPrinting
+    from sqlalchemy import select
+
+    return {
+        r.deck_id: r.qty
+        for r in db.scalars(select(DeckCardPrinting).where(DeckCardPrinting.card_id == card_id))
+    }
+
+
+def _shop_alt_want(db, user, card_id, product_id):
+    item = next(i for i in shopping_list(db, user).items if i.card_id == card_id)
+    return item, next(a.wanted for a in item.alt_arts if a.product_id == product_id)
+
+
+def test_set_user_card_printing_splits_across_leaders_when_summing(db):
+    """Sum mode: a shopping-level want is split across leaders, never double-counted."""
+    from app.services import set_user_card_printing
+
+    user = make_user(db, email="sum-aa@t.com", name="S", sub="sum-aa")
+    add_catalog(db, "OP01-016", name="Nami", product_id=1, market=1.0)
+    add_catalog(db, "OP01-016", name="Nami", product_id=100, market=10.0, special=True)
+    luffy_a = add_deck_with_cards(db, user, "Luffy A", {"OP01-016": 4})
+    luffy_b = add_deck_with_cards(db, user, "Luffy B", {"OP01-016": 2})
+    sabo = add_deck_with_cards(db, user, "Sabo", {"OP01-016": 3})
+    luffy_a.leader_card_id = luffy_b.leader_card_id = "LUF"
+    sabo.leader_card_id = "SAB"
+    user.sum_across_leaders = True
+    db.commit()
+
+    item, _ = _shop_alt_want(db, user, "OP01-016", 100)
+    assert item.need == 7  # max(4, 2) + 3
+    assert [(b.need) for b in item.need_by_leader] == [4, 3]
+    assert item.need_summed is True
+
+    # One click of + must show 1, not 1 per leader.
+    qty, _ = set_user_card_printing(db, user, "OP01-016", 100, 1)
+    assert qty == 1
+    assert _shop_alt_want(db, user, "OP01-016", 100)[1] == 1
+    assert _alt_rows(db, "OP01-016") == {luffy_a.id: 1, luffy_b.id: 1}
+
+    # 5 fills Luffy (4, Luffy B clamps to its own 2) then Sabo gets 1.
+    qty, _ = set_user_card_printing(db, user, "OP01-016", 100, 5)
+    assert qty == 5
+    item, wanted = _shop_alt_want(db, user, "OP01-016", 100)
+    assert wanted == 5
+    assert _alt_rows(db, "OP01-016") == {luffy_a.id: 4, luffy_b.id: 2, sabo.id: 1}
+    assert item.remaining_cost == round(5 * 10.0 + 2 * 1.0, 2)
+
+    # Asking for more than fits caps at the combined Need.
+    qty, _ = set_user_card_printing(db, user, "OP01-016", 100, 99)
+    assert qty == 7
+    assert _shop_alt_want(db, user, "OP01-016", 100)[1] == 7
+
+    # Lowering clears later leaders first.
+    qty, _ = set_user_card_printing(db, user, "OP01-016", 100, 2)
+    assert qty == 2
+    assert _alt_rows(db, "OP01-016") == {luffy_a.id: 2, luffy_b.id: 2}
+    assert _shop_alt_want(db, user, "OP01-016", 100)[1] == 2
+
+
+def test_shopping_need_breakdown_in_max_mode(db):
+    user = make_user(db, email="max-bd@t.com", name="M", sub="max-bd")
+    add_catalog(db, "OP01-016", name="Nami", product_id=1, market=1.0)
+    add_catalog(db, "LUF", name="Luffy", product_id=2, market=1.0)
+    luffy = add_deck_with_cards(db, user, "Luffy deck", {"OP01-016": 4})
+    loose = add_deck_with_cards(db, user, "Loose deck", {"OP01-016": 3})
+    luffy.leader_card_id = "LUF"
+    db.commit()
+
+    item = next(i for i in shopping_list(db, user).items if i.card_id == "OP01-016")
+    assert item.need == 4
+    assert item.need_summed is False
+    # Leader name when known, deck name for a leaderless deck.
+    assert [(b.label, b.need) for b in item.need_by_leader] == [("Luffy", 4), ("Loose deck", 3)]
+    assert loose.leader_card_id is None
+
+
 def test_get_deck_detail_includes_wanted(db):
     user = make_user(db, email="d@t.com", name="D", sub="d")
     add_catalog(db, "OP01-016", name="Nami", product_id=1, market=1.2)

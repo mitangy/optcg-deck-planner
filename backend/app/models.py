@@ -30,6 +30,10 @@ class User(Base):
     google_sub: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     # Bumped on logout so stolen cookies stop working before natural expiry.
     session_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Shopping Need: sum copies across distinct leaders instead of max across decks.
+    sum_across_leaders: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

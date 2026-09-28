@@ -7,8 +7,13 @@ class UserOut(BaseModel):
     id: int
     email: str
     name: str
+    sum_across_leaders: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class UserPreferencesUpdate(BaseModel):
+    sum_across_leaders: bool | None = None
 
 
 class DeckCreate(BaseModel):
@@ -135,6 +140,11 @@ class DeckDetail(BaseModel):
     don_cards: int = 0
 
 
+class LeaderNeed(BaseModel):
+    label: str
+    need: int
+
+
 class ShoppingItem(BaseModel):
     card_id: str
     name: str
@@ -159,6 +169,11 @@ class ShoppingItem(BaseModel):
     primary_leader_card_id: str | None = None
     primary_leader_name: str | None = None
     leader_count: int = 1
+    # Per-leader Need (max within each leader), in deck order. Explains how
+    # ``need`` was combined; only set when more than one leader uses the card.
+    need_by_leader: list[LeaderNeed] = Field(default_factory=list)
+    # Whether ``need`` sums need_by_leader (True) or takes its max (False).
+    need_summed: bool = False
 
 
 class ShoppingResponse(BaseModel):

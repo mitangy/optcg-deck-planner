@@ -10,6 +10,7 @@ import {
   DeckSummary,
   isDeckOversizeError,
   money,
+  needBreakdownLabel,
   ShoppingItem,
   ShoppingResponse,
   User,
@@ -1038,6 +1039,25 @@ function ShoppingPage() {
     queryFn: api.getShoppingShare,
     enabled: filterReady && allDeckIds.length > 0,
   });
+  const meQ = useMe();
+  const sumAcrossLeaders = Boolean(meQ.data?.sum_across_leaders);
+  const setSumAcrossLeaders = useMutation({
+    mutationFn: (value: boolean) => api.updatePreferences({ sum_across_leaders: value }),
+    onMutate: (value) => {
+      const prev = qc.getQueryData<User | null>(["me"]);
+      qc.setQueryData<User | null>(["me"], (old) =>
+        old ? { ...old, sum_across_leaders: value } : old,
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["me"], ctx.prev);
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["me"] });
+      invalidateAltWantViews(qc);
+    },
+  });
   const [onlyNeed, setOnlyNeed] = useState(true);
   const [showDons, setShowDons] = useState(loadShowShoppingDons);
   const shoppingUnavailableSorts = useMemo(() => ["user"] as SortKey[], []);
@@ -1268,11 +1288,21 @@ function ShoppingPage() {
     if (effectiveSorts.length) parts.push(effectiveSorts.map((k) => SORT_LABELS[k]).join(" › "));
     if (showAltArts) parts.push("Alt arts");
     if (layout === "grid") parts.push("Grid");
+    if (sumAcrossLeaders) parts.push("Separate per leader");
     if (allDeckIds.length > 0 && activeDeckIds.length < allDeckIds.length) {
       parts.push(`${activeDeckIds.length}/${allDeckIds.length} decks`);
     }
     return parts.join(" · ");
-  }, [onlyNeed, showDons, effectiveSorts, showAltArts, layout, activeDeckIds.length, allDeckIds.length]);
+  }, [
+    onlyNeed,
+    showDons,
+    effectiveSorts,
+    showAltArts,
+    layout,
+    sumAcrossLeaders,
+    activeDeckIds.length,
+    allDeckIds.length,
+  ]);
 
   const createShare = useMutation({
     mutationFn: () =>
@@ -1317,10 +1347,15 @@ function ShoppingPage() {
 
   function usedInLabel(item: ShoppingItem): string {
     const decks = item.used_in.join(", ");
+    const breakdown = needBreakdownLabel(item);
     if ((item.leader_count ?? 1) > 1) {
       const primary = item.primary_leader_name || item.primary_leader_card_id || "earliest deck";
-      return `${decks} · shared (sorted under ${primary})`;
+      // The breakdown already says the card is shared; the sort note only
+      // matters when grouping by deck.
+      if (!breakdown) return `${decks} · shared (sorted under ${primary})`;
+      return sortingByDeck ? `${decks} · ${breakdown} · sorted under ${primary}` : `${decks} · ${breakdown}`;
     }
+    if (breakdown) return `${decks} · ${breakdown}`;
     if (sortingByDeck && item.primary_leader_name) {
       return `${decks} · ${item.primary_leader_name}`;
     }
@@ -1537,6 +1572,39 @@ function ShoppingPage() {
               />
               Show alt arts
             </label>
+          </div>
+          <div className="deck-filter need-mode">
+            <div className="deck-filter-head">
+              <span id="need-mode-label">Copies needed</span>
+            </div>
+            <div className="layout-toggle" role="radiogroup" aria-labelledby="need-mode-label">
+              {(
+                [
+                  [false, "Share between leaders"],
+                  [true, "Separate per leader"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={label}
+                  type="button"
+                  role="radio"
+                  aria-checked={sumAcrossLeaders === value}
+                  className={sumAcrossLeaders === value ? "active" : ""}
+                  disabled={!meQ.data || setSumAcrossLeaders.isPending}
+                  onClick={() => {
+                    if (sumAcrossLeaders !== value) setSumAcrossLeaders.mutate(value);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="need-mode-note muted">
+              {sumAcrossLeaders
+                ? "Each leader gets its own copies: 4 in a Luffy deck + 3 in a Sabo deck = 7 to buy."
+                : "One set of copies is moved between decks: 4 in a Luffy deck and 3 in a Sabo deck = 4 to buy."}{" "}
+              Decks with the same leader always share. Also used for your public link and group buys.
+            </p>
           </div>
           {sortingByDeck && (
             <p className="sort-deck-note muted">
@@ -3242,7 +3310,9 @@ function PublicSharePage() {
                             <MarketPrice price={item.market_price} productId={item.product_id} />
                           </td>
                           <td>{money(item.remaining_cost)}</td>
-                          <td className="used-in">{item.used_in.join(", ")}</td>
+                          <td className="used-in">
+                            {[item.used_in.join(", "), needBreakdownLabel(item)].filter(Boolean).join(" · ")}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -3285,7 +3355,9 @@ function PublicSharePage() {
                         </div>
                       </div>
                       {item.used_in.length > 0 && (
-                        <p className="used-in mobile-used-in">{item.used_in.join(", ")}</p>
+                        <p className="used-in mobile-used-in">
+                          {[item.used_in.join(", "), needBreakdownLabel(item)].filter(Boolean).join(" · ")}
+                        </p>
                       )}
                     </article>
                   ))}

@@ -49,3 +49,36 @@ def test_shopping_need_respects_deck_filter_max(db):
 
     both = services.shopping_list(db, user, deck_ids=[deck_a.id, deck_b.id])
     assert both.items[0].need == 4
+
+
+def test_shopping_need_sums_across_distinct_leaders_when_enabled(db):
+    """sum_across_leaders: max within a leader, summed across leaders."""
+    add_catalog(db, "OP01-003", name="Chopper", product_id=3, market=1.0)
+    user = make_user(db, email="sum@example.com", name="Summer", sub="sub-sum")
+    luffy_a = add_deck_with_cards(db, user, "Luffy A", {"OP01-003": 4})
+    luffy_b = add_deck_with_cards(db, user, "Luffy B", {"OP01-003": 3})
+    sabo = add_deck_with_cards(db, user, "Sabo", {"OP01-003": 3})
+    leaderless = add_deck_with_cards(db, user, "Loose", {"OP01-003": 1})
+    luffy_a.leader_card_id = "OP01-LUF"
+    luffy_b.leader_card_id = "OP01-LUF"
+    sabo.leader_card_id = "OP01-SAB"
+    db.commit()
+
+    # Default stays max across decks.
+    assert services.shopping_list(db, user).items[0].need == 4
+
+    user.sum_across_leaders = True
+    db.commit()
+    # Luffy max(4, 3) + Sabo 3 + leaderless deck 1.
+    shop = services.shopping_list(db, user)
+    assert shop.items[0].need == 8
+    assert shop.cards_still_needed == 8
+
+    set_owned(db, user, "OP01-003", 5)
+    item = services.shopping_list(db, user).items[0]
+    assert item.still_need == 3
+
+    # Same leader only → still max, not sum.
+    same_leader = services.shopping_list(db, user, deck_ids=[luffy_a.id, luffy_b.id])
+    assert same_leader.items[0].need == 4
+    assert services.shopping_list(db, user, deck_ids=[luffy_a.id, sabo.id, leaderless.id]).items[0].need == 8

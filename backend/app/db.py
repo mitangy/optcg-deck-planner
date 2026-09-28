@@ -95,11 +95,27 @@ def _ensure_deck_is_main() -> None:
         conn.execute(text(f"ALTER TABLE decks ADD COLUMN is_main BOOLEAN DEFAULT {default}"))
 
 
+def _ensure_user_sum_across_leaders() -> None:
+    """Add sum_across_leaders on existing DBs (create_all does not alter tables)."""
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("users")}
+    if "sum_across_leaders" in existing:
+        return
+    default = "FALSE" if engine.dialect.name == "postgresql" else "0"
+    with engine.begin() as conn:
+        conn.execute(
+            text(f"ALTER TABLE users ADD COLUMN sum_across_leaders BOOLEAN DEFAULT {default}")
+        )
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_group_buy_columns()
     _ensure_user_session_version()
     _ensure_deck_is_main()
+    _ensure_user_sum_across_leaders()
 
 
 def get_db() -> Generator[Session, None, None]:
