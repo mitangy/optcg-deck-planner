@@ -2772,3 +2772,99 @@ img.zone-pile-face {
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* —— Generic choice prompt (protocol 5) —— */
+.choice-prompt {
+  width: min(560px, calc(100vw - 1.5rem));
+  max-height: min(70dvh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.choice-intro {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+.choice-intro p {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 0.5rem;
+  margin: 0.35rem 0;
+}
+.choice-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.choice-option .card-tile {
+  cursor: pointer;
+}
+.choice-option.selected .card-tile {
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 2px var(--chrome);
+}
+.choice-option.disabled .card-tile {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.choice-option-caption {
+  font-size: 0.6rem;
+  line-height: 1.2;
+  color: var(--muted);
+  text-align: center;
+  min-height: 1.5em;
+}
+.choice-badge {
+  display: inline-block;
+  margin-right: 0.2rem;
+  padding: 0 0.3rem;
+  border-radius: 4px;
+  background: var(--chrome);
+  color: #0b1018;
+  font-weight: 700;
+}
+.choice-chip {
+  min-height: 2.5rem;
+}
+.choice-rest-note {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.choice-order-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.choice-place {
+  min-width: 4.2rem !important;
+  font-size: 0.7rem;
+}
+.choice-place[aria-pressed="true"] {
+  border-color: var(--chrome) !important;
+}
+.choice-modes {
+  flex-direction: column;
+}
+.choice-mode {
+  text-align: left;
+  white-space: normal;
+}
+
+@media (max-width: 640px) {
+  .choice-prompt {
+    width: auto;
+    max-height: calc(100dvh - 8rem);
+  }
+  .choice-grid {
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  }
+}

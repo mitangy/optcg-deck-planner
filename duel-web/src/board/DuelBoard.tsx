@@ -13,9 +13,7 @@ import {
   resolveDropIntents,
   type DragPayload,
 } from "./dragIntents";
-import { AbilityPrompt } from "./AbilityPrompt";
-import { SearchPrompt } from "./SearchPrompt";
-import { OnPlayPrompt } from "./OnPlayPrompt";
+import { ChoicePrompt } from "./ChoicePrompt";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { IntentBar } from "./IntentBar";
 import {
@@ -45,57 +43,6 @@ type Props = {
 };
 
 const EMPTY_IDS = new Set<string>();
-
-function needsOnPlayPrompt(choice: NonNullable<PlayerView["pendingChoices"]>[number]) {
-  return (
-    (choice.kind === "on_play" ||
-      choice.abilityId === "on_ko_return_don_add_life" ||
-      choice.abilityId === "on_ko_revive_self" ||
-      choice.abilityId === "main_trash_trigger_to_hand" ||
-      choice.abilityId === "trigger_play_trash_character" ||
-      choice.abilityId === "counter_rest_don_opponent_all") &&
-    (choice.abilityId === "on_play_life_choice" ||
-      choice.abilityId === "on_play_hand_to_deck" ||
-      choice.abilityId === "on_play_power_debuff" ||
-      choice.abilityId === "on_play_ko_power" ||
-      choice.abilityId === "on_play_trash_hand_to_life" ||
-      choice.abilityId === "on_play_reveal_draw_trash" ||
-      choice.abilityId === "discard_hand_count" ||
-      choice.abilityId === "on_ko_return_don_add_life" ||
-      choice.abilityId === "on_ko_revive_self" ||
-      choice.abilityId === "main_trash_trigger_to_hand" ||
-      choice.abilityId === "trigger_play_trash_character" ||
-      choice.abilityId === "counter_rest_don_opponent_all")
-  );
-}
-
-function needsStructuredAbilityPrompt(choice: NonNullable<PlayerView["pendingChoices"]>[number]) {
-  return (
-    choice.kind === "when_attacking" ||
-    choice.kind === "leader_on_opp_attack" ||
-    choice.abilityId === "main_play_named_character" ||
-    choice.abilityId === "trigger_negate_opponent_card" ||
-    choice.abilityId === "trigger_ko_opponent_cost" ||
-    choice.abilityId === "teach_negate_leader" ||
-    choice.abilityId === "teach_negate_character" ||
-    choice.abilityId === "on_ko_set_base_power" ||
-    choice.abilityId === "on_ko_ko_opponent_cost" ||
-    choice.abilityId === "on_ko_rest_opponent_cost" ||
-    choice.abilityId === "counter_friendly_power" ||
-    choice.abilityId === "counter_opponent_target_power" ||
-    choice.abilityId === "trigger_friendly_power" ||
-    choice.abilityId === "newgate_battle_power" ||
-    choice.abilityId === "teach_redirect" ||
-    choice.abilityId === "rocks_reveal_draw"
-  );
-}
-
-function needsSearchPrompt(choice: NonNullable<PlayerView["pendingChoices"]>[number]) {
-  return (
-    choice.kind === "search_top_deck" ||
-    (choice.kind === "activate_main" && choice.abilityId === "fullalead_search_cost")
-  );
-}
 
 function formatCountdown(endsAt: number | null | undefined, now: number): string | null {
   if (endsAt == null) return null;
@@ -626,41 +573,14 @@ export function DuelBoard({
           }}
         />
       ) : !spectating &&
+        mySeat != null &&
         view.pendingChoices?.[0] &&
-        needsSearchPrompt(view.pendingChoices[0]) &&
+        view.pendingChoices[0].kind !== "order_effects" &&
         view.pendingChoices[0].seat === mySeat ? (
-        <SearchPrompt
+        <ChoicePrompt
           key={view.pendingChoices[0].id}
-          view={view}
           choice={view.pendingChoices[0]}
-          onSend={(intent) => {
-            setHandFilter(null);
-            setSelectedBoardId(null);
-            onSendIntent(intent);
-          }}
-        />
-      ) : !spectating &&
-        view.pendingChoices?.[0] &&
-        needsOnPlayPrompt(view.pendingChoices[0]) &&
-        view.pendingChoices[0].seat === mySeat ? (
-        <OnPlayPrompt
-          key={view.pendingChoices[0].id}
-          view={view}
-          choice={view.pendingChoices[0]}
-          onSend={(intent) => {
-            setHandFilter(null);
-            setSelectedBoardId(null);
-            onSendIntent(intent);
-          }}
-        />
-      ) : !spectating &&
-        view.pendingChoices?.[0] &&
-        needsStructuredAbilityPrompt(view.pendingChoices[0]) &&
-        view.pendingChoices[0].seat === mySeat ? (
-        <AbilityPrompt
-          key={view.pendingChoices[0].id}
-          view={view}
-          choice={view.pendingChoices[0]}
+          mySeat={mySeat}
           onSend={(intent) => {
             setHandFilter(null);
             setSelectedBoardId(null);
@@ -673,7 +593,7 @@ export function DuelBoard({
         <div className="ability-prompt ability-prompt-waiting" role="status">
           <h3>Waiting for opponent</h3>
           <p>{view.pendingChoices[0].prompt}</p>
-          <p className="meta">They are resolving a leader ability or effect choice.</p>
+          <p className="meta">They are resolving an effect choice.</p>
         </div>
       ) : null}
 
@@ -681,16 +601,8 @@ export function DuelBoard({
         <IntentBar
           intents={(() => {
             const front = view.pendingChoices?.[0];
-            // AbilityPrompt / OnPlay / EffectOrder own Accept/Decline — never
-            // surface bare resolve_pending_choice for structured attack-window
-            // abilities (when_attacking / leader_on_opp_attack), even if the
-            // hotseat seat briefly mismatches the choice owner.
-            const structuredOwns =
-              front &&
-              (front.kind === "order_effects" ||
-                needsStructuredAbilityPrompt(front) ||
-                needsSearchPrompt(front) ||
-                needsOnPlayPrompt(front));
+            // ChoicePrompt / EffectOrderPrompt own every pending-choice answer.
+            const structuredOwns = Boolean(front);
             if (!structuredOwns) return view.legalIntents;
             return view.legalIntents.filter(
               (i) =>

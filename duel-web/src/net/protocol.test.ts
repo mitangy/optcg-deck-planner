@@ -66,26 +66,32 @@ describe("protocol parsers", () => {
     expect(() => assertNoOpponentHand(sampleView(true))).toThrow(/privacy|leak/i);
   });
 
-  it("rejects private search candidates sent to the wrong viewer", () => {
+  it("rejects private choice options sent to the wrong viewer", () => {
     const view = sampleView();
-    view.pendingChoices = [
-      {
-        id: "search_1",
-        seat: 1,
-        kind: "search_top_deck",
-        cardDefId: "OP09-095",
-        optional: false,
-        prompt: "Search",
-        privateToSeat: 1,
-        search: {
-          options: [{ id: "opaque_1", defId: "OP09-086", eligible: true }],
-          maxSelect: 1,
-          remainder: "deck_bottom",
-        },
+    const look = {
+      id: "look_1",
+      seat: 1 as const,
+      kind: "effect" as const,
+      cardDefId: "OP09-095",
+      optional: false,
+      prompt: "Look",
+      privateToSeat: 1 as const,
+      request: {
+        type: "look" as const,
+        options: [{ id: "o0", defId: "OP09-086", zone: "deck" as const, eligible: true }],
+        minSelect: 0,
+        maxSelect: 1,
+        groups: [{ label: "Up to 1: add to hand", max: 1, eligibleIds: ["o0"] }],
+        rest: "deck_bottom" as const,
+        restLabel: "bottom",
       },
-    ];
-    expect(() => assertNoOpponentHand(view)).toThrow(/private search/i);
-    delete view.pendingChoices[0]!.search;
+    };
+    view.pendingChoices = [look];
+    expect(() => assertNoOpponentHand(view)).toThrow(/private choice/i);
+    view.pendingChoices = [{ ...look, request: { ...look.request, options: [{ id: "o0", defId: "HIDDEN", eligible: false }] } }];
+    expect(() => assertNoOpponentHand(view)).not.toThrow();
+    // Public field targets may be visible to both players.
+    view.pendingChoices = [{ ...look, privateToSeat: undefined as unknown as 1, request: { type: "select", min: 0, max: 1, options: [{ id: "o0", defId: "OP09-086", zone: "character", instanceId: "c1", eligible: true }] } }];
     expect(() => assertNoOpponentHand(view)).not.toThrow();
   });
 

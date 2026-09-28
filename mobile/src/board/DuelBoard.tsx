@@ -8,11 +8,10 @@ import {
   View,
 } from "react-native";
 import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol";
-import { AbilityPrompt } from "./AbilityPrompt";
+import { ChoicePrompt } from "./ChoicePrompt";
 import { CardTile } from "./CardTile";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { IntentBar } from "./IntentBar";
-import { SearchPrompt } from "./SearchPrompt";
 
 type Props = {
   view: PlayerView | null;
@@ -114,22 +113,17 @@ export function DuelBoard({
           const front = view.pendingChoices?.[0];
           const orderingEffects =
             !spectating && front?.kind === "order_effects" && front.seat === mySeat;
-          const searching =
+          const choosing =
             !spectating &&
-            front?.seat === mySeat &&
-            (front.kind === "search_top_deck" ||
-              (front.kind === "activate_main" && front.abilityId === "fullalead_search_cost"));
-          const abilityPrompt =
-            !spectating &&
-            Boolean(front?.abilityId) &&
-            front?.seat === mySeat &&
-            !orderingEffects &&
-            !searching;
+            mySeat != null &&
+            front != null &&
+            front.kind !== "order_effects" &&
+            front.seat === mySeat;
           // Skip the generic pending banner while a structured prompt owns the UI.
           const showStatusBanner = Boolean(
             view.battle ||
               view.pendingTrigger ||
-              (front && !orderingEffects && !searching && !abilityPrompt),
+              (front && !orderingEffects && !choosing),
           );
           return (
             <>
@@ -154,22 +148,11 @@ export function DuelBoard({
                   }}
                 />
               ) : null}
-              {searching && front ? (
-                <SearchPrompt
+              {choosing && front && mySeat != null ? (
+                <ChoicePrompt
                   key={front.id}
-                  view={view}
                   choice={front}
-                  onSend={(intent) => {
-                    setHandFilter(null);
-                    onSendIntent(intent);
-                  }}
-                />
-              ) : null}
-              {abilityPrompt && front ? (
-                <AbilityPrompt
-                  key={front.id}
-                  view={view}
-                  choice={front}
+                  mySeat={mySeat}
                   onSend={(intent) => {
                     setHandFilter(null);
                     onSendIntent(intent);
@@ -233,9 +216,7 @@ export function DuelBoard({
       {!spectating ? (
         <IntentBar
           intents={
-            view.pendingChoices?.[0]?.kind === "order_effects" ||
-            view.pendingChoices?.[0]?.kind === "search_top_deck" ||
-            view.pendingChoices?.[0]?.abilityId
+            view.pendingChoices?.[0]
               ? view.legalIntents.filter(
                   (i) =>
                     i.type !== "order_pending_effects" &&

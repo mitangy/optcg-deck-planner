@@ -1,11 +1,11 @@
 /**
- * Wire types for protocolVersion 4 — mirrored from game-server/src/protocol.ts.
+ * Wire types for protocolVersion 5 — mirrored from game-server/src/protocol.ts.
  * Do not import @optcg/rules into the app.
  */
 
 import { lookupCard } from "../cards/atlas";
 
-export const PROTOCOL_VERSION = 4 as const;
+export const PROTOCOL_VERSION = 5 as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
 export type Seat = 0 | 1;
@@ -108,16 +108,42 @@ export type CosmeticsMessage = {
 /** Mirrors @optcg/rules PendingChoiceKind. */
 export type PendingChoiceKind =
   | "life_trigger"
-  | "on_play"
-  | "activate_main"
-  | "when_attacking"
-  | "optional_ability"
-  | "leader_on_opp_attack"
-  | "search_top_deck"
+  /** Generic effect prompt; see `request`. */
+  | "effect"
   /** Controller must reorder 2+ simultaneous effects before they resolve. */
   | "order_effects";
 
-/** A single queued ask-to-trigger prompt (chain-ready: server may queue more than one). */
+/** Mirrors @optcg/rules ChoiceOption. Hidden cards arrive as defId "HIDDEN". */
+export type ChoiceOptionView = {
+  id: string;
+  defId?: string;
+  label?: string;
+  zone?: "leader" | "character" | "stage" | "hand" | "trash" | "deck" | "life" | "don" | "resolving";
+  ownerSeat?: Seat;
+  instanceId?: string;
+  eligible: boolean;
+  rested?: boolean;
+};
+
+export type DeckPlacement = "deck_bottom" | "deck_top" | "trash" | "top_or_bottom" | "hand" | "shuffle" | "look_only";
+
+/** Mirrors @optcg/rules ChoiceRequest. */
+export type ChoiceRequestView =
+  | { type: "confirm" }
+  | { type: "select"; min: number; max: number; options: ChoiceOptionView[] }
+  | { type: "mode"; options: ChoiceOptionView[] }
+  | { type: "order"; options: ChoiceOptionView[]; destination: string; allowTopOrBottom?: boolean }
+  | {
+      type: "look";
+      options: ChoiceOptionView[];
+      minSelect: number;
+      maxSelect: number;
+      groups: { label: string; max: number; eligibleIds: string[] }[];
+      rest: DeckPlacement;
+      restLabel: string;
+    };
+
+/** A queued player decision; the front entry blocks other actions for its seat. */
 export type PendingChoiceView = {
   id: string;
   seat: Seat;
@@ -125,64 +151,13 @@ export type PendingChoiceView = {
   cardDefId: string;
   sourceInstanceId?: string;
   optional: boolean;
-  /** Server-authoritative prompt text, e.g. "Usopp — On Play: draw 1 card?". */
+  /** Server-authoritative prompt text. */
   prompt: string;
-  /** Present for leader On-Opponent's-Attack abilities (Teach / Newgate). */
-  abilityId?:
-    | "newgate_battle_power"
-    | "teach_redirect"
-    | "rocks_reveal_draw"
-    | "on_play_add_life"
-    | "on_play_life_choice"
-    | "on_play_power_debuff"
-    | "on_play_hand_to_deck"
-    | "laffitte_search"
-    | "fullalead_search_cost"
-    | "top_deck_search"
-    | "jinbe_attack_power"
-    | "copy_opponent_power"
-    | "on_play_ko_power"
-    | "on_play_trash_hand_to_life"
-    | "on_play_reveal_draw_trash"
-    | "discard_hand_count"
-    | "main_play_named_character"
-    | "main_opponent_life_to_hand"
-    | "trigger_negate_opponent_card"
-    | "trigger_ko_opponent_cost"
-    | "teach_negate_leader"
-    | "teach_negate_character"
-    | "on_ko_return_don_add_life"
-    | "on_ko_revive_self"
-    | "marco_removal_replacement"
-    | "main_trash_trigger_to_hand"
-    | "on_ko_set_base_power"
-    | "on_ko_ko_opponent_cost"
-    | "on_ko_rest_opponent_cost"
-    | "trigger_play_trash_character"
-    | "on_play_add_active_don"
-    | "counter_friendly_power"
-    | "counter_rest_don_opponent_all"
-    | "counter_opponent_target_power"
-    | "trigger_friendly_power";
-  /** Present only for the choosing player; hidden from opponents/spectators. */
-  search?: {
-    options: Array<{ id: string; defId: string; eligible: boolean }>;
-    maxSelect: number;
-    remainder: "deck_bottom" | "trash";
-    takeToLife?: boolean;
-  };
-  trashOptions?: Array<{ id: string; defId: string; eligible: boolean }>;
-  handSelection?: { count: number; qualifyingPower?: number };
-  donOptions?: Array<{ id: string; rested: boolean; attachedTo?: string | null }>;
-  replacementTargetId?: string;
-  targetSelection?: { maxTargets: number; maxCost?: number };
+  request?: ChoiceRequestView;
   privateToSeat?: Seat;
+  hideCardDefFromOthers?: boolean;
   optionCount?: number;
-  /**
-   * When `kind` is `order_effects`, the simultaneous abilities the controller
-   * must permute via `order_pending_effects` (players may rearrange freely;
-   * `legalIntents` only lists a default sim-friendly order).
-   */
+  /** order_effects: the simultaneous abilities to permute via order_pending_effects. */
   unorderedChoices?: PendingChoiceView[];
 };
 
@@ -263,8 +238,10 @@ export function assertNoOpponentHand(view: PlayerView): void {
     throw new Error("opponent.handCount missing");
   }
   for (const choice of view.pendingChoices ?? []) {
-    if (choice.search && (view.spectator || choice.privateToSeat !== view.seat)) {
-      throw new Error("privacy leak: private search options visible to this viewer");
+    const request = choice.request;
+    const hiddenViewer = view.spectator || (choice.privateToSeat != null && choice.privateToSeat !== view.seat);
+    if (hiddenViewer && request && "options" in request && request.options.some((o) => o.defId && o.defId !== "HIDDEN" && !o.instanceId)) {
+      throw new Error("privacy leak: private choice options visible to this viewer");
     }
   }
 }
@@ -457,7 +434,8 @@ export function intentLabel(intent: Intent, view?: PlayerView): string {
     case "resolve_pending_choice": {
       const front = view?.pendingChoices?.[0];
       const who = front ? nameForDef(front.cardDefId) ?? front.cardDefId : "ability";
-      return intent.accept ? `Accept — ${who}` : `Decline — ${who}`;
+      if (!intent.accept) return `Decline — ${who}`;
+      return front?.request?.type === "confirm" || !front?.request ? `Accept — ${who}` : `Resolve — ${who}`;
     }
     case "order_pending_effects":
       return "Confirm effect order";
