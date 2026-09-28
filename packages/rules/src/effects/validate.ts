@@ -40,7 +40,7 @@ const relAny = oneOf("you", "opponent", "any");
 const cmpOp = oneOf("<=", ">=", "==", "<", ">", "!=");
 const keyword = oneOf("blocker", "rush", "rush_character", "double_attack", "banish", "unblockable");
 const duration = oneOf("battle", "turn", "until_start_of_your_next_turn", "until_end_of_opponent_next_turn", "until_end_of_your_next_turn", "permanent");
-const restriction = oneOf("cannot_attack", "cannot_attack_leader", "cannot_block", "cannot_be_ko", "cannot_be_ko_by_effect", "cannot_be_ko_by_opponent_effect", "cannot_be_ko_in_battle", "cannot_be_removed_by_opponent_effect", "cannot_be_rested_by_opponent_effect", "cannot_be_rested", "cannot_be_ko_in_battle_by_attribute", "cannot_be_returned_by_opponent_effect", "no_refresh", "can_attack_active", "cannot_be_blocked_by_power_or_less", "cannot_be_blocked_by_cost_or_less", "cannot_activate_blocker");
+const restriction = oneOf("cannot_attack", "cannot_attack_leader", "cannot_block", "cannot_be_ko", "cannot_be_ko_by_effect", "cannot_be_ko_by_opponent_effect", "cannot_be_ko_in_battle", "cannot_be_removed_by_opponent_effect", "cannot_be_rested_by_opponent_effect", "cannot_be_rested", "cannot_be_ko_in_battle_by_attribute", "cannot_be_returned_by_opponent_effect", "no_refresh", "can_attack_active", "cannot_be_blocked_by_power_or_less", "cannot_be_blocked_by_cost_or_less", "cannot_be_blocked_by_power_or_more", "cannot_activate_blocker");
 const playerRestriction = oneOf("cannot_play_characters", "cannot_play_cards_from_hand", "cannot_play_events", "cannot_add_life_to_hand_by_effect", "cannot_attack_leader", "cannot_draw_by_effect", "cannot_set_don_active", "cannot_set_don_active_by_character_effects");
 const zone = oneOf("leader", "character", "leader_or_character", "stage", "field", "hand", "trash", "hand_or_trash", "deck", "life", "deck_top", "don", "resolving");
 const cardType = oneOf("leader", "character", "event", "stage");
@@ -63,6 +63,7 @@ const countExpr: V = tagged("of", {
   self_power: variant("of", "self_power"),
   battle_power: variant("of", "battle_power", { role: oneOf("attacker", "defender") }),
   sum: variant("of", "sum", { exprs: arr(lazy(() => countExpr), 1) }),
+  distinct_names: variant("of", "distinct_names", { selector: lazy(() => selector) }),
   don_attached_total: variant("of", "don_attached_total", { player: rel }),
 });
 const value: V = (v, p, e) => {
@@ -137,6 +138,7 @@ const cost: V = tagged("k", {
   ko_cards: variant("k", "ko_cards", { selector, count: int(1) }),
   give_don: variant("k", "give_don", { count: int(1), selector }),
   play_from_hand: variant("k", "play_from_hand", { count: int(1) }, { filter }),
+  hand_to_deck_top: variant("k", "hand_to_deck_top", { count: int(1) }),
   trash_to_deck_shuffle: variant("k", "trash_to_deck_shuffle", { count: int(1) }),
   life_face_down: variant("k", "life_face_down", { count: int(1) }),
   life_face_up: variant("k", "life_face_up", { count: int(1) }),
@@ -219,12 +221,21 @@ const statik: V = tagged("s", {
   life_face: variant("s", "life_face", { faceUp: bool }),
 });
 
+const gatedStatic: V = (v, p, e) => {
+  if (v && typeof v === "object" && !Array.isArray(v) && "when" in (v as Record<string, unknown>)) {
+    const { when, ...rest } = v as Record<string, unknown>;
+    arr(cond)(when, p + ".when", e);
+    statik(rest, p, e);
+    return;
+  }
+  statik(v, p, e);
+};
 const trigger = oneOf("static", "on_play", "when_attacking", "on_ko", "on_block", "on_opp_attack", "activate_main", "main", "counter", "trigger", "end_of_your_turn", "end_of_opponent_turn", "start_of_your_turn", "on_event", "replacement");
-const eventTrigger = obj({ event: oneOf("character_ko", "character_played", "don_returned", "self_rested", "life_removed", "event_activated", "trigger_activated", "attack_declared", "card_trashed_from_hand", "self_attacked", "leader_damaged", "character_removed_by_effect", "character_returned", "attack_damage", "self_ko", "don_given", "blocker_activated", "battle_ko_opponent", "life_to_hand"), player: relAny }, { filter, byOpponentEffect: bool });
+const eventTrigger = obj({ event: oneOf("character_ko", "character_played", "don_returned", "self_rested", "life_removed", "event_activated", "trigger_activated", "attack_declared", "card_trashed_from_hand", "self_attacked", "leader_damaged", "character_removed_by_effect", "character_returned", "attack_damage", "self_ko", "don_given", "blocker_activated", "battle_ko_opponent", "life_to_hand"), player: relAny }, { filter, byOpponentEffect: bool, byEffect: bool });
 const replacement = obj({ event: oneOf("ko", "ko_by_effect", "removed_by_opponent_effect", "ko_in_battle", "life_damage"), target: (v, p, e) => { if (v === "self") return; selector(v, p, e); }, instead: effect, optional: bool }, { byOpponent: bool });
 
 const ability: V = (v, p, e) => {
-  obj({ id: str, trigger, text: anyStr }, { oncePerTurn: bool, don: int(1), conditions: arr(cond), costs: arr(cost), effect, statics: arr(statik, 1), eventTrigger, replacement })(v, p, e);
+  obj({ id: str, trigger, text: anyStr }, { oncePerTurn: bool, don: int(1), conditions: arr(cond), costs: arr(cost), effect, statics: arr(gatedStatic, 1), eventTrigger, replacement })(v, p, e);
   const a = v as Record<string, unknown> | null;
   if (!a || typeof a !== "object") return;
   if (a.trigger === "static" && !a.statics) e.push(`${p}: static ability requires statics`);

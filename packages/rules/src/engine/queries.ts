@@ -108,7 +108,11 @@ function staticsFor(state: MatchState, seat: Seat, card: CardInstance): { entry:
   try {
     for (const entry of entries) {
       if (entry.zone !== "field") continue;
-      for (const s of entry.ability.statics ?? []) if (staticApplies(state, entry, s, { seat, card })) out.push({ entry, s });
+      for (const s of entry.ability.statics ?? []) {
+      const when = (s as { when?: Cond[] }).when;
+      if (when && !when.every((c) => evalCond(state, ctxFor(entry.seat, entry.card), c))) continue;
+      if (staticApplies(state, entry, s, { seat, card })) out.push({ entry, s });
+    }
     }
   } finally {
     staticGuard -= 1;
@@ -208,7 +212,7 @@ export function counterOf(state: MatchState, seat: Seat, card: CardInstance): nu
       if (s.s !== "counter") continue;
       if (s.onlyWithoutCounter && (def.counter ?? 0) > 0) continue;
       if (!loc || !filterMatches(state, ctxFor(entry.seat, entry.card), s.filter, loc)) continue;
-      value = s.mode === "set" ? Math.max(value, s.value) : value + s.value;
+      value = s.mode === "set" ? s.value : value + s.value;
     }
   }
   return value;
@@ -395,6 +399,7 @@ export function evalCount(state: MatchState, ctx: EvalCtx, expr: CountExpr): num
       return loc?.card ? powerOf(state, loc.seat, loc.card) : 0;
     }
     case "sum": return expr.exprs.reduce((n, e) => n + evalCount(state, ctx, e), 0);
+    case "distinct_names": return new Set(candidates(state, ctx, expr.selector).map((l) => getCardDef(l.defId).name)).size;
     case "var_sum": return asList(ctx.vars[expr.name]).reduce((n, id) => {
       const loc = locate(state, id);
       if (!loc) return n;
@@ -479,6 +484,7 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
     case "ko_cards": return candidates(state, ctx, cost.selector).filter((l) => l.card && !hasRestriction(state, l.seat, l.card, "cannot_be_ko") && !hasRestriction(state, l.seat, l.card, "cannot_be_ko_by_effect")).length >= cost.count;
     case "give_don": return activeDon(p).length >= cost.count && candidates(state, ctx, cost.selector).length > 0;
     case "play_from_hand": return candidates(state, ctx, { player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }).length >= cost.count;
+    case "hand_to_deck_top": return p.hand.filter((c) => c.id !== ctx.sourceId).length >= cost.count;
     case "trash_to_deck_shuffle": return p.trash.length >= cost.count;
     case "life_face_down": return p.faceUpLife.filter(Boolean).length >= cost.count || p.life.length >= cost.count;
     case "life_face_up": return p.life.length >= cost.count;

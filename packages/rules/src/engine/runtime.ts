@@ -133,6 +133,7 @@ export function performKo(sim: Sim, loc: Located, cause: RemovalCause): void {
     const et = ability.eventTrigger;
     if (ability.trigger !== "on_event" || et?.event !== "self_ko") continue;
     if (et.byOpponentEffect && (cause.byEffectOf == null || cause.byEffectOf === loc.seat)) continue;
+    if (et.byEffect && cause.byEffectOf == null) continue;
     if (!abilityGateOpen(state, loc.seat, entry, ability)) continue;
     state.triggerQueue.push({ id: alloc(state, "trig"), seat: loc.seat, sourceInstanceId: entry.id, sourceDefId: entry.defId, abilityId: ability.id, window: "on_event", batch: state.triggerBatch });
   }
@@ -609,6 +610,7 @@ function execAct(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecResult {
       return "next";
     }
     case "play": {
+      frame.bindings._affected = [];
       for (const loc of targetsOf(effect.target)) {
         if (isOnField(loc)) continue;
         const def = getCardDef(loc.defId);
@@ -616,6 +618,7 @@ function execAct(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecResult {
         if (def.type === "character" && playerRestricted(state, loc.seat, "cannot_play_characters", loc)) continue;
         const entry = takeCard(state, loc);
         beginPlay(sim, loc.seat, entry, Boolean(effect.rested));
+        frame.bindings._affected = [...(Array.isArray(frame.bindings._affected) ? frame.bindings._affected : []), entry.id];
       }
       return "next";
     }
@@ -870,7 +873,8 @@ export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: Cho
       if (picked.some((id) => !request.options.some((o) => o.id === id && o.eligible))) return "Selected option is invalid";
       if (picked.length < request.min || picked.length > request.max) return `Choose between ${request.min} and ${request.max} cards`;
       const ids = picked.map((id) => b[id]!);
-      for (const id of ids) if (!locate(state, id)) return "A selected card is no longer available";
+      const donExists = (id: string) => state.players.some((p) => p.costArea.some((d) => d.id === id) || p.attachedDons.some((d) => d.id === id));
+      for (const id of ids) if (!locate(state, id) && !donExists(id)) return "A selected card is no longer available";
       const meta = typeof frame.bindings._selectMeta === "string" ? JSON.parse(frame.bindings._selectMeta) as { totalCostAtMost: unknown; totalPowerAtMost: unknown; distinctNames: boolean } : null;
       if (meta?.totalCostAtMost != null) {
         const ctx = frameCtx(frame);

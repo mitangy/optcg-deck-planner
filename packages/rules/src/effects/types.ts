@@ -37,6 +37,8 @@ export type CountExpr =
   | { of: "self_power" }
   | { of: "battle_power"; role: "attacker" | "defender" }
   | { of: "sum"; exprs: CountExpr[] }
+  /** Number of distinct card names among cards matching the selector. */
+  | { of: "distinct_names"; selector: Selector }
   | { of: "don_attached_total"; player: Rel };
 
 export interface Cmp {
@@ -149,6 +151,7 @@ export type Restriction =
   | "can_attack_active"
   | "cannot_be_blocked_by_power_or_less"
   | "cannot_be_blocked_by_cost_or_less"
+  | "cannot_be_blocked_by_power_or_more"
   | "cannot_activate_blocker";
 
 export type PlayerRestriction =
@@ -236,6 +239,7 @@ export type Cost =
   /** Give your own active DON!! to one of your cards (as a cost). */
   | { k: "give_don"; count: number; selector: Selector }
   | { k: "play_from_hand"; count: number; filter?: Filter }
+  | { k: "hand_to_deck_top"; count: number }
   | { k: "trash_to_deck_shuffle"; count: number }
   | { k: "life_face_down"; count: number }
   | { k: "life_face_up"; count: number }
@@ -336,6 +340,9 @@ export type Static =
 
 export type StaticTarget = "self" | { all: Selector };
 
+/** Optional per-entry gate on a static (in addition to the ability's conditions). */
+export type GatedStatic = Static & { when?: Cond[] };
+
 export type Trigger =
   | "static"
   | "on_play"
@@ -384,6 +391,8 @@ export interface EventTrigger {
   filter?: Filter;
   /** Event must be caused by the opponent's effect. */
   byOpponentEffect?: boolean;
+  /** Event must be caused by any effect (not battle). */
+  byEffect?: boolean;
 }
 
 export type ReplacementEvent = "ko" | "ko_by_effect" | "removed_by_opponent_effect" | "ko_in_battle" | "life_damage";
@@ -410,7 +419,7 @@ export interface Ability {
   /** Costs paid when activated or accepted (a cost makes a trigger optional). */
   costs?: Cost[];
   effect?: Effect;
-  statics?: Static[];
+  statics?: GatedStatic[];
   eventTrigger?: EventTrigger;
   replacement?: Replacement;
   /** Printed clause text this ability implements (display/audit only). */

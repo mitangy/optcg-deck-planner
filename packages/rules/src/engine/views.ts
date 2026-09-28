@@ -146,6 +146,6 @@ export function assertInvariants(state: MatchState): void {
     const attached = new Set(p.attachedDons.map((d) => d.id));
     for (const c of [p.leader, ...p.characters, ...(p.stage ? [p.stage] : [])]) for (const id of c.attachedDonIds) if (!attached.has(id)) throw new Error(`orphan don ${id}`);
     const donTotal = p.donDeck.length + p.costArea.length + p.attachedDons.length;
-    if (donTotal !== 10) throw new Error(`DON!! conservation violated seat ${seat}: ${donTotal}`);
+    if (donTotal !== 10 && donTotal !== p.donTotal) throw new Error(`DON!! conservation violated seat ${seat}: ${donTotal}`);
   }
 }

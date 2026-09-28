@@ -14,6 +14,12 @@ function fail(state: MatchState, code: string, message: string): ApplyResult {
   return { ok: false, state, events: [], error: { code, message } };
 }
 
+/** "Under the rules of this game, your DON!! deck consists of N cards." */
+function donDeckSize(leaderId: string): number {
+  for (const ability of abilitiesFor(leaderId)) for (const s of ability.statics ?? []) if (s.s === "deck_rule" && /^don_deck:\d+$/.test(s.rule)) return Number(s.rule.split(":")[1]);
+  return 10;
+}
+
 function buildPlayer(state: MatchState, cfg: PlayerDeckConfig, rng: Rng): PlayerState {
   const leaderDef = getCardDef(cfg.leaderId);
   if (leaderDef.type !== "leader" || leaderDef.life == null) throw new Error(`Invalid leader ${cfg.leaderId}`);
@@ -28,12 +34,13 @@ function buildPlayer(state: MatchState, cfg: PlayerDeckConfig, rng: Rng): Player
     zoneInstanceIds: { deck: [], trash: [], life: [] },
     faceUpLife: [],
     resolving: [],
-    donDeck: Array.from({ length: 10 }, () => makeDon(state)),
+    donDeck: Array.from({ length: donDeckSize(leaderDef.id) }, () => makeDon(state)),
     costArea: [],
     attachedDons: [],
     mulliganDone: false,
     turnsStarted: 0,
   };
+  player.donTotal = player.donDeck.length;
   const shuffled = rng.shuffle(cfg.deck.map((defId) => ({ defId: getCardDef(defId).id, id: alloc(state, "card") })));
   player.deck = shuffled.map((c) => c.defId);
   player.zoneInstanceIds.deck = shuffled.map((c) => c.id);
@@ -135,6 +142,8 @@ function canBlockWith(state: MatchState, seat: Seat, blocker: CardInstance): boo
   if (hasKeyword(state, b.attackerSeat, attacker, "unblockable") || hasRestriction(state, b.attackerSeat, attacker, "cannot_activate_blocker")) return false;
   const powerLimit = restrictionValue(state, b.attackerSeat, attacker, "cannot_be_blocked_by_power_or_less");
   if (typeof powerLimit === "number" && powerOf(state, seat, blocker) <= powerLimit) return false;
+  const powerFloor = restrictionValue(state, b.attackerSeat, attacker, "cannot_be_blocked_by_power_or_more");
+  if (typeof powerFloor === "number" && powerOf(state, seat, blocker) >= powerFloor) return false;
   const costLimit = restrictionValue(state, b.attackerSeat, attacker, "cannot_be_blocked_by_cost_or_less");
   if (typeof costLimit === "number" && costOf(state, seat, blocker) <= costLimit) return false;
   return true;

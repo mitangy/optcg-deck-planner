@@ -211,6 +211,8 @@ export interface PlayerState {
   attachedDons: DonInstance[];
   mulliganDone: boolean;
   turnsStarted: number;
+  /** DON!! cards this player owns in total (10 unless a rule changes it). */
+  donTotal?: number;
 }
 
 /** A triggered ability waiting to start resolution. */

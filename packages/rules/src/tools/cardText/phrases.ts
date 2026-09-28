@@ -121,6 +121,10 @@ function parseQualifiers(text: string, ctx: Ctx, filter: Filter, extra: { totalC
     if ((m = take(/^(?:with |and )?(?:the )?§Q(\d+)§(?: or §Q(\d+)§)? attribute/i))) { filter.attributes = [ctx.ph.quotes[Number(m[1])]!, ...(m[2] ? [ctx.ph.quotes[Number(m[2])]!] : [])]; continue; }
     if ((m = take(/^with (?:a )?trigger/i))) { filter.hasTrigger = true; continue; }
     if ((m = take(/^with different card names/i))) { extra.distinctNames = true; continue; }
+    if ((m = take(/^(?:and )?(?:with )?a total cost of (\d+) or less/i))) { extra.totalCostAtMost = num(m[1]!); continue; }
+    if ((m = take(/^(?:and )?a type including (§Q\d+§)/))) { const q = quote(m[1]!, ctx); if (!q) return false; filter.traitIncludes = [q]; continue; }
+    if ((m = take(/^that is either (§N\d+§) or has the <(\w+)> attribute/i))) { const n = nameList(m[1]!, ctx); if (!n) return false; filter.any = [{ names: n }, { attributes: [m[2]!] }]; continue; }
+    if ((m = take(/^with a cost of (\d+) or (\d+)(?! or)/))) { filter.any = [...(filter.any ?? []), { cost: { op: "==", value: num(m[1]!) } }, { cost: { op: "==", value: num(m[2]!) } }]; continue; }
     if ((m = take(/^(?:that has|with) (\d+) or more DON!! cards given/i))) { filter.donGiven = { op: ">=", value: num(m[1]!) }; continue; }
     if ((m = take(/^with (?:a|any) DON!! cards? given/i))) { filter.donGiven = { op: ">=", value: 1 }; continue; }
     if ((m = take(/^with a (base )?cost (\d+) or (less|more)/))) { (m[1] ? (filter.baseCost = cmp(m[3]!, num(m[2]!))) : (filter.cost = cmp(m[3]!, num(m[2]!)))); continue; }
@@ -239,6 +243,7 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
       text = text.slice(m[0].length); continue;
     }
     if ((m = /^<(\w+)>(?: or <(\w+)>)? attribute /.exec(text))) { filter.attributes = [m[1]!, ...(m[2] ? [m[2]] : [])]; text = text.slice(m[0].length); continue; }
+    if ((m = /^(§T\d+§) type or <(\w+)> attribute /.exec(text))) { const t = traitList(m[1]!, ctx); if (!t) return null; filter.any = [{ traits: t }, { attributes: [m[2]!] }]; text = text.slice(m[0].length); continue; }
     if ((m = /^(\d+) cost /.exec(text))) { filter.cost = { op: "==", value: num(m[1]!) }; text = text.slice(m[0].length); continue; }
     if ((m = /^(§N\d+§(?:(?:, | or )§N\d+§)*) or (?:(red|green|blue|purple|black|yellow) )?(Event|Character|Stage)( cards?)? ?/.exec(text)) && /^(?:$|with |other than )/.test(text.slice(m[0].length))) {
       const names = nameList(m[1]!, ctx); if (!names) return null;
@@ -258,7 +263,7 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
   // Noun: named cards or a type noun, followed by qualifiers.
   let zone: Zone | null = null;
   let types: Filter["types"];
-  const named = /^(§N\d+§(?:(?:, | or |, or )§N\d+§)*)(?: cards?| characters?)?(?=$| with | other than | from | in | that )/i.exec(text);
+  const named = /^(§N\d+§(?:(?:, | or |, or | and |, and )§N\d+§)*)(?: cards?| characters?)?(?=$| with | other than | from | in | that )/i.exec(text);
   if (named) {
     const names = nameList(named[1]!, ctx);
     if (!names) return null;
@@ -299,6 +304,7 @@ function leaderFilter(adj: string, ctx: Ctx): Filter | null {
     if ((m = /^(red|green|blue|purple|black|yellow)\s*/i.exec(text))) { filter.colors = [m[1]!.toLowerCase()]; text = text.slice(m[0].length); continue; }
     if ((m = /^(?:rested|active)\s*/i.exec(text))) { filter.rested = /rested/i.test(m[0]); text = text.slice(m[0].length); continue; }
     if ((m = /^multicolored\s*/i.exec(text))) { filter.multicolor = true; text = text.slice(m[0].length); continue; }
+    if ((m = /^monocolored\s*/i.exec(text))) { filter.multicolor = false; text = text.slice(m[0].length); continue; }
     return null;
   }
   return Object.keys(filter).length ? filter : null;

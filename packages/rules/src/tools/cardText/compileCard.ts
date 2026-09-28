@@ -56,6 +56,7 @@ function header(tags: string[]): Header {
 }
 
 const EVENT_RULES: [RegExp, (m: RegExpExecArray, ctx: Ctx) => EventTrigger | null][] = [
+  [/^when this character is KO'd by an effect$/i, () => ({ event: "self_ko", player: "you", byEffect: true })],
   [/^when a DON!! card on (?:the|your) field is returned to your DON!! deck$/i, () => ({ event: "don_returned", player: "you" })],
   [/^when your opponent attacks$/i, () => ({ event: "attack_declared", player: "opponent" })],
   [/^when your opponent's character attacks$/i, () => ({ event: "attack_declared", player: "opponent", filter: { types: ["character"] } })],

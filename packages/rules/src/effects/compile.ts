@@ -129,11 +129,18 @@ function selectFor(target: Extract<Target, { ref: "choose" }>, purpose: string, 
 
 function withResolvedTarget(effect: Effect & { target: Target }, out: Instr[]): void {
   if (effect.target.ref === "choose") {
-    const bind = selectFor(effect.target, purposeOf(effect), out);
+    // Resting only makes sense for active cards; set-as-active only for rested ones.
+    const onlyState = effect.do === "rest" ? false : effect.do === "activate" ? true : null;
+    const target = onlyState == null ? effect.target : { ...effect.target, selector: withRested(effect.target.selector, onlyState) };
+    const bind = selectFor(target, purposeOf(effect), out);
     out.push({ op: "act", effect: { ...effect, target: { ref: "var", name: bind } } as Effect });
     return;
   }
   out.push({ op: "act", effect });
+}
+
+function withRested(selector: Selector, rested: boolean): Selector {
+  return { ...selector, filter: { ...(selector.filter ?? {}), rested }, ...(selector.also ? { also: selector.also.map((s) => withRested(s, rested)) } : {}) };
 }
 
 /** Expand one cost into selection + action instructions. Costs are exact (min = max). */
@@ -168,6 +175,7 @@ export function compileCost(cost: Cost, out: Instr[]): void {
     case "mill": out.push({ op: "act", effect: { do: "mill", player: "you", count: cost.count } }); return;
     case "power": out.push({ op: "act", effect: { do: "power", target: cost.target === "self" ? self : { ref: "leader", player: "you" }, amount: cost.amount, duration: "turn" } }); return;
     case "give_opponent_don": out.push({ op: "select", bind: "_cost", selector: { player: "opponent", zone: "character" }, min: 1, max: 1, chooser: "you", purpose: "receive your opponent's DON!! (cost)" }); out.push({ op: "act", effect: { do: "give_don", target: costVar, count: cost.count, donState: "rested", player: "opponent" } }); return;
+    case "hand_to_deck_top": select({ player: "you", zone: "hand", filter: { excludeSelf: true } }, cost.count, "place on top of the deck (cost)"); out.push({ op: "act", effect: { do: "to_deck", target: costVar, position: "top" } }); return;
     case "play_from_hand": select({ player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }, cost.count, "play (cost)"); out.push({ op: "act", effect: { do: "play", target: costVar } }); return;
     case "trash_to_deck_shuffle": select({ player: "you", zone: "trash" }, cost.count, "return to the deck (cost)"); out.push({ op: "act", effect: { do: "to_deck", target: costVar, position: "bottom" } }); out.push({ op: "act", effect: { do: "shuffle", player: "you" } }); return;
     case "place_self_in_life": out.push({ op: "act", effect: { do: "to_life", target: self, position: "top", faceUp: cost.faceUp } }); return;
