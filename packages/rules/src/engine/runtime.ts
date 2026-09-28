@@ -429,7 +429,7 @@ function resolveTargets(state: MatchState, frame: ResolutionFrame, target: Targe
     case "var": {
       const v = frame.bindings[target.name];
       const ids = Array.isArray(v) ? v : typeof v === "string" ? [v] : [];
-      return ids.map((id) => locate(state, id)).filter((l): l is Located => l != null);
+      return ids.map((id) => locate(state, id) ?? locateDon(state, id)).filter((l): l is Located => l != null);
     }
     case "all": return candidates(state, ctx, target.selector);
     case "battle": {
@@ -1075,3 +1075,12 @@ export function defaultAnswer(choice: PendingChoice): ChoiceAnswer {
 }
 
 export type { QueuedTrigger };
+
+/** A DON!! card in a cost area as a pseudo-location (zone "don"). */
+function locateDon(state: MatchState, id: string): Located | null {
+  for (const seat of [0, 1] as Seat[]) {
+    const index = state.players[seat].costArea.findIndex((d) => d.id === id);
+    if (index >= 0) return { seat, zone: "don" as Located["zone"], index, id, defId: "DON" };
+  }
+  return null;
+}
