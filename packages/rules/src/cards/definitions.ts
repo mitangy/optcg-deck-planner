@@ -669,6 +669,9 @@ export function ensureCardDef(
 
   const traits = TRAITS_BY_ID[key];
   const meta = catalogMetaFor(key);
+  if (!meta) {
+    throw new Error(`Unknown card def: ${key}`);
+  }
   const printed =
     meta?.effectText?.trim() &&
     meta.effectText.trim() !== "—" &&
@@ -728,6 +731,22 @@ export function ensureCardDef(
 export function ensureDefsForPlayers(
   players: ReadonlyArray<{ leaderId: CardDefId; deck: readonly CardDefId[] }>,
 ): void {
+  // Validate before mutating the process-global catalog. Client-provided decks
+  // must not be able to retain arbitrary ids for a server's lifetime.
+  for (const p of players) {
+    const leaderId = normalizeCardDefId(p.leaderId);
+    const leader = byId.get(leaderId);
+    if (!leader && catalogMetaFor(leaderId)?.type !== "leader") {
+      throw new Error(`Unknown or invalid leader: ${leaderId}`);
+    }
+    for (const raw of p.deck) {
+      const id = normalizeCardDefId(raw);
+      if (!byId.has(id) && !catalogMetaFor(id)) {
+        throw new Error(`Unknown card def: ${id}`);
+      }
+    }
+  }
+
   const missing: string[] = [];
   for (const p of players) {
     const leaderId = normalizeCardDefId(p.leaderId);
@@ -740,11 +759,7 @@ export function ensureDefsForPlayers(
     }
   }
   if (missing.length) {
-    // Dedupe for logs/tests; createMatch still proceeds with stubs.
-    const uniq = [...new Set(missing)];
-    console.warn(
-      `[optcg/rules] Auto-stubbed ${uniq.length} missing card def(s): ${uniq.join(", ")}`,
-    );
+    console.warn(`[optcg/rules] Auto-stubbed ${new Set(missing).size} catalog card def(s)`);
   }
 }
 
