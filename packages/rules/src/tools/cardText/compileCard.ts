@@ -56,6 +56,17 @@ function header(tags: string[]): Header {
 }
 
 const EVENT_RULES: [RegExp, (m: RegExpExecArray, ctx: Ctx) => EventTrigger | null][] = [
+  [/^when (?:this leader or any of your characters|any of your characters or this leader) (?:is|are) given a DON!! card$/i, () => ({ event: "don_given", player: "you" })],
+  [/^when your opponent activates (?:a )?\[Blocker\]$/i, () => ({ event: "blocker_activated", player: "opponent" })],
+  [/^when this character battles and KOs your opponent's character$/i, () => ({ event: "battle_ko_opponent", player: "you" })],
+  [/^when you deal damage to your opponent's life$/i, () => ({ event: "leader_damaged", player: "opponent" })],
+  [/^when a card is added to your hand from your life$/i, () => ({ event: "life_to_hand", player: "you" })],
+  [/^when a \[Trigger\] activates$/i, () => ({ event: "trigger_activated", player: "any" })],
+  [/^when a card is removed from your opponent's life cards$/i, () => ({ event: "life_removed", player: "opponent" })],
+  [/^when a character is removed from the field by your effect$/i, () => ({ event: "character_removed_by_effect", player: "any" })],
+  [/^when your (.+?) is removed from the field by an effect$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_removed_by_effect", player: "you", ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
+  [/^when you play (?:a |an )?(.+?) from your hand$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_played", player: "you", ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
+  [/^when (?:one of )?your (.+?) (?:is|are) KO'd$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_ko", player: "you", ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
   [/^when a character is KO'd$/i, () => ({ event: "character_ko", player: "any" })],
   [/^when this character is KO'd( by your opponent's effect)?$/i, (m) => ({ event: "self_ko", player: "you", ...(m[1] ? { byOpponentEffect: true } : {}) })],
   [/^when this (?:character|leader)'s attack deals damage to your opponent's life$/i, () => ({ event: "attack_damage", player: "you" })],
@@ -82,6 +93,11 @@ const EVENT_RULES: [RegExp, (m: RegExpExecArray, ctx: Ctx) => EventTrigger | nul
 ];
 
 function parseEventTrigger(text: string, ctx: Ctx): { trigger: EventTrigger; conditions: Cond[]; rest: string } | null {
+  const inverted = /^([^,]+?) (when .+?)\.?$/i.exec(clean(text));
+  if (inverted && !/^when /i.test(clean(text)) && !/^if /i.test(clean(text))) {
+    const again = parseEventTrigger(inverted[2]! + ", " + inverted[1]! + ".", ctx);
+    if (again) return again;
+  }
   const m = /^(when .+?), (.+)$/i.exec(clean(text));
   if (!m) return null;
   // The first comma may be part of a condition ("when ..., if ...,").
@@ -106,7 +122,7 @@ function parseEventTrigger(text: string, ctx: Ctx): { trigger: EventTrigger; con
   return null;
 }
 
-const REPLACEMENT_RE = /^if (this character|this leader|your leader|your (.+?)|(?:one of |any of )?your (.+?)) would be (KO'd|removed from the field)( by (?:an? |your )?(?:opponent's )?effects?| in battle)?(?: by your opponent's effect)?, (you may )?(.+?) instead$/i;
+const REPLACEMENT_RE = /^if (this character|this leader|your leader|your (.+?)|(?:one of |any of )?your (.+?)) would (?:be )?(KO'd|removed from the field|leave the field|be removed from the field by your opponent's effect or KO'd)( by (?:an? |your )?(?:opponent's )?effects?| in battle)?(?: by your opponent's effect)?, (you may )?(.+?) instead$/i;
 
 function parseReplacement(text: string, ctx: Ctx): Replacement | null {
   const m = REPLACEMENT_RE.exec(clean(text));
@@ -121,7 +137,9 @@ function parseReplacement(text: string, ctx: Ctx): Replacement | null {
   const how = (m[5] ?? "").toLowerCase();
   const byOpponent = /opponent/.test(m[0]!.toLowerCase().split("would be")[1] ?? "");
   let event: Replacement["event"];
-  if (m[4]!.toLowerCase().startsWith("removed")) event = "removed_by_opponent_effect";
+  if (/leave the field|or KO'd/i.test(m[4]!)) event = "ko";
+  else if (m[4]!.toLowerCase().startsWith("removed") && !/opponent/i.test(m[0]!)) event = "ko";
+  else if (m[4]!.toLowerCase().startsWith("removed")) event = "removed_by_opponent_effect";
   else if (how.includes("battle")) event = "ko_in_battle";
   else if (how.includes("effect")) event = "ko_by_effect";
   else event = "ko";

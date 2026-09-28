@@ -17,7 +17,7 @@ import time
 from datetime import datetime, timezone
 from urllib.request import urlopen
 
-IMPORTER_VERSION = 2
+IMPORTER_VERSION = 3
 BASE = "https://en.onepiece-cardgame.com/cardlist/"
 FIELDS = {"name": "cardName", "colors": "color", "traits": "feature",
           "attributes": "attribute", "power": "power", "counter": "counter",
@@ -97,7 +97,13 @@ def discover_series(html):
     return dict(sorted(result.items()))
 
 
+# Official text writes attributes as literal "<Slash>" inside the HTML, which an
+# HTML parser would swallow as tags. Protect them as fullwidth brackets.
+ATTRIBUTE_MARKER = re.compile(r"<(Strike|Slash|Special|Wisdom|Ranged)>")
+
+
 def parse_cards(html):
+    html = ATTRIBUTE_MARKER.sub(lambda m: f"\uff1c{m.group(1)}\uff1e", html)
     parser = PageParser()
     parser.feed(html)
     cards = {}
@@ -170,6 +176,12 @@ def encoded(value):
     return (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
 
 
+def retrieved_at(fetch, url):
+    """Original retrieval time for replayed snapshots; now for live fetches."""
+    recorded = getattr(fetch, "retrieved", {}).get(url)
+    return recorded or datetime.now(timezone.utc).isoformat()
+
+
 def collect(series, output, catalog, fetch=None, all_series=False):
     fetch = fetch or (lambda url: urlopen(url, timeout=45).read())
     all_cards, sources = {}, []
@@ -183,7 +195,7 @@ def collect(series, output, catalog, fetch=None, all_series=False):
         digest = hashlib.sha256(raw).hexdigest()
         (raw_dir / f"{digest}.html").write_bytes(raw)
         sources.append({"url": BASE, "sha256": digest,
-                        "retrievedAt": datetime.now(timezone.utc).isoformat()})
+                        "retrievedAt": retrieved_at(fetch, BASE)})
     for series_id in sorted(set(series)):
         if not re.fullmatch(r"\d+", series_id):
             raise ValueError("Series must be a numeric Bandai series ID")
@@ -193,7 +205,7 @@ def collect(series, output, catalog, fetch=None, all_series=False):
         cards = parse_cards(raw.decode("utf-8"))
         (raw_dir / f"{digest}.html").write_bytes(raw)
         source = {"url": url, "sha256": digest,
-                  "retrievedAt": datetime.now(timezone.utc).isoformat()}
+                  "retrievedAt": retrieved_at(fetch, url)}
         sources.append(source)
         for key, row in cards.items():
             existing = all_cards.get(key)
@@ -218,6 +230,23 @@ def collect(series, output, catalog, fetch=None, all_series=False):
     return payload
 
 
+def replay_fetcher(directory):
+    """Serve fetches from a previous run's content-addressed raw snapshots."""
+    manifest = json.loads((directory / "latest-candidate.json").read_text(encoding="utf-8"))
+    by_url = {source["url"]: source["sha256"] for source in manifest["sources"]}
+    retrieved = {source["url"]: source.get("retrievedAt") for source in manifest["sources"]}
+    def fetch(url):
+        digest = by_url.get(url)
+        if digest is None:
+            raise ValueError(f"No recorded snapshot for {url}")
+        raw = (directory / "raw" / f"{digest}.html").read_bytes()
+        if hashlib.sha256(raw).hexdigest() != digest:
+            raise ValueError(f"Snapshot hash mismatch for {url}")
+        return raw
+    fetch.retrieved = retrieved
+    return fetch
+
+
 if __name__ == "__main__":
     cli = argparse.ArgumentParser(description=__doc__)
     selection = cli.add_mutually_exclusive_group(required=True)
@@ -225,10 +254,12 @@ if __name__ == "__main__":
     selection.add_argument("--all-series", action="store_true")
     cli.add_argument("--output", type=Path, required=True)
     cli.add_argument("--catalog", type=Path, default=Path(__file__).resolve().parents[1] / "packages/rules/src/cards/catalogMeta.json")
+    cli.add_argument("--replay", type=Path, help="Re-parse raw snapshots recorded by a previous run's manifest instead of fetching")
     args = cli.parse_args()
     def fetch_polite(url):
         time.sleep(0.5)
         print(f"Fetching {url}", flush=True)
         return urlopen(url, timeout=45).read()
-    result = collect(args.series, args.output, json.loads(args.catalog.read_text(encoding="utf-8")), fetch_polite, args.all_series)
+    fetch = replay_fetcher(args.replay) if args.replay else fetch_polite
+    result = collect(args.series, args.output, json.loads(args.catalog.read_text(encoding="utf-8")), fetch, args.all_series)
     print(f"Collected {len(result['cards'])} printings; {len(result['reconciliation']['conflicts'])} conflicts require review.")

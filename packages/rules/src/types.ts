@@ -88,6 +88,7 @@ export type ModifierEffect =
   | { type: "cost"; amount: number }
   | { type: "base_power"; value: number }
   | { type: "set_power"; value: number }
+  | { type: "set_cost"; value: number }
   | { type: "keyword"; keyword: Keyword }
   | { type: "restrict"; restriction: Restriction; value?: number; attribute?: string }
   | { type: "negate" }
@@ -237,6 +238,8 @@ export type EngineStep =
   | { kind: "damage" }
   | { kind: "battle_ko"; targetSeat: Seat; targetId: InstanceId; replaced?: boolean }
   | { kind: "life_damage" }
+  /** Effect damage outside battle (Life to hand with Trigger checks). */
+  | { kind: "effect_damage"; seat: Seat; remaining: number }
   | { kind: "end_battle" }
   | { kind: "end_phase" }
   | { kind: "start_turn_triggers" };
@@ -271,8 +274,9 @@ export interface MatchState {
 
 export type BindingValue = string | string[] | number | boolean | null;
 
-/** A delayed effect: the `index`-th `delay` node of an ability, run at end of turn. */
+/** A delayed effect: the `index`-th `delay` node of an ability, run at end of turn / battle. */
 export interface DelayedEffect {
+  when?: "end_of_turn" | "end_of_battle";
   id: string;
   seat: Seat;
   sourceInstanceId: InstanceId;

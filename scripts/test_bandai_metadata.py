@@ -72,6 +72,11 @@ class BandaiMetadataTests(unittest.TestCase):
                 collect(["1", "2"], output, {}, lambda url: card(counter="1000" if url.endswith("2") else "-").encode())
             self.assertEqual(previous, (output / "latest-candidate.json").read_bytes())
 
+    def test_attribute_markers_survive_html_parsing(self):
+        html = card().replace("[DON!! x2] This card gains [Rush].", "[On Play] Up to 1 of your <Slash> attribute Characters gains +1000 power.")
+        row = parse_cards(html)["ST01-002"]
+        self.assertEqual(row["effectText"], "[On Play] Up to 1 of your \uff1cSlash\uff1e attribute Characters gains +1000 power.")
+
     def test_malformed_refresh_is_rejected(self):
         for html in ("<html>Maintenance</html>", card(counter="oops"), card() + card()):
             with self.assertRaises(ValueError):

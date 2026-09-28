@@ -35,6 +35,9 @@ function checkRules(sim: Sim): void {
   const { state } = sim;
   if (state.phase === "mulligan" || state.winner !== null) return;
   const empty = ([0, 1] as Seat[]).filter((s) => state.players[s].deck.length === 0);
+  // "When your deck is reduced to 0, you win the game instead of losing, according to the rules."
+  const winsOnDeckOut = (s: Seat) => abilitiesFor(state.players[s].leader.defId).some((a) => (a.statics ?? []).some((st) => st.s === "deck_rule" && st.rule === "deck_out_win"));
+  if (empty.length === 1 && winsOnDeckOut(empty[0]!)) { gameOver(sim, empty[0]!, "card_effect"); return; }
   if (empty.length === 1) gameOver(sim, otherSeat(empty[0]!), "deck_out");
   else if (empty.length === 2) gameOver(sim, otherSeat(state.activeSeat), "deck_out");
 }
@@ -113,7 +116,7 @@ export function beginTurn(sim: Sim): void {
   const noRefresh = new Set(state.modifiers.filter((m) => m.target.kind === "card" && m.effect.type === "restrict" && m.effect.restriction === "no_refresh" && m.expires.kind === "next_refresh" && m.expires.seat === seat).map((m) => (m.target as { id: string }).id));
   state.modifiers = state.modifiers.filter((m) => !(m.expires.kind === "next_refresh" && m.expires.seat === seat));
   for (const card of fieldCards(p)) {
-    if (!noRefresh.has(card.id)) card.rested = false;
+    if (!noRefresh.has(card.id) && !hasRestriction(state, seat, card, "no_refresh")) card.rested = false;
     card.attachedDonIds = [];
   }
   for (const c of p.characters) c.summoningSick = false;
@@ -149,10 +152,10 @@ export function endTurn(sim: Sim): void {
   const seat = state.activeSeat;
   for (const card of fieldCards(state.players[seat])) queueWindow(state, "end_of_your_turn", seat, card);
   for (const card of fieldCards(state.players[otherSeat(seat)])) queueWindow(state, "end_of_opponent_turn", otherSeat(seat), card);
-  for (const d of state.delayed.filter((x) => x.turn === state.turnNumber)) {
+  for (const d of state.delayed.filter((x) => x.turn === state.turnNumber && (x.when ?? "end_of_turn") === "end_of_turn")) {
     state.triggerQueue.push({ id: alloc(state, "trig"), seat: d.seat, sourceInstanceId: d.sourceInstanceId, sourceDefId: d.sourceDefId, abilityId: d.abilityId, window: "end_of_turn", batch: state.triggerBatch, delayIndex: d.index });
   }
-  state.delayed = state.delayed.filter((x) => x.turn > state.turnNumber);
+  state.delayed = state.delayed.filter((x) => x.turn > state.turnNumber || x.when === "end_of_battle");
   state.steps.push({ kind: "end_phase" });
 }
 
@@ -190,6 +193,7 @@ export function declareBlock(sim: Sim, blockerId: string): void {
   b.target = { kind: "character", instanceId: blocker.id };
   b.blockerId = blocker.id;
   sim.events.push({ type: "blocked", seat: defSeat, blockerId });
+  dispatchEvent(state, "blocker_activated", { seat: defSeat, card: blocker });
   newBatch(state);
   queueWindow(state, "on_block", defSeat, blocker);
   dispatchEvent(state, "self_rested", { seat: defSeat, card: blocker });
@@ -289,14 +293,44 @@ function advanceStep(sim: Sim): void {
       state.steps.shift();
       newBatch(state);
       performKo(sim, loc, { battle: true });
+      const attacker = state.battle ? locate(state, state.battle.attackerId) : null;
+      if (attacker?.card) dispatchEvent(state, "battle_ko_opponent", { seat: attacker.seat, card: attacker });
       return;
     }
     case "end_battle": {
       state.steps.shift();
+      const battleDelays = state.delayed.filter((x) => x.when === "end_of_battle");
+      if (battleDelays.length) {
+        state.delayed = state.delayed.filter((x) => x.when !== "end_of_battle");
+        newBatch(state);
+        for (const d of battleDelays) state.triggerQueue.push({ id: alloc(state, "trig"), seat: d.seat, sourceInstanceId: d.sourceInstanceId, sourceDefId: d.sourceDefId, abilityId: d.abilityId, window: "end_of_battle", batch: state.triggerBatch, delayIndex: d.index });
+        state.steps.unshift({ kind: "end_battle" });
+        return;
+      }
       expireBattle(state);
       state.battle = null;
       if (state.phase !== "game_over") state.phase = "main";
       newBatch(state);
+      return;
+    }
+    case "effect_damage": {
+      if (step.remaining <= 0) { state.steps.shift(); return; }
+      const d = state.players[step.seat];
+      if (d.life.length === 0) { gameOver(sim, otherSeat(step.seat), "leader_battle_at_zero_life"); return; }
+      step.remaining -= 1;
+      const lifeId = d.zoneInstanceIds.life[0]!;
+      const lifeDef = d.life[0]!;
+      dispatchEvent(state, "leader_damaged", { seat: step.seat });
+      const trigger = abilitiesFor(lifeDef).find((a) => a.trigger === "trigger");
+      if (trigger) {
+        const choice: PendingChoice = { id: alloc(state, "choice"), seat: step.seat, kind: "life_trigger", cardDefId: lifeDef, sourceInstanceId: lifeId, optional: true, prompt: `${getCardDef(lifeDef).name} — activate this card's [Trigger]? ${trigger.text}`, request: { type: "confirm" }, privateToSeat: step.seat, hideCardDefFromOthers: true, bindings: { lifeId, abilityId: trigger.id } };
+        state.pendingChoices.push(choice);
+        sim.events.push({ type: "life_taken", seat: step.seat, defId: lifeDef, toHand: false });
+        sim.events.push({ type: "pending_choice_added", seat: step.seat, kind: "life_trigger", cardDefId: lifeDef, optional: true, prompt: choice.prompt, privateToSeat: step.seat, hideCardDefFromOthers: true });
+        return;
+      }
+      takeLifeToHand(sim, step.seat);
+      sim.events.push({ type: "life_taken", seat: step.seat, defId: lifeDef, toHand: true });
       return;
     }
     case "end_phase": {

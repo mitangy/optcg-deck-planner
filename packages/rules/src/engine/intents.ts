@@ -6,7 +6,7 @@ import { MATCH_STATE_VERSION, RULES_PROTOCOL_VERSION, RULES_VERSION } from "../s
 import type { ApplyContext, ApplyResult, AttackTarget, CardInstance, CreateMatchConfig, Intent, MatchState, PlayerDeckConfig, PlayerState, Seat } from "../types.js";
 import { addModifier } from "./modifiers.js";
 import { beginTurn, applyTriggerOrder, declareAttack, declareBlock, endTurn, resolveLifeTrigger, settle } from "./procedure.js";
-import { canPayCosts, counterOf, ctxFor, filterMatches, hasKeyword, hasRestriction, isNegated, playCostOf, playerRestricted, powerOf, restrictionValue } from "./queries.js";
+import { canPayCosts, costOf, counterOf, ctxFor, filterMatches, hasKeyword, hasRestriction, isNegated, playCostOf, playerRestricted, powerOf, restrictionValue } from "./queries.js";
 import { abilityGateOpen, defaultAnswer, dispatchEvent, finishPlay, newBatch, resolveEffectChoice, startAbility, type Sim } from "./runtime.js";
 import { activeDon, alloc, fieldCards, locate, makeCard, makeDon, otherSeat, putCard, takeCard } from "./state.js";
 
@@ -135,12 +135,14 @@ function canBlockWith(state: MatchState, seat: Seat, blocker: CardInstance): boo
   if (hasKeyword(state, b.attackerSeat, attacker, "unblockable") || hasRestriction(state, b.attackerSeat, attacker, "cannot_activate_blocker")) return false;
   const powerLimit = restrictionValue(state, b.attackerSeat, attacker, "cannot_be_blocked_by_power_or_less");
   if (typeof powerLimit === "number" && powerOf(state, seat, blocker) <= powerLimit) return false;
+  const costLimit = restrictionValue(state, b.attackerSeat, attacker, "cannot_be_blocked_by_cost_or_less");
+  if (typeof costLimit === "number" && costOf(state, seat, blocker) <= costLimit) return false;
   return true;
 }
 
 function characterPlayable(state: MatchState, seat: Seat, card: CardInstance): boolean {
   const def = getCardDef(card.defId);
-  if (def.type === "character" && playerRestricted(state, seat, "cannot_play_characters")) return false;
+  if (def.type === "character" && playerRestricted(state, seat, "cannot_play_characters", card)) return false;
   if (def.type === "event") {
     if (playerRestricted(state, seat, "cannot_play_events")) return false;
     const ability = mainAbility(def.id, "main");

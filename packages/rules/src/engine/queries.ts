@@ -146,6 +146,7 @@ export function costOf(state: MatchState, seat: Seat, card: CardInstance): numbe
   let c = getCardDef(card.defId).cost;
   for (const { entry, s } of staticsFor(state, seat, card)) if (s.s === "cost") c += evalValue(state, ctxFor(entry.seat, entry.card), s.amount);
   for (const m of cardModifiers(state, card)) if (m.effect.type === "cost") c += m.effect.amount;
+  for (const m of cardModifiers(state, card)) if (m.effect.type === "set_cost") c = m.effect.value;
   return Math.max(0, c);
 }
 
@@ -172,11 +173,11 @@ export function hasRestriction(state: MatchState, seat: Seat, card: CardInstance
 }
 
 /** Player-level restriction. Filtered restrictions apply only when `card` matches the filter. */
-export function playerRestricted(state: MatchState, seat: Seat, restriction: PlayerRestriction, card?: CardInstance): boolean {
+export function playerRestricted(state: MatchState, seat: Seat, restriction: PlayerRestriction, card?: { id: InstanceId; defId: string }): boolean {
   const applies = (filter: Filter | undefined, ctxSeat: Seat) => {
     if (!filter) return true;
     if (!card) return false;
-    const loc = locate(state, card.id);
+    const loc = locate(state, card.id) ?? { seat, zone: "hand" as const, index: 0, id: card.id, defId: card.defId };
     return loc != null && filterMatches(state, ctxFor(ctxSeat, card), filter, loc);
   };
   for (const m of state.modifiers) {
@@ -272,6 +273,12 @@ function zoneEntries(state: MatchState, seat: Seat, zone: ZoneName): Located[] {
 }
 
 export function candidates(state: MatchState, ctx: EvalCtx, selector: Selector): Located[] {
+  if (selector.also?.length) {
+    const seen = new Set<string>();
+    const out: Located[] = [];
+    for (const s of [{ ...selector, also: undefined }, ...selector.also]) for (const loc of candidates(state, ctx, s)) if (!seen.has(loc.id)) { seen.add(loc.id); out.push(loc); }
+    return out;
+  }
   const out: Located[] = [];
   for (const seat of seatsFor(ctx, selector.player)) {
     if (selector.zone === "don") {
@@ -291,6 +298,7 @@ export function candidates(state: MatchState, ctx: EvalCtx, selector: Selector):
 }
 
 export function selectorMatches(state: MatchState, ctx: EvalCtx, selector: Selector, loc: Located): boolean {
+  if (selector.also?.some((s) => selectorMatches(state, ctx, s, loc))) return true;
   if (!seatsFor(ctx, selector.player).includes(loc.seat)) return false;
   if (!(ZONES[selector.zone] ?? []).includes(loc.zone)) return false;
   return !selector.filter || filterMatches(state, ctx, selector.filter, loc);
@@ -377,6 +385,15 @@ export function evalCount(state: MatchState, ctx: EvalCtx, expr: CountExpr): num
     case "var": { const v = ctx.vars[expr.name]; return typeof v === "number" ? v : typeof v === "boolean" ? (v ? 1 : 0) : asList(v).length; }
     case "leader_power": { const s = relSeat(ctx, expr.player); return powerOf(state, s, state.players[s].leader); }
     case "don_attached_total": return state.players[relSeat(ctx, expr.player)].attachedDons.length;
+    case "self_power": { const loc = locate(state, ctx.sourceId); return loc?.card ? powerOf(state, loc.seat, loc.card) : 0; }
+    case "battle_power": {
+      const b = state.battle;
+      if (!b) return 0;
+      const id = expr.role === "attacker" ? b.attackerId : b.target.kind === "leader" ? state.players[otherSeat(b.attackerSeat)].leader.id : b.target.instanceId;
+      const loc = locate(state, id);
+      return loc?.card ? powerOf(state, loc.seat, loc.card) : 0;
+    }
+    case "sum": return expr.exprs.reduce((n, e) => n + evalCount(state, ctx, e), 0);
     case "var_sum": return asList(ctx.vars[expr.name]).reduce((n, id) => {
       const loc = locate(state, id);
       if (!loc) return n;
@@ -460,6 +477,8 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
     case "return_active_don": return activeDon(p).length >= cost.count;
     case "ko_cards": return candidates(state, ctx, cost.selector).filter((l) => l.card && !hasRestriction(state, l.seat, l.card, "cannot_be_ko") && !hasRestriction(state, l.seat, l.card, "cannot_be_ko_by_effect")).length >= cost.count;
     case "give_don": return activeDon(p).length >= cost.count && candidates(state, ctx, cost.selector).length > 0;
+    case "play_from_hand": return candidates(state, ctx, { player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }).length >= cost.count;
+    case "trash_to_deck_shuffle": return p.trash.length >= cost.count;
     case "life_face_down": return p.faceUpLife.filter(Boolean).length >= cost.count || p.life.length >= cost.count;
     case "life_face_up": return p.life.length >= cost.count;
     case "mill": return p.deck.length >= cost.count;

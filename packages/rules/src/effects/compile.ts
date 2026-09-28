@@ -8,9 +8,9 @@ import type { Ability, Cond, Cost, Effect, LookPick, Placement, Rel, Selector, T
 export type Instr =
   | { op: "select"; bind: string; selector: Selector; min: number; max: number; chooser: Rel; totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean; purpose: string; random?: boolean }
   /** Schedule the ability's `index`-th delayed effect for the end of this turn. */
-  | { op: "delay"; index: number }
+  | { op: "delay"; index: number; when: "end_of_turn" | "end_of_battle" }
   /** Yes/no. When `costs` is set the prompt is skipped (as "no") unless they are payable. */
-  | { op: "confirm"; bind: string; prompt: string; costs?: Cost[] }
+  | { op: "confirm"; bind: string; prompt: string; costs?: Cost[]; chooser?: Rel }
   | { op: "mode"; bind: string; labels: string[]; chooser: Rel }
   | { op: "jump"; to: number }
   | { op: "jumpIfNot"; cond: Cond; to: number }
@@ -168,6 +168,8 @@ export function compileCost(cost: Cost, out: Instr[]): void {
     case "mill": out.push({ op: "act", effect: { do: "mill", player: "you", count: cost.count } }); return;
     case "power": out.push({ op: "act", effect: { do: "power", target: cost.target === "self" ? self : { ref: "leader", player: "you" }, amount: cost.amount, duration: "turn" } }); return;
     case "give_opponent_don": out.push({ op: "select", bind: "_cost", selector: { player: "opponent", zone: "character" }, min: 1, max: 1, chooser: "you", purpose: "receive your opponent's DON!! (cost)" }); out.push({ op: "act", effect: { do: "give_don", target: costVar, count: cost.count, donState: "rested", player: "opponent" } }); return;
+    case "play_from_hand": select({ player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }, cost.count, "play (cost)"); out.push({ op: "act", effect: { do: "play", target: costVar } }); return;
+    case "trash_to_deck_shuffle": select({ player: "you", zone: "trash" }, cost.count, "return to the deck (cost)"); out.push({ op: "act", effect: { do: "to_deck", target: costVar, position: "bottom" } }); out.push({ op: "act", effect: { do: "shuffle", player: "you" } }); return;
     case "place_self_in_life": out.push({ op: "act", effect: { do: "to_life", target: self, position: "top", faceUp: cost.faceUp } }); return;
   }
 }
@@ -194,7 +196,7 @@ export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { 
     }
     case "may": {
       const bind = effect.bind ?? "_did";
-      out.push({ op: "confirm", bind, prompt: effect.prompt ?? "use this effect", ...(effect.costs?.length ? { costs: effect.costs } : {}) });
+      out.push({ op: "confirm", bind, prompt: effect.prompt ?? "use this effect", ...(effect.costs?.length ? { costs: effect.costs } : {}), ...(effect.chooser ? { chooser: effect.chooser } : {}) });
       const jumpIndex = out.length;
       out.push({ op: "jumpIfFalse", name: bind, to: -1 });
       for (const cost of effect.costs ?? []) compileCost(cost, out);
@@ -226,7 +228,7 @@ export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { 
       out.push({ op: "select", bind: effect.bind, selector: effect.selector, min: effect.min, max: effect.max, chooser: effect.chooser ?? "you", ...(effect.totalCostAtMost != null ? { totalCostAtMost: effect.totalCostAtMost } : {}), ...(effect.totalPowerAtMost != null ? { totalPowerAtMost: effect.totalPowerAtMost } : {}), ...(effect.distinctNames ? { distinctNames: true } : {}), purpose: "select" });
       return;
     case "delay":
-      out.push({ op: "delay", index: ctx.delays++ });
+      out.push({ op: "delay", index: ctx.delays++, when: effect.when });
       return;
     case "discard": {
       const count = typeof effect.count === "number" ? effect.count : 0;
@@ -251,7 +253,7 @@ export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { 
       out.push({ op: "look", player: effect.player, count: effect.count, picks: effect.picks, rest: effect.rest, reveal: effect.reveal ?? true });
       return;
     case "ko": case "rest": case "activate": case "to_hand": case "to_deck": case "to_trash": case "to_life": case "play":
-    case "power": case "cost": case "base_power": case "set_power": case "keyword": case "restrict": case "negate": case "give_don": case "redirect_attack":
+    case "power": case "cost": case "base_power": case "set_power": case "set_cost": case "keyword": case "restrict": case "negate": case "give_don": case "redirect_attack":
     case "activate_event": case "reveal":
       withResolvedTarget(effect, out);
       return;

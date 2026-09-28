@@ -34,6 +34,9 @@ export type CountExpr =
   | { of: "var"; name: string }
   | { of: "var_sum"; name: string; field: "cost" | "power" }
   | { of: "leader_power"; player: Rel }
+  | { of: "self_power" }
+  | { of: "battle_power"; role: "attacker" | "defender" }
+  | { of: "sum"; exprs: CountExpr[] }
   | { of: "don_attached_total"; player: Rel };
 
 export interface Cmp {
@@ -107,6 +110,8 @@ export interface Selector {
   player: RelOrAny;
   zone: Zone;
   filter?: Filter;
+  /** Union with further selectors ("Characters or DON!! cards", "… or Stages"). */
+  also?: Selector[];
 }
 
 export type Keyword =
@@ -141,6 +146,7 @@ export type Restriction =
   | "no_refresh"
   | "can_attack_active"
   | "cannot_be_blocked_by_power_or_less"
+  | "cannot_be_blocked_by_cost_or_less"
   | "cannot_activate_blocker";
 
 export type PlayerRestriction =
@@ -226,6 +232,8 @@ export type Cost =
   | { k: "ko_cards"; selector: Selector; count: number }
   /** Give your own active DON!! to one of your cards (as a cost). */
   | { k: "give_don"; count: number; selector: Selector }
+  | { k: "play_from_hand"; count: number; filter?: Filter }
+  | { k: "trash_to_deck_shuffle"; count: number }
   | { k: "life_face_down"; count: number }
   | { k: "life_face_up"; count: number }
   | { k: "mill"; count: number }
@@ -251,7 +259,7 @@ export type Effect =
   | { do: "seq"; steps: Effect[] }
   | { do: "if"; cond: Cond; then: Effect; else?: Effect }
   /** "You may [costs]: [then]" — optional; declining skips `then`. */
-  | { do: "may"; costs?: Cost[]; then: Effect; prompt?: string; bind?: string }
+  | { do: "may"; costs?: Cost[]; then: Effect; prompt?: string; bind?: string; chooser?: Rel }
   /** Pay costs without an optional prompt (e.g. mandatory costs inside a sequence). */
   | { do: "pay"; costs: Cost[]; then: Effect; bind?: string }
   | { do: "choose_one"; options: { label: string; effect: Effect }[]; chooser?: Rel }
@@ -270,8 +278,12 @@ export type Effect =
   | { do: "base_power"; target: Target; value: Value; duration: Duration }
   /** Final power becomes exactly this value (after all other modifiers). */
   | { do: "set_power"; target: Target; value: Value; duration: Duration }
-  /** Run `effect` at the end of this turn (a delayed one-shot). */
-  | { do: "delay"; when: "end_of_turn"; effect: Effect }
+  /** Run `effect` at the end of this turn / battle (a delayed one-shot). */
+  | { do: "delay"; when: "end_of_turn" | "end_of_battle"; effect: Effect }
+  /** Final cost becomes exactly this value. */
+  | { do: "set_cost"; target: Target; value: Value; duration: Duration }
+  /** Deal damage to a player's Leader outside battle (Life to hand, Triggers apply). */
+  | { do: "damage"; player: Rel; count: number }
   /** Activate the [Main] effect of an Event (from hand or trash) without paying its cost. */
   | { do: "activate_event"; target: Target }
   | { do: "keyword"; target: Target; keyword: Keyword; duration: Duration }
@@ -352,6 +364,11 @@ export type GameEventKind =
   | "leader_damaged"
   | "character_removed_by_effect"
   | "character_returned"
+  | "don_given"
+  | "blocker_activated"
+  /** This card won a battle and K.O.'d the opposing Character. */
+  | "battle_ko_opponent"
+  | "life_to_hand"
   /** This card's attack dealt damage to the opponent's Life. */
   | "attack_damage"
   /** This card was K.O.'d (resolves from the trash like On K.O.). */

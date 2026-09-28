@@ -57,7 +57,15 @@ export function normalizeText(input: string): string {
     .replace(/[−–—]/g, "-")
     .replace(/[’‘]/g, "'")
     .replace(/[“”]/g, '"')
-    .replace(/ /g, " ");
+    .replace(/ /g, " ")
+    .replace(/[＜]/g, "<")
+    .replace(/[＞]/g, ">")
+    .replace(/\byour have\b/gi, "you have")
+    .replace(/\byou can (trash|rest|return|place|add|give)\b/gi, "you may $1")
+    .replace(/\byour opponent must (place|trash|return)\b/gi, "your opponent $1s")
+    .replace(/\bK\.O\.'s\b/g, "KOs")
+    .replace(/"(Strike|Slash|Special|Wisdom|Ranged)" attribute/gi, "<$1> attribute")
+    .replace(/"(Strike|Slash|Special|Wisdom|Ranged)" or "(Strike|Slash|Special|Wisdom|Ranged)" attribute/gi, "<$1> or <$2> attribute");
   // Remove reminder text; repeat for nested parentheses.
   for (let pass = 0; pass < 3; pass += 1) text = text.replace(/\s*\([^()]*\)/g, "");
   text = text.replace(/[➀-➉①-⑩]/g, (ch) => ` [RDON ${CIRCLED[ch]}] `);
@@ -67,6 +75,8 @@ export function normalizeText(input: string): string {
   text = text.replace(/DON!!\s*-\s*(\d+)/g, "DON!! -$1");
   text = text.replace(/\[DON!!\s*x\s*(\d+)\]/gi, "[DON!! x$1]");
   text = text.replace(/\s+/g, " ").trim();
+  // A leading ":" is left behind when a cost symbol (➀) precedes it.
+  text = text.replace(/\] : /g, "] ").replace(/\] :/g, "] ");
   return text;
 }
 
