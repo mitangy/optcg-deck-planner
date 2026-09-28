@@ -6,14 +6,15 @@
  * matchmake with ERR_HTTP_HEADERS_SENT.
  */
 import { matchMaker } from "colyseus";
-import { getCorsOrigins } from "./env.js";
+import { getCorsOriginRegex, getCorsOrigins } from "./env.js";
 
 export function installCorsAllowlist(): void {
   const allowed = new Set(getCorsOrigins());
+  const allowedPattern = getCorsOriginRegex();
 
   matchMaker.controller.getCorsHeaders = (headers) => {
     const origin = (headers.get("origin") ?? "").replace(/\/$/, "");
-    if (origin && allowed.has(origin)) {
+    if (origin && (allowed.has(origin) || allowedPattern?.test(origin))) {
       return { "Access-Control-Allow-Origin": origin };
     }
     // Non-browser / same-origin tooling (no Origin header): keep permissive local default.
