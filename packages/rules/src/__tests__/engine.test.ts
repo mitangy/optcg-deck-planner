@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
 import { applyIntent, assertInvariants, createMatch, getPlayerView, getSpectatorView, listLegalIntents, skipMulligans } from "../engine.js";
 import { createSeededRng } from "../rng.js";
+import { projectGameEvents } from "../engine/views.js";
 import { deserializeMatch, serializeMatch, IncompatibleSnapshotError } from "../state/snapshot.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { Intent, MatchState, Seat } from "../types.js";
@@ -211,6 +212,39 @@ describe("privacy", () => {
       expect((view.request as LookView).groups.every((g) => g.eligibleIds.length === 0)).toBe(true);
       expect(view.bindings).toBeUndefined();
       expect(view.resolutionFrameId).toBeUndefined();
+    }
+  });
+});
+
+describe("hidden-information leaks", () => {
+  it("does not reveal how many hidden cards matched a private select (OP16-080 trash a [Trigger] card)", () => {
+    const h = new Harness({ leaders: ["ST01-001", "OP16-080"] });
+    h.field(1, "OP09-095");
+    h.hand(1, "ST01-014", "ST01-014", FILLER);
+    h.attack(h.state.players[0].leader, "leader");
+    h.accept(1);
+    const own = h.view(1).pendingChoices[0]!;
+    expect(own.request?.type).toBe("select");
+    expect((own.request as { options: unknown[] }).options.length).toBe(2);
+    for (const view of [h.view(0).pendingChoices[0]!, getSpectatorView(h.state, 0).pendingChoices[0]!]) {
+      const request = view.request as { options: unknown[]; min: number; max: number };
+      expect(request.options).toEqual([]);
+      expect([request.min, request.max]).toEqual([0, 0]);
+      expect(view.optionCount).toBeUndefined();
+      expect(view.prompt).not.toMatch(/\d/);
+    }
+  });
+
+  it("does not reveal a card a private look places face-down in Life (OP16-119)", () => {
+    const h = new Harness();
+    h.hand(0, "OP16-119");
+    h.don(0, 8);
+    h.deckTop(0, "OP01-013", FILLER, FILLER);
+    h.play(0, "OP16-119");
+    h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2"] });
+    expect(h.state.players[0].life[0]).toBe("OP01-013");
+    for (const viewer of [1, null] as const) {
+      expect(JSON.stringify(projectGameEvents(h.state.lastEvents, viewer))).not.toContain("OP01-013");
     }
   });
 });

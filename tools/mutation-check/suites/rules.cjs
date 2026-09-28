@@ -126,5 +126,7 @@ module.exports = {
     {"id":"granted-replacement-ignored","file":"packages/rules/src/engine/runtime.ts","from":"    if (m.target.kind !== \"player\" || m.target.seat !== seat || m.effect.type !== \"granted\") continue;","to":"    continue;","kills":["lets a Character survive a battle K.O."]},
     {"id":"attack-tax-ignored","file":"packages/rules/src/engine/procedure.ts","from":"  if (typeof tax === \"number\" && tax > 0) state.resolutionFrames.push(","to":"  if (false) state.resolutionFrames.push(","kills":["makes the opponent trash 2 cards to attack"]},
     {"id":"attack-tax-snapshot-rejected","file":"packages/rules/src/state/snapshot.ts","from":"    if (frame.program === \"trash_for_space\" || frame.program === \"attack_tax\") length = 2;","to":"    if (frame.program === \"trash_for_space\") length = 2;","kills":["a paused tax survives a snapshot"]},
+    {"id":"private-select-count-leak","file":"packages/rules/src/engine/views.ts","from":"    if (projected.request && projected.request.type === \"select\") {","to":"    if (false) {","kills":["does not reveal how many hidden cards matched a private select"]},
+    {"id":"private-look-life-revealed","file":"packages/rules/src/engine/runtime.ts","from":"    if (meta.reveal || publicDest) sim.events.push(","to":"    if (true) sim.events.push(","kills":["does not reveal a card a private look places face-down in Life"]},
   ],
 };

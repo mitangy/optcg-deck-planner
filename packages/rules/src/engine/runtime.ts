@@ -1156,7 +1156,10 @@ function applyLook(sim: Sim, frame: ResolutionFrame, choice: PendingChoice, answ
     if (!entry) return;
     const pick = meta.picks[groupOf[i]!]!;
     if (pick.bind) (bound[groupOf[i]!] ??= []).push(entry.id);
-    if (meta.reveal || pick.dest !== "hand") sim.events.push({ type: "card_revealed", seat: meta.seat, defId: entry.defId, matchedTrait: true });
+    // Announce the card only when the effect reveals it or it lands somewhere public.
+    // Face-down Life and deck placements from a private look stay hidden.
+    const publicDest = pick.dest === "play" || pick.dest === "play_rested" || pick.dest === "trash" || ((pick.dest === "life_top" || pick.dest === "life_bottom") && Boolean(pick.faceUp));
+    if (meta.reveal || publicDest) sim.events.push({ type: "card_revealed", seat: meta.seat, defId: entry.defId, matchedTrait: true });
     switch (pick.dest) {
       case "hand": putCard(state, meta.seat, "hand", entry); break;
       case "life_top": putCard(state, meta.seat, "life", entry, { position: "top", faceUp: Boolean(pick.faceUp) }); sim.events.push({ type: "life_added", seat: meta.seat, defId: entry.defId, source: "deck_top", ...(pick.faceUp ? { faceUp: true } : {}) }); break;

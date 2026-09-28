@@ -47,6 +47,14 @@ export function projectPendingChoice(choice: PendingChoice, viewerSeat: Seat | n
     if (projected.request && projected.request.type === "look") {
       projected.request = { ...projected.request, groups: projected.request.groups.map((g) => ({ label: g.label, max: g.max, eligibleIds: [] })) };
     }
+    // A private select's options are the hidden cards that matched its filter, so their
+    // number (options, min/max, optionCount, the "choose up to N" prompt) is itself hidden.
+    // Looks and Life ordering are left as is: their counts are public.
+    if (projected.request && projected.request.type === "select") {
+      projected.request = { type: "select", min: 0, max: 0, options: [] };
+      delete projected.optionCount;
+      projected.prompt = "Opponent is making a private choice.";
+    }
   }
   if (projected.hideCardDefFromOthers && projected.privateToSeat !== viewerSeat) {
     projected.cardDefId = "HIDDEN";
