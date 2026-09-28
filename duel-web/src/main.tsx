@@ -4,6 +4,8 @@ import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
 import { DuelSessionProvider } from "./state/DuelSession";
 import "./styles.css";
+import "./ui.css";
+import "./board.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

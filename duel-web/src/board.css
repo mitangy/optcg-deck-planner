@@ -1,0 +1,525 @@
+/* Board layout: two official-ratio playmats (24" × 14" → 12:7) that always fit
+   the space between the HUD and the hand, plus a wide-screen layout with a
+   card preview column (left) and a hand / actions / log rail (right).
+   Loaded after styles.css + ui.css and scoped under .arena to win over the
+   older flow-layout rules there. */
+
+.arena .arena-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.arena .card-preview {
+  display: none;
+}
+
+/* Narrow: rail children join the column flow (hand, actions); log floats. */
+.arena .arena-rail {
+  display: contents;
+}
+
+/* —— Playmat area —— */
+
+.arena .playmat {
+  --mat-gap: 8px;
+  --hint-h: 1.35rem;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 6px 8px;
+  container-type: size;
+}
+
+.arena .playmat-inner {
+  position: relative;
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mat-gap);
+}
+
+.arena .opp-hand-hint {
+  flex: 0 0 auto;
+  height: var(--hint-h);
+  min-height: 0;
+  gap: 0.5rem;
+}
+
+.arena .opp-hand-hint .card-back {
+  width: 13px;
+  height: 18px;
+  border-radius: 2px;
+}
+
+/* Battle / choice prompt floats over the seam between the mats. */
+.arena .midline {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--hint-h) / 2);
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  min-height: 0;
+  width: max-content;
+  max-width: 92%;
+  pointer-events: none;
+}
+
+.arena .midline .prompt {
+  pointer-events: auto;
+  width: auto;
+  max-width: 100%;
+  text-align: center;
+  border-color: var(--line-strong);
+  background: rgba(11, 23, 32, 0.94);
+}
+
+.arena .midline-ornament {
+  display: none;
+}
+
+/* —— One playmat —— */
+
+.arena .side-field {
+  /* Largest 12:7 mat such that both mats (+ hint + gaps) fit the area. */
+  --mat-h: min(
+    calc((100cqh - var(--hint-h) - 2 * var(--mat-gap)) / 2),
+    calc(100cqw * 7 / 12)
+  );
+  flex: 0 0 auto;
+  width: calc(var(--mat-h) * 12 / 7);
+  height: var(--mat-h);
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  container-type: size;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--mat-h) * 0.035);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    inset 0 0 60px rgba(0, 0, 0, 0.35),
+    0 10px 30px rgba(0, 0, 0, 0.3);
+  /* Default mat: deep-sea felt with a faint compass rose. */
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='none' stroke='%23d2a54d' stroke-opacity='0.09' stroke-width='1'%3E%3Ccircle cx='100' cy='100' r='70'/%3E%3Ccircle cx='100' cy='100' r='56'/%3E%3Cpath d='M100 10 L112 100 L100 190 L88 100 Z M10 100 L100 88 L190 100 L100 112 Z'/%3E%3Cpath d='M45 45 L104 96 L155 155 L96 104 Z M155 45 L104 104 L45 155 L96 96 Z' stroke-opacity='0.06'/%3E%3C/g%3E%3C/svg%3E")
+      center / 46cqh no-repeat,
+    radial-gradient(90% 120% at 50% 50%, rgba(47, 111, 134, 0.16), transparent 70%),
+    linear-gradient(180deg, #12303d, #0e2230);
+}
+
+.arena .side-field.mirrored {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='none' stroke='%23d2a54d' stroke-opacity='0.07' stroke-width='1'%3E%3Ccircle cx='100' cy='100' r='70'/%3E%3Ccircle cx='100' cy='100' r='56'/%3E%3Cpath d='M100 10 L112 100 L100 190 L88 100 Z M10 100 L100 88 L190 100 L100 112 Z'/%3E%3C/g%3E%3C/svg%3E")
+      center / 46cqh no-repeat,
+    radial-gradient(90% 120% at 50% 50%, rgba(120, 64, 44, 0.14), transparent 70%),
+    linear-gradient(0deg, #1a2530, #121c25);
+}
+
+/* Uploaded art (your side): cover the mat, dimmed so cards stay readable. */
+.arena .side-field.has-mat-art {
+  background:
+    linear-gradient(rgba(5, 10, 14, var(--mat-dim, 0.35)), rgba(5, 10, 14, var(--mat-dim, 0.35))),
+    var(--mat-art) center / cover no-repeat,
+    #0e2230;
+}
+
+/* Registered so the cqw values resolve once against the mat (then inherit as
+   px). Unregistered, nested containers like .don-strip-rail would re-resolve
+   them against their own width. */
+@property --c {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 64px;
+}
+
+@property --g {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 6px;
+}
+
+/* Printed-mat layout on a 7-column card grid. --c is one card width. */
+.arena .side-grid {
+  --c: 12.6cqw;
+  --g: 1.1cqw;
+  height: 100%;
+  padding: 2.4cqw;
+  display: grid;
+  grid-template-columns: repeat(7, var(--c));
+  grid-template-rows: calc(var(--c) * 1.4) calc(var(--c) * 1.4) minmax(0, 1fr);
+  grid-template-areas:
+    "life characters characters characters characters characters ."
+    "life . . leader stage . deck"
+    "dondeck cost cost cost cost cost trash";
+  gap: var(--g);
+  justify-content: center;
+  align-content: center;
+  align-items: center;
+  justify-items: center;
+}
+
+/* Opponent mat is the same mat turned 180°: characters face the seam. */
+.arena .side-opp .side-grid {
+  grid-template-rows: minmax(0, 1fr) calc(var(--c) * 1.4) calc(var(--c) * 1.4);
+  grid-template-areas:
+    "trash cost cost cost cost cost dondeck"
+    "deck . stage leader . . life"
+    ". characters characters characters characters characters life";
+}
+
+.arena .side-field .zone-caption {
+  display: none;
+}
+
+.arena .zone-characters,
+.arena .zone-cost {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+.arena .zone-characters {
+  display: flex;
+  align-items: center;
+}
+
+.arena .zone-characters.drop-highlight-zone,
+.arena .zone-stage.drop-highlight-zone {
+  border-radius: calc(var(--c) * 0.08);
+}
+
+.arena .side-field .characters-row {
+  display: grid;
+  grid-template-columns: repeat(5, var(--c));
+  grid-auto-flow: row;
+  gap: var(--g);
+  min-height: 0;
+  width: auto;
+  overflow: visible;
+}
+
+.arena .side-field .card-tile,
+.arena .side-field .zone-slot,
+.arena .side-field .characters-row .card-tile,
+.arena .side-field .characters-row .zone-slot,
+.arena .side-field .zone-leader .card-tile {
+  width: var(--c);
+  height: calc(var(--c) * 1.4);
+  min-width: 0;
+  max-width: none;
+  aspect-ratio: auto;
+  margin: 0;
+  border-radius: calc(var(--c) * 0.07);
+}
+
+.arena .side-field .card-tile {
+  border-width: max(1px, calc(var(--c) * 0.022));
+}
+
+.arena .side-field .zone-slot {
+  border: 1px dashed rgba(240, 220, 168, 0.18);
+  background: rgba(0, 0, 0, 0.14);
+  font-size: calc(var(--c) * 0.12);
+}
+
+.arena .side-field .card-caption {
+  padding: calc(var(--c) * 0.025) calc(var(--c) * 0.04);
+}
+
+.arena .side-field .card-caption .name {
+  font-size: clamp(0.5rem, calc(var(--c) * 0.12), 0.74rem);
+  -webkit-line-clamp: 1;
+}
+
+.arena .side-field .card-caption .meta {
+  font-size: clamp(0.45rem, calc(var(--c) * 0.1), 0.64rem);
+}
+
+.arena .side-field .power-badge,
+.arena .side-field .don-badge {
+  font-size: clamp(0.48rem, calc(var(--c) * 0.1), 0.7rem);
+}
+
+/* Piles (life, deck, DON!! deck, trash). */
+.arena .side-field .zone-pile {
+  width: var(--c);
+  gap: calc(var(--c) * 0.04);
+}
+
+.arena .side-field .zone-pile-stack {
+  width: calc(var(--c) * 0.74);
+  height: calc(var(--c) * 1.02);
+}
+
+.arena .side-field .zone-pile-label {
+  font-size: clamp(0.45rem, calc(var(--c) * 0.1), 0.66rem);
+}
+
+.arena .side-field .zone-pile-count {
+  font-size: clamp(0.7rem, calc(var(--c) * 0.17), 1.15rem);
+}
+
+.arena .side-field .zone-life {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--g);
+}
+
+.arena .side-field .zone-pile-life .zone-pile-stack {
+  width: calc(var(--c) * 0.74);
+  min-height: calc(var(--c) * 0.6);
+  height: auto;
+}
+
+.arena .side-field .zone-pile-life .zone-pile-face {
+  width: calc(var(--c) * 0.74);
+  height: calc(var(--c) * 0.62);
+  margin-top: calc(var(--c) * -0.4);
+}
+
+.arena .side-field .zone-pile-life .zone-pile-face:first-child {
+  margin-top: 0;
+}
+
+.arena .side-field .zone-pile-life .zone-pile-stack:empty::before {
+  width: calc(var(--c) * 0.74);
+  height: calc(var(--c) * 0.62);
+}
+
+.arena .side-field .zone-don-deck {
+  display: flex;
+  justify-content: center;
+}
+
+/* Bottom-row piles sit in a shorter row than the card rows. */
+.arena .side-field .zone-don-deck .zone-pile-stack,
+.arena .side-field .zone-trash .zone-pile-stack {
+  width: calc(var(--c) * 0.64);
+  height: calc(var(--c) * 0.88);
+}
+
+/* DON!! cost area: chips are ~70% of a card and overlap when crowded. */
+.arena .side-field .don-strip {
+  --don-w: calc(var(--c) * 0.7);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: calc(var(--c) * 0.05) calc(var(--c) * 0.1);
+  border-radius: calc(var(--c) * 0.08);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.arena .side-field .don-strip-label {
+  font-size: clamp(0.45rem, calc(var(--c) * 0.1), 0.66rem);
+  margin-bottom: calc(var(--c) * 0.04);
+}
+
+.arena .side-field .don-strip-rail {
+  min-height: calc(var(--don-w) * 1.4 + 4px);
+}
+
+/* —— Hand rail sizing on mid widths (keeps the mats from getting squeezed) —— */
+
+@media (min-width: 721px) and (max-width: 899px) {
+  .arena .hand-row-inner {
+    padding-top: 1.1rem;
+  }
+
+  .arena .hand-row-inner .card-tile.full {
+    width: 90px;
+    height: 126px;
+  }
+}
+
+/* —— Wide: preview | board | rail —— */
+
+/* ≥900px landscape: hand/actions/log move to a right rail so the mats get the
+   full height. ≥1180px adds the card preview column on the left. */
+@media (min-width: 900px) and (min-height: 500px) {
+  .arena .arena-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(260px, 26vw, 400px);
+  }
+
+  .arena .arena-rail {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-left: 1px solid var(--line);
+    background: var(--arena-panel);
+  }
+
+  .arena .arena-rail .hand-rail {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border-top: none;
+    box-shadow: none;
+    padding: 0.6rem 0.7rem 0.4rem;
+  }
+
+  .arena .arena-rail .hand-rail.collapsed {
+    flex: 0 0 auto;
+  }
+
+  .arena .arena-rail .hand-row {
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+  }
+
+  .arena .arena-rail .hand-row-inner {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 0.5rem;
+    padding: 0.7rem 0.1rem 0.5rem;
+  }
+
+  .arena .arena-rail .hand-row-inner .card-tile.full {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 5 / 7;
+  }
+
+  .arena .arena-rail .hand-row-inner .card-tile:hover,
+  .arena .arena-rail .hand-row-inner .card-tile.selected {
+    transform: translateY(-6px);
+  }
+
+  .arena .arena-rail .intent-bar {
+    border-top: 1px solid var(--line);
+    padding: 0.6rem 0.7rem 0.7rem;
+  }
+
+  .arena .arena-rail .intent-row {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    padding-right: 0;
+  }
+
+  .arena .arena-rail .battle-log {
+    position: static;
+    width: auto;
+    max-height: 38%;
+    border-radius: 0;
+    border-width: 1px 0 0;
+    box-shadow: none;
+    background: rgba(8, 17, 24, 0.6);
+  }
+
+  .arena .arena-rail .battle-log.collapsed {
+    max-height: none;
+  }
+
+  /* Prompts center over the board column rather than the whole window. */
+  .arena .ability-prompt {
+    left: calc((100% - clamp(260px, 26vw, 400px)) / 2);
+    bottom: 1.25rem;
+  }
+}
+
+@media (min-width: 1180px) and (min-height: 500px) {
+  .arena .arena-body {
+    grid-template-columns: clamp(220px, 19vw, 340px) minmax(0, 1fr) clamp(280px, 24vw, 400px);
+  }
+
+  .arena .card-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.85rem;
+    border-right: 1px solid var(--line);
+    background: rgba(8, 17, 24, 0.55);
+  }
+
+  .arena .ability-prompt {
+    left: calc(
+      clamp(220px, 19vw, 340px) +
+        (100% - clamp(220px, 19vw, 340px) - clamp(280px, 24vw, 400px)) / 2
+    );
+  }
+}
+
+/* —— Card preview panel —— */
+
+.card-preview-img,
+.card-preview-placeholder {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  flex: 0 0 auto;
+}
+
+.card-preview-placeholder {
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--muted);
+  font-size: 0.8rem;
+  box-shadow: none;
+}
+
+.card-preview-hint {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.card-preview-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.card-preview-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  line-height: 1.2;
+  color: var(--chrome-bright);
+}
+
+.card-preview-stats,
+.card-preview-traits {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.card-preview-traits {
+  color: var(--chrome);
+}
+
+.card-preview-effect {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+@media (max-width: 720px) {
+  .arena .midline .prompt {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.66rem;
+    line-height: 1.3;
+  }
+}

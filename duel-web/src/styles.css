@@ -1,19 +1,28 @@
 :root {
-  --arena-deep: #0a1018;
-  --arena-mid: #121c28;
-  --arena-panel: #162232;
-  --chrome: #c9a227;
-  --chrome-bright: #f0d78c;
-  --chrome-dim: #8a7020;
-  --ink: #f3efe6;
-  --muted: #9aa7b5;
-  --ok: #3d8b5a;
-  --danger: #a33b3b;
-  --warn: #c47a2c;
-  --line: rgba(201, 162, 39, 0.35);
-  --vignette: radial-gradient(ellipse at center, transparent 35%, #05080dcc 100%);
-  --font-display: "Cinzel", "Times New Roman", serif;
+  /* Night-sea base + parchment ink + straw-hat gold. Crimson is reserved for
+     danger / attack cues so it never competes with primary actions. */
+  --arena-deep: #0b1720;
+  --arena-mid: #11212d;
+  --arena-panel: #172a38;
+  --arena-raised: #1d3344;
+  --chrome: #d2a54d;
+  --chrome-bright: #f0dca8;
+  --chrome-dim: #8c7342;
+  --ink: #f1e9d6;
+  --muted: #95a4ad;
+  --ok: #3f8a5f;
+  --danger: #b2372f;
+  --crimson-bright: #d24a3f;
+  --warn: #c9822f;
+  --sea: #2f6f86;
+  --line: rgba(210, 165, 77, 0.24);
+  --line-strong: rgba(210, 165, 77, 0.5);
+  --focus: 0 0 0 2px var(--arena-deep), 0 0 0 4px var(--chrome-bright);
+  --radius: 10px;
+  --vignette: radial-gradient(ellipse at center, transparent 40%, #050b10bb 100%);
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-body: "Sora", system-ui, sans-serif;
+  color-scheme: dark;
 }
 
 *,
@@ -34,13 +43,22 @@ body,
 
 html {
   overflow-x: clip;
+  /* Moonlit sea: cool glow from above, faint warm lantern low-right, and a
+     barely-there wave line texture. */
   background:
-    radial-gradient(900px 520px at 50% -10%, #1e3a4a66, transparent 60%),
-    radial-gradient(700px 400px at 100% 80%, #3a2a1066, transparent 55%),
+    radial-gradient(1000px 560px at 50% -12%, #1f4a5c55, transparent 62%),
+    radial-gradient(640px 380px at 100% 100%, #4a321444, transparent 60%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='24' viewBox='0 0 120 24'%3E%3Cpath d='M0 12c15 0 15-8 30-8s15 8 30 8 15-8 30-8 15 8 30 8' fill='none' stroke='%23d2a54d' stroke-opacity='0.035' stroke-width='1.2'/%3E%3C/svg%3E"),
     var(--arena-deep);
 }
 
-body {
+body,
+#root {
+  overflow-x: clip;
+}
+
+body,
+#root {
   background: transparent;
 }
 
@@ -1018,33 +1036,7 @@ button {
   }
 }
 
-.btn {
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  color: #fff;
-  font-weight: 700;
-  min-height: 44px;
-}
-
-.btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: linear-gradient(180deg, #4a9a68, var(--ok));
-  border-color: #6bc48a55;
-}
-
-.btn-secondary {
-  background: var(--arena-panel);
-  border-color: var(--line);
-}
-
-.btn-danger {
-  background: var(--danger);
-}
+/* Buttons, top bar, panels, fields and the Play sheet live in ui.css. */
 
 .duel-root {
   flex: 1;
@@ -2871,4 +2863,148 @@ img.zone-pile-face {
   .choice-grid {
     grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
   }
+}
+
+/* —— Board refresh: DON!! scale, leader scale, table felt, actions ——
+   Kept at the end so it layers over the base arena rules above. */
+
+.side-field {
+  border-color: var(--line);
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(47, 111, 134, 0.12), transparent 60%),
+    linear-gradient(180deg, rgba(240, 220, 168, 0.025), transparent 40%),
+    var(--arena-mid);
+}
+
+.side-field.mirrored {
+  background:
+    radial-gradient(120% 90% at 50% 100%, rgba(120, 60, 40, 0.1), transparent 60%),
+    linear-gradient(0deg, rgba(240, 220, 168, 0.02), transparent 40%),
+    #0f1c26;
+}
+
+.zone-caption,
+.don-strip-label {
+  color: var(--chrome);
+  opacity: 0.8;
+}
+
+.zone-slot {
+  border-color: rgba(210, 165, 77, 0.2);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+/* DON!! chips scale with the viewport (roughly a third of a character card on
+   desktop) instead of the old fixed 28px thumbnails. */
+.don-strip {
+  --don-w: clamp(30px, 4.6vw, 70px);
+  border-color: var(--line);
+  border-radius: 10px;
+  padding: 0.4rem 0.55rem 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.don-strip-rail {
+  container-type: inline-size;
+  flex-wrap: nowrap;
+  gap: 0;
+  min-height: calc(var(--don-w) * 1.4 + 4px);
+  padding: 2px 0;
+}
+
+.don-chip,
+.don-chip.rested {
+  width: var(--don-w);
+  height: calc(var(--don-w) * 1.4);
+  border-radius: calc(var(--don-w) * 0.07);
+  border-color: rgba(240, 220, 168, 0.55);
+}
+
+.don-chip.rested {
+  margin: 0 calc(var(--don-w) * 0.2);
+  border-color: rgba(149, 164, 173, 0.45);
+}
+
+/* Overlap instead of shrinking when the rail runs out of room: spread evenly
+   up to a 6px gap, never overlapping more than ~60% of a chip. */
+.don-chip-btn + .don-chip-btn {
+  margin-left: clamp(
+    calc(var(--don-w) * -0.6),
+    calc((100cqw - var(--don-units, 1) * var(--don-w)) / max(var(--don-count, 1) - 1, 1)),
+    6px
+  );
+}
+
+.don-chip-btn {
+  position: relative;
+  transition: transform 140ms ease;
+}
+
+.don-chip-btn.is-draggable:hover,
+.don-chip-btn.is-selected {
+  z-index: 1;
+  transform: translateY(-4px);
+}
+
+.don-strip-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-bar {
+  background:
+    linear-gradient(180deg, rgba(210, 165, 77, 0.1), transparent 70%),
+    var(--arena-panel);
+}
+
+.hud-brand,
+.hand-rail-title {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.hand-rail {
+  background:
+    linear-gradient(0deg, rgba(210, 165, 77, 0.07), transparent 55%),
+    var(--arena-panel);
+}
+
+.intent-bar {
+  background: rgba(8, 17, 24, 0.92);
+}
+
+/* Actions read as calm secondary buttons; End turn is the gold primary. */
+.intent-btn {
+  background: var(--arena-raised);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  transition: border-color 140ms ease, background-color 140ms ease, filter 140ms ease;
+}
+
+.intent-btn:not(:disabled):hover {
+  background: #244056;
+  border-color: var(--chrome);
+}
+
+.intent-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.intent-btn-end {
+  color: #1d1406;
+  background: linear-gradient(180deg, #e6bd62, #c7963d);
+  border-color: rgba(255, 236, 190, 0.45);
+}
+
+.intent-btn-end:not(:disabled):hover {
+  background: linear-gradient(180deg, #e6bd62, #c7963d);
+  filter: brightness(1.06);
+}
+
+.leave-btn,
+.hud-pass-btn,
+.hand-rail-btn {
+  border-radius: 8px;
 }

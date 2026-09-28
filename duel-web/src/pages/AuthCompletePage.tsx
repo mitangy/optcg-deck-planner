@@ -46,7 +46,7 @@ export function AuthCompletePage() {
           {error}
         </p>
         <button type="button" className="btn btn-secondary" onClick={() => navigate("/")}>
-          Back to lobby
+          Back to home
         </button>
       </div>
     );

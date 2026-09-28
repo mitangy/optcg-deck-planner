@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Intent, MatchOverMessage, PlayerView, Seat, TimerMessage } from "../net/protocol";
 import { BattleLogPanel } from "./BattleLogPanel";
+import { CardPreviewPanel } from "./CardPreviewPanel";
 import type { BattleLogEntry } from "./battleLog";
 import { CardTile } from "./CardTile";
 import {
@@ -24,6 +25,8 @@ import {
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
+import { usePlaymatUrl } from "../playmat";
+import { loadSettings } from "../settings";
 
 type Props = {
   view: PlayerView | null;
@@ -108,6 +111,8 @@ export function DuelBoard({
   const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => Date.now());
   const handRowRef = useRef<HTMLDivElement | null>(null);
+  const playmatUrl = usePlaymatUrl();
+  const [playmatDim] = useState(() => loadSettings().playmatDim);
 
   useEffect(() => {
     if (!timer?.turnEndsAt && !timer?.matchEndsAt) return;
@@ -361,12 +366,6 @@ export function DuelBoard({
         </button>
       ) : null}
 
-      <BattleLogPanel
-        entries={battleLog}
-        collapsed={logCollapsed}
-        onToggle={() => setLogCollapsed((v) => !v)}
-      />
-
       {mulliganPhase && !spectating ? (
         <div className="mulligan-banner" role="status">
           {view.you.mulliganDone ? (
@@ -384,179 +383,222 @@ export function DuelBoard({
         </div>
       ) : null}
 
-      <div className="playmat">
-        <div className="playmat-inner">
-          <div className="opp-hand-hint" aria-label={`Opponent hand ${opp.handCount}`}>
-            <span className="opp-hand-label">Opp hand</span>
-            <div className="opp-hand-backs">
-              {Array.from({ length: Math.min(opp.handCount, 8) }).map((_, i) => (
-                <span key={i} className="card-back" />
-              ))}
-              {opp.handCount > 8 ? <span className="opp-hand-more">+{opp.handCount - 8}</span> : null}
+      <div className="arena-body">
+        <CardPreviewPanel />
+
+        <div className="playmat">
+          <div className="playmat-inner">
+            <div className="opp-hand-hint" aria-label={`Opponent hand ${opp.handCount}`}>
+              <span className="opp-hand-label">Opp hand</span>
+              <div className="opp-hand-backs">
+                {Array.from({ length: Math.min(opp.handCount, 8) }).map((_, i) => (
+                  <span key={i} className="card-back" />
+                ))}
+                {opp.handCount > 8 ? <span className="opp-hand-more">+{opp.handCount - 8}</span> : null}
+              </div>
+            </div>
+
+            <SideField
+              side="opp"
+              compact
+              ownerSeat={oppSeat}
+              viewingSeat={viewingSeat}
+              data={{
+                leader: opp.leader,
+                characters: opp.characters,
+                stage: opp.stage,
+                deckCount: opp.deckCount,
+                trash: opp.trash,
+                lifeCount: opp.lifeCount,
+                donDeckCount: opp.donDeckCount,
+                costAreaCount: opp.costAreaCount,
+                activeDonCount: opp.activeDonCount,
+              }}
+              target={
+                attackTargetIds.size > 0
+                  ? { targetableIds: attackTargetIds, onSelectTarget: selectAttackTarget }
+                  : undefined
+              }
+            />
+
+            <div className="midline">
+              {Boolean(view.battle || view.pendingChoices?.length) ? (
+                <div className="prompt">
+                  {view.pendingChoices?.length
+                    ? view.pendingChoices[0].prompt
+                    : describeBattle(view)}
+                </div>
+              ) : (
+                <div className="midline-ornament" aria-hidden>
+                  <span />
+                </div>
+              )}
+            </div>
+
+            <SideField
+              side="you"
+              matImageUrl={playmatUrl}
+              matDim={playmatDim}
+              ownerSeat={boardSeat}
+              viewingSeat={viewingSeat}
+              data={{
+                leader: you.leader,
+                characters: you.characters,
+                stage: you.stage,
+                deckCount: you.deckCount,
+                trash: you.trash,
+                lifeCount: you.lifeCount,
+                donDeckCount: you.donDeckCount,
+                costArea: you.costArea,
+                activeDonCount: you.activeDonCount,
+              }}
+              select={
+                spectating
+                  ? undefined
+                  : {
+                      selectedId: selectedBoardId,
+                      onSelect: selectBoardCard,
+                      actionableIds: actionableBoardIds,
+                    }
+              }
+              drag={
+                dndEnabled
+                  ? {
+                      draggableDonIds,
+                      draggingDonIds:
+                        dragPayload?.type === "give_don"
+                          ? new Set(dragPayload.donIds)
+                          : EMPTY_IDS,
+                      selectedDonIds,
+                      onDonDragStart: (donId) => {
+                        // Dragging a selected chip carries the whole selection;
+                        // dragging an unselected chip selects just that one.
+                        const donIds =
+                          selectedDonIds.size > 0 && selectedDonIds.has(donId)
+                            ? Array.from(selectedDonIds)
+                            : [donId];
+                        setSelectedDonIds(new Set(donIds));
+                        setDragPayload({ type: "give_don", donIds });
+                      },
+                      onDonDragEnd: (donId, x, y) => {
+                        const donIds =
+                          dragPayload?.type === "give_don" ? dragPayload.donIds : [donId];
+                        commitDrop({ type: "give_don", donIds }, x, y);
+                      },
+                      onDonDragCancel: () => setDragPayload(null),
+                      onDonToggleSelect: toggleDonSelect,
+                      onClearDonSelection: clearDonSelection,
+                      giveDonHighlightIds,
+                      playTrashHighlightIds,
+                      playFieldHighlight,
+                    }
+                  : undefined
+              }
+            />
+          </div>
+        </div>
+
+        <div className="arena-rail">
+          <div className={`hand-rail${handCollapsed ? " collapsed" : ""}`}>
+            <div className="hand-rail-head">
+              <span className="hand-rail-title">{spectating ? "Seat hand (hidden)" : "Hand"}</span>
+              <span className="hand-rail-count">
+                {spectating ? (you.handCount ?? 0) : you.hand.length}
+              </span>
+              {!spectating ? (
+                <div className="hand-rail-actions">
+                  <button
+                    type="button"
+                    className={`hand-rail-btn${handSorted ? " active" : ""}`}
+                    aria-pressed={handSorted}
+                    onClick={() => setHandSorted((v) => !v)}
+                  >
+                    Sort
+                  </button>
+                  <button
+                    type="button"
+                    className="hand-rail-btn"
+                    onClick={() => {
+                      setHandCollapsed((v) => {
+                        const next = !v;
+                        if (next) setHandFilter(null);
+                        return next;
+                      });
+                    }}
+                  >
+                    {handCollapsed ? "Show" : "Hide"}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <div className="hand-row" ref={handRowRef}>
+              <div className="hand-row-inner">
+                {spectating
+                  ? Array.from({ length: Math.min(you.handCount ?? 0, 8) }).map((_, i) => (
+                      <span key={i} className="card-back hand-back" />
+                    ))
+                  : (handDisplayIndices ?? you.hand.map((_, i) => i)).map((idx) => {
+                      const c = you.hand[idx]!;
+                      const playable = dndEnabled && canDragHandCard(intents, idx);
+                      return (
+                        <CardTile
+                          key={c.id}
+                          defId={c.defId}
+                          playCost={c.playCost}
+                          selected={handFilter === idx}
+                          onClick={() => selectHandCard(idx)}
+                          dragEnabled={playable}
+                          dragPayload={{ type: "play_card", handIndex: idx }}
+                          onDragStart={() =>
+                            setDragPayload({ type: "play_card", handIndex: idx })
+                          }
+                          onDragEnd={(x, y) =>
+                            commitDrop({ type: "play_card", handIndex: idx }, x, y)
+                          }
+                          onDragCancel={() => setDragPayload(null)}
+                          ownerSeat={boardSeat}
+                          viewingSeat={viewingSeat}
+                        />
+                      );
+                    })}
+              </div>
             </div>
           </div>
 
-          <SideField
-            side="opp"
-            compact
-            ownerSeat={oppSeat}
-            viewingSeat={viewingSeat}
-            data={{
-              leader: opp.leader,
-              characters: opp.characters,
-              stage: opp.stage,
-              deckCount: opp.deckCount,
-              trash: opp.trash,
-              lifeCount: opp.lifeCount,
-              donDeckCount: opp.donDeckCount,
-              costAreaCount: opp.costAreaCount,
-              activeDonCount: opp.activeDonCount,
-            }}
-            target={
-              attackTargetIds.size > 0
-                ? { targetableIds: attackTargetIds, onSelectTarget: selectAttackTarget }
-                : undefined
-            }
-          />
-
-          <div className="midline">
-            {Boolean(view.battle || view.pendingChoices?.length) ? (
-              <div className="prompt">
-                {view.pendingChoices?.length
-                  ? view.pendingChoices[0].prompt
-                  : describeBattle(view)}
-              </div>
-            ) : (
-              <div className="midline-ornament" aria-hidden>
-                <span />
-              </div>
-            )}
-          </div>
-
-          <SideField
-            side="you"
-            ownerSeat={boardSeat}
-            viewingSeat={viewingSeat}
-            data={{
-              leader: you.leader,
-              characters: you.characters,
-              stage: you.stage,
-              deckCount: you.deckCount,
-              trash: you.trash,
-              lifeCount: you.lifeCount,
-              donDeckCount: you.donDeckCount,
-              costArea: you.costArea,
-              activeDonCount: you.activeDonCount,
-            }}
-            select={
-              spectating
-                ? undefined
-                : {
-                    selectedId: selectedBoardId,
-                    onSelect: selectBoardCard,
-                    actionableIds: actionableBoardIds,
-                  }
-            }
-            drag={
-              dndEnabled
-                ? {
-                    draggableDonIds,
-                    draggingDonIds:
-                      dragPayload?.type === "give_don"
-                        ? new Set(dragPayload.donIds)
-                        : EMPTY_IDS,
-                    selectedDonIds,
-                    onDonDragStart: (donId) => {
-                      // Dragging a selected chip carries the whole selection;
-                      // dragging an unselected chip selects just that one.
-                      const donIds =
-                        selectedDonIds.size > 0 && selectedDonIds.has(donId)
-                          ? Array.from(selectedDonIds)
-                          : [donId];
-                      setSelectedDonIds(new Set(donIds));
-                      setDragPayload({ type: "give_don", donIds });
-                    },
-                    onDonDragEnd: (donId, x, y) => {
-                      const donIds =
-                        dragPayload?.type === "give_don" ? dragPayload.donIds : [donId];
-                      commitDrop({ type: "give_don", donIds }, x, y);
-                    },
-                    onDonDragCancel: () => setDragPayload(null),
-                    onDonToggleSelect: toggleDonSelect,
-                    onClearDonSelection: clearDonSelection,
-                    giveDonHighlightIds,
-                    playTrashHighlightIds,
-                    playFieldHighlight,
-                  }
-                : undefined
-            }
-          />
-        </div>
-      </div>
-
-      <div className={`hand-rail${handCollapsed ? " collapsed" : ""}`}>
-        <div className="hand-rail-head">
-          <span className="hand-rail-title">{spectating ? "Seat hand (hidden)" : "Hand"}</span>
-          <span className="hand-rail-count">
-            {spectating ? (you.handCount ?? 0) : you.hand.length}
-          </span>
           {!spectating ? (
-            <div className="hand-rail-actions">
-              <button
-                type="button"
-                className={`hand-rail-btn${handSorted ? " active" : ""}`}
-                aria-pressed={handSorted}
-                onClick={() => setHandSorted((v) => !v)}
-              >
-                Sort
-              </button>
-              <button
-                type="button"
-                className="hand-rail-btn"
-                onClick={() => {
-                  setHandCollapsed((v) => {
-                    const next = !v;
-                    if (next) setHandFilter(null);
-                    return next;
-                  });
-                }}
-              >
-                {handCollapsed ? "Show" : "Hide"}
-              </button>
+            <IntentBar
+              intents={(() => {
+                const front = view.pendingChoices?.[0];
+                // ChoicePrompt / EffectOrderPrompt own every pending-choice answer.
+                const structuredOwns = Boolean(front);
+                if (!structuredOwns) return view.legalIntents;
+                return view.legalIntents.filter(
+                  (i) =>
+                    i.type !== "resolve_pending_choice" &&
+                    i.type !== "order_pending_effects",
+                );
+              })()}
+              view={view}
+              disabled={over}
+              filterHandIndex={handFilter}
+              selectedBoardId={selectedBoardId}
+              onSend={(intent) => {
+                setHandFilter(null);
+                setSelectedBoardId(null);
+                onSendIntent(intent);
+              }}
+            />
+          ) : (
+            <div className="intent-bar">
+              <p className="intent-empty">Spectating — both hands hidden; intents disabled</p>
             </div>
-          ) : null}
-        </div>
-        <div className="hand-row" ref={handRowRef}>
-          <div className="hand-row-inner">
-            {spectating
-              ? Array.from({ length: Math.min(you.handCount ?? 0, 8) }).map((_, i) => (
-                  <span key={i} className="card-back hand-back" />
-                ))
-              : (handDisplayIndices ?? you.hand.map((_, i) => i)).map((idx) => {
-                  const c = you.hand[idx]!;
-                  const playable = dndEnabled && canDragHandCard(intents, idx);
-                  return (
-                    <CardTile
-                      key={c.id}
-                      defId={c.defId}
-                      playCost={c.playCost}
-                      selected={handFilter === idx}
-                      onClick={() => selectHandCard(idx)}
-                      dragEnabled={playable}
-                      dragPayload={{ type: "play_card", handIndex: idx }}
-                      onDragStart={() =>
-                        setDragPayload({ type: "play_card", handIndex: idx })
-                      }
-                      onDragEnd={(x, y) =>
-                        commitDrop({ type: "play_card", handIndex: idx }, x, y)
-                      }
-                      onDragCancel={() => setDragPayload(null)}
-                      ownerSeat={boardSeat}
-                      viewingSeat={viewingSeat}
-                    />
-                  );
-                })}
-          </div>
+          )}
+
+          <BattleLogPanel
+            entries={battleLog}
+            collapsed={logCollapsed}
+            onToggle={() => setLogCollapsed((v) => !v)}
+          />
         </div>
       </div>
 
@@ -596,35 +638,6 @@ export function DuelBoard({
           <p className="meta">They are resolving an effect choice.</p>
         </div>
       ) : null}
-
-      {!spectating ? (
-        <IntentBar
-          intents={(() => {
-            const front = view.pendingChoices?.[0];
-            // ChoicePrompt / EffectOrderPrompt own every pending-choice answer.
-            const structuredOwns = Boolean(front);
-            if (!structuredOwns) return view.legalIntents;
-            return view.legalIntents.filter(
-              (i) =>
-                i.type !== "resolve_pending_choice" &&
-                i.type !== "order_pending_effects",
-            );
-          })()}
-          view={view}
-          disabled={over}
-          filterHandIndex={handFilter}
-          selectedBoardId={selectedBoardId}
-          onSend={(intent) => {
-            setHandFilter(null);
-            setSelectedBoardId(null);
-            onSendIntent(intent);
-          }}
-        />
-      ) : (
-        <div className="intent-bar">
-          <p className="intent-empty">Spectating — both hands hidden; intents disabled</p>
-        </div>
-      )}
 
       {over ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
