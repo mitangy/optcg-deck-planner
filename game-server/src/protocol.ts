@@ -42,6 +42,8 @@ export type DuelCreateOptions = {
     turnSeconds?: number;
     matchSeconds?: number;
   };
+  /** Server-only capability; never sent to browser clients. */
+  rankedAttestation?: string;
 };
 
 export type ErrorCode =
@@ -172,7 +174,9 @@ export function parseCreateOptions(raw: unknown): {
       ? Math.floor(o.seed)
       : Date.now() % 1_000_000_000;
   const autoSkipMulligan = o.autoSkipMulligan !== false;
-  const ranked = o.ranked !== false;
+  // A browser can create a public `duel` room directly. DuelRoom decides
+  // whether this request is actually ranked after verifying its attestation.
+  const ranked = o.ranked === true;
   let seatUserIds: [number, number] | undefined;
   if (o.seatUserIds !== undefined) {
     if (!Array.isArray(o.seatUserIds) || o.seatUserIds.length !== 2) {

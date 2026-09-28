@@ -4,9 +4,11 @@ This directory is the **source of truth** for the digital duel client (product B
 
 ## How to use these plans
 
+**Current engine work:** [Engine and card ability implementation plan](./ABILITY_IMPLEMENTATION_PLAN.md), revised 2026-09-16, governs the next rules/content milestones. The current engine combines card data with specialized hooks. The approved direction is a validated declarative registry and reusable, deterministic effect runtime, including restructuring existing code. Migrate the curated cards and prove data-only card addition before broad catalog expansion. Historical steps marked implemented below do not mean the generic engine or full card pool is complete.
+
 1. Read [ARCHITECTURE.md](./ARCHITECTURE.md) for the system shape and stack.
 2. Read [DECISIONS.md](./DECISIONS.md) for why each major choice was made.
-3. Implement **one step at a time**. Before writing code for a step, that step’s plan must be reviewed and marked ready (see checklist inside each step file).
+3. Implement **one step at a time**. Before writing code for a step, complete its readiness checklist (see each plan). The engine restructuring direction is already approved; readiness checks establish concrete contracts, verified sources, and acceptance fixtures rather than requesting the same authorization again.
 4. Do not start step *N+1* until step *N* meets its acceptance criteria (unless the step plan explicitly allows parallel work).
 
 ## Repository layout (scaffold)
