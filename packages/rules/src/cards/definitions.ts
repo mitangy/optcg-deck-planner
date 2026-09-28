@@ -98,28 +98,25 @@ export function ensureCardDef(id: CardDefId, opts: { asLeader?: boolean } = {}):
     if (opts.asLeader && existing.type !== "leader") throw new Error(`Card ${key} is typed as ${existing.type} but was used as a Leader`);
     return existing;
   }
-  const type: CardType = opts.asLeader ? "leader" : "character";
-  const stub: CardDef = opts.asLeader
-    ? { id: key, name: `${key} (stub)`, type, colors: ["red"], cost: 0, power: 5000, life: 5, imageUrl: artFor(key), effectText: "—", dataSource: "stub" }
-    : { id: key, name: `${key} (stub)`, type, colors: ["red"], cost: 2, power: 3000, imageUrl: artFor(key), effectText: "—", dataSource: "stub" };
-  byId.set(key, stub);
-  return stub;
+  // Every catalog card is defined at load. Never create definitions for other ids:
+  // client-provided decks must not grow the process-global catalog for a server's lifetime.
+  throw new Error(`Unknown card def: ${key}`);
 }
 
-/** Ensure every leader + main-deck id has a CardDef (official data or stub). */
+/**
+ * Validate every leader + main-deck id before a match is created. All catalog cards
+ * are already defined, so this never mutates the catalog; unknown ids and
+ * non-Leader leaders are rejected.
+ */
 export function ensureDefsForPlayers(players: ReadonlyArray<{ leaderId: CardDefId; deck: readonly CardDefId[] }>): void {
-  const missing: string[] = [];
   for (const p of players) {
     const leaderId = normalizeCardDefId(p.leaderId);
-    if (!hasCardDef(leaderId)) missing.push(leaderId);
-    ensureCardDef(leaderId, { asLeader: true });
+    if (byId.get(leaderId)?.type !== "leader") throw new Error(`Unknown or invalid leader: ${leaderId}`);
     for (const raw of p.deck) {
       const id = normalizeCardDefId(raw);
-      if (!hasCardDef(id)) missing.push(id);
-      ensureCardDef(id);
+      if (!byId.has(id)) throw new Error(`Unknown card def: ${id}`);
     }
   }
-  if (missing.length) console.warn(`[optcg/rules] Auto-stubbed ${new Set(missing).size} missing card def(s): ${[...new Set(missing)].join(", ")}`);
 }
 
 export function getCardDef(id: CardDefId): CardDef {

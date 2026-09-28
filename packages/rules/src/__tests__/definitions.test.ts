@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ABILITY_REGISTRY, abilitiesFor, buildAbilityRegistry, RegistryValidationError } from "../cards/abilities.js";
 import { listCardDataIds } from "../cards/cardData.js";
-import { buildCardAtlas, ensureCardDef, getCardDef, listCardDefs, normalizeCardDefId } from "../cards/definitions.js";
+import { buildCardAtlas, ensureCardDef, ensureDefsForPlayers, getCardDef, getDefsHealthSnapshot, listCardDefs, normalizeCardDefId } from "../cards/definitions.js";
 import { abilitySupportForCard, buildCardSupportManifest, unsupportedCardsForDeck } from "../cards/effectCatalog.js";
 import { CARD_SOURCE_RECORDS, cardSourceRecord } from "../cards/sourceRecords.js";
 import { generateAbilities, serializeGenerated } from "../tools/cardText/generate.js";
@@ -28,11 +28,21 @@ describe("card data", () => {
     expect(getCardDef("OP17-001").traits).toEqual(expect.arrayContaining(["Whitebeard Pirates"]));
   });
 
-  it("maps parallel-art ids to the base card and stubs unknown ids as unverified", () => {
+  it("maps parallel-art ids to the base card; unknown ids are unverified and never defined", () => {
     expect(normalizeCardDefId("op01-016_p1")).toBe("OP01-016");
-    const stub = ensureCardDef("ZZ99-001");
-    expect(stub.dataSource).toBe("stub");
+    expect(ensureCardDef("op01-016_p1").id).toBe("OP01-016");
+    expect(() => ensureCardDef("ZZ99-001")).toThrow(/Unknown card def/);
     expect(abilitySupportForCard("ZZ99-001")).toBe("unverified");
+  });
+
+  it("validates match decks without growing the global definitions", () => {
+    const before = getDefsHealthSnapshot().defsCount;
+    expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["EB05-025", "op01-016_p1"] }])).not.toThrow();
+    expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["OP99-999"] }])).toThrow("Unknown card def");
+    expect(() => ensureDefsForPlayers([{ leaderId: "OP99-001", deck: [] }])).toThrow("Unknown or invalid leader");
+    // A real card that is not a Leader cannot lead a deck.
+    expect(() => ensureDefsForPlayers([{ leaderId: "ST01-003", deck: [] }])).toThrow("Unknown or invalid leader");
+    expect(getDefsHealthSnapshot().defsCount).toBe(before);
   });
 
   it("does not infer keywords from text mentions", () => {

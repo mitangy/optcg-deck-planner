@@ -128,5 +128,8 @@ module.exports = {
     {"id":"attack-tax-snapshot-rejected","file":"packages/rules/src/state/snapshot.ts","from":"    if (frame.program === \"trash_for_space\" || frame.program === \"attack_tax\") length = 2;","to":"    if (frame.program === \"trash_for_space\") length = 2;","kills":["a paused tax survives a snapshot"]},
     {"id":"private-select-count-leak","file":"packages/rules/src/engine/views.ts","from":"    if (projected.request && projected.request.type === \"select\") {","to":"    if (false) {","kills":["does not reveal how many hidden cards matched a private select"]},
     {"id":"private-look-life-revealed","file":"packages/rules/src/engine/runtime.ts","from":"    if (meta.reveal || publicDest) sim.events.push(","to":"    if (true) sim.events.push(","kills":["does not reveal a card a private look places face-down in Life"]},
+    {"id":"unknown-deck-id-accepted","file":"packages/rules/src/cards/definitions.ts","from":"      if (!byId.has(id)) throw new Error(`Unknown card def: ${id}`);","to":"","kills":["validates match decks without growing the global definitions"]},
+    {"id":"non-leader-accepted-as-leader","file":"packages/rules/src/cards/definitions.ts","from":"    if (byId.get(leaderId)?.type !== \"leader\") throw","to":"    if (!byId.has(leaderId)) throw","kills":["validates match decks without growing the global definitions"]},
+    {"id":"unknown-id-defined-as-stub","file":"packages/rules/src/cards/definitions.ts","from":"  throw new Error(`Unknown card def: ${key}`);\n}","to":"  const stub: CardDef = { id: key, name: key, type: \"character\", colors: [], cost: 0, dataSource: \"stub\" };\n  byId.set(key, stub);\n  return stub;\n}","kills":["unknown ids are unverified and never defined"]},
   ],
 };
