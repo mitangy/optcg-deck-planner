@@ -6,7 +6,9 @@
 import type { Ability, Cond, Cost, Effect, LookPick, Placement, Rel, Selector, Target, Value } from "./types.js";
 
 export type Instr =
-  | { op: "select"; bind: string; selector: Selector; min: number; max: number; chooser: Rel; totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean; purpose: string }
+  | { op: "select"; bind: string; selector: Selector; min: number; max: number; chooser: Rel; totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean; purpose: string; random?: boolean }
+  /** Schedule the ability's `index`-th delayed effect for the end of this turn. */
+  | { op: "delay"; index: number }
   /** Yes/no. When `costs` is set the prompt is skipped (as "no") unless they are payable. */
   | { op: "confirm"; bind: string; prompt: string; costs?: Cost[] }
   | { op: "mode"; bind: string; labels: string[]; chooser: Rel }
@@ -22,7 +24,7 @@ export interface Program {
   instrs: Instr[];
 }
 
-interface CompileCtx { modes: number }
+interface CompileCtx { modes: number; delays: number }
 
 function describeTarget(target: Target): string {
   if (target.ref !== "choose") return "";
@@ -55,7 +57,7 @@ function purposeOf(effect: Effect): string {
 
 export function compileAbilityProgram(ability: Ability, opts: { optionalCosts: boolean }): Program {
   const instrs: Instr[] = [];
-  const ctx: CompileCtx = { modes: 0 };
+  const ctx: CompileCtx = { modes: 0, delays: 0 };
   const costs = ability.costs ?? [];
   if (costs.length) {
     if (opts.optionalCosts) {
@@ -78,8 +80,34 @@ export function compileAbilityProgram(ability: Ability, opts: { optionalCosts: b
 /** Compile a standalone effect (replacement "instead" bodies). */
 export function compileStandalone(abilityId: string, effect: Effect): Program {
   const instrs: Instr[] = [];
-  compileEffect(effect, instrs, { modes: 0 });
+  compileEffect(effect, instrs, { modes: 0, delays: 0 });
   return { abilityId, instrs };
+}
+
+/** Delayed effect bodies in the same pre-order used to number `delay` instructions. */
+export function delayedEffects(ability: Ability): Effect[] {
+  const out: Effect[] = [];
+  const walk = (e: Effect | undefined): void => {
+    if (!e) return;
+    switch (e.do) {
+      case "seq": e.steps.forEach(walk); return;
+      case "if": walk(e.then); walk(e.else); return;
+      case "may": case "pay": walk(e.then); return;
+      case "choose_one": e.options.forEach((o) => walk(o.effect)); return;
+      case "delay": out.push(e.effect); return;
+      default: return;
+    }
+  };
+  walk(ability.effect);
+  return out;
+}
+
+export function compileDelayed(ability: Ability, index: number): Program {
+  const body = delayedEffects(ability)[index];
+  if (!body) throw new Error(`Ability ${ability.id} has no delayed effect ${index}`);
+  const instrs: Instr[] = [];
+  compileEffect(body, instrs, { modes: 0, delays: 0 });
+  return { abilityId: `${ability.id}#delay${index}`, instrs };
 }
 
 function selectFor(target: Extract<Target, { ref: "choose" }>, purpose: string, out: Instr[]): string {
@@ -131,7 +159,10 @@ export function compileCost(cost: Cost, out: Instr[]): void {
     case "cards_to_deck_bottom": select(cost.selector, cost.count, "place at the bottom of the deck (cost)"); out.push({ op: "act", effect: { do: "to_deck", target: costVar, position: "bottom" } }); return;
     case "trash_to_deck_bottom": select({ player: "you", zone: "trash", ...(cost.filter ? { filter: cost.filter } : {}) }, cost.count, "place at the bottom of the deck (cost)"); out.push({ op: "act", effect: { do: "to_deck", target: costVar, position: "bottom" } }); return;
     case "life_to_hand": out.push({ op: "act", effect: { do: "life_to_hand", player: "you", count: cost.count, position: cost.position } }); return;
-    case "trash_life": out.push({ op: "act", effect: { do: "trash_life", player: "you", count: cost.count } }); return;
+    case "trash_life": out.push({ op: "act", effect: { do: "trash_life", player: "you", count: cost.count, ...(cost.position ? { position: cost.position } : {}) } }); return;
+    case "return_active_don": out.push({ op: "act", effect: { do: "return_don", player: "you", count: cost.count, activeOnly: true } }); return;
+    case "ko_cards": select(cost.selector, cost.count, "K.O. (cost)"); out.push({ op: "act", effect: { do: "ko", target: costVar } }); return;
+    case "give_don": select(cost.selector, 1, "receive DON!! (cost)"); out.push({ op: "act", effect: { do: "give_don", target: costVar, count: cost.count, donState: "active" } }); return;
     case "life_face_down": out.push({ op: "act", effect: { do: "life_face", player: "you", count: cost.count, faceUp: false } }); return;
     case "life_face_up": out.push({ op: "act", effect: { do: "life_face", player: "you", count: cost.count, faceUp: true } }); return;
     case "mill": out.push({ op: "act", effect: { do: "mill", player: "you", count: cost.count } }); return;
@@ -141,7 +172,7 @@ export function compileCost(cost: Cost, out: Instr[]): void {
   }
 }
 
-export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { modes: 0 }): void {
+export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { modes: 0, delays: 0 }): void {
   switch (effect.do) {
     case "seq":
       for (const step of effect.steps) compileEffect(step, out, ctx);
@@ -194,10 +225,13 @@ export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { 
     case "select":
       out.push({ op: "select", bind: effect.bind, selector: effect.selector, min: effect.min, max: effect.max, chooser: effect.chooser ?? "you", ...(effect.totalCostAtMost != null ? { totalCostAtMost: effect.totalCostAtMost } : {}), ...(effect.totalPowerAtMost != null ? { totalPowerAtMost: effect.totalPowerAtMost } : {}), ...(effect.distinctNames ? { distinctNames: true } : {}), purpose: "select" });
       return;
+    case "delay":
+      out.push({ op: "delay", index: ctx.delays++ });
+      return;
     case "discard": {
       const count = typeof effect.count === "number" ? effect.count : 0;
       const bind = "_discard";
-      out.push({ op: "select", bind, selector: { player: effect.player, zone: "hand", ...(effect.filter ? { filter: effect.filter } : {}) }, min: effect.min ?? count, max: count, chooser: effect.chooser ?? effect.player, purpose: "trash from hand" });
+      out.push({ op: "select", bind, selector: { player: effect.player, zone: "hand", ...(effect.filter ? { filter: effect.filter } : {}) }, min: effect.min ?? count, max: count, chooser: effect.chooser ?? effect.player, purpose: "trash from hand", ...(effect.random ? { random: true } : {}) });
       out.push({ op: "act", effect: { do: "to_trash", target: { ref: "var", name: bind } } });
       return;
     }
@@ -217,7 +251,8 @@ export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { 
       out.push({ op: "look", player: effect.player, count: effect.count, picks: effect.picks, rest: effect.rest, reveal: effect.reveal ?? true });
       return;
     case "ko": case "rest": case "activate": case "to_hand": case "to_deck": case "to_trash": case "to_life": case "play":
-    case "power": case "cost": case "base_power": case "keyword": case "restrict": case "negate": case "give_don": case "redirect_attack":
+    case "power": case "cost": case "base_power": case "set_power": case "keyword": case "restrict": case "negate": case "give_don": case "redirect_attack":
+    case "activate_event": case "reveal":
       withResolvedTarget(effect, out);
       return;
     default:

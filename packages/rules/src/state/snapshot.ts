@@ -42,6 +42,7 @@ function validateContinuations(state: MatchState): void {
     if (typeof frame.sourceInstanceId !== "string" || typeof frame.sourceDefId !== "string") invalid(`${frame.id}: missing source`);
     let length: number;
     if (frame.program === "trash_for_space") length = 2;
+    else if (typeof frame.bindings._delay === "number") length = Number.MAX_SAFE_INTEGER;
     else {
       const entry = abilityById(frame.abilityId);
       if (!entry || entry.cardId !== frame.sourceDefId) invalid(`${frame.id}: unknown source ability`);

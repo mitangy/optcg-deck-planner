@@ -61,14 +61,19 @@ function cmp(op: string, value: Value): Cmp {
 
 /** "the number of your opponent's Life cards" etc. */
 export function parseCountPhrase(text: string, ctx: Ctx): CountExpr | null {
-  const t = text.trim().replace(/^the number of /, "").replace(/^the total number of /, "");
+  const t = text.trim().replace(/^the number of /i, "").replace(/^the total number of /i, "");
+  const who = (s: string) => (s.toLowerCase() === "your" ? "you" : "opponent") as "you" | "opponent";
   const rules: [RegExp, (m: RegExpExecArray) => CountExpr | null][] = [
-    [/^(your opponent's|your) life cards$/, (m) => ({ of: "life", player: m[1] === "your" ? "you" : "opponent" })],
-    [/^cards in (your|your opponent's) hand$/, (m) => ({ of: "hand", player: m[1] === "your" ? "you" : "opponent" })],
-    [/^cards in (your|your opponent's) trash$/, (m) => ({ of: "trash", player: m[1] === "your" ? "you" : "opponent" })],
-    [/^(?:cards in )?your opponent's hand$/, () => ({ of: "hand", player: "opponent" })],
-    [/^DON!! cards on (your|your opponent's) field$/i, (m) => ({ of: "don_field", player: m[1] === "your" ? "you" : "opponent" })],
-    [/^(?:your and your opponent's|the total of your and your opponent's) life cards$/, () => ({ of: "life", player: "any" })],
+    [/^(your opponent's|your) life cards$/i, (m) => ({ of: "life", player: who(m[1]!) })],
+    [/^cards in (your|your opponent's) hand$/i, (m) => ({ of: "hand", player: who(m[1]!) })],
+    [/^cards in (your|your opponent's) trash$/i, (m) => ({ of: "trash", player: who(m[1]!) })],
+    [/^(?:cards in )?your opponent's hand$/i, () => ({ of: "hand", player: "opponent" })],
+    [/^DON!! cards on (your|your opponent's) field$/i, (m) => ({ of: "don_field", player: who(m[1]!) })],
+    [/^(your|your opponent's) rested DON!! cards$/i, (m) => ({ of: "don_rested", player: who(m[1]!) })],
+    [/^(your|your opponent's) active DON!! cards$/i, (m) => ({ of: "don_active", player: who(m[1]!) })],
+    [/^(?:the total of )?(?:your and your opponent's|you and your opponent's) life cards$/i, () => ({ of: "life", player: "any" })],
+    [/^the total of your and your opponent's life cards$/i, () => ({ of: "life", player: "any" })],
+    [/^(your|your opponent's) leader's power$/i, (m) => ({ of: "leader_power", player: who(m[1]!) })],
     [/^DON!! cards given to this (?:character|leader)$/i, () => ({ of: "don_attached_self" })],
   ];
   for (const [re, build] of rules) { const m = re.exec(t); if (m) return build(m); }
@@ -122,13 +127,25 @@ function parseQualifiers(text: string, ctx: Ctx, filter: Filter, extra: { totalC
     if ((m = take(/^with the <(\w+)> attribute/))) { filter.attributes = [m[1]!]; continue; }
     if ((m = take(/^with (?:a )?\[(Blocker|Rush|Double Attack|Banish)\]/))) { filter.keyword = m[1]!.toLowerCase().replace(" ", "_") as Filter["keyword"]; continue; }
     if ((m = take(/^that (?:was|were) played (?:on|during) this turn/))) { filter.playedThisTurn = true; continue; }
+    if ((m = take(/^(?:with |and )?(?:the )?(§T\d+§(?:(?:, | or |, or )§T\d+§)*) type/))) { const traits = traitList(m[1]!, ctx); if (!traits) return false; filter.traits = traits; continue; }
+    if ((m = take(/^(?:with )?(\d+) to (\d+) (base )?power/))) { const key = m[3] ? "basePower" : "power"; filter.all = [...(filter.all ?? []), { [key]: { op: ">=", value: num(m[1]!) } }, { [key]: { op: "<=", value: num(m[2]!) } }]; continue; }
+    if ((m = take(/^(?:with )?(?:a |an )?(base )?cost of (\d+) to (\d+)/))) { const key = m[1] ? "baseCost" : "cost"; filter.all = [...(filter.all ?? []), { [key]: { op: ">=", value: num(m[2]!) } }, { [key]: { op: "<=", value: num(m[3]!) } }]; continue; }
+    if ((m = take(/^(?:and |with )?no base effect/i))) { filter.vanilla = true; continue; }
+    if ((m = take(/^without (?:a |an )?(\[[^\]]+\]) effect/i))) { filter.textExcludes = [...(filter.textExcludes ?? []), m[1]!]; continue; }
+    if ((m = take(/^with (?:a |an )?(\[[^\]]+\]) effect/i))) { filter.textIncludes = [...(filter.textIncludes ?? []), m[1]!]; continue; }
+    if ((m = take(/^that has (\d+) or (less|more) power/))) { filter.power = cmp(m[2]!, num(m[1]!)); continue; }
+    if ((m = take(/^that (?:is|are) active/))) { filter.rested = false; continue; }
+    if ((m = take(/^(?:on|in) (?:your|the) field/i))) { continue; }
+    if ((m = take(/^(?:with )?(\d+) (?:or more )?DON!! cards? given/i))) { continue; }
     return false;
   }
   return rest.length === 0;
 }
 
 const NOUNS: [RegExp, Zone, Filter["types"]][] = [
-  [/^(?:leader or character cards?|leader or characters?|leaders? or characters?)$/i, "leader_or_character", undefined],
+  [/^(?:leader or character cards?|leader or characters?|leaders? or characters?|leader and character cards?)$/i, "leader_or_character", undefined],
+  [/^(?:leader or stage cards?|leaders? or stages?)$/i, "field", ["leader", "stage"]],
+  [/^DON!! cards?$/i, "don", undefined],
   [/^(?:character cards?|characters?)$/i, "character", ["character"]],
   [/^leaders?$/i, "leader", ["leader"]],
   [/^(?:event cards?|events?)$/i, "hand", ["event"]],
@@ -157,6 +174,11 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
   if (leader) {
     const player: Rel = leader[1]!.toLowerCase() === "your" ? "you" : "opponent";
     return { selector: { player, zone: "leader" }, quant: { kind: "leader", player } };
+  }
+  const qualifiedLeader = /^(?:up to 1 of |1 of )?(your|your opponent's) (.+?) leader(?: card)?$/i.exec(text);
+  if (qualifiedLeader && !/^(?:up to|all|\d)/i.test(qualifiedLeader[2]!)) {
+    const inner = parseCardPhrase(`all ${qualifiedLeader[1]} ${qualifiedLeader[2]} leader`, ctx);
+    if (inner && inner.selector.zone === "leader") return { selector: inner.selector, quant: { kind: "all" } };
   }
   let quant: CardPhrase["quant"] | null = null;
   let m: RegExpExecArray | null;
@@ -187,6 +209,10 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
       text = text.slice(m[0].length); continue;
     }
     if ((m = /^<(\w+)> attribute /.exec(text))) { filter.attributes = [m[1]!]; text = text.slice(m[0].length); continue; }
+    if ((m = /^(§N\d+§(?:(?:, | or )§N\d+§)*) or (§T\d+§(?:(?:, | or |, or )§T\d+§)*) type /.exec(text))) {
+      const names = nameList(m[1]!, ctx); const traits = traitList(m[2]!, ctx); if (!names || !traits) return null;
+      filter.any = [{ names }, { traits }]; text = text.slice(m[0].length); continue;
+    }
     break;
   }
   // Noun: named cards or a type noun, followed by qualifiers.
@@ -200,7 +226,7 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
     text = text.slice(named[0].length).trim();
     zone = opts.zone ?? "leader_or_character";
   } else {
-    const nounMatch = /^(leader or character cards?|leader or characters?|leaders? or characters?|character or event cards?|event or stage cards?|character or stage cards?|characters? or stages?|character cards?|characters?|leaders?|event cards?|events?|stage cards?|stages?|cards?)(?=$| |,)/i.exec(text);
+    const nounMatch = /^(leader or character cards?|leader or characters?|leaders? or characters?|leader and character cards?|leader or stage cards?|leaders? or stages?|DON!! cards?|character or event cards?|event or stage cards?|character or stage cards?|characters? or stages?|character cards?|characters?|leaders?|event cards?|events?|stage cards?|stages?|cards?)(?=$| |,)/i.exec(text);
     if (!nounMatch) return null;
     for (const [re, z, t] of NOUNS) if (re.test(nounMatch[1]!)) { zone = z; types = t; break; }
     text = text.slice(nounMatch[0].length).trim();

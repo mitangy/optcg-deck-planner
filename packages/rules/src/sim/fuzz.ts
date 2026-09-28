@@ -6,6 +6,7 @@
  * Usage: npx tsx src/sim/fuzz.ts [games] [seed]
  */
 import { listCardDefs } from "../cards/definitions.js";
+import { abilitiesFor } from "../cards/abilities.js";
 import { applyIntent, assertInvariants, createMatch, listLegalIntents, skipMulligans } from "../engine.js";
 import { createSeededRng, type Rng } from "../rng.js";
 import type { ChoiceRequest, Intent, MatchState, PendingChoice, Seat } from "../types.js";
@@ -106,7 +107,64 @@ export function fuzzGame(seed: number, maxIntents = 1500, focus?: string[]): Fuz
   return { finished: state.winner !== null, intents, deckIds };
 }
 
-if (process.argv[1] && /fuzz\.ts$/.test(process.argv[1])) {
+/**
+ * Sweep: focused decks cycling through every catalog card (4 copies each of
+ * `chunk` cards per deck), reporting abilities that never activated.
+ */
+export function sweep(chunk = 10, gamesPerChunk = 2, base = 90000): { errors: string[]; activated: Set<string> } {
+  const ids = mainCards.map((d) => d.id);
+  const errors: string[] = [];
+  const activated = new Set<string>();
+  for (let i = 0; i < ids.length; i += chunk) {
+    const focus = ids.slice(i, i + chunk);
+    for (let g = 0; g < gamesPerChunk; g += 1) {
+      const seed = base + i * gamesPerChunk + g;
+      const result = fuzzGameTracked(seed, focus, activated);
+      if (result.error) errors.push(`seed ${seed} focus=${focus.join(",")}: ${result.error}`);
+    }
+  }
+  return { errors, activated };
+}
+
+function fuzzGameTracked(seed: number, focus: string[], activated: Set<string>): FuzzResult {
+  const rng = createSeededRng(seed);
+  const a = randomDeck(rng, focus);
+  const b = randomDeck(rng, focus.slice().reverse());
+  let state = createMatch({ seed, firstSeat: (seed % 2) as Seat, players: [a, b] });
+  state = skipMulligans(state, rng);
+  let intents = 0;
+  try {
+    while (intents < 1500 && state.winner === null) {
+      const seat = actingSeat(state);
+      const legal = listLegalIntents(state, seat);
+      if (legal.length === 0) throw new Error(`No legal intents phase=${state.phase}`);
+      const front = state.pendingChoices[0];
+      // Prefer playing and activating so focused cards resolve.
+      const eager = legal.filter((i) => i.type === "play_card" || i.type === "activate_ability" || i.type === "declare_attack" || i.type === "counter_event");
+      const pick = front && front.seat === seat && rng.next() < 0.85 ? randomAnswer(rng, front) : eager.length && rng.next() < 0.8 ? eager[rng.nextInt(eager.length)]! : legal[rng.nextInt(legal.length)]!;
+      let r = applyIntent(state, pick, { seat, rng });
+      if (!r.ok && front) r = applyIntent(state, legal[0]!, { seat, rng });
+      if (!r.ok) throw new Error(`Rejected legal intent ${JSON.stringify(pick)}: ${r.error?.message}`);
+      for (const e of r.events) if (e.type === "ability_activated") activated.add(e.abilityId);
+      state = r.state;
+      assertInvariants(state);
+      intents += 1;
+    }
+  } catch (error) {
+    return { finished: false, intents, error: `${(error as Error).message} ${(error as Error).stack?.split("\n").slice(1, 3).join(" ")}`, deckIds: focus };
+  }
+  return { finished: state.winner !== null, intents, deckIds: focus };
+}
+
+if (process.argv[1] && /fuzz\.ts$/.test(process.argv[1]) && process.argv[2] === "--sweep") {
+  const { errors, activated } = sweep(Number(process.argv[3] ?? 10), Number(process.argv[4] ?? 2));
+  for (const e of errors.slice(0, 15)) console.log(e);
+  const all = listCardDefs().flatMap((d) => abilitiesFor(d.id).filter((a) => a.trigger !== "static" && a.trigger !== "replacement").map((a) => a.id));
+  const never = all.filter((id) => !activated.has(id));
+  console.log(`sweep: ${errors.length} errors; activated ${activated.size}/${all.length} triggered/activated abilities; never: ${never.length}`);
+  if (process.argv.includes("--list")) console.log(never.join(" "));
+  if (errors.length) process.exit(1);
+} else if (process.argv[1] && /fuzz\.ts$/.test(process.argv[1])) {
   const games = Number(process.argv[2] ?? 50);
   const base = Number(process.argv[3] ?? 1);
   let finished = 0;

@@ -138,6 +138,7 @@ export function powerOf(state: MatchState, seat: Seat, card: CardInstance): numb
   for (const { entry, s } of staticsFor(state, seat, card)) if (s.s === "power") p += evalValue(state, ctxFor(entry.seat, entry.card), s.amount);
   for (const m of cardModifiers(state, card)) if (m.effect.type === "power") p += m.effect.amount;
   if (state.activeSeat === seat) p += card.attachedDonIds.length * 1000;
+  for (const m of cardModifiers(state, card)) if (m.effect.type === "set_power") p = m.effect.value;
   return p;
 }
 
@@ -170,11 +171,28 @@ export function hasRestriction(state: MatchState, seat: Seat, card: CardInstance
   return restrictionValue(state, seat, card, restriction) != null;
 }
 
-export function playerRestricted(state: MatchState, seat: Seat, restriction: PlayerRestriction): boolean {
-  if (state.modifiers.some((m) => m.target.kind === "player" && m.target.seat === seat && m.effect.type === "player_restrict" && m.effect.restriction === restriction)) return true;
-  for (const entry of activeStatics(state)) for (const s of entry.ability.statics ?? []) {
-    if (s.s === "player_restrict" && s.restriction === restriction && (s.player === "you" ? entry.seat : otherSeat(entry.seat)) === seat) return true;
+/** Player-level restriction. Filtered restrictions apply only when `card` matches the filter. */
+export function playerRestricted(state: MatchState, seat: Seat, restriction: PlayerRestriction, card?: CardInstance): boolean {
+  const applies = (filter: Filter | undefined, ctxSeat: Seat) => {
+    if (!filter) return true;
+    if (!card) return false;
+    const loc = locate(state, card.id);
+    return loc != null && filterMatches(state, ctxFor(ctxSeat, card), filter, loc);
+  };
+  for (const m of state.modifiers) {
+    if (m.target.kind === "player" && m.target.seat === seat && m.effect.type === "player_restrict" && m.effect.restriction === restriction && applies(m.effect.filter, m.sourceSeat)) return true;
   }
+  for (const entry of activeStatics(state)) for (const s of entry.ability.statics ?? []) {
+    if (s.s === "player_restrict" && s.restriction === restriction && (s.player === "you" ? entry.seat : otherSeat(entry.seat)) === seat && applies(s.filter, entry.seat)) return true;
+  }
+  return false;
+}
+
+/** "Cannot be K.O.'d in battle by <Attribute> …": does any such protection apply against `attackerDefId`? */
+export function protectedFromBattleKoBy(state: MatchState, seat: Seat, card: CardInstance, attackerDefId: string): boolean {
+  const attrs = (getCardDef(attackerDefId).attribute ?? "").split("/");
+  for (const { s } of staticsFor(state, seat, card)) if (s.s === "restrict" && s.restriction === "cannot_be_ko_in_battle_by_attribute" && s.attribute && attrs.includes(s.attribute)) return true;
+  for (const m of cardModifiers(state, card)) if (m.effect.type === "restrict" && m.effect.restriction === "cannot_be_ko_in_battle_by_attribute" && m.effect.attribute && attrs.includes(m.effect.attribute)) return true;
   return false;
 }
 
@@ -236,6 +254,11 @@ const ZONES: Record<string, ZoneName[]> = {
   don: [],
 };
 
+/** DON!! cards in the cost area as pseudo-locations (zone "don", defId "DON"). */
+export function donEntries(state: MatchState, seat: Seat): Located[] {
+  return state.players[seat].costArea.map((d, index) => ({ seat, zone: "don" as ZoneName, index, id: d.id, defId: "DON" }));
+}
+
 function zoneEntries(state: MatchState, seat: Seat, zone: ZoneName): Located[] {
   const p = state.players[seat];
   switch (zone) {
@@ -251,6 +274,13 @@ function zoneEntries(state: MatchState, seat: Seat, zone: ZoneName): Located[] {
 export function candidates(state: MatchState, ctx: EvalCtx, selector: Selector): Located[] {
   const out: Located[] = [];
   for (const seat of seatsFor(ctx, selector.player)) {
+    if (selector.zone === "don") {
+      for (const loc of donEntries(state, seat)) {
+        const rested = state.players[seat].costArea[loc.index]!.rested;
+        if (selector.filter?.rested == null || selector.filter.rested === rested) out.push(loc);
+      }
+      continue;
+    }
     for (const zone of ZONES[selector.zone] ?? []) {
       for (const loc of zoneEntries(state, seat, zone)) {
         if (!selector.filter || filterMatches(state, ctx, selector.filter, loc)) out.push(loc);
@@ -291,6 +321,13 @@ export function filterMatches(state: MatchState, ctx: EvalCtx, f: Filter, loc: L
   if (f.traits && !f.traits.some((t) => def.traits?.includes(t))) return false;
   if (f.traitIncludes && !f.traitIncludes.some((t) => (def.traits ?? []).some((trait) => trait.includes(t)))) return false;
   if (f.notTraits && f.notTraits.some((t) => def.traits?.includes(t))) return false;
+  if (f.notTraitIncludes && f.notTraitIncludes.some((t) => (def.traits ?? []).some((trait) => trait.includes(t)))) return false;
+  if (f.vanilla != null && (!def.effectText || def.effectText === "—") !== f.vanilla) return false;
+  if (f.textIncludes || f.textExcludes) {
+    const text = `${def.effectText ?? ""} ${def.triggerText ?? ""}`;
+    if (f.textIncludes && !f.textIncludes.every((t) => text.includes(t))) return false;
+    if (f.textExcludes && f.textExcludes.some((t) => text.includes(t))) return false;
+  }
   if (f.names || f.notNames || f.nameIncludes) {
     const names = namesOfDef(loc.defId);
     if (f.names && !f.names.some((n) => names.includes(n))) return false;
@@ -317,6 +354,7 @@ export function filterMatches(state: MatchState, ctx: EvalCtx, f: Filter, loc: L
   if (f.inVar && !asList(ctx.vars[f.inVar]).includes(loc.id)) return false;
   if (f.faceUp != null && (loc.zone !== "life" || Boolean(state.players[loc.seat].faceUpLife[loc.index]) !== f.faceUp)) return false;
   if (f.any && !f.any.some((sub) => filterMatches(state, ctx, sub, loc))) return false;
+  if (f.all && !f.all.every((sub) => filterMatches(state, ctx, sub, loc))) return false;
   return true;
 }
 
@@ -337,6 +375,8 @@ export function evalCount(state: MatchState, ctx: EvalCtx, expr: CountExpr): num
     case "don_attached_self": { const loc = locate(state, ctx.sourceId); return loc?.card?.attachedDonIds.length ?? 0; }
     case "cards": return candidates(state, ctx, expr.selector).length;
     case "var": { const v = ctx.vars[expr.name]; return typeof v === "number" ? v : typeof v === "boolean" ? (v ? 1 : 0) : asList(v).length; }
+    case "leader_power": { const s = relSeat(ctx, expr.player); return powerOf(state, s, state.players[s].leader); }
+    case "don_attached_total": return state.players[relSeat(ctx, expr.player)].attachedDons.length;
     case "var_sum": return asList(ctx.vars[expr.name]).reduce((n, id) => {
       const loc = locate(state, id);
       if (!loc) return n;
@@ -348,7 +388,8 @@ export function evalCount(state: MatchState, ctx: EvalCtx, expr: CountExpr): num
 
 export function evalValue(state: MatchState, ctx: EvalCtx, value: Value): number {
   if (typeof value === "number") return value;
-  return evalCount(state, ctx, value.count) * (value.times ?? 1) + (value.plus ?? 0);
+  const count = evalCount(state, ctx, value.count);
+  return (value.per ? Math.floor(count / value.per) : count) * (value.times ?? 1) + (value.plus ?? 0);
 }
 
 function sourceCard(state: MatchState, ctx: EvalCtx): CardInstance | undefined {
@@ -416,6 +457,9 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
     case "trash_cards": case "return_cards_to_hand": case "cards_to_deck_bottom": return candidates(state, ctx, cost.selector).length >= cost.count;
     case "trash_to_deck_bottom": return candidates(state, ctx, { player: "you", zone: "trash", ...(cost.filter ? { filter: cost.filter } : {}) }).length >= cost.count;
     case "life_to_hand": case "trash_life": return p.life.length >= cost.count;
+    case "return_active_don": return activeDon(p).length >= cost.count;
+    case "ko_cards": return candidates(state, ctx, cost.selector).filter((l) => l.card && !hasRestriction(state, l.seat, l.card, "cannot_be_ko") && !hasRestriction(state, l.seat, l.card, "cannot_be_ko_by_effect")).length >= cost.count;
+    case "give_don": return activeDon(p).length >= cost.count && candidates(state, ctx, cost.selector).length > 0;
     case "life_face_down": return p.faceUpLife.filter(Boolean).length >= cost.count || p.life.length >= cost.count;
     case "life_face_up": return p.life.length >= cost.count;
     case "mill": return p.deck.length >= cost.count;

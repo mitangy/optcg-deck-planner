@@ -40,8 +40,8 @@ const relAny = oneOf("you", "opponent", "any");
 const cmpOp = oneOf("<=", ">=", "==", "<", ">", "!=");
 const keyword = oneOf("blocker", "rush", "rush_character", "double_attack", "banish", "unblockable");
 const duration = oneOf("battle", "turn", "until_start_of_your_next_turn", "until_end_of_opponent_next_turn", "until_end_of_your_next_turn", "permanent");
-const restriction = oneOf("cannot_attack", "cannot_attack_leader", "cannot_block", "cannot_be_ko", "cannot_be_ko_by_effect", "cannot_be_ko_by_opponent_effect", "cannot_be_ko_in_battle", "cannot_be_removed_by_opponent_effect", "cannot_be_rested_by_opponent_effect", "cannot_be_returned_by_opponent_effect", "no_refresh", "can_attack_active", "cannot_be_blocked_by_power_or_less", "cannot_activate_blocker");
-const playerRestriction = oneOf("cannot_play_characters", "cannot_play_events", "cannot_add_life_to_hand_by_effect", "cannot_attack_leader", "cannot_draw_by_effect", "cannot_set_don_active");
+const restriction = oneOf("cannot_attack", "cannot_attack_leader", "cannot_block", "cannot_be_ko", "cannot_be_ko_by_effect", "cannot_be_ko_by_opponent_effect", "cannot_be_ko_in_battle", "cannot_be_removed_by_opponent_effect", "cannot_be_rested_by_opponent_effect", "cannot_be_rested", "cannot_be_ko_in_battle_by_attribute", "cannot_be_returned_by_opponent_effect", "no_refresh", "can_attack_active", "cannot_be_blocked_by_power_or_less", "cannot_activate_blocker");
+const playerRestriction = oneOf("cannot_play_characters", "cannot_play_events", "cannot_add_life_to_hand_by_effect", "cannot_attack_leader", "cannot_draw_by_effect", "cannot_set_don_active", "cannot_set_don_active_by_character_effects");
 const zone = oneOf("leader", "character", "leader_or_character", "stage", "field", "hand", "trash", "hand_or_trash", "deck", "life", "deck_top", "don", "resolving");
 const cardType = oneOf("leader", "character", "event", "stage");
 const strings = arr(str, 1);
@@ -59,16 +59,19 @@ const countExpr: V = tagged("of", {
   cards: variant("of", "cards", { selector: lazy(() => selector) }),
   var: variant("of", "var", { name: str }),
   var_sum: variant("of", "var_sum", { name: str, field: oneOf("cost", "power") }),
+  leader_power: variant("of", "leader_power", { player: rel }),
+  don_attached_total: variant("of", "don_attached_total", { player: rel }),
 });
 const value: V = (v, p, e) => {
   if (typeof v === "number") { if (!Number.isSafeInteger(v)) fail(p, "integer", e); return; }
-  obj({ count: countExpr }, { times: int(), plus: int() })(v, p, e);
+  obj({ count: countExpr }, { times: int(), plus: int(), per: int(1) })(v, p, e);
 };
 const cmp = obj({ op: cmpOp, value });
 const filter: V = obj({}, {
   types: arr(cardType, 1), traits: strings, traitIncludes: strings, notTraits: strings, names: strings, notNames: strings, nameIncludes: strings,
   colors: strings, multicolor: bool, attributes: strings, cost: cmp, baseCost: cmp, power: cmp, basePower: cmp, counter: cmp, hasCounter: bool,
   hasTrigger: bool, rested: bool, keyword, playedThisTurn: bool, excludeSelf: bool, excludeVar: str, inVar: str, faceUp: bool, any: arr(lazy(() => filter), 1),
+  notTraitIncludes: strings, vanilla: bool, textIncludes: strings, textExcludes: strings, all: arr(lazy(() => filter), 1),
 });
 const selector: V = obj({ player: relAny, zone }, { filter });
 
@@ -126,7 +129,10 @@ const cost: V = tagged("k", {
   cards_to_deck_bottom: variant("k", "cards_to_deck_bottom", { selector, count: int(1) }),
   trash_to_deck_bottom: variant("k", "trash_to_deck_bottom", { count: int(1) }, { filter }),
   life_to_hand: variant("k", "life_to_hand", { count: int(1), position: oneOf("top", "top_or_bottom") }),
-  trash_life: variant("k", "trash_life", { count: int(1) }),
+  trash_life: variant("k", "trash_life", { count: int(1) }, { position: oneOf("top", "top_or_bottom") }),
+  return_active_don: variant("k", "return_active_don", { count: int(1) }),
+  ko_cards: variant("k", "ko_cards", { selector, count: int(1) }),
+  give_don: variant("k", "give_don", { count: int(1), selector }),
   life_face_down: variant("k", "life_face_down", { count: int(1) }),
   life_face_up: variant("k", "life_face_up", { count: int(1) }),
   mill: variant("k", "mill", { count: int(1) }),
@@ -150,24 +156,27 @@ const effect: V = tagged("do", {
   rest: variant("do", "rest", { target }),
   activate: variant("do", "activate", { target }),
   to_hand: variant("do", "to_hand", { target }),
-  to_deck: variant("do", "to_deck", { target, position: oneOf("top", "bottom") }),
+  to_deck: variant("do", "to_deck", { target, position: oneOf("top", "bottom", "top_or_bottom") }),
   to_trash: variant("do", "to_trash", { target }),
-  to_life: variant("do", "to_life", { target, position: oneOf("top", "bottom"), faceUp: bool }),
+  to_life: variant("do", "to_life", { target, position: oneOf("top", "bottom", "top_or_bottom"), faceUp: bool }),
   play: variant("do", "play", { target }, { rested: bool }),
   power: variant("do", "power", { target, amount: value, duration }),
   cost: variant("do", "cost", { target, amount: value, duration }),
   base_power: variant("do", "base_power", { target, value, duration }),
+  set_power: variant("do", "set_power", { target, value, duration }),
+  delay: variant("do", "delay", { when: oneOf("end_of_turn"), effect: lazy(() => effect) }),
+  activate_event: variant("do", "activate_event", { target }),
   keyword: variant("do", "keyword", { target, keyword, duration }),
-  restrict: variant("do", "restrict", { target, restriction, duration }, { value: int() }),
-  player_restrict: variant("do", "player_restrict", { player: rel, restriction: playerRestriction, duration }),
+  restrict: variant("do", "restrict", { target, restriction, duration }, { value: int(), attribute: str }),
+  player_restrict: variant("do", "player_restrict", { player: rel, restriction: playerRestriction, duration }, { filter }),
   negate: variant("do", "negate", { target, duration }),
   add_don: variant("do", "add_don", { player: rel, count: value, rested: bool }),
   give_don: variant("do", "give_don", { target, count: int(1), donState: oneOf("rested", "active", "any") }, { player: rel }),
   set_don_active: variant("do", "set_don_active", { count: int(1) }),
   rest_don: variant("do", "rest_don", { player: rel, count: int(1) }),
-  return_don: variant("do", "return_don", { player: rel, count: int(1) }, { chooser: rel }),
-  discard: variant("do", "discard", { player: rel, count: value }, { chooser: rel, filter, min: int(0) }),
-  hand_to_deck: variant("do", "hand_to_deck", { player: rel, count: int(1), position: oneOf("top", "bottom") }, { chooser: rel, filter, min: int(0) }),
+  return_don: variant("do", "return_don", { player: rel, count: int(1) }, { chooser: rel, activeOnly: bool }),
+  discard: variant("do", "discard", { player: rel, count: value }, { chooser: rel, filter, min: int(0), random: bool }),
+  hand_to_deck: variant("do", "hand_to_deck", { player: rel, count: int(1), position: oneOf("top", "bottom", "top_or_bottom") }, { chooser: rel, filter, min: int(0) }),
   hand_to_life: variant("do", "hand_to_life", { count: int(1), position: oneOf("top", "bottom"), faceUp: bool }, { filter, min: int(0) }),
   deck_to_life: variant("do", "deck_to_life", { player: rel, count: int(1) }, { faceUp: bool }),
   life_to_hand: variant("do", "life_to_hand", { player: rel, count: int(1), position: oneOf("top", "top_or_bottom", "bottom") }, { min: int(0) }),
@@ -176,7 +185,7 @@ const effect: V = tagged("do", {
   mill: variant("do", "mill", { player: rel, count: value }),
   look: variant("do", "look", { player: rel, count: value, picks: arr(lookPick), rest: placement }, { reveal: bool }),
   look_life: variant("do", "look_life", { player: relAny, count: int(1), rest: oneOf("top_or_bottom", "any_order") }),
-  reveal_top: variant("do", "reveal_top", { player: rel, bind: str }),
+  reveal_top: variant("do", "reveal_top", { player: rel, bind: str }, { zone: oneOf("deck", "life") }),
   shuffle: variant("do", "shuffle", { player: rel }),
   win: variant("do", "win"),
   extra_turn: variant("do", "extra_turn"),
@@ -194,8 +203,8 @@ const statik: V = tagged("s", {
   cost: variant("s", "cost", { target: staticTarget, amount: value }),
   base_power: variant("s", "base_power", { target: staticTarget, value }),
   keyword: variant("s", "keyword", { target: staticTarget, keyword }),
-  restrict: variant("s", "restrict", { target: staticTarget, restriction }, { value: int() }),
-  player_restrict: variant("s", "player_restrict", { player: rel, restriction: playerRestriction }),
+  restrict: variant("s", "restrict", { target: staticTarget, restriction }, { value: int(), attribute: str }),
+  player_restrict: variant("s", "player_restrict", { player: rel, restriction: playerRestriction }, { filter }),
   counter: variant("s", "counter", { filter, mode: oneOf("set", "add"), value: int() }, { onlyWithoutCounter: bool }),
   play_cost: variant("s", "play_cost", { target: (v, p, e) => { if (v === "self") return; obj({ filter })(v, p, e); }, amount: value }),
   name_alias: variant("s", "name_alias", { names: strings }),
@@ -204,7 +213,7 @@ const statik: V = tagged("s", {
 });
 
 const trigger = oneOf("static", "on_play", "when_attacking", "on_ko", "on_block", "on_opp_attack", "activate_main", "main", "counter", "trigger", "end_of_your_turn", "end_of_opponent_turn", "start_of_your_turn", "on_event", "replacement");
-const eventTrigger = obj({ event: oneOf("character_ko", "character_played", "don_returned", "self_rested", "life_removed", "event_activated", "trigger_activated", "attack_declared", "card_trashed_from_hand", "self_attacked", "leader_damaged", "character_removed_by_effect"), player: relAny }, { filter, byOpponentEffect: bool });
+const eventTrigger = obj({ event: oneOf("character_ko", "character_played", "don_returned", "self_rested", "life_removed", "event_activated", "trigger_activated", "attack_declared", "card_trashed_from_hand", "self_attacked", "leader_damaged", "character_removed_by_effect", "character_returned", "attack_damage", "self_ko"), player: relAny }, { filter, byOpponentEffect: bool });
 const replacement = obj({ event: oneOf("ko", "ko_by_effect", "removed_by_opponent_effect", "ko_in_battle", "life_damage"), target: (v, p, e) => { if (v === "self") return; selector(v, p, e); }, instead: effect, optional: bool }, { byOpponent: bool });
 
 const ability: V = (v, p, e) => {

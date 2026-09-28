@@ -56,6 +56,12 @@ function header(tags: string[]): Header {
 }
 
 const EVENT_RULES: [RegExp, (m: RegExpExecArray, ctx: Ctx) => EventTrigger | null][] = [
+  [/^when a character is KO'd$/i, () => ({ event: "character_ko", player: "any" })],
+  [/^when this character is KO'd( by your opponent's effect)?$/i, (m) => ({ event: "self_ko", player: "you", ...(m[1] ? { byOpponentEffect: true } : {}) })],
+  [/^when this (?:character|leader)'s attack deals damage to your opponent's life$/i, () => ({ event: "attack_damage", player: "you" })],
+  [/^when your opponent's character is returned to the owner's hand(?: by your effect)?$/i, () => ({ event: "character_returned", player: "opponent" })],
+  [/^when a card is trashed from your hand(?: by an effect)?$/i, () => ({ event: "card_trashed_from_hand", player: "you" })],
+  [/^when a DON!! card on your field is returned to your DON!! deck by your effect$/i, () => ({ event: "don_returned", player: "you" })],
   [/^when your opponent's character is KO'd$/i, () => ({ event: "character_ko", player: "opponent" })],
   [/^when (?:one of )?your opponent's characters? (?:is|are) KO'd by your effects?$/i, () => ({ event: "character_ko", player: "opponent", byOpponentEffect: true })],
   [/^when your character is KO'd$/i, () => ({ event: "character_ko", player: "you" })],
@@ -127,15 +133,19 @@ function parseReplacement(text: string, ctx: Ctx): Replacement | null {
   return { event, target, byOpponent, instead, optional: Boolean(m[6]) };
 }
 
-function splitCostBody(body: string, ctx: Ctx): { costs: Cost[]; optional: boolean; rest: string } | null {
+function splitCostBody(body: string, ctx: Ctx): { costs: Cost[]; optional: boolean; rest: string; conditions: Cond[] } | null {
   // Top-level ": " not inside a later sentence.
   const firstSentenceEnd = body.search(/\.(\s|$)/);
   const colon = body.indexOf(": ");
   if (colon < 0 || (firstSentenceEnd >= 0 && colon > firstSentenceEnd)) return null;
-  const costText = body.slice(0, colon);
+  let costText = body.slice(0, colon);
+  if (/(?:^|, )(?:choose one|your opponent chooses one|choose up to \d+)$/i.test(costText)) return null;
+  let conditions: Cond[] = [];
+  const gated = /^if (.+?), (you may .+)$/i.exec(costText);
+  if (gated) { const cond = parseCondition(gated[1]!, ctx); if (!cond) return null; conditions = [cond]; costText = gated[2]!; }
   const costs = parseCosts(costText, ctx);
   if (!costs) return null;
-  return { costs, optional: /you may/i.test(costText), rest: body.slice(colon + 2) };
+  return { costs, optional: /you may/i.test(costText), rest: body.slice(colon + 2), conditions };
 }
 
 export function compileCardText(id: string, row: CardDataRow): CardAbilities {
@@ -176,6 +186,7 @@ function compileSegment(tags: string[], body: string, ctx: Ctx, nextId: () => st
   // Event cards: [Main] / [Counter]; Trigger clause of any card.
   const split = splitCostBody(trimmed, ctx);
   const costs = [...h.costs, ...(split?.costs ?? [])];
+  const gateConditions = [...h.conditions, ...(split?.conditions ?? [])];
   const effectText = split ? split.rest : trimmed;
   // An event-trigger inside a timed header ("[Your Turn] [Once Per Turn] When ..., ...")
   const parsed = parseEffectBody(effectText, ctx, sentences);
@@ -187,7 +198,7 @@ function compileSegment(tags: string[], body: string, ctx: Ctx, nextId: () => st
     trigger,
     ...(h.oncePerTurn ? { oncePerTurn: true } : {}),
     ...(h.don ? { don: h.don } : {}),
-    ...(h.conditions.length ? { conditions: h.conditions } : {}),
+    ...(gateConditions.length ? { conditions: gateConditions } : {}),
     ...(costs.length ? { costs } : {}),
     effect,
   }));

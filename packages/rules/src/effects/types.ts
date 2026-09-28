@@ -17,7 +17,8 @@ export type CmpOp = "<=" | ">=" | "==" | "<" | ">" | "!=";
 /** Numeric expression evaluated at resolution time. */
 export type Value =
   | number
-  | { count: CountExpr; times?: number; plus?: number };
+  /** floor(count / per) * times + plus */
+  | { count: CountExpr; times?: number; plus?: number; per?: number };
 
 export type CountExpr =
   | { of: "life"; player: RelOrAny }
@@ -31,7 +32,9 @@ export type CountExpr =
   | { of: "don_attached_self" }
   | { of: "cards"; selector: Selector }
   | { of: "var"; name: string }
-  | { of: "var_sum"; name: string; field: "cost" | "power" };
+  | { of: "var_sum"; name: string; field: "cost" | "power" }
+  | { of: "leader_power"; player: Rel }
+  | { of: "don_attached_total"; player: Rel };
 
 export interface Cmp {
   op: CmpOp;
@@ -61,6 +64,13 @@ export interface Filter {
   /** Matches when any trait contains any listed substring ("type including"). */
   traitIncludes?: string[];
   notTraits?: string[];
+  /** Excludes cards with any trait containing any listed substring. */
+  notTraitIncludes?: string[];
+  /** No printed effect text ("no base effect"). */
+  vanilla?: boolean;
+  /** Printed text (effect + trigger) contains / lacks each listed tag, e.g. "[When Attacking]". */
+  textIncludes?: string[];
+  textExcludes?: string[];
   /** Printed or aliased name equals any listed name. */
   names?: string[];
   notNames?: string[];
@@ -89,6 +99,8 @@ export interface Filter {
   faceUp?: boolean;
   /** Matches cards whose printed [Trigger] text is present. */
   any?: Filter[];
+  /** Every sub-filter must match (ranges such as "5000 to 7000 power"). */
+  all?: Filter[];
 }
 
 export interface Selector {
@@ -123,6 +135,8 @@ export type Restriction =
   | "cannot_be_ko_in_battle"
   | "cannot_be_removed_by_opponent_effect"
   | "cannot_be_rested_by_opponent_effect"
+  | "cannot_be_rested"
+  | "cannot_be_ko_in_battle_by_attribute"
   | "cannot_be_returned_by_opponent_effect"
   | "no_refresh"
   | "can_attack_active"
@@ -135,7 +149,8 @@ export type PlayerRestriction =
   | "cannot_add_life_to_hand_by_effect"
   | "cannot_attack_leader"
   | "cannot_draw_by_effect"
-  | "cannot_set_don_active";
+  | "cannot_set_don_active"
+  | "cannot_set_don_active_by_character_effects";
 
 export type Target =
   | { ref: "self" }
@@ -206,7 +221,11 @@ export type Cost =
   | { k: "cards_to_deck_bottom"; selector: Selector; count: number }
   | { k: "trash_to_deck_bottom"; count: number; filter?: Filter }
   | { k: "life_to_hand"; count: number; position: "top" | "top_or_bottom" }
-  | { k: "trash_life"; count: number }
+  | { k: "trash_life"; count: number; position?: "top" | "top_or_bottom" }
+  | { k: "return_active_don"; count: number }
+  | { k: "ko_cards"; selector: Selector; count: number }
+  /** Give your own active DON!! to one of your cards (as a cost). */
+  | { k: "give_don"; count: number; selector: Selector }
   | { k: "life_face_down"; count: number }
   | { k: "life_face_up"; count: number }
   | { k: "mill"; count: number }
@@ -242,24 +261,30 @@ export type Effect =
   | { do: "rest"; target: Target }
   | { do: "activate"; target: Target }
   | { do: "to_hand"; target: Target }
-  | { do: "to_deck"; target: Target; position: "top" | "bottom" }
+  | { do: "to_deck"; target: Target; position: "top" | "bottom" | "top_or_bottom" }
   | { do: "to_trash"; target: Target }
-  | { do: "to_life"; target: Target; position: "top" | "bottom"; faceUp: boolean }
+  | { do: "to_life"; target: Target; position: "top" | "bottom" | "top_or_bottom"; faceUp: boolean }
   | { do: "play"; target: Target; rested?: boolean }
   | { do: "power"; target: Target; amount: Value; duration: Duration }
   | { do: "cost"; target: Target; amount: Value; duration: Duration }
   | { do: "base_power"; target: Target; value: Value; duration: Duration }
+  /** Final power becomes exactly this value (after all other modifiers). */
+  | { do: "set_power"; target: Target; value: Value; duration: Duration }
+  /** Run `effect` at the end of this turn (a delayed one-shot). */
+  | { do: "delay"; when: "end_of_turn"; effect: Effect }
+  /** Activate the [Main] effect of an Event (from hand or trash) without paying its cost. */
+  | { do: "activate_event"; target: Target }
   | { do: "keyword"; target: Target; keyword: Keyword; duration: Duration }
-  | { do: "restrict"; target: Target; restriction: Restriction; duration: Duration; value?: number }
-  | { do: "player_restrict"; player: Rel; restriction: PlayerRestriction; duration: Duration }
+  | { do: "restrict"; target: Target; restriction: Restriction; duration: Duration; value?: number; attribute?: string }
+  | { do: "player_restrict"; player: Rel; restriction: PlayerRestriction; duration: Duration; filter?: Filter }
   | { do: "negate"; target: Target; duration: Duration }
   | { do: "add_don"; player: Rel; count: Value; rested: boolean }
   | { do: "give_don"; target: Target; count: number; donState: "rested" | "active" | "any"; player?: Rel }
   | { do: "set_don_active"; count: number }
   | { do: "rest_don"; player: Rel; count: number }
-  | { do: "return_don"; player: Rel; count: number; chooser?: Rel }
-  | { do: "discard"; player: Rel; count: Value; chooser?: Rel; filter?: Filter; min?: number }
-  | { do: "hand_to_deck"; player: Rel; count: number; position: "top" | "bottom"; chooser?: Rel; filter?: Filter; min?: number }
+  | { do: "return_don"; player: Rel; count: number; chooser?: Rel; activeOnly?: boolean }
+  | { do: "discard"; player: Rel; count: Value; chooser?: Rel; filter?: Filter; min?: number; random?: boolean }
+  | { do: "hand_to_deck"; player: Rel; count: number; position: "top" | "bottom" | "top_or_bottom"; chooser?: Rel; filter?: Filter; min?: number }
   | { do: "hand_to_life"; count: number; position: "top" | "bottom"; faceUp: boolean; filter?: Filter; min?: number }
   | { do: "deck_to_life"; player: Rel; count: number; faceUp?: boolean }
   | { do: "life_to_hand"; player: Rel; count: number; position: "top" | "top_or_bottom" | "bottom"; min?: number }
@@ -268,7 +293,7 @@ export type Effect =
   | { do: "mill"; player: Rel; count: Value }
   | { do: "look"; player: Rel; count: Value; picks: LookPick[]; rest: Placement; reveal?: boolean }
   | { do: "look_life"; player: RelOrAny; count: number; rest: "top_or_bottom" | "any_order" }
-  | { do: "reveal_top"; player: Rel; bind: string }
+  | { do: "reveal_top"; player: Rel; bind: string; zone?: "deck" | "life" }
   | { do: "shuffle"; player: Rel }
   | { do: "win" }
   | { do: "extra_turn" }
@@ -284,8 +309,8 @@ export type Static =
   | { s: "cost"; target: StaticTarget; amount: Value }
   | { s: "base_power"; target: StaticTarget; value: Value }
   | { s: "keyword"; target: StaticTarget; keyword: Keyword }
-  | { s: "restrict"; target: StaticTarget; restriction: Restriction; value?: number }
-  | { s: "player_restrict"; player: Rel; restriction: PlayerRestriction }
+  | { s: "restrict"; target: StaticTarget; restriction: Restriction; value?: number; attribute?: string }
+  | { s: "player_restrict"; player: Rel; restriction: PlayerRestriction; filter?: Filter }
   /** Counter value of hand cards: set (replace) or add to printed value. */
   | { s: "counter"; filter: Filter; mode: "set" | "add"; value: number; onlyWithoutCounter?: boolean }
   /** Play cost from hand (the source itself when `self`). */
@@ -325,7 +350,12 @@ export type GameEventKind =
   | "card_trashed_from_hand"
   | "self_attacked"
   | "leader_damaged"
-  | "character_removed_by_effect";
+  | "character_removed_by_effect"
+  | "character_returned"
+  /** This card's attack dealt damage to the opponent's Life. */
+  | "attack_damage"
+  /** This card was K.O.'d (resolves from the trash like On K.O.). */
+  | "self_ko";
 
 export interface EventTrigger {
   event: GameEventKind;

@@ -7,7 +7,7 @@ import { abilitiesFor, abilityById } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import type { MatchState, PendingChoice, Seat } from "../types.js";
 import { expireBattle, expireEndOfTurn, expireStartOfTurn } from "./modifiers.js";
-import { hasKeyword, hasRestriction, powerOf } from "./queries.js";
+import { hasKeyword, hasRestriction, powerOf, protectedFromBattleKoBy } from "./queries.js";
 import {
   abilityGateOpen, dispatchEvent, findReplacement, newBatch, performKo, pushReplacementFrame, queueWindow, runFrames, startAbility, takeLifeToHand, type Sim,
 } from "./runtime.js";
@@ -72,6 +72,10 @@ function startNextTrigger(sim: Sim): boolean {
   state.triggerQueue = state.triggerQueue.filter((t) => t.id !== next.id);
   const entry = abilityById(next.abilityId);
   if (!entry) return true;
+  if (next.delayIndex != null) {
+    state.resolutionFrames.push({ id: alloc(state, "frame"), seat: next.seat, sourceInstanceId: next.sourceInstanceId, sourceDefId: next.sourceDefId, abilityId: next.abilityId, window: "end_of_turn", operationIndex: 0, bindings: { _delay: next.delayIndex }, program: "ability" });
+    return true;
+  }
   const loc = locate(state, next.sourceInstanceId);
   // Once-per-turn may have been consumed by an earlier copy of the same trigger.
   if (entry.ability.oncePerTurn && loc?.card?.usedAbilities?.[entry.ability.id] === state.turnNumber) return true;
@@ -145,6 +149,10 @@ export function endTurn(sim: Sim): void {
   const seat = state.activeSeat;
   for (const card of fieldCards(state.players[seat])) queueWindow(state, "end_of_your_turn", seat, card);
   for (const card of fieldCards(state.players[otherSeat(seat)])) queueWindow(state, "end_of_opponent_turn", otherSeat(seat), card);
+  for (const d of state.delayed.filter((x) => x.turn === state.turnNumber)) {
+    state.triggerQueue.push({ id: alloc(state, "trig"), seat: d.seat, sourceInstanceId: d.sourceInstanceId, sourceDefId: d.sourceDefId, abilityId: d.abilityId, window: "end_of_turn", batch: state.triggerBatch, delayIndex: d.index });
+  }
+  state.delayed = state.delayed.filter((x) => x.turn > state.turnNumber);
   state.steps.push({ kind: "end_phase" });
 }
 
@@ -230,7 +238,7 @@ function advanceStep(sim: Sim): void {
       if (!won) { state.steps.unshift({ kind: "end_battle" }); return; }
       if (b.target.kind === "character") {
         const next: MatchState["steps"] = [];
-        if (!hasRestriction(state, defSeat, defender, "cannot_be_ko_in_battle") && !hasRestriction(state, defSeat, defender, "cannot_be_ko")) next.push({ kind: "battle_ko", targetSeat: defSeat, targetId: defender.id });
+        if (!hasRestriction(state, defSeat, defender, "cannot_be_ko_in_battle") && !hasRestriction(state, defSeat, defender, "cannot_be_ko") && !protectedFromBattleKoBy(state, defSeat, defender, attacker.defId)) next.push({ kind: "battle_ko", targetSeat: defSeat, targetId: defender.id });
         next.push({ kind: "end_battle" });
         state.steps.unshift(...next);
         return;
@@ -250,6 +258,7 @@ function advanceStep(sim: Sim): void {
       const lifeId = d.zoneInstanceIds.life[0]!;
       const lifeDef = d.life[0]!;
       dispatchEvent(state, "leader_damaged", { seat: defSeat });
+      if (attacker) dispatchEvent(state, "attack_damage", { seat: b.attackerSeat, card: attacker });
       if (attacker && hasKeyword(state, b.attackerSeat, attacker, "banish")) {
         const entry = takeCard(state, { seat: defSeat, zone: "life", index: 0, id: lifeId, defId: lifeDef });
         putCard(state, defSeat, "trash", entry);

@@ -5,7 +5,7 @@
  */
 import { abilitiesFor, abilityById, programFor, replacementProgramFor } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
-import type { Instr, Program } from "../effects/compile.js";
+import { compileDelayed, type Instr, type Program } from "../effects/compile.js";
 import type { Ability, Effect, GameEventKind, LookPick, Placement, ReplacementEvent, Target, Trigger } from "../effects/types.js";
 import type { Rng } from "../rng.js";
 import type { BindingValue, CardInstance, ChoiceOption, ChoiceRequest, GameEvent, InstanceId, MatchState, PendingChoice, QueuedTrigger, ResolutionFrame, Seat } from "../types.js";
@@ -84,7 +84,8 @@ export function dispatchEvent(state: MatchState, kind: GameEventKind, info: Even
       for (const ability of abilitiesFor(card.defId)) {
         const et = ability.eventTrigger;
         if (ability.trigger !== "on_event" || !et || et.event !== kind) continue;
-        if (kind === "self_rested" || kind === "self_attacked") { if (info.card?.id !== card.id) continue; }
+        if (kind === "self_ko") continue;
+        if (kind === "self_rested" || kind === "self_attacked" || kind === "attack_damage") { if (info.card?.id !== card.id) continue; }
         else {
           const rel = info.seat === seat ? "you" : "opponent";
           if (et.player !== "any" && et.player !== rel) continue;
@@ -128,6 +129,13 @@ export function performKo(sim: Sim, loc: Located, cause: RemovalCause): void {
   putCard(state, loc.seat, "trash", entry);
   sim.events.push({ type: "character_ko", seat: loc.seat, defId: entry.defId });
   queueWindow(state, "on_ko", loc.seat, entry, { ignoreNegation: true });
+  for (const ability of abilitiesFor(entry.defId)) {
+    const et = ability.eventTrigger;
+    if (ability.trigger !== "on_event" || et?.event !== "self_ko") continue;
+    if (et.byOpponentEffect && (cause.byEffectOf == null || cause.byEffectOf === loc.seat)) continue;
+    if (!abilityGateOpen(state, loc.seat, entry, ability)) continue;
+    state.triggerQueue.push({ id: alloc(state, "trig"), seat: loc.seat, sourceInstanceId: entry.id, sourceDefId: entry.defId, abilityId: ability.id, window: "on_event", batch: state.triggerBatch });
+  }
   dispatchEvent(state, "character_ko", { seat: loc.seat, card: entry, ...(cause.byEffectOf != null ? { byEffectOf: cause.byEffectOf } : {}) });
 }
 
@@ -219,8 +227,15 @@ const TRASH_FOR_SPACE: Program = {
   ],
 };
 
+const delayedPrograms = new Map<string, Program>();
 function programOf(frame: ResolutionFrame): Program {
   if (frame.program === "trash_for_space") return TRASH_FOR_SPACE;
+  if (typeof frame.bindings._delay === "number") {
+    const key = `${frame.abilityId}#${frame.bindings._delay}`;
+    let program = delayedPrograms.get(key);
+    if (!program) { program = compileDelayed(abilityById(frame.abilityId)!.ability, frame.bindings._delay); delayedPrograms.set(key, program); }
+    return program;
+  }
   if (frame.program === "replacement") {
     const base = replacementProgramFor(frame.abilityId);
     const optional = abilityById(frame.abilityId)?.ability.replacement?.optional;
@@ -315,6 +330,9 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
       return "wait";
     }
     case "select": return execSelect(sim, frame, instr);
+    case "delay":
+      state.delayed.push({ id: alloc(state, "delay"), seat: frame.seat, sourceInstanceId: frame.sourceInstanceId, sourceDefId: frame.sourceDefId, abilityId: frame.abilityId, index: instr.index, turn: state.turnNumber });
+      return "next";
     case "look": return execLook(sim, frame, instr);
     case "act": return execAct(sim, frame, instr.effect);
   }
@@ -328,6 +346,10 @@ function execSelect(sim: Sim, frame: ResolutionFrame, instr: Extract<Instr, { op
   const max = Math.min(instr.max, list.length);
   const min = Math.min(instr.min, max);
   if (max === 0) { frame.bindings[instr.bind] = []; return "next"; }
+  if (instr.random) {
+    frame.bindings[instr.bind] = sim.rng.shuffle(list.map((l) => l.id)).slice(0, max);
+    return "next";
+  }
   // Forced: every candidate must be chosen and no constraint could reject it.
   if (min === list.length && instr.totalCostAtMost == null && instr.totalPowerAtMost == null) {
     frame.bindings[instr.bind] = list.map((l) => l.id);
@@ -462,7 +484,7 @@ export function pushReplacementFrame(sim: Sim, hit: { seat: Seat; card: CardInst
 }
 
 /** Apply a removal to each target in order; may pause for replacement prompts. */
-function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kind: "ko" | "return" | "remove" | null, apply: (loc: Located) => void): ExecResult {
+function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kind: "ko" | "return" | "remove" | null, apply: (loc: Located) => void, done?: () => void): ExecResult {
   const { state } = sim;
   if (!Array.isArray(frame.bindings._actTargets)) frame.bindings._actTargets = targets.map((t) => t.id);
   const ids = frame.bindings._actTargets as string[];
@@ -489,6 +511,7 @@ function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kin
     apply(loc);
   }
   for (const key of Object.keys(frame.bindings)) if (key === "_actTargets" || key === "_actIndex" || key.startsWith("_repl:")) delete frame.bindings[key];
+  done?.();
   return "next";
 }
 
@@ -518,30 +541,43 @@ function execAct(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecResult {
     }
     case "rest": {
       for (const loc of targetsOf(effect.target)) {
+        if ((loc.zone as string) === "don") { const d = state.players[loc.seat].costArea.find((x) => x.id === loc.id); if (d) d.rested = true; continue; }
         if (!loc.card || !isOnField(loc) || removalBlocked(state, loc, frame.seat, "rest")) continue;
         if (!loc.card.rested) { loc.card.rested = true; dispatchEvent(state, "self_rested", { seat: loc.seat, card: loc }); }
       }
       return "next";
     }
     case "activate": {
-      for (const loc of targetsOf(effect.target)) if (loc.card && isOnField(loc)) loc.card.rested = false;
+      for (const loc of targetsOf(effect.target)) {
+        if ((loc.zone as string) === "don") { const d = state.players[loc.seat].costArea.find((x) => x.id === loc.id); if (d) d.rested = false; continue; }
+        if (loc.card && isOnField(loc)) loc.card.rested = false;
+      }
       return "next";
     }
     case "to_hand": {
       const targets = targetsOf(effect.target);
       return forEachTarget(sim, frame, targets, "return", (loc) => {
         if (loc.zone === "leader" || loc.zone === "hand") return;
-        if (isOnField(loc)) dispatchEvent(state, "character_removed_by_effect", { seat: loc.seat, card: loc, byEffectOf: frame.seat });
+        if (isOnField(loc)) {
+          dispatchEvent(state, "character_removed_by_effect", { seat: loc.seat, card: loc, byEffectOf: frame.seat });
+          dispatchEvent(state, "character_returned", { seat: loc.seat, card: loc, byEffectOf: frame.seat });
+        }
         moveToZone(sim, loc, "hand");
         if (loc.zone !== "deck" && loc.zone !== "life") sim.events.push({ type: "card_revealed", seat: loc.seat, defId: loc.defId });
       });
     }
     case "to_deck": {
+      if (effect.position === "top_or_bottom" && frame.bindings._end === undefined) {
+        if (targetsOf(effect.target).length === 0) return "next";
+        pushChoice(sim, frame, { seat: frame.seat, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — place at the top or bottom of the deck?`, request: { type: "mode", options: [{ id: "m0", label: "Top", eligible: true }, { id: "m1", label: "Bottom", eligible: true }] }, bindings: { __bind: "_end", __repeat: "1" } });
+        return "wait";
+      }
+      const position: "top" | "bottom" = effect.position === "top_or_bottom" ? (frame.bindings._end === 0 ? "top" : "bottom") : effect.position;
       const targets = targetsOf(effect.target);
       return forEachTarget(sim, frame, targets, "remove", (loc) => {
         if (loc.zone === "leader") return;
-        moveToZone(sim, loc, "deck", { position: effect.position });
-      });
+        moveToZone(sim, loc, "deck", { position });
+      }, () => { delete frame.bindings._end; });
     }
     case "to_trash": {
       const targets = targetsOf(effect.target);
@@ -552,10 +588,17 @@ function execAct(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecResult {
       });
     }
     case "to_life": {
+      if (effect.position === "top_or_bottom" && frame.bindings._end === undefined) {
+        if (targetsOf(effect.target).length === 0) return "next";
+        pushChoice(sim, frame, { seat: frame.seat, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — place at the top or bottom of the Life cards?`, request: { type: "mode", options: [{ id: "m0", label: "Top", eligible: true }, { id: "m1", label: "Bottom", eligible: true }] }, bindings: { __bind: "_end", __repeat: "1" } });
+        return "wait";
+      }
+      const lifePosition: "top" | "bottom" = effect.position === "top_or_bottom" ? (frame.bindings._end === 0 ? "top" : "bottom") : effect.position;
+      delete frame.bindings._end;
       for (const loc of targetsOf(effect.target)) {
         if (loc.zone === "leader" || loc.zone === "life") continue;
         const entry = takeCard(state, loc);
-        putCard(state, loc.seat, "life", entry, { position: effect.position, faceUp: effect.faceUp });
+        putCard(state, loc.seat, "life", entry, { position: lifePosition, faceUp: effect.faceUp });
         sim.events.push({ type: "life_added", seat: loc.seat, defId: entry.defId, source: loc.zone === "hand" ? "hand" : loc.zone === "trash" ? "trash" : loc.zone === "deck" ? "deck_top" : "field", ...(effect.faceUp ? { faceUp: true } : {}) });
       }
       return "next";
@@ -581,6 +624,23 @@ function execAct(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecResult {
       }
       return "next";
     }
+    case "set_power": {
+      const value = evalValue(state, ctx, effect.value);
+      for (const loc of targetsOf(effect.target)) if (loc.card && isOnField(loc)) addModifier(state, frame.seat, frame.sourceInstanceId, { kind: "card", id: loc.id }, { type: "set_power", value }, expiryFor(state, frame.seat, effect.duration));
+      return "next";
+    }
+    case "activate_event": {
+      const loc = targetsOf(effect.target).find((l) => (l.zone === "hand" || l.zone === "trash") && getCardDef(l.defId).type === "event");
+      if (!loc) return "next";
+      const main = abilitiesFor(loc.defId).find((a) => a.trigger === "main");
+      const entry = takeCard(state, loc);
+      putCard(state, loc.seat, "resolving", entry);
+      dispatchEvent(state, "event_activated", { seat: loc.seat, card: entry });
+      frame.operationIndex += 1;
+      if (!main) { const again = locate(state, entry.id)!; putCard(state, loc.seat, "trash", takeCard(state, again)); return "jumped"; }
+      startAbility(sim, loc.seat, entry, main, "main");
+      return "interrupt";
+    }
     case "keyword": {
       for (const loc of targetsOf(effect.target)) if (loc.card && isOnField(loc)) addModifier(state, frame.seat, frame.sourceInstanceId, { kind: "card", id: loc.id }, { type: "keyword", keyword: effect.keyword }, expiryFor(state, frame.seat, effect.duration));
       return "next";
@@ -589,12 +649,12 @@ function execAct(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecResult {
       for (const loc of targetsOf(effect.target)) {
         if (!loc.card || !isOnField(loc)) continue;
         const expires = effect.restriction === "no_refresh" ? { kind: "next_refresh" as const, seat: loc.seat } : expiryFor(state, frame.seat, effect.duration);
-        addModifier(state, frame.seat, frame.sourceInstanceId, { kind: "card", id: loc.id }, { type: "restrict", restriction: effect.restriction, ...(effect.value != null ? { value: effect.value } : {}) }, expires);
+        addModifier(state, frame.seat, frame.sourceInstanceId, { kind: "card", id: loc.id }, { type: "restrict", restriction: effect.restriction, ...(effect.value != null ? { value: effect.value } : {}), ...(effect.attribute ? { attribute: effect.attribute } : {}) }, expires);
       }
       return "next";
     }
     case "player_restrict": {
-      addModifier(state, frame.seat, frame.sourceInstanceId, { kind: "player", seat: seatOf(frame, effect.player) }, { type: "player_restrict", restriction: effect.restriction }, expiryFor(state, frame.seat, effect.duration));
+      addModifier(state, frame.seat, frame.sourceInstanceId, { kind: "player", seat: seatOf(frame, effect.player) }, { type: "player_restrict", restriction: effect.restriction, ...(effect.filter ? { filter: effect.filter } : {}) }, expiryFor(state, frame.seat, effect.duration));
       return "next";
     }
     case "negate": {
@@ -622,6 +682,7 @@ function execAct(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecResult {
     case "set_don_active": {
       const p = state.players[frame.seat];
       if (playerRestricted(state, frame.seat, "cannot_set_don_active")) return "next";
+      if (getCardDef(frame.sourceDefId).type === "character" && playerRestricted(state, frame.seat, "cannot_set_don_active_by_character_effects")) return "next";
       let n = effect.count;
       for (const d of p.costArea) if (n > 0 && d.rested) { d.rested = false; n -= 1; }
       return "next";
@@ -634,7 +695,7 @@ function execAct(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecResult {
     }
     case "return_don": {
       const seat = seatOf(frame, effect.player);
-      const returned = returnDonToDeck(state, seat, effect.count);
+      const returned = returnDonToDeck(state, seat, effect.count, Boolean(effect.activeOnly));
       if (returned) dispatchEvent(state, "don_returned", { seat });
       return "next";
     }
@@ -662,8 +723,17 @@ function execAct(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecResult {
     case "trash_life": {
       const seat = seatOf(frame, effect.player);
       const p = state.players[seat];
+      if (effect.position === "top_or_bottom" && p.life.length > 1 && frame.bindings._lifeEnd === undefined) {
+        pushChoice(sim, frame, { seat: frame.seat, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — trash from the top or bottom of Life?`, request: { type: "mode", options: [{ id: "m0", label: "Top", eligible: true }, { id: "m1", label: "Bottom", eligible: true }] }, bindings: { __bind: "_lifeEnd", __repeat: "1" } });
+        return "wait";
+      }
+      const fromBottom = frame.bindings._lifeEnd === 1;
+      delete frame.bindings._lifeEnd;
       const n = evalValue(state, ctx, effect.count);
-      for (let i = 0; i < n && p.life.length; i += 1) moveToZone(sim, { seat, zone: "life", index: 0, id: p.zoneInstanceIds.life[0]!, defId: p.life[0]! }, "trash");
+      for (let i = 0; i < n && p.life.length; i += 1) {
+        const index = fromBottom ? p.life.length - 1 : 0;
+        moveToZone(sim, { seat, zone: "life", index, id: p.zoneInstanceIds.life[index]!, defId: p.life[index]! }, "trash");
+      }
       return "next";
     }
     case "life_face": {
@@ -712,8 +782,10 @@ function execAct(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecResult {
       return "next";
     }
     case "reveal_top": {
-      const p = state.players[seatOf(frame, effect.player)];
-      if (p.deck.length) { frame.bindings[effect.bind] = p.zoneInstanceIds.deck[0]!; sim.events.push({ type: "card_revealed", seat: seatOf(frame, effect.player), defId: p.deck[0]! }); }
+      const seat = seatOf(frame, effect.player);
+      const p = state.players[seat];
+      const zone = effect.zone ?? "deck";
+      if (p[zone].length) { frame.bindings[effect.bind] = [p.zoneInstanceIds[zone][0]!]; sim.events.push({ type: "card_revealed", seat, defId: p[zone][0]! }); }
       else frame.bindings[effect.bind] = [];
       return "next";
     }

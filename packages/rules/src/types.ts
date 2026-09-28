@@ -87,10 +87,11 @@ export type ModifierEffect =
   | { type: "power"; amount: number }
   | { type: "cost"; amount: number }
   | { type: "base_power"; value: number }
+  | { type: "set_power"; value: number }
   | { type: "keyword"; keyword: Keyword }
-  | { type: "restrict"; restriction: Restriction; value?: number }
+  | { type: "restrict"; restriction: Restriction; value?: number; attribute?: string }
   | { type: "negate" }
-  | { type: "player_restrict"; restriction: PlayerRestriction }
+  | { type: "player_restrict"; restriction: PlayerRestriction; filter?: Filter }
   | { type: "play_cost"; filter: Filter; amount: number; once?: boolean };
 
 export type ModifierExpiry =
@@ -225,6 +226,8 @@ export interface QueuedTrigger {
   batch: number;
   /** Set once the controller has ordered this trigger among simultaneous ones. */
   ordered?: boolean;
+  /** Delayed effect index (the ability's n-th `delay` node) instead of the ability itself. */
+  delayIndex?: number;
 }
 
 /** Turn/battle procedure continuation, advanced when no effects are pending. */
@@ -257,6 +260,8 @@ export interface MatchState {
   modifiers: Modifier[];
   steps: EngineStep[];
   extraTurns: Seat[];
+  /** One-shot effects scheduled for the end of the current turn. */
+  delayed: DelayedEffect[];
   winner: Seat | null;
   winReason: "leader_battle_at_zero_life" | "deck_out" | "card_effect" | null;
   nextId: number;
@@ -265,6 +270,17 @@ export interface MatchState {
 }
 
 export type BindingValue = string | string[] | number | boolean | null;
+
+/** A delayed effect: the `index`-th `delay` node of an ability, run at end of turn. */
+export interface DelayedEffect {
+  id: string;
+  seat: Seat;
+  sourceInstanceId: InstanceId;
+  sourceDefId: CardDefId;
+  abilityId: string;
+  index: number;
+  turn: number;
+}
 
 export interface ResolutionFrame {
   id: string;

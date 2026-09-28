@@ -64,6 +64,7 @@ export function createMatch(config: CreateMatchConfig): MatchState {
     modifiers: [],
     steps: [],
     extraTurns: [],
+    delayed: [],
     winner: null,
     winReason: null,
     nextId: 1,

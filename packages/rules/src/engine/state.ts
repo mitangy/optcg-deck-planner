@@ -188,7 +188,7 @@ export function placeDonFromDeck(p: PlayerState, count: number, rested: boolean)
 }
 
 /** Return DON!! from the field to the DON!! deck, least valuable first. */
-export function returnDonToDeck(state: MatchState, seat: Seat, count: number): number {
+export function returnDonToDeck(state: MatchState, seat: Seat, count: number, activeOnly = false): number {
   const p = state.players[seat];
   let returned = 0;
   const take = (predicate: (d: DonInstance) => boolean) => {
@@ -201,7 +201,9 @@ export function returnDonToDeck(state: MatchState, seat: Seat, count: number): n
       returned += 1;
     }
   };
-  take((d) => d.rested);
+  if (!activeOnly) take((d) => d.rested);
+  take((d) => !d.rested);
+  if (activeOnly) return returned;
   take(() => true);
   while (returned < count && p.attachedDons.length > 0) {
     const d = p.attachedDons.pop()!;
