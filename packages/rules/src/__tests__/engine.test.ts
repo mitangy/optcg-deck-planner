@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
 import { applyIntent, assertInvariants, createMatch, getPlayerView, getSpectatorView, listLegalIntents, skipMulligans } from "../engine.js";
 import { createSeededRng } from "../rng.js";
+import { compileStandalone } from "../effects/compile.js";
 import { projectGameEvents } from "../engine/views.js";
 import { deserializeMatch, serializeMatch, IncompatibleSnapshotError } from "../state/snapshot.js";
 import { FILLER, Harness } from "../testing/harness.js";
@@ -233,6 +234,37 @@ describe("hidden-information leaks", () => {
       expect(view.optionCount).toBeUndefined();
       expect(view.prompt).not.toMatch(/\d/);
     }
+  });
+
+  it("keeps an unrevealed deck search private (OP15-118) but shows a printed reveal (OP01-016)", () => {
+    const search = new Harness();
+    search.hand(0, "OP15-118");
+    search.don(0, 7);
+    search.deckTop(0, "OP01-013", FILLER, FILLER, FILLER, FILLER);
+    search.play(0, "OP15-118");
+    search.accept(0); // DON!! -1 cost
+    search.hand(0, FILLER);
+    search.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2", "o3", "o4"] });
+    // lastEvents only covers the latest action, so capture the look's events before answering the discard.
+    const lookEvents = search.state.lastEvents;
+    search.pick(FILLER); // then trash 1 card from hand: keep the searched card
+    expect(search.state.players[0].hand.map((c) => c.defId)).toEqual(["OP01-013"]);
+    expect(lookEvents.length).toBeGreaterThan(0);
+    for (const viewer of [1, null] as const) {
+      expect(JSON.stringify(projectGameEvents(lookEvents, viewer))).not.toContain("OP01-013");
+    }
+    const reveal = new Harness();
+    reveal.hand(0, "OP01-016");
+    reveal.don(0, 1);
+    reveal.deckTop(0, "OP01-013", FILLER, FILLER, FILLER, FILLER);
+    reveal.play(0, "OP01-016");
+    reveal.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2", "o3", "o4"] });
+    expect(JSON.stringify(projectGameEvents(reveal.state.lastEvents, 1))).toContain("OP01-013");
+  });
+
+  it("compiles a look without a printed reveal as private", () => {
+    const program = compileStandalone("test#look", { do: "look", player: "you", count: 3, picks: [{ min: 0, max: 1, dest: "hand" }], rest: "deck_bottom" });
+    expect(program.instrs).toEqual([expect.objectContaining({ op: "look", reveal: false })]);
   });
 
   it("does not reveal a card a private look places face-down in Life (OP16-119)", () => {

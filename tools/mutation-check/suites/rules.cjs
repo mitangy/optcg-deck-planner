@@ -131,5 +131,8 @@ module.exports = {
     {"id":"unknown-deck-id-accepted","file":"packages/rules/src/cards/definitions.ts","from":"      if (!byId.has(id)) throw new Error(`Unknown card def: ${id}`);","to":"","kills":["validates match decks without growing the global definitions"]},
     {"id":"non-leader-accepted-as-leader","file":"packages/rules/src/cards/definitions.ts","from":"    if (byId.get(leaderId)?.type !== \"leader\") throw","to":"    if (!byId.has(leaderId)) throw","kills":["validates match decks without growing the global definitions"]},
     {"id":"unknown-id-defined-as-stub","file":"packages/rules/src/cards/definitions.ts","from":"  throw new Error(`Unknown card def: ${key}`);\n}","to":"  const stub: CardDef = { id: key, name: key, type: \"character\", colors: [], cost: 0, dataSource: \"stub\" };\n  byId.set(key, stub);\n  return stub;\n}","kills":["unknown ids are unverified and never defined"]},
+    {"id":"look-default-reveals","file":"packages/rules/src/effects/compile.ts","from":"reveal: effect.reveal ?? false });","to":"reveal: effect.reveal ?? true });","kills":["compiles a look without a printed reveal as private"]},
+    {"id":"op15-118-search-revealed","file":"packages/rules/src/cards/manualAbilities.ts","from":"look(5, null, 1, false)","to":"look(5, null, 1, true)","kills":["keeps an unrevealed deck search private (OP15-118)"]},
+    {"id":"printed-reveal-hidden","file":"packages/rules/src/engine/runtime.ts","from":"    if (meta.reveal || publicDest) sim.events.push(","to":"    if (publicDest) sim.events.push(","kills":["but shows a printed reveal (OP01-016)"]},
   ],
 };

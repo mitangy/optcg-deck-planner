@@ -285,7 +285,7 @@ export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { 
       return;
     }
     case "look":
-      out.push({ op: "look", player: effect.player, count: effect.count, picks: effect.picks, rest: effect.rest, reveal: effect.reveal ?? true });
+      out.push({ op: "look", player: effect.player, count: effect.count, picks: effect.picks, rest: effect.rest, reveal: effect.reveal ?? false });
       return;
     case "ko": case "rest": case "activate": case "to_hand": case "to_deck": case "to_trash": case "to_life": case "play":
     case "power": case "cost": case "base_power": case "set_power": case "set_cost": case "keyword": case "restrict": case "negate": case "give_don": case "redirect_attack":

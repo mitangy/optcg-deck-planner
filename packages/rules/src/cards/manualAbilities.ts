@@ -58,7 +58,8 @@ const discard = (count: Value, extra: Partial<Extract<Effect, { do: "discard" }>
 const addDon = (count: number, rested: boolean): Effect => ({ do: "add_don", player: "you", count, rested });
 const keyword = (target: Target, kw: Extract<Effect, { do: "keyword" }>["keyword"], duration: Duration = "turn"): Effect => ({ do: "keyword", target, keyword: kw, duration });
 const restrict = (target: Target, restriction: Extract<Effect, { do: "restrict" }>["restriction"], duration: Duration = "turn", extra: { filter?: Filter } = {}): Effect => ({ do: "restrict", target, restriction, duration, ...extra });
-const look = (count: number, pick: Filter | null, max: number, rest: Extract<Effect, { do: "look" }>["rest"] = "deck_bottom"): Effect => ({ do: "look", player: "you", count, picks: [{ ...(pick ? { filter: pick } : {}), min: 0, max, dest: "hand" }], rest });
+/** `reveal` must match the printed text ("reveal up to …"); an unrevealed look is private to its player. */
+const look = (count: number, pick: Filter | null, max: number, reveal: boolean, rest: Extract<Effect, { do: "look" }>["rest"] = "deck_bottom"): Effect => ({ do: "look", player: "you", count, picks: [{ ...(pick ? { filter: pick } : {}), min: 0, max, dest: "hand" }], rest, reveal });
 const giveDonChoice = (donState: "rested" | "any"): Effect => oneOf(
   ["Give your DON!! card to your Leader or Character", { do: "give_don", target: exactly(1, myLeaderOrChar()), count: 1, donState, player: "you" }],
   ["Give your opponent's DON!! card to their Leader or Character", { do: "give_don", target: exactly(1, sel("opponent", "leader_or_character")), count: 1, donState, player: "opponent" }],
@@ -273,7 +274,7 @@ const ENTRIES: [string, ManualEntry][] = [
     effect: when({ c: "and", conds: [leaderTraitIncludes(WB), cmp(lifeCount, "<=", 2)] },
       { do: "restrict", target: { ref: "all", selector: oppChar() }, restriction: "attack_requires_discard", value: 2, duration: "until_end_of_opponent_next_turn" }) }]),
   card("OP08-053", [{ trigger: "main", text: "[Main] If your Leader's type includes \"Whitebeard Pirates\", look at 3",
-    effect: when(leaderTraitIncludes(WB), look(3, { any: [{ traitIncludes: [WB] }, { names: ["Monkey.D.Luffy"] }] }, 1, "top_or_bottom")) }]),
+    effect: when(leaderTraitIncludes(WB), look(3, { any: [{ traitIncludes: [WB] }, { names: ["Monkey.D.Luffy"] }] }, 1, true, "top_or_bottom")) }]),
   card("OP08-062", [{ trigger: "activate_main", text: "[Activate: Main] You may trash this Character: If your Leader has the {Big Mom Pirates}",
     costs: [{ k: "trash_self" }],
     effect: when(leaderTrait("Big Mom Pirates"), play(upTo(1, sel("you", "hand", { names: ["Charlotte Katakuri"], all: [{ cost: ge(3) }, { cost: le(donField("opponent")) }] })))) }]),
@@ -298,11 +299,11 @@ const ENTRIES: [string, ManualEntry][] = [
   card("OP09-036", [{ trigger: "on_play", text: "[On Play] If you have 2 or more rested Characters",
     effect: when(exists(myChar({ rested: true }), 2), rest(upTo(1, oppCharOrDon({ cost: le(6) })))) }]),
   card("OP09-044", [{ trigger: "when_attacking", text: "[When Attacking] Look at 5 cards from the top of your deck; reveal up to 1 {Land of Wano}",
-    effect: seq(look(5, { any: [{ traits: ["Land of Wano"] }, { traitIncludes: [WB] }] }, 1), discard(1)) }]),
+    effect: seq(look(5, { any: [{ traits: ["Land of Wano"] }, { traitIncludes: [WB] }] }, 1, true), discard(1)) }]),
   card("OP09-046", [{ trigger: "on_play", text: "[On Play] Play up to 1 {Cross Guild} type Character card",
     effect: play(upTo(1, sel("you", "hand", { ...CHAR, cost: le(5), any: [{ traits: ["Cross Guild"] }, { traitIncludes: ["Baroque Works"] }] }))) }]),
   card("OP09-056", [{ trigger: "on_play", text: "[On Play] Look at 4 cards from the top of your deck; reveal up to 1 {Cross Guild}",
-    effect: look(4, { notNames: ["Mr.3(Galdino)"], any: [{ traits: ["Cross Guild"] }, { traitIncludes: ["Baroque Works"] }] }, 1) }]),
+    effect: look(4, { notNames: ["Mr.3(Galdino)"], any: [{ traits: ["Cross Guild"] }, { traitIncludes: ["Baroque Works"] }] }, 1, true) }]),
   card("OP09-059", [{ trigger: "counter", text: "[Counter] Up to 1 of your Leader or Character cards gains +3000 power during this battle. Then, trash up to 2",
     effect: seq(power(upTo(1, myLeaderOrChar()), 3000, "battle"), discard(2, { min: 0 }), { do: "mill", player: "you", count: { count: { of: "var", name: "_discard" } } }) }]),
   card("OP09-061", [{ trigger: "on_event", oncePerTurn: true, text: "[Your Turn] [Once Per Turn] When 2 or more DON!! cards",
@@ -348,7 +349,7 @@ const ENTRIES: [string, ManualEntry][] = [
     eventTrigger: { event: "character_rested", player: "any", byYourEffect: true }, conditions: [{ c: "your_turn" }], effect: { do: "set_don_active", count: 1 } }]),
   card("OP10-057", [{ trigger: "on_play", text: "[On Play] You may rest your Leader or 1 of your Stage cards",
     costs: [{ k: "rest_cards", selector: sel("you", "leader", undefined, [sel("you", "stage")]), count: 1 }],
-    effect: when(leaderName("Usopp"), seq(look(5, { traits: ["Dressrosa"], notNames: ["Leo"] }, 2), discard(1))) }]),
+    effect: when(leaderName("Usopp"), seq(look(5, { traits: ["Dressrosa"], notNames: ["Leo"] }, 2, true), discard(1))) }]),
   card("OP10-058", [{ trigger: "on_play", text: "[On Play] If there is a Character with a cost of 8 or more, draw 1 card. Then, reveal up to 2",
     effect: seq(
       when(exists(sel("any", "character", { cost: ge(8) })), draw(1)),
@@ -402,7 +403,7 @@ const ENTRIES: [string, ManualEntry][] = [
     replacement: { event: "ko", target: "self", instead: { do: "pay", costs: [{ k: "rest_cards", selector: sel("you", "stage", { names: ["Fish-Man Island"] }, [sel("you", "leader", { names: ["Shirahoshi"] })]), count: 1 }], then: { do: "nothing" } }, optional: true } }]),
   card("OP12-001", [{ trigger: "static", text: "Under the rules of this game, you cannot include cards with a cost of 5 or more", statics: [{ s: "deck_rule", rule: "max_cost:4" }] }]),
   card("OP12-006", [{ trigger: "on_play", text: "[On Play] Look at 5 cards from the top of your deck; reveal up to 1 [Monkey.D.Luffy] or 1 red Event",
-    effect: look(5, { any: [{ names: ["Monkey.D.Luffy"] }, { types: ["event"], colors: ["red"] }] }, 1) }]),
+    effect: look(5, { any: [{ names: ["Monkey.D.Luffy"] }, { types: ["event"], colors: ["red"] }] }, 1, true) }]),
   card("OP12-016", [{ trigger: "main", text: "[Main] You may give 2 active DON!! cards to 1 of your [Silvers Rayleigh]",
     costs: [{ k: "give_don", count: 2, selector: myChar({ names: ["Silvers Rayleigh"] }) }],
     effect: restrict(v("_cost"), "cannot_activate_blocker") }]),
@@ -411,9 +412,9 @@ const ENTRIES: [string, ManualEntry][] = [
     effect: seq({ do: "activate", target: self }, restrict(self, "cannot_attack_matching", "turn", { filter: { ...CHAR, baseCost: le(7) } })) }]),
   card("OP12-028", [{ trigger: "activate_main", text: "[Activate: Main] You may rest 1 of your DON!! cards and this Character",
     costs: [{ k: "rest_don", count: 1 }, { k: "rest_self" }],
-    effect: when(leaderName("Roronoa Zoro"), look(5, { any: [{ attributes: ["Slash"] }, { types: ["event"], colors: ["green"] }] }, 1)) }]),
+    effect: when(leaderName("Roronoa Zoro"), look(5, { any: [{ attributes: ["Slash"] }, { types: ["event"], colors: ["green"] }] }, 1, true)) }]),
   card("OP12-034", [{ trigger: "on_play", text: "[On Play] If your Leader has the <Slash> attribute, look at 5",
-    effect: when(exists(sel("you", "leader", { attributes: ["Slash"] })), look(5, { any: [{ attributes: ["Slash"] }, { types: ["event"], colors: ["green"] }] }, 1)) }]),
+    effect: when(exists(sel("you", "leader", { attributes: ["Slash"] })), look(5, { any: [{ attributes: ["Slash"] }, { types: ["event"], colors: ["green"] }] }, 1, true)) }]),
   card("OP12-036", [
     { trigger: "static", text: "This card in your hand cannot be played by effects.", statics: [{ s: "deck_rule", rule: "not_playable_by_effect" }] },
     { trigger: "static", text: "This card in your hand cannot be played by effects.", conditions: [exists(sel("you", "leader", { attributes: ["Slash"] }))],
@@ -434,7 +435,7 @@ const ENTRIES: [string, ManualEntry][] = [
     effect: seq(when(cmp(donField("you"), "<=", donField("opponent")), addDon(1, false)),
       power({ ref: "all", selector: myChar({ any: [{ names: ["Donquixote Rosinante"] }, { traits: ["Heart Pirates"] }] }) }, 1000, "until_end_of_opponent_next_turn")) }]),
   card("OP12-080", [{ trigger: "activate_main", text: "[Activate: Main] You may place this Stage at the bottom of the owner's deck: If your Leader is [Sanji]",
-    costs: [{ k: "self_to_deck_bottom" }], effect: when(leaderName("Sanji"), look(3, { types: ["event"] }, 1)) }]),
+    costs: [{ k: "self_to_deck_bottom" }], effect: when(leaderName("Sanji"), look(3, { types: ["event"] }, 1, true)) }]),
   card("OP12-081", [
     { trigger: "on_event", text: "When this Leader attacks your opponent's Leader",
       eventTrigger: { event: "attack_declared", player: "you", filter: { types: ["leader"] } },
@@ -514,7 +515,7 @@ const ENTRIES: [string, ManualEntry][] = [
   card("OP14-062", [{ trigger: "on_ko", text: "[On KO] DON!! -1: KO or rest up to 1", costs: [{ k: "return_don", count: 1 }],
     effect: seq(select("_t", oppChar({ basePower: le(6000) }), 0, 1), oneOf(["K.O. it", ko(v("_t"))], ["Rest it", rest(v("_t"))])) }]),
   card("OP14-067", [{ trigger: "on_ko", text: "[On KO] Add up to 1 DON!! card from your DON!! deck and rest it, look at 5",
-    effect: seq(addDon(1, true), look(5, { traits: ["Donquixote Pirates"] }, 1)) }]),
+    effect: seq(addDon(1, true), look(5, { traits: ["Donquixote Pirates"] }, 1, true)) }]),
   card("OP14-070", [{ trigger: "on_event", text: "When this Character becomes rested by your opponent's Character's effect",
     eventTrigger: { event: "self_rested", player: "you", byOpponentEffect: true, sourceFilter: CHAR },
     effect: may({ do: "activate", target: self }, [{ k: "return_don", count: 1 }]) }]),
@@ -569,7 +570,7 @@ const ENTRIES: [string, ManualEntry][] = [
   card("OP15-098", [{ trigger: "replacement", text: "If your {Sky Island} type Character with 6000 base power",
     replacement: { event: "removed_by_opponent_effect", alsoEvents: ["ko_in_battle"], target: myChar({ traits: ["Sky Island"], basePower: ge(6000) }), byOpponent: true,
       instead: { do: "pay", costs: [{ k: "life_to_hand", count: 1, position: "top" }], then: { do: "nothing" } }, optional: true } }]),
-  card("OP15-118", [{ trigger: "on_play", text: "[On Play] DON!! -1: Look at 5 cards", costs: [{ k: "return_don", count: 1 }], effect: seq(look(5, null, 1), discard(1)) }]),
+  card("OP15-118", [{ trigger: "on_play", text: "[On Play] DON!! -1: Look at 5 cards", costs: [{ k: "return_don", count: 1 }], effect: seq(look(5, null, 1, false), discard(1)) }]),
   card("OP15-119", [
     { trigger: "static", text: "If you have 6 or more DON!! cards on your field, this Character gains [Rush].", conditions: [cmp(donField("you"), ">=", 6)], statics: [{ s: "keyword", target: "self", keyword: "rush" }] },
     { trigger: "on_event", text: "If you have 6 or more DON!! cards on your field, this Character gains [Rush].",

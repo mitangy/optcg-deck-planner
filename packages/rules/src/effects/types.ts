@@ -358,6 +358,7 @@ export type Effect =
   | { do: "trash_life"; player: Rel; count: Value; position?: "top" | "top_or_bottom" }
   | { do: "life_face"; player: Rel; count: number; faceUp: boolean; min?: number }
   | { do: "mill"; player: Rel; count: Value }
+  /** `reveal`: the picked cards are shown to both players (printed "reveal"). Omitted = private. */
   | { do: "look"; player: Rel; count: Value; picks: LookPick[]; rest: Placement; reveal?: boolean }
   | { do: "look_life"; player: RelOrAny; count: number; rest: "top_or_bottom" | "any_order"; prompt?: string }
   /** Move the top Life card(s) to the top of the deck (unrevealed). */
