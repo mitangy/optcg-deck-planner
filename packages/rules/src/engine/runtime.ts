@@ -50,8 +50,9 @@ export function markUsed(state: MatchState, sourceId: InstanceId, ability: Abili
 
 /** Header gates: [DON!! xN], [Your Turn]/[Opponent's Turn] and similar, plus once-per-turn. */
 export function abilityGateOpen(state: MatchState, seat: Seat, source: { id: InstanceId; defId: string; card?: CardInstance }, ability: Ability, eventCardId?: InstanceId): boolean {
-  if (ability.don && (source.card?.attachedDonIds.length ?? 0) < ability.don) return false;
-  if (usedThisTurn(source.card, ability, state)) return false;
+  const card = source.card ?? locate(state, source.id)?.card;
+  if (ability.don && (card?.attachedDonIds.length ?? 0) < ability.don) return false;
+  if (usedThisTurn(card, ability, state)) return false;
   const ctx: EvalCtx = { seat, sourceId: source.id, sourceDefId: source.defId, vars: {}, ...(eventCardId ? { eventCardId } : {}) };
   return (ability.conditions ?? []).every((c) => evalCond(state, ctx, c));
 }

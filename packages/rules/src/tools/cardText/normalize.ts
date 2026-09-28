@@ -111,6 +111,10 @@ export function segment(text: string): Segment[] {
   for (const tok of toks) {
     const isTag = tok.tag !== undefined && (isHeaderTag(tok.tag) || isKeywordTag(tok.tag));
     if (!isTag) {
+      // Text after a bare keyword ("[Rush] When ...") starts its own untimed ability.
+      if (current && current.tags.length > 0 && current.tags.every(isKeywordTag) && current.parts.join("").trim() === "" && tok.text !== undefined && tok.text.trim() !== "") {
+        flush(tok.start);
+      }
       if (!current) current = { tags: [], parts: [], start: tok.start };
       current.parts.push(tok.tag !== undefined ? `[${tok.tag}]` : tok.text!);
       continue;
