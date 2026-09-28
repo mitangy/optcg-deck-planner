@@ -63,6 +63,8 @@ export interface DonInstance {
   id: InstanceId;
   rested: boolean;
   attachedTo: InstanceId | null;
+  /** Stays rested through its owner's next Refresh Phase. */
+  noRefresh?: boolean;
 }
 
 export type AttackTarget =
@@ -81,6 +83,8 @@ export interface BattleState {
   attackerPowerBonus: number;
   /** Remaining damage to deal during the damage step. */
   damageRemaining?: number;
+  /** "Battles your opponent's Character" events were dispatched for this battle. */
+  endDispatched?: boolean;
 }
 
 export type ModifierEffect =
@@ -90,7 +94,13 @@ export type ModifierEffect =
   | { type: "set_power"; value: number }
   | { type: "set_cost"; value: number }
   | { type: "keyword"; keyword: Keyword }
-  | { type: "restrict"; restriction: Restriction; value?: number; attribute?: string }
+  | { type: "restrict"; restriction: Restriction; value?: number; attribute?: string; filter?: Filter }
+  /** Card gains an attribute (e.g. <Slash>). */
+  | { type: "attribute"; attribute: string }
+  /** Per-turn marker (e.g. "battled_character"). */
+  | { type: "flag"; flag: string }
+  /** A replacement ability granted to a player for a duration (from an Event). */
+  | { type: "granted"; abilityId: string; sourceDefId: CardDefId }
   | { type: "negate" }
   | { type: "player_restrict"; restriction: PlayerRestriction; filter?: Filter }
   | { type: "play_cost"; filter: Filter; amount: number; once?: boolean };
@@ -213,6 +223,8 @@ export interface PlayerState {
   turnsStarted: number;
   /** DON!! cards this player owns in total (10 unless a rule changes it). */
   donTotal?: number;
+  /** What happened this turn, for "during this turn" conditions. Reset when a turn starts. */
+  turnLog?: TurnLog;
 }
 
 /** A triggered ability waiting to start resolution. */
@@ -231,6 +243,8 @@ export interface QueuedTrigger {
   ordered?: boolean;
   /** Delayed effect index (the ability's n-th `delay` node) instead of the ability itself. */
   delayIndex?: number;
+  /** Bindings captured by a delayed effect. */
+  vars?: Record<string, BindingValue>;
 }
 
 /** Turn/battle procedure continuation, advanced when no effects are pending. */
@@ -278,7 +292,10 @@ export type BindingValue = string | string[] | number | boolean | null;
 
 /** A delayed effect: the `index`-th `delay` node of an ability, run at end of turn / battle. */
 export interface DelayedEffect {
-  when?: "end_of_turn" | "end_of_battle";
+  /** "opponent_main": at the start of the controller's opponent's next Main Phase. */
+  when?: "end_of_turn" | "end_of_battle" | "opponent_main";
+  /** Bindings captured when the delayed effect was created (e.g. the played card). */
+  vars?: Record<string, BindingValue>;
   id: string;
   seat: Seat;
   sourceInstanceId: InstanceId;
@@ -299,7 +316,7 @@ export interface ResolutionFrame {
   operationIndex: number;
   bindings: Record<string, BindingValue>;
   /** Program kind: an ability, or an engine-generated interrupt program. */
-  program?: "ability" | "replacement" | "trash_for_space";
+  program?: "ability" | "replacement" | "trash_for_space" | "attack_tax";
 }
 
 export type GameEvent =
@@ -376,4 +393,14 @@ export interface CreateMatchConfig {
   seed: number;
   firstSeat?: Seat;
   players: [PlayerDeckConfig, PlayerDeckConfig];
+}
+
+export interface TurnLog {
+  turn: number;
+  /** Events activated by this player (def ids). */
+  events: CardDefId[];
+  /** This player's Characters K.O.'d (def ids). */
+  koed: CardDefId[];
+  /** Cards trashed from this player's hand by effects. */
+  handTrashed: number;
 }

@@ -57,12 +57,26 @@ function splitTrigger(text: string): { effect: string; trigger: string } {
   return { effect: text.slice(0, index).trim(), trigger: text.slice(index).trim() };
 }
 
+/**
+ * Strip printing suffixes from promo names so name-based effects match:
+ * "Usopp - P-136 (Premium Card Collection …)", "Trafalgar Law (Event Pack Vol. 4)",
+ * "Nico Robin (016) (SP)". Real parenthesised names such as "Zephyr (Navy)" stay.
+ */
+export function normalizeCardName(name: string): string {
+  let out = name.replace(/\s+-\s+(?:OP|ST|EB|PRB|P)\d*-\d+\s*\(.*\)$/, "");
+  for (;;) {
+    const next = out.replace(/\s+\((?:[^()]*\d[^()]*|SP|[^()]*(?:Event|Tournament|Battle|Fest|Release|Pack|Edition)[^()]*)\)$/, "");
+    if (next === out) return out.trim();
+    out = next;
+  }
+}
+
 const cards: Record<string, CardDataRow> = {};
 for (const [key, card] of Object.entries(candidate.cards)) {
   if (key.includes("_")) continue;
   const type = card.type as CardDataRow["type"];
   cards[card.id] = {
-    name: card.name,
+    name: normalizeCardName(card.name),
     type,
     colors: card.colors ?? [],
     ...(type !== "leader" ? { cost: card.cost ?? 0 } : {}),
@@ -83,7 +97,7 @@ for (const [id, row] of Object.entries(bundled)) {
   const { effect, trigger } = splitTrigger(cleanText(row.effectText));
   const type = (["leader", "character", "event", "stage"].includes(row.type) ? row.type : "character") as CardDataRow["type"];
   cards[id] = {
-    name: row.name,
+    name: normalizeCardName(row.name),
     type,
     colors: row.colors ?? [],
     ...(type !== "leader" ? { cost: row.cost ?? 0 } : {}),

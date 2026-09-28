@@ -6,7 +6,7 @@ import { MATCH_STATE_VERSION, RULES_PROTOCOL_VERSION, RULES_VERSION } from "../s
 import type { ApplyContext, ApplyResult, AttackTarget, CardInstance, CreateMatchConfig, Intent, MatchState, PlayerDeckConfig, PlayerState, Seat } from "../types.js";
 import { addModifier } from "./modifiers.js";
 import { beginTurn, applyTriggerOrder, declareAttack, declareBlock, endTurn, resolveLifeTrigger, settle } from "./procedure.js";
-import { canPayCosts, costOf, counterOf, ctxFor, filterMatches, hasKeyword, hasRestriction, isNegated, playCostOf, playerRestricted, powerOf, restrictionValue } from "./queries.js";
+import { attackTargetAllowed, cannotAttackMatching, canPayCosts, costOf, counterOf, ctxFor, filterMatches, hasKeyword, hasRestriction, isNegated, playCostOf, playerRestricted, powerOf, restrictionValue } from "./queries.js";
 import { abilityGateOpen, defaultAnswer, dispatchEvent, finishPlay, newBatch, resolveEffectChoice, startAbility, type Sim } from "./runtime.js";
 import { activeDon, alloc, fieldCards, locate, makeCard, makeDon, otherSeat, putCard, takeCard } from "./state.js";
 
@@ -44,6 +44,14 @@ function buildPlayer(state: MatchState, cfg: PlayerDeckConfig, rng: Rng): Player
   const shuffled = rng.shuffle(cfg.deck.map((defId) => ({ defId: getCardDef(defId).id, id: alloc(state, "card") })));
   player.deck = shuffled.map((c) => c.defId);
   player.zoneInstanceIds.deck = shuffled.map((c) => c.id);
+  // "At the start of the game, play up to 1 {Trait} type Stage card from your deck."
+  for (const ability of abilitiesFor(leaderDef.id)) for (const st of ability.statics ?? []) {
+    if (st.s !== "deck_rule" || !st.rule.startsWith("start_stage:") || player.stage) continue;
+    const trait = st.rule.slice("start_stage:".length);
+    const idx = player.deck.findIndex((id) => { const def = getCardDef(id); return def.type === "stage" && (def.traits ?? []).includes(trait); });
+    if (idx < 0) continue;
+    player.stage = makeCard(player.deck.splice(idx, 1)[0]!, player.zoneInstanceIds.deck.splice(idx, 1)[0]!);
+  }
   for (let i = 0; i < 5 && player.deck.length; i += 1) player.hand.push(makeCard(player.deck.shift()!, player.zoneInstanceIds.deck.shift()!));
   return player;
 }
@@ -120,7 +128,9 @@ function activatableAbilities(state: MatchState, seat: Seat, card: CardInstance)
 function canAttackWith(state: MatchState, seat: Seat, card: CardInstance, target: "leader" | "character"): boolean {
   const p = state.players[seat];
   if (card.rested || hasRestriction(state, seat, card, "cannot_attack")) return false;
-  if (target === "leader" && (hasRestriction(state, seat, card, "cannot_attack_leader") || playerRestricted(state, seat, "cannot_attack_leader"))) return false;
+  const tax = restrictionValue(state, seat, card, "attack_requires_discard");
+  if (typeof tax === "number" && p.hand.length < tax) return false;
+  if (target === "leader" && (hasRestriction(state, seat, card, "cannot_attack_leader") || playerRestricted(state, seat, "cannot_attack_leader") || !attackTargetAllowed(state, seat, state.players[otherSeat(seat)].leader))) return false;
   if (card.id === p.leader.id) return true;
   if (!card.summoningSick) return true;
   if (hasKeyword(state, seat, card, "rush")) return true;
@@ -128,7 +138,9 @@ function canAttackWith(state: MatchState, seat: Seat, card: CardInstance, target
 }
 
 function attackableCharacter(state: MatchState, seat: Seat, attacker: CardInstance, target: CardInstance): boolean {
-  return target.rested || hasRestriction(state, seat, attacker, "can_attack_active");
+  if (!(target.rested || hasRestriction(state, seat, attacker, "can_attack_active")) || !attackTargetAllowed(state, seat, target)) return false;
+  // "Cannot attack your opponent's Characters with a base cost of 7 or less."
+  return !cannotAttackMatching(state, seat, attacker, target);
 }
 
 function canBlockWith(state: MatchState, seat: Seat, blocker: CardInstance): boolean {

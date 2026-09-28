@@ -60,9 +60,32 @@ export function buildAbilityRegistry(records: Record<string, unknown>): AbilityR
 const generated = generatedRaw as unknown as Record<string, CardAbilities>;
 const merged: Record<string, unknown> = {};
 for (const [id, record] of Object.entries(generated)) merged[id] = record;
+const manualErrors: string[] = [];
 for (const [id, record] of Object.entries(MANUAL_ABILITIES)) {
+  if ("patch" in record) {
+    // Each patch ability replaces the unsupported generated clause its `text` starts.
+    const base = generated[id];
+    if (!base) { manualErrors.push(`manual[${id}]: no generated record to patch`); continue; }
+    const covered = new Set<string>();
+    const added = record.patch.map((ability) => {
+      const clause = base.unsupported.find((c) => c.startsWith(ability.text));
+      if (!clause) { manualErrors.push(`manual[${id}]: "${ability.text}" matches no unsupported clause (stale patch?)`); return ability; }
+      covered.add(clause);
+      return { ...ability, text: clause };
+    });
+    for (const fragment of record.drop ?? []) {
+      const clause = base.unsupported.find((c) => c.startsWith(fragment));
+      if (!clause) manualErrors.push(`manual[${id}]: dropped fragment "${fragment}" matches no unsupported clause`);
+      else covered.add(clause);
+    }
+    const unsupported = base.unsupported.filter((c) => !covered.has(c));
+    const abilities = [...base.abilities, ...added];
+    merged[id] = { ...base, origin: "manual", abilities, unsupported, status: unsupported.length ? (abilities.length ? "partial" : "unsupported") : "supported" };
+    continue;
+  }
   merged[id] = { id, schemaVersion: EFFECT_SCHEMA_VERSION, origin: "manual", unsupported: [], ...record, status: record.status ?? ((record.unsupported?.length ?? 0) > 0 ? "partial" : record.abilities.length ? "supported" : "vanilla") };
 }
+if (manualErrors.length) throw new RegistryValidationError(manualErrors);
 
 export const ABILITY_REGISTRY: AbilityRegistry = buildAbilityRegistry(merged);
 export const REGISTRY_HASH = ABILITY_REGISTRY.contentHash;

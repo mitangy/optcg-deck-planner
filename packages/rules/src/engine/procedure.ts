@@ -7,7 +7,8 @@ import { abilitiesFor, abilityById } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import type { MatchState, PendingChoice, Seat } from "../types.js";
 import { expireBattle, expireEndOfTurn, expireStartOfTurn } from "./modifiers.js";
-import { hasKeyword, hasRestriction, powerOf, protectedFromBattleKoBy } from "./queries.js";
+import { hasKeyword, hasRestriction, powerOf, protectedFromBattleKoBy, restrictionValue } from "./queries.js";
+import { addModifier } from "./modifiers.js";
 import {
   abilityGateOpen, dispatchEvent, findReplacement, newBatch, performKo, pushReplacementFrame, queueWindow, runFrames, startAbility, takeLifeToHand, type Sim,
 } from "./runtime.js";
@@ -30,13 +31,19 @@ function clearForGameOver(state: MatchState): void {
   state.phase = "game_over";
 }
 
+/** Leader "Under the rules of this game …" rule, by rule string. */
+export function leaderRule(state: MatchState, seat: Seat, rule: string): boolean {
+  return abilitiesFor(state.players[seat].leader.defId).some((a) => (a.statics ?? []).some((st) => st.s === "deck_rule" && st.rule === rule));
+}
+
 /** Rule processing: a player with no cards in their deck loses. */
 function checkRules(sim: Sim): void {
   const { state } = sim;
   if (state.phase === "mulligan" || state.winner !== null) return;
-  const empty = ([0, 1] as Seat[]).filter((s) => state.players[s].deck.length === 0);
+  // "You do not lose when your deck has 0 cards. You lose at the end of the turn …"
+  const empty = ([0, 1] as Seat[]).filter((s) => state.players[s].deck.length === 0 && !leaderRule(state, s, "deck_out_end_of_turn"));
   // "When your deck is reduced to 0, you win the game instead of losing, according to the rules."
-  const winsOnDeckOut = (s: Seat) => abilitiesFor(state.players[s].leader.defId).some((a) => (a.statics ?? []).some((st) => st.s === "deck_rule" && st.rule === "deck_out_win"));
+  const winsOnDeckOut = (s: Seat) => leaderRule(state, s, "deck_out_win");
   if (empty.length === 1 && winsOnDeckOut(empty[0]!)) { gameOver(sim, empty[0]!, "card_effect"); return; }
   if (empty.length === 1) gameOver(sim, otherSeat(empty[0]!), "deck_out");
   else if (empty.length === 2) gameOver(sim, otherSeat(state.activeSeat), "deck_out");
@@ -76,7 +83,7 @@ function startNextTrigger(sim: Sim): boolean {
   const entry = abilityById(next.abilityId);
   if (!entry) return true;
   if (next.delayIndex != null) {
-    state.resolutionFrames.push({ id: alloc(state, "frame"), seat: next.seat, sourceInstanceId: next.sourceInstanceId, sourceDefId: next.sourceDefId, abilityId: next.abilityId, window: "end_of_turn", operationIndex: 0, bindings: { _delay: next.delayIndex }, program: "ability" });
+    state.resolutionFrames.push({ id: alloc(state, "frame"), seat: next.seat, sourceInstanceId: next.sourceInstanceId, sourceDefId: next.sourceDefId, abilityId: next.abilityId, window: "end_of_turn", operationIndex: 0, bindings: { ...(next.vars ?? {}), _delay: next.delayIndex }, program: "ability" });
     return true;
   }
   const loc = locate(state, next.sourceInstanceId);
@@ -122,26 +129,41 @@ export function beginTurn(sim: Sim): void {
   for (const c of p.characters) c.summoningSick = false;
   for (const d of p.attachedDons) { d.attachedTo = null; d.rested = false; p.costArea.push(d); }
   p.attachedDons = [];
-  for (const d of p.costArea) d.rested = false;
+  for (const d of p.costArea) { if (d.noRefresh) { d.noRefresh = false; continue; } d.rested = false; }
   sim.events.push({ type: "phase_changed", phase: "refresh", activeSeat: seat });
   // Draw phase (first player skips on their first turn).
   const skipDraw = seat === state.firstSeat && p.turnsStarted === 1;
   if (!skipDraw) {
-    if (!p.deck.length) { gameOver(sim, otherSeat(seat), "deck_out"); return; }
+    if (!p.deck.length && !leaderRule(state, seat, "deck_out_end_of_turn")) { gameOver(sim, otherSeat(seat), "deck_out"); return; }
+    if (p.deck.length) {
     const defId = p.deck.shift()!;
     const id = p.zoneInstanceIds.deck.shift()!;
     p.hand.push({ id, defId, rested: false, attachedDonIds: [] });
     sim.events.push({ type: "drew", seat, count: 1 });
+    }
   }
   sim.events.push({ type: "phase_changed", phase: "draw", activeSeat: seat });
   const donN = seat === state.firstSeat && p.turnsStarted === 1 ? 1 : 2;
+  const hadDon = p.costArea.length + p.attachedDons.length > 0;
   const placed = placeDonFromDeck(p, donN, false);
+  // "If you have any DON!! cards on your field, 1 DON!! card placed during your DON!! Phase is given to your Leader."
+  if (placed > 0 && hadDon && leaderRule(state, seat, "don_phase_give_leader")) {
+    const don = p.costArea.pop()!;
+    don.attachedTo = p.leader.id;
+    p.leader.attachedDonIds.push(don.id);
+    p.attachedDons.push(don);
+  }
   sim.events.push({ type: "don_placed", seat, count: placed });
   sim.events.push({ type: "phase_changed", phase: "don", activeSeat: seat });
   state.phase = "main";
   sim.events.push({ type: "phase_changed", phase: "main", activeSeat: seat });
   newBatch(state);
   for (const card of fieldCards(p)) queueWindow(state, "start_of_your_turn", seat, card);
+  // Delayed effects "at the start of your opponent's next Main Phase".
+  for (const d of state.delayed.filter((x) => x.when === "opponent_main" && x.seat !== seat && x.turn < state.turnNumber)) {
+    state.triggerQueue.push({ id: alloc(state, "trig"), seat: d.seat, sourceInstanceId: d.sourceInstanceId, sourceDefId: d.sourceDefId, abilityId: d.abilityId, window: "delayed", batch: state.triggerBatch, delayIndex: d.index, ...(d.vars ? { vars: d.vars } : {}) });
+  }
+  state.delayed = state.delayed.filter((x) => !(x.when === "opponent_main" && x.seat !== seat && x.turn < state.turnNumber));
 }
 
 export function endTurn(sim: Sim): void {
@@ -153,9 +175,9 @@ export function endTurn(sim: Sim): void {
   for (const card of fieldCards(state.players[seat])) queueWindow(state, "end_of_your_turn", seat, card);
   for (const card of fieldCards(state.players[otherSeat(seat)])) queueWindow(state, "end_of_opponent_turn", otherSeat(seat), card);
   for (const d of state.delayed.filter((x) => x.turn === state.turnNumber && (x.when ?? "end_of_turn") === "end_of_turn")) {
-    state.triggerQueue.push({ id: alloc(state, "trig"), seat: d.seat, sourceInstanceId: d.sourceInstanceId, sourceDefId: d.sourceDefId, abilityId: d.abilityId, window: "end_of_turn", batch: state.triggerBatch, delayIndex: d.index });
+    state.triggerQueue.push({ id: alloc(state, "trig"), seat: d.seat, sourceInstanceId: d.sourceInstanceId, sourceDefId: d.sourceDefId, abilityId: d.abilityId, window: "end_of_turn", batch: state.triggerBatch, delayIndex: d.index, ...(d.vars ? { vars: d.vars } : {}) });
   }
-  state.delayed = state.delayed.filter((x) => x.turn > state.turnNumber || x.when === "end_of_battle");
+  state.delayed = state.delayed.filter((x) => x.turn > state.turnNumber || x.when === "end_of_battle" || x.when === "opponent_main");
   state.steps.push({ kind: "end_phase" });
 }
 
@@ -181,7 +203,11 @@ export function declareAttack(sim: Sim, attackerId: string, target: MatchState["
   for (const card of fieldCards(opp)) queueWindow(state, "on_opp_attack", oppSeat, card);
   dispatchEvent(state, "attack_declared", { seat, card: attacker });
   dispatchEvent(state, "self_attacked", { seat: oppSeat, card: defender });
+  if (target.kind === "leader") dispatchEvent(state, "leader_attacked", { seat: oppSeat, card: defender });
   state.steps.push({ kind: "after_attack_triggers" });
+  // "… cannot attack unless your opponent trashes N cards from their hand whenever they attack."
+  const tax = restrictionValue(state, seat, attacker, "attack_requires_discard");
+  if (typeof tax === "number" && tax > 0) state.resolutionFrames.push({ id: alloc(state, "frame"), seat, sourceInstanceId: attacker.id, sourceDefId: attacker.defId, abilityId: "__attack_tax", window: "rule", operationIndex: 0, bindings: { _taxCount: tax }, program: "attack_tax" });
 }
 
 export function declareBlock(sim: Sim, blockerId: string): void {
@@ -279,7 +305,7 @@ function advanceStep(sim: Sim): void {
         sim.events.push({ type: "pending_choice_added", seat: defSeat, kind: "life_trigger", cardDefId: lifeDef, optional: true, prompt: choice.prompt, privateToSeat: defSeat, hideCardDefFromOthers: true });
         return;
       }
-      takeLifeToHand(sim, defSeat);
+      takeLifeToHand(sim, defSeat, false, true);
       sim.events.push({ type: "life_taken", seat: defSeat, defId: lifeDef, toHand: true });
       return;
     }
@@ -287,7 +313,7 @@ function advanceStep(sim: Sim): void {
       const loc = locate(state, step.targetId);
       if (!loc || loc.zone !== "character") { state.steps.shift(); return; }
       if (step.replaced === undefined) {
-        const hit = findReplacement(state, loc, ["ko", "ko_in_battle"], true);
+        const hit = findReplacement(state, loc, ["ko", "ko_in_battle", "removed"], true);
         if (hit) { step.replaced = false; pushReplacementFrame(sim, hit, loc.id); return; }
       } else if (step.replaced) { state.steps.shift(); return; }
       state.steps.shift();
@@ -299,11 +325,30 @@ function advanceStep(sim: Sim): void {
     }
     case "end_battle": {
       state.steps.shift();
+      const eb = state.battle;
+      if (eb && !eb.endDispatched) {
+        eb.endDispatched = true;
+        const attackerLoc = locate(state, eb.attackerId);
+        const defenderId = eb.target.kind === "leader" ? state.players[otherSeat(eb.attackerSeat)].leader.id : eb.target.instanceId;
+        const defenderLoc = locate(state, defenderId);
+        newBatch(state);
+        let queued = false;
+        const mark = (loc: typeof attackerLoc, vsCharacter: boolean) => {
+          if (!loc?.card || !isOnField(loc) || !vsCharacter) return;
+          addModifier(state, loc.seat, loc.id, { kind: "card", id: loc.id }, { type: "flag", flag: "battled_character" }, { kind: "end_of_turn", turn: state.turnNumber });
+          const before = state.triggerQueue.length;
+          dispatchEvent(state, "battle_ended_vs_character", { seat: loc.seat, card: loc });
+          if (state.triggerQueue.length > before) queued = true;
+        };
+        mark(attackerLoc, eb.target.kind === "character");
+        mark(defenderLoc, getCardDef(attackerLoc?.defId ?? state.players[eb.attackerSeat].leader.defId).type === "character");
+        if (queued) { state.steps.unshift({ kind: "end_battle" }); return; }
+      }
       const battleDelays = state.delayed.filter((x) => x.when === "end_of_battle");
       if (battleDelays.length) {
         state.delayed = state.delayed.filter((x) => x.when !== "end_of_battle");
         newBatch(state);
-        for (const d of battleDelays) state.triggerQueue.push({ id: alloc(state, "trig"), seat: d.seat, sourceInstanceId: d.sourceInstanceId, sourceDefId: d.sourceDefId, abilityId: d.abilityId, window: "end_of_battle", batch: state.triggerBatch, delayIndex: d.index });
+        for (const d of battleDelays) state.triggerQueue.push({ id: alloc(state, "trig"), seat: d.seat, sourceInstanceId: d.sourceInstanceId, sourceDefId: d.sourceDefId, abilityId: d.abilityId, window: "end_of_battle", batch: state.triggerBatch, delayIndex: d.index, ...(d.vars ? { vars: d.vars } : {}) });
         state.steps.unshift({ kind: "end_battle" });
         return;
       }
@@ -329,12 +374,15 @@ function advanceStep(sim: Sim): void {
         sim.events.push({ type: "pending_choice_added", seat: step.seat, kind: "life_trigger", cardDefId: lifeDef, optional: true, prompt: choice.prompt, privateToSeat: step.seat, hideCardDefFromOthers: true });
         return;
       }
-      takeLifeToHand(sim, step.seat);
+      takeLifeToHand(sim, step.seat, false, true);
       sim.events.push({ type: "life_taken", seat: step.seat, defId: lifeDef, toHand: true });
       return;
     }
     case "end_phase": {
       state.steps.shift();
+      for (const s of [state.activeSeat, otherSeat(state.activeSeat)] as Seat[]) {
+        if (state.players[s].deck.length === 0 && leaderRule(state, s, "deck_out_end_of_turn")) { gameOver(sim, otherSeat(s), "deck_out"); return; }
+      }
       expireEndOfTurn(state);
       const extra = state.extraTurns.indexOf(state.activeSeat);
       if (extra >= 0) state.extraTurns.splice(extra, 1);
@@ -358,7 +406,7 @@ export function resolveLifeTrigger(sim: Sim, choice: PendingChoice, accept: bool
   sim.events.push({ type: "trigger_resolved", seat, accepted: accept });
   if (!loc || loc.zone !== "life") return null;
   if (!accept) {
-    takeLifeToHand(sim, seat, loc.index !== 0);
+    takeLifeToHand(sim, seat, loc.index !== 0, true);
     return null;
   }
   const entry = takeCard(state, loc);

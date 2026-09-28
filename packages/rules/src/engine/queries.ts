@@ -51,12 +51,33 @@ export interface StaticEntry {
 
 let staticGuard = 0;
 
+let negateGuard = 0;
 export function isNegated(state: MatchState, card: CardInstance): boolean {
-  return state.modifiers.some((m) => m.target.kind === "card" && m.target.id === card.id && m.effect.type === "negate");
+  if (state.modifiers.some((m) => m.target.kind === "card" && m.target.id === card.id && m.effect.type === "negate")) return true;
+  // Static "… have their effects negated" (the negating card's own negation is not re-checked).
+  if (negateGuard > 0) return false;
+  negateGuard += 1;
+  try {
+    const loc = locate(state, card.id);
+    if (!loc) return false;
+    for (const seat of [0, 1] as Seat[]) for (const src of fieldCards(state.players[seat])) {
+      for (const ability of abilitiesFor(src.defId)) {
+        if (ability.trigger !== "static") continue;
+        for (const s of ability.statics ?? []) {
+          if (s.s !== "negate") continue;
+          if (s.target === "self" ? src.id !== card.id : !selectorMatches(state, ctxFor(seat, src), s.target.all, loc)) continue;
+          if ((ability.conditions ?? []).every((c) => evalCond(state, ctxFor(seat, src), c))) return true;
+        }
+      }
+    }
+    return false;
+  } finally {
+    negateGuard -= 1;
+  }
 }
 
 function handOnly(ability: Ability): boolean {
-  return (ability.statics ?? []).every((s) => s.s === "play_cost" && s.target === "self");
+  return (ability.statics ?? []).every((s) => (s.s === "play_cost" && s.target === "self") || (s.s === "counter" && s.filter.onlySelf === true));
 }
 
 /** Static abilities currently in effect. Re-entrant queries during condition checks see none. */
@@ -193,10 +214,57 @@ export function playerRestricted(state: MatchState, seat: Seat, restriction: Pla
   return false;
 }
 
+/** "Your opponent cannot attack any card other than …": may `seat` attack `target`? */
+export function attackTargetAllowed(state: MatchState, seat: Seat, target: CardInstance): boolean {
+  const filters: { filter: Filter; seat: Seat; source: { id: InstanceId; defId: string } }[] = [];
+  for (const m of state.modifiers) {
+    if (m.target.kind === "player" && m.target.seat === seat && m.effect.type === "player_restrict" && m.effect.restriction === "attack_only_matching" && m.effect.filter) filters.push({ filter: m.effect.filter, seat: m.sourceSeat, source: { id: m.sourceId ?? "", defId: "" } });
+  }
+  for (const entry of activeStatics(state)) for (const s of entry.ability.statics ?? []) {
+    if (s.s === "player_restrict" && s.restriction === "attack_only_matching" && s.filter && (s.player === "you" ? entry.seat : otherSeat(entry.seat)) === seat) filters.push({ filter: s.filter, seat: entry.seat, source: entry.card });
+  }
+  if (!filters.length) return true;
+  const loc = locate(state, target.id);
+  return loc != null && filters.every((f) => filterMatches(state, ctxFor(f.seat, f.source), f.filter, loc));
+}
+
+/** "This card cannot attack … matching": does a restriction forbid \`attacker\` from attacking \`target\`? */
+export function cannotAttackMatching(state: MatchState, seat: Seat, attacker: CardInstance, target: CardInstance): boolean {
+  const loc = locate(state, target.id);
+  if (!loc) return false;
+  for (const { entry, s } of staticsFor(state, seat, attacker)) if (s.s === "restrict" && s.restriction === "cannot_attack_matching" && s.filter && filterMatches(state, ctxFor(entry.seat, entry.card), s.filter, loc)) return true;
+  for (const m of cardModifiers(state, attacker)) if (m.effect.type === "restrict" && m.effect.restriction === "cannot_attack_matching" && m.effect.filter && filterMatches(state, ctxFor(m.sourceSeat, attacker), m.effect.filter, loc)) return true;
+  return false;
+}
+
+/** Printed attributes plus gained ones (field cards). */
+export function attributesOf(state: MatchState, loc: Located): string[] {
+  const printed = (getCardDef(loc.defId).attribute ?? "").split("/").filter(Boolean);
+  if (!loc.card || !onField(loc)) return printed;
+  const gained = cardModifiers(state, loc.card).flatMap((m) => (m.effect.type === "attribute" ? [m.effect.attribute] : []));
+  return [...printed, ...gained];
+}
+
+/** Protection keyed on the effect's source card ("cannot be K.O.'d by effects of Characters without <Special>"). */
+export function protectedFromSource(state: MatchState, target: Located, restriction: Restriction, source: Located | null, sourceSeat: Seat): boolean {
+  if (!target.card || !onField(target)) return false;
+  const filters: { filter: Filter; seat: Seat; card: CardInstance }[] = [];
+  for (const { entry, s } of staticsFor(state, target.seat, target.card)) if (s.s === "restrict" && s.restriction === restriction && s.filter) filters.push({ filter: s.filter, seat: entry.seat, card: entry.card });
+  for (const m of cardModifiers(state, target.card)) if (m.effect.type === "restrict" && m.effect.restriction === restriction && m.effect.filter) filters.push({ filter: m.effect.filter, seat: m.sourceSeat, card: target.card });
+  if (!filters.length) return false;
+  if (restriction !== "cannot_be_ko_by_effect_from" && sourceSeat === target.seat) return false;
+  if (!source) return false;
+  return filters.some((f) => filterMatches(state, ctxFor(f.seat, f.card), f.filter, source));
+}
+
 /** "Cannot be K.O.'d in battle by <Attribute> …": does any such protection apply against `attackerDefId`? */
 export function protectedFromBattleKoBy(state: MatchState, seat: Seat, card: CardInstance, attackerDefId: string): boolean {
-  const attrs = (getCardDef(attackerDefId).attribute ?? "").split("/");
-  for (const { s } of staticsFor(state, seat, card)) if (s.s === "restrict" && s.restriction === "cannot_be_ko_in_battle_by_attribute" && s.attribute && attrs.includes(s.attribute)) return true;
+  const attackerLoc = findBattleCard(state, attackerDefId);
+  const attrs = attackerLoc ? attributesOf(state, attackerLoc) : (getCardDef(attackerDefId).attribute ?? "").split("/");
+  for (const { entry, s } of staticsFor(state, seat, card)) {
+    if (s.s === "restrict" && s.restriction === "cannot_be_ko_in_battle_by_attribute" && s.attribute && attrs.includes(s.attribute)) return true;
+    if (s.s === "restrict" && s.restriction === "cannot_be_ko_in_battle_by" && s.filter && attackerLoc && filterMatches(state, ctxFor(entry.seat, entry.card), s.filter, attackerLoc)) return true;
+  }
   for (const m of cardModifiers(state, card)) if (m.effect.type === "restrict" && m.effect.restriction === "cannot_be_ko_in_battle_by_attribute" && m.effect.attribute && attrs.includes(m.effect.attribute)) return true;
   return false;
 }
@@ -207,7 +275,9 @@ export function counterOf(state: MatchState, seat: Seat, card: CardInstance): nu
   let value = def.counter ?? 0;
   const loc = locate(state, card.id);
   for (const entry of activeStatics(state)) {
-    if (entry.seat !== seat || entry.zone !== "field") continue;
+    if (entry.seat !== seat) continue;
+    // Hand-zone Counter statics only change the card itself ("this card in your hand has a +N Counter").
+    if (entry.zone === "hand" && entry.card.id !== card.id) continue;
     for (const s of entry.ability.statics ?? []) {
       if (s.s !== "counter") continue;
       if (s.onlyWithoutCounter && (def.counter ?? 0) > 0) continue;
@@ -237,6 +307,13 @@ export function playCostOf(state: MatchState, seat: Seat, card: CardInstance): n
     if (loc && filterMatches(state, ctxFor(seat, card), m.effect.filter, loc)) cost += m.effect.amount;
   }
   return Math.max(0, cost);
+}
+
+function findBattleCard(state: MatchState, defId: string): Located | null {
+  const b = state.battle;
+  if (!b) return null;
+  const loc = locate(state, b.attackerId);
+  return loc && loc.defId === defId ? loc : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -348,7 +425,20 @@ export function filterMatches(state: MatchState, ctx: EvalCtx, f: Filter, loc: L
   }
   if (f.colors && !f.colors.some((c) => def.colors.includes(c))) return false;
   if (f.multicolor != null && (def.colors.length > 1) !== f.multicolor) return false;
-  if (f.attributes && !f.attributes.some((a) => (def.attribute ?? "").split("/").includes(a))) return false;
+  if (f.attributes || f.notAttributes) {
+    const attrs = attributesOf(state, loc);
+    if (f.attributes && !f.attributes.some((a) => attrs.includes(a))) return false;
+    if (f.notAttributes && f.notAttributes.some((a) => attrs.includes(a))) return false;
+  }
+  if (f.onlySelf && loc.id !== ctx.sourceId) return false;
+  if (f.notColorsOfVar) {
+    const colors = new Set(asList(ctx.vars[f.notColorsOfVar]).flatMap((id) => { const l = locate(state, id); return l ? getCardDef(l.defId).colors : []; }));
+    if (def.colors.some((c) => colors.has(c))) return false;
+  }
+  if (f.sameNameAsVar) {
+    const names = new Set(asList(ctx.vars[f.sameNameAsVar]).flatMap((id) => { const l = locate(state, id); return l ? [getCardDef(l.defId).name] : []; }));
+    if (!names.has(def.name)) return false;
+  }
   const card = loc.card;
   const field = onField(loc) && card != null;
   if (f.cost) { const v = field ? costOf(state, loc.seat, card!) : def.cost; if (!cmp(f.cost.op, v, evalValue(state, ctx, f.cost.value))) return false; }
@@ -368,6 +458,7 @@ export function filterMatches(state: MatchState, ctx: EvalCtx, f: Filter, loc: L
   if (f.any && !f.any.some((sub) => filterMatches(state, ctx, sub, loc))) return false;
   if (f.all && !f.all.every((sub) => filterMatches(state, ctx, sub, loc))) return false;
   if (f.donGiven && !cmp(f.donGiven.op, card?.attachedDonIds.length ?? 0, evalValue(state, ctx, f.donGiven.value))) return false;
+  if (f.costEqDonGiven != null && (!field || (costOf(state, loc.seat, card!) === card!.attachedDonIds.length) !== f.costEqDonGiven)) return false;
   return true;
 }
 
@@ -399,6 +490,12 @@ export function evalCount(state: MatchState, ctx: EvalCtx, expr: CountExpr): num
       return loc?.card ? powerOf(state, loc.seat, loc.card) : 0;
     }
     case "sum": return expr.exprs.reduce((n, e) => n + evalCount(state, ctx, e), 0);
+    case "diff": return Math.max(0, evalCount(state, ctx, expr.left) - evalCount(state, ctx, expr.right));
+    case "total": return candidates(state, ctx, expr.selector).reduce((n, loc) => {
+      if (expr.field === "cost") return n + (loc.card && onField(loc) ? costOf(state, loc.seat, loc.card) : getCardDef(loc.defId).cost);
+      return n + (loc.card && onField(loc) ? powerOf(state, loc.seat, loc.card) : getCardDef(loc.defId).power ?? 0);
+    }, 0);
+    case "leader_base_power": { const s = relSeat(ctx, expr.player); return basePowerOf(state, s, state.players[s].leader); }
     case "distinct_names": return new Set(candidates(state, ctx, expr.selector).map((l) => getCardDef(l.defId).name)).size;
     case "var_sum": return asList(ctx.vars[expr.name]).reduce((n, id) => {
       const loc = locate(state, id);
@@ -459,6 +556,22 @@ export function evalCond(state: MatchState, ctx: EvalCtx, cond: Cond): boolean {
     case "or": return cond.conds.some((c) => evalCond(state, ctx, c));
     case "first_turn_of_player": return state.players[ctx.seat].turnsStarted <= 1;
     case "turn_count": return cmp(cond.op, state.players[ctx.seat].turnsStarted, cond.value);
+    case "battle_opponent": {
+      const b = state.battle;
+      if (!b) return false;
+      const defenderId = b.target.kind === "leader" ? state.players[otherSeat(b.attackerSeat)].leader.id : b.target.instanceId;
+      const otherId = b.attackerId === ctx.sourceId ? defenderId : defenderId === ctx.sourceId ? b.attackerId : null;
+      const loc = otherId ? locate(state, otherId) : null;
+      return loc != null && filterMatches(state, ctx, cond.filter, loc);
+    }
+    case "self_flag": { const card = sourceCard(state, ctx); return card != null && state.modifiers.some((m) => m.target.kind === "card" && m.target.id === card.id && m.effect.type === "flag" && m.effect.flag === cond.flag); }
+    case "this_turn": {
+      const log = state.players[relSeat(ctx, cond.player)].turnLog;
+      if (!log || log.turn !== state.turnNumber) return false;
+      if (cond.what === "hand_trashed") return log.handTrashed > 0;
+      const ids = cond.what === "event_activated" ? log.events : log.koed;
+      return ids.some((defId) => !cond.filter || filterMatches(state, ctx, cond.filter, { seat: relSeat(ctx, cond.player), zone: "trash", index: 0, id: "", defId }));
+    }
   }
 }
 
@@ -492,6 +605,9 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
     case "power": return cost.target !== "active_leader" || !p.leader.rested;
     case "give_opponent_don": { const o = state.players[otherSeat(ctx.seat)]; return o.costArea.filter((d) => d.rested).length >= cost.count && o.characters.length > 0; }
     case "place_self_in_life": return src != null && src.zone !== "life";
+    case "return_don_any": return p.costArea.length >= 1;
+    case "either": return cost.options.some((option) => option.every((c) => canPayCost(state, ctx, c)));
+    case "unattach_don": return p.attachedDons.length >= cost.count;
   }
 }
 

@@ -39,7 +39,12 @@ export type CountExpr =
   | { of: "sum"; exprs: CountExpr[] }
   /** Number of distinct card names among cards matching the selector. */
   | { of: "distinct_names"; selector: Selector }
-  | { of: "don_attached_total"; player: Rel };
+  | { of: "don_attached_total"; player: Rel }
+  /** left - right (floored at 0). */
+  | { of: "diff"; left: CountExpr; right: CountExpr }
+  /** Total printed/current cost or power of the matching cards. */
+  | { of: "total"; selector: Selector; field: "cost" | "power" }
+  | { of: "leader_base_power"; player: Rel };
 
 export interface Cmp {
   op: CmpOp;
@@ -108,6 +113,15 @@ export interface Filter {
   all?: Filter[];
   /** Number of DON!! cards given to the card. */
   donGiven?: Cmp;
+  /** Current cost equals the number of DON!! cards given to the card. */
+  costEqDonGiven?: boolean;
+  /** Shares no color with any card bound to the named variable. */
+  notColorsOfVar?: string;
+  /** Has the same card name as a card bound to the named variable. */
+  sameNameAsVar?: string;
+  notAttributes?: string[];
+  /** Only the ability's source card. */
+  onlySelf?: boolean;
 }
 
 export interface Selector {
@@ -152,7 +166,17 @@ export type Restriction =
   | "cannot_be_blocked_by_power_or_less"
   | "cannot_be_blocked_by_cost_or_less"
   | "cannot_be_blocked_by_power_or_more"
-  | "cannot_activate_blocker";
+  | "cannot_activate_blocker"
+  /** Protection from effects whose source card matches `filter`. */
+  | "cannot_be_ko_by_effect_from"
+  | "cannot_be_ko_by_opponent_effect_from"
+  | "cannot_be_rested_by_opponent_effect_from"
+  /** Cannot be K.O.'d in battle by attackers matching `filter`. */
+  | "cannot_be_ko_in_battle_by"
+  /** Cannot attack cards matching `filter`. */
+  | "cannot_attack_matching"
+  /** Attacking requires trashing `value` cards from hand. */
+  | "attack_requires_discard";
 
 export type PlayerRestriction =
   | "cannot_play_characters"
@@ -162,7 +186,13 @@ export type PlayerRestriction =
   | "cannot_attack_leader"
   | "cannot_draw_by_effect"
   | "cannot_set_don_active"
-  | "cannot_set_don_active_by_character_effects";
+  | "cannot_set_don_active_by_character_effects"
+  /** The restricted player's attacks may only target cards matching the filter. */
+  | "attack_only_matching"
+  /** The player's Character cards are played rested. */
+  | "characters_played_rested"
+  /** The player's [On Play] effects are negated. */
+  | "on_play_negated";
 
 export type Target =
   | { ref: "self" }
@@ -214,7 +244,13 @@ export type Cond =
   | { c: "and"; conds: Cond[] }
   | { c: "or"; conds: Cond[] }
   | { c: "first_turn_of_player" }
-  | { c: "turn_count"; op: CmpOp; value: number };
+  | { c: "turn_count"; op: CmpOp; value: number }
+  /** The card battling the source (its opponent in the current battle) matches. */
+  | { c: "battle_opponent"; filter: Filter }
+  /** The source card carries a per-turn flag (e.g. "battled_character"). */
+  | { c: "self_flag"; flag: string }
+  /** Something happened this turn: events activated, Characters K.O.'d, hand cards trashed. */
+  | { c: "this_turn"; what: "event_activated" | "character_koed" | "hand_trashed"; player: Rel; filter?: Filter };
 
 /** Costs are paid in order before the effect body. Paying is required to resolve. */
 export type Cost =
@@ -246,7 +282,13 @@ export type Cost =
   | { k: "mill"; count: number }
   | { k: "power"; target: "leader" | "self" | "active_leader"; amount: number }
   | { k: "give_opponent_don"; count: number }
-  | { k: "place_self_in_life"; faceUp: boolean };
+  | { k: "place_self_in_life"; faceUp: boolean }
+  /** "Return 1 or more DON!! cards from your field": chosen DON!! (at least one). */
+  | { k: "return_don_any" }
+  /** Return given DON!! cards to the cost area rested. */
+  | { k: "unattach_don"; count: number }
+  /** "A or B": pay exactly one option (the player picks among payable ones). */
+  | { k: "either"; options: Cost[][]; labels: string[] };
 
 export type Placement = "deck_bottom" | "deck_top" | "trash" | "top_or_bottom" | "hand" | "shuffle";
 
@@ -286,7 +328,7 @@ export type Effect =
   /** Final power becomes exactly this value (after all other modifiers). */
   | { do: "set_power"; target: Target; value: Value; duration: Duration }
   /** Run `effect` at the end of this turn / battle (a delayed one-shot). */
-  | { do: "delay"; when: "end_of_turn" | "end_of_battle"; effect: Effect }
+  | { do: "delay"; when: "end_of_turn" | "end_of_battle" | "opponent_main"; effect: Effect }
   /** Final cost becomes exactly this value. */
   | { do: "set_cost"; target: Target; value: Value; duration: Duration }
   /** Deal damage to a player's Leader outside battle (Life to hand, Triggers apply). */
@@ -294,14 +336,20 @@ export type Effect =
   /** Activate the [Main] effect of an Event (from hand or trash) without paying its cost. */
   | { do: "activate_event"; target: Target }
   | { do: "keyword"; target: Target; keyword: Keyword; duration: Duration }
-  | { do: "restrict"; target: Target; restriction: Restriction; duration: Duration; value?: number; attribute?: string }
+  | { do: "restrict"; target: Target; restriction: Restriction; duration: Duration; value?: number; attribute?: string; filter?: Filter }
   | { do: "player_restrict"; player: Rel; restriction: PlayerRestriction; duration: Duration; filter?: Filter }
   | { do: "negate"; target: Target; duration: Duration }
   | { do: "add_don"; player: Rel; count: Value; rested: boolean }
   | { do: "give_don"; target: Target; count: number; donState: "rested" | "active" | "any"; player?: Rel }
   | { do: "set_don_active"; count: number }
   | { do: "rest_don"; player: Rel; count: number }
-  | { do: "return_don"; player: Rel; count: number; chooser?: Rel; activeOnly?: boolean }
+  | { do: "return_don"; player: Rel; count?: Value; chooser?: Rel; activeOnly?: boolean; target?: Target }
+  /** Pick a number 0..max (e.g. "choose a cost"); binds the number. */
+  | { do: "choose_number"; bind: string; max: number; prompt?: string }
+  /** Move up to `count` DON!! given to the `from` cards onto the first `to` card. */
+  | { do: "move_don"; from: Target; to: Target; count: number }
+  /** Swap the base power of the (two) targeted cards. */
+  | { do: "swap_base_power"; target: Target; duration: Duration; with?: Target }
   | { do: "discard"; player: Rel; count: Value; chooser?: Rel; filter?: Filter; min?: number; random?: boolean }
   | { do: "hand_to_deck"; player: Rel; count: number; position: "top" | "bottom" | "top_or_bottom"; chooser?: Rel; filter?: Filter; min?: number }
   | { do: "hand_to_life"; count: number; position: "top" | "bottom"; faceUp: boolean; filter?: Filter; min?: number }
@@ -311,7 +359,13 @@ export type Effect =
   | { do: "life_face"; player: Rel; count: number; faceUp: boolean; min?: number }
   | { do: "mill"; player: Rel; count: Value }
   | { do: "look"; player: Rel; count: Value; picks: LookPick[]; rest: Placement; reveal?: boolean }
-  | { do: "look_life"; player: RelOrAny; count: number; rest: "top_or_bottom" | "any_order" }
+  | { do: "look_life"; player: RelOrAny; count: number; rest: "top_or_bottom" | "any_order"; prompt?: string }
+  /** Move the top Life card(s) to the top of the deck (unrevealed). */
+  | { do: "life_to_deck"; player: Rel; count: number }
+  /** Target gains an attribute. */
+  | { do: "attribute"; target: Target; attribute: string; duration: Duration }
+  /** Grant the controller this card's replacement ability `ability` (id suffix) for a duration. */
+  | { do: "grant"; ability: string; duration: Duration }
   | { do: "reveal_top"; player: Rel; bind: string; zone?: "deck" | "life" }
   | { do: "shuffle"; player: Rel }
   | { do: "win" }
@@ -328,7 +382,9 @@ export type Static =
   | { s: "cost"; target: StaticTarget; amount: Value }
   | { s: "base_power"; target: StaticTarget; value: Value }
   | { s: "keyword"; target: StaticTarget; keyword: Keyword }
-  | { s: "restrict"; target: StaticTarget; restriction: Restriction; value?: number; attribute?: string }
+  | { s: "restrict"; target: StaticTarget; restriction: Restriction; value?: number; attribute?: string; filter?: Filter }
+  /** Negate the effects of matching cards (e.g. "all of your Characters without … have their effects negated"). */
+  | { s: "negate"; target: StaticTarget }
   | { s: "player_restrict"; player: Rel; restriction: PlayerRestriction; filter?: Filter }
   /** Counter value of hand cards: set (replace) or add to printed value. */
   | { s: "counter"; filter: Filter; mode: "set" | "add"; value: number; onlyWithoutCounter?: boolean }
@@ -382,7 +438,17 @@ export type GameEventKind =
   /** This card's attack dealt damage to the opponent's Life. */
   | "attack_damage"
   /** This card was K.O.'d (resolves from the trash like On K.O.). */
-  | "self_ko";
+  | "self_ko"
+  /** A card was drawn outside the Draw Phase. */
+  | "card_drawn_by_effect"
+  /** A Character (any player's) became rested by an effect. */
+  | "character_rested"
+  /** A Character left the field (K.O., returned, trashed or placed elsewhere). */
+  | "character_left_field"
+  /** Your Leader was declared as an attack target. */
+  | "leader_attacked"
+  /** A battle this card fought against an opposing Character ended (self only). */
+  | "battle_ended_vs_character";
 
 export interface EventTrigger {
   event: GameEventKind;
@@ -393,15 +459,33 @@ export interface EventTrigger {
   byOpponentEffect?: boolean;
   /** Event must be caused by any effect (not battle). */
   byEffect?: boolean;
+  /** Event must be caused by the controller's own effect. */
+  byYourEffect?: boolean;
+  /** Further events that trigger the same ability ("When A or B"). */
+  alsoEvents?: GameEventKind[];
+  /** Minimum count carried by the event (e.g. "2 or more DON!! cards are returned"). */
+  minCount?: number;
+  /** Played-from zone for character_played ("played from your trash"). */
+  fromZone?: "hand" | "trash" | "deck" | "life";
+  /** The effect's source card must match (e.g. "by your {Navy} type card's effect"). */
+  sourceFilter?: Filter;
+  /** With both `filter` and `sourceFilter`: either may match. */
+  either?: boolean;
 }
 
-export type ReplacementEvent = "ko" | "ko_by_effect" | "removed_by_opponent_effect" | "ko_in_battle" | "life_damage";
+export type ReplacementEvent = "ko" | "ko_by_effect" | "removed_by_opponent_effect" | "ko_in_battle" | "life_damage" | "rested_by_opponent_effect"
+  /** Any removal from the field (K.O. or effect), by anyone. */
+  | "removed";
 
 export interface Replacement {
   event: ReplacementEvent;
   /** "self" or a selector over the controller's field. */
   target: "self" | Selector;
   byOpponent?: boolean;
+  /** Further events the same replacement applies to. */
+  alsoEvents?: ReplacementEvent[];
+  /** The replaced effect's source card must match. */
+  sourceFilter?: Filter;
   /** Paid instead of the replaced event. Empty means the event is simply prevented. */
   instead: Effect;
   optional: boolean;

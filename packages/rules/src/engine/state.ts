@@ -230,3 +230,14 @@ export function attachDon(state: MatchState, seat: Seat, target: CardInstance, d
   p.attachedDons.push(don!);
   return don!;
 }
+
+/** Return one specific cost-area DON!! to its owner's DON!! deck. */
+export function returnDonById(state: MatchState, seat: Seat, donId: string): boolean {
+  const p = state.players[seat];
+  const idx = p.costArea.findIndex((d) => d.id === donId);
+  if (idx < 0) return false;
+  const [d] = p.costArea.splice(idx, 1);
+  d!.rested = false;
+  p.donDeck.push(d!);
+  return true;
+}

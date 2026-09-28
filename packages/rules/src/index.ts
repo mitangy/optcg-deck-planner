@@ -84,3 +84,4 @@ export {
   type AbilitySupport,
   type CardSupportIssue,
 } from "./cards/effectCatalog.js";
+export { deckConstructionErrors } from "./cards/deckRules.js";

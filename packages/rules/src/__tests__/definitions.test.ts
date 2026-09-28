@@ -83,9 +83,10 @@ describe("support manifest and ranked gate", () => {
     expect(manifest["ST01-003"]).toBe("none");
     expect(manifest["ST01-006"]).toBe("keywords");
     expect(manifest["OP01-016"]).toBe("ok");
-    const unsupported = Object.entries(manifest).find(([, s]) => s === "unsupported")?.[0];
-    expect(unsupported).toBeDefined();
-    expect(unsupportedCardsForDeck({ leaderId: "ST01-001", deck: ["ST01-003", unsupported!] })).toEqual([{ cardId: unsupported, support: "unsupported" }]);
+    // Every catalog card's printed text is implemented (generated or reviewed manual definitions).
+    expect(Object.values(manifest).filter((s) => s === "unsupported" || s === "partial")).toEqual([]);
+    // Unknown ids still play as unverified stubs and are blocked from ranked decks.
+    expect(unsupportedCardsForDeck({ leaderId: "ST01-001", deck: ["ST01-003", "OP99-999"] })).toEqual([{ cardId: "OP99-999", support: "unverified" }]);
     expect(unsupportedCardsForDeck({ leaderId: "ST01-001", deck: ["ST01-003", "OP01-016"] })).toEqual([]);
   });
 });
