@@ -43,6 +43,10 @@ export function projectPendingChoice(choice: PendingChoice, viewerSeat: Seat | n
   if (!privateView && projected.request && "options" in projected.request) {
     projected.optionCount = projected.request.options.length;
     projected.request = { ...projected.request, options: projected.request.options.map((o) => ({ id: o.id, eligible: false, ...(o.zone ? { zone: o.zone } : {}), ...(o.instanceId ? { instanceId: o.instanceId, defId: o.defId } : { defId: "HIDDEN" }) })) } as PendingChoice["request"];
+    // Which hidden options satisfy each pick filter reveals card properties: drop eligibility entirely.
+    if (projected.request && projected.request.type === "look") {
+      projected.request = { ...projected.request, groups: projected.request.groups.map((g) => ({ label: g.label, max: g.max, eligibleIds: [] })) };
+    }
   }
   if (projected.hideCardDefFromOthers && projected.privateToSeat !== viewerSeat) {
     projected.cardDefId = "HIDDEN";

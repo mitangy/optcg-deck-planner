@@ -194,8 +194,13 @@ describe("privacy", () => {
     const spectator = getSpectatorView(h.state, 1).pendingChoices[0]!;
     expect(own.request?.type).toBe("look");
     expect((own.request as { options: { defId?: string }[] }).options[0]!.defId).toBe("OP01-013");
+    type LookView = { options: { defId?: string; eligible: boolean }[]; groups: { eligibleIds: string[] }[] };
+    // The owner sees which cards the search filter allows.
+    expect((own.request as LookView).groups.some((g) => g.eligibleIds.length > 0)).toBe(true);
     for (const view of [opp, spectator]) {
-      expect((view.request as { options: { defId?: string }[] }).options.every((o) => o.defId === "HIDDEN")).toBe(true);
+      expect((view.request as LookView).options.every((o) => o.defId === "HIDDEN" && !o.eligible)).toBe(true);
+      // Filter matches would reveal properties of face-down cards.
+      expect((view.request as LookView).groups.every((g) => g.eligibleIds.length === 0)).toBe(true);
       expect(view.bindings).toBeUndefined();
       expect(view.resolutionFrameId).toBeUndefined();
     }
