@@ -8,7 +8,7 @@
  *
  *   node tools/mutation-check/run.cjs [suite ...] [--only <regex>]
  *
- * Suites: rules, duel-web, mobile, importer (default: all). Exit code 1 when any
+ * Suites: rules, duel-web, mobile, importer, backend (default: all). Exit code 1 when any
  * mutation survives or its anchor no longer matches the source exactly once.
  * See README.md for how to add mutations alongside new tests.
  */
@@ -24,21 +24,34 @@ const SUITES = {
   "duel-web": require("./suites/duel-web.cjs"),
   mobile: require("./suites/mobile.cjs"),
   importer: require("./suites/importer.cjs"),
+  backend: require("./suites/backend.cjs"),
 };
 
 const args = process.argv.slice(2);
 const onlyIndex = args.indexOf("--only");
 const only = onlyIndex >= 0 ? new RegExp(args[onlyIndex + 1]) : null;
-const suiteNames = args.filter((a, i) => !a.startsWith("--") && i !== onlyIndex + 1);
+const suiteNames = args.filter((a, i) => !a.startsWith("--") && !(onlyIndex >= 0 && i === onlyIndex + 1));
 const selected = suiteNames.length ? suiteNames : Object.keys(SUITES);
-for (const name of selected) if (!SUITES[name]) { console.error(`Unknown suite ${name}; expected ${Object.keys(SUITES).join(", ")}`); process.exit(2); }
 
-// Restore everything we touched, whatever happens.
+// Restore everything we touched, whatever happens. Originals are also journaled
+// to disk so a hard kill (which skips exit handlers) is repaired on the next run.
+const JOURNAL = path.join(__dirname, ".pending-restore.json");
 const touched = new Map();
 function restoreAll() {
   for (const [file, text] of touched) fs.writeFileSync(file, text);
   touched.clear();
+  try { fs.unlinkSync(JOURNAL); } catch {}
 }
+function journal() {
+  fs.writeFileSync(JOURNAL, JSON.stringify(Object.fromEntries(touched)));
+}
+if (fs.existsSync(JOURNAL)) {
+  const pending = JSON.parse(fs.readFileSync(JOURNAL, "utf8"));
+  for (const [file, text] of Object.entries(pending)) fs.writeFileSync(file, text);
+  fs.unlinkSync(JOURNAL);
+  console.log(`Restored ${Object.keys(pending).length} file(s) left mutated by an interrupted run.`);
+}
+for (const name of selected) if (!SUITES[name]) { console.error(`Unknown suite ${name}; expected ${Object.keys(SUITES).join(", ")}`); process.exit(2); }
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { restoreAll(); process.exit(130); });
 process.on("exit", restoreAll);
 
@@ -59,6 +72,15 @@ const runners = {
       for (const t of file.assertionResults) if (t.status === "failed") failed.push(`${path.basename(file.name)} > ${t.fullName}`);
     }
     return { failed, total: data.numTotalTests };
+  },
+  pytest(cwd, suite) {
+    const python = process.env.BACKEND_PYTHON ?? process.env.PYTHON ?? (process.platform === "win32" ? "py -3" : "python3");
+    let out = "";
+    try { out = execSync(`${python} -m pytest -q -rf ${suite.args ?? ""} 2>&1`, { cwd, encoding: "utf8", timeout: 600000 }); } catch (e) { out = String(e.stdout ?? ""); }
+    const summary = /(\d+) passed/.exec(out);
+    if (!summary && !/\d+ failed/.test(out)) return { error: `pytest did not run:\n${out.slice(-800)}`, failed: [] };
+    const failed = [...out.matchAll(/^FAILED (\S+)/gm)].map((m) => m[1]);
+    return { failed, total: Number(summary?.[1] ?? 0) + failed.length };
   },
   unittest(cwd, suite) {
     const python = process.env.PYTHON ?? (process.platform === "win32" ? "py -3" : "python3");
@@ -92,6 +114,7 @@ function applyEdits(mutation) {
     if (!touched.has(file)) touched.set(file, original);
     next.set(file, updated);
   }
+  journal();
   for (const [file, text] of next) fs.writeFileSync(file, text);
   return null;
 }

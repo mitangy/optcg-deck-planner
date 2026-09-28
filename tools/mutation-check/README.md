@@ -8,7 +8,9 @@ Each **mutation** is a small edit to production code (or a data file) that
 does the opposite of one claimed behavior. Examples: skip untapping during
 refresh, accept an unpayable cost, leak hidden choice options. The runner
 applies one mutation, runs the owning suite, and checks that the tests named
-in `kills` fail. It then restores the file, including on Ctrl+C.
+in `kills` fail. It then restores the file, including on Ctrl+C. Originals are
+journaled to `.pending-restore.json` first, so if a run is hard-killed the
+next run restores any file it left mutated.
 
 ```bash
 npm run test:mutation                                         # all suites
@@ -22,6 +24,7 @@ node tools/mutation-check/run.cjs rules --only "snapshot|rng"  # mutation ids ma
 | `duel-web` | `duel-web/src` | vitest |
 | `mobile` | `mobile/src` | vitest |
 | `importer` | `scripts/test_bandai_metadata.py` | unittest (`PYTHON` overrides `py -3` / `python3`) |
+| `backend` | `backend/tests` | pytest (`BACKEND_PYTHON`: a Python with `backend/requirements.txt` installed) |
 
 A full run of every suite takes roughly 15–20 minutes, because each mutation
 re-runs its suite. The baseline must be green first. The exit code is 1 if a
