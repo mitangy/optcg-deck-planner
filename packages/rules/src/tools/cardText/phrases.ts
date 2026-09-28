@@ -81,6 +81,7 @@ export function parseCountPhrase(text: string, ctx: Ctx): CountExpr | null {
     [/^cards? in (your|your opponent's) hand$/i, (m) => ({ of: "hand", player: who(m[1]!) })],
     [/^cards? in (your|your opponent's) trash$/i, (m) => ({ of: "trash", player: who(m[1]!) })],
     [/^(?:the )?number you returned to your deck$/i, () => ({ of: "var", name: "_affected" })],
+    [/^(?:the )?number (?:of cards )?you placed at the bottom of your deck$/i, () => ({ of: "var", name: "_affected" })],
     [/^(?:card )?trashed$/i, () => ({ of: "var", name: "_discard" })],
     [/^DON!! cards given to this (?:character|leader)$/i, () => ({ of: "don_attached_self" })],
   ];
