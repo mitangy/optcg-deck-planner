@@ -60,6 +60,17 @@ describe("protocol parsers", () => {
     assert.equal(parseCreateOptions({ ranked: true }).ranked, true);
   });
 
+  it("rejects invalid ranked seat reservations", () => {
+    assert.throws(
+      () => parseCreateOptions({ seatUserIds: [1, 1] }),
+      /distinct integers/,
+    );
+    assert.throws(
+      () => parseCreateOptions({ seatUserIds: [1, 1.5] }),
+      /distinct integers/,
+    );
+  });
+
   it("parses intent envelope", () => {
     const intent = parseIntentMessage({
       protocolVersion: PROTOCOL_VERSION,
