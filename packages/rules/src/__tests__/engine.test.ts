@@ -94,14 +94,10 @@ describe("mulligan decisions", () => {
         { leaderId: "ST01-001", deck: [...deck] },
       ],
     });
-    const before = state.players[0].hand.map((c) => c.defId);
     state = act(state, 0, { type: "mulligan", doMulligan: true }, rng);
     expect(state.players[0].mulliganDone).toBe(true);
     expect(state.players[0].hand.length).toBe(5);
     expect(state.phase).toBe("mulligan"); // seat 1 still deciding
-    // Hand contents may match by chance; deck+hand together stay 50 cards worth of defs.
-    expect(state.players[0].hand.map((c) => c.defId).length).toBe(5);
-    expect(before.length).toBe(5);
     state = act(state, 1, { type: "mulligan", doMulligan: false }, rng);
     expect(state.phase).toBe("main");
     expect(state.players[0].life.length).toBe(5);
@@ -140,10 +136,7 @@ describe("DON!! economy and play", () => {
     const handIndex = state.players[0].hand.findIndex(
       (c) => c.defId === "ST01-003" || c.defId === "ST01-006",
     );
-    if (handIndex < 0) {
-      expect(state.players[0].costArea.length).toBeGreaterThan(0);
-      return;
-    }
+    expect(handIndex).toBeGreaterThanOrEqual(0);
     const before = state.players[0].costArea.filter((d) => !d.rested).length;
     state = act(state, 0, { type: "play_card", handIndex }, rng);
     expect(state.players[0].characters.length).toBe(1);

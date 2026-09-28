@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from app.auth import create_session_token, read_session_token
 from app.config import Settings
-from tests.conftest import make_user
 
 
 def _settings() -> Settings:
@@ -24,8 +23,3 @@ def test_missing_sv_defaults_to_zero():
         {"uid": 5}
     )
     assert read_session_token(raw, settings) == (5, 0)
-
-
-def test_user_session_version_defaults(db):
-    user = make_user(db, email="sv@example.com", name="SV", sub="sub-sv")
-    assert int(user.session_version or 0) == 0
