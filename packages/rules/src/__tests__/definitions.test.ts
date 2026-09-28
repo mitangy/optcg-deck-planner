@@ -159,11 +159,11 @@ describe("constructed seed stubs + auto-stub", () => {
   });
 
   it("auto-stubs catalog-backed ids via ensureDefsForPlayers", () => {
-    const id = "OP16-119";
+    const id = "EB05-025";
     expect(() => getCardDef(id)).toThrow(/Unknown card def/);
     ensureDefsForPlayers([
       { leaderId: "ST01-001", deck: [id, id] },
-      { leaderId: "OP16-080", deck: ["OP16-119", "OP16-119"] },
+      { leaderId: "OP16-080", deck: [id, id] },
     ]);
     expect(getCardDef(id)).toMatchObject({
       id,
