@@ -41,8 +41,9 @@ Open http://localhost:5173 — use **Dev login** when `ENABLE_DEV_LOGIN=true` an
 
 | Piece | URL |
 |-------|-----|
-| App | https://optcg-deck-planner.vercel.app |
-| API (via app) | https://optcg-deck-planner.vercel.app/api/… |
+| App | https://optcg-deck-planner.app (the old `optcg-deck-planner.vercel.app` redirects here) |
+| API (via app) | https://optcg-deck-planner.app/api/… |
+| Duel app | https://optcgduel.app |
 | API (direct) | https://optcg-api-nutb.onrender.com/health |
 
 Browsing the bare Render host (`/`) returns a small JSON index; use `/health` or `/docs` for checks. Free Render may cold-sleep after idle (~30–60s wake).
@@ -73,8 +74,9 @@ Prod also **fails fast** on insecure defaults: with an `https://` `FRONTEND_ORIG
 
 ### Google OAuth
 In Google Cloud Console (OAuth Web client):
-- Authorized redirect URI: `https://optcg-deck-planner.vercel.app/api/auth/callback`
-- Authorized JS origins: `https://optcg-deck-planner.vercel.app` + `http://localhost:5173`
+- Authorized redirect URI: `https://optcg-deck-planner.app/api/auth/callback` (must match `BACKEND_PUBLIC_URL` + `/auth/callback`)
+- Authorized JS origins: `https://optcg-deck-planner.app` + `http://localhost:5173`
+- `FRONTEND_ORIGIN` and `BACKEND_PUBLIC_URL` must share a host (both `optcg-deck-planner.app`); a mismatch flips the session cookie to `SameSite=None`
 - Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` on Render
 
 ### Access control

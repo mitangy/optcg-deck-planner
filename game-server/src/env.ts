@@ -104,6 +104,16 @@ export function getCorsOrigins(): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Optional full-match regex for extra CORS origins (e.g. Vercel branch URLs).
+ * Anchored here so a pattern can never match a suffix of a hostile origin.
+ */
+export function getCorsOriginRegex(): RegExp | undefined {
+  const raw = process.env.CORS_ORIGIN_REGEX?.trim();
+  if (!raw) return undefined;
+  return new RegExp(`^(?:${raw})$`);
+}
+
 export function getRedisUrl(): string | undefined {
   const s = process.env.REDIS_URL?.trim();
   return s ? s : undefined;

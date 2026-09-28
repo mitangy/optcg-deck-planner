@@ -40,9 +40,9 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: FRONTEND_ORIGIN
-        value: https://optcg-deck-planner.vercel.app
+        value: https://optcg-deck-planner.app
       - key: BACKEND_PUBLIC_URL
-        value: https://optcg-deck-planner.vercel.app/api
+        value: https://optcg-deck-planner.app/api
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
@@ -57,7 +57,10 @@ services:
       - key: ENABLE_DUEL_DEV_TOKEN
         value: "true"
       - key: DUEL_CORS_ORIGINS
-        value: https://optcg-duel-web.vercel.app,https://optcg-duel-web-miko21.vercel.app
+        value: https://optcgduel.app,https://optcg-duel-web.vercel.app,https://optcg-duel-web-miko21.vercel.app
+      # Vercel branch URLs (optcg-duel-web-git-<branch>-miko21.vercel.app): CORS without credentials (see backend/app/cors.py).
+      - key: DUEL_CORS_ORIGIN_REGEX
+        value: 'https://optcg-duel-web-git-[a-z0-9-]+-miko21\.vercel\.app'
 
   - type: web
     name: optcg-game-server
@@ -98,6 +101,9 @@ services:
       - key: RECONNECT_GRACE_SECONDS
         value: "60"
       - key: CORS_ORIGINS
-        value: https://optcg-duel-web.vercel.app,https://optcg-duel-web-miko21.vercel.app
+        value: https://optcgduel.app,https://optcg-duel-web.vercel.app,https://optcg-duel-web-miko21.vercel.app
+      # Vercel branch URLs (optcg-duel-web-git-<branch>-miko21.vercel.app).
+      - key: CORS_ORIGIN_REGEX
+        value: 'https://optcg-duel-web-git-[a-z0-9-]+-miko21\.vercel\.app'
       - key: LOG_LEVEL
         value: info
