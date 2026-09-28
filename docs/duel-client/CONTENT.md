@@ -2,6 +2,14 @@
 
 How to add a playable OPTCG card to the digital duel without changing the Colyseus wire protocol.
 
+## Approved authoring transition (2026-09-16)
+
+The pipeline below describes the existing hook-based implementation. It is a maintenance reference during migration, not the target for broad card expansion. Follow [ABILITY_IMPLEMENTATION_PLAN.md](./ABILITY_IMPLEMENTATION_PLAN.md) and ADR-017 for new engine/content work. Restructuring is approved; the declarative registry and generic runtime are still planned.
+
+The target contribution flow is: verify the card and source revision; encode its abilities using validated conditions, costs, selectors, operations, timing, limits, and durations; add meaningful behavior fixtures; regenerate support/atlas artifacts; run registry, rules, and relevant integration checks. Cards using existing primitives must require no core-engine or client-prompt edits. If a new mechanic is needed, add a reusable primitive and tests before promoting the card. Do not keep adding per-card booleans or card-ID branches. Exceptions use the plan's explicit resolver policy.
+
+Current support must be read from the reviewed executable registry/coverage code and tests. The Step 5 keyword table below is historical, not a live coverage report. Unsupported cards may remain available for catalog/deck editing with truthful labels; they must not be presented as fully supported automated play.
+
 ## Pipeline
 
 1. **Encode the print** in `packages/rules/src/cards/definitions.ts` as a `CardDef`.

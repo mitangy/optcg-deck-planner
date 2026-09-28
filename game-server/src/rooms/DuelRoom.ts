@@ -17,6 +17,7 @@ import {
 } from "@optcg/rules";
 import {
   getDevJoinSecret,
+  isRankedMatchCreateAttested,
   getLogLevel,
   getReconnectGraceSeconds,
   getSeatReservationSeconds,
@@ -98,7 +99,13 @@ export class DuelRoom extends Room {
     if (parsed.players) {
       this.seatDecks = [parsed.players[0], parsed.players[1]];
     }
-    this.ranked = parsed.ranked;
+    // Never trust a browser-provided `ranked: true`. Only the in-process
+    // matchmaker can supply the server-only capability needed for Elo matches.
+    const attestation =
+      options && typeof options === "object"
+        ? (options as { rankedAttestation?: unknown }).rankedAttestation
+        : undefined;
+    this.ranked = parsed.ranked && isRankedMatchCreateAttested(attestation);
     this.turnSeconds = parsed.timer.turnSeconds;
     this.matchSeconds = parsed.timer.matchSeconds;
     this.presetSeatUserIds = parsed.seatUserIds;
@@ -169,9 +176,29 @@ export class DuelRoom extends Room {
       return;
     }
 
+    let reservedSeat: Seat | null = null;
+    try {
+      reservedSeat = this.reservedSeatFor(identity);
+    } catch (e) {
+      const err = e as Error & { code?: ErrorCode };
+      this.sendError(client, err.code ?? "unauthorized", err.message);
+      client.leave();
+      return;
+    }
+
     // Reclaim after allowReconnection: same sessionId may already be seated.
     const existingSeat = this.seatForClient(client);
     if (existingSeat !== null) {
+      const slot = this.seats[existingSeat];
+      if (
+        !slot ||
+        slot.userId !== identity.userId ||
+        (reservedSeat !== null && reservedSeat !== existingSeat)
+      ) {
+        this.sendError(client, "unauthorized", "Identity does not own this seat");
+        client.leave();
+        return;
+      }
       this.log("info", "player_reconnected", {
         matchId: this.matchId,
         seat: existingSeat,
@@ -212,12 +239,27 @@ export class DuelRoom extends Room {
       return;
     }
 
-    const seat = this.assignSeat(
-      client.sessionId,
-      identity.displayId,
-      identity.userId,
-      identity.preferredSeat,
-    );
+    if (reservedSeat !== null && this.seats[reservedSeat]) {
+      this.sendError(client, "room_full", "Reserved seat is already occupied");
+      client.leave();
+      return;
+    }
+    const seat =
+      reservedSeat ??
+      this.assignSeat(
+        client.sessionId,
+        identity.displayId,
+        identity.userId,
+        identity.preferredSeat,
+      );
+    if (reservedSeat !== null) {
+      this.seats[reservedSeat] = {
+        seat: reservedSeat,
+        sessionId: client.sessionId,
+        displayId: identity.displayId,
+        userId: identity.userId,
+      };
+    }
     if (seat === null) {
       this.sendError(client, "room_full", "No free seat");
       client.leave();
@@ -391,6 +433,27 @@ export class DuelRoom extends Room {
       }
     }
     return null;
+  }
+
+  /** Enforce the identity/seat reservation created by ranked_queue. */
+  private reservedSeatFor(identity: {
+    userId: number;
+    preferredSeat?: Seat;
+    role: "player" | "spectator";
+  }): Seat | null {
+    if (identity.role === "spectator" || !this.presetSeatUserIds) return null;
+    const seat = this.presetSeatUserIds.indexOf(identity.userId) as -1 | Seat;
+    if (seat !== 0 && seat !== 1) {
+      throw Object.assign(new Error("Identity is not reserved for this match"), {
+        code: "unauthorized" as const,
+      });
+    }
+    if (identity.preferredSeat !== seat) {
+      throw Object.assign(new Error("Identity is not reserved for the requested seat"), {
+        code: "unauthorized" as const,
+      });
+    }
+    return seat;
   }
 
   private seatForClient(client: Client): Seat | null {

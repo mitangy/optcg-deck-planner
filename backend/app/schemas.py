@@ -436,5 +436,14 @@ class DuelRatingOut(BaseModel):
     games_played: int
 
 
+class DuelLeaderboardEntryOut(BaseModel):
+    """Public rating data; account email is intentionally excluded."""
+
+    user_id: int
+    name: str
+    rating: int
+    games_played: int
+
+
 class DuelLeaderboardOut(BaseModel):
-    entries: list[DuelRatingOut]
+    entries: list[DuelLeaderboardEntryOut]

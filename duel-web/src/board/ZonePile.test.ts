@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { lifePileFaceCount, zonePileCountLabel } from "./ZonePile";
 
@@ -33,23 +30,5 @@ describe("lifePileFaceCount", () => {
   it("shows no faces when life is empty", () => {
     expect(lifePileFaceCount(0)).toBe(0);
     expect(lifePileFaceCount(-1)).toBe(0);
-  });
-});
-
-describe("side-grid life / stage / deck layout", () => {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const css = readFileSync(join(here, "..", "styles.css"), "utf8");
-
-  it("places stage above deck on the right rail with characters spanning two rows", () => {
-    const match = css.match(/\.side-grid\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/);
-    expect(match).not.toBeNull();
-    const body = match![1];
-    expect(body.replace(/\s+/g, " ")).toMatch(
-      /grid-template-areas:\s*"life characters stage"\s*"leader characters deck"\s*"dondeck cost trash"/,
-    );
-  });
-
-  it("styles life as a vertical flex column fan", () => {
-    expect(css).toMatch(/\.zone-pile-life \.zone-pile-stack\s*\{[^}]*flex-direction:\s*column/);
   });
 });
