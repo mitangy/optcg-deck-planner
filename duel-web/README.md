@@ -31,13 +31,15 @@ cp ../../duel-web/src/assets/cardAtlas.json ../../duel-web/public/cardAtlas.json
 | Variable | Example | Purpose |
 |----------|---------|---------|
 | `VITE_GAME_SERVER_URL` | `http://localhost:2567` | Colyseus HTTP(S); SDK uses WS/WSS |
-| `VITE_API_URL` | `http://localhost:8000` | FastAPI for `/duel/dev-token` and ratings |
+| `VITE_API_URL` | `http://localhost:8000` (prod: `/api`) | FastAPI for tokens, ratings, and Google login. Production uses same-origin `/api` (rewrite in `vercel.json` → Render) |
 | `VITE_DEV_JOIN_SECRET` | (optional) | Must match game-server `DEV_JOIN_SECRET` |
 | `VITE_GIT_SHA` | (auto) | Short commit hash for the lobby build tag; set automatically from `VERCEL_GIT_COMMIT_SHA` / local `git` |
 
 Copy `.env.example` → `.env` for local overrides. Staging/production bake `VITE_*` at **build** time on Vercel.
 
-**Google OAuth:** `VITE_API_URL` must use the **same hostname** as backend `BACKEND_PUBLIC_URL` (both `localhost` or both `127.0.0.1`). Mixing them puts the OAuth nonce cookie on one host and the Google callback on the other → `{"detail":"Invalid OAuth state"}`. In Google Cloud Console, Authorized redirect URI is exactly `{BACKEND_PUBLIC_URL}/auth/callback`.
+**Google OAuth (production):** set `VITE_API_URL=/api` on Vercel. Login then starts at `https://optcgduel.app/api/auth/google` and Google returns to `https://optcgduel.app/api/auth/callback` (the API picks that callback because the origin is in `OAUTH_CALLBACK_ORIGINS`), so the OAuth nonce cookie and the session cookie are both first-party on the duel domain. `https://optcgduel.app/api/auth/callback` must be an authorized redirect URI in Google Cloud Console. Do not point `VITE_API_URL` at the raw Render host: cross-site cookies are dropped (`SameSite=Lax`, Safari ITP) and Google login fails.
+
+**Google OAuth (local):** `VITE_API_URL` must use the **same hostname** as backend `BACKEND_PUBLIC_URL` (both `localhost` or both `127.0.0.1`). Mixing them puts the OAuth nonce cookie on one host and the Google callback on the other → `{"detail":"Invalid OAuth state"}`. In Google Cloud Console, Authorized redirect URI is exactly `{BACKEND_PUBLIC_URL}/auth/callback`.
 
 HTTPS pages require a **WSS** game server (`https://` / `wss://`). Mixed content (HTTPS → `http://` Colyseus) fails closed.
 

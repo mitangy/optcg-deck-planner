@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     # Matching origins get CORS *without* credentials (no cookie sessions) and
     # are never valid OAuth return_to targets; see app/cors.py.
     duel_cors_origin_regex: str = ""
+    # SPA origins (comma-separated) that proxy /api to this API and host their own
+    # Google callback at {origin}/api/auth/callback when they are the return_to.
+    # Each callback must be an authorized redirect URI in Google Cloud Console.
+    oauth_callback_origins: str = ""
     # When true, any signed-in Google user is allowed (ignore ALLOWED_EMAILS)
     allow_any_google_user: bool = False
     # Local-only passwordless login (never enable in production)
@@ -55,6 +59,10 @@ class Settings(BaseSettings):
     @property
     def duel_cors_origin_list(self) -> list[str]:
         return [o.strip().rstrip("/") for o in self.duel_cors_origins.split(",") if o.strip()]
+
+    @property
+    def oauth_callback_origin_list(self) -> list[str]:
+        return [o.strip().rstrip("/") for o in self.oauth_callback_origins.split(",") if o.strip()]
 
     @property
     def sqlalchemy_url(self) -> str:
