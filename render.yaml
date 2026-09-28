@@ -64,7 +64,7 @@ services:
     # Node (not Docker): runtime is immutable on Render — existing dashboard
     # service is Node. Dockerfile remains available for local/prod container builds.
     runtime: node
-    plan: free
+    plan: starter
     autoDeploy: true
     healthCheckPath: /health
     # Install workspaces from repo root so @optcg/rules resolves.
