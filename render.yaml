@@ -22,7 +22,7 @@ services:
   - type: web
     name: optcg-api
     runtime: python
-    plan: free
+    plan: starter
     rootDir: backend
     # Redeploy on every push to the linked branch (frontend is on Vercel separately).
     autoDeploy: true
