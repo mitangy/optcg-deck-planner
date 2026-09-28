@@ -16,6 +16,7 @@ import {
 } from "../decks/seatArtPrefs";
 import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "./CardInspect";
+import { setPreviewCard } from "./cardPreview";
 import {
   createClickDeferController,
   createLongPressController,
@@ -234,6 +235,10 @@ export function CardTile({
     dragBind.onPointerUp?.(e);
   }
 
+  function handlePointerEnter(e: PointerEvent) {
+    if (e.pointerType === "mouse") setPreviewCard({ defId, ownerSeat });
+  }
+
   function handlePointerCancel(e: PointerEvent) {
     longPressRef.current?.onPointerCancel(e);
     dragBind.onPointerCancel?.(e);
@@ -328,6 +333,7 @@ export function CardTile({
     onPointerMove: handlePointerMove,
     onPointerUp: handlePointerUp,
     onPointerCancel: handlePointerCancel,
+    onPointerEnter: handlePointerEnter,
     onDoubleClick: handleDoubleClick,
   };
 

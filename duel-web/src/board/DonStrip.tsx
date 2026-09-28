@@ -1,4 +1,4 @@
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import { DON_CARD_ART } from "./donArt";
 import { usePointerDrag } from "./usePointerDrag";
 
@@ -98,12 +98,22 @@ export function DonStrip({
   onDonToggleSelect,
   onClearDonSelection,
 }: Props) {
-  const items: DonToken[] =
+  const raw: DonToken[] =
     tokens ??
     Array.from({ length: totalCount ?? 0 }, (_, i) => ({
       id: `${side}-don-${i}`,
       rested: i >= (activeCount ?? 0),
     }));
+  // Active DON!! first, rested after — reads like a real cost area and keeps
+  // the rotated (wider) chips together at the end of the rail.
+  const items = [...raw.filter((t) => !t.rested), ...raw.filter((t) => t.rested)];
+  const restedCount = items.length - raw.filter((t) => !t.rested).length;
+  // Chips overlap (never shrink) when the rail is too narrow; CSS derives the
+  // overlap from the count and total footprint (rested chips are ~1.4 wide).
+  const railStyle = {
+    "--don-count": items.length,
+    "--don-units": items.length - restedCount + restedCount * 1.4,
+  } as CSSProperties;
 
   function handleRailClick(e: ReactMouseEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement;
@@ -122,7 +132,7 @@ export function DonStrip({
             : `${activeCount ?? 0}/${totalCount ?? 0}`}
         </span>
       </div>
-      <div className="don-strip-rail" onClick={handleRailClick}>
+      <div className="don-strip-rail" style={railStyle} onClick={handleRailClick}>
         {items.length === 0 ? (
           <span className="don-empty">Empty</span>
         ) : (

@@ -7,6 +7,7 @@ import { DemoPage } from "./pages/DemoPage";
 import { DuelPage } from "./pages/DuelPage";
 import { HotseatPage } from "./pages/HotseatPage";
 import { LobbyPage } from "./pages/LobbyPage";
+import { SettingsPage } from "./pages/SettingsPage";
 
 export function App() {
   return (
@@ -18,6 +19,7 @@ export function App() {
       <Route path="/decks/configure" element={<Navigate to="/decks" replace />} />
       <Route path="/duel" element={<DuelPage />} />
       <Route path="/hotseat" element={<HotseatPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
       <Route path="/auth/complete" element={<AuthCompletePage />} />
       <Route path="/demo" element={<DemoPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />

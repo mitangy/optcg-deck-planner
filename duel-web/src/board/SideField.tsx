@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { lookupCard } from "../cards/atlas";
 import type { CardView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
@@ -67,6 +67,10 @@ type Props = {
   ownerSeat?: Seat;
   /** Seat controlling the UI (alt-art picker). */
   viewingSeat?: Seat;
+  /** Custom playmat art (object URL) for this half of the board. */
+  matImageUrl?: string | null;
+  /** Darkening over custom art, 0–0.8. */
+  matDim?: number;
 };
 
 export function SideField({
@@ -78,6 +82,8 @@ export function SideField({
   target,
   ownerSeat,
   viewingSeat,
+  matImageUrl,
+  matDim = 0.35,
 }: Props) {
   const mirrored = side === "opp";
   const interactive = side === "you" && drag;
@@ -87,7 +93,19 @@ export function SideField({
   const leaderLife = lookupCard(data.leader.defId).life;
 
   return (
-    <section className={`side-field side-${side}${mirrored ? " mirrored" : ""}`}>
+    <section
+      className={`side-field side-${side}${mirrored ? " mirrored" : ""}${
+        matImageUrl ? " has-mat-art" : ""
+      }`}
+      style={
+        matImageUrl
+          ? ({
+              "--mat-art": `url("${matImageUrl}")`,
+              "--mat-dim": String(matDim),
+            } as CSSProperties)
+          : undefined
+      }
+    >
       <div className="side-grid">
         <div className="zone-life">
           <ZonePile

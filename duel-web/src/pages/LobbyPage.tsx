@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
-import { BuildTag } from "../BuildTag";
-import { getApiBaseUrl, getGameServerUrl } from "../config";
+import { lookupCard } from "../cards/atlas";
+import { getApiBaseUrl } from "../config";
+import { resolveCardImageUrl } from "../decks/artPrefs";
 import {
   deckToWire,
   ensureDefaultDeck,
@@ -14,8 +15,6 @@ import {
 } from "../decks/storage";
 import {
   fetchAuthMe,
-  googleLoginUrl,
-  logoutSession,
   mintDevGameToken,
   mintGuestGameToken,
   mintSessionGameToken,
@@ -23,12 +22,11 @@ import {
   type AuthUser,
 } from "../net/api";
 import { clearMatchResume, loadMatchResume } from "../net/matchResume";
+import { devKeyAllowed, effectiveServerUrl, loadSettings } from "../settings";
 import { useDuelSession } from "../state/DuelSession";
 
-type AuthMode = "guest" | "google" | "dev";
-
-/** Which play mode the user is configuring after clicking an action. */
-type SetupMode = "hotseat" | "create" | "join" | "queue" | "spectate" | null;
+/** Which play mode the user is configuring inside the Play sheet. */
+type PlayMode = "hotseat" | "create" | "join" | "queue" | "spectate";
 
 /** Private-room timer presets (ranked always forces 30s turns). */
 type TimerPreset = "off" | "turn_30" | "match_30m" | "turn_30_match_30m";
@@ -49,17 +47,206 @@ function timerFromPreset(preset: TimerPreset): {
   }
 }
 
+const MODE_CARDS: Array<{
+  mode: PlayMode;
+  title: string;
+  blurb: string;
+  glyph: string;
+}> = [
+  {
+    mode: "hotseat",
+    title: "Practice",
+    blurb: "Play both sides on this device.",
+    glyph: "☸︎",
+  },
+  {
+    mode: "queue",
+    title: "Ranked",
+    blurb: "Match a random opponent. 30 second turns.",
+    glyph: "⚓︎",
+  },
+  {
+    mode: "create",
+    title: "Private room",
+    blurb: "Create a room or join a friend's by id.",
+    glyph: "✉︎",
+  },
+  {
+    mode: "spectate",
+    title: "Spectate",
+    blurb: "Watch a room in progress.",
+    glyph: "◎︎",
+  },
+];
+
+function deckLabel(d: SavedDeck): string {
+  return `${d.name} — ${lookupCard(d.leaderId).name} (${d.cards.length})`;
+}
+
+function DeckPicker({
+  id,
+  label,
+  decks,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  decks: SavedDeck[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const deck = decks.find((d) => d.id === value) ?? null;
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <div className="deck-picker">
+        {deck ? (
+          <LeaderThumb key={deck.id} deck={deck} className="deck-picker-art" />
+        ) : (
+          <span className="deck-picker-art" aria-hidden />
+        )}
+        <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+          {decks.map((d) => (
+            <option key={d.id} value={d.id}>
+              {deckLabel(d)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function LeaderThumb({ deck, className }: { deck: SavedDeck; className: string }) {
+  const art = resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" });
+  const [failed, setFailed] = useState<string | null>(null);
+  return art && art !== failed ? (
+    <img className={className} src={art} alt="" onError={() => setFailed(art)} />
+  ) : (
+    <span className={`${className} ${className}-empty`} aria-hidden />
+  );
+}
+
+/** "Sailing with" trigger + popover to switch, edit, or add decks. */
+function DeckSwitcher({
+  decks,
+  selectedDeck,
+  onChoose,
+}: {
+  decks: SavedDeck[];
+  selectedDeck: SavedDeck;
+  onChoose: (id: string) => void;
+}) {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: PointerEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="deck-switcher" ref={rootRef}>
+      <button
+        type="button"
+        className={`home-deck${open ? " open" : ""}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <LeaderThumb key={selectedDeck.id} deck={selectedDeck} className="home-deck-art" />
+        <span className="home-deck-text">
+          <span className="home-deck-label">Sailing with</span>
+          <span className="home-deck-name">{selectedDeck.name}</span>
+          <span className="home-deck-leader">{lookupCard(selectedDeck.leaderId).name}</span>
+        </span>
+        <span className="home-deck-chevron" aria-hidden>
+          ▾
+        </span>
+      </button>
+
+      {open ? (
+        <div className="deck-menu" role="listbox" aria-label="Choose a deck">
+          <ul className="deck-menu-list">
+            {decks.map((d) => {
+              const active = d.id === selectedDeck.id;
+              return (
+                <li key={d.id} className={`deck-menu-row${active ? " active" : ""}`}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    className="deck-menu-pick"
+                    onClick={() => {
+                      onChoose(d.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <LeaderThumb deck={d} className="deck-menu-art" />
+                    <span className="deck-menu-text">
+                      <span className="deck-menu-name">{d.name}</span>
+                      <span className="deck-menu-sub">
+                        {lookupCard(d.leaderId).name} · {d.cards.length} cards
+                      </span>
+                    </span>
+                    <span className="deck-menu-check" aria-hidden>
+                      {active ? "✓" : ""}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="deck-menu-edit"
+                    aria-label={`Edit ${d.name}`}
+                    title="Edit deck"
+                    onClick={() => navigate(`/decks/${d.id}/configure`)}
+                  >
+                    Edit
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="deck-menu-foot">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => navigate("/decks/new")}
+            >
+              + New deck
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => navigate("/decks")}
+            >
+              Manage decks
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function LobbyPage() {
-  const showDevKey =
-    import.meta.env.DEV || import.meta.env.VITE_SHOW_DEV_KEY === "true";
   const navigate = useNavigate();
   const { connect, queueRanked, cancelQueue, queueing, setRating } = useDuelSession();
-  const [serverUrl, setServerUrl] = useState(getGameServerUrl());
-  const [apiUrl] = useState(getApiBaseUrl());
-  const [userKey, setUserKey] = useState("web-dev");
-  const [secret, setSecret] = useState("");
-  const [roomId, setRoomId] = useState("");
-  const [authMode, setAuthMode] = useState<AuthMode>("guest");
+  const [settings] = useState(loadSettings);
+  const serverUrl = effectiveServerUrl(settings);
+  const secret = settings.joinSecret.trim() || undefined;
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [busy, setBusy] = useState(false);
   /** Short status while buttons are disabled (vs-self warm/mint). */
@@ -70,20 +257,27 @@ export function LobbyPage() {
   const [decks, setDecks] = useState<SavedDeck[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [opponentDeckId, setOpponentDeckId] = useState("");
+  const [roomId, setRoomId] = useState("");
   const [pendingResume, setPendingResume] = useState<ReturnType<typeof loadMatchResume>>(null);
 
-  const [setupMode, setSetupMode] = useState<SetupMode>(null);
+  /** Play sheet: closed, choosing a mode, or configuring one. */
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [mode, setMode] = useState<PlayMode | null>(null);
   const [timerPreset, setTimerPreset] = useState<TimerPreset>("off");
 
-  function refreshDecks(preferId?: string) {
+  const authMode: "guest" | "google" | "dev" = authUser
+    ? "google"
+    : devKeyAllowed() && settings.useDevKey
+      ? "dev"
+      : "guest";
+
+  function refreshDecks() {
     const seeded = ensureDefaultDeck();
     ensureTestDecks();
     const all = listSavedDecks();
     setDecks(all);
-    // Prefer an explicit id (post-import), then in-memory selection, then the
-    // persisted lobby choice — otherwise mount always falls back to ST01 Luffy.
-    const prefer =
-      preferId || selectedId || getSelectedDeckId() || undefined;
+    // Prefer the persisted lobby choice — otherwise mount always falls back to ST01 Luffy.
+    const prefer = selectedId || getSelectedDeckId() || undefined;
     const sel = (prefer && all.find((d) => d.id === prefer)) || seeded;
     setSelectedId(sel.id);
     setSelectedDeckId(sel.id);
@@ -101,102 +295,111 @@ export function LobbyPage() {
     // bounce straight back into the match and made Leave feel broken.
     setPendingResume(loadMatchResume());
     // Wake free-tier Render API + game-server so hotseat mint/create is warm.
-    warmDuelServices(apiUrl, serverUrl);
+    warmDuelServices(getApiBaseUrl(), serverUrl);
     void fetchAuthMe()
       .then((u) => {
-        if (u) {
-          setAuthUser(u);
-          setAuthMode("google");
-        }
+        if (u) setAuthUser(u);
       })
       .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!sheetOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !busy) closeSheet();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sheetOpen, busy]);
 
   const selectedDeck = useMemo(
     () => decks.find((d) => d.id === selectedId) ?? null,
     [decks, selectedId],
   );
 
+  function chooseDeck(id: string) {
+    setSelectedId(id);
+    setSelectedDeckId(id);
+  }
+
+  function openSheet() {
+    setError(null);
+    setMode(null);
+    setSheetOpen(true);
+  }
+
+  function closeSheet() {
+    setSheetOpen(false);
+    setMode(null);
+    setError(null);
+  }
+
+  function pickMode(next: PlayMode) {
+    setError(null);
+    setMode(next);
+    if (next === "create") setTimerPreset("off");
+  }
+
   async function authOpts() {
     if (authMode === "guest") {
       const minted = await mintGuestGameToken(getOrCreateGuestId());
       setRating(minted.rating);
-      setRatingLabel(`${minted.rating} (${minted.games_played} games · guest)`);
-      return {
-        serverUrl: serverUrl.trim(),
-        gameToken: minted.token,
-        secret: secret.trim() || undefined,
-      };
+      setRatingLabel(`${minted.rating}`);
+      return { serverUrl, gameToken: minted.token, secret };
     }
     if (authMode === "google") {
       const minted = await mintSessionGameToken();
       setRating(minted.rating);
-      setRatingLabel(`${minted.rating} (${minted.games_played} games)`);
-      return {
-        serverUrl: serverUrl.trim(),
-        gameToken: minted.token,
-        secret: secret.trim() || undefined,
-      };
+      setRatingLabel(`${minted.rating}`);
+      return { serverUrl, gameToken: minted.token, secret };
     }
-    const minted = await mintDevGameToken(userKey.trim());
+    const minted = await mintDevGameToken(settings.devUserKey.trim());
     setRating(minted.rating);
-    setRatingLabel(`${minted.rating} (${minted.games_played} games · dev)`);
-    return {
-      serverUrl: serverUrl.trim(),
-      gameToken: minted.token,
-      secret: secret.trim() || undefined,
-    };
+    setRatingLabel(`${minted.rating}`);
+    return { serverUrl, gameToken: minted.token, secret };
   }
 
   function hotseatUserKey(): string {
     if (authMode === "guest") return getOrCreateGuestId();
     if (authMode === "google" && authUser) return `user-${authUser.id}`;
-    return userKey.trim() || "web-dev";
-  }
-
-  function openSetup(mode: Exclude<SetupMode, null>) {
-    setError(null);
-    setSetupMode(mode);
-    if (mode === "create") setTimerPreset("off");
+    return settings.devUserKey.trim() || "web-dev";
   }
 
   async function confirmSetup() {
-    if (!setupMode) return;
-    if (authMode === "dev" && !userKey.trim()) {
-      setError("user key is required for dev auth");
+    if (!mode) return;
+    if (authMode === "dev" && !settings.devUserKey.trim()) {
+      setError("Set a dev user key in Settings first.");
       return;
     }
-    if ((setupMode === "join" || setupMode === "spectate") && !roomId.trim()) {
-      setError("Room id required to join / spectate");
+    if ((mode === "join" || mode === "spectate") && !roomId.trim()) {
+      setError("Enter a room id.");
       return;
     }
-    if (setupMode !== "spectate" && !selectedDeck) {
-      setError("Select a deck first");
+    if (mode !== "spectate" && !selectedDeck) {
+      setError("Select a deck first.");
       return;
     }
     setBusy(true);
-    setBusyStatus(setupMode === "hotseat" ? "Starting vs-self…" : "Working…");
+    setBusyStatus(mode === "hotseat" ? "Starting…" : "Connecting…");
     setError(null);
     try {
       // Starting a new match must not auto-resume a prior room on the next
       // /hotseat or /duel mount (refresh keeps history.state).
       clearMatchResume();
-      if (setupMode === "hotseat") {
+      if (mode === "hotseat") {
         const wire = deckToWire(selectedDeck!);
         setSelectedDeckId(selectedDeck!.id);
-        const key = hotseatUserKey();
-        const enemy =
-          decks.find((d) => d.id === opponentDeckId) ?? selectedDeck!;
+        const enemy = decks.find((d) => d.id === opponentDeckId) ?? selectedDeck!;
         // Fire-and-forget wake only — do not block the lobby on free-tier API
-        // cold starts (that grayed every button for up to ~20s). HotseatPage
-        // awaits readiness + mints with a visible Starting screen.
-        warmDuelServices(apiUrl, serverUrl.trim());
+        // cold starts. HotseatPage awaits readiness + mints with a visible
+        // Starting screen.
+        warmDuelServices(getApiBaseUrl(), serverUrl);
         navigate("/hotseat", {
           state: {
-            serverUrl: serverUrl.trim(),
-            secret: secret.trim() || undefined,
-            userKey: key,
+            serverUrl,
+            secret,
+            userKey: hotseatUserKey(),
             useToken: true,
             deckWire: wire,
             enemyDeckWire: deckToWire(enemy),
@@ -207,37 +410,28 @@ export function LobbyPage() {
         return;
       }
       const opts = await authOpts();
-      if (setupMode === "queue") {
+      if (mode === "queue") {
         const wire = deckToWire(selectedDeck!);
         setSelectedDeckId(selectedDeck!.id);
         await queueRanked({ ...opts, deck: wire });
         navigate("/duel");
         return;
       }
-      if (setupMode === "spectate") {
-        await connect({
-          ...opts,
-          roomId: roomId.trim(),
-          role: "spectator",
-        });
+      if (mode === "spectate") {
+        await connect({ ...opts, roomId: roomId.trim(), role: "spectator" });
         navigate("/duel");
         return;
       }
       const wire = deckToWire(selectedDeck!);
       setSelectedDeckId(selectedDeck!.id);
-      const timer = timerFromPreset(timerPreset);
       await connect({
         ...opts,
-        roomId: setupMode === "join" ? roomId.trim() : undefined,
-        preferredSeat: setupMode === "create" ? 0 : undefined,
+        roomId: mode === "join" ? roomId.trim() : undefined,
+        preferredSeat: mode === "create" ? 0 : undefined,
         deck: wire,
         createOptions:
-          setupMode === "create"
-            ? {
-                ranked: false,
-                players: [wire, wire],
-                timer,
-              }
+          mode === "create"
+            ? { ranked: false, players: [wire, wire], timer: timerFromPreset(timerPreset) }
             : undefined,
       });
       navigate("/duel");
@@ -249,44 +443,80 @@ export function LobbyPage() {
     }
   }
 
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-  }
+  const accountName =
+    authMode === "google" && authUser
+      ? authUser.email
+      : authMode === "dev"
+        ? `Dev · ${settings.devUserKey || "web-dev"}`
+        : "Guest";
 
-  const setupTitle =
-    setupMode === "hotseat"
-      ? "Play vs yourself"
-      : setupMode === "create"
-        ? "Create duel"
-        : setupMode === "join"
-          ? "Join by room id"
-          : setupMode === "queue"
-            ? "Ranked queue"
-            : setupMode === "spectate"
-              ? "Spectate room"
-              : null;
+  const modeTitle =
+    mode === "hotseat"
+      ? "Practice"
+      : mode === "create" || mode === "join"
+        ? "Private room"
+        : mode === "queue"
+          ? "Ranked"
+          : mode === "spectate"
+            ? "Spectate"
+            : "Play";
+
+  const confirmLabel =
+    mode === "hotseat"
+      ? "Start practice"
+      : mode === "create"
+        ? "Create room"
+        : mode === "join"
+          ? "Join room"
+          : mode === "queue"
+            ? "Find match"
+            : "Watch";
 
   return (
-    <div className="app-shell">
-      <form className="lobby lobby-wide" onSubmit={onSubmit}>
-        <h1 className="lobby-brand">OPTCG Duel</h1>
-        <p className="lobby-sub">
-          Configure decks, choose your list for matches, inspect alt arts in-match, or hotseat vs
-          yourself. Private prototype only.
-        </p>
-        <BuildTag className="build-tag-lobby" />
+    <div className="app-shell home-shell">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <span className="topbar-mark" aria-hidden />
+          <div className="topbar-right">
+            <Link to="/settings" className="account-chip" title="Account settings">
+              <span className="account-dot" data-mode={authMode} aria-hidden />
+              <span className="account-name">{accountName}</span>
+              {ratingLabel ? <span className="account-rating">{ratingLabel}</span> : null}
+            </Link>
+            <Link to="/settings" className="icon-btn" aria-label="Settings" title="Settings">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
+                <path
+                  fill="currentColor"
+                  d="M19.14 12.94a7.6 7.6 0 0 0 .06-.94 7.6 7.6 0 0 0-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58a7.6 7.6 0 0 0 0 1.88L2.83 14.16a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"
+                />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main className="home">
+        <div className="home-hero">
+          <p className="home-kicker">One Piece Card Game</p>
+          <h1 className="home-brand">OPTCG Duel</h1>
+          <div className="home-rule" aria-hidden>
+            <span />
+          </div>
+        </div>
 
         {pendingResume ? (
-          <section className="lobby-section resume-banner">
-            <h2 className="lobby-section-title">Resume match?</h2>
-            <p className="meta">
-              A {pendingResume.mode === "hotseat" ? "vs-self (hotseat)" : "online"} match is still
-              saved in this tab.
-            </p>
-            <div className="actions">
+          <section className="notice notice-gold" aria-label="Resume match">
+            <div className="notice-body">
+              <strong>Match in progress</strong>
+              <span>
+                A {pendingResume.mode === "hotseat" ? "practice" : "online"} match is saved in
+                this tab.
+              </span>
+            </div>
+            <div className="notice-actions">
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary btn-sm"
                 onClick={() =>
                   navigate(pendingResume.mode === "hotseat" ? "/hotseat" : "/duel", {
                     replace: true,
@@ -297,311 +527,204 @@ export function LobbyPage() {
               </button>
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-ghost btn-sm"
                 onClick={() => {
                   clearMatchResume();
                   setPendingResume(null);
                 }}
               >
-                Discard &amp; stay in lobby
+                Discard
               </button>
             </div>
           </section>
         ) : null}
 
-        <section className="lobby-section">
-          <h2 className="lobby-section-title">Identity</h2>
-          <p className="meta">
-            Duel-web auth only for now — sharing the planner session cookie across origins is
-            deferred (see ADR-016).
-          </p>
-          <div className="actions" style={{ marginBottom: 8 }}>
-            <button
-              type="button"
-              className={`btn ${authMode === "guest" ? "btn-primary" : "btn-secondary"}`}
-              disabled={busy}
-              onClick={() => setAuthMode("guest")}
-            >
-              Continue as guest
-            </button>
-            <a className="btn btn-secondary" href={googleLoginUrl()}>
-              Sign in with Google
-            </a>
-            {showDevKey ? (
+        {queueing ? (
+          <section className="notice" aria-live="polite">
+            <div className="notice-body">
+              <strong>Searching for an opponent…</strong>
+              <span>Ranked queue · 30 second turns</span>
+            </div>
+            <div className="notice-actions">
               <button
                 type="button"
-                className={`btn ${authMode === "dev" ? "btn-primary" : "btn-secondary"}`}
-                disabled={busy}
-                onClick={() => setAuthMode("dev")}
-              >
-                Dev key
-              </button>
-            ) : null}
-            {authUser ? (
-              <button
-                type="button"
-                className="btn btn-danger"
-                disabled={busy}
-                onClick={() => {
-                  void logoutSession().then(() => {
-                    setAuthUser(null);
-                    setAuthMode("guest");
-                    setRating(null);
-                    setRatingLabel(null);
-                  });
-                }}
-              >
-                Sign out
-              </button>
-            ) : null}
-          </div>
-          <p className="meta">
-            {authMode === "guest"
-              ? `Guest id ${getOrCreateGuestId().slice(0, 10)}… (stable in this browser)`
-              : authMode === "google"
-                ? authUser
-                  ? `Signed in as ${authUser.email}`
-                  : "Complete Google sign-in, then return here"
-                : "Dev key mint via POST /duel/dev-token"}
-          </p>
-          {ratingLabel ? <p className="meta">Rating: {ratingLabel}</p> : null}
-        </section>
-
-        <section className="lobby-section">
-          <h2 className="lobby-section-title">Decks</h2>
-          <p className="meta">
-            Manage saved decks on the decks page. Match modes below ask which deck to use.
-          </p>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={busy}
-            onClick={() => navigate("/decks")}
-          >
-            Manage decks
-          </button>
-        </section>
-
-        <section className="lobby-section">
-          <h2 className="lobby-section-title">Connection</h2>
-          <label htmlFor="gs">Game server URL</label>
-          <input
-            id="gs"
-            autoCapitalize="off"
-            autoCorrect="off"
-            value={serverUrl}
-            onChange={(e) => setServerUrl(e.target.value)}
-            placeholder="http://localhost:2567"
-          />
-
-          <p className="meta">API: {apiUrl}</p>
-
-          {authMode === "dev" ? (
-            <>
-              <label htmlFor="user">User key (dev token)</label>
-              <input
-                id="user"
-                autoCapitalize="off"
-                value={userKey}
-                onChange={(e) => setUserKey(e.target.value)}
-                placeholder="web-dev"
-              />
-            </>
-          ) : null}
-
-          <label htmlFor="secret">Join secret (optional)</label>
-          <input
-            id="secret"
-            autoCapitalize="off"
-            value={secret}
-            onChange={(e) => setSecret(e.target.value)}
-            placeholder="matches DEV_JOIN_SECRET"
-          />
-        </section>
-
-        {error ? <p className="error-text">{error}</p> : null}
-        {busyStatus ? <p className="meta">{busyStatus}</p> : null}
-        {queueing ? <p className="meta">In ranked queue…</p> : null}
-
-        <div className="actions">
-          <button
-            type="button"
-            className={`btn ${setupMode === "hotseat" ? "btn-primary" : "btn-secondary"}`}
-            disabled={busy || queueing}
-            onClick={() => openSetup("hotseat")}
-          >
-            Play locally vs yourself
-          </button>
-          <button
-            type="button"
-            className={`btn ${setupMode === "create" ? "btn-primary" : "btn-secondary"}`}
-            disabled={busy || queueing}
-            onClick={() => openSetup("create")}
-          >
-            Create duel
-          </button>
-          <button
-            type="button"
-            className={`btn ${setupMode === "join" ? "btn-primary" : "btn-secondary"}`}
-            disabled={busy || queueing}
-            onClick={() => openSetup("join")}
-          >
-            Join by room id
-          </button>
-          <button
-            type="button"
-            className={`btn ${setupMode === "queue" ? "btn-primary" : "btn-secondary"}`}
-            disabled={busy || queueing}
-            onClick={() => openSetup("queue")}
-          >
-            {queueing ? "In queue…" : "Ranked queue"}
-          </button>
-          {queueing ? (
-            <button type="button" className="btn btn-danger" onClick={() => void cancelQueue()}>
-              Cancel queue
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className={`btn ${setupMode === "spectate" ? "btn-primary" : "btn-secondary"}`}
-            disabled={busy || queueing}
-            onClick={() => openSetup("spectate")}
-          >
-            Spectate room
-          </button>
-        </div>
-
-        {setupMode && setupTitle ? (
-          <section className="lobby-section lobby-setup-panel" aria-label={setupTitle}>
-            <h2 className="lobby-section-title">{setupTitle}</h2>
-
-            {setupMode === "hotseat" ? (
-              <>
-                <p className="meta">Choose your deck and the enemy deck for this device.</p>
-                <label htmlFor="setup-deck">Your deck</label>
-                <select
-                  id="setup-deck"
-                  value={selectedId}
-                  onChange={(e) => {
-                    setSelectedId(e.target.value);
-                    setSelectedDeckId(e.target.value);
-                  }}
-                >
-                  {decks.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} — {d.leaderId}
-                      {d.leaderId === "OP16-080" ? " Teach" : ""}
-                      {d.leaderId === "OP17-039" ? " Rocks" : ""} ({d.cards.length} cards)
-                    </option>
-                  ))}
-                </select>
-                <label htmlFor="enemy-deck">Enemy deck</label>
-                <select
-                  id="enemy-deck"
-                  value={opponentDeckId}
-                  onChange={(e) => setOpponentDeckId(e.target.value)}
-                >
-                  {decks.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} — {d.leaderId} ({d.cards.length} cards)
-                    </option>
-                  ))}
-                </select>
-              </>
-            ) : null}
-
-            {setupMode === "create" || setupMode === "join" || setupMode === "queue" ? (
-              <>
-                <label htmlFor="setup-deck-online">Your deck</label>
-                <select
-                  id="setup-deck-online"
-                  value={selectedId}
-                  onChange={(e) => {
-                    setSelectedId(e.target.value);
-                    setSelectedDeckId(e.target.value);
-                  }}
-                >
-                  {decks.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} — {d.leaderId}
-                      {d.leaderId === "OP16-080" ? " Teach" : ""}
-                      {d.leaderId === "OP17-039" ? " Rocks" : ""} ({d.cards.length} cards)
-                    </option>
-                  ))}
-                </select>
-                {selectedDeck ? (
-                  <p className="meta">
-                    Leader {selectedDeck.leaderId} · {selectedDeck.cards.length} main-deck cards
-                  </p>
-                ) : null}
-              </>
-            ) : null}
-
-            {setupMode === "create" ? (
-              <>
-                <label htmlFor="timer-preset">Timer</label>
-                <select
-                  id="timer-preset"
-                  value={timerPreset}
-                  onChange={(e) => setTimerPreset(e.target.value as TimerPreset)}
-                >
-                  <option value="off">No timer</option>
-                  <option value="turn_30">30 second turns</option>
-                  <option value="match_30m">30 minute match</option>
-                  <option value="turn_30_match_30m">30s turns + 30 min match</option>
-                </select>
-                <p className="meta">Private rooms are unranked. Ranked queue always uses 30s turns.</p>
-              </>
-            ) : null}
-
-            {setupMode === "queue" ? (
-              <p className="meta">Ranked always enforces 30 second player turns.</p>
-            ) : null}
-
-            {setupMode === "join" || setupMode === "spectate" ? (
-              <>
-                <label htmlFor="room">Room id</label>
-                <input
-                  id="room"
-                  autoCapitalize="off"
-                  value={roomId}
-                  onChange={(e) => setRoomId(e.target.value)}
-                  placeholder="paste from other browser"
-                />
-              </>
-            ) : null}
-
-            <div className="actions" style={{ marginTop: 12 }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={busy || queueing}
-                onClick={() => void confirmSetup()}
-              >
-                {busy && busyStatus
-                  ? busyStatus
-                  : setupMode === "hotseat"
-                    ? "Start vs yourself"
-                    : setupMode === "create"
-                      ? "Create room"
-                      : setupMode === "join"
-                        ? "Join room"
-                        : setupMode === "queue"
-                          ? "Enter ranked queue"
-                          : "Spectate"}
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={busy}
-                onClick={() => setSetupMode(null)}
+                className="btn btn-secondary btn-sm"
+                onClick={() => void cancelQueue()}
               >
                 Cancel
               </button>
             </div>
           </section>
         ) : null}
-      </form>
+
+        <div className="home-actions">
+          <button
+            type="button"
+            className="btn btn-play"
+            disabled={busy || queueing}
+            onClick={openSheet}
+          >
+            Play
+          </button>
+        </div>
+
+        {selectedDeck ? (
+          <DeckSwitcher decks={decks} selectedDeck={selectedDeck} onChoose={chooseDeck} />
+        ) : null}
+      </main>
+
+      {sheetOpen ? (
+        <div
+          className="sheet-backdrop"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !busy) closeSheet();
+          }}
+        >
+          <div className="sheet" role="dialog" aria-modal="true" aria-label={modeTitle}>
+            <div className="sheet-head">
+              {mode ? (
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label="Back to modes"
+                  disabled={busy}
+                  onClick={() => {
+                    setError(null);
+                    setMode(null);
+                  }}
+                >
+                  ←
+                </button>
+              ) : (
+                <span className="icon-btn-spacer" aria-hidden />
+              )}
+              <h2 className="sheet-title">{modeTitle}</h2>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Close"
+                disabled={busy}
+                onClick={closeSheet}
+              >
+                ✕
+              </button>
+            </div>
+
+            {!mode ? (
+              <div className="mode-grid">
+                {MODE_CARDS.map((m) => (
+                  <button
+                    key={m.mode}
+                    type="button"
+                    className="mode-card"
+                    onClick={() => pickMode(m.mode)}
+                  >
+                    <span className="mode-glyph" aria-hidden>
+                      {m.glyph}
+                    </span>
+                    <span className="mode-title">{m.title}</span>
+                    <span className="mode-blurb">{m.blurb}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="sheet-body">
+                {mode === "create" || mode === "join" ? (
+                  <div className="segmented" role="tablist" aria-label="Private room">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={mode === "create"}
+                      className={mode === "create" ? "active" : ""}
+                      onClick={() => pickMode("create")}
+                    >
+                      Create
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={mode === "join"}
+                      className={mode === "join" ? "active" : ""}
+                      onClick={() => pickMode("join")}
+                    >
+                      Join
+                    </button>
+                  </div>
+                ) : null}
+
+                {mode !== "spectate" ? (
+                  <DeckPicker
+                    id="setup-deck"
+                    label="Your deck"
+                    decks={decks}
+                    value={selectedId}
+                    onChange={chooseDeck}
+                  />
+                ) : null}
+
+                {mode === "hotseat" ? (
+                  <DeckPicker
+                    id="enemy-deck"
+                    label="Opponent deck"
+                    decks={decks}
+                    value={opponentDeckId}
+                    onChange={setOpponentDeckId}
+                  />
+                ) : null}
+
+                {mode === "create" ? (
+                  <div className="field">
+                    <label htmlFor="timer-preset">Timer</label>
+                    <select
+                      id="timer-preset"
+                      value={timerPreset}
+                      onChange={(e) => setTimerPreset(e.target.value as TimerPreset)}
+                    >
+                      <option value="off">No timer</option>
+                      <option value="turn_30">30 second turns</option>
+                      <option value="match_30m">30 minute match</option>
+                      <option value="turn_30_match_30m">30s turns + 30 min match</option>
+                    </select>
+                    <p className="field-hint">Private rooms are unranked.</p>
+                  </div>
+                ) : null}
+
+                {mode === "join" || mode === "spectate" ? (
+                  <div className="field">
+                    <label htmlFor="room">Room id</label>
+                    <input
+                      id="room"
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      value={roomId}
+                      onChange={(e) => setRoomId(e.target.value)}
+                      placeholder="Paste the room id"
+                    />
+                  </div>
+                ) : null}
+
+                {mode === "queue" ? (
+                  <p className="field-hint">
+                    Ranked always enforces 30 second turns. Rating updates after the match.
+                  </p>
+                ) : null}
+
+                {error ? <p className="error-text">{error}</p> : null}
+
+                <button
+                  type="button"
+                  className="btn btn-primary btn-lg sheet-confirm"
+                  disabled={busy || queueing}
+                  onClick={() => void confirmSetup()}
+                >
+                  {busy && busyStatus ? busyStatus : confirmLabel}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

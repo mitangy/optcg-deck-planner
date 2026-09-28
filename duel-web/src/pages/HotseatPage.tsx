@@ -720,7 +720,7 @@ export function HotseatPage() {
             Retry fresh hotseat
           </button>
           <button type="button" className="btn btn-secondary" onClick={() => navigate("/")}>
-            Back to lobby
+            Back to home
           </button>
         </div>
       </div>
@@ -739,7 +739,7 @@ export function HotseatPage() {
         </div>
         <div style={{ display: "flex", justifyContent: "center", padding: "0 16px 16px" }}>
           <button type="button" className="btn btn-secondary" onClick={() => void leave()}>
-            Back to lobby
+            Back to home
           </button>
         </div>
       </div>

@@ -78,7 +78,7 @@ export function DeckListPage() {
       <div className="deck-config">
         <header className="deck-config-header">
           <Link to="/" className="btn btn-secondary deck-config-back">
-            ← Lobby
+            ← Home
           </Link>
           <div className="deck-config-heading">
             <h1 className="deck-config-title">Decks</h1>

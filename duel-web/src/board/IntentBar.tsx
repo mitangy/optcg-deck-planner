@@ -11,6 +11,7 @@ type Props = {
 };
 
 function btnClass(intent: Intent): string {
+  if (intent.type === "end_turn") return "intent-btn intent-btn-end";
   if (intent.type !== "mulligan") return "intent-btn";
   return intent.doMulligan ? "intent-btn intent-btn-mulligan" : "intent-btn intent-btn-keep";
 }
