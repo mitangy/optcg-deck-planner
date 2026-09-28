@@ -10,13 +10,17 @@
     "power": 5000,
     "life": 5,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288228_400w.jpg",
-    "effectText": "[Activate: Main] [Once Per Turn] You may rest this Leader: Give up to 1 rested DON!! card to your Leader or 1 of your Characters.",
+    "effectText": "[Activate: Main] [Once Per Turn] Give this Leader or 1 of your Characters up to 1 rested DON!! card.",
     "altArts": [
       {
         "id": "p1",
         "label": "Alternate Art",
         "imageUrl": "/cards/ST01-001_p1.webp"
       }
+    ],
+    "traits": [
+      "Supernovas",
+      "Straw Hat Crew"
     ],
     "attribute": "Strike",
     "abilitySupport": "ok"
@@ -33,6 +37,10 @@
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288230_400w.jpg",
     "effectText": "—",
+    "traits": [
+      "Animal",
+      "Alabasta"
+    ],
     "attribute": "Strike",
     "abilitySupport": "none"
   },
@@ -45,11 +53,13 @@
     ],
     "cost": 2,
     "power": 4000,
-    "counter": 1000,
-    "rush": true,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288232_400w.jpg",
+    "effectText": "[DON!! x2] This Character gains [Rush]. (This card can attack on the turn in which it is played.)",
+    "traits": [
+      "Straw Hat Crew"
+    ],
     "attribute": "Slash",
-    "abilitySupport": "keywords"
+    "abilitySupport": "ok"
   },
   "ST01-006": {
     "id": "ST01-006",
@@ -74,6 +84,10 @@
         "label": "Parallel 2",
         "imageUrl": "/cards/ST01-006_p2.webp"
       }
+    ],
+    "traits": [
+      "Animal",
+      "Straw Hat Crew"
     ],
     "attribute": "Strike",
     "abilitySupport": "keywords"
@@ -102,6 +116,9 @@
         "imageUrl": "/cards/ST01-008_p2.webp"
       }
     ],
+    "traits": [
+      "Straw Hat Crew"
+    ],
     "attribute": "Strike",
     "abilitySupport": "none"
   },
@@ -129,23 +146,29 @@
         "imageUrl": "/cards/ST01-009_p2.webp"
       }
     ],
+    "traits": [
+      "Alabasta"
+    ],
     "attribute": "Special",
     "abilitySupport": "none"
   },
   "ST01-005": {
     "id": "ST01-005",
-    "name": "Usopp",
+    "name": "Jinbe",
     "type": "character",
     "colors": [
       "red"
     ],
-    "cost": 1,
-    "power": 2000,
-    "counter": 2000,
+    "cost": 3,
+    "power": 5000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288234_400w.jpg",
-    "effectText": "—",
+    "effectText": "[DON!! x1] [When Attacking] Up to 1 of your Leader or Character cards other than this card gains +1000 power during this turn.",
+    "traits": [
+      "Fish-Man",
+      "Straw Hat Crew"
+    ],
     "attribute": "Strike",
-    "abilitySupport": "none"
+    "abilitySupport": "ok"
   },
   "ST01-014": {
     "id": "ST01-014",
@@ -156,7 +179,7 @@
     ],
     "cost": 1,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/288243_400w.jpg",
-    "effectText": "[Counter] Your Leader or 1 of your Characters gains +3000 power during this battle.",
+    "effectText": "[Counter] Up to 1 of your Leader or Character cards gains +3000 power during this battle.\n\n[Trigger] Up to 1 of your Leader or Character cards gains +1000 power during this turn.",
     "altArts": [
       {
         "id": "p1",
@@ -169,6 +192,11 @@
         "imageUrl": "/cards/ST01-014_p2.webp"
       }
     ],
+    "traits": [
+      "Animal",
+      "Straw Hat Crew"
+    ],
+    "hasTrigger": true,
     "abilitySupport": "ok"
   },
   "OP17-001": {
@@ -190,6 +218,10 @@
         "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/705924_400w.jpg"
       }
     ],
+    "traits": [
+      "The Four Emperors",
+      "Whitebeard Pirates"
+    ],
     "attribute": "Strike",
     "abilitySupport": "ok"
   },
@@ -205,7 +237,7 @@
     "power": 5000,
     "life": 4,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg",
-    "effectText": "[Opponent's Turn] Give all of your opponent's Characters +1 cost.\n\n[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card with a [Trigger] from your hand: Change the target of that attack to this Leader or 1 of your {Blackbeard Pirates} type Characters.",
+    "effectText": "[Opponent's Turn] All of your Characters gain +1 cost.\n\n[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card with a [Trigger] from your hand: Change the target of that attack to this Leader or 1 of your {Blackbeard Pirates} type Characters.",
     "altArts": [
       {
         "id": "p1",
@@ -214,6 +246,7 @@
       }
     ],
     "traits": [
+      "The Seven Warlords of the Sea",
       "Blackbeard Pirates"
     ],
     "attribute": "Special",
@@ -253,6 +286,7 @@
     ],
     "cost": 10,
     "power": 13000,
+    "rush": true,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597064_400w.jpg",
     "effectText": "[Rush] (This card can attack on the turn in which it is played.)\n\nWhen your opponent activates [Blocker], if either you or your opponent has 0 Life cards, you win the game.",
     "altArts": [
@@ -268,7 +302,7 @@
       }
     ],
     "attribute": "Slash",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP12-002": {
     "id": "OP12-002",
@@ -282,6 +316,9 @@
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/643725_400w.jpg",
     "effectText": "—",
+    "traits": [
+      "Whitebeard Pirates"
+    ],
     "attribute": "Slash",
     "abilitySupport": "none"
   },
@@ -293,9 +330,10 @@
       "red"
     ],
     "cost": 0,
+    "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/643745_400w.jpg",
     "effectText": "[Counter] Up to 1 of your Characters or [Silvers Rayleigh] gains +2000 power during this battle. Then, you may rest 1 of your DON!! cards. If you do, give your opponent's Leader and all of their Characters 1000 power during this turn.",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP16-021": {
     "id": "OP16-021",
@@ -314,7 +352,7 @@
         "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/696005_400w.jpg"
       }
     ],
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP16-118": {
     "id": "OP16-118",
@@ -336,7 +374,7 @@
       }
     ],
     "attribute": "Special",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP17-002": {
     "id": "OP17-002",
@@ -350,7 +388,7 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712591_400w.jpg",
     "effectText": "[Opponent's Turn] This Character gains +3000 power.",
     "attribute": "Slash",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP17-003": {
     "id": "OP17-003",
@@ -364,7 +402,7 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/708075_400w.jpg",
     "effectText": "[Rush: Character]\n\n[On Play] If your Leader is [Edward.Newgate] or has the {Land of Wano} type, give up to 1 of your opponent's rested Characters -6000 power during this turn.",
     "attribute": "Slash",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP17-005": {
     "id": "OP17-005",
@@ -390,7 +428,7 @@
       }
     ],
     "attribute": "Strike",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP17-008": {
     "id": "OP17-008",
@@ -404,7 +442,7 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712594_400w.jpg",
     "effectText": "[On Play] Your [Edward.Newgate] Leader's base power becomes 8000 until the end of your opponent's next End Phase.",
     "attribute": "Strike",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP17-015": {
     "id": "OP17-015",
@@ -419,7 +457,7 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/708073_400w.jpg",
     "effectText": "If one of your Characters would be removed from the field by your opponent's effect, you may K.O. this Character instead.\n\n[On K.O.] You may trash 1 card with a type including \"Whitebeard Pirates\" from your hand: Play this Character card from your trash.",
     "attribute": "Strike",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP17-017": {
     "id": "OP17-017",
@@ -429,9 +467,10 @@
       "red"
     ],
     "cost": 1,
+    "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712600_400w.jpg",
     "effectText": "[Counter] Up to 1 of your Leader with a type including \"Whitebeard Pirates\" or up to 1 of your Characters with a type including \"Whitebeard Pirates\" gains +2000 power during this battle. Then, give up to 1 of your opponent's Leader or Characters 2000 power during this turn.",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP17-019": {
     "id": "OP17-019",
@@ -443,7 +482,8 @@
     "cost": 1,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712602_400w.jpg",
     "effectText": "[Main] Look at 5 cards from the top of your deck; reveal up to 1 card with a type including \"Whitebeard Pirates\" and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n\n[Trigger] Your Leader gains +1000 power during this turn.",
-    "abilitySupport": "unsupported"
+    "hasTrigger": true,
+    "abilitySupport": "ok"
   },
   "ST23-001": {
     "id": "ST23-001",
@@ -459,7 +499,7 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/633761_400w.jpg",
     "effectText": "If you have a Character with 10000 power or more, give this card in your hand −4 cost.\n[Blocker]",
     "attribute": "Strike",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "ST30-004": {
     "id": "ST30-004",
@@ -481,7 +521,7 @@
       }
     ],
     "attribute": "Strike",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "ST30-005": {
     "id": "ST30-005",
@@ -546,7 +586,7 @@
     "traits": [
       "Big Mom Pirates"
     ],
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP17-112": {
     "id": "OP17-112",
@@ -563,7 +603,7 @@
     "traits": [
       "Big Mom Pirates"
     ],
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP09-086": {
     "id": "OP09-086",
@@ -581,7 +621,7 @@
       "Blackbeard Pirates"
     ],
     "attribute": "Strike",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP09-093": {
     "id": "OP09-093",
@@ -592,6 +632,7 @@
     ],
     "cost": 10,
     "power": 12000,
+    "blocker": true,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/597034_400w.jpg",
     "effectText": "[Blocker]\n\n[Activate: Main] [Once Per Turn] If your Leader has the \"Blackbeard Pirates\" type and this Character was played on this turn, negate the effect of up to 1 of your opponent's Leader during this turn. Then, negate the effect of up to 1 of your opponent's Characters and that Character cannot attack until the end of your opponent's next turn.",
     "altArts": [
@@ -610,7 +651,7 @@
       "Blackbeard Pirates"
     ],
     "attribute": "Special",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP09-095": {
     "id": "OP09-095",
@@ -628,7 +669,7 @@
       "Blackbeard Pirates"
     ],
     "attribute": "Strike",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP09-096": {
     "id": "OP09-096",
@@ -644,7 +685,7 @@
       "Blackbeard Pirates"
     ],
     "hasTrigger": true,
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP09-099": {
     "id": "OP09-099",
@@ -659,7 +700,7 @@
     "traits": [
       "Blackbeard Pirates"
     ],
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP12-112": {
     "id": "OP12-112",
@@ -678,7 +719,7 @@
     ],
     "hasTrigger": true,
     "attribute": "Strike",
-    "abilitySupport": "keywords"
+    "abilitySupport": "ok"
   },
   "OP14-108": {
     "id": "OP14-108",
@@ -709,7 +750,7 @@
     ],
     "hasTrigger": true,
     "attribute": "Special",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP16-104": {
     "id": "OP16-104",
@@ -728,7 +769,7 @@
     ],
     "hasTrigger": true,
     "attribute": "Strike",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP16-106": {
     "id": "OP16-106",
@@ -747,7 +788,7 @@
     ],
     "hasTrigger": true,
     "attribute": "Strike",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP16-108": {
     "id": "OP16-108",
@@ -772,7 +813,7 @@
     ],
     "hasTrigger": true,
     "attribute": "Special",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP16-109": {
     "id": "OP16-109",
@@ -791,7 +832,7 @@
     ],
     "hasTrigger": true,
     "attribute": "Strike",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP16-110": {
     "id": "OP16-110",
@@ -810,7 +851,7 @@
     ],
     "hasTrigger": true,
     "attribute": "Strike",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP16-115": {
     "id": "OP16-115",
@@ -826,7 +867,7 @@
       "Blackbeard Pirates"
     ],
     "hasTrigger": true,
-    "abilitySupport": "keywords"
+    "abilitySupport": "ok"
   },
   "OP16-116": {
     "id": "OP16-116",
@@ -849,7 +890,7 @@
       "Blackbeard Pirates"
     ],
     "hasTrigger": true,
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   },
   "OP16-119": {
     "id": "OP16-119",
@@ -874,6 +915,6 @@
     ],
     "hasTrigger": true,
     "attribute": "Special",
-    "abilitySupport": "unsupported"
+    "abilitySupport": "ok"
   }
 }

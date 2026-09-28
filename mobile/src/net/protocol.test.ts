@@ -152,6 +152,10 @@ describe("card atlas", () => {
     // Atlas may store Vite-relative `/cards/...`; lookup resolves to https for RN.
     expect(luffy.imageUrl).toMatch(/^https?:\/\//);
     expect(lookupCard("ST01-014").name).toMatch(/Guard Point/i);
-    expect(lookupCard("ST01-004").rush).toBe(true);
+    // Conditional Rush is projected by the server from attached DON!! state.
+    expect(lookupCard("ST01-004").rush).toBeUndefined();
+    expect(lookupCard("OP09-118").rush).toBe(true);
+    expect(lookupCard("OP12-002").traits).toContain("Whitebeard Pirates");
+    expect(lookupCard("ST01-014").hasTrigger).toBe(true);
   });
 });

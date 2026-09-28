@@ -12,6 +12,11 @@ export type CardAtlasEntry = {
   blocker?: boolean;
   rush?: boolean;
   imageUrl?: string;
+  traits?: string[];
+  attribute?: string;
+  hasTrigger?: boolean;
+  effectText?: string;
+  abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unverified" | "unsupported";
 };
 
 const atlas = atlasJson as Record<string, CardAtlasEntry>;

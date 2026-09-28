@@ -61,6 +61,321 @@ describe("createMatch + mulligan", () => {
   });
 });
 
+describe("Gol.D.Roger blocker win", () => {
+  it("wins when the opponent activates Blocker while either player has no Life", () => {
+    const { state, rng } = fresh(77);
+    const next = structuredClone(state) as MatchState;
+    next.phase = "block";
+    next.activeSeat = 0;
+    next.players[0].life = [];
+    next.players[0].faceUpLife = [];
+    next.players[0].characters = [
+      { id: "roger", defId: "OP09-118", rested: true, attachedDonIds: [] },
+    ];
+    next.players[1].characters = [
+      { id: "blocker", defId: "ST01-006", rested: false, attachedDonIds: [] },
+    ];
+    next.battle = {
+      attackerSeat: 0,
+      attackerId: "roger",
+      target: { kind: "leader" },
+      defenderPowerBonus: 0,
+      attackerPowerBonus: 0,
+    };
+    const result = applyIntent(next, { type: "declare_block", blockerId: "blocker" }, { seat: 1, rng });
+    expect(result.ok, result.error?.message).toBe(true);
+    expect(result.state.winner).toBe(0);
+    expect(result.state.phase).toBe("game_over");
+  });
+});
+
+describe("Catarina Devon attack ability", () => {
+  it("copies the selected opponent Character's power for the turn", () => {
+    const { state, rng } = fresh(78);
+    const next = structuredClone(state) as MatchState;
+    next.phase = "main";
+    next.activeSeat = 0;
+    next.players[0].turnsStarted = 2;
+    next.players[0].characters = [
+      { id: "devon", defId: "OP16-104", rested: false, attachedDonIds: [] },
+    ];
+    next.players[1].characters = [
+      { id: "target", defId: "OP12-002", rested: true, attachedDonIds: [] },
+    ];
+    const declared = applyIntent(
+      next,
+      { type: "declare_attack", attackerId: "devon", target: { kind: "leader" } },
+      { seat: 0, rng },
+    );
+    expect(declared.ok, declared.error?.message).toBe(true);
+    const choice = declared.state.pendingChoices.find((pending) => pending.abilityId === "copy_opponent_power");
+    expect(choice).toBeTruthy();
+    const resolved = applyIntent(
+      declared.state,
+      { type: "resolve_pending_choice", accept: true, copyPowerTargetId: "target" },
+      { seat: 0, rng },
+    );
+    expect(resolved.ok, resolved.error?.message).toBe(true);
+    expect(resolved.state.players[0].characters[0]?.turnBasePowerOverride).toBe(6000);
+    expect(getPlayerView(resolved.state, 0).you.characters[0]?.power).toBe(6000);
+    resolved.state.phase = "main";
+    resolved.state.battle = null;
+    const ended = applyIntent(resolved.state, { type: "end_turn" }, { seat: 0, rng });
+    expect(ended.ok).toBe(true);
+    expect(getPlayerView(ended.state, 0).you.characters[0]?.power).toBe(3000);
+  });
+});
+
+describe("draw then trash Trigger", () => {
+  it("OP16-116 draws two and requires one card to be trashed", () => {
+    const { state, rng } = fresh(80);
+    const next = structuredClone(state) as MatchState;
+    next.phase = "damage";
+    next.pendingChoices = [
+      {
+        id: "life_zehaha",
+        seat: 0,
+        kind: "life_trigger",
+        cardDefId: "OP16-116",
+        optional: true,
+        prompt: "Zehahahahaha! — Trigger",
+        privateToSeat: 0,
+        hideCardDefFromOthers: true,
+      },
+    ];
+    const handBefore = next.players[0].hand.length;
+
+    const accepted = applyIntent(
+      next,
+      { type: "resolve_pending_choice", accept: true },
+      { seat: 0, rng },
+    );
+    expect(accepted.ok, accepted.error?.message).toBe(true);
+    expect(accepted.state.players[0].hand).toHaveLength(handBefore + 2);
+    expect(accepted.state.players[0].trash).toContain("OP16-116");
+    expect(accepted.state.pendingChoices[0]?.abilityId).toBe("discard_hand_count");
+
+    const trashedDefId = accepted.state.players[0].hand[0]!.defId;
+    const discarded = applyIntent(
+      accepted.state,
+      { type: "resolve_pending_choice", accept: true, handIndices: [0] },
+      { seat: 0, rng },
+    );
+    expect(discarded.ok, discarded.error?.message).toBe(true);
+    expect(discarded.state.players[0].hand).toHaveLength(handBefore + 1);
+    expect(discarded.state.players[0].trash).toContain(trashedDefId);
+    expect(discarded.state.pendingChoices).toHaveLength(0);
+    assertInvariants(discarded.state);
+  });
+});
+
+describe("effect negation", () => {
+  it("OP16-119 Trigger negates a Character and then K.O.s a cost-5-or-less Character", () => {
+    const { state, rng } = fresh(81);
+    const next = structuredClone(state) as MatchState;
+    next.phase = "damage";
+    next.players[1].characters = [
+      { id: "target", defId: "OP09-086", rested: false, attachedDonIds: [] },
+    ];
+    next.pendingChoices = [
+      {
+        id: "life_teach",
+        seat: 0,
+        kind: "life_trigger",
+        cardDefId: "OP16-119",
+        optional: true,
+        prompt: "Teach Trigger",
+        privateToSeat: 0,
+      },
+    ];
+
+    const triggered = applyIntent(next, { type: "resolve_pending_choice", accept: true }, { seat: 0, rng });
+    expect(triggered.ok, triggered.error?.message).toBe(true);
+    expect(triggered.state.pendingChoices[0]?.abilityId).toBe("trigger_negate_opponent_card");
+
+    const negated = applyIntent(
+      triggered.state,
+      { type: "resolve_pending_choice", accept: true, buffTargetId: "target" },
+      { seat: 0, rng },
+    );
+    expect(negated.ok, negated.error?.message).toBe(true);
+    expect(negated.state.players[1].characters[0]?.effectsNegatedThroughTurn).toBe(negated.state.turnNumber);
+    expect(negated.state.pendingChoices[0]?.abilityId).toBe("trigger_ko_opponent_cost");
+
+    const ko = applyIntent(
+      negated.state,
+      { type: "resolve_pending_choice", accept: true, buffTargetId: "target" },
+      { seat: 0, rng },
+    );
+    expect(ko.ok, ko.error?.message).toBe(true);
+    expect(ko.state.players[1].characters).toHaveLength(0);
+    expect(ko.state.players[1].trash).toContain("OP09-086");
+  });
+
+  it("OP09-093 negates the opposing Leader and locks a Character through its next turn", () => {
+    const { state, rng } = fresh(82);
+    const next = structuredClone(state) as MatchState;
+    next.activeSeat = 0;
+    next.phase = "main";
+    next.players[0].leader.defId = "OP16-080";
+    next.players[0].characters = [
+      { id: "teach", defId: "OP09-093", rested: false, attachedDonIds: [], summoningSick: true },
+    ];
+    next.players[1].turnsStarted = 2;
+    next.players[1].characters = [
+      { id: "locked", defId: "ST30-005", rested: false, attachedDonIds: [] },
+    ];
+
+    const activated = applyIntent(
+      next,
+      { type: "activate_ability", sourceId: "teach", abilityId: "teach_negate_opponent" },
+      { seat: 0, rng },
+    );
+    expect(activated.ok, activated.error?.message).toBe(true);
+    expect(activated.state.pendingChoices[0]?.abilityId).toBe("teach_negate_leader");
+
+    const leader = applyIntent(
+      activated.state,
+      { type: "resolve_pending_choice", accept: true, buffTargetId: activated.state.players[1].leader.id },
+      { seat: 0, rng },
+    );
+    expect(leader.ok, leader.error?.message).toBe(true);
+    expect(leader.state.pendingChoices[0]?.abilityId).toBe("teach_negate_character");
+
+    const character = applyIntent(
+      leader.state,
+      { type: "resolve_pending_choice", accept: true, buffTargetId: "locked" },
+      { seat: 0, rng },
+    );
+    expect(character.ok, character.error?.message).toBe(true);
+    expect(character.state.players[1].characters[0]?.cannotAttackThroughTurn).toBe(character.state.turnNumber + 1);
+
+    const ended = applyIntent(character.state, { type: "end_turn" }, { seat: 0, rng });
+    expect(ended.ok, ended.error?.message).toBe(true);
+    expect(listLegalIntents(ended.state, 1).some((intent) => intent.type === "declare_attack" && intent.attackerId === "locked")).toBe(false);
+  });
+});
+
+describe("On K.O. revival and DON!! costs", () => {
+  it("Marco can replace opponent-effect removal and replay itself from trash", () => {
+    const { state, rng } = fresh(83);
+    const next = structuredClone(state) as MatchState;
+    next.players[1].trash = ["OP17-015"];
+    next.players[1].zoneInstanceIds.trash = ["older_marco"];
+    next.activeSeat = 0;
+    next.phase = "main";
+    next.players[0].leader.defId = "OP16-080";
+    next.players[1].life = next.players[1].life.slice(0, 3);
+    next.players[1].faceUpLife = next.players[1].faceUpLife.slice(0, 3);
+    next.players[1].characters = [
+      { id: "marco", defId: "OP17-015", rested: false, attachedDonIds: [] },
+      { id: "target", defId: "OP12-002", rested: false, attachedDonIds: [] },
+    ];
+    next.players[1].hand = [
+      { id: "whitebeard_cost", defId: "OP12-002", rested: false, attachedDonIds: [] },
+    ];
+    next.pendingChoices = [
+      {
+        id: "rayleigh_ko",
+        seat: 0,
+        kind: "on_play",
+        cardDefId: "OP14-108",
+        optional: true,
+        prompt: "Rayleigh K.O.",
+        abilityId: "on_play_ko_power",
+      },
+    ];
+
+    const targeted = applyIntent(
+      next,
+      { type: "resolve_pending_choice", accept: true, buffTargetId: "target" },
+      { seat: 0, rng },
+    );
+    expect(targeted.ok, targeted.error?.message).toBe(true);
+    expect(targeted.state.players[1].characters.map((card) => card.id)).toEqual(["marco", "target"]);
+    expect(targeted.state.pendingChoices[0]?.abilityId).toBe("marco_removal_replacement");
+
+    const replaced = applyIntent(
+      targeted.state,
+      { type: "resolve_pending_choice", accept: true },
+      { seat: 1, rng },
+    );
+    expect(replaced.ok, replaced.error?.message).toBe(true);
+    expect(replaced.state.players[1].characters.map((card) => card.id)).toEqual(["target"]);
+    expect(replaced.state.pendingChoices[0]?.abilityId).toBe("on_ko_revive_self");
+
+    const revived = applyIntent(
+      replaced.state,
+      { type: "resolve_pending_choice", accept: true, handIndex: 0 },
+      { seat: 1, rng },
+    );
+    expect(revived.ok, revived.error?.message).toBe(true);
+    expect(revived.state.players[1].characters.some((card) => card.defId === "OP17-015")).toBe(true);
+    expect(revived.state.players[1].characters.find((card) => card.defId === "OP17-015")?.id).toBe("marco");
+    expect(revived.state.players[1].zoneInstanceIds.trash).toEqual(["older_marco", "whitebeard_cost"]);
+    expect(revived.state.players[1].trash).toContain("OP12-002");
+  });
+
+  it("EB03-034 can return a chosen DON!! to add deck top to Life after battle K.O.", () => {
+    const { state, rng } = fresh(84);
+    const next = structuredClone(state) as MatchState;
+    next.activeSeat = 0;
+    next.phase = "block";
+    next.players[0].characters = [
+      { id: "attacker", defId: "OP16-119", rested: true, attachedDonIds: [] },
+    ];
+    next.players[1].characters = [
+      { id: "linlin", defId: "EB03-034", rested: true, attachedDonIds: [] },
+    ];
+    const don = next.players[1].donDeck.pop()!;
+    don.rested = true;
+    next.players[1].costArea = [don];
+    next.battle = {
+      attackerSeat: 0,
+      attackerId: "attacker",
+      target: { kind: "character", instanceId: "linlin" },
+      defenderPowerBonus: 0,
+      attackerPowerBonus: 0,
+    };
+    const lifeBefore = next.players[1].life.length;
+
+    const blocked = applyIntent(next, { type: "pass_block" }, { seat: 1, rng });
+    expect(blocked.ok, blocked.error?.message).toBe(true);
+    const damaged = applyIntent(blocked.state, { type: "pass_counter" }, { seat: 1, rng });
+    expect(damaged.ok, damaged.error?.message).toBe(true);
+    expect(damaged.state.pendingChoices[0]?.abilityId).toBe("on_ko_return_don_add_life");
+
+    const resolved = applyIntent(
+      damaged.state,
+      { type: "resolve_pending_choice", accept: true, selectedDonIds: [don.id] },
+      { seat: 1, rng },
+    );
+    expect(resolved.ok, resolved.error?.message).toBe(true);
+    expect(resolved.state.players[1].life).toHaveLength(lifeBefore + 1);
+    expect(resolved.state.players[1].costArea).toHaveLength(0);
+    expect(resolved.state.players[1].donDeck.some((entry) => entry.id === don.id)).toBe(true);
+  });
+});
+
+describe("Blackbeard On K.O. hooks", () => {
+  it("draws when a supported On K.O. Character is removed in battle", () => {
+    const { state, rng } = fresh(80);
+    let next = structuredClone(state) as MatchState;
+    next.activeSeat = 0;
+    next.players[0].turnsStarted = 2;
+    next.players[0].characters = [];
+    next.players[1].characters = [
+      { id: "vasco", defId: "OP16-110", rested: true, attachedDonIds: [] },
+    ];
+    const handBefore = next.players[1].hand.length;
+    next = act(next, 0, { type: "declare_attack", attackerId: next.players[0].leader.id, target: { kind: "character", instanceId: "vasco" } }, rng);
+    next = act(next, 1, { type: "pass_block" }, rng);
+    next = act(next, 1, { type: "pass_counter" }, rng);
+    expect(next.players[1].characters).toHaveLength(0);
+    expect(next.players[1].hand.length).toBe(handBefore + 1);
+  });
+});
+
 
 describe("mulligan decisions", () => {
   it("starts in mulligan with 5 cards and no life yet", () => {
@@ -321,7 +636,7 @@ describe("OP16-021 Moby Dick Stage Activate:Main", () => {
     ).toBe(false);
   });
 
-  it("rejects Stage Activate without a rested DON!!", () => {
+  it("allows Stage Activate with zero target but rejects attaching without a rested DON!!", () => {
     let { state, rng } = fresh(11);
     state = act(state, 0, { type: "end_turn" }, rng);
     state = act(state, 1, { type: "end_turn" }, rng);
@@ -337,9 +652,23 @@ describe("OP16-021 Moby Dick Stage Activate:Main", () => {
     expect(
       listLegalIntents(state, 0).some(
         (i) =>
-          i.type === "activate_ability" && i.abilityId === "stage_trash_give_rested_don",
+          i.type === "activate_ability" &&
+          i.abilityId === "stage_trash_give_rested_don" &&
+          i.targetId == null,
       ),
-    ).toBe(false);
+    ).toBe(true);
+
+    const zeroTarget = applyIntent(
+      state,
+      {
+        type: "activate_ability",
+        sourceId: "stage-moby",
+        abilityId: "stage_trash_give_rested_don",
+      },
+      { seat: 0, rng },
+    );
+    expect(zeroTarget.ok, zeroTarget.error?.message).toBe(true);
+    expect(zeroTarget.state.players[0].stage).toBeNull();
 
     const r = applyIntent(
       state,
@@ -363,6 +692,7 @@ describe("battle and victory", () => {
     state = act(state, 1, { type: "end_turn" }, rng);
     state = structuredClone(state);
     state.players[1].life = [];
+    state.players[1].faceUpLife = [];
     for (const d of [...state.players[0].costArea]) {
       if (!d.rested) {
         const r = applyIntent(
@@ -408,7 +738,7 @@ describe("privacy", () => {
     expect(getPlayerView(state, 0).you.leader.statusLabels).toContain("Stun");
   });
 
-  it("non-Rush characters are summoning sick; Rush can attack same turn", () => {
+  it("conditional Rush is not granted unconditionally; ordinary Rush can attack immediately", () => {
     let state = createMatch({
       seed: 7,
       firstSeat: 0,
@@ -424,12 +754,12 @@ describe("privacy", () => {
     state = applyIntent(state, { type: "end_turn" }, { seat: 1, rng }).state;
     expect(state.players[0].turnsStarted).toBe(2);
 
-    // Put Karoo (no Rush) and Sanji (Rush) into hand with enough DON!!
+    // Sanji needs DON!! x2 for Rush (not implemented yet); Roger has ordinary Rush.
     state.players[0].hand = [
-      { id: "h_karoo", defId: "ST01-003", rested: false, attachedDonIds: [] },
       { id: "h_sanji", defId: "ST01-004", rested: false, attachedDonIds: [] },
+      { id: "h_roger", defId: "OP09-118", rested: false, attachedDonIds: [] },
     ];
-    while (state.players[0].costArea.filter((d) => !d.rested).length < 4) {
+    while (state.players[0].costArea.filter((d) => !d.rested).length < 12) {
       const d = state.players[0].donDeck.pop();
       if (!d) break;
       state.players[0].costArea.push(d);
@@ -438,22 +768,25 @@ describe("privacy", () => {
     let r = applyIntent(state, { type: "play_card", handIndex: 0 }, { seat: 0, rng });
     expect(r.ok).toBe(true);
     state = r.state;
-    const karoo = state.players[0].characters.find((c) => c.defId === "ST01-003")!;
-    expect(karoo.summoningSick).toBe(true);
-    expect(
-      listLegalIntents(state, 0).some(
-        (i) => i.type === "declare_attack" && i.attackerId === karoo.id,
-      ),
-    ).toBe(false);
-
-    r = applyIntent(state, { type: "play_card", handIndex: 0 }, { seat: 0, rng });
-    expect(r.ok).toBe(true);
-    state = r.state;
     const sanji = state.players[0].characters.find((c) => c.defId === "ST01-004")!;
-    expect(sanji.summoningSick).toBe(false);
+    expect(sanji.summoningSick).toBe(true);
     expect(
       listLegalIntents(state, 0).some(
         (i) => i.type === "declare_attack" && i.attackerId === sanji.id,
+      ),
+    ).toBe(false);
+
+    // Isolate the unconditional-Rush assertion from Sanji's paid play cost.
+    for (const don of state.players[0].costArea) don.rested = false;
+    r = applyIntent(state, { type: "play_card", handIndex: 0 }, { seat: 0, rng });
+    expect(r.ok).toBe(true);
+    state = r.state;
+    const roger = state.players[0].characters.find((c) => c.defId === "OP09-118")!;
+    expect(roger.summoningSick).toBe(true);
+    expect(getPlayerView(state, 0).you.characters.find((card) => card.id === roger.id)?.summoningSick).toBe(false);
+    expect(
+      listLegalIntents(state, 0).some(
+        (i) => i.type === "declare_attack" && i.attackerId === roger.id,
       ),
     ).toBe(true);
   });
@@ -601,6 +934,37 @@ describe("life trigger (migrated to the pending-choice queue)", () => {
     return { state, rng };
   }
 
+  it("can activate Rayleigh's On Play effect from a Life Trigger", () => {
+    const { state, rng } = fresh(79);
+    const next = structuredClone(state) as MatchState;
+    next.phase = "damage";
+    next.activeSeat = 0;
+    next.players[1].leader.defId = "OP16-080";
+    next.players[0].life = next.players[0].life.slice(0, 3);
+    next.players[0].faceUpLife = next.players[0].faceUpLife.slice(0, 3);
+    next.players[0].characters = [
+      { id: "rayleigh_target", defId: "OP12-002", rested: false, attachedDonIds: [] },
+    ];
+    next.pendingChoices = [
+      {
+        id: "life_rayleigh",
+        seat: 1,
+        kind: "life_trigger",
+        cardDefId: "OP14-108",
+        optional: true,
+        prompt: "Rayleigh Trigger",
+        privateToSeat: 1,
+      },
+    ];
+    const accepted = applyIntent(
+      next,
+      { type: "resolve_pending_choice", accept: true },
+      { seat: 1, rng },
+    );
+    expect(accepted.ok, accepted.error?.message).toBe(true);
+    expect(accepted.state.pendingChoices[0]?.abilityId).toBe("on_play_ko_power");
+  });
+
   it("queues an accept/decline life-trigger choice naming the card", () => {
     const def = getCardDef("ST01-003");
     const originalTriggerDraw = def.triggerDraw;
@@ -615,6 +979,11 @@ describe("life trigger (migrated to the pending-choice queue)", () => {
       expect(choice.cardDefId).toBe("ST01-003");
       expect(choice.optional).toBe(true);
       expect(choice.prompt).toMatch(/Karoo/);
+      expect(getPlayerView(state, 1).pendingChoices[0]?.cardDefId).toBe("ST01-003");
+      expect(getPlayerView(state, 0).pendingChoices[0]?.cardDefId).toBe("HIDDEN");
+      expect(getPlayerView(state, 0).pendingTrigger).toEqual({ seat: 1, cardDefId: "HIDDEN" });
+      expect(getSpectatorView(state, 1).pendingChoices[0]?.cardDefId).toBe("HIDDEN");
+      expect(getSpectatorView(state, 1).pendingTrigger).toEqual({ seat: 1, cardDefId: "HIDDEN" });
 
       expect(listLegalIntents(state, 1)).toEqual([
         { type: "resolve_pending_choice", accept: true },
@@ -626,7 +995,7 @@ describe("life trigger (migrated to the pending-choice queue)", () => {
     }
   });
 
-  it("accepting draws the trigger's cards then adds the life card to hand", () => {
+  it("accepting resolves the trigger then trashes the Life card", () => {
     const def = getCardDef("ST01-003");
     const originalTriggerDraw = def.triggerDraw;
     def.triggerDraw = 2;
@@ -643,8 +1012,8 @@ describe("life trigger (migrated to the pending-choice queue)", () => {
       expect(r.state.pendingChoices).toHaveLength(0);
       expect(r.state.phase).toBe("main");
       expect(r.state.battle).toBeNull();
-      // +2 drawn from the trigger, +1 the life card itself joining the hand.
-      expect(r.state.players[1].hand.length).toBe(handBefore + 3);
+      expect(r.state.players[1].hand.length).toBe(handBefore + 2);
+      expect(r.state.players[1].trash).toContain("ST01-003");
       expect(r.events.some((e) => e.type === "drew" && e.count === 2)).toBe(true);
       expect(
         r.events.some((e) => e.type === "trigger_resolved" && e.accepted === true),
@@ -680,15 +1049,15 @@ describe("life trigger (migrated to the pending-choice queue)", () => {
   });
 });
 
-describe("On Play optional ability (ST01-005 demo path)", () => {
+describe("On Play optional ability framework (mutated fixture)", () => {
 
-  const usopp = () => getCardDef("ST01-005");
-  const prevDraw = usopp().onPlayOptionalDraw;
+  const jinbe = () => getCardDef("ST01-005");
+  const prevDraw = jinbe().onPlayOptionalDraw;
   beforeEach(() => {
-    usopp().onPlayOptionalDraw = 1;
+    jinbe().onPlayOptionalDraw = 1;
   });
   afterEach(() => {
-    usopp().onPlayOptionalDraw = prevDraw;
+    jinbe().onPlayOptionalDraw = prevDraw;
   });
   function playUsoppInMain(seed: number): {
     state: MatchState;
@@ -696,6 +1065,12 @@ describe("On Play optional ability (ST01-005 demo path)", () => {
   } {
     let { state, rng } = fresh(seed);
     state = structuredClone(state);
+    while (state.players[0].costArea.length < 3) {
+      const don = state.players[0].donDeck.pop();
+      if (!don) break;
+      state.players[0].costArea.push(don);
+    }
+    for (const don of state.players[0].costArea) don.rested = false;
     state.players[0].hand = [
       { id: "h_usopp", defId: "ST01-005", rested: false, attachedDonIds: [] },
     ];
@@ -712,7 +1087,7 @@ describe("On Play optional ability (ST01-005 demo path)", () => {
     expect(choice.seat).toBe(0);
     expect(choice.cardDefId).toBe("ST01-005");
     expect(choice.optional).toBe(true);
-    expect(choice.prompt).toMatch(/Usopp/);
+    expect(choice.prompt).toMatch(/Jinbe/);
     expect(choice.sourceInstanceId).toBeTruthy();
     expect(state.phase).toBe("main");
 

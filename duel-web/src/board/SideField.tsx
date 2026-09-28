@@ -13,6 +13,7 @@ type SideData = {
   deckCount: number;
   trash: string[];
   lifeCount: number;
+  faceUpLife?: Array<{ index: number; defId: string }>;
   donDeckCount: number;
   costArea?: { id: string; rested: boolean }[];
   costAreaCount?: number;
@@ -95,6 +96,9 @@ export function SideField({
             variant="life"
             expectedCount={leaderLife ?? undefined}
           />
+          {(data.faceUpLife ?? []).map((card) => (
+            <CardTile key={`life-${card.index}-${card.defId}`} defId={card.defId} compact />
+          ))}
         </div>
 
         <div

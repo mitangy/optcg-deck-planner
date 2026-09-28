@@ -92,6 +92,11 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
             (e.matchedTrait ? " (trait matched)" : ""),
         );
         break;
+      case "power_buff_applied":
+        lines.push(
+          `Seat ${e.seat} gives ${getCardDef(e.targetDefId).name} +${e.amount} power this ${e.duration}`,
+        );
+        break;
       case "pending_choice_added":
         lines.push(
           `Seat ${e.seat} may resolve ${getCardDef(e.cardDefId).name}'s ${e.kind.replace(/_/g, " ")} (${e.prompt})`,

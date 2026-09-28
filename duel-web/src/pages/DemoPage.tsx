@@ -207,11 +207,52 @@ export const DEMO_VIEW: PlayerView = {
   ],
 };
 
+/** Search-resolution state for responsive prompt QA (`/demo?prompt=search`). */
+export const DEMO_SEARCH_VIEW: PlayerView = {
+  ...DEMO_VIEW,
+  phase: "main",
+  battle: null,
+  pendingChoices: [
+    {
+      id: "demo-search",
+      seat: 0,
+      kind: "search_top_deck",
+      cardDefId: "OP09-095",
+      sourceInstanceId: "y-c1",
+      optional: false,
+      prompt:
+        "Look at the top 5 cards, add up to 1 eligible card to your hand, then order the rest on the bottom of your deck.",
+      abilityId: "top_deck_search",
+      privateToSeat: 0,
+      optionCount: 5,
+      search: {
+        maxSelect: 1,
+        remainder: "deck_bottom",
+        options: [
+          { id: "demo-o1", defId: "OP09-086", eligible: true },
+          { id: "demo-o2", defId: "ST01-003", eligible: false },
+          { id: "demo-o3", defId: "OP09-095", eligible: true },
+          { id: "demo-o4", defId: "ST01-008", eligible: false },
+          { id: "demo-o5", defId: "OP09-099", eligible: true },
+        ],
+      },
+    },
+  ],
+  legalIntents: [
+    {
+      type: "resolve_pending_choice",
+      accept: true,
+      orderedOptionIds: ["demo-o1", "demo-o2", "demo-o3", "demo-o4", "demo-o5"],
+    },
+  ],
+};
+
 export function DemoPage() {
+  const searchPrompt = new URLSearchParams(window.location.search).get("prompt") === "search";
   return (
     <div className="duel-root">
       <DuelBoard
-        view={DEMO_VIEW}
+        view={searchPrompt ? DEMO_SEARCH_VIEW : DEMO_VIEW}
         seat={0}
         matchId="demo-playmat"
         errorBanner={null}

@@ -12,6 +12,7 @@ import { AbilityPrompt } from "./AbilityPrompt";
 import { CardTile } from "./CardTile";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { IntentBar } from "./IntentBar";
+import { SearchPrompt } from "./SearchPrompt";
 
 type Props = {
   view: PlayerView | null;
@@ -85,6 +86,7 @@ export function DuelBoard({
           Life {opp.lifeCount} · Hand {opp.handCount} · DON {opp.activeDonCount}/
           {opp.costAreaCount} · Deck {opp.deckCount}
         </Text>
+        {(opp.faceUpLife ?? []).map((card) => <Text key={`opp-life-${card.index}`} style={styles.stats}>Face-up Life · {card.defId}</Text>)}
         <View style={styles.row}>
           {opp.stage ? (
             <CardTile defId={opp.stage.defId} compact rested={opp.stage.rested} />
@@ -112,16 +114,22 @@ export function DuelBoard({
           const front = view.pendingChoices?.[0];
           const orderingEffects =
             !spectating && front?.kind === "order_effects" && front.seat === mySeat;
+          const searching =
+            !spectating &&
+            front?.seat === mySeat &&
+            (front.kind === "search_top_deck" ||
+              (front.kind === "activate_main" && front.abilityId === "fullalead_search_cost"));
           const abilityPrompt =
             !spectating &&
             Boolean(front?.abilityId) &&
             front?.seat === mySeat &&
-            !orderingEffects;
+            !orderingEffects &&
+            !searching;
           // Skip the generic pending banner while a structured prompt owns the UI.
           const showStatusBanner = Boolean(
             view.battle ||
               view.pendingTrigger ||
-              (front && !orderingEffects && !abilityPrompt),
+              (front && !orderingEffects && !searching && !abilityPrompt),
           );
           return (
             <>
@@ -140,6 +148,17 @@ export function DuelBoard({
                 <EffectOrderPrompt
                   key={front!.id}
                   choice={front!}
+                  onSend={(intent) => {
+                    setHandFilter(null);
+                    onSendIntent(intent);
+                  }}
+                />
+              ) : null}
+              {searching && front ? (
+                <SearchPrompt
+                  key={front.id}
+                  view={view}
+                  choice={front}
                   onSend={(intent) => {
                     setHandFilter(null);
                     onSendIntent(intent);
@@ -184,6 +203,7 @@ export function DuelBoard({
           Life {you.lifeCount} · Active DON {you.activeDonCount} · Cost area{" "}
           {you.costArea.length} · Deck {you.deckCount}
         </Text>
+        {(you.faceUpLife ?? []).map((card) => <Text key={`you-life-${card.index}`} style={styles.stats}>Face-up Life · {card.defId}</Text>)}
 
         <Text style={styles.zoneLabel}>
           {spectating ? "Seat hand (hidden)" : "Hand"}
@@ -214,6 +234,7 @@ export function DuelBoard({
         <IntentBar
           intents={
             view.pendingChoices?.[0]?.kind === "order_effects" ||
+            view.pendingChoices?.[0]?.kind === "search_top_deck" ||
             view.pendingChoices?.[0]?.abilityId
               ? view.legalIntents.filter(
                   (i) =>

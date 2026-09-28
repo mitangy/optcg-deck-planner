@@ -73,7 +73,11 @@ describe("leader ability catalog", () => {
       "Blackbeard Pirates",
     );
     expect(getCardDef("OP17-001").leaderOnOppAttackTrashForPower?.power).toBe(4000);
-    expect(getCardDef("OP16-080").leaderOpponentCharacterCostBonus).toBe(1);
+    expect(
+      LEADER_ABILITY_CATALOG.find(
+        (e) => e.leaderId === "OP16-080" && e.timing === "opponent_turn_static",
+      )?.status,
+    ).toBe("stub");
     expect(getCardDef("OP17-039").leaderWhenAttackingTrashRevealDraw).toEqual({
       revealTrait: "Rocks Pirates",
       draw: 2,

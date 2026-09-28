@@ -2684,6 +2684,52 @@ img.zone-pile-face {
   color: var(--muted);
 }
 
+.search-option-row .ability-chip:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.search-order-list {
+  display: grid;
+  gap: 0.38rem;
+  margin: 0;
+  padding-left: 1.4rem;
+}
+
+.search-order-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.search-order-actions {
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.search-order-actions button {
+  min-width: 2rem;
+  min-height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: var(--arena-mid);
+  color: inherit;
+}
+
+@media (max-width: 640px) {
+  .ability-prompt {
+    position: fixed;
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 6.75rem;
+    width: auto;
+    max-height: calc(100dvh - 8rem);
+    overflow-y: auto;
+    transform: none;
+  }
+}
+
 
 /* —— Simultaneous effect order prompt —— */
 .effect-order-list {

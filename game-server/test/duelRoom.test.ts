@@ -7,7 +7,7 @@ import type { DuelRoom } from "../src/rooms/DuelRoom.js";
 
 type PlayerView = {
   seat: 0 | 1;
-  you: { hand: { id: string; defId: string }[] };
+  you: { hand: { id: string; defId: string }[]; lifeCount: number; mulliganDone: boolean };
   opponent: { handCount: number };
   legalIntents: (Record<string, unknown> & { type: string })[];
   winner: 0 | 1 | null;
@@ -284,6 +284,7 @@ describe("DuelRoom", () => {
       protocolVersion: PROTOCOL_VERSION,
       seed: 99,
       autoSkipMulligan: true,
+      ranked: false,
       players: [customDeck, customDeck],
     });
 

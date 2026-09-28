@@ -1,11 +1,11 @@
 /**
- * Wire types for protocolVersion 3 — mirrored from game-server/src/protocol.ts.
+ * Wire types for protocolVersion 4 — mirrored from game-server/src/protocol.ts.
  * Do not import @optcg/rules into the app.
  */
 
 import { lookupCard } from "../cards/atlas";
 
-export const PROTOCOL_VERSION = 3 as const;
+export const PROTOCOL_VERSION = 4 as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
 export type Seat = 0 | 1;
@@ -113,6 +113,7 @@ export type PendingChoiceKind =
   | "when_attacking"
   | "optional_ability"
   | "leader_on_opp_attack"
+  | "search_top_deck"
   /** Controller must reorder 2+ simultaneous effects before they resolve. */
   | "order_effects";
 
@@ -133,7 +134,50 @@ export type PendingChoiceView = {
     | "rocks_reveal_draw"
     | "on_play_add_life"
     | "on_play_life_choice"
-    | "on_play_hand_to_deck";
+    | "on_play_power_debuff"
+    | "on_play_hand_to_deck"
+    | "laffitte_search"
+    | "fullalead_search_cost"
+    | "top_deck_search"
+    | "jinbe_attack_power"
+    | "copy_opponent_power"
+    | "on_play_ko_power"
+    | "on_play_trash_hand_to_life"
+    | "on_play_reveal_draw_trash"
+    | "discard_hand_count"
+    | "main_play_named_character"
+    | "main_opponent_life_to_hand"
+    | "trigger_negate_opponent_card"
+    | "trigger_ko_opponent_cost"
+    | "teach_negate_leader"
+    | "teach_negate_character"
+    | "on_ko_return_don_add_life"
+    | "on_ko_revive_self"
+    | "marco_removal_replacement"
+    | "main_trash_trigger_to_hand"
+    | "on_ko_set_base_power"
+    | "on_ko_ko_opponent_cost"
+    | "on_ko_rest_opponent_cost"
+    | "trigger_play_trash_character"
+    | "on_play_add_active_don"
+    | "counter_friendly_power"
+    | "counter_rest_don_opponent_all"
+    | "counter_opponent_target_power"
+    | "trigger_friendly_power";
+  /** Present only for the choosing player; hidden from opponents/spectators. */
+  search?: {
+    options: Array<{ id: string; defId: string; eligible: boolean }>;
+    maxSelect: number;
+    remainder: "deck_bottom" | "trash";
+    takeToLife?: boolean;
+  };
+  trashOptions?: Array<{ id: string; defId: string; eligible: boolean }>;
+  handSelection?: { count: number; qualifyingPower?: number };
+  donOptions?: Array<{ id: string; rested: boolean; attachedTo?: string | null }>;
+  replacementTargetId?: string;
+  targetSelection?: { maxTargets: number; maxCost?: number };
+  privateToSeat?: Seat;
+  optionCount?: number;
   /**
    * When `kind` is `order_effects`, the simultaneous abilities the controller
    * must permute via `order_pending_effects` (players may rearrange freely;
@@ -149,6 +193,7 @@ export type CardView = {
   attachedDonCount?: number;
   /** Live power (DON!!, stage, battle bonuses included). */
   power?: number;
+  fieldCost?: number;
   /** Printed power before modifiers (optional). */
   printedPower?: number | null;
   summoningSick?: boolean;
@@ -170,6 +215,7 @@ export type PlayerView = {
     deckCount: number;
     trash: string[];
     lifeCount: number;
+    faceUpLife?: Array<{ index: number; defId: string }>;
     donDeckCount: number;
     costArea: { id: string; rested: boolean }[];
     activeDonCount: number;
@@ -184,6 +230,7 @@ export type PlayerView = {
     deckCount: number;
     trash: string[];
     lifeCount: number;
+    faceUpLife?: Array<{ index: number; defId: string }>;
     donDeckCount: number;
     costAreaCount: number;
     activeDonCount: number;
@@ -214,6 +261,11 @@ export function assertNoOpponentHand(view: PlayerView): void {
   }
   if (typeof opp.handCount !== "number") {
     throw new Error("opponent.handCount missing");
+  }
+  for (const choice of view.pendingChoices ?? []) {
+    if (choice.search && (view.spectator || choice.privateToSeat !== view.seat)) {
+      throw new Error("privacy leak: private search options visible to this viewer");
+    }
   }
 }
 

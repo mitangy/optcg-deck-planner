@@ -66,6 +66,29 @@ describe("protocol parsers", () => {
     expect(() => assertNoOpponentHand(sampleView(true))).toThrow(/privacy|leak/i);
   });
 
+  it("rejects private search candidates sent to the wrong viewer", () => {
+    const view = sampleView();
+    view.pendingChoices = [
+      {
+        id: "search_1",
+        seat: 1,
+        kind: "search_top_deck",
+        cardDefId: "OP09-095",
+        optional: false,
+        prompt: "Search",
+        privateToSeat: 1,
+        search: {
+          options: [{ id: "opaque_1", defId: "OP09-086", eligible: true }],
+          maxSelect: 1,
+          remainder: "deck_bottom",
+        },
+      },
+    ];
+    expect(() => assertNoOpponentHand(view)).toThrow(/private search/i);
+    delete view.pendingChoices[0]!.search;
+    expect(() => assertNoOpponentHand(view)).not.toThrow();
+  });
+
   it("parses view, error, and match_over", () => {
     expect(
       parseView({ protocolVersion: PROTOCOL_VERSION, view: sampleView() }).view
@@ -120,10 +143,10 @@ describe("protocol parsers", () => {
       },
     ];
     expect(intentLabel({ type: "resolve_pending_choice", accept: true }, view)).toMatch(
-      /^Accept — .*Usopp/,
+      /^Accept — .*Jinbe/,
     );
     expect(intentLabel({ type: "resolve_pending_choice", accept: false }, view)).toMatch(
-      /^Decline — .*Usopp/,
+      /^Decline — .*Jinbe/,
     );
     expect(intentLabel({ type: "resolve_pending_choice", accept: true })).toBe(
       "Accept — ability",

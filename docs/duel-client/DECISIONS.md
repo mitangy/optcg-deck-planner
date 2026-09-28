@@ -150,3 +150,19 @@ Work is **split across three plan slices**:
 
 **See:** `duel-web` lobby Identity section; `backend` `/duel/guest-token` + OAuth `return_to` allowlist.
 
+## ADR-017 — Declarative card registry and reusable rules runtime
+
+**Decision (approved 2026-09-16):** restructure the existing hybrid engine into serializable state, a deterministic generic runtime, and a versioned card registry. Card abilities compose schema-validated timing, conditions, costs, selectors, operations, limits, and durations. TypeScript builders are acceptable authoring tools if their output is validated JSON-compatible data without executable callbacks.
+
+**Why:** existing specialized fields and engine branches support selected cards but make each new mechanic expensive and tightly coupled. The goal is easy, reliable card addition across the catalog, not merely relocating hardcoded hooks into JSON.
+
+**Runtime:** use serializable resolution frames, rules-aware event dispatch, shared zone movement, and a modifier pipeline. Continuous effects and replacement effects have explicit semantics. Internal events are projected separately for each viewer. Pin registry/rules/state versions per match and preserve deterministic RNG progression across pause/resume and replay.
+
+**Migration:** preserve verified behavior with fixtures, migrate a search slice end to end, generalize the remaining curated mechanics, and remove legacy execution paths before broad catalog expansion. Existing code and contracts may be restructured; stage compatible releases and explicit snapshot migrations or room draining. No duplicate firing through old/new routes.
+
+**Authoring gate:** demonstrate at least three new verified cards using existing primitives with no core-engine, server, protocol, or prompt changes before catalog expansion. New mechanics add reusable tested primitives. Irreducible exceptions require documented, versioned resolvers; do not add per-card branches to the core loop.
+
+**Rejected as defaults:** per-card classes or growing boolean fields, interpreting English text at runtime, arbitrary card scripts, a generic asynchronous event bus that determines rules timing by callback order, and a single rewrite without migration checkpoints.
+
+**See:** [ABILITY_IMPLEMENTATION_PLAN.md](./ABILITY_IMPLEMENTATION_PLAN.md) for milestones, source reconciliation, compatibility, and acceptance gates. This decision records approved direction, not completed implementation.
+

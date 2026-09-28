@@ -1,11 +1,11 @@
 /**
- * Wire types for protocolVersion 3 — mirrored from game-server/src/protocol.ts.
+ * Wire types for protocolVersion 4 — mirrored from game-server/src/protocol.ts.
  * Do not import @optcg/rules into the app.
  */
 
 import { lookupCard } from "../cards/atlas";
 
-export const PROTOCOL_VERSION = 3 as const;
+export const PROTOCOL_VERSION = 4 as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
 export type Seat = 0 | 1;
@@ -77,6 +77,7 @@ export type CardView = {
   rested?: boolean;
   attachedDonCount?: number;
   power?: number;
+  fieldCost?: number;
   summoningSick?: boolean;
   rush?: boolean;
 };
@@ -89,6 +90,7 @@ export type PendingChoiceKind =
   | "when_attacking"
   | "optional_ability"
   | "leader_on_opp_attack"
+  | "search_top_deck"
   | "order_effects";
 
 export type PendingChoiceView = {
@@ -100,6 +102,20 @@ export type PendingChoiceView = {
   optional?: boolean;
   prompt?: string;
   abilityId?: string;
+  /** Present only for the choosing player; hidden from opponents/spectators. */
+  search?: {
+    options: Array<{ id: string; defId: string; eligible: boolean }>;
+    maxSelect: number;
+    remainder: "deck_bottom" | "trash";
+    takeToLife?: boolean;
+  };
+  trashOptions?: Array<{ id: string; defId: string; eligible: boolean }>;
+  handSelection?: { count: number; qualifyingPower?: number };
+  donOptions?: Array<{ id: string; rested: boolean; attachedTo?: string | null }>;
+  replacementTargetId?: string;
+  targetSelection?: { maxTargets: number; maxCost?: number };
+  privateToSeat?: Seat;
+  optionCount?: number;
   /** Present when kind is order_effects — controller must permute via order_pending_effects. */
   unorderedChoices?: PendingChoiceView[];
 };
@@ -117,6 +133,7 @@ export type PlayerView = {
     deckCount: number;
     trash: string[];
     lifeCount: number;
+    faceUpLife?: Array<{ index: number; defId: string }>;
     donDeckCount: number;
     costArea: { id: string; rested: boolean }[];
     activeDonCount: number;
@@ -131,6 +148,7 @@ export type PlayerView = {
     deckCount: number;
     trash: string[];
     lifeCount: number;
+    faceUpLife?: Array<{ index: number; defId: string }>;
     donDeckCount: number;
     costAreaCount: number;
     activeDonCount: number;

@@ -16,6 +16,7 @@ export type CatalogMetaRow = {
   blocker?: boolean;
   rush?: boolean;
   eventTiming?: "main" | "counter";
+  hasTrigger?: boolean;
   /** Printed ability text from cosmetics catalog (display / stubs only). */
   effectText?: string;
 };
@@ -24,6 +25,10 @@ const catalog = raw as Record<string, CatalogMetaRow>;
 
 export function catalogMetaFor(id: CardDefId): CatalogMetaRow | undefined {
   return catalog[normalize(id)];
+}
+
+export function listCatalogMetaIds(): CardDefId[] {
+  return Object.keys(catalog).sort();
 }
 
 export function catalogTypeFor(id: CardDefId): CardType {

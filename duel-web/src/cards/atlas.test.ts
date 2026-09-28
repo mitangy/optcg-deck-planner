@@ -25,17 +25,24 @@ describe("atlas art resolution", () => {
   });
 
   it("resolves ST01-005 to TCGPlayer CDN", () => {
-    const usopp = lookupCard("ST01-005");
-    expect(usopp.imageUrl).toBe(
+    const jinbe = lookupCard("ST01-005");
+    expect(jinbe.name).toBe("Jinbe");
+    expect(jinbe.imageUrl).toBe(
       "https://tcgplayer-cdn.tcgplayer.com/product/288234_400w.jpg",
     );
-    expect(usopp.productId).toBe(288234);
+    expect(jinbe.productId).toBe(288234);
   });
 
   it("keeps curated CDN alts for mapped leaders (e.g. Teach)", () => {
     const teach = lookupCard("OP16-080");
     expect(teach.altArts?.some((a) => a.id === "p1")).toBe(true);
     expect(isTcgplayerCdnUrl(teach.altArts?.[0]?.imageUrl)).toBe(true);
+  });
+
+  it("distinguishes curated coverage from unverified cosmetics entries", () => {
+    expect(lookupCard("ST01-001").abilitySupport).toBe("ok");
+    expect(lookupCard("ST01-014").abilitySupport).toBe("ok");
+    expect(lookupCard("OP01-016").abilitySupport).toBe("unverified");
   });
 });
 

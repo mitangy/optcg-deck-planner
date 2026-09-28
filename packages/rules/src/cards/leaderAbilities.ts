@@ -18,7 +18,7 @@ export type LeaderAbilityEntry = {
   timing: LeaderAbilityTiming;
   summary: string;
   /** Engine hook status */
-  status: "implemented" | "stub";
+  status: "implemented" | "partial" | "stub";
 };
 
 export const LEADER_ABILITY_CATALOG: readonly LeaderAbilityEntry[] = [
@@ -43,8 +43,8 @@ export const LEADER_ABILITY_CATALOG: readonly LeaderAbilityEntry[] = [
     name: "Marshall.D.Teach",
     timing: "opponent_turn_static",
     summary:
-      "Opponent's Turn — opponent's Characters cost +1.",
-    status: "implemented",
+      "Opponent's Turn — this player's Characters on the field gain +1 cost.",
+    status: "stub",
   },
   {
     leaderId: "OP16-080",

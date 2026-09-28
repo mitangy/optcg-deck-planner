@@ -1,10 +1,15 @@
-export { createSeededRng, type Rng } from "./rng.js";
+export { createSeededRng, type Rng, type RngState } from "./rng.js";
+export { ABILITY_SCHEMA_VERSION, type CardAbilityProgram, type CardAbilityRecord, type CompiledAbilityRegistry } from "./registry/schema.js";
+export { compileAbilityRegistry, RegistryValidationError } from "./registry/compiler.js";
+export { ABILITY_REGISTRY, abilitiesForCard, abilityForCard, ABILITY_MOBY_DICK_ON_PLAY, ABILITY_MY_ERA_MAIN, ABILITY_MY_ERA_TRIGGER } from "./registry/searchSlice.js";
+export { MATCH_STATE_VERSION, RULES_PROTOCOL_VERSION, RULES_VERSION, serializeMatch, deserializeMatch, validateMatchContract, IncompatibleSnapshotError } from "./state/snapshot.js";
 export {
   getCardDef,
   listCardDefs,
   hasCardDef,
   ensureCardDef,
   ensureDefsForPlayers,
+  isCuratedCardDef,
   normalizeCardDefId,
   buildTestDeck,
   buildCardAtlas,
@@ -15,6 +20,7 @@ export {
 export {
   TCG_PRODUCTS,
 } from "./cards/tcgProducts.js";
+export { CARD_SOURCE_RECORDS, cardSourceRecord, type CardSourceRecord, type FieldVerification } from "./cards/sourceRecords.js";
 export {
   tcgArtForCard,
   tcgAltsForCard,
@@ -27,6 +33,7 @@ export {
   listLegalIntents,
   getPlayerView,
   getSpectatorView,
+  projectGameEvents,
   assertInvariants,
   skipMulligans,
 } from "./engine.js";
@@ -38,6 +45,8 @@ export type {
   Phase,
   CardType,
   CardDef,
+  TopDeckSearchEffect,
+  ActivateMainSearchEffect,
   CardInstance,
   DonInstance,
   AttackTarget,
@@ -47,6 +56,7 @@ export type {
   PendingTrigger,
   PlayerState,
   MatchState,
+  ResolutionFrame,
   GameEvent,
   Intent,
   ApplyContext,
@@ -63,6 +73,8 @@ export {
 export {
   ABILITY_LEADER_GIVE_RESTED_DON,
   ABILITY_STAGE_TRASH_GIVE_RESTED_DON,
+  ABILITY_LAFFITTE_SEARCH,
+  ABILITY_FULLALEAD_SEARCH,
 } from "./cards/abilityIds.js";
 export {
   EFFECT_CATALOG,
@@ -73,10 +85,14 @@ export {
   abilitySupportForDef,
   abilitySupportFromEntries,
   enrichAtlasAbilitySupport,
+  buildCardSupportManifest,
+  summarizeCardSupportManifest,
+  unsupportedCardsForDeck,
   type CardEffectEntry,
   type EffectStatus,
   type EffectTiming,
   type AbilitySupport,
+  type CardSupportIssue,
 } from "./cards/effectCatalog.js";
 export {
   applyEffectOrder,

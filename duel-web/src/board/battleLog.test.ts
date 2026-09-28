@@ -75,8 +75,8 @@ describe("narrateEvents", () => {
       { youSeat: 0, turnNumber: 3 },
     ).map((e) => e.text);
 
-    expect(lines[0]).toMatch(/You may resolve Usopp's on play/i);
-    expect(lines[1]).toMatch(/You accept Usopp's on play/i);
+    expect(lines[0]).toMatch(/You may resolve Jinbe's on play/i);
+    expect(lines[1]).toMatch(/You accept Jinbe's on play/i);
     expect(lines[2]).toMatch(/Opponent declines Karoo's life trigger/i);
   });
 

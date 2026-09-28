@@ -9,6 +9,7 @@ export type AbilitySupport =
   | "keywords"
   | "ok"
   | "partial"
+  | "unverified"
   | "unsupported";
 
 export type AbilitySupportInput = {
@@ -79,6 +80,9 @@ export function resolveAbilitySupport(entry: AbilitySupportInput): AbilitySuppor
 
 /** Non-alarmist note for Inspect when duel does not resolve the printed text. */
 export function abilitySupportNote(support: AbilitySupport): string | null {
+  if (support === "unverified") {
+    return "Card data has not been verified for duel play yet.";
+  }
   if (support === "unsupported" || support === "partial") {
     return "Not implemented in duel yet — text shown for reference.";
   }

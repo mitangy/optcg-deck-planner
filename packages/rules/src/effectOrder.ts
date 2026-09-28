@@ -44,6 +44,8 @@ function emitAdded(events: GameEvent[], choice: PendingChoice): void {
     sourceInstanceId: choice.sourceInstanceId,
     optional: choice.optional,
     prompt: choice.prompt,
+    privateToSeat: choice.privateToSeat,
+    hideCardDefFromOthers: choice.hideCardDefFromOthers,
   });
 }
 

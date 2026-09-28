@@ -7,9 +7,11 @@ import {
   getDefsHealthSnapshot,
   listCardDefs,
 } from "../cards/definitions.js";
+import { abilityForCard, hasUnconditionalKeyword } from "../registry/searchSlice.js";
+import { ABILITY_STAGE_TRASH_GIVE_RESTED_DON } from "../cards/abilityIds.js";
 
 describe("Step 5 curated defs", () => {
-  it("ships ST01 curated ids including Rush Sanji (plus later seed stubs)", () => {
+  it("ships audited ST01 curated ids (plus later seed stubs)", () => {
     const ids = listCardDefs().map((d) => d.id);
     for (const id of [
       "ST01-001",
@@ -38,7 +40,11 @@ describe("Step 5 curated defs", () => {
       name: "Moby Dick",
       type: "stage",
       cost: 1,
-      stageActivateTrashGiveRestedDon: true,
+    });
+    expect(abilityForCard("OP16-021", ABILITY_STAGE_TRASH_GIVE_RESTED_DON)).toMatchObject({
+      kind: "activated",
+      windows: ["activate_main"],
+      costs: [{ type: "trash_source" }],
     });
 
     expect(getCardDef("ST01-003")).toMatchObject({
@@ -51,14 +57,19 @@ describe("Step 5 curated defs", () => {
       name: "Sanji",
       cost: 2,
       power: 4000,
-      counter: 1000,
-      rush: true,
     });
+    expect(getCardDef("ST01-004").counter).toBeUndefined();
+    expect(hasUnconditionalKeyword("ST01-004", "rush")).toBe(false);
+    expect(getCardDef("ST01-005")).toMatchObject({
+      name: "Jinbe",
+      cost: 3,
+      power: 5000,
+    });
+    expect(getCardDef("ST01-005").counter).toBeUndefined();
     expect(getCardDef("ST01-006")).toMatchObject({
       name: "TonyTony.Chopper",
       cost: 1,
       power: 1000,
-      blocker: true,
     });
     expect(getCardDef("ST01-008")).toMatchObject({
       name: "Nico Robin",
@@ -76,7 +87,8 @@ describe("Step 5 curated defs", () => {
     const guard = getCardDef("ST01-014");
     expect(guard.name).toBe("Guard Point");
     expect(guard.eventTiming).toBe("counter");
-    expect(guard.counterPowerBonus).toBe(3000);
+    expect(guard.counterFriendlyPower).toEqual({ power: 3000 });
+    expect(guard.hasTrigger).toBe(true);
     expect(guard.mainDraw).toBeUndefined();
   });
 
@@ -128,7 +140,6 @@ describe("constructed seed stubs + auto-stub", () => {
     });
     expect(getCardDef("EB04-058")).toMatchObject({
       name: "Borsalino",
-      blocker: true,
       cost: 5,
     });
     expect(getCardDef("OP09-096").type).toBe("event");
@@ -156,6 +167,13 @@ describe("constructed seed stubs + auto-stub", () => {
     expect(getCardDef("ST01-005").imageUrl).toBe(
       "https://tcgplayer-cdn.tcgplayer.com/product/288234_400w.jpg",
     );
+  });
+
+  it("does not invent missing fallback counter or keyword hooks", () => {
+    const stub = ensureCardDef("OP01-016");
+    expect(stub.counter).toBeUndefined();
+    expect(hasUnconditionalKeyword(stub.id, "blocker")).toBe(false);
+    expect(hasUnconditionalKeyword(stub.id, "rush")).toBe(false);
   });
 
   it("auto-stubs unknown OPTCG ids via ensureDefsForPlayers", () => {

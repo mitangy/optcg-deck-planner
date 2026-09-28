@@ -35,7 +35,7 @@ export type CardAtlasEntry = {
    * From curated atlas export (EFFECT_CATALOG aggregate). Cosmetics-only
    * entries omit this; CardInspect falls back to abilitySupport heuristics.
    */
-  abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unsupported";
+  abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unverified" | "unsupported";
 };
 
 /**
@@ -128,6 +128,8 @@ function fromCatalog(defId: string): CardAtlasEntry | undefined {
           return alt;
         })
       : undefined,
+    // Cosmetics text and keyword scans are not executable rules evidence.
+    abilitySupport: hit.abilitySupport ?? "unverified",
   };
 }
 
@@ -192,6 +194,7 @@ export function stubAtlasEntry(
       life: 5,
       imageUrl,
       effectText: "—",
+      abilitySupport: "unverified",
       altArts: altArts.length ? altArts : undefined,
     };
   }
@@ -202,9 +205,9 @@ export function stubAtlasEntry(
     colors: [],
     cost: 2,
     power: 3000,
-    counter: 1000,
     imageUrl,
     effectText: "—",
+    abilitySupport: "unverified",
     altArts: altArts.length ? altArts : undefined,
   };
 }

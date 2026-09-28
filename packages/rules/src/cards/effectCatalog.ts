@@ -1,3 +1,4 @@
+import { hasUnconditionalKeyword } from "../registry/searchSlice.js";
 /**
  * Catalog of printed effects for every curated card definition.
  *
@@ -8,10 +9,11 @@
  * Status:
  * - implemented — engine hook matches printed text for this timing
  * - partial — some clauses run; others are display-only
- * - keyword — keyword flag only (Blocker / Rush / hasTrigger marker)
+ * - keyword — a complete, unconditional Blocker / Rush keyword
  * - stub — printed text is stored for inspect; no resolution yet
  */
-import { listCardDefs } from "./definitions.js";
+import { isCuratedCardDef, listCardDefs } from "./definitions.js";
+import { listCatalogMetaIds } from "./catalogMeta.js";
 import type { CardDef } from "../types.js";
 
 export type EffectTiming =
@@ -20,6 +22,9 @@ export type EffectTiming =
   | "on_ko"
   | "when_attacking"
   | "opponent_turn"
+  | "your_turn"
+  | "turn_start"
+  | "turn_end"
   | "on_opp_attack"
   | "trigger"
   | "counter"
@@ -32,6 +37,8 @@ export type EffectTiming =
 export type EffectStatus = "implemented" | "partial" | "keyword" | "stub";
 
 export type CardEffectEntry = {
+  /** Stable within one card definition; suitable for coverage reports/tests. */
+  abilityId: string;
   cardId: string;
   name: string;
   timing: EffectTiming;
@@ -46,11 +53,14 @@ const TAG_PATTERNS: { re: RegExp; timing: EffectTiming }[] = [
   { re: /\[On Play\]/i, timing: "on_play" },
   { re: /\[On K\.?O\.?\]/i, timing: "on_ko" },
   { re: /\[When Attacking\]/i, timing: "when_attacking" },
-  { re: /\[Opponent'?s Turn\]/i, timing: "opponent_turn" },
   {
     re: /\[On Your Opponent'?s Attack\]|\[On Opponent'?s Attack\]/i,
     timing: "on_opp_attack",
   },
+  { re: /\[Opponent'?s Turn\]/i, timing: "opponent_turn" },
+  { re: /\[Your Turn\]/i, timing: "your_turn" },
+  { re: /\[(?:At the )?Start of Your Turn\]/i, timing: "turn_start" },
+  { re: /\[(?:At the )?End of Your Turn\]/i, timing: "turn_end" },
   { re: /\[Trigger\]/i, timing: "trigger" },
   { re: /\[Counter\]/i, timing: "counter" },
   { re: /\[Main\]/i, timing: "main" },
@@ -69,76 +79,94 @@ function splitClauses(text: string): string[] {
   return parts.length > 0 ? parts : [cleaned.replace(/\s+/g, " ").trim()];
 }
 
-function timingForClause(clause: string): EffectTiming {
-  for (const { re, timing } of TAG_PATTERNS) {
-    if (re.test(clause)) return timing;
-  }
-  return clause.startsWith("[") ? "other" : "static";
+function timingsForClause(clause: string): EffectTiming[] {
+  // Only tags in the leading timing prefix identify this clause. A card name,
+  // keyword reference, or "activate this card's [Main]" in the body does not.
+  const prefix = clause.match(/^(?:\s*\[[^\]]+\]\s*\/?\s*)+/)?.[0] ?? "";
+  const timings = TAG_PATTERNS
+    .filter(({ re }) => re.test(prefix))
+    .map(({ timing }) => timing);
+  return timings.length > 0 ? [...new Set(timings)] : [clause.startsWith("[") ? "other" : "static"];
 }
+
+type ExplicitCoverage = { status: EffectStatus; hook?: string };
+
+/**
+ * Reviewed engine coverage. Absence means stub. This intentionally does not
+ * infer support from a similarly named field or a `hasTrigger` marker.
+ */
+const EXPLICIT_COVERAGE: Readonly<Record<string, ExplicitCoverage>> = {
+  "ST01-001:activate_main": { status: "implemented", hook: "leaderActivateGiveRestedDon" },
+  "ST01-006:blocker": { status: "keyword", hook: "abilityRegistry" },
+  "ST01-004:other": { status: "implemented", hook: "abilityRegistry" },
+  "ST01-005:when_attacking": { status: "implemented", hook: "abilityRegistry" },
+  "ST01-014:counter": { status: "implemented", hook: "counterFriendlyPower" },
+  "ST01-014:trigger": { status: "implemented", hook: "triggerFriendlyPowerBonus" },
+  "OP17-001:on_opp_attack": { status: "implemented", hook: "leaderOnOppAttackTrashForPower" },
+  "OP16-080:on_opp_attack": { status: "implemented", hook: "leaderOnOppAttackTrashTriggerRetarget" },
+  "OP16-080:opponent_turn": { status: "implemented", hook: "abilityRegistry" },
+  "OP17-039:when_attacking": { status: "implemented", hook: "leaderWhenAttackingTrashRevealDraw" },
+  "OP17-002:opponent_turn": { status: "implemented", hook: "abilityRegistry" },
+  "OP17-003:rush": { status: "implemented", hook: "abilityRegistry" },
+  "OP17-003:on_play": { status: "implemented", hook: "abilityRegistry" },
+  "OP17-005:static": { status: "implemented", hook: "abilityRegistry" },
+  "OP17-005:on_play": { status: "implemented", hook: "abilityRegistry" },
+  "OP17-008:on_play": { status: "implemented", hook: "abilityRegistry" },
+  "OP17-015:static": { status: "implemented", hook: "removalReplacementSelfKo" },
+  "OP17-015:on_ko": { status: "implemented", hook: "onKoReviveSelf" },
+  "OP16-118:on_play": { status: "implemented", hook: "onPlaySearchTop" },
+  "OP16-118:static": { status: "implemented", hook: "abilityRegistry" },
+  "OP16-118:on_ko": { status: "implemented", hook: "onKoSearchTop" },
+  "ST23-001:static": { status: "implemented", hook: "abilityRegistry" },
+  "OP09-118:rush": { status: "keyword", hook: "abilityRegistry" },
+  "OP09-118:static": { status: "implemented", hook: "rogerBlockerWin" },
+  "OP16-021:activate_main": { status: "implemented", hook: "abilityRegistry" },
+  "OP16-021:on_play": { status: "implemented", hook: "abilityRegistry" },
+  "ST23-001:blocker": { status: "keyword", hook: "abilityRegistry" },
+  "EB04-058:blocker": { status: "keyword", hook: "abilityRegistry" },
+  "EB04-058:on_play": { status: "implemented", hook: "onPlayLowLifeAddLife" },
+  "EB03-034:on_play": { status: "implemented", hook: "onPlayDrawHandToDeckDon" },
+  "EB03-034:on_ko": { status: "implemented", hook: "onKoReturnDonAddLife" },
+  "OP17-112:on_play": { status: "implemented", hook: "onPlayDrawThenLifeChoice" },
+  "OP17-112:your_turn": { status: "implemented", hook: "abilityRegistry" },
+  "OP09-093:blocker": { status: "keyword", hook: "abilityRegistry" },
+  "OP09-093:activate_main": { status: "implemented", hook: "activateMainNegateOpponent" },
+  "OP09-095:activate_main": { status: "implemented", hook: "abilityRegistry" },
+  "OP09-086:static": { status: "implemented", hook: "abilityRegistry" },
+  "OP09-099:activate_main": { status: "implemented", hook: "abilityRegistry" },
+  "OP09-096:main": { status: "implemented", hook: "abilityRegistry" },
+  "OP09-096:trigger": { status: "implemented", hook: "abilityRegistry" },
+  "OP17-019:main": { status: "implemented", hook: "mainSearchTop" },
+  "OP17-019:trigger": { status: "implemented", hook: "triggerLeaderPowerBonus" },
+  "OP12-112:trigger": { status: "implemented", hook: "abilityRegistry" },
+  "OP16-108:trigger": { status: "implemented", hook: "abilityRegistry" },
+  "OP16-108:on_play": { status: "implemented", hook: "onPlayTrashHandToLife" },
+  "OP16-106:trigger": { status: "implemented", hook: "triggerActivateOnKo" },
+  "OP16-106:on_ko": { status: "implemented", hook: "onKoDraw + onKoLeaderBasePower" },
+  "OP16-109:trigger": { status: "implemented", hook: "triggerActivateOnKo" },
+  "OP16-109:on_ko": { status: "implemented", hook: "onKoDraw + onKoOpponentKoCost" },
+  "OP16-110:trigger": { status: "implemented", hook: "triggerActivateOnKo" },
+  "OP16-110:on_ko": { status: "implemented", hook: "onKoDraw + onKoOpponentRestCost" },
+  "OP16-116:trigger": { status: "implemented", hook: "triggerDrawThenTrash" },
+  "OP16-116:main": { status: "implemented", hook: "mainPlayNamedThenOpponentLife" },
+  "ST30-004:on_play": { status: "implemented", hook: "onPlayRevealDrawTrash" },
+  "OP16-115:main": { status: "implemented", hook: "mainTrashTriggerToHand" },
+  "OP16-115:trigger": { status: "implemented", hook: "triggerNegateOpponent" },
+  "OP16-119:on_play": { status: "implemented", hook: "onPlaySearchTop" },
+  "OP16-119:trigger": { status: "implemented", hook: "triggerNegateOpponent" },
+  "OP16-104:when_attacking": { status: "implemented", hook: "abilityRegistry" },
+  "OP16-104:trigger": { status: "implemented", hook: "triggerDraw + triggerPlayTrashCharacter" },
+  "OP14-108:on_play": { status: "implemented", hook: "abilityRegistry" },
+  "OP14-108:trigger": { status: "implemented", hook: "triggerActivateOnPlay" },
+  "OP12-018:counter": { status: "implemented", hook: "counterFriendlyPower + counterRestDonOpponentAllPenalty" },
+  "OP17-017:counter": { status: "implemented", hook: "counterFriendlyPower + counterOpponentTargetPenalty" },
+};
 
 function statusFor(
   def: CardDef,
   timing: EffectTiming,
-  clause: string,
 ): { status: EffectStatus; hook?: string } {
-  if (timing === "blocker" && def.blocker) {
-    return { status: "keyword", hook: "blocker" };
-  }
-  if (timing === "rush" && def.rush) {
-    return { status: "keyword", hook: "rush" };
-  }
-  if (timing === "activate_main" && def.leaderActivateGiveRestedDon) {
-    return { status: "implemented", hook: "leaderActivateGiveRestedDon" };
-  }
-  if (timing === "activate_main" && def.stageActivateTrashGiveRestedDon) {
-    return { status: "implemented", hook: "stageActivateTrashGiveRestedDon" };
-  }
-  if (timing === "opponent_turn" && def.leaderOpponentCharacterCostBonus) {
-    return { status: "implemented", hook: "leaderOpponentCharacterCostBonus" };
-  }
-  if (timing === "on_opp_attack" && def.leaderOnOppAttackTrashForPower) {
-    return { status: "implemented", hook: "leaderOnOppAttackTrashForPower" };
-  }
-  if (timing === "on_opp_attack" && def.leaderOnOppAttackTrashTriggerRetarget) {
-    return {
-      status: "implemented",
-      hook: "leaderOnOppAttackTrashTriggerRetarget",
-    };
-  }
-  if (timing === "when_attacking" && def.leaderWhenAttackingTrashRevealDraw) {
-    return {
-      status: "implemented",
-      hook: "leaderWhenAttackingTrashRevealDraw",
-    };
-  }
-  if (timing === "on_play" && def.onPlayOptionalDraw) {
-    return { status: "implemented", hook: "onPlayOptionalDraw" };
-  }
-  if (
-    timing === "on_play" &&
-    (def.onPlayDraw ||
-      def.onPlayLowLifeAddLife ||
-      def.onPlayDrawThenLifeChoice ||
-      def.onPlayDrawHandToDeckDon)
-  ) {
-    return { status: "implemented", hook: "onPlayHooks" };
-  }
-  if (timing === "counter" && def.counterPowerBonus) {
-    if (/then/i.test(clause)) {
-      return { status: "partial", hook: "counterPowerBonus" };
-    }
-    return { status: "implemented", hook: "counterPowerBonus" };
-  }
-  if (timing === "main" && def.mainDraw) {
-    return { status: "implemented", hook: "mainDraw" };
-  }
-  if (timing === "trigger" && def.triggerDraw) {
-    return { status: "implemented", hook: "triggerDraw" };
-  }
-  if (timing === "trigger" && def.hasTrigger) {
-    return { status: "keyword", hook: "hasTrigger" };
-  }
-  return { status: "stub" };
+  return EXPLICIT_COVERAGE[`${def.id}:${timing}`] ?? { status: "stub" };
 }
 
 /** Build catalog rows for one card definition from printed text + hooks. */
@@ -148,28 +176,31 @@ export function effectsForDef(def: CardDef): CardEffectEntry[] {
   const clauses = splitClauses(text);
 
   if (clauses.length === 0) {
-    if (def.blocker) {
+    if (hasUnconditionalKeyword(def.id, "blocker")) {
       entries.push({
+        abilityId: `${def.id.toLowerCase()}:blocker:1`,
         cardId: def.id,
         name: def.name,
         timing: "blocker",
         summary: "[Blocker]",
         status: "keyword",
-        hook: "blocker",
+        hook: "abilityRegistry",
       });
     }
-    if (def.rush) {
+    if (hasUnconditionalKeyword(def.id, "rush")) {
       entries.push({
+        abilityId: `${def.id.toLowerCase()}:rush:1`,
         cardId: def.id,
         name: def.name,
         timing: "rush",
         summary: "[Rush]",
         status: "keyword",
-        hook: "rush",
+        hook: "abilityRegistry",
       });
     }
     if (entries.length === 0) {
       entries.push({
+        abilityId: `${def.id.toLowerCase()}:vanilla:1`,
         cardId: def.id,
         name: def.name,
         timing: "other",
@@ -180,37 +211,44 @@ export function effectsForDef(def: CardDef): CardEffectEntry[] {
     return entries;
   }
 
+  const ordinals = new Map<EffectTiming, number>();
   for (const clause of clauses) {
-    const timing = timingForClause(clause);
-    const { status, hook } = statusFor(def, timing, clause);
-    entries.push({
-      cardId: def.id,
-      name: def.name,
-      timing,
-      summary: clause,
-      status,
-      hook,
-    });
+    for (const timing of timingsForClause(clause)) {
+      const ordinal = (ordinals.get(timing) ?? 0) + 1;
+      ordinals.set(timing, ordinal);
+      const { status, hook } = statusFor(def, timing);
+      entries.push({
+        abilityId: `${def.id.toLowerCase()}:${timing}:${ordinal}`,
+        cardId: def.id,
+        name: def.name,
+        timing,
+        summary: clause,
+        status,
+        hook,
+      });
+    }
   }
 
-  if (def.blocker && !entries.some((e) => e.timing === "blocker")) {
+  if (hasUnconditionalKeyword(def.id, "blocker") && !entries.some((e) => e.timing === "blocker")) {
     entries.push({
+      abilityId: `${def.id.toLowerCase()}:blocker:1`,
       cardId: def.id,
       name: def.name,
       timing: "blocker",
       summary: "[Blocker]",
       status: "keyword",
-      hook: "blocker",
+      hook: "abilityRegistry",
     });
   }
-  if (def.rush && !entries.some((e) => e.timing === "rush")) {
+  if (hasUnconditionalKeyword(def.id, "rush") && !entries.some((e) => e.timing === "rush")) {
     entries.push({
+      abilityId: `${def.id.toLowerCase()}:rush:1`,
       cardId: def.id,
       name: def.name,
       timing: "rush",
       summary: "[Rush]",
       status: "keyword",
-      hook: "rush",
+      hook: "abilityRegistry",
     });
   }
 
@@ -256,6 +294,7 @@ export type AbilitySupport =
   | "keywords"
   | "ok"
   | "partial"
+  | "unverified"
   | "unsupported";
 
 export function abilitySupportFromEntries(
@@ -271,7 +310,8 @@ export function abilitySupportFromEntries(
   }
   const statuses = entries.map((e) => e.status);
   if (statuses.every((s) => s === "keyword")) return "keywords";
-  if (statuses.some((s) => s === "stub")) return "unsupported";
+  if (statuses.every((s) => s === "stub")) return "unsupported";
+  if (statuses.some((s) => s === "stub")) return "partial";
   if (statuses.some((s) => s === "partial")) return "partial";
   if (statuses.every((s) => s === "implemented" || s === "keyword")) {
     return statuses.every((s) => s === "keyword") ? "keywords" : "ok";
@@ -280,7 +320,48 @@ export function abilitySupportFromEntries(
 }
 
 export function abilitySupportForDef(def: CardDef): AbilitySupport {
+  if (!isCuratedCardDef(def.id)) return "unverified";
   return abilitySupportFromEntries(effectsForDef(def));
+}
+
+/** Every bundled catalog id receives an explicit card-level support state. */
+export function buildCardSupportManifest(): Record<string, AbilitySupport> {
+  const curated = new Map(listCardDefs().map((def) => [def.id, def]));
+  return Object.fromEntries(
+    listCatalogMetaIds().map((id) => {
+      const def = curated.get(id);
+      return [id, def ? abilitySupportForDef(def) : "unverified"];
+    }),
+  );
+}
+
+export function summarizeCardSupportManifest(): Record<AbilitySupport, number> {
+  const totals: Record<AbilitySupport, number> = {
+    none: 0,
+    keywords: 0,
+    ok: 0,
+    partial: 0,
+    unverified: 0,
+    unsupported: 0,
+  };
+  for (const status of Object.values(buildCardSupportManifest())) totals[status] += 1;
+  return totals;
+}
+
+export type CardSupportIssue = { cardId: string; support: AbilitySupport };
+
+export function unsupportedCardsForDeck(deck: {
+  leaderId: string;
+  deck: readonly string[];
+}): CardSupportIssue[] {
+  const manifest = buildCardSupportManifest();
+  const ids = [...new Set([deck.leaderId, ...deck.deck])];
+  return ids.flatMap((cardId) => {
+    const support = manifest[cardId] ?? "unverified";
+    return support === "none" || support === "keywords" || support === "ok"
+      ? []
+      : [{ cardId, support }];
+  });
 }
 
 /** Attach abilitySupport to each atlas entry from curated effect catalog rows. */

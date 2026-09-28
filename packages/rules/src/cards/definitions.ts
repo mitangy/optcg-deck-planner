@@ -1,3 +1,4 @@
+import { hasUnconditionalKeyword } from "../registry/searchSlice.js";
 import type { CardDef, CardDefId } from "../types.js";
 import { catalogMetaFor, catalogTypeFor } from "./catalogMeta.js";
 import { tcgAltsForCard, tcgArtForCard } from "./tcgArt.js";
@@ -34,10 +35,11 @@ const defs: CardDef[] = [
     cost: 0,
     power: 5000,
     life: 5,
+    traits: ["Supernovas", "Straw Hat Crew"],
     leaderActivateGiveRestedDon: true,
     imageUrl: localArt("ST01-001"),
     effectText:
-      "[Activate: Main] [Once Per Turn] You may rest this Leader: Give up to 1 rested DON!! card to your Leader or 1 of your Characters.",
+      "[Activate: Main] [Once Per Turn] Give this Leader or 1 of your Characters up to 1 rested DON!! card.",
     altArts: [
       { id: "p1", label: "Alternate Art", imageUrl: localAlt("ST01-001", "p1") },
     ],
@@ -50,6 +52,7 @@ const defs: CardDef[] = [
     cost: 1,
     power: 3000,
     counter: 1000,
+    traits: ["Animal", "Alabasta"],
     imageUrl: localArt("ST01-003"),
     effectText: "—",
   },
@@ -60,9 +63,10 @@ const defs: CardDef[] = [
     colors: ["red"],
     cost: 2,
     power: 4000,
-    counter: 1000,
-    rush: true,
+    traits: ["Straw Hat Crew"],
     imageUrl: localArt("ST01-004"),
+    effectText:
+      "[DON!! x2] This Character gains [Rush]. (This card can attack on the turn in which it is played.)",
   },
   {
     id: "ST01-006",
@@ -71,7 +75,7 @@ const defs: CardDef[] = [
     colors: ["red"],
     cost: 1,
     power: 1000,
-    blocker: true,
+    traits: ["Animal", "Straw Hat Crew"],
     imageUrl: localArt("ST01-006"),
     effectText:
       "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.)",
@@ -88,6 +92,7 @@ const defs: CardDef[] = [
     cost: 3,
     power: 5000,
     counter: 1000,
+    traits: ["Straw Hat Crew"],
     imageUrl: localArt("ST01-008"),
     effectText: "—",
     altArts: [
@@ -103,6 +108,7 @@ const defs: CardDef[] = [
     cost: 2,
     power: 4000,
     counter: 1000,
+    traits: ["Alabasta"],
     imageUrl: localArt("ST01-009"),
     effectText: "—",
     altArts: [
@@ -112,14 +118,15 @@ const defs: CardDef[] = [
   },
   {
     id: "ST01-005",
-    name: "Usopp",
+    name: "Jinbe",
     type: "character",
     colors: ["red"],
-    cost: 1,
-    power: 2000,
-    counter: 2000,
+    cost: 3,
+    power: 5000,
+    traits: ["Fish-Man", "Straw Hat Crew"],
     imageUrl: localArt("ST01-005"),
-    effectText: "—",
+    effectText:
+      "[DON!! x1] [When Attacking] Up to 1 of your Leader or Character cards other than this card gains +1000 power during this turn.",
   },
   {
     id: "ST01-014",
@@ -128,10 +135,13 @@ const defs: CardDef[] = [
     colors: ["red"],
     cost: 1,
     eventTiming: "counter",
-    counterPowerBonus: 3000,
+    counterFriendlyPower: { power: 3000 },
+    triggerFriendlyPowerBonus: 1000,
+    hasTrigger: true,
+    traits: ["Animal", "Straw Hat Crew"],
     imageUrl: localArt("ST01-014"),
     effectText:
-      "[Counter] Your Leader or 1 of your Characters gains +3000 power during this battle.",
+      "[Counter] Up to 1 of your Leader or Character cards gains +3000 power during this battle.\n\n[Trigger] Up to 1 of your Leader or Character cards gains +1000 power during this turn.",
     altArts: [
       { id: "p1", label: "Alternate Art", imageUrl: localAlt("ST01-014", "p1") },
       { id: "p2", label: "Parallel 2", imageUrl: localAlt("ST01-014", "p2") },
@@ -151,6 +161,7 @@ const defs: CardDef[] = [
     effectText:
       "[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card from your hand: Up to 1 of your Leader or Characters gains +4000 power during this battle.",
     leaderOnOppAttackTrashForPower: { power: 4000 },
+    traits: ["The Four Emperors", "Whitebeard Pirates"],
   },
   {
     id: "OP16-080",
@@ -161,10 +172,9 @@ const defs: CardDef[] = [
     power: 5000,
     life: 4,
     imageUrl: localArt("OP16-080"),
-    traits: ["Blackbeard Pirates"],
+    traits: ["The Seven Warlords of the Sea", "Blackbeard Pirates"],
     effectText:
-      "[Opponent's Turn] Give all of your opponent's Characters +1 cost.\n\n[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card with a [Trigger] from your hand: Change the target of that attack to this Leader or 1 of your {Blackbeard Pirates} type Characters.",
-    leaderOpponentCharacterCostBonus: 1,
+      "[Opponent's Turn] All of your Characters gain +1 cost.\n\n[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card with a [Trigger] from your hand: Change the target of that attack to this Leader or 1 of your {Blackbeard Pirates} type Characters.",
     leaderOnOppAttackTrashTriggerRetarget: { retargetTrait: "Blackbeard Pirates" },
   },
   {
@@ -200,6 +210,7 @@ const defs: CardDef[] = [
     cost: 5,
     power: 6000,
     counter: 2000,
+    traits: ["Whitebeard Pirates"],
     imageUrl: localArt("OP12-002"),
     effectText: "—",
   },
@@ -212,6 +223,9 @@ const defs: CardDef[] = [
     eventTiming: "counter",
     imageUrl: localArt("OP12-018"),
     effectText: "[Counter] Up to 1 of your Characters or [Silvers Rayleigh] gains +2000 power during this battle. Then, you may rest 1 of your DON!! cards. If you do, give your opponent's Leader and all of their Characters 1000 power during this turn.",
+    counter: 2000,
+    counterFriendlyPower: { power: 2000, charactersOnly: true, allowedLeaderName: "Silvers Rayleigh" },
+    counterRestDonOpponentAllPenalty: { restDon: 1, power: 1000 },
   },
   {
     id: "OP16-021",
@@ -220,7 +234,6 @@ const defs: CardDef[] = [
     colors: ["red"],
     cost: 1,
     imageUrl: localArt("OP16-021"),
-    stageActivateTrashGiveRestedDon: true,
     effectText: "[On Play] If your Leader has the {Whitebeard Pirates} type, look at 3 cards from the top of your deck and add up to 1 card to your hand. Then, place the rest at the bottom of your deck in any order.\n\n\n[Activate:Main] You may trash this Stage: Give up to 1 rested DON!! card to your Leader or 1 of your Characters.",
   },
   {
@@ -231,6 +244,13 @@ const defs: CardDef[] = [
     cost: 5,
     power: 6000,
     counter: 1000,
+    onKoSearchTop: true,
+    onPlaySearchTop: {
+      count: 5,
+      maxTake: 1,
+      filterTraitOrName: { trait: "Whitebeard Pirates", nameIncludes: ["Monkey.D.Luffy"] },
+      remainder: "deck_bottom",
+    },
     imageUrl: localArt("OP16-118"),
     effectText: "The counter of all of your Character cards with 8000 power in your hand becomes +2000.\n\n[On Play]/[On K.O.] Look at 5 cards from the top of your deck; reveal up to 1 [Monkey.D.Luffy] or up to 1 card with a type including \"Whitebeard Pirates\" and add it to your hand. Then, place the rest a the bottom of your deck in any order.",
   },
@@ -282,6 +302,8 @@ const defs: CardDef[] = [
     cost: 5,
     power: 6000,
     counter: 1000,
+    removalReplacementSelfKo: true,
+    onKoReviveSelf: { trashHandTrait: "Whitebeard Pirates" },
     imageUrl: localArt("OP17-015"),
     effectText: "If one of your Characters would be removed from the field by your opponent's effect, you may K.O. this Character instead.\n\n[On K.O.] You may trash 1 card with a type including \"Whitebeard Pirates\" from your hand: Play this Character card from your trash.",
   },
@@ -294,6 +316,9 @@ const defs: CardDef[] = [
     eventTiming: "counter",
     imageUrl: localArt("OP17-017"),
     effectText: "[Counter] Up to 1 of your Leader with a type including \"Whitebeard Pirates\" or up to 1 of your Characters with a type including \"Whitebeard Pirates\" gains +2000 power during this battle. Then, give up to 1 of your opponent's Leader or Characters 2000 power during this turn.",
+    counter: 2000,
+    counterFriendlyPower: { power: 2000, requiredTrait: "Whitebeard Pirates" },
+    counterOpponentTargetPenalty: 2000,
   },
   {
     id: "OP17-019",
@@ -303,8 +328,16 @@ const defs: CardDef[] = [
     cost: 1,
     eventTiming: "main",
     imageUrl: localArt("OP17-019"),
+    hasTrigger: true,
+    triggerLeaderPowerBonus: 1000,
     effectText: "[Main] Look at 5 cards from the top of your deck; reveal up to 1 card with a type including \"Whitebeard Pirates\" and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n\n[Trigger] Your Leader gains +1000 power during this turn.",
-      },
+    mainSearchTop: {
+      count: 5,
+      maxTake: 1,
+      filterTrait: "Whitebeard Pirates",
+      remainder: "deck_bottom",
+    },
+  },
   {
     id: "ST23-001",
     name: "Uta",
@@ -313,7 +346,6 @@ const defs: CardDef[] = [
     cost: 6,
     power: 4000,
     counter: 2000,
-    blocker: true,
     imageUrl: localArt("ST23-001"),
     effectText: "If you have a Character with 10000 power or more, give this card in your hand −4 cost.\n[Blocker]",
   },
@@ -325,6 +357,7 @@ const defs: CardDef[] = [
     cost: 1,
     power: 2000,
     counter: 1000,
+    onPlayRevealDrawTrash: { revealCount: 2, revealPower: 6000, draw: 3, trash: 2 },
     imageUrl: localArt("ST30-004"),
     effectText: "[On Play] You may reveal 2 Character cards with 6000 power from your hand: Draw 3 cards and trash 2 cards from your hand.",
   },
@@ -347,7 +380,6 @@ const defs: CardDef[] = [
     cost: 5,
     power: 6000,
     counter: 1000,
-    blocker: true,
     imageUrl: localArt("EB04-058"),
     effectText: "[Blocker]\n[On Play] If you have 2 or less Life cards, add up to 1 card from the top of your deck to the top of your Life cards.",
     onPlayLowLifeAddLife: { maxLife: 2 },
@@ -363,6 +395,7 @@ const defs: CardDef[] = [
     counter: 1000,
     onPlayDraw: 1,
     onPlayDrawHandToDeckDon: true,
+    onKoReturnDonAddLife: { returnDon: 1 },
     imageUrl: localArt("EB03-034"),
     effectText:
       "[On Play] Draw 1 card and place 1 card from your hand at the top of your deck. Then, add up to 1 DON!! card from your DON!! deck and set it as active.\n\n[On K.O.] DON!! 1: Add up to 1 card from the top of your deck to the top of your Life cards.",
@@ -402,6 +435,7 @@ const defs: CardDef[] = [
     colors: ["black"],
     cost: 10,
     power: 12000,
+    activateMainNegateOpponent: true,
     imageUrl: localArt("OP09-093"),
     effectText: "[Blocker]\n\n[Activate: Main] [Once Per Turn] If your Leader has the \"Blackbeard Pirates\" type and this Character was played on this turn, negate the effect of up to 1 of your opponent's Leader during this turn. Then, negate the effect of up to 1 of your opponent's Characters and that Character cannot attack until the end of your opponent's next turn.",
     traits: ["Blackbeard Pirates"],
@@ -464,6 +498,7 @@ const defs: CardDef[] = [
     imageUrl: localArt("OP14-108"),
     effectText: "[On Play] If your Leader is multicolored and your opponent has 3 or less Life cards, K.O. up to 1 of your opponent's Characters with 7000 base power or less.\n\n[Trigger] Activate this card's [On Play] effect.",
     hasTrigger: true,
+    triggerActivateOnPlay: true,
     traits: ["Blackbeard Pirates"],
   },
   {
@@ -477,6 +512,8 @@ const defs: CardDef[] = [
     imageUrl: localArt("OP16-104"),
     effectText: "[When Attacking] Select up to 1 of your opponent's Characters. This Character's base power becomes the same as the selected Character's power during this turn.\n\n[Trigger] Draw 1 card and play up to 1 {Blackbeard Pirates} type Character with a cost of 1 from your trash.",
     hasTrigger: true,
+    triggerDraw: 1,
+    triggerPlayTrashCharacter: { trait: "Blackbeard Pirates", cost: 1 },
     traits: ["Blackbeard Pirates"],
   },
   {
@@ -490,6 +527,10 @@ const defs: CardDef[] = [
     imageUrl: localArt("OP16-106"),
     effectText: "[On K.O.] If your Leader has the {Blackbeard Pirates} type, draw 1 card, then up to 1 of your Leader or Character cards' base power becomes 7000 during this turn.\n\n[Trigger] Activate this card's [On K.O.] effect.",
     hasTrigger: true,
+    triggerActivateOnKo: true,
+    onKoDraw: 1,
+    onKoDrawRequiredLeaderTrait: "Blackbeard Pirates",
+    onKoLeaderBasePower: { basePower: 7000, requiredLeaderTrait: "Blackbeard Pirates" },
     traits: ["Blackbeard Pirates"],
   },
   {
@@ -502,6 +543,7 @@ const defs: CardDef[] = [
     imageUrl: localArt("OP16-108"),
     effectText: "[On Play] You may trash 1 card from your hand: Add up to 1 {Blackbeard Pirates} type card with a cost of 6 or less from your trash to the top of your Life cards face-up.\n\n[Trigger] Draw 2 cards.",
     hasTrigger: true,
+    onPlayTrashHandToLife: { requiredLeaderTrait: "Blackbeard Pirates", maxCost: 6 },
     traits: ["Blackbeard Pirates"],
   },
   {
@@ -515,6 +557,10 @@ const defs: CardDef[] = [
     imageUrl: localArt("OP16-109"),
     effectText: "[On K.O.] If your Leader has the {Blackbeard Pirates} type, draw 1 card and K.O. up to 2 of your opponent's Characters with a cost of 1 or less.\n\n[Trigger] Activate this card's [On K.O.] effect.",
     hasTrigger: true,
+    triggerActivateOnKo: true,
+    onKoDraw: 1,
+    onKoDrawRequiredLeaderTrait: "Blackbeard Pirates",
+    onKoOpponentKoCost: { cost: 1, maxTargets: 2, requiredLeaderTrait: "Blackbeard Pirates" },
     traits: ["Blackbeard Pirates"],
   },
   {
@@ -528,6 +574,9 @@ const defs: CardDef[] = [
     imageUrl: localArt("OP16-110"),
     effectText: "[On K.O.] Draw 1 card and rest up to 1 of your opponent's Characters with a cost of 6 or less.\n\n[Trigger] Activate this card's [On K.O.] effect.",
     hasTrigger: true,
+    triggerActivateOnKo: true,
+    onKoDraw: 1,
+    onKoOpponentRestCost: { cost: 6, maxTargets: 1 },
     traits: ["Blackbeard Pirates"],
   },
   {
@@ -540,6 +589,8 @@ const defs: CardDef[] = [
     imageUrl: localArt("OP16-115"),
     effectText: "[Main] If your Leader has the {Blackbeard Pirates} type, add up to 1 card with a [Trigger] other than [Black Vortex] from your trash to your hand.\n\n[Trigger] Negate the effect of up to 1 of your opponent's Leader or Character cards during this turn.",
     hasTrigger: true,
+    mainTrashTriggerToHand: { excludeDefId: "OP16-115" },
+    triggerNegateOpponent: {},
     traits: ["Blackbeard Pirates"],
   },
   {
@@ -552,6 +603,8 @@ const defs: CardDef[] = [
     imageUrl: localArt("OP16-116"),
     effectText: "[Main] If you have 10 DON!! cards on your field, play up to 1 [Marshall.D.Teach] from your hand. Then, add up to 1 card from the top of your opponent's Life cards to the owner's hand.\n\n[Trigger] Draw 2 cards and trash 1 card from your hand.",
     hasTrigger: true,
+    triggerDrawThenTrash: { draw: 2, trash: 1 },
+    mainPlayNamedThenOpponentLife: { name: "Marshall.D.Teach", requiredDonOnField: 10 },
     traits: ["Blackbeard Pirates"],
   },
   {
@@ -564,10 +617,20 @@ const defs: CardDef[] = [
     imageUrl: localArt("OP16-119"),
     effectText: "[On Play] Look at 3 cards from the top of your deck; add up to 1 card to the top of your Life cards. Then, place the rest at the bottom of your deck in any order.\n\n[Trigger] Negate the effect of up to 1 of your opponent's Characters during this turn. Then, K.O. up to 1 of your opponent's Characters with a cost of 5 or less.",
     hasTrigger: true,
+    onPlaySearchTop: {
+      count: 3,
+      maxTake: 1,
+      takeToLife: true,
+      remainder: "deck_bottom",
+    },
+    triggerNegateOpponent: { charactersOnly: true, thenKoCost: 5 },
     traits: ["Blackbeard Pirates"],
   },
 
 ];
+
+// Frozen before runtime auto-stubs are appended to `defs`.
+const curatedDefIds = new Set(defs.map((def) => def.id));
 
 // Prefer TCGPlayer CDN alt prints when mapped; keep any curated local parallels.
 for (const d of defs) {
@@ -636,6 +699,10 @@ export function hasCardDef(id: CardDefId): boolean {
   return byId.has(normalizeCardDefId(id));
 }
 
+export function isCuratedCardDef(id: CardDefId): boolean {
+  return curatedDefIds.has(normalizeCardDefId(id));
+}
+
 /** Ops snapshot for game-server `/health` (no secrets). */
 export function getDefsHealthSnapshot(): {
   defsCount: number;
@@ -698,15 +765,19 @@ export function ensureCardDef(
           cost: meta?.cost ?? 2,
           imageUrl: localArt(key),
           effectText: printed,
+          ...(meta?.hasTrigger || /\[Trigger\]/i.test(printed)
+            ? { hasTrigger: true }
+            : {}),
           ...(traits ? { traits: [...traits] } : {}),
         };
         if (type === "character") {
           return {
             ...base,
             power: meta?.power ?? 3000,
-            counter: meta?.counter ?? 1000,
-            ...(meta?.blocker ? { blocker: true } : {}),
-            ...(meta?.rush ? { rush: true } : {}),
+            // Missing catalog values and keyword text scans are unverified.
+            // Omission fails closed instead of inventing a +1000 counter or
+            // unconditional Blocker/Rush behavior.
+            ...(meta?.counter != null ? { counter: meta.counter } : {}),
           };
         }
         if (type === "event") {
@@ -780,7 +851,7 @@ export type CardAtlasEntry = {
    * Duel resolution support for printed abilities (export-time).
    * Display text alone is never rules authority.
    */
-  abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unsupported";
+  abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unverified" | "unsupported";
 };
 
 /**
@@ -850,8 +921,8 @@ export function buildCardAtlas(): Record<CardDefId, CardAtlasEntry> {
       power: d.power,
       life: d.life,
       counter: d.counter,
-      blocker: d.blocker,
-      rush: d.rush,
+      blocker: hasUnconditionalKeyword(d.id, "blocker") || undefined,
+      rush: hasUnconditionalKeyword(d.id, "rush") || undefined,
       imageUrl: d.imageUrl,
       effectText: d.effectText,
       // Prefer authored alt list (e.g. local ST01 parallels); else TCGCSV alts.
@@ -874,10 +945,6 @@ export function buildTestDeck(size = 20): CardDefId[] {
     "ST01-003",
     "ST01-003",
     "ST01-003",
-    "ST01-004",
-    "ST01-004",
-    "ST01-004",
-    "ST01-004",
     "ST01-006",
     "ST01-006",
     "ST01-006",
@@ -887,11 +954,13 @@ export function buildTestDeck(size = 20): CardDefId[] {
     "ST01-008",
     "ST01-008",
     "ST01-009",
-    // 1 copy of the demo On-Play-draw character so pending-choice prompts are
-    // reachable in default hotseat/quick-match games without deck editing.
-    "ST01-005",
-    "ST01-014",
-    "ST01-014",
+    "ST01-009",
+    "ST01-009",
+    "ST01-009",
+    "OP12-002",
+    "OP12-002",
+    "OP12-002",
+    "OP12-002",
   ];
   if (size > pool.length) throw new Error(`buildTestDeck max ${pool.length}`);
   return pool.slice(0, size);

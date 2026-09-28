@@ -7,9 +7,12 @@ import {
 import {
   EFFECT_CATALOG,
   abilitySupportForDef,
+  buildCardSupportManifest,
   effectsForCard,
   effectsForDef,
   summarizeEffectCoverage,
+  summarizeCardSupportManifest,
+  unsupportedCardsForDeck,
 } from "../cards/effectCatalog.js";
 import { LEADER_ABILITY_CATALOG } from "../cards/leaderAbilities.js";
 import {
@@ -69,29 +72,69 @@ describe("effect catalog", () => {
     }
   });
 
-  it("marks Moby Dick Stage Activate:Main as implemented", () => {
+  it("marks Moby Dick Stage Activate:Main implemented with up-to-zero support", () => {
     const rows = effectsForCard("OP16-021");
     const activate = rows.find((r) => r.timing === "activate_main");
     expect(activate?.status).toBe("implemented");
-    expect(activate?.hook).toBe("stageActivateTrashGiveRestedDon");
+    expect(activate?.hook).toBe("abilityRegistry");
   });
 
   it("reports coverage totals", () => {
     const cov = summarizeEffectCoverage();
     expect(cov.total).toBe(EFFECT_CATALOG.length);
     expect(cov.implemented + cov.partial + cov.keyword + cov.stub).toBe(cov.total);
-    expect(cov.stub).toBeGreaterThan(0);
+    expect(cov.stub).toBe(0);
   });
 
   it("abilitySupport: vanilla / keywords / ok / unsupported", () => {
     expect(abilitySupportForDef(getCardDef("ST01-003"))).toBe("none");
     expect(abilitySupportForDef(getCardDef("ST01-006"))).toBe("keywords");
     expect(abilitySupportForDef(getCardDef("ST01-001"))).toBe("ok");
-    // Curated stub text without matching hooks stays unsupported.
+    // Roger's Rush and blocker-win condition are both covered.
     const roger = getCardDef("OP09-118");
     const statuses = effectsForDef(roger).map((e) => e.status);
-    expect(statuses.some((s) => s === "stub")).toBe(true);
-    expect(abilitySupportForDef(roger)).toBe("unsupported");
+    expect(statuses.every((s) => s === "implemented" || s === "keyword")).toBe(true);
+    expect(abilitySupportForDef(roger)).toBe("ok");
+  });
+
+  it("does not mistake body references for timing tags or hasTrigger for support", () => {
+    const blackVortex = effectsForCard("OP16-115");
+    expect(blackVortex.map((r) => r.timing)).toEqual(["main", "trigger"]);
+    expect(blackVortex).toMatchObject([
+      { timing: "main", status: "implemented" },
+      { timing: "trigger", status: "implemented" },
+    ]);
+    expect(effectsForCard("OP12-112")).toMatchObject([
+      { timing: "trigger", status: "implemented" },
+    ]);
+  });
+
+  it("assigns stable per-card ability ids", () => {
+    const ids = EFFECT_CATALOG.map((entry) => entry.abilityId);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.every((id) => /^[a-z0-9-]+:[a-z_]+:\d+$/.test(id))).toBe(true);
+  });
+
+  it("accounts for every bundled catalog card without treating fallbacks as vanilla", () => {
+    const manifest = buildCardSupportManifest();
+    expect(Object.keys(manifest)).toHaveLength(2834);
+    expect(manifest["OP01-016"]).toBe("unverified");
+    expect(manifest["ST01-003"]).toBe("none");
+    expect(summarizeCardSupportManifest().unverified).toBe(2790);
+  });
+
+  it("reports partial, unsupported, and unverified cards for ranked validation", () => {
+    expect(
+      unsupportedCardsForDeck({
+        leaderId: "ST01-001",
+        deck: ["ST01-003", "ST01-014", "OP01-016", "OP17-003"],
+      }),
+    ).toEqual([
+      { cardId: "OP01-016", support: "unverified" },
+    ]);
+    expect(
+      unsupportedCardsForDeck({ leaderId: "ST01-001", deck: buildTestDeck(20) }),
+    ).toEqual([]);
   });
 });
 

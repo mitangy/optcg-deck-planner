@@ -54,6 +54,7 @@ describe("resolveAbilitySupport", () => {
   it("exposes inspect note only for unsupported/partial", () => {
     expect(abilitySupportNote("unsupported")).toMatch(/Not implemented/);
     expect(abilitySupportNote("partial")).toMatch(/Not implemented/);
+    expect(abilitySupportNote("unverified")).toMatch(/not been verified/i);
     expect(abilitySupportNote("ok")).toBeNull();
     expect(abilitySupportNote("keywords")).toBeNull();
     expect(abilitySupportNote("none")).toBeNull();

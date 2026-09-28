@@ -26,12 +26,38 @@ export interface CardDef {
   power?: number;
   life?: number;
   counter?: number;
-  blocker?: boolean;
   eventTiming?: "main" | "counter";
   stageLeaderPowerBonus?: number;
   counterPowerBonus?: number;
+  /** Counter effect that temporarily reduces the attacking opponent's power. */
+  counterOpponentPowerPenalty?: number;
+  counterFriendlyPower?: {
+    power: number;
+    charactersOnly?: boolean;
+    allowedLeaderName?: string;
+    requiredTrait?: string;
+  };
+  counterRestDonOpponentAllPenalty?: { restDon: number; power: number };
+  counterOpponentTargetPenalty?: number;
   mainDraw?: number;
   triggerDraw?: number;
+  /** Trigger draw only resolves when the controller's Leader is multicolored. */
+  /** Trigger draws cards, then requires cards to be trashed from hand. */
+  triggerDrawThenTrash?: { draw: number; trash: number };
+  /** Trigger may play a qualifying Character from trash after other Trigger operations. */
+  triggerPlayTrashCharacter?: { trait: string; cost: number };
+  /** Trigger gives the controller's Leader a temporary power bonus. */
+  triggerLeaderPowerBonus?: number;
+  /** Trigger gives a chosen friendly Leader/Character a temporary power bonus. */
+  triggerFriendlyPowerBonus?: number;
+  /** Trigger may negate an opposing Leader/Character, optionally followed by a cost-limited K.O. */
+  triggerNegateOpponent?: { charactersOnly?: boolean; thenKoCost?: number };
+  /** Trigger resolves this card's printed Main effect. */
+  triggerActivateMain?: boolean;
+  /** Trigger resolves this card's printed On Play effect. */
+  triggerActivateOnPlay?: boolean;
+  /** Trigger resolves this card's printed On K.O. effect. */
+  triggerActivateOnKo?: boolean;
   /**
    * Leader Activate: Main [Once Per Turn] — attach 1 rested DON!! from cost
    * area to this Leader or one of your Characters (ST01-001).
@@ -56,8 +82,45 @@ export interface CardDef {
   onPlayDrawThenLifeChoice?: boolean;
   /** After onPlayDraw, pick a hand card for deck top, then add 1 active DON!!. */
   onPlayDrawHandToDeckDon?: boolean;
+  /** Generic top-deck search performed when this card enters play. */
+  onPlaySearchTop?: TopDeckSearchEffect;
+  /** On Play, trash a hand card to move an eligible card from trash to Life. */
+  onPlayTrashHandToLife?: { requiredLeaderTrait?: string; maxCost: number };
+  /** On Play, reveal qualifying Characters, draw cards, then trash cards. */
+  onPlayRevealDrawTrash?: {
+    revealCount: number;
+    revealPower: number;
+    draw: number;
+    trash: number;
+  };
+  /** Generic top-deck search performed by this card's Activate:Main. */
+  activateMainSearchTop?: ActivateMainSearchEffect;
+  /** Generic top-deck search performed by this Event's [Main] effect. */
+  mainSearchTop?: TopDeckSearchEffect;
+  /** Main effect that returns the first eligible Trigger card from trash to hand. */
+  mainTrashTriggerToHand?: { excludeDefId?: CardDefId };
+  /** Main effect that may play a named Character from hand, then take opponent Life. */
+  mainPlayNamedThenOpponentLife?: { name: string; requiredDonOnField: number };
+  /** Activate: Main Teach effect-negation sequence. */
+  activateMainNegateOpponent?: boolean;
+  /** Automatic draw performed by this Character's On K.O. effect. */
+  onKoDraw?: number;
+  onKoDrawRequiredLeaderTrait?: string;
+  /** On K.O., replace the controller's Leader base power for the turn. */
+  onKoLeaderBasePower?: { basePower: number; requiredLeaderTrait?: string };
+  /** On K.O., K.O. up to N opponent Characters at or below a cost. */
+  onKoOpponentKoCost?: { cost: number; maxTargets: number; requiredLeaderTrait?: string };
+  /** On K.O., rest up to N opponent Characters at or below a cost. */
+  onKoOpponentRestCost?: { cost: number; maxTargets: number };
+  /** On K.O., repeat this card's configured top-deck search. */
+  onKoSearchTop?: boolean;
+  /** On K.O., return DON!! from field to the DON!! deck to add deck top to Life. */
+  onKoReturnDonAddLife?: { returnDon: number };
+  /** On K.O., trash a trait-matching hand card to replay this card from trash. */
+  onKoReviveSelf?: { trashHandTrait: string };
+  /** May K.O. this card instead when another friendly Character faces opponent-effect removal. */
+  removalReplacementSelfKo?: boolean;
   /** Rush — may attack the turn this Character enters play. */
-  rush?: boolean;
   /** Optional art URL (TCGPlayer CDN or Bandai cardlist). Display only. */
   imageUrl?: string;
   /** Combat attribute for deck filters / inspect (Strike, Slash, …). Display only. */
@@ -70,11 +133,6 @@ export interface CardDef {
   traits?: string[];
   /** True when the card has a printed [Trigger] effect. */
   hasTrigger?: boolean;
-  /**
-   * [Opponent's Turn] Give all of your opponent's Characters +N cost
-   * (Teach OP16-080).
-   */
-  leaderOpponentCharacterCostBonus?: number;
   /**
    * [On Opponent's Attack] [Once Per Turn] Trash 1 hand card: give a chosen
    * own Leader/Character +power this battle (Newgate OP17-001).
@@ -90,6 +148,26 @@ export interface CardDef {
    * `revealTrait`, draw `draw` cards (Rocks.D.Xebec OP17-039).
    */
   leaderWhenAttackingTrashRevealDraw?: { revealTrait: string; draw: number };
+}
+
+export interface TopDeckSearchEffect {
+  count: number;
+  maxTake: number;
+  filterTrait?: string;
+  /** Match either a trait or any card name containing one of these strings. */
+  filterTraitOrName?: { trait: string; nameIncludes: string[] };
+  excludeDefIds?: CardDefId[];
+  requiredLeaderTrait?: string;
+  /** Put the selected card on top of Life instead of adding it to hand. */
+  takeToLife?: boolean;
+  remainder: "deck_bottom" | "trash";
+}
+
+export interface ActivateMainSearchEffect extends TopDeckSearchEffect {
+  abilityId: string;
+  restDon?: number;
+  restSource?: boolean;
+  trashHand?: number;
 }
 
 export interface CardInstance {
@@ -110,6 +188,18 @@ export interface CardInstance {
   statusLabels?: string[];
   /** Temporary power bonus for the current battle (cleared when battle ends). */
   battlePowerBonus?: number;
+  /** Temporary modifier cleared when the current turn ends. */
+  turnPowerBonus?: number;
+  /** Temporary base-power replacement cleared at the next turn start. */
+  turnBasePowerOverride?: number;
+  /** Absolute turn whose End Phase expires the base-power replacement. */
+  basePowerOverrideThroughTurn?: number;
+  /** Card text is disabled through this absolute turn number. */
+  effectsNegatedThroughTurn?: number;
+  /** Character cannot attack through this absolute turn number. */
+  cannotAttackThroughTurn?: number;
+  /** Per-source Activate: Main use marker, cleared at its controller's turn start. */
+  abilityUsedThisTurn?: boolean;
 }
 
 export interface DonInstance {
@@ -142,6 +232,7 @@ export type PendingChoiceKind =
   | "when_attacking"
   | "optional_ability"
   | "leader_on_opp_attack"
+  | "search_top_deck"
   /** Controller must pick resolution order for 2+ simultaneous effects. */
   | "order_effects";
 
@@ -157,6 +248,8 @@ export type PendingChoiceKind =
 export interface PendingChoice {
   /** Stable id for React keys / logs; not gameplay-significant. */
   id: string;
+  /** Declarative runtime continuation resumed by this prompt. */
+  resolutionFrameId?: string;
   seat: Seat;
   kind: PendingChoiceKind;
   cardDefId: CardDefId;
@@ -176,7 +269,59 @@ export interface PendingChoice {
     | "rocks_reveal_draw"
     | "on_play_add_life"
     | "on_play_life_choice"
-    | "on_play_hand_to_deck";
+    | "on_play_power_debuff"
+    | "on_play_hand_to_deck"
+    | "laffitte_search"
+    | "fullalead_search_cost"
+    | "top_deck_search"
+    | "jinbe_attack_power"
+    | "copy_opponent_power"
+    | "on_play_ko_power"
+    | "on_play_trash_hand_to_life"
+    | "on_play_reveal_draw_trash"
+    | "discard_hand_count"
+    | "main_play_named_character"
+    | "main_opponent_life_to_hand"
+    | "trigger_negate_opponent_card"
+    | "trigger_ko_opponent_cost"
+    | "teach_negate_leader"
+    | "teach_negate_character"
+    | "on_ko_return_don_add_life"
+    | "on_ko_revive_self"
+    | "marco_removal_replacement"
+    | "main_trash_trigger_to_hand"
+    | "on_ko_set_base_power"
+    | "on_ko_ko_opponent_cost"
+    | "on_ko_rest_opponent_cost"
+    | "trigger_play_trash_character"
+    | "on_play_add_active_don"
+    | "counter_friendly_power"
+    | "counter_rest_don_opponent_all"
+    | "counter_opponent_target_power"
+    | "trigger_friendly_power";
+  /** Hidden top-deck choices. Only `privateToSeat` receives card identities. */
+  search?: {
+    options: Array<{
+      /** Opaque stable handle submitted by clients. */
+      id: string;
+      defId: CardDefId;
+      eligible: boolean;
+    }>;
+    maxSelect: number;
+    remainder: "deck_bottom" | "trash";
+    takeToLife?: boolean;
+  };
+  trashOptions?: Array<{ id: string; defId: CardDefId; eligible: boolean; instanceId?: InstanceId }>;
+  handSelection?: { count: number; qualifyingPower?: number };
+  donOptions?: Array<{ id: InstanceId; rested: boolean; attachedTo?: InstanceId | null }>;
+  replacementTargetId?: InstanceId;
+  targetSelection?: { maxTargets: number; maxCost?: number };
+  /** Seat allowed to see `search.options[].defId` and eligibility. */
+  privateToSeat?: Seat;
+  /** Hide the source card identity and prompt from every other viewer. */
+  hideCardDefFromOthers?: boolean;
+  /** Public count retained when private search options are redacted. */
+  optionCount?: number;
   /**
    * When `kind` is `order_effects`, the simultaneous abilities the controller
    * must permute via `order_pending_effects`.
@@ -195,6 +340,14 @@ export interface PlayerState {
   deck: CardDefId[];
   trash: CardDefId[];
   life: CardDefId[];
+  /** Stable internal identities for cards in hidden/public non-field zones. */
+  zoneInstanceIds: {
+    deck: InstanceId[];
+    trash: InstanceId[];
+    life: InstanceId[];
+  };
+  /** Parallel to `life`: true entries are publicly face-up. */
+  faceUpLife: boolean[];
   donDeck: DonInstance[];
   costArea: DonInstance[];
   attachedDons: DonInstance[];
@@ -207,6 +360,11 @@ export interface PlayerState {
 }
 
 export interface MatchState {
+  stateVersion: 2;
+  rulesVersion: string;
+  protocolVersion: 4;
+  registryHash: string;
+  rng: { seed: number; cursor: number };
   players: [PlayerState, PlayerState];
   activeSeat: Seat;
   firstSeat: Seat;
@@ -215,10 +373,23 @@ export interface MatchState {
   battle: BattleState | null;
   /** FIFO queue of pending player choices (life triggers, On Play/Activate abilities, …). */
   pendingChoices: PendingChoice[];
+  /** Serializable continuations for paused declarative ability programs. */
+  resolutionFrames: ResolutionFrame[];
   winner: Seat | null;
   winReason: "leader_battle_at_zero_life" | "deck_out" | null;
   nextId: number;
   lastEvents: GameEvent[];
+}
+
+export interface ResolutionFrame {
+  id: string;
+  seat: Seat;
+  sourceInstanceId: InstanceId;
+  sourceDefId: CardDefId;
+  abilityId: string;
+  window: string;
+  operationIndex: number;
+  bindings: Record<string, string | string[] | number | boolean | null>;
 }
 
 export type GameEvent =
@@ -263,7 +434,7 @@ export type GameEvent =
     }
   | { type: "character_ko"; seat: Seat; defId: CardDefId }
   | { type: "life_taken"; seat: Seat; defId: CardDefId; toHand: boolean }
-  | { type: "life_added"; seat: Seat; defId: CardDefId; source: "deck_top" }
+  | { type: "life_added"; seat: Seat; defId: CardDefId; source: "deck_top"; faceUp?: boolean }
   | { type: "trigger_available"; seat: Seat; defId: CardDefId }
   | { type: "trigger_resolved"; seat: Seat; accepted: boolean }
   | {
@@ -274,6 +445,13 @@ export type GameEvent =
       matchedTrait?: boolean;
     }
   | {
+      type: "power_buff_applied";
+      seat: Seat;
+      targetDefId: CardDefId;
+      amount: number;
+      duration: "turn" | "battle";
+    }
+  | {
       type: "pending_choice_added";
       seat: Seat;
       kind: PendingChoiceKind;
@@ -281,6 +459,8 @@ export type GameEvent =
       sourceInstanceId?: InstanceId;
       optional: boolean;
       prompt: string;
+      privateToSeat?: Seat;
+      hideCardDefFromOthers?: boolean;
     }
   | {
       type: "pending_choice_resolved";
@@ -288,6 +468,8 @@ export type GameEvent =
       kind: PendingChoiceKind;
       cardDefId: CardDefId;
       accepted: boolean;
+      privateToSeat?: Seat;
+      hideCardDefFromOthers?: boolean;
     }
   | { type: "game_over"; winner: Seat; reason: NonNullable<MatchState["winReason"]> };
 
@@ -325,10 +507,24 @@ export type Intent =
       handIndex?: number;
       /** Own Leader/Character gaining battle power (Newgate). */
       buffTargetId?: InstanceId;
+      /** Opponent Character selected by a copy-power attack ability. */
+      copyPowerTargetId?: InstanceId;
       /** New attack target after Teach redirect. */
       newTarget?: AttackTarget;
       /** On Play life-branch choice (OP17-112). */
       onPlayChoice?: "own_life" | "opp_life";
+      /** Opaque selected option for a private top-deck search; omitted means take zero. */
+      selectedOptionId?: string;
+      /** Opaque handles for all unselected cards in requested remainder order. */
+      orderedOptionIds?: string[];
+      /** Trash card selected by an On Play hand-to-Life effect. */
+      selectedTrashOptionId?: string;
+      /** Hand indices selected by reveal/discard effects. */
+      handIndices?: number[];
+      /** DON!! ids selected for a DON!!−N effect cost. */
+      selectedDonIds?: InstanceId[];
+      /** Board instance ids selected by multi-target effects. */
+      targetIds?: InstanceId[];
     }
   /**
    * Choose resolution order for the front `order_effects` pending choice.
