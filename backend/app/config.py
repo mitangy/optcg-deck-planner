@@ -54,9 +54,12 @@ class Settings(BaseSettings):
     @property
     def sqlalchemy_url(self) -> str:
         url = self.database_url
-        # Neon / Render often provide postgres:// — SQLAlchemy wants postgresql://
-        if url.startswith("postgres://"):
-            return "postgresql://" + url[len("postgres://") :]
+        # Neon / Render provide postgres:// or postgresql://. Name the installed
+        # driver explicitly: SQLAlchemy 2.1 defaults bare URLs to psycopg (v3),
+        # which is not installed (requirements.txt ships psycopg2-binary).
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                return "postgresql+psycopg2://" + url[len(prefix) :]
         return url
 
     @property

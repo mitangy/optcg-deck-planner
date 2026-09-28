@@ -86,3 +86,23 @@ def test_local_sqlite_http_is_not_production(monkeypatch):
     get_settings.cache_clear()
     assert get_settings().is_production is False
     get_settings.cache_clear()
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgres://u:p@db.example.com/app",
+        "postgresql://u:p@db.example.com/app",
+        "postgresql+psycopg2://u:p@db.example.com/app",
+    ],
+)
+def test_postgres_urls_use_the_installed_psycopg2_driver(url):
+    # SQLAlchemy 2.1 made psycopg (v3) the default for bare postgresql:// URLs,
+    # but only psycopg2-binary is installed; the app must name its driver.
+    from sqlalchemy import create_engine
+
+    from app.config import Settings
+
+    engine = create_engine(Settings(database_url=url).sqlalchemy_url)
+    assert engine.dialect.driver == "psycopg2"
+    engine.dispose()
