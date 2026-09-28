@@ -42,7 +42,9 @@ describe("atlas art resolution", () => {
   it("distinguishes curated coverage from unverified cosmetics entries", () => {
     expect(lookupCard("ST01-001").abilitySupport).toBe("ok");
     expect(lookupCard("ST01-014").abilitySupport).toBe("ok");
-    expect(lookupCard("OP01-016").abilitySupport).toBe("unverified");
+    // Every catalog card is curated now; only ids outside the catalog are unverified stubs.
+    expect(lookupCard("OP01-016").abilitySupport).toBe("ok");
+    expect(lookupCard("OP99-999").abilitySupport).toBe("unverified");
   });
 });
 

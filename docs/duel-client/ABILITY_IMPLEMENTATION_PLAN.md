@@ -420,3 +420,47 @@ This is a substantial rules-and-content project. Deliver it in independently ver
 The plan direction is approved, including restructuring existing code for a robust, extensible game engine (2026-09-16). No additional architecture approval is required merely because a slice refactors working code. Complete the development-readiness checklist using source verification, concrete contracts, and acceptance fixtures for each slice.
 
 The registry/search migration is underway, with shared draw programs and curated behavior corrections also implemented. The next milestone is to finish the remaining Phase 2 contracts and curated migration, including the approved hybrid script boundary, while completing Phase 1 source verification. Use declarative data for the baseline and isolated script modules for bespoke effects; do not resume per-card core/server branches. Deliver independently verified slices through all acceptance gates; deployment remains separate from this documentation update.
+
+## Implementation log (2026-09-27b)
+
+Branch `claude/durable-match-writeback-impl-0ca3c3`, based on `codex/durable-match-writeback`.
+
+### What shipped
+
+- **Single cut-over to a generic runtime** (`packages/rules/src/engine/`). The legacy per-card engine, `registry/`, `runtime/`, `effectOrder.ts` and the tests that enforced legacy prompt shapes are deleted. Abilities compile to flat, resumable instruction lists (`effects/compile.ts`). A paused program is a JSON `ResolutionFrame` (instruction index plus bindings), so any mid-effect state snapshots and resumes exactly. Triggers queue in batches: the turn player's triggers resolve first, and a player with several simultaneous triggers chooses their order.
+- **Official card data.** `tools/buildCardData.ts` builds `cards/cardData.json` from the Bandai candidate snapshot, replayed with importer v3, which also fixes the lost `<Slash>`-style attributes. The 49 IDs missing from the official English lists keep their bundled rows and are marked `bundled`. Printing suffixes on promo names (e.g. "Trafalgar Law (Event Pack Vol. 4)") are stripped so that name-based effects match.
+- **Authoring compiler** (`tools/cardText/`). It normalizes the official text, then applies phrase and grammar rules to produce `cards/generated/abilities.json`, which is checked in. A test fails when the file is stale. A clause the compiler cannot fully consume is recorded verbatim as unsupported.
+- **Reviewed manual definitions** (`cards/manualAbilities.ts`), 206 cards. A `patch` entry replaces only the generated clauses its `text` names. If a patch no longer matches an unsupported clause, the registry fails to load, so a patch goes stale loudly once the grammar learns its clause. `tools/cardText/checkManual.ts` checks that every name and type a manual entry references exists in the catalog.
+- **Protocol 5.** A single generic choice request comes in five shapes: `confirm`, `select`, `mode`, `order` and `look`. duel-web and mobile each render it with one `ChoicePrompt`. Views redact hidden options: face-down Life, the opponent's hand, and private looks.
+- **Game and deck rules printed on Leaders.** Deck-out variants (OP15-022, P-117), DON!! placement (OP13-003), the start-of-game Stage (OP13-079), face-up Life handling (ST13-003), and deck-construction limits via `deckConstructionErrors`. The limits also ship in the atlas as `deckRules`, and duel-web's deck import enforces them.
+
+### Coverage
+
+| | Cards |
+|---|---|
+| Catalog | 2,834 |
+| Every printed clause implemented | 2,550 |
+| Vanilla (no ability text) | 284 |
+| Partial / unsupported | 0 |
+
+The grammar alone covers 2,344 cards (plus the 284 vanilla). The rest use manual patches. No card needed a `CustomScript`, so the script runner (decision 5) stays unimplemented. That is deliberate: every bespoke effect fit in DSL plus a small set of generic primitives.
+
+### Verification
+
+- Rules: 102 tests, covering primitive behavior (one real card per primitive, asserting state changes so silent no-ops fail), the 44 originally curated cards as regression fixtures, and the manual-definition primitives.
+- Full-catalog fuzz sweep (`npx tsx src/sim/fuzz.ts --sweep 10 2`): 0 errors or invariant violations. 2,427 of 2,997 triggered or activated abilities actually fired. The other 570 never met their conditions in random focused decks, so they are type-checked and validated but not exercised.
+- game-server: 18 tests. duel-web: 130 tests plus a production build (large-bundle warning; the full atlas adds about 146 KB gzip). Mobile: 6 tests plus a typecheck.
+
+### Known limitations and interpretations
+
+- **Semantic review is sampled, not exhaustive.** The compiler only emits DSL for clauses it fully consumes, and random samples were audited against the printed text. Individual generated cards can still be wrong in ways the fuzzer cannot see: a legal but incorrect effect. Report per card and fix with a grammar rule or a manual patch.
+- Rulings chosen where the text is ambiguous:
+  - OP01-063 picks the opponent's hand card at random, because the choice is blind.
+  - OP01-062 tracks "haven't drawn using this Leader's effect" as once per turn.
+  - OP12-040 draws once per trashed card, which gives the same total.
+  - OP15-098 treats a battle K.O. as "removed by your opponent".
+  - OP15-080 checks "no other [Oars]" on your own field.
+  - OP10-058 only lets you choose a cost-4-or-less card as the rested second card.
+  - OP13-079 automatically plays the first {Mary Geoise} Stage in the deck at game start.
+- Three bundled cards had garbled source text: EB05-005, P-118 and P-142. Their definitions follow the printed card, not the snapshot text. Re-verify them when official English data appears.
+- Not done in this revision: native/live-match walkthrough recordings, and backend `pytest` for the writeback path (the environment lacks `pytest`).

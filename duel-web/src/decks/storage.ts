@@ -118,6 +118,7 @@ export function validateImportedList(text: string): DeckValidation {
     warnings.push(`Main deck has ${cards.length} cards (prototype allows short decks; constructed is 50).`);
   }
   if (cards.length > 50) errors.push(`Main deck has ${cards.length} cards (max 50)`);
+  if (leaders.length === 1) errors.push(...leaderDeckRuleErrors(leaders[0], cards));
 
   return {
     ok: errors.length === 0 && leaders.length === 1,
@@ -127,6 +128,28 @@ export function validateImportedList(text: string): DeckValidation {
     cards,
     lines,
   };
+}
+
+/** Leader "Under the rules of this game, you cannot include …" rules (mirrors `deckConstructionErrors`). */
+export function leaderDeckRuleErrors(leaderId: string, cards: readonly string[]): string[] {
+  const leader = lookupCard(leaderId);
+  const errors: string[] = [];
+  for (const rule of leader.deckRules ?? []) {
+    const [kind, arg = ""] = rule.split(":");
+    const offending = [...new Set(cards)].filter((id) => {
+      const card = lookupCard(id);
+      if (kind === "max_cost") return card.cost > Number(arg);
+      if (kind === "no_events_cost_ge") return card.type === "event" && card.cost >= Number(arg);
+      if (kind === "only_trait") return !(card.traits ?? []).includes(arg);
+      return false;
+    }).sort();
+    if (!offending.length) continue;
+    const list = offending.join(", ");
+    if (kind === "max_cost") errors.push(`${leader.name} cannot include cards with a cost of ${Number(arg) + 1} or more: ${list}`);
+    if (kind === "no_events_cost_ge") errors.push(`${leader.name} cannot include Events with a cost of ${arg} or more: ${list}`);
+    if (kind === "only_trait") errors.push(`${leader.name} can only include {${arg}} type cards: ${list}`);
+  }
+  return errors;
 }
 
 function readAll(): SavedDeck[] {

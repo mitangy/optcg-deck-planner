@@ -36,6 +36,8 @@ export type CardAtlasEntry = {
    * entries omit this; CardInspect falls back to abilitySupport heuristics.
    */
   abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unverified" | "unsupported";
+  /** Leader deck-construction rules, e.g. `max_cost:4`, `only_trait:East Blue`. */
+  deckRules?: string[];
 };
 
 /**
