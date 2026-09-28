@@ -116,8 +116,14 @@ class CardView(BaseModel):
     card_type: str = ""
     cost: int | str | None = None
     needed: int
+    # Total owned (shared across every deck — what the Owned stepper edits).
     owned: int
     still_need: int
+    # "Separate per leader": copies that leaders earlier in deck order need
+    # first. still_need = needed − (owned − earlier_leaders_need), floored at 0.
+    # Always 0 when copies are shared between leaders.
+    earlier_leaders_need: int = 0
+    earlier_leaders: list[str] = []
     market_price: float | None = None
     low_price: float | None = None
     image_url: str = ""

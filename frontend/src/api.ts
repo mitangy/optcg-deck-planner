@@ -109,8 +109,12 @@ export type CardView = {
   card_type: string;
   cost: number | string | null;
   needed: number;
+  /** Total owned, shared by every deck (what the Owned stepper edits). */
   owned: number;
   still_need: number;
+  /** Separate per leader: copies leaders earlier in deck order use first (0 when shared). */
+  earlier_leaders_need?: number;
+  earlier_leaders?: string[];
   market_price: number | null;
   low_price: number | null;
   image_url: string;

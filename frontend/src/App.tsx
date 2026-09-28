@@ -344,6 +344,23 @@ function patchOwnedQty(cardId: string, qty: number, need: number, market: number
   return { owned: qty, still_need: still, remaining_cost: remaining };
 }
 
+/** "4 go to Luffy first" when earlier leaders use some of the owned copies. */
+function OwnedClaimNote({ card }: { card: CardView }) {
+  const earlier = card.earlier_leaders_need ?? 0;
+  const claimed = Math.min(card.owned, earlier);
+  if (claimed <= 0) return null;
+  const leaders = (card.earlier_leaders ?? []).join(", ") || "earlier decks";
+  const left = card.owned - claimed;
+  return (
+    <span
+      className="owned-claim-note"
+      title={`Copies needed is set to Separate per leader: owned copies go to leaders in deck order. ${leaders} need ${earlier} first, leaving ${left} of your ${card.owned} for this deck.`}
+    >
+      {claimed} go to {leaders} first
+    </span>
+  );
+}
+
 function shoppingListStats(data: {
   unique_cards?: number;
   cards_still_needed?: number;
@@ -403,8 +420,9 @@ function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: str
       ...old,
       cards: old.cards.map((card) => {
         if (card.card_id.toUpperCase() !== id) return card;
-        const patched = patchOwnedQty(id, qty, card.needed, card.market_price);
-        return { ...card, owned: patched.owned, still_need: patched.still_need };
+        // Earlier leaders take their copies first in "Separate per leader" mode.
+        const available = Math.max(0, qty - (card.earlier_leaders_need ?? 0));
+        return { ...card, owned: qty, still_need: Math.max(0, card.needed - available) };
       }),
     };
   });
@@ -1601,9 +1619,9 @@ function ShoppingPage() {
             </div>
             <p className="need-mode-note muted">
               {sumAcrossLeaders
-                ? "Each leader gets its own copies: 4 in a Luffy deck + 3 in a Sabo deck = 7 to buy."
+                ? "Each leader gets its own copies: 4 in a Luffy deck + 3 in a Sabo deck = 7 to buy. Owned copies fill leaders in deck order."
                 : "One set of copies is moved between decks: 4 in a Luffy deck and 3 in a Sabo deck = 4 to buy."}{" "}
-              Decks with the same leader always share. Also used for your public link and group buys.
+              Decks with the same leader always share. Also used for deck pages, your public link and group buys.
             </p>
           </div>
           {sortingByDeck && (
@@ -2119,6 +2137,7 @@ function CardTable({
                 <span>Owned</span>
                 <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
               </div>
+              <OwnedClaimNote card={c} />
               {c.tcgplayer_url && (
                 <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
                   TCGPlayer
@@ -2168,6 +2187,7 @@ function CardTable({
                 </td>
                 <td>
                   <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
+                  <OwnedClaimNote card={c} />
                 </td>
                 <td>
                   {editing && onNeededChange ? (
@@ -2231,6 +2251,7 @@ function CardTable({
                     <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
                   </div>
                 </div>
+                <OwnedClaimNote card={c} />
               </div>
             </div>
             {editing && onNeededChange ? (

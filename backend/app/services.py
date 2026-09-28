@@ -258,8 +258,11 @@ def _card_view(
     section: str,
     alt_arts: list[PrintingView] | None = None,
     product_id: int | None = None,
+    earlier_leaders_need: int = 0,
+    earlier_leaders: list[str] | None = None,
 ) -> CardView:
     cost = parse_cost(cat.cost) if cat else None
+    available = max(0, owned - earlier_leaders_need)
     return CardView(
         card_id=card_id,
         name=cat.name if cat else "(not in catalog)",
@@ -269,7 +272,9 @@ def _card_view(
         cost=cost,
         needed=needed,
         owned=owned,
-        still_need=max(0, needed - owned),
+        still_need=max(0, needed - available),
+        earlier_leaders_need=earlier_leaders_need,
+        earlier_leaders=earlier_leaders or [],
         market_price=cat.market_price if cat else None,
         low_price=cat.low_price if cat else None,
         image_url=cat.image_url if cat else "",
@@ -461,7 +466,8 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
 
     owned = _owned_map(db, user.id)
     all_ids = {c.card_id for d in decks for c in d.cards}
-    catalog = _catalog_map(db, all_ids)
+    leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
+    catalog = _catalog_map(db, all_ids | leader_ids)
     deck_wants = _printing_wants_for_decks(db, [target.id]).get(target.id, {})
     alts = _alt_arts_map(db, all_ids, wanted=deck_wants)
     product_ids = _primary_product_ids(db, all_ids)
@@ -473,6 +479,33 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
     if baseline is not None and not is_main:
         prior_names = [baseline.name]
         prior_ids = {c.card_id for c in baseline.cards}
+
+    # "Separate per leader": owned copies go to leaders in deck order, so this
+    # deck only gets what earlier leaders leave over (matches Master Shopping).
+    earlier_need: dict[str, int] = defaultdict(int)
+    earlier_labels: dict[str, list[str]] = defaultdict(list)
+    if getattr(user, "sum_across_leaders", False):
+        # Leader groups are ordered by their first deck (same as Master Shopping).
+        group_order: dict[str, int] = {}
+        for idx, deck in enumerate(decks):
+            group_order.setdefault(_leader_group_id(deck), idx)
+        target_rank = group_order[_leader_group_id(target)]
+        group_need: dict[str, dict[str, int]] = {}
+        group_label: dict[str, str] = {}
+        for deck in decks:
+            group = _leader_group_id(deck)
+            if group_order[group] >= target_rank:
+                continue
+            if group not in group_label:
+                leader = catalog.get(deck.leader_card_id) if deck.leader_card_id else None
+                group_label[group] = leader.name if leader else deck.name
+            by_card = group_need.setdefault(group, {})
+            for c in deck.cards:
+                by_card[c.card_id] = max(by_card.get(c.card_id, 0), c.needed)
+        for group, by_card in group_need.items():
+            for card_id, n in by_card.items():
+                earlier_need[card_id] += n
+                earlier_labels[card_id].append(group_label[group])
 
     cards: list[CardView] = []
     for card in target.cards:
@@ -494,6 +527,8 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
                 section,
                 alts.get(card.card_id, []),
                 product_ids.get(card.card_id),
+                earlier_leaders_need=earlier_need.get(card.card_id, 0),
+                earlier_leaders=earlier_labels.get(card.card_id, []),
             )
         )
 

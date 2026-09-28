@@ -1075,6 +1075,15 @@ tr.selected-row td,
   min-width: 0;
 }
 
+.owned-claim-note {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--muted);
+  cursor: help;
+}
+
 .need-mode-note {
   margin: 0.5rem 0 0;
   font-size: 0.88rem;
