@@ -1,804 +1,113 @@
-import { hasUnconditionalKeyword } from "../registry/searchSlice.js";
-import type { CardDef, CardDefId } from "../types.js";
-import { catalogMetaFor, catalogTypeFor } from "./catalogMeta.js";
-import { tcgAltsForCard, tcgArtForCard } from "./tcgArt.js";
-
-/** Bandai EN cardlist art keyed by official card number (often CORP-blocked in browsers). */
-function bandaiArt(id: string): string {
-  return `https://en.onepiece-cardgame.com/images/cardlist/card/${id}.png`;
-}
-
 /**
- * Prefer TCGPlayer CDN (same as the deck planner catalog). Fall back to a local
- * `/cards/` mirror when no product id is mapped yet.
+ * Card definitions: printed metadata from the generated official card data
+ * (`cardData.json`). Executable behavior comes from the ability registry
+ * (`abilities.ts`); nothing here encodes card-specific rules.
  */
-function localArt(id: string): string {
+import type { CardDef, CardDefId, CardType } from "../types.js";
+import { cardDataFor, listCardDataIds } from "./cardData.js";
+import { tcgAltsForCard, tcgArtForCard } from "./tcgArt.js";
+import { cardHasUnconditionalKeyword } from "./keywords.js";
+
+/** Local parallel-art mirrors shipped with duel-web (`public/cards`). */
+const LOCAL_ALTS: Record<string, { id: string; label: string }[]> = {
+  "ST01-001": [{ id: "p1", label: "Alternate Art" }],
+  "ST01-006": [{ id: "p1", label: "Alternate Art" }, { id: "p2", label: "Parallel 2" }],
+  "ST01-008": [{ id: "p1", label: "Alternate Art" }, { id: "p2", label: "Parallel 2" }],
+  "ST01-009": [{ id: "p1", label: "Alternate Art" }, { id: "p2", label: "Parallel 2" }],
+  "ST01-014": [{ id: "p1", label: "Alternate Art" }, { id: "p2", label: "Parallel 2" }],
+};
+
+function artFor(id: string): string {
   return tcgArtForCard(id) ?? `/cards/${id}.png`;
 }
 
-function localAlt(id: string, parallel: string): string {
-  const fromTcg = tcgAltsForCard(id).find((a) => a.id === parallel);
-  if (fromTcg) return fromTcg.imageUrl;
-  return `/cards/${id}_${parallel}.webp`;
+function altsFor(id: string): CardDef["altArts"] {
+  const tcg = tcgAltsForCard(id);
+  const byId = new Map<string, { id: string; label: string; imageUrl: string }>();
+  for (const alt of LOCAL_ALTS[id] ?? []) byId.set(alt.id, { ...alt, imageUrl: `/cards/${id}_${alt.id}.webp` });
+  for (const alt of tcg) byId.set(alt.id, alt);
+  return byId.size ? [...byId.values()] : undefined;
 }
 
-/**
- * Corrected curated ST01 ids (Step 3.5 audit).
- * Only prints that map 1:1 onto engine hooks (plus ST01-001 Activate:Main).
- */
-const defs: CardDef[] = [
-  {
-    id: "ST01-001",
-    name: "Monkey.D.Luffy",
-    type: "leader",
-    colors: ["red"],
-    cost: 0,
-    power: 5000,
-    life: 5,
-    traits: ["Supernovas", "Straw Hat Crew"],
-    leaderActivateGiveRestedDon: true,
-    imageUrl: localArt("ST01-001"),
-    effectText:
-      "[Activate: Main] [Once Per Turn] Give this Leader or 1 of your Characters up to 1 rested DON!! card.",
-    altArts: [
-      { id: "p1", label: "Alternate Art", imageUrl: localAlt("ST01-001", "p1") },
-    ],
-  },
-  {
-    id: "ST01-003",
-    name: "Karoo",
-    type: "character",
-    colors: ["red"],
-    cost: 1,
-    power: 3000,
-    counter: 1000,
-    traits: ["Animal", "Alabasta"],
-    imageUrl: localArt("ST01-003"),
-    effectText: "—",
-  },
-  {
-    id: "ST01-004",
-    name: "Sanji",
-    type: "character",
-    colors: ["red"],
-    cost: 2,
-    power: 4000,
-    traits: ["Straw Hat Crew"],
-    imageUrl: localArt("ST01-004"),
-    effectText:
-      "[DON!! x2] This Character gains [Rush]. (This card can attack on the turn in which it is played.)",
-  },
-  {
-    id: "ST01-006",
-    name: "TonyTony.Chopper",
-    type: "character",
-    colors: ["red"],
-    cost: 1,
-    power: 1000,
-    traits: ["Animal", "Straw Hat Crew"],
-    imageUrl: localArt("ST01-006"),
-    effectText:
-      "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.)",
-    altArts: [
-      { id: "p1", label: "Alternate Art", imageUrl: localAlt("ST01-006", "p1") },
-      { id: "p2", label: "Parallel 2", imageUrl: localAlt("ST01-006", "p2") },
-    ],
-  },
-  {
-    id: "ST01-008",
-    name: "Nico Robin",
-    type: "character",
-    colors: ["red"],
-    cost: 3,
-    power: 5000,
-    counter: 1000,
-    traits: ["Straw Hat Crew"],
-    imageUrl: localArt("ST01-008"),
-    effectText: "—",
-    altArts: [
-      { id: "p1", label: "Alternate Art", imageUrl: localAlt("ST01-008", "p1") },
-      { id: "p2", label: "Parallel 2", imageUrl: localAlt("ST01-008", "p2") },
-    ],
-  },
-  {
-    id: "ST01-009",
-    name: "Nefeltari Vivi",
-    type: "character",
-    colors: ["red"],
-    cost: 2,
-    power: 4000,
-    counter: 1000,
-    traits: ["Alabasta"],
-    imageUrl: localArt("ST01-009"),
-    effectText: "—",
-    altArts: [
-      { id: "p1", label: "Alternate Art", imageUrl: localAlt("ST01-009", "p1") },
-      { id: "p2", label: "Parallel 2", imageUrl: localAlt("ST01-009", "p2") },
-    ],
-  },
-  {
-    id: "ST01-005",
-    name: "Jinbe",
-    type: "character",
-    colors: ["red"],
-    cost: 3,
-    power: 5000,
-    traits: ["Fish-Man", "Straw Hat Crew"],
-    imageUrl: localArt("ST01-005"),
-    effectText:
-      "[DON!! x1] [When Attacking] Up to 1 of your Leader or Character cards other than this card gains +1000 power during this turn.",
-  },
-  {
-    id: "ST01-014",
-    name: "Guard Point",
-    type: "event",
-    colors: ["red"],
-    cost: 1,
-    eventTiming: "counter",
-    counterFriendlyPower: { power: 3000 },
-    triggerFriendlyPowerBonus: 1000,
-    hasTrigger: true,
-    traits: ["Animal", "Straw Hat Crew"],
-    imageUrl: localArt("ST01-014"),
-    effectText:
-      "[Counter] Up to 1 of your Leader or Character cards gains +3000 power during this battle.\n\n[Trigger] Up to 1 of your Leader or Character cards gains +1000 power during this turn.",
-    altArts: [
-      { id: "p1", label: "Alternate Art", imageUrl: localAlt("ST01-014", "p1") },
-      { id: "p2", label: "Parallel 2", imageUrl: localAlt("ST01-014", "p2") },
-    ],
-  },
-
-  // --- Constructed test-deck stubs (printed identity + vanilla play; hooks TBD) ---
-  {
-    id: "OP17-001",
-    name: "Edward.Newgate",
-    type: "leader",
-    colors: ["red"],
-    cost: 0,
-    power: 5000,
-    life: 5,
-    imageUrl: localArt("OP17-001"),
-    effectText:
-      "[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card from your hand: Up to 1 of your Leader or Characters gains +4000 power during this battle.",
-    leaderOnOppAttackTrashForPower: { power: 4000 },
-    traits: ["The Four Emperors", "Whitebeard Pirates"],
-  },
-  {
-    id: "OP16-080",
-    name: "Marshall.D.Teach",
-    type: "leader",
-    colors: ["black", "yellow"],
-    cost: 0,
-    power: 5000,
-    life: 4,
-    imageUrl: localArt("OP16-080"),
-    traits: ["The Seven Warlords of the Sea", "Blackbeard Pirates"],
-    effectText:
-      "[Opponent's Turn] All of your Characters gain +1 cost.\n\n[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card with a [Trigger] from your hand: Change the target of that attack to this Leader or 1 of your {Blackbeard Pirates} type Characters.",
-    leaderOnOppAttackTrashTriggerRetarget: { retargetTrait: "Blackbeard Pirates" },
-  },
-  {
-    id: "OP17-039",
-    name: "Rocks.D.Xebec",
-    type: "leader",
-    colors: ["blue"],
-    cost: 0,
-    power: 5000,
-    life: 5,
-    imageUrl: localArt("OP17-039"),
-    traits: ["Rocks Pirates"],
-    attribute: "Slash",
-    effectText:
-      '[When Attacking] You may trash 1 card from your hand: Reveal 1 card from the top of your deck. If the revealed card\'s type includes "Rocks Pirates", draw 2 cards.',
-    leaderWhenAttackingTrashRevealDraw: { revealTrait: "Rocks Pirates", draw: 2 },
-  },
-  {
-    id: "OP09-118",
-    name: "Gol.D.Roger",
-    type: "character",
-    colors: ["red"],
-    cost: 10,
-    power: 13000,
-    imageUrl: localArt("OP09-118"),
-    effectText: "[Rush] (This card can attack on the turn in which it is played.)\n\nWhen your opponent activates [Blocker], if either you or your opponent has 0 Life cards, you win the game.",
-  },
-  {
-    id: "OP12-002",
-    name: "Edward.Newgate",
-    type: "character",
-    colors: ["red"],
-    cost: 5,
-    power: 6000,
-    counter: 2000,
-    traits: ["Whitebeard Pirates"],
-    imageUrl: localArt("OP12-002"),
-    effectText: "—",
-  },
-  {
-    id: "OP12-018",
-    name: "Color of the Supreme King Haki",
-    type: "event",
-    colors: ["red"],
-    cost: 0,
-    eventTiming: "counter",
-    imageUrl: localArt("OP12-018"),
-    effectText: "[Counter] Up to 1 of your Characters or [Silvers Rayleigh] gains +2000 power during this battle. Then, you may rest 1 of your DON!! cards. If you do, give your opponent's Leader and all of their Characters 1000 power during this turn.",
-    counter: 2000,
-    counterFriendlyPower: { power: 2000, charactersOnly: true, allowedLeaderName: "Silvers Rayleigh" },
-    counterRestDonOpponentAllPenalty: { restDon: 1, power: 1000 },
-  },
-  {
-    id: "OP16-021",
-    name: "Moby Dick",
-    type: "stage",
-    colors: ["red"],
-    cost: 1,
-    imageUrl: localArt("OP16-021"),
-    effectText: "[On Play] If your Leader has the {Whitebeard Pirates} type, look at 3 cards from the top of your deck and add up to 1 card to your hand. Then, place the rest at the bottom of your deck in any order.\n\n\n[Activate:Main] You may trash this Stage: Give up to 1 rested DON!! card to your Leader or 1 of your Characters.",
-  },
-  {
-    id: "OP16-118",
-    name: "Portgas.D.Ace",
-    type: "character",
-    colors: ["red"],
-    cost: 5,
-    power: 6000,
-    counter: 1000,
-    onKoSearchTop: true,
-    onPlaySearchTop: {
-      count: 5,
-      maxTake: 1,
-      filterTraitOrName: { trait: "Whitebeard Pirates", nameIncludes: ["Monkey.D.Luffy"] },
-      remainder: "deck_bottom",
-    },
-    imageUrl: localArt("OP16-118"),
-    effectText: "The counter of all of your Character cards with 8000 power in your hand becomes +2000.\n\n[On Play]/[On K.O.] Look at 5 cards from the top of your deck; reveal up to 1 [Monkey.D.Luffy] or up to 1 card with a type including \"Whitebeard Pirates\" and add it to your hand. Then, place the rest a the bottom of your deck in any order.",
-  },
-  {
-    id: "OP17-002",
-    name: "Atmos",
-    type: "character",
-    colors: ["red"],
-    cost: 4,
-    power: 6000,
-    imageUrl: localArt("OP17-002"),
-    effectText: "[Opponent's Turn] This Character gains +3000 power.",
-  },
-  {
-    id: "OP17-003",
-    name: "Izo",
-    type: "character",
-    colors: ["red"],
-    cost: 4,
-    power: 6000,
-    imageUrl: localArt("OP17-003"),
-    effectText: "[Rush: Character]\n\n[On Play] If your Leader is [Edward.Newgate] or has the {Land of Wano} type, give up to 1 of your opponent's rested Characters -6000 power during this turn.",
-  },
-  {
-    id: "OP17-005",
-    name: "Edward.Newgate",
-    type: "character",
-    colors: ["red"],
-    cost: 10,
-    power: 12000,
-    imageUrl: localArt("OP17-005"),
-    effectText: "If your opponent has a Character with 10000 power or more, give this card in your hand -4 cost.\n\n[On Play] Your monocolored Leader's base power becomes 8000 until the end of your opponent's next End Phase.",
-  },
-  {
-    id: "OP17-008",
-    name: "Jozu",
-    type: "character",
-    colors: ["red"],
-    cost: 6,
-    power: 8000,
-    imageUrl: localArt("OP17-008"),
-    effectText: "[On Play] Your [Edward.Newgate] Leader's base power becomes 8000 until the end of your opponent's next End Phase.",
-  },
-  {
-    id: "OP17-015",
-    name: "Marco",
-    type: "character",
-    colors: ["red"],
-    cost: 5,
-    power: 6000,
-    counter: 1000,
-    removalReplacementSelfKo: true,
-    onKoReviveSelf: { trashHandTrait: "Whitebeard Pirates" },
-    imageUrl: localArt("OP17-015"),
-    effectText: "If one of your Characters would be removed from the field by your opponent's effect, you may K.O. this Character instead.\n\n[On K.O.] You may trash 1 card with a type including \"Whitebeard Pirates\" from your hand: Play this Character card from your trash.",
-  },
-  {
-    id: "OP17-017",
-    name: "Ga Ha Ha Ha!!",
-    type: "event",
-    colors: ["red"],
-    cost: 1,
-    eventTiming: "counter",
-    imageUrl: localArt("OP17-017"),
-    effectText: "[Counter] Up to 1 of your Leader with a type including \"Whitebeard Pirates\" or up to 1 of your Characters with a type including \"Whitebeard Pirates\" gains +2000 power during this battle. Then, give up to 1 of your opponent's Leader or Characters 2000 power during this turn.",
-    counter: 2000,
-    counterFriendlyPower: { power: 2000, requiredTrait: "Whitebeard Pirates" },
-    counterOpponentTargetPenalty: 2000,
-  },
-  {
-    id: "OP17-019",
-    name: "I Don't Have Time to Chat with Snot-Nosed Brats",
-    type: "event",
-    colors: ["red"],
-    cost: 1,
-    eventTiming: "main",
-    imageUrl: localArt("OP17-019"),
-    hasTrigger: true,
-    triggerLeaderPowerBonus: 1000,
-    effectText: "[Main] Look at 5 cards from the top of your deck; reveal up to 1 card with a type including \"Whitebeard Pirates\" and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n\n[Trigger] Your Leader gains +1000 power during this turn.",
-    mainSearchTop: {
-      count: 5,
-      maxTake: 1,
-      filterTrait: "Whitebeard Pirates",
-      remainder: "deck_bottom",
-    },
-  },
-  {
-    id: "ST23-001",
-    name: "Uta",
-    type: "character",
-    colors: ["red"],
-    cost: 6,
-    power: 4000,
-    counter: 2000,
-    imageUrl: localArt("ST23-001"),
-    effectText: "If you have a Character with 10000 power or more, give this card in your hand −4 cost.\n[Blocker]",
-  },
-  {
-    id: "ST30-004",
-    name: "Emporio.Ivankov",
-    type: "character",
-    colors: ["red"],
-    cost: 1,
-    power: 2000,
-    counter: 1000,
-    onPlayRevealDrawTrash: { revealCount: 2, revealPower: 6000, draw: 3, trash: 2 },
-    imageUrl: localArt("ST30-004"),
-    effectText: "[On Play] You may reveal 2 Character cards with 6000 power from your hand: Draw 3 cards and trash 2 cards from your hand.",
-  },
-  {
-    id: "ST30-005",
-    name: "Jozu",
-    type: "character",
-    colors: ["red"],
-    cost: 5,
-    power: 6000,
-    counter: 2000,
-    imageUrl: localArt("ST30-005"),
-    effectText: "—",
-  },
-  {
-    id: "EB04-058",
-    name: "Borsalino",
-    type: "character",
-    colors: ["yellow"],
-    cost: 5,
-    power: 6000,
-    counter: 1000,
-    imageUrl: localArt("EB04-058"),
-    effectText: "[Blocker]\n[On Play] If you have 2 or less Life cards, add up to 1 card from the top of your deck to the top of your Life cards.",
-    onPlayLowLifeAddLife: { maxLife: 2 },
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "EB03-034",
-    name: "Charlotte Linlin",
-    type: "character",
-    colors: ["yellow"],
-    cost: 7,
-    power: 8000,
-    counter: 1000,
-    onPlayDraw: 1,
-    onPlayDrawHandToDeckDon: true,
-    onKoReturnDonAddLife: { returnDon: 1 },
-    imageUrl: localArt("EB03-034"),
-    effectText:
-      "[On Play] Draw 1 card and place 1 card from your hand at the top of your deck. Then, add up to 1 DON!! card from your DON!! deck and set it as active.\n\n[On K.O.] DON!! 1: Add up to 1 card from the top of your deck to the top of your Life cards.",
-    traits: ["Big Mom Pirates"],
-  },
-  {
-    id: "OP17-112",
-    name: "Charlotte Linlin",
-    type: "character",
-    colors: ["yellow"],
-    cost: 10,
-    power: 10000,
-    counter: 1000,
-    onPlayDraw: 1,
-    onPlayDrawThenLifeChoice: true,
-    imageUrl: localArt("OP17-112"),
-    effectText:
-      "[Your Turn] The base power of all of your Characters with a [Trigger] and 4000 base power becomes 8000.\n\n[On Play] Draw 1 card, then choose one:\n• Add up to 1 card from the top of your deck to the top of your Life cards.\n• Add up to 1 card from the top of your opponent's Life cards to the owner's hand.",
-    traits: ["Big Mom Pirates"],
-  },
-  {
-    id: "OP09-086",
-    name: "Jesus Burgess",
-    type: "character",
-    colors: ["black"],
-    cost: 4,
-    power: 5000,
-    counter: 1000,
-    imageUrl: localArt("OP09-086"),
-    effectText: "This Character cannot be K.O.'d by your opponent's effects.\n\nIf your Leader has the \"Blackbeard Pirates\" type, this Character gains +1000 power for every 4 cards in your trash.",
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP09-093",
-    name: "Marshall.D.Teach",
-    type: "character",
-    colors: ["black"],
-    cost: 10,
-    power: 12000,
-    activateMainNegateOpponent: true,
-    imageUrl: localArt("OP09-093"),
-    effectText: "[Blocker]\n\n[Activate: Main] [Once Per Turn] If your Leader has the \"Blackbeard Pirates\" type and this Character was played on this turn, negate the effect of up to 1 of your opponent's Leader during this turn. Then, negate the effect of up to 1 of your opponent's Characters and that Character cannot attack until the end of your opponent's next turn.",
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP09-095",
-    name: "Laffitte",
-    type: "character",
-    colors: ["black"],
-    cost: 1,
-    power: 1000,
-    counter: 1000,
-    imageUrl: localArt("OP09-095"),
-    effectText: "[Activate: Main] You may rest 1 of your DON!! cards and this Character: Look at 5 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.",
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP09-096",
-    name: "My Era...Begins!!",
-    type: "event",
-    colors: ["black"],
-    cost: 1,
-    eventTiming: "main",
-    imageUrl: localArt("OP09-096"),
-    effectText: "[Main] Look at 3 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card other than [My Era...Begins!!] and add it to your hand. Then, trash the rest.\n\n[Trigger] Activate this card's [Main] effect.",
-    hasTrigger: true,
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP09-099",
-    name: "Fullalead",
-    type: "stage",
-    colors: ["black"],
-    cost: 1,
-    imageUrl: localArt("OP09-099"),
-    effectText: "[Activate: Main] You may trash 1 card from your hand and rest this Stage: Look at 3 cards from the top of your deck; reveal up to 1 \"Blackbeard Pirates\" type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.",
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP12-112",
-    name: "Baby 5",
-    type: "character",
-    colors: ["yellow"],
-    cost: 4,
-    power: 5000,
-    counter: 2000,
-    imageUrl: localArt("OP12-112"),
-    effectText: "[Trigger] If your Leader is multicolored, draw 2 cards.",
-    hasTrigger: true,
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP14-108",
-    name: "Silvers Rayleigh",
-    type: "character",
-    colors: ["yellow"],
-    cost: 6,
-    power: 6000,
-    counter: 1000,
-    imageUrl: localArt("OP14-108"),
-    effectText: "[On Play] If your Leader is multicolored and your opponent has 3 or less Life cards, K.O. up to 1 of your opponent's Characters with 7000 base power or less.\n\n[Trigger] Activate this card's [On Play] effect.",
-    hasTrigger: true,
-    triggerActivateOnPlay: true,
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP16-104",
-    name: "Catarina Devon",
-    type: "character",
-    colors: ["yellow"],
-    cost: 4,
-    power: 3000,
-    counter: 2000,
-    imageUrl: localArt("OP16-104"),
-    effectText: "[When Attacking] Select up to 1 of your opponent's Characters. This Character's base power becomes the same as the selected Character's power during this turn.\n\n[Trigger] Draw 1 card and play up to 1 {Blackbeard Pirates} type Character with a cost of 1 from your trash.",
-    hasTrigger: true,
-    triggerDraw: 1,
-    triggerPlayTrashCharacter: { trait: "Blackbeard Pirates", cost: 1 },
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP16-106",
-    name: "Sanjuan.Wolf",
-    type: "character",
-    colors: ["yellow"],
-    cost: 4,
-    power: 5000,
-    counter: 1000,
-    imageUrl: localArt("OP16-106"),
-    effectText: "[On K.O.] If your Leader has the {Blackbeard Pirates} type, draw 1 card, then up to 1 of your Leader or Character cards' base power becomes 7000 during this turn.\n\n[Trigger] Activate this card's [On K.O.] effect.",
-    hasTrigger: true,
-    triggerActivateOnKo: true,
-    onKoDraw: 1,
-    onKoDrawRequiredLeaderTrait: "Blackbeard Pirates",
-    onKoLeaderBasePower: { basePower: 7000, requiredLeaderTrait: "Blackbeard Pirates" },
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP16-108",
-    name: "Shiryu",
-    type: "character",
-    colors: ["yellow"],
-    cost: 6,
-    power: 8000,
-    imageUrl: localArt("OP16-108"),
-    effectText: "[On Play] You may trash 1 card from your hand: Add up to 1 {Blackbeard Pirates} type card with a cost of 6 or less from your trash to the top of your Life cards face-up.\n\n[Trigger] Draw 2 cards.",
-    hasTrigger: true,
-    onPlayTrashHandToLife: { requiredLeaderTrait: "Blackbeard Pirates", maxCost: 6 },
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP16-109",
-    name: "Doc Q",
-    type: "character",
-    colors: ["yellow"],
-    cost: 1,
-    power: 0,
-    counter: 2000,
-    imageUrl: localArt("OP16-109"),
-    effectText: "[On K.O.] If your Leader has the {Blackbeard Pirates} type, draw 1 card and K.O. up to 2 of your opponent's Characters with a cost of 1 or less.\n\n[Trigger] Activate this card's [On K.O.] effect.",
-    hasTrigger: true,
-    triggerActivateOnKo: true,
-    onKoDraw: 1,
-    onKoDrawRequiredLeaderTrait: "Blackbeard Pirates",
-    onKoOpponentKoCost: { cost: 1, maxTargets: 2, requiredLeaderTrait: "Blackbeard Pirates" },
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP16-110",
-    name: "Vasco Shot",
-    type: "character",
-    colors: ["yellow"],
-    cost: 1,
-    power: 2000,
-    counter: 1000,
-    imageUrl: localArt("OP16-110"),
-    effectText: "[On K.O.] Draw 1 card and rest up to 1 of your opponent's Characters with a cost of 6 or less.\n\n[Trigger] Activate this card's [On K.O.] effect.",
-    hasTrigger: true,
-    triggerActivateOnKo: true,
-    onKoDraw: 1,
-    onKoOpponentRestCost: { cost: 6, maxTargets: 1 },
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP16-115",
-    name: "Black Vortex",
-    type: "event",
-    colors: ["yellow"],
-    cost: 1,
-    eventTiming: "main",
-    imageUrl: localArt("OP16-115"),
-    effectText: "[Main] If your Leader has the {Blackbeard Pirates} type, add up to 1 card with a [Trigger] other than [Black Vortex] from your trash to your hand.\n\n[Trigger] Negate the effect of up to 1 of your opponent's Leader or Character cards during this turn.",
-    hasTrigger: true,
-    mainTrashTriggerToHand: { excludeDefId: "OP16-115" },
-    triggerNegateOpponent: {},
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP16-116",
-    name: "Zehahahahaha!",
-    type: "event",
-    colors: ["yellow"],
-    cost: 8,
-    eventTiming: "main",
-    imageUrl: localArt("OP16-116"),
-    effectText: "[Main] If you have 10 DON!! cards on your field, play up to 1 [Marshall.D.Teach] from your hand. Then, add up to 1 card from the top of your opponent's Life cards to the owner's hand.\n\n[Trigger] Draw 2 cards and trash 1 card from your hand.",
-    hasTrigger: true,
-    triggerDrawThenTrash: { draw: 2, trash: 1 },
-    mainPlayNamedThenOpponentLife: { name: "Marshall.D.Teach", requiredDonOnField: 10 },
-    traits: ["Blackbeard Pirates"],
-  },
-  {
-    id: "OP16-119",
-    name: "Marshall.D.Teach",
-    type: "character",
-    colors: ["yellow"],
-    cost: 8,
-    power: 10000,
-    imageUrl: localArt("OP16-119"),
-    effectText: "[On Play] Look at 3 cards from the top of your deck; add up to 1 card to the top of your Life cards. Then, place the rest at the bottom of your deck in any order.\n\n[Trigger] Negate the effect of up to 1 of your opponent's Characters during this turn. Then, K.O. up to 1 of your opponent's Characters with a cost of 5 or less.",
-    hasTrigger: true,
-    onPlaySearchTop: {
-      count: 3,
-      maxTake: 1,
-      takeToLife: true,
-      remainder: "deck_bottom",
-    },
-    triggerNegateOpponent: { charactersOnly: true, thenKoCost: 5 },
-    traits: ["Blackbeard Pirates"],
-  },
-
-];
-
-// Frozen before runtime auto-stubs are appended to `defs`.
-const curatedDefIds = new Set(defs.map((def) => def.id));
-
-// Prefer TCGPlayer CDN alt prints when mapped; keep any curated local parallels.
-for (const d of defs) {
-  const fromTcg = tcgAltsForCard(d.id);
-  if (!fromTcg.length) continue;
-  const byAltId = new Map((d.altArts ?? []).map((a) => [a.id, a]));
-  for (const a of fromTcg) {
-    byAltId.set(a.id, { id: a.id, label: a.label, imageUrl: a.imageUrl });
-  }
-  d.altArts = [...byAltId.values()];
+function eventTiming(text: string): CardDef["eventTiming"] {
+  if (/\[Main\]/.test(text)) return "main";
+  if (/\[Counter\]/.test(text)) return "counter";
+  return "main";
 }
 
-// Keep Bandai CDN as a documented fallback for tooling that prefers remote art.
-void bandaiArt;
-
-const byId = new Map(defs.map((d) => [d.id, d]));
-
-/** On Play hooks for catalog ids not yet fully curated (stubs still resolve). */
-const ON_PLAY_BY_ID: Partial<
-  Record<
-    CardDefId,
-    Pick<
-      CardDef,
-      | "onPlayDraw"
-      | "onPlayOptionalDraw"
-      | "onPlayLowLifeAddLife"
-      | "onPlayDrawThenLifeChoice"
-      | "onPlayDrawHandToDeckDon"
-    >
-  >
-> = {
-  "EB03-034": { onPlayDraw: 1, onPlayDrawHandToDeckDon: true },
-  "OP17-112": { onPlayDraw: 1, onPlayDrawThenLifeChoice: true },
-  "EB04-058": { onPlayLowLifeAddLife: { maxLife: 2 } },
-};
-
-export type OnPlayHooks = {
-  onPlayDraw: number;
-  onPlayOptionalDraw: number;
-  onPlayLowLifeAddLife?: { maxLife: number };
-  onPlayDrawThenLifeChoice: boolean;
-  onPlayDrawHandToDeckDon: boolean;
-};
-
-export function getOnPlayHooks(def: CardDef): OnPlayHooks {
-  const extra = ON_PLAY_BY_ID[normalizeCardDefId(def.id)] ?? {};
-  return {
-    onPlayDraw: extra.onPlayDraw ?? def.onPlayDraw ?? 0,
-    onPlayOptionalDraw: extra.onPlayOptionalDraw ?? def.onPlayOptionalDraw ?? 0,
-    onPlayLowLifeAddLife: extra.onPlayLowLifeAddLife ?? def.onPlayLowLifeAddLife,
-    onPlayDrawThenLifeChoice:
-      extra.onPlayDrawThenLifeChoice ?? def.onPlayDrawThenLifeChoice ?? false,
-    onPlayDrawHandToDeckDon:
-      extra.onPlayDrawHandToDeckDon ?? def.onPlayDrawHandToDeckDon ?? false,
+function buildDef(id: CardDefId): CardDef | null {
+  const row = cardDataFor(id);
+  if (!row) return null;
+  const def: CardDef = {
+    id,
+    name: row.name,
+    type: row.type,
+    colors: [...row.colors],
+    cost: row.type === "leader" ? 0 : row.cost ?? 0,
+    ...(row.power != null ? { power: row.power } : {}),
+    ...(row.life != null ? { life: row.life } : {}),
+    ...(row.counter != null ? { counter: row.counter } : {}),
+    ...(row.type === "event" ? { eventTiming: eventTiming(row.text) } : {}),
+    imageUrl: artFor(id),
+    ...(row.attributes.length ? { attribute: row.attributes.join("/") } : {}),
+    effectText: row.text || "—",
+    ...(row.trigger ? { triggerText: row.trigger, hasTrigger: true } : {}),
+    ...(row.traits.length ? { traits: [...row.traits] } : {}),
+    dataSource: row.source,
   };
+  const alts = altsFor(id);
+  if (alts) def.altArts = alts;
+  return def;
+}
+
+const byId = new Map<CardDefId, CardDef>();
+for (const id of listCardDataIds()) {
+  const def = buildDef(id);
+  if (def) byId.set(id, def);
 }
 
 export const DEFAULT_LEADER_ID: CardDefId = "ST01-001";
 
-/** Normalize OPTCG-style ids (trim + uppercase). */
+/** Normalize OPTCG-style ids (trim + uppercase; parallel suffixes map to the base card). */
 export function normalizeCardDefId(id: string): CardDefId {
-  return id.trim().toUpperCase();
+  const key = id.trim().toUpperCase();
+  return key.replace(/_(?:P\d+|R\d+)$/, "");
 }
 
 export function hasCardDef(id: CardDefId): boolean {
   return byId.has(normalizeCardDefId(id));
 }
 
+/** True when the card's printed data comes from the official card list. */
 export function isCuratedCardDef(id: CardDefId): boolean {
-  return curatedDefIds.has(normalizeCardDefId(id));
+  return byId.get(normalizeCardDefId(id))?.dataSource === "bandai";
 }
 
-/** Ops snapshot for game-server `/health` (no secrets). */
-export function getDefsHealthSnapshot(): {
-  defsCount: number;
-  hasOP16080: boolean;
-} {
-  return {
-    defsCount: byId.size,
-    hasOP16080: byId.has("OP16-080"),
-  };
+export function getDefsHealthSnapshot(): { defsCount: number; hasOP16080: boolean } {
+  return { defsCount: byId.size, hasOP16080: byId.has("OP16-080") };
 }
 
 /**
- * Register a vanilla stub when a deck references an id outside the curated set.
- * Leaders need `asLeader: true` (life/power defaults); everything else is a
- * generic Character so matches can still start for constructed lists.
+ * Register a stub for an id absent from the card data (unknown promos). Stubs
+ * are vanilla and never ranked-eligible.
  */
-export function ensureCardDef(
-  id: CardDefId,
-  opts: { asLeader?: boolean } = {},
-): CardDef {
+export function ensureCardDef(id: CardDefId, opts: { asLeader?: boolean } = {}): CardDef {
   const key = normalizeCardDefId(id);
   const existing = byId.get(key);
   if (existing) {
-    if (opts.asLeader && existing.type !== "leader") {
-      throw new Error(
-        `Card ${key} is typed as ${existing.type} but was used as a Leader`,
-      );
-    }
+    if (opts.asLeader && existing.type !== "leader") throw new Error(`Card ${key} is typed as ${existing.type} but was used as a Leader`);
     return existing;
   }
-
-  const traits = TRAITS_BY_ID[key];
-  const meta = catalogMetaFor(key);
-  const printed =
-    meta?.effectText?.trim() &&
-    meta.effectText.trim() !== "—" &&
-    meta.effectText.trim() !== "-"
-      ? meta.effectText.trim()
-      : "—";
+  const type: CardType = opts.asLeader ? "leader" : "character";
   const stub: CardDef = opts.asLeader
-    ? {
-        id: key,
-        name: meta?.name ?? `${key} (stub)`,
-        type: "leader",
-        colors: meta?.colors?.length ? [...meta.colors] : ["red"],
-        cost: 0,
-        power: meta?.power ?? 5000,
-        life: meta?.life ?? 5,
-        imageUrl: localArt(key),
-        effectText: printed,
-        ...(traits ? { traits: [...traits] } : {}),
-      }
-    : (() => {
-        const type = catalogTypeFor(key);
-        const base = {
-          id: key,
-          name: meta?.name ?? `${key} (stub)`,
-          type,
-          colors: meta?.colors?.length ? [...meta.colors] : ["red"],
-          cost: meta?.cost ?? 2,
-          imageUrl: localArt(key),
-          effectText: printed,
-          ...(meta?.hasTrigger || /\[Trigger\]/i.test(printed)
-            ? { hasTrigger: true }
-            : {}),
-          ...(traits ? { traits: [...traits] } : {}),
-        };
-        if (type === "character") {
-          return {
-            ...base,
-            power: meta?.power ?? 3000,
-            // Missing catalog values and keyword text scans are unverified.
-            // Omission fails closed instead of inventing a +1000 counter or
-            // unconditional Blocker/Rush behavior.
-            ...(meta?.counter != null ? { counter: meta.counter } : {}),
-          };
-        }
-        if (type === "event") {
-          return {
-            ...base,
-            eventTiming: meta?.eventTiming ?? "main",
-            ...(meta?.counter != null ? { counterPowerBonus: meta.counter } : {}),
-          };
-        }
-        return base;
-      })();
-
-  defs.push(stub);
+    ? { id: key, name: `${key} (stub)`, type, colors: ["red"], cost: 0, power: 5000, life: 5, imageUrl: artFor(key), effectText: "—", dataSource: "stub" }
+    : { id: key, name: `${key} (stub)`, type, colors: ["red"], cost: 2, power: 3000, imageUrl: artFor(key), effectText: "—", dataSource: "stub" };
   byId.set(key, stub);
   return stub;
 }
 
-/** Ensure every leader + main-deck id has a CardDef (curated or auto-stub). */
-export function ensureDefsForPlayers(
-  players: ReadonlyArray<{ leaderId: CardDefId; deck: readonly CardDefId[] }>,
-): void {
+/** Ensure every leader + main-deck id has a CardDef (official data or stub). */
+export function ensureDefsForPlayers(players: ReadonlyArray<{ leaderId: CardDefId; deck: readonly CardDefId[] }>): void {
   const missing: string[] = [];
   for (const p of players) {
     const leaderId = normalizeCardDefId(p.leaderId);
@@ -810,13 +119,7 @@ export function ensureDefsForPlayers(
       ensureCardDef(id);
     }
   }
-  if (missing.length) {
-    // Dedupe for logs/tests; createMatch still proceeds with stubs.
-    const uniq = [...new Set(missing)];
-    console.warn(
-      `[optcg/rules] Auto-stubbed ${uniq.length} missing card def(s): ${uniq.join(", ")}`,
-    );
-  }
+  if (missing.length) console.warn(`[optcg/rules] Auto-stubbed ${new Set(missing).size} missing card def(s): ${[...new Set(missing)].join(", ")}`);
 }
 
 export function getCardDef(id: CardDefId): CardDef {
@@ -826,7 +129,7 @@ export function getCardDef(id: CardDefId): CardDef {
 }
 
 export function listCardDefs(): CardDef[] {
-  return defs.slice();
+  return [...byId.values()];
 }
 
 /** Atlas entries for clients (cosmetics + public stats). */
@@ -847,71 +150,15 @@ export type CardAtlasEntry = {
   traits?: string[];
   hasTrigger?: boolean;
   attribute?: string;
-  /**
-   * Duel resolution support for printed abilities (export-time).
-   * Display text alone is never rules authority.
-   */
   abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unverified" | "unsupported";
-};
-
-/**
- * Known printed types for auto-stubbed ids (reveal / trait checks). Curated
- * defs already set `traits` explicitly; stubs fall back to this map.
- */
-const TRAITS_BY_ID: Record<string, string[]> = {
-  "OP17-039": ["Rocks Pirates"],
-  "OP17-040": ["Rocks Pirates"],
-  "OP17-042": ["Rocks Pirates"],
-  "OP17-044": ["Rocks Pirates"],
-  "OP17-048": ["Rocks Pirates"],
-  "OP17-055": ["Rocks Pirates"],
-  "OP17-056": ["Rocks Pirates"],
-  "OP17-057": ["Rocks Pirates"],
-  "OP17-118": ["Rocks Pirates"],
-};
-
-/** Printed attributes for deck-builder filters (not used by the rules engine). */
-const ATTRIBUTES_BY_ID: Record<string, string> = {
-  "ST01-001": "Strike",
-  "ST01-003": "Strike",
-  "ST01-004": "Slash",
-  "ST01-005": "Strike",
-  "ST01-006": "Strike",
-  "ST01-008": "Strike",
-  "ST01-009": "Special",
-  "OP17-001": "Strike",
-  "OP17-039": "Slash",
-  "OP16-080": "Special",
-  "OP09-118": "Slash",
-  "OP12-002": "Slash",
-  "OP16-118": "Special",
-  "OP17-002": "Slash",
-  "OP17-003": "Slash",
-  "OP17-005": "Strike",
-  "OP17-008": "Strike",
-  "OP17-015": "Strike",
-  "ST23-001": "Strike",
-  "ST30-004": "Strike",
-  "ST30-005": "Strike",
-  "EB04-058": "Special",
-  "OP09-086": "Strike",
-  "OP09-093": "Special",
-  "OP09-095": "Strike",
-  "OP12-112": "Strike",
-  "OP14-108": "Special",
-  "OP16-104": "Strike",
-  "OP16-106": "Strike",
-  "OP16-108": "Special",
-  "OP16-109": "Strike",
-  "OP16-110": "Strike",
-  "OP16-119": "Special",
+  /** Printed clauses the engine does not execute yet (casual play only). */
+  unsupportedText?: string[];
 };
 
 export function buildCardAtlas(): Record<CardDefId, CardAtlasEntry> {
   const atlas: Record<CardDefId, CardAtlasEntry> = {};
-  for (const d of defs) {
-    const authoredAlts = d.altArts?.map((a) => ({ ...a }));
-    const tcgAlts = tcgAltsForCard(d.id);
+  for (const d of [...byId.values()].sort((a, b) => a.id.localeCompare(b.id))) {
+    if (d.dataSource === "stub") continue;
     atlas[d.id] = {
       id: d.id,
       name: d.name,
@@ -921,46 +168,27 @@ export function buildCardAtlas(): Record<CardDefId, CardAtlasEntry> {
       power: d.power,
       life: d.life,
       counter: d.counter,
-      blocker: hasUnconditionalKeyword(d.id, "blocker") || undefined,
-      rush: hasUnconditionalKeyword(d.id, "rush") || undefined,
+      blocker: cardHasUnconditionalKeyword(d.id, "blocker") || undefined,
+      rush: cardHasUnconditionalKeyword(d.id, "rush") || undefined,
       imageUrl: d.imageUrl,
-      effectText: d.effectText,
-      // Prefer authored alt list (e.g. local ST01 parallels); else TCGCSV alts.
-      altArts: authoredAlts?.length ? authoredAlts : tcgAlts.length ? tcgAlts : undefined,
+      effectText: [d.effectText && d.effectText !== "—" ? d.effectText : "", d.triggerText ?? ""].filter(Boolean).join("\n\n") || "—",
+      altArts: d.altArts?.map((a) => ({ ...a })),
       traits: d.traits?.length ? [...d.traits] : undefined,
       hasTrigger: d.hasTrigger ? true : undefined,
-      attribute: d.attribute ?? ATTRIBUTES_BY_ID[d.id],
+      attribute: d.attribute,
     };
   }
   return atlas;
 }
 
-/**
- * Build a short prototype main deck (no leader) from the curated set.
- * Respects ≤4 copies per card number.
- */
+/** Short prototype main deck (no leader) of simple ST01 cards. Respects ≤4 copies. */
 export function buildTestDeck(size = 20): CardDefId[] {
   const pool: CardDefId[] = [
-    "ST01-003",
-    "ST01-003",
-    "ST01-003",
-    "ST01-003",
-    "ST01-006",
-    "ST01-006",
-    "ST01-006",
-    "ST01-006",
-    "ST01-008",
-    "ST01-008",
-    "ST01-008",
-    "ST01-008",
-    "ST01-009",
-    "ST01-009",
-    "ST01-009",
-    "ST01-009",
-    "OP12-002",
-    "OP12-002",
-    "OP12-002",
-    "OP12-002",
+    "ST01-003", "ST01-003", "ST01-003", "ST01-003",
+    "ST01-006", "ST01-006", "ST01-006", "ST01-006",
+    "ST01-008", "ST01-008", "ST01-008", "ST01-008",
+    "ST01-009", "ST01-009", "ST01-009", "ST01-009",
+    "OP12-002", "OP12-002", "OP12-002", "OP12-002",
   ];
   if (size > pool.length) throw new Error(`buildTestDeck max ${pool.length}`);
   return pool.slice(0, size);
