@@ -6,6 +6,8 @@ type Props = {
   /** Your seat, or null when spectating (read-only). */
   mySeat: Seat | null;
   onSend: (text: string) => void;
+  /** Start expanded (wide layouts, where chat has its own rail slot). */
+  defaultOpen?: boolean;
 };
 
 function speaker(seat: Seat, mySeat: Seat | null): string {
@@ -14,8 +16,8 @@ function speaker(seat: Seat, mySeat: Seat | null): string {
 }
 
 /** Collapsible match chat; mirrors the battle log panel's placement. */
-export function ChatPanel({ lines, mySeat, onSend }: Props) {
-  const [open, setOpen] = useState(false);
+export function ChatPanel({ lines, mySeat, onSend, defaultOpen = false }: Props) {
+  const [open, setOpen] = useState(defaultOpen);
   const [draft, setDraft] = useState("");
   const [seenCount, setSeenCount] = useState(0);
   const scrollerRef = useRef<HTMLDivElement>(null);

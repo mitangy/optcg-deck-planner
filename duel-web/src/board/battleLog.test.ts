@@ -3,6 +3,8 @@ import {
   groupBattleLogByTurn,
   indexViewInstances,
   narrateEvents,
+  rewindBattleLog,
+  type BattleLogEntry,
   type InstanceIndex,
 } from "./battleLog";
 
@@ -215,5 +217,24 @@ describe("narrateEvents emphasis + card segments", () => {
     const [avail] = narrate([{ type: "trigger_available", seat: 1, defId: "HIDDEN" }], 0);
     expect(avail!.segments.every((s) => s.kind === "text")).toBe(true);
     expect(avail!.text).not.toContain("HIDDEN");
+  });
+});
+
+describe("rewindBattleLog", () => {
+  const line = (turn: number, text: string): BattleLogEntry => ({
+    id: `${turn}-${text}`,
+    turn,
+    text,
+    tone: "routine",
+    important: false,
+    segments: [{ kind: "text", text }],
+  });
+
+  it("drops turns after the target and marks the rewind", () => {
+    const out = rewindBattleLog([line(1, "a"), line(2, "b"), line(3, "c")], 2, 1, 0);
+    expect(out.map((e) => e.text).slice(0, 2)).toEqual(["a", "b"]);
+    expect(out).toHaveLength(3);
+    expect(out[2]!.turn).toBe(2);
+    expect(out[2]!.text).toContain("Opponent undid the turn");
   });
 });

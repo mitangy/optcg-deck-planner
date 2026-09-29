@@ -41,6 +41,8 @@ export type DuelCreateOptions = {
   timer?: {
     turnSeconds?: number;
     matchSeconds?: number;
+    /** Chess clock: each player's own time bank, spent while they must act. */
+    seatSeconds?: number;
   };
   /** Server-only capability; never sent to browser clients. */
   rankedAttestation?: string;
@@ -169,7 +171,7 @@ export function parseCreateOptions(raw: unknown): {
   ranked: boolean;
   seatUserIds?: [number, number];
   players?: [PlayerDeckWire, PlayerDeckWire];
-  timer: { turnSeconds: number | null; matchSeconds: number | null };
+  timer: { turnSeconds: number | null; matchSeconds: number | null; seatSeconds: number | null };
 } {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   if (o.protocolVersion !== undefined && !isProtocolVersion(o.protocolVersion)) {
@@ -226,8 +228,13 @@ export function parseCreateOptions(raw: unknown): {
     typeof timerRaw.matchSeconds === "number" && Number.isFinite(timerRaw.matchSeconds)
       ? Math.max(0, Math.floor(timerRaw.matchSeconds))
       : null;
+  let seatSeconds =
+    typeof timerRaw.seatSeconds === "number" && Number.isFinite(timerRaw.seatSeconds)
+      ? Math.max(0, Math.floor(timerRaw.seatSeconds))
+      : null;
   if (turnSeconds === 0) turnSeconds = null;
   if (matchSeconds === 0) matchSeconds = null;
+  if (seatSeconds === 0) seatSeconds = null;
   // Ranked always enforces 30s player turns (match clock remains optional).
   if (ranked) {
     turnSeconds = 30;
@@ -239,7 +246,7 @@ export function parseCreateOptions(raw: unknown): {
     ranked,
     seatUserIds,
     players,
-    timer: { turnSeconds, matchSeconds },
+    timer: { turnSeconds, matchSeconds, seatSeconds },
   };
 }
 
@@ -380,4 +387,86 @@ export function parseChatMessage(raw: unknown): string {
     throw Object.assign(new Error("chat text is empty"), { code: "bad_protocol" as const });
   }
   return text;
+}
+
+/**
+ * Turn undo (unranked rooms only). A seat requests a rewind to the start of a
+ * turn; the other seat accepts or declines. Practice clients auto-accept.
+ */
+export type UndoAction = "request" | "accept" | "decline" | "cancel";
+
+/** Undo availability + any open request, pushed on join / sync / change. */
+export type UndoStateMessage = {
+  protocolVersion: ProtocolVersion;
+  /** False in ranked rooms (undo is never offered there). */
+  enabled: boolean;
+  /** Turn an undo would rewind to right now, or null when nothing to undo. */
+  targetTurn: number | null;
+  /** Open request awaiting the other seat's answer. */
+  pending: { from: Seat; toTurn: number } | null;
+};
+
+/** Broadcast after an accepted undo rewinds the match. */
+export type UndoAppliedMessage = {
+  protocolVersion: ProtocolVersion;
+  toTurn: number;
+  /** Seat that asked for the undo. */
+  by: Seat;
+};
+
+/**
+ * Rematch (unranked rooms): both seats "request", then the loser picks
+ * "first" or "second"; "decline" withdraws / refuses.
+ */
+export type RematchAction = "request" | "decline" | "first" | "second";
+
+export type RematchStateMessage = {
+  protocolVersion: ProtocolVersion;
+  /** Match is over, the room is unranked and both players are still here. */
+  available: boolean;
+  requested: [boolean, boolean];
+  declinedBy: Seat | null;
+  /** Set once both agreed: the loser, who picks first / second. */
+  chooser: Seat | null;
+};
+
+export function parseRematchMessage(raw: unknown): RematchAction {
+  if (!raw || typeof raw !== "object") {
+    throw Object.assign(new Error("rematch message body required"), { code: "bad_protocol" as const });
+  }
+  const o = raw as Record<string, unknown>;
+  if (!isProtocolVersion(o.protocolVersion)) {
+    throw Object.assign(new Error("Unsupported or missing protocolVersion"), { code: "bad_protocol" as const });
+  }
+  if (o.action !== "request" && o.action !== "decline" && o.action !== "first" && o.action !== "second") {
+    throw Object.assign(new Error("rematch action must be request|decline|first|second"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  return o.action;
+}
+
+export function parseUndoMessage(raw: unknown): UndoAction {
+  if (!raw || typeof raw !== "object") {
+    throw Object.assign(new Error("undo message body required"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  const o = raw as Record<string, unknown>;
+  if (!isProtocolVersion(o.protocolVersion)) {
+    throw Object.assign(new Error("Unsupported or missing protocolVersion"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  if (
+    o.action !== "request" &&
+    o.action !== "accept" &&
+    o.action !== "decline" &&
+    o.action !== "cancel"
+  ) {
+    throw Object.assign(new Error("undo action must be request|accept|decline|cancel"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  return o.action;
 }

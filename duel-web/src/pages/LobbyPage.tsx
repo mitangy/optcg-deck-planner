@@ -30,19 +30,20 @@ import { needsUsername } from "../auth/username";
 type PlayMode = "hotseat" | "create" | "join" | "queue" | "spectate";
 
 /** Private-room timer presets (ranked always forces 30s turns). */
-type TimerPreset = "off" | "turn_30" | "match_30m" | "turn_30_match_30m";
+type TimerPreset = "off" | "turn_30" | "seat_15m" | "turn_30_seat_15m";
 
 function timerFromPreset(preset: TimerPreset): {
   turnSeconds?: number;
-  matchSeconds?: number;
+  seatSeconds?: number;
 } {
   switch (preset) {
     case "turn_30":
       return { turnSeconds: 30 };
-    case "match_30m":
-      return { matchSeconds: 30 * 60 };
-    case "turn_30_match_30m":
-      return { turnSeconds: 30, matchSeconds: 30 * 60 };
+    // Chess clock: 15 minutes each, ticking only while it's that player's move.
+    case "seat_15m":
+      return { seatSeconds: 15 * 60 };
+    case "turn_30_seat_15m":
+      return { turnSeconds: 30, seatSeconds: 15 * 60 };
     default:
       return {};
   }
@@ -295,6 +296,14 @@ export function LobbyPage() {
     // Offer resume instead of forcing it — browser Back from hotseat used to
     // bounce straight back into the match and made Leave feel broken.
     setPendingResume(loadMatchResume());
+    // Invite link (`/?join=<room id>`): open the Join form with the id filled in.
+    const inviteRoom = new URLSearchParams(window.location.search).get("join")?.trim();
+    if (inviteRoom) {
+      setRoomId(inviteRoom);
+      setMode("join");
+      setSheetOpen(true);
+      window.history.replaceState(window.history.state, "", window.location.pathname);
+    }
     // Wake free-tier Render API + game-server so hotseat mint/create is warm.
     warmDuelServices(getApiBaseUrl(), serverUrl);
     void fetchAuthMe()
@@ -686,10 +695,15 @@ export function LobbyPage() {
                     >
                       <option value="off">No timer</option>
                       <option value="turn_30">30 second turns</option>
-                      <option value="match_30m">30 minute match</option>
-                      <option value="turn_30_match_30m">30s turns + 30 min match</option>
+                      <option value="seat_15m">15 minutes per player</option>
+                      <option value="turn_30_seat_15m">30s turns + 15 min per player</option>
                     </select>
-                    <p className="field-hint">Private rooms are unranked.</p>
+                    <p className="field-hint">
+                      {timerPreset === "seat_15m" || timerPreset === "turn_30_seat_15m"
+                        ? "Each player's clock only runs while it's their move; whoever runs out loses. "
+                        : ""}
+                      Private rooms are unranked.
+                    </p>
                   </div>
                 ) : null}
 

@@ -152,7 +152,8 @@ export function compileCost(cost: Cost, out: Instr[]): void {
   const costVar: Target = { ref: "var", name: "_cost" };
   switch (cost.k) {
     case "rest_don": out.push({ op: "act", effect: { do: "rest_don", player: "you", count: cost.count } }); return;
-    case "return_don": out.push({ op: "act", effect: { do: "return_don", player: "you", count: cost.count } }); return;
+    // "DON!! −N": the player picks which N DON!! to return — active, rested, or attached.
+    case "return_don": select({ player: "you", zone: "don_field" }, cost.count, "return to your DON!! deck (cost)"); out.push({ op: "act", effect: { do: "return_don", player: "you", target: costVar } }); return;
     case "trash_hand": select({ player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }, cost.count, "trash (cost)"); out.push({ op: "act", effect: { do: "to_trash", target: costVar } }); return;
     case "reveal_hand": select({ player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }, cost.count, "reveal (cost)"); out.push({ op: "act", effect: { do: "reveal", target: costVar } }); return;
     case "hand_to_deck_bottom": select({ player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }, cost.count, "place at the bottom of the deck (cost)"); out.push({ op: "act", effect: { do: "to_deck", target: costVar, position: "bottom" } }); return;

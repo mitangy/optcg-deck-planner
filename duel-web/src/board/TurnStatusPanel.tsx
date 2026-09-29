@@ -1,0 +1,232 @@
+import type { CSSProperties } from "react";
+import type { PlayerView, Seat, SeatPlayers } from "../net/protocol";
+import { cardBackCssValue } from "../cardBack";
+import { seatName } from "./playerNames";
+
+/** Formatted per-player (chess) clocks; `running` is whose is ticking. */
+export type SeatClocks = {
+  you: string;
+  opp: string;
+  youLow: boolean;
+  oppLow: boolean;
+  running: "you" | "opp" | null;
+};
+
+type SideStats = {
+  name: string;
+  clock?: { text: string; running: boolean; low: boolean };
+  order: "first" | "second";
+  active: boolean;
+  life: number;
+  hand: number;
+  deck: number;
+  donActive: number;
+  donTotal: number;
+};
+
+function PlayerRow({ side, stats }: { side: "you" | "opp"; stats: SideStats }) {
+  return (
+    <div
+      className={`turn-player turn-player-${side}${stats.active ? " is-active" : ""}`}
+      aria-current={stats.active ? "true" : undefined}
+    >
+      <div className="turn-player-head">
+        <span className="turn-player-dot" aria-hidden />
+        <span className="turn-player-name" title={stats.name}>
+          {stats.name}
+        </span>
+        {stats.clock ? (
+          <span
+            className={`turn-player-clock${stats.clock.running ? " running" : ""}${
+              stats.clock.low ? " low" : ""
+            }`}
+            title="Time left"
+          >
+            {stats.clock.text}
+          </span>
+        ) : null}
+        <span className={`turn-order-badge ${stats.order}`}>
+          {stats.order === "first" ? "1st" : "2nd"}
+        </span>
+      </div>
+      <dl className="turn-player-stats">
+        <div>
+          <dt>Life</dt>
+          <dd>{stats.life}</dd>
+        </div>
+        <div>
+          <dt>Hand</dt>
+          <dd>{stats.hand}</dd>
+        </div>
+        <div>
+          <dt>Deck</dt>
+          <dd>{stats.deck}</dd>
+        </div>
+        <div>
+          <dt>DON!!</dt>
+          <dd>
+            {stats.donActive}/{stats.donTotal}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+type Props = {
+  view: PlayerView;
+  boardSeat: Seat;
+  firstSeat: Seat;
+  players: SeatPlayers | null;
+  spectating: boolean;
+  /** Timers already formatted ("0:25"), or null when off. */
+  turnClock: string | null;
+  matchClock: string | null;
+  seatClocks?: SeatClocks | null;
+};
+
+/**
+ * Right-rail game state: a big whose-turn banner, then both players with
+ * turn order, Life, hand, deck and DON!!. Opponent on top, you below — the
+ * same order as the mats.
+ */
+export function TurnStatusPanel({
+  view,
+  boardSeat,
+  firstSeat,
+  players,
+  spectating,
+  turnClock,
+  matchClock,
+  seatClocks = null,
+}: Props) {
+  const oppSeat: Seat = boardSeat === 0 ? 1 : 0;
+  const mulligan = view.phase === "mulligan";
+  const over = view.winner != null;
+  const youActive = view.activeSeat === boardSeat;
+  const mustRespond =
+    !spectating && !youActive && !over && !mulligan && view.legalIntents.length > 0;
+
+  const youName = spectating
+    ? seatName(players, boardSeat) ?? `Seat ${boardSeat}`
+    : seatName(players, boardSeat) ?? "You";
+  const oppName = seatName(players, oppSeat) ?? (spectating ? `Seat ${oppSeat}` : "Opponent");
+  const activeName = youActive ? youName : oppName;
+
+  let tone: "mine" | "theirs" | "respond" | "neutral";
+  let title: string;
+  let sub: string;
+  if (over) {
+    tone = "neutral";
+    title = "Match over";
+    sub = "";
+  } else if (mulligan) {
+    tone = "neutral";
+    title = "Mulligan";
+    sub = spectating
+      ? `${firstSeat === boardSeat ? youName : oppName} goes first`
+      : firstSeat === boardSeat
+        ? "You go first"
+        : "You go second";
+  } else if (spectating) {
+    tone = "neutral";
+    title = `${activeName}'s turn`;
+    sub = view.phase;
+  } else if (mustRespond) {
+    tone = "respond";
+    title = "Your response";
+    sub = `${oppName} is attacking — block or counter`;
+  } else if (youActive) {
+    tone = "mine";
+    title = "Your turn";
+    sub = `${view.phase} phase`;
+  } else {
+    tone = "theirs";
+    title = "Opponent's turn";
+    sub = `${oppName} · ${view.phase} phase`;
+  }
+
+  const you = view.you;
+  const opp = view.opponent;
+
+  return (
+    <section className={`turn-panel turn-panel-${tone}`} aria-label="Game state">
+      <div className="turn-banner" role="status" aria-live="polite">
+        <span className="turn-banner-kicker">
+          Turn {Math.max(view.turnNumber, 0)}
+          {turnClock ? <span className="turn-banner-clock"> · {turnClock}</span> : null}
+          {matchClock ? <span className="turn-banner-clock"> · Match {matchClock}</span> : null}
+        </span>
+        <strong className="turn-banner-title">{title}</strong>
+        {sub ? <span className="turn-banner-sub">{sub}</span> : null}
+      </div>
+      <PlayerRow
+        side="opp"
+        stats={{
+          name: oppName,
+          clock: seatClocks
+            ? { text: seatClocks.opp, running: seatClocks.running === "opp", low: seatClocks.oppLow }
+            : undefined,
+          order: firstSeat === oppSeat ? "first" : "second",
+          active: !mulligan && !over && !youActive,
+          life: opp.lifeCount,
+          hand: opp.handCount,
+          deck: opp.deckCount,
+          donActive: opp.activeDonCount,
+          donTotal: opp.costAreaCount,
+        }}
+      />
+      <PlayerRow
+        side="you"
+        stats={{
+          name: youName,
+          clock: seatClocks
+            ? { text: seatClocks.you, running: seatClocks.running === "you", low: seatClocks.youLow }
+            : undefined,
+          order: firstSeat === boardSeat ? "first" : "second",
+          active: !mulligan && !over && youActive,
+          life: you.lifeCount,
+          hand: spectating ? (you.handCount ?? 0) : you.hand.length,
+          deck: you.deckCount,
+          donActive: you.activeDonCount,
+          donTotal: you.costArea.length,
+        }}
+      />
+    </section>
+  );
+}
+
+/** Opponent's hand as fanned backs hanging from the top of the rail. */
+export function OppHandFan({
+  count,
+  cardBackUrl,
+}: {
+  count: number;
+  cardBackUrl: string | null;
+}) {
+  const shown = Math.min(count, 10);
+  const mid = (shown - 1) / 2;
+  return (
+    <div
+      className="opp-hand-fan"
+      aria-label={`Opponent hand: ${count} cards`}
+      style={
+        {
+          "--n": Math.max(shown, 1),
+          ...(cardBackUrl ? { "--card-back-art": cardBackCssValue(cardBackUrl) } : null),
+        } as CSSProperties
+      }
+    >
+      <div className="opp-hand-fan-cards">
+        {Array.from({ length: shown }).map((_, i) => (
+          <span
+            key={i}
+            className="card-back opp-fan-card"
+            style={{ "--i": i - mid } as CSSProperties}
+          />
+        ))}
+      </div>
+      <span className="opp-hand-fan-count">{count} in hand</span>
+    </div>
+  );
+}

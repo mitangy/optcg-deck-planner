@@ -7,6 +7,7 @@ import { hotseatControlSeat } from "../board/hotseatControlSeat";
 import {
   indexViewInstances,
   narrateEvents,
+  rewindBattleLog,
   type BattleLogEntry,
   type InstanceIndex,
 } from "../board/battleLog";
@@ -26,7 +27,15 @@ import {
   seatReservationUserMessage,
   type HotseatResumeBlob,
 } from "../net/matchResume";
-import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol";
+import type {
+  Intent,
+  MatchOverMessage,
+  PlayerView,
+  RematchAction,
+  RematchState,
+  Seat,
+  UndoState,
+} from "../net/protocol";
 
 type HotseatNavState = {
   serverUrl: string;
@@ -50,6 +59,8 @@ type SeatBag = {
   error: string | null;
   connected: boolean;
   battleLog: BattleLogEntry[];
+  undo?: UndoState | null;
+  rematch?: RematchState | null;
   /** Board instance ids → cards (lazily created) so log lines name attackers. */
   instances?: InstanceIndex;
 };
@@ -205,8 +216,16 @@ export function HotseatPage() {
         onWelcome: ({ matchId: id, view }) => {
           // Always stash view so StrictMode park/reclaim keeps boards even
           // when this mount was already cancelled.
+          const rematchStarted = bag.matchOver != null;
           bag.view = view;
           bag.connected = true;
+          // A rematch reuses the room: drop the finished game's result + log.
+          if (rematchStarted) {
+            bag.matchOver = null;
+            bag.rematch = null;
+            bag.battleLog = [];
+            bag.instances = new Map();
+          }
           if (!alive()) return;
           setMatchId(id);
           matchIdRef.current = id;
@@ -243,6 +262,29 @@ export function HotseatPage() {
           // never pin them on the board banner.
           if (isSeatReservationExpiredError(err.message)) return;
           bag.error = `${err.code}: ${err.message}`;
+          if (!alive()) return;
+          bump((n) => n + 1);
+        },
+        onUndoState: (state) => {
+          bag.undo = state;
+          // Both seats are this player: the other seat's client accepts at once.
+          if (state.pending && state.pending.from !== bag.seat) {
+            try {
+              bag.client.sendUndo("accept");
+            } catch {
+              /* socket gone; the request lapses */
+            }
+          }
+          if (!alive()) return;
+          bump((n) => n + 1);
+        },
+        onRematchState: (state) => {
+          bag.rematch = state;
+          if (!alive()) return;
+          bump((n) => n + 1);
+        },
+        onUndoApplied: ({ toTurn, by }) => {
+          bag.battleLog = rewindBattleLog(bag.battleLog, toTurn, by, bag.seat);
           if (!alive()) return;
           bump((n) => n + 1);
         },
@@ -694,7 +736,8 @@ export function HotseatPage() {
     disposeParked(true);
     const toClose = bags.current;
     bags.current = [null, null];
-    await Promise.allSettled(
+    // Close both seats in the background; the lobby shouldn't wait on the server.
+    void Promise.allSettled(
       toClose.map((b) => (b ? b.client.disconnect(true) : Promise.resolve())),
     );
     navigate("/", { replace: true });
@@ -764,6 +807,39 @@ export function HotseatPage() {
         matchOver={bag.matchOver}
         battleLog={bag.battleLog}
         hotseatPass={{ otherSeat: other, onPass: () => passDevice(other) }}
+        rematch={{
+          state: bag.rematch ?? null,
+          autoAccept: true,
+          onAction: (action: RematchAction) => {
+            // Both seats are this player: agree from both, and let the losing
+            // seat's client pick the turn order.
+            const state = bag.rematch;
+            const targets =
+              action === "request" || action === "decline"
+                ? bags.current
+                : state?.chooser != null
+                  ? [bags.current[state.chooser]]
+                  : [];
+            for (const b of targets) {
+              try {
+                b?.client.sendRematch(action);
+              } catch {
+                /* disconnected */
+              }
+            }
+          },
+        }}
+        undo={{
+          state: bag.undo ?? null,
+          autoAccept: true,
+          onAction: (action) => {
+            try {
+              bag.client.sendUndo(action);
+            } catch {
+              /* disconnected; the board shows the reconnect state */
+            }
+          },
+        }}
         leaveLabel="Leave match"
         onSendIntent={sendIntent}
         onLeave={() => void leave()}

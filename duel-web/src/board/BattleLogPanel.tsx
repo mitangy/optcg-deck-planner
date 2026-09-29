@@ -9,6 +9,8 @@ type Props = {
   entries: readonly BattleLogEntry[];
   collapsed?: boolean;
   onToggle?: () => void;
+  /** Wide layouts: fixed open panel with a plain heading (no toggle). */
+  alwaysOpen?: boolean;
   /** Seat controlling the UI (art picks in the inspect sheet). */
   viewingSeat?: Seat;
 };
@@ -57,7 +59,14 @@ function CardName({
   );
 }
 
-export function BattleLogPanel({ entries, collapsed, onToggle, viewingSeat }: Props) {
+export function BattleLogPanel({
+  entries,
+  collapsed: collapsedProp,
+  onToggle,
+  alwaysOpen = false,
+  viewingSeat,
+}: Props) {
+  const collapsed = alwaysOpen ? false : collapsedProp;
   const scrollerRef = useRef<HTMLDivElement>(null);
   const groups = groupBattleLogByTurn(entries);
   const [inspect, setInspect] = useState<{ defId: string; ownerSeat?: Seat } | null>(null);
@@ -69,16 +78,25 @@ export function BattleLogPanel({ entries, collapsed, onToggle, viewingSeat }: Pr
   }, [entries, collapsed]);
 
   return (
-    <aside className={`battle-log${collapsed ? " collapsed" : ""}`}>
-      <button
-        type="button"
-        className="battle-log-toggle"
-        onClick={onToggle}
-        aria-expanded={!collapsed}
-      >
-        <span>Battle log</span>
-        <span className="battle-log-count">{entries.length}</span>
-      </button>
+    <aside
+      className={`battle-log${collapsed ? " collapsed" : ""}${alwaysOpen ? " battle-log-fixed" : ""}`}
+    >
+      {alwaysOpen ? (
+        <h2 className="battle-log-toggle battle-log-heading">
+          <span>Battle log</span>
+          <span className="battle-log-count">{entries.length}</span>
+        </h2>
+      ) : (
+        <button
+          type="button"
+          className="battle-log-toggle"
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+        >
+          <span>Battle log</span>
+          <span className="battle-log-count">{entries.length}</span>
+        </button>
+      )}
       {!collapsed ? (
         <div className="battle-log-body" ref={scrollerRef}>
           {groups.length === 0 ? (

@@ -223,7 +223,87 @@ describe("EB03-034 Charlotte Linlin", () => {
     h.attack(h.state.players[0].leader, linlin!).passBattle();
     expect(h.choice?.seat).toBe(1);
     h.accept(1);
+    // DON!! −1: choose which DON!! to return.
+    h.act(1, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"] });
     expect(h.state.players[1].life.length).toBe(6);
     expect(h.state.players[1].costArea.length).toBe(2);
+  });
+});
+
+describe("OP15-061 Ohm", () => {
+  it("DON!! −1 lets the player pick any DON!! on the field, including attached DON!!", () => {
+    const h = new Harness();
+    h.hand(0, "OP15-061");
+    h.don(0, 3, 1);
+    const leader = h.state.players[0].leader;
+    h.attach(0, leader, 1);
+    const handBefore = h.state.players[0].hand.length;
+    h.play(0, "OP15-061");
+    h.accept(0); // pay DON!! −1
+    const req = h.choice?.request;
+    expect(req?.type).toBe("select");
+    if (req?.type !== "select") return;
+    const labels = req.options.map((o) => o.label);
+    expect(labels).toContain("Active DON!!");
+    expect(labels).toContain("Rested DON!!");
+    const attached = req.options.find((o) => o.label?.startsWith("DON!! on "));
+    expect(attached).toBeDefined();
+    const activeBefore = h.state.players[0].costArea.filter((d) => !d.rested).length;
+    h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [attached!.id] });
+    // The attached DON!! went back; active DON!! in the cost area were untouched.
+    expect(h.state.players[0].leader.attachedDonIds).toHaveLength(0);
+    expect(h.state.players[0].attachedDons).toHaveLength(0);
+    expect(h.state.players[0].costArea.filter((d) => !d.rested).length).toBe(activeBefore);
+    // Played Ohm (−1 card), then drew 1.
+    expect(h.state.players[0].hand.length).toBe(handBefore);
+  });
+});
+
+describe("OP15-066 Satori", () => {
+  const A = "OP01-013";
+  const B = "ST01-006";
+
+  function lookAtTwo() {
+    const h = new Harness();
+    const [satori] = h.field(0, "OP15-066");
+    h.don(0, 3);
+    h.deckTop(0, A, B);
+    h.attack(satori!, "leader");
+    const r = h.choice?.request;
+    expect(r?.type).toBe("look");
+    if (r?.type !== "look") throw new Error("expected look prompt");
+    expect(r.rest).toBe("top_or_bottom");
+    expect(r.options.map((o) => o.defId)).toEqual([A, B]);
+    const opt = (defId: string) => r.options.find((o) => o.defId === defId)!.id;
+    return { h, opt, deckSize: h.state.players[0].deck.length };
+  }
+
+  it("places both on top in the chosen order", () => {
+    const { h, opt } = lookAtTwo();
+    h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [], orderedOptionIds: [opt(B), opt(A)], topOptionIds: [opt(B), opt(A)] });
+    expect(h.state.players[0].deck.slice(0, 2)).toEqual([B, A]);
+  });
+
+  it("splits one to the top and one to the bottom", () => {
+    const { h, opt, deckSize } = lookAtTwo();
+    h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [], orderedOptionIds: [opt(A), opt(B)], topOptionIds: [opt(B)] });
+    const deck = h.state.players[0].deck;
+    expect(deck).toHaveLength(deckSize);
+    expect(deck[0]).toBe(B);
+    expect(deck.at(-1)).toBe(A);
+  });
+
+  it("places both on the bottom in the chosen order (first listed sits higher)", () => {
+    const { h, opt } = lookAtTwo();
+    h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [], orderedOptionIds: [opt(B), opt(A)], topOptionIds: [] });
+    expect(h.state.players[0].deck.slice(-2)).toEqual([B, A]);
+  });
+
+  it("skips the look with 7+ DON!! on the field", () => {
+    const h = new Harness();
+    const [satori] = h.field(0, "OP15-066");
+    h.don(0, 7);
+    h.attack(satori!, "leader");
+    expect(h.choice?.request?.type).not.toBe("look");
   });
 });

@@ -64,6 +64,8 @@ export type Zone =
   | "life"
   | "deck_top"
   | "don"
+  /** Every DON!! on your field: cost area (active or rested) and attached to cards. */
+  | "don_field"
   | "resolving";
 
 /** Card predicate. Every present field must match. */

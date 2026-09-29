@@ -23,6 +23,10 @@ import type {
   Seat,
   SeatPlayers,
   TimerMessage,
+  RematchAction,
+  RematchState,
+  UndoAction,
+  UndoState,
 } from "../net/protocol";
 import {
   initSeatArtPrefsFromStorage,
@@ -33,6 +37,7 @@ import {
 import {
   indexViewInstances,
   narrateEvents,
+  rewindBattleLog,
   type BattleLogEntry,
   type InstanceIndex,
 } from "../board/battleLog";
@@ -55,6 +60,7 @@ type ConnectOpts = {
     timer?: {
       turnSeconds?: number;
       matchSeconds?: number;
+      seatSeconds?: number;
     };
   };
 };
@@ -80,6 +86,14 @@ type DuelSession = {
   /** Match chat (online matches only; cleared when a new match starts). */
   chat: ChatLine[];
   sendChat: (text: string) => void;
+  /** Undo availability (private rooms); null until the server reports it. */
+  undo: UndoState | null;
+  /** Per seat: epoch ms until which a dropped player may reconnect (else null). */
+  awayUntil: [number | null, number | null];
+  /** Rematch vote once the match is over (null until the server reports it). */
+  rematch: RematchState | null;
+  sendRematch: (action: RematchAction) => void;
+  sendUndo: (action: UndoAction) => void;
   rating: number | null;
   lastServerUrl: string | null;
   connect: (opts: ConnectOpts) => Promise<void>;
@@ -119,6 +133,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [matchOver, setMatchOver] = useState<MatchOverMessage["result"] | null>(null);
   const [timer, setTimer] = useState<TimerMessage | null>(null);
   const [chat, setChat] = useState<ChatLine[]>([]);
+  const [undo, setUndo] = useState<UndoState | null>(null);
+  const [awayUntil, setAwayUntil] = useState<[number | null, number | null]>([null, null]);
+  const [rematch, setRematch] = useState<RematchState | null>(null);
   const [rating, setRating] = useState<number | null>(null);
   const [lastServerUrl, setLastServerUrl] = useState<string | null>(null);
 
@@ -153,6 +170,10 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           indexViewInstances(v, instancesRef.current);
           setView(v);
           setBattleLog([]);
+          // A welcome starts (or resyncs) a game: a rematch clears the last
+          // result; a resync of a finished game re-sends match_over after this.
+          setMatchOver(null);
+          setRematch(null);
           setConnected(true);
           setCanReconnect(r === "player");
           setQueueing(false);
@@ -205,6 +226,13 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
             return fresh.length ? [...prev, ...fresh].slice(-100) : prev;
           });
         },
+        onUndoState: (state) => setUndo(state),
+        onPresence: (away) => setAwayUntil(away),
+        onRematchState: (state) => setRematch(state),
+        onUndoApplied: ({ toTurn, by }) => {
+          const youSeat = viewRef.current?.spectator ? null : seatRef.current;
+          setBattleLog((prev) => rewindBattleLog(prev, toTurn, by, youSeat));
+        },
         onDisconnect: () => {
           setConnected(false);
           setQueueing(false);
@@ -238,6 +266,23 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setErrorBanner(e instanceof Error ? e.message : "Chat failed");
         }
       },
+      undo,
+      awayUntil,
+      rematch,
+      sendRematch(action) {
+        try {
+          client.sendRematch(action);
+        } catch (e) {
+          setErrorBanner(e instanceof Error ? e.message : "Rematch failed");
+        }
+      },
+      sendUndo(action) {
+        try {
+          client.sendUndo(action);
+        } catch (e) {
+          setErrorBanner(e instanceof Error ? e.message : "Undo failed");
+        }
+      },
       rating,
       lastServerUrl,
       setRating,
@@ -246,6 +291,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setMatchOver(null);
         setTimer(null);
         setChat([]);
+        setUndo(null);
         setView(null);
         setQueueing(false);
         setResuming(false);
@@ -271,6 +317,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setMatchOver(null);
         setTimer(null);
         setChat([]);
+        setUndo(null);
         setView(null);
         setQueueing(true);
         setResuming(false);
@@ -388,7 +435,11 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         clearMatchResume();
         setCosmeticsPublisher(null);
         resetAllSeatArtPrefs();
-        await client.disconnect(true);
+        // Don't wait for the server's close handshake (slow on a cold / busy
+        // server): reset locally and let the socket close in the background.
+        void client.disconnect(true);
+        setAwayUntil([null, null]);
+        setRematch(null);
         setConnected(false);
         setQueueing(false);
         setCanReconnect(false);
@@ -402,6 +453,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setMatchOver(null);
         setTimer(null);
         setChat([]);
+        setUndo(null);
       },
       clearError() {
         setErrorBanner(null);
@@ -422,6 +474,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     matchOver,
     timer,
     chat,
+    undo,
+    awayUntil,
+    rematch,
     rating,
     lastServerUrl,
   ]);

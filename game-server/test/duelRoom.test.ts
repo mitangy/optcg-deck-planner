@@ -519,6 +519,220 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+  it("undo: request/accept rewinds to the turn start in unranked rooms", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 21,
+      autoSkipMulligan: true,
+    });
+    type UndoState = {
+      enabled: boolean;
+      targetTurn: number | null;
+      pending: { from: 0 | 1; toTurn: number } | null;
+    };
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const undo: [UndoState[], UndoState[]] = [[], []];
+    const applied: { toTurn: number; by: number }[] = [];
+
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("undo_state", (msg: UndoState) => undo[0].push(msg));
+    c0.onMessage("undo_applied", (msg: { toTurn: number; by: number }) => applied.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    c1.onMessage("undo_state", (msg: UndoState) => undo[1].push(msg));
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    await waitUntil(() => undo[0].length > 0, 5000);
+    assert.equal(undo[0].at(-1)!.enabled, true);
+    // Nothing has happened yet: nothing to undo.
+    assert.equal(undo[0].at(-1)!.targetTurn, null);
+
+    const start = bags[0].views.at(-1)!;
+    const active = start.activeSeat;
+    const activeClient = active === 0 ? c0 : c1;
+    const other = active === 0 ? c1 : c0;
+    const startTurn = (start as unknown as { turnNumber: number }).turnNumber;
+    activeClient.send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(
+      () => (bags[0].views.at(-1) as unknown as { turnNumber: number }).turnNumber === startTurn + 1,
+      5000,
+    );
+    // Fresh turn with no actions: undo targets the previous turn's start.
+    await waitUntil(() => undo[1].at(-1)?.targetTurn === startTurn, 5000);
+
+    // The requester cannot accept their own request.
+    other.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await waitUntil(() => undo[0].at(-1)?.pending != null, 5000);
+    other.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
+    const otherBag = bags[active === 0 ? 1 : 0];
+    await waitUntil(() => otherBag.errors.some((e) => e.code === "unauthorized"), 5000);
+
+    activeClient.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
+    await waitUntil(() => applied.length === 1, 5000);
+    assert.equal(applied[0]!.toTurn, startTurn);
+    await waitUntil(
+      () => (bags[0].views.at(-1) as unknown as { turnNumber: number }).turnNumber === startTurn,
+      5000,
+    );
+    assert.equal(bags[0].views.at(-1)!.activeSeat, active);
+    assert.deepEqual(
+      bags[0].views.at(-1)!.you.hand.map((c) => c.id),
+      start.you.hand.map((c) => c.id),
+    );
+    assert.equal(undo[0].at(-1)!.pending, null);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("undo is disabled in ranked rooms", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 22,
+      autoSkipMulligan: true,
+    });
+    // Force the ranked flag the matchmaker would attest.
+    (room as unknown as { ranked: boolean }).ranked = true;
+    const bag: SeatBag = { views: [], errors: [] };
+    const states: { enabled: boolean }[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bag);
+    c0.onMessage("undo_state", (msg: { enabled: boolean }) => states.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, { views: [], errors: [] });
+    await syncSeat(c0, bag);
+    await waitUntil(() => states.length > 0, 5000);
+    assert.equal(states.at(-1)!.enabled, false);
+    c0.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await waitUntil(() => bag.errors.some((e) => e.code === "unauthorized"), 5000);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("a player leaving mid-match forfeits it to the one still seated", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 31,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    await c0.leave(true);
+    await waitUntil(() => bags[1].over != null, 8000);
+    assert.equal(bags[1].over!.result.winner, 1);
+    assert.equal(bags[1].over!.result.reason, "abandoned");
+
+    // The vacated seat can't be taken over by a new player.
+    // The server rejects and closes the socket, so connecting may itself throw.
+    const intruder: SeatBag = { views: [], errors: [] };
+    try {
+      const c2 = await colyseus.connectTo(room, joinOpts("mallory", 0));
+      attach(c2, intruder);
+    } catch {
+      /* closed before the client could attach: also a rejection */
+    }
+    await new Promise((r) => setTimeout(r, 200));
+    assert.equal(intruder.views.length, 0);
+    assert.equal(bags[1].over!.result.winner, 1);
+    await c1.leave(true);
+  });
+
+  it("per-player clock: the seat whose bank runs out loses", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 32,
+      autoSkipMulligan: true,
+      timer: { seatSeconds: 1 },
+    });
+    type Timer = { seatSeconds: number | null; seatRemainingMs: [number, number] | null; clockSeat: 0 | 1 | null };
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const timers: Timer[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("timer", (msg: Timer) => timers.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    await waitUntil(() => timers.some((t) => t.clockSeat != null), 5000);
+    const running = timers.find((t) => t.clockSeat != null)!;
+    assert.equal(running.seatSeconds, 1);
+    const active = bags[0].views.at(-1)!.activeSeat;
+    assert.equal(running.clockSeat, active);
+    // Nobody acts: the active seat's 1s bank runs out.
+    await waitUntil(() => bags[0].over != null, 8000);
+    assert.equal(bags[0].over!.result.winner, active === 0 ? 1 : 0);
+    assert.equal(bags[0].over!.result.reason, "timeout");
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("rematch: both agree, the loser picks turn order, a fresh game starts", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 41,
+      autoSkipMulligan: true,
+    });
+    type Rematch = { available: boolean; requested: [boolean, boolean]; chooser: 0 | 1 | null; declinedBy: 0 | 1 | null };
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const rematch: Rematch[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("rematch_state", (msg: Rematch) => rematch.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    // Seat 0 concedes: seat 0 lost and will pick the turn order.
+    c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => rematch.some((r) => r.available), 8000);
+
+    // Only the loser may choose, and only after both agree.
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await waitUntil(() => rematch.at(-1)!.requested[0], 5000);
+    assert.equal(rematch.at(-1)!.chooser, null);
+    c1.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await waitUntil(() => rematch.at(-1)!.chooser === 0, 5000);
+    c1.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "first" });
+    await waitUntil(() => bags[1].errors.some((e) => e.code === "unauthorized"), 5000);
+
+    const welcomesBefore = bags[0].views.length;
+    bags[0].welcome = undefined;
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "second" });
+    await waitUntil(() => bags[0].welcome != null && bags[0].views.length > welcomesBefore, 5000);
+    const fresh = bags[0].views.at(-1)! as PlayerView & { firstSeat?: number; turnNumber: number };
+    assert.equal(fresh.winner, null);
+    assert.equal(fresh.firstSeat, 1);
+    assert.equal(fresh.you.lifeCount > 0, true);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
   it("rate-limits chat bursts", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,

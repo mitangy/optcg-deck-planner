@@ -1,12 +1,16 @@
 import { useMemo, useState } from "react";
 import { lookupCard } from "../cards/atlas";
-import type { ChoiceOptionView, ChoiceRequestView, Intent, PendingChoiceView, Seat } from "../net/protocol";
+import type { ChoiceOptionView, ChoiceRequestView, Intent, PendingChoiceView, PlayerView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
+import { DON_CARD_ART } from "./donArt";
+import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "./liveTargets";
 
 type Props = {
   choice: PendingChoiceView;
   mySeat: Seat;
   onSend: (intent: Intent) => void;
+  /** Current board, so field targets show their live status (rested, sick, power…). */
+  view?: PlayerView | null;
 };
 
 const ZONE_LABEL: Record<string, string> = {
@@ -27,16 +31,43 @@ function optionName(option: ChoiceOptionView): string {
 }
 
 /** Card art tile (or labeled chip) for one choice option. */
-function OptionTile({ option, mySeat, selected, disabled, onToggle, badge }: {
+function OptionTile({ option, mySeat, selected, disabled, onToggle, badge, lookOnly = false }: {
   option: ChoiceOptionView;
   mySeat: Seat;
   selected: boolean;
   disabled: boolean;
   onToggle: () => void;
   badge?: string;
+  /** Pure look (nothing can be taken): don't label cards "not eligible". */
+  lookOnly?: boolean;
 }) {
   const owner = option.ownerSeat == null ? null : option.ownerSeat === mySeat ? "Yours" : "Opponent";
   const zone = option.zone ? ZONE_LABEL[option.zone] ?? option.zone : null;
+  // Field targets: read the card's live state off the board.
+  const live = useLiveCard(option.instanceId);
+  const [hovered, setHovered] = useState(false);
+  if (option.zone === "don") {
+    // DON!! are interchangeable cards: show where each one sits (active,
+    // rested, or attached to which card) so the player picks the right one.
+    return (
+      <div className={`choice-option choice-don${selected ? " selected" : ""}${disabled ? " disabled" : ""}`}>
+        <button
+          type="button"
+          className={`choice-don-card${option.rested ? " rested" : ""}`}
+          aria-pressed={selected}
+          aria-label={option.label ?? "DON!!"}
+          disabled={disabled}
+          onClick={onToggle}
+        >
+          <img src={DON_CARD_ART} alt="" draggable={false} />
+        </button>
+        <span className="choice-option-caption">
+          {badge ? <span className="choice-badge">{badge}</span> : null}
+          {option.label ?? "DON!!"}
+        </span>
+      </div>
+    );
+  }
   if (!option.defId || option.defId === "HIDDEN") {
     return (
       <button type="button" className={`ability-chip choice-chip${selected ? " selected" : ""}`} disabled={disabled} aria-pressed={selected} onClick={onToggle}>
@@ -44,12 +75,27 @@ function OptionTile({ option, mySeat, selected, disabled, onToggle, badge }: {
       </button>
     );
   }
+  const readiness = live ? readinessLabel(live) : null;
+  const where = live?.slot ? `${zone} ${live.slot}` : zone;
   return (
-    <div className={`choice-option${selected ? " selected" : ""}${disabled ? " disabled" : ""}`}>
+    <div
+      className={`choice-option${selected ? " selected" : ""}${disabled ? " disabled" : ""}`}
+      // Hover / focus lights up this exact card on the board, so two copies
+      // of the same card can be told apart.
+      onPointerEnter={live ? () => setHovered(true) : undefined}
+      onPointerLeave={live ? () => setHovered(false) : undefined}
+      onFocus={live ? () => setHovered(true) : undefined}
+      onBlur={live ? () => setHovered(false) : undefined}
+    >
       <CardTile
         defId={option.defId}
         compact
-        rested={option.rested}
+        rested={live?.rested ?? option.rested}
+        power={live?.power}
+        printedPower={live?.printedPower}
+        attachedDonCount={live?.attachedDonCount}
+        statusLabels={live?.statusLabels}
+        frame={live?.zone === "leader" ? "leader" : "default"}
         selected={selected}
         inspectGestures
         onClick={disabled ? undefined : onToggle}
@@ -58,11 +104,32 @@ function OptionTile({ option, mySeat, selected, disabled, onToggle, badge }: {
       />
       <span className="choice-option-caption">
         {badge ? <span className="choice-badge">{badge}</span> : null}
-        {[owner, zone].filter(Boolean).join(" · ")}
-        {disabled ? " · not eligible" : ""}
+        {[owner, where].filter(Boolean).join(" · ")}
+        {disabled && !lookOnly ? " · not eligible" : ""}
       </span>
+      {readiness ? (
+        <span className={`choice-readiness choice-readiness-${readiness.toLowerCase().replace(/\s+/g, "-")}`}>
+          {readiness}
+        </span>
+      ) : null}
+      {hovered && option.instanceId ? <BoardHighlight ids={[option.instanceId]} kind="hover" /> : null}
     </div>
   );
+}
+
+/**
+ * Outline board cards by instance id without touching the board's DOM: a
+ * scoped style rule keyed on the tiles' `data-instance-id`.
+ */
+function BoardHighlight({ ids, kind }: { ids: string[]; kind: "hover" | "candidate" }) {
+  if (!ids.length) return null;
+  const esc = (id: string) => (typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, ""));
+  const selector = ids.map((id) => `.side-field .card-tile[data-instance-id="${esc(id)}"]`).join(", ");
+  const rule =
+    kind === "hover"
+      ? `${selector} { outline: 3px solid var(--chrome-bright); outline-offset: 2px; box-shadow: 0 0 18px rgba(240, 220, 168, 0.8); z-index: 4; }`
+      : `${selector} { outline: 2px dashed rgba(240, 220, 168, 0.75); outline-offset: 2px; }`;
+  return <style>{rule}</style>;
 }
 
 function moveItem(list: string[], id: string, delta: -1 | 1): string[] {
@@ -96,9 +163,16 @@ function OrderList({ ids, byId, onMove, topIds, onToggleTop, topBottom, label }:
               <span className="choice-order-name">{optionName(option)}</span>
               <span className="search-order-actions">
                 {topBottom ? (
-                  <button type="button" className="choice-place" aria-pressed={topIds.has(id)} onClick={() => onToggleTop(id)}>
-                    {topIds.has(id) ? "Top" : "Bottom"}
-                  </button>
+                  // Explicit two-way switch: a single "Top"/"Bottom" toggle read
+                  // like an action, not the card's current placement.
+                  <span className="choice-place-seg" role="group" aria-label={`Place ${optionName(option)}`}>
+                    <button type="button" className="choice-place" aria-pressed={topIds.has(id)} onClick={() => { if (!topIds.has(id)) onToggleTop(id); }}>
+                      Top
+                    </button>
+                    <button type="button" className="choice-place" aria-pressed={!topIds.has(id)} onClick={() => { if (topIds.has(id)) onToggleTop(id); }}>
+                      Bottom
+                    </button>
+                  </span>
                 ) : null}
                 <button type="button" disabled={index === 0} onClick={() => onMove(id, -1)} aria-label={`Move ${optionName(option)} up`}>↑</button>
                 <button type="button" disabled={index === ids.length - 1} onClick={() => onMove(id, 1)} aria-label={`Move ${optionName(option)} down`}>↓</button>
@@ -108,6 +182,26 @@ function OrderList({ ids, byId, onMove, topIds, onToggleTop, topBottom, label }:
         })}
       </ol>
     </div>
+  );
+}
+
+/** Where the cards will end up, read top of deck → bottom of deck. */
+function DeckPreview({ top, bottom }: { top: string[]; bottom: string[] }) {
+  return (
+    <p className="choice-rest-note deck-preview">
+      {top.length ? (
+        <>
+          <strong>Top of deck:</strong> {top.join(", then ")}
+          {bottom.length ? " · " : ""}
+        </>
+      ) : null}
+      {bottom.length ? (
+        <>
+          <strong>Bottom of deck:</strong> {bottom.join(", then ")}
+          {bottom.length > 1 ? " (last is the very bottom)" : ""}
+        </>
+      ) : null}
+    </p>
   );
 }
 
@@ -121,8 +215,10 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
   const toggle = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : request.max === 1 ? [id] : cur.length >= request.max ? cur : [...cur, id]));
   const valid = selected.length >= request.min && selected.length <= request.max;
   const range = request.min === request.max ? `${request.max}` : request.min === 0 ? `up to ${request.max}` : `${request.min}–${request.max}`;
+  const boardIds = request.options.filter((o) => o.eligible && o.instanceId).map((o) => o.instanceId!);
   return (
     <>
+      <BoardHighlight ids={boardIds} kind="candidate" />
       <div className="ability-prompt-section">
         <div className="ability-prompt-label">Choose {range} · selected {selected.length}</div>
         <div className="choice-grid">
@@ -133,7 +229,11 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
       </div>
       <div className="ability-prompt-actions">
         <button type="button" className="btn btn-primary" disabled={!valid} onClick={() => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: selected })}>
-          {selected.length === 0 ? "Choose none" : `Confirm (${selected.length})`}
+          {selected.length === 0
+            ? request.min > 0
+              ? `Choose ${request.min}`
+              : "Choose none"
+            : `Confirm (${selected.length})`}
         </button>
         {choice.optional ? (
           <button type="button" className="btn btn-secondary" onClick={() => onSend({ type: "resolve_pending_choice", accept: false })}>Decline</button>
@@ -147,7 +247,8 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
   const byId = useMemo(() => new Map(request.options.map((o) => [o.id, o])), [request.options]);
   const [selected, setSelected] = useState<string[]>([]);
   const [order, setOrder] = useState<string[]>(() => request.options.map((o) => o.id));
-  const [topIds, setTopIds] = useState<Set<string>>(() => new Set());
+  // Top by default, so "Done" without changes leaves the deck as it was.
+  const [topIds, setTopIds] = useState<Set<string>>(() => new Set(request.options.map((o) => o.id)));
   const remaining = order.filter((id) => !selected.includes(id));
   const eligible = (id: string) => request.groups.some((g) => g.eligibleIds.includes(id));
   const toggle = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : request.maxSelect === 1 ? [id] : cur.length >= request.maxSelect ? cur : [...cur, id]));
@@ -171,6 +272,7 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
             selected={selected.includes(option.id)}
             disabled={request.maxSelect === 0 || !eligible(option.id)}
             badge={selected.includes(option.id) ? "Take" : undefined}
+            lookOnly={request.maxSelect === 0}
             onToggle={() => toggle(option.id)}
           />
         ))}
@@ -188,6 +290,12 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
       ) : (
         <p className="choice-rest-note">{request.restLabel}</p>
       )}
+      {request.rest === "top_or_bottom" && remaining.length ? (
+        <DeckPreview
+          top={remaining.filter((id) => topIds.has(id)).map((id) => optionName(byId.get(id)!))}
+          bottom={remaining.filter((id) => !topIds.has(id)).map((id) => optionName(byId.get(id)!))}
+        />
+      ) : null}
       {selected.length ? <p className="choice-rest-note">{selected.map((id) => `${optionName(byId.get(id)!)} → ${groupLabel(id) ?? "take"}`).join(" · ")}</p> : null}
       <div className="ability-prompt-actions">
         <button
@@ -231,7 +339,16 @@ function OrderBody({ request, onSend }: { request: Extract<ChoiceRequestView, { 
  * Generic prompt for every server choice request (protocol 5). The server
  * validates all answers; this component only helps build a legal one.
  */
-export function ChoicePrompt({ choice, mySeat, onSend }: Props) {
+export function ChoicePrompt({ choice, mySeat, onSend, view }: Props) {
+  const liveCards = useMemo(() => indexLiveCards(view), [view]);
+  return (
+    <LiveCardsContext.Provider value={liveCards}>
+      <ChoicePromptBody choice={choice} mySeat={mySeat} onSend={onSend} />
+    </LiveCardsContext.Provider>
+  );
+}
+
+function ChoicePromptBody({ choice, mySeat, onSend }: Omit<Props, "view">) {
   const request: ChoiceRequestView = choice.request ?? { type: "confirm" };
   const showSource = request.type === "confirm" && choice.cardDefId && choice.cardDefId !== "HIDDEN";
   return (
