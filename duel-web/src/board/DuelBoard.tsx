@@ -545,6 +545,7 @@ export function DuelBoard({
                           key={c.id}
                           defId={c.defId}
                           playCost={c.playCost}
+                          showCounter
                           selected={handFilter === idx}
                           onClick={() => selectHandCard(idx)}
                           dragEnabled={playable}

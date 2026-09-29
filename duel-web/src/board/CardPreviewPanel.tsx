@@ -2,6 +2,8 @@ import { useState } from "react";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { usePreviewCard } from "./cardPreview";
+import { LiveCardStatus } from "./LiveCardStatus";
+import { counterValueFor, formatCounter } from "../cards/counterValue";
 
 /** Large art + ability text for the last hovered card (wide layouts only). */
 export function CardPreviewPanel() {
@@ -23,11 +25,12 @@ export function CardPreviewPanel() {
     size: "large",
   });
   const effect = entry.effectText?.trim() ?? "";
+  const cv = counterValueFor(entry);
   const stats = [
     entry.type ? entry.type[0]!.toUpperCase() + entry.type.slice(1) : null,
     `Cost ${entry.cost}`,
     entry.power != null ? `${entry.power} power` : null,
-    entry.counter != null ? `+${entry.counter} counter` : null,
+    cv && !cv.effectOnly ? `${formatCounter(cv)} counter` : null,
     entry.life != null ? `${entry.life} life` : null,
   ].filter(Boolean);
 
@@ -46,6 +49,13 @@ export function CardPreviewPanel() {
       <div className="card-preview-meta">
         <h2 className="card-preview-name">{entry.name}</h2>
         <p className="card-preview-stats">{stats.join(" · ")}</p>
+        {preview.live ? (
+          <LiveCardStatus
+            live={preview.live}
+            atlasPower={entry.power}
+            className="card-preview-live"
+          />
+        ) : null}
         {entry.traits?.length ? (
           <p className="card-preview-traits">{entry.traits.join(" / ")}</p>
         ) : null}
