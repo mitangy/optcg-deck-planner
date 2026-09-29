@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type {
   ChatLine,
   Intent,
@@ -34,7 +34,7 @@ import {
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
-import { useCardBackUrl } from "../cardBack";
+import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { loadSettings } from "../settings";
 
@@ -339,8 +339,9 @@ export function DuelBoard({
       ? "You go first"
       : "You go second";
   const showOrderChip = mulliganPhase || view.turnNumber <= 1;
-  // Practice: both halves are yours, so both show your playmat.
+  // Practice: both halves are yours, so both show your playmat and card back.
   const oppMatUrl = hotseatPass ? playmatUrl : null;
+  const oppCardBackUrl = hotseatPass ? cardBackUrl : null;
 
   return (
     <div
@@ -432,7 +433,14 @@ export function DuelBoard({
           <div className="playmat-inner">
             <div className="opp-hand-hint" aria-label={`Opponent hand ${opp.handCount}`}>
               <span className="opp-hand-label">Opp hand</span>
-              <div className="opp-hand-backs">
+              <div
+                className="opp-hand-backs"
+                style={
+                  oppCardBackUrl
+                    ? ({ "--card-back-art": cardBackCssValue(oppCardBackUrl) } as CSSProperties)
+                    : undefined
+                }
+              >
                 {Array.from({ length: Math.min(opp.handCount, 8) }).map((_, i) => (
                   <span key={i} className="card-back" />
                 ))}
@@ -445,6 +453,7 @@ export function DuelBoard({
               compact
               turnOrder={firstSeat === oppSeat ? "first" : "second"}
               matImageUrl={oppMatUrl}
+              cardBackUrl={oppCardBackUrl}
               matDim={playmatDim}
               ownerSeat={oppSeat}
               viewingSeat={viewingSeat}
