@@ -216,11 +216,17 @@ export function finishPlay(sim: Sim, seat: Seat, entry: { id: InstanceId; defId:
 function moveToZone(sim: Sim, loc: Located, zone: "hand" | "deck" | "trash" | "life", opts: { position?: "top" | "bottom"; faceUp?: boolean } = {}): void {
   const { state } = sim;
   const leaving = loc.zone === "character";
+  // Visibility is judged before the move (face-up Life indexes shift once taken).
+  const fromPublic = isOnField(loc) || loc.zone === "trash" || (loc.zone === "life" && Boolean(state.players[loc.seat].faceUpLife[loc.index]));
+  const toPublic = zone === "trash" || (zone === "life" && Boolean(opts.faceUp));
+  // Neither end public → only the owner may learn the card (projectGameEvents
+  // hides it from everyone else). Deck / face-down Life on both ends → nobody.
+  const hidden = !fromPublic && !toPublic;
+  const ownerKnows = !hidden || loc.zone === "hand" || zone === "hand";
   const entry = takeCard(state, loc);
   putCard(state, loc.seat, zone, entry, opts);
   if (leaving) dispatchEvent(state, "character_left_field", { seat: loc.seat, card: entry });
-  const hidden = zone === "deck" || (zone === "life" && !opts.faceUp) || (zone === "hand" && (loc.zone === "deck" || loc.zone === "life"));
-  sim.events.push({ type: "card_moved", seat: loc.seat, defId: hidden ? "HIDDEN" : entry.defId, from: loc.zone, to: zone, ...(hidden ? { hidden: true } : {}) });
+  sim.events.push({ type: "card_moved", seat: loc.seat, defId: ownerKnows ? entry.defId : "HIDDEN", from: loc.zone, to: zone, ...(hidden ? { hidden: true } : {}) });
   if (loc.zone === "life") dispatchEvent(state, "life_removed", { seat: loc.seat, card: entry });
   if (loc.zone === "hand" && zone === "trash") dispatchEvent(state, "card_trashed_from_hand", { seat: loc.seat, card: entry });
 }
@@ -1180,7 +1186,11 @@ function applyLook(sim: Sim, frame: ResolutionFrame, choice: PendingChoice, answ
     const publicDest = pick.dest === "play" || pick.dest === "play_rested" || pick.dest === "trash" || ((pick.dest === "life_top" || pick.dest === "life_bottom") && Boolean(pick.faceUp));
     if (meta.reveal || publicDest) sim.events.push({ type: "card_revealed", seat: meta.seat, defId: entry.defId, matchedTrait: true });
     switch (pick.dest) {
-      case "hand": putCard(state, meta.seat, "hand", entry); break;
+      case "hand":
+        putCard(state, meta.seat, "hand", entry);
+        // Searched card: the owner always learns it; others only when revealed.
+        sim.events.push({ type: "card_moved", seat: meta.seat, defId: entry.defId, from: "deck", to: "hand", ...(meta.reveal ? {} : { hidden: true }) });
+        break;
       case "life_top": putCard(state, meta.seat, "life", entry, { position: "top", faceUp: Boolean(pick.faceUp) }); sim.events.push({ type: "life_added", seat: meta.seat, defId: entry.defId, source: "deck_top", ...(pick.faceUp ? { faceUp: true } : {}) }); break;
       case "life_bottom": putCard(state, meta.seat, "life", entry, { position: "bottom", faceUp: Boolean(pick.faceUp) }); break;
       case "trash": putCard(state, meta.seat, "trash", entry); break;
