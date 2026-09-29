@@ -51,7 +51,10 @@ import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
 import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
-import { loadSettings } from "../settings";
+import { useDuelSettings } from "../settings";
+import { endTurnNeedsConfirm, forcedDefensePass } from "./gameplayPrefs";
+import { GameplaySettingsSheet } from "./GameplaySettings";
+import { useTurnAlert } from "./turnAlert";
 import { seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
 import { RematchPanel } from "./RematchPanel";
@@ -192,9 +195,11 @@ export function DuelBoard({
   const [logCollapsed, setLogCollapsed] = useState(true);
   const [handCollapsed, setHandCollapsed] = useState(false);
   /** Wide layout: hand dock pinned open (click / tap on its handle). */
-  const [handPinned, setHandPinned] = useState(false);
+  const prefs = useDuelSettings();
+  const [handPinned, setHandPinned] = useState(prefs.keepHandOpen);
   const wide = useMediaQuery(WIDE_BOARD_QUERY);
-  const [handSorted, setHandSorted] = useState(false);
+  const [handSorted, setHandSorted] = useState(prefs.sortHandByCost);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
   /** Click-to-attach: DON!! selected + target tapped, awaiting confirm. */
   const [pendingAttach, setPendingAttach] = useState<PendingAttach | null>(null);
@@ -202,7 +207,11 @@ export function DuelBoard({
   const handRowRef = useRef<HTMLDivElement | null>(null);
   const playmatUrl = usePlaymatUrl();
   const cardBackUrl = useCardBackUrl();
-  const [playmatDim] = useState(() => loadSettings().playmatDim);
+  const playmatDim = prefs.playmatDim;
+
+  // Changing a setting mid-match applies it straight away.
+  useEffect(() => setHandPinned(prefs.keepHandOpen), [prefs.keepHandOpen]);
+  useEffect(() => setHandSorted(prefs.sortHandByCost), [prefs.sortHandByCost]);
 
   useEffect(() => {
     if (!timer?.turnEndsAt && !timer?.matchEndsAt && !timer?.clockEndsAt && !opponentAwayUntil) {
@@ -246,6 +255,40 @@ export function DuelBoard({
     !over &&
     (decidingMulligan || view!.activeSeat === mySeat);
   const intents = view?.legalIntents ?? [];
+
+  // Auto-pass: when Pass is the only answer to a block / counter step.
+  const autoPass =
+    prefs.autoPassDefense && view && !spectating && !over && !view.pendingChoices?.length
+      ? forcedDefensePass(intents)
+      : null;
+  const autoPassKey =
+    autoPass && view
+      ? `${view.turnNumber}:${autoPass.type}:${JSON.stringify(view.battle ?? null)}`
+      : null;
+  const autoPassRef = useRef<{ intent: typeof autoPass; send: typeof onSendIntent }>({
+    intent: null,
+    send: onSendIntent,
+  });
+  autoPassRef.current = { intent: autoPass, send: onSendIntent };
+  const autoPassSent = useRef<string | null>(null);
+  useEffect(() => {
+    if (!autoPassKey || autoPassSent.current === autoPassKey) return;
+    // Short beat so the attack registers before the step moves on.
+    const id = window.setTimeout(() => {
+      const { intent, send } = autoPassRef.current;
+      if (!intent) return;
+      autoPassSent.current = autoPassKey;
+      send(intent);
+    }, 450);
+    return () => window.clearTimeout(id);
+  }, [autoPassKey]);
+
+  // Hotseat hands the device over itself; alerts only matter online.
+  useTurnAlert(!spectating && !over && !hotseatPass && intents.length > 0 && autoPass == null, {
+    buzz: prefs.turnAlert,
+    sound: prefs.turnSound,
+  });
+
   const dndEnabled = yourTurn && !spectating && !over && !mulliganPhase;
   const costArea = view?.you.costArea ?? [];
 
@@ -501,7 +544,7 @@ export function DuelBoard({
   // your opening hand or have a hand card selected.
   const handOpen = handPinned || decidingMulligan || handFilter != null;
 
-  const splash: SplashMessage | null = over
+  const splash: SplashMessage | null = over || !prefs.turnSplash
     ? null
     : mulliganPhase
       ? spectating
@@ -578,6 +621,7 @@ export function DuelBoard({
       disabled={over}
       filterHandIndex={handFilter}
       selectedBoardId={selectedBoardId}
+      confirmEndTurn={endTurnNeedsConfirm(prefs.endTurnConfirm, view.legalIntents)}
       onSend={(intent) => {
         setHandFilter(null);
         setSelectedBoardId(null);
@@ -726,11 +770,22 @@ export function DuelBoard({
               onConfirm={onConcede}
             />
           ) : null}
+          <button
+            type="button"
+            className="hud-undo-btn hud-settings-btn"
+            aria-label="Gameplay settings"
+            title="Gameplay settings"
+            onClick={() => setSettingsOpen(true)}
+          >
+            ⚙
+          </button>
           <button type="button" className="leave-btn" onClick={onLeave}>
             {leaveLabel}
           </button>
         </div>
       </header>
+
+      {settingsOpen ? <GameplaySettingsSheet onClose={() => setSettingsOpen(false)} /> : null}
 
       {undoPendingTheirs && undoState?.pending ? (
         <div className="undo-request" role="alertdialog" aria-label="Undo request">

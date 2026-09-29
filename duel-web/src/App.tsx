@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthCompletePage } from "./pages/AuthCompletePage";
 import { DeckConfigurePage } from "./pages/DeckConfigurePage";
@@ -9,8 +10,16 @@ import { HotseatPage } from "./pages/HotseatPage";
 import { LobbyPage } from "./pages/LobbyPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { UsernameSetupPage } from "./pages/UsernameSetupPage";
+import { useDuelSettings } from "./settings";
 
 export function App() {
+  const { reduceMotion } = useDuelSettings();
+  // CSS mirrors its prefers-reduced-motion rules under [data-motion="reduce"].
+  useEffect(() => {
+    if (reduceMotion) document.documentElement.dataset.motion = "reduce";
+    else delete document.documentElement.dataset.motion;
+  }, [reduceMotion]);
+
   return (
     <Routes>
       <Route path="/" element={<LobbyPage />} />

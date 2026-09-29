@@ -1957,3 +1957,25 @@
   background: rgba(149, 164, 173, 0.14);
   color: #c7d1d7;
 }
+
+/* —— Two-tap buttons that keep their width while armed —— */
+
+.confirm-btn-sizer {
+  display: inline-grid;
+}
+
+.confirm-btn-sizer > * {
+  grid-area: 1 / 1;
+}
+
+.confirm-btn-sizer > .is-hidden {
+  visibility: hidden;
+}
+
+.intent-btn-end.armed,
+.intent-btn-end.armed:not(:disabled):hover {
+  color: #fff;
+  background: linear-gradient(180deg, #c9723a, #a4521f);
+  border-color: rgba(255, 214, 170, 0.7);
+  box-shadow: 0 0 0 2px rgba(230, 150, 80, 0.35);
+}

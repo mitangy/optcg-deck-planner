@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PlayerView } from "../net/protocol";
+import { useDuelSettings } from "../settings";
 import { arcGeometry, battleEndpoints, boxCenter } from "./battleArc";
 import { useTrackedBoxes } from "./useTrackedBoxes";
 
@@ -31,7 +32,8 @@ function usePrefersReducedMotion(): boolean {
  */
 export function AttackIndicator({ view }: { view: PlayerView | null }) {
   const ends = battleEndpoints(view);
-  const reduced = usePrefersReducedMotion();
+  const systemReduced = usePrefersReducedMotion();
+  const reduced = useDuelSettings().reduceMotion || systemReduced;
   const ids = ends
     ? [ends.attackerId, ends.targetId, ...(ends.redirectedFromId ? [ends.redirectedFromId] : [])]
     : null;

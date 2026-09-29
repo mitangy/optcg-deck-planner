@@ -326,3 +326,60 @@
     touch-action: pan-y !important;
   }
 }
+
+/* —— Reduce animations setting: mirrors the prefers-reduced-motion rules —— */
+
+:root[data-motion="reduce"] .atk-trail,
+:root[data-motion="reduce"] .atk-fuse,
+:root[data-motion="reduce"] .atk-source,
+:root[data-motion="reduce"] .atk-reticle-ring,
+:root[data-motion="reduce"] .atk-reticle-spin {
+  animation: none;
+}
+:root[data-motion="reduce"] .atk-fuse {
+  display: none;
+}
+:root[data-motion="reduce"] .side-field .card-tile {
+  transition: none;
+}
+:root[data-motion="reduce"] .turn-splash-card {
+  animation-name: turn-splash-fade;
+}
+:root[data-motion="reduce"] .turn-panel-mine .turn-banner,
+:root[data-motion="reduce"] .turn-panel-respond .turn-banner {
+  animation: none;
+}
+:root[data-motion="reduce"] .hand-dock,
+:root[data-motion="reduce"] .hand-dock .hand-dock-cards > * {
+  transition: none;
+}
+:root[data-motion="reduce"] .sheet,
+:root[data-motion="reduce"] .sheet-backdrop {
+  animation: none;
+}
+
+/* —— Gameplay settings —— */
+
+.gameplay-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.gameplay-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.gameplay-toggle .field-hint {
+  padding-left: 1.6rem;
+}
+
+.hud-settings-btn,
+.arena .hud-actions .hud-settings-btn {
+  font-size: 0.95rem;
+  line-height: 1;
+}

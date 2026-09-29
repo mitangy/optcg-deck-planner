@@ -7,12 +7,13 @@ import { cardBackCssValue, clearCardBack, saveCardBack, useCardBackUrl } from ".
 import { getApiBaseUrl, getGameServerUrl } from "../config";
 import { fetchAuthMe, googleLoginUrl, logoutSession, type AuthUser } from "../net/api";
 import { clearPlaymat, savePlaymat, usePlaymatUrl } from "../playmat";
-import { devKeyAllowed, loadSettings, saveSettings, type DuelSettings } from "../settings";
+import { GameplaySettingsFields } from "../board/GameplaySettings";
+import { devKeyAllowed, updateSettings, useDuelSettings, type DuelSettings } from "../settings";
 import { useDuelSession } from "../state/DuelSession";
 
 export function SettingsPage() {
   const { setRating } = useDuelSession();
-  const [settings, setSettings] = useState<DuelSettings>(() => loadSettings());
+  const settings = useDuelSettings();
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const showDevKey = devKeyAllowed();
   const defaultServer = getGameServerUrl();
@@ -56,11 +57,7 @@ export function SettingsPage() {
   }, []);
 
   function update(patch: Partial<DuelSettings>) {
-    setSettings((prev) => {
-      const next = { ...prev, ...patch };
-      saveSettings(next);
-      return next;
-    });
+    updateSettings(patch);
   }
 
   return (
@@ -136,6 +133,12 @@ export function SettingsPage() {
               ) : null}
             </div>
           ) : null}
+        </section>
+
+        <section className="panel">
+          <h2 className="panel-title">Gameplay</h2>
+          <p className="field-hint">Also under ⚙ during a match. Saved in this browser.</p>
+          <GameplaySettingsFields />
         </section>
 
         <section className="panel">

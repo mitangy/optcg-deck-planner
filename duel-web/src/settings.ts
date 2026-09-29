@@ -5,7 +5,11 @@
  * Only overrides are stored: an empty `serverUrl` means "use the build default"
  * so a deploy that changes VITE_GAME_SERVER_URL is not shadowed by a stale value.
  */
+import { useSyncExternalStore } from "react";
 import { getGameServerUrl } from "./config";
+
+/** When "End turn" asks for a second tap. */
+export type EndTurnConfirm = "always" | "actions" | "never";
 
 export type DuelSettings = {
   /** Game server URL override ("" = build default). */
@@ -17,6 +21,24 @@ export type DuelSettings = {
   devUserKey: string;
   /** Darkening over custom playmat art (0–0.8) so cards stay legible. */
   playmatDim: number;
+
+  // —— Gameplay ——
+  /** Second tap before ending the turn: always, only while you can still act, or never. */
+  endTurnConfirm: EndTurnConfirm;
+  /** Send Pass block / Pass counter for you when it is your only option. */
+  autoPassDefense: boolean;
+  /** Start every match with the hand sorted by cost. */
+  sortHandByCost: boolean;
+  /** Wide layout: keep the hand dock open instead of tucking it away. */
+  keepHandOpen: boolean;
+  /** "Your turn" / "Opponent's turn" banner over the board. */
+  turnSplash: boolean;
+  /** Tone down board animations even when the OS has no reduced-motion preference. */
+  reduceMotion: boolean;
+  /** Vibrate (where supported) and flag the browser tab when the game needs you. */
+  turnAlert: boolean;
+  /** Short chime when the game needs you. */
+  turnSound: boolean;
 };
 
 const KEY = "optcg-duel:settings";
@@ -27,14 +49,35 @@ const DEFAULTS: DuelSettings = {
   useDevKey: false,
   devUserKey: "web-dev",
   playmatDim: 0.35,
+  endTurnConfirm: "always",
+  autoPassDefense: false,
+  sortHandByCost: false,
+  keepHandOpen: false,
+  turnSplash: true,
+  reduceMotion: false,
+  turnAlert: true,
+  turnSound: false,
 };
+
+const END_TURN_CONFIRM: readonly EndTurnConfirm[] = ["always", "actions", "never"];
+const CHANGE_EVENT = "optcg-duel:settings-change";
+
+/** Stored values from older builds or hand edits fall back to defaults field by field. */
+function sanitize(parsed: Partial<DuelSettings>): DuelSettings {
+  const next = { ...DEFAULTS, ...parsed };
+  if (!END_TURN_CONFIRM.includes(next.endTurnConfirm)) next.endTurnConfirm = DEFAULTS.endTurnConfirm;
+  for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
+    if (typeof next[k] !== typeof DEFAULTS[k]) (next as Record<string, unknown>)[k] = DEFAULTS[k];
+  }
+  return next;
+}
 
 export function loadSettings(): DuelSettings {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { ...DEFAULTS };
     const parsed = JSON.parse(raw) as Partial<DuelSettings>;
-    return { ...DEFAULTS, ...parsed };
+    return sanitize(parsed && typeof parsed === "object" ? parsed : {});
   } catch {
     return { ...DEFAULTS };
   }
@@ -46,6 +89,41 @@ export function saveSettings(next: DuelSettings): void {
   } catch {
     // Private mode / storage disabled — settings just won't persist.
   }
+  cached = next;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+
+/** Merge a patch into the stored settings (used by the in-match settings sheet). */
+export function updateSettings(patch: Partial<DuelSettings>): DuelSettings {
+  const next = { ...snapshot(), ...patch };
+  saveSettings(next);
+  return next;
+}
+
+let cached: DuelSettings | null = null;
+
+function snapshot(): DuelSettings {
+  if (!cached) cached = loadSettings();
+  return cached;
+}
+
+function subscribe(onChange: () => void): () => void {
+  const onStorage = (e: StorageEvent) => {
+    if (e.key !== KEY) return;
+    cached = null;
+    onChange();
+  };
+  window.addEventListener(CHANGE_EVENT, onChange);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(CHANGE_EVENT, onChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+/** Live settings: re-renders when they change on this page or in another tab. */
+export function useDuelSettings(): DuelSettings {
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
 /** Effective game server URL (override or build default). */
