@@ -11,6 +11,7 @@ import { BattleLogPanel } from "./BattleLogPanel";
 import { CardPreviewPanel } from "./CardPreviewPanel";
 import { ChatPanel } from "./ChatPanel";
 import type { BattleLogEntry } from "./battleLog";
+import { describeMatchResult } from "./matchResult";
 import { CardTile } from "./CardTile";
 import {
   canDragDon,
@@ -33,6 +34,7 @@ import {
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
+import { useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { loadSettings } from "../settings";
 
@@ -123,6 +125,7 @@ export function DuelBoard({
   const [now, setNow] = useState(() => Date.now());
   const handRowRef = useRef<HTMLDivElement | null>(null);
   const playmatUrl = usePlaymatUrl();
+  const cardBackUrl = useCardBackUrl();
   const [playmatDim] = useState(() => loadSettings().playmatDim);
 
   useEffect(() => {
@@ -148,6 +151,14 @@ export function DuelBoard({
   const over = matchOver != null || view?.winner != null;
   const mySeat = seat ?? view?.seat ?? null;
   const spectating = spectator || Boolean(view?.spectator);
+  const result = describeMatchResult({
+    winner: matchOver?.winner ?? view?.winner,
+    // The room's reason (concede / clock) beats the engine's view.winReason.
+    reason: matchOver?.reason ?? view?.winReason,
+    youSeat: spectating ? null : mySeat,
+    // Hotseat: one device plays both seats — name seats, not "You".
+    neutral: Boolean(hotseatPass),
+  });
   const mulliganPhase = view?.phase === "mulligan";
   const decidingMulligan =
     Boolean(view) && !spectating && mulliganPhase && !view!.you.mulliganDone && !over;
@@ -474,6 +485,7 @@ export function DuelBoard({
               turnOrder={youFirst ? "first" : "second"}
               matImageUrl={playmatUrl}
               matDim={playmatDim}
+              cardBackUrl={cardBackUrl}
               ownerSeat={boardSeat}
               viewingSeat={viewingSeat}
               data={{
@@ -580,6 +592,7 @@ export function DuelBoard({
                           key={c.id}
                           defId={c.defId}
                           playCost={c.playCost}
+                          showCounter
                           selected={handFilter === idx}
                           onClick={() => selectHandCard(idx)}
                           dragEnabled={playable}
@@ -631,6 +644,7 @@ export function DuelBoard({
 
           <BattleLogPanel
             entries={battleLog}
+            viewingSeat={spectating || mySeat == null ? undefined : mySeat}
             collapsed={logCollapsed}
             onToggle={() => setLogCollapsed((v) => !v)}
           />
@@ -684,13 +698,10 @@ export function DuelBoard({
 
       {over ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className="modal-card">
-            <h2>Match over</h2>
-            <p>
-              {`Winner: seat ${matchOver?.winner ?? view.winner}\nReason: ${
-                matchOver?.reason ?? view.winReason ?? "—"
-              }`}
-            </p>
+          <div className={`modal-card match-result match-result-${result.outcome}`}>
+            <p className="match-result-kicker">Match over</p>
+            <h2>{result.headline}</h2>
+            <p className="match-result-detail">{result.detail}</p>
             <button type="button" className="leave-btn" onClick={onLeave}>
               Return home
             </button>

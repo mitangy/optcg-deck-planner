@@ -253,6 +253,8 @@ describe("hidden-information leaks", () => {
     for (const viewer of [1, null] as const) {
       expect(JSON.stringify(projectGameEvents(lookEvents, viewer))).not.toContain("OP01-013");
     }
+    // The searcher's owner sees which card they added (battle log).
+    expect(projectGameEvents(lookEvents, 0)).toContainEqual(expect.objectContaining({ type: "card_moved", seat: 0, defId: "OP01-013", from: "deck", to: "hand", hidden: true }));
     const reveal = new Harness();
     reveal.hand(0, "OP01-016");
     reveal.don(0, 1);
@@ -260,6 +262,7 @@ describe("hidden-information leaks", () => {
     reveal.play(0, "OP01-016");
     reveal.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2", "o3", "o4"] });
     expect(JSON.stringify(projectGameEvents(reveal.state.lastEvents, 1))).toContain("OP01-013");
+    expect(projectGameEvents(reveal.state.lastEvents, 1)).toContainEqual(expect.objectContaining({ type: "card_moved", seat: 0, defId: "OP01-013", from: "deck", to: "hand" }));
   });
 
   it("compiles a look without a printed reveal as private", () => {

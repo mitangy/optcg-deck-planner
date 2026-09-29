@@ -30,8 +30,10 @@ import {
   setCosmeticsPublisher,
 } from "../decks/seatArtPrefs";
 import {
+  indexViewInstances,
   narrateEvents,
   type BattleLogEntry,
+  type InstanceIndex,
 } from "../board/battleLog";
 
 type ConnectOpts = {
@@ -107,6 +109,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [view, setView] = useState<PlayerView | null>(null);
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
   const viewRef = useRef<PlayerView | null>(null);
+  /** Board instance ids → cards, so log lines can name attackers / blockers. */
+  const instancesRef = useRef<InstanceIndex>(new Map());
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [matchOver, setMatchOver] = useState<MatchOverMessage["result"] | null>(null);
   const [timer, setTimer] = useState<TimerMessage | null>(null);
@@ -140,6 +144,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setSeat(s);
           setRole(r);
           viewRef.current = v;
+          instancesRef.current = new Map();
+          indexViewInstances(v, instancesRef.current);
           setView(v);
           setBattleLog([]);
           setConnected(true);
@@ -158,12 +164,19 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         },
         onView: (v) => {
           viewRef.current = v;
+          indexViewInstances(v, instancesRef.current);
           setView(v);
         },
         onEvents: (events) => {
           const turn = viewRef.current?.turnNumber ?? 1;
-          const youSeat = seatRef.current;
-          const lines = narrateEvents(events, { youSeat, turnNumber: turn });
+          // Spectators follow a camera seat but are not "You".
+          const youSeat = viewRef.current?.spectator ? null : seatRef.current;
+          indexViewInstances(viewRef.current, instancesRef.current);
+          const lines = narrateEvents(events, {
+            youSeat,
+            turnNumber: turn,
+            instances: instancesRef.current,
+          });
           if (lines.length) setBattleLog((prev) => [...prev, ...lines]);
         },
         onCosmetics: (msg) => {
