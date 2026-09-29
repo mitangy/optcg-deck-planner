@@ -97,6 +97,14 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
           `Seat ${e.seat} gives ${getCardDef(e.targetDefId).name} +${e.amount} power this ${e.duration}`,
         );
         break;
+      case "card_moved":
+        lines.push(
+          `Seat ${e.seat} moves ${e.defId === "HIDDEN" ? "a card" : getCardDef(e.defId).name} from ${e.from} to ${e.to}`,
+        );
+        break;
+      case "ability_activated":
+        lines.push(`Seat ${e.seat} activates ${getCardDef(e.defId).name}'s ability`);
+        break;
       case "pending_choice_added":
         lines.push(
           `Seat ${e.seat} may resolve ${getCardDef(e.cardDefId).name}'s ${e.kind.replace(/_/g, " ")} (${e.prompt})`,

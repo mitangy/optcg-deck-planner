@@ -20,6 +20,7 @@ import type {
   MatchOverMessage,
   PlayerView,
   Seat,
+  SeatPlayers,
   TimerMessage,
 } from "../net/protocol";
 import {
@@ -29,8 +30,10 @@ import {
   setCosmeticsPublisher,
 } from "../decks/seatArtPrefs";
 import {
+  indexViewInstances,
   narrateEvents,
   type BattleLogEntry,
+  type InstanceIndex,
 } from "../board/battleLog";
 
 type ConnectOpts = {
@@ -66,6 +69,8 @@ type DuelSession = {
   seat: Seat | null;
   role: "player" | "spectator";
   view: PlayerView | null;
+  /** Seat-indexed display names from the server welcome (usernames when set). */
+  players: SeatPlayers | null;
   battleLog: BattleLogEntry[];
   clearBattleLog: () => void;
   errorBanner: string | null;
@@ -101,8 +106,11 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [seat, setSeat] = useState<Seat | null>(null);
   const [role, setRole] = useState<"player" | "spectator">("player");
   const [view, setView] = useState<PlayerView | null>(null);
+  const [players, setPlayers] = useState<SeatPlayers | null>(null);
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
   const viewRef = useRef<PlayerView | null>(null);
+  /** Board instance ids → cards, so log lines can name attackers / blockers. */
+  const instancesRef = useRef<InstanceIndex>(new Map());
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [matchOver, setMatchOver] = useState<MatchOverMessage["result"] | null>(null);
   const [timer, setTimer] = useState<TimerMessage | null>(null);
@@ -129,12 +137,15 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
 
     function wireHandlers() {
       client.setHandlers({
-        onWelcome: ({ matchId: id, seat: s, view: v, role: r }) => {
+        onWelcome: ({ matchId: id, seat: s, view: v, role: r, players: p }) => {
+          setPlayers(p ?? null);
           seatRef.current = s;
           setMatchId(id);
           setSeat(s);
           setRole(r);
           viewRef.current = v;
+          instancesRef.current = new Map();
+          indexViewInstances(v, instancesRef.current);
           setView(v);
           setBattleLog([]);
           setConnected(true);
@@ -153,12 +164,19 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         },
         onView: (v) => {
           viewRef.current = v;
+          indexViewInstances(v, instancesRef.current);
           setView(v);
         },
         onEvents: (events) => {
           const turn = viewRef.current?.turnNumber ?? 1;
-          const youSeat = seatRef.current;
-          const lines = narrateEvents(events, { youSeat, turnNumber: turn });
+          // Spectators follow a camera seat but are not "You".
+          const youSeat = viewRef.current?.spectator ? null : seatRef.current;
+          indexViewInstances(viewRef.current, instancesRef.current);
+          const lines = narrateEvents(events, {
+            youSeat,
+            turnNumber: turn,
+            instances: instancesRef.current,
+          });
           if (lines.length) setBattleLog((prev) => [...prev, ...lines]);
         },
         onCosmetics: (msg) => {
@@ -193,6 +211,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       seat,
       role,
       view,
+      players,
       battleLog,
       clearBattleLog: () => setBattleLog([]),
       errorBanner,
@@ -356,6 +375,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         seatRef.current = null;
         setRole("player");
         setView(null);
+        setPlayers(null);
         setMatchOver(null);
         setTimer(null);
       },
@@ -372,6 +392,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     seat,
     role,
     view,
+    players,
     battleLog,
     errorBanner,
     matchOver,

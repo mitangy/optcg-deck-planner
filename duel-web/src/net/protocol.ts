@@ -52,13 +52,34 @@ export type ErrorCode =
   | "room_full"
   | string;
 
+/** Public per-seat player info from the game-server (never contains emails). */
+export type SeatPlayerInfo = {
+  name: string | null;
+};
+
+/** Seat-indexed player names; null entries when unknown (older servers). */
+export type SeatPlayers = [SeatPlayerInfo, SeatPlayerInfo];
+
 export type WelcomeMessage = {
   protocolVersion: ProtocolVersion;
   matchId: string;
   seat: Seat;
   role?: "player" | "spectator";
   view: PlayerView;
+  players?: SeatPlayers;
 };
+
+function parseSeatPlayers(raw: unknown): SeatPlayers | undefined {
+  if (!Array.isArray(raw) || raw.length !== 2) return undefined;
+  const one = (p: unknown): SeatPlayerInfo => {
+    const name =
+      p && typeof p === "object" ? (p as { name?: unknown }).name : undefined;
+    return {
+      name: typeof name === "string" && name.trim() ? name.trim().slice(0, 40) : null,
+    };
+  };
+  return [one(raw[0]), one(raw[1])];
+}
 
 export type ViewMessage = {
   protocolVersion: ProtocolVersion;
@@ -278,6 +299,7 @@ export function parseWelcome(raw: unknown): WelcomeMessage {
     seat: o.seat,
     role,
     view,
+    players: parseSeatPlayers(o.players),
   };
 }
 

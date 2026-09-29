@@ -16,7 +16,9 @@ import {
 } from "../decks/seatArtPrefs";
 import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "./CardInspect";
-import { setPreviewCard } from "./cardPreview";
+import { refreshPreviewLive, setPreviewCard, type PreviewLive } from "./cardPreview";
+import { counterValueFor, formatCounter } from "../cards/counterValue";
+import { formatPowerDelta, powerBreakdown, tileStatusLabels } from "./powerDisplay";
 import {
   createClickDeferController,
   createLongPressController,
@@ -60,8 +62,6 @@ type Props = {
    * Leave off for one-shot actions (e.g. declaring an attack on a target).
    */
   instantClick?: boolean;
-  /** Board instance id → `data-instance-id` (battle overlay anchors on it). */
-  instanceId?: string;
   /** When true, single click opens inspect instead of onClick (trash viewer only). */
   inspectOnClick?: boolean;
   /** Long-press / double-click inspect when true (field cards without onClick). */
@@ -82,6 +82,10 @@ type Props = {
   viewingSeat?: Seat;
   /** Server-authoritative play cost (Teach tax, etc.) when in Main. */
   playCost?: number;
+  /** Board instance id → `data-instance-id` (battle overlay anchor) + live hover preview tracking. */
+  instanceId?: string;
+  /** Show the Counter value badge (hand cards). */
+  showCounter?: boolean;
 };
 
 export function CardTile({
@@ -110,6 +114,7 @@ export function CardTile({
   ownerSeat,
   viewingSeat,
   playCost,
+  showCounter = false,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
   const [imgFailed, setImgFailed] = useState(false);
@@ -132,17 +137,27 @@ export function CardTile({
   }, [defId]);
 
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
-  const shownPower = power ?? entry.power ?? null;
-  const buffed =
-    shownPower != null &&
-    printedPower != null &&
-    shownPower !== printedPower;
-  const labels =
-    statusLabels?.length
-      ? statusLabels
-      : [
-          ...(rested ? ["Rested"] : []),
-        ];
+  const pb = powerBreakdown(power, printedPower, entry.power);
+  const counter = useMemo(
+    () => (showCounter ? counterValueFor(entry) : null),
+    [showCounter, entry],
+  );
+  const labels = tileStatusLabels(statusLabels, rested);
+
+  // Live in-play state for the hover preview (field instances only).
+  const labelsKey = (statusLabels ?? []).join("|");
+  const live = useMemo<PreviewLive | undefined>(
+    () =>
+      instanceId
+        ? { power, printedPower, attachedDonCount, rested, statusLabels }
+        : undefined,
+    // statusLabels is a fresh array each render; labelsKey tracks its content.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [instanceId, power, printedPower, attachedDonCount, rested, labelsKey],
+  );
+  useEffect(() => {
+    if (instanceId && live) refreshPreviewLive(instanceId, live);
+  }, [instanceId, live]);
 
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
@@ -252,7 +267,7 @@ export function CardTile({
   }
 
   function handlePointerEnter(e: PointerEvent) {
-    if (e.pointerType === "mouse") setPreviewCard({ defId, ownerSeat });
+    if (e.pointerType === "mouse") setPreviewCard({ defId, ownerSeat, instanceId, live });
   }
 
   function handlePointerCancel(e: PointerEvent) {
@@ -288,24 +303,66 @@ export function CardTile({
           {entry.id}
         </div>
       )}
-      {shownPower != null ? (
-        <span className={`power-badge${buffed ? " power-badge-buffed" : ""}`}>
-          {shownPower}
-        </span>
-      ) : null}
-      {attachedDonCount ? <span className="don-badge">DON×{attachedDonCount}</span> : null}
-      {labels.length ? (
-        <div className="status-chips" aria-label="Card statuses">
-          {labels.map((label) => (
-            <span
-              key={label}
-              className={`status-chip status-chip-${slugStatus(label)}`}
-            >
-              {label}
-            </span>
-          ))}
-        </div>
-      ) : null}
+      {/* Badges live in an overlay that counter-rotates on rested (sideways)
+          tiles so power / DON!! / statuses stay upright and readable. */}
+      <div className="card-overlays">
+        {pb || counter || attachedDonCount ? (
+          <div className="card-stat-stack">
+            {pb ? (
+              <span
+                className={`power-badge${pb.delta !== 0 ? " power-badge-buffed" : ""}`}
+                title={
+                  pb.delta !== 0
+                    ? `Power ${pb.current} (base ${pb.base} ${formatPowerDelta(pb.delta)})`
+                    : `Power ${pb.current}`
+                }
+              >
+                <span className="power-base">{pb.base}</span>
+                {pb.delta !== 0 ? (
+                  <span className={`power-mod ${pb.delta > 0 ? "power-mod-up" : "power-mod-down"}`}>
+                    {formatPowerDelta(pb.delta)}
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
+            {counter ? (
+              <span
+                className={`power-badge counter-badge${counter.effectOnly ? " counter-badge-effect" : ""}`}
+                title={
+                  counter.effectOnly
+                    ? "[Counter] event (no power boost)"
+                    : counter.boosted != null
+                      ? `Counter ${formatCounter(counter)} (higher value when its condition is met)`
+                      : `Counter ${formatCounter(counter)}`
+                }
+              >
+                {formatCounter(counter)
+                  .split(" / ")
+                  .map((part, i) => (
+                    <span key={i} className="counter-part">
+                      {i > 0 ? "/" : ""}
+                      {part}
+                    </span>
+                  ))}
+              </span>
+            ) : null}
+            {/* Stacked under power so narrow (mobile) tiles never overlap badges. */}
+            {attachedDonCount ? <span className="don-badge">DON×{attachedDonCount}</span> : null}
+          </div>
+        ) : null}
+        {labels.length ? (
+          <div className="status-chips" aria-label="Card statuses">
+            {labels.map((label) => (
+              <span
+                key={label}
+                className={`status-chip status-chip-${slugStatus(label)}`}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <div className="card-caption">
         <div className="name">{entry.name}</div>
         <div
@@ -382,6 +439,7 @@ export function CardTile({
         onClose={() => setInspectOpen(false)}
         ownerSeat={ownerSeat}
         viewingSeat={viewingSeat ?? ownerSeat}
+        live={live}
       />
     </>
   );

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import Engine, create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
@@ -110,12 +110,36 @@ def _ensure_user_sum_across_leaders() -> None:
         )
 
 
+def _ensure_user_username(bind: Engine | None = None) -> None:
+    """Add users.username + its case-insensitive unique index on existing DBs.
+
+    Idempotent: the column is added only when missing and the index uses
+    IF NOT EXISTS (supported by both SQLite and Postgres). The column is
+    nullable, so the ALTER is a metadata-only change on Postgres.
+    """
+    bind = bind or engine
+    inspector = inspect(bind)
+    if "users" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("users")}
+    with bind.begin() as conn:
+        if "username" not in existing:
+            conn.execute(text("ALTER TABLE users ADD COLUMN username VARCHAR(20)"))
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_username_lower "
+                "ON users (lower(username))"
+            )
+        )
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_group_buy_columns()
     _ensure_user_session_version()
     _ensure_deck_is_main()
     _ensure_user_sum_across_leaders()
+    _ensure_user_username()
 
 
 def get_db() -> Generator[Session, None, None]:

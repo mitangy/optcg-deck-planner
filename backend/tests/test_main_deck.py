@@ -270,3 +270,24 @@ def test_list_decks_groups_by_leader_with_main_first(db):
     assert get_deck_detail(db, user, luffy_variant.id).prior_decks == ["Luffy Core"]
     assert get_deck_detail(db, user, luffy_main.id).is_main is True
     assert get_deck_detail(db, user, zoro_main.id).is_main is True
+
+
+def test_list_decks_reports_owned_copies_excluding_don(db):
+    from app.services import set_owned
+
+    _seed_leader_catalog(db)
+    user = make_user(db, email="own@test", name="Own", sub="own")
+    deck = _make_leader_deck(
+        db,
+        user,
+        "Straw Hats",
+        {"OP01-016": 4, "OP01-017": 2, "DON-001": 10},
+        sort_order=0,
+    )
+    set_owned(db, user, "OP01-016", 6)  # capped at the 4 this deck needs
+    set_owned(db, user, "OP01-017", 1)
+    set_owned(db, user, "DON-001", 10)  # DON!! never counts toward main progress
+
+    summary = next(d for d in list_decks(db, user) if d.id == deck.id)
+    assert summary.main_cards == 6
+    assert summary.owned_copies == 5

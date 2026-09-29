@@ -32,13 +32,17 @@ def mint_game_token(
     *,
     user_id: int,
     email: str,
+    name: str | None = None,
     settings: Settings | None = None,
     ttl_seconds: int = GAME_TOKEN_TTL_SECONDS,
 ) -> dict[str, Any]:
     settings = settings or get_settings()
     now = int(time.time())
     exp = now + ttl_seconds
-    payload = {"uid": int(user_id), "email": email, "iat": now, "exp": exp}
+    payload: dict[str, Any] = {"uid": int(user_id), "email": email, "iat": now, "exp": exp}
+    if name:
+        # Display name for nameplates; signed so clients cannot spoof it.
+        payload["name"] = name[:40]
     body = _b64url(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8"))
     sig = _b64url(
         hmac.new(
@@ -83,4 +87,10 @@ def verify_game_token(
     email = payload.get("email")
     if not isinstance(email, str):
         return None
-    return {"uid": uid, "email": email, "exp": exp}
+    name = payload.get("name")
+    return {
+        "uid": uid,
+        "email": email,
+        "exp": exp,
+        "name": name if isinstance(name, str) else None,
+    }

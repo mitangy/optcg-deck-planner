@@ -61,6 +61,24 @@ export function markUsed(state: MatchState, sourceId: InstanceId, ability: Abili
   card.usedAbilities = { ...(card.usedAbilities ?? {}), [ability.id]: state.turnNumber };
 }
 
+/**
+ * Undo `markUsed` for a frame whose ability was declined before anything
+ * happened (optional cost not paid, "you may" answered no, or the cost could
+ * not be paid). Such an ability was never activated, so a [Once Per Turn]
+ * ability must be offered again in a later window of the same turn.
+ */
+function releaseDeclinedOncePerTurn(state: MatchState, frame: ResolutionFrame): void {
+  if (frame.program !== "ability" && frame.program !== "replacement") return;
+  if (typeof frame.bindings._delay === "number") return;
+  if (!frame.bindings.__declined || frame.bindings.__acted) return;
+  const ability = abilityById(frame.abilityId)?.ability;
+  if (!ability?.oncePerTurn) return;
+  const card = locate(state, frame.sourceInstanceId)?.card;
+  if (!card?.usedAbilities || card.usedAbilities[ability.id] !== state.turnNumber) return;
+  const { [ability.id]: _released, ...rest } = card.usedAbilities;
+  card.usedAbilities = rest;
+}
+
 /** Header gates: [DON!! xN], [Your Turn]/[Opponent's Turn] and similar, plus once-per-turn. */
 export function abilityGateOpen(state: MatchState, seat: Seat, source: { id: InstanceId; defId: string; card?: CardInstance }, ability: Ability, eventCardId?: InstanceId): boolean {
   const card = source.card ?? locate(state, source.id)?.card;
@@ -198,11 +216,17 @@ export function finishPlay(sim: Sim, seat: Seat, entry: { id: InstanceId; defId:
 function moveToZone(sim: Sim, loc: Located, zone: "hand" | "deck" | "trash" | "life", opts: { position?: "top" | "bottom"; faceUp?: boolean } = {}): void {
   const { state } = sim;
   const leaving = loc.zone === "character";
+  // Visibility is judged before the move (face-up Life indexes shift once taken).
+  const fromPublic = isOnField(loc) || loc.zone === "trash" || (loc.zone === "life" && Boolean(state.players[loc.seat].faceUpLife[loc.index]));
+  const toPublic = zone === "trash" || (zone === "life" && Boolean(opts.faceUp));
+  // Neither end public → only the owner may learn the card (projectGameEvents
+  // hides it from everyone else). Deck / face-down Life on both ends → nobody.
+  const hidden = !fromPublic && !toPublic;
+  const ownerKnows = !hidden || loc.zone === "hand" || zone === "hand";
   const entry = takeCard(state, loc);
   putCard(state, loc.seat, zone, entry, opts);
   if (leaving) dispatchEvent(state, "character_left_field", { seat: loc.seat, card: entry });
-  const hidden = zone === "deck" || (zone === "life" && !opts.faceUp) || (zone === "hand" && (loc.zone === "deck" || loc.zone === "life"));
-  sim.events.push({ type: "card_moved", seat: loc.seat, defId: hidden ? "HIDDEN" : entry.defId, from: loc.zone, to: zone, ...(hidden ? { hidden: true } : {}) });
+  sim.events.push({ type: "card_moved", seat: loc.seat, defId: ownerKnows ? entry.defId : "HIDDEN", from: loc.zone, to: zone, ...(hidden ? { hidden: true } : {}) });
   if (loc.zone === "life") dispatchEvent(state, "life_removed", { seat: loc.seat, card: entry });
   if (loc.zone === "hand" && zone === "trash") dispatchEvent(state, "card_trashed_from_hand", { seat: loc.seat, card: entry });
 }
@@ -326,6 +350,7 @@ export function runFrames(sim: Sim): void {
 function completeFrame(sim: Sim, frame: ResolutionFrame): void {
   const { state } = sim;
   state.resolutionFrames = state.resolutionFrames.filter((f) => f.id !== frame.id);
+  releaseDeclinedOncePerTurn(state, frame);
   if (frame.program === "trash_for_space") {
     const p = state.players[frame.seat];
     const index = p.resolving.findIndex((c) => c.id === frame.sourceInstanceId);
@@ -368,7 +393,7 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
     case "jumpIfFalse": { const v = frame.bindings[instr.name]; if (!v || (Array.isArray(v) && v.length === 0)) { frame.operationIndex = instr.to; return "jumped"; } return "next"; }
     case "jumpIfModeNot": if (frame.bindings[instr.name] !== instr.index) { frame.operationIndex = instr.to; return "jumped"; } return "next";
     case "confirm": {
-      if (instr.costs && !canPayCosts(state, ctx, instr.costs)) { frame.bindings[instr.bind] = false; return "next"; }
+      if (instr.costs && !canPayCosts(state, ctx, instr.costs)) { frame.bindings[instr.bind] = false; frame.bindings.__declined = true; return "next"; }
       const ability = abilityById(frame.abilityId)?.ability;
       const detail = frame.program === "replacement" ? `use ${nameOf(frame.sourceDefId)}'s effect instead?` : instr.costs ? `pay the cost to activate: ${ability?.text ?? ""}` : `${instr.prompt}? ${ability?.text ?? ""}`;
       pushChoice(sim, frame, { seat: instr.chooser === "opponent" ? otherSeat(frame.seat) : frame.seat, kind: "effect", optional: true, prompt: `${promptPrefix(frame)} — ${detail}`.trim(), request: { type: "confirm" }, bindings: { __bind: instr.bind } });
@@ -389,7 +414,7 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
       }
       return "next";
     case "look": return execLook(sim, frame, instr);
-    case "act": return execAct(sim, frame, instr.effect);
+    case "act": frame.bindings.__acted = true; return execAct(sim, frame, instr.effect);
   }
 }
 
@@ -1004,7 +1029,7 @@ export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: Cho
   switch (request.type) {
     case "confirm": {
       if (!answer.accept && !choice.optional) return "This choice cannot be declined";
-      apply = () => { frame.bindings[b.__bind!] = answer.accept; frame.operationIndex += 1; };
+      apply = () => { frame.bindings[b.__bind!] = answer.accept; if (!answer.accept && choice.seat === frame.seat) frame.bindings.__declined = true; frame.operationIndex += 1; };
       break;
     }
     case "mode": {
@@ -1161,7 +1186,11 @@ function applyLook(sim: Sim, frame: ResolutionFrame, choice: PendingChoice, answ
     const publicDest = pick.dest === "play" || pick.dest === "play_rested" || pick.dest === "trash" || ((pick.dest === "life_top" || pick.dest === "life_bottom") && Boolean(pick.faceUp));
     if (meta.reveal || publicDest) sim.events.push({ type: "card_revealed", seat: meta.seat, defId: entry.defId, matchedTrait: true });
     switch (pick.dest) {
-      case "hand": putCard(state, meta.seat, "hand", entry); break;
+      case "hand":
+        putCard(state, meta.seat, "hand", entry);
+        // Searched card: the owner always learns it; others only when revealed.
+        sim.events.push({ type: "card_moved", seat: meta.seat, defId: entry.defId, from: "deck", to: "hand", ...(meta.reveal ? {} : { hidden: true }) });
+        break;
       case "life_top": putCard(state, meta.seat, "life", entry, { position: "top", faceUp: Boolean(pick.faceUp) }); sim.events.push({ type: "life_added", seat: meta.seat, defId: entry.defId, source: "deck_top", ...(pick.faceUp ? { faceUp: true } : {}) }); break;
       case "life_bottom": putCard(state, meta.seat, "life", entry, { position: "bottom", faceUp: Boolean(pick.faceUp) }); break;
       case "trash": putCard(state, meta.seat, "trash", entry); break;

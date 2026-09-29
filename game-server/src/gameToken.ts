@@ -5,6 +5,8 @@ export type GameTokenPayload = {
   uid: number;
   email: string;
   exp: number;
+  /** Public display name (username, else account name). Absent on older tokens. */
+  name?: string;
 };
 
 function b64url(buf: Buffer): string {
@@ -52,5 +54,17 @@ export function verifyGameToken(token: string): GameTokenPayload | null {
     return null;
   }
   if (exp < Math.floor(Date.now() / 1000)) return null;
-  return { uid, email, exp };
+  const name = sanitizeDisplayName(payload.name);
+  return name ? { uid, email, exp, name } : { uid, email, exp };
+}
+
+/**
+ * Normalize a player display name for the wire: trimmed, control chars
+ * stripped, max 40 chars. Returns undefined when nothing usable remains.
+ */
+export function sanitizeDisplayName(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  // eslint-disable-next-line no-control-regex
+  const cleaned = raw.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 40);
+  return cleaned || undefined;
 }

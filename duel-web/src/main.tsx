@@ -7,6 +7,7 @@ import "./styles.css";
 import "./ui.css";
 import "./board.css";
 import "./interactions.css";
+import "./auth/username.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
