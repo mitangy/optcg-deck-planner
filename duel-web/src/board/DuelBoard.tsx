@@ -6,7 +6,11 @@ import type {
   PlayerView,
   Seat,
   SeatPlayers,
+  RematchAction,
+  RematchState,
   TimerMessage,
+  UndoAction,
+  UndoState,
 } from "../net/protocol";
 import { BattleLogPanel } from "./BattleLogPanel";
 import { CardPreviewPanel } from "./CardPreviewPanel";
@@ -49,6 +53,12 @@ import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { loadSettings } from "../settings";
 import { seatLabel, seatName, winnerHeadline } from "./playerNames";
+import { ConfirmButton } from "./ConfirmButton";
+import { RematchPanel } from "./RematchPanel";
+import { RoomChip, RoomInvite } from "./RoomShare";
+import { OppHandFan, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
+import { TurnSplash, type SplashMessage } from "./TurnSplash";
+import { useMediaQuery, WIDE_BOARD_QUERY } from "./useMediaQuery";
 
 type Props = {
   view: PlayerView | null;
@@ -65,6 +75,21 @@ type Props = {
   hotseatPass?: { otherSeat: Seat; onPass: () => void };
   /** Online match chat. Omit (e.g. practice) to hide the chat panel. */
   chat?: { lines: readonly ChatLine[]; onSend: (text: string) => void };
+  /** Online players: concede sits next to Leave in the HUD. */
+  onConcede?: () => void;
+  /**
+   * Turn undo (private rooms / practice). `autoAccept` = the other seat is
+   * also this player (practice), so no request / answer UI is shown.
+   */
+  undo?: { state: UndoState | null; onAction: (action: UndoAction) => void; autoAccept?: boolean };
+  /** Rematch vote on the match-over screen (unranked rooms). */
+  rematch?: {
+    state: RematchState | null;
+    onAction: (action: RematchAction) => void;
+    autoAccept?: boolean;
+  };
+  /** Opponent dropped: epoch ms until which they may reconnect before forfeiting. */
+  opponentAwayUntil?: number | null;
   leaveLabel?: string;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
@@ -79,6 +104,33 @@ function formatCountdown(endsAt: number | null | undefined, now: number): string
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
+}
+
+/** Chess-clock readouts for both seats, or null when that mode is off. */
+function seatClockLabels(
+  timer: TimerMessage | null,
+  now: number,
+  youSeat: Seat,
+  oppSeat: Seat,
+): SeatClocks | null {
+  if (!timer?.seatSeconds || !timer.seatRemainingMs) return null;
+  const msFor = (seat: Seat) =>
+    timer.clockSeat === seat && timer.clockEndsAt != null
+      ? Math.max(0, timer.clockEndsAt - now)
+      : Math.max(0, timer.seatRemainingMs![seat]);
+  const fmt = (ms: number) => {
+    const sec = Math.ceil(ms / 1000);
+    return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+  };
+  const you = msFor(youSeat);
+  const opp = msFor(oppSeat);
+  return {
+    you: fmt(you),
+    opp: fmt(opp),
+    youLow: you < 60_000,
+    oppLow: opp < 60_000,
+    running: timer.clockSeat === youSeat ? "you" : timer.clockSeat === oppSeat ? "opp" : null,
+  };
 }
 
 function describeBattle(view: PlayerView): string {
@@ -125,6 +177,10 @@ export function DuelBoard({
   battleLog = [],
   hotseatPass,
   chat,
+  onConcede,
+  undo,
+  opponentAwayUntil = null,
+  rematch,
   leaveLabel = "Leave",
   onSendIntent,
   onLeave,
@@ -135,6 +191,9 @@ export function DuelBoard({
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
   const [logCollapsed, setLogCollapsed] = useState(true);
   const [handCollapsed, setHandCollapsed] = useState(false);
+  /** Wide layout: hand dock pinned open (click / tap on its handle). */
+  const [handPinned, setHandPinned] = useState(false);
+  const wide = useMediaQuery(WIDE_BOARD_QUERY);
   const [handSorted, setHandSorted] = useState(false);
   const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
   /** Click-to-attach: DON!! selected + target tapped, awaiting confirm. */
@@ -146,10 +205,12 @@ export function DuelBoard({
   const [playmatDim] = useState(() => loadSettings().playmatDim);
 
   useEffect(() => {
-    if (!timer?.turnEndsAt && !timer?.matchEndsAt) return;
+    if (!timer?.turnEndsAt && !timer?.matchEndsAt && !timer?.clockEndsAt && !opponentAwayUntil) {
+      return;
+    }
     const id = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(id);
-  }, [timer?.turnEndsAt, timer?.matchEndsAt]);
+  }, [timer?.turnEndsAt, timer?.matchEndsAt, timer?.clockEndsAt, opponentAwayUntil]);
 
   // Trackpad / mouse wheel → horizontal hand scroll when the row overflows.
   useEffect(() => {
@@ -163,7 +224,7 @@ export function DuelBoard({
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [handCollapsed, view?.you.hand.length]);
+  }, [handCollapsed, wide, view?.you.hand.length]);
 
   const over = matchOver != null || view?.winner != null;
   const mySeat = seat ?? view?.seat ?? null;
@@ -377,9 +438,7 @@ export function DuelBoard({
           <div className="hud-brand">OPTCG DUEL</div>
           <div className="hud-status">Waiting for opponent…</div>
           <div className="hud-actions">
-            <span className="match-id" title={matchId ?? undefined}>
-              Room {matchId ?? "—"}
-            </span>
+            <RoomChip roomId={matchId} />
             <button type="button" className="leave-btn" onClick={onLeave}>
               {leaveLabel}
             </button>
@@ -390,8 +449,9 @@ export function DuelBoard({
             {errorBanner}
           </button>
         ) : null}
-        <div className="loading arena-loading">
-          Share the room id — match starts when both seats join.
+        <div className="arena-waiting">
+          {/* Seat 0 created the room: copy its id straight away. */}
+          <RoomInvite roomId={matchId} autoCopy={seat === 0 && !spectating} />
         </div>
       </div>
     );
@@ -430,16 +490,123 @@ export function DuelBoard({
     : youFirst
       ? "You go first"
       : "You go second";
-  const showOrderChip = mulliganPhase || view.turnNumber <= 1;
+  const oppActive = !mulliganPhase && !over && view.activeSeat === oppSeat;
+  const youActive = !mulliganPhase && !over && view.activeSeat === boardSeat;
+  const turnClock = formatCountdown(timer?.turnEndsAt, now);
+  const matchClock = formatCountdown(timer?.matchEndsAt, now);
+  const seatClocks = seatClockLabels(timer ?? null, now, boardSeat, oppSeat);
+  const awayLeft = opponentAwayUntil != null && !over ? formatCountdown(opponentAwayUntil, now) : null;
+  const handCount = spectating ? (you.handCount ?? 0) : you.hand.length;
+  // Hearthstone-style dock: peeks until hovered; stays open while you pick
+  // your opening hand or have a hand card selected.
+  const handOpen = handPinned || decidingMulligan || handFilter != null;
+
+  const splash: SplashMessage | null = over
+    ? null
+    : mulliganPhase
+      ? spectating
+        ? null
+        : {
+            key: `order-${matchId ?? ""}-${boardSeat}`,
+            title: youFirst ? "You go first" : "You go second",
+            sub: youFirst ? "No draw · 1 DON!! on turn 1" : "You draw · 2 DON!! on turn 1",
+            tone: youFirst ? "mine" : "theirs",
+            ms: 3200,
+          }
+      : {
+          key: `turn-${view.turnNumber}-${view.activeSeat}`,
+          title: spectating
+            ? `${seatLabel(players, view.activeSeat)}'s turn`
+            : youActive
+              ? "Your turn"
+              : "Opponent's turn",
+          sub:
+            view.turnNumber <= 2 && !spectating
+              ? `Turn ${view.turnNumber} · you went ${youFirst ? "first" : "second"}`
+              : `Turn ${view.turnNumber}`,
+          tone: spectating ? "neutral" : youActive ? "mine" : "theirs",
+        };
+
+  const undoState = undo?.state ?? null;
+  const undoPendingMine =
+    undoState?.pending != null && !undo?.autoAccept && undoState.pending.from === boardSeat;
+  const undoPendingTheirs =
+    undoState?.pending != null && !undo?.autoAccept && undoState.pending.from !== boardSeat;
+
+  function renderHandCards() {
+    if (spectating) {
+      return Array.from({ length: Math.min(you.handCount ?? 0, 8) }).map((_, i) => (
+        <span key={i} className="card-back hand-back" />
+      ));
+    }
+    return (handDisplayIndices ?? you.hand.map((_, i) => i)).map((idx) => {
+      const c = you.hand[idx]!;
+      const playable = dndEnabled && canDragHandCard(intents, idx);
+      return (
+        <CardTile
+          key={c.id}
+          defId={c.defId}
+          playCost={c.playCost}
+          showCounter
+          selected={handFilter === idx}
+          onClick={() => selectHandCard(idx)}
+          instantClick
+          dragEnabled={playable}
+          dragPayload={{ type: "play_card", handIndex: idx }}
+          onDragStart={() => setDragPayload({ type: "play_card", handIndex: idx })}
+          onDragEnd={(x, y) => commitDrop({ type: "play_card", handIndex: idx }, x, y)}
+          onDragCancel={() => setDragPayload(null)}
+          ownerSeat={boardSeat}
+          viewingSeat={viewingSeat}
+        />
+      );
+    });
+  }
+
+  const intentPanel = !spectating ? (
+    <IntentBar
+      intents={(() => {
+        const front = view.pendingChoices?.[0];
+        // ChoicePrompt / EffectOrderPrompt own every pending-choice answer.
+        const structuredOwns = Boolean(front);
+        if (!structuredOwns) return view.legalIntents;
+        return view.legalIntents.filter(
+          (i) => i.type !== "resolve_pending_choice" && i.type !== "order_pending_effects",
+        );
+      })()}
+      view={view}
+      disabled={over}
+      filterHandIndex={handFilter}
+      selectedBoardId={selectedBoardId}
+      onSend={(intent) => {
+        setHandFilter(null);
+        setSelectedBoardId(null);
+        onSendIntent(intent);
+      }}
+    />
+  ) : (
+    <div className="intent-bar">
+      <p className="intent-empty">Spectating — both hands hidden; intents disabled</p>
+    </div>
+  );
+
+  const chatPanel = chat ? (
+    <ChatPanel
+      lines={chat.lines}
+      mySeat={spectating ? null : boardSeat}
+      onSend={chat.onSend}
+      defaultOpen={wide}
+    />
+  ) : null;
   // Practice: both halves are yours, so both show your playmat and card back.
   const oppMatUrl = hotseatPass ? playmatUrl : null;
   const oppCardBackUrl = hotseatPass ? cardBackUrl : null;
 
   return (
     <div
-      className={`board-root arena${yourTurn ? " your-turn" : ""}${
+      className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }`}
+      }${wide ? " arena-wide" : ""}`}
     >
       <header className="hud-bar">
         <div className="hud-brand">OPTCG DUEL</div>
@@ -467,15 +634,15 @@ export function DuelBoard({
           ) : (
             <span>{spectating ? "Spectating" : `Seat ${mySeat}`}</span>
           )}
-          {showOrderChip ? (
-            <span className={`hud-turn-chip hud-order${youFirst ? " first" : ""}`}>
-              {orderLabel}
-            </span>
-          ) : null}
+          <span className={`hud-turn-chip hud-order${youFirst ? " first" : ""}`}>
+            {orderLabel}
+          </span>
           {mulliganPhase && decidingMulligan ? (
             <span className="hud-turn-chip">MULLIGAN</span>
           ) : yourTurn ? (
-            <span className="hud-turn-chip">YOUR TURN</span>
+            <span className="hud-turn-chip hud-turn-mine">YOUR TURN</span>
+          ) : oppActive && !spectating ? (
+            <span className="hud-turn-chip hud-turn-theirs">OPPONENT&apos;S TURN</span>
           ) : null}
           {spectating ? <span className="hud-turn-chip">SPECTATOR</span> : null}
           {formatCountdown(timer?.turnEndsAt, now) ? (
@@ -488,11 +655,58 @@ export function DuelBoard({
               Match {formatCountdown(timer?.matchEndsAt, now)}
             </span>
           ) : null}
+          {seatClocks ? (
+            <>
+              <span
+                className={`hud-turn-chip hud-timer hud-seat-clock${
+                  seatClocks.running === "you" ? " running" : ""
+                }${seatClocks.youLow ? " low" : ""}`}
+                title="Your time"
+              >
+                {spectating ? seatLabel(players, boardSeat) : "You"} {seatClocks.you}
+              </span>
+              <span
+                className={`hud-turn-chip hud-timer hud-seat-clock${
+                  seatClocks.running === "opp" ? " running" : ""
+                }${seatClocks.oppLow ? " low" : ""}`}
+                title="Opponent's time"
+              >
+                {spectating ? seatLabel(players, oppSeat) : "Opp"} {seatClocks.opp}
+              </span>
+            </>
+          ) : null}
         </div>
         <div className="hud-actions">
-          <span className="match-id" title={matchId ?? undefined}>
-            Room {matchId ?? "—"}
-          </span>
+          {hotseatPass ? null : <RoomChip roomId={matchId} />}
+          {undo && undoState?.enabled && !spectating && !over ? (
+            undoPendingMine ? (
+              <button
+                type="button"
+                className="hud-undo-btn armed"
+                title="Waiting for your opponent to accept — click to cancel"
+                onClick={() => undo.onAction("cancel")}
+              >
+                Undo asked · Cancel
+              </button>
+            ) : undoPendingTheirs ? null : (
+              <ConfirmButton
+                className="hud-undo-btn"
+                label="↺ Undo"
+                confirmLabel={
+                  undoState.targetTurn != null ? `Undo to turn ${undoState.targetTurn}?` : "Undo?"
+                }
+                title={
+                  undoState.targetTurn == null
+                    ? "Nothing to undo yet"
+                    : `Rewind to the start of turn ${undoState.targetTurn}${
+                        undo.autoAccept ? "" : " (your opponent must accept)"
+                      }`
+                }
+                disabled={undoState.targetTurn == null}
+                onConfirm={() => undo.onAction("request")}
+              />
+            )
+          ) : null}
           {hotseatPass ? (
             <button
               type="button"
@@ -503,11 +717,44 @@ export function DuelBoard({
               Pass → {hotseatPass.otherSeat}
             </button>
           ) : null}
+          {onConcede && !spectating && !over ? (
+            <ConfirmButton
+              className="hud-concede-btn"
+              label="Concede"
+              confirmLabel="Confirm concede"
+              title="Forfeit this match"
+              onConfirm={onConcede}
+            />
+          ) : null}
           <button type="button" className="leave-btn" onClick={onLeave}>
             {leaveLabel}
           </button>
         </div>
       </header>
+
+      {undoPendingTheirs && undoState?.pending ? (
+        <div className="undo-request" role="alertdialog" aria-label="Undo request">
+          <p>
+            <strong>{seatName(players, undoState.pending.from) ?? "Your opponent"}</strong> wants to
+            undo back to the start of <strong>turn {undoState.pending.toTurn}</strong>.
+          </p>
+          <div className="undo-request-actions">
+            <button type="button" className="btn btn-primary" onClick={() => undo?.onAction("accept")}>
+              Allow
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={() => undo?.onAction("decline")}>
+              Decline
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {awayLeft ? (
+        <div className="away-banner" role="status">
+          <strong>{seatName(players, oppSeat) ?? "Your opponent"} disconnected.</strong> Waiting{" "}
+          {awayLeft} for them to reconnect — after that the match is yours.
+        </div>
+      ) : null}
 
       {errorBanner ? (
         <button type="button" className="error-banner" onClick={onClearError}>
@@ -537,7 +784,16 @@ export function DuelBoard({
       ) : null}
 
       <div className="arena-body">
-        <CardPreviewPanel />
+        {wide ? (
+          <aside className="arena-left" aria-label="Card preview and battle log">
+            <CardPreviewPanel />
+            <BattleLogPanel
+              entries={battleLog}
+              viewingSeat={spectating || mySeat == null ? undefined : mySeat}
+              alwaysOpen
+            />
+          </aside>
+        ) : null}
 
         <div className="playmat">
           <div className="playmat-inner">
@@ -562,6 +818,7 @@ export function DuelBoard({
               side="opp"
               compact
               turnOrder={firstSeat === oppSeat ? "first" : "second"}
+              activeTurn={oppActive}
               matImageUrl={oppMatUrl}
               cardBackUrl={oppCardBackUrl}
               matDim={playmatDim}
@@ -602,6 +859,7 @@ export function DuelBoard({
             <SideField
               side="you"
               turnOrder={youFirst ? "first" : "second"}
+              activeTurn={youActive}
               matImageUrl={playmatUrl}
               matDim={playmatDim}
               cardBackUrl={cardBackUrl}
@@ -665,120 +923,119 @@ export function DuelBoard({
           </div>
         </div>
 
-        <div className="arena-rail">
-          <div className={`hand-rail${handCollapsed ? " collapsed" : ""}`}>
-            <div className="hand-rail-head">
-              <span className="hand-rail-title">{spectating ? "Seat hand (hidden)" : "Hand"}</span>
-              <span className="hand-rail-count">
-                {spectating ? (you.handCount ?? 0) : you.hand.length}
-              </span>
-              {!spectating ? (
-                <div className="hand-rail-actions">
-                  <button
-                    type="button"
-                    className={`hand-rail-btn${handSorted ? " active" : ""}`}
-                    aria-pressed={handSorted}
-                    onClick={() => setHandSorted((v) => !v)}
-                  >
-                    Sort
-                  </button>
-                  <button
-                    type="button"
-                    className="hand-rail-btn"
-                    onClick={() => {
-                      setHandCollapsed((v) => {
-                        const next = !v;
-                        if (next) setHandFilter(null);
-                        return next;
-                      });
-                    }}
-                  >
-                    {handCollapsed ? "Show" : "Hide"}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-            <div className="hand-row" ref={handRowRef}>
-              <div className="hand-row-inner">
-                {spectating
-                  ? Array.from({ length: Math.min(you.handCount ?? 0, 8) }).map((_, i) => (
-                      <span key={i} className="card-back hand-back" />
-                    ))
-                  : (handDisplayIndices ?? you.hand.map((_, i) => i)).map((idx) => {
-                      const c = you.hand[idx]!;
-                      const playable = dndEnabled && canDragHandCard(intents, idx);
-                      return (
-                        <CardTile
-                          key={c.id}
-                          defId={c.defId}
-                          playCost={c.playCost}
-                          showCounter
-                          selected={handFilter === idx}
-                          onClick={() => selectHandCard(idx)}
-                          instantClick
-                          dragEnabled={playable}
-                          dragPayload={{ type: "play_card", handIndex: idx }}
-                          onDragStart={() =>
-                            setDragPayload({ type: "play_card", handIndex: idx })
-                          }
-                          onDragEnd={(x, y) =>
-                            commitDrop({ type: "play_card", handIndex: idx }, x, y)
-                          }
-                          onDragCancel={() => setDragPayload(null)}
-                          ownerSeat={boardSeat}
-                          viewingSeat={viewingSeat}
-                        />
-                      );
-                    })}
+        {wide ? (
+          <div className="arena-rail">
+            <OppHandFan count={opp.handCount} cardBackUrl={oppCardBackUrl} />
+            <TurnStatusPanel
+              view={view}
+              boardSeat={boardSeat}
+              firstSeat={firstSeat}
+              players={players}
+              spectating={spectating}
+              turnClock={turnClock}
+              matchClock={matchClock}
+              seatClocks={seatClocks}
+            />
+            {intentPanel}
+            {chatPanel}
+            {/* Reserves the strip the collapsed hand dock peeks into. */}
+            <div className="rail-dock-spacer" aria-hidden />
+          </div>
+        ) : (
+          <div className="arena-rail">
+            <div className={`hand-rail${handCollapsed ? " collapsed" : ""}`}>
+              <div className="hand-rail-head">
+                <span className="hand-rail-title">{spectating ? "Seat hand (hidden)" : "Hand"}</span>
+                <span className="hand-rail-count">{handCount}</span>
+                {!spectating ? (
+                  <div className="hand-rail-actions">
+                    <button
+                      type="button"
+                      className={`hand-rail-btn${handSorted ? " active" : ""}`}
+                      aria-pressed={handSorted}
+                      onClick={() => setHandSorted((v) => !v)}
+                    >
+                      Sort
+                    </button>
+                    <button
+                      type="button"
+                      className="hand-rail-btn"
+                      onClick={() => {
+                        setHandCollapsed((v) => {
+                          const next = !v;
+                          if (next) setHandFilter(null);
+                          return next;
+                        });
+                      }}
+                    >
+                      {handCollapsed ? "Show" : "Hide"}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+              <div className="hand-row" ref={handRowRef}>
+                <div className="hand-row-inner">{renderHandCards()}</div>
               </div>
             </div>
+
+            {intentPanel}
+
+            <BattleLogPanel
+              entries={battleLog}
+              viewingSeat={spectating || mySeat == null ? undefined : mySeat}
+              collapsed={logCollapsed}
+              onToggle={() => setLogCollapsed((v) => !v)}
+            />
+
+            {chatPanel}
           </div>
-
-          {!spectating ? (
-            <IntentBar
-              intents={(() => {
-                const front = view.pendingChoices?.[0];
-                // ChoicePrompt / EffectOrderPrompt own every pending-choice answer.
-                const structuredOwns = Boolean(front);
-                if (!structuredOwns) return view.legalIntents;
-                return view.legalIntents.filter(
-                  (i) =>
-                    i.type !== "resolve_pending_choice" &&
-                    i.type !== "order_pending_effects",
-                );
-              })()}
-              view={view}
-              disabled={over}
-              filterHandIndex={handFilter}
-              selectedBoardId={selectedBoardId}
-              onSend={(intent) => {
-                setHandFilter(null);
-                setSelectedBoardId(null);
-                onSendIntent(intent);
-              }}
-            />
-          ) : (
-            <div className="intent-bar">
-              <p className="intent-empty">Spectating — both hands hidden; intents disabled</p>
-            </div>
-          )}
-
-          <BattleLogPanel
-            entries={battleLog}
-            viewingSeat={spectating || mySeat == null ? undefined : mySeat}
-            collapsed={logCollapsed}
-            onToggle={() => setLogCollapsed((v) => !v)}
-          />
-
-          {chat ? (
-            <ChatPanel
-              lines={chat.lines}
-              mySeat={spectating ? null : boardSeat}
-              onSend={chat.onSend}
-            />
-          ) : null}
-        </div>
+        )}
       </div>
+
+      {wide ? (
+        <div
+          className={`hand-dock${handOpen ? " is-open" : ""}${dragPayload ? " is-dragging" : ""}`}
+          style={
+            {
+              "--n": Math.max(handCount, 1),
+              "--n1": Math.max(handCount - 1, 1),
+            } as CSSProperties
+          }
+          aria-label={`Your hand: ${handCount} cards`}
+        >
+          <div className="hand-dock-head">
+            <button
+              type="button"
+              className="hand-dock-toggle"
+              aria-expanded={handOpen}
+              title={handPinned ? "Let the hand tuck away" : "Keep the hand open"}
+              onClick={() => {
+                setHandPinned((v) => !v);
+                if (handPinned) setHandFilter(null);
+              }}
+            >
+              <span>{spectating ? "Seat hand" : "Hand"}</span>
+              <span className="hand-rail-count">{handCount}</span>
+              <span className="hand-dock-caret" aria-hidden>
+                {handOpen ? "▾" : "▴"}
+              </span>
+            </button>
+            {!spectating ? (
+              <button
+                type="button"
+                className={`hand-rail-btn${handSorted ? " active" : ""}`}
+                aria-pressed={handSorted}
+                onClick={() => setHandSorted((v) => !v)}
+              >
+                Sort
+              </button>
+            ) : null}
+          </div>
+          <div className="hand-dock-cards" ref={handRowRef}>
+            {renderHandCards()}
+          </div>
+        </div>
+      ) : null}
 
       {!spectating &&
       view.pendingChoices?.[0]?.kind === "order_effects" &&
@@ -801,6 +1058,7 @@ export function DuelBoard({
           key={view.pendingChoices[0].id}
           choice={view.pendingChoices[0]}
           mySeat={mySeat}
+          view={view}
           onSend={(intent) => {
             setHandFilter(null);
             setSelectedBoardId(null);
@@ -818,6 +1076,7 @@ export function DuelBoard({
       ) : null}
 
       {/* Fixed overlays (portals) — never participate in board layout. */}
+      <TurnSplash message={splash} />
       <AttackIndicator view={over ? null : view} />
       <DragGhost payload={ghostPayload} />
       {pendingAttach && dndEnabled ? (
@@ -843,6 +1102,15 @@ export function DuelBoard({
               })()}
             </h2>
             <p className="match-result-detail">{result.detail}</p>
+            {rematch && !spectating ? (
+              <RematchPanel
+                state={rematch.state}
+                mySeat={boardSeat}
+                players={players}
+                autoAccept={rematch.autoAccept}
+                onAction={rematch.onAction}
+              />
+            ) : null}
             <button type="button" className="leave-btn" onClick={onLeave}>
               Return home
             </button>

@@ -36,6 +36,8 @@ export type DuelCreateOptions = {
   timer?: {
     turnSeconds?: number;
     matchSeconds?: number;
+    /** Per-player time bank (chess clock). */
+    seatSeconds?: number;
   };
 };
 
@@ -113,6 +115,14 @@ export type TimerMessage = {
   turnEndsAt: number | null;
   matchEndsAt: number | null;
   activeSeat: Seat;
+  /** Per-player clock length; null when that mode is off. */
+  seatSeconds: number | null;
+  /** Each seat's remaining ms as of this message. */
+  seatRemainingMs: [number, number] | null;
+  /** Seat whose clock is running (null: paused / mulligan / over). */
+  clockSeat: Seat | null;
+  /** Absolute deadline for the running seat's clock. */
+  clockEndsAt: number | null;
 };
 
 
@@ -358,7 +368,26 @@ export function parseTimer(raw: unknown): TimerMessage {
     turnEndsAt: asNullableNumber(o.turnEndsAt),
     matchEndsAt: asNullableNumber(o.matchEndsAt),
     activeSeat,
+    seatSeconds: asNullableNumber(o.seatSeconds),
+    seatRemainingMs:
+      Array.isArray(o.seatRemainingMs) &&
+      o.seatRemainingMs.length === 2 &&
+      o.seatRemainingMs.every((n) => typeof n === "number" && Number.isFinite(n))
+        ? [o.seatRemainingMs[0] as number, o.seatRemainingMs[1] as number]
+        : null,
+    clockSeat: o.clockSeat === 0 || o.clockSeat === 1 ? o.clockSeat : null,
+    clockEndsAt: asNullableNumber(o.clockEndsAt),
   };
+}
+
+/** Which seats are temporarily disconnected, and until when they may return. */
+export function parsePresence(raw: unknown): [number | null, number | null] {
+  if (!raw || typeof raw !== "object") throw new Error("presence body required");
+  const o = raw as Record<string, unknown>;
+  if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
+  const a = Array.isArray(o.awayUntil) ? o.awayUntil : [];
+  const at = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  return [at(a[0]), at(a[1])];
 }
 
 
@@ -509,4 +538,63 @@ export function parseChatHistory(raw: unknown): ChatLine[] {
   if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
   if (!Array.isArray(o.messages)) throw new Error("chat_history.messages required");
   return o.messages.map(asChatLine);
+}
+
+/** Undo availability pushed by the server (enabled only in unranked rooms). */
+export type UndoState = {
+  enabled: boolean;
+  /** Turn an undo would rewind to right now; null when nothing to undo. */
+  targetTurn: number | null;
+  /** Open request awaiting the other seat's answer. */
+  pending: { from: Seat; toTurn: number } | null;
+};
+
+export type UndoAction = "request" | "accept" | "decline" | "cancel";
+
+export function parseUndoState(raw: unknown): UndoState {
+  if (!raw || typeof raw !== "object") throw new Error("undo_state body required");
+  const o = raw as Record<string, unknown>;
+  if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
+  const turn = typeof o.targetTurn === "number" ? o.targetTurn : null;
+  const p = o.pending as Record<string, unknown> | null | undefined;
+  const pending =
+    p && typeof p === "object" && (p.from === 0 || p.from === 1) && typeof p.toTurn === "number"
+      ? { from: p.from as Seat, toTurn: p.toTurn }
+      : null;
+  return { enabled: o.enabled === true, targetTurn: turn, pending };
+}
+
+export function parseUndoApplied(raw: unknown): { toTurn: number; by: Seat } {
+  if (!raw || typeof raw !== "object") throw new Error("undo_applied body required");
+  const o = raw as Record<string, unknown>;
+  if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
+  if (typeof o.toTurn !== "number") throw new Error("undo_applied.toTurn required");
+  if (o.by !== 0 && o.by !== 1) throw new Error("undo_applied.by required");
+  return { toTurn: o.toTurn, by: o.by };
+}
+
+/** Rematch vote after a match ends (unranked rooms). */
+export type RematchState = {
+  /** Over, unranked, and both players still in the room. */
+  available: boolean;
+  requested: [boolean, boolean];
+  declinedBy: Seat | null;
+  /** Both agreed: the loser picks who goes first. */
+  chooser: Seat | null;
+};
+
+export type RematchAction = "request" | "decline" | "first" | "second";
+
+export function parseRematchState(raw: unknown): RematchState {
+  if (!raw || typeof raw !== "object") throw new Error("rematch_state body required");
+  const o = raw as Record<string, unknown>;
+  if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
+  const req = Array.isArray(o.requested) ? o.requested : [];
+  const seatOrNull = (v: unknown): Seat | null => (v === 0 || v === 1 ? v : null);
+  return {
+    available: o.available === true,
+    requested: [req[0] === true, req[1] === true],
+    declinedBy: seatOrNull(o.declinedBy),
+    chooser: seatOrNull(o.chooser),
+  };
 }

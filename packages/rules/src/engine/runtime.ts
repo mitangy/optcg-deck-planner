@@ -259,6 +259,10 @@ function pushChoice(sim: Sim, frame: ResolutionFrame, choice: Omit<PendingChoice
 }
 
 function optionFor(state: MatchState, loc: Located, id: string, chooser?: Seat): ChoiceOption {
+  if ((loc.zone as string) === "don") {
+    const info = donOptionInfo(state, loc);
+    return { id, defId: "DON", zone: "don", ownerSeat: loc.seat, eligible: true, label: info.label, rested: info.rested };
+  }
   const public_ = isOnField(loc) || loc.zone === "trash" || (loc.zone === "life" && state.players[loc.seat].faceUpLife[loc.index]);
   // The chooser may not see face-down Life cards or the opponent's hand.
   const hidden = (loc.zone === "life" && !state.players[loc.seat].faceUpLife[loc.index]) || (loc.zone === "hand" && chooser != null && loc.seat !== chooser);
@@ -1256,11 +1260,24 @@ export function defaultAnswer(choice: PendingChoice): ChoiceAnswer {
 
 export type { QueuedTrigger };
 
-/** A DON!! card in a cost area as a pseudo-location (zone "don"). */
+/** A DON!! card (cost area, or attached to a card) as a pseudo-location (zone "don"). */
 function locateDon(state: MatchState, id: string): Located | null {
   for (const seat of [0, 1] as Seat[]) {
-    const index = state.players[seat].costArea.findIndex((d) => d.id === id);
+    const p = state.players[seat];
+    const index = p.costArea.findIndex((d) => d.id === id);
     if (index >= 0) return { seat, zone: "don" as Located["zone"], index, id, defId: "DON" };
+    const aIdx = p.attachedDons.findIndex((d) => d.id === id);
+    if (aIdx >= 0) return { seat, zone: "don" as Located["zone"], index: p.costArea.length + aIdx, id, defId: "DON" };
   }
   return null;
+}
+
+/** Where a DON!! option sits, so prompts can tell otherwise-identical DON!! apart. */
+function donOptionInfo(state: MatchState, loc: Located): { label: string; rested: boolean } {
+  const p = state.players[loc.seat];
+  const cost = p.costArea.find((d) => d.id === loc.id);
+  if (cost) return { label: cost.rested ? "Rested DON!!" : "Active DON!!", rested: cost.rested };
+  const attached = p.attachedDons.find((d) => d.id === loc.id);
+  const host = attached?.attachedTo ? fieldCards(p).find((c) => c.id === attached.attachedTo) : null;
+  return { label: host ? `DON!! on ${nameOf(host.defId)}` : "Attached DON!!", rested: false };
 }

@@ -76,6 +76,8 @@ type Props = {
   turnOrder?: "first" | "second";
   /** Custom card back (object URL) for face-down cards on this half. */
   cardBackUrl?: string | null;
+  /** This half's player is taking the current turn (glow + tag). */
+  activeTurn?: boolean;
 };
 
 export function SideField({
@@ -91,6 +93,7 @@ export function SideField({
   matDim = 0.35,
   turnOrder,
   cardBackUrl,
+  activeTurn = false,
 }: Props) {
   const mirrored = side === "opp";
   const interactive = side === "you" && drag;
@@ -103,7 +106,7 @@ export function SideField({
     <section
       className={`side-field side-${side}${mirrored ? " mirrored" : ""}${
         matImageUrl ? " has-mat-art" : ""
-      }`}
+      }${activeTurn ? " is-active-turn" : ""}`}
       style={
         matImageUrl || cardBackUrl
           ? ({
@@ -120,7 +123,7 @@ export function SideField({
           className={`mat-order mat-order-${turnOrder}`}
           title={turnOrder === "first" ? "Goes first" : "Goes second"}
         >
-          {turnOrder === "first" ? "1st" : "2nd"}
+          {turnOrder === "first" ? "Going 1st" : "Going 2nd"}
         </span>
       ) : null}
       <div className="side-grid">

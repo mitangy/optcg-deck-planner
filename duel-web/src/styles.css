@@ -2162,20 +2162,6 @@ img.zone-pile-face {
   opacity: 0.4;
 }
 
-.concede-fab {
-  position: fixed;
-  right: 0.75rem;
-  bottom: 6.5rem;
-  background: var(--danger);
-  color: #fff;
-  border: 1px solid #c06060;
-  border-radius: 6px;
-  padding: 0.5rem 0.75rem;
-  font-weight: 700;
-  font-size: 0.75rem;
-  z-index: 5;
-}
-
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -3136,6 +3122,40 @@ img.zone-pile-face {
   opacity: 0.45;
   cursor: not-allowed;
 }
+/* DON!! option: fixed-size slot so a rested (sideways) DON!! never shifts the row. */
+.choice-don-card {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+.choice-don-card img {
+  width: 42px;
+  height: 59px;
+  border-radius: 4px;
+  object-fit: cover;
+  transition: transform 140ms ease;
+}
+.choice-don-card.rested img {
+  transform: rotate(90deg);
+  filter: brightness(0.8);
+}
+.choice-don.selected .choice-don-card {
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 2px var(--chrome);
+}
+.choice-don-card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.choice-don .choice-option-caption {
+  max-width: 88px;
+}
 .choice-option-caption {
   font-size: 0.6rem;
   line-height: 1.2;
@@ -3167,12 +3187,32 @@ img.zone-pile-face {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.choice-place-seg {
+  display: inline-flex;
+  flex: none;
+}
 .choice-place {
-  min-width: 4.2rem !important;
+  min-width: 3.6rem !important;
   font-size: 0.7rem;
 }
+.choice-place-seg .choice-place:first-child {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+.choice-place-seg .choice-place:last-child {
+  margin-left: -1px;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
 .choice-place[aria-pressed="true"] {
+  position: relative;
   border-color: var(--chrome) !important;
+  background: rgba(210, 165, 77, 0.22) !important;
+  color: var(--chrome-bright) !important;
+  font-weight: 700;
+}
+.deck-preview strong {
+  color: var(--chrome-bright);
 }
 .choice-modes {
   flex-direction: column;

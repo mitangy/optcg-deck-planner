@@ -243,6 +243,7 @@ describe("hidden-information leaks", () => {
     search.deckTop(0, "OP01-013", FILLER, FILLER, FILLER, FILLER);
     search.play(0, "OP15-118");
     search.accept(0); // DON!! -1 cost
+    search.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"] });
     search.hand(0, FILLER);
     search.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2", "o3", "o4"] });
     // lastEvents only covers the latest action, so capture the look's events before answering the discard.

@@ -5,7 +5,11 @@ import {
   parseCosmetics,
   parseError,
   parseMatchOver,
+  parsePresence,
+  parseRematchState,
   parseTimer,
+  parseUndoApplied,
+  parseUndoState,
   parseView,
   parseWelcome,
   type ArtPrefsMap,
@@ -20,6 +24,10 @@ import {
   type Seat,
   type SeatPlayers,
   type TimerMessage,
+  type RematchAction,
+  type RematchState,
+  type UndoAction,
+  type UndoState,
 } from "./protocol";
 import { Client, type Room } from "@colyseus/sdk";
 import { isSeatReservationExpiredError } from "./matchResume";
@@ -40,6 +48,14 @@ export type DuelClientHandlers = {
   onTimer?: (msg: TimerMessage) => void;
   /** New chat lines (a single relay, or the replayed history on join / sync). */
   onChat?: (lines: ChatLine[]) => void;
+  /** Undo availability / open request (unranked rooms). */
+  onUndoState?: (state: UndoState) => void;
+  /** An accepted undo rewound the match to the start of `toTurn`. */
+  onUndoApplied?: (info: { toTurn: number; by: Seat }) => void;
+  /** Seats that dropped: epoch ms until which each may still reconnect. */
+  onPresence?: (awayUntil: [number | null, number | null]) => void;
+  /** Rematch vote after the match ends. */
+  onRematchState?: (state: RematchState) => void;
   onDisconnect?: (code: number) => void;
   onQueued?: (position: number) => void;
   onMatched?: (info: { roomId: string; seat: Seat; ranked: boolean }) => void;
@@ -277,6 +293,16 @@ export class DuelClient {
     this.room.send("chat", { protocolVersion: PROTOCOL_VERSION, text });
   }
 
+  sendRematch(action: RematchAction) {
+    if (!this.room) throw new Error("Not connected");
+    this.room.send("rematch", { protocolVersion: PROTOCOL_VERSION, action });
+  }
+
+  sendUndo(action: UndoAction) {
+    if (!this.room) throw new Error("Not connected");
+    this.room.send("undo", { protocolVersion: PROTOCOL_VERSION, action });
+  }
+
   ping(t = Date.now()) {
     this.room?.send("ping", { t });
   }
@@ -287,17 +313,20 @@ export class DuelClient {
    *   server should keep reconnect grace (page reload uses neither — the tab dies).
    */
   async disconnect(consented = true) {
+    // Detach first so a caller that doesn't await (Leave navigates at once)
+    // can start a new match on this client while the old socket closes.
+    const room = this.room;
+    this.room = null;
+    this.client = null;
+    if (consented) this.reconnectionToken = null;
     await this.cancelQueue();
-    if (this.room) {
+    if (room) {
       try {
-        await this.room.leave(consented);
+        await room.leave(consented);
       } catch {
         /* ignore */
       }
-      this.room = null;
     }
-    this.client = null;
-    if (consented) this.reconnectionToken = null;
   }
 
   private buildJoin(params: ConnectParams): DuelJoinOptions {
@@ -440,7 +469,41 @@ export class DuelClient {
       }
     });
 
+    room.onMessage("rematch_state", (raw: unknown) => {
+      try {
+        this.handlers.onRematchState?.(parseRematchState(raw));
+      } catch {
+        /* ignore malformed rematch state */
+      }
+    });
+
+    room.onMessage("presence", (raw: unknown) => {
+      try {
+        this.handlers.onPresence?.(parsePresence(raw));
+      } catch {
+        /* ignore malformed presence */
+      }
+    });
+
+    room.onMessage("undo_state", (raw: unknown) => {
+      try {
+        this.handlers.onUndoState?.(parseUndoState(raw));
+      } catch {
+        /* ignore malformed undo state */
+      }
+    });
+
+    room.onMessage("undo_applied", (raw: unknown) => {
+      try {
+        this.handlers.onUndoApplied?.(parseUndoApplied(raw));
+      } catch {
+        /* ignore malformed undo notice */
+      }
+    });
+
     room.onLeave((code) => {
+      // A room we already detached from (Leave) must not clobber a newer one.
+      if (this.room !== room) return;
       this.handlers.onDisconnect?.(code);
       this.room = null;
     });

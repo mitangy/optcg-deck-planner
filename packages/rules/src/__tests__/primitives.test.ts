@@ -149,8 +149,10 @@ describe("event triggers", () => {
     h.hand(0, "OP15-076");
     h.don(0, 3);
     h.play(0, "OP15-076");
-    // Paying DON!! −1 returns a DON!!; Kiten's own effect resolves first.
+    // Paying DON!! −1 returns a DON!! (player picks which); Kiten's own effect resolves first.
     h.accept(0);
+    expect(h.choice?.prompt).toMatch(/return to your DON!! deck/);
+    h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"] });
     expect(h.choice?.prompt).toMatch(/-1000 power/);
     h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [] });
     expect(h.choice?.prompt).toMatch(/K.O./);

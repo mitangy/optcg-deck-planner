@@ -334,11 +334,18 @@ const ZONES: Record<string, ZoneName[]> = {
   life: ["life"],
   resolving: ["resolving"],
   don: [],
+  don_field: [],
 };
 
 /** DON!! cards in the cost area as pseudo-locations (zone "don", defId "DON"). */
 export function donEntries(state: MatchState, seat: Seat): Located[] {
   return state.players[seat].costArea.map((d, index) => ({ seat, zone: "don" as ZoneName, index, id: d.id, defId: "DON" }));
+}
+
+/** DON!! attached to Leader / Characters, as "don" pseudo-locations after the cost area. */
+export function attachedDonEntries(state: MatchState, seat: Seat): Located[] {
+  const p = state.players[seat];
+  return p.attachedDons.map((d, i) => ({ seat, zone: "don" as ZoneName, index: p.costArea.length + i, id: d.id, defId: "DON" }));
 }
 
 function zoneEntries(state: MatchState, seat: Seat, zone: ZoneName): Located[] {
@@ -367,6 +374,10 @@ export function candidates(state: MatchState, ctx: EvalCtx, selector: Selector):
         const rested = state.players[seat].costArea[loc.index]!.rested;
         if (selector.filter?.rested == null || selector.filter.rested === rested) out.push(loc);
       }
+      continue;
+    }
+    if (selector.zone === "don_field") {
+      out.push(...donEntries(state, seat), ...attachedDonEntries(state, seat));
       continue;
     }
     for (const zone of ZONES[selector.zone] ?? []) {

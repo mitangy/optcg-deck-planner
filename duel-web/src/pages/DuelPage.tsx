@@ -26,6 +26,11 @@ export function DuelPage() {
     timer,
     chat,
     sendChat,
+    undo,
+    sendUndo,
+    awayUntil,
+    rematch,
+    sendRematch,
   } = useDuelSession();
 
 
@@ -73,18 +78,17 @@ export function DuelPage() {
         spectator={role === "spectator" || Boolean(view?.spectator)}
         battleLog={battleLog}
         chat={{ lines: chat, onSend: sendChat }}
+        onConcede={connected && role === "player" ? () => concede() : undefined}
+        undo={role === "player" ? { state: undo, onAction: sendUndo } : undefined}
         onSendIntent={sendIntent}
-        onLeave={async () => {
-          await leave();
+        rematch={role === "player" ? { state: rematch, onAction: sendRematch } : undefined}
+        opponentAwayUntil={seat === 0 || seat === 1 ? awayUntil[seat === 0 ? 1 : 0] : null}
+        onLeave={() => {
+          void leave();
           navigate("/", { replace: true });
         }}
         onClearError={clearError}
       />
-      {connected && view && !matchOver && role === "player" ? (
-        <button type="button" className="concede-fab" onClick={() => concede()}>
-          Concede
-        </button>
-      ) : null}
     </div>
   );
 }

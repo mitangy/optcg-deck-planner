@@ -235,8 +235,18 @@ export function attachDon(state: MatchState, seat: Seat, target: CardInstance, d
 export function returnDonById(state: MatchState, seat: Seat, donId: string): boolean {
   const p = state.players[seat];
   const idx = p.costArea.findIndex((d) => d.id === donId);
-  if (idx < 0) return false;
-  const [d] = p.costArea.splice(idx, 1);
+  if (idx >= 0) {
+    const [d] = p.costArea.splice(idx, 1);
+    d!.rested = false;
+    p.donDeck.push(d!);
+    return true;
+  }
+  // DON!! attached to a Leader / Character (still "on your field").
+  const aIdx = p.attachedDons.findIndex((d) => d.id === donId);
+  if (aIdx < 0) return false;
+  const [d] = p.attachedDons.splice(aIdx, 1);
+  for (const card of fieldCards(p)) card.attachedDonIds = card.attachedDonIds.filter((id) => id !== donId);
+  d!.attachedTo = null;
   d!.rested = false;
   p.donDeck.push(d!);
   return true;

@@ -396,3 +396,29 @@ export function groupBattleLogByTurn(
     .sort((a, b) => a[0] - b[0])
     .map(([turn, lines]) => ({ turn, lines }));
 }
+
+/**
+ * Battle log after an accepted undo: turns past `toTurn` no longer happened,
+ * so their lines go (the replayed turns would otherwise merge into them);
+ * `toTurn` keeps its lines and gains a marker so the rewind is visible.
+ */
+export function rewindBattleLog(
+  entries: readonly BattleLogEntry[],
+  toTurn: number,
+  by: 0 | 1,
+  youSeat: number | null,
+): BattleLogEntry[] {
+  const who = youSeat == null ? `Seat ${by}` : by === youSeat ? "You" : "Opponent";
+  const text = `${who} undid the turn — rewound to the start of turn ${toTurn}.`;
+  return [
+    ...entries.filter((e) => e.turn <= toTurn),
+    {
+      id: `${toTurn}-undo-${Math.random().toString(36).slice(2, 9)}`,
+      turn: toTurn,
+      text,
+      tone: "effect",
+      important: true,
+      segments: [{ kind: "text", text }],
+    },
+  ];
+}

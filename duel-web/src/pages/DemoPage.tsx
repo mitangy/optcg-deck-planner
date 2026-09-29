@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ChatLine, PlayerView } from "../net/protocol";
+import type { ChatLine, PlayerView, RematchState, UndoState } from "../net/protocol";
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
 
@@ -215,6 +215,26 @@ function demoChoice(choice: NonNullable<PlayerView["pendingChoices"]>[number]): 
 
 /** Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|order|mode`). */
 export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
+  don: demoChoice({
+    id: "demo-don",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP15-061",
+    sourceInstanceId: "y-c1",
+    optional: false,
+    prompt: "Ohm — choose 1 card to return to your DON!! deck (cost).",
+    request: {
+      type: "select",
+      min: 1,
+      max: 1,
+      options: [
+        { id: "o0", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "Active DON!!", rested: false },
+        { id: "o1", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "Rested DON!!", rested: true },
+        { id: "o2", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "DON!! on Monkey.D.Luffy", rested: false },
+        { id: "o3", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "DON!! on Nico Robin", rested: false },
+      ],
+    },
+  }),
   look: demoChoice({
     id: "demo-look",
     seat: 0,
@@ -233,6 +253,45 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
       groups: [{ label: "Up to 1: add to hand", max: 1, eligibleIds: ["o0", "o2", "o4"] }],
       rest: "deck_bottom",
       restLabel: "place the rest at the bottom of the deck in any order",
+    },
+  }),
+  satori: demoChoice({
+    id: "demo-satori",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP15-066",
+    sourceInstanceId: "y-c1",
+    optional: false,
+    prompt: "Satori — look at the top 2 cards, then place each remaining card at the top or bottom of the deck.",
+    privateToSeat: 0,
+    optionCount: 2,
+    request: {
+      type: "look",
+      options: DEMO_LOOK_OPTIONS.slice(0, 2).map((o) => ({ ...o, eligible: false })),
+      minSelect: 0,
+      maxSelect: 0,
+      groups: [],
+      rest: "top_or_bottom",
+      restLabel: "place each remaining card at the top or bottom of the deck",
+    },
+  }),
+  rest: demoChoice({
+    id: "demo-rest",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP01-017",
+    optional: false,
+    prompt: "Effect — choose up to 1 card to rest.",
+    request: {
+      type: "select",
+      min: 0,
+      max: 1,
+      options: [
+        { id: "o0", defId: "ST01-003", zone: "character", ownerSeat: 0, instanceId: "y-c1", eligible: true },
+        { id: "o1", defId: "ST01-006", zone: "character", ownerSeat: 0, instanceId: "y-c2", eligible: true, rested: true },
+        { id: "o2", defId: "ST01-008", zone: "character", ownerSeat: 0, instanceId: "y-c3", eligible: true },
+        { id: "o3", defId: "ST01-001", zone: "leader", ownerSeat: 1, instanceId: "o-leader", eligible: true },
+      ],
     },
   }),
   select: demoChoice({
@@ -343,7 +402,11 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
 /**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
  * state (`&first=1` makes the opponent go first), `?practice` hotseat chrome
- * (shared playmat), `?chat` match chat with sample lines. Zone counts: see applyDemoZoneParams.
+ * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
+ * undo (`?undo=ask` shows an incoming request), `?waiting` the invite screen,
+ * `?oppturn` the opponent's turn, `?clock` per-player clocks, `?away` a
+ * disconnected opponent, `?over` the match-over screen with a rematch vote
+ * (`&rematch=ask|wait|choose|left`). Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
@@ -352,25 +415,60 @@ export function DemoPage() {
     (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW,
     params,
   );
+  const withTurn: PlayerView = params.has("oppturn") ? { ...base, activeSeat: 1 } : base;
   const view: PlayerView = params.has("turn0")
     ? {
-        ...base,
+        ...withTurn,
         phase: "mulligan",
         turnNumber: 0,
         firstSeat: params.get("first") === "1" ? 1 : 0,
         battle: null,
         you: { ...base.you, mulliganDone: false },
       }
-    : base;
+    : withTurn;
+  const [undo, setUndo] = useState<UndoState | null>(() =>
+    params.has("undo")
+      ? {
+          enabled: true,
+          targetTurn: 3,
+          pending: params.get("undo") === "ask" ? { from: 1, toTurn: 2 } : null,
+        }
+      : null,
+  );
   const [chat, setChat] = useState<ChatLine[]>(DEMO_CHAT);
+  const [demoClockEnds] = useState(() => Date.now() + 612_000);
+  const [rematch, setRematch] = useState<RematchState>(() => {
+    const mode = params.get("rematch");
+    return {
+      available: mode !== "left",
+      requested: mode === "ask" ? [false, true] : mode === "wait" ? [true, false] : mode === "choose" ? [true, true] : [false, false],
+      declinedBy: null,
+      chooser: mode === "choose" ? 0 : null,
+    };
+  });
   return (
     <div className="duel-root">
       <DuelBoard
-        view={view}
+        view={params.has("waiting") ? null : view}
         seat={0}
         matchId="demo-playmat"
         errorBanner={null}
-        matchOver={null}
+        matchOver={params.has("over") ? { winner: 1, reason: "leader_battle_at_zero_life" } : null}
+        rematch={
+          params.has("over")
+            ? {
+                state: rematch,
+                onAction: (action) =>
+                  setRematch((r) =>
+                    action === "request"
+                      ? { ...r, requested: [true, true], chooser: 0 }
+                      : action === "decline"
+                        ? { ...r, requested: [false, false], chooser: null }
+                        : r,
+                  ),
+              }
+            : undefined
+        }
         battleLog={DEMO_BATTLE_LOG}
         leaveLabel="Leave match"
         hotseatPass={
@@ -385,6 +483,41 @@ export function DemoPage() {
                     ...prev,
                     { id: `demo-chat-${prev.length + 1}`, seat: 0, text, at: Date.now() },
                   ]),
+              }
+            : undefined
+        }
+        onConcede={params.has("practice") ? undefined : () => undefined}
+        timer={
+          params.has("clock")
+            ? {
+                protocolVersion: 5,
+                turnSeconds: null,
+                matchSeconds: null,
+                turnEndsAt: null,
+                matchEndsAt: null,
+                activeSeat: 0,
+                seatSeconds: 900,
+                seatRemainingMs: [612_000, 48_000],
+                clockSeat: 0,
+                clockEndsAt: demoClockEnds,
+              }
+            : null
+        }
+        opponentAwayUntil={params.has("away") ? demoClockEnds : null}
+        undo={
+          undo
+            ? {
+                state: undo,
+                onAction: (action) =>
+                  setUndo((u) =>
+                    u
+                      ? {
+                          ...u,
+                          pending:
+                            action === "request" ? { from: 0, toTurn: u.targetTurn ?? 1 } : null,
+                        }
+                      : u,
+                  ),
               }
             : undefined
         }

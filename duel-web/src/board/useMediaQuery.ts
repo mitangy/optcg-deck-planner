@@ -1,0 +1,26 @@
+import { useEffect, useState } from "react";
+
+/** Live `matchMedia` result (false where matchMedia is unavailable). */
+export function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia(query).matches
+      : false,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mql = window.matchMedia(query);
+    const onChange = () => setMatches(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
+}
+
+/**
+ * Wide board: side panels + fixed hand dock. Must match the rail breakpoint
+ * in board.css (desktop, or landscape phones).
+ */
+export const WIDE_BOARD_QUERY =
+  "(min-width: 900px) and (min-height: 500px), (orientation: landscape) and (min-width: 600px) and (max-height: 499px)";

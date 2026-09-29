@@ -5,16 +5,19 @@ import {
   createMatch,
   createSeededRng,
   DEFAULT_LEADER_ID,
+  deserializeMatch,
   getPlayerView,
   getSpectatorView,
   projectGameEvents,
   listLegalIntents,
+  serializeMatch,
   skipMulligans,
   unsupportedCardsForDeck,
   type GameEvent,
   type Intent,
   type MatchState,
   type Rng,
+  type RngState,
   type Seat,
 } from "@optcg/rules";
 import {
@@ -34,12 +37,19 @@ import {
   parseCreateOptions,
   parseIntentMessage,
   parseJoinOptions,
+  parseRematchMessage,
+  parseUndoMessage,
   type ArtPrefsMap,
   type ChatMessage,
   type CosmeticsMessage,
   type ErrorCode,
   type PlayerDeckWire,
   type SeatPlayerInfo,
+  type RematchAction,
+  type RematchStateMessage,
+  type UndoAction,
+  type UndoAppliedMessage,
+  type UndoStateMessage,
   type WelcomeMessage,
 } from "../protocol.js";
 import { postMatchResult, type MatchResultPayload } from "../writeback.js";
@@ -70,6 +80,15 @@ const MAX_SPECTATORS = 8;
 const CHAT_RATE_LIMIT = 5;
 const CHAT_RATE_WINDOW_MS = 5000;
 const CHAT_HISTORY_LIMIT = 50;
+/** Turn-start snapshots kept for undo (unranked rooms only). */
+const UNDO_HISTORY_LIMIT = 20;
+
+type TurnSnapshot = {
+  /** serializeMatch() output — a deep copy the engine can never mutate. */
+  match: string;
+  rng: RngState;
+  turnNumber: number;
+};
 
 export class DuelRoom extends Room {
   maxClients = 2 + MAX_SPECTATORS;
@@ -104,8 +123,25 @@ export class DuelRoom extends Room {
   private matchSeconds: number | null = null;
   private turnEndsAt: number | null = null;
   private matchEndsAt: number | null = null;
+  /** Chess clock: per-seat time banks (ms), charged to whoever must act. */
+  private seatSeconds: number | null = null;
+  private seatRemainingMs: [number, number] = [0, 0];
+  private clockSeat: Seat | null = null;
+  private clockSince = 0;
+  /** Seats that dropped and may still reconnect, with their grace deadline. */
+  private awayUntil: [number | null, number | null] = [null, null];
+  /** Games played in this room (rematches); keys each result write-back. */
+  private gameNumber = 0;
+  private rematchRequested: [boolean, boolean] = [false, false];
+  private rematchDeclinedBy: Seat | null = null;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private lastTimerActiveSeat: Seat | null = null;
+  /** Start-of-turn states, oldest first (unranked rooms only). */
+  private turnSnapshots: TurnSnapshot[] = [];
+  /** True once anything happened after the newest snapshot. */
+  private actedSinceSnapshot = false;
+  private undoRequest: { from: Seat; toTurn: number } | null = null;
+  private lastUndoStateKey = "";
 
   onCreate(options: unknown) {
     // Free-tier cold starts need >15s between matchmake HTTP and WS consume.
@@ -139,6 +175,7 @@ export class DuelRoom extends Room {
     this.ranked = parsed.ranked && isRankedMatchCreateAttested(attestation);
     this.turnSeconds = parsed.timer.turnSeconds;
     this.matchSeconds = parsed.timer.matchSeconds;
+    this.seatSeconds = parsed.timer.seatSeconds;
     this.presetSeatUserIds = parsed.seatUserIds;
     this.matchId = this.roomId;
     this.state.matchId = this.matchId;
@@ -176,12 +213,21 @@ export class DuelRoom extends Room {
       this.handleChat(client, message);
     });
 
+    this.onMessage("undo", (client, message) => {
+      this.handleUndo(client, message);
+    });
+
+    this.onMessage("rematch", (client, message) => {
+      this.handleRematch(client, message);
+    });
+
     this.log("info", "room_created", {
       matchId: this.matchId,
       seed: this.seed,
       ranked: this.ranked,
       turnSeconds: this.turnSeconds,
       matchSeconds: this.matchSeconds,
+      seatSeconds: this.seatSeconds,
     });
   }
 
@@ -352,8 +398,35 @@ export class DuelRoom extends Room {
       this.clearSpectator(client.sessionId);
       return;
     }
-    if (this.seatForClient(client) === null) return;
+    const seat = this.seatForClient(client);
+    if (seat === null) return;
     this.clearSeat(client.sessionId);
+    this.broadcastRematchState();
+    // Leaving a live match forfeits it, so the other player isn't stranded.
+    // The short delay lets a practice match (both seats leaving together)
+    // simply dispose instead of recording a result.
+    this.clock.setTimeout(() => this.forfeitAbsentSeat(seat, "abandoned"), 1500);
+  }
+
+  /** End a live match for a seat that is gone for good (left / reclaim timed out). */
+  private forfeitAbsentSeat(seat: Seat, reason: "abandoned" | "disconnect") {
+    if (!this.match || !this.matchStarted || this.matchOverSent) return;
+    if (this.match.winner !== null || this.match.phase === "game_over") return;
+    if (this.seats[seat]) return; // came back
+    const other = (seat === 0 ? 1 : 0) as Seat;
+    if (!this.seats[other]) return; // nobody left to hand the win to
+    this.endReason = reason;
+    this.match = { ...this.match, winner: other, winReason: "leader_battle_at_zero_life", phase: "game_over" };
+    this.awayUntil = [null, null];
+    this.undoRequest = null;
+    this.syncPublicState();
+    this.stopSeatClock();
+    this.clearTimerLoop();
+    this.broadcastTimer();
+    this.broadcastUndoState();
+    this.broadcastPresence();
+    this.log("info", "forfeit_absent", { matchId: this.matchId, seat, reason, winner: other });
+    this.maybeSendMatchOver();
   }
 
   /**
@@ -381,6 +454,8 @@ export class DuelRoom extends Room {
       seat,
       graceSeconds: grace,
     });
+    this.awayUntil[seat] = Date.now() + grace * 1000;
+    this.broadcastPresence();
     try {
       await this.allowReconnection(client, grace);
       this.log("info", "player_reclaim_ok", {
@@ -388,13 +463,18 @@ export class DuelRoom extends Room {
         seat,
         sessionId: client.sessionId,
       });
+      this.awayUntil[seat] = null;
+      this.broadcastPresence();
       this.sendSync(client);
     } catch {
       this.log("info", "player_reclaim_timeout", {
         matchId: this.matchId,
         seat,
       });
+      this.awayUntil[seat] = null;
       this.clearSeat(client.sessionId);
+      this.broadcastPresence();
+      this.forfeitAbsentSeat(seat, "disconnect");
     }
   }
 
@@ -528,7 +608,8 @@ export class DuelRoom extends Room {
     return null;
   }
 
-  private startMatch() {
+  private startMatch(firstSeat: Seat = 0) {
+    this.resetPerGameState();
     this.rng = createSeededRng(this.seed);
     const deckA = this.seatDecks[0]?.deck ?? this.createPlayers?.[0]?.deck ?? buildTestDeck(20);
     const deckB = this.seatDecks[1]?.deck ?? this.createPlayers?.[1]?.deck ?? buildTestDeck(20);
@@ -539,7 +620,7 @@ export class DuelRoom extends Room {
 
     let match = createMatch({
       seed: this.seed,
-      firstSeat: 0,
+      firstSeat,
       players: [
         { leaderId: leaderA, deck: [...deckA] },
         { leaderId: leaderB, deck: [...deckB] },
@@ -552,6 +633,7 @@ export class DuelRoom extends Room {
 
     this.match = match;
     this.matchStarted = true;
+    this.recordTurnSnapshot();
     this.matchUserIds = [this.seats[0]!.userId, this.seats[1]!.userId];
     this.seatNames = [this.seats[0]!.displayName, this.seats[1]!.displayName];
     this.syncPublicState();
@@ -576,7 +658,8 @@ export class DuelRoom extends Room {
         view,
       });
       this.sendStoredCosmetics(client);
-    this.sendChatHistory(client);
+      this.sendChatHistory(client);
+      this.sendUndoState(client);
     }
 
     for (const spec of this.spectators) {
@@ -586,7 +669,9 @@ export class DuelRoom extends Room {
     }
 
     this.armMatchClock();
+    this.armSeatClocks();
     this.refreshTurnClock();
+    this.updateSeatClock();
     this.ensureTimerLoop();
     this.broadcastTimer();
     this.maybeSendMatchOver();
@@ -709,6 +794,10 @@ export class DuelRoom extends Room {
       phase: "game_over",
     };
     this.syncPublicState();
+    this.undoRequest = null;
+    this.broadcastUndoState();
+    this.stopSeatClock();
+    this.broadcastTimer();
     this.log("info", "concede", { matchId: this.matchId, seat, winner });
     this.maybeSendMatchOver();
   }
@@ -767,10 +856,271 @@ export class DuelRoom extends Room {
     }
 
     this.match = result.state;
+    this.recordTurnSnapshot();
     this.syncPublicState();
     this.broadcastViews(result.events);
     this.onMatchAdvanced();
     this.maybeSendMatchOver();
+  }
+
+  /** Clear everything tied to one game so a rematch starts clean. */
+  private resetPerGameState() {
+    this.gameNumber += 1;
+    this.matchOverSent = false;
+    this.resultPending = null;
+    this.endReason = null;
+    this.turnSnapshots = [];
+    this.actedSinceSnapshot = false;
+    this.undoRequest = null;
+    this.lastUndoStateKey = "";
+    this.turnEndsAt = null;
+    this.matchEndsAt = null;
+    this.lastTimerActiveSeat = null;
+    this.clockSeat = null;
+    this.rematchRequested = [false, false];
+    this.rematchDeclinedBy = null;
+  }
+
+  private rematchState(): RematchStateMessage {
+    const available =
+      !this.ranked &&
+      this.matchOverSent &&
+      this.match?.winner != null &&
+      this.seats[0] != null &&
+      this.seats[1] != null;
+    const both = this.rematchRequested[0] && this.rematchRequested[1];
+    return {
+      protocolVersion: PROTOCOL_VERSION,
+      available,
+      requested: [...this.rematchRequested],
+      declinedBy: this.rematchDeclinedBy,
+      chooser: available && both && this.match?.winner != null ? ((1 - this.match.winner) as Seat) : null,
+    };
+  }
+
+  private broadcastRematchState() {
+    // Ranked rooms never offer a rematch, so clients never show the option.
+    if (!this.matchOverSent || this.ranked) return;
+    this.broadcast("rematch_state", this.rematchState());
+  }
+
+  private handleRematch(client: Client, message: unknown) {
+    if (this.spectatorForClient(client)) {
+      this.sendError(client, "unauthorized", "Spectators cannot request a rematch");
+      return;
+    }
+    const seat = this.seatForClient(client);
+    if (seat === null) {
+      this.sendError(client, "unauthorized", "Not seated");
+      return;
+    }
+    let action: RematchAction;
+    try {
+      action = parseRematchMessage(message);
+    } catch (e) {
+      const err = e as Error & { code?: ErrorCode };
+      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      return;
+    }
+    const state = this.rematchState();
+    if (!state.available) {
+      this.sendError(
+        client,
+        this.ranked ? "unauthorized" : "match_not_ready",
+        this.ranked ? "Rematch is only available in private matches" : "Rematch isn't available right now",
+      );
+      return;
+    }
+    switch (action) {
+      case "request":
+        this.rematchRequested[seat] = true;
+        this.rematchDeclinedBy = null;
+        this.broadcastRematchState();
+        return;
+      case "decline":
+        this.rematchRequested = [false, false];
+        this.rematchDeclinedBy = seat;
+        this.broadcastRematchState();
+        return;
+      case "first":
+      case "second": {
+        if (state.chooser !== seat) {
+          this.sendError(client, "unauthorized", "The player who lost chooses the turn order");
+          return;
+        }
+        const firstSeat: Seat = action === "first" ? seat : ((1 - seat) as Seat);
+        this.seed = (Date.now() + this.gameNumber * 7919) % 1_000_000_000;
+        this.log("info", "rematch_start", { matchId: this.matchId, game: this.gameNumber + 1, firstSeat });
+        this.startMatch(firstSeat);
+        return;
+      }
+    }
+  }
+
+  /**
+   * Track start-of-turn states for undo. Call after every state change: a new
+   * turn number (outside mulligan) records a snapshot, anything else marks the
+   * current turn as having actions to undo. A state change also voids any
+   * open undo request, since it named a turn relative to the old state.
+   */
+  private recordTurnSnapshot() {
+    if (this.ranked || !this.match || !this.rng) return;
+    const m = this.match;
+    const top = this.turnSnapshots.at(-1);
+    if (m.phase !== "mulligan" && m.winner === null && top?.turnNumber !== m.turnNumber) {
+      this.turnSnapshots.push({
+        match: serializeMatch(m),
+        rng: this.rng.snapshot(),
+        turnNumber: m.turnNumber,
+      });
+      if (this.turnSnapshots.length > UNDO_HISTORY_LIMIT) this.turnSnapshots.shift();
+      this.actedSinceSnapshot = false;
+    } else if (top) {
+      this.actedSinceSnapshot = true;
+    }
+    this.undoRequest = null;
+    this.broadcastUndoState();
+  }
+
+  /**
+   * Snapshot an undo would restore: the current turn's start once something
+   * happened this turn, otherwise the previous turn's start.
+   */
+  private undoTargetIndex(): number | null {
+    const n = this.turnSnapshots.length;
+    if (n === 0) return null;
+    if (this.actedSinceSnapshot) return n - 1;
+    return n >= 2 ? n - 2 : null;
+  }
+
+  private undoState(): UndoStateMessage {
+    const enabled = !this.ranked;
+    const over = !this.match || this.match.winner !== null || this.matchOverSent;
+    const idx = enabled && !over ? this.undoTargetIndex() : null;
+    return {
+      protocolVersion: PROTOCOL_VERSION,
+      enabled,
+      targetTurn: idx === null ? null : this.turnSnapshots[idx]!.turnNumber,
+      pending: over ? null : this.undoRequest,
+    };
+  }
+
+  private sendUndoState(client: Client) {
+    client.send("undo_state", this.undoState());
+  }
+
+  private broadcastUndoState() {
+    const state = this.undoState();
+    const key = JSON.stringify(state);
+    if (key === this.lastUndoStateKey) return;
+    this.lastUndoStateKey = key;
+    this.broadcast("undo_state", state);
+  }
+
+  private handleUndo(client: Client, message: unknown) {
+    if (this.spectatorForClient(client)) {
+      this.sendError(client, "unauthorized", "Spectators cannot undo");
+      return;
+    }
+    const seat = this.seatForClient(client);
+    if (seat === null) {
+      this.sendError(client, "unauthorized", "Not seated");
+      return;
+    }
+    let action: UndoAction;
+    try {
+      action = parseUndoMessage(message);
+    } catch (e) {
+      const err = e as Error & { code?: ErrorCode };
+      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      return;
+    }
+    if (this.ranked) {
+      this.sendError(client, "unauthorized", "Undo is only available in private matches");
+      return;
+    }
+    if (!this.match || !this.matchStarted) {
+      this.sendError(client, "match_not_ready", "Match not started");
+      return;
+    }
+    if (this.match.winner !== null || this.matchOverSent) {
+      this.sendError(client, "match_over", "Match is over");
+      return;
+    }
+
+    const req = this.undoRequest;
+    switch (action) {
+      case "request": {
+        const idx = this.undoTargetIndex();
+        if (idx === null) {
+          this.sendError(client, "illegal_intent", "Nothing to undo yet");
+          return;
+        }
+        this.undoRequest = { from: seat, toTurn: this.turnSnapshots[idx]!.turnNumber };
+        this.log("info", "undo_requested", {
+          matchId: this.matchId,
+          seat,
+          toTurn: this.undoRequest.toTurn,
+        });
+        this.broadcastUndoState();
+        return;
+      }
+      case "cancel":
+      case "decline": {
+        // The requester cancels; the other seat declines.
+        if (!req) return;
+        if ((action === "cancel") !== (req.from === seat)) {
+          this.sendError(client, "unauthorized", "Not your undo request to answer");
+          return;
+        }
+        this.undoRequest = null;
+        this.broadcastUndoState();
+        return;
+      }
+      case "accept": {
+        if (!req) {
+          this.sendError(client, "illegal_intent", "No undo request to accept");
+          return;
+        }
+        if (req.from === seat) {
+          this.sendError(client, "unauthorized", "The other player must accept the undo");
+          return;
+        }
+        this.applyUndo(req.from);
+        return;
+      }
+    }
+  }
+
+  private applyUndo(by: Seat) {
+    const idx = this.undoTargetIndex();
+    if (idx === null) {
+      this.undoRequest = null;
+      this.broadcastUndoState();
+      return;
+    }
+    const snap = this.turnSnapshots[idx]!;
+    this.match = deserializeMatch(snap.match);
+    this.rng = createSeededRng(snap.rng);
+    this.turnSnapshots = this.turnSnapshots.slice(0, idx + 1);
+    this.actedSinceSnapshot = false;
+    this.undoRequest = null;
+    this.log("info", "undo_applied", { matchId: this.matchId, by, toTurn: snap.turnNumber });
+
+    const applied: UndoAppliedMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      toTurn: snap.turnNumber,
+      by,
+    };
+    this.broadcast("undo_applied", applied);
+    this.syncPublicState();
+    this.broadcastViews([]);
+    // A rewound turn gets a fresh turn clock; chess clocks keep their spent time.
+    this.refreshTurnClock();
+    this.updateSeatClock();
+    this.ensureTimerLoop();
+    this.broadcastTimer();
+    this.broadcastUndoState();
   }
 
   private broadcastViews(events: GameEvent[]) {
@@ -814,7 +1164,7 @@ export class DuelRoom extends Room {
 
   private ensureTimerLoop() {
     if (this.timerInterval) return;
-    if (this.turnSeconds == null && this.matchSeconds == null) return;
+    if (this.turnSeconds == null && this.matchSeconds == null && this.seatSeconds == null) return;
     this.timerInterval = setInterval(() => this.tickTimers(), 250);
   }
 
@@ -841,24 +1191,80 @@ export class DuelRoom extends Room {
     if (this.match.winner !== null) {
       this.clearTimerLoop();
       this.turnEndsAt = null;
+      this.stopSeatClock();
       this.broadcastTimer();
       return;
     }
     if (this.lastTimerActiveSeat !== this.match.activeSeat) {
       this.refreshTurnClock();
     }
+    this.updateSeatClock();
     this.ensureTimerLoop();
     this.broadcastTimer();
   }
 
-  private broadcastTimer() {
-    this.broadcast("timer", {
+  private armSeatClocks() {
+    const ms = (this.seatSeconds ?? 0) * 1000;
+    this.seatRemainingMs = [ms, ms];
+    this.clockSeat = null;
+  }
+
+  /** Bill the running seat for time spent since the last charge. */
+  private chargeSeatClock(now = Date.now()) {
+    if (this.clockSeat === null) return;
+    const s = this.clockSeat;
+    this.seatRemainingMs[s] = Math.max(0, this.seatRemainingMs[s] - (now - this.clockSince));
+    this.clockSince = now;
+  }
+
+  /** Point the chess clock at whoever must act now (none during mulligan / after the end). */
+  private updateSeatClock() {
+    if (this.seatSeconds == null || !this.match) return;
+    const now = Date.now();
+    this.chargeSeatClock(now);
+    const next =
+      this.match.winner !== null || this.match.phase === "mulligan" ? null : this.actingSeatForTimer();
+    if (next !== this.clockSeat) {
+      this.clockSeat = next;
+      this.clockSince = now;
+    }
+  }
+
+  private stopSeatClock() {
+    this.chargeSeatClock();
+    this.clockSeat = null;
+  }
+
+  private timerPayload() {
+    this.chargeSeatClock();
+    const seatClocks = this.seatSeconds != null;
+    return {
       protocolVersion: PROTOCOL_VERSION,
       turnSeconds: this.turnSeconds,
       matchSeconds: this.matchSeconds,
       turnEndsAt: this.turnEndsAt,
       matchEndsAt: this.matchEndsAt,
       activeSeat: this.match?.activeSeat ?? 0,
+      seatSeconds: this.seatSeconds,
+      seatRemainingMs: seatClocks ? ([...this.seatRemainingMs] as [number, number]) : null,
+      clockSeat: seatClocks ? this.clockSeat : null,
+      // Absolute deadline for the running clock (same convention as turnEndsAt).
+      clockEndsAt:
+        seatClocks && this.clockSeat !== null
+          ? Date.now() + this.seatRemainingMs[this.clockSeat]
+          : null,
+    };
+  }
+
+  private broadcastTimer() {
+    this.broadcast("timer", this.timerPayload());
+  }
+
+  /** Tell everyone which seats dropped and until when they may reconnect. */
+  private broadcastPresence() {
+    this.broadcast("presence", {
+      protocolVersion: PROTOCOL_VERSION,
+      awayUntil: [...this.awayUntil],
     });
   }
 
@@ -871,6 +1277,13 @@ export class DuelRoom extends Room {
     if (this.matchEndsAt != null && now >= this.matchEndsAt) {
       this.expireMatchClock();
       return;
+    }
+    if (this.clockSeat !== null) {
+      this.chargeSeatClock(now);
+      if (this.seatRemainingMs[this.clockSeat] <= 0) {
+        this.expireSeatClock(this.clockSeat);
+        return;
+      }
     }
     if (this.turnEndsAt != null && now >= this.turnEndsAt) {
       this.expireTurnClock();
@@ -889,9 +1302,28 @@ export class DuelRoom extends Room {
       phase: "game_over",
     };
     this.syncPublicState();
+    this.undoRequest = null;
+    this.broadcastUndoState();
+    this.stopSeatClock();
     this.clearTimerLoop();
     this.broadcastTimer();
     this.log("info", "match_timeout", { matchId: this.matchId, winner, loser });
+    this.maybeSendMatchOver();
+  }
+
+  /** A player's own time bank ran out: they lose. */
+  private expireSeatClock(loser: Seat) {
+    if (!this.match || this.match.winner !== null) return;
+    const winner = (1 - loser) as Seat;
+    this.endReason = "timeout";
+    this.match = { ...this.match, winner, winReason: "leader_battle_at_zero_life", phase: "game_over" };
+    this.syncPublicState();
+    this.undoRequest = null;
+    this.broadcastUndoState();
+    this.stopSeatClock();
+    this.clearTimerLoop();
+    this.broadcastTimer();
+    this.log("info", "seat_clock_timeout", { matchId: this.matchId, winner, loser });
     this.maybeSendMatchOver();
   }
 
@@ -923,6 +1355,7 @@ export class DuelRoom extends Room {
       return;
     }
     this.match = result.state;
+    this.recordTurnSnapshot();
     this.syncPublicState();
     this.broadcastViews(result.events);
     this.onMatchAdvanced();
@@ -995,6 +1428,7 @@ export class DuelRoom extends Room {
       this.matchOverSent = true;
       this.log("info", "match_end", { matchId: this.matchId, ...result });
       this.broadcast("match_over", { protocolVersion: PROTOCOL_VERSION, result });
+      this.broadcastRematchState();
       this.autoDispose = autoDispose;
       if (autoDispose && this.clients.length === 0) void this.disconnect().catch(() => undefined);
     });
@@ -1023,7 +1457,8 @@ export class DuelRoom extends Room {
       return;
     }
     const payload: MatchResultPayload = {
-      match_id: this.matchId,
+      // Rematches share the room: key each game's result separately.
+      match_id: this.gameNumber > 1 ? `${this.matchId}-r${this.gameNumber - 1}` : this.matchId,
       seat0_user_id: s0,
       seat1_user_id: s1,
       winner_seat: winner,
@@ -1095,14 +1530,9 @@ export class DuelRoom extends Room {
     });
     this.sendStoredCosmetics(client);
     this.sendChatHistory(client);
-    client.send("timer", {
-      protocolVersion: PROTOCOL_VERSION,
-      turnSeconds: this.turnSeconds,
-      matchSeconds: this.matchSeconds,
-      turnEndsAt: this.turnEndsAt,
-      matchEndsAt: this.matchEndsAt,
-      activeSeat: this.match.activeSeat,
-    });
+    this.sendUndoState(client);
+    client.send("timer", this.timerPayload());
+    client.send("presence", { protocolVersion: PROTOCOL_VERSION, awayUntil: [...this.awayUntil] });
     if (this.match.winner !== null && this.matchOverSent) {
       client.send("match_over", {
         protocolVersion: PROTOCOL_VERSION,
@@ -1111,6 +1541,7 @@ export class DuelRoom extends Room {
           reason: this.endReason ?? this.match.winReason ?? "unknown",
         },
       });
+      if (!this.ranked) client.send("rematch_state", this.rematchState());
     }
   }
 
