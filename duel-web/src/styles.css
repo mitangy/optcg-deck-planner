@@ -2143,6 +2143,28 @@ img.zone-pile-face {
   white-space: pre-line;
 }
 
+.modal-card.match-result {
+  text-align: center;
+  gap: 0.5rem;
+}
+.modal-card .match-result-kicker {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.match-result-win h2 {
+  color: var(--chrome-bright);
+}
+.match-result-loss h2 {
+  color: var(--crimson-bright);
+}
+.modal-card .match-result-detail {
+  color: var(--ink);
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+}
+
 .loading,
 .arena-loading {
   flex: 1;
@@ -2455,13 +2477,104 @@ img.zone-pile-face {
 }
 .battle-log-lines {
   margin: 0;
-  padding-left: 1rem;
+  padding: 0;
+  list-style: none;
   color: #d7e0ea;
   font-size: 0.72rem;
   line-height: 1.35;
 }
 .battle-log-lines li {
   margin: 0.12rem 0;
+}
+/* Icon column (fixed width) + wrapping text; routine lines recede. */
+.log-line {
+  --log-accent: var(--muted);
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 0.25rem;
+  min-width: 0;
+}
+.log-icon {
+  color: var(--log-accent);
+  text-align: center;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+.log-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.log-routine,
+.log-miss {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+.log-phase {
+  color: var(--chrome);
+  font-size: 0.66rem;
+  letter-spacing: 0.03em;
+}
+.log-play { --log-accent: #8fc6e0; }
+.log-attack { --log-accent: #f2a65a; }
+.log-block { --log-accent: #9fb6c9; }
+.log-hit { --log-accent: #f2a65a; }
+.log-counter { --log-accent: #6fc6a0; }
+.log-ko { --log-accent: var(--crimson-bright); }
+.log-damage { --log-accent: #ff7a6e; }
+.log-search { --log-accent: #7fd1ff; }
+.log-trash { --log-accent: #c79cff; }
+.log-effect { --log-accent: var(--chrome-bright); }
+.log-trigger { --log-accent: #ffd65a; }
+.log-reveal { --log-accent: #7fd1ff; }
+.log-win { --log-accent: var(--chrome-bright); }
+.log-important {
+  margin: 0.2rem 0;
+  padding: 0.1rem 0.25rem 0.1rem 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--log-accent) 12%, transparent);
+  box-shadow: inset 2px 0 0 var(--log-accent);
+  color: #f4f7fa;
+}
+.log-important .log-card {
+  font-weight: 700;
+  color: color-mix(in srgb, var(--log-accent) 55%, #ffffff);
+}
+.log-win {
+  font-weight: 700;
+  color: var(--chrome-bright);
+}
+/* Card names: inline buttons (hover → preview panel, click/tap → inspect). */
+.log-card {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: #cfe3f1;
+  text-align: inherit;
+  text-decoration: underline dotted rgba(207, 227, 241, 0.45);
+  text-underline-offset: 2px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+@media (pointer: coarse) {
+  /* Taller tap target without changing line layout. */
+  .log-card {
+    padding-block: 0.2rem;
+  }
+}
+.log-card:hover,
+.log-card:focus-visible {
+  color: var(--chrome-bright);
+  text-decoration-color: currentColor;
+  outline: none;
+}
+.log-card:focus-visible {
+  box-shadow: var(--focus);
+  border-radius: 2px;
 }
 
 /* —— Status chips / buffed power —— */
