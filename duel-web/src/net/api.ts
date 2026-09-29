@@ -6,6 +6,8 @@ export type DuelTokenResponse = {
   expires_at: number;
   user_id: number;
   email: string;
+  /** Name other players see (username, else account name). */
+  display_name?: string;
   rating: number;
   games_played: number;
 };
@@ -14,7 +16,66 @@ export type AuthUser = {
   id: number;
   email: string;
   name: string;
+  /** Public duel handle; null until chosen (see UsernameSetupPage). */
+  username?: string | null;
 };
+
+/** API error with HTTP status (409 = taken, 422 = invalid) and a friendly detail. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+async function apiError(res: Response, fallback: string): Promise<ApiError> {
+  let detail = fallback;
+  try {
+    const body = (await res.json()) as { detail?: unknown };
+    if (typeof body.detail === "string" && body.detail) detail = body.detail;
+  } catch {
+    /* non-JSON body */
+  }
+  return new ApiError(res.status, detail);
+}
+
+/** PATCH /auth/me/username — returns the updated user. */
+export async function updateUsername(username: string): Promise<AuthUser> {
+  const res = await fetch(`${getApiBaseUrl()}/auth/me/username`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: username.trim() }),
+  });
+  if (!res.ok) {
+    throw await apiError(
+      res,
+      res.status === 409
+        ? "That username is already taken."
+        : res.status === 422
+          ? "That username isn't allowed."
+          : `Could not save username (${res.status})`,
+    );
+  }
+  return (await res.json()) as AuthUser;
+}
+
+/** GET /auth/me/username-suggestion — an available default derived from the account name. */
+export async function fetchUsernameSuggestion(): Promise<string | null> {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/auth/me/username-suggestion`, {
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { username?: string };
+    return body.username ?? null;
+  } catch {
+    return null;
+  }
+}
 
 async function readToken(res: Response): Promise<DuelTokenResponse> {
   if (!res.ok) {

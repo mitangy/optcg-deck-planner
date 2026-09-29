@@ -1,0 +1,67 @@
+import type { Intent } from "../net/protocol";
+import { giveDonTargetIdsForAll, matchGiveDonMulti } from "./dragIntents";
+
+/**
+ * Click-to-attach DON!! flow (alternative to dragging):
+ *   1. tap active DON!! chips in the cost area → selection count goes up
+ *   2. tap a highlighted Leader / Character → "Attach N DON!!" confirm
+ *   3. confirm sends one give_don per selected DON!! (client-side sequence)
+ *
+ * DON!! cards are interchangeable, so the selection behaves like a counter:
+ * tapping an unselected chip adds it, tapping an already-selected chip adds
+ * the next unselected legal DON!! (so repeated taps on the same spot count
+ * up), and once every legal DON!! is selected the next tap clears back to 0.
+ */
+export function nextDonSelection(
+  prev: ReadonlySet<string>,
+  clickedId: string,
+  /** Legal (active, give_don-able) DON!! ids in display order. */
+  legalIds: readonly string[],
+): Set<string> {
+  if (!legalIds.includes(clickedId)) return new Set(prev);
+  if (!prev.has(clickedId)) return new Set([...prev, clickedId]);
+  const nextFree = legalIds.find((id) => !prev.has(id));
+  if (nextFree) return new Set([...prev, nextFree]);
+  return new Set();
+}
+
+/** Drop ids that are no longer legal (rested, spent, turn over). Same ref when unchanged. */
+export function pruneDonSelection(
+  prev: Set<string>,
+  legal: ReadonlySet<string>,
+): Set<string> {
+  if (prev.size === 0) return prev;
+  const next = new Set([...prev].filter((id) => legal.has(id)));
+  return next.size === prev.size ? prev : next;
+}
+
+/** Leader / Character ids every selected DON!! may legally attach to. */
+export function attachTargetIds(intents: Intent[], selected: ReadonlySet<string>): string[] {
+  return giveDonTargetIdsForAll(intents, [...selected]);
+}
+
+export type PendingAttach = { targetId: string; donIds: string[] };
+
+/**
+ * Tapping a board card while DON!! are selected: returns the pending confirm
+ * when the card is a legal target for the whole selection, else null.
+ */
+export function beginAttach(
+  intents: Intent[],
+  selected: ReadonlySet<string>,
+  targetId: string,
+): PendingAttach | null {
+  if (selected.size === 0) return null;
+  if (!attachTargetIds(intents, selected).includes(targetId)) return null;
+  return { targetId, donIds: [...selected] };
+}
+
+/** Intents to send (in order) when the attach confirm is accepted. */
+export function resolveAttachIntents(intents: Intent[], pending: PendingAttach | null): Intent[] {
+  if (!pending) return [];
+  return matchGiveDonMulti(intents, pending.donIds, pending.targetId);
+}
+
+export function attachLabel(count: number): string {
+  return `Attach ${count} DON!!`;
+}

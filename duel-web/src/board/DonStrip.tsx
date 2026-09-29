@@ -58,7 +58,7 @@ function DonChip({
   }${dragging || isDragging ? " don-dragging" : ""}${isSelected ? " don-selected" : ""}`;
 
   const label = canDrag
-    ? "Tap to select, or drag onto Leader or Character to give DON!!"
+    ? "Tap to select (tap again to add more), then tap a Leader or Character — or drag onto one"
     : token.rested
       ? "Rested DON!!"
       : "Active DON!!";
@@ -132,6 +132,12 @@ export function DonStrip({
             : `${activeCount ?? 0}/${totalCount ?? 0}`}
         </span>
       </div>
+      {selectedDonIds && selectedDonIds.size > 0 ? (
+        // Absolutely positioned so it never nudges the rail.
+        <span className="don-select-count" role="status">
+          {selectedDonIds.size} selected
+        </span>
+      ) : null}
       <div className="don-strip-rail" style={railStyle} onClick={handleRailClick}>
         {items.length === 0 ? (
           <span className="don-empty">Empty</span>

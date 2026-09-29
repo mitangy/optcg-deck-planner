@@ -5,6 +5,7 @@ import type {
   MatchOverMessage,
   PlayerView,
   Seat,
+  SeatPlayers,
   TimerMessage,
 } from "../net/protocol";
 import { BattleLogPanel } from "./BattleLogPanel";
@@ -23,6 +24,16 @@ import {
   resolveDropIntents,
   type DragPayload,
 } from "./dragIntents";
+import { AttackIndicator } from "./AttackIndicator";
+import { DonAttachConfirm, DragGhost, type GhostPayload } from "./BoardOverlays";
+import {
+  attachTargetIds,
+  beginAttach,
+  nextDonSelection,
+  pruneDonSelection,
+  resolveAttachIntents,
+  type PendingAttach,
+} from "./donSelection";
 import { ChoicePrompt } from "./ChoicePrompt";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { IntentBar } from "./IntentBar";
@@ -37,6 +48,7 @@ import { sortHandIndices } from "./handSort";
 import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { loadSettings } from "../settings";
+import { seatLabel, seatName, winnerHeadline } from "./playerNames";
 
 type Props = {
   view: PlayerView | null;
@@ -44,6 +56,8 @@ type Props = {
   matchId: string | null;
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
+  /** Seat-indexed display names (usernames) from the server welcome. */
+  players?: SeatPlayers | null;
   timer?: TimerMessage | null;
   spectator?: boolean;
   battleLog?: BattleLogEntry[];
@@ -105,6 +119,7 @@ export function DuelBoard({
   matchId,
   errorBanner,
   matchOver,
+  players = null,
   timer = null,
   spectator = false,
   battleLog = [],
@@ -122,6 +137,8 @@ export function DuelBoard({
   const [handCollapsed, setHandCollapsed] = useState(false);
   const [handSorted, setHandSorted] = useState(false);
   const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
+  /** Click-to-attach: DON!! selected + target tapped, awaiting confirm. */
+  const [pendingAttach, setPendingAttach] = useState<PendingAttach | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const handRowRef = useRef<HTMLDivElement | null>(null);
   const playmatUrl = usePlaymatUrl();
@@ -181,41 +198,87 @@ export function DuelBoard({
   }, [dndEnabled, intents, costArea]);
 
   const giveDonHighlightIds = useMemo(() => {
-    if (dragPayload?.type !== "give_don") return EMPTY_IDS;
-    // Intersection across every dragged donId so a drop always fully succeeds.
-    return new Set(giveDonTargetIdsForAll(intents, dragPayload.donIds));
-  }, [dragPayload, intents]);
+    // Intersection across every dragged / selected donId so a drop or tap
+    // always fully succeeds.
+    if (dragPayload?.type === "give_don") {
+      return new Set(giveDonTargetIdsForAll(intents, dragPayload.donIds));
+    }
+    if (!dragPayload && selectedDonIds.size > 0) {
+      return new Set(attachTargetIds(intents, selectedDonIds));
+    }
+    return EMPTY_IDS;
+  }, [dragPayload, intents, selectedDonIds]);
 
   // Drop stale selections (don rested/used, turn ended, etc.) whenever the
   // legal set changes, so the highlight/selection UI never lies.
   useEffect(() => {
-    setSelectedDonIds((prev) => {
-      if (prev.size === 0) return prev;
-      const next = new Set([...prev].filter((id) => draggableDonIds.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
+    setSelectedDonIds((prev) => pruneDonSelection(prev, draggableDonIds));
   }, [draggableDonIds]);
+
+  // A pending confirm is only valid while its whole selection still is.
+  useEffect(() => {
+    if (!pendingAttach) return;
+    const stillLegal =
+      pendingAttach.donIds.every((id) => selectedDonIds.has(id)) &&
+      beginAttach(intents, selectedDonIds, pendingAttach.targetId) != null;
+    if (!stillLegal) setPendingAttach(null);
+  }, [pendingAttach, selectedDonIds, intents]);
+
+  function clearDonSelection() {
+    setSelectedDonIds(new Set());
+    setPendingAttach(null);
+  }
+
+  function confirmAttach() {
+    const toSend = resolveAttachIntents(intents, pendingAttach);
+    clearDonSelection();
+    if (toSend.length === 0) return;
+    setHandFilter(null);
+    setSelectedBoardId(null);
+    // Sequential client-side intents (no batch protocol).
+    for (const intent of toSend) onSendIntent(intent);
+  }
+
+  const donSelectActive = selectedDonIds.size > 0 || pendingAttach != null;
 
   useEffect(() => {
     if (!dndEnabled) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setSelectedDonIds(new Set());
+      if (e.key === "Escape") clearDonSelection();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [dndEnabled]);
 
-  function toggleDonSelect(donId: string) {
-    setSelectedDonIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(donId)) next.delete(donId);
-      else next.add(donId);
-      return next;
-    });
-  }
+  // Click-away cancels the DON!! selection / confirm. Taps on the cost area,
+  // the confirm itself, or a highlighted attach target are handled by their
+  // own click handlers.
+  useEffect(() => {
+    if (!donSelectActive) return;
+    function onPointerDown(e: PointerEvent) {
+      const el = e.target instanceof Element ? e.target : null;
+      if (
+        el?.closest(
+          ".don-strip-you, .don-attach-confirm, [data-dnd-drop^='give_don:'], .card-inspect-backdrop",
+        )
+      ) {
+        return;
+      }
+      clearDonSelection();
+    }
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [donSelectActive]);
 
-  function clearDonSelection() {
-    setSelectedDonIds(new Set());
+  /** Legal DON!! ids in cost-area display order (active first). */
+  const legalDonOrder = useMemo(
+    () => costArea.filter((t) => draggableDonIds.has(t.id)).map((t) => t.id),
+    [costArea, draggableDonIds],
+  );
+
+  function toggleDonSelect(donId: string) {
+    setPendingAttach(null);
+    setSelectedDonIds((prev) => nextDonSelection(prev, donId, legalDonOrder));
   }
 
   const playFieldHighlight = Boolean(
@@ -274,6 +337,15 @@ export function DuelBoard({
   }
 
   function selectBoardCard(id: string) {
+    if (selectedDonIds.size > 0) {
+      // DON!! selected → tapping a legal Leader/Character asks to attach.
+      const pending = beginAttach(intents, selectedDonIds, id);
+      if (pending) {
+        setPendingAttach(pending);
+        return;
+      }
+      clearDonSelection();
+    }
     setHandFilter(null);
     setSelectedBoardId((prev) => (prev === id ? null : id));
   }
@@ -327,6 +399,26 @@ export function DuelBoard({
 
   const you = view.you;
   const opp = view.opponent;
+
+  const ghostPayload: GhostPayload | null =
+    dragPayload?.type === "give_don"
+      ? { type: "give_don", count: dragPayload.donIds.length }
+      : dragPayload?.type === "play_card" && you.hand[dragPayload.handIndex]
+        ? {
+            type: "play_card",
+            defId: you.hand[dragPayload.handIndex]!.defId,
+            ownerSeat: mySeat ?? view.seat,
+          }
+        : null;
+
+  const pendingAttachName = (() => {
+    if (!pendingAttach) return "";
+    const card =
+      you.leader.id === pendingAttach.targetId
+        ? you.leader
+        : you.characters.find((c) => c.id === pendingAttach.targetId);
+    return card ? lookupCard(card.defId).name : "target";
+  })();
   const boardSeat: Seat = mySeat ?? view.seat;
   const oppSeat: Seat = boardSeat === 0 ? 1 : 0;
   const viewingSeat: Seat | undefined = spectating ? undefined : boardSeat;
@@ -356,7 +448,25 @@ export function DuelBoard({
           <span className="hud-sep">·</span>
           <span>Turn {view.turnNumber}</span>
           <span className="hud-sep">·</span>
-          <span>{spectating ? "Spectating" : `Seat ${mySeat}`}</span>
+          {players ? (
+            <span
+              className="hud-names"
+              title={`${seatLabel(players, spectating ? 0 : boardSeat)} vs ${seatLabel(
+                players,
+                spectating ? 1 : oppSeat,
+              )}`}
+            >
+              <strong className="hud-name hud-name-you">
+                {spectating ? seatLabel(players, 0) : seatName(players, boardSeat) ?? "You"}
+              </strong>
+              <span className="hud-sep">vs</span>
+              <span className="hud-name">
+                {seatLabel(players, spectating ? 1 : oppSeat)}
+              </span>
+            </span>
+          ) : (
+            <span>{spectating ? "Spectating" : `Seat ${mySeat}`}</span>
+          )}
           {showOrderChip ? (
             <span className={`hud-turn-chip hud-order${youFirst ? " first" : ""}`}>
               {orderLabel}
@@ -534,6 +644,7 @@ export function DuelBoard({
                             ? Array.from(selectedDonIds)
                             : [donId];
                         setSelectedDonIds(new Set(donIds));
+                        setPendingAttach(null);
                         setDragPayload({ type: "give_don", donIds });
                       },
                       onDonDragEnd: (donId, x, y) => {
@@ -604,6 +715,7 @@ export function DuelBoard({
                           showCounter
                           selected={handFilter === idx}
                           onClick={() => selectHandCard(idx)}
+                          instantClick
                           dragEnabled={playable}
                           dragPayload={{ type: "play_card", handIndex: idx }}
                           onDragStart={() =>
@@ -705,11 +817,31 @@ export function DuelBoard({
         </div>
       ) : null}
 
+      {/* Fixed overlays (portals) — never participate in board layout. */}
+      <AttackIndicator view={over ? null : view} />
+      <DragGhost payload={ghostPayload} />
+      {pendingAttach && dndEnabled ? (
+        <DonAttachConfirm
+          pending={pendingAttach}
+          targetName={pendingAttachName}
+          onConfirm={confirmAttach}
+          onCancel={clearDonSelection}
+        />
+      ) : null}
+
       {over ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className={`modal-card match-result match-result-${result.outcome}`}>
             <p className="match-result-kicker">Match over</p>
-            <h2>{result.headline}</h2>
+            <h2>
+              {(() => {
+                // Spectators / hotseat: name the winning player instead of "Seat N".
+                const winner = (matchOver?.winner ?? view.winner) as Seat | null;
+                return spectating && players && (winner === 0 || winner === 1)
+                  ? winnerHeadline(players, winner, null, true)
+                  : result.headline;
+              })()}
+            </h2>
             <p className="match-result-detail">{result.detail}</p>
             <button type="button" className="leave-btn" onClick={onLeave}>
               Return home

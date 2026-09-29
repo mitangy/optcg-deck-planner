@@ -55,6 +55,13 @@ type Props = {
   statusLabels?: string[];
   /** Primary click (hand select / intent targeting). */
   onClick?: () => void;
+  /**
+   * Fire onClick immediately instead of waiting out the double-click window.
+   * Use for idempotent toggles (select/deselect) so the highlight is instant —
+   * a double-click toggles twice (no net change) and then opens inspect.
+   * Leave off for one-shot actions (e.g. declaring an attack on a target).
+   */
+  instantClick?: boolean;
   /** When true, single click opens inspect instead of onClick (trash viewer only). */
   inspectOnClick?: boolean;
   /** Long-press / double-click inspect when true (field cards without onClick). */
@@ -75,7 +82,7 @@ type Props = {
   viewingSeat?: Seat;
   /** Server-authoritative play cost (Teach tax, etc.) when in Main. */
   playCost?: number;
-  /** Field instance id — hover preview tracks this card's live power/statuses. */
+  /** Board instance id → `data-instance-id` (battle overlay anchor) + live hover preview tracking. */
   instanceId?: string;
   /** Show the Counter value badge (hand cards). */
   showCounter?: boolean;
@@ -92,6 +99,8 @@ export function CardTile({
   frame = "default",
   statusLabels,
   onClick,
+  instantClick = false,
+  instanceId,
   inspectOnClick = false,
   inspectGestures = false,
   dragEnabled = false,
@@ -105,7 +114,6 @@ export function CardTile({
   ownerSeat,
   viewingSeat,
   playCost,
-  instanceId,
   showCounter = false,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
@@ -226,7 +234,8 @@ export function CardTile({
       return;
     }
     if (onClick) {
-      clickDeferRef.current?.onClick();
+      if (instantClick) onClickRef.current?.();
+      else clickDeferRef.current?.onClick();
     }
   }
 
@@ -239,7 +248,11 @@ export function CardTile({
 
   function handlePointerDown(e: PointerEvent) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    longPressRef.current?.onPointerDown(e);
+    // Mouse press-and-hold on a draggable card is the start of a drag, not an
+    // inspect (desktop inspects via double-click / the "i" chip).
+    if (!(e.pointerType === "mouse" && dragEnabled)) {
+      longPressRef.current?.onPointerDown(e);
+    }
     dragBind.onPointerDown?.(e);
   }
 
@@ -387,7 +400,10 @@ export function CardTile({
     </>
   );
 
-  const dropProps = dropAttr ? { "data-dnd-drop": dropAttr } : {};
+  const dropProps = {
+    ...(dropAttr ? { "data-dnd-drop": dropAttr } : {}),
+    ...(instanceId ? { "data-instance-id": instanceId } : {}),
+  };
   const pointerHandlers = {
     onPointerDown: handlePointerDown,
     onPointerMove: handlePointerMove,

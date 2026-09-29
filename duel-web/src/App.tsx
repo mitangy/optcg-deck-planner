@@ -8,6 +8,7 @@ import { DuelPage } from "./pages/DuelPage";
 import { HotseatPage } from "./pages/HotseatPage";
 import { LobbyPage } from "./pages/LobbyPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { UsernameSetupPage } from "./pages/UsernameSetupPage";
 
 export function App() {
   return (
@@ -21,6 +22,7 @@ export function App() {
       <Route path="/hotseat" element={<HotseatPage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/auth/complete" element={<AuthCompletePage />} />
+      <Route path="/welcome/username" element={<UsernameSetupPage />} />
       <Route path="/demo" element={<DemoPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

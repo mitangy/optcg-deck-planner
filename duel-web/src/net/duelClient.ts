@@ -18,6 +18,7 @@ import {
   type MatchOverMessage,
   type PlayerView,
   type Seat,
+  type SeatPlayers,
   type TimerMessage,
 } from "./protocol";
 import { Client, type Room } from "@colyseus/sdk";
@@ -29,6 +30,7 @@ export type DuelClientHandlers = {
     seat: Seat;
     view: PlayerView;
     role: "player" | "spectator";
+    players?: SeatPlayers;
   }) => void;
   onView?: (view: PlayerView) => void;
   onEvents?: (events: unknown[]) => void;
@@ -347,6 +349,7 @@ export class DuelClient {
           seat: msg.seat,
           view: msg.view,
           role: msg.role ?? (msg.view.spectator ? "spectator" : "player"),
+          players: msg.players,
         });
         this.handlers.onView?.(msg.view);
       } catch (e) {

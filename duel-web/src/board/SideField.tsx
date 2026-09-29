@@ -184,6 +184,7 @@ export function SideField({
                   classNameExtra={extraClass || undefined}
                   inspectGestures
                   onClick={tapHandler}
+                  instantClick={isSelectable}
                   dropAttr={dropAttr}
                   dropHighlight={giveHl || trashHl}
                   ownerSeat={ownerSeat}
@@ -245,6 +246,7 @@ export function SideField({
                 classNameExtra={extraClass || undefined}
                 inspectGestures
                 onClick={tapHandler}
+                instantClick={isSelectable}
                 dropAttr={
                   interactive && drag?.giveDonHighlightIds?.has(leaderId)
                     ? `give_don:${leaderId}`
@@ -294,6 +296,7 @@ export function SideField({
                   classNameExtra={extraClass || undefined}
                   inspectGestures
                   onClick={tapHandler}
+                  instantClick={isSelectable}
                   ownerSeat={ownerSeat}
                   viewingSeat={viewingSeat}
                 />

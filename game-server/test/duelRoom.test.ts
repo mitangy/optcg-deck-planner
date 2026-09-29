@@ -17,6 +17,7 @@ type PlayerView = {
 
 type SeatBag = {
   welcome?: PlayerView;
+  players?: { name: string | null }[];
   views: PlayerView[];
   errors: { code: string; message: string }[];
   over?: { result: { winner: 0 | 1; reason: string } };
@@ -31,10 +32,14 @@ function joinOpts(devUserId: string, preferredSeat?: 0 | 1) {
 }
 
 function attach(client: ClientRoom, bag: SeatBag) {
-  client.onMessage("welcome", (msg: { seat: 0 | 1; view: PlayerView }) => {
-    bag.welcome = msg.view;
-    bag.views.push(msg.view);
-  });
+  client.onMessage(
+    "welcome",
+    (msg: { seat: 0 | 1; view: PlayerView; players?: { name: string | null }[] }) => {
+      bag.welcome = msg.view;
+      bag.players = msg.players;
+      bag.views.push(msg.view);
+    },
+  );
   client.onMessage("view", (msg: { view: PlayerView }) => {
     bag.views.push(msg.view);
   });
@@ -105,6 +110,10 @@ describe("DuelRoom", () => {
     assert.equal(bags[1].welcome!.opponent.handCount, 5);
     assert.equal("hand" in bags[0].welcome!.opponent, false);
     assert.equal("hand" in bags[1].welcome!.opponent, false);
+
+    // Both seats see seat-indexed public names (dev ids here; usernames via tokens).
+    assert.deepEqual(bags[0].players, [{ name: "alice" }, { name: "bob" }]);
+    assert.deepEqual(bags[1].players, [{ name: "alice" }, { name: "bob" }]);
 
     const ids0 = bags[0].welcome!.you.hand.map((c) => c.id);
     const ids1 = bags[1].welcome!.you.hand.map((c) => c.id);

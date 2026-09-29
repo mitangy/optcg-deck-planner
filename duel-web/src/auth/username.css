@@ -1,0 +1,57 @@
+/* —— Usernames: setup page, settings form, HUD nameplates —— */
+
+.username-form .field-inline input {
+  min-width: 0;
+}
+
+.username-submit {
+  flex: 0 0 auto;
+  /* Stable width so "Saving…" doesn't resize the trigger. */
+  min-width: 6.5rem;
+}
+
+.username-message {
+  /* Always reserve one line so validation text never shifts the layout. */
+  min-height: 1.4em;
+}
+
+.username-message.is-error {
+  color: #ef9a9a;
+}
+
+.username-message.is-ok {
+  color: var(--chrome-bright);
+}
+
+.username-loading {
+  /* Roughly the form's height so the swap-in doesn't jump the panel. */
+  min-height: 5.25rem;
+  display: flex;
+  align-items: center;
+}
+
+.hud-names {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.hud-name {
+  min-width: 0;
+  max-width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-name-you {
+  color: var(--chrome-bright);
+}
+
+@media (max-width: 480px) {
+  .hud-name {
+    max-width: 6.5rem;
+  }
+}

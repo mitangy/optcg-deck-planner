@@ -287,15 +287,71 @@ const DEMO_CHAT: ChatLine[] = [
   { id: "demo-chat-2", seat: 0, text: "You too — nice leader.", at: 0 },
 ];
 
+function intParam(params: URLSearchParams, key: string): number | null {
+  const raw = params.get(key);
+  if (raw == null || raw === "") return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
+ * Pile / cost-area overrides for layout QA, e.g. `/demo?don=10&rested=10&dondeck=0`
+ * or `/demo?deck=0&trash=0&life=0`. Applied to both seats so each mat is checked.
+ */
+export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): PlayerView {
+  const don = intParam(params, "don");
+  const rested = intParam(params, "rested");
+  const donDeck = intParam(params, "dondeck");
+  const deck = intParam(params, "deck");
+  const trash = intParam(params, "trash");
+  const life = intParam(params, "life");
+  if ([don, rested, donDeck, deck, trash, life].every((v) => v == null)) return base;
+
+  const touchDon = don != null || rested != null;
+  const total = don ?? base.you.costArea.length;
+  const restedCount = Math.min(total, rested ?? 0);
+  const activeCount = total - restedCount;
+  const costArea = touchDon
+    ? Array.from({ length: total }, (_, i) => ({ id: `d${i + 1}`, rested: i >= activeCount }))
+    : base.you.costArea;
+  const trashFor = (cards: string[]) =>
+    trash == null ? cards : Array.from({ length: trash }, (_, i) => cards[i % cards.length] ?? "ST01-003");
+
+  return {
+    ...base,
+    you: {
+      ...base.you,
+      costArea,
+      activeDonCount: touchDon ? activeCount : base.you.activeDonCount,
+      donDeckCount: donDeck ?? base.you.donDeckCount,
+      deckCount: deck ?? base.you.deckCount,
+      lifeCount: life ?? base.you.lifeCount,
+      trash: trashFor(base.you.trash),
+    },
+    opponent: {
+      ...base.opponent,
+      costAreaCount: touchDon ? total : base.opponent.costAreaCount,
+      activeDonCount: touchDon ? activeCount : base.opponent.activeDonCount,
+      donDeckCount: donDeck ?? base.opponent.donDeckCount,
+      deckCount: deck ?? base.opponent.deckCount,
+      lifeCount: life ?? base.opponent.lifeCount,
+      trash: trashFor(base.opponent.trash),
+    },
+  };
+}
+
 /**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
  * state (`&first=1` makes the opponent go first), `?practice` hotseat chrome
- * (shared playmat), `?chat` match chat with sample lines.
+ * (shared playmat), `?chat` match chat with sample lines. Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
   const prompt = params.get("prompt");
-  const base = (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW;
+  const base = applyDemoZoneParams(
+    (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW,
+    params,
+  );
   const view: PlayerView = params.has("turn0")
     ? {
         ...base,
