@@ -353,6 +353,58 @@ button {
   font-size: 0.75rem;
 }
 
+.card-report-open {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.card-report {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.card-report-text {
+  background: var(--arena-deep);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 0.55rem 0.65rem;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 5.5rem;
+}
+
+.card-report-error {
+  margin: 0;
+  color: var(--crimson-bright);
+  font-size: 0.8rem;
+}
+
+.card-report-sent {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.card-report-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.card-report-actions .btn {
+  min-height: 40px;
+}
+
 .card-inspect-close-bottom {
   align-self: stretch;
   min-height: 44px;

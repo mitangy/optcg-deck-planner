@@ -15,15 +15,19 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, get_optional_user
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.duel_ratings import INITIAL_RATING, apply_elo
-from app.game_tokens import mint_game_token
-from app.models import DuelMatch, DuelRating, User
+from app.game_tokens import mint_game_token, verify_game_token
+from app.models import CardReport, DuelMatch, DuelRating, User
 from app.rate_limit import RateLimiter, client_ip
 from app.usernames import duel_display_name
+from app.routers.api import _require_catalog_token
 from app.schemas import (
+    CardReportIn,
+    CardReportOut,
+    CardReportStatusIn,
     DuelDevTokenIn,
     DuelGuestTokenIn,
     DuelLeaderboardEntryOut,
@@ -38,6 +42,7 @@ router = APIRouter(prefix="/duel", tags=["duel"])
 
 _token_rate = RateLimiter(max_calls=30, period_s=60)
 _ingest_rate = RateLimiter(max_calls=120, period_s=60)
+_report_rate = RateLimiter(max_calls=10, period_s=600)
 
 _USER_KEY_RE = re.compile(r"^[a-zA-Z0-9_.:-]{1,64}$")
 _GUEST_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{8,64}$")
@@ -296,3 +301,112 @@ def leaderboard(
         for rating, user in rows
     ]
     return DuelLeaderboardOut(entries=entries)
+
+
+def _reporter(
+    db: Session,
+    settings: Settings,
+    session_user: User | None,
+    authorization: str | None,
+) -> User | None:
+    """Session user, else the holder of a valid game token, else anonymous.
+
+    Guests never get a session cookie, but every tester in a match holds a game
+    token, so accepting it ties most reports to a player.
+    """
+    if session_user is not None:
+        return session_user
+    scheme, _, token = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    payload = verify_game_token(token.strip(), settings)
+    if payload is None:
+        return None
+    return db.get(User, payload["uid"])
+
+
+def _report_out(row: CardReport, user: User | None) -> CardReportOut:
+    return CardReportOut(
+        id=row.id,
+        card_id=row.card_id,
+        description=row.description,
+        user_id=row.user_id,
+        reporter=duel_display_name(user) if user is not None else "anonymous",
+        source=row.source,
+        room_id=row.room_id,
+        client_build=row.client_build,
+        status=row.status,
+        created_at=row.created_at.isoformat() if row.created_at else "",
+    )
+
+
+@router.post("/card-reports", response_model=CardReportOut, status_code=201)
+def create_card_report(
+    body: CardReportIn,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    session_user: Annotated[User | None, Depends(get_optional_user)],
+    authorization: Annotated[str | None, Header()] = None,
+) -> CardReportOut:
+    """Record a tester's report that a card does not play as printed."""
+    if not _report_rate.allow(f"card-report:{client_ip(request)}"):
+        raise HTTPException(status_code=429, detail="Too many reports; try again later")
+    user = _reporter(db, settings, session_user, authorization)
+    row = CardReport(
+        card_id=body.card_id.upper(),
+        description=body.description,
+        user_id=user.id if user is not None else None,
+        source=body.source,
+        room_id=body.room_id,
+        client_build=body.client_build,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _report_out(row, user)
+
+
+@router.get("/card-reports", response_model=list[CardReportOut])
+def list_card_reports(
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_catalog_token: Annotated[str | None, Header()] = None,
+    status: str | None = "open",
+    card_id: str | None = None,
+    limit: int = 200,
+) -> list[CardReportOut]:
+    """Reports for triage, newest first (guarded by the admin catalog token).
+
+    Pass ``status=all`` to include fixed and won't-fix reports.
+    """
+    _require_catalog_token(x_catalog_token, settings)
+    query = select(CardReport, User).outerjoin(User, User.id == CardReport.user_id)
+    if status and status != "all":
+        query = query.where(CardReport.status == status)
+    if card_id:
+        query = query.where(CardReport.card_id == card_id.upper())
+    rows = db.execute(
+        query.order_by(CardReport.id.desc()).limit(max(1, min(limit, 1000)))
+    ).all()
+    return [_report_out(row, user) for row, user in rows]
+
+
+@router.patch("/card-reports/{report_id}", response_model=CardReportOut)
+def update_card_report(
+    report_id: int,
+    body: CardReportStatusIn,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_catalog_token: Annotated[str | None, Header()] = None,
+) -> CardReportOut:
+    """Mark a report open, fixed or won't-fix (admin catalog token)."""
+    _require_catalog_token(x_catalog_token, settings)
+    row = db.get(CardReport, report_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    row.status = body.status
+    db.commit()
+    db.refresh(row)
+    user = db.get(User, row.user_id) if row.user_id is not None else None
+    return _report_out(row, user)

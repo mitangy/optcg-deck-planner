@@ -124,6 +124,8 @@ The Action enqueues the sync, retries through Render free-tier cold starts, then
 - `GET /catalog/sales/{product_id}` — last sold prices from TCGPlayer (cached, public)
 - `POST /admin/sync-catalog` (token header) — enqueue-only, returns `202`
 - `GET /admin/sync-catalog/status` (token header) — background sync state
+- `POST /duel/card-reports` — tester report that a duel card plays wrong (card id + description; attributed via session cookie or `Authorization: Bearer <game token>`, else anonymous; 10 per 10 min per IP)
+- `GET /duel/card-reports?status=open|fixed|wontfix|all&card_id=`, `PATCH /duel/card-reports/{id}` (`X-Catalog-Token` header) — triage reports
 - `GET /catalog/status` (auth required)
 
 ## Sharing
