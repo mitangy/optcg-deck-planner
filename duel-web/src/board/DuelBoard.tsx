@@ -29,6 +29,7 @@ import {
   type DragPayload,
 } from "./dragIntents";
 import { AttackIndicator } from "./AttackIndicator";
+import { describeBattle } from "./battleBanner";
 import { DonAttachConfirm, DragGhost, type GhostPayload } from "./BoardOverlays";
 import {
   attachTargetIds,
@@ -132,38 +133,6 @@ function seatClockLabels(
     running: timer.clockSeat === youSeat ? "you" : timer.clockSeat === oppSeat ? "opp" : null,
   };
 }
-
-function describeBattle(view: PlayerView): string {
-  const b = view.battle as {
-    attackerId: string;
-    target: { kind: string; instanceId?: string };
-  } | null;
-  if (!b) return "";
-  const find = (side: "you" | "opponent", id: string) => {
-    const pile = view[side];
-    if (pile.leader.id === id) return pile.leader;
-    return pile.characters.find((c) => c.id === id) ?? null;
-  };
-  const atk =
-    find("you", b.attackerId) ?? find("opponent", b.attackerId);
-  let def = null as ReturnType<typeof find>;
-  if (b.target.kind === "leader") {
-    // Defender is the non-attacker seat's leader
-    def =
-      view.you.leader.id === b.attackerId
-        ? view.opponent.leader
-        : view.you.leader;
-  } else {
-    const tid = b.target.instanceId ?? "";
-    def = find("you", tid) ?? find("opponent", tid);
-  }
-  const atkName = atk?.defId ? lookupCard(atk.defId).name : "Attacker";
-  const defName = def?.defId ? lookupCard(def.defId).name : "Defender";
-  const atkPow = atk?.power ?? "?";
-  const defPow = def?.power ?? "?";
-  return `Battle: ${atkName} (${atkPow}) → ${defName} (${defPow})`;
-}
-
 
 export function DuelBoard({
   view,
@@ -847,7 +816,7 @@ export function DuelBoard({
                 <div className="prompt">
                   {view.pendingChoices?.length
                     ? view.pendingChoices[0].prompt
-                    : describeBattle(view)}
+                    : describeBattle(view, (defId) => lookupCard(defId).name)}
                 </div>
               ) : (
                 <div className="midline-ornament" aria-hidden>

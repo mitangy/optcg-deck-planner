@@ -171,5 +171,6 @@ module.exports = {
     { id: "hand-label-uses-id", file: `${src}/net/protocol.ts`, from: "  return n && n !== defId ? n : defId;", to: "  return defId;", kills: ["labels intents with atlas names", "labels resolve_pending_choice with the front choice's card name"] },
     { id: "board-name-unresolved", file: `${src}/net/protocol.ts`, from: "  if (!view || instanceId == null) return shortId(instanceId);", to: "  return shortId(instanceId);", kills: ["labels intents with atlas names"] },
     { id: "decline-labelled-accept", file: `${src}/net/protocol.ts`, from: "      if (!intent.accept) return `Decline — ${who}`;", to: "", kills: ["labels resolve_pending_choice with the front choice's card name"] },
+    { id: "battle-banner-own-leader", file: `${src}/board/battleBanner.ts`, from: "  const def = ends ? findCard(view, ends.targetId) : null;", to: "  const def = view.you.leader.id === b.attackerId ? view.opponent.leader : view.you.leader;", kills: ["names the defending seat's Leader when a Character attacks a Leader"] },
   ],
 };
