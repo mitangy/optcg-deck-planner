@@ -323,6 +323,7 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
     all_ids = {c.card_id for d in decks for c in d.cards}
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
     catalog = _catalog_map(db, all_ids | leader_ids)
+    owned = _owned_map(db, user.id)
     main_by_leader: dict[str, int] = {}
     for leader_id in leader_ids:
         main = _resolve_main_deck(decks, leader_id)
@@ -332,6 +333,11 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
     for deck in decks:
         leader = catalog.get(deck.leader_card_id) if deck.leader_card_id else None
         main_cards, don_cards = deck_size_counts(_deck_card_lines(deck), catalog)
+        owned_copies = sum(
+            min(owned.get(c.card_id, 0), c.needed)
+            for c in deck.cards
+            if c.needed > 0 and not is_don_card(catalog.get(c.card_id))
+        )
         is_main = bool(
             deck.leader_card_id and main_by_leader.get(deck.leader_card_id) == deck.id
         )
@@ -346,6 +352,7 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
                 total_cards=main_cards,
                 main_cards=main_cards,
                 don_cards=don_cards,
+                owned_copies=owned_copies,
                 sort_order=deck.sort_order,
                 is_main=is_main,
             )
