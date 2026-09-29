@@ -23,6 +23,8 @@ export function DuelPage() {
     role,
     battleLog,
     timer,
+    chat,
+    sendChat,
   } = useDuelSession();
 
 
@@ -68,6 +70,7 @@ export function DuelPage() {
         timer={timer}
         spectator={role === "spectator" || Boolean(view?.spectator)}
         battleLog={battleLog}
+        chat={{ lines: chat, onSend: sendChat }}
         onSendIntent={sendIntent}
         onLeave={async () => {
           await leave();

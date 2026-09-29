@@ -325,3 +325,51 @@ function asArtPrefsMap(raw: unknown): ArtPrefsMap {
   return out;
 }
 
+
+/** Max characters per chat line (after trimming / control-char stripping). */
+export const CHAT_MAX_LENGTH = 200;
+
+/** Relayed match chat line. `seat` is the sender (players only). */
+export type ChatMessage = {
+  protocolVersion: ProtocolVersion;
+  id: string;
+  seat: Seat;
+  text: string;
+  /** Server receive time (epoch ms). */
+  at: number;
+};
+
+/** Replayed on join / sync so reconnecting clients keep the conversation. */
+export type ChatHistoryMessage = {
+  protocolVersion: ProtocolVersion;
+  messages: ChatMessage[];
+};
+
+/** Validates an inbound chat body and returns the cleaned text. */
+export function parseChatMessage(raw: unknown): string {
+  if (!raw || typeof raw !== "object") {
+    throw Object.assign(new Error("chat message body required"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  const o = raw as Record<string, unknown>;
+  if (!isProtocolVersion(o.protocolVersion)) {
+    throw Object.assign(new Error("Unsupported or missing protocolVersion"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  if (typeof o.text !== "string") {
+    throw Object.assign(new Error("chat text required"), { code: "bad_protocol" as const });
+  }
+  // Collapse whitespace and drop control characters so a line can't break layout.
+  const text = o.text
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, CHAT_MAX_LENGTH);
+  if (!text) {
+    throw Object.assign(new Error("chat text is empty"), { code: "bad_protocol" as const });
+  }
+  return text;
+}

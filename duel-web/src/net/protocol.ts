@@ -213,6 +213,8 @@ export type PlayerView = {
     mulliganDone?: boolean;
   };
   activeSeat: Seat;
+  /** Seat that takes turn 1. Absent on older servers (seat 0 went first). */
+  firstSeat?: Seat;
   phase: string;
   turnNumber: number;
   battle: unknown;
@@ -444,4 +446,45 @@ export function intentLabel(intent: Intent, view?: PlayerView): string {
     default:
       return intent.type;
   }
+}
+
+/** Match chat line relayed by the server (players send; everyone receives). */
+export type ChatLine = {
+  id: string;
+  seat: Seat;
+  text: string;
+  at: number;
+};
+
+/** Server-side cap; the input enforces the same limit. */
+export const CHAT_MAX_LENGTH = 200;
+
+function asChatLine(raw: unknown): ChatLine {
+  if (!raw || typeof raw !== "object") throw new Error("chat line required");
+  const o = raw as Record<string, unknown>;
+  if (typeof o.id !== "string" || !o.id) throw new Error("chat.id required");
+  if (o.seat !== 0 && o.seat !== 1) throw new Error("chat.seat required");
+  if (typeof o.text !== "string") throw new Error("chat.text required");
+  return {
+    id: o.id,
+    seat: o.seat,
+    text: o.text.slice(0, CHAT_MAX_LENGTH),
+    at: typeof o.at === "number" && Number.isFinite(o.at) ? o.at : Date.now(),
+  };
+}
+
+export function parseChat(raw: unknown): ChatLine {
+  if (!raw || typeof raw !== "object") throw new Error("chat body required");
+  if (!isProtocolVersion((raw as Record<string, unknown>).protocolVersion)) {
+    throw new Error("bad protocolVersion");
+  }
+  return asChatLine(raw);
+}
+
+export function parseChatHistory(raw: unknown): ChatLine[] {
+  if (!raw || typeof raw !== "object") throw new Error("chat_history body required");
+  const o = raw as Record<string, unknown>;
+  if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
+  if (!Array.isArray(o.messages)) throw new Error("chat_history.messages required");
+  return o.messages.map(asChatLine);
 }

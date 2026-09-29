@@ -466,4 +466,74 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+  it("relays chat between seats, sanitizes text, and replays history on sync", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 11,
+      autoSkipMulligan: true,
+    });
+
+    type Line = { id: string; seat: number; text: string };
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const chat: [Line[], Line[]] = [[], []];
+    const history: Line[][] = [];
+
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("chat", (msg: Line) => chat[0].push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    c1.onMessage("chat", (msg: Line) => chat[1].push(msg));
+    c1.onMessage("chat_history", (msg: { messages: Line[] }) => history.push(msg.messages));
+
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    c0.send("chat", { protocolVersion: PROTOCOL_VERSION, text: "  good\n luck  " });
+    await waitUntil(() => chat[0].length === 1 && chat[1].length === 1, 5000);
+    assert.equal(chat[1][0]!.seat, 0);
+    assert.equal(chat[1][0]!.text, "good luck");
+
+    // Whitespace-only lines are rejected, not relayed.
+    c1.send("chat", { protocolVersion: PROTOCOL_VERSION, text: "   " });
+    await waitUntil(() => bags[1].errors.some((e) => e.code === "bad_protocol"), 5000);
+    assert.equal(chat[0].length, 1);
+
+    // Reconnect-style sync replays the conversation.
+    c1.send("sync", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => history.some((h) => h.some((l) => l.text === "good luck")), 5000);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("rate-limits chat bursts", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 12,
+      autoSkipMulligan: true,
+    });
+    const bag: SeatBag = { views: [], errors: [] };
+    const relayed: string[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bag);
+    c0.onMessage("chat", (msg: { text: string }) => relayed.push(msg.text));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, { views: [], errors: [] });
+    await syncSeat(c0, bag);
+
+    for (let i = 0; i < 8; i += 1) {
+      c0.send("chat", { protocolVersion: PROTOCOL_VERSION, text: `msg ${i}` });
+    }
+    await waitUntil(() => bag.errors.some((e) => e.code === "rate_limited"), 5000);
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(relayed.length, 5);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
 });

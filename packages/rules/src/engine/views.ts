@@ -108,6 +108,8 @@ export function getPlayerView(state: MatchState, seat: Seat) {
       mulliganDone: opp.mulliganDone,
     },
     activeSeat: state.activeSeat,
+    /** Seat that takes turn 1 (skips its first draw, starts with 1 DON!!). */
+    firstSeat: state.firstSeat,
     phase: state.phase,
     turnNumber: state.turnNumber,
     battle: state.battle,

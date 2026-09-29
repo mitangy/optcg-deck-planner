@@ -16,6 +16,7 @@ import {
   saveMatchResume,
 } from "../net/matchResume";
 import type {
+  ChatLine,
   Intent,
   MatchOverMessage,
   PlayerView,
@@ -71,6 +72,9 @@ type DuelSession = {
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
   timer: TimerMessage | null;
+  /** Match chat (online matches only; cleared when a new match starts). */
+  chat: ChatLine[];
+  sendChat: (text: string) => void;
   rating: number | null;
   lastServerUrl: string | null;
   connect: (opts: ConnectOpts) => Promise<void>;
@@ -106,6 +110,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [matchOver, setMatchOver] = useState<MatchOverMessage["result"] | null>(null);
   const [timer, setTimer] = useState<TimerMessage | null>(null);
+  const [chat, setChat] = useState<ChatLine[]>([]);
   const [rating, setRating] = useState<number | null>(null);
   const [lastServerUrl, setLastServerUrl] = useState<string | null>(null);
 
@@ -174,6 +179,14 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           clearMatchResume();
         },
         onTimer: (msg) => setTimer(msg),
+        onChat: (lines) => {
+          // History replays on every sync; merge by id so nothing duplicates.
+          setChat((prev) => {
+            const seen = new Set(prev.map((l) => l.id));
+            const fresh = lines.filter((l) => !seen.has(l.id));
+            return fresh.length ? [...prev, ...fresh].slice(-100) : prev;
+          });
+        },
         onDisconnect: () => {
           setConnected(false);
           setQueueing(false);
@@ -198,6 +211,14 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       errorBanner,
       matchOver,
       timer,
+      chat,
+      sendChat(text) {
+        try {
+          client.sendChat(text);
+        } catch (e) {
+          setErrorBanner(e instanceof Error ? e.message : "Chat failed");
+        }
+      },
       rating,
       lastServerUrl,
       setRating,
@@ -205,6 +226,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setErrorBanner(null);
         setMatchOver(null);
         setTimer(null);
+        setChat([]);
         setView(null);
         setQueueing(false);
         setResuming(false);
@@ -229,6 +251,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setErrorBanner(null);
         setMatchOver(null);
         setTimer(null);
+        setChat([]);
         setView(null);
         setQueueing(true);
         setResuming(false);
@@ -358,6 +381,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setView(null);
         setMatchOver(null);
         setTimer(null);
+        setChat([]);
       },
       clearError() {
         setErrorBanner(null);
@@ -376,6 +400,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     errorBanner,
     matchOver,
     timer,
+    chat,
     rating,
     lastServerUrl,
   ]);

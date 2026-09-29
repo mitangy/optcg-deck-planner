@@ -29,11 +29,13 @@ import {
 import { verifyGameToken } from "../gameToken.js";
 import {
   PROTOCOL_VERSION,
+  parseChatMessage,
   parseCosmeticsMessage,
   parseCreateOptions,
   parseIntentMessage,
   parseJoinOptions,
   type ArtPrefsMap,
+  type ChatMessage,
   type CosmeticsMessage,
   type ErrorCode,
   type PlayerDeckWire,
@@ -62,6 +64,9 @@ type SpectatorSlot = {
 const INTENT_RATE_LIMIT = 20;
 const INTENT_RATE_WINDOW_MS = 1000;
 const MAX_SPECTATORS = 8;
+const CHAT_RATE_LIMIT = 5;
+const CHAT_RATE_WINDOW_MS = 5000;
+const CHAT_HISTORY_LIMIT = 50;
 
 export class DuelRoom extends Room {
   maxClients = 2 + MAX_SPECTATORS;
@@ -81,6 +86,10 @@ export class DuelRoom extends Room {
   /** Per-seat alt-art prefs (cosmetics only; not rules state). */
   private seatArtPrefs: [ArtPrefsMap, ArtPrefsMap] = [{}, {}];
   private intentTimestamps = new Map<string, number[]>();
+  /** Recent chat lines, replayed on join / sync. Not persisted. */
+  private chatLog: ChatMessage[] = [];
+  private chatSeq = 0;
+  private chatTimestamps = new Map<string, number[]>();
   private matchStarted = false;
   private matchOverSent = false;
   private resultPending: Promise<void> | null = null;
@@ -156,6 +165,10 @@ export class DuelRoom extends Room {
 
     this.onMessage("cosmetics", (client, message) => {
       this.handleCosmetics(client, message);
+    });
+
+    this.onMessage("chat", (client, message) => {
+      this.handleChat(client, message);
     });
 
     this.log("info", "room_created", {
@@ -434,6 +447,7 @@ export class DuelRoom extends Room {
     }
     this.state.seatsFilled = (this.seats[0] ? 1 : 0) + (this.seats[1] ? 1 : 0);
     this.intentTimestamps.delete(sessionId);
+    this.chatTimestamps.delete(sessionId);
   }
 
   private clearSpectator(sessionId: string) {
@@ -547,6 +561,7 @@ export class DuelRoom extends Room {
         view,
       });
       this.sendStoredCosmetics(client);
+    this.sendChatHistory(client);
     }
 
     for (const spec of this.spectators) {
@@ -588,6 +603,64 @@ export class DuelRoom extends Room {
     };
     // Relay to everyone (including sender) so reconnecting clients stay aligned.
     this.broadcast("cosmetics", payload);
+  }
+
+  private handleChat(client: Client, message: unknown) {
+    if (this.spectatorForClient(client)) {
+      this.sendError(client, "unauthorized", "Spectators cannot chat");
+      return;
+    }
+    const seat = this.seatForClient(client);
+    if (seat === null) {
+      this.sendError(client, "unauthorized", "Not seated");
+      return;
+    }
+    let text: string;
+    try {
+      text = parseChatMessage(message);
+    } catch (e) {
+      const err = e as Error & { code?: ErrorCode };
+      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      return;
+    }
+    if (!this.consumeChatRateLimit(client.sessionId)) {
+      this.sendError(client, "rate_limited", "Slow down — too many chat messages");
+      return;
+    }
+    this.chatSeq += 1;
+    const line: ChatMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      id: `${this.matchId}-${this.chatSeq}`,
+      seat,
+      text,
+      at: Date.now(),
+    };
+    this.chatLog.push(line);
+    if (this.chatLog.length > CHAT_HISTORY_LIMIT) this.chatLog.shift();
+    // Relay to everyone (including sender and spectators).
+    this.broadcast("chat", line);
+  }
+
+  private sendChatHistory(client: Client) {
+    if (this.chatLog.length === 0) return;
+    client.send("chat_history", {
+      protocolVersion: PROTOCOL_VERSION,
+      messages: this.chatLog,
+    });
+  }
+
+  private consumeChatRateLimit(sessionId: string): boolean {
+    const now = Date.now();
+    const recent = (this.chatTimestamps.get(sessionId) ?? []).filter(
+      (t) => t >= now - CHAT_RATE_WINDOW_MS,
+    );
+    if (recent.length >= CHAT_RATE_LIMIT) {
+      this.chatTimestamps.set(sessionId, recent);
+      return false;
+    }
+    recent.push(now);
+    this.chatTimestamps.set(sessionId, recent);
+    return true;
   }
 
   /** Push stored seat cosmetics to one client (join / sync). */
@@ -1005,6 +1078,7 @@ export class DuelRoom extends Room {
       view,
     });
     this.sendStoredCosmetics(client);
+    this.sendChatHistory(client);
     client.send("timer", {
       protocolVersion: PROTOCOL_VERSION,
       turnSeconds: this.turnSeconds,
@@ -1043,6 +1117,7 @@ export class DuelRoom extends Room {
       view,
     });
     this.sendStoredCosmetics(client);
+    this.sendChatHistory(client);
     if (this.match.winner !== null && this.matchOverSent) {
       client.send("match_over", {
         protocolVersion: PROTOCOL_VERSION,

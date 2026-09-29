@@ -143,6 +143,62 @@
   initial-value: 6px;
 }
 
+/* Practice: the opponent half also shows your art, turned 180° like a mat
+   on the far side of the table. Drawn on a pseudo-element so only the art
+   rotates, not the cards. */
+.arena .side-field.mirrored.has-mat-art {
+  background: #0e2230;
+}
+
+.arena .side-field.mirrored.has-mat-art::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(5, 10, 14, var(--mat-dim, 0.35)), rgba(5, 10, 14, var(--mat-dim, 0.35))),
+    var(--mat-art) center / cover no-repeat;
+  transform: rotate(180deg);
+}
+
+.arena .side-field.mirrored.has-mat-art .side-grid {
+  position: relative;
+  z-index: 1;
+}
+
+/* Turn-order tag beside each player's Life (top-left on yours, bottom-right
+   on the opponent's rotated mat). */
+.arena .mat-order {
+  position: absolute;
+  z-index: 2;
+  top: 0.7cqw;
+  left: 2.4cqw;
+  padding: 0.1em 0.55em;
+  border-radius: 999px;
+  font-size: clamp(0.5rem, 1.7cqw, 0.78rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  pointer-events: none;
+  color: var(--ink);
+  background: rgba(11, 23, 32, 0.85);
+  border: 1px solid var(--line-strong);
+}
+
+.arena .side-opp .mat-order {
+  top: auto;
+  left: auto;
+  bottom: 0.7cqw;
+  right: 2.4cqw;
+}
+
+.arena .mat-order-first {
+  color: #1d1406;
+  background: linear-gradient(180deg, #e6bd62, #c7963d);
+  border-color: rgba(255, 236, 190, 0.5);
+}
+
 /* Printed-mat layout on a 7-column card grid. --c is one card width. */
 .arena .side-grid {
   --c: 12.6cqw;
@@ -521,5 +577,206 @@
     padding: 0.3rem 0.55rem;
     font-size: 0.66rem;
     line-height: 1.3;
+  }
+}
+
+/* —— HUD turn-order chip —— */
+
+.hud-turn-chip.hud-order {
+  border-color: rgba(120, 180, 220, 0.55);
+  background: rgba(80, 140, 180, 0.18);
+  color: #c8e4f5;
+}
+
+.hud-turn-chip.hud-order.first {
+  border-color: var(--chrome);
+  background: rgba(210, 165, 77, 0.22);
+  color: var(--chrome-bright);
+}
+
+/* —— Match chat (floats top-left on narrow; lives in the rail on wide) —— */
+
+.chat-panel {
+  position: absolute;
+  top: 3.75rem;
+  left: 0.5rem;
+  z-index: 12;
+  width: min(280px, 46vw);
+  max-height: min(48vh, 420px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(12, 18, 28, 0.94);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.chat-panel.collapsed {
+  width: auto;
+  max-height: none;
+}
+
+.chat-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border: none;
+  background: transparent;
+  color: var(--chrome-bright);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.chat-toggle:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--chrome-bright);
+}
+
+.chat-count,
+.chat-unread {
+  min-width: 1.4rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-count:empty {
+  display: none;
+}
+
+.chat-count {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chat-unread {
+  background: var(--chrome);
+  color: #1d1406;
+}
+
+.chat-body {
+  flex: 1;
+  min-height: 3rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 0.6rem 0.4rem;
+}
+
+.chat-empty,
+.chat-readonly {
+  margin: 0.25rem 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.chat-readonly {
+  padding: 0 0.6rem 0.5rem;
+}
+
+.chat-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.chat-line {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.chat-who {
+  margin-right: 0.4rem;
+  font-weight: 700;
+  color: #9cc7e0;
+}
+
+.chat-line.mine .chat-who {
+  color: var(--chrome-bright);
+}
+
+.chat-form {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.45rem;
+  border-top: 1px solid var(--line);
+}
+
+.chat-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--arena-mid);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.chat-input:focus-visible {
+  outline: none;
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 3px rgba(210, 165, 77, 0.2);
+}
+
+.chat-send {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 0.8rem;
+  border: 1px solid rgba(255, 236, 190, 0.45);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #e6bd62, #c7963d);
+  color: #1d1406;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chat-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (min-width: 900px) and (min-height: 500px) {
+  .arena .arena-rail .chat-panel {
+    position: static;
+    width: auto;
+    max-height: 40%;
+    border-radius: 0;
+    border-width: 1px 0 0;
+    box-shadow: none;
+    background: rgba(8, 17, 24, 0.6);
+  }
+
+  .arena .arena-rail .chat-panel.collapsed {
+    max-height: none;
+  }
+}
+
+/* Narrow: float chat + battle log from the top of the play area (not the
+   board root) so a wrapped two-row HUD can never cover them. */
+@media not ((min-width: 900px) and (min-height: 500px)) {
+  .arena .arena-body {
+    position: relative;
+  }
+
+  .arena .arena-body .battle-log,
+  .arena .arena-body .chat-panel {
+    top: 0.35rem;
   }
 }

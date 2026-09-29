@@ -71,6 +71,8 @@ type Props = {
   matImageUrl?: string | null;
   /** Darkening over custom art, 0–0.8. */
   matDim?: number;
+  /** Turn order tag shown on the mat edge ("1st" / "2nd"). */
+  turnOrder?: "first" | "second";
 };
 
 export function SideField({
@@ -84,6 +86,7 @@ export function SideField({
   viewingSeat,
   matImageUrl,
   matDim = 0.35,
+  turnOrder,
 }: Props) {
   const mirrored = side === "opp";
   const interactive = side === "you" && drag;
@@ -106,6 +109,14 @@ export function SideField({
           : undefined
       }
     >
+      {turnOrder ? (
+        <span
+          className={`mat-order mat-order-${turnOrder}`}
+          title={turnOrder === "first" ? "Goes first" : "Goes second"}
+        >
+          {turnOrder === "first" ? "1st" : "2nd"}
+        </span>
+      ) : null}
       <div className="side-grid">
         <div className="zone-life">
           <ZonePile

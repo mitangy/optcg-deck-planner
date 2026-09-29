@@ -1,5 +1,7 @@
 import { getDevJoinSecret, getGameServerUrl, PROTOCOL_VERSION } from "../config";
 import {
+  parseChat,
+  parseChatHistory,
   parseCosmetics,
   parseError,
   parseMatchOver,
@@ -7,6 +9,7 @@ import {
   parseView,
   parseWelcome,
   type ArtPrefsMap,
+  type ChatLine,
   type CosmeticsMessage,
   type DuelCreateOptions,
   type DuelJoinOptions,
@@ -33,6 +36,8 @@ export type DuelClientHandlers = {
   onMatchOver?: (msg: MatchOverMessage) => void;
   onCosmetics?: (msg: CosmeticsMessage) => void;
   onTimer?: (msg: TimerMessage) => void;
+  /** New chat lines (a single relay, or the replayed history on join / sync). */
+  onChat?: (lines: ChatLine[]) => void;
   onDisconnect?: (code: number) => void;
   onQueued?: (position: number) => void;
   onMatched?: (info: { roomId: string; seat: Seat; ranked: boolean }) => void;
@@ -265,6 +270,11 @@ export class DuelClient {
     });
   }
 
+  sendChat(text: string) {
+    if (!this.room) throw new Error("Not connected");
+    this.room.send("chat", { protocolVersion: PROTOCOL_VERSION, text });
+  }
+
   ping(t = Date.now()) {
     this.room?.send("ping", { t });
   }
@@ -408,6 +418,22 @@ export class DuelClient {
         this.handlers.onTimer?.(parseTimer(raw));
       } catch {
         /* ignore malformed timer snapshots */
+      }
+    });
+
+    room.onMessage("chat", (raw: unknown) => {
+      try {
+        this.handlers.onChat?.([parseChat(raw)]);
+      } catch {
+        /* ignore malformed chat lines */
+      }
+    });
+
+    room.onMessage("chat_history", (raw: unknown) => {
+      try {
+        this.handlers.onChat?.(parseChatHistory(raw));
+      } catch {
+        /* ignore malformed chat history */
       }
     });
 

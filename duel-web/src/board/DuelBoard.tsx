@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Intent, MatchOverMessage, PlayerView, Seat, TimerMessage } from "../net/protocol";
+import type {
+  ChatLine,
+  Intent,
+  MatchOverMessage,
+  PlayerView,
+  Seat,
+  TimerMessage,
+} from "../net/protocol";
 import { BattleLogPanel } from "./BattleLogPanel";
 import { CardPreviewPanel } from "./CardPreviewPanel";
+import { ChatPanel } from "./ChatPanel";
 import type { BattleLogEntry } from "./battleLog";
 import { CardTile } from "./CardTile";
 import {
@@ -39,6 +47,8 @@ type Props = {
   battleLog?: BattleLogEntry[];
   /** Hotseat: compact pass-device control in the HUD (replaces the old top banner). */
   hotseatPass?: { otherSeat: Seat; onPass: () => void };
+  /** Online match chat. Omit (e.g. practice) to hide the chat panel. */
+  chat?: { lines: readonly ChatLine[]; onSend: (text: string) => void };
   leaveLabel?: string;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
@@ -97,6 +107,7 @@ export function DuelBoard({
   spectator = false,
   battleLog = [],
   hotseatPass,
+  chat,
   leaveLabel = "Leave",
   onSendIntent,
   onLeave,
@@ -308,6 +319,17 @@ export function DuelBoard({
   const boardSeat: Seat = mySeat ?? view.seat;
   const oppSeat: Seat = boardSeat === 0 ? 1 : 0;
   const viewingSeat: Seat | undefined = spectating ? undefined : boardSeat;
+  // Older servers omit firstSeat; they always started seat 0.
+  const firstSeat: Seat = view.firstSeat ?? 0;
+  const youFirst = boardSeat === firstSeat;
+  const orderLabel = spectating
+    ? `Seat ${firstSeat} goes first`
+    : youFirst
+      ? "You go first"
+      : "You go second";
+  const showOrderChip = mulliganPhase || view.turnNumber <= 1;
+  // Practice: both halves are yours, so both show your playmat.
+  const oppMatUrl = hotseatPass ? playmatUrl : null;
 
   return (
     <div
@@ -323,6 +345,11 @@ export function DuelBoard({
           <span>Turn {view.turnNumber}</span>
           <span className="hud-sep">·</span>
           <span>{spectating ? "Spectating" : `Seat ${mySeat}`}</span>
+          {showOrderChip ? (
+            <span className={`hud-turn-chip hud-order${youFirst ? " first" : ""}`}>
+              {orderLabel}
+            </span>
+          ) : null}
           {mulliganPhase && decidingMulligan ? (
             <span className="hud-turn-chip">MULLIGAN</span>
           ) : yourTurn ? (
@@ -375,7 +402,11 @@ export function DuelBoard({
             </>
           ) : (
             <>
-              <strong>Opening hand.</strong> Keep these 5 cards, or mulligan to
+              <strong>{youFirst ? "You go first." : "You go second."}</strong>{" "}
+              {youFirst
+                ? "No draw and 1 DON!! on your first turn."
+                : "You draw and get 2 DON!! on your first turn."}{" "}
+              <strong>Opening hand:</strong> keep these 5 cards, or mulligan to
               shuffle them back and draw a new hand of 5. Life is dealt after both
               players decide.
             </>
@@ -401,6 +432,9 @@ export function DuelBoard({
             <SideField
               side="opp"
               compact
+              turnOrder={firstSeat === oppSeat ? "first" : "second"}
+              matImageUrl={oppMatUrl}
+              matDim={playmatDim}
               ownerSeat={oppSeat}
               viewingSeat={viewingSeat}
               data={{
@@ -437,6 +471,7 @@ export function DuelBoard({
 
             <SideField
               side="you"
+              turnOrder={youFirst ? "first" : "second"}
               matImageUrl={playmatUrl}
               matDim={playmatDim}
               ownerSeat={boardSeat}
@@ -599,6 +634,14 @@ export function DuelBoard({
             collapsed={logCollapsed}
             onToggle={() => setLogCollapsed((v) => !v)}
           />
+
+          {chat ? (
+            <ChatPanel
+              lines={chat.lines}
+              mySeat={spectating ? null : boardSeat}
+              onSend={chat.onSend}
+            />
+          ) : null}
         </div>
       </div>
 
