@@ -196,6 +196,43 @@ export function TurnStatusPanel({
   );
 }
 
+/** Opponent's hand size as a number, so nobody has to count the backs. */
+export function OppHandCount({ count }: { count: number }) {
+  return (
+    <span className="opp-hand-count" aria-hidden="true">
+      {count}
+    </span>
+  );
+}
+
+/** Narrow layouts: a row of small backs (capped at 8) above the opponent's mat. */
+export function OppHandHint({
+  count,
+  cardBackUrl,
+}: {
+  count: number;
+  cardBackUrl: string | null;
+}) {
+  return (
+    <div className="opp-hand-hint" aria-label={`Opponent hand: ${count} cards`}>
+      <span className="opp-hand-label">Opp hand</span>
+      <div
+        className="opp-hand-backs"
+        style={
+          cardBackUrl
+            ? ({ "--card-back-art": cardBackCssValue(cardBackUrl) } as CSSProperties)
+            : undefined
+        }
+      >
+        {Array.from({ length: Math.min(count, 8) }).map((_, i) => (
+          <span key={i} className="card-back" />
+        ))}
+      </div>
+      <OppHandCount count={count} />
+    </div>
+  );
+}
+
 /** Opponent's hand as fanned backs hanging from the top of the rail. */
 export function OppHandFan({
   count,
@@ -226,7 +263,9 @@ export function OppHandFan({
           />
         ))}
       </div>
-      <span className="opp-hand-fan-count">{count} in hand</span>
+      <span className="opp-hand-fan-count">
+        <OppHandCount count={count} /> in hand
+      </span>
     </div>
   );
 }
