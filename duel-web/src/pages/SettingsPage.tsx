@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { BuildTag } from "../BuildTag";
+import { cardBackCssValue, clearCardBack, saveCardBack, useCardBackUrl } from "../cardBack";
 import { getApiBaseUrl, getGameServerUrl } from "../config";
 import { fetchAuthMe, googleLoginUrl, logoutSession, type AuthUser } from "../net/api";
 import { clearPlaymat, savePlaymat, usePlaymatUrl } from "../playmat";
@@ -17,6 +18,9 @@ export function SettingsPage() {
   const playmatUrl = usePlaymatUrl();
   const [matBusy, setMatBusy] = useState(false);
   const [matError, setMatError] = useState<string | null>(null);
+  const cardBackUrl = useCardBackUrl();
+  const [backBusy, setBackBusy] = useState(false);
+  const [backError, setBackError] = useState<string | null>(null);
 
   async function onPlaymatFile(file: File | undefined) {
     if (!file) return;
@@ -28,6 +32,19 @@ export function SettingsPage() {
       setMatError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setMatBusy(false);
+    }
+  }
+
+  async function onCardBackFile(file: File | undefined) {
+    if (!file) return;
+    setBackBusy(true);
+    setBackError(null);
+    try {
+      await saveCardBack(file);
+    } catch (e) {
+      setBackError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setBackBusy(false);
     }
   }
 
@@ -157,7 +174,7 @@ export function SettingsPage() {
                 type="button"
                 className="btn btn-ghost"
                 disabled={matBusy}
-                onClick={() => void clearPlaymat()}
+                onClick={() => void clearPlaymat().catch(() => undefined)}
               >
                 Use default
               </button>
@@ -181,6 +198,53 @@ export function SettingsPage() {
             </div>
           ) : null}
           {matError ? <p className="error-text">{matError}</p> : null}
+        </section>
+
+        <section className="panel">
+          <h2 className="panel-title">Card back</h2>
+          <div className="card-back-settings">
+            <div
+              className="card-back-preview"
+              style={{
+                backgroundImage: `${cardBackCssValue(cardBackUrl)}, linear-gradient(145deg, #243447, #15202c)`,
+              }}
+              role="img"
+              aria-label={cardBackUrl ? "Your card back" : "Official card back"}
+            />
+            <div className="card-back-settings-body">
+              <p className="field-hint">
+                {cardBackUrl ? "Custom card back." : "Official ONE PIECE CARD GAME back."} Shown
+                on your deck and Life cards; opponents see the official back. Other sizes are
+                center-cropped to 63 × 88. Stored only in this browser.
+              </p>
+              <div className="btn-row">
+                <label className={`btn btn-secondary${backBusy ? " is-busy" : ""}`}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="visually-hidden"
+                    disabled={backBusy}
+                    onChange={(e) => {
+                      void onCardBackFile(e.target.files?.[0]);
+                      e.target.value = "";
+                    }}
+                  />
+                  {backBusy ? "Processing…" : cardBackUrl ? "Replace image" : "Upload image"}
+                </label>
+                {cardBackUrl ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={backBusy}
+                    onClick={() => void clearCardBack().catch(() => undefined)}
+                  >
+                    Use official
+                  </button>
+                ) : null}
+              </div>
+              {backError ? <p className="error-text">{backError}</p> : null}
+            </div>
+          </div>
         </section>
 
         <section className="panel">

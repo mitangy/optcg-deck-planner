@@ -5,8 +5,10 @@ import { DuelBoard } from "../board/DuelBoard";
 import { applyHotseatAutoPass } from "../board/hotseatAutoPass";
 import { hotseatControlSeat } from "../board/hotseatControlSeat";
 import {
+  indexViewInstances,
   narrateEvents,
   type BattleLogEntry,
+  type InstanceIndex,
 } from "../board/battleLog";
 import {
   initSeatArtPrefsFromStorage,
@@ -48,6 +50,8 @@ type SeatBag = {
   error: string | null;
   connected: boolean;
   battleLog: BattleLogEntry[];
+  /** Board instance ids → cards (lazily created) so log lines name attackers. */
+  instances?: InstanceIndex;
 };
 
 function navFromResume(blob: HotseatResumeBlob): HotseatNavState {
@@ -211,14 +215,18 @@ export function HotseatPage() {
         },
         onView: (view) => {
           bag.view = view;
+          indexViewInstances(view, (bag.instances ??= new Map()));
           if (!alive()) return;
           bump((n) => n + 1);
         },
         onEvents: (events) => {
           const turn = bag.view?.turnNumber ?? 1;
+          const instances = (bag.instances ??= new Map());
+          indexViewInstances(bag.view, instances);
           const lines = narrateEvents(events, {
             youSeat: bag.seat,
             turnNumber: turn,
+            instances,
           });
           if (lines.length) bag.battleLog = [...bag.battleLog, ...lines];
           if (!alive()) return;
