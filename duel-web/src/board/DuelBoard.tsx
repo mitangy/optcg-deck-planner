@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type {
+  ChatLine,
   Intent,
   MatchOverMessage,
   PlayerView,
@@ -9,6 +10,7 @@ import type {
 } from "../net/protocol";
 import { BattleLogPanel } from "./BattleLogPanel";
 import { CardPreviewPanel } from "./CardPreviewPanel";
+import { ChatPanel } from "./ChatPanel";
 import type { BattleLogEntry } from "./battleLog";
 import { describeMatchResult } from "./matchResult";
 import { CardTile } from "./CardTile";
@@ -43,7 +45,7 @@ import {
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
-import { useCardBackUrl } from "../cardBack";
+import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { loadSettings } from "../settings";
 import { seatLabel, seatName, winnerHeadline } from "./playerNames";
@@ -61,6 +63,8 @@ type Props = {
   battleLog?: BattleLogEntry[];
   /** Hotseat: compact pass-device control in the HUD (replaces the old top banner). */
   hotseatPass?: { otherSeat: Seat; onPass: () => void };
+  /** Online match chat. Omit (e.g. practice) to hide the chat panel. */
+  chat?: { lines: readonly ChatLine[]; onSend: (text: string) => void };
   leaveLabel?: string;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
@@ -120,6 +124,7 @@ export function DuelBoard({
   spectator = false,
   battleLog = [],
   hotseatPass,
+  chat,
   leaveLabel = "Leave",
   onSendIntent,
   onLeave,
@@ -417,6 +422,18 @@ export function DuelBoard({
   const boardSeat: Seat = mySeat ?? view.seat;
   const oppSeat: Seat = boardSeat === 0 ? 1 : 0;
   const viewingSeat: Seat | undefined = spectating ? undefined : boardSeat;
+  // Older servers omit firstSeat; they always started seat 0.
+  const firstSeat: Seat = view.firstSeat ?? 0;
+  const youFirst = boardSeat === firstSeat;
+  const orderLabel = spectating
+    ? `Seat ${firstSeat} goes first`
+    : youFirst
+      ? "You go first"
+      : "You go second";
+  const showOrderChip = mulliganPhase || view.turnNumber <= 1;
+  // Practice: both halves are yours, so both show your playmat and card back.
+  const oppMatUrl = hotseatPass ? playmatUrl : null;
+  const oppCardBackUrl = hotseatPass ? cardBackUrl : null;
 
   return (
     <div
@@ -450,6 +467,11 @@ export function DuelBoard({
           ) : (
             <span>{spectating ? "Spectating" : `Seat ${mySeat}`}</span>
           )}
+          {showOrderChip ? (
+            <span className={`hud-turn-chip hud-order${youFirst ? " first" : ""}`}>
+              {orderLabel}
+            </span>
+          ) : null}
           {mulliganPhase && decidingMulligan ? (
             <span className="hud-turn-chip">MULLIGAN</span>
           ) : yourTurn ? (
@@ -502,7 +524,11 @@ export function DuelBoard({
             </>
           ) : (
             <>
-              <strong>Opening hand.</strong> Keep these 5 cards, or mulligan to
+              <strong>{youFirst ? "You go first." : "You go second."}</strong>{" "}
+              {youFirst
+                ? "No draw and 1 DON!! on your first turn."
+                : "You draw and get 2 DON!! on your first turn."}{" "}
+              <strong>Opening hand:</strong> keep these 5 cards, or mulligan to
               shuffle them back and draw a new hand of 5. Life is dealt after both
               players decide.
             </>
@@ -517,7 +543,14 @@ export function DuelBoard({
           <div className="playmat-inner">
             <div className="opp-hand-hint" aria-label={`Opponent hand ${opp.handCount}`}>
               <span className="opp-hand-label">Opp hand</span>
-              <div className="opp-hand-backs">
+              <div
+                className="opp-hand-backs"
+                style={
+                  oppCardBackUrl
+                    ? ({ "--card-back-art": cardBackCssValue(oppCardBackUrl) } as CSSProperties)
+                    : undefined
+                }
+              >
                 {Array.from({ length: Math.min(opp.handCount, 8) }).map((_, i) => (
                   <span key={i} className="card-back" />
                 ))}
@@ -528,6 +561,10 @@ export function DuelBoard({
             <SideField
               side="opp"
               compact
+              turnOrder={firstSeat === oppSeat ? "first" : "second"}
+              matImageUrl={oppMatUrl}
+              cardBackUrl={oppCardBackUrl}
+              matDim={playmatDim}
               ownerSeat={oppSeat}
               viewingSeat={viewingSeat}
               data={{
@@ -564,6 +601,7 @@ export function DuelBoard({
 
             <SideField
               side="you"
+              turnOrder={youFirst ? "first" : "second"}
               matImageUrl={playmatUrl}
               matDim={playmatDim}
               cardBackUrl={cardBackUrl}
@@ -731,6 +769,14 @@ export function DuelBoard({
             collapsed={logCollapsed}
             onToggle={() => setLogCollapsed((v) => !v)}
           />
+
+          {chat ? (
+            <ChatPanel
+              lines={chat.lines}
+              mySeat={spectating ? null : boardSeat}
+              onSend={chat.onSend}
+            />
+          ) : null}
         </div>
       </div>
 

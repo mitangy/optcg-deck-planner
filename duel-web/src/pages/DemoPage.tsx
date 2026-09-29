@@ -1,4 +1,5 @@
-import type { PlayerView } from "../net/protocol";
+import { useState } from "react";
+import type { ChatLine, PlayerView } from "../net/protocol";
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
 
@@ -281,6 +282,11 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
   }),
 };
 
+const DEMO_CHAT: ChatLine[] = [
+  { id: "demo-chat-1", seat: 1, text: "gl hf!", at: 0 },
+  { id: "demo-chat-2", seat: 0, text: "You too — nice leader.", at: 0 },
+];
+
 function intParam(params: URLSearchParams, key: string): number | null {
   const raw = params.get(key);
   if (raw == null || raw === "") return null;
@@ -334,13 +340,29 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
   };
 }
 
+/**
+ * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
+ * state (`&first=1` makes the opponent go first), `?practice` hotseat chrome
+ * (shared playmat), `?chat` match chat with sample lines. Zone counts: see applyDemoZoneParams.
+ */
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
   const prompt = params.get("prompt");
-  const view = applyDemoZoneParams(
+  const base = applyDemoZoneParams(
     (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW,
     params,
   );
+  const view: PlayerView = params.has("turn0")
+    ? {
+        ...base,
+        phase: "mulligan",
+        turnNumber: 0,
+        firstSeat: params.get("first") === "1" ? 1 : 0,
+        battle: null,
+        you: { ...base.you, mulliganDone: false },
+      }
+    : base;
+  const [chat, setChat] = useState<ChatLine[]>(DEMO_CHAT);
   return (
     <div className="duel-root">
       <DuelBoard
@@ -351,6 +373,21 @@ export function DemoPage() {
         matchOver={null}
         battleLog={DEMO_BATTLE_LOG}
         leaveLabel="Leave match"
+        hotseatPass={
+          params.has("practice") ? { otherSeat: 1, onPass: () => undefined } : undefined
+        }
+        chat={
+          params.has("chat")
+            ? {
+                lines: chat,
+                onSend: (text) =>
+                  setChat((prev) => [
+                    ...prev,
+                    { id: `demo-chat-${prev.length + 1}`, seat: 0, text, at: Date.now() },
+                  ]),
+              }
+            : undefined
+        }
         onSendIntent={() => undefined}
         onLeave={() => {
           window.location.href = "/";
