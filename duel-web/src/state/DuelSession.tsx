@@ -14,6 +14,7 @@ import {
   isSeatReservationExpiredError,
   loadMatchResume,
   saveMatchResume,
+  touchMatchResume,
 } from "../net/matchResume";
 import type {
   ChatLine,
@@ -72,6 +73,8 @@ type DuelSession = {
   canReconnect: boolean;
   /** True while a sessionStorage resume is in flight (blocks lobby redirect). */
   resuming: boolean;
+  /** True while the socket dropped and a reclaim of the seat is in flight. */
+  reconnecting: boolean;
   matchId: string | null;
   seat: Seat | null;
   role: "player" | "spectator";
@@ -120,6 +123,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [queueing, setQueueing] = useState(false);
   const [canReconnect, setCanReconnect] = useState(false);
   const [resuming, setResuming] = useState(() => loadMatchResume()?.mode === "duel");
+  const [reconnecting, setReconnecting] = useState(false);
   const [matchId, setMatchId] = useState<string | null>(null);
   const [seat, setSeat] = useState<Seat | null>(null);
   const [role, setRole] = useState<"player" | "spectator">("player");
@@ -175,6 +179,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setMatchOver(null);
           setRematch(null);
           setConnected(true);
+          setReconnecting(false);
           setCanReconnect(r === "player");
           setQueueing(false);
           setResuming(false);
@@ -235,7 +240,16 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         },
         onDisconnect: () => {
           setConnected(false);
+          setReconnecting(false);
           setQueueing(false);
+        },
+        onDrop: () => {
+          setConnected(false);
+          setReconnecting(true);
+        },
+        onReconnect: () => {
+          setConnected(true);
+          setReconnecting(false);
         },
         onQueued: () => setQueueing(true),
         onReconnectionToken: (token, roomId) => persistToken(token, roomId),
@@ -248,6 +262,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       queueing,
       canReconnect,
       resuming,
+      reconnecting,
       matchId,
       seat,
       role,
@@ -349,6 +364,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       },
       async reconnect() {
         setErrorBanner(null);
+        setReconnecting(true);
         wireHandlers();
         try {
           const info = await client.reconnect({
@@ -358,15 +374,21 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setMatchId(info.matchId);
           setSeat(info.seat);
           setConnected(true);
+          setReconnecting(false);
           setCanReconnect(true);
           setResuming(false);
         } catch (e) {
           clearMatchResume();
+          setReconnecting(false);
           setCanReconnect(false);
           setResuming(false);
-          if (!isSeatReservationExpiredError(e)) {
-            setErrorBanner(e instanceof Error ? e.message : "Reconnect failed");
-          }
+          setErrorBanner(
+            isSeatReservationExpiredError(e)
+              ? "You were away too long and your seat was released."
+              : e instanceof Error
+                ? e.message
+                : "Reconnect failed",
+          );
           throw e;
         }
       },
@@ -441,6 +463,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setAwayUntil([null, null]);
         setRematch(null);
         setConnected(false);
+        setReconnecting(false);
         setQueueing(false);
         setCanReconnect(false);
         setResuming(false);
@@ -464,6 +487,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     queueing,
     canReconnect,
     resuming,
+    reconnecting,
     matchId,
     seat,
     role,
@@ -489,6 +513,56 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     }
     void value.tryResumeFromStorage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
+  // Phones suspend the page (and often its socket) while another app is in
+  // front. Keep the resume blob's clock at "last seen alive" so a discarded tab
+  // can still reclaim its seat on reload, and on return reclaim at once instead
+  // of waiting for a tap on the Reconnect banner.
+  useEffect(() => {
+    let checking = false;
+    async function recoverIfDropped() {
+      const s = valueRef.current;
+      if (checking || s.role !== "player" || !s.canReconnect || !s.matchId || s.matchOver) return;
+      const client = s.client;
+      if (client.isReconnecting || !client.getReconnectionToken()) return;
+      checking = true;
+      try {
+        if (await client.isAlive()) return;
+        // The SDK may have noticed the close while we waited; let it finish.
+        if (client.isReconnecting) return;
+        await valueRef.current.reconnect();
+      } catch {
+        /* reconnect() already set the banner */
+      } finally {
+        checking = false;
+      }
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void recoverIfDropped();
+      else if (valueRef.current.connected) touchMatchResume();
+    };
+    const onPageHide = () => {
+      if (valueRef.current.connected) touchMatchResume();
+    };
+    const onResume = () => void recoverIfDropped();
+    const heartbeat = window.setInterval(() => {
+      if (valueRef.current.connected) touchMatchResume();
+    }, 5000);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pageshow", onResume);
+    window.addEventListener("online", onResume);
+    return () => {
+      window.clearInterval(heartbeat);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pageshow", onResume);
+      window.removeEventListener("online", onResume);
+    };
   }, []);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

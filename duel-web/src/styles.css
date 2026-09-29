@@ -1101,7 +1101,13 @@ button {
   overflow: hidden;
 }
 
+/* Overlay, not in flow: a drop/reclaim must not shove the board down and back. */
 .reconnect-banner {
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  left: 0;
+  right: 0;
+  z-index: 1000;
   background: var(--warn);
   padding: 0.65rem 0.75rem;
   display: flex;
@@ -1120,6 +1126,11 @@ button {
   padding: 0.45rem 0.75rem;
   font-weight: 800;
   font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.reconnect-banner button:disabled {
+  opacity: 0.6;
 }
 
 .rating-chip {

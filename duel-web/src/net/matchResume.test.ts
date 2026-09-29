@@ -5,6 +5,7 @@ import {
   isSeatReservationExpiredError,
   loadMatchResume,
   saveMatchResume,
+  touchMatchResume,
   type DuelResumeBlob,
 } from "./matchResume";
 
@@ -29,6 +30,27 @@ function stubSessionStorage() {
 }
 
 describe("matchResume", () => {
+  it("keeps a long-running match resumable while it is still being touched", () => {
+    stubSessionStorage();
+    const joinedAt = Date.now() - 10 * 60 * 1000;
+    mem.set(
+      "optcg.duel.matchResume.v1",
+      JSON.stringify({
+        mode: "duel",
+        serverUrl: "http://127.0.0.1:2567",
+        roomId: "long",
+        reconnectionToken: "tok",
+        seat: 1,
+        savedAt: joinedAt,
+      }),
+    );
+    // Heartbeat while connected: the tab was alive a moment ago.
+    touchMatchResume();
+    const loaded = loadMatchResume();
+    expect(loaded).toMatchObject({ roomId: "long", seat: 1 });
+    expect(isResumeWithinGrace(loaded!.savedAt)).toBe(true);
+  });
+
   it("round-trips a duel resume blob", () => {
     stubSessionStorage();
     const blob: DuelResumeBlob = {
@@ -60,8 +82,8 @@ describe("matchResume", () => {
         roomId: "old",
         reconnectionToken: "tok",
         seat: 1,
-        // Past 60s grace + 15s buffer.
-        savedAt: Date.now() - 90 * 1000,
+        // Past 120s grace + 15s buffer.
+        savedAt: Date.now() - 150 * 1000,
       }),
     );
     expect(loadMatchResume()).toBeNull();
@@ -86,8 +108,8 @@ describe("matchResume", () => {
   it("reports reconnect grace accurately", () => {
     const now = 1_000_000;
     expect(isResumeWithinGrace(now - 30_000, now)).toBe(true);
-    expect(isResumeWithinGrace(now - 60_000, now)).toBe(true);
-    expect(isResumeWithinGrace(now - 60_001, now)).toBe(false);
+    expect(isResumeWithinGrace(now - 120_000, now)).toBe(true);
+    expect(isResumeWithinGrace(now - 120_001, now)).toBe(false);
   });
 });
 

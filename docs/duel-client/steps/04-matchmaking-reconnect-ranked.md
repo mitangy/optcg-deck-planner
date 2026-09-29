@@ -75,7 +75,7 @@ At end of Step 4, review:
 ## Acceptance criteria
 
 - [x] Two ranked users can queue and land in the same duel without pasting a room id.
-- [x] Killing the app mid-turn and returning within TTL resumes the same match for that seat. *(Colyseus `allowReconnection` + `RECONNECT_GRACE_SECONDS=60`; mobile reconnect banner)*
+- [x] Killing the app mid-turn and returning within TTL resumes the same match for that seat. *(Colyseus `allowReconnection` + `RECONNECT_GRACE_SECONDS=120`; mobile reconnect banner)*
 - [x] Match result appears in API/storage exactly once; ratings move as designed.
 - [x] Documented path to run two game-server processes with Redis (even if staging-only).
 - [x] Mobile shows queue state, in-match reconnect, and post-match rating change (minimal UI OK).
@@ -97,7 +97,7 @@ At end of Step 4, review:
 
 ## Exit notes (fill when step completes)
 
-- Grace TTL: **60 seconds** (`RECONNECT_GRACE_SECONDS`; Colyseus `allowReconnection`)
+- Grace TTL: **120 seconds** (`RECONNECT_GRACE_SECONDS`; Colyseus `allowReconnection`)
 - Rating formula shipped: **Elo**, initial **1000**, K=**40** for first **10** games then K=**24**; ingest idempotent by `match_id`
 - Colyseus vs Nakama checkpoint outcome: **Stay on Colyseus.** FIFO `ranked_queue` + FastAPI tokens/ratings/leaderboard cover the Step 4 surface without Nakama. Ops burden is still manageable on a single process; Redis remains the scale gate (ADR-006). Revisit Nakama only if multi-instance matchmaking or lobby features become the bottleneck before/during Step 5 — no ADR amendment this step.
 - Browser smoke notes (local): `game-server/scripts/e2eRankedQueue.mjs` — mint `/duel/dev-token` for two users → `ranked_queue` → same `duel` room → seat 0 concede → leaderboard shows winner **1020** / loser **980** (`games_played=1`). Artifact: `/opt/cursor/artifacts/step4_ranked_queue_e2e.log`. Requires matching `GAME_TOKEN_SECRET` / `DUEL_INGEST_SECRET` and `API_BASE_URL`.

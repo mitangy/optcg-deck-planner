@@ -70,9 +70,9 @@ export function getDuelIngestSecret(): string {
 
 /** Disconnect grace before seat is freed (seconds). */
 export function getReconnectGraceSeconds(): number {
-  const raw = process.env.RECONNECT_GRACE_SECONDS ?? "60";
+  const raw = process.env.RECONNECT_GRACE_SECONDS ?? "120";
   const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : 60;
+  return Number.isFinite(n) && n > 0 ? n : 120;
 }
 
 /**

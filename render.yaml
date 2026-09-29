@@ -102,8 +102,10 @@ services:
       # Free-tier cold starts: matchmake HTTP can beat WS consume past Colyseus's 15s default.
       - key: COLYSEUS_SEAT_RESERVATION_TIME
         value: "90"
+      # Long enough to answer a text on a phone and come back (mobile browsers
+      # suspend the socket while another app is in front).
       - key: RECONNECT_GRACE_SECONDS
-        value: "60"
+        value: "120"
       - key: CORS_ORIGINS
         value: https://optcgduel.app,https://optcg-duel-web.vercel.app,https://optcg-duel-web-miko21.vercel.app
       # Vercel branch URLs (optcg-duel-web-git-<branch>-miko21.vercel.app).

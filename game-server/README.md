@@ -43,7 +43,7 @@ Dev tools (non-production):
 | `REQUIRE_GAME_TOKEN` | `false` | When `true`, reject `devUserId`-only joins |
 | `API_BASE_URL` | `http://localhost:8000` | FastAPI base for match result ingest |
 | `DUEL_INGEST_SECRET` | `dev-duel-ingest` | Must match FastAPI `DUEL_INGEST_SECRET` |
-| `RECONNECT_GRACE_SECONDS` | `60` | Seat reclaim window after drop |
+| `RECONNECT_GRACE_SECONDS` | `120` | Seat reclaim window after drop |
 | `COLYSEUS_SEAT_RESERVATION_TIME` | `90` | Seconds to consume a matchmake seat over WebSocket (raise on free-tier cold starts) |
 | `CORS_ORIGINS` | localhost Expo + duel-web (`5174`) | Allowlist enforced via `matchMaker.controller.getCorsHeaders` (not Express `cors()`) |
 | `REDIS_URL` | unset | When set, enable Colyseus presence for multi-instance (ops) |
