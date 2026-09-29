@@ -327,16 +327,40 @@
   gap: var(--g);
 }
 
+/* Life cards lie sideways (landscape), stacked with a small offset like a
+   real Life area. Each face is a card-width landscape slot; the portrait back
+   art is drawn on a rotated pseudo-element so it isn't cropped. */
 .arena .side-field .zone-pile-life .zone-pile-stack {
-  width: calc(var(--c) * 0.74);
-  min-height: calc(var(--c) * 0.6);
+  width: var(--c);
+  min-height: calc(var(--c) / 1.4);
   height: auto;
 }
 
 .arena .side-field .zone-pile-life .zone-pile-face {
-  width: calc(var(--c) * 0.74);
-  height: calc(var(--c) * 0.62);
-  margin-top: calc(var(--c) * -0.4);
+  position: relative;
+  width: var(--c);
+  height: calc(var(--c) / 1.4);
+  margin-top: calc(var(--c) * -0.46);
+  overflow: hidden;
+  border-radius: calc(var(--c) * 0.06);
+  border-color: rgba(240, 220, 168, 0.35);
+  background: #15202c;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.arena .side-field .zone-pile-life .zone-pile-face::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--c) / 1.4);
+  height: var(--c);
+  transform: translate(-50%, -50%) rotate(90deg);
+  background-color: #1a2838;
+  background-image: var(--card-back-art), linear-gradient(145deg, #243447, #15202c);
+  background-size: cover, auto;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .arena .side-field .zone-pile-life .zone-pile-face:first-child {
@@ -344,8 +368,9 @@
 }
 
 .arena .side-field .zone-pile-life .zone-pile-stack:empty::before {
-  width: calc(var(--c) * 0.74);
-  height: calc(var(--c) * 0.62);
+  width: var(--c);
+  height: calc(var(--c) / 1.4);
+  border-radius: calc(var(--c) * 0.06);
 }
 
 .arena .side-field .zone-don-deck {
