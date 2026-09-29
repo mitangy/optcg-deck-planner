@@ -29,6 +29,7 @@ import {
   type DragPayload,
 } from "./dragIntents";
 import { AttackIndicator } from "./AttackIndicator";
+import { describeBattle } from "./battleBanner";
 import { DonAttachConfirm, DragGhost, type GhostPayload } from "./BoardOverlays";
 import {
   attachTargetIds,
@@ -49,7 +50,7 @@ import {
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
-import { cardBackCssValue, useCardBackUrl } from "../cardBack";
+import { useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { useDuelSettings } from "../settings";
 import { endTurnNeedsConfirm, forcedDefensePass } from "./gameplayPrefs";
@@ -59,7 +60,7 @@ import { seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
 import { RematchPanel } from "./RematchPanel";
 import { RoomChip, RoomInvite } from "./RoomShare";
-import { OppHandFan, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
+import { OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
 import { useMediaQuery, WIDE_BOARD_QUERY } from "./useMediaQuery";
 
@@ -135,38 +136,6 @@ function seatClockLabels(
     running: timer.clockSeat === youSeat ? "you" : timer.clockSeat === oppSeat ? "opp" : null,
   };
 }
-
-function describeBattle(view: PlayerView): string {
-  const b = view.battle as {
-    attackerId: string;
-    target: { kind: string; instanceId?: string };
-  } | null;
-  if (!b) return "";
-  const find = (side: "you" | "opponent", id: string) => {
-    const pile = view[side];
-    if (pile.leader.id === id) return pile.leader;
-    return pile.characters.find((c) => c.id === id) ?? null;
-  };
-  const atk =
-    find("you", b.attackerId) ?? find("opponent", b.attackerId);
-  let def = null as ReturnType<typeof find>;
-  if (b.target.kind === "leader") {
-    // Defender is the non-attacker seat's leader
-    def =
-      view.you.leader.id === b.attackerId
-        ? view.opponent.leader
-        : view.you.leader;
-  } else {
-    const tid = b.target.instanceId ?? "";
-    def = find("you", tid) ?? find("opponent", tid);
-  }
-  const atkName = atk?.defId ? lookupCard(atk.defId).name : "Attacker";
-  const defName = def?.defId ? lookupCard(def.defId).name : "Defender";
-  const atkPow = atk?.power ?? "?";
-  const defPow = def?.power ?? "?";
-  return `Battle: ${atkName} (${atkPow}) → ${defName} (${defPow})`;
-}
-
 
 export function DuelBoard({
   view,
@@ -852,22 +821,7 @@ export function DuelBoard({
 
         <div className="playmat">
           <div className="playmat-inner">
-            <div className="opp-hand-hint" aria-label={`Opponent hand ${opp.handCount}`}>
-              <span className="opp-hand-label">Opp hand</span>
-              <div
-                className="opp-hand-backs"
-                style={
-                  oppCardBackUrl
-                    ? ({ "--card-back-art": cardBackCssValue(oppCardBackUrl) } as CSSProperties)
-                    : undefined
-                }
-              >
-                {Array.from({ length: Math.min(opp.handCount, 8) }).map((_, i) => (
-                  <span key={i} className="card-back" />
-                ))}
-                {opp.handCount > 8 ? <span className="opp-hand-more">+{opp.handCount - 8}</span> : null}
-              </div>
-            </div>
+            <OppHandHint count={opp.handCount} cardBackUrl={oppCardBackUrl} />
 
             <SideField
               side="opp"
@@ -902,7 +856,7 @@ export function DuelBoard({
                 <div className="prompt">
                   {view.pendingChoices?.length
                     ? view.pendingChoices[0].prompt
-                    : describeBattle(view)}
+                    : describeBattle(view, (defId) => lookupCard(defId).name)}
                 </div>
               ) : (
                 <div className="midline-ornament" aria-hidden>

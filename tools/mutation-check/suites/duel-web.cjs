@@ -18,6 +18,8 @@ module.exports = {
     { id: "owner-treated-as-hidden", file: "duel-web/src/net/protocol.ts", from: "const hiddenViewer = view.spectator || (choice.privateToSeat != null && choice.privateToSeat !== view.seat);", to: "const hiddenViewer = true;", kills: ["rejects private choice options sent to the wrong viewer"] },
     { id: "deck-rules-unchecked", file: "duel-web/src/decks/storage.ts", from: "  if (leaders.length === 1) errors.push(...leaderDeckRuleErrors(leaders[0], cards));", to: "", kills: ["enforces Leader deck-construction rules"] },
     { id: "deck-rules-block-all", file: "duel-web/src/decks/storage.ts", from: "      if (kind === \"max_cost\") return card.cost > Number(arg);", to: "      if (kind === \"max_cost\") return true;", kills: ["enforces Leader deck-construction rules"] },
+    { id: "opp-hand-count-capped", file: `${src}/board/TurnStatusPanel.tsx`, from: "      <OppHandCount count={count} />\n    </div>", to: "      <OppHandCount count={Math.min(count, 8)} />\n    </div>", kills: ["shows the full hand size beside the capped row of backs"] },
+    { id: "opp-hand-fan-count-capped", file: `${src}/board/TurnStatusPanel.tsx`, from: "        <OppHandCount count={count} /> in hand", to: "        <OppHandCount count={shown} /> in hand", kills: ["shows the full hand size beside the capped fan"] },
     // board helpers
     { id: "trash-oldest-first", file: `${src}/board/TrashViewer.tsx`, from: "  return [...trash].reverse();", to: "  return [...trash];", kills: ["shows newest (last pushed) first"] },
     { id: "trash-mutates-input", file: `${src}/board/TrashViewer.tsx`, from: "  return [...trash].reverse();", to: "  return (trash as string[]).reverse();", kills: ["does not mutate the input"] },
@@ -185,5 +187,6 @@ module.exports = {
     { id: "settings-type-unchecked", file: `${src}/settings.ts`, from: "    if (typeof next[k] !== typeof DEFAULTS[k]) (next as Record<string, unknown>)[k] = DEFAULTS[k];", to: "", kills: ["falls back per field when a stored value is invalid"] },
     { id: "settings-invalid-resets-all", file: `${src}/settings.ts`, from: "    if (typeof next[k] !== typeof DEFAULTS[k]) (next as Record<string, unknown>)[k] = DEFAULTS[k];", to: "    if (typeof next[k] !== typeof DEFAULTS[k]) return { ...DEFAULTS };", kills: ["falls back per field when a stored value is invalid"] },
     { id: "settings-drops-valid", file: `${src}/settings.ts`, from: "    if (typeof next[k] !== typeof DEFAULTS[k])", to: "    if (typeof next[k] === typeof DEFAULTS[k])", kills: ["keeps valid stored gameplay choices"] },
+    { id: "battle-banner-own-leader", file: `${src}/board/battleBanner.ts`, from: "  const def = ends ? findCard(view, ends.targetId) : null;", to: "  const def = view.you.leader.id === b.attackerId ? view.opponent.leader : view.you.leader;", kills: ["names the defending seat's Leader when a Character attacks a Leader"] },
   ],
 };
