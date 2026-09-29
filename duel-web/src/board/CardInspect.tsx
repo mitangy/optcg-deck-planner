@@ -25,6 +25,7 @@ import {
 import { createPortal } from "react-dom";
 import type { PreviewLive } from "./cardPreview";
 import { LiveCardStatus } from "./LiveCardStatus";
+import { CardReportForm } from "./CardReportForm";
 import { counterValueFor, formatCounter } from "../cards/counterValue";
 
 type Props = {
@@ -235,6 +236,7 @@ export function CardInspect({
                 </div>
               </div>
             ) : null}
+            <CardReportForm key={defId} cardId={entry.id} />
             <button
               type="button"
               className="btn btn-secondary card-inspect-close-bottom"

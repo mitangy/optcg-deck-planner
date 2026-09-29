@@ -14,6 +14,15 @@ module.exports = {
   cwd: "backend",
   runner: "pytest",
   mutations: [
+    // duel card reports
+    { id: "card-report-game-token-ignored", file: duel, from: "    payload = verify_game_token(token.strip(), settings)\n    if payload is None:\n        return None\n    return db.get(User, payload[\"uid\"])", to: "    return None", kills: ["test_game_token_holder_is_recorded_as_reporter"] },
+    { id: "card-report-session-ignored", file: duel, from: "    if session_user is not None:\n        return session_user\n", to: "", kills: ["test_session_user_takes_precedence_over_game_token"] },
+    { id: "card-report-description-unstripped", file: "backend/app/schemas.py", from: "    model_config = ConfigDict(str_strip_whitespace=True)\n\n    card_id", to: "    card_id", kills: ["test_padded_short_description_is_rejected"] },
+    { id: "card-report-unlimited", file: duel, from: "    if not _report_rate.allow(f\"card-report:{client_ip(request)}\"):", to: "    if False:", kills: ["test_reports_are_rate_limited_per_client"] },
+    { id: "card-report-list-unguarded", file: duel, from: "    Pass ``status=all`` to include fixed and won't-fix reports.\n    \"\"\"\n    _require_catalog_token(x_catalog_token, settings)\n", to: "    Pass ``status=all`` to include fixed and won't-fix reports.\n    \"\"\"\n", kills: ["test_listing_reports_requires_admin_token"] },
+    { id: "card-report-patch-unguarded", file: duel, from: "    \"\"\"Mark a report open, fixed or won't-fix (admin catalog token).\"\"\"\n    _require_catalog_token(x_catalog_token, settings)\n", to: "    \"\"\"Mark a report open, fixed or won't-fix (admin catalog token).\"\"\"\n", kills: ["test_fixed_reports_leave_the_default_open_list"] },
+    { id: "card-report-status-filter-dropped", file: duel, from: "        query = query.where(CardReport.status == status)", to: "        pass", kills: ["test_fixed_reports_leave_the_default_open_list"] },
+    { id: "card-report-status-not-saved", file: duel, from: "    row.status = body.status\n", to: "", kills: ["test_fixed_reports_leave_the_default_open_list"] },
     { id: "postgres-url-default-driver", file: config, from: "                return \"postgresql+psycopg2://\" + url[len(prefix) :]", to: "                return \"postgresql://\" + url[len(prefix) :]", kills: ["test_postgres_urls_use_the_installed_psycopg2_driver[postgres:", "test_postgres_urls_use_the_installed_psycopg2_driver[postgresql:"] },
 
     // rate limiting

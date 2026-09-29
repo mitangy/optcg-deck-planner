@@ -4,6 +4,10 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    { id: "card-report-untrimmed", file: "duel-web/src/cards/cardReport.ts", from: "  const len = description.trim().length;", to: "  const len = description.length;", kills: ["refuses a padded description that is too short"] },
+    { id: "card-report-sends-invalid", file: "duel-web/src/cards/cardReport.ts", from: "  if (invalid) throw new Error(invalid);\n", to: "", kills: ["refuses a padded description that is too short"] },
+    { id: "card-report-anonymous", file: "duel-web/src/cards/cardReport.ts", from: "  if (matchContext.gameToken) headers.Authorization = `Bearer ${matchContext.gameToken}`;\n", to: "", kills: ["identifies the reporter with the match game token"] },
+    { id: "card-report-stale-room", file: "duel-web/src/net/duelClient.ts", from: "    this.client = null;\n    noteReportRoom(undefined);\n", to: "    this.client = null;\n", kills: ["stops tagging reports with a room after leaving the match"] },
     { id: "narration-uses-ids", file: "duel-web/src/board/battleLog.ts", from: "  return lookupCard(defId).name;", to: "  return defId;", kills: ["describes pending-choice ability prompts"] },
     { id: "unverified-note-missing", file: "duel-web/src/cards/abilitySupport.ts", from: "  if (support === \"unverified\") {\n    return \"Card data has not been verified for duel play yet.\";\n  }", to: "", kills: ["exposes inspect note only for unsupported/partial"] },
     { id: "jinbe-renamed-back", json: "duel-web/src/assets/cardAtlas.json", patch: (atlas) => { atlas["ST01-005"].name = "Usopp"; }, kills: ["resolves ST01-005 to TCGPlayer CDN"] },
