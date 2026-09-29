@@ -61,6 +61,24 @@ export function markUsed(state: MatchState, sourceId: InstanceId, ability: Abili
   card.usedAbilities = { ...(card.usedAbilities ?? {}), [ability.id]: state.turnNumber };
 }
 
+/**
+ * Undo `markUsed` for a frame whose ability was declined before anything
+ * happened (optional cost not paid, "you may" answered no, or the cost could
+ * not be paid). Such an ability was never activated, so a [Once Per Turn]
+ * ability must be offered again in a later window of the same turn.
+ */
+function releaseDeclinedOncePerTurn(state: MatchState, frame: ResolutionFrame): void {
+  if (frame.program !== "ability" && frame.program !== "replacement") return;
+  if (typeof frame.bindings._delay === "number") return;
+  if (!frame.bindings.__declined || frame.bindings.__acted) return;
+  const ability = abilityById(frame.abilityId)?.ability;
+  if (!ability?.oncePerTurn) return;
+  const card = locate(state, frame.sourceInstanceId)?.card;
+  if (!card?.usedAbilities || card.usedAbilities[ability.id] !== state.turnNumber) return;
+  const { [ability.id]: _released, ...rest } = card.usedAbilities;
+  card.usedAbilities = rest;
+}
+
 /** Header gates: [DON!! xN], [Your Turn]/[Opponent's Turn] and similar, plus once-per-turn. */
 export function abilityGateOpen(state: MatchState, seat: Seat, source: { id: InstanceId; defId: string; card?: CardInstance }, ability: Ability, eventCardId?: InstanceId): boolean {
   const card = source.card ?? locate(state, source.id)?.card;
@@ -326,6 +344,7 @@ export function runFrames(sim: Sim): void {
 function completeFrame(sim: Sim, frame: ResolutionFrame): void {
   const { state } = sim;
   state.resolutionFrames = state.resolutionFrames.filter((f) => f.id !== frame.id);
+  releaseDeclinedOncePerTurn(state, frame);
   if (frame.program === "trash_for_space") {
     const p = state.players[frame.seat];
     const index = p.resolving.findIndex((c) => c.id === frame.sourceInstanceId);
@@ -368,7 +387,7 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
     case "jumpIfFalse": { const v = frame.bindings[instr.name]; if (!v || (Array.isArray(v) && v.length === 0)) { frame.operationIndex = instr.to; return "jumped"; } return "next"; }
     case "jumpIfModeNot": if (frame.bindings[instr.name] !== instr.index) { frame.operationIndex = instr.to; return "jumped"; } return "next";
     case "confirm": {
-      if (instr.costs && !canPayCosts(state, ctx, instr.costs)) { frame.bindings[instr.bind] = false; return "next"; }
+      if (instr.costs && !canPayCosts(state, ctx, instr.costs)) { frame.bindings[instr.bind] = false; frame.bindings.__declined = true; return "next"; }
       const ability = abilityById(frame.abilityId)?.ability;
       const detail = frame.program === "replacement" ? `use ${nameOf(frame.sourceDefId)}'s effect instead?` : instr.costs ? `pay the cost to activate: ${ability?.text ?? ""}` : `${instr.prompt}? ${ability?.text ?? ""}`;
       pushChoice(sim, frame, { seat: instr.chooser === "opponent" ? otherSeat(frame.seat) : frame.seat, kind: "effect", optional: true, prompt: `${promptPrefix(frame)} — ${detail}`.trim(), request: { type: "confirm" }, bindings: { __bind: instr.bind } });
@@ -389,7 +408,7 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
       }
       return "next";
     case "look": return execLook(sim, frame, instr);
-    case "act": return execAct(sim, frame, instr.effect);
+    case "act": frame.bindings.__acted = true; return execAct(sim, frame, instr.effect);
   }
 }
 
@@ -1004,7 +1023,7 @@ export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: Cho
   switch (request.type) {
     case "confirm": {
       if (!answer.accept && !choice.optional) return "This choice cannot be declined";
-      apply = () => { frame.bindings[b.__bind!] = answer.accept; frame.operationIndex += 1; };
+      apply = () => { frame.bindings[b.__bind!] = answer.accept; if (!answer.accept && choice.seat === frame.seat) frame.bindings.__declined = true; frame.operationIndex += 1; };
       break;
     }
     case "mode": {
