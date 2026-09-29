@@ -23,6 +23,9 @@ import {
   type PointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import type { PreviewLive } from "./cardPreview";
+import { LiveCardStatus } from "./LiveCardStatus";
+import { counterValueFor, formatCounter } from "../cards/counterValue";
 
 type Props = {
   defId: string;
@@ -39,6 +42,8 @@ type Props = {
   deck?: SavedDeck;
   /** Fired after a deck-scoped art pref changes so the parent can refresh. */
   onDeckArtChange?: () => void;
+  /** In-play power / statuses when inspecting a field card. */
+  live?: PreviewLive;
 };
 
 const SWIPE_DISMISS_PX = 80;
@@ -52,6 +57,7 @@ export function CardInspect({
   viewingSeat,
   deck,
   onDeckArtChange,
+  live,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
   const artTick = useSyncExternalStore(
@@ -177,10 +183,19 @@ export function CardInspect({
             <p className="card-inspect-id">
               {entry.id} · {entry.type} · {entry.colors.join("/")} · cost {entry.cost}
               {entry.power != null ? ` · ${entry.power} power` : ""}
-              {entry.counter != null ? ` · ${entry.counter} counter` : ""}
+              {(() => {
+                const cv = counterValueFor(entry);
+                return cv ? ` · ${formatCounter(cv)} counter` : "";
+              })()}
               {entry.life != null ? ` · ${entry.life} life` : ""}
               {entry.blocker ? " · Blocker" : ""}
             </p>
+            {live ? (
+              <div className="card-inspect-effect">
+                <div className="card-inspect-effect-label">In play</div>
+                <LiveCardStatus live={live} atlasPower={entry.power} />
+              </div>
+            ) : null}
             <div className="card-inspect-effect">
               <div className="card-inspect-effect-label">Ability</div>
               <p>

@@ -108,6 +108,8 @@ export const DEMO_VIEW: PlayerView = {
       { id: "y-h3", defId: "ST01-008" },
       { id: "y-h4", defId: "ST01-009" },
       { id: "y-h5", defId: "ST01-014" },
+      // Conditional [Counter] event — hand badge reads "+2000 / +4000".
+      { id: "y-h6", defId: "OP01-029" },
     ],
     deckCount: 38,
     trash: ["ST01-003", "ST01-014", "ST01-009"],

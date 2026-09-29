@@ -2467,7 +2467,149 @@ img.zone-pile-face {
 /* —— Status chips / buffed power —— */
 .power-badge-buffed {
   box-shadow: 0 0 0 1px #f0c14b, 0 2px 6px rgba(0, 0, 0, 0.35);
-  color: #ffe082;
+}
+
+/* —— Tile overlays: power (base + modifier), counter, DON!!, statuses —— */
+.card-overlays {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.card-stat-stack {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  max-width: calc(100% - 0.5rem);
+}
+.card-stat-stack .don-badge {
+  position: static;
+  white-space: nowrap;
+}
+.card-stat-stack .power-badge {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+  max-width: 100%;
+}
+.power-mod {
+  font-size: 0.92em;
+}
+.power-mod-up {
+  color: #7fe08a;
+}
+.power-mod-down {
+  color: #ff8a80;
+}
+.card-stat-stack .counter-badge {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  column-gap: 1px;
+  color: #a8d8ff;
+  border-color: rgba(120, 180, 255, 0.55);
+}
+.counter-part {
+  white-space: nowrap;
+}
+.card-stat-stack .counter-badge-effect {
+  font-size: 0.5rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Rested field cards turn sideways like the physical game. Scaling by the card
+   aspect (1 / 1.4) keeps the rotated footprint inside the portrait cell, so
+   neighbours never overlap and the grid does not reflow. Overlays counter-rotate
+   into the landscape footprint so badges stay upright at their normal size. */
+.side-field .card-tile {
+  transition: transform 180ms ease;
+}
+.card-tile.rested {
+  transform: rotate(90deg) scale(0.714);
+}
+.card-tile.rested::after {
+  display: none;
+}
+.card-tile.rested .card-overlays {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  /* (width / height)² of a 1:1.4 card — becomes the landscape footprint. */
+  height: 51%;
+  transform: translate(-50%, -50%) rotate(-90deg) scale(1.4);
+}
+.card-tile.rested .status-chips {
+  bottom: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .side-field .card-tile {
+    transition: none;
+  }
+}
+
+/* Live status (hover preview + inspect) */
+.live-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.live-status-power {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+.live-status-power-label {
+  color: var(--chrome);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.live-status-power-value {
+  font-size: 1rem;
+  color: var(--chrome-bright);
+}
+.live-status-power-detail {
+  opacity: 0.85;
+  font-size: 0.74rem;
+}
+.live-status-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.live-status-chip {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 200, 80, 0.45);
+  color: #ffe0a0;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.live-status-chip-don {
+  border-color: rgba(140, 200, 80, 0.6);
+  color: #e8ffc8;
+}
+.live-status-none {
+  margin: 0;
+  font-size: 0.72rem;
+  opacity: 0.7;
 }
 .status-chips {
   position: absolute;

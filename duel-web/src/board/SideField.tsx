@@ -156,6 +156,7 @@ export function SideField({
                 <CardTile
                   key={c.id}
                   defId={c.defId}
+                  instanceId={c.id}
                   compact={compact || mirrored}
                   rested={c.rested}
                   power={c.power}
@@ -215,6 +216,7 @@ export function SideField({
             return (
               <CardTile
                 defId={data.leader.defId}
+                instanceId={leaderId}
                 compact={compact || mirrored}
                 rested={data.leader.rested}
                 power={data.leader.power}
@@ -267,8 +269,10 @@ export function SideField({
               return (
                 <CardTile
                   defId={data.stage!.defId}
+                  instanceId={stageId}
                   compact={compact || mirrored}
                   rested={data.stage!.rested}
+                  statusLabels={data.stage!.statusLabels}
                   selected={isSelected}
                   classNameExtra={extraClass || undefined}
                   inspectGestures
