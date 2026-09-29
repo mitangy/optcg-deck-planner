@@ -8,6 +8,54 @@ import {
 
 const DEFAULT_THRESHOLD_PX = 8;
 
+/** Axis the nearest scroll container pans on (only touch / pen care). */
+export type PanAxis = "x" | "y" | "none";
+
+export type DragDecision = "wait" | "start" | "cancel";
+
+/**
+ * Decide whether a pointer movement should begin a drag.
+ *
+ * A mouse never pans a scroll container by dragging, so any movement past the
+ * threshold starts a drag in any direction (on desktop the hand lives in a
+ * right-hand rail, so a drag to the board is mostly horizontal — the old
+ * "horizontal means scroll" rule silently cancelled every desktop drag).
+ * Touch / pen yield the gesture to native scrolling when it runs along the
+ * scroll container's pan axis.
+ */
+export function decideDragStart(opts: {
+  dx: number;
+  dy: number;
+  pointerType: string;
+  panAxis: PanAxis;
+  thresholdPx?: number;
+}): DragDecision {
+  const threshold = opts.thresholdPx ?? DEFAULT_THRESHOLD_PX;
+  const { dx, dy } = opts;
+  if (Math.hypot(dx, dy) < threshold) return "wait";
+  if (opts.pointerType === "mouse") return "start";
+  if (opts.panAxis === "x" && Math.abs(dx) > Math.abs(dy)) return "cancel";
+  if (opts.panAxis === "y" && Math.abs(dy) > Math.abs(dx)) return "cancel";
+  return "start";
+}
+
+/** Nearest ancestor that actually scrolls (content overflows) → its pan axis. */
+export function detectPanAxis(el: Element | null): PanAxis {
+  if (typeof window === "undefined" || !el) return "none";
+  let node = el.parentElement;
+  while (node && node !== document.body) {
+    const cs = window.getComputedStyle(node);
+    if (/(auto|scroll)/.test(cs.overflowX) && node.scrollWidth > node.clientWidth + 1) {
+      return "x";
+    }
+    if (/(auto|scroll)/.test(cs.overflowY) && node.scrollHeight > node.clientHeight + 1) {
+      return "y";
+    }
+    node = node.parentElement;
+  }
+  return "none";
+}
+
 type Options<T> = {
   /** When false, pointer handlers are no-ops (clicks work normally). */
   enabled: boolean;
@@ -23,9 +71,9 @@ type Options<T> = {
  * Pointer-based drag with a small movement threshold so clicks still work.
  * Keeps HTML5 `draggable` off — callers should leave `draggable={false}`.
  *
- * Horizontal pans are left to the parent scroll container (hand rail): we only
- * start a drag when movement is primarily vertical / diagonal, and we delay
- * pointer capture until the drag actually begins.
+ * Works for mouse and touch. For touch / pen, pans along the nearest scroll
+ * container's axis are left to native scrolling (see `decideDragStart`), and
+ * pointer capture is delayed until the drag actually begins.
  */
 export function usePointerDrag<T>({
   enabled,
@@ -39,6 +87,8 @@ export function usePointerDrag<T>({
   const suppressClickRef = useRef(false);
   const startRef = useRef<{
     pointerId: number;
+    pointerType: string;
+    panAxis: PanAxis;
     x: number;
     y: number;
     armed: boolean;
@@ -56,6 +106,9 @@ export function usePointerDrag<T>({
       if (e.button !== 0 && e.pointerType === "mouse") return;
       startRef.current = {
         pointerId: e.pointerId,
+        pointerType: e.pointerType,
+        panAxis:
+          e.pointerType === "mouse" ? "none" : detectPanAxis(e.currentTarget as Element),
         x: e.clientX,
         y: e.clientY,
         armed: true,
@@ -70,13 +123,17 @@ export function usePointerDrag<T>({
     (e: ReactPointerEvent) => {
       const s = startRef.current;
       if (!s?.armed || s.pointerId !== e.pointerId) return;
-      const dx = e.clientX - s.x;
-      const dy = e.clientY - s.y;
-      const dist = Math.hypot(dx, dy);
       if (!s.started) {
-        if (dist < thresholdPx) return;
-        // Prefer native horizontal scroll over treating a sideways pan as a drag.
-        if (Math.abs(dx) > Math.abs(dy)) {
+        const decision = decideDragStart({
+          dx: e.clientX - s.x,
+          dy: e.clientY - s.y,
+          pointerType: s.pointerType,
+          panAxis: s.panAxis,
+          thresholdPx,
+        });
+        if (decision === "wait") return;
+        if (decision === "cancel") {
+          // Let the scroll container own this pan.
           s.armed = false;
           return;
         }
