@@ -8,7 +8,7 @@
  *
  *   node tools/mutation-check/run.cjs [suite ...] [--only <regex>]
  *
- * Suites: rules, duel-web, mobile, importer, backend (default: all). Exit code 1 when any
+ * Suites: see SUITES below (default: all). Exit code 1 when any
  * mutation survives or its anchor no longer matches the source exactly once.
  * See README.md for how to add mutations alongside new tests.
  */
@@ -25,6 +25,9 @@ const SUITES = {
   mobile: require("./suites/mobile.cjs"),
   importer: require("./suites/importer.cjs"),
   backend: require("./suites/backend.cjs"),
+  frontend: require("./suites/frontend.cjs"),
+  "game-server": require("./suites/game-server.cjs"),
+  cosmetics: require("./suites/cosmetics.cjs"),
 };
 
 const args = process.argv.slice(2);
@@ -45,6 +48,18 @@ function restoreAll() {
 function journal() {
   fs.writeFileSync(JOURNAL, JSON.stringify(Object.fromEntries(touched)));
 }
+// One run at a time: a second run would "restore" files the first is mutating
+// mid-test (via the shared journal), making the first run's mutations falsely survive.
+const LOCK = path.join(__dirname, ".run.lock");
+function isAlive(pid) {
+  try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; }
+}
+if (fs.existsSync(LOCK) && isAlive(Number(fs.readFileSync(LOCK, "utf8")))) {
+  console.error("Another mutation-check run is in progress; run suites one at a time.");
+  process.exit(2);
+}
+fs.writeFileSync(LOCK, String(process.pid));
+process.on("exit", () => { try { fs.unlinkSync(LOCK); } catch {} });
 if (fs.existsSync(JOURNAL)) {
   const pending = JSON.parse(fs.readFileSync(JOURNAL, "utf8"));
   for (const [file, text] of Object.entries(pending)) fs.writeFileSync(file, text);
@@ -73,10 +88,19 @@ const runners = {
     }
     return { failed, total: data.numTotalTests };
   },
-  pytest(cwd, suite) {
+  mocha(cwd) {
+    const report = path.join(os.tmpdir(), `mutation-check-${process.pid}.json`);
+    try { fs.unlinkSync(report); } catch {}
+    try { execSync(`npx mocha --import=tsx/esm "test/**/*.test.ts" --exit --timeout 60000 --reporter json --reporter-option output="${report}"`, { cwd, stdio: "ignore", timeout: 600000 }); } catch {}
+    if (!fs.existsSync(report)) return { error: "no mocha report (suite crashed?)", failed: [] };
+    const data = JSON.parse(fs.readFileSync(report, "utf8"));
+    fs.unlinkSync(report);
+    return { failed: data.failures.map((t) => `${path.basename(t.file ?? "")} > ${t.fullTitle}`), total: data.stats.tests };
+  },
+  pytest(cwd, suite, mutation) {
     const python = process.env.BACKEND_PYTHON ?? process.env.PYTHON ?? (process.platform === "win32" ? "py -3" : "python3");
     let out = "";
-    try { out = execSync(`${python} -m pytest -q -rf ${suite.args ?? ""} 2>&1`, { cwd, encoding: "utf8", timeout: 600000 }); } catch (e) { out = String(e.stdout ?? ""); }
+    try { out = execSync(`${python} -m pytest -q -rf ${mutation?.args ?? suite.args ?? ""} 2>&1`, { cwd, encoding: "utf8", timeout: 600000 }); } catch (e) { out = String(e.stdout ?? ""); }
     const summary = /(\d+) passed/.exec(out);
     if (!summary && !/\d+ failed/.test(out)) return { error: `pytest did not run:\n${out.slice(-800)}`, failed: [] };
     const failed = [...out.matchAll(/^FAILED (\S+)/gm)].map((m) => m[1]);
@@ -136,7 +160,7 @@ for (const name of selected) {
     const anchorError = applyEdits(mutation);
     let result;
     try {
-      result = anchorError ? null : runner(cwd, suite);
+      result = anchorError ? null : runner(cwd, suite, mutation);
     } finally {
       restoreAll();
     }

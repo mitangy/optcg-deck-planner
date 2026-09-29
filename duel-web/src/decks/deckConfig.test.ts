@@ -87,8 +87,7 @@ describe("resolveCardImageUrl with deck artPrefs", () => {
       ...deck,
       artPrefs: undefined,
     });
-    // Default art is TCGplayer CDN after #92 (local /cards is fallback only).
-    expect(standard).toMatch(/tcgplayer-cdn\.tcgplayer\.com\/product\/\d+/);
+    expect(standard).toBe("https://tcgplayer-cdn.tcgplayer.com/product/288235_400w.jpg");
     deleteDeck(deck.id);
   });
 });

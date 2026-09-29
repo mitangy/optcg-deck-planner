@@ -371,7 +371,8 @@ def test_member_cannot_complete(db, two_players):
     group_buy.join_group_buy(db, friend, created.invite_token)
     group_buy.lock_group_buy(db, host, created.id)
     group_buy.mark_ordered(db, host, created.id, None)
-    with pytest.raises(PermissionError):
+    # The no-receipt guard also raises PermissionError, so check it is the host check.
+    with pytest.raises(PermissionError, match="host"):
         group_buy.complete_group_buy(db, friend, created.id)
 
 

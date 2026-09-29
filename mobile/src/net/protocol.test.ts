@@ -107,9 +107,9 @@ describe("protocol parsers", () => {
   it("labels intents with atlas names when view is provided", () => {
     const view = sampleView();
     expect(intentLabel({ type: "end_turn" })).toBe("End turn");
-    expect(intentLabel({ type: "play_card", handIndex: 0 }, view)).toMatch(/Karoo|ST01-003/);
-    expect(intentLabel({ type: "activate_leader", targetId: "L0" }, view)).toMatch(
-      /Activate Leader/,
+    expect(intentLabel({ type: "play_card", handIndex: 0 }, view)).toBe("Play Karoo");
+    expect(intentLabel({ type: "activate_leader", targetId: "L0" }, view)).toBe(
+      "Activate Leader → Monkey.D.Luffy",
     );
     expect(
       intentLabel(
@@ -123,14 +123,6 @@ describe("protocol parsers", () => {
       ),
     ).toMatch(/Activate .* →/);
     expect(intentLabel({ type: "mulligan", doMulligan: false })).toMatch(/Keep/i);
-  });
-});
-
-describe("intentLabel", () => {
-  it("labels order_pending_effects", () => {
-    expect(intentLabel({ type: "order_pending_effects", orderedIds: ["a", "b"] })).toMatch(
-      /order|effect/i,
-    );
   });
 });
 

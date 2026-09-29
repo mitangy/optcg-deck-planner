@@ -7,9 +7,9 @@ describe("rewriteLoopbackToPageHost", () => {
   });
 
   it("leaves URLs unchanged on localhost pages", () => {
-    vi.stubGlobal("window", { location: { hostname: "localhost" } });
-    expect(rewriteLoopbackToPageHost("http://localhost:2567")).toBe(
-      "http://localhost:2567",
+    vi.stubGlobal("window", { location: { hostname: "127.0.0.1" } });
+    expect(rewriteLoopbackToPageHost("http://localhost:8000")).toBe(
+      "http://localhost:8000",
     );
   });
 

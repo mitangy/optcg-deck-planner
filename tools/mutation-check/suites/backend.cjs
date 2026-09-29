@@ -1,8 +1,197 @@
 /** Backend mutations (backend/, pytest). Needs a Python with requirements.txt installed: set BACKEND_PYTHON. */
+const auth = "backend/app/auth.py";
+const config = "backend/app/config.py";
+const sync = "backend/app/catalog_sync.py";
+const domain = "backend/app/domain.py";
+const services = "backend/app/services.py";
+const duel = "backend/app/routers/duel.py";
+const receipt = "backend/app/tcgplayer_receipt.py";
+const gb = "backend/app/group_buy.py";
+const merge = "backend/app/group_buy_merge.py";
+const settle = "backend/app/group_buy_settlement.py";
+
 module.exports = {
   cwd: "backend",
   runner: "pytest",
   mutations: [
-    { id: "postgres-url-default-driver", file: "backend/app/config.py", from: "                return \"postgresql+psycopg2://\" + url[len(prefix) :]", to: "                return \"postgresql://\" + url[len(prefix) :]", kills: ["test_postgres_urls_use_the_installed_psycopg2_driver[postgres:", "test_postgres_urls_use_the_installed_psycopg2_driver[postgresql:"] },
+    { id: "postgres-url-default-driver", file: config, from: "                return \"postgresql+psycopg2://\" + url[len(prefix) :]", to: "                return \"postgresql://\" + url[len(prefix) :]", kills: ["test_postgres_urls_use_the_installed_psycopg2_driver[postgres:", "test_postgres_urls_use_the_installed_psycopg2_driver[postgresql:"] },
+
+    // rate limiting
+    { id: "rate-limit-off-by-one", file: "backend/app/rate_limit.py", from: "            if len(q) >= self.max_calls:", to: "            if len(q) > self.max_calls:", kills: ["test_rate_limiter_allows_until_cap"] },
+    { id: "rate-limit-shared-bucket", file: "backend/app/rate_limit.py", from: "            q = self._hits[key]", to: "            q = self._hits[\"all\"]", kills: ["test_rate_limiter_keys_are_independent"] },
+
+    // sessions, OAuth state, login tickets, Google linking
+    { id: "session-version-dropped", file: auth, from: "dumps({\"uid\": user_id, \"sv\": int(session_version)})", to: "dumps({\"uid\": user_id, \"sv\": 0})", kills: ["test_session_token_embeds_version"] },
+    { id: "session-legacy-cookie-rejected", file: auth, from: "    sv = data.get(\"sv\", 0)", to: "    sv = data.get(\"sv\")", kills: ["test_missing_sv_defaults_to_zero"] },
+    { id: "oauth-nonce-unchecked", file: auth, from: "    return data.get(\"n\") == nonce", to: "    return True", kills: ["test_oauth_state_requires_matching_nonce"] },
+    { id: "oauth-signature-unchecked", file: auth, from: "        data = _oauth_serializer(settings).loads(state, max_age=OAUTH_STATE_MAX_AGE_SECONDS)", to: "        data = _oauth_serializer(settings).loads_unsafe(state)[1]", kills: ["test_oauth_state_rejects_tampered_payload"] },
+    { id: "ticket-accepted-as-session", edits: [
+      { file: auth, from: "    return URLSafeTimedSerializer(settings.session_secret, salt=\"optcg-login-ticket\")", to: "    return URLSafeTimedSerializer(settings.session_secret, salt=\"optcg-auth\")" },
+      { file: auth, from: "    if data.get(\"purpose\") is not None:\n        return None\n", to: "" },
+    ], kills: ["test_login_ticket_is_not_a_valid_session"] },
+    { id: "session-accepted-as-ticket", edits: [
+      { file: auth, from: "    return URLSafeTimedSerializer(settings.session_secret, salt=\"optcg-login-ticket\")", to: "    return URLSafeTimedSerializer(settings.session_secret, salt=\"optcg-auth\")" },
+      { file: auth, from: "    if data.get(\"purpose\") != \"login\":\n        return None\n    uid = data.get(\"uid\")\n    return int(uid)", to: "    uid = data.get(\"uid\")\n    return int(uid)" },
+    ], kills: ["test_session_token_is_not_a_valid_login_ticket"] },
+    { id: "ticket-reusable", file: auth, from: "        return None\n    db.delete(row)\n    db.commit()\n    return int(uid)", to: "        return None\n    return int(uid)", kills: ["test_login_ticket_is_single_use"] },
+    { id: "ticket-expiry-ignored", file: auth, from: "    if expires < datetime.now(timezone.utc) or row.user_id != int(uid):", to: "    if row.user_id != int(uid):", kills: ["test_expired_login_ticket_row_is_rejected"] },
+    { id: "google-new-user-unlinked", file: auth, from: "        user = User(email=email, name=name, google_sub=sub)", to: "        user = User(email=email, name=name, google_sub=\"\")", kills: ["test_resolve_creates_new_user"] },
+    { id: "google-email-not-linked", file: auth, from: "    if user is None:\n        user = db.scalar(select(User).where(User.email == email))\n", to: "", kills: ["test_resolve_links_email_without_google_sub"] },
+    { id: "google-rebind-allowed", file: auth, from: "        if user.google_sub and user.google_sub != sub:", to: "        if False:", kills: ["test_resolve_refuses_rebind_to_different_sub"] },
+
+    // production config guards
+    { id: "https-frontend-not-production", file: config, from: "        if self.frontend_origin.startswith(\"https://\"):\n            return True\n", to: "", kills: ["test_production_with_strong_secrets_starts", "test_production_rejects_default_catalog_sync_token"] },
+    { id: "default-sync-token-allowed", file: config, from: "    if settings.is_production and settings.catalog_sync_token == DEFAULT_CATALOG_SYNC_TOKEN:", to: "    if False:", kills: ["test_production_rejects_default_catalog_sync_token"] },
+    { id: "default-session-secret-allowed", file: config, from: "    if settings.is_production and settings.session_secret in DEFAULT_SESSION_SECRETS:", to: "    if False:", kills: ["test_production_rejects_default_session_secret"] },
+    { id: "default-ingest-secret-allowed", file: config, from: "    if settings.is_production and settings.duel_ingest_secret == DEFAULT_DUEL_INGEST_SECRET:", to: "    if False:", kills: ["test_production_rejects_default_duel_ingest_secret"] },
+    { id: "dev-login-in-production", file: config, from: "    if settings.is_production and settings.enable_dev_login:", to: "    if False:", kills: ["test_production_rejects_dev_login"] },
+    { id: "https-backend-not-production", file: config, from: "        if self.backend_public_url.startswith(\"https://\"):\n            return True\n", to: "", kills: ["test_https_backend_url_counts_as_production"] },
+    { id: "postgres-not-production", file: config, from: "        if self.sqlalchemy_url.startswith(\"postgresql\"):\n            return True\n", to: "", kills: ["test_postgres_database_counts_as_production"] },
+    { id: "local-counts-as-production", args: "tests/test_config.py", file: config, from: "            return True\n        return False", to: "            return True\n        return True", kills: ["test_local_sqlite_http_is_not_production"] },
+
+    // catalog sync
+    { id: "sync-delete-then-reinsert", file: sync, from: "    seen_keys: set[tuple[str, int]] = set()\n", to: "    db.execute(delete(CatalogPrinting))\n    existing_printings = {}\n    seen_keys: set[tuple[str, int]] = set()\n", kills: ["test_second_sync_preserves_printing_id_and_phash"] },
+    { id: "sync-resets-phash", file: sync, from: "                \"is_special\": entry[\"is_special\"],\n                \"updated_at\": now,\n            }\n            printing_row", to: "                \"is_special\": entry[\"is_special\"],\n                \"updated_at\": now,\n                \"phash\": None,\n            }\n            printing_row", kills: ["test_price_update_does_not_reset_phash"] },
+    { id: "sync-price-not-updated", file: sync, from: "                \"name\": entry[\"name\"],\n                \"market_price\": entry[\"market_price\"],", to: "                \"name\": entry[\"name\"],", kills: ["test_price_update_does_not_reset_phash"] },
+    { id: "sync-keeps-dropped-printings", file: sync, from: "        db.execute(delete(CatalogPrinting).where(CatalogPrinting.id.in_(stale_ids)))", to: "        pass", kills: ["test_printing_dropped_upstream_is_removed"] },
+    { id: "sync-job-session-leaked", file: sync, from: "    finally:\n        db.close()\n", to: "    finally:\n", kills: ["test_run_job_uses_own_session_and_records_result"] },
+    { id: "sync-job-result-unrecorded", file: sync, from: "        _sync_state[\"last_result\"] = result\n", to: "", kills: ["test_run_job_uses_own_session_and_records_result"] },
+    { id: "sync-job-concurrent", file: sync, from: "    if not already_claimed and not try_claim_sync_slot():\n        return None", to: "    if not already_claimed:\n        _sync_lock.acquire(blocking=False)", kills: ["test_concurrent_job_is_skipped_while_one_runs"] },
+    { id: "sync-job-error-swallowed", file: sync, from: "        _sync_state[\"last_error\"] = str(exc)\n        raise", to: "        _sync_state[\"last_error\"] = str(exc)\n        return None", kills: ["test_job_records_error_and_reraises"] },
+    { id: "sync-job-error-unrecorded", file: sync, from: "        _sync_state[\"last_error\"] = str(exc)\n        raise", to: "        raise", kills: ["test_job_records_error_and_reraises"] },
+    { id: "sync-claim-not-running", file: sync, from: "    _sync_state.update(\n        running=True,", to: "    _sync_state.update(\n        running=False,", kills: ["test_try_claim_marks_running_before_job_body"] },
+
+    // deck editing
+    { id: "leader-rarity-ignored", file: domain, from: "    return normalized == \"leader\" or rarity_u == \"L\"", to: "    return normalized == \"leader\"", kills: ["test_don_and_leader_type_helpers"] },
+    { id: "numberless-don-skipped", file: sync, from: "    if is_don_product(name=name, card_type=card_type, rarity=rarity):\n        return synthetic_don_card_id(product_id)", to: "", kills: ["test_don_and_leader_type_helpers"] },
+    { id: "don-counted-in-main", file: domain, from: "            don += needed", to: "            main += needed", kills: ["test_deck_size_counts_split_don"] },
+    { id: "search-name-ignored", file: services, from: "                CatalogCard.name.ilike(like),\n", to: "", kills: ["test_search_catalog_by_name_color_and_type"] },
+    { id: "search-color-ignored", file: services, from: "        filters.append(CatalogCard.color.ilike(f\"%{color_q}%\"))", to: "        pass", kills: ["test_search_catalog_by_name_color_and_type"] },
+    { id: "search-type-ignored", file: services, from: "        filters.append(CatalogCard.card_type.ilike(f\"%{type_q}%\"))", to: "        pass", kills: ["test_search_catalog_by_name_color_and_type"] },
+    { id: "upsert-add-dropped", file: services, from: "        db.add(DeckCard(deck_id=deck.id, card_id=card_id, needed=needed))", to: "        pass", kills: ["test_upsert_deck_card_add_and_remove"] },
+    { id: "upsert-remove-noop", file: services, from: "        if existing is not None:\n            db.delete(existing)\n        _clear_deck_card_printings", to: "        _clear_deck_card_printings", kills: ["test_upsert_deck_card_add_and_remove"] },
+    { id: "reset-owned-all-cards", file: services, from: "            select(Owned).where(Owned.user_id == user.id, Owned.card_id.in_(card_ids))", to: "            select(Owned).where(Owned.user_id == user.id)", kills: ["test_reset_deck_owned_zeros_cards_in_deck"] },
+    { id: "oversize-no-confirm", file: services, from: "        and not confirm_oversize\n    ):", to: "    ):", kills: ["test_upsert_requires_confirm_over_main_limit"] },
+    { id: "oversize-reprompts", file: services, from: "        and main_now <= MAIN_DECK_LIMIT\n", to: "", kills: ["test_upsert_requires_confirm_over_main_limit"] },
+    { id: "oversize-never-prompts", file: services, from: "        main_projected > MAIN_DECK_LIMIT\n", to: "        False\n", kills: ["test_upsert_requires_confirm_over_main_limit"] },
+    { id: "don-deck-uncapped", file: services, from: "    if don_projected > DON_DECK_LIMIT:", to: "    if False:", kills: ["test_don_deck_hard_cap"] },
+
+    // duel tokens, ingest, ratings
+    { id: "elo-winner-down", file: "backend/app/duel_ratings.py", from: "    na = int(round(rating_a + elo_k(games_a) * (score_a - ea)))", to: "    na = int(round(rating_a + elo_k(games_a) * (ea - score_a)))", kills: ["test_elo_moves_winner_up"] },
+    { id: "game-token-rejects-valid", file: "backend/app/game_tokens.py", from: "    if not hmac.compare_digest(expected, sig):", to: "    if hmac.compare_digest(expected, sig):", kills: ["test_game_token_roundtrip"] },
+    { id: "dev-token-shared-user", file: duel, from: "    email = f\"duel-{body.user_key.lower()}@localhost\"", to: "    email = \"duel-shared@localhost\"", kills: ["test_dev_token_and_match_ingest"] },
+    { id: "ingest-retry-created", file: duel, from: "            created=False,", to: "            created=True,", kills: ["test_dev_token_and_match_ingest"] },
+    { id: "ingest-ratings-frozen", file: duel, from: "    if body.ranked:\n        score0", to: "    if False:\n        score0", kills: ["test_dev_token_and_match_ingest"] },
+    { id: "leaderboard-ascending", file: duel, from: "        .order_by(DuelRating.rating.desc(), DuelRating.games_played.desc())", to: "        .order_by(DuelRating.rating.asc(), DuelRating.games_played.desc())", kills: ["test_dev_token_and_match_ingest"] },
+    { id: "leaderboard-leaks-email", edits: [
+      { file: "backend/app/schemas.py", from: "    user_id: int\n    name: str\n    rating: int\n    games_played: int", to: "    user_id: int\n    name: str\n    rating: int\n    games_played: int\n    email: str | None = None" },
+      { file: duel, from: "        DuelLeaderboardEntryOut(\n            user_id=user.id,", to: "        DuelLeaderboardEntryOut(\n            email=user.email,\n            user_id=user.id," },
+    ], kills: ["test_dev_token_and_match_ingest"] },
+    { id: "guest-token-behind-dev-flags", file: duel, from: "    if not _GUEST_ID_RE.match(body.guest_id):", to: "    if not settings.enable_dev_login and not settings.enable_duel_dev_token:\n        raise HTTPException(status_code=404, detail=\"Not found\")\n    if not _GUEST_ID_RE.match(body.guest_id):", kills: ["test_guest_token_is_always_available"] },
+    { id: "guest-token-new-user-each-time", file: duel, from: "    email = f\"guest-{body.guest_id.lower()}@localhost\"", to: "    email = f\"guest-{body.guest_id.lower()}-{secrets.token_hex(4)}@localhost\"\n    import secrets  # noqa", kills: ["test_guest_token_is_always_available"] },
+    { id: "dev-token-always-on", file: duel, from: "    if not settings.enable_dev_login and not settings.enable_duel_dev_token:", to: "    if False:", kills: ["test_dev_token_hidden_without_flags"] },
+    { id: "dev-token-staging-flag-ignored", file: duel, from: "    if not settings.enable_dev_login and not settings.enable_duel_dev_token:", to: "    if not settings.enable_dev_login:", kills: ["test_dev_token_via_staging_flag"] },
+    { id: "ingest-secret-unchecked", file: duel, from: "    if not expected or not hmac.compare_digest(expected, provided):", to: "    if not expected:", kills: ["test_ingest_rejects_bad_secret"] },
+
+    // main deck baselines
+    { id: "main-flag-ignored", file: services, from: "    if marked:\n        # Prefer earliest marked if data ever has more than one.\n        return min(marked, key=lambda d: (d.sort_order, d.id))\n", to: "", kills: ["test_additional_cards_compare_against_explicit_main"] },
+    { id: "fallback-main-latest", file: services, from: "    return min(group, key=lambda d: (d.sort_order, d.id))", to: "    return max(group, key=lambda d: (d.sort_order, d.id))", kills: ["test_fallback_main_is_earliest_same_leader_when_unset"] },
+    { id: "set-main-keeps-old-main", file: services, from: "    _clear_main_flags(db, user.id, deck.leader_card_id, except_id=deck.id)\n", to: "", kills: ["test_set_deck_as_main_switches_baseline"] },
+    { id: "delete-main-no-promotion", file: services, from: "        if remaining:\n            remaining[0].is_main = True\n    db.commit()", to: "    db.commit()", kills: ["test_delete_main_promotes_next_same_leader"] },
+    { id: "set-main-without-leader", file: services, from: "    if not deck.leader_card_id:\n        raise ValueError(\"Deck has no leader — cannot set as Main\")", to: "", kills: ["test_set_main_requires_leader"] },
+    { id: "list-main-not-first", file: services, from: "            0 if s.is_main else 1,\n", to: "", kills: ["test_list_decks_groups_by_leader_with_main_first"] },
+    { id: "list-no-leader-first", file: services, from: "        leader_group_key[key] = (key is None, name,", to: "        leader_group_key[key] = (key is not None, name,", kills: ["test_list_decks_groups_by_leader_with_main_first"] },
+
+    // shopping need
+    { id: "decklist-trailing-qty-ignored", file: domain, from: "            trailing = trailing_qty_re.match(rest) if rest and not leading_qty else None", to: "            trailing = None", kills: ["test_parse_decklist_qty_after_card_id"] },
+    { id: "shopping-need-summed", file: services, from: "        card_id: sum(by_group.values()) if sum_leaders else max(by_group.values())", to: "        card_id: sum(by_group.values())", kills: ["test_shopping_need_is_max_across_decks_not_sum", "test_shopping_need_respects_deck_filter_max"] },
+    { id: "shopping-deck-filter-ignored", file: services, from: "    if deck_ids is not None:\n        wanted = set(deck_ids)\n        decks = [d for d in decks if d.id in wanted]\n    sum_leaders = bool(getattr(user, \"sum_across_leaders\", False))\n    # Max per (card, leader group)", to: "    sum_leaders = bool(getattr(user, \"sum_across_leaders\", False))\n    # Max per (card, leader group)", kills: ["test_shopping_need_respects_deck_filter_max"] },
+
+    // special printings
+    { id: "marker-dash-pack-missing", file: domain, from: "    \"dash pack\",\n", to: "", kills: ["test_classic_and_expanded_special_markers"] },
+    { id: "marker-any-foil", file: domain, from: "    \"pirate foil\",\n", to: "    \"foil\",\n", kills: ["test_same_art_reprints_are_not_special"] },
+    { id: "refresh-flags-not-written", file: sync, from: "            row.is_special = flag\n", to: "", kills: ["test_refresh_special_flags_promotes_new_markers"] },
+    { id: "refresh-prefers-cheapest-special", file: sync, from: "    return (\n        int(row.is_special or 0),\n        row.market_price", to: "    return (\n        row.market_price", kills: ["test_refresh_special_flags_promotes_new_markers"] },
+    { id: "alts-same-image-kept", file: services, from: "        if img and pref_img and img == pref_img:\n            continue\n", to: "", kills: ["test_alt_arts_map_excludes_preferred_and_same_image"] },
+
+    // receipt parsing
+    { id: "receipt-foil-missed", file: receipt, from: "        is_foil = True\n", to: "", kills: ["test_parse_receipt_line_basic"] },
+    { id: "receipt-prefix-kept", file: receipt, from: "            body = description[len(prefix) :].strip()", to: "            pass", kills: ["test_parse_receipt_line_basic", "test_parse_user_receipt_smoke"] },
+    { id: "receipt-paren-id-missed", file: receipt, from: "    id_match = CARD_ID_IN_PARENS_RE.search(name)", to: "    id_match = None", kills: ["test_parse_receipt_line_with_card_id_and_alt"] },
+    { id: "receipt-dash-id-missed", file: receipt, from: "        dash_match = CARD_ID_AFTER_DASH_RE.search(name)", to: "        dash_match = None", kills: ["test_parse_receipt_line_with_card_id_and_alt"] },
+    { id: "receipt-special-missed", file: receipt, from: "    wants_special = any(h in name.lower() for h in SPECIAL_HINTS)", to: "    wants_special = False", kills: ["test_parse_receipt_line_with_card_id_and_alt"] },
+    { id: "receipt-qty-ignored", file: receipt, from: "    qty = int(match.group(1))", to: "    qty = 1", kills: ["test_parse_tcgplayer_receipt_aggregates_header_and_rows"] },
+    { id: "receipt-empty-accepted", file: receipt, from: "    if not raw:\n        raise ValueError(\"Receipt is empty\")", to: "", kills: ["test_parse_empty_raises"] },
+    { id: "receipt-no-lines-accepted", file: receipt, from: "    if not lines:\n        raise ValueError(", to: "    if False:\n        raise ValueError(", kills: ["test_parse_empty_raises"] },
+    { id: "receipt-id-hint-ignored", file: receipt, from: "    if line.card_id_hint:\n        rows", to: "    if False:\n        rows", kills: ["test_match_by_card_id_and_name"] },
+    { id: "receipt-special-not-preferred", file: receipt, from: "        if wants_special and row.is_special:\n            score += 30\n", to: "", kills: ["test_match_by_card_id_and_name"] },
+    { id: "receipt-duplicates-not-summed", file: receipt, from: "            existing.qty += line.qty", to: "            pass", kills: ["test_match_by_card_id_and_name"] },
+
+    // alt-art wants
+    { id: "clamp-smallest-first", file: services, from: "    items = sorted(wants.items(), key=lambda x: (-max(0, x[1]), x[0]))", to: "    items = sorted(wants.items(), key=lambda x: (max(0, x[1]), x[0]))", kills: ["test_clamp_alt_want_map_reduces_largest_first"] },
+    { id: "allocate-alts-uncapped", file: services, from: "        take = min(max(0, wanted_qty), remaining)\n        if take > 0:\n            buys.append((product_id, take, price))", to: "        take = max(0, wanted_qty)\n        if take > 0:\n            buys.append((product_id, take, price))", kills: ["test_allocate_still_need_buys_alts_then_standard"] },
+    { id: "allocate-no-standard-remainder", file: services, from: "    if remaining > 0:\n        buys.append((standard_product_id, remaining, standard_price))", to: "", kills: ["test_allocate_still_need_buys_alts_then_standard"] },
+    { id: "alt-want-exceeds-need", file: services, from: "        if strict:\n            raise ValueError(", to: "        if False:\n            raise ValueError(", kills: ["test_set_alt_want_capped_by_need"] },
+    { id: "need-drop-keeps-alt-wants", file: services, from: "            _apply_alt_want_clamp_to_rows(printing_rows, needed)\n", to: "", kills: ["test_lowering_need_auto_clamps_alt_wants"] },
+    { id: "removed-card-keeps-alt-wants", file: services, from: "            db.delete(existing)\n        _clear_deck_card_printings(db, deck.id, card_id)", to: "            db.delete(existing)", kills: ["test_lowering_need_auto_clamps_alt_wants"] },
+    { id: "shopping-alt-wants-summed", file: services, from: "            pid: sum(by_group.values()) if sum_leaders else max(by_group.values())", to: "            pid: sum(by_group.values())", kills: ["test_shopping_merges_max_alt_wants_and_prices_alts"] },
+    { id: "user-printing-strict", file: services, from: "                needed=deck_card.needed,\n                strict=False,", to: "                needed=deck_card.needed,\n                strict=True,", kills: ["test_set_user_card_printing_syncs_across_decks"] },
+    { id: "user-printing-shows-last-deck", file: services, from: "            shown = max(shown, group_stored)", to: "            shown = group_stored", kills: ["test_set_user_card_printing_syncs_across_decks"] },
+    { id: "deck-detail-wants-dropped", file: services, from: "    alts = _alt_arts_map(db, all_ids, wanted=deck_wants)", to: "    alts = _alt_arts_map(db, all_ids)", kills: ["test_get_deck_detail_includes_wanted"] },
+
+    // group buy merge / settlement
+    { id: "merge-max-not-sum", file: merge, from: "        total = sum(m.qty for m in members)", to: "        total = max(m.qty for m in members)", kills: ["test_merge_sums_still_need_across_members"] },
+    { id: "gb-line-total-max", file: gb, from: "        total_qty = sum(m.qty for m in members)", to: "        total_qty = max((m.qty for m in members), default=0)", kills: ["test_create_join_and_merge_sums_still_need"] },
+    { id: "merge-zero-kept", file: merge, from: "        if need.qty <= 0:\n            continue\n        card_id", to: "        card_id", kills: ["test_merge_skips_zero_and_normalizes_card_id"] },
+    { id: "merge-id-not-normalized", file: merge, from: "        card_id = need.card_id.upper().strip()", to: "        card_id = need.card_id.strip()", kills: ["test_merge_skips_zero_and_normalizes_card_id"] },
+    { id: "merge-duplicate-overwrites", file: merge, from: "                qty=existing.qty + need.qty,", to: "                qty=need.qty,", kills: ["test_merge_same_member_duplicate_lines_add"] },
+    { id: "ship-equal-includes-nonbuyers", file: settle, from: "        pool = active or user_ids", to: "        pool = user_ids", kills: ["test_split_shipping_equal_among_buyers"] },
+    { id: "ship-by-cost-uses-copies", file: settle, from: "        weights = {uid: max(0.0, float(card_costs.get(uid, 0.0))) for uid in user_ids}", to: "        weights = {uid: float(max(0, int(copies.get(uid, 0)))) for uid in user_ids}", kills: ["test_split_shipping_by_cost"] },
+    { id: "ship-cents-lost", file: settle, from: "    while leftover > 0 and order:", to: "    while False:", kills: ["test_split_shipping_by_copies_rounds_to_total"] },
+    { id: "owed-excludes-shipping", file: settle, from: "                total_owed=round_money(card + ship + tax),", to: "                total_owed=round_money(card + tax),", kills: ["test_build_settlements_totals"] },
+    { id: "tax-split-equal", file: settle, from: "        copies={uid: 1 for uid in card_costs},\n        mode=\"by_cost\",", to: "        copies={uid: 1 for uid in card_costs},\n        mode=\"equal\",", kills: ["test_tax_always_splits_by_card_cost"] },
+
+    // group buy lifecycle
+    { id: "gb-lock-not-frozen", file: gb, from: "        _member_needs_locked(group)\n        if group.status in FROZEN_STATUSES\n", to: "        _member_needs_locked(group)\n        if False\n", kills: ["test_lock_freezes_quantities_against_later_owned_changes"] },
+    { id: "gb-join-after-lock", file: gb, from: "    if group.status in FROZEN_STATUSES:\n        # Allow existing members to open; block new joins.", to: "    if False:\n        # Allow existing members to open; block new joins.", kills: ["test_lock_freezes_quantities_against_later_owned_changes"] },
+    { id: "gb-printing-override-ignored", file: gb, from: "            product_overrides.get(card_id)\n            or", to: "            None\n            or", kills: ["test_host_printing_override_and_export"] },
+    { id: "gb-export-ignores-override", file: gb, from: "            else (line.product_id or line.preferred_product_id)", to: "            else line.preferred_product_id", kills: ["test_host_printing_override_and_export"] },
+    { id: "gb-export-whole-line-override", file: gb, from: "                    any_alt_wants = True\n", to: "", kills: ["test_export_allocates_alt_wants_not_whole_line"] },
+    { id: "gb-member-can-lock", file: gb, from: "def lock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:\n    group = _get_group(db, group_id)\n    _require_host(group, user)", to: "def lock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:\n    group = _get_group(db, group_id)", kills: ["test_member_cannot_lock"] },
+    { id: "gb-contribution-ignored", file: gb, from: "        shopping = services.shopping_list(\n            db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)\n        )\n        name = _display_name(member.user)\n        shop_by_id", to: "        shopping = services.shopping_list(\n            db, member.user, deck_ids=None\n        )\n        name = _display_name(member.user)\n        shop_by_id", kills: ["test_contribution_deck_filter"] },
+    { id: "gb-import-not-added", file: gb, from: "        member.deck_ids_json = _dump_deck_ids([*current, int(deck_id)])", to: "        pass", kills: ["test_import_deck_auto_adds_to_open_group_buy_contribution"] },
+    { id: "gb-import-narrows-all-decks", file: gb, from: "        if current is None:\n            continue\n        if deck_id in current:", to: "        if current is None:\n            current = []\n        if deck_id in current:", kills: ["test_import_deck_noop_when_contribution_is_all_decks"] },
+    { id: "gb-qty-override-ignored", file: gb, from: "            qty = overrides[key] if is_custom else suggested", to: "            qty = suggested", kills: ["test_member_can_override_buy_qty"] },
+    { id: "gb-qty-override-not-cleared", file: gb, from: "    if qty == suggested and qty > 0:", to: "    if False:", kills: ["test_member_can_override_buy_qty"] },
+    { id: "gb-qty-zero-not-allowed", file: gb, from: "    qty = max(0, min(999, int(qty)))", to: "    qty = max(1, min(999, int(qty)))", kills: ["test_qty_zero_opts_out_and_sync_resets", "test_exclude_keeps_zero_total_line_for_viewer"] },
+    { id: "gb-sync-keeps-overrides", file: gb, from: "    db.execute(\n        delete(GroupBuyQtyOverride).where(", to: "    (\n        (GroupBuyQtyOverride).where(", kills: ["test_qty_zero_opts_out_and_sync_resets"] },
+    { id: "gb-excluded-line-hidden", file: gb, from: "        _viewer_zero_customs(db, group, viewer_user_id) if viewer_user_id is not None else {}", to: "        {}", kills: ["test_exclude_keeps_zero_total_line_for_viewer"] },
+    { id: "gb-locked-qty-editable", file: gb, from: "    member = _require_member(group, user)\n    if group.status != \"open\":\n        raise PermissionError(\"Group buy is locked; quantities cannot change\")\n    card_id = card_id.upper().strip()\n    if not card_id:", to: "    member = _require_member(group, user)\n    card_id = card_id.upper().strip()\n    if not card_id:", kills: ["test_locked_group_rejects_qty_edits"] },
+    { id: "gb-receipt-not-saved", file: gb, from: "        group.receipt_text = cleaned\n        db.commit()", to: "        db.commit()", kills: ["test_match_persists_receipt_text_for_host"] },
+    { id: "gb-complete-without-receipt", file: gb, from: "    if group.status == \"completed\":\n        return get_group_buy(db, user, group_id)\n    raise PermissionError(", to: "    if True:\n        return get_group_buy(db, user, group_id)\n    raise PermissionError(", kills: ["test_complete_requires_receipt", "test_complete_requires_ordered_or_receipt"] },
+    { id: "gb-member-can-complete", file: gb, from: "    ``apply_receipt_to_group_buy`` (Mark purchased in the UI).\n    \"\"\"\n    group = _get_group(db, group_id)\n    _require_host(group, user)", to: "    ``apply_receipt_to_group_buy`` (Mark purchased in the UI).\n    \"\"\"\n    group = _get_group(db, group_id)", kills: ["test_member_cannot_complete"] },
+    { id: "gb-apply-owned-not-added", file: gb, from: "            _add_owned(db, snap.user_id, snap.card_id, take)\n", to: "", kills: ["test_complete_applies_owned_and_clears_shopping", "test_receipt_match_and_full_apply"] },
+    { id: "gb-order-fields-dropped", file: gb, from: "    if body is not None:\n        _apply_order_fields(group, body)", to: "", kills: ["test_mark_ordered_and_settlement"] },
+    { id: "gb-order-tax-dropped", file: gb, from: "    if body.tax_cost is not None:\n        group.tax_cost = max(0.0, float(body.tax_cost))", to: "", kills: ["test_mark_ordered_and_settlement"] },
+    { id: "gb-order-from-open", file: gb, from: "    if group.status == \"open\":\n        raise PermissionError(\"Lock for checkout before marking ordered\")\n    if group.status not in (\"locked\", \"ordered\"):", to: "    if group.status not in (\"locked\", \"ordered\", \"open\"):", kills: ["test_mark_ordered_requires_lock"] },
+    { id: "gb-member-can-mark-ordered", file: gb, from: "    \"\"\"Record that the bulk order was placed (after lock). Does not change Owned.\"\"\"\n    group = _get_group(db, group_id)\n    _require_host(group, user)", to: "    \"\"\"Record that the bulk order was placed (after lock). Does not change Owned.\"\"\"\n    group = _get_group(db, group_id)", kills: ["test_member_cannot_mark_ordered"] },
+    { id: "gb-viewer-sees-last-member-wants", file: gb, from: "            if member.user_id == viewer_user_id:\n                viewer_need", to: "            if True:\n                viewer_need", kills: ["test_group_buy_shows_viewer_alt_wants"] },
+    { id: "gb-pricing-ignores-alt-wants", file: gb, from: "            buys = services.allocate_still_need_buys(\n                mem.qty,\n                alt_inputs,\n                standard_product_id=preferred_product_id,", to: "            buys = services.allocate_still_need_buys(\n                mem.qty,\n                [],\n                standard_product_id=preferred_product_id,", kills: ["test_group_buy_remaining_allocates_alt_wants_not_whole_line"] },
+    { id: "gb-public-without-toggle", file: gb, from: "    if not bool(getattr(group, \"is_public\", False)):\n        raise PermissionError(\"This group buy is not public\")", to: "", kills: ["test_public_view_requires_toggle_and_is_read_only"] },
+    { id: "gb-member-can-publish", file: gb, from: "    group = _get_group(db, group_id)\n    _require_host(group, user)\n    group.is_public = bool(is_public)", to: "    group = _get_group(db, group_id)\n    group.is_public = bool(is_public)", kills: ["test_public_view_requires_toggle_and_is_read_only"] },
+
+    // group buy receipts
+    { id: "gb-never-completes", file: gb, from: "    if not remaining:\n        group.status = \"completed\"", to: "", kills: ["test_receipt_match_and_full_apply"] },
+    { id: "gb-exact-not-detected", file: gb, from: "        elif receipt_qty == needed:", to: "        elif False:", kills: ["test_receipt_match_and_full_apply"] },
+    { id: "gb-short-stages-needed", file: gb, from: "            status = \"short\"\n            counts[\"short\"] += 1\n            staged = receipt_qty", to: "            status = \"short\"\n            counts[\"short\"] += 1\n            staged = needed", kills: ["test_receipt_partial_apply_leaves_remainder"] },
+    { id: "gb-snapshot-not-reduced", file: gb, from: "            snap.qty = int(snap.qty) - take\n", to: "", kills: ["test_receipt_partial_apply_leaves_remainder"] },
+    { id: "gb-selection-ignored", file: gb, from: "        and (selected is None or line.card_id in selected)\n", to: "", kills: ["test_receipt_stage_selected_cards_only"] },
+    { id: "gb-undo-owned-kept", file: gb, from: "        _subtract_owned(db, line.user_id, card_id, qty)\n", to: "", kills: ["test_undo_full_apply_restores_pool_owned_and_settlement"] },
+    { id: "gb-undo-pool-not-restored", file: gb, from: "            existing.qty = int(existing.qty) + qty\n", to: "", kills: ["test_undo_partial_then_second_apply_lifo"] },
+    { id: "gb-undo-cleared-rows-lost", file: gb, from: "            group.snapshot_lines.append(\n", to: "            (\n", kills: ["test_undo_full_apply_restores_pool_owned_and_settlement"] },
+    { id: "gb-undo-oldest-first", file: gb, from: "    apply_event = applies[-1]", to: "    apply_event = applies[0]", kills: ["test_undo_partial_then_second_apply_lifo"] },
+    { id: "gb-undo-always-ordered", file: gb, from: "    group.status = status_before\n", to: "    group.status = \"ordered\"\n", kills: ["test_undo_apply_from_locked_restores_locked"] },
+    { id: "gb-undo-keeps-ordered-at", file: gb, from: "    if int(apply_event.set_ordered_at or 0):\n        group.ordered_at = None", to: "", kills: ["test_undo_apply_from_locked_restores_locked"] },
+    { id: "gb-undo-negative-owned", file: gb, from: "    row.qty = max(0, int(row.qty) - delta)", to: "    row.qty = int(row.qty) - delta", kills: ["test_undo_clamps_owned_when_user_already_spent_copies"] },
   ],
 };

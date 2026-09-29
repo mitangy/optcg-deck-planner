@@ -255,8 +255,9 @@ describe("DuelRoom", () => {
   });
 
   it("uses join-time seat decks for leaders", async () => {
+    // A leader other than DEFAULT_LEADER_ID (ST01-001), so ignoring the join deck shows.
     const customDeck = {
-      leaderId: "ST01-001",
+      leaderId: "OP01-001",
       deck: [
         "ST01-003",
         "ST01-003",
@@ -284,7 +285,6 @@ describe("DuelRoom", () => {
       protocolVersion: PROTOCOL_VERSION,
       seed: 99,
       autoSkipMulligan: true,
-      players: [customDeck, customDeck],
     });
 
     type ViewWithLeader = PlayerView & {
@@ -306,8 +306,8 @@ describe("DuelRoom", () => {
     attach(c1, bags[1]);
     await syncSeat(c0, bags[0]);
     await syncSeat(c1, bags[1]);
-    assert.equal((bags[0].welcome as ViewWithLeader).you.leader.defId, "ST01-001");
-    assert.equal((bags[1].welcome as ViewWithLeader).you.leader.defId, "ST01-001");
+    assert.equal((bags[0].welcome as ViewWithLeader).you.leader.defId, "OP01-001");
+    assert.equal((bags[1].welcome as ViewWithLeader).you.leader.defId, "OP01-001");
   });
 
   it("allows a spectator with public view and empty hands", async () => {

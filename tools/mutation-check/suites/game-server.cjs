@@ -1,0 +1,41 @@
+/** game-server mutations (game-server/test, mocha). */
+const proto = "game-server/src/protocol.ts";
+const room = "game-server/src/rooms/DuelRoom.ts";
+const queue = "game-server/src/rooms/MatchmakerRoom.ts";
+const cors = "game-server/src/cors.ts";
+module.exports = {
+  cwd: "game-server",
+  runner: "mocha",
+  mutations: [
+    // protocol parsers
+    { id: "join-drops-secret", file: proto, from: "    secret: typeof o.secret === \"string\" ? o.secret : undefined,", to: "    secret: undefined,", kills: ["parses join options"] },
+    { id: "join-drops-seat", file: proto, from: "    preferredSeat: preferredSeat as Seat | undefined,", to: "    preferredSeat: undefined,", kills: ["parses join options"] },
+    { id: "join-spectator-as-player", file: proto, from: "    role = roleRaw;", to: "    role = \"player\";", kills: ["parses spectator join role"] },
+    { id: "join-anonymous-allowed", file: proto, from: "    throw Object.assign(new Error(\"gameToken or devUserId required\"), {\n      code: \"unauthorized\" as const,\n    });", to: "", kills: ["rejects join without gameToken or devUserId"] },
+    { id: "join-deck-dropped", file: proto, from: "    deck = asPlayerDeck(o.deck);", to: "", kills: ["parses join options with seat deck"] },
+    { id: "create-skip-mulligan-opt-in", file: proto, from: "  const autoSkipMulligan = o.autoSkipMulligan !== false;", to: "  const autoSkipMulligan = o.autoSkipMulligan === true;", kills: ["defaults create options"] },
+    { id: "create-ranked-by-default", file: proto, from: "  const ranked = o.ranked === true;", to: "  const ranked = o.ranked !== false;", kills: ["defaults create options"] },
+    { id: "create-ranked-ignored", file: proto, from: "  const ranked = o.ranked === true;", to: "  const ranked = false;", kills: ["treats ranked as an explicit request"] },
+    { id: "create-duplicate-seat-users", file: proto, from: "      !Number.isSafeInteger(b) ||\n      a === b", to: "      !Number.isSafeInteger(b)", kills: ["rejects invalid ranked seat reservations"] },
+    { id: "create-fractional-seat-users", file: proto, from: "      !Number.isSafeInteger(a) ||\n      !Number.isSafeInteger(b) ||", to: "", kills: ["rejects invalid ranked seat reservations"] },
+    { id: "intent-returns-envelope", file: proto, from: "  return o.intent as Intent;", to: "  return o as unknown as Intent;", kills: ["parses intent envelope"] },
+    // CORS allowlist
+    { id: "cors-allowlisted-wildcard", file: cors, from: "      return { \"Access-Control-Allow-Origin\": origin };", to: "      return { \"Access-Control-Allow-Origin\": \"*\" };", kills: ["reflects allowlisted Origin"] },
+    { id: "cors-reflects-any-origin", file: cors, from: "    return { \"Access-Control-Allow-Origin\": \"null\" };", to: "    return { \"Access-Control-Allow-Origin\": origin };", kills: ["rejects unknown browser Origin"] },
+    { id: "cors-no-origin-blocked", file: cors, from: "    if (!origin) {\n      return { \"Access-Control-Allow-Origin\": \"*\" };\n    }", to: "", kills: ["allows requests with no Origin"] },
+    // DuelRoom / ranked_queue
+    { id: "welcome-wrong-seat-view", edits: [
+      { file: room, from: "      const view = getPlayerView(match, slot.seat);\n      const welcome", to: "      const view = getPlayerView(match, 0);\n      const welcome" },
+      { file: room, from: "    const view = getPlayerView(this.match, seat);\n    const welcome", to: "    const view = getPlayerView(this.match, 0);\n    const welcome" },
+    ], kills: ["two clients get private views"] },
+    { id: "mulligan-always-skipped", file: room, from: "    if (this.autoSkipMulligan) {", to: "    if (true) {", kills: ["mulligan phase keeps both seats"] },
+    { id: "intent-trusts-active-seat", file: room, from: "    const result = applyIntent(before, intent, { seat, rng: this.rng });\n    if (!result.ok) {\n      this.log(\"info\", \"illegal_intent\"", to: "    const result = applyIntent(before, intent, { seat: before.activeSeat, rng: this.rng });\n    if (!result.ok) {\n      this.log(\"info\", \"illegal_intent\"", kills: ["illegal intent errors without advancing"] },
+    { id: "match-over-not-sent", file: room, from: "    this.onMatchAdvanced();\n    this.maybeSendMatchOver();\n  }\n\n  private broadcastViews", to: "    this.onMatchAdvanced();\n  }\n\n  private broadcastViews", kills: ["legal play reaches match_over"] },
+    { id: "third-player-kept", file: room, from: "      this.sendError(client, \"room_full\", \"No free seat\");\n      client.leave();", to: "      this.sendError(client, \"room_full\", \"No free seat\");", kills: ["rejects a third player"] },
+    { id: "join-deck-ignored", file: room, from: "    if (identity.deck) {\n      this.seatDecks[seat] = identity.deck;\n    }", to: "", kills: ["uses join-time seat decks for leaders"] },
+    { id: "spectator-gets-player-view", file: room, from: "    const view = getSpectatorView(this.match, cameraSeat);\n    const welcome", to: "    const view = { ...getPlayerView(this.match, cameraSeat), spectator: true };\n    const welcome", kills: ["allows a spectator with public view"] },
+    { id: "queue-same-seat", file: queue, from: "            roomId: room.roomId,\n            seat: 1,", to: "            roomId: room.roomId,\n            seat: 0,", kills: ["ranked_queue pairs two clients"] },
+    { id: "queue-pairs-same-user", file: queue, from: "        const partnerIdx = this.queue.findIndex((q) => q.userId !== a.userId);", to: "        const partnerIdx = 0;", kills: ["ranked_queue skips same-user pair"] },
+    { id: "cosmetics-not-relayed", file: room, from: "    this.broadcast(\"cosmetics\", payload);", to: "    client.send(\"cosmetics\", payload);", kills: ["relays cosmetics artPrefs between seats"] },
+  ],
+};

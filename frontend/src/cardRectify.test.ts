@@ -89,7 +89,7 @@ describe("orderCorners", () => {
   });
 
   it("rejects the wrong number of points", () => {
-    expect(orderCorners([{ x: 0, y: 0 }])).toBeNull();
+    expect(orderCorners([...unit, { x: 300, y: 10 }])).toBeNull();
   });
 });
 
