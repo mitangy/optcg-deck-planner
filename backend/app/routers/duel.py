@@ -22,6 +22,7 @@ from app.duel_ratings import INITIAL_RATING, apply_elo
 from app.game_tokens import mint_game_token
 from app.models import DuelMatch, DuelRating, User
 from app.rate_limit import RateLimiter, client_ip
+from app.usernames import duel_display_name
 from app.schemas import (
     DuelDevTokenIn,
     DuelGuestTokenIn,
@@ -57,7 +58,10 @@ def _get_or_create_rating(db: Session, user_id: int) -> DuelRating:
 
 
 def _token_out(db: Session, user: User, settings: Settings) -> DuelTokenOut:
-    minted = mint_game_token(user_id=user.id, email=user.email, settings=settings)
+    display_name = duel_display_name(user)
+    minted = mint_game_token(
+        user_id=user.id, email=user.email, name=display_name, settings=settings
+    )
     rating = _get_or_create_rating(db, user.id)
     db.commit()
     return DuelTokenOut(
@@ -65,6 +69,7 @@ def _token_out(db: Session, user: User, settings: Settings) -> DuelTokenOut:
         expires_at=minted["expires_at"],
         user_id=user.id,
         email=user.email,
+        display_name=display_name,
         rating=rating.rating,
         games_played=rating.games_played,
     )
@@ -261,7 +266,8 @@ def my_rating(
     return DuelRatingOut(
         user_id=user.id,
         email=user.email,
-        name=user.name,
+        name=duel_display_name(user),
+        username=user.username,
         rating=rating.rating,
         games_played=rating.games_played,
     )
@@ -282,7 +288,8 @@ def leaderboard(
     entries = [
         DuelLeaderboardEntryOut(
             user_id=user.id,
-            name=user.name,
+            name=duel_display_name(user),
+            username=user.username,
             rating=rating.rating,
             games_played=rating.games_played,
         )

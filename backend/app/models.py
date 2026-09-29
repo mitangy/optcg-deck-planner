@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -27,6 +28,9 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(255), default="")
+    # Public duel handle (3–20 chars, see app/usernames.py). Unique case-insensitively
+    # via ix_users_username_lower; NULL until the user picks one.
+    username: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
     google_sub: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     # Bumped on logout so stolen cookies stop working before natural expiry.
     session_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
@@ -40,6 +44,11 @@ class User(Base):
 
     decks: Mapped[list[Deck]] = relationship(back_populates="user", cascade="all, delete-orphan")
     owned: Mapped[list[Owned]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+# Case-insensitive uniqueness for usernames (NULLs allowed on SQLite + Postgres).
+# Existing databases get this via app.db._ensure_user_username().
+Index("ix_users_username_lower", func.lower(User.username), unique=True)
 
 
 class LoginTicket(Base):

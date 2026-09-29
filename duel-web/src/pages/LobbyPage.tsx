@@ -24,6 +24,7 @@ import {
 import { clearMatchResume, loadMatchResume } from "../net/matchResume";
 import { devKeyAllowed, effectiveServerUrl, loadSettings } from "../settings";
 import { useDuelSession } from "../state/DuelSession";
+import { needsUsername } from "../auth/username";
 
 /** Which play mode the user is configuring inside the Play sheet. */
 type PlayMode = "hotseat" | "create" | "join" | "queue" | "spectate";
@@ -299,6 +300,8 @@ export function LobbyPage() {
     void fetchAuthMe()
       .then((u) => {
         if (u) setAuthUser(u);
+        // Signed in but never picked a username (e.g. closed the tab mid-setup).
+        if (needsUsername(u)) navigate("/welcome/username", { replace: true });
       })
       .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -445,7 +448,7 @@ export function LobbyPage() {
 
   const accountName =
     authMode === "google" && authUser
-      ? authUser.email
+      ? authUser.username || authUser.email
       : authMode === "dev"
         ? `Dev · ${settings.devUserKey || "web-dev"}`
         : "Guest";

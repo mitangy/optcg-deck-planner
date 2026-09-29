@@ -26,7 +26,7 @@ import {
   getSeatReservationSeconds,
   requireGameToken,
 } from "../env.js";
-import { verifyGameToken } from "../gameToken.js";
+import { sanitizeDisplayName, verifyGameToken } from "../gameToken.js";
 import {
   PROTOCOL_VERSION,
   parseCosmeticsMessage,
@@ -37,6 +37,7 @@ import {
   type CosmeticsMessage,
   type ErrorCode,
   type PlayerDeckWire,
+  type SeatPlayerInfo,
   type WelcomeMessage,
 } from "../protocol.js";
 import { postMatchResult, type MatchResultPayload } from "../writeback.js";
@@ -47,6 +48,8 @@ type SeatSlot = {
   sessionId: string;
   /** Stable player key for logs / legacy. */
   displayId: string;
+  /** Public name shown to both seats (username, else account name). */
+  displayName: string;
   /** FastAPI user id when known; synthetic negative for legacy devUserId. */
   userId: number;
 };
@@ -85,6 +88,8 @@ export class DuelRoom extends Room {
   private matchOverSent = false;
   private resultPending: Promise<void> | null = null;
   private matchUserIds: [number, number] | null = null;
+  /** Names captured at match start so they survive a seat dropping. */
+  private seatNames: [string | null, string | null] = [null, null];
   private endReason: string | null = null;
   private turnSeconds: number | null = null;
   private matchSeconds: number | null = null;
@@ -185,6 +190,7 @@ export class DuelRoom extends Room {
   onJoin(client: Client, options: unknown) {
     let identity: {
       displayId: string;
+      displayName: string;
       userId: number;
       preferredSeat?: Seat;
       role: "player" | "spectator";
@@ -287,6 +293,7 @@ export class DuelRoom extends Room {
       this.assignSeat(
         client.sessionId,
         identity.displayId,
+        identity.displayName,
         identity.userId,
         identity.preferredSeat,
       );
@@ -295,6 +302,7 @@ export class DuelRoom extends Room {
         seat: reservedSeat,
         sessionId: client.sessionId,
         displayId: identity.displayId,
+        displayName: identity.displayName,
         userId: identity.userId,
       };
     }
@@ -379,6 +387,7 @@ export class DuelRoom extends Room {
 
   private resolveIdentity(options: unknown): {
     displayId: string;
+    displayName: string;
     userId: number;
     preferredSeat?: Seat;
     role: "player" | "spectator";
@@ -399,6 +408,8 @@ export class DuelRoom extends Room {
       }
       return {
         displayId: payload.email,
+        // Never fall back to the email: it would leak to the opponent.
+        displayName: payload.name ?? "Player",
         userId: payload.uid,
         preferredSeat: join.preferredSeat,
         role,
@@ -413,6 +424,7 @@ export class DuelRoom extends Room {
     const displayId = join.devUserId!;
     return {
       displayId,
+      displayName: sanitizeDisplayName(displayId) ?? "Player",
       userId: hashToNegativeId(displayId),
       preferredSeat: join.preferredSeat,
       role,
@@ -455,18 +467,19 @@ export class DuelRoom extends Room {
   private assignSeat(
     sessionId: string,
     displayId: string,
+    displayName: string,
     userId: number,
     preferred?: Seat,
   ): Seat | null {
     if (preferred === 0 || preferred === 1) {
       if (!this.seats[preferred]) {
-        this.seats[preferred] = { seat: preferred, sessionId, displayId, userId };
+        this.seats[preferred] = { seat: preferred, sessionId, displayId, displayName, userId };
         return preferred;
       }
     }
     for (const seat of [0, 1] as Seat[]) {
       if (!this.seats[seat]) {
-        this.seats[seat] = { seat, sessionId, displayId, userId };
+        this.seats[seat] = { seat, sessionId, displayId, displayName, userId };
         return seat;
       }
     }
@@ -526,6 +539,7 @@ export class DuelRoom extends Room {
     this.match = match;
     this.matchStarted = true;
     this.matchUserIds = [this.seats[0]!.userId, this.seats[1]!.userId];
+    this.seatNames = [this.seats[0]!.displayName, this.seats[1]!.displayName];
     this.syncPublicState();
     this.log("info", "match_start", { matchId: this.matchId, seed: this.seed });
 
@@ -540,6 +554,7 @@ export class DuelRoom extends Room {
         seat: slot.seat,
         role: "player",
         view,
+        players: this.playersInfo(),
       };
       client.send("welcome", welcome);
       client.send("view", {
@@ -998,6 +1013,7 @@ export class DuelRoom extends Room {
       seat,
       role: "player",
       view,
+      players: this.playersInfo(),
     };
     client.send("welcome", welcome);
     client.send("view", {
@@ -1036,6 +1052,7 @@ export class DuelRoom extends Room {
       seat: cameraSeat,
       role: "spectator",
       view,
+      players: this.playersInfo(),
     };
     client.send("welcome", welcome);
     client.send("view", {
@@ -1052,6 +1069,14 @@ export class DuelRoom extends Room {
         },
       });
     }
+  }
+
+  /** Seat-indexed public names for nameplates / results (never emails). */
+  private playersInfo(): [SeatPlayerInfo, SeatPlayerInfo] {
+    const info = (seat: Seat): SeatPlayerInfo => ({
+      name: this.seats[seat]?.displayName ?? this.seatNames[seat] ?? null,
+    });
+    return [info(0), info(1)];
   }
 
   private sendError(client: Client, code: ErrorCode | string, message: string) {

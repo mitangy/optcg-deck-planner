@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import (
@@ -20,6 +21,7 @@ from app.auth import (
     create_oauth_state,
     create_session_token,
     email_allowed,
+    get_current_user,
     get_optional_user,
     new_oauth_nonce,
     resolve_google_user,
@@ -28,9 +30,18 @@ from app.auth import (
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import User
-from app.schemas import UserOut
+from app.rate_limit import RateLimiter
+from app.schemas import UsernameSuggestionOut, UsernameUpdate, UserOut
+from app.usernames import (
+    UsernameError,
+    suggest_username,
+    username_taken,
+    validate_username,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+_username_rate = RateLimiter(max_calls=20, period_s=60)
 
 
 class ClaimBody(BaseModel):
@@ -282,6 +293,48 @@ def logout(
 
 @router.get("/me", response_model=UserOut | None)
 def me(user: Annotated[User | None, Depends(get_optional_user)]):
+    return user
+
+
+@router.get("/me/username-suggestion", response_model=UsernameSuggestionOut)
+def username_suggestion(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """An available username derived from the account name (prefill for the picker)."""
+    if user.username:
+        return UsernameSuggestionOut(username=user.username)
+    return UsernameSuggestionOut(username=suggest_username(db, user))
+
+
+@router.patch("/me/username", response_model=UserOut)
+def set_username(
+    body: UsernameUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Set or change the public duel username.
+
+    422 when the name fails validation, 409 when another account already holds
+    it (case-insensitive). Re-submitting your own name with different casing is
+    allowed.
+    """
+    if not _username_rate.allow(f"username:{user.id}"):
+        raise HTTPException(status_code=429, detail="Too many username changes; try again soon")
+    try:
+        username = validate_username(body.username)
+    except UsernameError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from None
+    if username_taken(db, username, exclude_user_id=user.id):
+        raise HTTPException(status_code=409, detail="That username is already taken.")
+    user.username = username
+    try:
+        db.commit()
+    except IntegrityError:
+        # Lost a race against a concurrent claim of the same name.
+        db.rollback()
+        raise HTTPException(status_code=409, detail="That username is already taken.") from None
+    db.refresh(user)
     return user
 
 

@@ -55,6 +55,12 @@ export type ErrorCode =
   | "unauthorized"
   | "room_full";
 
+/** Public per-seat player info (additive; older clients ignore it). */
+export type SeatPlayerInfo = {
+  /** Username, else account name; null when the seat is unknown. Never an email. */
+  name: string | null;
+};
+
 export type WelcomeMessage = {
   protocolVersion: ProtocolVersion;
   matchId: string;
@@ -62,6 +68,8 @@ export type WelcomeMessage = {
   seat: Seat;
   role?: "player" | "spectator";
   view: unknown;
+  /** Indexed by seat. */
+  players?: [SeatPlayerInfo, SeatPlayerInfo];
 };
 
 export type EventsMessage = {
