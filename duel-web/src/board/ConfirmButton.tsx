@@ -8,6 +8,8 @@ type Props = {
   title?: string;
   disabled?: boolean;
   armMs?: number;
+  /** Size the button for the longer label so arming never shifts its neighbours. */
+  reserveWidth?: boolean;
   onConfirm: () => void;
 };
 
@@ -22,6 +24,7 @@ export function ConfirmButton({
   title,
   disabled,
   armMs = 3000,
+  reserveWidth = false,
   onConfirm,
 }: Props) {
   const [armed, setArmed] = useState(false);
@@ -52,7 +55,20 @@ export function ConfirmButton({
         onConfirm();
       }}
     >
-      {armed ? confirmLabel : label}
+      {reserveWidth ? (
+        <span className="confirm-btn-sizer">
+          <span aria-hidden={armed} className={armed ? "is-hidden" : undefined}>
+            {label}
+          </span>
+          <span aria-hidden={!armed} className={armed ? undefined : "is-hidden"}>
+            {confirmLabel}
+          </span>
+        </span>
+      ) : armed ? (
+        confirmLabel
+      ) : (
+        label
+      )}
     </button>
   );
 }

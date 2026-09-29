@@ -1,4 +1,5 @@
 import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
+import { ConfirmButton } from "./ConfirmButton";
 import { filterIntentsForSelection } from "./intentFilter";
 
 type Props = {
@@ -7,6 +8,8 @@ type Props = {
   disabled?: boolean;
   filterHandIndex?: number | null;
   selectedBoardId?: string | null;
+  /** End turn needs a second tap (gameplay setting). */
+  confirmEndTurn?: boolean;
   onSend: (intent: Intent) => void;
 };
 
@@ -22,6 +25,7 @@ export function IntentBar({
   disabled,
   filterHandIndex,
   selectedBoardId,
+  confirmEndTurn = false,
   onSend,
 }: Props) {
   const handIndex = filterHandIndex ?? null;
@@ -48,7 +52,19 @@ export function IntentBar({
     <div className={`intent-bar${mulliganPhase ? " intent-bar-mulligan" : ""}`}>
       <h2>{mulliganPhase ? "Mulligan" : "Actions"}</h2>
       <div className="intent-row">
-        {shown.map((intent, idx) => (
+        {shown.map((intent, idx) =>
+          intent.type === "end_turn" && confirmEndTurn ? (
+            <ConfirmButton
+              key={`${intent.type}-${idx}`}
+              className={btnClass(intent)}
+              label={intentLabel(intent, view)}
+              confirmLabel="Tap again to end"
+              title="Ends your turn after a second tap"
+              disabled={disabled}
+              reserveWidth
+              onConfirm={() => onSend(intent)}
+            />
+          ) : (
           <button
             key={`${intent.type}-${idx}`}
             type="button"
@@ -58,7 +74,8 @@ export function IntentBar({
           >
             {intentLabel(intent, view)}
           </button>
-        ))}
+          ),
+        )}
       </div>
     </div>
   );
