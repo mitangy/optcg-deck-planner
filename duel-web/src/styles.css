@@ -1336,10 +1336,22 @@ button {
   flex-shrink: 0;
 }
 
-.opp-hand-more {
-  font-size: 0.7rem;
-  color: var(--muted);
-  margin-left: 0.25rem;
+.opp-hand-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 1.5em;
+  height: 1.5em;
+  padding: 0 0.35em;
+  border-radius: 999px;
+  border: 1px solid var(--chrome-dim);
+  background: rgba(8, 17, 24, 0.75);
+  color: var(--chrome-bright);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .side-field {

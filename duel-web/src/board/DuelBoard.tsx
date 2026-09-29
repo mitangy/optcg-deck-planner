@@ -49,14 +49,14 @@ import {
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
-import { cardBackCssValue, useCardBackUrl } from "../cardBack";
+import { useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { loadSettings } from "../settings";
 import { seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
 import { RematchPanel } from "./RematchPanel";
 import { RoomChip, RoomInvite } from "./RoomShare";
-import { OppHandFan, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
+import { OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
 import { useMediaQuery, WIDE_BOARD_QUERY } from "./useMediaQuery";
 
@@ -797,22 +797,7 @@ export function DuelBoard({
 
         <div className="playmat">
           <div className="playmat-inner">
-            <div className="opp-hand-hint" aria-label={`Opponent hand ${opp.handCount}`}>
-              <span className="opp-hand-label">Opp hand</span>
-              <div
-                className="opp-hand-backs"
-                style={
-                  oppCardBackUrl
-                    ? ({ "--card-back-art": cardBackCssValue(oppCardBackUrl) } as CSSProperties)
-                    : undefined
-                }
-              >
-                {Array.from({ length: Math.min(opp.handCount, 8) }).map((_, i) => (
-                  <span key={i} className="card-back" />
-                ))}
-                {opp.handCount > 8 ? <span className="opp-hand-more">+{opp.handCount - 8}</span> : null}
-              </div>
-            </div>
+            <OppHandHint count={opp.handCount} cardBackUrl={oppCardBackUrl} />
 
             <SideField
               side="opp"
