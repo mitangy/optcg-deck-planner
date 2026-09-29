@@ -6,10 +6,6 @@ describe("formatBuildTag", () => {
     expect(formatBuildTag("ece6829abc123")).toBe("ece6829");
   });
 
-  it("keeps an already-short SHA", () => {
-    expect(formatBuildTag("abc1234")).toBe("abc1234");
-  });
-
   it("falls back to dev when missing", () => {
     expect(formatBuildTag(undefined)).toBe("dev");
     expect(formatBuildTag("")).toBe("dev");

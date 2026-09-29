@@ -6,6 +6,8 @@ import {
   setSeatArtPref,
 } from "./seatArtPrefs";
 
+const STANDARD_ST01_006 = "https://tcgplayer-cdn.tcgplayer.com/product/288235_400w.jpg";
+
 describe("resolveCardImageUrl seat scoping", () => {
   afterEach(() => {
     _resetSeatArtPrefsForTests();
@@ -39,9 +41,9 @@ describe("resolveCardImageUrl seat scoping", () => {
     );
     expect(b).toBe(a);
 
-    // Opponent seat unchanged (standard / default atlas art = TCGplayer CDN).
+    // Opponent seat unchanged (standard art).
     const opp = resolveCardImageUrl("ST01-006", { ownerSeat: 1 });
-    expect(opp).toMatch(/tcgplayer-cdn\.tcgplayer\.com\/product\/\d+/);
+    expect(opp).toBe(STANDARD_ST01_006);
   });
 
   it("clearing a seat pref restores standard art for that seat only", () => {
@@ -49,9 +51,7 @@ describe("resolveCardImageUrl seat scoping", () => {
     replaceSeatArtPrefs(1, { "ST01-006": "p2" });
     setSeatArtPref(0, "ST01-006", null);
 
-    expect(resolveCardImageUrl("ST01-006", { ownerSeat: 0 })).toMatch(
-      /tcgplayer-cdn\.tcgplayer\.com\/product\/\d+/,
-    );
+    expect(resolveCardImageUrl("ST01-006", { ownerSeat: 0 })).toBe(STANDARD_ST01_006);
     expect(resolveCardImageUrl("ST01-006", { ownerSeat: 1 })).toBe(
       "https://tcgplayer-cdn.tcgplayer.com/product/501749_400w.jpg",
     );

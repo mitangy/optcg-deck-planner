@@ -118,8 +118,12 @@ def test_dev_token_and_match_ingest(client):
         db.close()
 
 
-def test_guest_token_is_always_available(client):
+def test_guest_token_is_always_available(client, monkeypatch: pytest.MonkeyPatch):
     c, _SessionLocal = client
+    # The client fixture enables dev login; guest mint must not depend on it.
+    monkeypatch.setenv("ENABLE_DEV_LOGIN", "false")
+    monkeypatch.setenv("ENABLE_DUEL_DEV_TOKEN", "false")
+    get_settings.cache_clear()
     r = c.post("/duel/guest-token", json={"guest_id": "browserguestid001"})
     assert r.status_code == 200, r.text
     body = r.json()

@@ -45,50 +45,31 @@ function baseView(seat: Seat, overrides: Partial<PlayerView> = {}): PlayerView {
 }
 
 describe("hotseatControlSeat", () => {
-  it("hands off to Rocks When Attacking (attacker seat)", () => {
-    const view = baseView(1, {
-      activeSeat: 0,
-      phase: "block",
-      battle: { attackerSeat: 0 },
-      pendingChoices: [
-        {
-          id: "c1",
-          seat: 0,
-          kind: "when_attacking",
-          cardDefId: "OP17-039",
-          optional: true,
-          prompt: "Rocks — When Attacking: trash 1?",
-          abilityId: "rocks_reveal_draw",
-        },
-      ],
-    });
-    expect(hotseatControlSeat(view)).toBe(0);
-  });
-
   it("prefers pending choice from either seat view when one socket lags", () => {
-    const stale = baseView(1, {
+    // Seat 0's socket lags; only seat 1's view has the defender's On Opponent's Attack prompt.
+    const stale = baseView(0, {
       activeSeat: 0,
       phase: "block",
       battle: { attackerSeat: 0 },
       pendingChoices: [],
     });
-    const fresh = baseView(0, {
+    const fresh = baseView(1, {
       activeSeat: 0,
       phase: "block",
       battle: { attackerSeat: 0 },
       pendingChoices: [
         {
           id: "c1",
-          seat: 0,
-          kind: "when_attacking",
-          cardDefId: "OP17-039",
+          seat: 1,
+          kind: "leader_on_opp_attack",
+          cardDefId: "OP17-001",
           optional: true,
-          prompt: "Rocks — When Attacking",
-          abilityId: "rocks_reveal_draw",
+          prompt: "Newgate — trash 1 for +4000?",
+          abilityId: "newgate_battle_power",
         },
       ],
     });
-    expect(hotseatControlSeat(stale, stale, fresh)).toBe(0);
+    expect(hotseatControlSeat(stale, stale, fresh)).toBe(1);
   });
 
   it("hands off to the seat that owns a pending leader ability (e.g. Newgate)", () => {

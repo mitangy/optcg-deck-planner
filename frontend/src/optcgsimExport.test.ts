@@ -9,12 +9,12 @@ describe("buildOptcgSimExport", () => {
     const result = buildOptcgSimExport(
       [
         { card_id: "op15-053", needed: 4, card_type: "Character" },
-        { card_id: "OP15-002", needed: 1, card_type: "Leader" },
+        { card_id: "OP15-058", needed: 1, card_type: "Leader" },
         { card_id: "OP15-052", needed: 4, card_type: "Character" },
       ],
-      { leaderCardId: "OP15-002" },
+      { leaderCardId: "OP15-058" },
     );
-    expect(result.pasteText).toBe("1xOP15-002\n4xOP15-052\n4xOP15-053");
+    expect(result.pasteText).toBe("1xOP15-058\n4xOP15-052\n4xOP15-053");
     expect(result.lineCount).toBe(3);
     expect(result.copyCount).toBe(9);
   });

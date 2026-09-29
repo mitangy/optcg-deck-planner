@@ -25,11 +25,20 @@ node tools/mutation-check/run.cjs rules --only "snapshot|rng"  # mutation ids ma
 | `mobile` | `mobile/src` | vitest |
 | `importer` | `scripts/test_bandai_metadata.py` | unittest (`PYTHON` overrides `py -3` / `python3`) |
 | `backend` | `backend/tests` | pytest (`BACKEND_PYTHON`: a Python with `backend/requirements.txt` installed) |
+| `frontend` | `frontend/src` | vitest |
+| `game-server` | `game-server/test` | mocha |
+| `cosmetics` | `scripts/test_cosmetics_product_ids.py` | unittest |
 
-A full run of every suite takes roughly 15–20 minutes, because each mutation
-re-runs its suite. The baseline must be green first. The exit code is 1 if a
+Every test in these suites is covered by at least one mutation. Each mutation
+re-runs its whole suite, so a full run of every suite takes a few hours; use
+`--only` while iterating. The baseline must be green first. The exit code is 1 if a
 mutation **survives** (none of its expected failures happened) or goes
 **stale** (its anchor no longer matches the source exactly once).
+
+Only one run at a time per checkout: all suites share the restore journal, so a
+second run would "restore" files the first is mutating mid-test and make its
+mutations falsely survive. `run.cjs` holds `.run.lock` and refuses to start
+while another run is alive.
 
 ## Adding a test
 
@@ -49,6 +58,9 @@ When you add or change a test, add one mutation per behavior it claims, in
 - Use `edits: [{ file, from, to }, …]` when one behavior is enforced in
   several places (for example, duplicate-id checks in both the validator and
   the registry).
+- pytest mutations can set `args` (e.g. `"tests/test_config.py"`) when the
+  opposite condition breaks app startup and would crash collection for the
+  whole suite before the named test can report its own failure.
 - For assertions about generated data, use `json` plus a `patch` function
   instead of a source edit.
 - A mutation whose only kills are unrelated crashes proves nothing. Check that
