@@ -1,0 +1,328 @@
+/* Board interaction overlays: battle "cannon shot" indicator, click-to-attach
+   DON!! confirm, drag ghost. Everything here is position: fixed (portaled to
+   <body>) or absolutely positioned so nothing shifts the board layout. */
+
+/* —— Battle indicator —— */
+
+.attack-overlay {
+  --atk: #f0c65a;
+  --atk-glow: rgba(255, 196, 80, 0.55);
+  --atk-hot: #ffdf8a;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  /* Above cards/midline (≤12), below HUD (40), prompts (25+) and modals. */
+  z-index: 14;
+}
+
+.attack-overlay.attack-incoming {
+  --atk: #e0503f;
+  --atk-glow: rgba(235, 70, 50, 0.6);
+  --atk-hot: #ffb199;
+}
+
+.atk-trail-glow {
+  fill: none;
+  stroke: var(--atk-glow);
+  stroke-width: 9;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+.atk-trail {
+  fill: none;
+  stroke: var(--atk);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 10 7;
+  animation: atk-march 0.7s linear infinite;
+}
+
+/* Bright lit-fuse sparkle that races along the trail. */
+.atk-fuse {
+  fill: none;
+  stroke: var(--atk-hot);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 2 26;
+  animation: atk-march 0.45s linear infinite;
+  opacity: 0.9;
+}
+
+.atk-head {
+  fill: var(--atk);
+  stroke: rgba(0, 0, 0, 0.5);
+  stroke-width: 0.8;
+}
+
+@keyframes atk-march {
+  to {
+    stroke-dashoffset: -34;
+  }
+}
+
+.atk-shot {
+  stroke: var(--atk-hot);
+  stroke-width: 1.2;
+  filter: drop-shadow(0 0 5px var(--atk-glow));
+}
+
+.atk-smoke {
+  fill: var(--atk-hot);
+}
+.atk-smoke-0 {
+  opacity: 0.18;
+}
+.atk-smoke-1 {
+  opacity: 0.3;
+}
+.atk-smoke-2 {
+  opacity: 0.45;
+}
+
+.atk-impact {
+  fill: none;
+  stroke: var(--atk-hot);
+  stroke-width: 2.5;
+}
+
+.atk-source {
+  fill: none;
+  stroke: var(--atk);
+  stroke-width: 2;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 6px var(--atk-glow));
+  animation: atk-source-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes atk-source-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.atk-reticle-ring {
+  fill: rgba(0, 0, 0, 0.12);
+  stroke: var(--atk);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px var(--atk-glow));
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: atk-reticle-pulse 1s ease-in-out infinite;
+}
+
+.atk-reticle-dash {
+  fill: none;
+  stroke: var(--atk);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 6;
+  opacity: 0.85;
+}
+
+.atk-reticle-tick {
+  stroke: var(--atk-hot);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.atk-reticle-spin {
+  animation: atk-spin 6s linear infinite;
+}
+
+.atk-reticle-core {
+  fill: var(--atk-hot);
+}
+
+@keyframes atk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes atk-reticle-pulse {
+  50% {
+    transform: scale(0.86);
+  }
+}
+
+.atk-redirect {
+  stroke: var(--atk);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 5;
+  opacity: 0.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atk-trail,
+  .atk-fuse,
+  .atk-source,
+  .atk-reticle-ring,
+  .atk-reticle-spin {
+    animation: none;
+  }
+  .atk-fuse {
+    display: none;
+  }
+}
+
+/* —— Click-to-attach DON!! —— */
+
+.don-strip {
+  position: relative;
+}
+
+.don-select-count {
+  position: absolute;
+  /* Sits in the empty middle of the "DON!! … n/m" label row. */
+  left: 50%;
+  top: 0.2rem;
+  transform: translateX(-50%);
+  z-index: 3;
+  max-width: calc(100% - 5.5rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #1a1206;
+  background: #ffd54f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.don-attach-confirm {
+  position: fixed;
+  z-index: 30;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid var(--chrome);
+  background: rgba(12, 18, 28, 0.97);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+  color: var(--ink);
+  font-size: 0.78rem;
+}
+
+.don-attach-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.don-attach-title span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.don-attach-icon {
+  width: 20px;
+  height: 28px;
+  flex: none;
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.don-attach-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.don-attach-actions button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 34px;
+  border-radius: 7px;
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.don-attach-cancel {
+  flex: 0 0 auto !important;
+  padding: 0 0.7rem;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+}
+
+.don-attach-ok {
+  border: 1px solid #ffd54f;
+  background: linear-gradient(180deg, #f3c94f, #c99a2c);
+  color: #1a1206;
+}
+
+.don-attach-ok:focus-visible,
+.don-attach-cancel:focus-visible {
+  outline: 2px solid var(--chrome-bright);
+  outline-offset: 2px;
+}
+
+/* —— Drag ghost (mouse + touch) —— */
+
+.drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.drag-ghost img,
+.drag-ghost > span:first-child {
+  display: block;
+  width: 64px;
+  aspect-ratio: 5 / 7;
+  object-fit: cover;
+  border-radius: 5px;
+  border: 2px solid var(--chrome-bright);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+  /* Centre under the pointer with a slight tilt. */
+  translate: -50% -60%;
+  rotate: -4deg;
+  opacity: 0.92;
+}
+
+.drag-ghost-give_don img {
+  width: 40px;
+}
+
+.drag-ghost-count {
+  position: absolute;
+  left: 8px;
+  top: -18px;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #1a1206;
+  background: #ffd54f;
+}
+
+/* —— Hand selection feels instant —— */
+
+.hand-row-inner .card-tile {
+  transition-duration: 90ms;
+}
+
+/* Desktop/tablet rail scrolls vertically: let touch pan-y scroll the rail and
+   treat sideways movement (towards the board) as the drag. */
+@media (min-width: 900px) and (min-height: 500px) {
+  .arena .arena-rail .hand-row-inner .card-tile.card-draggable:not(.card-dragging) {
+    touch-action: pan-y !important;
+  }
+}
