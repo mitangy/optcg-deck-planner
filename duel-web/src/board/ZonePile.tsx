@@ -14,6 +14,15 @@ export function lifePileFaceCount(count: number): number {
   return Math.min(count, 5);
 }
 
+/**
+ * Stacked faces drawn for a deck / DON!! deck / trash pile: none when empty
+ * (the slot outline shows instead), then one per card up to 3.
+ */
+export function stackPileFaceCount(count: number): number {
+  if (count <= 0) return 0;
+  return Math.min(count, 3);
+}
+
 type Props = {
   label: string;
   count: number;
@@ -38,10 +47,11 @@ export function ZonePile({
 }: Props) {
   const openable = Boolean(onOpen);
   const countLabel = zonePileCountLabel(count, expectedCount);
+  const faces = stackPileFaceCount(count);
   // Deck / life / DON!! deck are face-down: their faces render the card-back
   // art from CSS (`--card-back-art` / `--don-back-art`). Only trash shows a face.
   const topArt =
-    variant === "trash" && topDefId
+    faces > 0 && variant === "trash" && topDefId
       ? resolveCardImageUrl(topDefId, { ownerSeat, size: "thumb" })
       : null;
 
@@ -52,10 +62,15 @@ export function ZonePile({
           <span key={i} className="zone-pile-face" />
         ))}
       </div>
+    ) : faces === 0 ? (
+      // Empty pile: dashed slot outline only — never a card face / DON!! art.
+      <div className="zone-pile-stack is-empty" aria-hidden>
+        <span className="zone-pile-slot" />
+      </div>
     ) : (
       <div className="zone-pile-stack" aria-hidden>
-        <span className="zone-pile-face" />
-        <span className="zone-pile-face mid" />
+        {faces >= 3 ? <span className="zone-pile-face" /> : null}
+        {faces >= 2 ? <span className="zone-pile-face mid" /> : null}
         {topArt ? (
           <img className="zone-pile-face top don-pile-art" src={topArt} alt="" />
         ) : (

@@ -281,9 +281,66 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
   }),
 };
 
+function intParam(params: URLSearchParams, key: string): number | null {
+  const raw = params.get(key);
+  if (raw == null || raw === "") return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
+ * Pile / cost-area overrides for layout QA, e.g. `/demo?don=10&rested=10&dondeck=0`
+ * or `/demo?deck=0&trash=0&life=0`. Applied to both seats so each mat is checked.
+ */
+export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): PlayerView {
+  const don = intParam(params, "don");
+  const rested = intParam(params, "rested");
+  const donDeck = intParam(params, "dondeck");
+  const deck = intParam(params, "deck");
+  const trash = intParam(params, "trash");
+  const life = intParam(params, "life");
+  if ([don, rested, donDeck, deck, trash, life].every((v) => v == null)) return base;
+
+  const touchDon = don != null || rested != null;
+  const total = don ?? base.you.costArea.length;
+  const restedCount = Math.min(total, rested ?? 0);
+  const activeCount = total - restedCount;
+  const costArea = touchDon
+    ? Array.from({ length: total }, (_, i) => ({ id: `d${i + 1}`, rested: i >= activeCount }))
+    : base.you.costArea;
+  const trashFor = (cards: string[]) =>
+    trash == null ? cards : Array.from({ length: trash }, (_, i) => cards[i % cards.length] ?? "ST01-003");
+
+  return {
+    ...base,
+    you: {
+      ...base.you,
+      costArea,
+      activeDonCount: touchDon ? activeCount : base.you.activeDonCount,
+      donDeckCount: donDeck ?? base.you.donDeckCount,
+      deckCount: deck ?? base.you.deckCount,
+      lifeCount: life ?? base.you.lifeCount,
+      trash: trashFor(base.you.trash),
+    },
+    opponent: {
+      ...base.opponent,
+      costAreaCount: touchDon ? total : base.opponent.costAreaCount,
+      activeDonCount: touchDon ? activeCount : base.opponent.activeDonCount,
+      donDeckCount: donDeck ?? base.opponent.donDeckCount,
+      deckCount: deck ?? base.opponent.deckCount,
+      lifeCount: life ?? base.opponent.lifeCount,
+      trash: trashFor(base.opponent.trash),
+    },
+  };
+}
+
 export function DemoPage() {
-  const prompt = new URLSearchParams(window.location.search).get("prompt");
-  const view = (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW;
+  const params = new URLSearchParams(window.location.search);
+  const prompt = params.get("prompt");
+  const view = applyDemoZoneParams(
+    (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW,
+    params,
+  );
   return (
     <div className="duel-root">
       <DuelBoard
