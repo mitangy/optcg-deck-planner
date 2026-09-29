@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lifePileFaceCount, zonePileCountLabel } from "./ZonePile";
+import { lifePileFaceCount, stackPileFaceCount, zonePileCountLabel } from "./ZonePile";
 
 describe("zonePileCountLabel", () => {
   it("shows actual life count instead of question marks", () => {
@@ -30,5 +30,19 @@ describe("lifePileFaceCount", () => {
   it("shows no faces when life is empty", () => {
     expect(lifePileFaceCount(0)).toBe(0);
     expect(lifePileFaceCount(-1)).toBe(0);
+  });
+});
+
+describe("stackPileFaceCount", () => {
+  it("draws no faces for an empty deck / DON!! deck / trash", () => {
+    expect(stackPileFaceCount(0)).toBe(0);
+    expect(stackPileFaceCount(-3)).toBe(0);
+  });
+
+  it("draws one face per card up to a 3-deep stack", () => {
+    expect(stackPileFaceCount(1)).toBe(1);
+    expect(stackPileFaceCount(2)).toBe(2);
+    expect(stackPileFaceCount(3)).toBe(3);
+    expect(stackPileFaceCount(40)).toBe(3);
   });
 });

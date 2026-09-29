@@ -1494,6 +1494,19 @@ button.zone-pile {
   cursor: default;
 }
 
+/* Empty deck / DON!! deck / trash: a dashed card-sized slot, no face art. */
+.zone-pile-slot {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  border: 1px dashed rgba(240, 220, 168, 0.24);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.zone-pile-don .zone-pile-slot {
+  border-color: rgba(143, 191, 85, 0.35);
+}
+
 .trash-viewer-backdrop {
   position: fixed;
   inset: 0;
@@ -2927,10 +2940,11 @@ img.zone-pile-face {
 }
 
 /* Overlap instead of shrinking when the rail runs out of room: spread evenly
-   up to a 6px gap, never overlapping more than ~60% of a chip. */
+   up to a 6px gap. The overlap is unbounded on purpose so the row always ends
+   exactly at the rail edge — 10 rested (rotated, ~1.4 wide) DON!! used to spill
+   into the trash pile when the overlap was capped at 60% of a chip. */
 .don-chip-btn + .don-chip-btn {
-  margin-left: clamp(
-    calc(var(--don-w) * -0.6),
+  margin-left: min(
     calc((100cqw - var(--don-units, 1) * var(--don-w)) / max(var(--don-count, 1) - 1, 1)),
     6px
   );

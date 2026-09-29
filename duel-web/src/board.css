@@ -341,8 +341,11 @@
 /* —— Wide: preview | board | rail —— */
 
 /* ≥900px landscape: hand/actions/log move to a right rail so the mats get the
-   full height. ≥1180px adds the card preview column on the left. */
-@media (min-width: 900px) and (min-height: 500px) {
+   full height. ≥1180px adds the card preview column on the left. Phones in
+   landscape (short + wide) use the same rail, otherwise the stacked hand and
+   actions leave the mats no height at all. */
+@media (min-width: 900px) and (min-height: 500px),
+  (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
   .arena .arena-body {
     display: grid;
     grid-template-columns: minmax(0, 1fr) clamp(260px, 26vw, 400px);
@@ -521,5 +524,300 @@
     padding: 0.3rem 0.55rem;
     font-size: 0.66rem;
     line-height: 1.3;
+  }
+}
+
+/* —— Large desktop (1080p / 1440p monitors): bigger hand —— */
+
+/* The mats are height-bound on 16:9 screens, so the spare width goes to a
+   wider rail and hand cards that scale with the viewport (~83px wide before,
+   now ~145px at 1920 and ~195px at 2560). */
+@media (min-width: 1500px) and (min-height: 800px) {
+  .arena .arena-body {
+    --preview-w: clamp(220px, 17vw, 380px);
+    --rail-w: clamp(400px, 25vw, 640px);
+    grid-template-columns: var(--preview-w) minmax(0, 1fr) var(--rail-w);
+  }
+
+  .arena .ability-prompt {
+    left: calc(var(--preview-w) + (100% - var(--preview-w) - var(--rail-w)) / 2);
+  }
+
+  .arena .arena-rail .hand-rail {
+    padding: 0.75rem 0.9rem 0.5rem;
+  }
+
+  .arena .arena-rail .hand-row-inner {
+    grid-template-columns: repeat(auto-fill, minmax(clamp(110px, 6.4vw, 190px), 1fr));
+    gap: clamp(0.5rem, 0.55vw, 0.9rem);
+    padding-top: 0.9rem;
+  }
+
+  .arena .arena-rail .hand-row-inner .card-tile .card-caption .name {
+    font-size: clamp(0.72rem, 0.55vw, 0.95rem);
+  }
+
+  .arena .arena-rail .hand-row-inner .card-tile .card-caption .meta {
+    font-size: clamp(0.62rem, 0.45vw, 0.8rem);
+  }
+}
+
+/* —— Phones: compact chrome so the mats get the height —— */
+
+@media (max-width: 720px) {
+  /* One-row HUD: status on the left, Leave on the right. */
+  .arena .hud-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "status actions";
+    gap: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .arena .hud-brand,
+  .arena .hud-actions .match-id {
+    display: none;
+  }
+
+  .arena .hud-status {
+    font-size: 0.66rem;
+    gap: 0.2rem 0.35rem;
+  }
+
+  .arena .hud-turn-chip {
+    margin-left: 0;
+    padding: 0.1rem 0.35rem;
+    font-size: 0.58rem;
+  }
+
+  .arena .hud-actions .leave-btn,
+  .arena .hud-actions .hud-pass-btn {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.68rem;
+    min-height: 0;
+  }
+
+  .arena .playmat {
+    --mat-gap: 6px;
+    padding: 4px 4px 6px;
+  }
+
+  /* Battle log collapses to a small pill beside the opponent-hand hint
+     instead of floating over the top of the opponent mat. */
+  .arena .arena-body {
+    position: relative;
+  }
+
+  .arena .opp-hand-hint {
+    align-self: flex-start;
+    justify-content: flex-start;
+    padding-left: 6px;
+  }
+
+  .arena .battle-log {
+    top: 4px;
+    right: 6px;
+    width: auto;
+    max-width: calc(100% - 12px);
+    border-radius: 999px;
+  }
+
+  .arena .battle-log:not(.collapsed) {
+    width: min(300px, calc(100% - 12px));
+    max-height: min(55dvh, 420px);
+    border-radius: 10px;
+  }
+
+  .arena .battle-log-toggle {
+    padding: 0.2rem 0.55rem;
+    font-size: 0.62rem;
+  }
+
+  .arena .hand-rail {
+    padding: 0.3rem 0.5rem 0.3rem;
+  }
+
+  .arena .hand-rail-head {
+    margin-bottom: 0;
+  }
+
+  .arena .hand-rail-btn {
+    padding: 0.25rem 0.55rem;
+    font-size: 0.65rem;
+  }
+
+  .arena .hand-row-inner {
+    padding: 0.85rem 0.1rem 0.35rem;
+    gap: 0.4rem;
+  }
+
+  .arena .hand-row-inner .card-tile.full {
+    width: 72px;
+    height: 101px;
+  }
+
+  .arena .intent-bar {
+    padding: 0.35rem 0.5rem max(0.4rem, env(safe-area-inset-bottom));
+  }
+
+  /* "Actions" heading is redundant next to the buttons on a phone. */
+  .arena .intent-bar:not(.intent-bar-mulligan) h2 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* —— Portrait phones / tablets: 6-column mats that fill the width —— */
+
+/* Two stacked 12:7 mats are width-bound in portrait, so drop the empty 7th
+   column (deck + trash tuck under the last character column; cost area spans
+   4 columns and overlaps DON!! as needed). Cards are ~25% larger at 440px and
+   the mat grows taller than 12:7 to use the spare height. */
+@media (max-width: 899px) and (orientation: portrait) {
+  .arena .side-field {
+    --mat-h: min(
+      calc((100cqh - var(--hint-h) - 2 * var(--mat-gap)) / 2),
+      calc(100cqw * 0.74)
+    );
+    width: min(100cqw, calc(var(--mat-h) * 1.55));
+    height: var(--mat-h);
+    border-radius: 10px;
+  }
+
+  .arena .side-grid {
+    --g: 1cqw;
+    --c: min(
+      calc((100cqw - 2.8cqw - 5 * 1cqw) / 6),
+      calc((100cqh - 2.8cqw - 2 * 1cqw) / 4.05)
+    );
+    padding: 1.4cqw;
+    grid-template-columns: repeat(6, var(--c));
+    grid-template-areas:
+      "life characters characters characters characters characters"
+      "life . . leader stage deck"
+      "dondeck cost cost cost cost trash";
+  }
+
+  .arena .side-opp .side-grid {
+    grid-template-areas:
+      "trash cost cost cost cost dondeck"
+      "deck stage leader . . life"
+      "characters characters characters characters characters life";
+  }
+
+  .arena .side-field .don-strip {
+    --don-w: calc(var(--c) * 0.64);
+    padding: calc(var(--c) * 0.04) calc(var(--c) * 0.06);
+  }
+}
+
+/* —— Landscape phones: rail layout with height-bound mats —— */
+
+@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+  .arena .arena-body {
+    grid-template-columns: minmax(0, 1fr) clamp(200px, 26vw, 300px);
+  }
+
+  .arena .ability-prompt {
+    left: calc((100% - clamp(200px, 26vw, 300px)) / 2);
+  }
+
+  .arena .hud-bar {
+    padding: 0.25rem 0.6rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .arena .hud-brand {
+    font-size: 0.72rem;
+  }
+
+  .arena .hud-status {
+    font-size: 0.68rem;
+  }
+
+  .arena .hud-actions .leave-btn,
+  .arena .hud-actions .hud-pass-btn {
+    padding: 0.25rem 0.55rem;
+    font-size: 0.68rem;
+    min-height: 0;
+  }
+
+  .arena .playmat {
+    --mat-gap: 4px;
+    --hint-h: 1rem;
+    padding: 3px 6px;
+  }
+
+  .arena .opp-hand-hint .card-back {
+    width: 10px;
+    height: 14px;
+  }
+
+  /* Mats may run wider than 12:7 so the (height-bound) cards stay as big as
+     the short viewport allows. */
+  .arena .side-field {
+    --mat-h: calc((100cqh - var(--hint-h) - 2 * var(--mat-gap)) / 2);
+    width: min(100cqw, calc(var(--mat-h) * 1.9));
+    height: var(--mat-h);
+    border-radius: 8px;
+  }
+
+  .arena .side-grid {
+    --g: 2cqh;
+    --c: min(
+      calc((100cqw - 4cqw - 6 * 2cqh) / 7),
+      calc((100cqh - 6cqh - 2 * 2cqh) / 3.9)
+    );
+    padding: 3cqh 2cqw;
+  }
+
+  .arena .side-field .don-strip {
+    --don-w: calc(var(--c) * 0.54);
+    padding: calc(var(--c) * 0.03) calc(var(--c) * 0.06);
+  }
+
+  .arena .side-field .don-strip-label {
+    margin-bottom: 0;
+    line-height: 1.1;
+  }
+
+  /* Rows are only ~1.1–1.4 cards tall here and the captions hit their font
+     floor: drop them (counts stay; titles/aria still name the pile) so piles
+     never spill into the neighbouring row. */
+  .arena .side-field .zone-pile-label {
+    display: none;
+  }
+
+  .arena .side-field .zone-deck .zone-pile-stack {
+    width: calc(var(--c) * 0.7);
+    height: calc(var(--c) * 0.96);
+  }
+
+  .arena .side-field .zone-don-deck .zone-pile-stack,
+  .arena .side-field .zone-trash .zone-pile-stack {
+    width: calc(var(--c) * 0.54);
+    height: calc(var(--c) * 0.72);
+  }
+
+  .arena .arena-rail .hand-rail {
+    padding: 0.35rem 0.5rem 0.25rem;
+  }
+
+  .arena .arena-rail .hand-row-inner {
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 0.35rem;
+    padding: 0.45rem 0.1rem 0.35rem;
+  }
+
+  .arena .arena-rail .intent-bar {
+    padding: 0.35rem 0.5rem 0.4rem;
+  }
+
+  .arena .arena-rail .battle-log {
+    max-height: 45%;
   }
 }
