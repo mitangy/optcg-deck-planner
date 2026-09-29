@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
+import { UsernameSettings } from "../auth/UsernameSettings";
 import { BuildTag } from "../BuildTag";
 import { getApiBaseUrl, getGameServerUrl } from "../config";
 import { fetchAuthMe, googleLoginUrl, logoutSession, type AuthUser } from "../net/api";
@@ -62,6 +63,7 @@ export function SettingsPage() {
               <p className="panel-copy">
                 Signed in as <strong>{authUser.email}</strong>. Ranked rating follows this account.
               </p>
+              <UsernameSettings user={authUser} onChange={setAuthUser} />
               <div className="btn-row">
                 <button
                   type="button"

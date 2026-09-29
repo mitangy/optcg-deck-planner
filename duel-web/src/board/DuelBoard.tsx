@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Intent, MatchOverMessage, PlayerView, Seat, TimerMessage } from "../net/protocol";
+import type {
+  Intent,
+  MatchOverMessage,
+  PlayerView,
+  Seat,
+  SeatPlayers,
+  TimerMessage,
+} from "../net/protocol";
 import { BattleLogPanel } from "./BattleLogPanel";
 import { CardPreviewPanel } from "./CardPreviewPanel";
 import type { BattleLogEntry } from "./battleLog";
@@ -27,6 +34,7 @@ import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
 import { usePlaymatUrl } from "../playmat";
 import { loadSettings } from "../settings";
+import { seatLabel, seatName, winnerHeadline } from "./playerNames";
 
 type Props = {
   view: PlayerView | null;
@@ -34,6 +42,8 @@ type Props = {
   matchId: string | null;
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
+  /** Seat-indexed display names (usernames) from the server welcome. */
+  players?: SeatPlayers | null;
   timer?: TimerMessage | null;
   spectator?: boolean;
   battleLog?: BattleLogEntry[];
@@ -93,6 +103,7 @@ export function DuelBoard({
   matchId,
   errorBanner,
   matchOver,
+  players = null,
   timer = null,
   spectator = false,
   battleLog = [],
@@ -322,7 +333,25 @@ export function DuelBoard({
           <span className="hud-sep">·</span>
           <span>Turn {view.turnNumber}</span>
           <span className="hud-sep">·</span>
-          <span>{spectating ? "Spectating" : `Seat ${mySeat}`}</span>
+          {players ? (
+            <span
+              className="hud-names"
+              title={`${seatLabel(players, spectating ? 0 : boardSeat)} vs ${seatLabel(
+                players,
+                spectating ? 1 : oppSeat,
+              )}`}
+            >
+              <strong className="hud-name hud-name-you">
+                {spectating ? seatLabel(players, 0) : seatName(players, boardSeat) ?? "You"}
+              </strong>
+              <span className="hud-sep">vs</span>
+              <span className="hud-name">
+                {seatLabel(players, spectating ? 1 : oppSeat)}
+              </span>
+            </span>
+          ) : (
+            <span>{spectating ? "Spectating" : `Seat ${mySeat}`}</span>
+          )}
           {mulliganPhase && decidingMulligan ? (
             <span className="hud-turn-chip">MULLIGAN</span>
           ) : yourTurn ? (
@@ -643,11 +672,17 @@ export function DuelBoard({
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className="modal-card">
             <h2>Match over</h2>
-            <p>
-              {`Winner: seat ${matchOver?.winner ?? view.winner}\nReason: ${
-                matchOver?.reason ?? view.winReason ?? "—"
-              }`}
-            </p>
+            {(() => {
+              const winner = (matchOver?.winner ?? view.winner) as Seat | null;
+              const reason = matchOver?.reason ?? view.winReason ?? "—";
+              return (
+                <p>
+                  {winner === 0 || winner === 1
+                    ? `${winnerHeadline(players, winner, spectating ? null : mySeat, spectating)}\nReason: ${reason}`
+                    : `Reason: ${reason}`}
+                </p>
+              );
+            })()}
             <button type="button" className="leave-btn" onClick={onLeave}>
               Return home
             </button>

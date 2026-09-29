@@ -20,6 +20,7 @@ import type {
   MatchOverMessage,
   PlayerView,
   Seat,
+  SeatPlayers,
   TimerMessage,
 } from "../net/protocol";
 import {
@@ -66,6 +67,8 @@ type DuelSession = {
   seat: Seat | null;
   role: "player" | "spectator";
   view: PlayerView | null;
+  /** Seat-indexed display names from the server welcome (usernames when set). */
+  players: SeatPlayers | null;
   battleLog: BattleLogEntry[];
   clearBattleLog: () => void;
   errorBanner: string | null;
@@ -101,6 +104,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [seat, setSeat] = useState<Seat | null>(null);
   const [role, setRole] = useState<"player" | "spectator">("player");
   const [view, setView] = useState<PlayerView | null>(null);
+  const [players, setPlayers] = useState<SeatPlayers | null>(null);
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
   const viewRef = useRef<PlayerView | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
@@ -129,7 +133,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
 
     function wireHandlers() {
       client.setHandlers({
-        onWelcome: ({ matchId: id, seat: s, view: v, role: r }) => {
+        onWelcome: ({ matchId: id, seat: s, view: v, role: r, players: p }) => {
+          setPlayers(p ?? null);
           seatRef.current = s;
           setMatchId(id);
           setSeat(s);
@@ -193,6 +198,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       seat,
       role,
       view,
+      players,
       battleLog,
       clearBattleLog: () => setBattleLog([]),
       errorBanner,
@@ -356,6 +362,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         seatRef.current = null;
         setRole("player");
         setView(null);
+        setPlayers(null);
         setMatchOver(null);
         setTimer(null);
       },
@@ -372,6 +379,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     seat,
     role,
     view,
+    players,
     battleLog,
     errorBanner,
     matchOver,

@@ -10,6 +10,7 @@ export function DuelPage() {
     canReconnect,
     resuming,
     view,
+    players,
     seat,
     matchId,
     errorBanner,
@@ -65,6 +66,7 @@ export function DuelPage() {
         matchId={matchId}
         errorBanner={errorBanner}
         matchOver={matchOver}
+        players={players}
         timer={timer}
         spectator={role === "spectator" || Boolean(view?.spectator)}
         battleLog={battleLog}

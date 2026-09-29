@@ -7,9 +7,21 @@ class UserOut(BaseModel):
     id: int
     email: str
     name: str
+    # Public duel handle; None until the user picks one (duel-web prompts after sign-in).
+    username: str | None = None
     sum_across_leaders: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class UsernameUpdate(BaseModel):
+    # Loose bound here; app.usernames.validate_username enforces the real rules
+    # and returns a friendly 422 detail.
+    username: str = Field(max_length=64)
+
+
+class UsernameSuggestionOut(BaseModel):
+    username: str
 
 
 class UserPreferencesUpdate(BaseModel):
@@ -429,6 +441,8 @@ class DuelTokenOut(BaseModel):
     expires_at: int
     user_id: int
     email: str
+    # Name the game-server shows to other players (embedded in the token).
+    display_name: str = ""
     rating: int
     games_played: int
 
@@ -455,7 +469,9 @@ class DuelMatchOut(BaseModel):
 class DuelRatingOut(BaseModel):
     user_id: int
     email: str
+    # Display name (username when set, else account name).
     name: str
+    username: str | None = None
     rating: int
     games_played: int
 
@@ -464,7 +480,9 @@ class DuelLeaderboardEntryOut(BaseModel):
     """Public rating data; account email is intentionally excluded."""
 
     user_id: int
+    # Display name (username when set, else account name).
     name: str
+    username: str | None = None
     rating: int
     games_played: int
 
