@@ -1,59 +1,44 @@
 import type { PlayerView } from "../net/protocol";
-import type { BattleLogEntry } from "../board/battleLog";
+import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
 
-/** Sample turn log for layout QA (`/demo`). */
+const DEMO_INSTANCES: InstanceIndex = new Map([
+  ["y-leader", { defId: "ST01-001", seat: 0 }],
+  ["o-leader", { defId: "ST01-001", seat: 1 }],
+  ["o-c1", { defId: "ST01-008", seat: 1 }],
+  ["y-c3", { defId: "ST01-008", seat: 0 }],
+]);
+
+/** Sample turn log for layout QA (`/demo`) — every emphasis tone at least once. */
 export const DEMO_BATTLE_LOG: BattleLogEntry[] = [
-  {
-    id: "demo-t2-1",
-    turn: 2,
-    text: "—— Main phase · Opponent ——",
-  },
-  {
-    id: "demo-t2-2",
-    turn: 2,
-    text: "Opponent plays Jet Pistol",
-  },
-  {
-    id: "demo-t2-3",
-    turn: 2,
-    text: "Opponent attacks Leader (6000 vs 5000)",
-  },
-  {
-    id: "demo-t2-4",
-    turn: 2,
-    text: "You counter with Guard Point (+2000)",
-  },
-  {
-    id: "demo-t2-5",
-    turn: 2,
-    text: "Battle fails (6000 vs 7000)",
-  },
-  {
-    id: "demo-t3-1",
-    turn: 3,
-    text: "—— Main phase · You ——",
-  },
-  {
-    id: "demo-t3-2",
-    turn: 3,
-    text: "You attach DON!! to Monkey.D.Luffy → 7000 power",
-  },
-  {
-    id: "demo-t3-3",
-    turn: 3,
-    text: "You play Nico Robin",
-  },
-  {
-    id: "demo-t3-4",
-    turn: 3,
-    text: "You attack Leader (7000 vs 5000)",
-  },
-  {
-    id: "demo-t3-5",
-    turn: 3,
-    text: "Opponent blocks",
-  },
+  ...narrateEvents(
+    [
+      { type: "phase_changed", phase: "main", activeSeat: 1 },
+      { type: "card_played", seat: 1, defId: "ST01-009", costPaid: 3 },
+      { type: "attack_declared", seat: 1, attackerId: "o-c1", target: { kind: "leader" }, attackerPower: 6000, defenderPower: 5000 },
+      { type: "counter_applied", seat: 0, defId: "ST01-014", bonus: 2000 },
+      { type: "battle_resolved", attackerWon: false, attackerPower: 6000, defenderPower: 7000 },
+    ],
+    { youSeat: 0, turnNumber: 2, instances: DEMO_INSTANCES },
+  ),
+  ...narrateEvents(
+    [
+      { type: "phase_changed", phase: "main", activeSeat: 0 },
+      { type: "don_given", seat: 0, targetDefId: "ST01-001", newPower: 7000 },
+      { type: "card_played", seat: 0, defId: "ST01-003", costPaid: 4 },
+      { type: "ability_activated", seat: 0, defId: "ST01-003", abilityId: "a1", text: "" },
+      { type: "card_moved", seat: 0, defId: "ST01-006", from: "deck", to: "hand", hidden: true },
+      { type: "card_moved", seat: 0, defId: "ST01-009", from: "hand", to: "trash" },
+      { type: "attack_declared", seat: 0, attackerId: "y-c3", target: { kind: "character", instanceId: "o-c1" }, attackerPower: 6000, defenderPower: 4000 },
+      { type: "battle_resolved", attackerWon: true, attackerPower: 6000, defenderPower: 4000 },
+      { type: "character_ko", seat: 1, defId: "ST01-008" },
+      { type: "attack_declared", seat: 0, attackerId: "y-leader", target: { kind: "leader" }, attackerPower: 7000, defenderPower: 5000 },
+      { type: "counter_applied", seat: 1, defId: "ST01-014", bonus: 1000 },
+      { type: "battle_resolved", attackerWon: true, attackerPower: 7000, defenderPower: 6000 },
+      { type: "life_taken", seat: 1, defId: "HIDDEN", toHand: true },
+    ],
+    { youSeat: 0, turnNumber: 3, instances: DEMO_INSTANCES },
+  ),
 ];
 
 /** Static playmat preview for layout QA (`/demo`). Not a live match. */
@@ -108,6 +93,8 @@ export const DEMO_VIEW: PlayerView = {
       { id: "y-h3", defId: "ST01-008" },
       { id: "y-h4", defId: "ST01-009" },
       { id: "y-h5", defId: "ST01-014" },
+      // Conditional [Counter] event — hand badge reads "+2000 / +4000".
+      { id: "y-h6", defId: "OP01-029" },
     ],
     deckCount: 38,
     trash: ["ST01-003", "ST01-014", "ST01-009"],

@@ -139,6 +139,58 @@ describe("OP17-001 Edward.Newgate (Leader)", () => {
     expect(h.view(1).you.leader.power).toBe(5000);
     expect(h.state.players[1].life.length).toBe(5);
   });
+
+  it("is offered again on a later attack in the same turn after being declined", () => {
+    const h = new Harness({ leaders: ["ST01-001", "OP17-001"] });
+    h.hand(1, FILLER, FILLER);
+    const [attacker, second] = h.field(0, FILLER, FILLER);
+    attacker!.summoningSick = false;
+    second!.summoningSick = false;
+    // First attack: decline the leader's [On Your Opponent's Attack] ability.
+    h.attack(h.state.players[0].leader, "leader");
+    expect(h.choice?.seat).toBe(1);
+    expect(h.choice?.cardDefId).toBe("OP17-001");
+    h.decline(1);
+    h.passBattle();
+    expect(h.state.players[1].life.length).toBe(4);
+    expect(h.state.players[1].leader.usedAbilities?.["op17-001#0"]).toBeUndefined();
+    // Second attack in the same turn: the ability must be offered again.
+    h.attack(attacker!, "leader");
+    expect(h.choice?.seat).toBe(1);
+    expect(h.choice?.cardDefId).toBe("OP17-001");
+    h.accept(1);
+    h.pick(FILLER);
+    h.pick(h.state.players[1].leader.defId);
+    expect(h.view(1).you.leader.power).toBe(9000);
+    h.passBattle();
+    // Once actually used, it is not offered a third time this turn.
+    expect(h.state.players[1].leader.usedAbilities?.["op17-001#0"]).toBe(h.state.turnNumber);
+    h.attack(second!, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.phase).toBe("block");
+  });
+});
+
+describe("OP17-040 (Once Per Turn \"you may\" on leader attacked)", () => {
+  it("declining the optional cost keeps the ability available for the next attack", () => {
+    const h = new Harness({ leaders: ["ST01-001", "OP17-039"] });
+    h.field(1, "OP17-040");
+    const used = () => h.find(1, "OP17-040")!.usedAbilities?.["op17-040#m0"];
+    h.hand(1, FILLER, FILLER);
+    const [attacker] = h.field(0, FILLER);
+    attacker!.summoningSick = false;
+    h.attack(h.state.players[0].leader, "leader");
+    expect(h.choice?.cardDefId).toBe("OP17-040");
+    h.decline(1);
+    h.passBattle();
+    expect(used()).toBeUndefined();
+    h.attack(attacker!, "leader");
+    expect(h.choice?.cardDefId).toBe("OP17-040");
+    h.accept(1);
+    h.pick(FILLER);
+    expect(h.view(1).you.leader.power).toBe(8000);
+    expect(used()).toBe(h.state.turnNumber);
+  });
 });
 
 describe("OP17-039 Rocks.D.Xebec (Leader)", () => {

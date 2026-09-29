@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from "react";
+import { cardBackCssValue } from "../cardBack";
 import { lookupCard } from "../cards/atlas";
 import type { CardView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
@@ -71,6 +72,8 @@ type Props = {
   matImageUrl?: string | null;
   /** Darkening over custom art, 0–0.8. */
   matDim?: number;
+  /** Custom card back (object URL) for face-down cards on this half. */
+  cardBackUrl?: string | null;
 };
 
 export function SideField({
@@ -84,6 +87,7 @@ export function SideField({
   viewingSeat,
   matImageUrl,
   matDim = 0.35,
+  cardBackUrl,
 }: Props) {
   const mirrored = side === "opp";
   const interactive = side === "you" && drag;
@@ -98,10 +102,12 @@ export function SideField({
         matImageUrl ? " has-mat-art" : ""
       }`}
       style={
-        matImageUrl
+        matImageUrl || cardBackUrl
           ? ({
-              "--mat-art": `url("${matImageUrl}")`,
-              "--mat-dim": String(matDim),
+              ...(matImageUrl
+                ? { "--mat-art": `url("${matImageUrl}")`, "--mat-dim": String(matDim) }
+                : null),
+              ...(cardBackUrl ? { "--card-back-art": cardBackCssValue(cardBackUrl) } : null),
             } as CSSProperties)
           : undefined
       }
@@ -156,6 +162,7 @@ export function SideField({
                 <CardTile
                   key={c.id}
                   defId={c.defId}
+                  instanceId={c.id}
                   compact={compact || mirrored}
                   rested={c.rested}
                   power={c.power}
@@ -215,6 +222,7 @@ export function SideField({
             return (
               <CardTile
                 defId={data.leader.defId}
+                instanceId={leaderId}
                 compact={compact || mirrored}
                 rested={data.leader.rested}
                 power={data.leader.power}
@@ -267,8 +275,10 @@ export function SideField({
               return (
                 <CardTile
                   defId={data.stage!.defId}
+                  instanceId={stageId}
                   compact={compact || mirrored}
                   rested={data.stage!.rested}
+                  statusLabels={data.stage!.statusLabels}
                   selected={isSelected}
                   classNameExtra={extraClass || undefined}
                   inspectGestures

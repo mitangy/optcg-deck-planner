@@ -1034,7 +1034,7 @@ export class DuelRoom extends Room {
         protocolVersion: PROTOCOL_VERSION,
         result: {
           winner: this.match.winner,
-          reason: this.match.winReason ?? "unknown",
+          reason: this.endReason ?? this.match.winReason ?? "unknown",
         },
       });
     }
@@ -1065,7 +1065,7 @@ export class DuelRoom extends Room {
         protocolVersion: PROTOCOL_VERSION,
         result: {
           winner: this.match.winner,
-          reason: this.match.winReason ?? "unknown",
+          reason: this.endReason ?? this.match.winReason ?? "unknown",
         },
       });
     }

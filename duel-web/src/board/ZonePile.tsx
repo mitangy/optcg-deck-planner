@@ -1,6 +1,5 @@
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
-import { DON_CARD_ART } from "./donArt";
 
 /** Life/deck pile count label — never secret (life used to show "??"). */
 export function zonePileCountLabel(count: number, expectedCount?: number): string {
@@ -39,12 +38,12 @@ export function ZonePile({
 }: Props) {
   const openable = Boolean(onOpen);
   const countLabel = zonePileCountLabel(count, expectedCount);
+  // Deck / life / DON!! deck are face-down: their faces render the card-back
+  // art from CSS (`--card-back-art` / `--don-back-art`). Only trash shows a face.
   const topArt =
-    variant === "don"
-      ? DON_CARD_ART
-      : topDefId
-        ? resolveCardImageUrl(topDefId, { ownerSeat, size: "thumb" })
-        : null;
+    variant === "trash" && topDefId
+      ? resolveCardImageUrl(topDefId, { ownerSeat, size: "thumb" })
+      : null;
 
   const stack =
     variant === "life" ? (
