@@ -39,6 +39,9 @@ import {
   type SortKey,
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
+import { CompassIcon } from "./ThemeIcons";
+import { HeadPopover } from "./HeadPopover";
+import { ThemeToggle } from "./ThemeToggle";
 import { cardImageUrl } from "./cardImage";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
 import { CardScanner, useImageDrop } from "./CardScanner";
@@ -64,8 +67,6 @@ import {
 
 const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 /* v2: default-closed public link (resets older localStorage "open" so mobile chrome stays shorter). */
-const SHARE_OPEN_KEY = "optcg_share_open_v2";
-const DECK_EXPORT_OPEN_KEY = "optcg_deck_export_open";
 const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
 const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
 const SHOW_SHOPPING_DONS_KEY = "optcg_show_shopping_dons";
@@ -128,10 +129,10 @@ function ShoppingSharePanel({
   onCreateOrUpdate: () => void;
   onRevoke: () => void;
 }) {
-  const summary = shareInfo ? "On" : "Off";
   return (
-    <CollapsibleDrawer label="Public link" summary={summary} storageKey={SHARE_OPEN_KEY}>
+    <HeadPopover label="Share" badge={shareInfo ? "On" : undefined} panelLabel="Public link">
       <div className="share-panel">
+        <h3 className="head-popover-title">Public link</h3>
         <p className="muted share-panel-note">
           Anyone with the link can view this shopping list without signing in.
         </p>
@@ -171,7 +172,7 @@ function ShoppingSharePanel({
         </div>
         <ShareStatus message={shareMsg} openUrl={shareUrl} />
       </div>
-    </CollapsibleDrawer>
+    </HeadPopover>
   );
 }
 
@@ -185,8 +186,8 @@ function DeckSharePanel({
   onShare: () => void;
 }) {
   return (
-    <CollapsibleDrawer label="Public link" summary={shareMsg ? "Ready" : undefined} storageKey={SHARE_OPEN_KEY}>
-      <div className="share-panel">
+    <div className="share-panel">
+        <h3 className="head-popover-title">Public link</h3>
         <p className="muted share-panel-note">
           Anyone with the link can view this deck without signing in.
         </p>
@@ -196,8 +197,7 @@ function DeckSharePanel({
           </button>
         </div>
         <ShareStatus message={shareMsg} />
-      </div>
-    </CollapsibleDrawer>
+    </div>
   );
 }
 
@@ -218,12 +218,14 @@ function DeckExportPanel({
   );
   const empty = exportable.lineCount === 0;
   const summary = empty
-    ? "Empty"
+    ? "empty"
     : `${exportable.lineCount} line${exportable.lineCount === 1 ? "" : "s"}`;
 
   return (
-    <CollapsibleDrawer label="Export for OPTCGSim" summary={summary} storageKey={DECK_EXPORT_OPEN_KEY}>
-      <div className="share-panel">
+    <div className="share-panel">
+        <h3 className="head-popover-title">
+          Export for OPTCGSim <span className="muted">· {summary}</span>
+        </h3>
         <p className="muted share-panel-note">
           Copy or download a deck list in OPTCGSim format (
           <code>4xOP15-053</code>), then use Import from Clipboard in the simulator. DON!! cards are
@@ -238,8 +240,7 @@ function DeckExportPanel({
           </button>
         </div>
         <ShareStatus message={exportMsg} />
-      </div>
-    </CollapsibleDrawer>
+    </div>
   );
 }
 
@@ -390,6 +391,29 @@ function formatShoppingListStats(data: {
   );
 }
 
+function ShoppingStatStrip({ data }: { data: Parameters<typeof shoppingListStats>[0] }) {
+  const { totalUnique, uniqueStillNeeded, totalStillNeeded, remainingMarket } = shoppingListStats(data);
+  return (
+    <ul className="stat-strip" aria-label="Shopping totals">
+      <li>
+        <span className="stat-label">Cards left</span>
+        <span className="stat-value">
+          {uniqueStillNeeded}
+          <small> / {totalUnique}</small>
+        </span>
+      </li>
+      <li>
+        <span className="stat-label">Copies</span>
+        <span className="stat-value">{totalStillNeeded}</span>
+      </li>
+      <li>
+        <span className="stat-label">Est. cost</span>
+        <span className="stat-value gold">{money(remainingMarket)}</span>
+      </li>
+    </ul>
+  );
+}
+
 function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: string, qty: number) {
   const id = cardId.toUpperCase();
   qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) => {
@@ -466,6 +490,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
           </nav>
           <div className="user">
             <BuildTag />
+            <ThemeToggle />
             <span className="user-name" title={user.email}>
               {shortName}
             </span>
@@ -557,7 +582,7 @@ function LoginPage() {
         />
         <h1>OPTCG Tracker</h1>
         <p className="lede">
-          Track decks, Owned counts across your lists, and market prices.
+          Chart your decks, track what you own, and see what’s left to buy at market price.
         </p>
         <a className="btn primary" href={api.googleLoginUrl()}>
           Sign in with Google
@@ -1458,10 +1483,31 @@ function ShoppingPage() {
     <section>
       <div className="page-head">
         <div>
+          <p className="eyebrow">Across your decks</p>
           <h1>Master Shopping</h1>
-          <p className="muted">{formatShoppingListStats(data)}</p>
+          <ShoppingStatStrip data={data} />
         </div>
         <div className="page-head-actions">
+          <ShoppingSharePanel
+            shareInfo={shareInfo}
+            shareUrl={shareUrl}
+            shareMsg={shareMsg}
+            creating={createShare.isPending}
+            revoking={revokeShare.isPending}
+            onCopy={async () => {
+              if (!shareUrl) return;
+              try {
+                await navigator.clipboard.writeText(shareUrl);
+                setShareMsg("Public link copied");
+              } catch {
+                setShareMsg(shareUrl);
+              }
+            }}
+            onCreateOrUpdate={() => createShare.mutate()}
+            onRevoke={() => {
+              if (shareInfo) revokeShare.mutate(shareInfo.token);
+            }}
+          />
           <button
             type="button"
             className="btn secondary"
@@ -1472,27 +1518,6 @@ function ShoppingPage() {
           </button>
         </div>
       </div>
-
-      <ShoppingSharePanel
-        shareInfo={shareInfo}
-        shareUrl={shareUrl}
-        shareMsg={shareMsg}
-        creating={createShare.isPending}
-        revoking={revokeShare.isPending}
-        onCopy={async () => {
-          if (!shareUrl) return;
-          try {
-            await navigator.clipboard.writeText(shareUrl);
-            setShareMsg("Public link copied");
-          } catch {
-            setShareMsg(shareUrl);
-          }
-        }}
-        onCreateOrUpdate={() => createShare.mutate()}
-        onRevoke={() => {
-          if (shareInfo) revokeShare.mutate(shareInfo.token);
-        }}
-      />
 
       {selectedTotals.count > 0 && (
         <div className="buy-bar">
@@ -1759,6 +1784,33 @@ function groupDecksByLeader(
   return groups;
 }
 
+/** Compact owned-copies bar for a deck tile; hidden when the API omits the count. */
+function DeckOwnedMeter({ owned, total }: { owned: number | undefined; total: number }) {
+  if (owned == null || total <= 0) return null;
+  const pct = Math.min(100, Math.round((owned / total) * 100));
+  const complete = owned >= total;
+  return (
+    <div className={`deck-owned-meter${complete ? " complete" : ""}`}>
+      <div className="deck-owned-meter-text">
+        <span>
+          <strong>{owned}</strong> / {total} owned
+        </span>
+        <span>{complete ? "Complete" : `${total - owned} to go`}</span>
+      </div>
+      <div
+        className="deck-progress-bar"
+        role="progressbar"
+        aria-label="Copies owned"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={owned}
+      >
+        <span style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 function DecksPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -1816,6 +1868,17 @@ function DecksPage() {
       </div>
       {setMain.isError && (
         <p className="error">{(setMain.error as Error).message}</p>
+      )}
+      {del.isError && <p className="error">{(del.error as Error).message}</p>}
+      {leaderGroups.length === 0 && (
+        <div className="empty-state">
+          <CompassIcon />
+          <h2>No decks aboard yet</h2>
+          <p>Import an OPTCGSim deck code and its cards join your Master Shopping list.</p>
+          <Link className="btn primary" to="/import">
+            Import your first deck
+          </Link>
+        </div>
       )}
       <div className="deck-leader-groups">
         {leaderGroups.map((group) => {
@@ -1901,6 +1964,7 @@ function DecksPage() {
                             {(d.don_cards ?? 0) > 0 ? ` · ${d.don_cards}/10 DON!!` : ""}
                             {` · ${d.card_count} unique`}
                           </p>
+                          <DeckOwnedMeter owned={d.owned_copies} total={d.main_cards ?? d.total_cards} />
                         </div>
                       </div>
                       <div className="row-actions">
@@ -1930,8 +1994,10 @@ function DecksPage() {
                         <button
                           type="button"
                           className="ghost danger"
+                          disabled={del.isPending}
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (!window.confirm(`Delete “${d.name}”? This can’t be undone.`)) return;
                             del.mutate(d.id);
                           }}
                         >
@@ -2845,13 +2911,24 @@ function DeckDetailPage() {
   const donCount = data.don_cards ?? data.cards
     .filter((c) => c.section === "don" || isDonCardType(c.card_type))
     .reduce((s, c) => s + c.needed, 0);
+  const leaderArt = data.leader_card_id
+    ? data.cards.find((c) => c.card_id === data.leader_card_id)?.image_url
+    : undefined;
 
   return (
     <section>
       <div className="page-head">
-        <div>
+        <div className="deck-detail-head">
+          {leaderArt && (
+            <img
+              className="deck-detail-leader"
+              src={cardImageUrl(leaderArt, "thumb") || leaderArt}
+              alt={data.leader_name || data.leader_card_id || "Leader"}
+            />
+          )}
+          <div className="deck-detail-head-text">
           <p className="eyebrow">
-            <Link to="/decks">Decks</Link>
+            <Link to="/decks">← Decks</Link>
           </p>
           <div className="deck-detail-title-row">
             <h1>{data.name}</h1>
@@ -2870,34 +2947,63 @@ function DeckDetailPage() {
           <p className="muted deck-size-meta">
             Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {donCount}/{DON_DECK_LIMIT}
           </p>
+          </div>
         </div>
         <div className="page-head-actions">
-          {data.leader_card_id && !data.is_main && (
-            <button
-              type="button"
-              className="btn secondary"
-              disabled={setMain.isPending}
-              onClick={() => setMain.mutate()}
-            >
-              {setMain.isPending ? "Setting…" : "Set as Main"}
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn secondary"
-            disabled={resetOwned.isPending || data.cards.length === 0}
-            onClick={() => {
-              const ok = window.confirm(
-                "Reset owned counts to 0 for every card in this deck?\n\n" +
-                  "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks.",
-              );
-              if (!ok) return;
-              setResetMsg(null);
-              resetOwned.mutate();
-            }}
-          >
-            {resetOwned.isPending ? "Resetting…" : "Reset owned"}
-          </button>
+          <HeadPopover label="Share" panelLabel="Share and export" width={360}>
+            <div className="head-popover-sections">
+              <DeckSharePanel
+                shareMsg={shareMsg}
+                sharing={shareDeck.isPending}
+                onShare={() => shareDeck.mutate()}
+              />
+              <DeckExportPanel
+                deck={data}
+                exportMsg={exportMsg}
+                onCopy={() => void copyOptcgSimList()}
+                onDownload={downloadOptcgSimList}
+              />
+            </div>
+          </HeadPopover>
+          <HeadPopover label="More" panelLabel="More deck actions" width={260}>
+            {(close) => (
+              <div className="head-popover-menu" role="menu">
+                {data.leader_card_id && !data.is_main && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={setMain.isPending}
+                    onClick={() => {
+                      setMain.mutate();
+                      close();
+                    }}
+                  >
+                    {setMain.isPending ? "Setting…" : "Set as Main deck"}
+                    <span className="muted">Other decks for this leader compare against it</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="danger"
+                  disabled={resetOwned.isPending || data.cards.length === 0}
+                  onClick={() => {
+                    close();
+                    const ok = window.confirm(
+                      "Reset owned counts to 0 for every card in this deck?\n\n" +
+                        "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks.",
+                    );
+                    if (!ok) return;
+                    setResetMsg(null);
+                    resetOwned.mutate();
+                  }}
+                >
+                  {resetOwned.isPending ? "Resetting…" : "Reset owned counts"}
+                  <span className="muted">Sets every card in this deck to 0 owned</span>
+                </button>
+              </div>
+            )}
+          </HeadPopover>
           <button
             type="button"
             className={editing ? "btn secondary" : "btn primary"}
@@ -2928,19 +3034,6 @@ function DeckDetailPage() {
           {resetMsg}
         </p>
       )}
-
-      <DeckSharePanel
-        shareMsg={shareMsg}
-        sharing={shareDeck.isPending}
-        onShare={() => shareDeck.mutate()}
-      />
-
-      <DeckExportPanel
-        deck={data}
-        exportMsg={exportMsg}
-        onCopy={() => void copyOptcgSimList()}
-        onDownload={downloadOptcgSimList}
-      />
 
       {editing && (
         <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
@@ -3227,6 +3320,7 @@ function PublicSharePage() {
           </div>
           <div className="user">
             <BuildTag />
+            <ThemeToggle />
             <Link className="btn secondary" to="/login">
               Sign in
             </Link>

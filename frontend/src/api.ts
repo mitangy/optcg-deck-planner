@@ -69,6 +69,8 @@ export type DeckSummary = {
   total_cards: number;
   main_cards?: number;
   don_cards?: number;
+  /** Non-DON copies covered by Owned (min(owned, needed) per card), out of main_cards. */
+  owned_copies?: number;
   sort_order: number;
   /** Effective Main for this leader (explicit or earliest same-leader fallback). */
   is_main?: boolean;

@@ -40,6 +40,9 @@ class DeckSummary(BaseModel):
     total_cards: int
     main_cards: int = 0
     don_cards: int = 0
+    # Non-DON copies covered by the user's Owned counts (min(owned, needed) per
+    # card) — same math as the deck page progress bar; out of main_cards.
+    owned_copies: int = 0
     sort_order: int
     # Effective main for this leader (explicit flag or earliest same-leader fallback).
     is_main: bool = False

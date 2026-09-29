@@ -12,6 +12,8 @@ import {
   money,
 } from "./api";
 import { BuildTag } from "./BuildTag";
+import { ShipIcon } from "./ThemeIcons";
+import { ThemeToggle } from "./ThemeToggle";
 import { CardLayoutToggle, useCardLayout } from "./CardLayout";
 import {
   buildFilterSummary,
@@ -526,6 +528,7 @@ export function GroupBuysPage() {
     <section>
       <div className="page-head">
         <div>
+          <p className="eyebrow">Sail together</p>
           <h1>Group buys</h1>
           <p className="muted">
             Combine friends’ shopping lists into one bulk order to save on shipping.
@@ -556,7 +559,11 @@ export function GroupBuysPage() {
       {msg && <p className="error">{msg}</p>}
 
       {rows.length === 0 ? (
-        <p className="muted">No group buys yet. Start one and share the invite link.</p>
+        <div className="empty-state">
+          <ShipIcon />
+          <h2>No crew orders yet</h2>
+          <p>Start a group buy above, then share the invite link so friends can add their lists.</p>
+        </div>
       ) : (
         <ul className="group-buy-list">
           {rows.map((g) => (
@@ -1942,6 +1949,7 @@ export function PublicGroupBuyPage() {
           </div>
           <div className="user">
             <BuildTag />
+            <ThemeToggle />
             <Link className="btn secondary" to="/login">
               Sign in
             </Link>
