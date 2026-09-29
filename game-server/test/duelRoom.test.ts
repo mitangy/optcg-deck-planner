@@ -636,6 +636,19 @@ describe("DuelRoom", () => {
     await waitUntil(() => bags[1].over != null, 8000);
     assert.equal(bags[1].over!.result.winner, 1);
     assert.equal(bags[1].over!.result.reason, "abandoned");
+
+    // The vacated seat can't be taken over by a new player.
+    // The server rejects and closes the socket, so connecting may itself throw.
+    const intruder: SeatBag = { views: [], errors: [] };
+    try {
+      const c2 = await colyseus.connectTo(room, joinOpts("mallory", 0));
+      attach(c2, intruder);
+    } catch {
+      /* closed before the client could attach: also a rejection */
+    }
+    await new Promise((r) => setTimeout(r, 200));
+    assert.equal(intruder.views.length, 0);
+    assert.equal(bags[1].over!.result.winner, 1);
     await c1.leave(true);
   });
 

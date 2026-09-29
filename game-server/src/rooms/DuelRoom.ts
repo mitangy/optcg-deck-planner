@@ -327,6 +327,16 @@ export class DuelRoom extends Room {
       return;
     }
 
+    // Once a match has started its seats are fixed: a vacated seat can only be
+    // reclaimed through allowReconnection (handled above), never by a new join.
+    // Otherwise anyone with the room id could take over after a Leave, read
+    // the leaver's hand and cancel the forfeit.
+    if (this.matchStarted) {
+      this.sendError(client, "room_full", "Match already in progress");
+      client.leave();
+      return;
+    }
+
     if (this.ranked && identity.deck) {
       const issues = unsupportedCardsForDeck(identity.deck);
       if (issues.length > 0) {
