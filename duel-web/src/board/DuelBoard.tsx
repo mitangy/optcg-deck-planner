@@ -25,6 +25,7 @@ import {
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
+import { useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { loadSettings } from "../settings";
 
@@ -112,6 +113,7 @@ export function DuelBoard({
   const [now, setNow] = useState(() => Date.now());
   const handRowRef = useRef<HTMLDivElement | null>(null);
   const playmatUrl = usePlaymatUrl();
+  const cardBackUrl = useCardBackUrl();
   const [playmatDim] = useState(() => loadSettings().playmatDim);
 
   useEffect(() => {
@@ -439,6 +441,7 @@ export function DuelBoard({
               side="you"
               matImageUrl={playmatUrl}
               matDim={playmatDim}
+              cardBackUrl={cardBackUrl}
               ownerSeat={boardSeat}
               viewingSeat={viewingSeat}
               data={{
