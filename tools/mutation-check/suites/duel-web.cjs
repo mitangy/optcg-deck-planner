@@ -283,5 +283,14 @@ module.exports = {
     { id: "settings-legacy-beats-saved", file: `${src}/settings.ts`, from: "rest.responseStops === undefined && autoPassDefense === true", to: "autoPassDefense === true", kills: ["lets a saved choice beat the old switch"] },
     { id: "settings-unknown-stops-kept", file: `${src}/settings.ts`, from: "  if (!RESPONSE_STOPS.includes(next.responseStops)) next.responseStops = DEFAULTS.responseStops;\n", to: "", kills: ["falls back to always for an unknown value"] },
     { id: "settings-legacy-key-kept", file: `${src}/settings.ts`, from: "  const { autoPassDefense, ...rest } = parsed;\n  const next = { ...DEFAULTS, ...rest };", to: "  const { autoPassDefense } = parsed;\n  const rest = parsed;\n  const next = { ...DEFAULTS, ...rest };", kills: ["drops the old key from what it returns"] },
+    // incoming attack cues
+    { id: "attack-key-own-attack", file: `${src}/board/attackCue.ts`, from: "  if (!ends || !ends.incoming) return null;", to: "  if (!ends) return null;", kills: ["has no key for your own attack"] },
+    { id: "attack-key-spectator", file: `${src}/board/attackCue.ts`, from: "  if (!view || spectating) return null;", to: "  if (!view) return null;", kills: ["has no key for spectators, or without a battle"] },
+    { id: "attack-key-follows-blocker", file: `${src}/board/attackCue.ts`, from: "${ends.redirectedFromId ?? ends.targetId}", to: "${ends.targetId}", kills: ["keeps the same key when a Blocker steps in on the attack"] },
+    { id: "attack-key-any-attacker", file: `${src}/board/attackCue.ts`, from: "${view.turnNumber}:${ends.attackerId}:", to: "${view.turnNumber}:", kills: ["changes for the next attacker and the next turn"] },
+    { id: "attack-key-any-turn", file: `${src}/board/attackCue.ts`, from: "${view.turnNumber}:${ends.attackerId}:", to: "${ends.attackerId}:", kills: ["changes for the next attacker and the next turn"] },
+    { id: "attack-cue-repeats", file: `${src}/board/attackCue.ts`, from: "  return next != null && next !== prev;", to: "  return next != null;", kills: ["does not fire again for the same attack on a re-render"] },
+    { id: "attack-cue-on-end", file: `${src}/board/attackCue.ts`, from: "  return next != null && next !== prev;", to: "  return next !== prev;", kills: ["stays quiet when the attack ends"] },
+    { id: "attack-cue-only-first", file: `${src}/board/attackCue.ts`, from: "  return next != null && next !== prev;", to: "  return next != null && prev == null;", kills: ["fires for a different attack that follows directly"] },
   ],
 };

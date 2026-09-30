@@ -43,13 +43,13 @@ const TOGGLES: Toggle[] = [
   },
   {
     key: "turnAlert",
-    label: "Buzz when it's your move",
-    hint: "Vibrates on supported phones and marks the browser tab while you're away.",
+    label: "Vibration",
+    hint: "Short buzzes on supported phones (Android) for picking up and dropping cards, incoming attacks and your move. Also marks the browser tab while you're away.",
   },
   {
     key: "turnSound",
-    label: "Chime when it's your move",
-    hint: "A short sound when your turn starts or you need to respond.",
+    label: "Sounds",
+    hint: "A chime when your turn starts or you need to respond, and a lower two-tone cue when you are attacked. Works on iPhone too.",
   },
 ];
 

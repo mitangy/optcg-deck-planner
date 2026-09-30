@@ -65,7 +65,9 @@ import { usePlaymatUrl } from "../playmat";
 import { useDuelSettings } from "../settings";
 import { endTurnNeedsConfirm, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
-import { useTurnAlert } from "./turnAlert";
+import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
+import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
+import { buzz } from "./haptics";
 import { seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
 import { RematchPanel } from "./RematchPanel";
@@ -346,10 +348,33 @@ export function DuelBoard({
   }, [defendKey]);
 
   // Hotseat hands the device over itself; alerts only matter online.
-  useTurnAlert(!spectating && !over && !hotseatPass && intents.length > 0 && autoPass == null, {
+  const alertsOn = !spectating && !over && !hotseatPass && autoPass == null;
+  // An attack against you has its own cue, so the generic "your move" alert
+  // stays quiet while you are answering one.
+  const attackKey = alertsOn ? incomingAttackKey(view, spectating) : null;
+  useTurnAlert(alertsOn && intents.length > 0 && attackKey == null, {
     buzz: prefs.turnAlert,
     sound: prefs.turnSound,
   });
+  useIncomingAttackCue(attackKey, { sound: prefs.turnSound });
+
+  // iOS only plays sound after one started inside a gesture: unlock on the
+  // first touch of the match so a later cue is allowed to play.
+  useEffect(() => {
+    if (!prefs.turnSound) return;
+    const unlock = () => {
+      unlockAudio();
+      if (audioUnlocked()) document.removeEventListener("pointerdown", unlock, true);
+    };
+    document.addEventListener("pointerdown", unlock, true);
+    return () => document.removeEventListener("pointerdown", unlock, true);
+  }, [prefs.turnSound]);
+
+  // Small haptic tap when a drag lifts a card / DON!!.
+  const dragging = dragPayload != null;
+  useEffect(() => {
+    if (dragging) buzz("pickup");
+  }, [dragging]);
 
   const dndEnabled = yourTurn && !spectating && !over && !mulliganPhase;
   const costArea = view?.you.costArea ?? [];
@@ -525,6 +550,7 @@ export function DuelBoard({
       return;
     }
     if (toSend.length > 0) {
+      buzz("drop");
       setHandFilter(null);
       setSelectedBoardId(null);
       for (const intent of toSend) onSendIntent(intent);

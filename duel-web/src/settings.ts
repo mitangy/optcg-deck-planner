@@ -133,6 +133,11 @@ function subscribe(onChange: () => void): () => void {
   };
 }
 
+/** Current settings for non-React callers (haptics, audio cues). */
+export function currentSettings(): DuelSettings {
+  return snapshot();
+}
+
 /** Live settings: re-renders when they change on this page or in another tab. */
 export function useDuelSettings(): DuelSettings {
   return useSyncExternalStore(subscribe, snapshot, snapshot);
