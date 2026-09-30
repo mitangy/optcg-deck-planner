@@ -16,6 +16,7 @@ type Toggle = {
   key:
     | "sortHandByCost"
     | "keepHandOpen"
+    | "tiltedBoard"
     | "turnSplash"
     | "reduceMotion"
     | "turnAlert"
@@ -34,6 +35,11 @@ const TOGGLES: Toggle[] = [
     key: "keepHandOpen",
     label: "Keep hand open",
     hint: "Desktop: the fanned hand (or the corner dock in short windows) stays up instead of tucking away. H toggles it during a match. The grid in the right column is always open.",
+  },
+  {
+    key: "tiltedBoard",
+    label: "Tilted board",
+    hint: "Desktop: the board leans away from you like a real table, so the opponent's side is a little smaller and further back.",
   },
   {
     key: "turnSplash",

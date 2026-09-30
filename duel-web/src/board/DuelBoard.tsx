@@ -218,6 +218,8 @@ export function DuelBoard({
   /** Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). */
   const fanHand = wide && !lp && prefs.handLayout !== "grid";
   const fanCenter = fanHand && prefs.handLayout === "fanCenter";
+  /** Desktop: the board leans back in perspective, seen from your seat. */
+  const tilted = wide && !lp && prefs.tiltedBoard;
   /** Tall desktop, Grid layout: the hand is an always-open grid in the right rail (no dock). */
   const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
   const railHand = wide && !lp && railHandTall && !fanHand;
@@ -1104,7 +1106,9 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : fanHand ? " arena-fan-right" : ""}`}
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : fanHand ? " arena-fan-right" : ""}${
+        tilted ? " arena-tilt" : ""
+      }`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
       data-phase={view.phase}
       data-turn={view.turnNumber}

@@ -3654,3 +3654,32 @@
   overflow-wrap: anywhere;
   text-align: left;
 }
+
+/* —— Tilted board (desktop setting): seen from your seat ——
+
+   Both mats lean back as one table: rotateX around the near (bottom) edge,
+   with perspective so the opponent's side is smaller and further away. The
+   inner box is laid out taller than the playmat (--tilt-grow) and hangs off
+   its top; the tilt folds that extra height back into view, so the near mat
+   ends up bigger than the flat board and nothing is clipped. Only transform,
+   so hit-testing (drops, clicks) follows what you see and BoardMotion's
+   translate / scale still compose. */
+.arena.arena-tilt .playmat {
+  --tilt: 30deg;
+  --tilt-grow: 1.45;
+}
+
+.arena.arena-tilt .playmat-inner {
+  height: calc(100cqh * var(--tilt-grow));
+  margin-top: calc(100cqh * (1 - var(--tilt-grow)));
+  justify-content: flex-end;
+  transform-origin: 50% 100%;
+  transform: perspective(calc(100cqh * 2.4)) rotateX(var(--tilt));
+}
+
+/* Same sizing as the flat desktop mats, from the taller (pre-tilt) box. */
+.arena.arena-wide.arena-tilt:not(.arena-lp) .side-field {
+  --mat-h: calc(
+    (100cqh * var(--tilt-grow) - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2
+  );
+}
