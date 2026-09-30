@@ -647,6 +647,94 @@
   align-self: center;
 }
 
+/* Recent plays: fixed height so the log below never jumps. */
+.recent-plays {
+  flex: 0 0 auto;
+  height: 3.6rem;
+  box-sizing: border-box;
+  padding: 0.35rem 0.8rem;
+  border-top: 1px solid var(--line);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.recent-plays-empty {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.recent-plays-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 0.35rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.recent-plays-row li {
+  flex: 0 0 auto;
+}
+
+.recent-play {
+  position: relative;
+  display: block;
+  width: 2.2rem;
+  aspect-ratio: 5 / 7;
+  padding: 0;
+  border: 0;
+  border-bottom: 3px solid var(--line);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--muted);
+  font-size: 0.5rem;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.recent-play img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.recent-play-you {
+  border-bottom-color: #4fb3ff;
+}
+
+.recent-play-opp {
+  border-bottom-color: #ff6b5e;
+}
+
+.recent-play-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0 0.22rem;
+  border-radius: 0 0 4px 0;
+  font-size: 0.55rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #06121a;
+}
+
+.recent-play-you .recent-play-mark {
+  background: #4fb3ff;
+}
+
+.recent-play-opp .recent-play-mark {
+  background: #ff6b5e;
+}
+
+.recent-play:focus-visible {
+  outline: 2px solid var(--chrome-bright);
+  outline-offset: 1px;
+}
+
 .arena.arena-wide .arena-left .battle-log {
   position: static;
   flex: 1 1 0;

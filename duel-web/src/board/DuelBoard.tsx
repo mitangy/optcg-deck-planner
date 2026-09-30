@@ -15,6 +15,7 @@ import type {
 } from "../net/protocol";
 import { BattleLogPanel } from "./BattleLogPanel";
 import { CardPreviewPanel } from "./CardPreviewPanel";
+import { RecentPlaysStrip } from "./RecentPlaysStrip";
 import { ChatPanel } from "./ChatPanel";
 import type { BattleLogEntry } from "./battleLog";
 import { describeMatchResult } from "./matchResult";
@@ -1289,6 +1290,7 @@ export function DuelBoard({
         ) : wide ? (
           <aside className="arena-left" aria-label="Card preview and battle log">
             <CardPreviewPanel />
+            {!lp ? <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} /> : null}
             <BattleLogPanel
               entries={battleLog}
               viewingSeat={spectating || mySeat == null ? undefined : mySeat}
