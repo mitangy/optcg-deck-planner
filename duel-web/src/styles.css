@@ -3359,6 +3359,78 @@ img.zone-pile-face {
   color: var(--chrome-bright) !important;
   font-weight: 700;
 }
+/* Put-back order lists: caps name each end of the pile, a dashed row marks
+   the untouched rest of it, rows drag to reorder. */
+.order-cap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--chrome-bright);
+}
+.order-cap::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line-strong, var(--line));
+}
+.order-cap-top {
+  margin-bottom: 0.3rem;
+}
+.order-cap-bottom {
+  margin-top: 0.3rem;
+}
+.search-order-list.order-list {
+  padding-left: 0;
+  list-style: none;
+}
+.order-list .order-row {
+  justify-content: flex-start;
+  gap: 0.4rem;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.order-list .order-row .choice-order-name {
+  flex: 1 1 auto;
+}
+.order-list .order-row .search-order-actions {
+  flex: none;
+}
+.order-list.is-dragging,
+.order-list.is-dragging .order-row {
+  cursor: grabbing;
+}
+.order-list .order-row.is-drag {
+  border-color: var(--chrome);
+  background: rgba(210, 165, 77, 0.16);
+}
+.order-grip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  min-height: 2rem;
+  color: var(--muted);
+  font-size: 1rem;
+  touch-action: none;
+}
+.order-list .order-rest {
+  justify-content: center;
+  padding: 0.2rem;
+  border: 1px dashed var(--line-strong, var(--line));
+  border-radius: 0.5rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .deck-preview strong {
   color: var(--chrome-bright);
 }

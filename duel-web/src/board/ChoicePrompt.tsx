@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { lookupCard } from "../cards/atlas";
 import type { ChoiceOptionView, ChoiceRequestView, Intent, PendingChoiceView, PlayerView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
 import { DON_CARD_ART } from "./donArt";
+import { arrangementAnswer, arrangementRows, initialArrangement, mergeArrangement, moveToRow, nudge, setSide, withoutIds, type Arrangement } from "./deckOrder";
 import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "./liveTargets";
 
 type Props = {
@@ -133,55 +134,123 @@ export function BoardHighlight({ ids, kind }: { ids: string[]; kind: "hover" | "
   return <style>{rule}</style>;
 }
 
-function moveItem(list: string[], id: string, delta: -1 | 1): string[] {
-  const index = list.indexOf(id);
-  const next = index + delta;
-  if (index < 0 || next < 0 || next >= list.length) return list;
-  const out = [...list];
-  [out[index], out[next]] = [out[next]!, out[index]!];
-  return out;
-}
+/**
+ * Where the list sits against the rest of the pile: "above" (top of deck),
+ * "below" (bottom of deck), or "split" (each card picks Top / Bottom).
+ */
+type OrderMode = "above" | "below" | "split";
 
-/** Ordered list of cards with move buttons and optional top/bottom placement. */
-function OrderList({ ids, byId, onMove, topIds, onToggleTop, topBottom, label }: {
-  ids: string[];
+/**
+ * Cards to put back, drawn top → bottom like the pile itself, between "Top of
+ * deck" and "Bottom of deck" caps with the untouched rest of the pile marked.
+ * Reorder by dragging a row (the grip on touch screens) or with the arrows.
+ */
+function OrderList({ arrangement, byId, onChange, mode, pile, label }: {
+  arrangement: Arrangement;
   byId: Map<string, ChoiceOptionView>;
-  onMove: (id: string, delta: -1 | 1) => void;
-  topIds: Set<string>;
-  onToggleTop: (id: string) => void;
-  topBottom: boolean;
+  onChange: (next: Arrangement) => void;
+  mode: OrderMode;
+  pile: "deck" | "Life";
   label: string;
 }) {
-  if (ids.length === 0) return null;
+  const listRef = useRef<HTMLOListElement>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  // Latest props for the window listeners of an in-flight drag.
+  const live = useRef({ arrangement, onChange });
+  live.current = { arrangement, onChange };
+
+  useEffect(() => {
+    if (!dragId) return;
+    const onMove = (e: PointerEvent) => {
+      const list = listRef.current;
+      if (!list) return;
+      // Index among the other rows (the divider counts only when it is draggable-across).
+      const others = [...list.querySelectorAll<HTMLElement>("[data-order-row]")].filter((el) => el.dataset.orderRow !== dragId);
+      const index = others.filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.top + r.height / 2 < e.clientY;
+      }).length;
+      const { arrangement: cur, onChange: change } = live.current;
+      const next = moveToRow(cur, dragId, index);
+      if (next.top.join() !== cur.top.join() || next.bottom.join() !== cur.bottom.join()) change(next);
+    };
+    const onEnd = () => setDragId(null);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onEnd);
+    window.addEventListener("pointercancel", onEnd);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onEnd);
+      window.removeEventListener("pointercancel", onEnd);
+    };
+  }, [dragId]);
+
+  const cardCount = arrangement.top.length + arrangement.bottom.length;
+  if (cardCount === 0) return null;
+  const split = mode === "split";
+  const rows: (string | null)[] = split
+    ? arrangementRows(arrangement)
+    : mode === "below"
+      ? [null, ...arrangement.top]
+      : [...arrangement.top, null];
+  const cardRows = split ? rows : arrangement.top;
+  const onTop = new Set(arrangement.top);
+
+  const startDrag = (e: ReactPointerEvent<HTMLLIElement>, id: string) => {
+    const target = e.target as HTMLElement;
+    if (e.button !== 0 || target.closest("button")) return;
+    // Touch drags start from the grip only, so the list still scrolls.
+    if (e.pointerType !== "mouse" && !target.closest(".order-grip")) return;
+    e.preventDefault();
+    setDragId(id);
+  };
+
   return (
     <div className="ability-prompt-section">
       <div className="ability-prompt-label">{label}</div>
-      <ol className="search-order-list">
-        {ids.map((id, index) => {
+      <div className="order-cap order-cap-top">▲ Top of {pile}</div>
+      <ol ref={listRef} className={`search-order-list order-list${dragId ? " is-dragging" : ""}`}>
+        {rows.map((id) => {
+          if (id == null) {
+            return (
+              <li key="rest" className="order-rest" {...(split ? { "data-order-row": "rest" } : {})}>
+                Rest of {pile}
+              </li>
+            );
+          }
           const option = byId.get(id)!;
+          const name = optionName(option);
+          const index = cardRows.indexOf(id);
           return (
-            <li key={id}>
-              <span className="choice-order-name">{optionName(option)}</span>
+            <li
+              key={id}
+              data-order-row={id}
+              className={`order-row${dragId === id ? " is-drag" : ""}`}
+              onPointerDown={(e) => startDrag(e, id)}
+            >
+              <span className="order-grip" aria-hidden title="Drag to reorder">⠿</span>
+              <span className="choice-order-name">{name}</span>
               <span className="search-order-actions">
-                {topBottom ? (
+                {split ? (
                   // Explicit two-way switch: a single "Top"/"Bottom" toggle read
                   // like an action, not the card's current placement.
-                  <span className="choice-place-seg" role="group" aria-label={`Place ${optionName(option)}`}>
-                    <button type="button" className="choice-place" aria-pressed={topIds.has(id)} onClick={() => { if (!topIds.has(id)) onToggleTop(id); }}>
+                  <span className="choice-place-seg" role="group" aria-label={`Place ${name}`}>
+                    <button type="button" className="choice-place" aria-pressed={onTop.has(id)} onClick={() => onChange(setSide(arrangement, id, "top"))}>
                       Top
                     </button>
-                    <button type="button" className="choice-place" aria-pressed={!topIds.has(id)} onClick={() => { if (topIds.has(id)) onToggleTop(id); }}>
+                    <button type="button" className="choice-place" aria-pressed={!onTop.has(id)} onClick={() => onChange(setSide(arrangement, id, "bottom"))}>
                       Bottom
                     </button>
                   </span>
                 ) : null}
-                <button type="button" disabled={index === 0} onClick={() => onMove(id, -1)} aria-label={`Move ${optionName(option)} up`}>↑</button>
-                <button type="button" disabled={index === ids.length - 1} onClick={() => onMove(id, 1)} aria-label={`Move ${optionName(option)} down`}>↓</button>
+                <button type="button" disabled={index === 0} onClick={() => onChange(nudge(arrangement, id, -1))} aria-label={`Move ${name} up`}>↑</button>
+                <button type="button" disabled={index === cardRows.length - 1} onClick={() => onChange(nudge(arrangement, id, 1))} aria-label={`Move ${name} down`}>↓</button>
               </span>
             </li>
           );
         })}
       </ol>
+      <div className="order-cap order-cap-bottom">▼ Bottom of {pile}</div>
     </div>
   );
 }
@@ -247,10 +316,10 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
 function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestView, { type: "look" }>; mySeat: Seat; onSend: (i: Intent) => void }) {
   const byId = useMemo(() => new Map(request.options.map((o) => [o.id, o])), [request.options]);
   const [selected, setSelected] = useState<string[]>([]);
-  const [order, setOrder] = useState<string[]>(() => request.options.map((o) => o.id));
   // Top by default, so "Done" without changes leaves the deck as it was.
-  const [topIds, setTopIds] = useState<Set<string>>(() => new Set(request.options.map((o) => o.id)));
-  const remaining = order.filter((id) => !selected.includes(id));
+  const [arrangement, setArrangement] = useState<Arrangement>(() => initialArrangement(request.options.map((o) => o.id)));
+  const rest = withoutIds(arrangement, selected);
+  const remaining = [...rest.top, ...rest.bottom];
   const eligible = (id: string) => request.groups.some((g) => g.eligibleIds.includes(id));
   const toggle = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : request.maxSelect === 1 ? [id] : cur.length >= request.maxSelect ? cur : [...cur, id]));
   const needsOrder = request.rest === "deck_bottom" || request.rest === "deck_top" || request.rest === "top_or_bottom";
@@ -280,21 +349,21 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
       </div>
       {needsOrder ? (
         <OrderList
-          ids={remaining}
+          arrangement={rest}
           byId={byId}
-          onMove={(id, delta) => setOrder((cur) => moveItem(cur, id, delta))}
-          topIds={topIds}
-          onToggleTop={(id) => setTopIds((cur) => { const next = new Set(cur); if (next.has(id)) next.delete(id); else next.add(id); return next; })}
-          topBottom={request.rest === "top_or_bottom"}
-          label={request.rest === "deck_top" ? "Order (first = top of deck)" : request.rest === "top_or_bottom" ? "Place each card (Top / Bottom); order top-down" : "Order for the bottom of the deck (first placed first)"}
+          // Selected cards keep their slot in the full arrangement.
+          onChange={(next) => setArrangement(mergeArrangement(arrangement, next, selected))}
+          mode={request.rest === "deck_top" ? "above" : request.rest === "top_or_bottom" ? "split" : "below"}
+          pile="deck"
+          label={request.rest === "deck_top" ? "Put back on top: drag to reorder" : request.rest === "top_or_bottom" ? "Put each card on top or bottom: drag to reorder" : "Put back on the bottom: drag to reorder"}
         />
       ) : (
         <p className="choice-rest-note">{request.restLabel}</p>
       )}
       {request.rest === "top_or_bottom" && remaining.length ? (
         <DeckPreview
-          top={remaining.filter((id) => topIds.has(id)).map((id) => optionName(byId.get(id)!))}
-          bottom={remaining.filter((id) => !topIds.has(id)).map((id) => optionName(byId.get(id)!))}
+          top={rest.top.map((id) => optionName(byId.get(id)!))}
+          bottom={rest.bottom.map((id) => optionName(byId.get(id)!))}
         />
       ) : null}
       {selected.length ? <p className="choice-rest-note">{selected.map((id) => `${optionName(byId.get(id)!)} → ${groupLabel(id) ?? "take"}`).join(" · ")}</p> : null}
@@ -303,7 +372,7 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
           type="button"
           className="btn btn-primary"
           disabled={selected.length < request.minSelect}
-          onClick={() => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: selected, orderedOptionIds: remaining, ...(request.rest === "top_or_bottom" ? { topOptionIds: remaining.filter((id) => topIds.has(id)) } : {}) })}
+          onClick={() => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: selected, ...(request.rest === "top_or_bottom" ? arrangementAnswer(rest) : { orderedOptionIds: remaining }) })}
         >
           {request.maxSelect === 0 ? "Done" : selected.length ? "Confirm" : "Take none & finish"}
         </button>
@@ -314,21 +383,20 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
 
 function OrderBody({ request, onSend }: { request: Extract<ChoiceRequestView, { type: "order" }>; onSend: (i: Intent) => void }) {
   const byId = useMemo(() => new Map(request.options.map((o) => [o.id, o])), [request.options]);
-  const [order, setOrder] = useState<string[]>(() => request.options.map((o) => o.id));
-  const [topIds, setTopIds] = useState<Set<string>>(() => new Set(request.options.map((o) => o.id)));
+  const [arrangement, setArrangement] = useState<Arrangement>(() => initialArrangement(request.options.map((o) => o.id)));
+  const pile = request.destination === "life" ? "Life" : "deck";
   return (
     <>
       <OrderList
-        ids={order}
+        arrangement={arrangement}
         byId={byId}
-        onMove={(id, delta) => setOrder((cur) => moveItem(cur, id, delta))}
-        topIds={topIds}
-        onToggleTop={(id) => setTopIds((cur) => { const next = new Set(cur); if (next.has(id)) next.delete(id); else next.add(id); return next; })}
-        topBottom={Boolean(request.allowTopOrBottom)}
-        label="Order (first = top)"
+        onChange={setArrangement}
+        mode={request.allowTopOrBottom ? "split" : "above"}
+        pile={pile}
+        label={request.allowTopOrBottom ? "Put each card on top or bottom: drag to reorder" : "Drag to reorder"}
       />
       <div className="ability-prompt-actions">
-        <button type="button" className="btn btn-primary" onClick={() => onSend({ type: "resolve_pending_choice", accept: true, orderedOptionIds: order, ...(request.allowTopOrBottom ? { topOptionIds: order.filter((id) => topIds.has(id)) } : {}) })}>
+        <button type="button" className="btn btn-primary" onClick={() => onSend({ type: "resolve_pending_choice", accept: true, ...(request.allowTopOrBottom ? arrangementAnswer(arrangement) : { orderedOptionIds: arrangement.top }) })}>
           Confirm order
         </button>
       </div>
