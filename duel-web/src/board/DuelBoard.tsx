@@ -32,6 +32,7 @@ import {
 import { AttackIndicator } from "./AttackIndicator";
 import { describeBattle } from "./battleBanner";
 import { canOfferFullscreen, readInstallEnv } from "../installPrompt";
+import { useScreenWakeLock } from "./wakeLock";
 import { DonAttachConfirm, DragGhost, type GhostPayload } from "./BoardOverlays";
 import {
   attachTargetIds,
@@ -227,6 +228,8 @@ export function DuelBoard({
   }, [handCollapsed, wide, view?.you.hand.length]);
 
   const over = matchOver != null || view?.winner != null;
+  // Screen stays on through the opponent's long turns; released when the match ends.
+  useScreenWakeLock(!over);
   const mySeat = seat ?? view?.seat ?? null;
   const spectating = spectator || Boolean(view?.spectator);
   const result = describeMatchResult({

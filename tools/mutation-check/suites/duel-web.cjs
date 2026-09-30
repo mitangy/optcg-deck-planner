@@ -212,5 +212,15 @@ module.exports = {
     { id: "fullscreen-in-standalone", file: `${src}/installPrompt.ts`, from: "env.fullscreenEnabled && !isStandalone(env) && !isIos(env)", to: "env.fullscreenEnabled && !isIos(env)", kills: ["is not offered once installed"] },
     { id: "fullscreen-on-ios", file: `${src}/installPrompt.ts`, from: "env.fullscreenEnabled && !isStandalone(env) && !isIos(env)", to: "env.fullscreenEnabled && !isStandalone(env)", kills: ["is not offered on iOS"] },
     { id: "fullscreen-without-api", file: `${src}/installPrompt.ts`, from: "env.fullscreenEnabled && !isStandalone(env) && !isIos(env)", to: "!isStandalone(env) && !isIos(env)", kills: ["has no Fullscreen API"] },
+    // screen wake lock
+    { id: "wake-no-acquire-on-start", file: `${src}/board/wakeLock.ts`, from: "      unsubscribe = addVisibilityListener(acquire);\n      acquire();", to: "      unsubscribe = addVisibilityListener(acquire);", kills: ["acquires a lock on start"] },
+    { id: "wake-ignores-visibility", file: `${src}/board/wakeLock.ts`, from: " || !isVisible()) return;", to: ") return;", kills: ["waits for the page to be visible", "re-acquires after the browser drops the lock"] },
+    { id: "wake-no-reacquire", edits: [{ file: `${src}/board/wakeLock.ts`, from: "addVisibilityListener(acquire);", to: "addVisibilityListener(() => {});" }, { file: `${src}/board/wakeLock.ts`, from: "    handle = null;\n    acquire();", to: "    handle = null;" }], kills: ["re-acquires after the browser drops the lock"] },
+    { id: "wake-stacks-requests", file: `${src}/board/wakeLock.ts`, from: "handle || requesting || !isVisible()", to: "!isVisible()", kills: ["does not stack requests"] },
+    { id: "wake-stop-keeps-lock", file: `${src}/board/wakeLock.ts`, from: "        void handle.release().catch(() => {});\n        handle = null;", to: "        handle = null;", kills: ["releases the lock on stop"] },
+    { id: "wake-stop-keeps-going", edits: [{ file: `${src}/board/wakeLock.ts`, from: "      unsubscribe?.();\n      unsubscribe = null;\n", to: "" }, { file: `${src}/board/wakeLock.ts`, from: "if (!started || !request ||", to: "if (!request ||" }, { file: `${src}/board/wakeLock.ts`, from: "        handle.removeEventListener(\"release\", onReleased);\n", to: "" }], kills: ["does not re-acquire after stop"] },
+    { id: "wake-late-grant-kept", file: `${src}/board/wakeLock.ts`, from: "        if (!started) {\n          // stop() ran while the request was in flight: do not keep the lock.\n          void sentinel.release().catch(() => {});\n          return;\n        }\n", to: "", kills: ["releases a lock that is granted after stop"] },
+    { id: "wake-denied-stuck", file: `${src}/board/wakeLock.ts`, from: "        requesting = false;\n        console.debug", to: "        console.debug", kills: ["keeps trying on later visibility changes after a denied request"] },
+    { id: "wake-unsupported-throws", file: `${src}/board/wakeLock.ts`, from: "if (!started || !request ||", to: "if (!started ||", kills: ["is a no-op when the Wake Lock API is unsupported"] },
   ],
 };
