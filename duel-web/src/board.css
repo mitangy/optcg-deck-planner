@@ -368,7 +368,12 @@
 
 .arena .side-field .card-caption .name {
   font-size: clamp(0.5rem, calc(var(--c) * 0.12), 0.74rem);
-  -webkit-line-clamp: 1;
+  /* One line, cut with an ellipsis mid-word. A one-line clamp wraps at the
+     space first ("Nico Robin" read "Nico…") and leaves the hidden second
+     line sitting under the cost line. */
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .arena .side-field .card-caption .meta {
@@ -2536,22 +2541,23 @@
 .choice-readiness {
   padding: 0.05rem 0.4rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 0.6rem;
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  white-space: nowrap;
+  line-height: 1.15;
+  text-align: center;
   color: var(--muted);
-  /* Phone option columns are narrower than "Summoning sick": wrap, don't spill. */
+  /* Option columns (~80px desktop, ~56px phone) are narrower than
+     "Summoning sick" on one line: wrap to two lines inside the pill. */
   max-width: 100%;
 }
 @media (max-width: 640px) {
+  /* Even the single word "Summoning" is wider than a phone column at the
+     desktop size, so shrink the chip text and padding until it fits. */
   .choice-readiness {
-    white-space: normal;
-    text-align: center;
-    line-height: 1.15;
-    border-radius: 0.6rem;
-    padding: 0.05rem 0.25rem;
+    font-size: 0.52rem;
+    padding: 0.05rem 0.15rem;
     letter-spacing: 0;
   }
 }

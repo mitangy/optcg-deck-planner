@@ -313,7 +313,9 @@ function runAudit(
         });
         // A control is broken if its centre is hidden; text if most of it is.
         if (by && ((isControl && centreBlocked) || blocked * 2 > sampled)) {
-          add("covered", el, `${blocked}/${sampled} points under ${where(by)}`);
+          // A hand card's own badge path doesn't say it's in the hand; name the fan.
+          const fan = (by as Element).closest(".hand-fan") && !el.closest(".hand-fan") ? " (in the hand fan)" : "";
+          add("covered", el, `${blocked}/${sampled} points under ${where(by)}${fan}`);
         }
       }
 

@@ -7,7 +7,7 @@ import { issueKey, type AuditIssue } from "./audit";
  */
 export const KNOWN_UI_ISSUES: Array<{ pattern: RegExp; note: string }> = [
   {
-    pattern: /^covered .* under (div\.hand-fan|.*counter-badge)/,
+    pattern: /^covered .* under (div\.hand-fan|.*counter-badge|.*\(in the hand fan\)$)/,
     note: "Fanned hand covers the bottom of your mat on desktop: DON!! row, deck and trash counts, Leader caption, Trash button",
   },
   {
@@ -19,16 +19,8 @@ export const KNOWN_UI_ISSUES: Array<{ pattern: RegExp; note: string }> = [
     note: "Phone mulligan: the two buttons don't fit; 'Keep opening hand' runs ~25px off the right edge and the row scrolls sideways",
   },
   {
-    pattern: /"Summoning sick": text runs/,
-    note: "Choice prompt: the 'Summoning sick' readiness chip spills out of its box",
-  },
-  {
     pattern: /^spill .*card-tile\.compact > div\.card-caption > div\.meta "Cost \d+": text cut/,
     note: "Compact cards in prompts: the cost line is clipped by ~3px",
-  },
-  {
-    pattern: /^covered .*card-tile\.(compact|full) > div\.card-caption > div\.(name|meta) .* under (div\.(card-stat-stack|card-overlays)|button\.card-tile\.(compact|full) > div\.card-caption > div\.meta)/,
-    note: "Small cards: power badge / status chips sit on the name and cost, and a two-line name runs under the cost line",
   },
   {
     pattern: /^spill .*span\.zone-pile-label "DON!! Deck": text cut \d+px by .*section\.side-field\.side-you/,
