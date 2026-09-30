@@ -494,6 +494,43 @@ function withManyStatuses(base: PlayerView): PlayerView {
 }
 
 /**
+ * `?attack`: your main phase with attacks open, to drag an attacker onto a
+ * target. `?counter`: the opponent's Character attacks your Leader and you are
+ * in the counter step, to drag a Counter card onto your Leader.
+ */
+function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
+  if (params.has("attack")) {
+    const attacks = ["y-leader", "y-c3"].flatMap((attackerId) => [
+      { type: "declare_attack", attackerId, target: { kind: "leader" } },
+      { type: "declare_attack", attackerId, target: { kind: "character", instanceId: "o-c2" } },
+    ]);
+    return { ...base, phase: "main", battle: null, legalIntents: [...base.legalIntents, ...attacks] };
+  }
+  if (params.has("counter")) {
+    return {
+      ...base,
+      activeSeat: 1,
+      phase: "counter",
+      battle: {
+        attackerSeat: 1,
+        attackerId: "o-c1",
+        target: { kind: "leader" },
+        defenderPowerBonus: 0,
+        attackerPowerBonus: 0,
+      },
+      legalIntents: [
+        { type: "counter_from_hand", handIndex: 0 },
+        { type: "counter_from_hand", handIndex: 2 },
+        { type: "counter_from_hand", handIndex: 4 },
+        { type: "counter_event", handIndex: 5 },
+        { type: "pass_counter" },
+      ],
+    };
+  }
+  return base;
+}
+
+/**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
  * state (`&first=1` makes the opponent go first), `?practice` hotseat chrome
  * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
@@ -503,7 +540,8 @@ function withManyStatuses(base: PlayerView): PlayerView {
  * (`&rematch=ask|wait|choose|left`), `?full` a full board, `?rest=N` / `?restlead` /
  * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
  * icons (see withManyStatuses), `?motion` a button that steps
- * through every card animation. Zone counts: see applyDemoZoneParams.
+ * through every card animation, `?attack` / `?counter` drag QA (see
+ * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
@@ -513,7 +551,10 @@ export function DemoPage() {
     params,
   );
   const field = withRestedField(params.has("full") ? withFullBoard(base) : base, params);
-  const board = params.has("statuses") ? withManyStatuses(field) : field;
+  const board = withBattleDrag(
+    params.has("statuses") ? withManyStatuses(field) : field,
+    params,
+  );
   const withTurn: PlayerView = params.has("oppturn") ? { ...board, activeSeat: 1 } : board;
   const view: PlayerView = params.has("turn0")
     ? {
@@ -641,7 +682,10 @@ export function DemoPage() {
               }
             : undefined
         }
-        onSendIntent={() => undefined}
+        onSendIntent={(intent) => {
+          const w = window as { __demoIntents?: unknown[] };
+          (w.__demoIntents ??= []).push(intent);
+        }}
         onLeave={() => {
           window.location.href = "/";
         }}

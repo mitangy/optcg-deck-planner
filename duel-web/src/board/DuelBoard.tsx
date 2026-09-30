@@ -22,6 +22,8 @@ import { describeMatchResult } from "./matchResult";
 import { CardTile } from "./CardTile";
 import {
   canDragDon,
+  canDragAttacker,
+  canDragCounter,
   canDragHandCard,
   canDropPlayOnField,
   findDropTargetAtPoint,
@@ -34,6 +36,7 @@ import {
 import { AttackIndicator } from "./AttackIndicator";
 import { BoardMotion } from "./BoardMotion";
 import { describeBattle } from "./battleBanner";
+import { battleEndpoints } from "./battleArc";
 import { canOfferFullscreen, readInstallEnv } from "../installPrompt";
 import { useScreenWakeLock } from "./wakeLock";
 import { DonAttachConfirm, DonQuickRow, DragGhost, type GhostPayload } from "./BoardOverlays";
@@ -475,6 +478,13 @@ export function DuelBoard({
   }, [dragging]);
 
   const dndEnabled = yourTurn && !spectating && !over && !mulliganPhase;
+  /** Counter step: a Counter card can be dragged from hand onto the defender. */
+  const counterDragEnabled = defend?.phase === "counter";
+  const counterDefenderId = useMemo(() => {
+    if (!counterDragEnabled) return null;
+    const ends = battleEndpoints(view);
+    return ends?.incoming ? ends.targetId : null;
+  }, [counterDragEnabled, view]);
   const costArea = view?.you.costArea ?? [];
 
   const draggableDonIds = useMemo(() => {
@@ -620,12 +630,22 @@ export function DuelBoard({
     return sortHandIndices(view.you.hand, (defId) => lookupCard(defId).cost);
   }, [view, spectating, handSorted]);
 
+  // Attack drag: your Leader / Characters with a legal declare_attack.
+  const draggableAttackerIds = useMemo(() => {
+    if (!dndEnabled || !view) return EMPTY_IDS;
+    const ids = new Set<string>();
+    for (const id of [view.you.leader.id, ...view.you.characters.map((c) => c.id)]) {
+      if (canDragAttacker(intents, id)) ids.add(id);
+    }
+    return ids;
+  }, [dndEnabled, view, intents]);
+
+  // Targets for the attacker being dragged, else for the tapped attacker.
+  const attackerId = dragPayload?.type === "attack" ? dragPayload.attackerId : selectedBoardId;
   const attackTargetIds = useMemo(() => {
-    if (!dndEnabled || !selectedBoardId || !view) return EMPTY_IDS;
-    return new Set(
-      attackTargetIdsForAttacker(intents, selectedBoardId, view.opponent.leader.id),
-    );
-  }, [dndEnabled, selectedBoardId, intents, view]);
+    if (!dndEnabled || !attackerId || !view) return EMPTY_IDS;
+    return new Set(attackTargetIdsForAttacker(intents, attackerId, view.opponent.leader.id));
+  }, [dndEnabled, attackerId, intents, view]);
 
   // Quick attach: a selected Leader / Character that can take DON!! gets a
   // +1 / +2 / All row (the other flows, drag and multi-select, are unchanged).
@@ -655,7 +675,10 @@ export function DuelBoard({
     const drop = findDropTargetAtPoint(clientX, clientY);
     // Sequential client-side intents (no batch protocol) — one give_don per
     // selected donId that has a legal intent to this target.
-    const toSend = resolveDropIntents(payload, drop, intents);
+    const toSend = resolveDropIntents(payload, drop, intents, {
+      opponentLeaderId: view?.opponent.leader.id,
+      defenderId: counterDefenderId,
+    });
     setDragPayload(null);
     if (
       toSend.length === 0 &&
@@ -671,6 +694,11 @@ export function DuelBoard({
       buzz("drop");
       setHandFilter(null);
       setSelectedBoardId(null);
+      if (payload.type === "counter") {
+        // A dropped card is played now, so it is no longer staged in the tray.
+        const cardId = view?.you.hand[payload.handIndex]?.id;
+        setStagedCounterIds((cur) => cur.filter((id) => id !== cardId));
+      }
       for (const intent of toSend) onSendIntent(intent);
       if (payload.type === "give_don") clearDonSelection();
     }
@@ -747,13 +775,23 @@ export function DuelBoard({
   const ghostPayload: GhostPayload | null =
     dragPayload?.type === "give_don"
       ? { type: "give_don", count: dragPayload.donIds.length }
-      : dragPayload?.type === "play_card" && you.hand[dragPayload.handIndex]
+      : (dragPayload?.type === "play_card" || dragPayload?.type === "counter") &&
+          you.hand[dragPayload.handIndex]
         ? {
-            type: "play_card",
+            type: dragPayload.type,
             defId: you.hand[dragPayload.handIndex]!.defId,
             ownerSeat: mySeat ?? view.seat,
           }
-        : null;
+        : dragPayload?.type === "attack"
+          ? (() => {
+              const card = [you.leader, ...you.characters].find(
+                (c) => c.id === dragPayload.attackerId,
+              );
+              return card
+                ? { type: "attack" as const, defId: card.defId, ownerSeat: mySeat ?? view.seat }
+                : null;
+            })()
+          : null;
 
   const pendingAttachName = (() => {
     if (!pendingAttach) return "";
@@ -841,6 +879,10 @@ export function DuelBoard({
     return order.map((idx, pos) => {
       const c = you.hand[idx]!;
       const playable = dndEnabled && canDragHandCard(intents, idx);
+      const counterable = !playable && counterDragEnabled && canDragCounter(intents, idx);
+      const payload: DragPayload = counterable
+        ? { type: "counter", handIndex: idx }
+        : { type: "play_card", handIndex: idx };
       return (
         <CardTile
           key={c.id}
@@ -851,10 +893,10 @@ export function DuelBoard({
           selected={handFilter === idx}
           onClick={() => selectHandCard(idx)}
           instantClick
-          dragEnabled={playable}
-          dragPayload={{ type: "play_card", handIndex: idx }}
-          onDragStart={() => setDragPayload({ type: "play_card", handIndex: idx })}
-          onDragEnd={(x, y) => commitDrop({ type: "play_card", handIndex: idx }, x, y)}
+          dragEnabled={playable || counterable}
+          dragPayload={payload}
+          onDragStart={() => setDragPayload(payload)}
+          onDragEnd={(x, y) => commitDrop(payload, x, y)}
           onDragCancel={() => setDragPayload(null)}
           ownerSeat={boardSeat}
           viewingSeat={viewingSeat}
@@ -909,6 +951,22 @@ export function DuelBoard({
           const intent = defend.events[i]?.intent;
           if (intent) onSendIntent(intent);
         }}
+        counterDrag={
+          defend.phase === "counter"
+            ? {
+                onStart: (cardId) => {
+                  const handIndex = you.hand.findIndex((c) => c.id === cardId);
+                  if (handIndex >= 0) setDragPayload({ type: "counter", handIndex });
+                },
+                onEnd: (cardId, x, y) => {
+                  const handIndex = you.hand.findIndex((c) => c.id === cardId);
+                  if (handIndex >= 0) commitDrop({ type: "counter", handIndex }, x, y);
+                  else setDragPayload(null);
+                },
+                onCancel: () => setDragPayload(null),
+              }
+            : undefined
+        }
       />
     ) : null;
 
@@ -1354,6 +1412,11 @@ export function DuelBoard({
                   ? { targetableIds: attackTargetIds, onSelectTarget: selectAttackTarget }
                   : undefined
               }
+              battleDrop={
+                dragPayload?.type === "attack"
+                  ? { kind: "attack", ids: attackTargetIds }
+                  : undefined
+              }
             />
 
             <div className="midline">
@@ -1397,6 +1460,22 @@ export function DuelBoard({
                       onSelect: selectBoardCard,
                       actionableIds: actionableBoardIds,
                     }
+              }
+              attackDrag={
+                draggableAttackerIds.size > 0
+                  ? {
+                      draggableIds: draggableAttackerIds,
+                      onDragStart: (id) => setDragPayload({ type: "attack", attackerId: id }),
+                      onDragEnd: (id, x, y) =>
+                        commitDrop({ type: "attack", attackerId: id }, x, y),
+                      onDragCancel: () => setDragPayload(null),
+                    }
+                  : undefined
+              }
+              battleDrop={
+                dragPayload?.type === "counter" && counterDefenderId
+                  ? { kind: "counter", ids: new Set([counterDefenderId]) }
+                  : undefined
               }
               drag={
                 dndEnabled

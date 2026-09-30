@@ -55,6 +55,23 @@ type TargetHandlers = {
   onSelectTarget: (id: string) => void;
 };
 
+/** Drag one of this side's Leader / Characters onto an opposing card to attack. */
+type AttackDragHandlers = {
+  draggableIds: ReadonlySet<string>;
+  onDragStart: (id: string) => void;
+  onDragEnd: (id: string, clientX: number, clientY: number) => void;
+  onDragCancel: () => void;
+};
+
+/**
+ * Cards on this side that accept an in-flight attack or counter drag. Attack
+ * targets already pulse via `target`; counter drops get the drop highlight.
+ */
+type BattleDropTargets = {
+  kind: "attack" | "counter";
+  ids: ReadonlySet<string>;
+};
+
 type Props = {
   side: "you" | "opp";
   data: SideData;
@@ -64,6 +81,10 @@ type Props = {
   select?: SelectHandlers;
   /** Enables tap-to-attack on this side's leader/characters (legal targets only). */
   target?: TargetHandlers;
+  /** Drag-to-attack from this side's Leader / Characters. */
+  attackDrag?: AttackDragHandlers;
+  /** Drop targets for an attack / counter drag on this side. */
+  battleDrop?: BattleDropTargets;
   /** Seat that owns cards on this half of the board. */
   ownerSeat?: Seat;
   /** Seat controlling the UI (alt-art picker). */
@@ -169,6 +190,8 @@ export function SideField({
   drag,
   select,
   target,
+  attackDrag,
+  battleDrop,
   ownerSeat,
   viewingSeat,
   matImageUrl,
@@ -188,6 +211,24 @@ export function SideField({
   const trashTop = data.trash.length ? data.trash[data.trash.length - 1] : null;
   const trashTitle = side === "you" ? "Your trash" : "Opponent trash";
   const leaderLife = lookupCard(data.leader.defId).life;
+
+  const battleDropAttr = (id: string): string | null =>
+    battleDrop?.ids.has(id) ? `${battleDrop.kind}:${id}` : null;
+  const counterDropHl = (id: string): boolean =>
+    battleDrop?.kind === "counter" && battleDrop.ids.has(id);
+  /** CardTile drag props for a card that can start an attack drag. */
+  const attackDragProps = (id: string) =>
+    attackDrag?.draggableIds.has(id)
+      ? {
+          dragEnabled: true,
+          dragPayload: { type: "attack", attackerId: id },
+          // The mat has nothing to scroll: keep every direction for the drag.
+          dragTouchAction: "none" as const,
+          onDragStart: () => attackDrag.onDragStart(id),
+          onDragEnd: (x: number, y: number) => attackDrag.onDragEnd(id, x, y),
+          onDragCancel: attackDrag.onDragCancel,
+        }
+      : {};
 
   const orderTag = turnOrder ? (
     <span
@@ -273,6 +314,7 @@ export function SideField({
                   dropAttr = `play_trash:${c.id}`;
                 }
               }
+              dropAttr ??= battleDropAttr(c.id);
               const isSelectable = Boolean(select);
               const isTargetable = Boolean(target?.targetableIds.has(c.id));
               const isSelected = isSelectable && select!.selectedId === c.id;
@@ -306,7 +348,8 @@ export function SideField({
                   onClick={tapHandler}
                   instantClick={isSelectable}
                   dropAttr={dropAttr}
-                  dropHighlight={giveHl || trashHl}
+                  dropHighlight={giveHl || trashHl || counterDropHl(c.id)}
+                  {...attackDragProps(c.id)}
                   ownerSeat={ownerSeat}
                   viewingSeat={viewingSeat}
                 />
@@ -372,9 +415,13 @@ export function SideField({
                 dropAttr={
                   interactive && drag?.giveDonHighlightIds?.has(leaderId)
                     ? `give_don:${leaderId}`
-                    : null
+                    : battleDropAttr(leaderId)
                 }
-                dropHighlight={Boolean(interactive && drag?.giveDonHighlightIds?.has(leaderId))}
+                dropHighlight={
+                  Boolean(interactive && drag?.giveDonHighlightIds?.has(leaderId)) ||
+                  counterDropHl(leaderId)
+                }
+                {...attackDragProps(leaderId)}
                 ownerSeat={ownerSeat}
                 viewingSeat={viewingSeat}
               />

@@ -69,6 +69,8 @@ type Props = {
   onDragStart?: () => void;
   onDragEnd?: (clientX: number, clientY: number) => void;
   onDragCancel?: () => void;
+  /** touch-action before a drag lifts (default pan-x, for scrolling hand rows). */
+  dragTouchAction?: "pan-x" | "pan-y" | "none";
   /** data-dnd-drop value for give_don / play_trash targets. */
   dropAttr?: string | null;
   dropHighlight?: boolean;
@@ -111,6 +113,7 @@ export function CardTile({
   onDragStart,
   onDragEnd,
   onDragCancel,
+  dragTouchAction,
   dropAttr,
   dropHighlight = false,
   classNameExtra,
@@ -203,6 +206,7 @@ export function CardTile({
     },
     onDragEnd: (_p, x, y) => onDragEnd?.(x, y),
     onDragCancel,
+    idleTouchAction: dragTouchAction,
   });
 
   const className = [
