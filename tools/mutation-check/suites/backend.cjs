@@ -214,6 +214,8 @@ module.exports = {
     { id: "online-ttl-ignored", file: friends, from: "    if seen_at is not None and now - _utc(seen_at) <= ONLINE_TTL:", to: "    if seen_at is not None:", kills: ["test_stale_presence_and_seen_read_as_offline"] },
     { id: "online-never-shown", file: friends, from: "        return \"online\", None, False", to: "        return \"offline\", None, False", kills: ["test_friend_status_follows_presence_snapshots"] },
     { id: "waiting-room-exposed", file: friends, from: "            return \"waiting\", None, row.ranked", to: "            return \"waiting\", row.room_id, row.ranked", kills: ["test_waiting_room_is_not_exposed"] },
+    { id: "spectated-waiting-room-exposed", file: friends, from: "            room_id = None if row.phase == \"waiting\" else row.room_id", to: "            room_id = row.room_id", kills: ["test_spectator_in_waiting_room_does_not_expose_it"] },
+    { id: "spectated-room-hidden", file: friends, from: "            room_id = None if row.phase == \"waiting\" else row.room_id", to: "            room_id = None", kills: ["test_spectator_in_waiting_room_does_not_expose_it"] },
     { id: "invite-non-friend", edits: [
       { file: friends, from: "    if f is None or f.status != \"accepted\":\n        raise HTTPException(status_code=403", to: "    if False:\n        raise HTTPException(status_code=403" },
       { file: friends, from: "        if i.from_user_id in accepted and i.from_user_id in users and", to: "        if i.from_user_id in users and" },

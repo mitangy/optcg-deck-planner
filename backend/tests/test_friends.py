@@ -146,6 +146,19 @@ def test_waiting_room_is_not_exposed(client):
     assert (f["status"], f["room_id"]) == ("waiting", None)
 
 
+def test_spectator_in_waiting_room_does_not_expose_it(client):
+    c, S = client
+    luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
+    _befriend(c, luffy, zoro, "Zoro", "Luffy")
+    _snapshot(c, [{"user_id": zoro, "room_id": "room-w", "role": "spectator", "phase": "waiting"}])
+    f = _as(c, luffy).get("/friends").json()["friends"][0]
+    assert (f["status"], f["room_id"]) == ("spectating", None)
+
+    _snapshot(c, [{"user_id": zoro, "room_id": "room-w", "role": "spectator", "phase": "playing"}])
+    f = _as(c, luffy).get("/friends").json()["friends"][0]
+    assert (f["status"], f["room_id"]) == ("spectating", "room-w")
+
+
 def test_stale_presence_and_seen_read_as_offline(client, monkeypatch: pytest.MonkeyPatch):
     c, S = client
     luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")

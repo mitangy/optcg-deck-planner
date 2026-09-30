@@ -88,7 +88,9 @@ def friend_status(
         return "in_game", row.room_id, row.ranked
     for row in rows:
         if row.role == "spectator":
-            return "spectating", row.room_id, row.ranked
+            # Same rule as for players: an unstarted room's id is invite-only.
+            room_id = None if row.phase == "waiting" else row.room_id
+            return "spectating", room_id, row.ranked
     if seen_at is not None and now - _utc(seen_at) <= ONLINE_TTL:
         return "online", None, False
     return "offline", None, False
