@@ -27,8 +27,12 @@ export const KNOWN_UI_ISSUES: Array<{ pattern: RegExp; note: string }> = [
     note: "Compact cards in prompts: the cost line is clipped by ~3px",
   },
   {
-    pattern: /^covered .*card-tile\.(compact|full) > div\.card-caption > div\.(name|meta) .* under div\.(card-stat-stack|card-overlays)/,
-    note: "Crowded boards: power badge / status chips sit on the card name and cost",
+    pattern: /^covered .*card-tile\.(compact|full) > div\.card-caption > div\.(name|meta) .* under (div\.(card-stat-stack|card-overlays)|button\.card-tile\.(compact|full) > div\.card-caption > div\.meta)/,
+    note: "Small cards: power badge / status chips sit on the name and cost, and a two-line name runs under the cost line",
+  },
+  {
+    pattern: /^spill .*span\.zone-pile-label "DON!! Deck": text cut \d+px by .*section\.side-field\.side-you/,
+    note: "Phone: the 'DON!! Deck' label is cut off at the left edge of your mat",
   },
   {
     pattern: /span\.power-mod-up "\+\d+": (text cut|.* under div\.side-grid > div\.zone-stage)/,
