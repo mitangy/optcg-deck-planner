@@ -4,6 +4,7 @@ import { getOrCreateGuestId } from "../auth/guestId";
 import { lookupCard } from "../cards/atlas";
 import { getApiBaseUrl } from "../config";
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import { refreshLinkedDeck } from "../decks/planner";
 import {
   deckToWire,
   ensureDefaultDeck,
@@ -302,6 +303,14 @@ export function LobbyPage() {
     }
   }
 
+  /** Online matches pull a planner-linked deck fresh first; on any failure the local copy plays. */
+  async function freshDeck(d: SavedDeck): Promise<SavedDeck> {
+    if (!d.plannerDeckId) return d;
+    const fresh = await refreshLinkedDeck(d, 4000);
+    if (fresh !== d) refreshDecks();
+    return fresh;
+  }
+
   /** Invite: open a fresh private room with the selected deck, then invite the friend to it. */
   function inviteToPrivateRoom(friend: Friend) {
     if (!selectedDeck) {
@@ -310,7 +319,7 @@ export function LobbyPage() {
     }
     void runFriendAction(`Inviting ${friend.username}…`, async () => {
       const opts = await authOpts();
-      const wire = deckToWire(selectedDeck);
+      const wire = deckToWire(await freshDeck(selectedDeck));
       await connect({
         ...opts,
         preferredSeat: 0,
@@ -332,7 +341,11 @@ export function LobbyPage() {
     void runFriendAction("Joining…", async () => {
       const opts = await authOpts();
       try {
-        await connect({ ...opts, roomId: invite.room_id, deck: deckToWire(selectedDeck) });
+        await connect({
+          ...opts,
+          roomId: invite.room_id,
+          deck: deckToWire(await freshDeck(selectedDeck)),
+        });
       } catch {
         void dismissInvite(invite.id).finally(() => void friends.refresh());
         throw new Error(`${invite.from_username}'s room is no longer open.`);
@@ -499,9 +512,10 @@ export function LobbyPage() {
         return;
       }
       const opts = await authOpts();
+      const deck = mode === "spectate" ? selectedDeck! : await freshDeck(selectedDeck!);
       if (mode === "queue") {
-        const wire = deckToWire(selectedDeck!);
-        setSelectedDeckId(selectedDeck!.id);
+        const wire = deckToWire(deck);
+        setSelectedDeckId(deck.id);
         await queueRanked({ ...opts, deck: wire });
         navigate("/duel");
         return;
@@ -511,8 +525,8 @@ export function LobbyPage() {
         navigate("/duel");
         return;
       }
-      const wire = deckToWire(selectedDeck!);
-      setSelectedDeckId(selectedDeck!.id);
+      const wire = deckToWire(deck);
+      setSelectedDeckId(deck.id);
       await connect({
         ...opts,
         roomId: mode === "join" ? roomId.trim() : undefined,

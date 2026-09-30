@@ -18,6 +18,8 @@ export type SavedDeck = {
   cards: string[];
   /** Preferred alt art id per card def (`p1`, `p2`, …). */
   artPrefs?: Record<string, string>;
+  /** Deck planner deck this copy is linked to (see `decks/planner.ts`). */
+  plannerDeckId?: number;
   updatedAt: number;
 };
 
@@ -182,6 +184,8 @@ export function saveDeck(input: {
   cards: string[];
   /** Omit to keep existing prefs; pass `{}` / object to replace. */
   artPrefs?: Record<string, string>;
+  /** Omit to keep the existing planner link. */
+  plannerDeckId?: number;
 }): SavedDeck {
   const decks = readAll();
   const id = input.id ?? crypto.randomUUID();
@@ -199,6 +203,7 @@ export function saveDeck(input: {
     leaderId: input.leaderId,
     cards: [...input.cards],
     artPrefs,
+    plannerDeckId: input.plannerDeckId ?? existing?.plannerDeckId,
     updatedAt: Date.now(),
   };
   const idx = decks.findIndex((d) => d.id === id);
@@ -289,6 +294,38 @@ export function createDeckFromInput(name: string, text: string): ImportIntoDeckR
     name: name.trim() || `Imported ${v.leaderId}`,
     leaderId: v.leaderId,
     cards: v.cards,
+  });
+  return { ok: true, deck, warnings: v.warnings };
+}
+
+/** Local id of the copy linked to a planner deck. */
+export function plannerLocalId(plannerId: number): string {
+  return `planner-${plannerId}`;
+}
+
+/** Create or replace the local copy linked to a planner deck (keeps art prefs for cards still in the deck). */
+export function upsertPlannerDeck(input: {
+  plannerId: number;
+  name: string;
+  text: string;
+}): ImportIntoDeckResult {
+  const v = validateImportedList(input.text);
+  if (!v.ok || !v.leaderId) {
+    return { ok: false, errors: v.errors, warnings: v.warnings };
+  }
+  const id = plannerLocalId(input.plannerId);
+  const existing = getSavedDeck(id);
+  const inDeckIds = new Set([v.leaderId, ...v.cards]);
+  const kept = Object.fromEntries(
+    Object.entries(existing?.artPrefs ?? {}).filter(([defId]) => inDeckIds.has(defId)),
+  );
+  const deck = saveDeck({
+    id,
+    name: input.name,
+    leaderId: v.leaderId,
+    cards: v.cards,
+    artPrefs: kept,
+    plannerDeckId: input.plannerId,
   });
   return { ok: true, deck, warnings: v.warnings };
 }
