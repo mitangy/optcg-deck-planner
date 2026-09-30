@@ -215,7 +215,10 @@ function demoChoice(choice: NonNullable<PlayerView["pendingChoices"]>[number]): 
   };
 }
 
-/** Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|order|mode`). */
+/**
+ * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|order|mode|effects`).
+ * Add `&float` to see searches and effect ordering as floating cards (prototype).
+ */
 export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
   don: demoChoice({
     id: "demo-don",
@@ -332,6 +335,19 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     prompt: "Charlotte Katakuri — place each card at the top or bottom of the Life cards.",
     privateToSeat: 0,
     request: { type: "order", destination: "life", allowTopOrBottom: true, options: DEMO_LOOK_OPTIONS.slice(0, 2).map((o) => ({ ...o, zone: "life" as const })) },
+  }),
+  effects: demoChoice({
+    id: "demo-effects",
+    seat: 0,
+    kind: "order_effects",
+    cardDefId: "OP09-095",
+    optional: false,
+    prompt: "These effects trigger at the same time. Choose the order they resolve in.",
+    unorderedChoices: [
+      { id: "e0", seat: 0, kind: "effect", cardDefId: "OP09-086", optional: false, prompt: "[On Play] Look at the top 3 cards of your deck and add up to 1 {Revolutionary Army} card to your hand." },
+      { id: "e1", seat: 0, kind: "effect", cardDefId: "OP09-095", optional: false, prompt: "[On Play] Look at the top 5 cards of your deck and add up to 1 card to your hand." },
+      { id: "e2", seat: 0, kind: "effect", cardDefId: "ST01-001", optional: false, prompt: "[Your Turn] Give up to 1 rested DON!! card to your Leader or 1 of your Characters." },
+    ],
   }),
   mode: demoChoice({
     id: "demo-mode",
@@ -503,7 +519,8 @@ function withManyStatuses(base: PlayerView): PlayerView {
  * (`&rematch=ask|wait|choose|left`), `?full` a full board, `?rest=N` / `?restlead` /
  * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
  * icons (see withManyStatuses), `?motion` a button that steps
- * through every card animation. Zone counts: see applyDemoZoneParams.
+ * through every card animation, `?float` floating-card searches and effect
+ * ordering (with `?prompt=look|satori|effects`). Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
@@ -591,6 +608,7 @@ export function DemoPage() {
         }
         battleLog={DEMO_BATTLE_LOG}
         leaveLabel="Leave match"
+        floatingPrompts={params.has("float")}
         hotseatPass={
           params.has("practice") ? { otherSeat: 1, onPass: () => undefined } : undefined
         }

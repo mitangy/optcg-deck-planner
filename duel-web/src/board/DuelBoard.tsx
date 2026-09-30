@@ -50,6 +50,7 @@ import {
 } from "./donSelection";
 import { ChoicePrompt } from "./ChoicePrompt";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
+import { canFloat, FloatingPrompt } from "./FloatingPrompt";
 import { IntentBar } from "./IntentBar";
 import { DefendTray } from "./DefendTray";
 import { deriveDefend } from "./defendModel";
@@ -129,6 +130,8 @@ type Props = {
   /** Online: each seat's shared custom playmat / card back (shown for the opponent only). */
   seatSkins?: readonly [SeatSkin | null, SeatSkin | null];
   leaveLabel?: string;
+  /** Prototype (`/demo?float`): searches and effect ordering float cards over the board instead of a pop-up. */
+  floatingPrompts?: boolean;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
   onClearError: () => void;
@@ -189,6 +192,7 @@ export function DuelBoard({
   seatSkins,
   rematch,
   leaveLabel = "Leave",
+  floatingPrompts = false,
   onSendIntent,
   onLeave,
   onClearError,
@@ -1590,6 +1594,22 @@ export function DuelBoard({
           onCancel={() => setReplaceCardId(null)}
           onSend={(intent) => {
             setReplaceCardId(null);
+            onSendIntent(intent);
+          }}
+        />
+      ) : floatingPrompts &&
+        !spectating &&
+        mySeat != null &&
+        view.pendingChoices?.[0] &&
+        view.pendingChoices[0].seat === mySeat &&
+        canFloat(view.pendingChoices[0]) ? (
+        <FloatingPrompt
+          key={view.pendingChoices[0].id}
+          choice={view.pendingChoices[0]}
+          mySeat={mySeat}
+          onSend={(intent) => {
+            setHandFilter(null);
+            setSelectedBoardId(null);
             onSendIntent(intent);
           }}
         />

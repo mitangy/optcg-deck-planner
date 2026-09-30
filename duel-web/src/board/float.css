@@ -1,0 +1,366 @@
+/* —— Floating-card prompts (FloatingPrompt.tsx, prototype behind /demo?float) ——
+   The cards an effect works with float over the board in one row instead of a
+   pop-up panel. The layer covers only the board column on wide layouts, so the
+   log, rail and hand stay put; the scrim dims the mat without hiding it. */
+
+.float-layer {
+  position: fixed;
+  z-index: 46;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b)) max(0.75rem, var(--safe-l));
+  pointer-events: none;
+  --gap: 0.6rem;
+  --per-row: var(--n);
+  /* Height budget for one row of cards: header, axis, note and actions ≈ 11rem. */
+  --card-max: min(176px, calc((100dvh - 11rem) * 0.714));
+}
+
+.arena.arena-wide .float-layer {
+  left: var(--left-w);
+  right: var(--rail-w);
+}
+
+.float-scrim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 65% at center, rgba(5, 11, 16, 0.9), rgba(5, 11, 16, 0.7) 70%, rgba(5, 11, 16, 0.5));
+  backdrop-filter: blur(1.5px);
+  animation: float-fade 160ms ease-out;
+}
+
+.float-stage {
+  position: relative;
+  pointer-events: auto;
+  width: 100%;
+  max-width: 64rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.float-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  max-width: 40rem;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.float-head strong {
+  font-family: var(--font-display);
+  color: var(--chrome-bright);
+  font-size: 1rem;
+}
+
+.float-prompt {
+  font-size: 0.78rem;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.float-row {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--gap);
+  /* Room for a picked (lifted) card and its badge under the row above. */
+  row-gap: calc(var(--gap) + 1rem);
+}
+
+.float-card {
+  position: relative;
+  width: min(calc((100% - (var(--per-row) - 1) * var(--gap)) / var(--per-row)), var(--card-max));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  /* The card is the drag handle: no page scroll / zoom while dragging it. */
+  touch-action: none;
+  cursor: grab;
+  animation: float-in 220ms ease-out backwards;
+}
+
+.float-card:nth-child(2) { animation-delay: 30ms; }
+.float-card:nth-child(3) { animation-delay: 60ms; }
+.float-card:nth-child(4) { animation-delay: 90ms; }
+.float-card:nth-child(5) { animation-delay: 120ms; }
+.float-card:nth-child(n + 6) { animation-delay: 150ms; }
+
+.float-card.is-drag {
+  z-index: 3;
+  cursor: grabbing;
+}
+
+.float-card-inner {
+  position: relative;
+  width: 100%;
+  transition: transform 140ms ease-out, filter 140ms ease-out;
+}
+
+.float-card .card-tile,
+.float-card .card-tile.full {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 7;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
+}
+
+.float-card .card-tile .card-caption {
+  display: none;
+}
+
+.float-card.is-drag .float-card-inner {
+  transform: scale(1.06) rotate(-2deg);
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.55));
+}
+
+/* Takeable cards glow; the rest of the look sits a little darker. */
+.float-card.is-eligible .card-tile {
+  border-color: rgba(240, 220, 168, 0.7);
+  box-shadow: 0 0 0 1px rgba(240, 220, 168, 0.35), 0 0 16px rgba(240, 220, 168, 0.3), 0 10px 24px rgba(0, 0, 0, 0.6);
+}
+
+.float-card.is-ineligible .float-card-inner {
+  filter: brightness(0.62) saturate(0.7);
+}
+
+.float-card.is-picked .float-card-inner {
+  transform: translateY(-12px);
+}
+
+.float-card.is-picked .card-tile {
+  border-color: var(--chrome-bright);
+  box-shadow: 0 0 0 3px rgba(240, 220, 168, 0.6), 0 0 24px rgba(240, 220, 168, 0.55), 0 14px 26px rgba(0, 0, 0, 0.6);
+}
+
+.float-badge,
+.float-order-num {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.float-badge {
+  top: -0.55rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: var(--chrome-bright);
+  color: #1d1406;
+  font-size: 0.72rem;
+}
+
+.float-order-num {
+  top: -0.6rem;
+  left: -0.4rem;
+  width: 1.7rem;
+  height: 1.7rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--chrome-bright);
+  color: #1d1406;
+  font-size: 0.9rem;
+}
+
+/* Not tapped yet: the number it would resolve at, quieter. */
+.float-order-num.is-auto {
+  background: rgba(11, 23, 32, 0.85);
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+}
+
+/* Step buttons + slot number; fixed height so a picked card never shifts the row. */
+.float-nudge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  height: 1.6rem;
+}
+
+.float-nudge button {
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  background: rgba(17, 33, 45, 0.9);
+  color: var(--ink);
+  font-size: 0.6rem;
+  cursor: pointer;
+}
+
+.float-nudge button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.float-slot {
+  min-width: 1.1rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--chrome-bright);
+}
+
+.float-effect-text {
+  margin: 0;
+  width: 100%;
+  font-size: 0.66rem;
+  line-height: 1.3;
+  color: var(--ink);
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.float-axis {
+  width: min(100%, 36rem);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.66rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.float-axis:has(> span:first-child:empty) {
+  display: none;
+}
+
+.float-axis-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line-strong), var(--line-strong)) left center / calc(100% - 6px) 1px no-repeat;
+  position: relative;
+}
+
+.float-axis-line::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: -3px;
+  border: 3.5px solid transparent;
+  border-left: 6px solid var(--line-strong);
+  border-right: 0;
+}
+
+.float-note {
+  font-size: 0.75rem;
+  color: var(--ink);
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.float-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.float-side .choice-place {
+  min-height: 2.4rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: var(--arena-mid);
+  color: inherit;
+}
+
+.float-confirm {
+  min-width: 10rem;
+}
+
+/* "See board": the cards tuck away behind one pill until you come back. */
+.float-layer-peek {
+  align-items: flex-start;
+  padding-top: calc(var(--safe-t) + 4.5rem);
+}
+
+.float-return {
+  pointer-events: auto;
+  padding: 0.6rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--chrome);
+  background: rgba(23, 42, 56, 0.95);
+  color: var(--chrome-bright);
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+}
+
+/* Phones (portrait): two rows of three read better than five tiny cards. */
+@media (max-width: 560px) and (orientation: portrait) {
+  .float-layer {
+    --per-row: min(var(--n), 3);
+    --card-max: min(150px, calc((100dvh - 14rem) / 2 * 0.714));
+  }
+}
+
+/* Landscape phones: one row, sized from the short height. */
+@media (orientation: landscape) and (max-height: 499px) {
+  .float-layer {
+    --gap: 0.4rem;
+    --card-max: min(150px, calc((100dvh - 8.6rem) * 0.714));
+  }
+  .float-stage {
+    gap: 0.3rem;
+  }
+  .float-prompt {
+    -webkit-line-clamp: 1;
+  }
+  .float-effect-text {
+    -webkit-line-clamp: 2;
+  }
+  .float-actions .btn {
+    min-height: 2.1rem;
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+  }
+}
+
+@keyframes float-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.92);
+  }
+}
+
+@keyframes float-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .float-card,
+  .float-scrim {
+    animation: none;
+  }
+  .float-card-inner {
+    transition: none;
+  }
+}
