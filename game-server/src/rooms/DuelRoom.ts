@@ -56,6 +56,7 @@ import {
   type WelcomeMessage,
 } from "../protocol.js";
 import { postMatchResult, type MatchResultPayload } from "../writeback.js";
+import { presence, type PresenceEntry, type PresenceSource } from "../presence.js";
 import { DuelPublicState } from "./schema/DuelPublicState.js";
 
 type SeatSlot = {
@@ -93,7 +94,7 @@ type TurnSnapshot = {
   turnNumber: number;
 };
 
-export class DuelRoom extends Room {
+export class DuelRoom extends Room implements PresenceSource {
   maxClients = 2 + MAX_SPECTATORS;
   state = new DuelPublicState();
 
@@ -229,6 +230,7 @@ export class DuelRoom extends Room {
       this.handleRematch(client, message);
     });
 
+    presence.register(this);
     this.log("info", "room_created", {
       matchId: this.matchId,
       seed: this.seed,
@@ -240,6 +242,7 @@ export class DuelRoom extends Room {
   }
 
   onDispose() {
+    presence.unregister(this);
     this.clearTimerLoop();
     this.log("info", "room_disposed", { matchId: this.matchId });
   }
@@ -320,6 +323,7 @@ export class DuelRoom extends Room {
         userId: identity.userId,
         cameraSeat,
       });
+      presence.markDirty();
       this.log("info", "spectator_joined", {
         matchId: this.matchId,
         displayId: identity.displayId,
@@ -394,6 +398,7 @@ export class DuelRoom extends Room {
     }
 
     this.state.seatsFilled = (this.seats[0] ? 1 : 0) + (this.seats[1] ? 1 : 0);
+    presence.markDirty();
     this.log("info", "player_joined", {
       matchId: this.matchId,
       seat,
@@ -556,6 +561,7 @@ export class DuelRoom extends Room {
       }
     }
     this.state.seatsFilled = (this.seats[0] ? 1 : 0) + (this.seats[1] ? 1 : 0);
+    presence.markDirty();
     this.intentTimestamps.delete(sessionId);
     this.chatTimestamps.delete(sessionId);
   }
@@ -564,6 +570,7 @@ export class DuelRoom extends Room {
     const before = this.spectators.length;
     this.spectators = this.spectators.filter((s) => s.sessionId !== sessionId);
     if (this.spectators.length !== before) {
+      presence.markDirty();
       this.log("info", "spectator_left", {
         matchId: this.matchId,
         sessionId,
@@ -1473,6 +1480,7 @@ export class DuelRoom extends Room {
     this.autoDispose = false;
     this.resultPending = this.writebackResult(result.winner, result.reason).then(() => {
       this.matchOverSent = true;
+      presence.markDirty();
       this.log("info", "match_end", { matchId: this.matchId, ...result });
       this.broadcast("match_over", { protocolVersion: PROTOCOL_VERSION, result });
       this.broadcastRematchState();
@@ -1529,8 +1537,27 @@ export class DuelRoom extends Room {
     return postMatchResult(payload);
   }
 
+  /** Who is here, for the friends list ("in a game", spectate). */
+  presenceEntries(): PresenceEntry[] {
+    const phase: PresenceEntry["phase"] = !this.matchStarted
+      ? "waiting"
+      : this.matchOverSent
+        ? "finished"
+        : "playing";
+    const entries: PresenceEntry[] = [];
+    for (const slot of this.seats) {
+      if (!slot) continue;
+      entries.push({ user_id: slot.userId, room_id: this.roomId, role: "player", phase, ranked: this.ranked });
+    }
+    for (const spec of this.spectators) {
+      entries.push({ user_id: spec.userId, room_id: this.roomId, role: "spectator", phase, ranked: this.ranked });
+    }
+    return entries;
+  }
+
   private syncPublicState() {
     if (!this.match) return;
+    presence.markDirty();
     this.state.phase = this.match.phase;
     this.state.activeSeat = this.match.activeSeat;
     this.state.winner = this.match.winner === null ? -1 : this.match.winner;

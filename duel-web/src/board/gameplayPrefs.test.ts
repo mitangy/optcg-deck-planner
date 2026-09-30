@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Intent } from "../net/protocol";
-import { endTurnNeedsConfirm, forcedDefensePass } from "./gameplayPrefs";
+import { endTurnNeedsConfirm, forcedDefensePass, responseStopPass } from "./gameplayPrefs";
 
 const endOnly: Intent[] = [{ type: "end_turn" }];
 const canAttack: Intent[] = [
@@ -43,5 +43,53 @@ describe("forcedDefensePass", () => {
 
   it("never acts outside a block or counter step", () => {
     expect(forcedDefensePass(canAttack)).toBeNull();
+  });
+});
+
+describe("responseStopPass", () => {
+  const passCounter: Intent = { type: "pass_counter" };
+  const counters: Intent[] = [
+    passCounter,
+    { type: "counter_from_hand", handIndex: 0 },
+    { type: "counter_from_hand", handIndex: 1 },
+  ];
+  const outlook = (gap: number | null, ...values: (number | null)[]) => ({ gap, values });
+
+  it("never passes in 'always' mode, even when passing is the only option", () => {
+    expect(responseStopPass("always", [{ type: "pass_block" }])).toBeNull();
+    expect(responseStopPass("always", [passCounter])).toBeNull();
+  });
+
+  it("passes in 'auto' mode only when it is the only option", () => {
+    expect(responseStopPass("auto", [{ type: "pass_block" }])).toEqual({ type: "pass_block" });
+    expect(responseStopPass("auto", [passCounter])).toEqual(passCounter);
+    // Counters that cannot save still stop you in auto.
+    expect(responseStopPass("auto", counters, outlook(5000, 1000, 1000))).toBeNull();
+  });
+
+  it("passes in 'smart' mode when every Counter card together falls short", () => {
+    expect(responseStopPass("smart", counters, outlook(5000, 1000, 2000))).toEqual(passCounter);
+  });
+
+  it("stops in 'smart' mode when the Counter cards exactly reach the gap", () => {
+    expect(responseStopPass("smart", counters, outlook(3000, 1000, 2000))).toBeNull();
+    expect(responseStopPass("smart", counters, outlook(2000, 1000, 2000))).toBeNull();
+  });
+
+  it("stops in 'smart' mode whenever a [Counter] event is legal", () => {
+    const withEvent = [...counters, { type: "counter_event", handIndex: 2 }];
+    expect(responseStopPass("smart", withEvent, outlook(9000, 1000, 1000))).toBeNull();
+  });
+
+  it("stops in 'smart' mode when a Counter value or the gap is unknown", () => {
+    expect(responseStopPass("smart", counters, outlook(9000, 1000, null))).toBeNull();
+    expect(responseStopPass("smart", counters, outlook(null, 1000, 1000))).toBeNull();
+    expect(responseStopPass("smart", counters)).toBeNull();
+  });
+
+  it("acts like auto in the block step", () => {
+    const block: Intent[] = [{ type: "pass_block" }, { type: "declare_block", blockerId: "c1" }];
+    expect(responseStopPass("smart", block, outlook(9000))).toBeNull();
+    expect(responseStopPass("smart", [{ type: "pass_block" }])).toEqual({ type: "pass_block" });
   });
 });

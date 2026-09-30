@@ -271,6 +271,50 @@
   outline-offset: 2px;
 }
 
+/* Quick attach row: +1 / +2 / All over the selected card (fixed, never in flow). */
+.don-quick {
+  position: fixed;
+  z-index: 30;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--chrome);
+  background: rgba(12, 18, 28, 0.97);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+}
+
+.don-quick-icon {
+  width: 22px;
+  height: 31px;
+  flex: none;
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.don-quick-btn {
+  min-width: 46px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid #ffd54f;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f3c94f, #c99a2c);
+  color: #1a1206;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.don-quick-btn:focus-visible {
+  outline: 2px solid var(--chrome-bright);
+  outline-offset: 2px;
+}
+
 /* —— Drag ghost (mouse + touch) —— */
 
 .drag-ghost {
@@ -389,4 +433,9 @@
   .arena .hud-actions .hud-settings-btn {
     padding-inline: 0.4rem;
   }
+}
+
+/* Setting note that only appears when a choice cannot take effect. */
+.field-hint.field-note {
+  color: #f0b45a;
 }

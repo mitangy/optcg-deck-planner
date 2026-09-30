@@ -15,6 +15,14 @@ type Props = {
   onSend: (intent: Intent) => void;
   /** Full-board play: ask which Character to replace instead of sending. */
   onChooseReplace?: (handIndex: number) => void;
+  /**
+   * The defend tray owns the block / counter choices: hide the secondary
+   * actions and let the tray relabel the primary ("Take hit", "Confirm
+   * counter"). `onPress` replaces sending the primary intent itself.
+   */
+  defend?: { label: string; onPress?: () => void };
+  /** Replaces "No actions for this card" while something else already answers it. */
+  emptyHint?: string;
 };
 
 function btnClass(intent: Intent): string {
@@ -35,13 +43,17 @@ export function IntentBar({
   confirmEndTurn = false,
   onSend,
   onChooseReplace,
+  defend,
+  emptyHint,
 }: Props) {
   const handIndex = filterHandIndex ?? null;
   const boardId = selectedBoardId ?? null;
   // The primary comes from every legal intent, not the selection-filtered
   // list, so its slot never changes when a card is tapped.
   const { primary, rest } = splitPrimaryIntent(intents);
-  const shown = collapseReplacePlays(filterIntentsForSelection(rest, { handIndex, boardId }));
+  const shown = defend
+    ? []
+    : collapseReplacePlays(filterIntentsForSelection(rest, { handIndex, boardId }));
   const mulliganPhase = view?.phase === "mulligan";
   const nothingSelected = handIndex == null && boardId == null;
 
@@ -60,13 +72,18 @@ export function IntentBar({
   }
 
   return (
-    <div className={`intent-bar${mulliganPhase ? " intent-bar-mulligan" : ""}`}>
+    <div
+      className={`intent-bar${mulliganPhase ? " intent-bar-mulligan" : ""}${
+        defend ? " intent-bar-defend" : ""
+      }`}
+    >
       <h2>{mulliganPhase ? "Mulligan" : "Actions"}</h2>
       <div className="intent-layout">
         <div className="intent-row">
-          {shown.length === 0 ? (
+          {shown.length === 0 && !defend ? (
             <p className="intent-empty">
-              {nothingSelected ? "Select a card for actions" : "No actions for this card"}
+              {emptyHint ??
+                (nothingSelected ? "Select a card for actions" : "No actions for this card")}
             </p>
           ) : null}
           {shown.map((intent, idx) => (
@@ -104,9 +121,9 @@ export function IntentBar({
                 type="button"
                 className={`${btnClass(primary)} intent-btn-primary`}
                 disabled={disabled}
-                onClick={() => onSend(primary)}
+                onClick={() => (defend?.onPress ? defend.onPress() : onSend(primary))}
               >
-                {intentLabel(primary, view)}
+                {defend ? defend.label : intentLabel(primary, view)}
               </button>
             )}
           </div>

@@ -11,6 +11,16 @@ import { getGameServerUrl } from "./config";
 /** When "End turn" asks for a second tap. */
 export type EndTurnConfirm = "always" | "actions" | "never";
 
+/**
+ * Whether block / counter steps stop for you: `always`, `auto` (pass when you
+ * have no blocker / no counter card), or `smart` (auto, plus pass the counter
+ * step when all your Counter cards together cannot save the defender).
+ */
+export type ResponseStops = "always" | "auto" | "smart";
+
+/** Screen rotation while a match is open: follow the phone, or lock where the browser allows. */
+export type ScreenOrientationPref = "auto" | "portrait" | "landscape";
+
 export type DuelSettings = {
   /** Game server URL override ("" = build default). */
   serverUrl: string;
@@ -27,8 +37,10 @@ export type DuelSettings = {
   // —— Gameplay ——
   /** Second tap before ending the turn: always, only while you can still act, or never. */
   endTurnConfirm: EndTurnConfirm;
-  /** Send Pass block / Pass counter for you when it is your only option. */
-  autoPassDefense: boolean;
+  /** Stop for block and counter steps, or pass for you when there is nothing to decide. */
+  responseStops: ResponseStops;
+  /** Lock the screen orientation during a match (Android full screen / installed only). */
+  screenOrientation: ScreenOrientationPref;
   /** Start every match with the hand sorted by cost. */
   sortHandByCost: boolean;
   /** Wide layout: keep the hand dock open instead of tucking it away. */
@@ -53,7 +65,8 @@ const DEFAULTS: DuelSettings = {
   playmatDim: 0.35,
   playmatOpacity: 1,
   endTurnConfirm: "always",
-  autoPassDefense: false,
+  responseStops: "always",
+  screenOrientation: "auto",
   sortHandByCost: false,
   keepHandOpen: false,
   turnSplash: true,
@@ -63,12 +76,21 @@ const DEFAULTS: DuelSettings = {
 };
 
 const END_TURN_CONFIRM: readonly EndTurnConfirm[] = ["always", "actions", "never"];
+const RESPONSE_STOPS: readonly ResponseStops[] = ["always", "auto", "smart"];
+const SCREEN_ORIENTATIONS: readonly ScreenOrientationPref[] = ["auto", "portrait", "landscape"];
 const CHANGE_EVENT = "optcg-duel:settings-change";
 
 /** Stored values from older builds or hand edits fall back to defaults field by field. */
-function sanitize(parsed: Partial<DuelSettings>): DuelSettings {
-  const next = { ...DEFAULTS, ...parsed };
+function sanitize(parsed: Partial<DuelSettings> & { autoPassDefense?: unknown }): DuelSettings {
+  const { autoPassDefense, ...rest } = parsed;
+  const next = { ...DEFAULTS, ...rest };
   if (!END_TURN_CONFIRM.includes(next.endTurnConfirm)) next.endTurnConfirm = DEFAULTS.endTurnConfirm;
+  // Older builds stored a boolean auto-pass: true is today's `auto`, anything else `always`.
+  if (rest.responseStops === undefined && autoPassDefense === true) next.responseStops = "auto";
+  if (!RESPONSE_STOPS.includes(next.responseStops)) next.responseStops = DEFAULTS.responseStops;
+  if (!SCREEN_ORIENTATIONS.includes(next.screenOrientation)) {
+    next.screenOrientation = DEFAULTS.screenOrientation;
+  }
   for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
     if (typeof next[k] !== typeof DEFAULTS[k]) (next as Record<string, unknown>)[k] = DEFAULTS[k];
   }
@@ -122,6 +144,11 @@ function subscribe(onChange: () => void): () => void {
     window.removeEventListener(CHANGE_EVENT, onChange);
     window.removeEventListener("storage", onStorage);
   };
+}
+
+/** Current settings for non-React callers (haptics, audio cues). */
+export function currentSettings(): DuelSettings {
+  return snapshot();
 }
 
 /** Live settings: re-renders when they change on this page or in another tab. */

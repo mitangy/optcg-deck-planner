@@ -2588,3 +2588,306 @@
     transform: none;
   }
 }
+
+/* —— Defend tray: answer an attack (block / counter) from one place —— */
+
+.defend-tray {
+  position: relative;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px 4px;
+  overflow: hidden;
+  border-top: 1px solid var(--line-strong);
+  background:
+    linear-gradient(0deg, rgba(210, 74, 63, 0.14), transparent 60%),
+    var(--arena-panel);
+  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.35);
+}
+
+/* Portrait: exactly the hand rail's height, so answering an attack never
+   resizes the mats, and staging chips never moves anything. */
+.arena:not(.arena-wide) .defend-tray {
+  height: 159px;
+}
+
+.defend-clock {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.defend-clock span {
+  display: block;
+  height: 100%;
+  background: var(--chrome);
+  transform-origin: left center;
+  transition: transform 250ms linear;
+}
+
+.defend-clock.low span {
+  background: var(--crimson-bright);
+}
+
+.defend-line,
+.defend-verdict {
+  margin: 0;
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+
+.defend-line {
+  font-size: 0.74rem;
+  color: var(--ink);
+}
+
+.defend-line strong {
+  font-weight: 800;
+}
+
+.defend-verdict {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #f0b45a;
+}
+
+.defend-verdict.is-safe {
+  color: #7fd1a0;
+}
+
+.defend-chips {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 2px 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+
+.defend-none {
+  margin: auto;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.defend-chip {
+  flex: 0 0 auto;
+  width: 66px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 2px 2px;
+  border: 2px solid var(--line);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.defend-chip.staged {
+  border-color: var(--chrome-bright);
+  background: rgba(210, 165, 77, 0.24);
+  box-shadow: 0 0 0 1px var(--chrome), 0 0 10px rgba(240, 220, 168, 0.35);
+}
+
+.defend-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.defend-chip-thumb {
+  flex: none;
+  width: 46px;
+  height: 64px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--arena-deep);
+}
+
+.defend-chip-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.defend-chip-fallback {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: 0.5rem;
+  color: var(--muted);
+}
+
+.defend-chip-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.15;
+}
+
+.defend-chip-main {
+  font-size: 0.74rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.defend-chip-sub {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.55rem;
+  color: var(--muted);
+}
+
+.defend-chip-event {
+  border-style: dashed;
+  border-color: var(--line-strong);
+}
+
+/* The bar only relabels the primary while the tray is up. */
+.intent-bar-defend h2,
+.intent-bar-defend .intent-row {
+  display: none;
+}
+
+.intent-bar-defend .intent-primary {
+  flex: 1 1 auto;
+}
+
+/* Landscape phones: the tray fills the right column above the primary. */
+@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+  .arena.arena-lp .arena-rail .defend-tray {
+    flex: 1 1 0;
+    min-height: 0;
+    padding: 5px 6px 4px;
+    border-top: 1px solid var(--line-strong);
+    box-shadow: none;
+  }
+
+  /* Wrapped text gets its worst-case height reserved, so restaging (which
+     changes the verdict's length) never moves the chips. */
+  .arena.arena-lp .defend-line,
+  .arena.arena-lp .defend-verdict {
+    white-space: normal;
+    font-size: 0.64rem;
+    line-height: 1.25;
+  }
+
+  .arena.arena-lp .defend-line {
+    height: 3.75em;
+  }
+
+  .arena.arena-lp .defend-verdict {
+    height: 2.5em;
+  }
+
+  .arena.arena-lp .defend-chips {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: min-content;
+    align-items: start;
+    gap: 5px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    touch-action: pan-y;
+    padding: 3px 1px;
+  }
+
+  .arena.arena-lp .defend-chip {
+    width: auto;
+    min-height: 48px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 4px;
+    padding: 2px;
+  }
+
+  .arena.arena-lp .defend-chip-thumb {
+    width: 30px;
+    height: 42px;
+  }
+
+  .arena.arena-lp .defend-chip-text {
+    flex: 1 1 0;
+    align-items: flex-start;
+  }
+
+  .arena.arena-lp .defend-chip-main {
+    font-size: 0.7rem;
+  }
+
+  .arena.arena-lp .arena-rail .intent-bar-defend {
+    flex: 0 0 auto;
+    justify-content: flex-end;
+  }
+}
+
+/* —— "Rotate for bigger cards" toast: fixed above the hand, portrait only —— */
+
+.rotate-hint {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  /* Clears the hand rail (159px) and the intent bar (~61px). */
+  bottom: calc(232px + var(--safe-b));
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid var(--chrome);
+  border-radius: 999px;
+  background: rgba(12, 18, 28, 0.96);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rotate-hint-icon {
+  font-size: 1.1rem;
+  color: var(--chrome-bright);
+}
+
+.rotate-hint-close {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.rotate-hint-close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
