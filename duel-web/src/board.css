@@ -463,6 +463,77 @@
   grid-template-columns: var(--left-w) minmax(0, 1fr) var(--rail-w);
 }
 
+/* Desktop mats run wider than 12:7 with a slim DON!! row: the 7-column grid is
+   sized from the mat height (cards ~20% larger) instead of strictly 12.6cqw.
+   Rows: 2 card rows + a 1c row for the piles that holds a half-height cost
+   strip. Landscape phones (.arena-lp) and phones keep their own layouts. */
+.arena.arena-wide:not(.arena-lp) .side-field {
+  --mat-h: calc((100cqh - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2);
+  width: min(100cqw, calc(var(--mat-h) * 1.95));
+}
+
+.arena.arena-wide:not(.arena-lp) .side-grid {
+  --g: 1.6cqh;
+  --c: min(
+    calc((100cqw - 4.4cqh - 6 * 1.6cqh) / 7),
+    calc((100cqh - 4.4cqh - 2 * 1.6cqh) / 3.8)
+  );
+  padding: 2.2cqh;
+  grid-template-columns: repeat(7, var(--c));
+  grid-template-rows: calc(var(--c) * 1.4) calc(var(--c) * 1.4) var(--c);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-opp .side-grid {
+  grid-template-rows: var(--c) calc(var(--c) * 1.4) calc(var(--c) * 1.4);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .zone-cost {
+  display: flex;
+  align-items: center;
+}
+
+/* Half-height cost area: the label moves beside the chips instead of above. */
+.arena.arena-wide:not(.arena-lp) .side-field .don-strip {
+  --don-w: calc(var(--c) * 0.38);
+  width: 100%;
+  height: calc(var(--c) * 0.62);
+  flex-direction: row;
+  align-items: center;
+  gap: calc(var(--c) * 0.12);
+  padding: calc(var(--c) * 0.04) calc(var(--c) * 0.12);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .don-strip-label {
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  line-height: 1.15;
+  font-size: clamp(0.5rem, calc(var(--c) * 0.13), 0.72rem);
+}
+
+/* The selection pill floats in the empty right end of the row, off the chips. */
+.arena.arena-wide:not(.arena-lp) .side-field .don-select-count {
+  left: auto;
+  right: calc(var(--c) * 0.12);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .don-strip-rail {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .zone-don-deck .zone-pile-stack,
+.arena.arena-wide:not(.arena-lp) .side-field .zone-trash .zone-pile-stack {
+  width: calc(var(--c) * 0.46);
+  height: calc(var(--c) * 0.64);
+}
+
 /* The opponent hand moves to the rail, so the mats get its row back. */
 .arena.arena-wide .playmat {
   --hint-h: 0px;
