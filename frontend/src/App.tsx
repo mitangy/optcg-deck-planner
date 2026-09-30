@@ -41,6 +41,10 @@ import {
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
 import { DeckStatsPanel, useStatsPlacement } from "./DeckStats";
+import { DeckHintsTray, useDeckHints, type HintsState } from "./DeckHints";
+import { deckDelta } from "./deckHints";
+import type { DeckStatsCard } from "./deckStats";
+import { useStatsAtlas } from "./useStatsAtlas";
 import { CompassIcon } from "./ThemeIcons";
 import { HeadPopover } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
@@ -2407,15 +2411,45 @@ async function setDeckCardNeeded(
   }
 }
 
+/** Main-deck rows (leader included, DON!! excluded) in the shape the stats and hints code reads. */
+function toStatsCards(cards: DeckDetail["cards"]): DeckStatsCard[] {
+  return cards
+    .filter((c) => c.section !== "don" && !isDonCardType(c.card_type))
+    .map((c) => ({ id: c.card_id, copies: c.needed }));
+}
+
+const DELTA_MS = 4500;
+
 function DeckEditorPanel({
   deckId,
   deck,
   onUpdated,
+  hints,
+  showHints,
 }: {
   deckId: number;
   deck: DeckDetail;
   onUpdated: (detail: DeckDetail) => void;
+  /** Build hints; the tray sits under the header when `showHints` (stats placed below the list). */
+  hints?: HintsState;
+  showHints?: boolean;
 }) {
+  const atlas = useStatsAtlas().data;
+  const [delta, setDelta] = useState<{ text: string; key: number } | null>(null);
+  const deltaKey = useRef(0);
+  useEffect(() => {
+    if (!delta) return;
+    const t = window.setTimeout(() => setDelta(null), DELTA_MS);
+    return () => window.clearTimeout(t);
+  }, [delta]);
+
+  /** Say what an add/remove moved. Purely informational: never blocks or confirms anything. */
+  function flashDelta(cardId: string, after: DeckDetail) {
+    if (!atlas) return;
+    const text = deckDelta(toStatsCards(deck.cards), toStatsCards(after.cards), cardId, atlas, after.leader_card_id);
+    if (text) setDelta({ text, key: ++deltaKey.current });
+  }
+
   const [query, setQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [color, setColor] = useState("");
@@ -2468,7 +2502,10 @@ function DeckEditorPanel({
         }
       }
       const detail = await setDeckCardNeeded(deckId, card.card_id, next);
-      if (detail) onUpdated(detail);
+      if (detail) {
+        onUpdated(detail);
+        flashDelta(card.card_id, detail);
+      }
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -2481,7 +2518,10 @@ function DeckEditorPanel({
     setPendingId(cardId);
     try {
       const detail = await setDeckCardNeeded(deckId, cardId, Math.max(0, needed));
-      if (detail) onUpdated(detail);
+      if (detail) {
+        onUpdated(detail);
+        flashDelta(cardId, detail);
+      }
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -2499,11 +2539,19 @@ function DeckEditorPanel({
 
   return (
     <div className="deck-editor">
+      <div className="dh-delta-slot" role="status" aria-live="polite">
+        {delta ? (
+          <span key={delta.key} className="dh-delta">
+            {delta.text}
+          </span>
+        ) : null}
+      </div>
       <CollapsibleDrawer
         label="Add cards"
         summary={searchSummary}
         storageKey={DECK_SEARCH_OPEN_KEY}
         defaultOpen
+        headerExtra={hints && showHints ? <DeckHintsTray hints={hints} /> : undefined}
       >
         <div className="deck-editor-filters">
           <CardSearchInput value={query} onChange={setQuery} />
@@ -2901,6 +2949,8 @@ function DeckDetailPage() {
     () => progressCards.map((c) => ({ id: c.card_id, copies: c.needed })),
     [progressCards],
   );
+  // While editing the 50-card count stays quiet; once the user is done (or just viewing) it is checked.
+  const hints = useDeckHints(deckId, statsCards, data?.leader_card_id ?? null, !editing);
   const statsPanel = (
     <DeckStatsPanel
       key={editing ? "edit" : "view"}
@@ -2910,6 +2960,8 @@ function DeckDetailPage() {
       defaultOpen={editing}
       placement={statsPlacement}
       onPlacementChange={setStatsPlacement}
+      hints={hints}
+      showHints={!editing || statsPlacement === "beside"}
     />
   );
 
@@ -3068,11 +3120,11 @@ function DeckDetailPage() {
 
       {editing && statsPlacement === "beside" ? (
         <div className="deck-edit-layout">
-          <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
+          <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} hints={hints} />
           {statsPanel}
         </div>
       ) : (
-        editing && <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
+        editing && <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} hints={hints} showHints />
       )}
 
       <DeckProgressSummary cards={progressCards} />

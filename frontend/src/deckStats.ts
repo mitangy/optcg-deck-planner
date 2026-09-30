@@ -26,6 +26,8 @@ export type StatsAtlasCard = {
   tm?: string[];
   rl?: string[];
   rules?: string[];
+  /** Leaders only: traits named as {Trait} in the printed text. */
+  lt?: string[];
   srch?: StatsSearch[];
 };
 

@@ -34,6 +34,8 @@ export interface PlannerCard {
   rl?: PlannerRole[];
   /** Leaders only: deck_rule statics, e.g. "max_cost:5". */
   rules?: string[];
+  /** Leaders only: traits named as {Trait} in the printed text (deck hints). */
+  lt?: string[];
   /** Look-at-top-N-and-add-to-hand effects. */
   srch?: PlannerSearch[];
 }
@@ -157,6 +159,10 @@ export function derivePlannerCard(row: CardDataRow, abilities: readonly Ability[
   if (timing.size) out.tm = [...timing].sort();
   if (found.roles.size) out.rl = [...found.roles].sort();
   if (rules.length) out.rules = rules;
+  if (row.type === "leader") {
+    const named = [...new Set([...row.text.matchAll(/\{([^}]+)\}/g)].map((m) => m[1]!.trim()))];
+    if (named.length) out.lt = named;
+  }
   if (aliases.length) out.al = aliases;
   if (found.search.length) out.srch = found.search;
   return out;
