@@ -1,10 +1,8 @@
-import type { BeforeSendEvent } from "@vercel/analytics/react";
-
 /** Path segments after these prefixes are share/invite secrets, not page names. */
 const TOKEN_ROUTES = ["/share/", "/group-buy/join/", "/group-buy/view/"];
 
 /**
- * Keep share tokens and query strings out of Vercel Analytics: drops `?…`/`#…`
+ * Keep share tokens and query strings out of Vercel Analytics and Speed Insights: drops `?…`/`#…`
  * and replaces the token segment of public share/group-buy links with `[token]`.
  */
 export function redactAnalyticsUrl(url: string): string {
@@ -19,6 +17,7 @@ export function redactAnalyticsUrl(url: string): string {
   return `${parsed.origin}${path}`;
 }
 
-export function analyticsBeforeSend(event: BeforeSendEvent): BeforeSendEvent {
+/** `beforeSend` for both `<Analytics />` and `<SpeedInsights />`. */
+export function analyticsBeforeSend<T extends { url: string }>(event: T): T {
   return { ...event, url: redactAnalyticsUrl(event.url) };
 }

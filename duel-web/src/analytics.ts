@@ -1,7 +1,5 @@
-import type { BeforeSendEvent } from "@vercel/analytics/react";
-
 /**
- * Keep secrets out of Vercel Analytics: the auth callback carries tokens in the
+ * Keep secrets out of Vercel Analytics and Speed Insights: the auth callback carries tokens in the
  * hash and invite links carry room codes in `?join=`, so only origin + path are sent.
  */
 export function redactAnalyticsUrl(url: string): string {
@@ -9,6 +7,7 @@ export function redactAnalyticsUrl(url: string): string {
   return `${parsed.origin}${parsed.pathname}`;
 }
 
-export function analyticsBeforeSend(event: BeforeSendEvent): BeforeSendEvent {
+/** `beforeSend` for both `<Analytics />` and `<SpeedInsights />`. */
+export function analyticsBeforeSend<T extends { url: string }>(event: T): T {
   return { ...event, url: redactAnalyticsUrl(event.url) };
 }
