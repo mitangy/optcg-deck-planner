@@ -15,7 +15,6 @@ import { playTurnChime } from "./turnAlert";
 type Toggle = {
   key:
     | "sortHandByCost"
-    | "keepHandOpen"
     | "turnSplash"
     | "reduceMotion"
     | "turnAlert"
@@ -29,11 +28,6 @@ const TOGGLES: Toggle[] = [
     key: "sortHandByCost",
     label: "Sort hand by cost",
     hint: "Starts each match with the hand's Sort button on.",
-  },
-  {
-    key: "keepHandOpen",
-    label: "Keep hand open",
-    hint: "Desktop: the fanned hand (or the corner dock in short windows) stays up instead of tucking away. H toggles it during a match. The grid in the right column is always open.",
   },
   {
     key: "turnSplash",
