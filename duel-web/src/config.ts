@@ -46,3 +46,9 @@ export function getDevJoinSecret(): string | undefined {
   const s = import.meta.env.VITE_DEV_JOIN_SECRET;
   return s && s.length > 0 ? s : undefined;
 }
+
+/** Deck planner origin for the lobby's "Deck planner" link. */
+export function getPlannerUrl(): string {
+  const raw = import.meta.env.VITE_PLANNER_URL?.trim() || "https://optcg-deck-planner.app";
+  return raw.replace(/\/+$/, "");
+}
