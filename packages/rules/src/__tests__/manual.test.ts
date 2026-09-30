@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { deckConstructionErrors } from "../cards/deckRules.js";
 import { deserializeMatch, serializeMatch } from "../state/snapshot.js";
 import { FILLER, Harness } from "../testing/harness.js";
+import { costOf, keywordsOf, powerOf } from "../engine/queries.js";
 
 describe("choose a cost and reveal (OP11-081)", () => {
   it("K.O.s when the revealed card has the chosen cost", () => {
@@ -219,5 +220,45 @@ describe("granted replacement (EB02-030)", () => {
     h.accept(1);
     expect(h.state.players[1].characters.length).toBe(1);
     expect(h.state.players[1].hand.length).toBe(0);
+  });
+});
+
+describe("+cost statics feed cost conditions (OP17-119 Loki)", () => {
+  it("Usopp OP17-080 gains power while another Character has a cost of 12 or more", () => {
+    const h = new Harness();
+    const [usopp] = h.field(0, "OP17-080");
+    const base = powerOf(h.state, 0, usopp!);
+    h.field(1, "OP17-119");
+    expect(costOf(h.state, 1, h.state.players[1].characters[0]!)).toBe(18);
+    expect(powerOf(h.state, 0, usopp!)).toBe(base + 3000);
+  });
+});
+
+describe("conditional +cost statics (OP17 Elbaph)", () => {
+  it("Gerd and Rodo gain +12 cost only while the Leader has the {Elbaph} type", () => {
+    const elbaph = new Harness({ leaders: ["OP17-079", "ST01-001"] });
+    const [gerd, rodo] = elbaph.field(0, "OP17-081", "OP17-094");
+    expect(costOf(elbaph.state, 0, gerd!)).toBe(14);
+    expect(costOf(elbaph.state, 0, rodo!)).toBe(13);
+    const other = new Harness({ leaders: ["ST01-001", "ST01-001"] });
+    const [g2] = other.field(0, "OP17-081");
+    expect(costOf(other.state, 0, g2!)).toBe(2);
+  });
+
+  it("Luffy OP17-079 gives [Blocker] to a Character whose cost only reaches 12 through +cost", () => {
+    const h = new Harness({ leaders: ["OP17-079", "ST01-001"] });
+    const [saul, plain] = h.field(0, "OP17-089", FILLER);
+    expect(keywordsOf(h.state, 0, saul!).has("blocker")).toBe(true);
+    expect(keywordsOf(h.state, 0, plain!).has("blocker")).toBe(false);
+  });
+
+  it("Jinbe OP17-083 gains [Blocker] and power from an opposing Loki", () => {
+    const h = new Harness();
+    const [jinbe] = h.field(0, "OP17-083");
+    const base = powerOf(h.state, 0, jinbe!);
+    expect(keywordsOf(h.state, 0, jinbe!).has("blocker")).toBe(false);
+    h.field(1, "OP17-119");
+    expect(keywordsOf(h.state, 0, jinbe!).has("blocker")).toBe(true);
+    expect(powerOf(h.state, 0, jinbe!)).toBe(base + 3000);
   });
 });

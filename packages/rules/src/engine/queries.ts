@@ -167,9 +167,43 @@ export function powerOf(state: MatchState, seat: Seat, card: CardInstance): numb
   return p;
 }
 
+/**
+ * Cost statics that apply to `card`, resolved without the general static pass. Condition checks made while
+ * statics are being resolved ("if there is a Character with a cost of 12 or more") still need to see +cost
+ * statics such as [Loki]'s, but must not recurse into other statics; nested cost lookups see printed cost.
+ */
+let costGuard = 0;
+function costStaticsFor(state: MatchState, card: CardInstance): { entry: StaticEntry; s: Static }[] {
+  if (costGuard > 0) return [];
+  costGuard += 1;
+  try {
+    const out: { entry: StaticEntry; s: Static }[] = [];
+    for (const seat of [0, 1] as Seat[]) for (const src of fieldCards(state.players[seat])) {
+      for (const ability of abilitiesFor(src.defId)) {
+        if (ability.trigger !== "static" || !(ability.statics ?? []).some((s) => s.s === "cost")) continue;
+        if (ability.don && src.attachedDonIds.length < ability.don) continue;
+        if (isNegated(state, src)) continue;
+        const ctx = ctxFor(seat, src);
+        if (!(ability.conditions ?? []).every((c) => evalCond(state, ctx, c))) continue;
+        const entry: StaticEntry = { seat, card: src, zone: "field", ability };
+        for (const s of ability.statics ?? []) {
+          if (s.s !== "cost") continue;
+          const when = (s as { when?: Cond[] }).when;
+          if (when && !when.every((c) => evalCond(state, ctx, c))) continue;
+          if (staticApplies(state, entry, s, { seat: entry.seat, card })) out.push({ entry, s });
+        }
+      }
+    }
+    return out;
+  } finally {
+    costGuard -= 1;
+  }
+}
+
 export function costOf(state: MatchState, seat: Seat, card: CardInstance): number {
   let c = getCardDef(card.defId).cost;
-  for (const { entry, s } of staticsFor(state, seat, card)) if (s.s === "cost") c += evalValue(state, ctxFor(entry.seat, entry.card), s.amount);
+  const costStatics = staticGuard > 0 ? costStaticsFor(state, card) : staticsFor(state, seat, card);
+  for (const { entry, s } of costStatics) if (s.s === "cost") c += evalValue(state, ctxFor(entry.seat, entry.card), s.amount);
   for (const m of cardModifiers(state, card)) if (m.effect.type === "cost") c += m.effect.amount;
   for (const m of cardModifiers(state, card)) if (m.effect.type === "set_cost") c = m.effect.value;
   return Math.max(0, c);
