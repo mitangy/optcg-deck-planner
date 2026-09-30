@@ -121,8 +121,8 @@ export function CardTile({
   const entry = useMemo(() => lookupCard(defId), [defId]);
   // Failure state is keyed by URL (not defId) so picking a different alt art
   // after a failed load gets a fresh attempt instead of staying on the fallback.
-  const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const [localFallbackFor, setLocalFallbackFor] = useState<string | null>(null);
+  const [failedSrc, setFailedSrc] = useState<string | null | undefined>(null);
+  const [localFallbackFor, setLocalFallbackFor] = useState<string | null | undefined>(null);
   const [inspectOpen, setInspectOpen] = useState(false);
   const artTick = useSyncExternalStore(
     subscribeArtPrefs,
@@ -135,7 +135,7 @@ export function CardTile({
   }, [defId, artTick, ownerSeat]);
   const imageUrl =
     localFallbackFor === primaryUrl ? localCardArtPath(defId) : primaryUrl;
-  const imgFailed = failedSrc === imageUrl;
+  const imgFailed = failedSrc != null && failedSrc === imageUrl;
 
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
   const pb = powerBreakdown(power, printedPower, entry.power);
