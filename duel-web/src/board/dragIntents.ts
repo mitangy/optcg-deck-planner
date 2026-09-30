@@ -1,16 +1,31 @@
 import type { Intent } from "../net/protocol";
+import { findAttackIntent } from "./intentFilter";
 
-/** Active pointer-drag payload for legal give_don / play_card intents.
- * `donIds` carries the full multi-select (or a lone id when nothing is
- * selected) so one gesture can attach several DON!! in sequence. */
+/** Active pointer-drag payload for legal give_don / play_card / attack /
+ * counter intents. `donIds` carries the full multi-select (or a lone id when
+ * nothing is selected) so one gesture can attach several DON!! in sequence. */
 export type DragPayload =
   | { type: "give_don"; donIds: string[] }
-  | { type: "play_card"; handIndex: number };
+  | { type: "play_card"; handIndex: number }
+  /** Your Leader / Character dragged onto an opposing card to declare an attack. */
+  | { type: "attack"; attackerId: string }
+  /** A hand card dragged onto your defending card during the counter step. */
+  | { type: "counter"; handIndex: number };
 
 export type DropTarget =
   | { kind: "give_don_target"; targetId: string }
   | { kind: "play_field" }
-  | { kind: "play_trash"; characterId: string };
+  | { kind: "play_trash"; characterId: string }
+  | { kind: "attack_target"; targetId: string }
+  | { kind: "counter_target"; targetId: string };
+
+/** Board facts a drop needs that the intents alone do not carry. */
+export type DropContext = {
+  /** Attack intents name the Leader as `{ kind: "leader" }`, not by id. */
+  opponentLeaderId?: string;
+  /** The card taking the current attack (after any block): the only counter drop. */
+  defenderId?: string | null;
+};
 
 function isGiveDon(
   intent: Intent,
@@ -170,6 +185,30 @@ export function matchPlayCardTrash(
   );
 }
 
+/** True when this board card has at least one legal declare_attack. */
+export function canDragAttacker(intents: Intent[], attackerId: string): boolean {
+  return intents.some((i) => i.type === "declare_attack" && i.attackerId === attackerId);
+}
+
+/**
+ * The counter intent for this hand slot: a Counter card (`counter_from_hand`)
+ * or a Counter Event (`counter_event`). Null when the card cannot counter now.
+ */
+export function matchCounter(intents: Intent[], handIndex: number): Intent | null {
+  return (
+    intents.find(
+      (i) =>
+        (i.type === "counter_from_hand" || i.type === "counter_event") &&
+        i.handIndex === handIndex,
+    ) ?? null
+  );
+}
+
+/** True when this hand slot can be dragged onto the defender right now. */
+export function canDragCounter(intents: Intent[], handIndex: number): boolean {
+  return matchCounter(intents, handIndex) != null;
+}
+
 /**
  * Map a drag payload + drop target to the legal intent(s) to send, in send
  * order. give_don with multiple donIds resolves to one intent per don that
@@ -179,8 +218,25 @@ export function resolveDropIntents(
   payload: DragPayload | null,
   drop: DropTarget | null,
   intents: Intent[],
+  ctx: DropContext = {},
 ): Intent[] {
   if (!payload || !drop) return [];
+  if (payload.type === "attack" && drop.kind === "attack_target") {
+    if (!ctx.opponentLeaderId) return [];
+    const intent = findAttackIntent(
+      intents,
+      payload.attackerId,
+      drop.targetId,
+      ctx.opponentLeaderId,
+    );
+    return intent ? [intent] : [];
+  }
+  if (payload.type === "counter" && drop.kind === "counter_target") {
+    // Only the card actually taking the hit accepts a counter.
+    if (!ctx.defenderId || drop.targetId !== ctx.defenderId) return [];
+    const intent = matchCounter(intents, payload.handIndex);
+    return intent ? [intent] : [];
+  }
   if (payload.type === "give_don" && drop.kind === "give_don_target") {
     return matchGiveDonMulti(intents, payload.donIds, drop.targetId);
   }
@@ -206,6 +262,14 @@ export function parseDropAttr(value: string | null | undefined): DropTarget | nu
   if (value.startsWith("play_trash:")) {
     const characterId = value.slice("play_trash:".length);
     return characterId ? { kind: "play_trash", characterId } : null;
+  }
+  if (value.startsWith("attack:")) {
+    const targetId = value.slice("attack:".length);
+    return targetId ? { kind: "attack_target", targetId } : null;
+  }
+  if (value.startsWith("counter:")) {
+    const targetId = value.slice("counter:".length);
+    return targetId ? { kind: "counter_target", targetId } : null;
   }
   return null;
 }

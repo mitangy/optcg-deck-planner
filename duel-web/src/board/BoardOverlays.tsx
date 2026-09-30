@@ -142,7 +142,7 @@ export function DonQuickRow({
 
 export type GhostPayload =
   | { type: "give_don"; count: number }
-  | { type: "play_card"; defId: string; ownerSeat?: Seat };
+  | { type: "play_card" | "attack" | "counter"; defId: string; ownerSeat?: Seat };
 
 /**
  * Card that follows the pointer while a drag is in flight (mouse or touch),
@@ -168,7 +168,7 @@ export function DragGhost({ payload }: { payload: GhostPayload | null }) {
     payload.type === "give_don"
       ? DON_CARD_ART
       : resolveCardImageUrl(payload.defId, { ownerSeat: payload.ownerSeat, size: "thumb" });
-  const label = payload.type === "play_card" ? lookupCard(payload.defId).name : "DON!!";
+  const label = payload.type === "give_don" ? "DON!!" : lookupCard(payload.defId).name;
 
   return createPortal(
     <div
