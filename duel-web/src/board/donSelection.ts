@@ -65,3 +65,40 @@ export function resolveAttachIntents(intents: Intent[], pending: PendingAttach |
 export function attachLabel(count: number): string {
   return `Attach ${count} DON!!`;
 }
+
+/** Active DON!! ids (in legal-intent order) that can be given to this card. */
+export function donIdsForTarget(intents: Intent[], targetId: string): string[] {
+  const ids: string[] = [];
+  for (const i of intents) {
+    if (
+      i.type === "give_don" &&
+      i.targetId === targetId &&
+      typeof i.donId === "string" &&
+      !ids.includes(i.donId)
+    ) {
+      ids.push(i.donId);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Amounts offered by the quick attach row: +1, +2, and All when that is more
+ * than +2. Nothing when no DON!! can be given.
+ */
+export function quickAttachCounts(available: number): number[] {
+  if (available <= 0) return [];
+  if (available === 1) return [1];
+  if (available === 2) return [1, 2];
+  return [1, 2, available];
+}
+
+/**
+ * The give_don intents for "give this card N DON!!": one per distinct DON!!
+ * that is legal for this card (never more than are available), sent in order
+ * like the click-to-attach confirm.
+ */
+export function donQuickAttach(intents: Intent[], targetId: string, count: number): Intent[] {
+  const donIds = donIdsForTarget(intents, targetId).slice(0, Math.max(0, count));
+  return resolveAttachIntents(intents, { targetId, donIds });
+}

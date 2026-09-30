@@ -1,35 +1,86 @@
 import { useEffect, useRef } from "react";
+import { buzz } from "./haptics";
 
 const TITLE_MARK = "● Your move · ";
 
 let audio: AudioContext | null = null;
 
-/** Two soft rising notes, synthesized so there is no sound file to ship. */
-export function playTurnChime(): void {
+function audioContext(): AudioContext | null {
   try {
     const Ctor =
       window.AudioContext ??
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return;
+    if (!Ctor) return null;
     audio ??= new Ctor();
     if (audio.state === "suspended") void audio.resume();
-    const start = audio.currentTime + 0.01;
-    [660, 880].forEach((freq, i) => {
-      const t = start + i * 0.12;
-      const osc = audio!.createOscillator();
-      const gain = audio!.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
+    return audio;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * iOS keeps audio locked until a sound is started inside a user gesture, and a
+ * cue fired later by the game (an attack arriving) is not one. Call this from
+ * a pointerdown: it resumes the context and plays one silent sample.
+ */
+export function unlockAudio(): void {
+  const ctx = audioContext();
+  if (!ctx) return;
+  try {
+    const src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, 22050);
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch {
+    // Already unlocked, or audio is unavailable.
+  }
+}
+
+/** Whether audio has been unlocked (running context). */
+export function audioUnlocked(): boolean {
+  return audio?.state === "running";
+}
+
+type Note = { freq: number; at: number; len: number; gain: number; type: OscillatorType };
+
+function playNotes(notes: Note[]): void {
+  try {
+    const ctx = audioContext();
+    if (!ctx) return;
+    const start = ctx.currentTime + 0.01;
+    for (const n of notes) {
+      const t = start + n.at;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = n.type;
+      osc.frequency.value = n.freq;
       gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
-      osc.connect(gain).connect(audio!.destination);
+      gain.gain.exponentialRampToValueAtTime(n.gain, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + n.len);
+      osc.connect(gain).connect(ctx.destination);
       osc.start(t);
-      osc.stop(t + 0.3);
-    });
+      osc.stop(t + n.len + 0.02);
+    }
   } catch {
     // Audio blocked or unsupported: the alert is best-effort.
   }
+}
+
+/** Two soft rising notes, synthesized so there is no sound file to ship. */
+export function playTurnChime(): void {
+  playNotes([
+    { freq: 660, at: 0, len: 0.28, gain: 0.18, type: "sine" },
+    { freq: 880, at: 0.12, len: 0.28, gain: 0.18, type: "sine" },
+  ]);
+}
+
+/** Lower, falling two-tone "incoming" cue: clearly not the turn chime. */
+export function playAttackCue(): void {
+  playNotes([
+    { freq: 392, at: 0, len: 0.18, gain: 0.2, type: "triangle" },
+    { freq: 262, at: 0.14, len: 0.3, gain: 0.22, type: "triangle" },
+  ]);
 }
 
 function clearTitleMark() {
@@ -45,19 +96,19 @@ function clearTitleMark() {
  */
 export function useTurnAlert(needsYou: boolean, opts: { buzz: boolean; sound: boolean }): void {
   const prev = useRef(false);
-  const { buzz, sound } = opts;
+  const { buzz: buzzOn, sound } = opts;
 
   useEffect(() => {
     const rose = needsYou && !prev.current;
     prev.current = needsYou;
     if (!needsYou) clearTitleMark();
     if (!rose) return;
-    if (buzz) navigator.vibrate?.(60);
+    if (buzzOn) buzz("turn");
     if (sound) playTurnChime();
-    if (buzz && document.hidden && !document.title.startsWith(TITLE_MARK)) {
+    if (buzzOn && document.hidden && !document.title.startsWith(TITLE_MARK)) {
       document.title = TITLE_MARK + document.title;
     }
-  }, [needsYou, buzz, sound]);
+  }, [needsYou, buzzOn, sound]);
 
   useEffect(() => {
     const onVisible = () => {
