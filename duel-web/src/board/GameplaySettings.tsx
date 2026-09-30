@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import {
   updateSettings,
   useDuelSettings,
+  type AnimationSpeed,
   type EndTurnConfirm,
   type ResponseStops,
   type ScreenOrientationPref,
@@ -73,6 +74,12 @@ const ORIENTATION_OPTIONS: { value: ScreenOrientationPref; label: string }[] = [
   { value: "landscape", label: "Landscape" },
 ];
 
+const ANIMATION_OPTIONS: { value: AnimationSpeed; label: string }[] = [
+  { value: "normal", label: "Normal" },
+  { value: "fast", label: "Fast" },
+  { value: "off", label: "Off" },
+];
+
 /** Gameplay preferences; saved in this browser and applied live. */
 export function GameplaySettingsFields() {
   const settings = useDuelSettings();
@@ -140,6 +147,24 @@ export function GameplaySettingsFields() {
             screen from the ⋯ menu).
           </p>
         ) : null}
+      </div>
+      <div className="field">
+        <label htmlFor="animation-speed">Animations</label>
+        <select
+          id="animation-speed"
+          value={settings.animationSpeed}
+          onChange={(e) => updateSettings({ animationSpeed: e.target.value as AnimationSpeed })}
+        >
+          {ANIMATION_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <p className="field-hint">
+          How fast cards fly for draws, plays and KOs. Off skips card motion. “Reduce animations”
+          keeps its short fade instead of Normal or Fast.
+        </p>
       </div>
       {TOGGLES.map((t) => (
         <div className="gameplay-toggle" key={t.key}>

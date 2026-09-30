@@ -19,7 +19,9 @@
  */
 import { Component } from "react";
 import type { PlayerView } from "../net/protocol";
+import { currentSettings } from "../settings";
 import { motionCues, type MotionCue, type MotionSide } from "./motionCues";
+import { motionPlan, scaledMs } from "./motionSpeed";
 
 type Props = { view: PlayerView | null };
 
@@ -61,6 +63,8 @@ export function prefersReducedMotion(): boolean {
 export class BoardMotion extends Component<Props> {
   private running = new Set<Animation>();
   private layer: HTMLDivElement | null = null;
+  /** Speed multiplier for the batch being played (Fast halves every duration). */
+  private scale = 1;
 
   componentDidMount() {
     window.addEventListener("pointerdown", this.finishAll, true);
@@ -78,7 +82,7 @@ export class BoardMotion extends Component<Props> {
 
   getSnapshotBeforeUpdate(prevProps: Props): Snapshot | null {
     const next = this.props.view;
-    if (!next || prevProps.view === next || !canAnimate()) return null;
+    if (!next || prevProps.view === next || !canAnimate() || currentPlan().mode === "off") return null;
     const cues = motionCues(prevProps.view, next);
     if (cues.length === 0) return null;
     const snap = emptySnapshot();
@@ -163,15 +167,22 @@ export class BoardMotion extends Component<Props> {
 
   private play(cues: MotionCue[], snap: Snapshot) {
     if (cues.length === 0 || !canAnimate()) return;
-    const reduced = prefersReducedMotion();
+    const plan = currentPlan();
+    if (plan.mode === "off") return;
+    this.scale = plan.mode === "move" ? plan.scale : 1;
     for (const cue of cues) {
       try {
-        if (reduced) this.fadeCue(cue);
+        if (plan.mode === "fade") this.fadeCue(cue);
         else this.moveCue(cue, snap);
       } catch {
         // Motion is decoration: a missing element never breaks the board.
       }
     }
+  }
+
+  /** A base duration or delay at this batch's speed. */
+  private ms(base: number): number {
+    return scaledMs(base, this.scale);
   }
 
   /** Reduced motion: arrivals fade in place, nothing travels. */
@@ -226,7 +237,7 @@ export class BoardMotion extends Component<Props> {
             { translate: `${dir * (d - 3)}px -1px`, rotate: `${dir * 2}deg`, offset: 0.7 },
             { translate: "0 0", rotate: "0deg" },
           ],
-          { duration: MOTION_MS.shuffle, easing: "ease-in-out" },
+          { duration: this.ms(MOTION_MS.shuffle), easing: "ease-in-out" },
         ),
       );
     });
@@ -238,7 +249,7 @@ export class BoardMotion extends Component<Props> {
     if (!source) return;
     const src = sourceRect(source);
     const art = cardBackArt(source);
-    const step = staggerMs(count);
+    const step = this.ms(staggerMs(count));
     if (side === "you" && ids.length > 0) {
       ids.forEach((id, i) => {
         const el = handCard(id);
@@ -280,7 +291,7 @@ export class BoardMotion extends Component<Props> {
           { ...flightFrame(d, 1, 1), opacity: 0 },
         ];
     this.track(
-      g.animate(frames, { duration: MOTION_MS.draw, delay, easing: EASE_OUT, fill: "both" }),
+      g.animate(frames, { duration: this.ms(MOTION_MS.draw), delay, easing: EASE_OUT, fill: "both" }),
       () => g.remove(),
     );
   }
@@ -290,7 +301,7 @@ export class BoardMotion extends Component<Props> {
     const d = delta(from, el.getBoundingClientRect());
     this.track(
       el.animate([flightFrame(d, 0, 0), flightFrame(d, FLIP_MID, 0), flightFrame(d, 1, 1)], {
-        duration: MOTION_MS.draw,
+        duration: this.ms(MOTION_MS.draw),
         delay,
         easing: EASE_OUT,
         fill: "backwards",
@@ -309,7 +320,7 @@ export class BoardMotion extends Component<Props> {
           { scale: lost ? "0.92" : "1.06", filter: `drop-shadow(0 0 10px ${glow})`, offset: 0.35 },
           { scale: "1", filter: "none" },
         ],
-        { duration: MOTION_MS.pile, easing: "ease-out" },
+        { duration: this.ms(MOTION_MS.pile), easing: "ease-out" },
       ),
     );
   }
@@ -329,7 +340,7 @@ export class BoardMotion extends Component<Props> {
       this.track(
         el.animate(
           [{ scale: "0.85", opacity: 0 }, { scale: "1.04", opacity: 1, offset: 0.75 }, { scale: "1" }],
-          { duration: MOTION_MS.play, easing: EASE_OUT },
+          { duration: this.ms(MOTION_MS.play), easing: EASE_OUT },
         ),
       );
       return;
@@ -342,7 +353,7 @@ export class BoardMotion extends Component<Props> {
           { translate: "0 0", scale: "1.05", opacity: 1, offset: 0.8 },
           { translate: "0 0", scale: "1" },
         ],
-        { duration: MOTION_MS.play, easing: EASE_OUT },
+        { duration: this.ms(MOTION_MS.play), easing: EASE_OUT },
       ),
     );
   }
@@ -377,7 +388,7 @@ export class BoardMotion extends Component<Props> {
           { scale: "0.85", opacity: 0 },
         ];
     this.track(
-      g.animate(frames, { duration: MOTION_MS.leave, easing: EASE_IN, fill: "forwards" }),
+      g.animate(frames, { duration: this.ms(MOTION_MS.leave), easing: EASE_IN, fill: "forwards" }),
       () => g.remove(),
     );
   }
@@ -391,7 +402,7 @@ export class BoardMotion extends Component<Props> {
       this.track(
         chip.animate(
           [{ translate: `${d.dx}px ${d.dy}px`, scale: `${d.s}` }, { translate: "0 0", scale: "1" }],
-          { duration: MOTION_MS.don, delay: i * 40, easing: EASE_OUT, fill: "backwards" },
+          { duration: this.ms(MOTION_MS.don), delay: this.ms(i * 40), easing: EASE_OUT, fill: "backwards" },
         ),
       );
     });
@@ -408,7 +419,7 @@ export class BoardMotion extends Component<Props> {
           { scale: "1.25", filter: `drop-shadow(0 0 6px ${glow})`, offset: 0.4 },
           { scale: "1", filter: "none" },
         ],
-        { duration: MOTION_MS.power, easing: "ease-out" },
+        { duration: this.ms(MOTION_MS.power), easing: "ease-out" },
       ),
     );
   }
@@ -416,6 +427,10 @@ export class BoardMotion extends Component<Props> {
 
 function emptySnapshot(): Snapshot {
   return { cues: [], handRects: new Map(), leaving: new Map() };
+}
+
+function currentPlan() {
+  return motionPlan(currentSettings().animationSpeed, prefersReducedMotion());
 }
 
 function canAnimate(): boolean {

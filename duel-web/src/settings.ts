@@ -21,6 +21,9 @@ export type ResponseStops = "always" | "auto" | "smart";
 /** Screen rotation while a match is open: follow the phone, or lock where the browser allows. */
 export type ScreenOrientationPref = "auto" | "portrait" | "landscape";
 
+/** Card motion: full speed, twice as quick, or none. Reduced motion still wins over Normal / Fast. */
+export type AnimationSpeed = "normal" | "fast" | "off";
+
 export type DuelSettings = {
   /** Game server URL override ("" = build default). */
   serverUrl: string;
@@ -49,6 +52,8 @@ export type DuelSettings = {
   turnSplash: boolean;
   /** Tone down board animations even when the OS has no reduced-motion preference. */
   reduceMotion: boolean;
+  /** Speed of card motion (draw, play, KO, DON!! ...). */
+  animationSpeed: AnimationSpeed;
   /** Vibrate (where supported) and flag the browser tab when the game needs you. */
   turnAlert: boolean;
   /** Short chime when the game needs you. */
@@ -71,6 +76,7 @@ const DEFAULTS: DuelSettings = {
   keepHandOpen: false,
   turnSplash: true,
   reduceMotion: false,
+  animationSpeed: "normal",
   turnAlert: true,
   turnSound: false,
 };
@@ -78,6 +84,7 @@ const DEFAULTS: DuelSettings = {
 const END_TURN_CONFIRM: readonly EndTurnConfirm[] = ["always", "actions", "never"];
 const RESPONSE_STOPS: readonly ResponseStops[] = ["always", "auto", "smart"];
 const SCREEN_ORIENTATIONS: readonly ScreenOrientationPref[] = ["auto", "portrait", "landscape"];
+const ANIMATION_SPEEDS: readonly AnimationSpeed[] = ["normal", "fast", "off"];
 const CHANGE_EVENT = "optcg-duel:settings-change";
 
 /** Stored values from older builds or hand edits fall back to defaults field by field. */
@@ -91,6 +98,7 @@ function sanitize(parsed: Partial<DuelSettings> & { autoPassDefense?: unknown })
   if (!SCREEN_ORIENTATIONS.includes(next.screenOrientation)) {
     next.screenOrientation = DEFAULTS.screenOrientation;
   }
+  if (!ANIMATION_SPEEDS.includes(next.animationSpeed)) next.animationSpeed = DEFAULTS.animationSpeed;
   for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
     if (typeof next[k] !== typeof DEFAULTS[k]) (next as Record<string, unknown>)[k] = DEFAULTS[k];
   }
