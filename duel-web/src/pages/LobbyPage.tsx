@@ -25,6 +25,8 @@ import { clearMatchResume, loadMatchResume } from "../net/matchResume";
 import { devKeyAllowed, effectiveServerUrl, loadSettings } from "../settings";
 import { useDuelSession } from "../state/DuelSession";
 import { needsUsername } from "../auth/username";
+import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel";
+import { dismissInvite, inviteFriend, type Friend, type FriendInvite } from "../friends/friendsApi";
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
 
 /** Which play mode the user is configuring inside the Play sheet. */
@@ -246,7 +248,7 @@ function DeckSwitcher({
 
 export function LobbyPage() {
   const navigate = useNavigate();
-  const { connect, queueRanked, cancelQueue, queueing, setRating } = useDuelSession();
+  const { client, connect, queueRanked, cancelQueue, queueing, setRating } = useDuelSession();
   const [settings] = useState(loadSettings);
   const serverUrl = effectiveServerUrl(settings);
   const secret = settings.joinSecret.trim() || undefined;
@@ -274,6 +276,79 @@ export function LobbyPage() {
     : devKeyAllowed() && settings.useDevKey
       ? "dev"
       : "guest";
+
+  const friendsEnabled = authMode === "google" && Boolean(authUser?.username);
+  const friends = useFriends(friendsEnabled);
+  const [friendError, setFriendError] = useState<string | null>(null);
+
+  /** Shared by the friend actions: mint, connect, then open the match. */
+  async function runFriendAction(status: string, fn: () => Promise<void>) {
+    if (authMode === "dev" && !settings.devUserKey.trim()) {
+      setFriendError("Set a dev user key in Settings first.");
+      return;
+    }
+    setBusy(true);
+    setBusyStatus(status);
+    setFriendError(null);
+    try {
+      clearMatchResume();
+      await fn();
+      navigate("/duel");
+    } catch (e) {
+      setFriendError(e instanceof Error ? e.message : "Connect failed");
+    } finally {
+      setBusy(false);
+      setBusyStatus(null);
+    }
+  }
+
+  /** Invite: open a fresh private room with the selected deck, then invite the friend to it. */
+  function inviteToPrivateRoom(friend: Friend) {
+    if (!selectedDeck) {
+      setFriendError("Select a deck first.");
+      return;
+    }
+    void runFriendAction(`Inviting ${friend.username}…`, async () => {
+      const opts = await authOpts();
+      const wire = deckToWire(selectedDeck);
+      await connect({
+        ...opts,
+        preferredSeat: 0,
+        deck: wire,
+        createOptions: { ranked: false, players: [wire, wire], timer: {} },
+      });
+      const roomId = client.roomId;
+      // The room is open either way; a failed invite must not strand the host
+      // in the lobby while their room sits connected in the background.
+      if (roomId) await inviteFriend(friend.user_id, roomId).catch(() => undefined);
+    });
+  }
+
+  function joinInvite(invite: FriendInvite) {
+    if (!selectedDeck) {
+      setFriendError("Select a deck first.");
+      return;
+    }
+    void runFriendAction("Joining…", async () => {
+      const opts = await authOpts();
+      try {
+        await connect({ ...opts, roomId: invite.room_id, deck: deckToWire(selectedDeck) });
+      } catch {
+        void dismissInvite(invite.id).finally(() => void friends.refresh());
+        throw new Error(`${invite.from_username}'s room is no longer open.`);
+      }
+      void dismissInvite(invite.id);
+    });
+  }
+
+  function spectateFriend(friend: Friend) {
+    if (!friend.room_id) return;
+    const roomId = friend.room_id;
+    void runFriendAction("Connecting…", async () => {
+      const opts = await authOpts();
+      await connect({ ...opts, roomId, role: "spectator" });
+    });
+  }
 
   function refreshDecks() {
     const seeded = ensureDefaultDeck();
@@ -594,6 +669,15 @@ export function LobbyPage() {
           </section>
         ) : null}
 
+        {friends.state ? (
+          <FriendInvites
+            invites={friends.state.invites}
+            busy={busy || queueing}
+            onJoin={joinInvite}
+            onDismissed={() => void friends.refresh()}
+          />
+        ) : null}
+
         <div className="home-actions">
           <button
             type="button"
@@ -608,6 +692,18 @@ export function LobbyPage() {
         {selectedDeck ? (
           <DeckSwitcher decks={decks} selectedDeck={selectedDeck} onChoose={chooseDeck} />
         ) : null}
+
+        {friendError ? <p className="error-text">{friendError}</p> : null}
+        {busy && busyStatus && !sheetOpen ? <p className="friends-note">{busyStatus}</p> : null}
+        <FriendsPanel
+          signedIn={friendsEnabled}
+          state={friends.state}
+          loadError={friends.loadError}
+          refresh={friends.refresh}
+          busy={busy || queueing}
+          onInvite={inviteToPrivateRoom}
+          onSpectate={spectateFriend}
+        />
       </main>
 
       {sheetOpen ? (

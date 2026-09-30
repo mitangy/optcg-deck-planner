@@ -180,6 +180,9 @@ module.exports = {
     { id: "hand-label-uses-id", file: `${src}/net/protocol.ts`, from: "  return n && n !== defId ? n : defId;", to: "  return defId;", kills: ["labels intents with atlas names", "labels resolve_pending_choice with the front choice's card name"] },
     { id: "board-name-unresolved", file: `${src}/net/protocol.ts`, from: "  if (!view || instanceId == null) return shortId(instanceId);", to: "  return shortId(instanceId);", kills: ["labels intents with atlas names"] },
     { id: "decline-labelled-accept", file: `${src}/net/protocol.ts`, from: "      if (!intent.accept) return `Decline — ${who}`;", to: "", kills: ["labels resolve_pending_choice with the front choice's card name"] },
+    { id: "friend-invite-busy-friend", file: `${src}/friends/friendsApi.ts`, from: "    invite: friend.status === \"online\",", to: "    invite: friend.status !== \"offline\",", kills: ["offers Invite only to an online friend"] },
+    { id: "friend-watch-without-room", file: `${src}/friends/friendsApi.ts`, from: "    spectate: friend.room_id !== null && (", to: "    spectate: (", kills: ["never offers Watch without a room"] },
+    { id: "friend-watch-in-game-missing", file: `${src}/friends/friendsApi.ts`, from: "(friend.status === \"in_game\" || friend.status === \"spectating\")", to: "(friend.status === \"spectating\")", kills: ["offers Watch for a friend in a game"] },
     // gameplay settings
     { id: "end-turn-actions-always", file: `${src}/board/gameplayPrefs.ts`, from: "  return intents.some((i) => TURN_ACTIONS.has(i.type));", to: "  return true;", kills: ["asks in 'actions' mode only while another turn action is legal"] },
     { id: "end-turn-actions-any-intent", file: `${src}/board/gameplayPrefs.ts`, from: "  return intents.some((i) => TURN_ACTIONS.has(i.type));", to: "  return intents.length > 0;", kills: ["asks in 'actions' mode only while another turn action is legal"] },

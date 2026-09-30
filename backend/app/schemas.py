@@ -494,6 +494,64 @@ class DuelLeaderboardOut(BaseModel):
     entries: list[DuelLeaderboardEntryOut]
 
 
+class DuelPresenceEntry(BaseModel):
+    user_id: int
+    room_id: str = Field(min_length=1, max_length=64)
+    role: str = Field(default="player", pattern="^(player|spectator)$")
+    phase: str = Field(default="playing", pattern="^(waiting|playing|finished)$")
+    ranked: bool = False
+
+
+class DuelPresenceSnapshot(BaseModel):
+    """Full presence snapshot from one game-server process (replaces its prior rows)."""
+
+    instance_id: str = Field(min_length=1, max_length=64)
+    entries: list[DuelPresenceEntry] = Field(default_factory=list, max_length=5000)
+
+
+class FriendRequestIn(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+
+
+class FriendInviteIn(BaseModel):
+    room_id: str = Field(min_length=1, max_length=64)
+
+
+class FriendOut(BaseModel):
+    user_id: int
+    username: str
+    # offline | online | waiting | in_game | spectating
+    status: str
+    # Room a friend is playing or watching (spectatable); None otherwise.
+    room_id: str | None = None
+    ranked: bool = False
+
+
+class FriendRequestOut(BaseModel):
+    user_id: int
+    username: str
+
+
+class DuelInviteOut(BaseModel):
+    id: int
+    from_user_id: int
+    from_username: str
+    room_id: str
+    expires_at: int
+
+
+class FriendsOut(BaseModel):
+    friends: list[FriendOut]
+    incoming: list[FriendRequestOut]
+    outgoing: list[FriendRequestOut]
+    invites: list[DuelInviteOut]
+
+
+class FriendRequestResult(BaseModel):
+    # pending: request sent; accepted: they had already asked you, so you're friends now.
+    status: str
+
+
 class CardReportIn(BaseModel):
     """A tester's description of a card that does not play as printed."""
 
