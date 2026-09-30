@@ -1,5 +1,6 @@
 import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
 import { ConfirmButton } from "./ConfirmButton";
+import { collapseReplacePlays, isReplacePlay } from "./dragIntents";
 import { filterIntentsForSelection } from "./intentFilter";
 
 type Props = {
@@ -11,6 +12,8 @@ type Props = {
   /** End turn needs a second tap (gameplay setting). */
   confirmEndTurn?: boolean;
   onSend: (intent: Intent) => void;
+  /** Full-board play: ask which Character to replace instead of sending. */
+  onChooseReplace?: (handIndex: number) => void;
 };
 
 function btnClass(intent: Intent): string {
@@ -27,10 +30,11 @@ export function IntentBar({
   selectedBoardId,
   confirmEndTurn = false,
   onSend,
+  onChooseReplace,
 }: Props) {
   const handIndex = filterHandIndex ?? null;
   const boardId = selectedBoardId ?? null;
-  const shown = filterIntentsForSelection(intents, { handIndex, boardId });
+  const shown = collapseReplacePlays(filterIntentsForSelection(intents, { handIndex, boardId }));
   const mulliganPhase = view?.phase === "mulligan";
   const nothingSelected = handIndex == null && boardId == null;
 
@@ -70,9 +74,15 @@ export function IntentBar({
             type="button"
             className={btnClass(intent)}
             disabled={disabled}
-            onClick={() => onSend(intent)}
+            onClick={() =>
+              onChooseReplace && isReplacePlay(intent)
+                ? onChooseReplace(intent.handIndex as number)
+                : onSend(intent)
+            }
           >
-            {intentLabel(intent, view)}
+            {onChooseReplace && isReplacePlay(intent)
+              ? `${intentLabel({ type: "play_card", handIndex: intent.handIndex }, view)} (choose replacement)`
+              : intentLabel(intent, view)}
           </button>
           ),
         )}
