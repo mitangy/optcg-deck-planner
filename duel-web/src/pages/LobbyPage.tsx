@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { lookupCard } from "../cards/atlas";
-import { getApiBaseUrl } from "../config";
+import { getApiBaseUrl, getPlannerUrl } from "../config";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { refreshLinkedDeck } from "../decks/planner";
 import {
@@ -586,6 +586,21 @@ export function LobbyPage() {
               <span className="account-name">{accountName}</span>
               {ratingLabel ? <span className="account-rating">{ratingLabel}</span> : null}
             </Link>
+            <a
+              href={getPlannerUrl()}
+              target="_blank"
+              rel="noopener"
+              className="icon-btn"
+              aria-label="Deck planner"
+              title="Deck planner"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
+                <path
+                  fill="currentColor"
+                  d="M8 2h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm0 2v14h11V4H8Zm2 3h7v2h-7V7Zm0 4h7v2h-7v-2ZM3 6h1v16h13v1a1 1 0 0 1-1 1H4a2 2 0 0 1-2-2V7a1 1 0 0 1 1-1Z"
+                />
+              </svg>
+            </a>
             <Link to="/settings" className="icon-btn" aria-label="Settings" title="Settings">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
                 <path
