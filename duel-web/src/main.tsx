@@ -1,6 +1,8 @@
+import { Analytics } from "@vercel/analytics/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { analyticsBeforeSend } from "./analytics";
 import { App } from "./App";
 import { DuelSessionProvider } from "./state/DuelSession";
 import "./styles.css";
@@ -16,5 +18,6 @@ createRoot(document.getElementById("root")!).render(
         <App />
       </DuelSessionProvider>
     </BrowserRouter>
+    <Analytics beforeSend={analyticsBeforeSend} />
   </StrictMode>,
 );
