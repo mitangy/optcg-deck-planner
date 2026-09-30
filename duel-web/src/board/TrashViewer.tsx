@@ -10,6 +10,9 @@ type Props = {
   onClose: () => void;
   ownerSeat?: Seat;
   viewingSeat?: Seat;
+  /** Ordering note after the count; "newest first" for the trash. */
+  note?: string;
+  emptyText?: string;
 };
 
 /** Public trash browser — both seats can open either pile. */
@@ -19,6 +22,8 @@ export function TrashViewer({
   onClose,
   ownerSeat,
   viewingSeat,
+  note = "newest first",
+  emptyText = "No cards in trash.",
 }: Props) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -43,7 +48,7 @@ export function TrashViewer({
             <p className="trash-viewer-sub">
               {cards.length === 0
                 ? "Empty"
-                : `${cards.length} card${cards.length === 1 ? "" : "s"} · newest first`}
+                : `${cards.length} card${cards.length === 1 ? "" : "s"}${note ? ` · ${note}` : ""}`}
             </p>
           </div>
           <button type="button" className="btn btn-primary trash-viewer-done" onClick={onClose}>
@@ -51,7 +56,7 @@ export function TrashViewer({
           </button>
         </div>
         {cards.length === 0 ? (
-          <p className="trash-viewer-empty">No cards in trash.</p>
+          <p className="trash-viewer-empty">{emptyText}</p>
         ) : (
           <div className="trash-viewer-grid">
             {cards.map((defId, i) => (

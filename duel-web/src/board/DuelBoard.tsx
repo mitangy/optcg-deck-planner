@@ -66,7 +66,7 @@ import { RematchPanel } from "./RematchPanel";
 import { RoomChip, RoomInvite } from "./RoomShare";
 import { OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
-import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY } from "./useMediaQuery";
+import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY } from "./useMediaQuery";
 import { MatchMenu } from "./MatchMenu";
 import { matchMenuItems } from "./matchMenu";
 
@@ -174,6 +174,7 @@ export function DuelBoard({
   const [handPinned, setHandPinned] = useState(prefs.keepHandOpen);
   const wide = useMediaQuery(WIDE_BOARD_QUERY);
   const compactHud = useMediaQuery(COMPACT_HUD_QUERY);
+  const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
   const [handSorted, setHandSorted] = useState(prefs.sortHandByCost);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const fullscreenOffered = useMemo(() => canOfferFullscreen(readInstallEnv()), []);
@@ -1022,6 +1023,7 @@ export function DuelBoard({
             <SideField
               side="opp"
               compact
+              countRow={portraitMat}
               turnOrder={firstSeat === oppSeat ? "first" : "second"}
               activeTurn={oppActive}
               matImageUrl={oppMatUrl}
@@ -1036,6 +1038,7 @@ export function DuelBoard({
                 deckCount: opp.deckCount,
                 trash: opp.trash,
                 lifeCount: opp.lifeCount,
+                faceUpLife: portraitMat ? opp.faceUpLife : undefined,
                 donDeckCount: opp.donDeckCount,
                 costAreaCount: opp.costAreaCount,
                 activeDonCount: opp.activeDonCount,

@@ -30,3 +30,6 @@ export const WIDE_BOARD_QUERY =
  * either orientation get the one-row bar with a match menu.
  */
 export const COMPACT_HUD_QUERY = "not ((min-width: 900px) and (min-height: 500px))";
+
+/** Portrait phones / tablets: must match the 6-column mat block in board.css. */
+export const PORTRAIT_MAT_QUERY = "(max-width: 899px) and (orientation: portrait)";

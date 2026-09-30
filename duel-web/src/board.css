@@ -2227,3 +2227,102 @@
   flex: none;
   order: 2;
 }
+
+/* —— Portrait phones: opponent piles become a count row —— */
+
+.opp-counts {
+  display: none;
+}
+
+@media (max-width: 899px) and (orientation: portrait) {
+  /* No piles to make room for, so the mat can run wider than 12:7. */
+  .arena .side-opp.side-counts {
+    width: min(100cqw, calc(var(--mat-h) * 1.9));
+  }
+
+  .arena .side-opp.side-counts .side-grid {
+    --g: 1.6cqw;
+    --c: min(
+      calc((100cqw - 2.8cqw - 4 * 1.6cqw) / 5),
+      calc((100cqh - 8px - 32px - 2 * 3px) / 2.8)
+    );
+    padding: 4px 1.4cqw;
+    row-gap: 3px;
+    grid-template-columns: repeat(5, var(--c));
+    grid-template-rows: 32px calc(var(--c) * 1.4) calc(var(--c) * 1.4);
+    grid-template-areas:
+      "counts counts counts counts counts"
+      "stage leader cost cost cost"
+      "characters characters characters characters characters";
+  }
+
+  /* Spans the whole mat edge (not just the card grid) so the chips have room. */
+  .arena .side-counts .opp-counts {
+    position: absolute;
+    top: 4px;
+    left: 1.4cqw;
+    right: 1.4cqw;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    min-width: 0;
+    height: 32px;
+  }
+
+  .arena .side-counts .opp-counts .mat-order {
+    position: static;
+    flex: none;
+    padding: 0.1em 0.5em;
+    font-size: 0.6rem;
+    box-shadow: none;
+  }
+
+  .arena .side-counts .count-chip {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 32px;
+    padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    box-sizing: border-box;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.28);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .arena .side-counts .count-chip.openable {
+    cursor: pointer;
+    border-color: var(--line-strong);
+  }
+
+  .arena .side-counts .count-chip.openable:focus-visible {
+    outline: none;
+    box-shadow: var(--focus);
+  }
+
+  .arena .side-counts .count-icon {
+    flex: none;
+    color: var(--muted);
+  }
+
+  .arena .side-counts .count-chip-life .count-icon {
+    color: #e0685c;
+  }
+
+  .arena .side-counts .count-chip-extra {
+    font-size: 0.6rem;
+    color: var(--chrome-bright);
+  }
+
+  .arena .side-counts .zone-cost {
+    min-width: 0;
+  }
+}
