@@ -3,7 +3,7 @@ import { lookupCard } from "../cards/atlas";
 import type { ChoiceOptionView, ChoiceRequestView, Intent, PendingChoiceView, PlayerView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
 import { DON_CARD_ART } from "./donArt";
-import { arrangementAnswer, arrangementRows, initialArrangement, mergeArrangement, moveToRow, nudge, setSide, withoutIds, type Arrangement } from "./deckOrder";
+import { arrangementAnswer, arrangementRows, groupAnswer, initialArrangement, mergeArrangement, moveToRow, nudge, setSide, withoutIds, type Arrangement } from "./deckOrder";
 import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "./liveTargets";
 
 type Props = {
@@ -352,6 +352,8 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
   const [selected, setSelected] = useState<string[]>([]);
   // Top by default, so "Done" without changes leaves the deck as it was.
   const [arrangement, setArrangement] = useState<Arrangement>(() => initialArrangement(request.options.map((o) => o.id)));
+  // "Top or bottom" moves the rest together, so one switch picks the side for all of them.
+  const [side, setGroupSide] = useState<"top" | "bottom">("top");
   const rest = withoutIds(arrangement, selected);
   const remaining = [...rest.top, ...rest.bottom];
   const eligible = (id: string) => request.groups.some((g) => g.eligibleIds.includes(id));
@@ -381,23 +383,32 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
           />
         ))}
       </div>
+      {request.rest === "top_or_bottom" && remaining.length ? (
+        <div className="ability-prompt-section choice-side-row">
+          <span className="ability-prompt-label">Put {remaining.length > 1 ? "them all" : "it"} on</span>
+          <span className="choice-place-seg" role="group" aria-label="Top or bottom of deck">
+            <button type="button" className="choice-place" aria-pressed={side === "top"} onClick={() => setGroupSide("top")}>Top</button>
+            <button type="button" className="choice-place" aria-pressed={side === "bottom"} onClick={() => setGroupSide("bottom")}>Bottom</button>
+          </span>
+        </div>
+      ) : null}
       {needsOrder ? (
         <OrderList
           arrangement={rest}
           byId={byId}
           // Selected cards keep their slot in the full arrangement.
           onChange={(next) => setArrangement(mergeArrangement(arrangement, next, selected))}
-          mode={request.rest === "deck_top" ? "above" : request.rest === "top_or_bottom" ? "split" : "below"}
+          mode={request.rest === "deck_top" || (request.rest === "top_or_bottom" && side === "top") ? "above" : "below"}
           pile="deck"
-          label={request.rest === "deck_top" ? "Put back on top: drag to reorder" : request.rest === "top_or_bottom" ? "Put each card on top or bottom: drag to reorder" : "Put back on the bottom: drag to reorder"}
+          label={request.rest === "deck_top" || (request.rest === "top_or_bottom" && side === "top") ? "Put back on top: drag to reorder" : "Put back on the bottom: drag to reorder"}
         />
       ) : (
         <p className="choice-rest-note">{request.restLabel}</p>
       )}
       {request.rest === "top_or_bottom" && remaining.length ? (
         <DeckPreview
-          top={rest.top.map((id) => optionName(byId.get(id)!))}
-          bottom={rest.bottom.map((id) => optionName(byId.get(id)!))}
+          top={side === "top" ? remaining.map((id) => optionName(byId.get(id)!)) : []}
+          bottom={side === "bottom" ? remaining.map((id) => optionName(byId.get(id)!)) : []}
         />
       ) : null}
       {selected.length ? <p className="choice-rest-note">{selected.map((id) => `${optionName(byId.get(id)!)} → ${groupLabel(id) ?? "take"}`).join(" · ")}</p> : null}
@@ -406,7 +417,7 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
           type="button"
           className="btn btn-primary"
           disabled={selected.length < request.minSelect}
-          onClick={() => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: selected, ...(request.rest === "top_or_bottom" ? arrangementAnswer(rest) : { orderedOptionIds: remaining }) })}
+          onClick={() => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: selected, ...(request.rest === "top_or_bottom" ? groupAnswer(remaining, side) : { orderedOptionIds: remaining }) })}
         >
           {request.maxSelect === 0 ? "Done" : selected.length ? "Confirm" : "Take none & finish"}
         </button>

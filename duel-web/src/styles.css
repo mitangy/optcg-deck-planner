@@ -3415,6 +3415,20 @@ img.zone-pile-face {
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
 }
+/* One Top/Bottom switch for a whole "top or bottom" put-back. */
+.choice-side-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.choice-side-row .choice-place {
+  min-height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: var(--arena-mid);
+  color: inherit;
+}
 .choice-place[aria-pressed="true"] {
   position: relative;
   border-color: var(--chrome) !important;

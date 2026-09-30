@@ -78,6 +78,8 @@ export function ChoicePrompt({ choice, mySeat, onSend }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
   const [order, setOrder] = useState<string[]>(() => options.map((o) => o.id));
   const [topIds, setTopIds] = useState<Set<string>>(() => new Set(request.type === "order" ? options.map((o) => o.id) : []));
+  // "Top or bottom" moves the rest together: one side for all of them.
+  const [restOnTop, setRestOnTop] = useState(true);
   const title = choice.cardDefId && choice.cardDefId !== "HIDDEN" ? lookupCard(choice.cardDefId).name : "Effect";
   const maxPick = request.type === "select" ? request.max : request.type === "look" ? request.maxSelect : 0;
   const toggle = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : maxPick === 1 ? [id] : cur.length >= maxPick ? cur : [...cur, id]));
@@ -145,13 +147,23 @@ export function ChoicePrompt({ choice, mySeat, onSend }: Props) {
           {request.rest === "deck_bottom" || request.rest === "deck_top" || request.rest === "top_or_bottom" ? (
             <>
               <Text style={styles.label}>{request.restLabel}</Text>
+              {request.rest === "top_or_bottom" ? (
+                <View style={styles.row} accessibilityLabel="Top or bottom of deck">
+                  <Pressable onPress={() => setRestOnTop(true)} style={restOnTop ? styles.primary : styles.secondary} accessibilityState={{ selected: restOnTop }}>
+                    <Text style={styles.buttonText}>Top</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setRestOnTop(false)} style={restOnTop ? styles.secondary : styles.primary} accessibilityState={{ selected: !restOnTop }}>
+                    <Text style={styles.buttonText}>Bottom</Text>
+                  </Pressable>
+                </View>
+              ) : null}
               <OrderRows
                 ids={order.filter((id) => !selected.includes(id))}
                 byId={byId}
                 onMove={(id, d) => setOrder((cur) => move(cur, id, d))}
                 topIds={topIds}
                 onToggleTop={(id) => setTopIds((cur) => toggleSet(cur, id))}
-                topBottom={request.rest === "top_or_bottom"}
+                topBottom={false}
               />
             </>
           ) : (
@@ -160,7 +172,7 @@ export function ChoicePrompt({ choice, mySeat, onSend }: Props) {
           <Pressable
             onPress={() => {
               const remaining = order.filter((id) => !selected.includes(id));
-              send({ type: "resolve_pending_choice", accept: true, selectedOptionIds: selected, orderedOptionIds: remaining, ...(request.rest === "top_or_bottom" ? { topOptionIds: remaining.filter((id) => topIds.has(id)) } : {}) });
+              send({ type: "resolve_pending_choice", accept: true, selectedOptionIds: selected, orderedOptionIds: remaining, ...(request.rest === "top_or_bottom" ? { topOptionIds: restOnTop ? remaining : [] } : {}) });
             }}
             style={styles.primary}
           >

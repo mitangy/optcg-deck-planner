@@ -495,7 +495,7 @@ function restLabel(rest: Placement | "look_only"): string {
   switch (rest) {
     case "deck_bottom": return "place the rest at the bottom of the deck in any order";
     case "deck_top": return "place the rest at the top of the deck in any order";
-    case "top_or_bottom": return "place each remaining card at the top or bottom of the deck";
+    case "top_or_bottom": return "place the rest all at the top or all at the bottom of the deck";
     case "trash": return "trash the rest";
     case "hand": return "add the rest to your hand";
     case "shuffle": return "shuffle the rest into the deck";
@@ -1085,6 +1085,8 @@ export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: Cho
       const top = answer.topOptionIds ?? (request.allowTopOrBottom ? ordered : []);
       if (!request.allowTopOrBottom && (answer.topOptionIds ?? []).length) return "This effect does not allow bottom placement";
       if (top.some((id) => !ids.includes(id))) return "Invalid top placement";
+      // "Top or bottom" moves the cards together: all on top or all on the bottom.
+      if (top.length !== 0 && new Set(top).size !== ids.length) return "Place every card on the same side";
       apply = () => {
         const meta = JSON.parse(b.__lifeOrder!) as { seat: Seat; count: number; topOrBottom: boolean };
         const p = state.players[meta.seat];
@@ -1123,6 +1125,9 @@ function validateLook(state: MatchState, request: Extract<ChoiceRequest, { type:
     if (ordered.length !== remaining.length || new Set(ordered).size !== ordered.length || ordered.some((id) => !remaining.includes(id))) return "Remainder order must include every unselected card exactly once";
     if ((answer.topOptionIds ?? []).some((id) => !remaining.includes(id))) return "Top placements must be unselected cards";
     if (request.rest !== "top_or_bottom" && (answer.topOptionIds ?? []).length) return "This effect places the rest in one location";
+    // "Top or bottom" moves the rest together: all on top or all on the bottom.
+    const tops = answer.topOptionIds ?? [];
+    if (tops.length !== 0 && new Set(tops).size !== remaining.length) return "Place every card on the same side";
   }
   return null;
 }

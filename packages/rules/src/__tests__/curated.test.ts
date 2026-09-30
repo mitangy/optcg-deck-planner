@@ -284,13 +284,11 @@ describe("OP15-066 Satori", () => {
     expect(h.state.players[0].deck.slice(0, 2)).toEqual([B, A]);
   });
 
-  it("splits one to the top and one to the bottom", () => {
-    const { h, opt, deckSize } = lookAtTwo();
-    h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [], orderedOptionIds: [opt(A), opt(B)], topOptionIds: [opt(B)] });
-    const deck = h.state.players[0].deck;
-    expect(deck).toHaveLength(deckSize);
-    expect(deck[0]).toBe(B);
-    expect(deck.at(-1)).toBe(A);
+  it("rejects splitting one to the top and one to the bottom", () => {
+    const { h, opt } = lookAtTwo();
+    const r = h.try(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [], orderedOptionIds: [opt(A), opt(B)], topOptionIds: [opt(B)] });
+    expect(r.ok).toBe(false);
+    expect(r.error?.message).toMatch(/same side/);
   });
 
   it("places both on the bottom in the chosen order (first listed sits higher)", () => {
