@@ -34,6 +34,14 @@ export const COMPACT_HUD_QUERY = "not ((min-width: 900px) and (min-height: 500px
 /** Portrait phones / tablets: must match the 6-column mat block in board.css. */
 export const PORTRAIT_MAT_QUERY = "(max-width: 899px) and (orientation: portrait)";
 
+/**
+ * Tilted board (setting): landscape desktop / tablet windows only. Phones keep
+ * the flat board, and on tall windows the tilted mats get long and thin with
+ * small cards.
+ */
+export const TILT_BOARD_QUERY =
+  "(min-width: 900px) and (min-height: 500px) and (orientation: landscape)";
+
 /** Landscape phones (the wide board with the short-viewport layout). */
 export const LANDSCAPE_PHONE_QUERY =
   "(orientation: landscape) and (min-width: 600px) and (max-height: 499px)";

@@ -345,7 +345,7 @@ export class BoardMotion extends Component<Props> {
       );
       return;
     }
-    const d = delta(shrinkTo(from, to), to);
+    const d = inPlane(el, delta(shrinkTo(from, to), to));
     this.track(
       el.animate(
         [
@@ -398,7 +398,7 @@ export class BoardMotion extends Component<Props> {
     if (!deck) return;
     const src = sourceRect(deck);
     donChips(side, count, activeAfter).forEach((chip, i) => {
-      const d = delta(src, chip.getBoundingClientRect());
+      const d = inPlane(chip, delta(src, chip.getBoundingClientRect()));
       this.track(
         chip.animate(
           [{ translate: `${d.dx}px ${d.dy}px`, scale: `${d.s}` }, { translate: "0 0", scale: "1" }],
@@ -515,6 +515,48 @@ export function delta(from: Box, to: Box): { dx: number; dy: number; s: number }
   const dy = from.top + from.height / 2 - (to.top + to.height / 2);
   const s = to.width > 0 ? from.width / to.width : 1;
   return { dx, dy, s: Math.max(0.2, Math.min(s, 3)) };
+}
+
+/**
+ * Tilted board: a tile's `translate` runs in the leaning plane, so a screen
+ * delta has to be turned into a delta on that plane (a screen pixel covers
+ * more of the table the further back it is). Maps the tile's centre and the
+ * start point back through the board's transform. A no-op on the flat board.
+ */
+export function inPlane<D extends { dx: number; dy: number }>(el: HTMLElement, d: D): D {
+  const inner = el.closest<HTMLElement>(".arena-tilt .playmat-inner");
+  if (!inner) return d;
+  const m = new DOMMatrix(getComputedStyle(inner).transform);
+  if (m.is2D) return d;
+  // The tilt pivots on the board's bottom edge, which stays where it was laid out.
+  const box = inner.getBoundingClientRect();
+  const ox = box.left + box.width / 2;
+  const oy = box.bottom;
+  const r = el.getBoundingClientRect();
+  const cx = r.left + r.width / 2 - ox;
+  const cy = r.top + r.height / 2 - oy;
+  const to = unproject(m, cx, cy);
+  const from = unproject(m, cx + d.dx, cy + d.dy);
+  if (!to || !from) return d;
+  return { ...d, dx: from.x - to.x, dy: from.y - to.y };
+}
+
+/** The point (x, y, 0) on the transformed plane that `m` draws at screen offset (sx, sy). */
+export function unproject(
+  m: Pick<DOMMatrix, "m11" | "m12" | "m14" | "m21" | "m22" | "m24" | "m41" | "m42" | "m44">,
+  sx: number,
+  sy: number,
+): { x: number; y: number } | null {
+  // sx = X / W and sy = Y / W for [X Y Z W] = m · [x y 0 1]; two linear equations in x, y.
+  const a1 = m.m11 - sx * m.m14;
+  const b1 = m.m21 - sx * m.m24;
+  const c1 = sx * m.m44 - m.m41;
+  const a2 = m.m12 - sy * m.m14;
+  const b2 = m.m22 - sy * m.m24;
+  const c2 = sy * m.m44 - m.m42;
+  const det = a1 * b2 - b1 * a2;
+  if (Math.abs(det) < 1e-9) return null;
+  return { x: (c1 * b2 - b1 * c2) / det, y: (a1 * c2 - c1 * a2) / det };
 }
 
 /** A card-sized box centred in a container (a hand zone or fan is wider than one card). */

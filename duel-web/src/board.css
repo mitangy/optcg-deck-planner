@@ -2851,6 +2851,30 @@
   border-color: rgba(190, 225, 250, 0.8);
 }
 
+/* Mulligan: both labels are long ("Mulligan (shuffle & redraw 5)", "Keep
+   opening hand"). On a phone they ran past the right edge and the row scrolled
+   sideways, so split the bar evenly and let each label wrap to two lines. */
+.intent-bar-mulligan .intent-btn {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+.intent-bar-mulligan .intent-layout .intent-row {
+  overflow-x: visible;
+  padding-right: 0;
+}
+
+.intent-bar-mulligan .intent-row .intent-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.intent-bar-mulligan .intent-primary {
+  flex-basis: 50%;
+}
+
 /* Rail (desktop / landscape): the primary is a full-width button under the
    wrapped secondary actions. */
 .arena.arena-wide .arena-rail .intent-layout {
@@ -3548,39 +3572,46 @@
   }
 }
 
-/* —— "Rotate for bigger cards" toast: fixed above the hand, portrait only —— */
+/* —— "Rotate for bigger cards" pill: in the idle midline strip, portrait only ——
+   The strip between the mats is always reserved, so the pill neither moves
+   the board nor covers either field (as a fixed toast it sat on the DON!!
+   row and Trash). It takes the strip's height; the ✕ keeps a 44px hit area
+   that reaches past the strip without painting over anything. */
 
-.rotate-hint {
-  position: fixed;
-  z-index: 40;
-  left: 50%;
-  /* Clears the hand rail (159px) and the intent bar (~61px). */
-  bottom: calc(232px + var(--safe-b));
-  transform: translateX(-50%);
-  max-width: calc(100vw - 32px);
+.arena .midline .rotate-hint {
+  position: relative;
+  height: 100%;
+  max-width: 100%;
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 4px 4px 12px;
+  gap: 6px;
+  padding: 0 0 0 0.7rem;
   border: 1px solid var(--chrome);
   border-radius: 999px;
   background: rgba(12, 18, 28, 0.96);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
   color: var(--ink);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
   white-space: nowrap;
 }
 
+.rotate-hint-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .rotate-hint-icon {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
+  line-height: 1;
   color: var(--chrome-bright);
 }
 
 .rotate-hint-close {
-  width: 44px;
-  height: 44px;
+  position: relative;
+  width: calc(var(--midline-h) + 6px);
+  height: 100%;
   flex: none;
   display: grid;
   place-items: center;
@@ -3589,8 +3620,19 @@
   border-radius: 50%;
   background: transparent;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   cursor: pointer;
+}
+
+/* Invisible 44px tap target around the small ✕. */
+.rotate-hint-close::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 
 .rotate-hint-close:focus-visible {
@@ -3662,4 +3704,33 @@
   white-space: normal;
   overflow-wrap: anywhere;
   text-align: left;
+}
+
+/* —— Tilted board (desktop setting): seen from your seat ——
+
+   Both mats lean back as one table: rotateX around the near (bottom) edge,
+   with perspective so the opponent's side is smaller and further away. The
+   inner box is laid out taller than the playmat (--tilt-grow) and hangs off
+   its top; the tilt folds that extra height back into view, so the near mat
+   ends up bigger than the flat board and nothing is clipped. Only transform,
+   so hit-testing (drops, clicks) follows what you see and BoardMotion's
+   translate / scale still compose. */
+.arena.arena-tilt .playmat {
+  --tilt: 30deg;
+  --tilt-grow: 1.45;
+}
+
+.arena.arena-tilt .playmat-inner {
+  height: calc(100cqh * var(--tilt-grow));
+  margin-top: calc(100cqh * (1 - var(--tilt-grow)));
+  justify-content: flex-end;
+  transform-origin: 50% 100%;
+  transform: perspective(calc(100cqh * 2.4)) rotateX(var(--tilt));
+}
+
+/* Same sizing as the flat desktop mats, from the taller (pre-tilt) box. */
+.arena.arena-wide.arena-tilt:not(.arena-lp) .side-field {
+  --mat-h: calc(
+    (100cqh * var(--tilt-grow) - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2
+  );
 }

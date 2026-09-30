@@ -96,7 +96,7 @@ import { OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./Tur
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
 import { getLastHoverAt, getPreviewCard, setAutoPreviewCard, shouldAutoPreview } from "./cardPreview";
 import { latestOpponentPlay, opponentPlayCaption } from "./opponentPlay";
-import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY, RAIL_HAND_QUERY } from "./useMediaQuery";
+import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY, RAIL_HAND_QUERY, TILT_BOARD_QUERY } from "./useMediaQuery";
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { matchMenuItems } from "./matchMenuItems";
@@ -208,7 +208,7 @@ export function DuelBoard({
   const [handCollapsed, setHandCollapsed] = useState(false);
   /** Wide layout: hand dock pinned open (click / tap on its handle). */
   const prefs = useDuelSettings();
-  const [handPinned, setHandPinned] = useState(prefs.keepHandOpen);
+  const [handPinned, setHandPinned] = useState(false);
   const wide = useMediaQuery(WIDE_BOARD_QUERY);
   const compactHud = useMediaQuery(COMPACT_HUD_QUERY);
   const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
@@ -218,6 +218,9 @@ export function DuelBoard({
   /** Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). */
   const fanHand = wide && !lp && prefs.handLayout !== "grid";
   const fanCenter = fanHand && prefs.handLayout === "fanCenter";
+  /** Desktop / landscape tablet: the board leans back in perspective, seen from your seat. */
+  const tiltFits = useMediaQuery(TILT_BOARD_QUERY);
+  const tilted = wide && !lp && tiltFits && prefs.tiltedBoard;
   /** Tall desktop, Grid layout: the hand is an always-open grid in the right rail (no dock). */
   const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
   const railHand = wide && !lp && railHandTall && !fanHand;
@@ -261,7 +264,6 @@ export function DuelBoard({
   const playmatOpacity = prefs.playmatOpacity;
 
   // Changing a setting mid-match applies it straight away.
-  useEffect(() => setHandPinned(prefs.keepHandOpen), [prefs.keepHandOpen]);
   useEffect(() => setHandSorted(prefs.sortHandByCost), [prefs.sortHandByCost]);
 
   useEffect(() => {
@@ -457,6 +459,8 @@ export function DuelBoard({
     !over &&
     // Wait out an attack: the toast would sit over your field mid-response.
     defend == null &&
+    // The hint lives in the midline strip, so wait for it to be free.
+    midlineText == null &&
     shouldShowRotateHint({
       portrait: portraitViewport,
       phone: phoneViewport,
@@ -472,7 +476,11 @@ export function DuelBoard({
   }, [rotateHintDue]);
   // Turning the phone (or picking portrait) puts the hint away.
   const rotateHintShown =
-    rotateHintOpen && portraitViewport && orientationPref !== "portrait" && defend == null;
+    rotateHintOpen &&
+    portraitViewport &&
+    orientationPref !== "portrait" &&
+    defend == null &&
+    midlineText == null;
   const closeRotateHint = useCallback(() => setRotateHintOpen(false), []);
 
   // Small haptic tap when a drag lifts a card / DON!!.
@@ -1104,7 +1112,9 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : fanHand ? " arena-fan-right" : ""}`}
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : fanHand ? " arena-fan-right" : ""}${
+        tilted ? " arena-tilt" : ""
+      }`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
       data-phase={view.phase}
       data-turn={view.turnNumber}
@@ -1432,6 +1442,8 @@ export function DuelBoard({
                 <div className="prompt" title={midlineText}>
                   {midlineText}
                 </div>
+              ) : rotateHintShown ? (
+                <RotateHint onClose={closeRotateHint} />
               ) : (
                 <div className="midline-ornament" aria-hidden>
                   <span />
@@ -1801,7 +1813,6 @@ export function DuelBoard({
       ) : null}
 
       {/* Fixed overlays (portals) — never participate in board layout. */}
-      {rotateHintShown ? <RotateHint onClose={closeRotateHint} /> : null}
       <TurnSplash message={splash} />
       <AttackIndicator view={over ? null : view} />
       <BoardMotion view={view} />
