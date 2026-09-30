@@ -15,10 +15,6 @@ export const KNOWN_UI_ISSUES: Array<{ pattern: RegExp; note: string }> = [
     note: "Phone portrait: the 'Rotate for bigger cards' toast sits on the DON!! row and Trash",
   },
   {
-    pattern: /^((spill|offscreen) .*intent-btn-keep "Keep opening hand"|hscroll div\.intent-bar\.intent-bar-mulligan )/,
-    note: "Phone mulligan: the two buttons don't fit; 'Keep opening hand' runs ~25px off the right edge and the row scrolls sideways",
-  },
-  {
     pattern: /"Summoning sick": text runs/,
     note: "Choice prompt: the 'Summoning sick' readiness chip spills out of its box",
   },
