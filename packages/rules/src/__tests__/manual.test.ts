@@ -283,3 +283,27 @@ describe("turning Life face-up as a cost (OP08-058 Pudding)", () => {
     expect(h.state.players[0].costArea.length).toBe(before + 1);
   });
 });
+
+describe("turning Life face-down as a cost (OP08-063 Katakuri)", () => {
+  it("is not offered when no Life card is face-up", () => {
+    const h = new Harness();
+    h.hand(0, "OP08-063");
+    h.don(0, 7);
+    h.life(0, FILLER, FILLER, FILLER);
+    h.play(0, "OP08-063");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[0].costArea.length).toBe(7);
+  });
+
+  it("turns a face-up Life card face-down and adds an active DON!!", () => {
+    const h = new Harness();
+    h.hand(0, "OP08-063");
+    h.don(0, 7);
+    h.life(0, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [true, false, false];
+    h.play(0, "OP08-063");
+    h.accept();
+    expect(h.state.players[0].faceUpLife).toEqual([false, false, false]);
+    expect(h.state.players[0].costArea.length).toBe(8);
+  });
+});

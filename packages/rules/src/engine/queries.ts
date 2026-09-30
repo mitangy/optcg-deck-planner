@@ -644,7 +644,7 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
     case "play_from_hand": return candidates(state, ctx, { player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }).length >= cost.count;
     case "hand_to_deck_top": return p.hand.filter((c) => c.id !== ctx.sourceId).length >= cost.count;
     case "trash_to_deck_shuffle": return p.trash.length >= cost.count;
-    case "life_face_down": return p.faceUpLife.filter(Boolean).length >= cost.count || p.life.length >= cost.count;
+    case "life_face_down": return p.faceUpLife.filter(Boolean).length >= cost.count;
     case "life_face_up": return p.faceUpLife.filter((up) => !up).length >= cost.count;
     case "mill": return p.deck.length >= cost.count;
     case "power": return cost.target !== "active_leader" || !p.leader.rested;
