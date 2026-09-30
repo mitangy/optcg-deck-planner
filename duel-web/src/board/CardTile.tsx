@@ -24,6 +24,8 @@ import {
   createLongPressController,
 } from "./inspectGestures";
 import { usePointerDrag } from "./usePointerDrag";
+import { StatusIcon } from "./StatusIcon";
+import { statusGlyph } from "./statusIcons";
 
 const COLOR_CHIP: Record<string, string> = {
   red: "#c62828",
@@ -352,14 +354,18 @@ export function CardTile({
         ) : null}
         {labels.length ? (
           <div className="status-chips" aria-label="Card statuses">
-            {labels.map((label) => (
-              <span
-                key={label}
-                className={`status-chip status-chip-${slugStatus(label)}`}
-              >
-                {label}
-              </span>
-            ))}
+            {labels.map((label) => {
+              // Board tiles are too narrow for words; known statuses get an icon
+              // (full text in title / aria-label and in card inspect).
+              const icon = statusGlyph(label);
+              return icon ? (
+                <StatusIcon key={label} label={label} spec={icon} />
+              ) : (
+                <span key={label} className={`status-chip status-chip-${slugStatus(label)}`}>
+                  {label}
+                </span>
+              );
+            })}
           </div>
         ) : null}
       </div>

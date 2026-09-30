@@ -17,5 +17,7 @@ module.exports = {
     { id: "hand-label-uses-id", file: "mobile/src/net/protocol.ts", from: "  return n && n !== defId ? n : defId;", to: "  return defId;", kills: ["labels intents with atlas names"] },
     { id: "board-name-unresolved", file: "mobile/src/net/protocol.ts", from: "  if (!view || instanceId == null) return shortId(instanceId);", to: "  return shortId(instanceId);", kills: ["labels intents with atlas names"] },
     { id: "keep-labelled-mulligan", file: "mobile/src/net/protocol.ts", from: "      return intent.doMulligan ? \"Mulligan (shuffle & redraw 5)\" : \"Keep opening hand\";", to: "      return \"Mulligan (shuffle & redraw 5)\";", kills: ["labels intents with atlas names"] },
+    { id: "replace-play-unlabelled", file: "mobile/src/net/protocol.ts", from: "      return intent.trashCharacterId != null\n", to: "      return false\n", kills: ["names the Character a full-board play replaces"] },
+    { id: "replace-play-names-first", file: "mobile/src/net/protocol.ts", from: "replacing ${findBoardName(view, intent.trashCharacterId)}", to: "replacing ${findBoardName(view, view?.you.characters[0]?.id)}", kills: ["names the Character a full-board play replaces"] },
   ],
 };

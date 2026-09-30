@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserOut(BaseModel):
@@ -550,3 +550,33 @@ class FriendsOut(BaseModel):
 class FriendRequestResult(BaseModel):
     # pending: request sent; accepted: they had already asked you, so you're friends now.
     status: str
+
+
+class CardReportIn(BaseModel):
+    """A tester's description of a card that does not play as printed."""
+
+    # Strip first so a padded two-word note cannot pass the length floor.
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    card_id: str = Field(pattern=r"^[A-Za-z0-9_-]{2,32}$")
+    description: str = Field(min_length=10, max_length=2000)
+    source: str = Field(default="", max_length=32)
+    room_id: str = Field(default="", max_length=64)
+    client_build: str = Field(default="", max_length=40)
+
+
+class CardReportOut(BaseModel):
+    id: int
+    card_id: str
+    description: str
+    user_id: int | None
+    reporter: str
+    source: str
+    room_id: str
+    client_build: str
+    status: str
+    created_at: str
+
+
+class CardReportStatusIn(BaseModel):
+    status: str = Field(pattern=r"^(open|fixed|wontfix)$")

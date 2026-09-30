@@ -467,3 +467,25 @@ class DuelInvite(Base):
     room_id: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class CardReport(Base):
+    """A tester's report that a duel card does not play as printed."""
+
+    __tablename__ = "card_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    description: Mapped[str] = mapped_column(Text)
+    # Null for anonymous reporters (no session cookie and no game token).
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    # Where the card was inspected: match, practice, hotseat, deck.
+    source: Mapped[str] = mapped_column(String(32), default="")
+    room_id: Mapped[str] = mapped_column(String(64), default="")
+    client_build: Mapped[str] = mapped_column(String(40), default="")
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

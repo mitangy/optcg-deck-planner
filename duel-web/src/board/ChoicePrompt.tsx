@@ -31,7 +31,7 @@ function optionName(option: ChoiceOptionView): string {
 }
 
 /** Card art tile (or labeled chip) for one choice option. */
-function OptionTile({ option, mySeat, selected, disabled, onToggle, badge, lookOnly = false }: {
+export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge, lookOnly = false }: {
   option: ChoiceOptionView;
   mySeat: Seat;
   selected: boolean;
@@ -121,7 +121,7 @@ function OptionTile({ option, mySeat, selected, disabled, onToggle, badge, lookO
  * Outline board cards by instance id without touching the board's DOM: a
  * scoped style rule keyed on the tiles' `data-instance-id`.
  */
-function BoardHighlight({ ids, kind }: { ids: string[]; kind: "hover" | "candidate" }) {
+export function BoardHighlight({ ids, kind }: { ids: string[]; kind: "hover" | "candidate" }) {
   if (!ids.length) return null;
   const esc = (id: string) => (typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, ""));
   const selector = ids.map((id) => `.side-field .card-tile[data-instance-id="${esc(id)}"]`).join(", ");

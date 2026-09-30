@@ -31,6 +31,7 @@ import {
 } from "./protocol";
 import { Client, type Room } from "@colyseus/sdk";
 import { isSeatReservationExpiredError } from "./matchResume";
+import { noteReportGameToken, noteReportRoom } from "../cards/cardReport";
 
 export type DuelClientHandlers = {
   onWelcome?: (info: {
@@ -57,6 +58,10 @@ export type DuelClientHandlers = {
   /** Rematch vote after the match ends. */
   onRematchState?: (state: RematchState) => void;
   onDisconnect?: (code: number) => void;
+  /** Socket dropped unexpectedly; the SDK is retrying in the background. */
+  onDrop?: (code: number) => void;
+  /** The SDK's background retry reclaimed the seat. */
+  onReconnect?: () => void;
   onQueued?: (position: number) => void;
   onMatched?: (info: { roomId: string; seat: Seat; ranked: boolean }) => void;
   /** Fired whenever Colyseus issues/refreshes a reconnection token. */
@@ -82,6 +87,7 @@ export class DuelClient {
   private queueRoom: Room | null = null;
   private handlers: DuelClientHandlers = {};
   private reconnectionToken: string | null = null;
+  private pendingReconnect: Promise<{ matchId: string; seat: Seat }> | null = null;
 
   setHandlers(h: DuelClientHandlers) {
     this.handlers = h;
@@ -223,7 +229,23 @@ export class DuelClient {
    * Retries on "seat reservation expired" — full page reload can race the
    * server's `allowReconnection` setup by a few dozen ms.
    */
-  async reconnect(opts?: {
+  reconnect(opts?: {
+    serverUrl?: string;
+    reconnectionToken?: string;
+    attempts?: number;
+  }): Promise<{ matchId: string; seat: Seat }> {
+    // Single flight: a second caller (StrictMode's double resume, or a tab
+    // return racing the Reconnect button) would abandon the seat the first
+    // just reclaimed and then present a token the server already rotated.
+    if (!this.pendingReconnect) {
+      this.pendingReconnect = this.reconnectOnce(opts).finally(() => {
+        this.pendingReconnect = null;
+      });
+    }
+    return this.pendingReconnect;
+  }
+
+  private async reconnectOnce(opts?: {
     serverUrl?: string;
     reconnectionToken?: string;
     attempts?: number;
@@ -238,6 +260,7 @@ export class DuelClient {
         await new Promise((r) => setTimeout(r, 100 * i));
       }
       try {
+        this.abandonRoom();
         this.client = new Client(url);
         this.reconnectionToken = token;
         const room = await this.client.reconnect(token);
@@ -307,6 +330,44 @@ export class DuelClient {
     this.room?.send("ping", { t });
   }
 
+  /** True while the SDK is retrying a dropped socket on its own. */
+  get isReconnecting(): boolean {
+    return Boolean(this.room?.reconnection?.isReconnecting);
+  }
+
+  /**
+   * Round-trip a transport ping. A phone that was in another app can come back
+   * with a socket that still reads OPEN but that the server already dropped;
+   * nothing answers it, so resolve false after `timeoutMs`.
+   */
+  isAlive(timeoutMs = 3000): Promise<boolean> {
+    const room = this.room;
+    if (!room || !room.connection?.isOpen) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(false), timeoutMs);
+      room.ping(() => {
+        clearTimeout(timer);
+        resolve(true);
+      });
+    });
+  }
+
+  /**
+   * Stop tracking the current room without a consented leave, so the server
+   * keeps the seat for reclaim. Its late close / retry events are ignored.
+   */
+  private abandonRoom() {
+    const room = this.room;
+    if (!room) return;
+    this.room = null;
+    try {
+      room.reconnection.enabled = false;
+      room.connection?.close();
+    } catch {
+      /* already closed */
+    }
+  }
+
   /**
    * @param consented When true (default), leave with consent and drop the
    *   reconnection token. Pass `false` only for rare soft-teardowns where the
@@ -318,6 +379,7 @@ export class DuelClient {
     const room = this.room;
     this.room = null;
     this.client = null;
+    noteReportRoom(undefined);
     if (consented) this.reconnectionToken = null;
     await this.cancelQueue();
     if (room) {
@@ -330,6 +392,7 @@ export class DuelClient {
   }
 
   private buildJoin(params: ConnectParams): DuelJoinOptions {
+    noteReportGameToken(params.gameToken);
     return {
       protocolVersion: PROTOCOL_VERSION,
       devUserId: params.devUserId?.trim() || undefined,
@@ -370,6 +433,7 @@ export class DuelClient {
   }
 
   private wireDuel(room: Room) {
+    noteReportRoom(room.roomId);
     room.onMessage("welcome", (raw: unknown) => {
       try {
         const msg = parseWelcome(raw);
@@ -499,6 +563,21 @@ export class DuelClient {
       } catch {
         /* ignore malformed undo notice */
       }
+    });
+
+    room.onDrop((code) => {
+      if (this.room !== room) return;
+      this.handlers.onDrop?.(code);
+    });
+
+    room.onReconnect(() => {
+      // The server issues a fresh token on every reclaim and the old one is
+      // dead, but the SDK fires onReconnect before it stores the new token.
+      queueMicrotask(() => {
+        if (this.room !== room) return;
+        this.captureReconnectionToken(room);
+        this.handlers.onReconnect?.();
+      });
     });
 
     room.onLeave((code) => {

@@ -37,14 +37,14 @@ export type MatchResumeBlob = DuelResumeBlob | HotseatResumeBlob;
 
 const KEY = "optcg.duel.matchResume.v1";
 /**
- * Colyseus `allowReconnection` grace is ~60s (`RECONNECT_GRACE_SECONDS`).
+ * Colyseus `allowReconnection` grace is ~120s (`RECONNECT_GRACE_SECONDS`).
  * Keeping the blob for 10 minutes previously caused every refresh after the
  * grace window to burn boot budget on "seat reservation expired" before a
  * fresh hotseat mint — and free-tier cold starts then hit the mint timeout.
  * Keep only a small buffer past grace so resume is attempted only while the
  * server may still reclaim the seat.
  */
-export const RECONNECT_GRACE_MS = 60 * 1000;
+export const RECONNECT_GRACE_MS = 120 * 1000;
 export const MAX_AGE_MS = RECONNECT_GRACE_MS + 15 * 1000;
 
 /** True while Colyseus may still accept the reconnection token. */
@@ -57,6 +57,23 @@ export function saveMatchResume(blob: MatchResumeBlob): void {
     sessionStorage.setItem(KEY, JSON.stringify({ ...blob, savedAt: Date.now() }));
   } catch {
     /* private mode / quota */
+  }
+}
+
+/**
+ * Mark the saved match as alive now. `savedAt` must track the last moment the
+ * socket was up, not when the token was issued: a phone that discards the tab
+ * while in another app reloads it later, and the grace check measures from here.
+ */
+export function touchMatchResume(now = Date.now()): void {
+  try {
+    const raw = sessionStorage.getItem(KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as MatchResumeBlob;
+    if (!parsed || typeof parsed !== "object") return;
+    sessionStorage.setItem(KEY, JSON.stringify({ ...parsed, savedAt: now }));
+  } catch {
+    /* private mode / quota / corrupt blob */
   }
 }
 

@@ -399,6 +399,25 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
   };
 }
 
+/** `?full`: a full board, so playing a Character asks which one to replace. */
+function withFullBoard(base: PlayerView): PlayerView {
+  const extra = [
+    { id: "y-c4", defId: "ST01-009", power: 4000, printedPower: 4000, statusLabels: [] },
+    { id: "y-c5", defId: "ST01-014", power: 2000, printedPower: 2000, statusLabels: [] },
+  ];
+  const characters = [...base.you.characters, ...extra].slice(0, 5);
+  return {
+    ...base,
+    phase: "main",
+    battle: null,
+    you: { ...base.you, characters },
+    legalIntents: [
+      ...base.legalIntents.filter((i) => i.type !== "play_card"),
+      ...characters.map((c) => ({ type: "play_card", handIndex: 0, trashCharacterId: c.id })),
+    ],
+  };
+}
+
 /**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
  * state (`&first=1` makes the opponent go first), `?practice` hotseat chrome
@@ -406,7 +425,7 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
  * undo (`?undo=ask` shows an incoming request), `?waiting` the invite screen,
  * `?oppturn` the opponent's turn, `?clock` per-player clocks, `?away` a
  * disconnected opponent, `?over` the match-over screen with a rematch vote
- * (`&rematch=ask|wait|choose|left`). Zone counts: see applyDemoZoneParams.
+ * (`&rematch=ask|wait|choose|left`), `?full` a full board. Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
@@ -415,7 +434,8 @@ export function DemoPage() {
     (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW,
     params,
   );
-  const withTurn: PlayerView = params.has("oppturn") ? { ...base, activeSeat: 1 } : base;
+  const board = params.has("full") ? withFullBoard(base) : base;
+  const withTurn: PlayerView = params.has("oppturn") ? { ...board, activeSeat: 1 } : board;
   const view: PlayerView = params.has("turn0")
     ? {
         ...withTurn,

@@ -22,6 +22,12 @@
   --vignette: radial-gradient(ellipse at center, transparent 40%, #050b10bb 100%);
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-body: "Sora", system-ui, sans-serif;
+  /* Notch / home-indicator insets (viewport-fit=cover in index.html). 0 on
+     desktop and non-notched phones. */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
   color-scheme: dark;
 }
 
@@ -80,7 +86,8 @@ button {
 .lobby {
   max-width: 520px;
   margin: 0 auto;
-  padding: 2rem 1.25rem 3rem;
+  padding: 2rem max(1.25rem, var(--safe-r)) max(3rem, calc(var(--safe-b) + 1.5rem))
+    max(1.25rem, var(--safe-l));
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
@@ -204,7 +211,8 @@ button {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+  padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b))
+    max(0.75rem, var(--safe-l));
   cursor: pointer;
 }
 
@@ -353,6 +361,58 @@ button {
   font-size: 0.75rem;
 }
 
+.card-report-open {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.card-report {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.card-report-text {
+  background: var(--arena-deep);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 0.55rem 0.65rem;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 5.5rem;
+}
+
+.card-report-error {
+  margin: 0;
+  color: var(--crimson-bright);
+  font-size: 0.8rem;
+}
+
+.card-report-sent {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.card-report-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.card-report-actions .btn {
+  min-height: 40px;
+}
+
 .card-inspect-close-bottom {
   align-self: stretch;
   min-height: 44px;
@@ -468,7 +528,8 @@ button {
 .deck-config {
   max-width: 920px;
   margin: 0 auto;
-  padding: 1.25rem 1.25rem 3rem;
+  padding: max(1.25rem, var(--safe-t)) max(1.25rem, var(--safe-r))
+    max(3rem, calc(var(--safe-b) + 1.5rem)) max(1.25rem, var(--safe-l));
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -1049,9 +1110,16 @@ button {
   overflow: hidden;
 }
 
+/* Overlay, not in flow: a drop/reclaim must not shove the board down and back. */
 .reconnect-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
   background: var(--warn);
-  padding: 0.65rem 0.75rem;
+  padding: calc(0.65rem + var(--safe-t)) max(0.75rem, var(--safe-r)) 0.65rem
+    max(0.75rem, var(--safe-l));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1068,6 +1136,11 @@ button {
   padding: 0.45rem 0.75rem;
   font-weight: 800;
   font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.reconnect-banner button:disabled {
+  opacity: 0.6;
 }
 
 .rating-chip {
@@ -1113,7 +1186,11 @@ button {
   grid-template-columns: auto 1fr auto;
   gap: 0.75rem;
   align-items: center;
-  padding: 0.55rem 0.85rem;
+  /* Bar stays full-bleed; only its content clears the notch / status bar. */
+  --hud-py: 0.55rem;
+  --hud-px: 0.85rem;
+  padding: calc(var(--hud-py) + var(--safe-t)) max(var(--hud-px), var(--safe-r)) var(--hud-py)
+    max(var(--hud-px), var(--safe-l));
   background:
     linear-gradient(180deg, rgba(201, 162, 39, 0.14), transparent 70%),
     var(--arena-panel);
@@ -1284,10 +1361,22 @@ button {
   flex-shrink: 0;
 }
 
-.opp-hand-more {
-  font-size: 0.7rem;
-  color: var(--muted);
-  margin-left: 0.25rem;
+.opp-hand-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 1.5em;
+  height: 1.5em;
+  padding: 0 0.35em;
+  border-radius: 999px;
+  border: 1px solid var(--chrome-dim);
+  background: rgba(8, 17, 24, 0.75);
+  color: var(--chrome-bright);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .side-field {
@@ -1574,8 +1663,8 @@ button.zone-pile {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem
-    max(0.75rem, env(safe-area-inset-bottom));
+  padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b))
+    max(0.75rem, var(--safe-l));
   cursor: pointer;
 }
 
@@ -2120,7 +2209,7 @@ img.zone-pile-face {
 
 .intent-bar {
   border-top: 1px solid var(--line);
-  padding: 0.5rem 0.65rem 0.65rem;
+  padding: 0.5rem 0.65rem max(0.65rem, var(--safe-b));
   background: var(--arena-deep);
 }
 
@@ -2250,7 +2339,8 @@ img.zone-pile-face {
     grid-template-areas:
       "brand actions"
       "status status";
-    padding: 0.4rem 0.65rem;
+    --hud-py: 0.4rem;
+    --hud-px: 0.65rem;
   }
 
   .hud-brand {
@@ -2386,7 +2476,7 @@ img.zone-pile-face {
   }
 
   .intent-bar {
-    padding: 0.4rem 0.55rem 0.5rem;
+    padding: 0.4rem 0.55rem max(0.5rem, var(--safe-b));
   }
 }
 
@@ -2787,13 +2877,17 @@ img.zone-pile-face {
   left: 3px;
   bottom: 1.55rem;
   display: flex;
-  flex-direction: column;
+  flex-flow: row wrap;
+  align-items: flex-end;
   gap: 2px;
   max-width: calc(100% - 6px);
   pointer-events: none;
   z-index: 2;
 }
 .status-chip {
+  /* Text chips (statuses with no icon) take their own line. */
+  flex: 0 0 auto;
+  max-width: 100%;
   display: inline-block;
   padding: 1px 4px;
   border-radius: 3px;
@@ -2809,6 +2903,58 @@ img.zone-pile-face {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Icon badge: fixed square (scales with the mat's card width) so a status
+   appearing never resizes or re-flows its neighbours. */
+.status-icon {
+  --status-icon-size: clamp(13px, calc(var(--c, 56px) * 0.3), 18px);
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--status-icon-size);
+  height: var(--status-icon-size);
+  padding: 2px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid rgba(255, 200, 80, 0.5);
+  color: #ffe0a0;
+  pointer-events: auto;
+}
+.status-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.status-icon svg .fill {
+  fill: currentColor;
+  stroke-width: 1.5;
+}
+.status-icon-danger {
+  border-color: rgba(255, 100, 100, 0.7);
+  color: #ffb0b0;
+}
+.status-icon-negated {
+  border-color: rgba(200, 140, 255, 0.7);
+  color: #d7b3ff;
+}
+.status-icon-sick {
+  border-color: rgba(255, 220, 100, 0.55);
+  color: #ffe9a0;
+}
+.status-icon-stun {
+  border-color: rgba(255, 120, 80, 0.7);
+  color: #ffb38a;
+}
+.status-icon-lock {
+  border-color: rgba(120, 180, 255, 0.7);
+  color: #a8d0ff;
+}
+
 .status-chip-stun,
 .status-chip-stunned {
   border-color: rgba(255, 120, 80, 0.7);

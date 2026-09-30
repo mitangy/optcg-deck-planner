@@ -4,6 +4,7 @@ import {
   canDragDon,
   canDragHandCard,
   canDropPlayOnField,
+  collapseReplacePlays,
   giveDonTargetIds,
   giveDonTargetIdsForAll,
   matchGiveDon,
@@ -12,6 +13,7 @@ import {
   matchPlayCardTrash,
   parseDropAttr,
   playCardTrashTargetIds,
+  playNeedsReplace,
   resolveDropIntents,
 } from "./dragIntents";
 
@@ -99,6 +101,23 @@ describe("play_card drag / drop matching", () => {
       trashCharacterId: "c2",
     });
     expect(matchPlayCardTrash(intents, 2, "c9")).toBeNull();
+  });
+});
+
+describe("full-board plays", () => {
+  it("asks which Character to replace only when the board is full", () => {
+    expect(playNeedsReplace(intents, 2)).toBe(true);
+    expect(playNeedsReplace(intents, 0)).toBe(false);
+  });
+
+  it("offers one replace play per hand card", () => {
+    const withAnother: Intent[] = [
+      ...intents,
+      { type: "play_card", handIndex: 3, trashCharacterId: "c1" },
+      { type: "play_card", handIndex: 3, trashCharacterId: "c2" },
+    ];
+    const plays = collapseReplacePlays(withAnother).filter((i) => i.type === "play_card");
+    expect(plays.map((i) => i.handIndex)).toEqual([0, 2, 3]);
   });
 });
 

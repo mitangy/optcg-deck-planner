@@ -9,6 +9,7 @@ export function DuelPage() {
     connected,
     canReconnect,
     resuming,
+    reconnecting,
     view,
     players,
     seat,
@@ -50,10 +51,11 @@ export function DuelPage() {
   return (
     <div className="duel-root">
       {!connected && canReconnect && view ? (
-        <div className="reconnect-banner">
-          <span>Disconnected — reconnect within grace window</span>
+        <div className="reconnect-banner" role="status">
+          <span>{reconnecting ? "Reconnecting to the match…" : "Disconnected from the match."}</span>
           <button
             type="button"
+            disabled={reconnecting}
             onClick={async () => {
               try {
                 await reconnect();

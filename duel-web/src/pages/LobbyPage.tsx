@@ -27,6 +27,7 @@ import { useDuelSession } from "../state/DuelSession";
 import { needsUsername } from "../auth/username";
 import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel";
 import { dismissInvite, inviteFriend, type Friend, type FriendInvite } from "../friends/friendsApi";
+import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
 
 /** Which play mode the user is configuring inside the Play sheet. */
 type PlayMode = "hotseat" | "create" | "join" | "queue" | "spectate";
@@ -263,6 +264,7 @@ export function LobbyPage() {
   const [opponentDeckId, setOpponentDeckId] = useState("");
   const [roomId, setRoomId] = useState("");
   const [pendingResume, setPendingResume] = useState<ReturnType<typeof loadMatchResume>>(null);
+  const [showIosHint, setShowIosHint] = useState(() => shouldShowIosInstallHint(readInstallEnv()));
 
   /** Play sheet: closed, choosing a mode, or configuring one. */
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -590,6 +592,29 @@ export function LobbyPage() {
             <span />
           </div>
         </div>
+
+        {showIosHint ? (
+          <section className="notice" aria-label="Install on your iPhone">
+            <div className="notice-body">
+              <strong>Install on your iPhone</strong>
+              <span>
+                Tap Share, then Add to Home Screen. It opens full screen with no browser bars.
+              </span>
+            </div>
+            <div className="notice-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  dismissIosHint(readInstallEnv());
+                  setShowIosHint(false);
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         {pendingResume ? (
           <section className="notice notice-gold" aria-label="Resume match">

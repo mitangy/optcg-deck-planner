@@ -83,6 +83,8 @@ type Props = {
   turnClock: string | null;
   matchClock: string | null;
   seatClocks?: SeatClocks | null;
+  /** Landscape phones: just the whose-turn banner and the clocks. */
+  compact?: boolean;
 };
 
 /**
@@ -99,6 +101,7 @@ export function TurnStatusPanel({
   turnClock,
   matchClock,
   seatClocks = null,
+  compact = false,
 }: Props) {
   const oppSeat: Seat = boardSeat === 0 ? 1 : 0;
   const mulligan = view.phase === "mulligan";
@@ -160,39 +163,101 @@ export function TurnStatusPanel({
         <strong className="turn-banner-title">{title}</strong>
         {sub ? <span className="turn-banner-sub">{sub}</span> : null}
       </div>
-      <PlayerRow
-        side="opp"
-        stats={{
-          name: oppName,
-          clock: seatClocks
-            ? { text: seatClocks.opp, running: seatClocks.running === "opp", low: seatClocks.oppLow }
-            : undefined,
-          order: firstSeat === oppSeat ? "first" : "second",
-          active: !mulligan && !over && !youActive,
-          life: opp.lifeCount,
-          hand: opp.handCount,
-          deck: opp.deckCount,
-          donActive: opp.activeDonCount,
-          donTotal: opp.costAreaCount,
-        }}
-      />
-      <PlayerRow
-        side="you"
-        stats={{
-          name: youName,
-          clock: seatClocks
-            ? { text: seatClocks.you, running: seatClocks.running === "you", low: seatClocks.youLow }
-            : undefined,
-          order: firstSeat === boardSeat ? "first" : "second",
-          active: !mulligan && !over && youActive,
-          life: you.lifeCount,
-          hand: spectating ? (you.handCount ?? 0) : you.hand.length,
-          deck: you.deckCount,
-          donActive: you.activeDonCount,
-          donTotal: you.costArea.length,
-        }}
-      />
+      {compact ? (
+        seatClocks ? (
+          <div className="turn-compact-clocks">
+            <span
+              className={`turn-player-clock${seatClocks.running === "you" ? " running" : ""}${
+                seatClocks.youLow ? " low" : ""
+              }`}
+              title="Your time"
+            >
+              {spectating ? `S${boardSeat}` : "You"} {seatClocks.you}
+            </span>
+            <span
+              className={`turn-player-clock${seatClocks.running === "opp" ? " running" : ""}${
+                seatClocks.oppLow ? " low" : ""
+              }`}
+              title="Opponent's time"
+            >
+              {spectating ? `S${oppSeat}` : "Opp"} {seatClocks.opp}
+            </span>
+          </div>
+        ) : null
+      ) : (
+        <>
+          <PlayerRow
+            side="opp"
+            stats={{
+              name: oppName,
+              clock: seatClocks
+                ? { text: seatClocks.opp, running: seatClocks.running === "opp", low: seatClocks.oppLow }
+                : undefined,
+              order: firstSeat === oppSeat ? "first" : "second",
+              active: !mulligan && !over && !youActive,
+              life: opp.lifeCount,
+              hand: opp.handCount,
+              deck: opp.deckCount,
+              donActive: opp.activeDonCount,
+              donTotal: opp.costAreaCount,
+            }}
+          />
+          <PlayerRow
+            side="you"
+            stats={{
+              name: youName,
+              clock: seatClocks
+                ? { text: seatClocks.you, running: seatClocks.running === "you", low: seatClocks.youLow }
+                : undefined,
+              order: firstSeat === boardSeat ? "first" : "second",
+              active: !mulligan && !over && youActive,
+              life: you.lifeCount,
+              hand: spectating ? (you.handCount ?? 0) : you.hand.length,
+              deck: you.deckCount,
+              donActive: you.activeDonCount,
+              donTotal: you.costArea.length,
+            }}
+          />
+        </>
+      )}
     </section>
+  );
+}
+
+/** Opponent's hand size as a number, so nobody has to count the backs. */
+export function OppHandCount({ count }: { count: number }) {
+  return (
+    <span className="opp-hand-count" aria-hidden="true">
+      {count}
+    </span>
+  );
+}
+
+/** Narrow layouts: a row of small backs (capped at 8) above the opponent's mat. */
+export function OppHandHint({
+  count,
+  cardBackUrl,
+}: {
+  count: number;
+  cardBackUrl: string | null;
+}) {
+  return (
+    <div className="opp-hand-hint" aria-label={`Opponent hand: ${count} cards`}>
+      <span className="opp-hand-label">Opp hand</span>
+      <div
+        className="opp-hand-backs"
+        style={
+          cardBackUrl
+            ? ({ "--card-back-art": cardBackCssValue(cardBackUrl) } as CSSProperties)
+            : undefined
+        }
+      >
+        {Array.from({ length: Math.min(count, 8) }).map((_, i) => (
+          <span key={i} className="card-back" />
+        ))}
+      </div>
+      <OppHandCount count={count} />
+    </div>
   );
 }
 
@@ -200,10 +265,31 @@ export function TurnStatusPanel({
 export function OppHandFan({
   count,
   cardBackUrl,
+  compact = false,
 }: {
   count: number;
   cardBackUrl: string | null;
+  /** Landscape phones: a one-line count, no fan. */
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <div
+        className="opp-hand-compact"
+        aria-label={`Opponent hand: ${count} cards`}
+        style={
+          cardBackUrl
+            ? ({ "--card-back-art": cardBackCssValue(cardBackUrl) } as CSSProperties)
+            : undefined
+        }
+      >
+        <span className="card-back" aria-hidden />
+        <span className="opp-hand-fan-count">
+          <OppHandCount count={count} /> in hand
+        </span>
+      </div>
+    );
+  }
   const shown = Math.min(count, 10);
   const mid = (shown - 1) / 2;
   return (
@@ -226,7 +312,9 @@ export function OppHandFan({
           />
         ))}
       </div>
-      <span className="opp-hand-fan-count">{count} in hand</span>
+      <span className="opp-hand-fan-count">
+        <OppHandCount count={count} /> in hand
+      </span>
     </div>
   );
 }
