@@ -569,6 +569,58 @@
   min-height: 7rem;
 }
 
+/* Tall desktop: the hand fills the rail below the intent bar (see RAIL_HAND_QUERY). */
+.arena.arena-wide .arena-rail > .rail-hand {
+  --rail-hand-cw: clamp(60px, 9.4dvh, 150px);
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+
+.rail-hand-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.7rem 0.25rem;
+  color: var(--chrome-bright);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rail-hand-head .hand-rail-btn {
+  margin-left: auto;
+}
+
+.rail-hand-cards {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.3rem;
+  padding: 0.25rem 0.7rem 0.4rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.arena .rail-hand-cards > .card-tile,
+.arena .rail-hand-cards > .hand-back {
+  flex: 0 0 auto;
+  width: var(--rail-hand-cw);
+  height: calc(var(--rail-hand-cw) * 1.4);
+  margin: 0;
+}
+
+.arena.arena-wide .arena-rail > .rail-hand ~ .chat-panel:not(.collapsed) {
+  flex: 0 1 8rem;
+  min-height: 5rem;
+}
+
 /* Keeps the rail's last panel clear of the tucked hand dock. */
 .rail-dock-spacer {
   flex: 0 0 var(--dock-peek) !important;

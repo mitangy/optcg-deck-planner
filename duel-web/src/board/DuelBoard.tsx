@@ -68,7 +68,7 @@ import { OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./Tur
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
 import { getLastHoverAt, getPreviewCard, setAutoPreviewCard, shouldAutoPreview } from "./cardPreview";
 import { latestOpponentPlay, opponentPlayCaption } from "./opponentPlay";
-import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY } from "./useMediaQuery";
+import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY, RAIL_HAND_QUERY } from "./useMediaQuery";
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { matchMenuItems } from "./matchMenu";
@@ -181,6 +181,8 @@ export function DuelBoard({
   const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_QUERY);
   /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
   const lp = wide && landscapePhone;
+  /** Tall desktop: the hand is an always-open grid in the right rail (no dock). */
+  const railHand = wide && !lp && useMediaQuery(RAIL_HAND_QUERY);
   const [lpPanel, setLpPanel] = useState<LandscapePanel | null>(null);
   // Starting a drag (or leaving landscape) must never leave an overlay over the board.
   useEffect(() => {
@@ -240,7 +242,7 @@ export function DuelBoard({
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [handCollapsed, wide, view?.you.hand.length]);
+  }, [handCollapsed, wide, railHand, view?.you.hand.length]);
 
   // Desktop: the big preview follows the opponent's latest play, so one you
   // looked away from is still readable. Hovering a card wins for a moment.
@@ -1202,9 +1204,33 @@ export function DuelBoard({
               compact={lp}
             />
             {intentPanel}
+            {railHand ? (
+              <section
+                className={`rail-hand${dragPayload ? " is-dragging" : ""}`}
+                aria-label={`Your hand: ${handCount} cards`}
+              >
+                <div className="rail-hand-head">
+                  <span className="rail-hand-title">{spectating ? "Seat hand" : "Hand"}</span>
+                  <span className="hand-rail-count">{handCount}</span>
+                  {!spectating ? (
+                    <button
+                      type="button"
+                      className={`hand-rail-btn${handSorted ? " active" : ""}`}
+                      aria-pressed={handSorted}
+                      onClick={() => setHandSorted((v) => !v)}
+                    >
+                      Sort
+                    </button>
+                  ) : null}
+                </div>
+                <div className="rail-hand-cards" ref={handRowRef}>
+                  {renderHandCards()}
+                </div>
+              </section>
+            ) : null}
             {lp ? null : chatPanel}
             {/* Reserves the strip the collapsed hand dock peeks into. */}
-            {lp ? null : <div className="rail-dock-spacer" aria-hidden />}
+            {lp || railHand ? null : <div className="rail-dock-spacer" aria-hidden />}
           </div>
         ) : (
           <div className="arena-rail">
@@ -1271,7 +1297,7 @@ export function DuelBoard({
         </LandscapeOverlay>
       ) : null}
 
-      {wide ? (
+      {wide && !railHand ? (
         <div
           className={`hand-dock${handOpen ? " is-open" : ""}${dragPayload ? " is-dragging" : ""}`}
           style={
