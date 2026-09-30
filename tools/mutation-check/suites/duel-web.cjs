@@ -249,6 +249,13 @@ module.exports = {
     { id: "primary-mulligan-keep-ignored", file: `${src}/board/primaryIntent.ts`, from: "return intent.doMulligan === false ? 3 : null;", to: "return null;", kills: ["makes keeping the hand primary but never the redraw"] },
     { id: "primary-stays-in-rest", file: `${src}/board/primaryIntent.ts`, from: "rest: intents.filter((_, i) => i !== best) };", to: "rest: intents };", kills: ["leaves everything but the primary in rest, in order"] },
     { id: "primary-anything-goes", file: `${src}/board/primaryIntent.ts`, from: "    default:\n      return null;", to: "    default:\n      return 9;", kills: ["returns no primary when nothing advances the game"] },
+    { id: "idle-preview-oldest-first", file: `${src}/board/opponentPlay.ts`, from: "let i = entries.length - 1; i >= 0; i--", to: "let i = 0; i < entries.length; i++", kills: ["picks the newest opponent card entry"] },
+    { id: "idle-preview-own-plays", file: `${src}/board/opponentPlay.ts`, from: "seg?.kind !== \"card\" || seg.ownerSeat !== oppSeat", to: "seg?.kind !== \"card\"", kills: ["skips your own plays even when they are newer"] },
+    { id: "idle-preview-any-tone", file: `${src}/board/opponentPlay.ts`, from: "    if (!verb) continue;\n", to: "    if (!verb && e.tone !== \"attack\") continue;\n", kills: ["skips non-card tones such as attacks and K.O.s"] },
+    { id: "idle-preview-bounce-counts", file: `${src}/board/opponentPlay.ts`, from: "    if (e.tone === \"effect\" && !e.text.endsWith(\"activates its effect\")) continue;\n", to: "", kills: ["ignores effect lines that only bounce a card"] },
+    { id: "idle-preview-caption-turn", file: `${src}/board/opponentPlay.ts`, from: "Turn ${play.turn}", to: "Turn ${play.turn + 1}", kills: ["names the verb and turn"] },
+    { id: "idle-preview-ignores-hover", file: `${src}/board/cardPreview.ts`, from: "return now - lastHover >= HOVER_GRACE_MS;", to: "return true;", kills: ["waits out a recent hover but not an old one"] },
+    { id: "idle-preview-grace-boundary", file: `${src}/board/cardPreview.ts`, from: "return now - lastHover >= HOVER_GRACE_MS;", to: "return now - lastHover > HOVER_GRACE_MS;", kills: ["waits out a recent hover but not an old one"] },
     // defend tray
     { id: "defense-gap-tie-safe", file: `${src}/board/defendTray.ts`, from: "  if (deficit < 0) return 0;", to: "  if (deficit <= 0) return 0;", kills: ["needs +1000 on equal power, because the attacker wins ties"] },
     { id: "defense-gap-higher-not-safe", file: `${src}/board/defendTray.ts`, from: "  if (deficit < 0) return 0;\n", to: "", kills: ["needs nothing once the defender is strictly higher"] },

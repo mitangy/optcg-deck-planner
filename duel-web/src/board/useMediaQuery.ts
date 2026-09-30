@@ -37,3 +37,10 @@ export const PORTRAIT_MAT_QUERY = "(max-width: 899px) and (orientation: portrait
 /** Landscape phones (the wide board with the short-viewport layout). */
 export const LANDSCAPE_PHONE_QUERY =
   "(orientation: landscape) and (min-width: 600px) and (max-height: 499px)";
+
+/**
+ * Tall desktop windows: the hand is an always-open grid in the right rail
+ * instead of the fixed corner dock. Only meaningful on the wide board and not
+ * on landscape phones (`wide && !lp`); shorter windows (150% zoom) keep the dock.
+ */
+export const RAIL_HAND_QUERY = "(min-height: 680px)";
