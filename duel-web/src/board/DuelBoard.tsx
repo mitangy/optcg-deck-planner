@@ -73,6 +73,7 @@ import { stepHandSelection } from "./hotkeys";
 import { useBoardHotkeys } from "./useBoardHotkeys";
 import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
 import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
+import { useSoundCues } from "./soundCues";
 import { buzz } from "./haptics";
 import {
   markRotateHintSeen,
@@ -407,6 +408,12 @@ export function DuelBoard({
     sound: prefs.turnSound,
   });
   useIncomingAttackCue(attackKey, { sound: prefs.turnSound });
+  // Same master Sounds toggle: a tick per opponent card use, a thud per Life lost.
+  useSoundCues(view, battleLog, previewOppSeat, {
+    enabled: alertsOn,
+    sound: prefs.turnSound,
+    spectating,
+  });
 
   // iOS only plays sound after one started inside a gesture: unlock on the
   // first touch of the match so a later cue is allowed to play.
