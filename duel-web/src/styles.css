@@ -3325,6 +3325,21 @@ img.zone-pile-face {
 .choice-option .card-tile {
   cursor: pointer;
 }
+/* A rested target stays upright in the picker: turned sideways it shrinks to
+   ~64x46 (45x32 on phone) and its power badge lands on the name. The
+   "Rested" chip under it carries the state instead. */
+.choice-option .card-tile.rested {
+  transform: none;
+}
+.choice-option .card-tile.rested .card-overlays {
+  inset: 0;
+  width: auto;
+  height: auto;
+  transform: none;
+}
+.choice-option .card-tile.rested .status-chips {
+  bottom: 1.55rem;
+}
 .choice-option.selected .card-tile {
   border-color: var(--chrome);
   box-shadow: 0 0 0 2px var(--chrome);
