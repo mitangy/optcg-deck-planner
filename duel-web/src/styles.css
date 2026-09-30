@@ -22,6 +22,12 @@
   --vignette: radial-gradient(ellipse at center, transparent 40%, #050b10bb 100%);
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-body: "Sora", system-ui, sans-serif;
+  /* Notch / home-indicator insets (viewport-fit=cover in index.html). 0 on
+     desktop and non-notched phones. */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
   color-scheme: dark;
 }
 
@@ -80,7 +86,8 @@ button {
 .lobby {
   max-width: 520px;
   margin: 0 auto;
-  padding: 2rem 1.25rem 3rem;
+  padding: 2rem max(1.25rem, var(--safe-r)) max(3rem, calc(var(--safe-b) + 1.5rem))
+    max(1.25rem, var(--safe-l));
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
@@ -204,7 +211,8 @@ button {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+  padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b))
+    max(0.75rem, var(--safe-l));
   cursor: pointer;
 }
 
@@ -520,7 +528,8 @@ button {
 .deck-config {
   max-width: 920px;
   margin: 0 auto;
-  padding: 1.25rem 1.25rem 3rem;
+  padding: max(1.25rem, var(--safe-t)) max(1.25rem, var(--safe-r))
+    max(3rem, calc(var(--safe-b) + 1.5rem)) max(1.25rem, var(--safe-l));
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -1104,12 +1113,13 @@ button {
 /* Overlay, not in flow: a drop/reclaim must not shove the board down and back. */
 .reconnect-banner {
   position: fixed;
-  top: env(safe-area-inset-top, 0px);
+  top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
   background: var(--warn);
-  padding: 0.65rem 0.75rem;
+  padding: calc(0.65rem + var(--safe-t)) max(0.75rem, var(--safe-r)) 0.65rem
+    max(0.75rem, var(--safe-l));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1176,7 +1186,11 @@ button {
   grid-template-columns: auto 1fr auto;
   gap: 0.75rem;
   align-items: center;
-  padding: 0.55rem 0.85rem;
+  /* Bar stays full-bleed; only its content clears the notch / status bar. */
+  --hud-py: 0.55rem;
+  --hud-px: 0.85rem;
+  padding: calc(var(--hud-py) + var(--safe-t)) max(var(--hud-px), var(--safe-r)) var(--hud-py)
+    max(var(--hud-px), var(--safe-l));
   background:
     linear-gradient(180deg, rgba(201, 162, 39, 0.14), transparent 70%),
     var(--arena-panel);
@@ -1649,8 +1663,8 @@ button.zone-pile {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem
-    max(0.75rem, env(safe-area-inset-bottom));
+  padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b))
+    max(0.75rem, var(--safe-l));
   cursor: pointer;
 }
 
@@ -2195,7 +2209,7 @@ img.zone-pile-face {
 
 .intent-bar {
   border-top: 1px solid var(--line);
-  padding: 0.5rem 0.65rem 0.65rem;
+  padding: 0.5rem 0.65rem max(0.65rem, var(--safe-b));
   background: var(--arena-deep);
 }
 
@@ -2325,7 +2339,8 @@ img.zone-pile-face {
     grid-template-areas:
       "brand actions"
       "status status";
-    padding: 0.4rem 0.65rem;
+    --hud-py: 0.4rem;
+    --hud-px: 0.65rem;
   }
 
   .hud-brand {
@@ -2461,7 +2476,7 @@ img.zone-pile-face {
   }
 
   .intent-bar {
-    padding: 0.4rem 0.55rem 0.5rem;
+    padding: 0.4rem 0.55rem max(0.5rem, var(--safe-b));
   }
 }
 
