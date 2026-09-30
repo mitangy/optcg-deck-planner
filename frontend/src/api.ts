@@ -139,28 +139,6 @@ export type DeckDetail = {
   don_cards?: number;
 };
 
-export type DeckOversizeDetail = {
-  code: "deck_oversize";
-  message: string;
-  current: number;
-  projected: number;
-  limit: number;
-};
-
-export function isDeckOversizeError(
-  err: unknown,
-): err is Error & { status: number; detail: DeckOversizeDetail } {
-  if (!(err instanceof Error)) return false;
-  const e = err as Error & { status?: number; detail?: unknown };
-  if (e.status !== 409) return false;
-  const d = e.detail;
-  return (
-    typeof d === "object" &&
-    d !== null &&
-    (d as DeckOversizeDetail).code === "deck_oversize"
-  );
-}
-
 export type ShoppingItem = {
   card_id: string;
   name: string;
