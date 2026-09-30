@@ -295,9 +295,11 @@ export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged }: Props) {
 
   return (
     <>
-      <section className="deck-config-section" aria-label="Add cards">
-        <h2 className="lobby-section-title">Add cards</h2>
-        <div className="deck-search">
+      <details className="deck-config-section deck-collapsible" aria-label="Add cards">
+        <summary className="deck-collapsible-summary">
+          <h2 className="lobby-section-title">Add cards</h2>
+        </summary>
+        <div className="deck-search deck-collapsible-body">
           <label className="deck-search-field deck-search-query">
             <span>Search</span>
             <input
@@ -513,7 +515,7 @@ export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged }: Props) {
             </p>
           )}
         </div>
-      </section>
+      </details>
 
       <section className="deck-config-section">
         <h2 className="lobby-section-title">Leader</h2>

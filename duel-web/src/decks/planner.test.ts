@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   applyPlannerDeepLink,
+  importPlannerDecks,
   parsePlannerDeepLink,
+  plannerDecksNotLocal,
   plannerDeckToDecklist,
   refreshLinkedDeck,
   savedDeckToPlannerList,
@@ -197,5 +199,38 @@ describe("applyPlannerDeepLink", () => {
   it("reports an error when there is nothing to fall back on", async () => {
     const r = await applyPlannerDeepLink({ plannerId: 7, list: null, name: "x" }, false);
     expect(r.ok).toBe(false);
+  });
+});
+
+describe("plannerDecksNotLocal", () => {
+  const summary = (id: number) => ({ id, name: `D${id}`, leader_card_id: "ST01-001", card_count: 50 });
+
+  it("hides planner decks that already have a linked copy, keeping the rest in order", () => {
+    const local = [{ plannerDeckId: 2 }, { plannerDeckId: undefined }, { plannerDeckId: 9 }];
+    expect(plannerDecksNotLocal([summary(1), summary(2), summary(3)], local).map((d) => d.id)).toEqual([1, 3]);
+  });
+});
+
+describe("importPlannerDecks", () => {
+  it("adds every deck that loads, even when another fails or is invalid", async () => {
+    const r = await importPlannerDecks(
+      [
+        { id: 7, name: "Red Luffy" },
+        { id: 8, name: "Offline" },
+        { id: 9, name: "No leader" },
+        { id: 10, name: "Green" },
+      ],
+      async (id) => {
+        if (id === 8) throw new Error("timeout");
+        if (id === 9) return detail({ id, leader_card_id: null, cards: [{ card_id: "ST01-003", needed: 4 }] });
+        return detail({ id, name: id === 10 ? "Green" : "Red Luffy" });
+      },
+    );
+    expect(r.imported.map((d) => d.id)).toEqual(["planner-7", "planner-10"]);
+    expect(getSavedDeck("planner-10")?.plannerDeckId).toBe(10);
+    expect(getSavedDeck("planner-9")).toBeUndefined();
+    expect(r.errors).toHaveLength(2);
+    expect(r.errors[0]).toBe("Offline: timeout");
+    expect(r.errors[1]).toMatch(/^No leader: /);
   });
 });
