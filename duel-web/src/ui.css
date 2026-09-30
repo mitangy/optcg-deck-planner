@@ -1087,3 +1087,19 @@ label.btn.is-busy {
   font-size: 0.9rem;
   line-height: 1.35;
 }
+
+/* —— Bounty (ranked rating) —— */
+
+.bounty-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.berry-icon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+}
