@@ -25,6 +25,7 @@ import {
   findDropTargetAtPoint,
   giveDonTargetIdsForAll,
   playCardTrashTargetIds,
+  playNeedsReplace,
   resolveDropIntents,
   type DragPayload,
 } from "./dragIntents";
@@ -42,6 +43,7 @@ import {
 import { ChoicePrompt } from "./ChoicePrompt";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { IntentBar } from "./IntentBar";
+import { ReplacePrompt } from "./ReplacePrompt";
 import {
   attackTargetIdsForAttacker,
   findAttackIntent,
@@ -172,6 +174,8 @@ export function DuelBoard({
   const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
   /** Click-to-attach: DON!! selected + target tapped, awaiting confirm. */
   const [pendingAttach, setPendingAttach] = useState<PendingAttach | null>(null);
+  /** Hand card (instance id) waiting on "which Character do you replace?". */
+  const [replaceCardId, setReplaceCardId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const handRowRef = useRef<HTMLDivElement | null>(null);
   const playmatUrl = usePlaymatUrl();
@@ -224,6 +228,23 @@ export function DuelBoard({
     !over &&
     (decidingMulligan || view!.activeSeat === mySeat);
   const intents = view?.legalIntents ?? [];
+  // Track the card, not its hand slot: indexes shift as the hand changes.
+  const replaceHandIndex = replaceCardId
+    ? (view?.you.hand.findIndex((c) => c.id === replaceCardId) ?? -1)
+    : -1;
+  const replaceOpen = replaceHandIndex >= 0 && playNeedsReplace(intents, replaceHandIndex);
+  useEffect(() => {
+    // Drop the prompt once the play stops being legal (turn passed, card left hand…).
+    if (replaceCardId && !replaceOpen) setReplaceCardId(null);
+  }, [replaceCardId, replaceOpen]);
+
+  function openReplace(handIndex: number) {
+    const card = view?.you.hand[handIndex];
+    if (!card) return;
+    setHandFilter(null);
+    setSelectedBoardId(null);
+    setReplaceCardId(card.id);
+  }
 
   // Auto-pass: when Pass is the only answer to a block / counter step.
   const autoPass =
@@ -356,7 +377,8 @@ export function DuelBoard({
 
   const playFieldHighlight = Boolean(
     dragPayload?.type === "play_card" &&
-      canDropPlayOnField(intents, dragPayload.handIndex),
+      (canDropPlayOnField(intents, dragPayload.handIndex) ||
+        playNeedsReplace(intents, dragPayload.handIndex)),
   );
 
   const playTrashHighlightIds = useMemo(() => {
@@ -396,6 +418,16 @@ export function DuelBoard({
     // selected donId that has a legal intent to this target.
     const toSend = resolveDropIntents(payload, drop, intents);
     setDragPayload(null);
+    if (
+      toSend.length === 0 &&
+      payload.type === "play_card" &&
+      drop?.kind === "play_field" &&
+      playNeedsReplace(intents, payload.handIndex)
+    ) {
+      // Dropped on a full board without picking a Character: ask which one.
+      openReplace(payload.handIndex);
+      return;
+    }
     if (toSend.length > 0) {
       setHandFilter(null);
       setSelectedBoardId(null);
@@ -596,6 +628,7 @@ export function DuelBoard({
         setSelectedBoardId(null);
         onSendIntent(intent);
       }}
+      onChooseReplace={openReplace}
     />
   ) : (
     <div className="intent-bar">
@@ -1046,7 +1079,20 @@ export function DuelBoard({
         </div>
       ) : null}
 
-      {!spectating &&
+      {!spectating && mySeat != null && replaceOpen && !view.pendingChoices?.length ? (
+        <ReplacePrompt
+          key={replaceCardId ?? ""}
+          view={view}
+          intents={intents}
+          handIndex={replaceHandIndex}
+          mySeat={mySeat}
+          onCancel={() => setReplaceCardId(null)}
+          onSend={(intent) => {
+            setReplaceCardId(null);
+            onSendIntent(intent);
+          }}
+        />
+      ) : !spectating &&
       view.pendingChoices?.[0]?.kind === "order_effects" &&
       view.pendingChoices[0].seat === mySeat ? (
         <EffectOrderPrompt

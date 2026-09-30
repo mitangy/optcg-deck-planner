@@ -195,5 +195,9 @@ module.exports = {
     { id: "settings-invalid-resets-all", file: `${src}/settings.ts`, from: "    if (typeof next[k] !== typeof DEFAULTS[k]) (next as Record<string, unknown>)[k] = DEFAULTS[k];", to: "    if (typeof next[k] !== typeof DEFAULTS[k]) return { ...DEFAULTS };", kills: ["falls back per field when a stored value is invalid"] },
     { id: "settings-drops-valid", file: `${src}/settings.ts`, from: "    if (typeof next[k] !== typeof DEFAULTS[k])", to: "    if (typeof next[k] === typeof DEFAULTS[k])", kills: ["keeps valid stored gameplay choices"] },
     { id: "battle-banner-own-leader", file: `${src}/board/battleBanner.ts`, from: "  const def = ends ? findCard(view, ends.targetId) : null;", to: "  const def = view.you.leader.id === b.attackerId ? view.opponent.leader : view.you.leader;", kills: ["names the defending seat's Leader when a Character attacks a Leader"] },
+    { id: "replace-plays-not-collapsed", file: `${src}/board/dragIntents.ts`, from: "    if (seen.has(i.handIndex)) return false;\n", to: "", kills: ["offers one replace play per hand card"] },
+    { id: "replace-prompt-always", file: `${src}/board/dragIntents.ts`, from: "  return playCardTrashTargetIds(intents, handIndex).length > 0;", to: "  return true;", kills: ["asks which Character to replace only when the board is full"] },
+    { id: "replace-prompt-lists-every-character", file: `${src}/board/ReplacePrompt.tsx`, from: "view.you.characters.filter((c) => targetIds.includes(c.id))", to: "view.you.characters", kills: ["offers each Character the play may trash"] },
+    { id: "replace-prompt-sends-unpicked", file: `${src}/board/ReplacePrompt.tsx`, from: "disabled={!intent}", to: "disabled={false}", kills: ["offers each Character the play may trash and waits for a pick"] },
   ],
 };

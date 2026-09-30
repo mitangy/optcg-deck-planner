@@ -122,6 +122,31 @@ export function playCardTrashTargetIds(intents: Intent[], handIndex: number): st
   return [...ids];
 }
 
+/** A full-board play: its owner must pick which Character to trash first. */
+export function playNeedsReplace(intents: Intent[], handIndex: number): boolean {
+  return playCardTrashTargetIds(intents, handIndex).length > 0;
+}
+
+/**
+ * The engine lists one full-board play per Character that could be trashed.
+ * Keep one entry per hand card so the action bar shows a single "Play" that
+ * opens the replace prompt, instead of several look-alike buttons that each
+ * silently trash a different Character.
+ */
+export function collapseReplacePlays(intents: Intent[]): Intent[] {
+  const seen = new Set<number>();
+  return intents.filter((i) => {
+    if (!isPlayCard(i) || typeof i.trashCharacterId !== "string") return true;
+    if (seen.has(i.handIndex)) return false;
+    seen.add(i.handIndex);
+    return true;
+  });
+}
+
+export function isReplacePlay(intent: Intent): boolean {
+  return isPlayCard(intent) && typeof intent.trashCharacterId === "string";
+}
+
 export function matchPlayCardOnField(intents: Intent[], handIndex: number): Intent | null {
   return (
     intents.find(

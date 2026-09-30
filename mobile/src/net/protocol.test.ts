@@ -104,6 +104,20 @@ describe("protocol parsers", () => {
     ).toBe(1);
   });
 
+  it("names the Character a full-board play replaces", () => {
+    const view = sampleView();
+    view.you.characters = [
+      { id: "c1", defId: "ST01-004" },
+      { id: "c2", defId: "ST01-005" },
+    ];
+    expect(intentLabel({ type: "play_card", handIndex: 0, trashCharacterId: "c1" }, view)).toBe(
+      `Play Karoo, replacing ${lookupCard("ST01-004").name}`,
+    );
+    expect(intentLabel({ type: "play_card", handIndex: 0, trashCharacterId: "c2" }, view)).toBe(
+      `Play Karoo, replacing ${lookupCard("ST01-005").name}`,
+    );
+  });
+
   it("labels intents with atlas names when view is provided", () => {
     const view = sampleView();
     expect(intentLabel({ type: "end_turn" })).toBe("End turn");

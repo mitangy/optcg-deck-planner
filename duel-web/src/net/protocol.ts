@@ -453,7 +453,11 @@ export function intentLabel(intent: Intent, view?: PlayerView): string {
     case "mulligan":
       return intent.doMulligan ? "Mulligan (shuffle & redraw 5)" : "Keep opening hand";
     case "play_card":
-      return `Play ${handName(view, intent.handIndex)}`;
+      // Full board: one legal play per Character that could be trashed, so
+      // name the one this button replaces.
+      return intent.trashCharacterId != null
+        ? `Play ${handName(view, intent.handIndex)}, replacing ${findBoardName(view, intent.trashCharacterId)}`
+        : `Play ${handName(view, intent.handIndex)}`;
     case "give_don":
       return `Give DON → ${findBoardName(view, intent.targetId)}`;
     case "activate_leader":
