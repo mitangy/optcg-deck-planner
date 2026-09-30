@@ -9,6 +9,7 @@ import type { Seat } from "../decks/seatArtPrefs";
 export type PreviewLive = {
   power?: number;
   printedPower?: number | null;
+  fieldCost?: number;
   attachedDonCount?: number;
   rested?: boolean;
   statusLabels?: string[];
@@ -20,8 +21,14 @@ export type PreviewCard = {
   /** Field instance id — lets later renders refresh `live` in place. */
   instanceId?: string;
   live?: PreviewLive;
+  /** Set for auto-shown previews ("Opponent played · Turn 5"); hover previews have none. */
+  caption?: string;
 };
 
+/** An auto preview never replaces a card the mouse hovered this recently. */
+export const HOVER_GRACE_MS = 1500;
+
+let lastHoverAt = -Infinity;
 let current: PreviewCard | null = null;
 const listeners = new Set<() => void>();
 
@@ -30,6 +37,7 @@ function liveKey(live: PreviewLive | undefined): string {
   return [
     live.power ?? "",
     live.printedPower ?? "",
+    live.fieldCost ?? "",
     live.attachedDonCount ?? "",
     live.rested ? 1 : 0,
     (live.statusLabels ?? []).join("|"),
@@ -43,6 +51,7 @@ function sameCard(a: PreviewCard | null, b: PreviewCard | null): boolean {
     a.defId === b.defId &&
     a.ownerSeat === b.ownerSeat &&
     a.instanceId === b.instanceId &&
+    a.caption === b.caption &&
     liveKey(a.live) === liveKey(b.live)
   );
 }
@@ -51,7 +60,27 @@ function emit() {
   for (const l of listeners) l();
 }
 
+/** Whether an auto preview may replace the panel now (no recent hover). */
+export function shouldAutoPreview(now: number, lastHover: number): boolean {
+  return now - lastHover >= HOVER_GRACE_MS;
+}
+
+/** Hover / focus driven preview: also records the hover time. */
 export function setPreviewCard(next: PreviewCard | null): void {
+  lastHoverAt = Date.now();
+  applyPreview(next);
+}
+
+/** Auto preview (opponent's latest play): leaves the hover timestamp alone. */
+export function setAutoPreviewCard(next: PreviewCard | null): void {
+  applyPreview(next);
+}
+
+export function getLastHoverAt(): number {
+  return lastHoverAt;
+}
+
+function applyPreview(next: PreviewCard | null): void {
   if (sameCard(current, next)) return;
   current = next;
   emit();

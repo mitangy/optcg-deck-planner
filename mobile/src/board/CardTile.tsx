@@ -23,6 +23,8 @@ type Props = {
   defId: string;
   rested?: boolean;
   power?: number;
+  /** Live cost of a Character in play (includes +cost effects). */
+  fieldCost?: number;
   attachedDonCount?: number;
   compact?: boolean;
   selected?: boolean;
@@ -34,6 +36,7 @@ export function CardTile({
   defId,
   rested,
   power,
+  fieldCost,
   attachedDonCount,
   compact,
   selected,
@@ -42,6 +45,7 @@ export function CardTile({
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
   const [imgFailed, setImgFailed] = useState(false);
+  const costDelta = fieldCost != null ? fieldCost - entry.cost : 0;
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
   const w = compact ? 64 : 88;
   const h = compact ? 90 : 124;
@@ -75,6 +79,9 @@ export function CardTile({
         </Text>
         <Text style={styles.meta}>
           {`C${entry.cost}`}
+          {costDelta !== 0 ? (
+            <Text style={costDelta > 0 ? styles.costUp : styles.costDown}>{` ${costDelta > 0 ? "+" : "−"}${Math.abs(costDelta)}`}</Text>
+          ) : null}
           {power != null ? ` · ${power}` : entry.power != null ? ` · ${entry.power}` : ""}
           {attachedDonCount ? ` · DON×${attachedDonCount}` : ""}
         </Text>
@@ -106,4 +113,6 @@ const styles = StyleSheet.create({
   },
   name: { color: "#fff", fontSize: 10, fontWeight: "600" },
   meta: { color: "#b0bec5", fontSize: 9 },
+  costUp: { color: "#7fe08a" },
+  costDown: { color: "#ff8a80" },
 });

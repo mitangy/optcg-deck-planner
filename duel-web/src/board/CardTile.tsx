@@ -18,7 +18,7 @@ import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "./CardInspect";
 import { refreshPreviewLive, setPreviewCard, type PreviewLive } from "./cardPreview";
 import { counterValueFor, formatCounter } from "../cards/counterValue";
-import { formatPowerDelta, powerBreakdown, tileStatusLabels } from "./powerDisplay";
+import { costBreakdown, formatPowerDelta, powerBreakdown, tileStatusLabels } from "./powerDisplay";
 import {
   createClickDeferController,
   createLongPressController,
@@ -49,6 +49,8 @@ type Props = {
   rested?: boolean;
   power?: number;
   printedPower?: number | null;
+  /** Live cost of a Character in play (includes +cost effects). */
+  fieldCost?: number;
   attachedDonCount?: number;
   compact?: boolean;
   selected?: boolean;
@@ -86,6 +88,8 @@ type Props = {
   playCost?: number;
   /** Board instance id → `data-instance-id` (battle overlay anchor) + live hover preview tracking. */
   instanceId?: string;
+  /** Hand card id → `data-motion-id`, so draw / play / discard animations can find it. */
+  motionId?: string;
   /** Show the Counter value badge (hand cards). */
   showCounter?: boolean;
 };
@@ -95,6 +99,7 @@ export function CardTile({
   rested,
   power,
   printedPower,
+  fieldCost,
   attachedDonCount,
   compact,
   selected,
@@ -103,6 +108,7 @@ export function CardTile({
   onClick,
   instantClick = false,
   instanceId,
+  motionId,
   inspectOnClick = false,
   inspectGestures = false,
   dragEnabled = false,
@@ -119,27 +125,27 @@ export function CardTile({
   showCounter = false,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
-  const [imgFailed, setImgFailed] = useState(false);
-  const [localFallback, setLocalFallback] = useState(false);
+  // Failure state is keyed by URL (not defId) so picking a different alt art
+  // after a failed load gets a fresh attempt instead of staying on the fallback.
+  const [failedSrc, setFailedSrc] = useState<string | null | undefined>(null);
+  const [localFallbackFor, setLocalFallbackFor] = useState<string | null | undefined>(null);
   const [inspectOpen, setInspectOpen] = useState(false);
   const artTick = useSyncExternalStore(
     subscribeArtPrefs,
     getArtPrefsTick,
     getArtPrefsTick,
   );
-  const imageUrl = useMemo(() => {
+  const primaryUrl = useMemo(() => {
     void artTick;
-    if (localFallback) return localCardArtPath(defId);
     return resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
-  }, [defId, artTick, localFallback, ownerSeat]);
-
-  useEffect(() => {
-    setImgFailed(false);
-    setLocalFallback(false);
-  }, [defId]);
+  }, [defId, artTick, ownerSeat]);
+  const imageUrl =
+    localFallbackFor === primaryUrl ? localCardArtPath(defId) : primaryUrl;
+  const imgFailed = failedSrc != null && failedSrc === imageUrl;
 
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
   const pb = powerBreakdown(power, printedPower, entry.power);
+  const cb = costBreakdown(fieldCost, entry.cost);
   const counter = useMemo(
     () => (showCounter ? counterValueFor(entry) : null),
     [showCounter, entry],
@@ -151,11 +157,11 @@ export function CardTile({
   const live = useMemo<PreviewLive | undefined>(
     () =>
       instanceId
-        ? { power, printedPower, attachedDonCount, rested, statusLabels }
+        ? { power, printedPower, fieldCost, attachedDonCount, rested, statusLabels }
         : undefined,
     // statusLabels is a fresh array each render; labelsKey tracks its content.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [instanceId, power, printedPower, attachedDonCount, rested, labelsKey],
+    [instanceId, power, printedPower, fieldCost, attachedDonCount, rested, labelsKey],
   );
   useEffect(() => {
     if (instanceId && live) refreshPreviewLive(instanceId, live);
@@ -278,12 +284,11 @@ export function CardTile({
   }
 
   function handleImgError() {
-    const primary = resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
-    if (!localFallback && isTcgplayerCdnUrl(primary)) {
-      setLocalFallback(true);
+    if (localFallbackFor !== primaryUrl && isTcgplayerCdnUrl(primaryUrl)) {
+      setLocalFallbackFor(primaryUrl);
       return;
     }
-    setImgFailed(true);
+    setFailedSrc(imageUrl);
   }
 
   const canInspect =
@@ -372,16 +377,27 @@ export function CardTile({
       <div className="card-caption">
         <div className="name">{entry.name}</div>
         <div
-          className={`meta${playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}`}
+          className={`meta${!(cb && cb.delta !== 0) && playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}`}
           title={
-            playCost != null && playCost !== entry.cost
-              ? `Effective cost ${playCost} (printed ${entry.cost})`
-              : undefined
+            cb && cb.delta !== 0
+              ? `Cost ${cb.current} (printed ${cb.base}, ${formatPowerDelta(cb.delta)})`
+              : playCost != null && playCost !== entry.cost
+                ? `Effective cost ${playCost} (printed ${entry.cost})`
+                : undefined
           }
         >
-          {playCost != null && playCost !== entry.cost
-            ? `Cost ${playCost}`
-            : `Cost ${entry.cost}`}
+          {cb && cb.delta !== 0
+            ? (
+                <>
+                  {`Cost ${cb.base} `}
+                  <span className={cb.delta > 0 ? "power-mod-up" : "power-mod-down"}>
+                    {formatPowerDelta(cb.delta)}
+                  </span>
+                </>
+              )
+            : playCost != null && playCost !== entry.cost
+              ? `Cost ${playCost}`
+              : `Cost ${entry.cost}`}
         </div>
       </div>
       {showInspectChip ? (
@@ -409,6 +425,7 @@ export function CardTile({
   const dropProps = {
     ...(dropAttr ? { "data-dnd-drop": dropAttr } : {}),
     ...(instanceId ? { "data-instance-id": instanceId } : {}),
+    ...(motionId ? { "data-motion-id": motionId } : {}),
   };
   const pointerHandlers = {
     onPointerDown: handlePointerDown,

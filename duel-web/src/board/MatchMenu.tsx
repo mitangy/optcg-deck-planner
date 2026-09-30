@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ConfirmButton } from "./ConfirmButton";
 import { useCopyFlash } from "./RoomShare";
-import type { MatchMenuItemId } from "./matchMenu";
+import type { MatchMenuItemId } from "./matchMenuItems";
 
 type Props = {
   items: MatchMenuItemId[];

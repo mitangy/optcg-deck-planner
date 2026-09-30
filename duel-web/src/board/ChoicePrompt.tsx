@@ -93,6 +93,7 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge
         rested={live?.rested ?? option.rested}
         power={live?.power}
         printedPower={live?.printedPower}
+        fieldCost={live?.fieldCost}
         attachedDonCount={live?.attachedDonCount}
         statusLabels={live?.statusLabels}
         frame={live?.zone === "leader" ? "leader" : "default"}

@@ -2785,15 +2785,18 @@ img.zone-pile-face {
   text-transform: uppercase;
 }
 
-/* Rested field cards turn sideways like the physical game. Scaling by the card
-   aspect (1 / 1.4) keeps the rotated footprint inside the portrait cell, so
-   neighbours never overlap and the grid does not reflow. Overlays counter-rotate
-   into the landscape footprint so badges stay upright at their normal size. */
+/* Rested field cards turn sideways like the physical game. By default they
+   scale by the card aspect (--rest-k: 1 / 1.4) so the rotated footprint stays
+   inside the portrait cell. Zones with room (the arena character row, a leader
+   or stage beside an empty cell) set --rest-k: 1 to keep full size, and
+   --rest-shift to slide into that empty cell. Overlays counter-rotate into the
+   landscape footprint (1.4k × k of the card width) and undo the scale, so
+   badges stay upright at their normal size either way. */
 .side-field .card-tile {
   transition: transform 180ms ease;
 }
 .card-tile.rested {
-  transform: rotate(90deg) scale(0.714);
+  transform: translateX(var(--rest-shift, 0px)) rotate(90deg) scale(var(--rest-k, 0.714));
 }
 .card-tile.rested::after {
   display: none;
@@ -2802,10 +2805,9 @@ img.zone-pile-face {
   inset: auto;
   left: 50%;
   top: 50%;
-  width: 100%;
-  /* (width / height)² of a 1:1.4 card — becomes the landscape footprint. */
-  height: 51%;
-  transform: translate(-50%, -50%) rotate(-90deg) scale(1.4);
+  width: calc(140% * var(--rest-k, 0.714));
+  height: calc(100% / 1.4 * var(--rest-k, 0.714));
+  transform: translate(-50%, -50%) rotate(-90deg) scale(calc(1 / var(--rest-k, 0.714)));
 }
 .card-tile.rested .status-chips {
   bottom: 3px;

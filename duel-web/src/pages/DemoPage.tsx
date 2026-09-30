@@ -1,7 +1,8 @@
-import { useState } from "react";
-import type { ChatLine, PlayerView, RematchState, UndoState } from "../net/protocol";
+import { useMemo, useState } from "react";
+import type { CardView, ChatLine, PlayerView, RematchState, UndoState } from "../net/protocol";
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
+import { motionDemoSteps } from "./motionDemo";
 
 const DEMO_INSTANCES: InstanceIndex = new Map([
   ["y-leader", { defId: "ST01-001", seat: 0 }],
@@ -79,6 +80,7 @@ export const DEMO_VIEW: PlayerView = {
         attachedDonCount: 1,
         statusLabels: [],
       },
+      { id: "y-saul", defId: "OP17-089", power: 5000, printedPower: 5000, fieldCost: 16, statusLabels: [] },
     ],
     stage: {
       id: "y-stage",
@@ -419,13 +421,55 @@ function withFullBoard(base: PlayerView): PlayerView {
 }
 
 /**
+ * `?oppfull` fills the opponent's row to 5; `?rest=N` rests the first N
+ * Characters on both mats; `?restlead` rests both leaders and stages (the
+ * opponent gets a stage). For checking sideways (rested) card sizing.
+ */
+function withRestedField(base: PlayerView, params: URLSearchParams): PlayerView {
+  const rest = intParam(params, "rest");
+  const lead = params.has("restlead");
+  const oppFull = params.has("oppfull");
+  if (rest == null && !lead && !oppFull) return base;
+  const n = rest ?? 0;
+  const oppExtra: CardView[] = [
+    { id: "o-c3", defId: "ST01-003", power: 3000, printedPower: 3000, statusLabels: [] },
+    { id: "o-c4", defId: "ST01-006", power: 1000, printedPower: 1000, statusLabels: [] },
+    { id: "o-c5", defId: "ST01-014", power: 2000, printedPower: 2000, statusLabels: [] },
+  ];
+  const oppChars = oppFull
+    ? [...base.opponent.characters, ...oppExtra].slice(0, 5)
+    : base.opponent.characters;
+  const restFirst = (cards: CardView[]) =>
+    cards.map((c, i) => ({ ...c, rested: i < n }));
+  return {
+    ...base,
+    you: {
+      ...base.you,
+      characters: restFirst(base.you.characters),
+      leader: { ...base.you.leader, rested: lead || base.you.leader.rested },
+      stage: base.you.stage ? { ...base.you.stage, rested: lead || base.you.stage.rested } : null,
+    },
+    opponent: {
+      ...base.opponent,
+      characters: restFirst(oppChars),
+      leader: { ...base.opponent.leader, rested: lead || base.opponent.leader.rested },
+      stage: lead
+        ? { id: "o-stage", defId: "OP16-021", rested: true, power: 0, printedPower: 0, statusLabels: [] }
+        : base.opponent.stage,
+    },
+  };
+}
+
+/**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
  * state (`&first=1` makes the opponent go first), `?practice` hotseat chrome
  * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
  * undo (`?undo=ask` shows an incoming request), `?waiting` the invite screen,
  * `?oppturn` the opponent's turn, `?clock` per-player clocks, `?away` a
  * disconnected opponent, `?over` the match-over screen with a rematch vote
- * (`&rematch=ask|wait|choose|left`), `?full` a full board. Zone counts: see applyDemoZoneParams.
+ * (`&rematch=ask|wait|choose|left`), `?full` a full board, `?rest=N` / `?restlead` /
+ * `?oppfull` rested cards (see withRestedField), `?motion` a button that steps
+ * through every card animation. Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
@@ -434,7 +478,7 @@ export function DemoPage() {
     (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW,
     params,
   );
-  const board = params.has("full") ? withFullBoard(base) : base;
+  const board = withRestedField(params.has("full") ? withFullBoard(base) : base, params);
   const withTurn: PlayerView = params.has("oppturn") ? { ...board, activeSeat: 1 } : board;
   const view: PlayerView = params.has("turn0")
     ? {
@@ -446,6 +490,11 @@ export function DemoPage() {
         you: { ...base.you, mulliganDone: false },
       }
     : withTurn;
+  // `?motion`: one state per click; Replay remounts the board to replay the deal.
+  const motionSteps = useMemo(() => (params.has("motion") ? motionDemoSteps(view) : null), []);
+  const [motionStep, setMotionStep] = useState(0);
+  const [motionRun, setMotionRun] = useState(0);
+  const nextMotion = motionSteps?.[motionStep + 1];
   const [undo, setUndo] = useState<UndoState | null>(() =>
     params.has("undo")
       ? {
@@ -468,8 +517,24 @@ export function DemoPage() {
   });
   return (
     <div className="duel-root">
+      {motionSteps ? (
+        <button
+          type="button"
+          className="motion-demo-btn"
+          onClick={() => {
+            if (nextMotion) setMotionStep((s) => s + 1);
+            else {
+              setMotionStep(0);
+              setMotionRun((r) => r + 1);
+            }
+          }}
+        >
+          {nextMotion ? `Next: ${nextMotion.label}` : "Replay"}
+        </button>
+      ) : null}
       <DuelBoard
-        view={params.has("waiting") ? null : view}
+        key={motionRun}
+        view={params.has("waiting") ? null : (motionSteps?.[motionStep]?.view ?? view)}
         seat={0}
         matchId="demo-playmat"
         errorBanner={null}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchMenuItems } from "./matchMenu";
+import { matchMenuItems } from "./matchMenuItems";
 
 const live = { spectating: false, over: false, hotseat: false, fullscreenOffered: false, canConcede: true };
 

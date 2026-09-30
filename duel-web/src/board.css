@@ -259,14 +259,40 @@
   border-radius: calc(var(--c) * 0.08);
 }
 
+/* Rested characters keep full size: a sideways card needs a 1.4-card-wide
+   footprint, so the row may run into the empty mat corner beside it
+   (--char-span columns). Empty slots give way first (down to half a card);
+   only when the footprints still don't fit does every card in the row scale
+   down together (--char-w), so rested and active cards always match. */
+.arena .side-grid {
+  --char-span: 6;
+}
+
 .arena .side-field .characters-row {
-  display: grid;
-  grid-template-columns: repeat(5, var(--c));
-  grid-auto-flow: row;
+  --rest-k: 1;
+  --char-w: min(
+    var(--c),
+    calc(
+      (var(--char-span) * var(--c) + (var(--char-span) - 5) * var(--g) -
+          var(--fill-n, 0) * 0.5 * var(--c)) /
+        max(1, var(--act-n, 0) + 1.4 * var(--rest-n, 0))
+    )
+  );
+  display: flex;
+  align-items: center;
+  flex: none;
   gap: var(--g);
   min-height: 0;
-  width: auto;
+  width: calc(var(--char-span) * var(--c) + (var(--char-span) - 1) * var(--g));
+  height: calc(var(--c) * 1.4);
   overflow: visible;
+}
+
+/* Opponent row faces the seam from the other side: its spare corner is on
+   the left, so the row grows leftward. */
+.arena .side-opp .zone-characters,
+.arena .side-opp .characters-row {
+  justify-content: flex-end;
 }
 
 .arena .side-field .card-tile,
@@ -285,6 +311,49 @@
 
 .arena .side-field .card-tile {
   border-width: max(1px, calc(var(--c) * 0.022));
+}
+
+.arena .side-field .characters-row .card-tile {
+  flex: none;
+  width: var(--char-w);
+  height: calc(var(--char-w) * 1.4);
+  transition:
+    transform 180ms ease,
+    margin 180ms ease,
+    width 180ms ease,
+    height 180ms ease;
+}
+
+.arena .side-field .characters-row .card-tile.rested {
+  margin-inline: calc(var(--char-w) * 0.2);
+}
+
+.arena .side-field .characters-row .zone-slot {
+  flex: 0 1 var(--c);
+  min-width: calc(var(--c) * 0.5);
+}
+
+/* Leader / stage turn at full size and slide half the overhang into the
+   empty cell beside them (leader and stage sit back to back). */
+.arena .side-field .zone-leader,
+.arena .side-field .zone-stage {
+  --rest-k: 1;
+  --rest-shift: calc(var(--c) * -0.2);
+}
+
+.arena .side-field .zone-stage,
+.arena .side-opp .zone-leader {
+  --rest-shift: calc(var(--c) * 0.2);
+}
+
+.arena .side-opp .zone-stage {
+  --rest-shift: calc(var(--c) * -0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena .side-field .characters-row .card-tile {
+    transition: none;
+  }
 }
 
 .arena .side-field .zone-slot {
@@ -465,6 +534,77 @@
   grid-template-columns: var(--left-w) minmax(0, 1fr) var(--rail-w);
 }
 
+/* Desktop mats run wider than 12:7 with a slim DON!! row: the 7-column grid is
+   sized from the mat height (cards ~20% larger) instead of strictly 12.6cqw.
+   Rows: 2 card rows + a 1c row for the piles that holds a half-height cost
+   strip. Landscape phones (.arena-lp) and phones keep their own layouts. */
+.arena.arena-wide:not(.arena-lp) .side-field {
+  --mat-h: calc((100cqh - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2);
+  width: min(100cqw, calc(var(--mat-h) * 1.95));
+}
+
+.arena.arena-wide:not(.arena-lp) .side-grid {
+  --g: 1.6cqh;
+  --c: min(
+    calc((100cqw - 4.4cqh - 6 * 1.6cqh) / 7),
+    calc((100cqh - 4.4cqh - 2 * 1.6cqh) / 3.8)
+  );
+  padding: 2.2cqh;
+  grid-template-columns: repeat(7, var(--c));
+  grid-template-rows: calc(var(--c) * 1.4) calc(var(--c) * 1.4) var(--c);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-opp .side-grid {
+  grid-template-rows: var(--c) calc(var(--c) * 1.4) calc(var(--c) * 1.4);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .zone-cost {
+  display: flex;
+  align-items: center;
+}
+
+/* Half-height cost area: the label moves beside the chips instead of above. */
+.arena.arena-wide:not(.arena-lp) .side-field .don-strip {
+  --don-w: calc(var(--c) * 0.38);
+  width: 100%;
+  height: calc(var(--c) * 0.62);
+  flex-direction: row;
+  align-items: center;
+  gap: calc(var(--c) * 0.12);
+  padding: calc(var(--c) * 0.04) calc(var(--c) * 0.12);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .don-strip-label {
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  line-height: 1.15;
+  font-size: clamp(0.5rem, calc(var(--c) * 0.13), 0.72rem);
+}
+
+/* The selection pill floats in the empty right end of the row, off the chips. */
+.arena.arena-wide:not(.arena-lp) .side-field .don-select-count {
+  left: auto;
+  right: calc(var(--c) * 0.12);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .don-strip-rail {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .zone-don-deck .zone-pile-stack,
+.arena.arena-wide:not(.arena-lp) .side-field .zone-trash .zone-pile-stack {
+  width: calc(var(--c) * 0.46);
+  height: calc(var(--c) * 0.64);
+}
+
 /* The opponent hand moves to the rail, so the mats get its row back. */
 .arena.arena-wide .playmat {
   --hint-h: 0px;
@@ -569,6 +709,58 @@
 .arena.arena-wide .arena-rail .chat-panel:not(.collapsed) {
   flex: 1 1 0;
   min-height: 7rem;
+}
+
+/* Tall desktop: the hand fills the rail below the intent bar (see RAIL_HAND_QUERY). */
+.arena.arena-wide .arena-rail > .rail-hand {
+  --rail-hand-cw: clamp(60px, 9.4dvh, 150px);
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+
+.rail-hand-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.7rem 0.25rem;
+  color: var(--chrome-bright);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rail-hand-head .hand-rail-btn {
+  margin-left: auto;
+}
+
+.rail-hand-cards {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.3rem;
+  padding: 0.25rem 0.7rem 0.4rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.arena .rail-hand-cards > .card-tile,
+.arena .rail-hand-cards > .hand-back {
+  flex: 0 0 auto;
+  width: var(--rail-hand-cw);
+  height: calc(var(--rail-hand-cw) * 1.4);
+  margin: 0;
+}
+
+.arena.arena-wide .arena-rail > .rail-hand ~ .chat-panel:not(.collapsed) {
+  flex: 0 1 8rem;
+  min-height: 5rem;
 }
 
 /* Keeps the rail's last panel clear of the tucked hand dock. */
@@ -1030,6 +1222,13 @@
   min-width: 0;
 }
 
+.card-preview-caption {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--gold, var(--chrome));
+}
+
 .card-preview-name {
   margin: 0;
   font-family: var(--font-display);
@@ -1421,6 +1620,17 @@
       "trash cost cost cost cost dondeck"
       "deck stage leader . . life"
       "characters characters characters characters characters life";
+  }
+
+  /* No spare corner beside the character row, and the stage is boxed in by
+     the leader and a pile, so it keeps the compact sideways scale. */
+  .arena .side-grid {
+    --char-span: 5;
+  }
+
+  .arena .side-field .zone-stage {
+    --rest-k: 0.714;
+    --rest-shift: 0px;
   }
 
   .arena .side-field .don-strip {
@@ -2230,6 +2440,30 @@
   order: 2;
 }
 
+/* Mouse + keyboard desktops: a "Space" tab straddling the primary's top edge.
+   Absolutely positioned and click-through, so the button never resizes or moves. */
+@media (hover: hover) and (pointer: fine) {
+  .arena.arena-wide:not(.arena-lp) .arena-rail .intent-primary {
+    position: relative;
+  }
+
+  .arena.arena-wide:not(.arena-lp) .arena-rail .intent-primary::after {
+    content: "Space";
+    position: absolute;
+    top: -8px;
+    right: 10px;
+    padding: 0 0.4em;
+    border: 1px solid var(--line-strong);
+    border-radius: 5px;
+    background: var(--arena-panel);
+    color: var(--muted, inherit);
+    font-size: 0.66rem;
+    font-weight: 600;
+    line-height: 1.5;
+    pointer-events: none;
+  }
+}
+
 /* —— Portrait phones: opponent piles become a count row —— */
 
 .opp-counts {
@@ -2256,6 +2490,13 @@
       "counts counts counts counts counts"
       "stage leader cost cost cost"
       "characters characters characters characters characters";
+  }
+
+  /* Leader sits between the stage and the cost area: no room to turn at
+     full size. */
+  .arena .side-opp.side-counts .zone-leader {
+    --rest-k: 0.714;
+    --rest-shift: 0px;
   }
 
   /* Spans the whole mat edge (not just the card grid) so the chips have room. */
