@@ -97,6 +97,7 @@ export function DuelBoard({
               compact
               rested={c.rested}
               power={c.power}
+              fieldCost={c.fieldCost}
               attachedDonCount={c.attachedDonCount}
             />
           ))}
@@ -177,6 +178,7 @@ export function DuelBoard({
               defId={c.defId}
               rested={c.rested}
               power={c.power}
+              fieldCost={c.fieldCost}
               attachedDonCount={c.attachedDonCount}
             />
           ))}

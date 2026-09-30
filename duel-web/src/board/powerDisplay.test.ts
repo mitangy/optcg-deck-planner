@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPowerDelta, powerBreakdown, tileStatusLabels } from "./powerDisplay";
+import { costBreakdown, formatPowerDelta, powerBreakdown, tileStatusLabels } from "./powerDisplay";
 
 describe("powerBreakdown", () => {
   it("splits live power into printed base and modifier", () => {
@@ -32,5 +32,17 @@ describe("tileStatusLabels", () => {
 
   it("keeps labels on active cards", () => {
     expect(tileStatusLabels(["Blocker"], false)).toEqual(["Blocker"]);
+  });
+});
+
+describe("costBreakdown", () => {
+  it("splits a +cost effect from the printed cost", () => {
+    expect(costBreakdown(16, 4)).toEqual({ base: 4, current: 16, delta: 12 });
+    expect(costBreakdown(3, 4)).toEqual({ base: 4, current: 3, delta: -1 });
+  });
+
+  it("reports no delta for an unmodified cost and null without a live cost", () => {
+    expect(costBreakdown(4, 4)).toEqual({ base: 4, current: 4, delta: 0 });
+    expect(costBreakdown(undefined, 4)).toBeNull();
   });
 });

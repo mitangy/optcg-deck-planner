@@ -292,6 +292,7 @@ export function SideField({
                   rested={c.rested}
                   power={c.power}
                   printedPower={c.printedPower}
+                  fieldCost={c.fieldCost}
                   attachedDonCount={c.attachedDonCount}
                   statusLabels={c.statusLabels}
                   selected={isSelected}

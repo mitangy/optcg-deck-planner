@@ -9,6 +9,7 @@ import type { Seat } from "../decks/seatArtPrefs";
 export type PreviewLive = {
   power?: number;
   printedPower?: number | null;
+  fieldCost?: number;
   attachedDonCount?: number;
   rested?: boolean;
   statusLabels?: string[];
@@ -36,6 +37,7 @@ function liveKey(live: PreviewLive | undefined): string {
   return [
     live.power ?? "",
     live.printedPower ?? "",
+    live.fieldCost ?? "",
     live.attachedDonCount ?? "",
     live.rested ? 1 : 0,
     (live.statusLabels ?? []).join("|"),

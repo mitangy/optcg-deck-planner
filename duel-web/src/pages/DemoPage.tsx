@@ -80,6 +80,7 @@ export const DEMO_VIEW: PlayerView = {
         attachedDonCount: 1,
         statusLabels: [],
       },
+      { id: "y-saul", defId: "OP17-089", power: 5000, printedPower: 5000, fieldCost: 16, statusLabels: [] },
     ],
     stage: {
       id: "y-stage",

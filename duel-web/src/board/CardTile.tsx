@@ -18,7 +18,7 @@ import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "./CardInspect";
 import { refreshPreviewLive, setPreviewCard, type PreviewLive } from "./cardPreview";
 import { counterValueFor, formatCounter } from "../cards/counterValue";
-import { formatPowerDelta, powerBreakdown, tileStatusLabels } from "./powerDisplay";
+import { costBreakdown, formatPowerDelta, powerBreakdown, tileStatusLabels } from "./powerDisplay";
 import {
   createClickDeferController,
   createLongPressController,
@@ -49,6 +49,8 @@ type Props = {
   rested?: boolean;
   power?: number;
   printedPower?: number | null;
+  /** Live cost of a Character in play (includes +cost effects). */
+  fieldCost?: number;
   attachedDonCount?: number;
   compact?: boolean;
   selected?: boolean;
@@ -97,6 +99,7 @@ export function CardTile({
   rested,
   power,
   printedPower,
+  fieldCost,
   attachedDonCount,
   compact,
   selected,
@@ -142,6 +145,7 @@ export function CardTile({
 
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
   const pb = powerBreakdown(power, printedPower, entry.power);
+  const cb = costBreakdown(fieldCost, entry.cost);
   const counter = useMemo(
     () => (showCounter ? counterValueFor(entry) : null),
     [showCounter, entry],
@@ -153,11 +157,11 @@ export function CardTile({
   const live = useMemo<PreviewLive | undefined>(
     () =>
       instanceId
-        ? { power, printedPower, attachedDonCount, rested, statusLabels }
+        ? { power, printedPower, fieldCost, attachedDonCount, rested, statusLabels }
         : undefined,
     // statusLabels is a fresh array each render; labelsKey tracks its content.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [instanceId, power, printedPower, attachedDonCount, rested, labelsKey],
+    [instanceId, power, printedPower, fieldCost, attachedDonCount, rested, labelsKey],
   );
   useEffect(() => {
     if (instanceId && live) refreshPreviewLive(instanceId, live);
@@ -373,16 +377,27 @@ export function CardTile({
       <div className="card-caption">
         <div className="name">{entry.name}</div>
         <div
-          className={`meta${playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}`}
+          className={`meta${!(cb && cb.delta !== 0) && playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}`}
           title={
-            playCost != null && playCost !== entry.cost
-              ? `Effective cost ${playCost} (printed ${entry.cost})`
-              : undefined
+            cb && cb.delta !== 0
+              ? `Cost ${cb.current} (printed ${cb.base}, ${formatPowerDelta(cb.delta)})`
+              : playCost != null && playCost !== entry.cost
+                ? `Effective cost ${playCost} (printed ${entry.cost})`
+                : undefined
           }
         >
-          {playCost != null && playCost !== entry.cost
-            ? `Cost ${playCost}`
-            : `Cost ${entry.cost}`}
+          {cb && cb.delta !== 0
+            ? (
+                <>
+                  {`Cost ${cb.base} `}
+                  <span className={cb.delta > 0 ? "power-mod-up" : "power-mod-down"}>
+                    {formatPowerDelta(cb.delta)}
+                  </span>
+                </>
+              )
+            : playCost != null && playCost !== entry.cost
+              ? `Cost ${playCost}`
+              : `Cost ${entry.cost}`}
         </div>
       </div>
       {showInspectChip ? (
