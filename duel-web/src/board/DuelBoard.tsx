@@ -87,6 +87,7 @@ import { seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
 import { RematchPanel } from "./RematchPanel";
 import { RoomChip, RoomInvite } from "./RoomShare";
+import { fanPose } from "./handFan";
 import { OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
 import { getLastHoverAt, getPreviewCard, setAutoPreviewCard, shouldAutoPreview } from "./cardPreview";
@@ -207,9 +208,14 @@ export function DuelBoard({
   const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_QUERY);
   /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
   const lp = wide && landscapePhone;
-  /** Tall desktop: the hand is an always-open grid in the right rail (no dock). */
+  /** Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). */
+  const fanHand = wide && !lp && prefs.handLayout !== "grid";
+  const fanCenter = fanHand && prefs.handLayout === "fanCenter";
+  /** Tall desktop, Grid layout: the hand is an always-open grid in the right rail (no dock). */
   const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
-  const railHand = wide && !lp && railHandTall;
+  const railHand = wide && !lp && railHandTall && !fanHand;
+  /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling. */
+  const phoneFan = !wide && prefs.handLayout !== "grid";
   const [lpPanel, setLpPanel] = useState<LandscapePanel | null>(null);
   // Starting a drag (or leaving landscape) must never leave an overlay over the board.
   useEffect(() => {
@@ -525,7 +531,7 @@ export function DuelBoard({
   useBoardHotkeys({
     spectating,
     over,
-    // H only toggles the corner dock; the rail hand is always open.
+    // H only toggles the fan / corner dock; the rail hand is always open.
     wide: wide && !railHand,
     cardKeys: wide && !lp,
     onEscape: () => {
@@ -818,13 +824,21 @@ export function DuelBoard({
   const undoPendingTheirs =
     undoState?.pending != null && !undo?.autoAccept && undoState.pending.from !== boardSeat;
 
-  function renderHandCards() {
+  /** `fanned`: each card gets its tilt and arc drop (see handFan.ts). */
+  function renderHandCards(fanned = false) {
+    const pose = (i: number, n: number): CSSProperties | undefined => {
+      if (!fanned) return undefined;
+      const p = fanPose(i, n);
+      return { "--rot": `${p.rot.toFixed(2)}deg`, "--drop": p.drop.toFixed(4) } as CSSProperties;
+    };
     if (spectating) {
-      return Array.from({ length: Math.min(you.handCount ?? 0, 8) }).map((_, i) => (
-        <span key={i} className="card-back hand-back" />
+      const n = Math.min(you.handCount ?? 0, 8);
+      return Array.from({ length: n }).map((_, i) => (
+        <span key={i} className="card-back hand-back" style={pose(i, n)} />
       ));
     }
-    return (handDisplayIndices ?? you.hand.map((_, i) => i)).map((idx) => {
+    const order = handDisplayIndices ?? you.hand.map((_, i) => i);
+    return order.map((idx, pos) => {
       const c = you.hand[idx]!;
       const playable = dndEnabled && canDragHandCard(intents, idx);
       return (
@@ -844,6 +858,7 @@ export function DuelBoard({
           onDragCancel={() => setDragPayload(null)}
           ownerSeat={boardSeat}
           viewingSeat={viewingSeat}
+          style={pose(pos, order.length)}
         />
       );
     });
@@ -1027,7 +1042,7 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}`}
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : fanHand ? " arena-fan-right" : ""}`}
     >
       {lp ? null : compactHud ? (
         <header className="hud-bar hud-compact">
@@ -1466,7 +1481,7 @@ export function DuelBoard({
             ) : null}
             {lp ? null : chatPanel}
             {/* Reserves the strip the collapsed hand dock peeks into. */}
-            {lp || railHand ? null : <div className="rail-dock-spacer" aria-hidden />}
+            {lp || railHand || fanCenter ? null : <div className="rail-dock-spacer" aria-hidden />}
           </div>
         ) : (
           <div className="arena-rail">
@@ -1501,9 +1516,20 @@ export function DuelBoard({
                     </div>
                   ) : null}
                 </div>
-                <div className="hand-row" ref={handRowRef}>
-                  <div className="hand-row-inner">{renderHandCards()}</div>
-                </div>
+                {phoneFan ? (
+                  <div className="hand-row hand-row-fan" ref={handRowRef}>
+                    <div
+                      className="hand-row-inner hand-fan-cards"
+                      style={{ "--n": Math.max(handCount, 1) } as CSSProperties}
+                    >
+                      {renderHandCards(true)}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="hand-row" ref={handRowRef}>
+                    <div className="hand-row-inner">{renderHandCards()}</div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1535,7 +1561,47 @@ export function DuelBoard({
         </LandscapeOverlay>
       ) : null}
 
-      {wide && !railHand ? (
+      {fanHand ? (
+        <div
+          className={`hand-fan ${fanCenter ? "hand-fan-center" : "hand-fan-right"}${
+            handOpen ? " is-open" : ""
+          }${dragPayload ? " is-dragging" : ""}`}
+          style={{ "--n": Math.max(handCount, 1) } as CSSProperties}
+          aria-label={`Your hand: ${handCount} cards`}
+        >
+          <div className="hand-fan-head">
+            <button
+              type="button"
+              className="hand-fan-toggle"
+              aria-expanded={handOpen}
+              title={handPinned ? "Let the hand tuck away (H)" : "Keep the hand up (H)"}
+              onClick={() => {
+                setHandPinned((v) => !v);
+                if (handPinned) setHandFilter(null);
+              }}
+            >
+              <span className="hand-fan-title">{spectating ? "Seat hand" : "Hand"}</span>
+              <span className="hand-rail-count">{handCount}</span>
+              <span className="hand-dock-caret" aria-hidden>
+                {handOpen ? "▾" : "▴"}
+              </span>
+            </button>
+            {!spectating ? (
+              <button
+                type="button"
+                className={`hand-rail-btn${handSorted ? " active" : ""}`}
+                aria-pressed={handSorted}
+                onClick={() => setHandSorted((v) => !v)}
+              >
+                Sort
+              </button>
+            ) : null}
+          </div>
+          <div className="hand-fan-cards" ref={handRowRef}>
+            {renderHandCards(true)}
+          </div>
+        </div>
+      ) : wide && !railHand ? (
         <div
           className={`hand-dock${handOpen ? " is-open" : ""}${dragPayload ? " is-dragging" : ""}`}
           style={

@@ -5,6 +5,7 @@ import {
   useDuelSettings,
   type AnimationSpeed,
   type EndTurnConfirm,
+  type HandLayout,
   type ResponseStops,
   type ScreenOrientationPref,
 } from "../settings";
@@ -32,7 +33,7 @@ const TOGGLES: Toggle[] = [
   {
     key: "keepHandOpen",
     label: "Keep hand open",
-    hint: "Short or zoomed-in desktop windows: the corner hand dock stays up instead of tucking away. The hand in the right column is always open.",
+    hint: "Desktop: the fanned hand (or the corner dock in short windows) stays up instead of tucking away. H toggles it during a match. The grid in the right column is always open.",
   },
   {
     key: "turnSplash",
@@ -72,6 +73,12 @@ const ORIENTATION_OPTIONS: { value: ScreenOrientationPref; label: string }[] = [
   { value: "auto", label: "Follow my phone" },
   { value: "portrait", label: "Portrait" },
   { value: "landscape", label: "Landscape" },
+];
+
+const HAND_LAYOUT_OPTIONS: { value: HandLayout; label: string }[] = [
+  { value: "fanCenter", label: "Fan, bottom centre" },
+  { value: "fanRight", label: "Fan, bottom right" },
+  { value: "grid", label: "Grid (no fan)" },
 ];
 
 const ANIMATION_OPTIONS: { value: AnimationSpeed; label: string }[] = [
@@ -147,6 +154,25 @@ export function GameplaySettingsFields() {
             screen from the ⋯ menu).
           </p>
         ) : null}
+      </div>
+      <div className="field">
+        <label htmlFor="hand-layout">Hand</label>
+        <select
+          id="hand-layout"
+          value={settings.handLayout}
+          onChange={(e) => updateSettings({ handLayout: e.target.value as HandLayout })}
+        >
+          {HAND_LAYOUT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <p className="field-hint">
+          Desktop: the fan peeks off the bottom of the board (centre) or of the right column, and
+          rises when you point at it. Grid keeps the hand open in the right column. Phones: either
+          fan overlaps the hand strip so every card fits without scrolling.
+        </p>
       </div>
       <div className="field">
         <label htmlFor="animation-speed">Animations</label>

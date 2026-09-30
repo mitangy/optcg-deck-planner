@@ -394,7 +394,10 @@
   animation: none;
 }
 :root[data-motion="reduce"] .hand-dock,
-:root[data-motion="reduce"] .hand-dock .hand-dock-cards > * {
+:root[data-motion="reduce"] .hand-dock .hand-dock-cards > *,
+:root[data-motion="reduce"] .hand-fan,
+:root[data-motion="reduce"] .hand-fan-cards,
+:root[data-motion="reduce"] .hand-fan-cards > * {
   transition: none;
 }
 :root[data-motion="reduce"] .sheet,

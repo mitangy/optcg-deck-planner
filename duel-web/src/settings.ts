@@ -24,6 +24,12 @@ export type ScreenOrientationPref = "auto" | "portrait" | "landscape";
 /** Card motion: full speed, twice as quick, or none. Reduced motion still wins over Normal / Fast. */
 export type AnimationSpeed = "normal" | "fast" | "off";
 
+/**
+ * Where your hand sits: fanned off the bottom edge of the board (centre) or of
+ * the right column, or the flat grid / scrolling row with no fan.
+ */
+export type HandLayout = "fanCenter" | "fanRight" | "grid";
+
 export type DuelSettings = {
   /** Game server URL override ("" = build default). */
   serverUrl: string;
@@ -48,6 +54,8 @@ export type DuelSettings = {
   sortHandByCost: boolean;
   /** Wide layout: keep the hand dock open instead of tucking it away. */
   keepHandOpen: boolean;
+  /** Fanned hand at the bottom centre / bottom right, or the flat grid. */
+  handLayout: HandLayout;
   /** "Your turn" / "Opponent's turn" banner over the board. */
   turnSplash: boolean;
   /** Tone down board animations even when the OS has no reduced-motion preference. */
@@ -74,6 +82,7 @@ const DEFAULTS: DuelSettings = {
   screenOrientation: "auto",
   sortHandByCost: false,
   keepHandOpen: false,
+  handLayout: "fanCenter",
   turnSplash: true,
   reduceMotion: false,
   animationSpeed: "normal",
@@ -85,6 +94,7 @@ const END_TURN_CONFIRM: readonly EndTurnConfirm[] = ["always", "actions", "never
 const RESPONSE_STOPS: readonly ResponseStops[] = ["always", "auto", "smart"];
 const SCREEN_ORIENTATIONS: readonly ScreenOrientationPref[] = ["auto", "portrait", "landscape"];
 const ANIMATION_SPEEDS: readonly AnimationSpeed[] = ["normal", "fast", "off"];
+const HAND_LAYOUTS: readonly HandLayout[] = ["fanCenter", "fanRight", "grid"];
 const CHANGE_EVENT = "optcg-duel:settings-change";
 
 /** Stored values from older builds or hand edits fall back to defaults field by field. */
@@ -99,6 +109,7 @@ function sanitize(parsed: Partial<DuelSettings> & { autoPassDefense?: unknown })
     next.screenOrientation = DEFAULTS.screenOrientation;
   }
   if (!ANIMATION_SPEEDS.includes(next.animationSpeed)) next.animationSpeed = DEFAULTS.animationSpeed;
+  if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;
   for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
     if (typeof next[k] !== typeof DEFAULTS[k]) (next as Record<string, unknown>)[k] = DEFAULTS[k];
   }
