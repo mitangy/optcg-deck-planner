@@ -3751,3 +3751,212 @@ img.zone-pile-face {
 .hand-rail-btn {
   border-radius: 8px;
 }
+
+/* Deck editor: Import and Add cards start folded behind their headings. */
+details.deck-collapsible {
+  display: block;
+}
+
+.deck-collapsible-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.deck-collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+
+.deck-collapsible-summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.deck-collapsible[open] > .deck-collapsible-summary::before {
+  transform: rotate(45deg);
+}
+
+.deck-collapsible-summary:hover .lobby-section-title {
+  color: var(--ink);
+}
+
+details.deck-import-panel.deck-collapsible {
+  padding: 0.4rem 0;
+}
+
+details.deck-config-section.deck-collapsible {
+  padding-top: 0.4rem;
+}
+
+.deck-collapsible-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-top: 0.35rem;
+  padding-bottom: 0.45rem;
+  min-width: 0;
+}
+
+.deck-search.deck-collapsible-body {
+  gap: 0.75rem;
+}
+
+/* Decks page: planner multi-select and drag between Your decks / From your planner. */
+.deck-drop-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+  border-radius: 10px;
+  outline: 2px dashed transparent;
+  outline-offset: 4px;
+  transition: outline-color 0.12s ease, background-color 0.12s ease;
+}
+
+.deck-drop-zone.is-drop-target {
+  outline-color: var(--line);
+}
+
+.deck-drop-zone.is-drop-over {
+  outline-color: var(--chrome-bright);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.deck-drag-handle {
+  flex: 0 0 28px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.deck-drag-handle svg {
+  fill: currentColor;
+}
+
+.deck-drag-handle:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.deck-drag-handle-none,
+.deck-drag-handle-none:hover {
+  cursor: default;
+  background: none;
+}
+
+.deck-list-row .deck-list-open {
+  flex-basis: 10rem;
+}
+
+.is-deck-dragging,
+.is-deck-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.deck-list-row.is-dragging {
+  opacity: 0.45;
+}
+
+.deck-planner-row {
+  flex-wrap: nowrap;
+}
+
+.deck-planner-row.is-selected {
+  border-color: var(--chrome-bright);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.deck-planner-pick {
+  cursor: pointer;
+}
+
+.deck-planner-check {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--chrome-bright);
+}
+
+.deck-planner-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem 0.75rem;
+  min-width: 0;
+}
+
+.deck-planner-hint {
+  margin: 0;
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.deck-planner-toolbar-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+}
+
+.deck-planner-toolbar-actions .btn {
+  min-width: 6.5rem;
+}
+
+.deck-planner-add {
+  min-width: 9.5rem !important;
+}
+
+.deck-drag-ghost {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  transform: translate(12px, -50%);
+  max-width: min(18rem, 70vw);
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--arena-panel);
+  color: var(--chrome-bright);
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-drag-ghost.is-over {
+  border-color: var(--chrome-bright);
+}
+
+.deck-drag-ghost-hint {
+  margin-left: 0.5rem;
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* The rounded drop outline would bend the planner divider into an arc; headings separate the lists. */
+.deck-planner-section.deck-drop-zone {
+  border-top: none;
+  padding-top: 0;
+}

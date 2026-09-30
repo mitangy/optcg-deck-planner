@@ -12,6 +12,8 @@ type Props = {
   buttonLabel?: string;
   /** When false, only show paste UI (e.g. new-deck create form uses Submit). */
   showImportButton?: boolean;
+  /** Start folded behind its heading (deck editor); the new-deck form keeps it open. */
+  collapsible?: boolean;
 };
 
 export function DeckImportPanel({
@@ -25,6 +27,7 @@ export function DeckImportPanel({
   hint = "OPTCGSim / planner format — one card per line like 4xST01-003. Replaces leader and main deck.",
   buttonLabel = "Import into deck",
   showImportButton = true,
+  collapsible = false,
 }: Props) {
   const [clipErr, setClipErr] = useState<string | null>(null);
 
@@ -42,9 +45,8 @@ export function DeckImportPanel({
     }
   }
 
-  return (
-    <section className="deck-import-panel" aria-label={heading}>
-      <h2 className="lobby-section-title">{heading}</h2>
+  const body = (
+    <>
       <p className="meta">{hint}</p>
       <div className="deck-import-actions">
         <button type="button" className="btn btn-secondary" onClick={() => void pasteFromClipboard()}>
@@ -77,6 +79,24 @@ export function DeckImportPanel({
           {busy ? "Importing…" : buttonLabel}
         </button>
       ) : null}
+    </>
+  );
+
+  if (collapsible) {
+    return (
+      <details className="deck-import-panel deck-collapsible" aria-label={heading}>
+        <summary className="deck-collapsible-summary">
+          <h2 className="lobby-section-title">{heading}</h2>
+        </summary>
+        <div className="deck-collapsible-body">{body}</div>
+      </details>
+    );
+  }
+
+  return (
+    <section className="deck-import-panel" aria-label={heading}>
+      <h2 className="lobby-section-title">{heading}</h2>
+      {body}
     </section>
   );
 }

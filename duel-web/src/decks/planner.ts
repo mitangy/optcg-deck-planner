@@ -121,6 +121,40 @@ export async function pullPlannerDeck(id: number): Promise<ImportIntoDeckResult>
   return importPlannerDeckDetail(await fetchPlannerDeck(id));
 }
 
+/** Planner decks that have no linked local copy yet; a copied deck lives under "Your decks". */
+export function plannerDecksNotLocal(
+  planner: PlannerDeckSummary[],
+  local: Pick<SavedDeck, "plannerDeckId">[],
+): PlannerDeckSummary[] {
+  const linked = new Set(local.map((d) => d.plannerDeckId));
+  return planner.filter((d) => !linked.has(d.id));
+}
+
+export type PlannerBulkImport = { imported: SavedDeck[]; errors: string[] };
+
+/**
+ * Pull several planner decks at once. One deck failing (network, or invalid for
+ * duel) never stops the others; each failure is reported with the deck's name.
+ */
+export async function importPlannerDecks(
+  decks: Pick<PlannerDeckSummary, "id" | "name">[],
+  fetchDeck: (id: number) => Promise<PlannerDeckDetail> = fetchPlannerDeck,
+): Promise<PlannerBulkImport> {
+  const settled = await Promise.allSettled(decks.map((d) => fetchDeck(d.id)));
+  const out: PlannerBulkImport = { imported: [], errors: [] };
+  settled.forEach((s, i) => {
+    const name = decks[i].name;
+    if (s.status === "rejected") {
+      out.errors.push(`${name}: ${s.reason instanceof Error ? s.reason.message : "could not load"}`);
+      return;
+    }
+    const result = importPlannerDeckDetail(s.value);
+    if (result.ok) out.imported.push(result.deck);
+    else out.errors.push(`${name}: ${result.errors.join(" · ") || "invalid deck"}`);
+  });
+  return out;
+}
+
 /**
  * Best-effort refresh before a match: any failure (offline, timeout, invalid
  * planner list) keeps the local copy as-is.
