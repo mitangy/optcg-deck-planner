@@ -59,3 +59,17 @@ export function statusGlyph(label: string): StatusIconSpec | null {
   const hit = TABLE.get(normalize(label));
   return hit ?? null;
 }
+
+/**
+ * Tiles show statuses in one row. When only `fit` slots fit, the last slot
+ * becomes a "+N" badge, so show `fit - 1` labels and count the rest.
+ * `fit` null means not measured yet (or everything fits): show all.
+ */
+export function splitStatuses(
+  labels: string[],
+  fit: number | null,
+): { shown: string[]; hidden: string[] } {
+  if (fit == null || labels.length <= fit) return { shown: labels, hidden: [] };
+  const keep = Math.max(0, fit - 1);
+  return { shown: labels.slice(0, keep), hidden: labels.slice(keep) };
+}

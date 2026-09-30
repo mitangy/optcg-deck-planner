@@ -24,8 +24,7 @@ import {
   createLongPressController,
 } from "./inspectGestures";
 import { usePointerDrag } from "./usePointerDrag";
-import { StatusIcon } from "./StatusIcon";
-import { statusGlyph } from "./statusIcons";
+import { StatusRow } from "./StatusIcon";
 
 const COLOR_CHIP: Record<string, string> = {
   red: "#c62828",
@@ -35,14 +34,6 @@ const COLOR_CHIP: Record<string, string> = {
   black: "#212121",
   yellow: "#f9a825",
 };
-
-/** CSS modifier for status / CC chips (stun, unrestable, …). */
-function slugStatus(label: string): string {
-  return label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
 
 type Props = {
   defId: string;
@@ -326,6 +317,13 @@ export function CardTile({
               >
                 <span className="power-base">{pb.base}</span>
                 {pb.delta !== 0 ? (
+                  // Narrow (phone) tiles show only this, so the stack stays short
+                  // enough for the status row under it (see .card-overlays).
+                  <span className={`power-now ${pb.delta > 0 ? "power-mod-up" : "power-mod-down"}`}>
+                    {pb.current}
+                  </span>
+                ) : null}
+                {pb.delta !== 0 ? (
                   <span className={`power-mod ${pb.delta > 0 ? "power-mod-up" : "power-mod-down"}`}>
                     {formatPowerDelta(pb.delta)}
                   </span>
@@ -358,20 +356,10 @@ export function CardTile({
           </div>
         ) : null}
         {labels.length ? (
-          <div className="status-chips" aria-label="Card statuses">
-            {labels.map((label) => {
-              // Board tiles are too narrow for words; known statuses get an icon
-              // (full text in title / aria-label and in card inspect).
-              const icon = statusGlyph(label);
-              return icon ? (
-                <StatusIcon key={label} label={label} spec={icon} />
-              ) : (
-                <span key={label} className={`status-chip status-chip-${slugStatus(label)}`}>
-                  {label}
-                </span>
-              );
-            })}
-          </div>
+          <StatusRow
+            labels={labels}
+            stackKey={`${pb?.current ?? ""}/${pb?.delta ?? 0}/${counter ? formatCounter(counter) : ""}/${attachedDonCount ?? 0}`}
+          />
         ) : null}
       </div>
       <div className="card-caption">

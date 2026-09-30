@@ -1,4 +1,5 @@
-import type { StatusGlyph, StatusIconSpec } from "./statusIcons";
+import { useLayoutEffect, useRef, useState } from "react";
+import { splitStatuses, statusGlyph, type StatusGlyph, type StatusIconSpec } from "./statusIcons";
 
 /** 24x24 line icons; stroke/fill use currentColor so the tone class colours them. */
 function Glyph({ glyph }: { glyph: StatusGlyph }) {
@@ -73,5 +74,100 @@ export function StatusIcon({ label, spec }: { label: string; spec: StatusIconSpe
         <Glyph glyph={spec.glyph} />
       </svg>
     </span>
+  );
+}
+
+/** Smallest .status-icon size (see --status-icon-size in styles.css). */
+const ICON_MIN_PX = 13;
+
+/** CSS modifier for text status chips (stun, unrestable, …). */
+function slugStatus(label: string): string {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+/**
+ * One row of statuses in the tile's bottom-right corner. The row never wraps
+ * (a second row would climb into the power / DON!! stack on phone tiles);
+ * when it runs out of room the last slot becomes "+N" (the hidden labels are
+ * its tooltip, and card inspect lists everything). On the smallest rested
+ * tiles the stack reaches down to the row, so the row moves left of it.
+ *
+ * `stackKey` changes whenever the stack's size may (power buff, DON!!).
+ */
+export function StatusRow({ labels, stackKey }: { labels: string[]; stackKey: string }) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState<number | null>(null);
+  const key = `${labels.join("|")}#${stackKey}`;
+
+  // A new label set or a resized tile starts over from "show everything".
+  useLayoutEffect(() => setFit(null), [key]);
+
+  // Measure with every label rendered: the row lays out right to left, so
+  // children that overflow sit left of the row (negative offsetLeft).
+  // offset* ignore transforms, so the rest rotation doesn't skew it.
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    const box = row?.parentElement;
+    if (!row || !box || fit !== null) return;
+    const stack = box.querySelector<HTMLElement>(".card-stat-stack");
+    row.style.right = row.style.maxWidth = "";
+    row.classList.remove("status-chips-squeezed");
+    if (stack && stack.offsetTop + stack.offsetHeight > row.offsetTop) {
+      const room = stack.offsetLeft - 5;
+      if (room < ICON_MIN_PX) {
+        // Not even one slot beside the stack: a lone "+N" in the far corner.
+        row.classList.add("status-chips-squeezed");
+        setFit(0);
+        return;
+      }
+      row.style.right = `${box.clientWidth - stack.offsetLeft + 2}px`;
+      row.style.maxWidth = `${room}px`;
+    }
+    const kids = [...row.children] as HTMLElement[];
+    const inside = kids.filter((k) => k.offsetLeft >= -0.5).length;
+    if (inside < kids.length) setFit(inside);
+  }, [fit, key]);
+
+  useLayoutEffect(() => {
+    const box = rowRef.current?.parentElement;
+    if (!box || typeof ResizeObserver === "undefined") return;
+    let size = `${box.clientWidth}x${box.clientHeight}`;
+    const ro = new ResizeObserver(() => {
+      const next = `${box.clientWidth}x${box.clientHeight}`;
+      if (next !== size) {
+        size = next;
+        setFit(null);
+      }
+    });
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, []);
+
+  const { shown, hidden } = splitStatuses(labels, fit);
+  return (
+    <div ref={rowRef} className="status-chips" aria-label="Card statuses">
+      {shown.map((label) => {
+        // Board tiles are too narrow for words; known statuses get an icon
+        // (full text in title / aria-label and in card inspect).
+        const icon = statusGlyph(label);
+        return icon ? (
+          <StatusIcon key={label} label={label} spec={icon} />
+        ) : (
+          <span key={label} className={`status-chip status-chip-${slugStatus(label)}`}>
+            {label}
+          </span>
+        );
+      })}
+      {hidden.length ? (
+        <span
+          role="img"
+          className="status-icon status-more"
+          aria-label={`${hidden.length} more: ${hidden.join(", ")}`}
+          title={hidden.join(", ")}
+        >
+          +{hidden.length}
+        </span>
+      ) : null}
+    </div>
   );
 }
