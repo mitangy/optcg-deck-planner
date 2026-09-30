@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
   type MouseEvent,
   type PointerEvent,
 } from "react";
@@ -86,6 +87,8 @@ type Props = {
   motionId?: string;
   /** Show the Counter value badge (hand cards). */
   showCounter?: boolean;
+  /** Inline custom properties (hand fan pose). */
+  style?: CSSProperties;
 };
 
 export function CardTile({
@@ -118,6 +121,7 @@ export function CardTile({
   viewingSeat,
   playCost,
   showCounter = false,
+  style,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
   // Failure state is keyed by URL (not defId) so picking a different alt art
@@ -446,14 +450,14 @@ export function CardTile({
           onClick={handleClick}
           onClickCapture={dragBind.onClickCapture}
           draggable={false}
-          style={dragBind.style}
+          style={style ? { ...style, ...dragBind.style } : dragBind.style}
           {...dropProps}
           {...pointerHandlers}
         >
           {body}
         </button>
       ) : (
-        <div className={className} {...dropProps} {...pointerHandlers}>
+        <div className={className} style={style} {...dropProps} {...pointerHandlers}>
           {body}
         </div>
       )}

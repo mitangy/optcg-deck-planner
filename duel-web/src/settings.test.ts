@@ -97,3 +97,21 @@ describe("screen orientation setting", () => {
     expect(loadSettings().screenOrientation).toBe("auto");
   });
 });
+
+describe("hand layout", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps a stored hand layout", () => {
+    stubStored({ handLayout: "grid" });
+    expect(loadSettings().handLayout).toBe("grid");
+    stubStored({ handLayout: "fanRight" });
+    expect(loadSettings().handLayout).toBe("fanRight");
+  });
+
+  it("replaces an unknown stored hand layout with the centre fan", () => {
+    stubStored({ handLayout: "dock" });
+    expect(loadSettings().handLayout).toBe("fanCenter");
+  });
+});
