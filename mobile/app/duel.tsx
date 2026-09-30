@@ -51,7 +51,7 @@ export default function DuelScreen() {
         </View>
       ) : null}
       {rating != null ? (
-        <Text style={styles.rating}>Your rating: {rating}</Text>
+        <Text style={styles.rating}>Your Bounty: ฿{rating.toLocaleString("en-US")}</Text>
       ) : null}
       {spectating ? (
         <Text style={styles.rating}>Spectating — hands hidden · read-only</Text>
