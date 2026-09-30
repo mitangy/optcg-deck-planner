@@ -119,24 +119,23 @@ export function CardTile({
   showCounter = false,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
-  const [imgFailed, setImgFailed] = useState(false);
-  const [localFallback, setLocalFallback] = useState(false);
+  // Failure state is keyed by URL (not defId) so picking a different alt art
+  // after a failed load gets a fresh attempt instead of staying on the fallback.
+  const [failedSrc, setFailedSrc] = useState<string | null | undefined>(null);
+  const [localFallbackFor, setLocalFallbackFor] = useState<string | null | undefined>(null);
   const [inspectOpen, setInspectOpen] = useState(false);
   const artTick = useSyncExternalStore(
     subscribeArtPrefs,
     getArtPrefsTick,
     getArtPrefsTick,
   );
-  const imageUrl = useMemo(() => {
+  const primaryUrl = useMemo(() => {
     void artTick;
-    if (localFallback) return localCardArtPath(defId);
     return resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
-  }, [defId, artTick, localFallback, ownerSeat]);
-
-  useEffect(() => {
-    setImgFailed(false);
-    setLocalFallback(false);
-  }, [defId]);
+  }, [defId, artTick, ownerSeat]);
+  const imageUrl =
+    localFallbackFor === primaryUrl ? localCardArtPath(defId) : primaryUrl;
+  const imgFailed = failedSrc != null && failedSrc === imageUrl;
 
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
   const pb = powerBreakdown(power, printedPower, entry.power);
@@ -278,12 +277,11 @@ export function CardTile({
   }
 
   function handleImgError() {
-    const primary = resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
-    if (!localFallback && isTcgplayerCdnUrl(primary)) {
-      setLocalFallback(true);
+    if (localFallbackFor !== primaryUrl && isTcgplayerCdnUrl(primaryUrl)) {
+      setLocalFallbackFor(primaryUrl);
       return;
     }
-    setImgFailed(true);
+    setFailedSrc(imageUrl);
   }
 
   const canInspect =
