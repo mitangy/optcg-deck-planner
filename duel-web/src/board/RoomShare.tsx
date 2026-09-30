@@ -3,7 +3,7 @@ import { copyText, roomInviteUrl } from "./clipboard";
 
 type Copied = "id" | "link" | "auto" | "failed" | null;
 
-function useCopyFlash() {
+export function useCopyFlash() {
   const [copied, setCopied] = useState<Copied>(null);
   const timer = useRef<number | null>(null);
   useEffect(() => () => {

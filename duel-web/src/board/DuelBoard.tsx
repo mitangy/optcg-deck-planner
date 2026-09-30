@@ -66,7 +66,10 @@ import { RematchPanel } from "./RematchPanel";
 import { RoomChip, RoomInvite } from "./RoomShare";
 import { OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
-import { useMediaQuery, WIDE_BOARD_QUERY } from "./useMediaQuery";
+import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY } from "./useMediaQuery";
+import { MatchMenu } from "./MatchMenu";
+import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
+import { matchMenuItems } from "./matchMenu";
 
 type Props = {
   view: PlayerView | null;
@@ -171,6 +174,16 @@ export function DuelBoard({
   const prefs = useDuelSettings();
   const [handPinned, setHandPinned] = useState(prefs.keepHandOpen);
   const wide = useMediaQuery(WIDE_BOARD_QUERY);
+  const compactHud = useMediaQuery(COMPACT_HUD_QUERY);
+  const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
+  const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_QUERY);
+  /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
+  const lp = wide && landscapePhone;
+  const [lpPanel, setLpPanel] = useState<LandscapePanel | null>(null);
+  // Starting a drag (or leaving landscape) must never leave an overlay over the board.
+  useEffect(() => {
+    if (dragPayload || !lp) setLpPanel(null);
+  }, [dragPayload, lp]);
   const [handSorted, setHandSorted] = useState(prefs.sortHandByCost);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const fullscreenOffered = useMemo(() => canOfferFullscreen(readInstallEnv()), []);
@@ -676,156 +689,286 @@ export function DuelBoard({
   const oppMatUrl = hotseatPass ? playmatUrl : null;
   const oppCardBackUrl = hotseatPass ? cardBackUrl : null;
 
+  const hudUndoPass = (
+    <>
+    {undo && undoState?.enabled && !spectating && !over ? (
+      undoPendingMine ? (
+        <button
+          type="button"
+          className="hud-undo-btn hud-icon-btn armed"
+          aria-label="Cancel undo request"
+          title="Waiting for your opponent to accept — tap to cancel"
+          onClick={() => undo.onAction("cancel")}
+        >
+          ↺ Cancel
+        </button>
+      ) : undoPendingTheirs ? null : (
+        <ConfirmButton
+          className="hud-undo-btn hud-icon-btn"
+          label="↺"
+          confirmLabel="Undo?"
+          reserveWidth
+          ariaLabel="Undo"
+          title={
+            undoState.targetTurn == null
+              ? "Nothing to undo yet"
+              : `Rewind to the start of turn ${undoState.targetTurn}${
+                  undo.autoAccept ? "" : " (your opponent must accept)"
+                }`
+          }
+          disabled={undoState.targetTurn == null}
+          onConfirm={() => undo.onAction("request")}
+        />
+      )
+    ) : null}
+    {hotseatPass ? (
+      <button
+        type="button"
+        className="hud-pass-btn"
+        title={`Pass device to seat ${hotseatPass.otherSeat}`}
+        onClick={hotseatPass.onPass}
+      >
+        Pass → {hotseatPass.otherSeat}
+      </button>
+    ) : null}
+    </>
+  );
+  const matchMenuEl = (placement: "top" | "left") => (
+    <MatchMenu
+      placement={placement}
+      items={matchMenuItems({
+        spectating,
+        over,
+        hotseat: Boolean(hotseatPass),
+        fullscreenOffered,
+        canConcede: Boolean(onConcede),
+      })}
+      info={{
+        matchup: players
+          ? `${spectating ? seatLabel(players, 0) : seatName(players, boardSeat) ?? "You"} vs ${seatLabel(
+              players,
+              spectating ? 1 : oppSeat,
+            )}`
+          : null,
+        seat: spectating ? "Spectating" : `Seat ${mySeat}`,
+        order: orderLabel,
+      }}
+      roomId={matchId}
+      isFullscreen={isFullscreen}
+      leaveLabel={leaveLabel}
+      onSettings={() => setSettingsOpen(true)}
+      onToggleFullscreen={toggleFullscreen}
+      onConcede={() => onConcede?.()}
+      onLeave={onLeave}
+    />
+  );
+
   return (
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}`}
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}`}
     >
-      <header className="hud-bar">
-        <div className="hud-brand">OPTCG DUEL</div>
-        <div className={`hud-status${yourTurn ? " pulse" : ""}`}>
-          <span className="hud-phase">{view.phase}</span>
-          <span className="hud-sep">·</span>
-          <span>Turn {view.turnNumber}</span>
-          <span className="hud-sep">·</span>
-          {players ? (
-            <span
-              className="hud-names"
-              title={`${seatLabel(players, spectating ? 0 : boardSeat)} vs ${seatLabel(
-                players,
-                spectating ? 1 : oppSeat,
-              )}`}
-            >
-              <strong className="hud-name hud-name-you">
-                {spectating ? seatLabel(players, 0) : seatName(players, boardSeat) ?? "You"}
-              </strong>
-              <span className="hud-sep">vs</span>
-              <span className="hud-name">
-                {seatLabel(players, spectating ? 1 : oppSeat)}
+      {lp ? null : compactHud ? (
+        <header className="hud-bar hud-compact">
+          <div className={`hud-status${yourTurn ? " pulse" : ""}`}>
+            <span className="hud-phase">{view.phase}</span>
+            <span className="hud-sep">·</span>
+            <span className="hud-turn-num">T{view.turnNumber}</span>
+            {mulliganPhase && decidingMulligan ? (
+              <span className="hud-turn-chip">MULLIGAN</span>
+            ) : yourTurn ? (
+              <span className="hud-turn-chip hud-turn-mine">YOUR TURN</span>
+            ) : oppActive && !spectating ? (
+              <span className="hud-turn-chip hud-turn-theirs">OPPONENT&apos;S TURN</span>
+            ) : null}
+            {spectating ? <span className="hud-turn-chip">SPECTATOR</span> : null}
+            {formatCountdown(timer?.turnEndsAt, now) ? (
+              <span className="hud-turn-chip hud-timer" title="Turn clock">
+                {formatCountdown(timer?.turnEndsAt, now)}
               </span>
-            </span>
-          ) : (
-            <span>{spectating ? "Spectating" : `Seat ${mySeat}`}</span>
-          )}
-          <span className={`hud-turn-chip hud-order${youFirst ? " first" : ""}`}>
-            {orderLabel}
-          </span>
-          {mulliganPhase && decidingMulligan ? (
-            <span className="hud-turn-chip">MULLIGAN</span>
-          ) : yourTurn ? (
-            <span className="hud-turn-chip hud-turn-mine">YOUR TURN</span>
-          ) : oppActive && !spectating ? (
-            <span className="hud-turn-chip hud-turn-theirs">OPPONENT&apos;S TURN</span>
-          ) : null}
-          {spectating ? <span className="hud-turn-chip">SPECTATOR</span> : null}
-          {formatCountdown(timer?.turnEndsAt, now) ? (
-            <span className="hud-turn-chip hud-timer" title="Turn clock">
-              Turn {formatCountdown(timer?.turnEndsAt, now)}
-            </span>
-          ) : null}
-          {formatCountdown(timer?.matchEndsAt, now) ? (
-            <span className="hud-turn-chip hud-timer" title="Match clock">
-              Match {formatCountdown(timer?.matchEndsAt, now)}
-            </span>
-          ) : null}
-          {seatClocks ? (
-            <>
+            ) : null}
+            {formatCountdown(timer?.matchEndsAt, now) ? (
+              <span className="hud-turn-chip hud-timer" title="Match clock">
+                Match {formatCountdown(timer?.matchEndsAt, now)}
+              </span>
+            ) : null}
+            {seatClocks ? (
               <span
-                className={`hud-turn-chip hud-timer hud-seat-clock${
-                  seatClocks.running === "you" ? " running" : ""
-                }${seatClocks.youLow ? " low" : ""}`}
-                title="Your time"
+                className="hud-turn-chip hud-timer hud-clock-pair"
+                title={`${spectating ? `Seat ${boardSeat}` : "Your"} time ${seatClocks.you} · ${
+                  spectating ? `Seat ${oppSeat}` : "Opponent's"
+                } time ${seatClocks.opp}`}
               >
-                {spectating ? seatLabel(players, boardSeat) : "You"} {seatClocks.you}
+                <span
+                  className={`hud-seat-clock${seatClocks.running === "you" ? " running" : ""}${
+                    seatClocks.youLow ? " low" : ""
+                  }`}
+                >
+                  {seatClocks.you}
+                </span>
+                <span className="hud-sep">/</span>
+                <span
+                  className={`hud-seat-clock${seatClocks.running === "opp" ? " running" : ""}${
+                    seatClocks.oppLow ? " low" : ""
+                  }`}
+                >
+                  {seatClocks.opp}
+                </span>
               </span>
+            ) : null}
+          </div>
+          <div className="hud-actions">
+            {hudUndoPass}
+            {matchMenuEl("top")}
+          </div>
+        </header>
+      ) : (
+        <header className="hud-bar">
+          <div className="hud-brand">OPTCG DUEL</div>
+          <div className={`hud-status${yourTurn ? " pulse" : ""}`}>
+            <span className="hud-phase">{view.phase}</span>
+            <span className="hud-sep">·</span>
+            <span>Turn {view.turnNumber}</span>
+            <span className="hud-sep">·</span>
+            {players ? (
               <span
-                className={`hud-turn-chip hud-timer hud-seat-clock${
-                  seatClocks.running === "opp" ? " running" : ""
-                }${seatClocks.oppLow ? " low" : ""}`}
-                title="Opponent's time"
+                className="hud-names"
+                title={`${seatLabel(players, spectating ? 0 : boardSeat)} vs ${seatLabel(
+                  players,
+                  spectating ? 1 : oppSeat,
+                )}`}
               >
-                {spectating ? seatLabel(players, oppSeat) : "Opp"} {seatClocks.opp}
+                <strong className="hud-name hud-name-you">
+                  {spectating ? seatLabel(players, 0) : seatName(players, boardSeat) ?? "You"}
+                </strong>
+                <span className="hud-sep">vs</span>
+                <span className="hud-name">
+                  {seatLabel(players, spectating ? 1 : oppSeat)}
+                </span>
               </span>
-            </>
-          ) : null}
-        </div>
-        <div className="hud-actions">
-          {hotseatPass ? null : <RoomChip roomId={matchId} />}
-          {undo && undoState?.enabled && !spectating && !over ? (
-            undoPendingMine ? (
+            ) : (
+              <span>{spectating ? "Spectating" : `Seat ${mySeat}`}</span>
+            )}
+            <span className={`hud-turn-chip hud-order${youFirst ? " first" : ""}`}>
+              {orderLabel}
+            </span>
+            {mulliganPhase && decidingMulligan ? (
+              <span className="hud-turn-chip">MULLIGAN</span>
+            ) : yourTurn ? (
+              <span className="hud-turn-chip hud-turn-mine">YOUR TURN</span>
+            ) : oppActive && !spectating ? (
+              <span className="hud-turn-chip hud-turn-theirs">OPPONENT&apos;S TURN</span>
+            ) : null}
+            {spectating ? <span className="hud-turn-chip">SPECTATOR</span> : null}
+            {formatCountdown(timer?.turnEndsAt, now) ? (
+              <span className="hud-turn-chip hud-timer" title="Turn clock">
+                Turn {formatCountdown(timer?.turnEndsAt, now)}
+              </span>
+            ) : null}
+            {formatCountdown(timer?.matchEndsAt, now) ? (
+              <span className="hud-turn-chip hud-timer" title="Match clock">
+                Match {formatCountdown(timer?.matchEndsAt, now)}
+              </span>
+            ) : null}
+            {seatClocks ? (
+              <>
+                <span
+                  className={`hud-turn-chip hud-timer hud-seat-clock${
+                    seatClocks.running === "you" ? " running" : ""
+                  }${seatClocks.youLow ? " low" : ""}`}
+                  title="Your time"
+                >
+                  {spectating ? seatLabel(players, boardSeat) : "You"} {seatClocks.you}
+                </span>
+                <span
+                  className={`hud-turn-chip hud-timer hud-seat-clock${
+                    seatClocks.running === "opp" ? " running" : ""
+                  }${seatClocks.oppLow ? " low" : ""}`}
+                  title="Opponent's time"
+                >
+                  {spectating ? seatLabel(players, oppSeat) : "Opp"} {seatClocks.opp}
+                </span>
+              </>
+            ) : null}
+          </div>
+          <div className="hud-actions">
+            {hotseatPass ? null : <RoomChip roomId={matchId} />}
+            {undo && undoState?.enabled && !spectating && !over ? (
+              undoPendingMine ? (
+                <button
+                  type="button"
+                  className="hud-undo-btn armed"
+                  title="Waiting for your opponent to accept — click to cancel"
+                  onClick={() => undo.onAction("cancel")}
+                >
+                  Undo asked · Cancel
+                </button>
+              ) : undoPendingTheirs ? null : (
+                <ConfirmButton
+                  className="hud-undo-btn"
+                  label="↺ Undo"
+                  confirmLabel={
+                    undoState.targetTurn != null ? `Undo to turn ${undoState.targetTurn}?` : "Undo?"
+                  }
+                  title={
+                    undoState.targetTurn == null
+                      ? "Nothing to undo yet"
+                      : `Rewind to the start of turn ${undoState.targetTurn}${
+                          undo.autoAccept ? "" : " (your opponent must accept)"
+                        }`
+                  }
+                  disabled={undoState.targetTurn == null}
+                  onConfirm={() => undo.onAction("request")}
+                />
+              )
+            ) : null}
+            {hotseatPass ? (
               <button
                 type="button"
-                className="hud-undo-btn armed"
-                title="Waiting for your opponent to accept — click to cancel"
-                onClick={() => undo.onAction("cancel")}
+                className="hud-pass-btn"
+                title={`Pass device to seat ${hotseatPass.otherSeat}`}
+                onClick={hotseatPass.onPass}
               >
-                Undo asked · Cancel
+                Pass → {hotseatPass.otherSeat}
               </button>
-            ) : undoPendingTheirs ? null : (
+            ) : null}
+            {onConcede && !spectating && !over ? (
               <ConfirmButton
-                className="hud-undo-btn"
-                label="↺ Undo"
-                confirmLabel={
-                  undoState.targetTurn != null ? `Undo to turn ${undoState.targetTurn}?` : "Undo?"
-                }
-                title={
-                  undoState.targetTurn == null
-                    ? "Nothing to undo yet"
-                    : `Rewind to the start of turn ${undoState.targetTurn}${
-                        undo.autoAccept ? "" : " (your opponent must accept)"
-                      }`
-                }
-                disabled={undoState.targetTurn == null}
-                onConfirm={() => undo.onAction("request")}
+                className="hud-concede-btn"
+                label="Concede"
+                confirmLabel="Confirm concede"
+                title="Forfeit this match"
+                onConfirm={onConcede}
               />
-            )
-          ) : null}
-          {hotseatPass ? (
-            <button
-              type="button"
-              className="hud-pass-btn"
-              title={`Pass device to seat ${hotseatPass.otherSeat}`}
-              onClick={hotseatPass.onPass}
-            >
-              Pass → {hotseatPass.otherSeat}
-            </button>
-          ) : null}
-          {onConcede && !spectating && !over ? (
-            <ConfirmButton
-              className="hud-concede-btn"
-              label="Concede"
-              confirmLabel="Confirm concede"
-              title="Forfeit this match"
-              onConfirm={onConcede}
-            />
-          ) : null}
-          {fullscreenOffered ? (
+            ) : null}
+            {fullscreenOffered ? (
+              <button
+                type="button"
+                className="hud-undo-btn hud-settings-btn"
+                aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+                aria-pressed={isFullscreen}
+                title={isFullscreen ? "Exit full screen" : "Full screen"}
+                onClick={toggleFullscreen}
+              >
+                {isFullscreen ? "⤡" : "⛶"}
+              </button>
+            ) : null}
             <button
               type="button"
               className="hud-undo-btn hud-settings-btn"
-              aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
-              aria-pressed={isFullscreen}
-              title={isFullscreen ? "Exit full screen" : "Full screen"}
-              onClick={toggleFullscreen}
+              aria-label="Gameplay settings"
+              title="Gameplay settings"
+              onClick={() => setSettingsOpen(true)}
             >
-              {isFullscreen ? "⤡" : "⛶"}
+              ⚙
             </button>
-          ) : null}
-          <button
-            type="button"
-            className="hud-undo-btn hud-settings-btn"
-            aria-label="Gameplay settings"
-            title="Gameplay settings"
-            onClick={() => setSettingsOpen(true)}
-          >
-            ⚙
-          </button>
-          <button type="button" className="leave-btn" onClick={onLeave}>
-            {leaveLabel}
-          </button>
-        </div>
-      </header>
+            <button type="button" className="leave-btn" onClick={onLeave}>
+              {leaveLabel}
+            </button>
+          </div>
+        </header>
+      )}
 
       {settingsOpen ? <GameplaySettingsSheet onClose={() => setSettingsOpen(false)} /> : null}
 
@@ -881,7 +1024,15 @@ export function DuelBoard({
       ) : null}
 
       <div className="arena-body">
-        {wide ? (
+        {lp ? (
+          <LandscapeRail
+            open={lpPanel}
+            onToggle={(panel) => setLpPanel((cur) => (cur === panel ? null : panel))}
+            hasChat={Boolean(chat)}
+            logCount={battleLog.length}
+            menu={matchMenuEl("left")}
+          />
+        ) : wide ? (
           <aside className="arena-left" aria-label="Card preview and battle log">
             <CardPreviewPanel />
             <BattleLogPanel
@@ -899,6 +1050,7 @@ export function DuelBoard({
             <SideField
               side="opp"
               compact
+              countRow={portraitMat}
               turnOrder={firstSeat === oppSeat ? "first" : "second"}
               activeTurn={oppActive}
               matImageUrl={oppMatUrl}
@@ -913,6 +1065,7 @@ export function DuelBoard({
                 deckCount: opp.deckCount,
                 trash: opp.trash,
                 lifeCount: opp.lifeCount,
+                faceUpLife: portraitMat ? opp.faceUpLife : undefined,
                 donDeckCount: opp.donDeckCount,
                 costAreaCount: opp.costAreaCount,
                 activeDonCount: opp.activeDonCount,
@@ -1005,7 +1158,10 @@ export function DuelBoard({
 
         {wide ? (
           <div className="arena-rail">
-            <OppHandFan count={opp.handCount} cardBackUrl={oppCardBackUrl} />
+            {lp && (hotseatPass || (undo && undoState?.enabled && !spectating && !over)) ? (
+              <div className="lp-actions">{hudUndoPass}</div>
+            ) : null}
+            <OppHandFan count={opp.handCount} cardBackUrl={oppCardBackUrl} compact={lp} />
             <TurnStatusPanel
               view={view}
               boardSeat={boardSeat}
@@ -1015,11 +1171,12 @@ export function DuelBoard({
               turnClock={turnClock}
               matchClock={matchClock}
               seatClocks={seatClocks}
+              compact={lp}
             />
             {intentPanel}
-            {chatPanel}
+            {lp ? null : chatPanel}
             {/* Reserves the strip the collapsed hand dock peeks into. */}
-            <div className="rail-dock-spacer" aria-hidden />
+            {lp ? null : <div className="rail-dock-spacer" aria-hidden />}
           </div>
         ) : (
           <div className="arena-rail">
@@ -1071,6 +1228,20 @@ export function DuelBoard({
           </div>
         )}
       </div>
+
+      {lp && lpPanel ? (
+        <LandscapeOverlay panel={lpPanel} onClose={() => setLpPanel(null)}>
+          {lpPanel === "log" ? (
+            <BattleLogPanel
+              entries={battleLog}
+              viewingSeat={spectating || mySeat == null ? undefined : mySeat}
+              alwaysOpen
+            />
+          ) : (
+            chatPanel
+          )}
+        </LandscapeOverlay>
+      ) : null}
 
       {wide ? (
         <div
