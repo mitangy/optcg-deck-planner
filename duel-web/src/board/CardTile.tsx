@@ -370,7 +370,7 @@ export function CardTile({
       <div className="card-caption">
         <div className="name">{entry.name}</div>
         <div
-          className={`meta${cb && cb.delta !== 0 ? " meta-cost-modified" : playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}`}
+          className={`meta${!(cb && cb.delta !== 0) && playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}`}
           title={
             cb && cb.delta !== 0
               ? `Cost ${cb.current} (printed ${cb.base}, ${formatPowerDelta(cb.delta)})`
@@ -380,7 +380,14 @@ export function CardTile({
           }
         >
           {cb && cb.delta !== 0
-            ? `Cost ${cb.base} ${formatPowerDelta(cb.delta)}`
+            ? (
+                <>
+                  {`Cost ${cb.base} `}
+                  <span className={cb.delta > 0 ? "power-mod-up" : "power-mod-down"}>
+                    {formatPowerDelta(cb.delta)}
+                  </span>
+                </>
+              )
             : playCost != null && playCost !== entry.cost
               ? `Cost ${playCost}`
               : `Cost ${entry.cost}`}
