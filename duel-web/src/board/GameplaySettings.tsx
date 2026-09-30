@@ -57,7 +57,7 @@ const TOGGLES: Toggle[] = [
 
 const END_TURN_OPTIONS: { value: EndTurnConfirm; label: string }[] = [
   { value: "always", label: "Always ask" },
-  { value: "actions", label: "Only if I can still act" },
+  { value: "actions", label: "Only if DON!! or attackers are left" },
   { value: "never", label: "Never ask" },
 ];
 
@@ -93,7 +93,7 @@ export function GameplaySettingsFields() {
           ))}
         </select>
         <p className="field-hint">
-          “Only if I can still act” asks while you have DON!!, an attack or a playable card left.
+          “Only if DON!! or attackers are left” asks while you have active DON!! or a ready attacker, and the button says which.
         </p>
       </div>
       <div className="field">

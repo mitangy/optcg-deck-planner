@@ -2201,6 +2201,25 @@
   visibility: hidden;
 }
 
+/* The armed End turn names what is left (DON!!, attackers) only where the rail
+   button is wide enough; phones keep "Tap again to end". */
+.end-warn-full {
+  display: none;
+}
+
+.arena.arena-wide:not(.arena-lp) .end-warn-full {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  font-size: 0.82em;
+}
+
+.arena.arena-wide:not(.arena-lp) .end-warn-short {
+  display: none;
+}
+
 .intent-btn-end.armed,
 .intent-btn-end.armed:not(:disabled):hover {
   color: #fff;

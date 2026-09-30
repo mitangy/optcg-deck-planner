@@ -11,8 +11,8 @@ type Props = {
   disabled?: boolean;
   filterHandIndex?: number | null;
   selectedBoardId?: string | null;
-  /** End turn needs a second tap (gameplay setting). */
-  confirmEndTurn?: boolean;
+  /** End turn needs a second tap (gameplay setting); `reason` fills the armed label. */
+  confirmEndTurn?: { reason: string | null } | null;
   onSend: (intent: Intent) => void;
   /** Full-board play: ask which Character to replace instead of sending. */
   onChooseReplace?: (handIndex: number) => void;
@@ -41,7 +41,7 @@ export function IntentBar({
   disabled,
   filterHandIndex,
   selectedBoardId,
-  confirmEndTurn = false,
+  confirmEndTurn = null,
   onSend,
   onChooseReplace,
   defend,
@@ -115,8 +115,17 @@ export function IntentBar({
               <ConfirmButton
                 className={`${btnClass(primary)} intent-btn-primary`}
                 label={intentLabel(primary, view)}
-                confirmLabel="Tap again to end"
-                title="Ends your turn after a second tap"
+                confirmLabel={
+                  confirmEndTurn.reason ? (
+                    <>
+                      <span className="end-warn-full">End turn? {confirmEndTurn.reason}</span>
+                      <span className="end-warn-short">Tap again to end</span>
+                    </>
+                  ) : (
+                    "Tap again to end"
+                  )
+                }
+                title={confirmEndTurn.reason ? `${confirmEndTurn.reason}. Tap again to end your turn.` : "Ends your turn after a second tap"}
                 disabled={disabled}
                 reserveWidth
                 onConfirm={() => onSend(primary)}

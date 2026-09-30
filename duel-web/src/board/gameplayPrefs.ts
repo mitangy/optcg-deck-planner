@@ -1,20 +1,40 @@
 import type { Intent } from "../net/protocol";
 import type { EndTurnConfirm, ResponseStops } from "../settings";
 
-/** Intents that mean "you could still do something this turn". */
-const TURN_ACTIONS = new Set([
-  "play_card",
-  "give_don",
-  "declare_attack",
-  "activate_ability",
-  "activate_leader",
-]);
+/** What the armed End turn button says; `reason` is null when the setting asks unconditionally. */
+export type EndTurnWarning = { reason: string | null };
 
-/** Whether the End turn button should ask for a second tap. */
-export function endTurnNeedsConfirm(mode: EndTurnConfirm, intents: readonly Intent[]): boolean {
-  if (mode === "never") return false;
-  if (mode === "always") return true;
-  return intents.some((i) => TURN_ACTIONS.has(i.type));
+function distinct(intents: readonly Intent[], type: string, key: string): number {
+  const ids = new Set<unknown>();
+  for (const i of intents) if (i.type === type) ids.add(i[key]);
+  return ids.size;
+}
+
+/**
+ * What you would leave on the table by ending now, from the legal intents:
+ * active DON!! that could still be attached (a `give_don` exists for each
+ * active DON!!) and ready Leaders / Characters that could still attack. An
+ * optional Activate: Main or a play you could not use anyway does not count.
+ */
+export function endTurnLeftovers(intents: readonly Intent[]): string | null {
+  const don = distinct(intents, "give_don", "donId");
+  const attackers = distinct(intents, "declare_attack", "attackerId");
+  // Both: the short form, so the armed button label still fits the rail.
+  if (don > 0 && attackers > 0) return `${don} DON!! + ${attackers} atk`;
+  if (don > 0) return `${don} DON!! unused`;
+  if (attackers > 0) return `${attackers} ${attackers === 1 ? "attacker" : "attackers"} ready`;
+  return null;
+}
+
+/** Whether End turn should ask for a second tap, and why (null = end right away). */
+export function endTurnWarning(
+  mode: EndTurnConfirm,
+  intents: readonly Intent[],
+): EndTurnWarning | null {
+  if (mode === "never") return null;
+  if (mode === "always") return { reason: null };
+  const reason = endTurnLeftovers(intents);
+  return reason ? { reason } : null;
 }
 
 /**

@@ -65,7 +65,7 @@ import { sortHandIndices } from "./handSort";
 import { useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { useDuelSettings } from "../settings";
-import { endTurnNeedsConfirm, responseStopPass } from "./gameplayPrefs";
+import { endTurnWarning, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
 import { HotkeyHelpSheet } from "./HotkeyHelp";
 import { stepHandSelection } from "./hotkeys";
@@ -911,7 +911,7 @@ export function DuelBoard({
       disabled={over}
       filterHandIndex={handFilter}
       selectedBoardId={selectedBoardId}
-      confirmEndTurn={endTurnNeedsConfirm(prefs.endTurnConfirm, view.legalIntents)}
+      confirmEndTurn={endTurnWarning(prefs.endTurnConfirm, view.legalIntents)}
       onSend={(intent) => {
         setHandFilter(null);
         setSelectedBoardId(null);
