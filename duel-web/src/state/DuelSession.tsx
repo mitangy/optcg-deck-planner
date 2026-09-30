@@ -70,8 +70,27 @@ type ConnectOpts = {
   };
 };
 
+/** A match request: the board opens at once and shows this while it resolves. */
+export type MatchLaunch = {
+  /** Board status while connecting ("Searching for an opponent…"). */
+  status: string;
+  /** Your deck's Leader for the empty board (null when spectating). */
+  leaderId: string | null;
+  /** Private room: show the invite card until the opponent joins. */
+  invite: boolean;
+};
+
 type DuelSession = {
   client: DuelClient;
+  /** The latest match request (kept until Leave) for the pre-view board. */
+  launch: MatchLaunch | null;
+  /** True while that request's mint / queue / connect is still running. */
+  launching: boolean;
+  /**
+   * Open the board now and run `task` (mint, queue, connect) behind it. A
+   * failure lands in errorBanner; Leave before it settles abandons it.
+   */
+  startMatch: (launch: MatchLaunch, task: () => Promise<void>) => void;
   connected: boolean;
   queueing: boolean;
   canReconnect: boolean;
@@ -126,6 +145,11 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const serverUrlRef = useRef<string | null>(null);
   const seatRef = useRef<Seat | null>(null);
   const [connected, setConnected] = useState(false);
+  const [launch, setLaunch] = useState<MatchLaunch | null>(null);
+  const [launching, setLaunching] = useState(false);
+  /** Bumped by every startMatch / leave: a connect that finishes under an older value was abandoned. */
+  const launchGenRef = useRef(0);
+  const launchingRef = useRef(false);
   const [queueing, setQueueing] = useState(false);
   const [canReconnect, setCanReconnect] = useState(false);
   const [resuming, setResuming] = useState(() => loadMatchResume()?.mode === "duel");
@@ -276,8 +300,49 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       });
     }
 
+    /**
+     * A connect settled after Leave (or a newer request): drop its socket and
+     * state unless a newer request is already using the client.
+     */
+    function abandon(): Error {
+      if (!launchingRef.current) {
+        void client.disconnect(true);
+        resetMatch();
+      }
+      return new Error("Match request cancelled");
+    }
+
+    function resetMatch() {
+      clearMatchResume();
+      setCosmeticsPublisher(null);
+      resetAllSeatArtPrefs();
+      setSeatSkins([null, null]);
+      // Don't wait for the server's close handshake (slow on a cold / busy
+      // server): reset locally and let the socket close in the background.
+      void client.disconnect(true);
+      setAwayUntil([null, null]);
+      setRematch(null);
+      setConnected(false);
+      setReconnecting(false);
+      setQueueing(false);
+      setCanReconnect(false);
+      setResuming(false);
+      setMatchId(null);
+      setSeat(null);
+      seatRef.current = null;
+      setRole("player");
+      setView(null);
+      setPlayers(null);
+      setMatchOver(null);
+      setTimer(null);
+      setChat([]);
+      setUndo(null);
+    }
+
     return {
       client,
+      launch,
+      launching,
       connected,
       queueing,
       canReconnect,
@@ -337,7 +402,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setLastServerUrl(opts.serverUrl);
         }
         wireHandlers();
+        const gen = launchGenRef.current;
         const info = await client.connect(opts);
+        if (launchGenRef.current !== gen) throw abandon();
         seatRef.current = info.seat;
         flushSync(() => {
           setMatchId(info.matchId);
@@ -362,8 +429,10 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setLastServerUrl(opts.serverUrl);
         }
         wireHandlers();
+        const gen = launchGenRef.current;
         try {
           const info = await client.queueRanked(opts);
+          if (launchGenRef.current !== gen) throw abandon();
           seatRef.current = info.seat;
           flushSync(() => {
             setMatchId(info.matchId);
@@ -474,37 +543,45 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setErrorBanner(e instanceof Error ? e.message : "Concede failed");
         }
       },
-      async leave() {
-        clearMatchResume();
-        setCosmeticsPublisher(null);
-        resetAllSeatArtPrefs();
-        setSeatSkins([null, null]);
-        // Don't wait for the server's close handshake (slow on a cold / busy
-        // server): reset locally and let the socket close in the background.
-        void client.disconnect(true);
-        setAwayUntil([null, null]);
-        setRematch(null);
-        setConnected(false);
-        setReconnecting(false);
-        setQueueing(false);
-        setCanReconnect(false);
-        setResuming(false);
+      startMatch(next, task) {
+        const gen = ++launchGenRef.current;
+        launchingRef.current = true;
+        setErrorBanner(null);
+        setView(null);
         setMatchId(null);
         setSeat(null);
-        seatRef.current = null;
-        setRole("player");
-        setView(null);
-        setPlayers(null);
-        setMatchOver(null);
-        setTimer(null);
-        setChat([]);
-        setUndo(null);
+        setLaunch(next);
+        setLaunching(true);
+        const settle = () => {
+          launchingRef.current = false;
+          setLaunching(false);
+        };
+        task().then(
+          () => {
+            if (launchGenRef.current === gen) settle();
+          },
+          (e: unknown) => {
+            if (launchGenRef.current !== gen) return;
+            settle();
+            setQueueing(false);
+            setErrorBanner(e instanceof Error ? e.message : "Connect failed");
+          },
+        );
+      },
+      async leave() {
+        launchGenRef.current++;
+        launchingRef.current = false;
+        setLaunching(false);
+        setLaunch(null);
+        resetMatch();
       },
       clearError() {
         setErrorBanner(null);
       },
     };
   }, [
+    launch,
+    launching,
     connected,
     queueing,
     canReconnect,

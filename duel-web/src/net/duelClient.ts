@@ -89,6 +89,8 @@ export class DuelClient {
   private client: Client | null = null;
   private room: Room | null = null;
   private queueRoom: Room | null = null;
+  /** Rejects the in-flight queue wait when the player cancels. */
+  private queueAbort: ((err: Error) => void) | null = null;
   private handlers: DuelClientHandlers = {};
   private reconnectionToken: string | null = null;
   private pendingReconnect: Promise<{ matchId: string; seat: Seat }> | null = null;
@@ -170,6 +172,10 @@ export class DuelClient {
     const matched = await new Promise<{ roomId: string; seat: Seat; ranked: boolean }>(
       (resolve, reject) => {
         const timer = setTimeout(() => reject(new Error("Queue timed out")), 120000);
+        this.queueAbort = (err) => {
+          clearTimeout(timer);
+          reject(err);
+        };
         queueRoom.onMessage("queued", (msg: { position?: number }) => {
           this.handlers.onQueued?.(typeof msg?.position === "number" ? msg.position : 0);
         });
@@ -195,6 +201,7 @@ export class DuelClient {
       },
     );
 
+    this.queueAbort = null;
     this.handlers.onMatched?.(matched);
     try {
       await queueRoom.leave(true);
@@ -214,6 +221,8 @@ export class DuelClient {
   }
 
   async cancelQueue() {
+    this.queueAbort?.(new Error("Queue cancelled"));
+    this.queueAbort = null;
     if (this.queueRoom) {
       try {
         this.queueRoom.send("cancel", {});

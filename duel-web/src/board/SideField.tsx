@@ -379,7 +379,12 @@ export function SideField({
 
         <div className="zone-leader">
           <div className="zone-caption">Leader</div>
-          {(() => {
+          {data.leader.defId === "" ? (
+            // Seat not filled yet (queueing / connecting): an empty slot, not a card.
+            <div className="zone-slot leader-empty" aria-label="Leader not revealed yet">
+              Leader
+            </div>
+          ) : (() => {
             const leaderId = data.leader.id;
             const isSelectable = Boolean(select);
             const isTargetable = Boolean(target?.targetableIds.has(leaderId));

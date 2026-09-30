@@ -5,6 +5,7 @@
  */
 const intents = "packages/rules/src/engine/intents.ts";
 const procedure = "packages/rules/src/engine/procedure.ts";
+const queueBoard = "queue-board.spec.ts > Find match opens the board while the queue searches [desktop-1280]";
 const rules = "rules-attack.spec.ts > an unblocked Leader attack moves one Life card to the defender's hand [desktop-1280]";
 
 module.exports = {
@@ -38,5 +39,13 @@ module.exports = {
     { id: "e2e-hand-fan-sticks-after-click", args: "demo-audit --project=desktop-1280 -g tucks", file: "duel-web/src/board.css", from: ".hand-fan.is-open,\n.hand-fan:has(:focus-visible) {", to: ".hand-fan.is-open,\n.hand-fan:focus-within {", kills: ["demo-audit.spec.ts > the centre hand fan tucks away after a click once the pointer leaves [desktop-1280]"] },
     // Tilted board: the inner box is pulled up by its extra height so the tilt folds it back into view.
     { id: "e2e-tilted-board-hangs-off-bottom", args: "demo-audit --project=desktop-1280 -g tilted", file: "duel-web/src/board.css", from: "  margin-top: calc(100cqh * (1 - var(--tilt-grow)) - var(--tilt-lift));\n", to: "", kills: ["demo-audit.spec.ts > /demo?full with the tilted board passes the UI audit [desktop-1280]"] },
+
+    // Find match opens the board at once; the queue (and token mint) runs behind it.
+    { id: "e2e-queue-waits-in-lobby", args: "queue-board --project=desktop-1280", edits: [
+      { file: "duel-web/src/pages/LobbyPage.tsx", from: "            await queueRanked({ ...opts, deck: wire });\n            return;", to: "            await queueRanked({ ...opts, deck: wire });\n            navigate(\"/duel\");\n            return;" },
+      { file: "duel-web/src/pages/LobbyPage.tsx", from: "      if (mode !== \"spectate\") setSelectedDeckId(picked.id);\n      navigate(\"/duel\");", to: "      if (mode !== \"spectate\") setSelectedDeckId(picked.id);\n      if (mode !== \"queue\") navigate(\"/duel\");" },
+    ], kills: [queueBoard] },
+    { id: "e2e-pending-board-hides-your-leader", args: "queue-board --project=desktop-1280", file: "duel-web/src/board/PendingBoard.tsx", from: "data={emptySide(\"pending-you-leader\", waiting.youLeaderId)}", to: "data={emptySide(\"pending-you-leader\", null)}", kills: [queueBoard] },
+    { id: "e2e-match-error-dropped", args: "queue-board --project=desktop-1280", file: "duel-web/src/pages/DuelPage.tsx", from: "state: errorBanner ? { matchError: errorBanner } : null", to: "state: null", kills: ["queue-board.spec.ts > a failed match request returns to the lobby and says why [desktop-1280]"] },
   ],
 };
