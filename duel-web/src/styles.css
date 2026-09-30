@@ -2736,9 +2736,30 @@ img.zone-pile-face {
   inset: 0;
   z-index: 1;
   pointer-events: none;
+  container-type: size;
+}
+/* A buffed power reads "base / ±delta" on two lines. On phone-size tiles that
+   plus a DON!! badge leaves no room for the status row under it, so show only
+   the current power there, tinted up / down (the breakdown stays in the
+   tooltip and card inspect). Narrow catches upright phone tiles; short
+   catches rested ones, whose overlay is landscape. */
+.power-now {
+  display: none;
+}
+@container (max-width: 70px) or (max-height: 60px) {
+  .card-stat-stack .power-badge-buffed .power-base,
+  .card-stat-stack .power-badge-buffed .power-mod {
+    display: none;
+  }
+  .card-stat-stack .power-badge-buffed .power-now {
+    display: inline;
+  }
 }
 .card-stat-stack {
   position: absolute;
+  /* Above the status row: on the smallest rested tiles the two can't both
+     fit on the right, and power / DON!! matter more (statuses are in inspect). */
+  z-index: 3;
   top: 0.25rem;
   right: 0.25rem;
   display: flex;
@@ -2874,20 +2895,33 @@ img.zone-pile-face {
   font-size: 0.72rem;
   opacity: 0.7;
 }
+/* Bottom-right corner, just above the name caption, in one row: the first
+   status sits in the corner and the rest fill leftward. StatusRow swaps what
+   doesn't fit for a "+N" badge instead of wrapping, so the row never climbs
+   into the top-right power / DON!! stack or covers the name. */
 .status-chips {
   position: absolute;
-  left: 3px;
+  right: 3px;
   bottom: 1.55rem;
   display: flex;
-  flex-flow: row wrap;
+  flex-flow: row-reverse nowrap;
+  justify-content: flex-start;
   align-items: flex-end;
   gap: 2px;
   max-width: calc(100% - 6px);
   pointer-events: none;
   z-index: 2;
 }
+/* Smallest rested tiles: the power / DON!! stack fills the right side, so a
+   lone "+N" sits bottom-left, over the stack's edge rather than under it. */
+.status-chips-squeezed {
+  left: 3px;
+  right: auto;
+  z-index: 4;
+}
 .status-chip {
-  /* Text chips (statuses with no icon) take their own line. */
+  /* Text chips (statuses with no icon) can fill the row; StatusRow counts
+     whatever it pushes out into the "+N" badge. */
   flex: 0 0 auto;
   max-width: 100%;
   display: inline-block;
@@ -2908,7 +2942,7 @@ img.zone-pile-face {
 /* Icon badge: fixed square (scales with the mat's card width) so a status
    appearing never resizes or re-flows its neighbours. */
 .status-icon {
-  --status-icon-size: clamp(13px, calc(var(--c, 56px) * 0.3), 18px);
+  --status-icon-size: clamp(13px, calc(var(--c, 56px) * 0.26), 18px);
   flex: 0 0 auto;
   box-sizing: border-box;
   display: inline-flex;
@@ -2922,6 +2956,13 @@ img.zone-pile-face {
   border: 1px solid rgba(255, 200, 80, 0.5);
   color: #ffe0a0;
   pointer-events: auto;
+}
+.status-more {
+  padding: 0;
+  font-size: calc(var(--status-icon-size) * 0.5);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
 .status-icon svg {
   width: 100%;
@@ -3358,6 +3399,78 @@ img.zone-pile-face {
   background: rgba(210, 165, 77, 0.22) !important;
   color: var(--chrome-bright) !important;
   font-weight: 700;
+}
+/* Put-back order lists: caps name each end of the pile, a dashed row marks
+   the untouched rest of it, rows drag to reorder. */
+.order-cap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--chrome-bright);
+}
+.order-cap::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line-strong, var(--line));
+}
+.order-cap-top {
+  margin-bottom: 0.3rem;
+}
+.order-cap-bottom {
+  margin-top: 0.3rem;
+}
+.search-order-list.order-list {
+  padding-left: 0;
+  list-style: none;
+}
+.order-list .order-row {
+  justify-content: flex-start;
+  gap: 0.4rem;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.order-list .order-row .choice-order-name {
+  flex: 1 1 auto;
+}
+.order-list .order-row .search-order-actions {
+  flex: none;
+}
+.order-list.is-dragging,
+.order-list.is-dragging .order-row {
+  cursor: grabbing;
+}
+.order-list .order-row.is-drag {
+  border-color: var(--chrome);
+  background: rgba(210, 165, 77, 0.16);
+}
+.order-grip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  min-height: 2rem;
+  color: var(--muted);
+  font-size: 1rem;
+  touch-action: none;
+}
+.order-list .order-rest {
+  justify-content: center;
+  padding: 0.2rem;
+  border: 1px dashed var(--line-strong, var(--line));
+  border-radius: 0.5rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 .deck-preview strong {
   color: var(--chrome-bright);

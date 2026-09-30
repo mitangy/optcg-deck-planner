@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { statusGlyph } from "./statusIcons";
+import { splitStatuses, statusGlyph } from "./statusIcons";
 
 // Labels exactly as the rules engine emits them (packages/rules/src/engine/views.ts cardView).
 const ENGINE_LABELS = [
@@ -49,5 +49,25 @@ describe("statusGlyph", () => {
       expect(statusGlyph(exact), exact).not.toBeNull();
       expect(statusGlyph(loose), loose).toEqual(statusGlyph(exact));
     }
+  });
+});
+
+describe("splitStatuses", () => {
+  const labels = ["Blocker", "Rush", "Double Attack", "Banish", "Unblockable"];
+
+  it("shows every label until it has been measured, or when they all fit", () => {
+    expect(splitStatuses(labels, null)).toEqual({ shown: labels, hidden: [] });
+    expect(splitStatuses(labels, 5)).toEqual({ shown: labels, hidden: [] });
+  });
+
+  it("gives the last slot that fits to the +N badge, keeping the first labels", () => {
+    expect(splitStatuses(labels, 3)).toEqual({
+      shown: ["Blocker", "Rush"],
+      hidden: ["Double Attack", "Banish", "Unblockable"],
+    });
+  });
+
+  it("hides everything behind +N when no slot fits", () => {
+    expect(splitStatuses(labels, 0)).toEqual({ shown: [], hidden: labels });
   });
 });

@@ -375,6 +375,12 @@
   font-size: clamp(0.45rem, calc(var(--c) * 0.1), 0.64rem);
 }
 
+/* Sit the status row right on the caption, which grows with --c (about 22px
+   on phone tiles, 27px on desktop), so it never overlaps the name. */
+.arena .side-field .card-tile:not(.rested) .status-chips {
+  bottom: clamp(21px, calc(var(--c) * 0.15 + 14px), 30px);
+}
+
 .arena .side-field .power-badge,
 .arena .side-field .don-badge {
   font-size: clamp(0.48rem, calc(var(--c) * 0.1), 0.7rem);
@@ -2547,6 +2553,19 @@
   order: 2;
 }
 
+/* Desktop rail: the primary sits above the card actions, so selecting a card
+   (which fills the actions row) never pushes End turn down. Landscape phones
+   anchor the primary to the bottom instead (see .arena-lp below). */
+.arena.arena-wide:not(.arena-lp) .arena-rail .intent-primary {
+  order: -1;
+}
+
+/* One button row is reserved, so a card with a single action doesn't nudge
+   the hand below either. */
+.arena.arena-wide:not(.arena-lp) .arena-rail .intent-layout .intent-row {
+  min-height: 40px;
+}
+
 /* Mouse + keyboard desktops: a "Space" tab straddling the primary's top edge.
    Absolutely positioned and click-through, so the button never resizes or moves. */
 @media (hover: hover) and (pointer: fine) {
@@ -3264,4 +3283,59 @@
 .rotate-hint-close:focus-visible {
   outline: none;
   box-shadow: var(--focus);
+}
+
+/* —— Pile and DON!! captions: readable on any playmat ——
+   Uploaded mats can be bright (or undimmed), and the gold-on-transparent
+   captions vanished on them. Each caption sits on a dark chip instead. */
+.arena .side-field .zone-pile-meta,
+.arena .side-field .don-strip-label {
+  padding: 0.1em 0.45em 0.15em;
+  border-radius: 6px;
+  background: rgba(6, 12, 18, 0.74);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  opacity: 1;
+}
+
+.arena .side-field .zone-pile-label,
+.arena .side-field .don-strip-label {
+  color: #e6d6ad;
+}
+
+.arena .side-field .zone-pile-count,
+.arena .side-field .don-strip-nums {
+  color: #fff4d6;
+}
+
+/* Pile captions go on one line ("DECK 38") so the chip adds no height and
+   the count never slides under the pile below (it used to on phones). */
+.arena:not(.arena-lp) .side-field .zone-pile-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.3em;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.arena:not(.arena-lp) .side-field .zone-pile-label {
+  letter-spacing: 0.04em;
+}
+
+/* Desktop: bigger counts (DON!! 3/6, Deck 38) and captions. */
+.arena.arena-wide:not(.arena-lp) .side-field .zone-pile-label {
+  font-size: clamp(0.55rem, calc(var(--c) * 0.12), 0.8rem);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .zone-pile-count {
+  font-size: clamp(0.85rem, calc(var(--c) * 0.22), 1.45rem);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .don-strip-label {
+  font-size: clamp(0.55rem, calc(var(--c) * 0.12), 0.8rem);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .don-strip-nums {
+  font-size: clamp(0.85rem, calc(var(--c) * 0.24), 1.5rem);
+  line-height: 1.05;
 }
