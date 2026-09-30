@@ -28,6 +28,7 @@ const SUITES = {
   frontend: require("./suites/frontend.cjs"),
   "game-server": require("./suites/game-server.cjs"),
   cosmetics: require("./suites/cosmetics.cjs"),
+  "duel-e2e": require("./suites/duel-e2e.cjs"),
 };
 
 const args = process.argv.slice(2);
@@ -96,6 +97,29 @@ const runners = {
     const data = JSON.parse(fs.readFileSync(report, "utf8"));
     fs.unlinkSync(report);
     return { failed: data.failures.map((t) => `${path.basename(t.file ?? "")} > ${t.fullTitle}`), total: data.stats.tests };
+  },
+  playwright(cwd, suite, mutation) {
+    const report = path.join(os.tmpdir(), `mutation-check-${process.pid}.json`);
+    try { fs.unlinkSync(report); } catch {}
+    // CI=1: start fresh servers so a mutated game server is never a stale reused one.
+    const env = { ...process.env, CI: "1", PLAYWRIGHT_JSON_OUTPUT_FILE: report };
+    try { execSync(`npx playwright test --reporter=json ${mutation?.args ?? suite.args ?? ""}`, { cwd, env, stdio: "ignore", timeout: 3600000 }); } catch {}
+    if (!fs.existsSync(report)) return { error: "no playwright report (suite crashed?)", failed: [] };
+    const data = JSON.parse(fs.readFileSync(report, "utf8"));
+    fs.unlinkSync(report);
+    const failed = [];
+    let total = 0;
+    const walk = (s) => {
+      for (const spec of s.specs ?? []) for (const t of spec.tests) {
+        if (t.status === "skipped") continue;
+        total += 1;
+        if (t.status === "unexpected") failed.push(`${path.basename(spec.file)} > ${spec.title} [${t.projectName}]`);
+      }
+      for (const child of s.suites ?? []) walk(child);
+    };
+    for (const s of data.suites) walk(s);
+    if (data.errors?.length && !total) return { error: data.errors.map((e) => e.message).join("\n").slice(-800), failed: [] };
+    return { failed, total };
   },
   pytest(cwd, suite, mutation) {
     const python = process.env.BACKEND_PYTHON ?? process.env.PYTHON ?? (process.platform === "win32" ? "py -3" : "python3");

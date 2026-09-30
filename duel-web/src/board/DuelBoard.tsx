@@ -1105,6 +1105,10 @@ export function DuelBoard({
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
       }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : fanHand ? " arena-fan-right" : ""}`}
+      // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
+      data-phase={view.phase}
+      data-turn={view.turnNumber}
+      data-seat={boardSeat}
     >
       {lp ? null : compactHud ? (
         <header className="hud-bar hud-compact">
