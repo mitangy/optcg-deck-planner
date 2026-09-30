@@ -231,5 +231,12 @@ module.exports = {
     { id: "status-icons-case-sensitive", file: `${src}/board/statusIcons.ts`, from: "    .toLowerCase()\n", to: "", kills: ["matches loosely on case, spacing and apostrophe style"] },
     { id: "status-icons-curly-apostrophe", file: `${src}/board/statusIcons.ts`, from: "    .replace(/[\\u2018\\u2019]/g, \"'\")\n", to: "", kills: ["matches loosely on case, spacing and apostrophe style"] },
     { id: "status-icons-colon-spacing", file: `${src}/board/statusIcons.ts`, from: "    .replace(/\\s*:\\s*/g, \": \")\n", to: "", kills: ["matches loosely on case, spacing and apostrophe style"] },
+    // phone HUD match menu
+    { id: "menu-concede-for-spectators", file: `${src}/board/matchMenu.ts`, from: "o.canConcede && !o.spectating && !o.over", to: "o.canConcede && !o.over", kills: ["gives spectators no Concede"] },
+    { id: "menu-concede-after-over", file: `${src}/board/matchMenu.ts`, from: "o.canConcede && !o.spectating && !o.over", to: "o.canConcede && !o.spectating", kills: ["gives a finished match no Concede"] },
+    { id: "menu-concede-without-handler", file: `${src}/board/matchMenu.ts`, from: "o.canConcede && !o.spectating && !o.over", to: "!o.spectating && !o.over", kills: ["has no Concede when the page cannot concede"] },
+    { id: "menu-copy-room-in-hotseat", file: `${src}/board/matchMenu.ts`, from: "  if (!o.hotseat) items.push(\"copy-room\");", to: "  items.push(\"copy-room\");", kills: ["has no Copy room in hotseat"] },
+    { id: "menu-fullscreen-always", file: `${src}/board/matchMenu.ts`, from: "  if (o.fullscreenOffered) items.push(\"fullscreen\");", to: "  items.push(\"fullscreen\");", kills: ["offers Full screen only when the browser offers it"] },
+    { id: "menu-leave-before-concede", file: `${src}/board/matchMenu.ts`, from: "  if (o.canConcede && !o.spectating && !o.over) items.push(\"concede\");\n  items.push(\"leave\");", to: "  items.push(\"leave\");\n  if (o.canConcede && !o.spectating && !o.over) items.push(\"concede\");", kills: ["always ends with Leave, after Concede"] },
   ],
 };

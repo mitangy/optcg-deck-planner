@@ -1996,3 +1996,179 @@
   border-color: rgba(255, 214, 170, 0.7);
   box-shadow: 0 0 0 2px rgba(230, 150, 80, 0.35);
 }
+
+/* —— Compact HUD (phones, either orientation): one slim row + ⋯ menu —— */
+
+.arena .hud-bar.hud-compact {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  --hud-py: 0px;
+  --hud-px: 0.5rem;
+  box-sizing: border-box;
+  min-height: calc(44px + var(--safe-t));
+  padding-top: var(--safe-t);
+  padding-bottom: 0;
+  overflow: visible;
+}
+
+.arena .hud-compact .hud-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.arena .hud-compact .hud-sep,
+.arena .hud-compact .hud-turn-num {
+  flex: none;
+}
+
+/* When the bar is crowded the phase word gives way, never the turn chip. */
+.arena .hud-compact .hud-phase {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.04em;
+}
+
+.arena .hud-compact .hud-turn-chip {
+  flex: none;
+  margin-left: 0.1rem;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.6rem;
+}
+
+.arena .hud-compact .hud-clock-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.arena .hud-compact .hud-pass-btn,
+.arena .hud-compact .hud-undo-btn:not(.hud-menu-btn) {
+  padding: 0 0.4rem;
+}
+
+.arena .hud-compact .hud-actions {
+  flex: none;
+  gap: 0.35rem;
+}
+
+.arena .hud-compact .hud-icon-btn,
+.arena .hud-compact .hud-pass-btn {
+  min-height: 40px;
+  min-width: 40px;
+  padding: 0 0.6rem;
+  font-size: 0.8rem;
+}
+
+.arena .hud-compact .hud-menu-btn {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+@media (max-height: 499px) {
+  .arena .hud-bar.hud-compact {
+    min-height: calc(40px + var(--safe-t));
+  }
+
+  .match-menu {
+    top: calc(var(--safe-t) + 42px);
+    max-height: calc(100dvh - var(--safe-t) - 50px);
+  }
+}
+
+.match-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+
+.match-menu {
+  position: fixed;
+  z-index: 61;
+  top: calc(var(--safe-t) + 46px);
+  right: max(8px, var(--safe-r));
+  width: min(280px, calc(100vw - 16px));
+  max-height: calc(100dvh - var(--safe-t) - 56px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: rgba(12, 18, 28, 0.98);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+.match-menu-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 4px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.match-menu-info strong {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.match-menu-item {
+  min-height: 44px;
+  padding: 0 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--arena-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.match-menu-item:not(:disabled):hover {
+  border-color: var(--chrome);
+}
+
+.match-menu-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.match-menu-item.match-menu-danger {
+  border-color: rgba(210, 74, 63, 0.6);
+  background: rgba(178, 55, 47, 0.18);
+  color: #ffd9d4;
+}
+
+.match-menu-item.match-menu-danger.armed {
+  border-color: #c06060;
+  background: var(--danger);
+  color: #fff;
+}
+
+.arena .hud-compact .hud-clock-pair .hud-seat-clock {
+  opacity: 0.6;
+  border: 0;
+  background: none;
+}
+
+.arena .hud-compact .hud-clock-pair .hud-seat-clock.running {
+  opacity: 1;
+  font-weight: 800;
+  color: var(--chrome-bright);
+}
+
+.arena .hud-compact .hud-clock-pair .hud-seat-clock.low.running {
+  color: #ff9a8f;
+}

@@ -24,3 +24,9 @@ export function useMediaQuery(query: string): boolean {
  */
 export const WIDE_BOARD_QUERY =
   "(min-width: 900px) and (min-height: 500px), (orientation: landscape) and (min-width: 600px) and (max-height: 499px)";
+
+/**
+ * Compact HUD: everything except a real desktop window (>=900x500). Phones in
+ * either orientation get the one-row bar with a match menu.
+ */
+export const COMPACT_HUD_QUERY = "not ((min-width: 900px) and (min-height: 500px))";
