@@ -228,6 +228,13 @@ export function DuelBoard({
   }, [handCollapsed, wide, view?.you.hand.length]);
 
   const over = matchOver != null || view?.winner != null;
+  const midlineText = view
+    ? view.pendingChoices?.length
+      ? view.pendingChoices[0].prompt
+      : view.battle
+        ? describeBattle(view, (defId) => lookupCard(defId).name)
+        : null
+    : null;
   // Screen stays on through the opponent's long turns; released when the match ends.
   useScreenWakeLock(!over);
   const mySeat = seat ?? view?.seat ?? null;
@@ -918,11 +925,9 @@ export function DuelBoard({
             />
 
             <div className="midline">
-              {Boolean(view.battle || view.pendingChoices?.length) ? (
-                <div className="prompt">
-                  {view.pendingChoices?.length
-                    ? view.pendingChoices[0].prompt
-                    : describeBattle(view, (defId) => lookupCard(defId).name)}
+              {midlineText ? (
+                <div className="prompt" title={midlineText}>
+                  {midlineText}
                 </div>
               ) : (
                 <div className="midline-ornament" aria-hidden>
