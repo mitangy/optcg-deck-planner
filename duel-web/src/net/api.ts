@@ -99,7 +99,7 @@ function isRetryableMintError(err: unknown): boolean {
   return true;
 }
 
-async function fetchWithTimeout(
+export async function fetchWithTimeout(
   url: string,
   init: RequestInit,
   timeoutMs: number,

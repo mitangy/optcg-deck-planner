@@ -393,6 +393,22 @@ body:has(.group-buy-detail) .topbar-inner {
   border-radius: 999px;
 }
 
+.topbar .user .duel-nav-link {
+  color: var(--gold-bright);
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid rgba(226, 180, 88, 0.55);
+  border-radius: 999px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.topbar .user .duel-nav-link:hover {
+  color: #fff8e8;
+  border-color: var(--gold);
+}
+
 .topbar .user button.ghost:hover {
   color: #fff8e8;
   border-color: var(--gold);
@@ -4738,5 +4754,26 @@ button.ghost.scan-open:hover {
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
+  }
+}
+
+/* "Play in Duel" link in deck page head: never wraps inside the pill. */
+.page-head-actions .duel-play-btn {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.page-head-actions .duel-play-btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .page-head-actions {
+    flex-wrap: wrap;
+  }
+
+  .page-head-actions .duel-play-btn {
+    flex: 1 1 100%;
   }
 }

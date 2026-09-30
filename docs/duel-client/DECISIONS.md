@@ -146,6 +146,8 @@ Work is **split across three plan slices**:
 
 **Why now:** Unblocks refresh-safe play and ranked identity without waiting on cross-subdomain cookie / CORS hardening.
 
+**Update:** Planner decks are now playable in duel-web via each site's own session; see `PLANNER_INTEGRATION.md`.
+
 **Follow-up:** Add cross-origin session sharing (cookie `Domain`, `SameSite=None; Secure`, shared parent host or BFF) after duel-web auth UX is validated. Until then, planner login and duel-web login are separate cookies on localhost ports / separate Vercel projects.
 
 **See:** `duel-web` lobby Identity section; `backend` `/duel/guest-token` + OAuth `return_to` allowlist.
