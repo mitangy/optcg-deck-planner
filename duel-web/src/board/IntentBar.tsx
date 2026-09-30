@@ -21,6 +21,8 @@ type Props = {
    * counter"). `onPress` replaces sending the primary intent itself.
    */
   defend?: { label: string; onPress?: () => void };
+  /** Replaces "No actions for this card" while something else already answers it. */
+  emptyHint?: string;
 };
 
 function btnClass(intent: Intent): string {
@@ -42,6 +44,7 @@ export function IntentBar({
   onSend,
   onChooseReplace,
   defend,
+  emptyHint,
 }: Props) {
   const handIndex = filterHandIndex ?? null;
   const boardId = selectedBoardId ?? null;
@@ -79,7 +82,8 @@ export function IntentBar({
         <div className="intent-row">
           {shown.length === 0 && !defend ? (
             <p className="intent-empty">
-              {nothingSelected ? "Select a card for actions" : "No actions for this card"}
+              {emptyHint ??
+                (nothingSelected ? "Select a card for actions" : "No actions for this card")}
             </p>
           ) : null}
           {shown.map((intent, idx) => (

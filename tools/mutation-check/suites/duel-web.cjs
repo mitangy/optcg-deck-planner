@@ -262,5 +262,13 @@ module.exports = {
     { id: "clock-other-seats-bank", file: `${src}/board/defendTray.ts`, from: "if (timer.seatSeconds && timer.clockSeat === youSeat && timer.clockEndsAt != null) {", to: "if (timer.seatSeconds && timer.clockEndsAt != null) {", kills: ["ignores a chess clock that runs for the opponent"] },
     { id: "clock-no-turn-fallback", file: `${src}/board/defendTray.ts`, from: "} else if (timer.turnSeconds && timer.turnEndsAt != null) {", to: "} else if (false) {", kills: ["falls back to the turn clock"] },
     { id: "clock-unclamped", file: `${src}/board/defendTray.ts`, from: "  return left == null ? null : Math.min(1, Math.max(0, left));", to: "  return left;", kills: ["stays between empty and full"] },
+    // quick DON!! attach
+    { id: "quick-don-any-target", file: `${src}/board/donSelection.ts`, from: "      i.targetId === targetId &&\n      typeof i.donId", to: "      typeof i.donId", kills: ["does not spend a slot on a DON!! that only fits another card"] },
+    { id: "quick-don-repeats", file: `${src}/board/donSelection.ts`, from: "      typeof i.donId === \"string\" &&\n      !ids.includes(i.donId)", to: "      typeof i.donId === \"string\"", kills: ["uses each DON!! once even when it has several legal intents for the card"] },
+    { id: "quick-don-ignores-count", file: `${src}/board/donSelection.ts`, from: "donIdsForTarget(intents, targetId).slice(0, Math.max(0, count));", to: "donIdsForTarget(intents, targetId);", kills: ["gives exactly the amount asked when enough are available"] },
+    { id: "quick-don-counts-none", file: `${src}/board/donSelection.ts`, from: "  if (available <= 0) return [];\n", to: "", kills: ["offers nothing when no DON!! can be given"] },
+    { id: "quick-don-plus-two-of-one", file: `${src}/board/donSelection.ts`, from: "  if (available === 1) return [1];", to: "  if (available === 1) return [1, 2];", kills: ["hides +2 when only one DON!! is available"] },
+    { id: "quick-don-all-duplicates-plus-two", file: `${src}/board/donSelection.ts`, from: "  if (available === 2) return [1, 2];\n", to: "", kills: ["only adds All when it means more than +2"] },
+    { id: "quick-don-all-leaves-one", file: `${src}/board/donSelection.ts`, from: "donIdsForTarget(intents, targetId).slice(0, Math.max(0, count));", to: "donIdsForTarget(intents, targetId).slice(0, Math.max(0, count - 1));", kills: ["All means every DON!! that is legal for the card"] },
   ],
 };

@@ -33,12 +33,15 @@ import { AttackIndicator } from "./AttackIndicator";
 import { describeBattle } from "./battleBanner";
 import { canOfferFullscreen, readInstallEnv } from "../installPrompt";
 import { useScreenWakeLock } from "./wakeLock";
-import { DonAttachConfirm, DragGhost, type GhostPayload } from "./BoardOverlays";
+import { DonAttachConfirm, DonQuickRow, DragGhost, type GhostPayload } from "./BoardOverlays";
 import {
   attachTargetIds,
   beginAttach,
+  donIdsForTarget,
+  donQuickAttach,
   nextDonSelection,
   pruneDonSelection,
+  quickAttachCounts,
   resolveAttachIntents,
   type PendingAttach,
 } from "./donSelection";
@@ -473,6 +476,30 @@ export function DuelBoard({
     );
   }, [dndEnabled, selectedBoardId, intents, view]);
 
+  // Quick attach: a selected Leader / Character that can take DON!! gets a
+  // +1 / +2 / All row (the other flows, drag and multi-select, are unchanged).
+  const quickDonIds =
+    dndEnabled &&
+    !dragPayload &&
+    !donSelectActive &&
+    !replaceOpen &&
+    selectedBoardId &&
+    view &&
+    (view.you.leader.id === selectedBoardId ||
+      view.you.characters.some((c) => c.id === selectedBoardId))
+      ? donIdsForTarget(intents, selectedBoardId)
+      : [];
+  const quickCounts = quickAttachCounts(quickDonIds.length);
+
+  function quickAttach(count: number) {
+    if (!selectedBoardId) return;
+    const toSend = donQuickAttach(intents, selectedBoardId, count);
+    setHandFilter(null);
+    setSelectedBoardId(null);
+    // Sequential client-side intents (no batch protocol), like confirmAttach.
+    for (const intent of toSend) onSendIntent(intent);
+  }
+
   function commitDrop(payload: DragPayload, clientX: number, clientY: number) {
     const drop = findDropTargetAtPoint(clientX, clientY);
     // Sequential client-side intents (no batch protocol) — one give_don per
@@ -583,6 +610,13 @@ export function DuelBoard({
         ? you.leader
         : you.characters.find((c) => c.id === pendingAttach.targetId);
     return card ? lookupCard(card.defId).name : "target";
+  })();
+  const quickTargetName = (() => {
+    const card =
+      you.leader.id === selectedBoardId
+        ? you.leader
+        : you.characters.find((c) => c.id === selectedBoardId);
+    return card ? lookupCard(card.defId).name : "card";
   })();
   const boardSeat: Seat = mySeat ?? view.seat;
   const oppSeat: Seat = boardSeat === 0 ? 1 : 0;
@@ -722,7 +756,14 @@ export function DuelBoard({
         const front = view.pendingChoices?.[0];
         // ChoicePrompt / EffectOrderPrompt own every pending-choice answer.
         const structuredOwns = Boolean(front);
-        if (!structuredOwns) return view.legalIntents;
+        if (!structuredOwns) {
+          // The quick row replaces the row of identical "Give DON" buttons.
+          return quickCounts.length > 0
+            ? view.legalIntents.filter(
+                (i) => !(i.type === "give_don" && i.targetId === selectedBoardId),
+              )
+            : view.legalIntents;
+        }
         return view.legalIntents.filter(
           (i) => i.type !== "resolve_pending_choice" && i.type !== "order_pending_effects",
         );
@@ -739,6 +780,7 @@ export function DuelBoard({
       }}
       onChooseReplace={openReplace}
       defend={defendPrimary}
+      emptyHint={quickCounts.length > 0 ? "Use the DON!! buttons by the card" : undefined}
     />
   ) : (
     <div className="intent-bar">
@@ -1415,6 +1457,14 @@ export function DuelBoard({
       <TurnSplash message={splash} />
       <AttackIndicator view={over ? null : view} />
       <DragGhost payload={ghostPayload} />
+      {quickCounts.length > 0 && selectedBoardId ? (
+        <DonQuickRow
+          targetId={selectedBoardId}
+          targetName={quickTargetName}
+          counts={quickCounts}
+          onPick={quickAttach}
+        />
+      ) : null}
       {pendingAttach && dndEnabled ? (
         <DonAttachConfirm
           pending={pendingAttach}
