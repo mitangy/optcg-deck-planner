@@ -68,6 +68,7 @@ import { useDuelSettings } from "../settings";
 import { endTurnNeedsConfirm, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
 import { HotkeyHelpSheet } from "./HotkeyHelp";
+import { stepHandSelection } from "./hotkeys";
 import { useBoardHotkeys } from "./useBoardHotkeys";
 import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
 import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
@@ -518,6 +519,22 @@ export function DuelBoard({
     over,
     // H only toggles the corner dock; the rail hand is always open.
     wide: wide && !railHand,
+    cardKeys: wide && !lp,
+    onEscape: () => {
+      // One layer per press: DON!! selection first, then the selected card.
+      if (selectedDonIds.size > 0 || pendingAttach != null) clearDonSelection();
+      else {
+        setHandFilter(null);
+        setSelectedBoardId(null);
+      }
+    },
+    onStepHand: (dir) => {
+      const order = handDisplayIndices ?? (view?.you.hand ?? []).map((_, i) => i);
+      const next = stepHandSelection(order, handFilter, dir);
+      if (next == null) return;
+      setSelectedBoardId(null);
+      setHandFilter(next);
+    },
     onToggleHand: () => {
       setHandPinned((v) => !v);
       if (handPinned) setHandFilter(null);
@@ -527,15 +544,6 @@ export function DuelBoard({
   });
 
   const donSelectActive = selectedDonIds.size > 0 || pendingAttach != null;
-
-  useEffect(() => {
-    if (!dndEnabled) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") clearDonSelection();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [dndEnabled]);
 
   // Click-away cancels the DON!! selection / confirm. Taps on the cost area,
   // the confirm itself, or a highlighted attach target are handled by their

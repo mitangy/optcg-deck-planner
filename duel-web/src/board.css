@@ -2464,6 +2464,32 @@
   }
 }
 
+/* Same tab on each secondary action: the letter (A/E/P/D) or the 1-9 key that
+   presses it. Absolutely positioned and click-through, so buttons never resize. */
+@media (hover: hover) and (pointer: fine) {
+  .arena.arena-wide:not(.arena-lp) .arena-rail .intent-row .intent-btn[data-key-tag] {
+    position: relative;
+  }
+
+  .arena.arena-wide:not(.arena-lp) .arena-rail .intent-row .intent-btn[data-key-tag]::after {
+    content: attr(data-key-tag);
+    position: absolute;
+    top: -7px;
+    left: 8px;
+    min-width: 1.5em;
+    padding: 0 0.3em;
+    border: 1px solid var(--line-strong);
+    border-radius: 5px;
+    background: var(--arena-panel);
+    color: var(--muted, inherit);
+    font-size: 0.62rem;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    pointer-events: none;
+  }
+}
+
 /* —— Portrait phones: opponent piles become a count row —— */
 
 .opp-counts {

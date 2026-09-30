@@ -1,6 +1,7 @@
 import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
 import { ConfirmButton } from "./ConfirmButton";
 import { collapseReplacePlays, isReplacePlay } from "./dragIntents";
+import { actionKeyTags } from "./hotkeys";
 import { filterIntentsForSelection } from "./intentFilter";
 import { splitPrimaryIntent } from "./primaryIntent";
 
@@ -54,6 +55,7 @@ export function IntentBar({
   const shown = defend
     ? []
     : collapseReplacePlays(filterIntentsForSelection(rest, { handIndex, boardId }));
+  const keyTags = actionKeyTags(shown);
   const mulliganPhase = view?.phase === "mulligan";
   const nothingSelected = handIndex == null && boardId == null;
 
@@ -92,6 +94,9 @@ export function IntentBar({
               type="button"
               className={btnClass(intent)}
               disabled={disabled}
+              data-key-num={keyTags[idx]!.num ?? undefined}
+              data-key-letter={keyTags[idx]!.letter ?? undefined}
+              data-key-tag={keyTags[idx]!.tag || undefined}
               onClick={() =>
                 onChooseReplace && isReplacePlay(intent)
                   ? onChooseReplace(intent.handIndex as number)
