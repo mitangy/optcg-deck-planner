@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type {
   ChatLine,
   Intent,
@@ -68,6 +68,14 @@ import { GameplaySettingsSheet } from "./GameplaySettings";
 import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
 import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
 import { buzz } from "./haptics";
+import {
+  markRotateHintSeen,
+  releaseOrientationLock,
+  rotateHintSeen,
+  shouldShowRotateHint,
+  syncOrientationLock,
+} from "./orientation";
+import { RotateHint } from "./RotateHint";
 import { seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
 import { RematchPanel } from "./RematchPanel";
@@ -369,6 +377,38 @@ export function DuelBoard({
     document.addEventListener("pointerdown", unlock, true);
     return () => document.removeEventListener("pointerdown", unlock, true);
   }, [prefs.turnSound]);
+
+  // Screen orientation setting: lock where the browser allows it, and again
+  // once full screen is entered (Android only allows a lock there).
+  const orientationPref = prefs.screenOrientation;
+  useEffect(() => {
+    void syncOrientationLock(orientationPref);
+  }, [orientationPref, isFullscreen]);
+  useEffect(() => releaseOrientationLock, []);
+
+  // One-time "rotate for bigger cards" toast on a portrait phone.
+  const portraitViewport = useMediaQuery("(orientation: portrait)");
+  const phoneViewport = useMediaQuery("(pointer: coarse) and (max-width: 599px)");
+  const [rotateHintOpen, setRotateHintOpen] = useState(false);
+  const rotateHintDue =
+    view != null &&
+    !over &&
+    shouldShowRotateHint({
+      portrait: portraitViewport,
+      phone: phoneViewport,
+      setting: orientationPref,
+      seen: rotateHintSeen(),
+      hotseat: Boolean(hotseatPass),
+    });
+  useEffect(() => {
+    if (rotateHintDue) {
+      markRotateHintSeen();
+      setRotateHintOpen(true);
+    }
+  }, [rotateHintDue]);
+  // Turning the phone (or picking portrait) puts the hint away.
+  const rotateHintShown = rotateHintOpen && portraitViewport && orientationPref !== "portrait";
+  const closeRotateHint = useCallback(() => setRotateHintOpen(false), []);
 
   // Small haptic tap when a drag lifts a card / DON!!.
   const dragging = dragPayload != null;
@@ -1488,6 +1528,7 @@ export function DuelBoard({
       ) : null}
 
       {/* Fixed overlays (portals) — never participate in board layout. */}
+      {rotateHintShown ? <RotateHint onClose={closeRotateHint} /> : null}
       <TurnSplash message={splash} />
       <AttackIndicator view={over ? null : view} />
       <DragGhost payload={ghostPayload} />

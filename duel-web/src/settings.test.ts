@@ -62,3 +62,18 @@ describe("response stops migration", () => {
     expect("autoPassDefense" in loadSettings()).toBe(false);
   });
 });
+
+describe("screen orientation setting", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps a saved lock and falls back to following the phone otherwise", () => {
+    stubStored({ screenOrientation: "landscape" });
+    expect(loadSettings().screenOrientation).toBe("landscape");
+    stubStored({ screenOrientation: "upside-down" });
+    expect(loadSettings().screenOrientation).toBe("auto");
+    stubStored({});
+    expect(loadSettings().screenOrientation).toBe("auto");
+  });
+});

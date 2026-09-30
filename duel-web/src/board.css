@@ -2839,3 +2839,53 @@
     justify-content: flex-end;
   }
 }
+
+/* —— "Rotate for bigger cards" toast: fixed above the hand, portrait only —— */
+
+.rotate-hint {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  /* Clears the hand rail (159px) and the intent bar (~61px). */
+  bottom: calc(232px + var(--safe-b));
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid var(--chrome);
+  border-radius: 999px;
+  background: rgba(12, 18, 28, 0.96);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rotate-hint-icon {
+  font-size: 1.1rem;
+  color: var(--chrome-bright);
+}
+
+.rotate-hint-close {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.rotate-hint-close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}

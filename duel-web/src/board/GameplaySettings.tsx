@@ -5,7 +5,9 @@ import {
   useDuelSettings,
   type EndTurnConfirm,
   type ResponseStops,
+  type ScreenOrientationPref,
 } from "../settings";
+import { useLockNote } from "./orientation";
 import { playTurnChime } from "./turnAlert";
 
 type Toggle = {
@@ -65,9 +67,16 @@ const RESPONSE_STOP_OPTIONS: { value: ResponseStops; label: string }[] = [
   { value: "smart", label: "Smart: also skip when I can't survive" },
 ];
 
+const ORIENTATION_OPTIONS: { value: ScreenOrientationPref; label: string }[] = [
+  { value: "auto", label: "Follow my phone" },
+  { value: "portrait", label: "Portrait" },
+  { value: "landscape", label: "Landscape" },
+];
+
 /** Gameplay preferences; saved in this browser and applied live. */
 export function GameplaySettingsFields() {
   const settings = useDuelSettings();
+  const lockNote = useLockNote(settings.screenOrientation);
   return (
     <div className="gameplay-settings">
       <div className="field">
@@ -105,6 +114,32 @@ export function GameplaySettingsFields() {
           counter step when all your Counter cards together can't save the attacked card;
           Counter events always stop you. Your opponent may notice a quick pass.
         </p>
+      </div>
+      <div className="field">
+        <label htmlFor="screen-orientation">Screen orientation</label>
+        <select
+          id="screen-orientation"
+          value={settings.screenOrientation}
+          onChange={(e) =>
+            updateSettings({ screenOrientation: e.target.value as ScreenOrientationPref })
+          }
+        >
+          {ORIENTATION_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <p className="field-hint">
+          Locks rotation while a match is open, where the browser allows it (Android, in full
+          screen or when installed).
+        </p>
+        {lockNote ? (
+          <p className="field-hint field-note" role="status">
+            Your browser can&apos;t lock rotation here; turn your phone instead (Android: try Full
+            screen from the ⋯ menu).
+          </p>
+        ) : null}
       </div>
       {TOGGLES.map((t) => (
         <div className="gameplay-toggle" key={t.key}>

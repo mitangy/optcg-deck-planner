@@ -434,3 +434,8 @@
     padding-inline: 0.4rem;
   }
 }
+
+/* Setting note that only appears when a choice cannot take effect. */
+.field-hint.field-note {
+  color: #f0b45a;
+}
