@@ -24,6 +24,7 @@ import {
   downloadTextFile,
   optcgSimFilename,
 } from "./optcgsimExport";
+import { DUEL_URL, duelPlayUrl } from "./duelLink";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
   CardSearchInput,
@@ -490,6 +491,9 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
           </nav>
           <div className="user">
             <BuildTag />
+            <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
+              Play Duel
+            </a>
             <ThemeToggle />
             <span className="user-name" title={user.email}>
               {shortName}
@@ -2905,6 +2909,7 @@ function DeckDetailPage() {
   if (error) return <p className="error">{(error as Error).message}</p>;
   if (!data) return null;
 
+  const duelUrl = duelPlayUrl(data);
   const refresh = () => invalidateOwnedViews(qc);
   const visibleCount = main.length + additional.length + donCards.length;
   const mainCount = data.main_cards ?? progressCards.reduce((s, c) => s + c.needed, 0);
@@ -2950,6 +2955,15 @@ function DeckDetailPage() {
           </div>
         </div>
         <div className="page-head-actions">
+          {duelUrl ? (
+            <a className="btn secondary duel-play-btn" href={duelUrl} target="_blank" rel="noopener">
+              Play in Duel
+            </a>
+          ) : (
+            <span className="btn secondary duel-play-btn" aria-disabled="true" title="Needs a leader and cards">
+              Play in Duel
+            </span>
+          )}
           <HeadPopover label="Share" panelLabel="Share and export" width={360}>
             <div className="head-popover-sections">
               <DeckSharePanel
@@ -3320,6 +3334,9 @@ function PublicSharePage() {
           </div>
           <div className="user">
             <BuildTag />
+            <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
+              Play Duel
+            </a>
             <ThemeToggle />
             <Link className="btn secondary" to="/login">
               Sign in
