@@ -31,6 +31,8 @@ import {
 } from "./dragIntents";
 import { AttackIndicator } from "./AttackIndicator";
 import { describeBattle } from "./battleBanner";
+import { canOfferFullscreen, readInstallEnv } from "../installPrompt";
+import { useScreenWakeLock } from "./wakeLock";
 import { DonAttachConfirm, DragGhost, type GhostPayload } from "./BoardOverlays";
 import {
   attachTargetIds,
@@ -171,6 +173,23 @@ export function DuelBoard({
   const wide = useMediaQuery(WIDE_BOARD_QUERY);
   const [handSorted, setHandSorted] = useState(prefs.sortHandByCost);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const fullscreenOffered = useMemo(() => canOfferFullscreen(readInstallEnv()), []);
+  const [isFullscreen, setIsFullscreen] = useState(
+    () => typeof document !== "undefined" && document.fullscreenElement != null,
+  );
+  useEffect(() => {
+    const sync = () => setIsFullscreen(document.fullscreenElement != null);
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+  function toggleFullscreen() {
+    const request =
+      document.fullscreenElement != null
+        ? document.exitFullscreen()
+        : document.documentElement.requestFullscreen();
+    // Denied (no user gesture, policy): stay windowed.
+    request.catch(() => {});
+  }
   const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
   /** Click-to-attach: DON!! selected + target tapped, awaiting confirm. */
   const [pendingAttach, setPendingAttach] = useState<PendingAttach | null>(null);
@@ -209,6 +228,15 @@ export function DuelBoard({
   }, [handCollapsed, wide, view?.you.hand.length]);
 
   const over = matchOver != null || view?.winner != null;
+  const midlineText = view
+    ? view.pendingChoices?.length
+      ? view.pendingChoices[0].prompt
+      : view.battle
+        ? describeBattle(view, (defId) => lookupCard(defId).name)
+        : null
+    : null;
+  // Screen stays on through the opponent's long turns; released when the match ends.
+  useScreenWakeLock(!over);
   const mySeat = seat ?? view?.seat ?? null;
   const spectating = spectator || Boolean(view?.spectator);
   const result = describeMatchResult({
@@ -772,6 +800,18 @@ export function DuelBoard({
               onConfirm={onConcede}
             />
           ) : null}
+          {fullscreenOffered ? (
+            <button
+              type="button"
+              className="hud-undo-btn hud-settings-btn"
+              aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+              aria-pressed={isFullscreen}
+              title={isFullscreen ? "Exit full screen" : "Full screen"}
+              onClick={toggleFullscreen}
+            >
+              {isFullscreen ? "⤡" : "⛶"}
+            </button>
+          ) : null}
           <button
             type="button"
             className="hud-undo-btn hud-settings-btn"
@@ -885,11 +925,9 @@ export function DuelBoard({
             />
 
             <div className="midline">
-              {Boolean(view.battle || view.pendingChoices?.length) ? (
-                <div className="prompt">
-                  {view.pendingChoices?.length
-                    ? view.pendingChoices[0].prompt
-                    : describeBattle(view, (defId) => lookupCard(defId).name)}
+              {midlineText ? (
+                <div className="prompt" title={midlineText}>
+                  {midlineText}
                 </div>
               ) : (
                 <div className="midline-ornament" aria-hidden>
