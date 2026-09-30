@@ -262,3 +262,24 @@ describe("conditional +cost statics (OP17 Elbaph)", () => {
     expect(powerOf(h.state, 0, jinbe!)).toBe(base + 3000);
   });
 });
+
+describe("turning Life face-up as a cost (OP08-058 Pudding)", () => {
+  it("is not offered when fewer than 2 Life cards are face-down", () => {
+    const h = new Harness({ leaders: ["OP08-058", "ST01-001"] });
+    h.life(0, FILLER, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [true, true, true, false];
+    h.attack(h.state.players[0].leader, "leader");
+    expect(h.choice).toBeUndefined();
+  });
+
+  it("is offered with 2 face-down Life cards and adds a rested DON!!", () => {
+    const h = new Harness({ leaders: ["OP08-058", "ST01-001"] });
+    h.life(0, FILLER, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [true, true, false, false];
+    const before = h.state.players[0].costArea.length;
+    h.attack(h.state.players[0].leader, "leader");
+    h.accept();
+    expect(h.state.players[0].faceUpLife).toEqual([true, true, true, true]);
+    expect(h.state.players[0].costArea.length).toBe(before + 1);
+  });
+});
