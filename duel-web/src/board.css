@@ -1028,6 +1028,13 @@
   min-width: 0;
 }
 
+.card-preview-caption {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--gold, var(--chrome));
+}
+
 .card-preview-name {
   margin: 0;
   font-family: var(--font-display);
