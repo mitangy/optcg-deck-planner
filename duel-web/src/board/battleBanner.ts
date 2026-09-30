@@ -1,9 +1,9 @@
 import type { PlayerView } from "../net/protocol";
 import { battleEndpoints } from "./battleArc";
 
-type BoardCard = { id: string; defId: string; power?: number };
+export type BoardCard = { id: string; defId: string; power?: number };
 
-function findCard(view: PlayerView, id: string): BoardCard | null {
+export function findCard(view: PlayerView, id: string): BoardCard | null {
   for (const side of ["you", "opponent"] as const) {
     const p = view[side];
     if (p.leader.id === id) return p.leader;

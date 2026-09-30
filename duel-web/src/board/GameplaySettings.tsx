@@ -1,11 +1,17 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { updateSettings, useDuelSettings, type EndTurnConfirm } from "../settings";
+import {
+  updateSettings,
+  useDuelSettings,
+  type EndTurnConfirm,
+  type ResponseStops,
+  type ScreenOrientationPref,
+} from "../settings";
+import { useLockNote } from "./orientation";
 import { playTurnChime } from "./turnAlert";
 
 type Toggle = {
   key:
-    | "autoPassDefense"
     | "sortHandByCost"
     | "keepHandOpen"
     | "turnSplash"
@@ -17,11 +23,6 @@ type Toggle = {
 };
 
 const TOGGLES: Toggle[] = [
-  {
-    key: "autoPassDefense",
-    label: "Auto-pass block and counter",
-    hint: "Passes for you when you have no blocker or no counter to use. Your opponent may notice the quick pass.",
-  },
   {
     key: "sortHandByCost",
     label: "Sort hand by cost",
@@ -44,13 +45,13 @@ const TOGGLES: Toggle[] = [
   },
   {
     key: "turnAlert",
-    label: "Buzz when it's your move",
-    hint: "Vibrates on supported phones and marks the browser tab while you're away.",
+    label: "Vibration",
+    hint: "Short buzzes on supported phones (Android) for picking up and dropping cards, incoming attacks and your move. Also marks the browser tab while you're away.",
   },
   {
     key: "turnSound",
-    label: "Chime when it's your move",
-    hint: "A short sound when your turn starts or you need to respond.",
+    label: "Sounds",
+    hint: "A chime when your turn starts or you need to respond, and a lower two-tone cue when you are attacked. Works on iPhone too.",
   },
 ];
 
@@ -60,9 +61,22 @@ const END_TURN_OPTIONS: { value: EndTurnConfirm; label: string }[] = [
   { value: "never", label: "Never ask" },
 ];
 
+const RESPONSE_STOP_OPTIONS: { value: ResponseStops; label: string }[] = [
+  { value: "always", label: "Always stop" },
+  { value: "auto", label: "Auto: skip when I have no answer" },
+  { value: "smart", label: "Smart: also skip when I can't survive" },
+];
+
+const ORIENTATION_OPTIONS: { value: ScreenOrientationPref; label: string }[] = [
+  { value: "auto", label: "Follow my phone" },
+  { value: "portrait", label: "Portrait" },
+  { value: "landscape", label: "Landscape" },
+];
+
 /** Gameplay preferences; saved in this browser and applied live. */
 export function GameplaySettingsFields() {
   const settings = useDuelSettings();
+  const lockNote = useLockNote(settings.screenOrientation);
   return (
     <div className="gameplay-settings">
       <div className="field">
@@ -81,6 +95,51 @@ export function GameplaySettingsFields() {
         <p className="field-hint">
           “Only if I can still act” asks while you have DON!!, an attack or a playable card left.
         </p>
+      </div>
+      <div className="field">
+        <label htmlFor="response-stops">Stop for block and counter</label>
+        <select
+          id="response-stops"
+          value={settings.responseStops}
+          onChange={(e) => updateSettings({ responseStops: e.target.value as ResponseStops })}
+        >
+          {RESPONSE_STOP_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <p className="field-hint">
+          Auto passes for you when you have no blocker or Counter card. Smart also passes the
+          counter step when all your Counter cards together can't save the attacked card;
+          Counter events always stop you. Your opponent may notice a quick pass.
+        </p>
+      </div>
+      <div className="field">
+        <label htmlFor="screen-orientation">Screen orientation</label>
+        <select
+          id="screen-orientation"
+          value={settings.screenOrientation}
+          onChange={(e) =>
+            updateSettings({ screenOrientation: e.target.value as ScreenOrientationPref })
+          }
+        >
+          {ORIENTATION_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <p className="field-hint">
+          Locks rotation while a match is open, where the browser allows it (Android, in full
+          screen or when installed).
+        </p>
+        {lockNote ? (
+          <p className="field-hint field-note" role="status">
+            Your browser can&apos;t lock rotation here; turn your phone instead (Android: try Full
+            screen from the ⋯ menu).
+          </p>
+        ) : null}
       </div>
       {TOGGLES.map((t) => (
         <div className="gameplay-toggle" key={t.key}>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type {
   ChatLine,
   Intent,
@@ -33,18 +33,24 @@ import { AttackIndicator } from "./AttackIndicator";
 import { describeBattle } from "./battleBanner";
 import { canOfferFullscreen, readInstallEnv } from "../installPrompt";
 import { useScreenWakeLock } from "./wakeLock";
-import { DonAttachConfirm, DragGhost, type GhostPayload } from "./BoardOverlays";
+import { DonAttachConfirm, DonQuickRow, DragGhost, type GhostPayload } from "./BoardOverlays";
 import {
   attachTargetIds,
   beginAttach,
+  donIdsForTarget,
+  donQuickAttach,
   nextDonSelection,
   pruneDonSelection,
+  quickAttachCounts,
   resolveAttachIntents,
   type PendingAttach,
 } from "./donSelection";
 import { ChoicePrompt } from "./ChoicePrompt";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { IntentBar } from "./IntentBar";
+import { DefendTray } from "./DefendTray";
+import { deriveDefend } from "./defendModel";
+import { clockFraction, resolveStagedCounters } from "./defendTray";
 import { ReplacePrompt } from "./ReplacePrompt";
 import {
   attackTargetIdsForAttacker,
@@ -57,9 +63,19 @@ import { sortHandIndices } from "./handSort";
 import { useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { useDuelSettings } from "../settings";
-import { endTurnNeedsConfirm, forcedDefensePass } from "./gameplayPrefs";
+import { endTurnNeedsConfirm, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
-import { useTurnAlert } from "./turnAlert";
+import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
+import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
+import { buzz } from "./haptics";
+import {
+  markRotateHintSeen,
+  releaseOrientationLock,
+  rotateHintSeen,
+  shouldShowRotateHint,
+  syncOrientationLock,
+} from "./orientation";
+import { RotateHint } from "./RotateHint";
 import { seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
 import { RematchPanel } from "./RematchPanel";
@@ -318,10 +334,18 @@ export function DuelBoard({
     setReplaceCardId(card.id);
   }
 
-  // Auto-pass: when Pass is the only answer to a block / counter step.
+  // Response stops: pass for you when the setting says there is nothing to decide.
+  const stopMode = prefs.responseStops;
+  const counterOutlook =
+    stopMode === "smart" && view && intents.some((i) => i.type === "pass_counter")
+      ? (() => {
+          const d = deriveDefend(view, intents, { counterIds: [], blockerId: null });
+          return d ? { gap: d.gap, values: d.counters.map((c) => c.value) } : undefined;
+        })()
+      : undefined;
   const autoPass =
-    prefs.autoPassDefense && view && !spectating && !over && !view.pendingChoices?.length
-      ? forcedDefensePass(intents)
+    stopMode !== "always" && view && !spectating && !over && !view.pendingChoices?.length
+      ? responseStopPass(stopMode, intents, counterOutlook)
       : null;
   const autoPassKey =
     autoPass && view
@@ -345,11 +369,86 @@ export function DuelBoard({
     return () => window.clearTimeout(id);
   }, [autoPassKey]);
 
+  // Defend tray: while you answer an attack, the block / counter choices live
+  // in one tray (portrait: in place of the hand, landscape phone: right column).
+  const [stagedCounterIds, setStagedCounterIds] = useState<string[]>([]);
+  const [stagedBlockerId, setStagedBlockerId] = useState<string | null>(null);
+  const defend =
+    view && !spectating && !over && !view.pendingChoices?.length && autoPass == null
+      ? deriveDefend(view, intents, { counterIds: stagedCounterIds, blockerId: stagedBlockerId })
+      : null;
+  const trayHere = defend != null && (!wide || lp);
+  const defendKey =
+    trayHere && view ? `${view.turnNumber}:${defend.phase}:${JSON.stringify(view.battle ?? null)}` : null;
+  useEffect(() => {
+    // A new attack / step (or the tray closing) starts from a clean slate.
+    setStagedCounterIds([]);
+    setStagedBlockerId(null);
+  }, [defendKey]);
+
   // Hotseat hands the device over itself; alerts only matter online.
-  useTurnAlert(!spectating && !over && !hotseatPass && intents.length > 0 && autoPass == null, {
+  const alertsOn = !spectating && !over && !hotseatPass && autoPass == null;
+  // An attack against you has its own cue, so the generic "your move" alert
+  // stays quiet while you are answering one.
+  const attackKey = alertsOn ? incomingAttackKey(view, spectating) : null;
+  useTurnAlert(alertsOn && intents.length > 0 && attackKey == null, {
     buzz: prefs.turnAlert,
     sound: prefs.turnSound,
   });
+  useIncomingAttackCue(attackKey, { sound: prefs.turnSound });
+
+  // iOS only plays sound after one started inside a gesture: unlock on the
+  // first touch of the match so a later cue is allowed to play.
+  useEffect(() => {
+    if (!prefs.turnSound) return;
+    const unlock = () => {
+      unlockAudio();
+      if (audioUnlocked()) document.removeEventListener("pointerdown", unlock, true);
+    };
+    document.addEventListener("pointerdown", unlock, true);
+    return () => document.removeEventListener("pointerdown", unlock, true);
+  }, [prefs.turnSound]);
+
+  // Screen orientation setting: lock where the browser allows it, and again
+  // once full screen is entered (Android only allows a lock there).
+  const orientationPref = prefs.screenOrientation;
+  useEffect(() => {
+    void syncOrientationLock(orientationPref);
+  }, [orientationPref, isFullscreen]);
+  useEffect(() => releaseOrientationLock, []);
+
+  // One-time "rotate for bigger cards" toast on a portrait phone.
+  const portraitViewport = useMediaQuery("(orientation: portrait)");
+  const phoneViewport = useMediaQuery("(pointer: coarse) and (max-width: 599px)");
+  const [rotateHintOpen, setRotateHintOpen] = useState(false);
+  const rotateHintDue =
+    view != null &&
+    !over &&
+    // Wait out an attack: the toast would sit over your field mid-response.
+    defend == null &&
+    shouldShowRotateHint({
+      portrait: portraitViewport,
+      phone: phoneViewport,
+      setting: orientationPref,
+      seen: rotateHintSeen(),
+      hotseat: Boolean(hotseatPass),
+    });
+  useEffect(() => {
+    if (rotateHintDue) {
+      markRotateHintSeen();
+      setRotateHintOpen(true);
+    }
+  }, [rotateHintDue]);
+  // Turning the phone (or picking portrait) puts the hint away.
+  const rotateHintShown =
+    rotateHintOpen && portraitViewport && orientationPref !== "portrait" && defend == null;
+  const closeRotateHint = useCallback(() => setRotateHintOpen(false), []);
+
+  // Small haptic tap when a drag lifts a card / DON!!.
+  const dragging = dragPayload != null;
+  useEffect(() => {
+    if (dragging) buzz("pickup");
+  }, [dragging]);
 
   const dndEnabled = yourTurn && !spectating && !over && !mulliganPhase;
   const costArea = view?.you.costArea ?? [];
@@ -484,6 +583,30 @@ export function DuelBoard({
     );
   }, [dndEnabled, selectedBoardId, intents, view]);
 
+  // Quick attach: a selected Leader / Character that can take DON!! gets a
+  // +1 / +2 / All row (the other flows, drag and multi-select, are unchanged).
+  const quickDonIds =
+    dndEnabled &&
+    !dragPayload &&
+    !donSelectActive &&
+    !replaceOpen &&
+    selectedBoardId &&
+    view &&
+    (view.you.leader.id === selectedBoardId ||
+      view.you.characters.some((c) => c.id === selectedBoardId))
+      ? donIdsForTarget(intents, selectedBoardId)
+      : [];
+  const quickCounts = quickAttachCounts(quickDonIds.length);
+
+  function quickAttach(count: number) {
+    if (!selectedBoardId) return;
+    const toSend = donQuickAttach(intents, selectedBoardId, count);
+    setHandFilter(null);
+    setSelectedBoardId(null);
+    // Sequential client-side intents (no batch protocol), like confirmAttach.
+    for (const intent of toSend) onSendIntent(intent);
+  }
+
   function commitDrop(payload: DragPayload, clientX: number, clientY: number) {
     const drop = findDropTargetAtPoint(clientX, clientY);
     // Sequential client-side intents (no batch protocol) — one give_don per
@@ -501,6 +624,7 @@ export function DuelBoard({
       return;
     }
     if (toSend.length > 0) {
+      buzz("drop");
       setHandFilter(null);
       setSelectedBoardId(null);
       for (const intent of toSend) onSendIntent(intent);
@@ -595,6 +719,13 @@ export function DuelBoard({
         : you.characters.find((c) => c.id === pendingAttach.targetId);
     return card ? lookupCard(card.defId).name : "target";
   })();
+  const quickTargetName = (() => {
+    const card =
+      you.leader.id === selectedBoardId
+        ? you.leader
+        : you.characters.find((c) => c.id === selectedBoardId);
+    return card ? lookupCard(card.defId).name : "card";
+  })();
   const boardSeat: Seat = mySeat ?? view.seat;
   const oppSeat: Seat = boardSeat === 0 ? 1 : 0;
   const viewingSeat: Seat | undefined = spectating ? undefined : boardSeat;
@@ -679,13 +810,68 @@ export function DuelBoard({
     });
   }
 
+  function confirmCounters() {
+    if (!defend) return;
+    const toSend = resolveStagedCounters(intents, you.hand, defend.stagedIds);
+    setStagedCounterIds([]);
+    // Sequential client-side intents, highest hand slot first (see resolveStagedCounters).
+    for (const intent of toSend) onSendIntent(intent);
+  }
+
+  function declareStagedBlocker() {
+    const id = defend?.stagedBlockerId;
+    const intent = intents.find((i) => i.type === "declare_block" && i.blockerId === id);
+    setStagedBlockerId(null);
+    if (intent) onSendIntent(intent);
+  }
+
+  const defendPrimary =
+    trayHere && defend
+      ? defend.phase === "block"
+        ? defend.stagedBlockerId
+          ? {
+              label: `Block with ${defend.blockers.find((b) => b.id === defend.stagedBlockerId)?.name ?? "blocker"}`,
+              onPress: declareStagedBlocker,
+            }
+          : { label: "No block" }
+        : defend.stagedIds.length > 0
+          ? { label: "Confirm counter", onPress: confirmCounters }
+          : { label: defend.remaining === 0 ? "Done" : "Take hit" }
+      : undefined;
+
+  const defendTray =
+    trayHere && defend ? (
+      <DefendTray
+        model={defend}
+        ownerSeat={boardSeat}
+        clock={clockFraction(timer, now, boardSeat)}
+        onToggleBlocker={(id) => setStagedBlockerId((cur) => (cur === id ? null : id))}
+        onToggleCounter={(id) =>
+          setStagedCounterIds((cur) =>
+            cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
+          )
+        }
+        onCounterEvent={(i) => {
+          const intent = defend.events[i]?.intent;
+          if (intent) onSendIntent(intent);
+        }}
+      />
+    ) : null;
+
   const intentPanel = !spectating ? (
     <IntentBar
       intents={(() => {
         const front = view.pendingChoices?.[0];
         // ChoicePrompt / EffectOrderPrompt own every pending-choice answer.
         const structuredOwns = Boolean(front);
-        if (!structuredOwns) return view.legalIntents;
+        if (!structuredOwns) {
+          // The quick row replaces the row of identical "Give DON" buttons.
+          return quickCounts.length > 0
+            ? view.legalIntents.filter(
+                (i) => !(i.type === "give_don" && i.targetId === selectedBoardId),
+              )
+            : view.legalIntents;
+        }
         return view.legalIntents.filter(
           (i) => i.type !== "resolve_pending_choice" && i.type !== "order_pending_effects",
         );
@@ -701,6 +887,8 @@ export function DuelBoard({
         onSendIntent(intent);
       }}
       onChooseReplace={openReplace}
+      defend={defendPrimary}
+      emptyHint={quickCounts.length > 0 ? "Use the DON!! buttons by the card" : undefined}
     />
   ) : (
     <div className="intent-bar">
@@ -1204,6 +1392,7 @@ export function DuelBoard({
               seatClocks={seatClocks}
               compact={lp}
             />
+            {lp ? defendTray : null}
             {intentPanel}
             {railHand ? (
               <section
@@ -1235,40 +1424,42 @@ export function DuelBoard({
           </div>
         ) : (
           <div className="arena-rail">
-            <div className={`hand-rail${handCollapsed ? " collapsed" : ""}`}>
-              <div className="hand-rail-head">
-                <span className="hand-rail-title">{spectating ? "Seat hand (hidden)" : "Hand"}</span>
-                <span className="hand-rail-count">{handCount}</span>
-                {!spectating ? (
-                  <div className="hand-rail-actions">
-                    <button
-                      type="button"
-                      className={`hand-rail-btn${handSorted ? " active" : ""}`}
-                      aria-pressed={handSorted}
-                      onClick={() => setHandSorted((v) => !v)}
-                    >
-                      Sort
-                    </button>
-                    <button
-                      type="button"
-                      className="hand-rail-btn"
-                      onClick={() => {
-                        setHandCollapsed((v) => {
-                          const next = !v;
-                          if (next) setHandFilter(null);
-                          return next;
-                        });
-                      }}
-                    >
-                      {handCollapsed ? "Show" : "Hide"}
-                    </button>
-                  </div>
-                ) : null}
+            {defendTray ?? (
+              <div className={`hand-rail${handCollapsed ? " collapsed" : ""}`}>
+                <div className="hand-rail-head">
+                  <span className="hand-rail-title">{spectating ? "Seat hand (hidden)" : "Hand"}</span>
+                  <span className="hand-rail-count">{handCount}</span>
+                  {!spectating ? (
+                    <div className="hand-rail-actions">
+                      <button
+                        type="button"
+                        className={`hand-rail-btn${handSorted ? " active" : ""}`}
+                        aria-pressed={handSorted}
+                        onClick={() => setHandSorted((v) => !v)}
+                      >
+                        Sort
+                      </button>
+                      <button
+                        type="button"
+                        className="hand-rail-btn"
+                        onClick={() => {
+                          setHandCollapsed((v) => {
+                            const next = !v;
+                            if (next) setHandFilter(null);
+                            return next;
+                          });
+                        }}
+                      >
+                        {handCollapsed ? "Show" : "Hide"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="hand-row" ref={handRowRef}>
+                  <div className="hand-row-inner">{renderHandCards()}</div>
+                </div>
               </div>
-              <div className="hand-row" ref={handRowRef}>
-                <div className="hand-row-inner">{renderHandCards()}</div>
-              </div>
-            </div>
+            )}
 
             {intentPanel}
 
@@ -1395,9 +1586,18 @@ export function DuelBoard({
       ) : null}
 
       {/* Fixed overlays (portals) — never participate in board layout. */}
+      {rotateHintShown ? <RotateHint onClose={closeRotateHint} /> : null}
       <TurnSplash message={splash} />
       <AttackIndicator view={over ? null : view} />
       <DragGhost payload={ghostPayload} />
+      {quickCounts.length > 0 && selectedBoardId ? (
+        <DonQuickRow
+          targetId={selectedBoardId}
+          targetName={quickTargetName}
+          counts={quickCounts}
+          onPick={quickAttach}
+        />
+      ) : null}
       {pendingAttach && dndEnabled ? (
         <DonAttachConfirm
           pending={pendingAttach}

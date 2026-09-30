@@ -4,8 +4,11 @@ import {
   attachLabel,
   attachTargetIds,
   beginAttach,
+  donIdsForTarget,
+  donQuickAttach,
   nextDonSelection,
   pruneDonSelection,
+  quickAttachCounts,
   resolveAttachIntents,
 } from "./donSelection";
 
@@ -80,5 +83,49 @@ describe("attach flow", () => {
 
   it("labels the confirm with the count", () => {
     expect(attachLabel(3)).toBe("Attach 3 DON!!");
+  });
+});
+
+describe("donQuickAttach", () => {
+  const give = (donId: string, targetId: string): Intent => ({ type: "give_don", donId, targetId });
+
+  it("never gives more DON!! than the card can legally take", () => {
+    expect(donQuickAttach(intents, "c1", 5)).toEqual([give("d1", "c1"), give("d2", "c1")]);
+  });
+
+  it("gives exactly the amount asked when enough are available", () => {
+    expect(donQuickAttach(intents, "leader", 2)).toEqual([give("d1", "leader"), give("d2", "leader")]);
+    expect(donQuickAttach(intents, "leader", 1)).toEqual([give("d1", "leader")]);
+  });
+
+  it("does not spend a slot on a DON!! that only fits another card", () => {
+    // d0 can only go to A: asking B for 2 must still find two DON!! for B.
+    const data = [give("d0", "A"), give("d1", "B"), give("d2", "B")];
+    expect(donQuickAttach(data, "B", 2)).toEqual([give("d1", "B"), give("d2", "B")]);
+  });
+
+  it("uses each DON!! once even when it has several legal intents for the card", () => {
+    const data = [give("d1", "A"), give("d1", "A"), give("d2", "A")];
+    expect(donQuickAttach(data, "A", 2)).toEqual([give("d1", "A"), give("d2", "A")]);
+  });
+
+  it("All means every DON!! that is legal for the card", () => {
+    const all = donIdsForTarget(intents, "leader");
+    expect(donQuickAttach(intents, "leader", all.length)).toHaveLength(3);
+  });
+});
+
+describe("quickAttachCounts", () => {
+  it("offers nothing when no DON!! can be given", () => {
+    expect(quickAttachCounts(0)).toEqual([]);
+  });
+
+  it("hides +2 when only one DON!! is available", () => {
+    expect(quickAttachCounts(1)).toEqual([1]);
+  });
+
+  it("only adds All when it means more than +2", () => {
+    expect(quickAttachCounts(2)).toEqual([1, 2]);
+    expect(quickAttachCounts(5)).toEqual([1, 2, 5]);
   });
 });
