@@ -65,6 +65,12 @@ type Options<T> = {
   /** Called after threshold crossed. */
   onDragEnd?: (payload: T, clientX: number, clientY: number) => void;
   onDragCancel?: () => void;
+  /**
+   * touch-action before the drag lifts. Hand rows scroll sideways, so the
+   * default keeps pan-x; a board card that has nowhere to scroll uses "none"
+   * so a sideways attack drag is never taken over by the browser.
+   */
+  idleTouchAction?: "pan-x" | "pan-y" | "none";
 };
 
 /**
@@ -82,6 +88,7 @@ export function usePointerDrag<T>({
   onDragStart,
   onDragEnd,
   onDragCancel,
+  idleTouchAction = "pan-x",
 }: Options<T>) {
   const [dragging, setDragging] = useState(false);
   const suppressClickRef = useRef(false);
@@ -104,6 +111,9 @@ export function usePointerDrag<T>({
     (e: ReactPointerEvent) => {
       if (!enabled) return;
       if (e.button !== 0 && e.pointerType === "mouse") return;
+      // A touch drag ends without a click, so the swallow flag it set would
+      // eat the next real tap. A new press starts a new gesture.
+      suppressClickRef.current = false;
       startRef.current = {
         pointerId: e.pointerId,
         pointerType: e.pointerType,
@@ -202,7 +212,7 @@ export function usePointerDrag<T>({
           onClickCapture,
           // pan-x lets the hand row scroll; switches to none once dragging.
           style: {
-            touchAction: (dragging ? "none" : "pan-x") as "none" | "pan-x",
+            touchAction: dragging ? "none" : idleTouchAction,
           },
         }
       : {},
