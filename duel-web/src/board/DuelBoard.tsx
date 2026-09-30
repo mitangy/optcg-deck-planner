@@ -66,6 +66,8 @@ import { usePlaymatUrl } from "../playmat";
 import { useDuelSettings } from "../settings";
 import { endTurnNeedsConfirm, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
+import { HotkeyHelpSheet } from "./HotkeyHelp";
+import { useBoardHotkeys } from "./useBoardHotkeys";
 import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
 import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
 import { buzz } from "./haptics";
@@ -208,6 +210,7 @@ export function DuelBoard({
   }, [dragPayload, lp]);
   const [handSorted, setHandSorted] = useState(prefs.sortHandByCost);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const fullscreenOffered = useMemo(() => canOfferFullscreen(readInstallEnv()), []);
   const [isFullscreen, setIsFullscreen] = useState(
     () => typeof document !== "undefined" && document.fullscreenElement != null,
@@ -504,6 +507,19 @@ export function DuelBoard({
     // Sequential client-side intents (no batch protocol).
     for (const intent of toSend) onSendIntent(intent);
   }
+
+  useBoardHotkeys({
+    spectating,
+    over,
+    // H only toggles the corner dock; the rail hand is always open.
+    wide: wide && !railHand,
+    onToggleHand: () => {
+      setHandPinned((v) => !v);
+      if (handPinned) setHandFilter(null);
+    },
+    onSortHand: () => setHandSorted((v) => !v),
+    onHelp: () => setHelpOpen(true),
+  });
 
   const donSelectActive = selectedDonIds.size > 0 || pendingAttach != null;
 
@@ -1192,6 +1208,8 @@ export function DuelBoard({
       )}
 
       {settingsOpen ? <GameplaySettingsSheet onClose={() => setSettingsOpen(false)} /> : null}
+
+      {helpOpen ? <HotkeyHelpSheet onClose={() => setHelpOpen(false)} /> : null}
 
       {undoPendingTheirs && undoState?.pending ? (
         <div className="undo-request" role="alertdialog" aria-label="Undo request">
