@@ -8,6 +8,7 @@ import {
   cosmeticBackend,
   coverCropEncoder,
   requestPersistentStorage,
+  shrinkToDataUrl,
   useSlotUrl,
 } from "./cosmetics/browser";
 import { createImageSlot } from "./cosmetics/imageSlot";
@@ -35,6 +36,26 @@ export function savePlaymat(file: File): Promise<void> {
 
 export function clearPlaymat(): Promise<void> {
   return playmatSlot.clear();
+}
+
+/**
+ * Small JPEG data URL of the playmat for the opponent (null when none set).
+ * Sized to the server's relay cap, not the crisp local copy.
+ */
+export async function playmatShareUrl(maxChars: number): Promise<string | null> {
+  const url = await playmatSlot.load();
+  if (!url) return null;
+  return shrinkToDataUrl(
+    url,
+    PLAYMAT_ASPECT,
+    "image/jpeg",
+    [
+      { maxWidth: 1000, quality: 0.72 },
+      { maxWidth: 720, quality: 0.65 },
+      { maxWidth: 480, quality: 0.6 },
+    ],
+    maxChars,
+  ).catch(() => null);
 }
 
 /** Object URL of the uploaded playmat, or null when none is set. */

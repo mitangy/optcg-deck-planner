@@ -3,6 +3,7 @@ import {
   parseChat,
   parseChatHistory,
   parseCosmetics,
+  parseSkin,
   parseError,
   parseMatchOver,
   parsePresence,
@@ -15,6 +16,8 @@ import {
   type ArtPrefsMap,
   type ChatLine,
   type CosmeticsMessage,
+  type SeatSkin,
+  type SkinMessage,
   type DuelCreateOptions,
   type DuelJoinOptions,
   type ErrorMessage,
@@ -46,6 +49,7 @@ export type DuelClientHandlers = {
   onError?: (err: ErrorMessage) => void;
   onMatchOver?: (msg: MatchOverMessage) => void;
   onCosmetics?: (msg: CosmeticsMessage) => void;
+  onSkin?: (msg: SkinMessage) => void;
   onTimer?: (msg: TimerMessage) => void;
   /** New chat lines (a single relay, or the replayed history on join / sync). */
   onChat?: (lines: ChatLine[]) => void;
@@ -311,6 +315,12 @@ export class DuelClient {
     });
   }
 
+  /** Publish this seat's custom playmat / card back for the opponent to see. */
+  sendSkin(skin: SeatSkin) {
+    if (!this.room) return;
+    this.room.send("skin", { protocolVersion: PROTOCOL_VERSION, skin });
+  }
+
   sendChat(text: string) {
     if (!this.room) throw new Error("Not connected");
     this.room.send("chat", { protocolVersion: PROTOCOL_VERSION, text });
@@ -506,6 +516,14 @@ export class DuelClient {
           code: "bad_protocol",
           message: e instanceof Error ? e.message : "Bad cosmetics",
         });
+      }
+    });
+
+    room.onMessage("skin", (raw: unknown) => {
+      try {
+        this.handlers.onSkin?.(parseSkin(raw));
+      } catch {
+        // Cosmetic only — a bad skin never surfaces as a match error.
       }
     });
 

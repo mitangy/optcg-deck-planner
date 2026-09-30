@@ -3,12 +3,34 @@ import { Link } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { UsernameSettings } from "../auth/UsernameSettings";
 import { BuildTag } from "../BuildTag";
-import { cardBackCssValue, clearCardBack, saveCardBack, useCardBackUrl } from "../cardBack";
+import {
+  CARD_BACK_ASPECT,
+  cardBackCssValue,
+  clearCardBack,
+  saveCardBack,
+  useCardBackUrl,
+} from "../cardBack";
+import { ImageEditor } from "../cosmetics/ImageEditor";
 import { getApiBaseUrl, getGameServerUrl } from "../config";
-import { fetchAuthMe, googleLoginUrl, logoutSession, type AuthUser } from "../net/api";
-import { clearPlaymat, savePlaymat, usePlaymatUrl } from "../playmat";
+import {
+  fetchAuthMe,
+  googleLoginUrl,
+  logoutSession,
+  type AuthUser,
+} from "../net/api";
+import {
+  PLAYMAT_ASPECT,
+  clearPlaymat,
+  savePlaymat,
+  usePlaymatUrl,
+} from "../playmat";
 import { GameplaySettingsFields } from "../board/GameplaySettings";
-import { devKeyAllowed, updateSettings, useDuelSettings, type DuelSettings } from "../settings";
+import {
+  devKeyAllowed,
+  updateSettings,
+  useDuelSettings,
+  type DuelSettings,
+} from "../settings";
 import { useDuelSession } from "../state/DuelSession";
 
 export function SettingsPage() {
@@ -23,6 +45,11 @@ export function SettingsPage() {
   const cardBackUrl = useCardBackUrl();
   const [backBusy, setBackBusy] = useState(false);
   const [backError, setBackError] = useState<string | null>(null);
+
+  const [editing, setEditing] = useState<{
+    kind: "playmat" | "cardBack";
+    file: File;
+  } | null>(null);
 
   async function onPlaymatFile(file: File | undefined) {
     if (!file) return;
@@ -64,7 +91,11 @@ export function SettingsPage() {
     <div className="app-shell">
       <div className="page page-narrow">
         <header className="page-header">
-          <Link to="/" className="btn btn-ghost btn-sm page-back" aria-label="Back to home">
+          <Link
+            to="/"
+            className="btn btn-ghost btn-sm page-back"
+            aria-label="Back to home"
+          >
             ← Home
           </Link>
           <h1 className="page-title">Settings</h1>
@@ -75,7 +106,8 @@ export function SettingsPage() {
           {authUser ? (
             <>
               <p className="panel-copy">
-                Signed in as <strong>{authUser.email}</strong>. Ranked rating follows this account.
+                Signed in as <strong>{authUser.email}</strong>. Ranked rating
+                follows this account.
               </p>
               <UsernameSettings user={authUser} onChange={setAuthUser} />
               <div className="btn-row">
@@ -96,7 +128,8 @@ export function SettingsPage() {
           ) : (
             <>
               <p className="panel-copy">
-                Playing as a guest (<code>{getOrCreateGuestId().slice(0, 10)}…</code>, stable in
+                Playing as a guest (
+                <code>{getOrCreateGuestId().slice(0, 10)}…</code>, stable in
                 this browser). Sign in to keep your rating across devices.
               </p>
               <div className="btn-row">
@@ -137,7 +170,9 @@ export function SettingsPage() {
 
         <section className="panel">
           <h2 className="panel-title">Gameplay</h2>
-          <p className="field-hint">Also under ⚙ during a match. Saved in this browser.</p>
+          <p className="field-hint">
+            Also under ⚙ during a match. Saved in this browser.
+          </p>
           <GameplaySettingsFields />
         </section>
 
@@ -148,7 +183,7 @@ export function SettingsPage() {
             style={
               playmatUrl
                 ? {
-                    backgroundImage: `linear-gradient(rgba(5, 10, 14, ${settings.playmatDim}), rgba(5, 10, 14, ${settings.playmatDim})), url("${playmatUrl}")`,
+                    backgroundImage: `linear-gradient(rgba(5, 10, 14, ${settings.playmatDim}), rgba(5, 10, 14, ${settings.playmatDim})), linear-gradient(rgba(14, 34, 48, ${1 - settings.playmatOpacity}), rgba(14, 34, 48, ${1 - settings.playmatOpacity})), url("${playmatUrl}")`,
                   }
                 : undefined
             }
@@ -157,8 +192,9 @@ export function SettingsPage() {
             {!playmatUrl ? <span>Default playmat</span> : null}
           </div>
           <p className="field-hint">
-            Official playmats are 24 × 14 in (12:7). Other sizes are center-cropped to fit.
-            Shown on your side of the board; stored only in this browser.
+            Official playmats are 24 × 14 in (12:7). You can crop, rotate and
+            flip after choosing an image. Shown on your side of the board;
+            stored only in this browser.
           </p>
           <div className="btn-row">
             <label className={`btn btn-secondary${matBusy ? " is-busy" : ""}`}>
@@ -168,11 +204,16 @@ export function SettingsPage() {
                 className="visually-hidden"
                 disabled={matBusy}
                 onChange={(e) => {
-                  void onPlaymatFile(e.target.files?.[0]);
+                  const f = e.target.files?.[0];
+                  if (f) setEditing({ kind: "playmat", file: f });
                   e.target.value = "";
                 }}
               />
-              {matBusy ? "Processing…" : playmatUrl ? "Replace image" : "Upload image"}
+              {matBusy
+                ? "Processing…"
+                : playmatUrl
+                  ? "Replace image"
+                  : "Upload image"}
             </label>
             {playmatUrl ? (
               <button
@@ -202,6 +243,23 @@ export function SettingsPage() {
               />
             </div>
           ) : null}
+          {playmatUrl ? (
+            <div className="field">
+              <label htmlFor="mat-opacity">
+                Art transparency · {Math.round((1 - settings.playmatOpacity) * 100)}%
+              </label>
+              <input
+                id="mat-opacity"
+                type="range"
+                className="range"
+                min={0}
+                max={0.8}
+                step={0.05}
+                value={1 - settings.playmatOpacity}
+                onChange={(e) => update({ playmatOpacity: 1 - Number(e.target.value) })}
+              />
+            </div>
+          ) : null}
           {matError ? <p className="error-text">{matError}</p> : null}
         </section>
 
@@ -218,23 +276,33 @@ export function SettingsPage() {
             />
             <div className="card-back-settings-body">
               <p className="field-hint">
-                {cardBackUrl ? "Custom card back." : "Official ONE PIECE CARD GAME back."} Shown
-                on your deck and Life cards; opponents see the official back. Other sizes are
-                center-cropped to 63 × 88. Stored only in this browser.
+                {cardBackUrl
+                  ? "Custom card back."
+                  : "Official ONE PIECE CARD GAME back."}{" "}
+                Shown on your deck and Life cards; opponents see the official
+                back. Crop, rotate and flip after choosing an image. Stored only
+                in this browser.
               </p>
               <div className="btn-row">
-                <label className={`btn btn-secondary${backBusy ? " is-busy" : ""}`}>
+                <label
+                  className={`btn btn-secondary${backBusy ? " is-busy" : ""}`}
+                >
                   <input
                     type="file"
                     accept="image/*"
                     className="visually-hidden"
                     disabled={backBusy}
                     onChange={(e) => {
-                      void onCardBackFile(e.target.files?.[0]);
+                      const f = e.target.files?.[0];
+                      if (f) setEditing({ kind: "cardBack", file: f });
                       e.target.value = "";
                     }}
                   />
-                  {backBusy ? "Processing…" : cardBackUrl ? "Replace image" : "Upload image"}
+                  {backBusy
+                    ? "Processing…"
+                    : cardBackUrl
+                      ? "Replace image"
+                      : "Upload image"}
                 </label>
                 {cardBackUrl ? (
                   <button
@@ -274,7 +342,9 @@ export function SettingsPage() {
                 Reset
               </button>
             </div>
-            <p className="field-hint">Leave blank to use the default ({defaultServer}).</p>
+            <p className="field-hint">
+              Leave blank to use the default ({defaultServer}).
+            </p>
           </div>
 
           <div className="field">
@@ -295,13 +365,32 @@ export function SettingsPage() {
         <section className="panel panel-quiet">
           <h2 className="panel-title">About</h2>
           <p className="panel-copy">
-            Private prototype. Rules engine and card effects are a work in progress.
+            Private prototype. Rules engine and card effects are a work in
+            progress.
           </p>
           <p className="field-hint">
             Build <BuildTag />
           </p>
         </section>
       </div>
+      {editing ? (
+        <ImageEditor
+          file={editing.file}
+          aspect={
+            editing.kind === "playmat" ? PLAYMAT_ASPECT : CARD_BACK_ASPECT
+          }
+          title={editing.kind === "playmat" ? "Edit playmat" : "Edit card back"}
+          outputWidth={editing.kind === "playmat" ? 2400 : 630}
+          onCancel={() => setEditing(null)}
+          onApply={(blob) => {
+            const kind = editing.kind;
+            setEditing(null);
+            const file = new File([blob], "edited.png", { type: blob.type });
+            if (kind === "playmat") void onPlaymatFile(file);
+            else void onCardBackFile(file);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

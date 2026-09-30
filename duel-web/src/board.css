@@ -132,6 +132,7 @@
 .arena .side-field.has-mat-art {
   background:
     linear-gradient(rgba(5, 10, 14, var(--mat-dim, 0.35)), rgba(5, 10, 14, var(--mat-dim, 0.35))),
+    linear-gradient(rgba(14, 34, 48, var(--mat-veil, 0)), rgba(14, 34, 48, var(--mat-veil, 0))),
     var(--mat-art) center / cover no-repeat,
     #0e2230;
 }
@@ -166,6 +167,7 @@
   pointer-events: none;
   background:
     linear-gradient(rgba(5, 10, 14, var(--mat-dim, 0.35)), rgba(5, 10, 14, var(--mat-dim, 0.35))),
+    linear-gradient(rgba(14, 34, 48, var(--mat-veil, 0)), rgba(14, 34, 48, var(--mat-veil, 0))),
     var(--mat-art) center / cover no-repeat;
   transform: rotate(180deg);
 }

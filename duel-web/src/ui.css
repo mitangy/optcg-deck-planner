@@ -995,6 +995,58 @@ label.btn.is-busy {
   accent-color: var(--chrome);
 }
 
+/* —— Playmat / card back image editor —— */
+.img-editor-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(3, 8, 12, 0.78);
+  overflow-y: auto;
+}
+
+.img-editor {
+  width: min(560px, 100%);
+  max-height: 100dvh;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--panel, #12202b);
+}
+
+.img-editor-frame {
+  width: 100%;
+  /* Cap height so tall card-back frames fit small screens. */
+  max-height: 55dvh;
+  margin-inline: auto;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: repeating-conic-gradient(#1a2a36 0% 25%, #12202b 0% 50%) 0 0 / 16px 16px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.img-editor-frame:active {
+  cursor: grabbing;
+}
+
+.img-editor-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.img-editor-actions {
+  justify-content: flex-end;
+}
+
 /* —— Keyboard shortcut help —— */
 
 .kbd {

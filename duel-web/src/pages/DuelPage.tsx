@@ -30,6 +30,7 @@ export function DuelPage() {
     undo,
     sendUndo,
     awayUntil,
+    seatSkins,
     rematch,
     sendRematch,
   } = useDuelSession();
@@ -84,6 +85,7 @@ export function DuelPage() {
         undo={role === "player" ? { state: undo, onAction: sendUndo } : undefined}
         onSendIntent={sendIntent}
         rematch={role === "player" ? { state: rematch, onAction: sendRematch } : undefined}
+        seatSkins={seatSkins}
         opponentAwayUntil={seat === 0 || seat === 1 ? awayUntil[seat === 0 ? 1 : 0] : null}
         onLeave={() => {
           void leave();

@@ -38,6 +38,8 @@ module.exports = {
     { id: "queue-same-seat", file: queue, from: "            roomId: room.roomId,\n            seat: 1,", to: "            roomId: room.roomId,\n            seat: 0,", kills: ["ranked_queue pairs two clients"] },
     { id: "queue-pairs-same-user", file: queue, from: "        const partnerIdx = this.queue.findIndex((q) => q.userId !== a.userId);", to: "        const partnerIdx = 0;", kills: ["ranked_queue skips same-user pair"] },
     { id: "cosmetics-not-relayed", file: room, from: "    this.broadcast(\"cosmetics\", payload);", to: "    client.send(\"cosmetics\", payload);", kills: ["relays cosmetics artPrefs between seats"] },
+    { id: "skin-not-relayed", file: room, from: "    this.broadcast(\"skin\", payload);", to: "    client.send(\"skin\", payload);", kills: ["relays a seat's playmat / card back skin"] },
+    { id: "skin-any-mime", file: proto, from: "^data:image\\/(?:jpeg|webp|png);base64,", to: "^data:[a-z]+\\/[a-z]+;base64,", kills: ["relays a seat's playmat / card back skin"] },
     { id: "presence-room-unregistered", file: room, from: "    presence.register(this);\n", to: "", kills: ["friends presence: reports seats as waiting"] },
     { id: "presence-waiting-as-playing", file: room, from: "    const phase: PresenceEntry[\"phase\"] = !this.matchStarted\n      ? \"waiting\"", to: "    const phase: PresenceEntry[\"phase\"] = !this.matchStarted\n      ? \"playing\"", kills: ["friends presence: reports seats as waiting"] },
     { id: "presence-spectator-as-player", file: room, from: "role: \"spectator\", phase", to: "role: \"player\", phase", kills: ["friends presence: reports seats as waiting"] },

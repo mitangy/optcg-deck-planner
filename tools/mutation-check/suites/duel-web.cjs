@@ -249,6 +249,12 @@ module.exports = {
     { id: "status-icons-case-sensitive", file: `${src}/board/statusIcons.ts`, from: "    .toLowerCase()\n", to: "", kills: ["matches loosely on case, spacing and apostrophe style"] },
     { id: "status-icons-curly-apostrophe", file: `${src}/board/statusIcons.ts`, from: "    .replace(/[\\u2018\\u2019]/g, \"'\")\n", to: "", kills: ["matches loosely on case, spacing and apostrophe style"] },
     { id: "status-icons-colon-spacing", file: `${src}/board/statusIcons.ts`, from: "    .replace(/\\s*:\\s*/g, \": \")\n", to: "", kills: ["matches loosely on case, spacing and apostrophe style"] },
+    { id: "crop-cover-ignores-rotation", file: `${src}/cosmetics/cropTransform.ts`, from: "return rot % 2 === 0 ? { w, h } : { w: h, h: w };", to: "return { w, h };", kills: ["covers the frame using the rotated image size", "clamps panning"] },
+    { id: "crop-pan-unclamped", file: `${src}/cosmetics/cropTransform.ts`, from: "panX: Math.min(maxX, Math.max(-maxX, panX)),", to: "panX,", kills: ["clamps panning so no empty frame edge shows"] },
+    { id: "crop-pan-no-slack-at-cover", file: `${src}/cosmetics/cropTransform.ts`, from: "const maxY = Math.max(0, (r.h * s - frameH) / 2);", to: "const maxY = Math.abs((r.h * s - frameH) / 2) + 1;", kills: ["allows no pan on an axis the image only just covers"] },
+    { id: "skin-accepts-any-mime", file: `${src}/net/protocol.ts`, from: "^data:image\\/(?:jpeg|webp|png);base64,", to: "^data:[a-z]+\\/[a-z]+;base64,", kills: ["drops anything that is not a small image data URL"] },
+    { id: "skin-no-size-cap", file: `${src}/net/protocol.ts`, from: "raw.length <= maxChars && ", to: "", kills: ["drops anything that is not a small image data URL"] },
+    { id: "skin-wrong-seat", file: `${src}/net/protocol.ts`, from: "    seat: o.seat,\n    skin: {", to: "    seat: 0,\n    skin: {", kills: ["keeps image data URLs and the seat"] },
     // card motion cues (BoardMotion)
     { id: "motion-life-cards-read-as-draws", file: `${src}/board/motionCues.ts`, from: "  const fromLife = Math.min(arrivals, lifeDrop);", to: "  const fromLife = 0;", kills: ["sends a new hand card from life"] },
     { id: "motion-draws-ignored", file: `${src}/board/motionCues.ts`, from: "    const fromDeck = Math.min(arrivals - fromLife, deckDrop);", to: "    const fromDeck = 0;", kills: ["names the drawn card", "counts opponent draws"] },

@@ -10,6 +10,7 @@ import {
   cosmeticBackend,
   coverCropEncoder,
   requestPersistentStorage,
+  shrinkToDataUrl,
   useSlotUrl,
 } from "./cosmetics/browser";
 import { createImageSlot } from "./cosmetics/imageSlot";
@@ -41,6 +42,23 @@ export function saveCardBack(file: File): Promise<void> {
 
 export function clearCardBack(): Promise<void> {
   return cardBackSlot.clear();
+}
+
+/** Small WebP data URL of the card back for the opponent (null when none set). */
+export async function cardBackShareUrl(maxChars: number): Promise<string | null> {
+  const url = await cardBackSlot.load();
+  if (!url) return null;
+  return shrinkToDataUrl(
+    url,
+    CARD_BACK_ASPECT,
+    "image/webp",
+    [
+      { maxWidth: 300, quality: 0.8 },
+      { maxWidth: 200, quality: 0.7 },
+      { maxWidth: 140, quality: 0.6 },
+    ],
+    maxChars,
+  ).catch(() => null);
 }
 
 /** Object URL of the uploaded card back, or null when using the official one. */

@@ -131,6 +131,35 @@ export function coverCropEncoder(aspect: number, mime: string) {
   };
 }
 
+/**
+ * Downscale a stored image to a small data URL that fits `maxChars`, trying
+ * each step in order. Used to share custom art with the opponent.
+ */
+export async function shrinkToDataUrl(
+  srcUrl: string,
+  aspect: number,
+  mime: string,
+  ladder: readonly EncodeStep[],
+  maxChars: number,
+): Promise<string | null> {
+  const blob = await (await fetch(srcUrl)).blob();
+  const img = await loadImage(blob);
+  for (const step of ladder) {
+    const { sx, sy, sw, sh } = coverCropRect(img.naturalWidth, img.naturalHeight, aspect);
+    const { width, height } = outputSize(sw, aspect, step.maxWidth);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
+    const url = canvas.toDataURL(mime, step.quality);
+    if (url.length <= maxChars) return url;
+  }
+  return null;
+}
+
 /** Current URL for a slot (null when none), kept in sync across the app. */
 export function useSlotUrl(slot: ImageSlot): string | null {
   const [url, setUrl] = useState<string | null>(slot.current() ?? null);
