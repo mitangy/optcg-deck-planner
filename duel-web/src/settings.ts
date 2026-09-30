@@ -21,6 +21,8 @@ export type DuelSettings = {
   devUserKey: string;
   /** Darkening over custom playmat art (0–0.8) so cards stay legible. */
   playmatDim: number;
+  /** Playmat art opacity (0.2–1); lower fades the art toward the plain mat. */
+  playmatOpacity: number;
 
   // —— Gameplay ——
   /** Second tap before ending the turn: always, only while you can still act, or never. */
@@ -49,6 +51,7 @@ const DEFAULTS: DuelSettings = {
   useDevKey: false,
   devUserKey: "web-dev",
   playmatDim: 0.35,
+  playmatOpacity: 1,
   endTurnConfirm: "always",
   autoPassDefense: false,
   sortHandByCost: false,

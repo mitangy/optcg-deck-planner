@@ -217,6 +217,7 @@ export function DuelBoard({
   const playmatUrl = usePlaymatUrl();
   const cardBackUrl = useCardBackUrl();
   const playmatDim = prefs.playmatDim;
+  const playmatOpacity = prefs.playmatOpacity;
 
   // Changing a setting mid-match applies it straight away.
   useEffect(() => setHandPinned(prefs.keepHandOpen), [prefs.keepHandOpen]);
@@ -1062,6 +1063,7 @@ export function DuelBoard({
               matImageUrl={oppMatUrl}
               cardBackUrl={oppCardBackUrl}
               matDim={playmatDim}
+              matOpacity={playmatOpacity}
               ownerSeat={oppSeat}
               viewingSeat={viewingSeat}
               data={{
@@ -1101,6 +1103,7 @@ export function DuelBoard({
               activeTurn={youActive}
               matImageUrl={playmatUrl}
               matDim={playmatDim}
+              matOpacity={playmatOpacity}
               cardBackUrl={cardBackUrl}
               ownerSeat={boardSeat}
               viewingSeat={viewingSeat}

@@ -183,7 +183,7 @@ export function SettingsPage() {
             style={
               playmatUrl
                 ? {
-                    backgroundImage: `linear-gradient(rgba(5, 10, 14, ${settings.playmatDim}), rgba(5, 10, 14, ${settings.playmatDim})), url("${playmatUrl}")`,
+                    backgroundImage: `linear-gradient(rgba(5, 10, 14, ${settings.playmatDim}), rgba(5, 10, 14, ${settings.playmatDim})), linear-gradient(rgba(14, 34, 48, ${1 - settings.playmatOpacity}), rgba(14, 34, 48, ${1 - settings.playmatOpacity})), url("${playmatUrl}")`,
                   }
                 : undefined
             }
@@ -240,6 +240,23 @@ export function SettingsPage() {
                 step={0.05}
                 value={settings.playmatDim}
                 onChange={(e) => update({ playmatDim: Number(e.target.value) })}
+              />
+            </div>
+          ) : null}
+          {playmatUrl ? (
+            <div className="field">
+              <label htmlFor="mat-opacity">
+                Art transparency · {Math.round((1 - settings.playmatOpacity) * 100)}%
+              </label>
+              <input
+                id="mat-opacity"
+                type="range"
+                className="range"
+                min={0}
+                max={0.8}
+                step={0.05}
+                value={1 - settings.playmatOpacity}
+                onChange={(e) => update({ playmatOpacity: 1 - Number(e.target.value) })}
               />
             </div>
           ) : null}

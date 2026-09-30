@@ -72,6 +72,8 @@ type Props = {
   matImageUrl?: string | null;
   /** Darkening over custom art, 0–0.8. */
   matDim?: number;
+  /** Art opacity, 0.2–1 (1 = solid art). */
+  matOpacity?: number;
   /** Turn order tag shown on the mat edge ("1st" / "2nd"). */
   turnOrder?: "first" | "second";
   /** Custom card back (object URL) for face-down cards on this half. */
@@ -159,6 +161,7 @@ export function SideField({
   viewingSeat,
   matImageUrl,
   matDim = 0.35,
+  matOpacity = 1,
   turnOrder,
   cardBackUrl,
   activeTurn = false,
@@ -192,7 +195,9 @@ export function SideField({
         matImageUrl || cardBackUrl
           ? ({
               ...(matImageUrl
-                ? { "--mat-art": `url("${matImageUrl}")`, "--mat-dim": String(matDim) }
+                ? { "--mat-art": `url("${matImageUrl}")`, "--mat-dim": String(matDim),
+                    "--mat-veil": String(Math.max(0, 1 - matOpacity)),
+                  }
                 : null),
               ...(cardBackUrl ? { "--card-back-art": cardBackCssValue(cardBackUrl) } : null),
             } as CSSProperties)
