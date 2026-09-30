@@ -4740,3 +4740,24 @@ button.ghost.scan-open:hover {
     white-space: nowrap;
   }
 }
+
+/* "Play in Duel" link in deck page head: never wraps inside the pill. */
+.page-head-actions .duel-play-btn {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.page-head-actions .duel-play-btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .page-head-actions {
+    flex-wrap: wrap;
+  }
+
+  .page-head-actions .duel-play-btn {
+    flex: 1 1 100%;
+  }
+}
