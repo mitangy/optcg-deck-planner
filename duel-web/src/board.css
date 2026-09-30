@@ -375,6 +375,12 @@
   font-size: clamp(0.45rem, calc(var(--c) * 0.1), 0.64rem);
 }
 
+/* Sit the status row right on the caption, which grows with --c (about 22px
+   on phone tiles, 27px on desktop), so it never overlaps the name. */
+.arena .side-field .card-tile:not(.rested) .status-chips {
+  bottom: clamp(21px, calc(var(--c) * 0.15 + 14px), 30px);
+}
+
 .arena .side-field .power-badge,
 .arena .side-field .don-badge {
   font-size: clamp(0.48rem, calc(var(--c) * 0.1), 0.7rem);

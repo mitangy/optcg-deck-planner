@@ -461,6 +461,38 @@ function withRestedField(base: PlayerView, params: URLSearchParams): PlayerView 
 }
 
 /**
+ * `?statuses`: stacks several status icons on both leaders and a few
+ * Characters (one buffed + DON!!, one rested), to check the badge corner
+ * against the power / DON!! stack and the name caption.
+ */
+function withManyStatuses(base: PlayerView): PlayerView {
+  const many = ["Blocker", "Rush", "Double Attack", "Banish", "Unblockable"];
+  const tag = (c: CardView, labels: string[]): CardView => ({
+    ...c,
+    statusLabels: [...(c.statusLabels ?? []), ...labels],
+  });
+  const [c1, c2, c3, ...rest] = base.you.characters;
+  return {
+    ...base,
+    you: {
+      ...base.you,
+      leader: tag(base.you.leader, ["Double Attack", "Banish", "Unblockable"]),
+      characters: [
+        tag(c1, many),
+        tag(c2, ["Blocker", "Cannot attack"]),
+        tag({ ...c3, attachedDonCount: 2 }, many.slice(0, 3)),
+        ...rest,
+      ],
+    },
+    opponent: {
+      ...base.opponent,
+      leader: tag(base.opponent.leader, ["Blocker", "Won't refresh"]),
+      characters: base.opponent.characters.map((c) => tag(c, ["Blocker", "Rush"])),
+    },
+  };
+}
+
+/**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
  * state (`&first=1` makes the opponent go first), `?practice` hotseat chrome
  * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
@@ -468,7 +500,8 @@ function withRestedField(base: PlayerView, params: URLSearchParams): PlayerView 
  * `?oppturn` the opponent's turn, `?clock` per-player clocks, `?away` a
  * disconnected opponent, `?over` the match-over screen with a rematch vote
  * (`&rematch=ask|wait|choose|left`), `?full` a full board, `?rest=N` / `?restlead` /
- * `?oppfull` rested cards (see withRestedField), `?motion` a button that steps
+ * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
+ * icons (see withManyStatuses), `?motion` a button that steps
  * through every card animation. Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {
@@ -478,7 +511,8 @@ export function DemoPage() {
     (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW,
     params,
   );
-  const board = withRestedField(params.has("full") ? withFullBoard(base) : base, params);
+  const field = withRestedField(params.has("full") ? withFullBoard(base) : base, params);
+  const board = params.has("statuses") ? withManyStatuses(field) : field;
   const withTurn: PlayerView = params.has("oppturn") ? { ...board, activeSeat: 1 } : board;
   const view: PlayerView = params.has("turn0")
     ? {
