@@ -264,7 +264,7 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     cardDefId: "OP15-066",
     sourceInstanceId: "y-c1",
     optional: false,
-    prompt: "Satori — look at the top 2 cards, then place each remaining card at the top or bottom of the deck.",
+    prompt: "Satori — look at the top 2 cards, then place the rest all at the top or all at the bottom of the deck.",
     privateToSeat: 0,
     optionCount: 2,
     request: {
@@ -274,7 +274,7 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
       maxSelect: 0,
       groups: [],
       rest: "top_or_bottom",
-      restLabel: "place each remaining card at the top or bottom of the deck",
+      restLabel: "place the rest all at the top or all at the bottom of the deck",
     },
   }),
   rest: demoChoice({

@@ -64,3 +64,11 @@ export function mergeArrangement(full: Arrangement, visible: Arrangement, hidden
 export function arrangementAnswer(a: Arrangement): { orderedOptionIds: string[]; topOptionIds: string[] } {
   return { orderedOptionIds: [...a.top, ...a.bottom], topOptionIds: [...a.top] };
 }
+
+/**
+ * Answer for "place the rest at the top or bottom": the cards move together,
+ * so every card is on top or none is.
+ */
+export function groupAnswer(ids: string[], side: "top" | "bottom"): { orderedOptionIds: string[]; topOptionIds: string[] } {
+  return { orderedOptionIds: [...ids], topOptionIds: side === "top" ? [...ids] : [] };
+}

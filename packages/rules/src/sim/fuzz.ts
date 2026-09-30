@@ -52,7 +52,7 @@ export function randomAnswer(rng: Rng, choice: PendingChoice): Intent {
     }
     case "order": {
       const ids = shuffleIds(rng, r.options.map((o) => o.id));
-      return { type: "resolve_pending_choice", accept: true, orderedOptionIds: ids, ...(r.allowTopOrBottom ? { topOptionIds: ids.filter(() => rng.next() < 0.5) } : {}) };
+      return { type: "resolve_pending_choice", accept: true, orderedOptionIds: ids, ...(r.allowTopOrBottom ? { topOptionIds: rng.next() < 0.5 ? ids : [] } : {}) };
     }
     case "look": {
       const picked: string[] = [];
@@ -62,7 +62,7 @@ export function randomAnswer(rng: Rng, choice: PendingChoice): Intent {
         if (g >= 0 && rng.next() < 0.8) { capacity[g]! -= 1; picked.push(o); }
       }
       const rest = shuffleIds(rng, r.options.map((o) => o.id).filter((id) => !picked.includes(id)));
-      return { type: "resolve_pending_choice", accept: true, selectedOptionIds: picked, orderedOptionIds: rest, ...(r.rest === "top_or_bottom" ? { topOptionIds: rest.filter(() => rng.next() < 0.5) } : {}) };
+      return { type: "resolve_pending_choice", accept: true, selectedOptionIds: picked, orderedOptionIds: rest, ...(r.rest === "top_or_bottom" ? { topOptionIds: rng.next() < 0.5 ? rest : [] } : {}) };
     }
   }
 }
