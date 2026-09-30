@@ -1678,6 +1678,18 @@
   }
 }
 
+/* Small phones: the hint row and the Battle log pill share one line, and up to
+   eight backs ran into the pill. Fan the backs so the row stays short. */
+@media (max-width: 360px) {
+  .arena .opp-hand-hint {
+    gap: 0.35rem;
+  }
+
+  .arena .opp-hand-hint .card-back + .card-back {
+    margin-left: -0.3rem;
+  }
+}
+
 /* —— Portrait phones / tablets: 6-column mats that fill the width —— */
 
 /* Two stacked 12:7 mats are width-bound in portrait, so drop the empty 7th
@@ -2260,6 +2272,18 @@
   letter-spacing: 0.03em;
   white-space: nowrap;
   color: var(--muted);
+  /* Phone option columns are narrower than "Summoning sick": wrap, don't spill. */
+  max-width: 100%;
+}
+@media (max-width: 640px) {
+  .choice-readiness {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.15;
+    border-radius: 0.6rem;
+    padding: 0.05rem 0.25rem;
+    letter-spacing: 0;
+  }
 }
 
 .choice-readiness-can-attack,
@@ -2293,6 +2317,16 @@
 
 .confirm-btn-sizer > .is-hidden {
   visibility: hidden;
+}
+
+/* The primary slot is a fixed share of a phone-wide bar, narrower than
+   "Tap again to end" on one line: wrap inside the button, don't spill out. */
+.intent-btn-primary .confirm-btn-sizer {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.15;
+  align-items: center;
 }
 
 /* The armed End turn names what is left (DON!!, attackers) only where the rail

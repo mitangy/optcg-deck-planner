@@ -2,8 +2,9 @@
 /**
  * Layout smoke check for the /demo board. Starts nothing: point it at a running
  * server (`vite preview`), and it screenshots the page at desktop and phone
- * sizes and fails (exit 1) on sideways scroll, page errors, or a squeezed
- * playmat card.
+ * sizes and fails (exit 1) on sideways scroll, page errors, a squeezed
+ * playmat card, a primary button whose label spills out of it, or (phones) a
+ * put-back-to-deck prompt wider than itself.
  *
  *   node scripts/layout-check.mjs [baseUrl] [outDir]
  *
@@ -22,8 +23,17 @@ const VIEWPORTS = [
   { name: "desktop-1280x720", width: 1280, height: 720, minCard: 40 },
   { name: "desktop-1920x1080", width: 1920, height: 1080, minCard: 40 },
   { name: "zoom150-960x600", width: 960, height: 600, minCard: 40 },
-  { name: "phone-375x812", width: 375, height: 812, minCard: 30 },
+  { name: "phone-375x812", width: 375, height: 812, minCard: 30, phone: true },
+  { name: "phone-landscape-812x375", width: 812, height: 375, minCard: 30, phone: true },
 ];
+
+/** Horizontal overflow of the first `selector` match, in CSS px (0 when it fits or is absent). */
+function overflowOf(page, selector) {
+  return page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    return el ? Math.max(0, el.scrollWidth - el.clientWidth) : 0;
+  }, selector);
+}
 
 mkdirSync(outDir, { recursive: true });
 const browser = await chromium.launch({
@@ -60,6 +70,16 @@ for (const vp of VIEWPORTS) {
     if (narrowest < vp.minCard) {
       problems.push(`playmat card ${narrowest.toFixed(1)}px wide, floor ${vp.minCard}px`);
     }
+  }
+  const primarySpill = await overflowOf(page, ".intent-btn-primary");
+  if (primarySpill > 1) problems.push(`primary button label spills ${primarySpill}px past the button`);
+  if (vp.phone) {
+    // A long card name in the Top / Bottom rows must not widen the prompt.
+    await page.goto(`${baseUrl}/demo?prompt=satori`, { waitUntil: "networkidle" });
+    await page.waitForSelector(".choice-prompt .order-row", { timeout: 15000 }).catch(() => {});
+    const promptSpill = await overflowOf(page, ".choice-prompt");
+    if (promptSpill > 1) problems.push(`deck-order prompt ${promptSpill}px wider than itself`);
+    await page.screenshot({ path: join(outDir, `${vp.name}-deck-order.png`) });
   }
   const narrow = m.cardWidths.length ? `${Math.min(...m.cardWidths).toFixed(0)}px` : "n/a";
   console.log(

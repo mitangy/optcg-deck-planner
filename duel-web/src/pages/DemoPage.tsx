@@ -269,7 +269,8 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     optionCount: 2,
     request: {
       type: "look",
-      options: DEMO_LOOK_OPTIONS.slice(0, 2).map((o) => ({ ...o, eligible: false })),
+      // The second card has a long name, to check the Top / Bottom rows on phones.
+      options: DEMO_LOOK_OPTIONS.slice(0, 2).map((o, i) => ({ ...o, eligible: false, ...(i === 1 ? { defId: "OP17-055" } : {}) })),
       minSelect: 0,
       maxSelect: 0,
       groups: [],
