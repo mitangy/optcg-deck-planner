@@ -6,10 +6,11 @@ import hmac
 import hashlib
 import re
 import time
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
@@ -20,7 +21,7 @@ from app.config import Settings, get_settings
 from app.db import get_db
 from app.duel_ratings import INITIAL_RATING, apply_elo
 from app.game_tokens import mint_game_token, verify_game_token
-from app.models import CardReport, DuelMatch, DuelRating, User
+from app.models import CardReport, DuelMatch, DuelPresence, DuelRating, User
 from app.rate_limit import RateLimiter, client_ip
 from app.usernames import duel_display_name
 from app.routers.api import _require_catalog_token
@@ -34,6 +35,7 @@ from app.schemas import (
     DuelLeaderboardOut,
     DuelMatchIngest,
     DuelMatchOut,
+    DuelPresenceSnapshot,
     DuelRatingOut,
     DuelTokenOut,
 )
@@ -42,6 +44,7 @@ router = APIRouter(prefix="/duel", tags=["duel"])
 
 _token_rate = RateLimiter(max_calls=30, period_s=60)
 _ingest_rate = RateLimiter(max_calls=120, period_s=60)
+_presence_rate = RateLimiter(max_calls=120, period_s=60)
 _report_rate = RateLimiter(max_calls=10, period_s=600)
 
 _USER_KEY_RE = re.compile(r"^[a-zA-Z0-9_.:-]{1,64}$")
@@ -259,6 +262,46 @@ def ingest_match(
         seat0_rating_after=after0,
         seat1_rating_after=after1,
     )
+
+
+@router.put("/presence", status_code=204)
+def ingest_presence(
+    body: DuelPresenceSnapshot,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_duel_ingest_token: Annotated[str | None, Header()] = None,
+) -> None:
+    """Replace one game-server process's presence rows with its latest snapshot."""
+    _require_ingest_secret(settings, x_duel_ingest_token)
+    if not _presence_rate.allow(f"duel-presence:{body.instance_id}"):
+        raise HTTPException(status_code=429, detail="Too many presence updates")
+    now = datetime.now(timezone.utc)
+    known = set(
+        db.scalars(
+            select(User.id).where(User.id.in_({e.user_id for e in body.entries if e.user_id > 0}))
+        )
+    )
+    db.execute(delete(DuelPresence).where(DuelPresence.instance_id == body.instance_id))
+    seen: set[tuple[int, str]] = set()
+    for e in body.entries:
+        key = (e.user_id, e.room_id)
+        if e.user_id not in known or key in seen:
+            continue
+        seen.add(key)
+        # merge: a room that moved between processes keeps one row per (user, room).
+        db.merge(
+            DuelPresence(
+                user_id=e.user_id,
+                room_id=e.room_id,
+                instance_id=body.instance_id,
+                role=e.role,
+                phase=e.phase,
+                ranked=e.ranked,
+                updated_at=now,
+            )
+        )
+    db.commit()
 
 
 @router.get("/rating/me", response_model=DuelRatingOut)

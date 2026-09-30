@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 
 const KEYS: { keys: string; text: string }[] = [
   { keys: "Space", text: "Main action (End turn, Pass, Keep hand). Press twice when End turn asks to confirm." },
-  { keys: "H", text: "Show or tuck the hand (wide screens)." },
+  { keys: "H", text: "Show or tuck the hand drawer (when the hand is not in the side rail)." },
   { keys: "S", text: "Sort the hand by cost." },
   { keys: "Esc", text: "Cancel a DON!! selection or close a panel." },
   { keys: "?", text: "This list." },

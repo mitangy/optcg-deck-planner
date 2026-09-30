@@ -402,6 +402,73 @@ class DuelMatch(Base):
     )
 
 
+class Friendship(Base):
+    """A friend request or accepted friendship between two users.
+
+    One row per unordered pair: ``user_low_id < user_high_id`` keeps (A, B) and
+    (B, A) from coexisting. ``requester_id`` is whoever sent the request.
+    """
+
+    __tablename__ = "friendships"
+    __table_args__ = (UniqueConstraint("user_low_id", "user_high_id", name="uq_friendship_pair"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_low_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    user_high_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    requester_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | accepted
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DuelPresence(Base):
+    """Who is in which game-server room, as last reported by that game-server.
+
+    Each game-server process replaces all of its own rows (``instance_id``) with
+    a full snapshot every few seconds; rows older than the presence TTL are
+    ignored, so a crashed process's rows age out on their own.
+    """
+
+    __tablename__ = "duel_presence"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    room_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    instance_id: Mapped[str] = mapped_column(String(64), index=True)
+    role: Mapped[str] = mapped_column(String(16), default="player")  # player | spectator
+    phase: Mapped[str] = mapped_column(String(16), default="playing")  # waiting | playing | finished
+    ranked: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class DuelLobbySeen(Base):
+    """Last time a signed-in user's duel lobby polled the friends list (\"online\")."""
+
+    __tablename__ = "duel_lobby_seen"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class DuelInvite(Base):
+    """An invite from one friend to another to join a private duel room."""
+
+    __tablename__ = "duel_invites"
+    __table_args__ = (UniqueConstraint("from_user_id", "to_user_id", name="uq_duel_invite_pair"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    from_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    to_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    room_id: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class CardReport(Base):
     """A tester's report that a duel card does not play as printed."""
 
