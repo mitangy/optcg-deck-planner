@@ -45,6 +45,9 @@ import {
 import { ChoicePrompt } from "./ChoicePrompt";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { IntentBar } from "./IntentBar";
+import { DefendTray } from "./DefendTray";
+import { deriveDefend } from "./defendModel";
+import { clockFraction, resolveStagedCounters } from "./defendTray";
 import { ReplacePrompt } from "./ReplacePrompt";
 import {
   attackTargetIdsForAttacker,
@@ -313,6 +316,23 @@ export function DuelBoard({
     }, 450);
     return () => window.clearTimeout(id);
   }, [autoPassKey]);
+
+  // Defend tray: while you answer an attack, the block / counter choices live
+  // in one tray (portrait: in place of the hand, landscape phone: right column).
+  const [stagedCounterIds, setStagedCounterIds] = useState<string[]>([]);
+  const [stagedBlockerId, setStagedBlockerId] = useState<string | null>(null);
+  const defend =
+    view && !spectating && !over && !view.pendingChoices?.length && autoPass == null
+      ? deriveDefend(view, intents, { counterIds: stagedCounterIds, blockerId: stagedBlockerId })
+      : null;
+  const trayHere = defend != null && (!wide || lp);
+  const defendKey =
+    trayHere && view ? `${view.turnNumber}:${defend.phase}:${JSON.stringify(view.battle ?? null)}` : null;
+  useEffect(() => {
+    // A new attack / step (or the tray closing) starts from a clean slate.
+    setStagedCounterIds([]);
+    setStagedBlockerId(null);
+  }, [defendKey]);
 
   // Hotseat hands the device over itself; alerts only matter online.
   useTurnAlert(!spectating && !over && !hotseatPass && intents.length > 0 && autoPass == null, {
@@ -648,6 +668,54 @@ export function DuelBoard({
     });
   }
 
+  function confirmCounters() {
+    if (!defend) return;
+    const toSend = resolveStagedCounters(intents, you.hand, defend.stagedIds);
+    setStagedCounterIds([]);
+    // Sequential client-side intents, highest hand slot first (see resolveStagedCounters).
+    for (const intent of toSend) onSendIntent(intent);
+  }
+
+  function declareStagedBlocker() {
+    const id = defend?.stagedBlockerId;
+    const intent = intents.find((i) => i.type === "declare_block" && i.blockerId === id);
+    setStagedBlockerId(null);
+    if (intent) onSendIntent(intent);
+  }
+
+  const defendPrimary =
+    trayHere && defend
+      ? defend.phase === "block"
+        ? defend.stagedBlockerId
+          ? {
+              label: `Block with ${defend.blockers.find((b) => b.id === defend.stagedBlockerId)?.name ?? "blocker"}`,
+              onPress: declareStagedBlocker,
+            }
+          : { label: "No block" }
+        : defend.stagedIds.length > 0
+          ? { label: "Confirm counter", onPress: confirmCounters }
+          : { label: defend.remaining === 0 ? "Done" : "Take hit" }
+      : undefined;
+
+  const defendTray =
+    trayHere && defend ? (
+      <DefendTray
+        model={defend}
+        ownerSeat={boardSeat}
+        clock={clockFraction(timer, now, boardSeat)}
+        onToggleBlocker={(id) => setStagedBlockerId((cur) => (cur === id ? null : id))}
+        onToggleCounter={(id) =>
+          setStagedCounterIds((cur) =>
+            cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
+          )
+        }
+        onCounterEvent={(i) => {
+          const intent = defend.events[i]?.intent;
+          if (intent) onSendIntent(intent);
+        }}
+      />
+    ) : null;
+
   const intentPanel = !spectating ? (
     <IntentBar
       intents={(() => {
@@ -670,6 +738,7 @@ export function DuelBoard({
         onSendIntent(intent);
       }}
       onChooseReplace={openReplace}
+      defend={defendPrimary}
     />
   ) : (
     <div className="intent-bar">
@@ -1173,6 +1242,7 @@ export function DuelBoard({
               seatClocks={seatClocks}
               compact={lp}
             />
+            {lp ? defendTray : null}
             {intentPanel}
             {lp ? null : chatPanel}
             {/* Reserves the strip the collapsed hand dock peeks into. */}
@@ -1180,40 +1250,42 @@ export function DuelBoard({
           </div>
         ) : (
           <div className="arena-rail">
-            <div className={`hand-rail${handCollapsed ? " collapsed" : ""}`}>
-              <div className="hand-rail-head">
-                <span className="hand-rail-title">{spectating ? "Seat hand (hidden)" : "Hand"}</span>
-                <span className="hand-rail-count">{handCount}</span>
-                {!spectating ? (
-                  <div className="hand-rail-actions">
-                    <button
-                      type="button"
-                      className={`hand-rail-btn${handSorted ? " active" : ""}`}
-                      aria-pressed={handSorted}
-                      onClick={() => setHandSorted((v) => !v)}
-                    >
-                      Sort
-                    </button>
-                    <button
-                      type="button"
-                      className="hand-rail-btn"
-                      onClick={() => {
-                        setHandCollapsed((v) => {
-                          const next = !v;
-                          if (next) setHandFilter(null);
-                          return next;
-                        });
-                      }}
-                    >
-                      {handCollapsed ? "Show" : "Hide"}
-                    </button>
-                  </div>
-                ) : null}
+            {defendTray ?? (
+              <div className={`hand-rail${handCollapsed ? " collapsed" : ""}`}>
+                <div className="hand-rail-head">
+                  <span className="hand-rail-title">{spectating ? "Seat hand (hidden)" : "Hand"}</span>
+                  <span className="hand-rail-count">{handCount}</span>
+                  {!spectating ? (
+                    <div className="hand-rail-actions">
+                      <button
+                        type="button"
+                        className={`hand-rail-btn${handSorted ? " active" : ""}`}
+                        aria-pressed={handSorted}
+                        onClick={() => setHandSorted((v) => !v)}
+                      >
+                        Sort
+                      </button>
+                      <button
+                        type="button"
+                        className="hand-rail-btn"
+                        onClick={() => {
+                          setHandCollapsed((v) => {
+                            const next = !v;
+                            if (next) setHandFilter(null);
+                            return next;
+                          });
+                        }}
+                      >
+                        {handCollapsed ? "Show" : "Hide"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="hand-row" ref={handRowRef}>
+                  <div className="hand-row-inner">{renderHandCards()}</div>
+                </div>
               </div>
-              <div className="hand-row" ref={handRowRef}>
-                <div className="hand-row-inner">{renderHandCards()}</div>
-              </div>
-            </div>
+            )}
 
             {intentPanel}
 
