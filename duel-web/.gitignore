@@ -6,3 +6,5 @@ dist
 .vercel
 *.log
 layout-shots
+test-results
+playwright-report
