@@ -1,9 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs><clipPath id="crown"><path d="M19 37c0-10 5.8-17 13-17s13 7 13 17z"/></clipPath></defs>
+  <defs><clipPath id="crown"><path d="M19 38c0-11 5.8-18 13-18s13 7 13 18z"/></clipPath></defs>
   <rect width="64" height="64" rx="14" fill="#16303b"/>
-  <!-- straw hat: crown, red band, brim -->
-  <path d="M19 37c0-10 5.8-17 13-17s13 7 13 17z" fill="#e2b458"/>
-  <path d="M19.7 29h24.6l.5 5H19.2z" fill="#b8322a" clip-path="url(#crown)"/>
-  <ellipse cx="32" cy="39" rx="23" ry="6" fill="#d9a441"/>
-  <ellipse cx="32" cy="38" rx="13" ry="2.4" fill="#c28f33"/>
+  <!-- straw hat, side view: crown, red band, flat brim -->
+  <path d="M19 38c0-11 5.8-18 13-18s13 7 13 18z" fill="#e2b458"/>
+  <rect x="17" y="32" width="30" height="6" fill="#b8322a" clip-path="url(#crown)"/>
+  <rect x="8" y="37" width="48" height="5" rx="2.5" fill="#d9a441"/>
 </svg>
