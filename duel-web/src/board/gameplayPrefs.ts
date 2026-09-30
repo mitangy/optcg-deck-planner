@@ -1,5 +1,5 @@
 import type { Intent } from "../net/protocol";
-import type { EndTurnConfirm } from "../settings";
+import type { EndTurnConfirm, ResponseStops } from "../settings";
 
 /** Intents that mean "you could still do something this turn". */
 const TURN_ACTIONS = new Set([
@@ -32,4 +32,38 @@ export function forcedDefensePass(intents: readonly Intent[]): Intent | null {
     return passCounter;
   }
   return null;
+}
+
+/** What the counter step looks like for the defender: the gap and each Counter card's value. */
+export type CounterOutlook = {
+  /** Extra power needed to survive (`defenseGap`), null when powers are unknown. */
+  gap: number | null;
+  /** Counter value of every usable `counter_from_hand` card; null = unknown. */
+  values: readonly (number | null)[];
+};
+
+/**
+ * The Pass to send for you under the "Stop for block and counter" setting, or
+ * null to stop and let you decide. `auto` passes when passing is your only
+ * option; `smart` also passes the counter step when all your Counter cards
+ * together still fall short of the gap. [Counter] events and unknown Counter
+ * values always stop you, since they might be a save.
+ */
+export function responseStopPass(
+  mode: ResponseStops,
+  intents: readonly Intent[],
+  outlook?: CounterOutlook,
+): Intent | null {
+  if (mode === "always") return null;
+  const forced = forcedDefensePass(intents);
+  if (forced || mode !== "smart") return forced;
+  const pass = intents.find((i) => i.type === "pass_counter");
+  if (!pass || !outlook || outlook.gap == null) return null;
+  if (intents.some((i) => i.type === "counter_event")) return null;
+  let total = 0;
+  for (const v of outlook.values) {
+    if (v == null) return null;
+    total += v;
+  }
+  return total < outlook.gap ? pass : null;
 }

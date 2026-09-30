@@ -1,11 +1,15 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { updateSettings, useDuelSettings, type EndTurnConfirm } from "../settings";
+import {
+  updateSettings,
+  useDuelSettings,
+  type EndTurnConfirm,
+  type ResponseStops,
+} from "../settings";
 import { playTurnChime } from "./turnAlert";
 
 type Toggle = {
   key:
-    | "autoPassDefense"
     | "sortHandByCost"
     | "keepHandOpen"
     | "turnSplash"
@@ -17,11 +21,6 @@ type Toggle = {
 };
 
 const TOGGLES: Toggle[] = [
-  {
-    key: "autoPassDefense",
-    label: "Auto-pass block and counter",
-    hint: "Passes for you when you have no blocker or no counter to use. Your opponent may notice the quick pass.",
-  },
   {
     key: "sortHandByCost",
     label: "Sort hand by cost",
@@ -60,6 +59,12 @@ const END_TURN_OPTIONS: { value: EndTurnConfirm; label: string }[] = [
   { value: "never", label: "Never ask" },
 ];
 
+const RESPONSE_STOP_OPTIONS: { value: ResponseStops; label: string }[] = [
+  { value: "always", label: "Always stop" },
+  { value: "auto", label: "Auto: skip when I have no answer" },
+  { value: "smart", label: "Smart: also skip when I can't survive" },
+];
+
 /** Gameplay preferences; saved in this browser and applied live. */
 export function GameplaySettingsFields() {
   const settings = useDuelSettings();
@@ -80,6 +85,25 @@ export function GameplaySettingsFields() {
         </select>
         <p className="field-hint">
           “Only if I can still act” asks while you have DON!!, an attack or a playable card left.
+        </p>
+      </div>
+      <div className="field">
+        <label htmlFor="response-stops">Stop for block and counter</label>
+        <select
+          id="response-stops"
+          value={settings.responseStops}
+          onChange={(e) => updateSettings({ responseStops: e.target.value as ResponseStops })}
+        >
+          {RESPONSE_STOP_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <p className="field-hint">
+          Auto passes for you when you have no blocker or Counter card. Smart also passes the
+          counter step when all your Counter cards together can't save the attacked card;
+          Counter events always stop you. Your opponent may notice a quick pass.
         </p>
       </div>
       {TOGGLES.map((t) => (

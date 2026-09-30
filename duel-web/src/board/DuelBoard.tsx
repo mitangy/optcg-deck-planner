@@ -63,7 +63,7 @@ import { sortHandIndices } from "./handSort";
 import { useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { useDuelSettings } from "../settings";
-import { endTurnNeedsConfirm, forcedDefensePass } from "./gameplayPrefs";
+import { endTurnNeedsConfirm, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
 import { useTurnAlert } from "./turnAlert";
 import { seatLabel, seatName, winnerHeadline } from "./playerNames";
@@ -293,10 +293,18 @@ export function DuelBoard({
     setReplaceCardId(card.id);
   }
 
-  // Auto-pass: when Pass is the only answer to a block / counter step.
+  // Response stops: pass for you when the setting says there is nothing to decide.
+  const stopMode = prefs.responseStops;
+  const counterOutlook =
+    stopMode === "smart" && view && intents.some((i) => i.type === "pass_counter")
+      ? (() => {
+          const d = deriveDefend(view, intents, { counterIds: [], blockerId: null });
+          return d ? { gap: d.gap, values: d.counters.map((c) => c.value) } : undefined;
+        })()
+      : undefined;
   const autoPass =
-    prefs.autoPassDefense && view && !spectating && !over && !view.pendingChoices?.length
-      ? forcedDefensePass(intents)
+    stopMode !== "always" && view && !spectating && !over && !view.pendingChoices?.length
+      ? responseStopPass(stopMode, intents, counterOutlook)
       : null;
   const autoPassKey =
     autoPass && view
