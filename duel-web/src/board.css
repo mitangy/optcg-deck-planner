@@ -3339,3 +3339,14 @@
   font-size: clamp(0.85rem, calc(var(--c) * 0.24), 1.5rem);
   line-height: 1.05;
 }
+
+/* Desktop rail: long action labels ("Activate X → Y") wrap inside the rail
+   instead of running past its edge. Wrapping (not clipping) keeps the key tab
+   above the button visible. */
+.arena.arena-wide:not(.arena-lp) .arena-rail .intent-row .intent-btn {
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
