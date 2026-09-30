@@ -5,7 +5,7 @@ import type { CardView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
 import { DonStrip } from "./DonStrip";
 import { TrashViewer, trashNewestFirst } from "./TrashViewer";
-import { ZonePile } from "./ZonePile";
+import { ZonePile, zonePileCountLabel } from "./ZonePile";
 
 type SideData = {
   leader: CardView;
@@ -78,7 +78,75 @@ type Props = {
   cardBackUrl?: string | null;
   /** This half's player is taking the current turn (glow + tag). */
   activeTurn?: boolean;
+  /**
+   * Opponent half on portrait phones: the four piles collapse into one row of
+   * count chips so the characters get the space.
+   */
+  countRow?: boolean;
 };
+
+function CountIcon({ kind }: { kind: "life" | "deck" | "don" | "trash" }) {
+  const common = { width: 14, height: 14, viewBox: "0 0 16 16", "aria-hidden": true, className: "count-icon" };
+  switch (kind) {
+    case "life":
+      return (
+        <svg {...common}>
+          <path d="M8 14 2.2 8.2a3.3 3.3 0 0 1 4.7-4.7L8 4.6l1.1-1.1a3.3 3.3 0 0 1 4.7 4.7z" fill="currentColor" />
+        </svg>
+      );
+    case "deck":
+      return (
+        <svg {...common}>
+          <rect x="4.5" y="1.5" width="8" height="11" rx="1.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M2.5 4v9.3c0 .7.5 1.2 1.2 1.2H10" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+      );
+    case "don":
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M5.6 5.4h2.1c1.6 0 2.7 1 2.7 2.6s-1.1 2.6-2.7 2.6H5.6z" fill="currentColor" />
+        </svg>
+      );
+    case "trash":
+      return (
+        <svg {...common}>
+          <path d="M3 4.5h10M6.2 4.5V3h3.6v1.5M4.2 4.5l.6 8.6h6.4l.6-8.6" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" strokeLinecap="round" />
+        </svg>
+      );
+  }
+}
+
+function CountChip({
+  kind,
+  text,
+  label,
+  extra,
+  onOpen,
+}: {
+  kind: "life" | "deck" | "don" | "trash";
+  text: string;
+  label: string;
+  extra?: string;
+  onOpen?: () => void;
+}) {
+  const body = (
+    <>
+      <CountIcon kind={kind} />
+      <span className="count-chip-num">{text}</span>
+      {extra ? <span className="count-chip-extra">{extra}</span> : null}
+    </>
+  );
+  return onOpen ? (
+    <button type="button" className={`count-chip count-chip-${kind} openable`} aria-label={label} onClick={onOpen}>
+      {body}
+    </button>
+  ) : (
+    <div className={`count-chip count-chip-${kind}`} role="group" aria-label={label}>
+      {body}
+    </div>
+  );
+}
 
 export function SideField({
   side,
@@ -94,19 +162,32 @@ export function SideField({
   turnOrder,
   cardBackUrl,
   activeTurn = false,
+  countRow = false,
 }: Props) {
   const mirrored = side === "opp";
   const interactive = side === "you" && drag;
   const [trashOpen, setTrashOpen] = useState(false);
+  const [lifeOpen, setLifeOpen] = useState(false);
+  const counts = countRow && side === "opp";
+  const faceUpLife = data.faceUpLife ?? [];
   const trashTop = data.trash.length ? data.trash[data.trash.length - 1] : null;
   const trashTitle = side === "you" ? "Your trash" : "Opponent trash";
   const leaderLife = lookupCard(data.leader.defId).life;
+
+  const orderTag = turnOrder ? (
+    <span
+      className={`mat-order mat-order-${turnOrder}`}
+      title={turnOrder === "first" ? "Goes first" : "Goes second"}
+    >
+      {turnOrder === "first" ? "Going 1st" : "Going 2nd"}
+    </span>
+  ) : null;
 
   return (
     <section
       className={`side-field side-${side}${mirrored ? " mirrored" : ""}${
         matImageUrl ? " has-mat-art" : ""
-      }${activeTurn ? " is-active-turn" : ""}`}
+      }${activeTurn ? " is-active-turn" : ""}${counts ? " side-counts" : ""}`}
       style={
         matImageUrl || cardBackUrl
           ? ({
@@ -118,16 +199,31 @@ export function SideField({
           : undefined
       }
     >
-      {turnOrder ? (
-        <span
-          className={`mat-order mat-order-${turnOrder}`}
-          title={turnOrder === "first" ? "Goes first" : "Goes second"}
-        >
-          {turnOrder === "first" ? "Going 1st" : "Going 2nd"}
-        </span>
-      ) : null}
+      {turnOrder && !counts ? orderTag : null}
       <div className="side-grid">
-        <div className="zone-life">
+        {counts ? (
+          <div className="opp-counts">
+            {turnOrder ? orderTag : null}
+            <CountChip
+              kind="life"
+              text={zonePileCountLabel(data.lifeCount, leaderLife ?? undefined)}
+              label={`Opponent life: ${data.lifeCount} cards${
+                faceUpLife.length ? `, ${faceUpLife.length} face up` : ""
+              }`}
+              extra={faceUpLife.length ? `${faceUpLife.length}\u2191` : undefined}
+              onOpen={faceUpLife.length ? () => setLifeOpen(true) : undefined}
+            />
+            <CountChip kind="deck" text={String(data.deckCount)} label={`Opponent deck: ${data.deckCount} cards`} />
+            <CountChip kind="don" text={String(data.donDeckCount)} label={`Opponent DON!! deck: ${data.donDeckCount} cards`} />
+            <CountChip
+              kind="trash"
+              text={String(data.trash.length)}
+              label={`View opponent trash, ${data.trash.length} cards`}
+              onOpen={() => setTrashOpen(true)}
+            />
+          </div>
+        ) : null}
+        {counts ? null : <div className="zone-life">
           <ZonePile
             label="Life"
             count={data.lifeCount}
@@ -137,7 +233,7 @@ export function SideField({
           {(data.faceUpLife ?? []).map((card) => (
             <CardTile key={`life-${card.index}-${card.defId}`} defId={card.defId} compact />
           ))}
-        </div>
+        </div>}
 
         <div
           className={`zone-characters${
@@ -212,9 +308,11 @@ export function SideField({
           </div>
         </div>
 
-        <div className="zone-deck">
-          <ZonePile label="Deck" count={data.deckCount} variant="deck" />
-        </div>
+        {counts ? null : (
+          <div className="zone-deck">
+            <ZonePile label="Deck" count={data.deckCount} variant="deck" />
+          </div>
+        )}
 
         <div className="zone-leader">
           <div className="zone-caption">Leader</div>
@@ -311,9 +409,11 @@ export function SideField({
           )}
         </div>
 
-        <div className="zone-don-deck">
-          <ZonePile label="DON!! Deck" count={data.donDeckCount} variant="don" />
-        </div>
+        {counts ? null : (
+          <div className="zone-don-deck">
+            <ZonePile label="DON!! Deck" count={data.donDeckCount} variant="don" />
+          </div>
+        )}
 
         <div className="zone-cost">
           <DonStrip
@@ -332,18 +432,31 @@ export function SideField({
           />
         </div>
 
-        <div className="zone-trash">
-          <ZonePile
-            label="Trash"
-            count={data.trash.length}
-            variant="trash"
-            topDefId={trashTop}
-            ownerSeat={ownerSeat}
-            onOpen={() => setTrashOpen(true)}
-          />
-        </div>
+        {counts ? null : (
+          <div className="zone-trash">
+            <ZonePile
+              label="Trash"
+              count={data.trash.length}
+              variant="trash"
+              topDefId={trashTop}
+              ownerSeat={ownerSeat}
+              onOpen={() => setTrashOpen(true)}
+            />
+          </div>
+        )}
       </div>
 
+      {lifeOpen ? (
+        <TrashViewer
+          title="Opponent face-up Life"
+          cards={faceUpLife.map((c) => c.defId)}
+          note="face up"
+          emptyText="No face-up Life cards."
+          onClose={() => setLifeOpen(false)}
+          ownerSeat={ownerSeat}
+          viewingSeat={viewingSeat}
+        />
+      ) : null}
       {trashOpen ? (
         <TrashViewer
           title={trashTitle}

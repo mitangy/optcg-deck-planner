@@ -6,6 +6,8 @@ type Props = {
   /** Shown after the first click; a second click within `armMs` confirms. */
   confirmLabel: string;
   title?: string;
+  /** Overrides the accessible name (icon-only labels). */
+  ariaLabel?: string;
   disabled?: boolean;
   armMs?: number;
   /** Size the button for the longer label so arming never shifts its neighbours. */
@@ -22,6 +24,7 @@ export function ConfirmButton({
   label,
   confirmLabel,
   title,
+  ariaLabel,
   disabled,
   armMs = 3000,
   reserveWidth = false,
@@ -44,6 +47,7 @@ export function ConfirmButton({
       type="button"
       className={`${className}${armed ? " armed" : ""}`}
       title={title}
+      aria-label={ariaLabel}
       disabled={disabled}
       aria-live="polite"
       onClick={() => {
