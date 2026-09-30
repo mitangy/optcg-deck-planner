@@ -8,6 +8,10 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // analytics URL redaction
+    { id: "analytics-keeps-share-token", file: "frontend/src/analytics.ts", from: "      path = `${prefix}[token]`;", to: "      path = path;", kills: ["replaces public share and group-buy tokens"] },
+    { id: "analytics-keeps-group-buy-token", file: "frontend/src/analytics.ts", from: "const TOKEN_ROUTES = [\"/share/\", \"/group-buy/join/\", \"/group-buy/view/\"];", to: "const TOKEN_ROUTES = [\"/share/\"];", kills: ["replaces public share and group-buy tokens"] },
+    { id: "analytics-keeps-query", file: "frontend/src/analytics.ts", from: "  return `${parsed.origin}${path}`;", to: "  return `${parsed.origin}${path}${parsed.search}${parsed.hash}`;", kills: ["drops query strings and hashes"] },
     // buildInfo
     { id: "build-tag-full-sha", file: "frontend/src/buildInfo.ts", from: "  return trimmed.slice(0, 7);", to: "  return trimmed;", kills: ["uses the first 7 characters of a full SHA"] },
     { id: "build-tag-blank-not-dev", file: "frontend/src/buildInfo.ts", from: "  const trimmed = (sha ?? \"\").trim();", to: "  const trimmed = sha ?? \"\";", kills: ["falls back to dev when missing"] },

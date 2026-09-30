@@ -4,6 +4,8 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // analytics URL redaction
+    { id: "analytics-keeps-query-and-hash", file: "duel-web/src/analytics.ts", from: "  return `${parsed.origin}${parsed.pathname}`;", to: "  return url;", kills: ["drops invite codes and auth tokens"] },
     { id: "card-report-untrimmed", file: "duel-web/src/cards/cardReport.ts", from: "  const len = description.trim().length;", to: "  const len = description.length;", kills: ["refuses a padded description that is too short"] },
     { id: "card-report-sends-invalid", file: "duel-web/src/cards/cardReport.ts", from: "  if (invalid) throw new Error(invalid);\n", to: "", kills: ["refuses a padded description that is too short"] },
     { id: "card-report-anonymous", file: "duel-web/src/cards/cardReport.ts", from: "  if (matchContext.gameToken) headers.Authorization = `Bearer ${matchContext.gameToken}`;\n", to: "", kills: ["identifies the reporter with the match game token"] },
