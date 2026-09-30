@@ -364,5 +364,7 @@ module.exports = {
     { id: "order-answer-all-top", file: `${src}/board/deckOrder.ts`, from: "topOptionIds: [...a.top] };", to: "topOptionIds: [...a.top, ...a.bottom] };", kills: ["answers with top cards first and only top cards"] },
     { id: "order-bottom-drawn-above-rest", file: `${src}/board/ChoicePrompt.tsx`, from: "      ? [null, ...arrangement.top]", to: "      ? [...arrangement.top, null]", kills: ["cards returned to the bottom are listed below the rest of the deck"] },
     { id: "order-top-drawn-below-rest", file: `${src}/board/ChoicePrompt.tsx`, from: "mode={request.rest === \"deck_top\" ? \"above\"", to: "mode={request.rest === \"deck_top\" ? \"below\"", kills: ["cards returned to the top are listed above the rest of the deck"] },
+    { id: "board-target-ineligible", file: `${src}/board/ChoicePrompt.tsx`, from: "options.find((o) => o.eligible && o.instanceId === instanceId)", to: "options.find((o) => o.instanceId === instanceId)", kills: ["ignores board cards the effect can't target"] },
+    { id: "board-target-unmapped", file: `${src}/board/ChoicePrompt.tsx`, from: "options.find((o) => o.eligible && o.instanceId === instanceId)", to: "options.find((o) => o.eligible && o.id === instanceId)", kills: ["maps a clicked board card to its option"] },
   ],
 };

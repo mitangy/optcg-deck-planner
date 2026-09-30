@@ -130,7 +130,7 @@ export function BoardHighlight({ ids, kind }: { ids: string[]; kind: "hover" | "
   const rule =
     kind === "hover"
       ? `${selector} { outline: 3px solid var(--chrome-bright); outline-offset: 2px; box-shadow: 0 0 18px rgba(240, 220, 168, 0.8); z-index: 4; }`
-      : `${selector} { outline: 2px dashed rgba(240, 220, 168, 0.75); outline-offset: 2px; }`;
+      : `${selector} { outline: 2px dashed rgba(240, 220, 168, 0.75); outline-offset: 2px; cursor: pointer; }`;
   return <style>{rule}</style>;
 }
 
@@ -280,17 +280,51 @@ function SourceHeader({ choice }: { choice: PendingChoiceView }) {
   return <h3>{name}</h3>;
 }
 
+/** Option id for an eligible board card, by its tile's `data-instance-id`. */
+export function boardTargetOption(options: readonly ChoiceOptionView[], instanceId: string | undefined): string | null {
+  if (!instanceId) return null;
+  return options.find((o) => o.eligible && o.instanceId === instanceId)?.id ?? null;
+}
+
+/**
+ * Lets a click on a highlighted board card pick it, same as its tile in the
+ * prompt. Listens on the document in the capture phase so the board's own
+ * click (select card / show actions) never sees these clicks.
+ */
+function useBoardTargetClicks(options: readonly ChoiceOptionView[], onPick: (optionId: string) => void) {
+  const live = useRef({ options, onPick });
+  live.current = { options, onPick };
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const tile = (e.target as Element | null)?.closest?.<HTMLElement>(".side-field .card-tile[data-instance-id]");
+      const optionId = boardTargetOption(live.current.options, tile?.dataset.instanceId);
+      if (!optionId) return;
+      e.preventDefault();
+      e.stopPropagation();
+      live.current.onPick(optionId);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+}
+
 function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<ChoiceRequestView, { type: "select" }>; choice: PendingChoiceView; mySeat: Seat; onSend: (i: Intent) => void }) {
   const [selected, setSelected] = useState<string[]>([]);
   const toggle = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : request.max === 1 ? [id] : cur.length >= request.max ? cur : [...cur, id]));
   const valid = selected.length >= request.min && selected.length <= request.max;
   const range = request.min === request.max ? `${request.max}` : request.min === 0 ? `up to ${request.max}` : `${request.min}–${request.max}`;
   const boardIds = request.options.filter((o) => o.eligible && o.instanceId).map((o) => o.instanceId!);
+  const selectedBoardIds = request.options.filter((o) => o.instanceId && selected.includes(o.id)).map((o) => o.instanceId!);
+  useBoardTargetClicks(request.options, toggle);
   return (
     <>
       <BoardHighlight ids={boardIds} kind="candidate" />
+      <BoardHighlight ids={selectedBoardIds} kind="hover" />
       <div className="ability-prompt-section">
-        <div className="ability-prompt-label">Choose {range} · selected {selected.length}</div>
+        <div className="ability-prompt-label">
+          Choose {range} · selected {selected.length}
+          {boardIds.length ? " · or pick it on the board" : ""}
+        </div>
         <div className="choice-grid">
           {request.options.map((option) => (
             <OptionTile key={option.id} option={option} mySeat={mySeat} selected={selected.includes(option.id)} disabled={!option.eligible} onToggle={() => toggle(option.id)} />
