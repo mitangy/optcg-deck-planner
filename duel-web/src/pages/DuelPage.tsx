@@ -1,11 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
+import type { BoardWaiting } from "../board/PendingBoard";
 import { useDuelSession } from "../state/DuelSession";
 
 export function DuelPage() {
   const navigate = useNavigate();
   const {
+    launch,
+    launching,
+    queueing,
     connected,
     canReconnect,
     resuming,
@@ -36,19 +40,34 @@ export function DuelPage() {
   } = useDuelSession();
 
 
+  const leftRef = useRef(false);
   useEffect(() => {
-    if (!connected && !view && !canReconnect && !matchId && !resuming) {
-      navigate("/", { replace: true });
+    // Once only: the navigation is a transition, so this page can re-render
+    // (clearError below) before it unmounts and would redirect again without the note.
+    if (leftRef.current) return;
+    if (!connected && !view && !canReconnect && !matchId && !resuming && !launching) {
+      leftRef.current = true;
+      // A request that failed before the match opened: say why back in the lobby.
+      navigate("/", { replace: true, state: errorBanner ? { matchError: errorBanner } : null });
+      if (errorBanner) clearError();
     }
-  }, [connected, view, canReconnect, matchId, resuming, navigate]);
+  }, [connected, view, canReconnect, matchId, resuming, launching, errorBanner, clearError, navigate]);
 
-  if (resuming && !view) {
-    return (
-      <div className="duel-root">
-        <div className="loading arena-loading">Reconnecting to match…</div>
-      </div>
-    );
-  }
+  // Until the first view arrives the board is already up, empty, saying what it waits on.
+  const waiting: BoardWaiting | undefined = view
+    ? undefined
+    : launching && launch
+      ? { status: queueing ? "Searching for an opponent…" : launch.status, youLeaderId: launch.leaderId }
+      : resuming
+        ? { status: "Reconnecting to match…" }
+        : {
+            status: role === "spectator" ? "Waiting for the match to start…" : "Waiting for opponent…",
+            youLeaderId: launch?.leaderId,
+            invite:
+              launch?.invite !== false && role === "player"
+                ? { roomId: matchId, autoCopy: seat === 0 }
+                : null,
+          };
   return (
     <div className="duel-root">
       {!connected && canReconnect && view ? (
@@ -87,6 +106,8 @@ export function DuelPage() {
         rematch={role === "player" ? { state: rematch, onAction: sendRematch } : undefined}
         seatSkins={seatSkins}
         opponentAwayUntil={seat === 0 || seat === 1 ? awayUntil[seat === 0 ? 1 : 0] : null}
+        waiting={waiting}
+        leaveLabel={view ? undefined : "Cancel"}
         onLeave={() => {
           void leave();
           navigate("/", { replace: true });

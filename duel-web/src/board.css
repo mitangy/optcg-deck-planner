@@ -3739,3 +3739,80 @@
     (100cqh * var(--tilt-grow) - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2
   );
 }
+
+/* —— Pre-view board (queueing / connecting / starting practice) —— */
+
+.arena-pending .hud-status {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.arena-pending .hud-status .hud-phase {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-spinner {
+  flex: none;
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 2px solid rgba(240, 220, 168, 0.25);
+  border-top-color: var(--gold, #f0dca8);
+  border-radius: 50%;
+  animation: pending-spin 0.9s linear infinite;
+}
+
+@keyframes pending-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pending-spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+.arena .midline .pending-prompt {
+  animation: pending-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pending-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena .midline .pending-prompt {
+    animation: none;
+  }
+}
+
+/* Private room invite floats over the empty mat instead of replacing it. */
+.arena-pending .playmat {
+  position: relative;
+}
+
+.arena-pending .pending-invite {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  pointer-events: none;
+}
+
+.arena-pending .pending-invite .room-invite {
+  pointer-events: auto;
+}
+
+.arena-pending .arena-left,
+.arena-pending .arena-rail {
+  opacity: 0;
+}

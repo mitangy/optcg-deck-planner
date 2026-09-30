@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getApiBaseUrl, rewriteLoopbackToPageHost } from "../config";
 import { DuelBoard } from "../board/DuelBoard";
@@ -170,8 +170,6 @@ export function HotseatPage() {
   const manualPassRef = useRef(false);
   const matchIdRef = useRef(matchId);
   matchIdRef.current = matchId;
-
-  const title = useMemo(() => nav?.deckName ?? "Hotseat", [nav?.deckName]);
 
   function persistResume() {
     if (leavingRef.current || !nav) return;
@@ -779,20 +777,27 @@ export function HotseatPage() {
   }
 
   if (!ready || !bag?.view) {
+    // The board is up from the first frame; waking servers / minting happens behind it.
     return (
       <div className="duel-root">
-        <div className="loading arena-loading">
-          {resuming
-            ? `Reconnecting both seats (${title})…`
-            : bootPhase
-              ? `${bootPhase} (${title})`
-              : `Starting hotseat (${title})…`}
-        </div>
-        <div style={{ display: "flex", justifyContent: "center", padding: "0 16px 16px" }}>
-          <button type="button" className="btn btn-secondary" onClick={() => void leave()}>
-            Back to home
-          </button>
-        </div>
+        <DuelBoard
+          view={null}
+          seat={activeSeat}
+          matchId={matchId}
+          errorBanner={null}
+          matchOver={null}
+          waiting={{
+            status: resuming
+              ? "Reconnecting both seats…"
+              : (bootPhase ?? "Starting practice…"),
+            youLeaderId: nav.deckWire.leaderId,
+            oppLeaderId: (nav.enemyDeckWire ?? nav.deckWire).leaderId,
+          }}
+          leaveLabel="Cancel"
+          onSendIntent={() => undefined}
+          onLeave={() => void leave()}
+          onClearError={() => undefined}
+        />
       </div>
     );
   }

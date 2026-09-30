@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { lookupCard } from "../cards/atlas";
 import { getApiBaseUrl, getPlannerUrl } from "../config";
@@ -24,7 +24,7 @@ import {
 } from "../net/api";
 import { clearMatchResume, loadMatchResume } from "../net/matchResume";
 import { devKeyAllowed, effectiveServerUrl, loadSettings } from "../settings";
-import { useDuelSession } from "../state/DuelSession";
+import { useDuelSession, type MatchLaunch } from "../state/DuelSession";
 import { needsUsername } from "../auth/username";
 import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel";
 import { dismissInvite, inviteFriend, type Friend, type FriendInvite } from "../friends/friendsApi";
@@ -249,7 +249,9 @@ function DeckSwitcher({
 
 export function LobbyPage() {
   const navigate = useNavigate();
-  const { client, connect, queueRanked, cancelQueue, queueing, setRating } = useDuelSession();
+  const { client, connect, queueRanked, cancelQueue, queueing, setRating, startMatch } =
+    useDuelSession();
+  const location = useLocation();
   const [settings] = useState(loadSettings);
   const serverUrl = effectiveServerUrl(settings);
   const secret = settings.joinSecret.trim() || undefined;
@@ -280,27 +282,24 @@ export function LobbyPage() {
 
   const friendsEnabled = authMode === "google" && Boolean(authUser?.username);
   const friends = useFriends(friendsEnabled);
-  const [friendError, setFriendError] = useState<string | null>(null);
+  /** Also carries why a match request failed after the board opened (DuelPage sends it back). */
+  const [friendError, setFriendError] = useState<string | null>(
+    () => (location.state as { matchError?: string } | null)?.matchError ?? null,
+  );
 
-  /** Shared by the friend actions: mint, connect, then open the match. */
-  async function runFriendAction(status: string, fn: () => Promise<void>) {
+  /**
+   * Shared by the friend actions: open the board at once, then mint + connect
+   * behind it. A failure comes back to the lobby as a note.
+   */
+  function runFriendAction(launch: MatchLaunch, fn: () => Promise<void>) {
     if (authMode === "dev" && !settings.devUserKey.trim()) {
       setFriendError("Set a dev user key in Settings first.");
       return;
     }
-    setBusy(true);
-    setBusyStatus(status);
     setFriendError(null);
-    try {
-      clearMatchResume();
-      await fn();
-      navigate("/duel");
-    } catch (e) {
-      setFriendError(e instanceof Error ? e.message : "Connect failed");
-    } finally {
-      setBusy(false);
-      setBusyStatus(null);
-    }
+    clearMatchResume();
+    startMatch(launch, fn);
+    navigate("/duel");
   }
 
   /** Online matches pull a planner-linked deck fresh first; on any failure the local copy plays. */
@@ -317,7 +316,8 @@ export function LobbyPage() {
       setFriendError("Select a deck first.");
       return;
     }
-    void runFriendAction(`Inviting ${friend.username}…`, async () => {
+    const launch = { status: `Inviting ${friend.username}…`, leaderId: selectedDeck.leaderId, invite: true };
+    runFriendAction(launch, async () => {
       const opts = await authOpts();
       const wire = deckToWire(await freshDeck(selectedDeck));
       await connect({
@@ -338,7 +338,8 @@ export function LobbyPage() {
       setFriendError("Select a deck first.");
       return;
     }
-    void runFriendAction("Joining…", async () => {
+    const launch = { status: `Joining ${invite.from_username}…`, leaderId: selectedDeck.leaderId, invite: false };
+    runFriendAction(launch, async () => {
       const opts = await authOpts();
       try {
         await connect({
@@ -357,7 +358,7 @@ export function LobbyPage() {
   function spectateFriend(friend: Friend) {
     if (!friend.room_id) return;
     const roomId = friend.room_id;
-    void runFriendAction("Connecting…", async () => {
+    runFriendAction({ status: `Connecting to ${friend.username}'s match…`, leaderId: null, invite: false }, async () => {
       const opts = await authOpts();
       await connect({ ...opts, roomId, role: "spectator" });
     });
@@ -511,32 +512,47 @@ export function LobbyPage() {
         });
         return;
       }
-      const opts = await authOpts();
-      const deck = mode === "spectate" ? selectedDeck! : await freshDeck(selectedDeck!);
-      if (mode === "queue") {
-        const wire = deckToWire(deck);
-        setSelectedDeckId(deck.id);
-        await queueRanked({ ...opts, deck: wire });
-        navigate("/duel");
-        return;
-      }
-      if (mode === "spectate") {
-        await connect({ ...opts, roomId: roomId.trim(), role: "spectator" });
-        navigate("/duel");
-        return;
-      }
-      const wire = deckToWire(deck);
-      setSelectedDeckId(deck.id);
-      await connect({
-        ...opts,
-        roomId: mode === "join" ? roomId.trim() : undefined,
-        preferredSeat: mode === "create" ? 0 : undefined,
-        deck: wire,
-        createOptions:
-          mode === "create"
-            ? { ranked: false, players: [wire, wire], timer: timerFromPreset(timerPreset) }
-            : undefined,
-      });
+      // Online: open the board now and mint / queue / connect behind it, so
+      // nobody waits on a Connecting… button (the queue alone can take minutes).
+      const picked = selectedDeck!;
+      const room = roomId.trim();
+      const create = mode === "create";
+      startMatch(
+        {
+          status:
+            mode === "queue"
+              ? "Searching for an opponent…"
+              : mode === "spectate"
+                ? "Connecting to the match…"
+                : create
+                  ? "Opening your room…"
+                  : "Joining room…",
+          leaderId: mode === "spectate" ? null : picked.leaderId,
+          invite: create,
+        },
+        async () => {
+          const opts = await authOpts();
+          if (mode === "spectate") {
+            await connect({ ...opts, roomId: room, role: "spectator" });
+            return;
+          }
+          const wire = deckToWire(await freshDeck(picked));
+          if (mode === "queue") {
+            await queueRanked({ ...opts, deck: wire });
+            return;
+          }
+          await connect({
+            ...opts,
+            roomId: mode === "join" ? room : undefined,
+            preferredSeat: create ? 0 : undefined,
+            deck: wire,
+            createOptions: create
+              ? { ranked: false, players: [wire, wire], timer: timerFromPreset(timerPreset) }
+              : undefined,
+          });
+        },
+      );
+      if (mode !== "spectate") setSelectedDeckId(picked.id);
       navigate("/duel");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Connect failed");

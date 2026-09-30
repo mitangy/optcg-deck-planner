@@ -90,7 +90,8 @@ import { RotateHint } from "./RotateHint";
 import { seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
 import { RematchPanel } from "./RematchPanel";
-import { RoomChip, RoomInvite } from "./RoomShare";
+import { RoomChip } from "./RoomShare";
+import { PendingBoard, type BoardWaiting } from "./PendingBoard";
 import { fanPose } from "./handFan";
 import { OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
@@ -136,6 +137,8 @@ type Props = {
   leaveLabel?: string;
   /** Prototype (`/demo?float`): searches and effect ordering float cards over the board instead of a pop-up. */
   floatingPrompts?: boolean;
+  /** Before the first view: what the empty board says (queueing, connecting, starting). */
+  waiting?: BoardWaiting;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
   onClearError: () => void;
@@ -197,6 +200,7 @@ export function DuelBoard({
   rematch,
   leaveLabel = "Leave",
   floatingPrompts = false,
+  waiting,
   onSendIntent,
   onLeave,
   onClearError,
@@ -757,27 +761,19 @@ export function DuelBoard({
 
   if (!view) {
     return (
-      <div className="board-root arena">
-        <header className="hud-bar">
-          <div className="hud-brand">OPTCG DUEL</div>
-          <div className="hud-status">Waiting for opponent…</div>
-          <div className="hud-actions">
-            <RoomChip roomId={matchId} />
-            <button type="button" className="leave-btn" onClick={onLeave}>
-              {leaveLabel}
-            </button>
-          </div>
-        </header>
-        {errorBanner ? (
-          <button type="button" className="error-banner" onClick={onClearError}>
-            {errorBanner}
-          </button>
-        ) : null}
-        <div className="arena-waiting">
-          {/* Seat 0 created the room: copy its id straight away. */}
-          <RoomInvite roomId={matchId} autoCopy={seat === 0 && !spectating} />
-        </div>
-      </div>
+      <PendingBoard
+        waiting={
+          waiting ?? {
+            status: "Waiting for opponent…",
+            // Seat 0 created the room: copy its id straight away.
+            invite: { roomId: matchId, autoCopy: seat === 0 && !spectating },
+          }
+        }
+        errorBanner={errorBanner}
+        leaveLabel={leaveLabel}
+        onLeave={onLeave}
+        onClearError={onClearError}
+      />
     );
   }
 
