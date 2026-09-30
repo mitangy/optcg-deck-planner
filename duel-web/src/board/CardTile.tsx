@@ -353,7 +353,11 @@ export function CardTile({
               </span>
             ) : null}
             {/* Stacked under power so narrow (mobile) tiles never overlap badges. */}
-            {attachedDonCount ? <span className="don-badge">DON×{attachedDonCount}</span> : null}
+            {attachedDonCount ? (
+              <span className="don-badge" aria-label={`DON!! ×${attachedDonCount}`}>
+                <span className="don-badge-word">DON</span>×{attachedDonCount}
+              </span>
+            ) : null}
           </div>
         ) : null}
         {labels.length ? (

@@ -2195,6 +2195,9 @@ img.zone-pile-face {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  /* Dotted names ("Monkey.D.Luffy") have no break point: let them break so
+     the clamp ends in an ellipsis instead of a hard cut at the tile edge. */
+  overflow-wrap: anywhere;
 }
 
 .card-caption .meta-cost-modified {
@@ -2754,6 +2757,22 @@ img.zone-pile-face {
   .card-stat-stack .power-badge-buffed .power-now {
     display: inline;
   }
+  /* Tiles this small can't fit "DON×1" at the default size: it spilled past
+     the tile's left edge and read "ON×1". The .arena selector outranks the
+     board's --c-based size, which bottoms out too wide here. */
+  .card-stat-stack .don-badge,
+  .arena .side-field .card-stat-stack .don-badge {
+    font-size: 0.46rem;
+    padding: 0.05rem 0.1rem;
+    letter-spacing: -0.02em;
+  }
+}
+/* Narrowest tiles (phone landscape and 320px portrait): even the small
+   "DON×1" is wider than the tile, so the green badge keeps just "×1". */
+@container (max-width: 44px) {
+  .card-stat-stack .don-badge-word {
+    display: none;
+  }
 }
 .card-stat-stack {
   position: absolute;
@@ -3185,6 +3204,9 @@ img.zone-pile-face {
 
 .search-order-list {
   display: grid;
+  /* One shrinkable column: a long nowrap card name must ellipsize, not widen
+     the list past the prompt and push the row buttons off-screen. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.38rem;
   margin: 0;
   padding-left: 1.4rem;
@@ -3438,11 +3460,22 @@ img.zone-pile-face {
   user-select: none;
   -webkit-user-select: none;
 }
+.order-list .order-row {
+  flex-wrap: wrap;
+}
+/* The name keeps at least ~6rem; below that the buttons wrap under it and
+   a long name gets two lines before it ellipsizes. */
 .order-list .order-row .choice-order-name {
-  flex: 1 1 auto;
+  flex: 1 1 6rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .order-list .order-row .search-order-actions {
   flex: none;
+  margin-left: auto;
 }
 .order-list.is-dragging,
 .order-list.is-dragging .order-row {
