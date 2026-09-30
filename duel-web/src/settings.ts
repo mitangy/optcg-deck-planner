@@ -54,6 +54,8 @@ export type DuelSettings = {
   sortHandByCost: boolean;
   /** Fanned hand at the bottom centre / bottom right, or the flat grid. */
   handLayout: HandLayout;
+  /** Desktop: tilt the board away from you, seen from your seat. */
+  tiltedBoard: boolean;
   /** "Your turn" / "Opponent's turn" banner over the board. */
   turnSplash: boolean;
   /** Tone down board animations even when the OS has no reduced-motion preference. */
@@ -80,6 +82,7 @@ const DEFAULTS: DuelSettings = {
   screenOrientation: "auto",
   sortHandByCost: false,
   handLayout: "fanCenter",
+  tiltedBoard: false,
   turnSplash: true,
   reduceMotion: false,
   animationSpeed: "normal",

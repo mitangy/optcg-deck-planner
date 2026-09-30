@@ -27,3 +27,18 @@ for (const screen of SCREENS) {
     expect(duel.errors).toEqual([]);
   });
 }
+
+// The "Tilted board" setting leans both mats back in perspective (desktop only).
+for (const screen of ["?full", "?statuses", "?attack"]) {
+  test(`/demo${screen} with the tilted board passes the UI audit`, async ({ page, duel }, info) => {
+    await page.addInitScript(() =>
+      localStorage.setItem("optcg-duel:settings", JSON.stringify({ tiltedBoard: true })),
+    );
+    await page.goto(`/demo${screen}`);
+    await page.locator(".board-root").waitFor();
+    const issues = (await duel.audit()).filter((i) => !isKnown(i));
+    if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
+    expect(issues, formatIssues(issues)).toEqual([]);
+    expect(duel.errors).toEqual([]);
+  });
+}

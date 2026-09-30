@@ -96,7 +96,7 @@ import { OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./Tur
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
 import { getLastHoverAt, getPreviewCard, setAutoPreviewCard, shouldAutoPreview } from "./cardPreview";
 import { latestOpponentPlay, opponentPlayCaption } from "./opponentPlay";
-import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY, RAIL_HAND_QUERY } from "./useMediaQuery";
+import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY, RAIL_HAND_QUERY, TILT_BOARD_QUERY } from "./useMediaQuery";
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { matchMenuItems } from "./matchMenuItems";
@@ -218,6 +218,9 @@ export function DuelBoard({
   /** Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). */
   const fanHand = wide && !lp && prefs.handLayout !== "grid";
   const fanCenter = fanHand && prefs.handLayout === "fanCenter";
+  /** Desktop / landscape tablet: the board leans back in perspective, seen from your seat. */
+  const tiltFits = useMediaQuery(TILT_BOARD_QUERY);
+  const tilted = wide && !lp && tiltFits && prefs.tiltedBoard;
   /** Tall desktop, Grid layout: the hand is an always-open grid in the right rail (no dock). */
   const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
   const railHand = wide && !lp && railHandTall && !fanHand;
@@ -1109,7 +1112,9 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : fanHand ? " arena-fan-right" : ""}`}
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : fanHand ? " arena-fan-right" : ""}${
+        tilted ? " arena-tilt" : ""
+      }`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
       data-phase={view.phase}
       data-turn={view.turnNumber}

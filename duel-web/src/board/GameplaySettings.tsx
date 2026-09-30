@@ -11,10 +11,12 @@ import {
 } from "../settings";
 import { useLockNote } from "./orientation";
 import { playTurnChime } from "./turnAlert";
+import { TILT_BOARD_QUERY, useMediaQuery } from "./useMediaQuery";
 
 type Toggle = {
   key:
     | "sortHandByCost"
+    | "tiltedBoard"
     | "turnSplash"
     | "reduceMotion"
     | "turnAlert"
@@ -28,6 +30,11 @@ const TOGGLES: Toggle[] = [
     key: "sortHandByCost",
     label: "Sort hand by cost",
     hint: "Starts each match with the hand's Sort button on.",
+  },
+  {
+    key: "tiltedBoard",
+    label: "Tilted board",
+    hint: "Desktop and landscape tablets: the board leans away from you like a real table, so the opponent's side is a little smaller and further back.",
   },
   {
     key: "turnSplash",
@@ -85,6 +92,8 @@ const ANIMATION_OPTIONS: { value: AnimationSpeed; label: string }[] = [
 export function GameplaySettingsFields() {
   const settings = useDuelSettings();
   const lockNote = useLockNote(settings.screenOrientation);
+  // Phones and tall windows keep the flat board, so the switch would do nothing there.
+  const tiltFits = useMediaQuery(TILT_BOARD_QUERY);
   return (
     <div className="gameplay-settings">
       <div className="field">
@@ -186,7 +195,7 @@ export function GameplaySettingsFields() {
           keeps its short fade instead of Normal or Fast.
         </p>
       </div>
-      {TOGGLES.map((t) => (
+      {TOGGLES.filter((t) => t.key !== "tiltedBoard" || tiltFits).map((t) => (
         <div className="gameplay-toggle" key={t.key}>
           <label className="switch">
             <input
