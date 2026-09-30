@@ -222,5 +222,14 @@ module.exports = {
     { id: "wake-late-grant-kept", file: `${src}/board/wakeLock.ts`, from: "        if (!started) {\n          // stop() ran while the request was in flight: do not keep the lock.\n          void sentinel.release().catch(() => {});\n          return;\n        }\n", to: "", kills: ["releases a lock that is granted after stop"] },
     { id: "wake-denied-stuck", file: `${src}/board/wakeLock.ts`, from: "        requesting = false;\n        console.debug", to: "        console.debug", kills: ["keeps trying on later visibility changes after a denied request"] },
     { id: "wake-unsupported-throws", file: `${src}/board/wakeLock.ts`, from: "if (!started || !request ||", to: "if (!started ||", kills: ["is a no-op when the Wake Lock API is unsupported"] },
+    // status icons
+    { id: "status-icons-none", file: `${src}/board/statusIcons.ts`, from: "  return hit ?? null;", to: "  return null;", kills: ["gives every engine status label an icon"] },
+    { id: "status-icons-one-glyph", file: `${src}/board/statusIcons.ts`, from: "  return hit ?? null;", to: "  return hit ? STUN : null;", kills: ["gives distinct statuses distinct icons"] },
+    { id: "status-icons-rush-collapsed", file: `${src}/board/statusIcons.ts`, from: "[\"rush: character\", { glyph: \"bolt-character\", tone: \"danger\" }],", to: "[\"rush: character\", { glyph: \"bolt\", tone: \"danger\" }],", kills: ["keeps Rush and Rush: Character apart", "gives distinct statuses distinct icons"] },
+    { id: "status-icons-unknown-guessed", file: `${src}/board/statusIcons.ts`, from: "  return hit ?? null;", to: "  return hit ?? STUN;", kills: ["leaves unknown labels to the text chip"] },
+    { id: "status-icons-no-stunned-alias", file: `${src}/board/statusIcons.ts`, from: "  [\"stunned\", STUN],\n", to: "", kills: ["treats Stun and Stunned"] },
+    { id: "status-icons-case-sensitive", file: `${src}/board/statusIcons.ts`, from: "    .toLowerCase()\n", to: "", kills: ["matches loosely on case, spacing and apostrophe style"] },
+    { id: "status-icons-curly-apostrophe", file: `${src}/board/statusIcons.ts`, from: "    .replace(/[\\u2018\\u2019]/g, \"'\")\n", to: "", kills: ["matches loosely on case, spacing and apostrophe style"] },
+    { id: "status-icons-colon-spacing", file: `${src}/board/statusIcons.ts`, from: "    .replace(/\\s*:\\s*/g, \": \")\n", to: "", kills: ["matches loosely on case, spacing and apostrophe style"] },
   ],
 };
