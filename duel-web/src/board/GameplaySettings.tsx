@@ -31,7 +31,7 @@ const TOGGLES: Toggle[] = [
   {
     key: "keepHandOpen",
     label: "Keep hand open",
-    hint: "Wide screens: the hand dock stays up instead of tucking away.",
+    hint: "Short or zoomed-in desktop windows: the corner hand dock stays up instead of tucking away. The hand in the right column is always open.",
   },
   {
     key: "turnSplash",
