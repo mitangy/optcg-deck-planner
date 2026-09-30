@@ -42,3 +42,24 @@ for (const screen of ["?full", "?statuses", "?attack"]) {
     expect(duel.errors).toEqual([]);
   });
 }
+
+// A clicked hand card, Sort or Hand button keeps focus; the fan must still tuck
+// once the pointer leaves it, or it sits on your DON!! row (flat board).
+test("the centre hand fan tucks away after a click once the pointer leaves", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const donCovered = () =>
+    page.evaluate(() => {
+      const r = document.querySelector(".side-you .don-strip")!.getBoundingClientRect();
+      return !!document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest(".hand-fan");
+    });
+  expect(await donCovered()).toBe(false);
+
+  const card = page.locator(".hand-fan-cards > .card-tile").nth(2);
+  await card.click({ position: { x: 20, y: 15 } }); // select
+  await card.click({ position: { x: 20, y: 30 } }); // deselect; the card keeps focus
+  await page.locator(".hand-fan-head .hand-rail-btn").click(); // Sort keeps focus too
+  await page.mouse.move(640, 120);
+  await expect.poll(donCovered, { timeout: 3000 }).toBe(false);
+});

@@ -1151,7 +1151,7 @@
 }
 
 .hand-dock.is-open,
-.hand-dock:focus-within {
+.hand-dock:has(:focus-visible) {
   width: max(var(--rail-w), calc(var(--n) * (var(--dock-cw) + var(--dock-gap)) + 1.2rem + var(--safe-r)));
   transform: none;
   transition-delay: 0s;
@@ -1246,10 +1246,12 @@
 
    .hand-fan-center sits under the board column, which keeps a strip free for
    the tucked cards (so they never cover your DON!!, deck or trash);
-   .hand-fan-right sits under the rail like the old dock. Hovering, focusing,
-   pinning (H) or selecting a card raises the fan and spreads it out over the
-   board; dragging a card out tucks it again so the whole board is a drop
-   target. The container ignores the pointer, so only the cards and the handle
+   .hand-fan-right sits under the rail like the old dock. Hovering, keyboard
+   focus, pinning (H) or selecting a card raises the fan and spreads it out
+   over the board; dragging a card out tucks it again so the whole board is a
+   drop target. Only :focus-visible raises it, not :focus-within: a clicked
+   card, Sort or Hand button keeps focus, and the fan would stay up over your
+   DON!! row after the pointer leaves. The container ignores the pointer, so only the cards and the handle
    catch clicks. Per-card tilt and drop come from handFan.ts (--rot, --drop). */
 
 /* The rail keeps the tucked right fan's strip free (handle + top of the cards). */
@@ -1284,7 +1286,7 @@
 }
 
 .hand-fan.is-open,
-.hand-fan:focus-within {
+.hand-fan:has(:focus-visible) {
   transform: translateY(var(--fan-raise));
   transition-delay: 0s;
 }
@@ -1411,7 +1413,7 @@
 }
 
 .hand-fan-center.is-open .hand-fan-cards,
-.hand-fan-center:focus-within .hand-fan-cards {
+.hand-fan-center:has(:focus-visible) .hand-fan-cards {
   width: calc(var(--fan-cw) * (0.8 * var(--n) + 0.2));
   transition-delay: 0s;
 }
@@ -1449,7 +1451,7 @@
 }
 
 .hand-fan-right.is-open,
-.hand-fan-right:focus-within {
+.hand-fan-right:has(:focus-visible) {
   width: max(var(--rail-w), calc(var(--fan-cw) * (0.8 * var(--n) + 0.8) + 0.6rem + var(--safe-r)));
 }
 
