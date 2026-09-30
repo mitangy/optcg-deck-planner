@@ -238,5 +238,13 @@ module.exports = {
     { id: "menu-copy-room-in-hotseat", file: `${src}/board/matchMenu.ts`, from: "  if (!o.hotseat) items.push(\"copy-room\");", to: "  items.push(\"copy-room\");", kills: ["has no Copy room in hotseat"] },
     { id: "menu-fullscreen-always", file: `${src}/board/matchMenu.ts`, from: "  if (o.fullscreenOffered) items.push(\"fullscreen\");", to: "  items.push(\"fullscreen\");", kills: ["offers Full screen only when the browser offers it"] },
     { id: "menu-leave-before-concede", file: `${src}/board/matchMenu.ts`, from: "  if (o.canConcede && !o.spectating && !o.over) items.push(\"concede\");\n  items.push(\"leave\");", to: "  items.push(\"leave\");\n  if (o.canConcede && !o.spectating && !o.over) items.push(\"concede\");", kills: ["always ends with Leave, after Concede"] },
+    // primary intent slot
+    { id: "primary-end-turn-beats-pass", file: `${src}/board/primaryIntent.ts`, from: "    case \"end_turn\":\n      return 2;", to: "    case \"end_turn\":\n      return -1;", kills: ["prefers answering an attack over ending the turn"] },
+    { id: "primary-no-end-turn", file: `${src}/board/primaryIntent.ts`, from: "    case \"end_turn\":\n      return 2;", to: "    case \"end_turn\":\n      return null;", kills: ["uses End turn in the main phase", "leaves everything but the primary in rest, in order"] },
+    { id: "primary-pending-choice-let-through", file: `${src}/board/primaryIntent.ts`, from: "    case \"order_pending_effects\":\n      return null;", to: "    case \"order_pending_effects\":\n      return 0;", kills: ["never picks an answer the choice prompt owns"] },
+    { id: "primary-mulligan-redo", file: `${src}/board/primaryIntent.ts`, from: "return intent.doMulligan === false ? 3 : null;", to: "return 3;", kills: ["makes keeping the hand primary but never the redraw"] },
+    { id: "primary-mulligan-keep-ignored", file: `${src}/board/primaryIntent.ts`, from: "return intent.doMulligan === false ? 3 : null;", to: "return null;", kills: ["makes keeping the hand primary but never the redraw"] },
+    { id: "primary-stays-in-rest", file: `${src}/board/primaryIntent.ts`, from: "rest: intents.filter((_, i) => i !== best) };", to: "rest: intents };", kills: ["leaves everything but the primary in rest, in order"] },
+    { id: "primary-anything-goes", file: `${src}/board/primaryIntent.ts`, from: "    default:\n      return null;", to: "    default:\n      return 9;", kills: ["returns no primary when nothing advances the game"] },
   ],
 };

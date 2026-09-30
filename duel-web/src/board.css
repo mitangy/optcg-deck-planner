@@ -2172,3 +2172,58 @@
 .arena .hud-compact .hud-clock-pair .hud-seat-clock.low.running {
   color: #ff9a8f;
 }
+
+/* —— Intent bar: contextual actions on the left, one fixed primary on the right —— */
+
+.intent-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.intent-layout .intent-row {
+  flex: 1 1 0;
+  min-width: 0;
+  align-items: center;
+}
+
+.intent-primary {
+  flex: 0 0 40%;
+  min-width: 0;
+  display: flex;
+}
+
+.intent-btn.intent-btn-primary {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 48px;
+  font-size: 0.95rem;
+  padding: 0.5rem 0.6rem;
+}
+
+.intent-btn.intent-btn-pass {
+  color: #fff;
+  background: linear-gradient(180deg, #4d86ad, #2f6088);
+  border-color: rgba(160, 205, 235, 0.55);
+}
+
+.intent-btn.intent-btn-pass:not(:disabled):hover {
+  background: linear-gradient(180deg, #5a95bd, #386c96);
+  border-color: rgba(190, 225, 250, 0.8);
+}
+
+/* Rail (desktop / landscape): the primary is a full-width button under the
+   wrapped secondary actions. */
+.arena.arena-wide .arena-rail .intent-layout {
+  flex-direction: column;
+}
+
+.arena.arena-wide .arena-rail .intent-layout .intent-row {
+  flex: none;
+}
+
+.arena.arena-wide .arena-rail .intent-primary {
+  flex: none;
+  order: 2;
+}
