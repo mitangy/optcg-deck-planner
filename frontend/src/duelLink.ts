@@ -1,6 +1,6 @@
 import { buildOptcgSimExport, type OptcgSimExportCard } from "./optcgsimExport";
 
-const DUEL_URL = (
+export const DUEL_URL = (
   (import.meta.env.VITE_DUEL_URL as string | undefined)?.trim() || "https://optcgduel.app"
 ).replace(/\/+$/, "");
 

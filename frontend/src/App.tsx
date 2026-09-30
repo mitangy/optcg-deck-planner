@@ -24,7 +24,7 @@ import {
   downloadTextFile,
   optcgSimFilename,
 } from "./optcgsimExport";
-import { duelPlayUrl } from "./duelLink";
+import { DUEL_URL, duelPlayUrl } from "./duelLink";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
   CardSearchInput,
@@ -491,6 +491,9 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
           </nav>
           <div className="user">
             <BuildTag />
+            <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
+              Play Duel
+            </a>
             <ThemeToggle />
             <span className="user-name" title={user.email}>
               {shortName}
@@ -3331,6 +3334,9 @@ function PublicSharePage() {
           </div>
           <div className="user">
             <BuildTag />
+            <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
+              Play Duel
+            </a>
             <ThemeToggle />
             <Link className="btn secondary" to="/login">
               Sign in
