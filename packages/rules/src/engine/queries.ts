@@ -167,9 +167,43 @@ export function powerOf(state: MatchState, seat: Seat, card: CardInstance): numb
   return p;
 }
 
+/**
+ * Cost statics that apply to `card`, resolved without the general static pass. Condition checks made while
+ * statics are being resolved ("if there is a Character with a cost of 12 or more") still need to see +cost
+ * statics such as [Loki]'s, but must not recurse into other statics; nested cost lookups see printed cost.
+ */
+let costGuard = 0;
+function costStaticsFor(state: MatchState, card: CardInstance): { entry: StaticEntry; s: Static }[] {
+  if (costGuard > 0) return [];
+  costGuard += 1;
+  try {
+    const out: { entry: StaticEntry; s: Static }[] = [];
+    for (const seat of [0, 1] as Seat[]) for (const src of fieldCards(state.players[seat])) {
+      for (const ability of abilitiesFor(src.defId)) {
+        if (ability.trigger !== "static" || !(ability.statics ?? []).some((s) => s.s === "cost")) continue;
+        if (ability.don && src.attachedDonIds.length < ability.don) continue;
+        if (isNegated(state, src)) continue;
+        const ctx = ctxFor(seat, src);
+        if (!(ability.conditions ?? []).every((c) => evalCond(state, ctx, c))) continue;
+        const entry: StaticEntry = { seat, card: src, zone: "field", ability };
+        for (const s of ability.statics ?? []) {
+          if (s.s !== "cost") continue;
+          const when = (s as { when?: Cond[] }).when;
+          if (when && !when.every((c) => evalCond(state, ctx, c))) continue;
+          if (staticApplies(state, entry, s, { seat: entry.seat, card })) out.push({ entry, s });
+        }
+      }
+    }
+    return out;
+  } finally {
+    costGuard -= 1;
+  }
+}
+
 export function costOf(state: MatchState, seat: Seat, card: CardInstance): number {
   let c = getCardDef(card.defId).cost;
-  for (const { entry, s } of staticsFor(state, seat, card)) if (s.s === "cost") c += evalValue(state, ctxFor(entry.seat, entry.card), s.amount);
+  const costStatics = staticGuard > 0 ? costStaticsFor(state, card) : staticsFor(state, seat, card);
+  for (const { entry, s } of costStatics) if (s.s === "cost") c += evalValue(state, ctxFor(entry.seat, entry.card), s.amount);
   for (const m of cardModifiers(state, card)) if (m.effect.type === "cost") c += m.effect.amount;
   for (const m of cardModifiers(state, card)) if (m.effect.type === "set_cost") c = m.effect.value;
   return Math.max(0, c);
@@ -610,8 +644,8 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
     case "play_from_hand": return candidates(state, ctx, { player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }).length >= cost.count;
     case "hand_to_deck_top": return p.hand.filter((c) => c.id !== ctx.sourceId).length >= cost.count;
     case "trash_to_deck_shuffle": return p.trash.length >= cost.count;
-    case "life_face_down": return p.faceUpLife.filter(Boolean).length >= cost.count || p.life.length >= cost.count;
-    case "life_face_up": return p.life.length >= cost.count;
+    case "life_face_down": return p.faceUpLife.filter(Boolean).length >= cost.count;
+    case "life_face_up": return p.faceUpLife.filter((up) => !up).length >= cost.count;
     case "mill": return p.deck.length >= cost.count;
     case "power": return cost.target !== "active_leader" || !p.leader.rested;
     case "give_opponent_don": { const o = state.players[otherSeat(ctx.seat)]; return o.costArea.filter((d) => d.rested).length >= cost.count && o.characters.length > 0; }
