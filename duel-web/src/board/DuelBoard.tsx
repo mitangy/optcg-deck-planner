@@ -69,7 +69,7 @@ import { TurnSplash, type SplashMessage } from "./TurnSplash";
 import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY } from "./useMediaQuery";
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
-import { matchMenuItems } from "./matchMenu";
+import { matchMenuItems } from "./matchMenuItems";
 
 type Props = {
   view: PlayerView | null;
