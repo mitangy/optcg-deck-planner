@@ -156,6 +156,7 @@ export function DeckConfigurePage() {
         {notice ? <p className="meta deck-config-notice">{notice}</p> : null}
 
         <DeckImportPanel
+          collapsible
           importText={importText}
           onImportTextChange={setImportText}
           onImport={onImportIntoDeck}

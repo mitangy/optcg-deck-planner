@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
+import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
 import { getApiBaseUrl, getPlannerUrl } from "../config";
 import { resolveCardImageUrl } from "../decks/artPrefs";
@@ -260,7 +261,7 @@ export function LobbyPage() {
   /** Short status while buttons are disabled (vs-self warm/mint). */
   const [busyStatus, setBusyStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [ratingLabel, setRatingLabel] = useState<string | null>(null);
+  const [bounty, setBounty] = useState<number | null>(null);
 
   const [decks, setDecks] = useState<SavedDeck[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -448,18 +449,18 @@ export function LobbyPage() {
     if (authMode === "guest") {
       const minted = await mintGuestGameToken(getOrCreateGuestId());
       setRating(minted.rating);
-      setRatingLabel(`${minted.rating}`);
+      setBounty(minted.rating);
       return { serverUrl, gameToken: minted.token, secret };
     }
     if (authMode === "google") {
       const minted = await mintSessionGameToken();
       setRating(minted.rating);
-      setRatingLabel(`${minted.rating}`);
+      setBounty(minted.rating);
       return { serverUrl, gameToken: minted.token, secret };
     }
     const minted = await mintDevGameToken(settings.devUserKey.trim());
     setRating(minted.rating);
-    setRatingLabel(`${minted.rating}`);
+    setBounty(minted.rating);
     return { serverUrl, gameToken: minted.token, secret };
   }
 
@@ -600,7 +601,11 @@ export function LobbyPage() {
             <Link to="/settings" className="account-chip" title="Account settings">
               <span className="account-dot" data-mode={authMode} aria-hidden />
               <span className="account-name">{accountName}</span>
-              {ratingLabel ? <span className="account-rating">{ratingLabel}</span> : null}
+              {bounty != null ? (
+                <span className="account-rating" title="Bounty">
+                  <BountyAmount amount={bounty} />
+                </span>
+              ) : null}
             </Link>
             <a
               href={getPlannerUrl()}
@@ -889,7 +894,7 @@ export function LobbyPage() {
 
                 {mode === "queue" ? (
                   <p className="field-hint">
-                    Ranked always enforces 30 second turns. Rating updates after the match.
+                    Ranked always enforces 30 second turns. Your Bounty updates after the match.
                   </p>
                 ) : null}
 

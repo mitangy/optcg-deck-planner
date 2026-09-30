@@ -106,7 +106,7 @@ export function SettingsPage() {
           {authUser ? (
             <>
               <p className="panel-copy">
-                Signed in as <strong>{authUser.email}</strong>. Ranked rating
+                Signed in as <strong>{authUser.email}</strong>. Your ranked Bounty
                 follows this account.
               </p>
               <UsernameSettings user={authUser} onChange={setAuthUser} />
@@ -130,7 +130,7 @@ export function SettingsPage() {
               <p className="panel-copy">
                 Playing as a guest (
                 <code>{getOrCreateGuestId().slice(0, 10)}…</code>, stable in
-                this browser). Sign in to keep your rating across devices.
+                this browser). Sign in to keep your Bounty across devices.
               </p>
               <div className="btn-row">
                 <a className="btn btn-primary" href={googleLoginUrl()}>

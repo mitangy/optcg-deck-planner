@@ -112,7 +112,7 @@ export default function ConnectScreen() {
         </Text>
       </Pressable>
       {ratingLabel ? (
-        <Text style={styles.meta}>Rating: {ratingLabel}</Text>
+        <Text style={styles.meta}>Bounty: ฿{ratingLabel}</Text>
       ) : null}
 
       <Text style={styles.label}>Join secret (optional)</Text>

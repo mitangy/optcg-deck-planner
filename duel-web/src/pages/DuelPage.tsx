@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
 import type { BoardWaiting } from "../board/PendingBoard";
+import { BountyAmount } from "../Bounty";
 import { useDuelSession } from "../state/DuelSession";
 
 export function DuelPage() {
@@ -88,7 +89,9 @@ export function DuelPage() {
           </button>
         </div>
       ) : null}
-      {rating != null ? <div className="rating-chip">Your rating: {rating}</div> : null}
+      {rating != null ? <div className="rating-chip">
+          Your Bounty: <BountyAmount amount={rating} />
+        </div> : null}
       <DuelBoard
         view={view}
         seat={seat}

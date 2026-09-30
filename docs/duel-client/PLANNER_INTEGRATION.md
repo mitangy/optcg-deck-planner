@@ -24,6 +24,20 @@ session cookie (see ADR-016 in `DECISIONS.md`).
   "Deck planner" icon (`VITE_PLANNER_URL`, default
   `https://optcg-deck-planner.app`).
 
+## Decks page: pick several, drag between lists
+
+- "From your planner" lists only planner decks with no local copy yet
+  (`plannerDecksNotLocal`). Tick decks and press "Add selected", or drag a row
+  by its grip up to "Your decks". Dragging a ticked row carries every ticked
+  deck. Decks load with `importPlannerDecks`: one failure never stops the rest.
+- A linked copy (`planner-<id>`) under "Your decks" has a grip too; dragging it
+  back down to "From your planner" deletes the local copy (the planner deck is
+  untouched). Unlinked local decks cannot be dragged.
+- Drag is pointer based (`duel-web/src/decks/useDeckDrag.ts`) so it works with
+  touch; the page scrolls near the top and bottom edges while dragging and Esc
+  cancels.
+- The deck editor's "Import deck list" and "Add cards" sections start collapsed.
+
 ## Not done yet (ideas, best first)
 
 1. **Win rates per planner deck.** Record which planner deck was played with
