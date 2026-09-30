@@ -66,8 +66,9 @@ import { RematchPanel } from "./RematchPanel";
 import { RoomChip, RoomInvite } from "./RoomShare";
 import { OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
-import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY } from "./useMediaQuery";
+import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY } from "./useMediaQuery";
 import { MatchMenu } from "./MatchMenu";
+import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { matchMenuItems } from "./matchMenu";
 
 type Props = {
@@ -175,6 +176,14 @@ export function DuelBoard({
   const wide = useMediaQuery(WIDE_BOARD_QUERY);
   const compactHud = useMediaQuery(COMPACT_HUD_QUERY);
   const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
+  const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_QUERY);
+  /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
+  const lp = wide && landscapePhone;
+  const [lpPanel, setLpPanel] = useState<LandscapePanel | null>(null);
+  // Starting a drag (or leaving landscape) must never leave an overlay over the board.
+  useEffect(() => {
+    if (dragPayload || !lp) setLpPanel(null);
+  }, [dragPayload, lp]);
   const [handSorted, setHandSorted] = useState(prefs.sortHandByCost);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const fullscreenOffered = useMemo(() => canOfferFullscreen(readInstallEnv()), []);
@@ -684,7 +693,7 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}`}
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}`}
     >
       {compactHud ? (
         <header className="hud-bar hud-compact">
@@ -1005,7 +1014,14 @@ export function DuelBoard({
       ) : null}
 
       <div className="arena-body">
-        {wide ? (
+        {lp ? (
+          <LandscapeRail
+            open={lpPanel}
+            onToggle={(panel) => setLpPanel((cur) => (cur === panel ? null : panel))}
+            hasChat={Boolean(chat)}
+            logCount={battleLog.length}
+          />
+        ) : wide ? (
           <aside className="arena-left" aria-label="Card preview and battle log">
             <CardPreviewPanel />
             <BattleLogPanel
@@ -1131,7 +1147,7 @@ export function DuelBoard({
 
         {wide ? (
           <div className="arena-rail">
-            <OppHandFan count={opp.handCount} cardBackUrl={oppCardBackUrl} />
+            <OppHandFan count={opp.handCount} cardBackUrl={oppCardBackUrl} compact={lp} />
             <TurnStatusPanel
               view={view}
               boardSeat={boardSeat}
@@ -1141,11 +1157,12 @@ export function DuelBoard({
               turnClock={turnClock}
               matchClock={matchClock}
               seatClocks={seatClocks}
+              compact={lp}
             />
             {intentPanel}
-            {chatPanel}
+            {lp ? null : chatPanel}
             {/* Reserves the strip the collapsed hand dock peeks into. */}
-            <div className="rail-dock-spacer" aria-hidden />
+            {lp ? null : <div className="rail-dock-spacer" aria-hidden />}
           </div>
         ) : (
           <div className="arena-rail">
@@ -1197,6 +1214,20 @@ export function DuelBoard({
           </div>
         )}
       </div>
+
+      {lp && lpPanel ? (
+        <LandscapeOverlay panel={lpPanel} onClose={() => setLpPanel(null)}>
+          {lpPanel === "log" ? (
+            <BattleLogPanel
+              entries={battleLog}
+              viewingSeat={spectating || mySeat == null ? undefined : mySeat}
+              alwaysOpen
+            />
+          ) : (
+            chatPanel
+          )}
+        </LandscapeOverlay>
+      ) : null}
 
       {wide ? (
         <div

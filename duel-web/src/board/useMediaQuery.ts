@@ -33,3 +33,7 @@ export const COMPACT_HUD_QUERY = "not ((min-width: 900px) and (min-height: 500px
 
 /** Portrait phones / tablets: must match the 6-column mat block in board.css. */
 export const PORTRAIT_MAT_QUERY = "(max-width: 899px) and (orientation: portrait)";
+
+/** Landscape phones (the wide board with the short-viewport layout). */
+export const LANDSCAPE_PHONE_QUERY =
+  "(orientation: landscape) and (min-width: 600px) and (max-height: 499px)";
