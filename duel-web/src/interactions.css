@@ -383,3 +383,10 @@
   font-size: 0.95rem;
   line-height: 1;
 }
+
+@media (max-width: 720px) {
+  /* Icon-only HUD buttons: keep the phone HUD on as few rows as possible. */
+  .arena .hud-actions .hud-settings-btn {
+    padding-inline: 0.4rem;
+  }
+}

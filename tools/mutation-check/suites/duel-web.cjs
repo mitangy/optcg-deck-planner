@@ -199,5 +199,18 @@ module.exports = {
     { id: "replace-prompt-always", file: `${src}/board/dragIntents.ts`, from: "  return playCardTrashTargetIds(intents, handIndex).length > 0;", to: "  return true;", kills: ["asks which Character to replace only when the board is full"] },
     { id: "replace-prompt-lists-every-character", file: `${src}/board/ReplacePrompt.tsx`, from: "view.you.characters.filter((c) => targetIds.includes(c.id))", to: "view.you.characters", kills: ["offers each Character the play may trash"] },
     { id: "replace-prompt-sends-unpicked", file: `${src}/board/ReplacePrompt.tsx`, from: "disabled={!intent}", to: "disabled={false}", kills: ["offers each Character the play may trash and waits for a pick"] },
+    // install prompt
+    { id: "install-ignores-standalone-media", file: `${src}/installPrompt.ts`, from: "  return env.standaloneMedia || env.navigatorStandalone === true;", to: "  return env.navigatorStandalone === true;", kills: ["hides in display-mode: standalone"] },
+    { id: "install-ignores-navigator-standalone", file: `${src}/installPrompt.ts`, from: "  return env.standaloneMedia || env.navigatorStandalone === true;", to: "  return env.standaloneMedia;", kills: ["hides once launched from the home screen"] },
+    { id: "install-ignores-dismissed", file: `${src}/installPrompt.ts`, from: " && !isIosHintDismissed(env);", to: ";", kills: ["hides after the player dismissed it"] },
+    { id: "install-storage-throw-escapes", file: `${src}/installPrompt.ts`, from: "  } catch {\n    return false;\n  }", to: "  } catch (e) {\n    throw e;\n  }", kills: ["still shows when storage is unavailable or throws"] },
+    { id: "install-dismiss-throw-escapes", file: `${src}/installPrompt.ts`, from: "  } catch {\n    // Private mode: the hint just comes back next visit.\n  }", to: "  } catch (e) {\n    throw e;\n  }", kills: ["still shows when storage is unavailable or throws"] },
+    { id: "install-hint-in-ios-chrome", file: `${src}/installPrompt.ts`, from: "  return isIos(env) && !/CriOS|FxiOS|EdgiOS/.test(env.userAgent);", to: "  return isIos(env);", kills: ["hides in Chrome on iOS"] },
+    { id: "install-hint-on-android", file: `${src}/installPrompt.ts`, from: "  return isIos(env) && !/CriOS|FxiOS|EdgiOS/.test(env.userAgent);", to: "  return !/CriOS|FxiOS|EdgiOS/.test(env.userAgent);", kills: ["hides on Android Chrome"] },
+    { id: "install-ipados-not-detected", file: `${src}/installPrompt.ts`, from: "  return /Macintosh/.test(env.userAgent) && env.maxTouchPoints > 1;", to: "  return false;", kills: ["shows on iPadOS Safari"] },
+    { id: "install-mac-counts-as-ios", file: `${src}/installPrompt.ts`, from: "  return /Macintosh/.test(env.userAgent) && env.maxTouchPoints > 1;", to: "  return /Macintosh/.test(env.userAgent);", kills: ["hides on a real Mac"] },
+    { id: "fullscreen-in-standalone", file: `${src}/installPrompt.ts`, from: "env.fullscreenEnabled && !isStandalone(env) && !isIos(env)", to: "env.fullscreenEnabled && !isIos(env)", kills: ["is not offered once installed"] },
+    { id: "fullscreen-on-ios", file: `${src}/installPrompt.ts`, from: "env.fullscreenEnabled && !isStandalone(env) && !isIos(env)", to: "env.fullscreenEnabled && !isStandalone(env)", kills: ["is not offered on iOS"] },
+    { id: "fullscreen-without-api", file: `${src}/installPrompt.ts`, from: "env.fullscreenEnabled && !isStandalone(env) && !isIos(env)", to: "!isStandalone(env) && !isIos(env)", kills: ["has no Fullscreen API"] },
   ],
 };
