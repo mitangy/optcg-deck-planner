@@ -8,7 +8,6 @@ import {
   CardView,
   DeckDetail,
   DeckSummary,
-  isDeckOversizeError,
   money,
   needBreakdownLabel,
   ShoppingItem,
@@ -2392,23 +2391,13 @@ const MAIN_DECK_LIMIT = 51;
 const DON_DECK_LIMIT = 10;
 const CATALOG_TYPE_FILTERS = ["", "Leader", "Character", "Event", "Stage", "DON!!"] as const;
 
+/** Past-50 decks are allowed; the hints tray flags them as a soft warning instead of a confirm. */
 async function setDeckCardNeeded(
   deckId: number,
   cardId: string,
   needed: number,
 ): Promise<DeckDetail | null> {
-  try {
-    return await api.upsertDeckCard(deckId, cardId, needed, false);
-  } catch (err) {
-    if (!isDeckOversizeError(err)) throw err;
-    const { projected, limit, message } = err.detail;
-    const ok = window.confirm(
-      `${message}\n\nOfficial constructed size is 50 cards + 1 leader (${limit}). ` +
-        `This deck would have ${projected}. Add anyway?`,
-    );
-    if (!ok) return null;
-    return api.upsertDeckCard(deckId, cardId, needed, true);
-  }
+  return api.upsertDeckCard(deckId, cardId, needed, true);
 }
 
 /** Main-deck rows (leader included, DON!! excluded) in the shape the stats and hints code reads. */
