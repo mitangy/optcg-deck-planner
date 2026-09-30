@@ -81,6 +81,65 @@ export function DonAttachConfirm({
   );
 }
 
+const QUICK_EDGE = 8;
+
+/**
+ * "+1 / +2 / All" DON!! chips over the selected Leader / Character. Fixed
+ * overlay (portal) that follows the card, above it when there is room and
+ * below otherwise, and never leaves the viewport, so it cannot shift the board.
+ */
+export function DonQuickRow({
+  targetId,
+  targetName,
+  counts,
+  onPick,
+}: {
+  targetId: string;
+  targetName: string;
+  counts: number[];
+  onPick: (count: number) => void;
+}) {
+  const boxes = useTrackedBoxes([targetId]);
+  const box = boxes?.[0] ?? null;
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    setWidth(rowRef.current?.offsetWidth ?? 0);
+  }, [counts.length, box == null]);
+  if (!box || typeof document === "undefined") return null;
+  const vw = window.innerWidth;
+  const c = boxCenter(box);
+  const half = width / 2;
+  const x = Math.min(Math.max(c.x, QUICK_EDGE + half), vw - QUICK_EDGE - half);
+  const above = box.top > 64;
+  const style: CSSProperties = above
+    ? { left: x, top: box.top - 6, transform: "translate(-50%, -100%)" }
+    : { left: x, top: box.top + box.height + 6, transform: "translate(-50%, 0)" };
+  return createPortal(
+    <div
+      ref={rowRef}
+      className="don-quick"
+      role="group"
+      aria-label={`Give DON!! to ${targetName}`}
+      style={style}
+    >
+      <img src={DON_CARD_ART} alt="" className="don-quick-icon" draggable={false} />
+      {counts.map((n, i) => (
+        <button
+          key={n}
+          type="button"
+          className="don-quick-btn"
+          aria-label={`Give ${n} DON!! to ${targetName}`}
+          onClick={() => onPick(n)}
+        >
+          {i === counts.length - 1 && n > 2 ? `All (${n})` : `+${n}`}
+        </button>
+      ))}
+    </div>,
+    document.body,
+  );
+}
+
 export type GhostPayload =
   | { type: "give_don"; count: number }
   | { type: "play_card"; defId: string; ownerSeat?: Seat };
