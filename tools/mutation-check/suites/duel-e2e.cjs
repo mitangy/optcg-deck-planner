@@ -35,6 +35,6 @@ module.exports = {
     // The Rotate hint lives in the midline strip; as a fixed toast above the hand it sat on your DON!! row and Trash.
     { id: "e2e-rotate-hint-over-field", args: "demo-audit --project=phone-375", file: "duel-web/src/board.css", from: ".arena .midline .rotate-hint {\n  position: relative;\n  height: 100%;", to: ".arena .midline .rotate-hint {\n  position: fixed;\n  bottom: calc(232px + var(--safe-b));\n  height: 54px;", kills: ["demo-audit.spec.ts > /demo?full passes the UI audit [phone-375]"] },
     // Tilted board: the inner box is pulled up by its extra height so the tilt folds it back into view.
-    { id: "e2e-tilted-board-hangs-off-bottom", args: "demo-audit --project=desktop-1280 -g tilted", file: "duel-web/src/board.css", from: "  margin-top: calc(100cqh * (1 - var(--tilt-grow)));\n", to: "", kills: ["demo-audit.spec.ts > /demo?full with the tilted board passes the UI audit [desktop-1280]"] },
+    { id: "e2e-tilted-board-hangs-off-bottom", args: "demo-audit --project=desktop-1280 -g tilted", file: "duel-web/src/board.css", from: "  margin-top: calc(100cqh * (1 - var(--tilt-grow)) - var(--tilt-lift));\n", to: "", kills: ["demo-audit.spec.ts > /demo?full with the tilted board passes the UI audit [desktop-1280]"] },
   ],
 };
