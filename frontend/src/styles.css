@@ -5334,3 +5334,257 @@ button.ghost.scan-open:hover {
 .ds-search-row.ds-warn .ds-search-chance {
   color: var(--warn);
 }
+
+/* Build hints (deck editor): chip tray, popover, delta chip. */
+.filter-drawer-badge {
+  flex: 0 0 auto;
+  min-width: 1.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--warn);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.dh-tray {
+  --dh-rule: var(--danger);
+  --dh-shape: var(--warn);
+  --dh-synergy: var(--accent);
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+  /* Two chip rows, always: chips coming and going never move what is below. */
+  height: 4.6rem;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.filter-drawer > .dh-tray {
+  padding: 0 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.dh-chips {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  /* flex-start: centring would crop the top row when chips overflow two rows */
+  align-content: flex-start;
+  align-items: center;
+  gap: 0.4rem;
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0.35rem 0 0;
+  list-style: none;
+  overflow: hidden;
+  /* clip (not hidden): focus or clicks must not scroll the clipped second row into view */
+  overflow: clip;
+}
+
+/* "+N more": the full list overlays whatever is below, the tray keeps its height. */
+.dh-chips.dh-expanded {
+  position: absolute;
+  z-index: 30;
+  top: 0;
+  left: 0;
+  right: 4.6rem;
+  height: auto;
+  max-height: 60dvh;
+  overflow: hidden auto;
+  padding: 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow-lift);
+}
+
+.filter-drawer > .dh-tray .dh-chips.dh-expanded {
+  left: 0.75rem;
+}
+
+.dh-chips > li {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.dh-empty {
+  font-size: 0.85rem;
+}
+
+.dh-side {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.1rem;
+}
+
+.dh-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 15rem;
+  min-height: 1.9rem;
+  padding: 0.15rem 0.65rem 0.15rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--dh-c) 55%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dh-c) 12%, var(--card));
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dh-chip.dh-rule,
+.dh-pop.dh-rule { --dh-c: var(--dh-rule); }
+.dh-chip.dh-shape,
+.dh-pop.dh-shape { --dh-c: var(--dh-shape); }
+.dh-chip.dh-synergy,
+.dh-pop.dh-synergy { --dh-c: var(--dh-synergy); }
+
+.dh-chip:hover,
+.dh-chip[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--dh-c) 22%, var(--card));
+}
+
+.dh-chip.dh-off {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.dh-dot {
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--dh-c);
+}
+
+.dh-chip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-link {
+  padding: 0.25rem 0.1rem;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dh-pop {
+  position: fixed;
+  z-index: 80;
+  box-sizing: border-box;
+  max-height: calc(100dvh - 1.5rem);
+  overflow-y: auto;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--dh-c) 55%, var(--line-strong));
+  border-top: 3px solid var(--dh-c);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow-lift);
+}
+
+.dh-pop-title {
+  overflow-wrap: anywhere;
+}
+
+.dh-pop-detail {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.dh-pop-cards {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.dh-pop-cards li {
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.dh-pop-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-pop-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.deck-editor {
+  position: relative;
+}
+
+/* Transient "what moved" chip: floats over the Add cards header (right of its label), takes no space. */
+.dh-delta-slot {
+  position: absolute;
+  z-index: 6;
+  top: 0.45rem;
+  left: 0.75rem;
+  right: 2.4rem;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.dh-delta {
+  max-width: 100%;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--info-line);
+  border-radius: 999px;
+  background: var(--info-bg);
+  color: var(--info-ink);
+  box-shadow: var(--shadow);
+  font-size: 0.82rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: dh-delta-life 4.5s ease forwards;
+}
+
+@keyframes dh-delta-life {
+  0% { opacity: 0; transform: translateY(-4px); }
+  8%, 80% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-delta { animation-name: dh-delta-fade; }
+  @keyframes dh-delta-fade {
+    0%, 85% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+}

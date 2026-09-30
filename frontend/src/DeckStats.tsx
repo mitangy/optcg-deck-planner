@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { CollapsibleDrawer } from "./cardListControls";
+import { DeckHintsTray, type HintsState } from "./DeckHints";
+import { useStatsAtlas } from "./useStatsAtlas";
 import { DrawOdds, SearcherOdds } from "./DrawOdds";
 import { deckEntries, type DeckEntry } from "./drawOdds";
 import {
@@ -8,7 +9,6 @@ import {
   type DeckStats,
   type DeckStatsCard,
   type NameCount,
-  type StatsAtlas,
 } from "./deckStats";
 
 export type StatsPlacement = "beside" | "below";
@@ -31,21 +31,6 @@ export function useStatsPlacement() {
     }
   }, [placement]);
   return [placement, setPlacement] as const;
-}
-
-// Fetched on first use only, then shared by every panel on the page.
-let atlasPromise: Promise<StatsAtlas> | null = null;
-function loadStatsAtlas(): Promise<StatsAtlas> {
-  atlasPromise ??= fetch("/deckStats.json")
-    .then((res) => {
-      if (!res.ok) throw new Error(`Card stats unavailable (${res.status})`);
-      return res.json() as Promise<StatsAtlas>;
-    })
-    .catch((err: unknown) => {
-      atlasPromise = null;
-      throw err instanceof Error ? err : new Error("Card stats unavailable");
-    });
-  return atlasPromise;
 }
 
 const COLOR_DOT: Record<string, string> = {
@@ -239,7 +224,7 @@ function StatsBody({ stats, entries }: { stats: DeckStats; entries: DeckEntry[] 
 }
 
 function StatsLoader({ cards, leaderId }: { cards: DeckStatsCard[]; leaderId: string | null }) {
-  const q = useQuery({ queryKey: ["deck-stats-atlas"], queryFn: loadStatsAtlas, staleTime: Infinity, retry: 1 });
+  const q = useStatsAtlas();
   const stats = useMemo(() => (q.data ? computeDeckStats(cards, q.data, leaderId) : null), [cards, q.data, leaderId]);
   const entries = useMemo(() => (q.data ? deckEntries(cards, q.data) : []), [cards, q.data]);
   if (stats) return <StatsBody stats={stats} entries={entries} />;
@@ -266,6 +251,8 @@ export function DeckStatsPanel({
   defaultOpen,
   placement,
   onPlacementChange,
+  hints,
+  showHints,
 }: {
   cards: DeckStatsCard[];
   leaderId: string | null;
@@ -274,10 +261,14 @@ export function DeckStatsPanel({
   /** Omit on read-only pages (public share) to hide the placement setting. */
   placement?: StatsPlacement;
   onPlacementChange?: (next: StatsPlacement) => void;
+  /** Owner-only build hints: the count badge shows while collapsed, the tray when `showHints`. */
+  hints?: HintsState;
+  showHints?: boolean;
 }) {
   return (
     <div className="deck-stats">
-      <CollapsibleDrawer label="Deck stats" storageKey={storageKey} defaultOpen={defaultOpen}>
+      <CollapsibleDrawer label="Deck stats" storageKey={storageKey} defaultOpen={defaultOpen} badge={hints && hints.visible.length > 0 ? hints.visible.length : undefined} badgeLabel="build hints">
+        {hints && showHints ? <DeckHintsTray hints={hints} /> : null}
         {placement && onPlacementChange ? (
           <div className="ds-placement">
             <span className="muted">Show</span>

@@ -90,6 +90,15 @@ describe("derivePlannerCard", () => {
   });
 });
 
+describe("leader trait mentions", () => {
+  it("lists each {Trait} named in a Leader's text once, and only for Leaders", () => {
+    const text = "[Activate: Main] Give up to 1 {Straw Hat Crew} type Character +1000 power. If you have {Supernovas} or {Straw Hat Crew} cards, draw 1.";
+    expect(derivePlannerCard(row({ type: "leader", text }), []).lt).toEqual(["Straw Hat Crew", "Supernovas"]);
+    expect(derivePlannerCard(row({ type: "leader", text: "No traits here." }), []).lt).toBeUndefined();
+    expect(derivePlannerCard(row({ type: "character", text }), []).lt).toBeUndefined();
+  });
+});
+
 describe("frontend/public/deckStats.json", () => {
   it("matches the card data and ability registry (run `npm run export-planner-stats`)", () => {
     const committed = readFileSync(resolve(__dirname, "../../../../frontend/public/deckStats.json"), "utf8");
