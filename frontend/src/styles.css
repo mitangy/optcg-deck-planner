@@ -5141,3 +5141,196 @@ button.ghost.scan-open:hover {
     grid-template-columns: minmax(0, 6rem) minmax(0, 1fr) 1.5rem;
   }
 }
+
+/* ——— Deck stats: draw odds + searchers ——— */
+.ds-odds,
+.ds-searchers {
+  grid-column: 1 / -1;
+}
+
+.ds-odds-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  min-width: 0;
+}
+
+.ds-field {
+  display: grid;
+  gap: 0.2rem;
+  flex: 1 1 10rem;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+
+.ds-field select {
+  width: 100%;
+  min-width: 0;
+  height: 2.25rem;
+}
+
+.ds-odds-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.6rem;
+  min-width: 0;
+}
+
+.ds-seg-toggle {
+  flex: 0 1 auto;
+}
+
+.ds-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ds-check input,
+.ds-pick input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  flex: none;
+}
+
+/* Fixed-height scroller so ticking cards never resizes the panel. */
+.ds-pick {
+  height: 9.5rem;
+  margin: 0.6rem 0 0;
+  padding: 0.25rem 0.4rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--bg-deep);
+}
+
+.ds-pick label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.85rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ds-pick-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-odds-note {
+  margin: 0.6rem 0 0.4rem;
+  min-height: 1.3em;
+}
+
+.ds-odds-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-odds-cell {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto 3.2rem;
+  justify-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.35rem 0.1rem 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-deep);
+}
+
+.ds-odds-turn {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.ds-odds-val {
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ds-odds-bar {
+  display: flex;
+  align-items: flex-end;
+  width: 0.65rem;
+  height: 100%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+  overflow: hidden;
+}
+
+.ds-odds-bar > span {
+  display: block;
+  width: 100%;
+  background: linear-gradient(0deg, var(--gold), var(--gold-bright));
+}
+
+.ds-search-list {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-search-head,
+.ds-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.4rem 2.2rem 3.4rem;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.9rem;
+  padding: 0 0.4rem;
+  border-radius: 8px;
+  font-size: 0.84rem;
+}
+
+.ds-search-head {
+  min-height: 1.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ds-search-head span:nth-child(n + 2),
+.ds-search-num,
+.ds-search-chance {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ds-search-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-search-row.ds-warn {
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+
+.ds-search-row.ds-warn .ds-search-chance {
+  color: var(--warn);
+}

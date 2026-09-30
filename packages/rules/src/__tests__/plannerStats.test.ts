@@ -25,6 +25,14 @@ const opp = { ref: "choose", selector: { player: "opponent", zone: "character" }
 const mine = { ref: "choose", selector: { player: "you", zone: "character" }, min: 0, max: 1 };
 
 describe("derivePlannerCard", () => {
+  it("exports the printed name and any name_alias names", () => {
+    const plain = derivePlannerCard(row({ name: "Zoro" }), []);
+    expect(plain.n).toBe("Zoro");
+    expect(plain.al).toBeUndefined();
+    const aliased = derivePlannerCard(row({ name: "Zoro" }), [ab("on_play", { statics: [{ s: "name_alias", names: ["Roronoa Zoro"] }] })]);
+    expect(aliased.al).toEqual(["Roronoa Zoro"]);
+  });
+
   it("records a search only when the looked-at card goes to hand", () => {
     const toHand = { do: "look", player: "you", count: 5, picks: [{ min: 0, max: 1, dest: "hand", filter: { traits: ["Straw Hat Crew"], notNames: ["Nami"] } }], rest: "deck_bottom" };
     const toPlay = { do: "look", player: "you", count: 4, picks: [{ min: 0, max: 1, dest: "play", filter: {} }], rest: "deck_bottom" };

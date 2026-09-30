@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { CollapsibleDrawer } from "./cardListControls";
+import { DrawOdds, SearcherOdds } from "./DrawOdds";
+import { deckEntries, type DeckEntry } from "./drawOdds";
 import {
   computeDeckStats,
   type DeckStats,
@@ -194,7 +196,7 @@ function CounterBlock({ stats }: { stats: DeckStats }) {
   );
 }
 
-function StatsBody({ stats }: { stats: DeckStats }) {
+function StatsBody({ stats, entries }: { stats: DeckStats; entries: DeckEntry[] }) {
   const blockers = stats.keywords.find((k) => k.name === "Blocker")?.count ?? 0;
   return (
     <div className="ds-body">
@@ -226,6 +228,8 @@ function StatsBody({ stats }: { stats: DeckStats }) {
           <h3 className="ds-sub">Attributes</h3>
           <Chips rows={stats.attributes} />
         </div>
+        <DrawOdds entries={entries} />
+        <SearcherOdds entries={entries} />
       </div>
       {stats.unknown > 0 ? (
         <p className="muted ds-empty">{stats.unknown} card{stats.unknown === 1 ? "" : "s"} missing from the stats data are not counted.</p>
@@ -237,7 +241,8 @@ function StatsBody({ stats }: { stats: DeckStats }) {
 function StatsLoader({ cards, leaderId }: { cards: DeckStatsCard[]; leaderId: string | null }) {
   const q = useQuery({ queryKey: ["deck-stats-atlas"], queryFn: loadStatsAtlas, staleTime: Infinity, retry: 1 });
   const stats = useMemo(() => (q.data ? computeDeckStats(cards, q.data, leaderId) : null), [cards, q.data, leaderId]);
-  if (stats) return <StatsBody stats={stats} />;
+  const entries = useMemo(() => (q.data ? deckEntries(cards, q.data) : []), [cards, q.data]);
+  if (stats) return <StatsBody stats={stats} entries={entries} />;
   return (
     <div className="ds-placeholder" aria-busy={q.isLoading}>
       {q.error ? (

@@ -15,6 +15,10 @@ export interface PlannerSearch {
 }
 
 export interface PlannerCard {
+  /** Printed name. */
+  n: string;
+  /** Extra names from name_alias statics (searcher filters match these too). */
+  al?: string[];
   t: "character" | "event" | "stage" | "leader";
   col: string[];
   cost?: number;
@@ -119,7 +123,7 @@ function roleFromText(clause: string, roles: Set<PlannerRole>): void {
 }
 
 export function derivePlannerCard(row: CardDataRow, abilities: readonly Ability[], unsupported: readonly string[] = []): PlannerCard {
-  const out: PlannerCard = { t: row.type, col: [...row.colors] };
+  const out: PlannerCard = { n: row.name, t: row.type, col: [...row.colors] };
   if (row.type !== "leader" && row.cost != null) out.cost = row.cost;
   if (row.power != null) out.pow = row.power;
   if (row.counter != null) out.ctr = row.counter;
@@ -132,12 +136,14 @@ export function derivePlannerCard(row: CardDataRow, abilities: readonly Ability[
   const timing = new Set<string>();
   const found: Found = { roles: new Set(), search: [] };
   const rules: string[] = [];
+  const aliases: string[] = [];
   for (const ability of abilities) {
     const label = TIMING_LABEL[ability.trigger];
     if (label) timing.add(label);
     for (const s of ability.statics ?? []) {
       if (s.s === "keyword" && s.target === "self" && KEYWORD_LABEL[s.keyword]) keywords.add(KEYWORD_LABEL[s.keyword]!);
       if (s.s === "deck_rule") rules.push(s.rule);
+      if (s.s === "name_alias") for (const a of s.names) if (!aliases.includes(a)) aliases.push(a);
     }
     walkEffect(ability.effect, found);
   }
@@ -151,6 +157,7 @@ export function derivePlannerCard(row: CardDataRow, abilities: readonly Ability[
   if (timing.size) out.tm = [...timing].sort();
   if (found.roles.size) out.rl = [...found.roles].sort();
   if (rules.length) out.rules = rules;
+  if (aliases.length) out.al = aliases;
   if (found.search.length) out.srch = found.search;
   return out;
 }

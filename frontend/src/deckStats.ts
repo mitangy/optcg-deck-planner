@@ -10,6 +10,9 @@ export type StatsSearch = { look: number; filter: Record<string, unknown> };
 
 /** One card in `deckStats.json` (short keys keep the download small). */
 export type StatsAtlasCard = {
+  /** Printed name, plus name_alias names in `al`. */
+  n?: string;
+  al?: string[];
   t: StatsCardType;
   col: string[];
   cost?: number;
