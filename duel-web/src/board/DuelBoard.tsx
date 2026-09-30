@@ -182,7 +182,8 @@ export function DuelBoard({
   /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
   const lp = wide && landscapePhone;
   /** Tall desktop: the hand is an always-open grid in the right rail (no dock). */
-  const railHand = wide && !lp && useMediaQuery(RAIL_HAND_QUERY);
+  const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
+  const railHand = wide && !lp && railHandTall;
   const [lpPanel, setLpPanel] = useState<LandscapePanel | null>(null);
   // Starting a drag (or leaving landscape) must never leave an overlay over the board.
   useEffect(() => {
