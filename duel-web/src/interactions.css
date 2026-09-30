@@ -357,6 +357,32 @@
   background: #ffd54f;
 }
 
+/* Attack drag: the card you carry reads as a strike, not a play. */
+.drag-ghost-attack img,
+.drag-ghost-attack > span:first-child {
+  border-color: var(--danger);
+  box-shadow:
+    0 0 0 2px rgba(163, 59, 59, 0.55),
+    0 10px 24px rgba(0, 0, 0, 0.55);
+}
+
+/* —— Counter chips in the defend tray double as drag sources —— */
+
+.defend-chip.chip-draggable {
+  cursor: grab;
+}
+
+.defend-chip.chip-dragging {
+  cursor: grabbing;
+  opacity: 0.55;
+}
+
+/* Landscape phone tray scrolls vertically: keep pan-y for the list and treat
+   sideways movement (towards the board) as the drag. */
+.arena.arena-lp .defend-chip.chip-draggable:not(.chip-dragging) {
+  touch-action: pan-y !important;
+}
+
 /* —— Hand selection feels instant —— */
 
 .hand-row-inner .card-tile {

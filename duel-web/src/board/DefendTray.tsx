@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import type { DefendModel } from "./defendModel";
+import { usePointerDrag } from "./usePointerDrag";
 
 function Thumb({ defId, ownerSeat }: { defId: string; ownerSeat: Seat }) {
   const [failed, setFailed] = useState(false);
@@ -30,6 +31,53 @@ function Thumb({ defId, ownerSeat }: { defId: string; ownerSeat: Seat }) {
   );
 }
 
+/** Drag a Counter chip onto the defending card: plays it at once. */
+export type CounterDragHandlers = {
+  onStart: (cardId: string) => void;
+  onEnd: (cardId: string, clientX: number, clientY: number) => void;
+  onCancel: () => void;
+};
+
+/** A counter chip that is also a drag source (tap still stages / plays). */
+function CounterChipButton({
+  cardId,
+  className,
+  label,
+  pressed,
+  onClick,
+  drag,
+  children,
+}: {
+  cardId: string;
+  className: string;
+  label: string;
+  pressed?: boolean;
+  onClick: () => void;
+  drag?: CounterDragHandlers;
+  children: ReactNode;
+}) {
+  const { bind, dragging } = usePointerDrag({
+    enabled: drag != null,
+    payload: cardId,
+    onDragStart: () => drag?.onStart(cardId),
+    onDragEnd: (_id, x, y) => drag?.onEnd(cardId, x, y),
+    onDragCancel: () => drag?.onCancel(),
+  });
+  return (
+    <button
+      type="button"
+      className={`${className}${drag ? " chip-draggable" : ""}${dragging ? " chip-dragging" : ""}`}
+      aria-pressed={pressed}
+      aria-label={label}
+      onClick={onClick}
+      draggable={false}
+      {...bind}
+    >
+      {children}
+    </button>
+  );
+}
+
 function power(n: number | null): string {
   return n == null ? "?" : String(n);
 }
@@ -42,6 +90,8 @@ type Props = {
   onToggleBlocker: (id: string) => void;
   onToggleCounter: (id: string) => void;
   onCounterEvent: (index: number) => void;
+  /** Drag-to-counter from the chips (counter step only). */
+  counterDrag?: CounterDragHandlers;
 };
 
 /**
@@ -57,6 +107,7 @@ export function DefendTray({
   onToggleBlocker,
   onToggleCounter,
   onCounterEvent,
+  counterDrag,
 }: Props) {
   const m = model;
   const stagedSet = new Set(m.stagedIds);
@@ -123,28 +174,30 @@ export function DefendTray({
         ) : (
           <>
             {m.counters.map((c) => (
-              <button
+              <CounterChipButton
                 key={c.id}
-                type="button"
+                cardId={c.id}
                 className={`defend-chip${stagedSet.has(c.id) ? " staged" : ""}`}
-                aria-pressed={stagedSet.has(c.id)}
-                aria-label={`Counter with ${c.name}${c.value != null ? `, plus ${c.value}` : ""}`}
+                pressed={stagedSet.has(c.id)}
+                label={`Counter with ${c.name}${c.value != null ? `, plus ${c.value}` : ""}`}
                 onClick={() => onToggleCounter(c.id)}
+                drag={counterDrag}
               >
                 <Thumb defId={c.defId} ownerSeat={ownerSeat} />
                 <span className="defend-chip-text">
                   <span className="defend-chip-main">{c.value != null ? `+${c.value}` : "+?"}</span>
                   <span className="defend-chip-sub">{c.name}</span>
                 </span>
-              </button>
+              </CounterChipButton>
             ))}
             {m.events.map((e, i) => (
-              <button
+              <CounterChipButton
                 key={e.id}
-                type="button"
+                cardId={e.id}
                 className="defend-chip defend-chip-event"
-                aria-label={`Event ${e.name}, cost ${e.cost} DON, counter ${e.valueLabel}`}
+                label={`Event ${e.name}, cost ${e.cost} DON, counter ${e.valueLabel}`}
                 onClick={() => onCounterEvent(i)}
+                drag={counterDrag}
               >
                 <Thumb defId={e.defId} ownerSeat={ownerSeat} />
                 <span className="defend-chip-text">
@@ -154,7 +207,7 @@ export function DefendTray({
                   </span>
                   <span className="defend-chip-sub">{e.name}</span>
                 </span>
-              </button>
+              </CounterChipButton>
             ))}
             {m.counters.length + m.events.length === 0 ? (
               <p className="defend-none">No Counter cards to play</p>

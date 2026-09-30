@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Intent } from "../net/protocol";
 import {
+  canDragAttacker,
+  canDragCounter,
   canDragDon,
   canDragHandCard,
   canDropPlayOnField,
@@ -200,5 +202,62 @@ describe("parseDropAttr", () => {
     });
     expect(parseDropAttr("")).toBeNull();
     expect(parseDropAttr("nope")).toBeNull();
+  });
+});
+
+describe("attack and counter drags", () => {
+  const battle: Intent[] = [
+    { type: "declare_attack", attackerId: "myLeader", target: { kind: "leader" } },
+    { type: "declare_attack", attackerId: "myLeader", target: { kind: "character", instanceId: "o1" } },
+    // o2 is only a legal target for c1 (e.g. c1 may attack active Characters).
+    { type: "declare_attack", attackerId: "c1", target: { kind: "character", instanceId: "o2" } },
+    { type: "counter_from_hand", handIndex: 1 },
+    { type: "counter_event", handIndex: 3 },
+    { type: "pass_counter" },
+  ];
+  const ctx = { opponentLeaderId: "oppLeader", defenderId: "myChar" };
+
+  it("only lets cards with a legal attack start an attack drag", () => {
+    expect(canDragAttacker(battle, "myLeader")).toBe(true);
+    expect(canDragAttacker(battle, "c2")).toBe(false);
+  });
+
+  it("declares the attack for the dragged attacker on the dropped target", () => {
+    const leaderHit = resolveDropIntents(
+      { type: "attack", attackerId: "myLeader" },
+      parseDropAttr("attack:oppLeader"),
+      battle,
+      ctx,
+    );
+    expect(leaderHit).toEqual([battle[0]]);
+    expect(
+      resolveDropIntents({ type: "attack", attackerId: "c1" }, parseDropAttr("attack:o2"), battle, ctx),
+    ).toEqual([battle[2]]);
+    // o2 is legal for c1 only, so the Leader dropping there does nothing.
+    expect(
+      resolveDropIntents(
+        { type: "attack", attackerId: "myLeader" },
+        parseDropAttr("attack:o2"),
+        battle,
+        ctx,
+      ),
+    ).toEqual([]);
+  });
+
+  it("counters only when dropped on the card taking the hit", () => {
+    expect(
+      resolveDropIntents({ type: "counter", handIndex: 1 }, parseDropAttr("counter:myChar"), battle, ctx),
+    ).toEqual([battle[3]]);
+    expect(
+      resolveDropIntents({ type: "counter", handIndex: 1 }, parseDropAttr("counter:myLeader"), battle, ctx),
+    ).toEqual([]);
+  });
+
+  it("plays a Counter Event by drag as well as a Counter card", () => {
+    expect(canDragCounter(battle, 3)).toBe(true);
+    expect(canDragCounter(battle, 0)).toBe(false);
+    expect(
+      resolveDropIntents({ type: "counter", handIndex: 3 }, parseDropAttr("counter:myChar"), battle, ctx),
+    ).toEqual([battle[4]]);
   });
 });
