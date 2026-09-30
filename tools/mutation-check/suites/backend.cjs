@@ -9,6 +9,7 @@ const receipt = "backend/app/tcgplayer_receipt.py";
 const gb = "backend/app/group_buy.py";
 const merge = "backend/app/group_buy_merge.py";
 const settle = "backend/app/group_buy_settlement.py";
+const friends = "backend/app/routers/friends.py";
 
 module.exports = {
   cwd: "backend",
@@ -193,5 +194,25 @@ module.exports = {
     { id: "gb-undo-always-ordered", file: gb, from: "    group.status = status_before\n", to: "    group.status = \"ordered\"\n", kills: ["test_undo_apply_from_locked_restores_locked"] },
     { id: "gb-undo-keeps-ordered-at", file: gb, from: "    if int(apply_event.set_ordered_at or 0):\n        group.ordered_at = None", to: "", kills: ["test_undo_apply_from_locked_restores_locked"] },
     { id: "gb-undo-negative-owned", file: gb, from: "    row.qty = max(0, int(row.qty) - delta)", to: "    row.qty = int(row.qty) - delta", kills: ["test_undo_clamps_owned_when_user_already_spent_copies"] },
+
+    // friends list, presence, invites
+    { id: "friends-accept-noop", file: friends, from: "    f.status = \"accepted\"\n    f.accepted_at = utcnow()\n    db.commit()\n    return FriendRequestResult(status=\"accepted\")\n\n\n@router.delete", to: "    db.commit()\n    return FriendRequestResult(status=\"accepted\")\n\n\n@router.delete", kills: ["test_request_then_accept_makes_both_friends"] },
+    { id: "friends-requester-self-accept", file: friends, from: "    if f is None or f.status != \"pending\" or f.requester_id == user.id:", to: "    if f is None or f.status != \"pending\":", kills: ["test_requester_cannot_accept_own_request"] },
+    { id: "friends-crossed-stays-pending", file: friends, from: "        # They already asked you: sending one back accepts theirs.\n        existing.status = \"accepted\"", to: "        # They already asked you: sending one back accepts theirs.\n        existing.status = \"pending\"", kills: ["test_crossed_requests_become_friends"] },
+    { id: "friends-remove-noop", file: friends, from: "    if f is not None:\n        db.delete(f)\n", to: "", kills: ["test_remove_friend_ends_friendship_for_both"] },
+    { id: "friends-pending-listed-as-friend", file: friends, from: "        if f.status == \"accepted\":\n            status, room_id", to: "        if True:\n            status, room_id", kills: ["test_presence_ignores_non_friends"] },
+    { id: "presence-ttl-ignored", file: friends, from: "        if now - _utc(row.updated_at) <= PRESENCE_TTL:", to: "        if True:", kills: ["test_stale_presence_and_seen_read_as_offline"] },
+    { id: "online-ttl-ignored", file: friends, from: "    if seen_at is not None and now - _utc(seen_at) <= ONLINE_TTL:", to: "    if seen_at is not None:", kills: ["test_stale_presence_and_seen_read_as_offline"] },
+    { id: "online-never-shown", file: friends, from: "        return \"online\", None, False", to: "        return \"offline\", None, False", kills: ["test_friend_status_follows_presence_snapshots"] },
+    { id: "waiting-room-exposed", file: friends, from: "            return \"waiting\", None, row.ranked", to: "            return \"waiting\", row.room_id, row.ranked", kills: ["test_waiting_room_is_not_exposed"] },
+    { id: "invite-non-friend", edits: [
+      { file: friends, from: "    if f is None or f.status != \"accepted\":\n        raise HTTPException(status_code=403", to: "    if False:\n        raise HTTPException(status_code=403" },
+      { file: friends, from: "        if i.from_user_id in accepted and i.from_user_id in users and", to: "        if i.from_user_id in users and" },
+    ], kills: ["test_invite_only_friends"] },
+    { id: "invite-outlives-room", file: friends, from: "    return any(\n        r.room_id == invite.room_id", to: "    return True or any(\n        r.room_id == invite.room_id", kills: ["test_invite_reaches_friend_until_inviter_leaves_room"] },
+    { id: "invite-dismiss-by-anyone", file: friends, from: "            or_(DuelInvite.to_user_id == user.id, DuelInvite.from_user_id == user.id),\n        )\n    )\n    db.commit()", to: "        )\n    )\n    db.commit()", kills: ["test_dismissed_invite_is_gone_but_others_cannot_dismiss"] },
+    { id: "invite-dismiss-noop", file: friends, from: "            DuelInvite.id == invite_id,", to: "            DuelInvite.id == -1,", kills: ["test_dismissed_invite_is_gone_but_others_cannot_dismiss"] },
+    { id: "presence-secret-unchecked", file: duel, from: "    _require_ingest_secret(settings, x_duel_ingest_token)\n    if not _presence_rate", to: "    if not _presence_rate", kills: ["test_presence_requires_ingest_secret"] },
+    { id: "presence-snapshot-appends", file: duel, from: "    db.execute(delete(DuelPresence).where(DuelPresence.instance_id == body.instance_id))\n", to: "", kills: ["test_friend_status_follows_presence_snapshots"] },
   ],
 };

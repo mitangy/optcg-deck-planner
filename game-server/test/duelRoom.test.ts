@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { ColyseusTestServer, boot } from "@colyseus/testing";
 import type { Room as ClientRoom } from "@colyseus/sdk";
 import appConfig from "../src/app.config.js";
+import { presence, type PresenceEntry } from "../src/presence.js";
 import { PROTOCOL_VERSION } from "../src/protocol.js";
+import { getGameTokenSecret } from "../src/env.js";
+import { createHmac } from "node:crypto";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
 
 type PlayerView = {
@@ -65,6 +68,23 @@ async function waitUntil(pred: () => boolean, timeoutMs: number): Promise<void> 
 async function syncSeat(client: ClientRoom, bag: SeatBag) {
   client.send("sync", { protocolVersion: PROTOCOL_VERSION });
   await waitUntil(() => bag.welcome != null && bag.views.length > 0, 8000);
+}
+
+/** Signed game token for a real account id (mirror of backend mint_game_token). */
+function gameToken(uid: number): string {
+  const b64url = (buf: Buffer) =>
+    buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  const body = b64url(
+    Buffer.from(JSON.stringify({ uid, email: `u${uid}@x.com`, exp: Math.floor(Date.now() / 1000) + 600 })),
+  );
+  return `${body}.${b64url(createHmac("sha256", getGameTokenSecret()).update(body).digest())}`;
+}
+
+function presenceFor(roomId: string): PresenceEntry[] {
+  return presence
+    .snapshot()
+    .filter((e) => e.room_id === roomId)
+    .sort((a, b) => a.user_id - b.user_id);
 }
 
 describe("DuelRoom", () => {
@@ -759,4 +779,41 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+
+  it("friends presence: reports seats as waiting, then playing, and spectators by role", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 7,
+      autoSkipMulligan: true,
+    });
+    await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(101), preferredSeat: 0 });
+    await waitUntil(() => presenceFor(room.roomId).length === 1, 8000);
+    assert.deepEqual(presenceFor(room.roomId), [
+      { user_id: 101, room_id: room.roomId, role: "player", phase: "waiting", ranked: false },
+    ]);
+
+    await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(102), preferredSeat: 1 });
+    await waitUntil(() => presenceFor(room.roomId).length === 2, 8000);
+    assert.deepEqual(
+      presenceFor(room.roomId).map((e) => [e.user_id, e.role, e.phase]),
+      [
+        [101, "player", "playing"],
+        [102, "player", "playing"],
+      ],
+    );
+
+    const spec = await colyseus.connectTo(room, {
+      protocolVersion: PROTOCOL_VERSION,
+      gameToken: gameToken(103),
+      role: "spectator",
+    });
+    await waitUntil(() => presenceFor(room.roomId).length === 3, 8000);
+    assert.deepEqual(
+      presenceFor(room.roomId).find((e) => e.user_id === 103),
+      { user_id: 103, room_id: room.roomId, role: "spectator", phase: "playing", ranked: false },
+    );
+
+    await spec.leave();
+    await waitUntil(() => presenceFor(room.roomId).length === 2, 8000);
+  });
 });
