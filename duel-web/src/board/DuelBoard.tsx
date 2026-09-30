@@ -689,13 +689,87 @@ export function DuelBoard({
   const oppMatUrl = hotseatPass ? playmatUrl : null;
   const oppCardBackUrl = hotseatPass ? cardBackUrl : null;
 
+  const hudUndoPass = (
+    <>
+    {undo && undoState?.enabled && !spectating && !over ? (
+      undoPendingMine ? (
+        <button
+          type="button"
+          className="hud-undo-btn hud-icon-btn armed"
+          aria-label="Cancel undo request"
+          title="Waiting for your opponent to accept — tap to cancel"
+          onClick={() => undo.onAction("cancel")}
+        >
+          ↺ Cancel
+        </button>
+      ) : undoPendingTheirs ? null : (
+        <ConfirmButton
+          className="hud-undo-btn hud-icon-btn"
+          label="↺"
+          confirmLabel="Undo?"
+          reserveWidth
+          ariaLabel="Undo"
+          title={
+            undoState.targetTurn == null
+              ? "Nothing to undo yet"
+              : `Rewind to the start of turn ${undoState.targetTurn}${
+                  undo.autoAccept ? "" : " (your opponent must accept)"
+                }`
+          }
+          disabled={undoState.targetTurn == null}
+          onConfirm={() => undo.onAction("request")}
+        />
+      )
+    ) : null}
+    {hotseatPass ? (
+      <button
+        type="button"
+        className="hud-pass-btn"
+        title={`Pass device to seat ${hotseatPass.otherSeat}`}
+        onClick={hotseatPass.onPass}
+      >
+        Pass → {hotseatPass.otherSeat}
+      </button>
+    ) : null}
+    </>
+  );
+  const matchMenuEl = (placement: "top" | "left") => (
+    <MatchMenu
+      placement={placement}
+      items={matchMenuItems({
+        spectating,
+        over,
+        hotseat: Boolean(hotseatPass),
+        fullscreenOffered,
+        canConcede: Boolean(onConcede),
+      })}
+      info={{
+        matchup: players
+          ? `${spectating ? seatLabel(players, 0) : seatName(players, boardSeat) ?? "You"} vs ${seatLabel(
+              players,
+              spectating ? 1 : oppSeat,
+            )}`
+          : null,
+        seat: spectating ? "Spectating" : `Seat ${mySeat}`,
+        order: orderLabel,
+      }}
+      roomId={matchId}
+      isFullscreen={isFullscreen}
+      leaveLabel={leaveLabel}
+      onSettings={() => setSettingsOpen(true)}
+      onToggleFullscreen={toggleFullscreen}
+      onConcede={() => onConcede?.()}
+      onLeave={onLeave}
+    />
+  );
+
   return (
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
       }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}`}
     >
-      {compactHud ? (
+      {lp ? null : compactHud ? (
         <header className="hud-bar hud-compact">
           <div className={`hud-status${yourTurn ? " pulse" : ""}`}>
             <span className="hud-phase">{view.phase}</span>
@@ -745,72 +819,8 @@ export function DuelBoard({
             ) : null}
           </div>
           <div className="hud-actions">
-            {undo && undoState?.enabled && !spectating && !over ? (
-              undoPendingMine ? (
-                <button
-                  type="button"
-                  className="hud-undo-btn hud-icon-btn armed"
-                  aria-label="Cancel undo request"
-                  title="Waiting for your opponent to accept — tap to cancel"
-                  onClick={() => undo.onAction("cancel")}
-                >
-                  ↺ Cancel
-                </button>
-              ) : undoPendingTheirs ? null : (
-                <ConfirmButton
-                  className="hud-undo-btn hud-icon-btn"
-                  label="↺"
-                  confirmLabel="Undo?"
-                  reserveWidth
-                  ariaLabel="Undo"
-                  title={
-                    undoState.targetTurn == null
-                      ? "Nothing to undo yet"
-                      : `Rewind to the start of turn ${undoState.targetTurn}${
-                          undo.autoAccept ? "" : " (your opponent must accept)"
-                        }`
-                  }
-                  disabled={undoState.targetTurn == null}
-                  onConfirm={() => undo.onAction("request")}
-                />
-              )
-            ) : null}
-            {hotseatPass ? (
-              <button
-                type="button"
-                className="hud-pass-btn"
-                title={`Pass device to seat ${hotseatPass.otherSeat}`}
-                onClick={hotseatPass.onPass}
-              >
-                Pass → {hotseatPass.otherSeat}
-              </button>
-            ) : null}
-            <MatchMenu
-              items={matchMenuItems({
-                spectating,
-                over,
-                hotseat: Boolean(hotseatPass),
-                fullscreenOffered,
-                canConcede: Boolean(onConcede),
-              })}
-              info={{
-                matchup: players
-                  ? `${spectating ? seatLabel(players, 0) : seatName(players, boardSeat) ?? "You"} vs ${seatLabel(
-                      players,
-                      spectating ? 1 : oppSeat,
-                    )}`
-                  : null,
-                seat: spectating ? "Spectating" : `Seat ${mySeat}`,
-                order: orderLabel,
-              }}
-              roomId={matchId}
-              isFullscreen={isFullscreen}
-              leaveLabel={leaveLabel}
-              onSettings={() => setSettingsOpen(true)}
-              onToggleFullscreen={toggleFullscreen}
-              onConcede={() => onConcede?.()}
-              onLeave={onLeave}
-            />
+            {hudUndoPass}
+            {matchMenuEl("top")}
           </div>
         </header>
       ) : (
@@ -1020,6 +1030,7 @@ export function DuelBoard({
             onToggle={(panel) => setLpPanel((cur) => (cur === panel ? null : panel))}
             hasChat={Boolean(chat)}
             logCount={battleLog.length}
+            menu={matchMenuEl("left")}
           />
         ) : wide ? (
           <aside className="arena-left" aria-label="Card preview and battle log">
@@ -1147,6 +1158,9 @@ export function DuelBoard({
 
         {wide ? (
           <div className="arena-rail">
+            {lp && (hotseatPass || (undo && undoState?.enabled && !spectating && !over)) ? (
+              <div className="lp-actions">{hudUndoPass}</div>
+            ) : null}
             <OppHandFan count={opp.handCount} cardBackUrl={oppCardBackUrl} compact={lp} />
             <TurnStatusPanel
               view={view}

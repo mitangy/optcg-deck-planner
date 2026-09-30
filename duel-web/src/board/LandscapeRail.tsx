@@ -27,16 +27,19 @@ type RailProps = {
   onToggle: (panel: LandscapePanel) => void;
   hasChat: boolean;
   logCount: number;
+  /** The ⋯ match menu button (there is no top bar in landscape). */
+  menu: ReactNode;
 };
 
 /**
  * Landscape phones: the left column shrinks to an icon rail so the board gets
  * the width. The log and chat open as overlays (see LandscapeOverlay).
  */
-export function LandscapeRail({ open, onToggle, hasChat, logCount }: RailProps) {
+export function LandscapeRail({ open, onToggle, hasChat, logCount, menu }: RailProps) {
   const panels: LandscapePanel[] = hasChat ? ["log", "chat"] : ["log"];
   return (
     <nav className="lp-rail" aria-label="Board panels">
+      {menu}
       {panels.map((panel) => (
         <button
           key={panel}

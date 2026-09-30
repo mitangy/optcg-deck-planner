@@ -13,6 +13,8 @@ type Props = {
   onToggleFullscreen: () => void;
   onConcede: () => void;
   onLeave: () => void;
+  /** "left": opens beside the landscape icon rail instead of under the top bar. */
+  placement?: "top" | "left";
 };
 
 /**
@@ -29,6 +31,7 @@ export function MatchMenu({
   onToggleFullscreen,
   onConcede,
   onLeave,
+  placement = "top",
 }: Props) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -83,7 +86,7 @@ export function MatchMenu({
       {open ? (
         <>
           <div className="match-menu-backdrop" onPointerDown={() => setOpen(false)} />
-          <div ref={panelRef} className="match-menu" role="menu" aria-label="Match menu">
+          <div ref={panelRef} className={`match-menu${placement === "left" ? " match-menu-left" : ""}`} role="menu" aria-label="Match menu">
             <div className="match-menu-info">
               {info.matchup ? <strong>{info.matchup}</strong> : null}
               <span>

@@ -2335,13 +2335,53 @@
     --left-w: var(--lp-rail-w);
     --rail-w: clamp(150px, 20vw, 190px);
     --dock-cw: clamp(46px, 11.5vh, 58px);
-    --dock-head: 1.5rem;
+    --dock-head: 28px;
     /* Tucked hand: just its handle. The board stops above it. */
     --dock-peek: calc(var(--dock-head) + var(--safe-b));
   }
 
   .arena.arena-lp .playmat {
-    padding-bottom: var(--dock-peek);
+    --mat-gap: 3px;
+    --midline-h: 0.95rem;
+    padding: 2px 6px var(--dock-peek);
+  }
+
+  /* No top bar in landscape: only the notch inset sits above the columns. */
+  .arena.arena-lp .arena-body {
+    padding-top: var(--safe-t);
+  }
+
+  .lp-rail .hud-menu-btn {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+    font-size: 1.2rem;
+    line-height: 1;
+    border-radius: 10px;
+  }
+
+  .match-menu.match-menu-left {
+    left: var(--lp-rail-w);
+    right: auto;
+    top: calc(var(--safe-t) + 4px);
+    max-height: calc(100dvh - var(--safe-t) - 8px);
+  }
+
+  .lp-actions {
+    display: flex;
+    gap: 0.35rem;
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .lp-actions .hud-undo-btn,
+  .lp-actions .hud-pass-btn {
+    flex: 1 1 0;
+    min-height: 40px;
+    padding: 0 0.4rem;
+    font-size: 0.8rem;
   }
 
   /* Height-bound cards: spend the spare width on wider mats and looser columns. */
@@ -2350,8 +2390,13 @@
   }
 
   .arena.arena-lp .side-grid {
+    --g: 1.5cqh;
+    --c: min(
+      calc((100cqw - 5cqw - 6 * 1.5cqh) / 7),
+      calc((100cqh - 4cqh - 2 * 1.5cqh) / 3.9)
+    );
     justify-content: space-between;
-    padding-inline: 2.5cqw;
+    padding: 2cqh 2.5cqw;
   }
 
   /* Left icon rail */
@@ -2417,7 +2462,7 @@
   .lp-overlay {
     position: fixed;
     z-index: 30;
-    top: calc(var(--safe-t) + 41px);
+    top: var(--safe-t);
     bottom: 0;
     left: var(--lp-rail-w);
     width: min(300px, 46vw);
