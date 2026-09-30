@@ -390,3 +390,41 @@
     padding-inline: 0.4rem;
   }
 }
+
+/* —— Card motion layer (BoardMotion): ghosts for draws, KOs and discards —— */
+
+.motion-layer {
+  position: fixed;
+  inset: 0;
+  /* Above the board and hand dock, below prompts, the HUD and modals. */
+  z-index: 18;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.motion-ghost {
+  position: fixed;
+  display: block;
+  margin: 0;
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  will-change: translate, scale, opacity;
+}
+
+/* `/demo?motion` step button (QA page only). */
+.motion-demo-btn {
+  position: fixed;
+  left: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--chrome-bright, #d9b25b);
+  background: #13233a;
+  color: #f3e3b5;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}

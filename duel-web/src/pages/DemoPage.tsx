@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ChatLine, PlayerView, RematchState, UndoState } from "../net/protocol";
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
+import { motionDemoSteps } from "./motionDemo";
 
 const DEMO_INSTANCES: InstanceIndex = new Map([
   ["y-leader", { defId: "ST01-001", seat: 0 }],
@@ -425,7 +426,8 @@ function withFullBoard(base: PlayerView): PlayerView {
  * undo (`?undo=ask` shows an incoming request), `?waiting` the invite screen,
  * `?oppturn` the opponent's turn, `?clock` per-player clocks, `?away` a
  * disconnected opponent, `?over` the match-over screen with a rematch vote
- * (`&rematch=ask|wait|choose|left`), `?full` a full board. Zone counts: see applyDemoZoneParams.
+ * (`&rematch=ask|wait|choose|left`), `?full` a full board, `?motion` a button that
+ * steps through every card animation. Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
@@ -446,6 +448,11 @@ export function DemoPage() {
         you: { ...base.you, mulliganDone: false },
       }
     : withTurn;
+  // `?motion`: one state per click; Replay remounts the board to replay the deal.
+  const motionSteps = useMemo(() => (params.has("motion") ? motionDemoSteps(view) : null), []);
+  const [motionStep, setMotionStep] = useState(0);
+  const [motionRun, setMotionRun] = useState(0);
+  const nextMotion = motionSteps?.[motionStep + 1];
   const [undo, setUndo] = useState<UndoState | null>(() =>
     params.has("undo")
       ? {
@@ -468,8 +475,24 @@ export function DemoPage() {
   });
   return (
     <div className="duel-root">
+      {motionSteps ? (
+        <button
+          type="button"
+          className="motion-demo-btn"
+          onClick={() => {
+            if (nextMotion) setMotionStep((s) => s + 1);
+            else {
+              setMotionStep(0);
+              setMotionRun((r) => r + 1);
+            }
+          }}
+        >
+          {nextMotion ? `Next: ${nextMotion.label}` : "Replay"}
+        </button>
+      ) : null}
       <DuelBoard
-        view={params.has("waiting") ? null : view}
+        key={motionRun}
+        view={params.has("waiting") ? null : (motionSteps?.[motionStep]?.view ?? view)}
         seat={0}
         matchId="demo-playmat"
         errorBanner={null}

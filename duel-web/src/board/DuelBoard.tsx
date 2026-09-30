@@ -30,6 +30,7 @@ import {
   type DragPayload,
 } from "./dragIntents";
 import { AttackIndicator } from "./AttackIndicator";
+import { BoardMotion } from "./BoardMotion";
 import { describeBattle } from "./battleBanner";
 import { canOfferFullscreen, readInstallEnv } from "../installPrompt";
 import { useScreenWakeLock } from "./wakeLock";
@@ -617,6 +618,7 @@ export function DuelBoard({
       return (
         <CardTile
           key={c.id}
+          motionId={c.id}
           defId={c.defId}
           playCost={c.playCost}
           showCounter
@@ -1171,6 +1173,7 @@ export function DuelBoard({
       {/* Fixed overlays (portals) — never participate in board layout. */}
       <TurnSplash message={splash} />
       <AttackIndicator view={over ? null : view} />
+      <BoardMotion view={view} />
       <DragGhost payload={ghostPayload} />
       {pendingAttach && dndEnabled ? (
         <DonAttachConfirm
