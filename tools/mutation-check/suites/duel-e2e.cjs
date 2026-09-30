@@ -37,6 +37,6 @@ module.exports = {
     // A clicked hand card keeps focus; with :focus-within the centre fan stayed up over the DON!! row.
     { id: "e2e-hand-fan-sticks-after-click", args: "demo-audit --project=desktop-1280 -g tucks", file: "duel-web/src/board.css", from: ".hand-fan.is-open,\n.hand-fan:has(:focus-visible) {", to: ".hand-fan.is-open,\n.hand-fan:focus-within {", kills: ["demo-audit.spec.ts > the centre hand fan tucks away after a click once the pointer leaves [desktop-1280]"] },
     // Tilted board: the inner box is pulled up by its extra height so the tilt folds it back into view.
-    { id: "e2e-tilted-board-hangs-off-bottom", args: "demo-audit --project=desktop-1280 -g tilted", file: "duel-web/src/board.css", from: "  margin-top: calc(100cqh * (1 - var(--tilt-grow)));\n", to: "", kills: ["demo-audit.spec.ts > /demo?full with the tilted board passes the UI audit [desktop-1280]"] },
+    { id: "e2e-tilted-board-hangs-off-bottom", args: "demo-audit --project=desktop-1280 -g tilted", file: "duel-web/src/board.css", from: "  margin-top: calc(100cqh * (1 - var(--tilt-grow)) - var(--tilt-lift));\n", to: "", kills: ["demo-audit.spec.ts > /demo?full with the tilted board passes the UI audit [desktop-1280]"] },
   ],
 };

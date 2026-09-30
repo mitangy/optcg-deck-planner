@@ -3720,11 +3720,14 @@
 .arena.arena-tilt .playmat {
   --tilt: 30deg;
   --tilt-grow: 1.45;
+  /* Lift the tilted table toward the HUD: the far edge ends up ~8px below it
+     and the near edge clears the hand strip by the same amount. */
+  --tilt-lift: 4cqh;
 }
 
 .arena.arena-tilt .playmat-inner {
   height: calc(100cqh * var(--tilt-grow));
-  margin-top: calc(100cqh * (1 - var(--tilt-grow)));
+  margin-top: calc(100cqh * (1 - var(--tilt-grow)) - var(--tilt-lift));
   justify-content: flex-end;
   transform-origin: 50% 100%;
   transform: perspective(calc(100cqh * 2.4)) rotateX(var(--tilt));
