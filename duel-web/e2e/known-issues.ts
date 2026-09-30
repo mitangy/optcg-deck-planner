@@ -11,10 +11,6 @@ export const KNOWN_UI_ISSUES: Array<{ pattern: RegExp; note: string }> = [
     note: "Fanned hand covers the bottom of your mat on desktop: DON!! row, deck and trash counts, Leader caption, Trash button",
   },
   {
-    pattern: /^covered .*(don-strip|zone-pile|zone-trash).* under div\.rotate-hint/,
-    note: "Phone portrait: the 'Rotate for bigger cards' toast sits on the DON!! row and Trash",
-  },
-  {
     pattern: /^((spill|offscreen) .*intent-btn-keep "Keep opening hand"|hscroll div\.intent-bar\.intent-bar-mulligan )/,
     note: "Phone mulligan: the two buttons don't fit; 'Keep opening hand' runs ~25px off the right edge and the row scrolls sideways",
   },
@@ -33,6 +29,10 @@ export const KNOWN_UI_ISSUES: Array<{ pattern: RegExp; note: string }> = [
   {
     pattern: /^spill .*span\.zone-pile-label "DON!! Deck": text cut \d+px by .*section\.side-field\.side-you/,
     note: "Phone: the 'DON!! Deck' label is cut off at the left edge of your mat",
+  },
+  {
+    pattern: /^covered .*zone-pile-don > div\.zone-pile-meta > span\.zone-pile-count "\d+": .* under div\.don-strip-rail/,
+    note: "Phone mulligan: the 'DON!! Deck' caption is wider than its pile, so its count runs under the DON!! row (was hidden under the Rotate toast)",
   },
   {
     pattern: /span\.power-mod-up "\+\d+": (text cut|.* under div\.side-grid > div\.zone-stage)/,

@@ -457,6 +457,8 @@ export function DuelBoard({
     !over &&
     // Wait out an attack: the toast would sit over your field mid-response.
     defend == null &&
+    // The hint lives in the midline strip, so wait for it to be free.
+    midlineText == null &&
     shouldShowRotateHint({
       portrait: portraitViewport,
       phone: phoneViewport,
@@ -472,7 +474,11 @@ export function DuelBoard({
   }, [rotateHintDue]);
   // Turning the phone (or picking portrait) puts the hint away.
   const rotateHintShown =
-    rotateHintOpen && portraitViewport && orientationPref !== "portrait" && defend == null;
+    rotateHintOpen &&
+    portraitViewport &&
+    orientationPref !== "portrait" &&
+    defend == null &&
+    midlineText == null;
   const closeRotateHint = useCallback(() => setRotateHintOpen(false), []);
 
   // Small haptic tap when a drag lifts a card / DON!!.
@@ -1432,6 +1438,8 @@ export function DuelBoard({
                 <div className="prompt" title={midlineText}>
                   {midlineText}
                 </div>
+              ) : rotateHintShown ? (
+                <RotateHint onClose={closeRotateHint} />
               ) : (
                 <div className="midline-ornament" aria-hidden>
                   <span />
@@ -1801,7 +1809,6 @@ export function DuelBoard({
       ) : null}
 
       {/* Fixed overlays (portals) — never participate in board layout. */}
-      {rotateHintShown ? <RotateHint onClose={closeRotateHint} /> : null}
       <TurnSplash message={splash} />
       <AttackIndicator view={over ? null : view} />
       <BoardMotion view={view} />
