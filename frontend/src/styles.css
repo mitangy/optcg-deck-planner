@@ -4777,3 +4777,367 @@ button.ghost.scan-open:hover {
     flex: 1 1 100%;
   }
 }
+
+/* ——— Deck stats panel (plain CSS charts) ——— */
+.deck-stats {
+  --ds-char: var(--accent);
+  --ds-event: var(--gold);
+  --ds-stage: var(--violet-ink);
+  --ds-none: color-mix(in srgb, var(--muted) 45%, var(--bg-deep));
+  margin: 0 0 1rem;
+  min-width: 0;
+}
+
+.deck-stats .filter-drawer {
+  margin: 0;
+}
+
+.deck-stats .filter-drawer-body {
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem 0.9rem;
+  min-width: 0;
+}
+
+.ds-placement {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.ds-body {
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.ds-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (min-width: 720px) {
+  .ds-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.ds-tile {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card-sunk);
+}
+
+.ds-tile-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ds-tile-value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.ds-tile-sub {
+  font-size: 0.74rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.ds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 0.9rem 1.25rem;
+  min-width: 0;
+}
+
+.ds-block {
+  min-width: 0;
+}
+
+.ds-block h3 {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ds-block h3.ds-sub {
+  margin-top: 0.8rem;
+}
+
+.ds-legend,
+.ds-split-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.85rem;
+  margin: 0 0 0.45rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.ds-split-legend {
+  margin: 0.45rem 0 0;
+}
+
+.ds-split-legend strong,
+.ds-note strong {
+  color: var(--ink);
+}
+
+.ds-key {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-right: 0.3rem;
+  border-radius: 3px;
+  vertical-align: -0.05rem;
+}
+
+.ds-char { background: var(--ds-char); }
+.ds-event { background: var(--ds-event); }
+.ds-stage { background: var(--ds-stage); }
+.ds-none { background: var(--ds-none); }
+.ds-c1000 { background: var(--gold); }
+.ds-c2000 { background: var(--ds-char); }
+.ds-other { background: var(--ds-stage); }
+
+.ds-columns {
+  display: flex;
+  align-items: stretch;
+  gap: 0.2rem;
+  height: 8.5rem;
+  min-width: 0;
+}
+
+.ds-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 1rem minmax(0, 1fr) 1.1rem;
+  justify-items: center;
+}
+
+.ds-col-count,
+.ds-col-label {
+  font-size: 0.7rem;
+  line-height: 1rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.ds-col-bar {
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.ds-stack {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 3px 3px 0 0;
+  overflow: hidden;
+}
+
+.ds-seg {
+  display: block;
+  min-height: 2px;
+}
+
+.ds-seg + .ds-seg {
+  border-top: 1px solid var(--card);
+}
+
+.ds-split {
+  display: flex;
+  height: 1.1rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-deep);
+}
+
+.ds-split-seg + .ds-split-seg {
+  border-left: 2px solid var(--card);
+}
+
+.ds-note {
+  margin: 0.55rem 0 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.ds-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.15rem 0.2rem 0.15rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card-sunk);
+  font-size: 0.82rem;
+}
+
+.ds-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-chip-count {
+  min-width: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+  font-weight: 700;
+  text-align: center;
+}
+
+.ds-dot {
+  flex: 0 0 auto;
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-left: -0.25rem;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+}
+
+.ds-hbars {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-hbars li {
+  display: grid;
+  grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr) 1.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.84rem;
+}
+
+.ds-hbar-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-hbar-track {
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--bg-deep);
+  overflow: hidden;
+}
+
+.ds-hbar-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gold), var(--gold-bright));
+}
+
+.ds-hbar-count {
+  text-align: right;
+  color: var(--muted);
+}
+
+.ds-empty {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* Reserve the loaded height so the page does not jump when stats arrive. */
+.ds-placeholder {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 0.5rem;
+  min-height: 12rem;
+}
+
+.ds-placeholder p {
+  margin: 0;
+}
+
+/* Editing: stats sit in a sticky column beside the editor on wide screens. */
+.deck-edit-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 1rem;
+  min-width: 0;
+}
+
+.deck-edit-layout > * {
+  min-width: 0;
+}
+
+@media (min-width: 1100px) {
+  .deck-edit-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 25rem);
+    align-items: start;
+  }
+
+  .deck-edit-layout .deck-stats {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 14px;
+  }
+
+  .deck-edit-layout .ds-grid,
+  .deck-edit-layout .ds-tiles {
+    grid-template-columns: repeat(var(--ds-side-cols, 1), minmax(0, 1fr));
+  }
+
+  .deck-edit-layout .ds-tiles {
+    --ds-side-cols: 2;
+  }
+}
+
+@media (max-width: 720px) {
+  .deck-stats {
+    margin-bottom: 0.65rem;
+  }
+
+  .ds-columns {
+    height: 7.25rem;
+  }
+
+  .ds-hbars li {
+    grid-template-columns: minmax(0, 6rem) minmax(0, 1fr) 1.5rem;
+  }
+}

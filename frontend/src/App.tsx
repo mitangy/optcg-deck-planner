@@ -40,6 +40,7 @@ import {
   type SortKey,
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
+import { DeckStatsPanel, useStatsPlacement } from "./DeckStats";
 import { CompassIcon } from "./ThemeIcons";
 import { HeadPopover } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
@@ -2895,6 +2896,22 @@ function DeckDetailPage() {
     if (!data) return [];
     return data.cards.filter((c) => c.section !== "don" && !isDonCardType(c.card_type));
   }, [data]);
+  const [statsPlacement, setStatsPlacement] = useStatsPlacement();
+  const statsCards = useMemo(
+    () => progressCards.map((c) => ({ id: c.card_id, copies: c.needed })),
+    [progressCards],
+  );
+  const statsPanel = (
+    <DeckStatsPanel
+      key={editing ? "edit" : "view"}
+      cards={statsCards}
+      leaderId={data?.leader_card_id ?? null}
+      storageKey={editing ? "optcg_deck_stats_open_edit" : "optcg_deck_stats_open_view"}
+      defaultOpen={editing}
+      placement={statsPlacement}
+      onPlacementChange={setStatsPlacement}
+    />
+  );
 
   const filterSummary = useMemo(() => {
     const parts: string[] = [];
@@ -3049,11 +3066,18 @@ function DeckDetailPage() {
         </p>
       )}
 
-      {editing && (
-        <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
+      {editing && statsPlacement === "beside" ? (
+        <div className="deck-edit-layout">
+          <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
+          {statsPanel}
+        </div>
+      ) : (
+        editing && <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
       )}
 
       <DeckProgressSummary cards={progressCards} />
+
+      {!editing && statsPlacement === "beside" && statsPanel}
 
       <div className="list-toolbar">
         <div className="list-toolbar-row">
@@ -3129,6 +3153,8 @@ function DeckDetailPage() {
           />
         </>
       )}
+
+      {statsPlacement === "below" && statsPanel}
 
       <AvailableDonSection deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
 
@@ -3308,6 +3334,14 @@ function PublicSharePage() {
     enabled: Boolean(token),
   });
 
+  const shareStatsCards = useMemo(
+    () =>
+      (data?.items ?? [])
+        .filter((i) => !isDonCardType(i.card_type))
+        .map((i) => ({ id: i.card_id, copies: i.need })),
+    [data],
+  );
+
   const items = useMemo(() => {
     let list = data?.items ?? [];
     if (onlyNeed) list = list.filter((i) => i.still_need > 0);
@@ -3358,6 +3392,15 @@ function PublicSharePage() {
                 </p>
               </div>
             </div>
+
+            {data.kind === "deck" && (
+              <DeckStatsPanel
+                cards={shareStatsCards}
+                leaderId={data.items[0]?.primary_leader_card_id ?? null}
+                storageKey="optcg_deck_stats_open_share"
+                defaultOpen
+              />
+            )}
 
             <div className="list-toolbar">
               <div className="list-toolbar-row">
