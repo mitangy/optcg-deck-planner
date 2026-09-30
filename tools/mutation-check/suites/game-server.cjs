@@ -3,6 +3,7 @@ const proto = "game-server/src/protocol.ts";
 const room = "game-server/src/rooms/DuelRoom.ts";
 const queue = "game-server/src/rooms/MatchmakerRoom.ts";
 const cors = "game-server/src/cors.ts";
+const presence = "game-server/src/presence.ts";
 module.exports = {
   cwd: "game-server",
   runner: "mocha",
@@ -37,5 +38,12 @@ module.exports = {
     { id: "queue-same-seat", file: queue, from: "            roomId: room.roomId,\n            seat: 1,", to: "            roomId: room.roomId,\n            seat: 0,", kills: ["ranked_queue pairs two clients"] },
     { id: "queue-pairs-same-user", file: queue, from: "        const partnerIdx = this.queue.findIndex((q) => q.userId !== a.userId);", to: "        const partnerIdx = 0;", kills: ["ranked_queue skips same-user pair"] },
     { id: "cosmetics-not-relayed", file: room, from: "    this.broadcast(\"cosmetics\", payload);", to: "    client.send(\"cosmetics\", payload);", kills: ["relays cosmetics artPrefs between seats"] },
+    { id: "presence-room-unregistered", file: room, from: "    presence.register(this);\n", to: "", kills: ["friends presence: reports seats as waiting"] },
+    { id: "presence-waiting-as-playing", file: room, from: "    const phase: PresenceEntry[\"phase\"] = !this.matchStarted\n      ? \"waiting\"", to: "    const phase: PresenceEntry[\"phase\"] = !this.matchStarted\n      ? \"playing\"", kills: ["friends presence: reports seats as waiting"] },
+    { id: "presence-spectator-as-player", file: room, from: "role: \"spectator\", phase", to: "role: \"player\", phase", kills: ["friends presence: reports seats as waiting"] },
+    { id: "presence-sends-synthetic-ids", file: presence, from: "        if (entry.user_id > 0) out.push(entry);", to: "        out.push(entry);", kills: ["pushes a full snapshot of real accounts"] },
+    { id: "presence-no-ingest-secret", file: presence, from: "\"X-Duel-Ingest-Token\": getDuelIngestSecret()", to: "\"X-Duel-Ingest-Token\": \"\"", kills: ["pushes a full snapshot of real accounts"] },
+    { id: "presence-pushes-before-start", file: presence, from: "    if (!this.started || this.debounce) return;", to: "    if (this.debounce) return;", kills: ["pushes soon after a change once started, and not before"] },
+    { id: "presence-change-not-pushed", file: presence, from: "    if (!this.started || this.debounce) return;", to: "    return;", kills: ["pushes soon after a change once started, and not before"] },
   ],
 };

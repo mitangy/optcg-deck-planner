@@ -85,6 +85,18 @@ type Props = {
   countRow?: boolean;
 };
 
+/** Active / rested / empty-slot counts for the character row, so the arena CSS
+ *  can give rested cards a full-size sideways footprint and only scale the row
+ *  down when those footprints would not fit. */
+function characterRowVars(characters: { rested?: boolean }[]): CSSProperties {
+  const rested = characters.filter((c) => c.rested).length;
+  return {
+    "--act-n": characters.length - rested,
+    "--rest-n": rested,
+    "--fill-n": Math.max(0, 5 - characters.length),
+  } as CSSProperties;
+}
+
 function CountIcon({ kind }: { kind: "life" | "deck" | "don" | "trash" }) {
   const common = { width: 14, height: 14, viewBox: "0 0 16 16", "aria-hidden": true, className: "count-icon" };
   switch (kind) {
@@ -242,7 +254,10 @@ export function SideField({
           data-dnd-drop={interactive ? "play_field" : undefined}
         >
           <div className="zone-caption">Characters</div>
-          <div className="card-row characters-row">
+          <div
+            className="card-row characters-row"
+            style={characterRowVars(data.characters)}
+          >
             {data.characters.map((c) => {
               const giveHl = Boolean(interactive && drag?.giveDonHighlightIds?.has(c.id));
               const trashHl = Boolean(interactive && drag?.playTrashHighlightIds?.has(c.id));

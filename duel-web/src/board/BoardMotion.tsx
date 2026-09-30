@@ -456,7 +456,7 @@ function firstVisible(selectors: string[]): HTMLElement | null {
 }
 
 function handZone(): HTMLElement | null {
-  return firstVisible([".hand-dock-cards", ".hand-row"]);
+  return firstVisible([".rail-hand-cards", ".hand-dock-cards", ".hand-row"]);
 }
 
 function oppHand(): HTMLElement | null {

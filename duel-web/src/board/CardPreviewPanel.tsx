@@ -47,6 +47,7 @@ export function CardPreviewPanel() {
         <div className="card-preview-placeholder">{entry.id}</div>
       )}
       <div className="card-preview-meta">
+        {preview.caption ? <p className="card-preview-caption">{preview.caption}</p> : null}
         <h2 className="card-preview-name">{entry.name}</h2>
         <p className="card-preview-stats">{stats.join(" · ")}</p>
         {preview.live ? (
