@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type Props = {
   className?: string;
   label: string;
   /** Shown after the first click; a second click within `armMs` confirms. */
-  confirmLabel: string;
+  confirmLabel: ReactNode;
   title?: string;
   /** Overrides the accessible name (icon-only labels). */
   ariaLabel?: string;

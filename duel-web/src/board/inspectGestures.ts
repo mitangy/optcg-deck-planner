@@ -154,3 +154,29 @@ export function createClickDeferController(opts: ClickDeferControllerOptions) {
     },
   };
 }
+
+/** Mouse-like desktops: hover plus a fine pointer. */
+export const FINE_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
+
+/**
+ * Right-click inspects a card only with a mouse-like pointer. A touch long-press
+ * also fires `contextmenu`, but that gesture already has its own inspect path.
+ * `pointerType` is undefined where contextmenu is a plain MouseEvent (Firefox).
+ */
+export function shouldInspectOnContextMenu(finePointer: boolean, pointerType?: string): boolean {
+  return finePointer && pointerType !== "touch";
+}
+
+/** `onContextMenu` handler body: open inspect and swallow the browser menu on desktop. */
+export function inspectOnContextMenu(
+  e: { preventDefault: () => void; nativeEvent: Event },
+  open: () => void,
+): void {
+  const fine =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(FINE_POINTER_QUERY).matches;
+  if (!shouldInspectOnContextMenu(fine, (e.nativeEvent as { pointerType?: string }).pointerType)) return;
+  e.preventDefault();
+  open();
+}

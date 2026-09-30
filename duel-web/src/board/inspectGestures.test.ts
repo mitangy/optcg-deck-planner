@@ -5,7 +5,9 @@ import {
   MOVE_CANCEL_PX,
   createClickDeferController,
   createLongPressController,
+  inspectOnContextMenu,
   shouldCancelLongPress,
+  shouldInspectOnContextMenu,
 } from "./inspectGestures";
 
 describe("shouldCancelLongPress", () => {
@@ -126,5 +128,45 @@ describe("createClickDeferController", () => {
     c.cancel();
     vi.advanceTimersByTime(DOUBLE_CLICK_DELAY_MS + 50);
     expect(onSingleClick).not.toHaveBeenCalled();
+  });
+});
+
+describe("shouldInspectOnContextMenu", () => {
+  it("inspects for a mouse-like pointer, including where pointerType is missing", () => {
+    expect(shouldInspectOnContextMenu(true, "mouse")).toBe(true);
+    expect(shouldInspectOnContextMenu(true, undefined)).toBe(true);
+  });
+
+  it("leaves touch long-press and coarse-pointer devices alone", () => {
+    expect(shouldInspectOnContextMenu(true, "touch")).toBe(false);
+    expect(shouldInspectOnContextMenu(false, "mouse")).toBe(false);
+    expect(shouldInspectOnContextMenu(false, undefined)).toBe(false);
+  });
+});
+
+describe("inspectOnContextMenu", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function run(fine: boolean, pointerType?: string) {
+    vi.stubGlobal("window", { matchMedia: () => ({ matches: fine }) });
+    const preventDefault = vi.fn();
+    const open = vi.fn();
+    inspectOnContextMenu({ preventDefault, nativeEvent: { pointerType } as unknown as Event }, open);
+    return { preventDefault, open };
+  }
+
+  it("opens inspect and suppresses the browser menu on desktop", () => {
+    const { preventDefault, open } = run(true, "mouse");
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the browser menu when it does not open inspect", () => {
+    const { preventDefault, open } = run(true, "touch");
+    expect(open).not.toHaveBeenCalled();
+    expect(preventDefault).not.toHaveBeenCalled();
+    const phone = run(false, "mouse");
+    expect(phone.open).not.toHaveBeenCalled();
+    expect(phone.preventDefault).not.toHaveBeenCalled();
   });
 });

@@ -653,6 +653,94 @@
   align-self: center;
 }
 
+/* Recent plays: fixed height so the log below never jumps. */
+.recent-plays {
+  flex: 0 0 auto;
+  height: 3.6rem;
+  box-sizing: border-box;
+  padding: 0.35rem 0.8rem;
+  border-top: 1px solid var(--line);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.recent-plays-empty {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.recent-plays-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 0.35rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.recent-plays-row li {
+  flex: 0 0 auto;
+}
+
+.recent-play {
+  position: relative;
+  display: block;
+  width: 2.2rem;
+  aspect-ratio: 5 / 7;
+  padding: 0;
+  border: 0;
+  border-bottom: 3px solid var(--line);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--muted);
+  font-size: 0.5rem;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.recent-play img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.recent-play-you {
+  border-bottom-color: #4fb3ff;
+}
+
+.recent-play-opp {
+  border-bottom-color: #ff6b5e;
+}
+
+.recent-play-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0 0.22rem;
+  border-radius: 0 0 4px 0;
+  font-size: 0.55rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #06121a;
+}
+
+.recent-play-you .recent-play-mark {
+  background: #4fb3ff;
+}
+
+.recent-play-opp .recent-play-mark {
+  background: #ff6b5e;
+}
+
+.recent-play:focus-visible {
+  outline: 2px solid var(--chrome-bright);
+  outline-offset: 1px;
+}
+
 .arena.arena-wide .arena-left .battle-log {
   position: static;
   flex: 1 1 0;
@@ -2207,6 +2295,25 @@
   visibility: hidden;
 }
 
+/* The armed End turn names what is left (DON!!, attackers) only where the rail
+   button is wide enough; phones keep "Tap again to end". */
+.end-warn-full {
+  display: none;
+}
+
+.arena.arena-wide:not(.arena-lp) .end-warn-full {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  font-size: 0.82em;
+}
+
+.arena.arena-wide:not(.arena-lp) .end-warn-short {
+  display: none;
+}
+
 .intent-btn-end.armed,
 .intent-btn-end.armed:not(:disabled):hover {
   color: #fff;
@@ -2479,6 +2586,32 @@
     font-size: 0.66rem;
     font-weight: 600;
     line-height: 1.5;
+    pointer-events: none;
+  }
+}
+
+/* Same tab on each secondary action: the letter (A/E/P/D) or the 1-9 key that
+   presses it. Absolutely positioned and click-through, so buttons never resize. */
+@media (hover: hover) and (pointer: fine) {
+  .arena.arena-wide:not(.arena-lp) .arena-rail .intent-row .intent-btn[data-key-tag] {
+    position: relative;
+  }
+
+  .arena.arena-wide:not(.arena-lp) .arena-rail .intent-row .intent-btn[data-key-tag]::after {
+    content: attr(data-key-tag);
+    position: absolute;
+    top: -7px;
+    left: 8px;
+    min-width: 1.5em;
+    padding: 0 0.3em;
+    border: 1px solid var(--line-strong);
+    border-radius: 5px;
+    background: var(--arena-panel);
+    color: var(--muted, inherit);
+    font-size: 0.62rem;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
     pointer-events: none;
   }
 }
@@ -3205,4 +3338,15 @@
 .arena.arena-wide:not(.arena-lp) .side-field .don-strip-nums {
   font-size: clamp(0.85rem, calc(var(--c) * 0.24), 1.5rem);
   line-height: 1.05;
+}
+
+/* Desktop rail: long action labels ("Activate X → Y") wrap inside the rail
+   instead of running past its edge. Wrapping (not clipping) keeps the key tab
+   above the button visible. */
+.arena.arena-wide:not(.arena-lp) .arena-rail .intent-row .intent-btn {
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
 }

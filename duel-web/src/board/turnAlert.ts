@@ -83,6 +83,24 @@ export function playAttackCue(): void {
   ]);
 }
 
+/** One short, dry tick when the opponent uses a card: quieter and shorter than the chime. */
+export function playOpponentPlayCue(): void {
+  playNotes([{ freq: 494, at: 0, len: 0.1, gain: 0.11, type: "sine" }]);
+}
+
+/** Low thud when you lose a Life card: no pitch movement, so it cannot pass for the attack cue. */
+export function playLifeLostCue(): void {
+  playNotes([
+    { freq: 110, at: 0, len: 0.22, gain: 0.3, type: "sine" },
+    { freq: 165, at: 0, len: 0.1, gain: 0.08, type: "sawtooth" },
+  ]);
+}
+
+/** Softer, higher thud when the opponent loses a Life card. */
+export function playOppLifeLostCue(): void {
+  playNotes([{ freq: 196, at: 0, len: 0.14, gain: 0.11, type: "sine" }]);
+}
+
 function clearTitleMark() {
   if (document.title.startsWith(TITLE_MARK)) {
     document.title = document.title.slice(TITLE_MARK.length);

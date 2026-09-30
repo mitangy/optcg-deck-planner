@@ -1,22 +1,60 @@
 import { describe, expect, it } from "vitest";
 import type { Intent } from "../net/protocol";
-import { endTurnNeedsConfirm, forcedDefensePass, responseStopPass } from "./gameplayPrefs";
+import { endTurnLeftovers, endTurnWarning, forcedDefensePass, responseStopPass } from "./gameplayPrefs";
 
 const endOnly: Intent[] = [{ type: "end_turn" }];
-const canAttack: Intent[] = [
-  { type: "declare_attack", attackerId: "c1", target: { kind: "leader" } },
-  { type: "end_turn" },
-];
+const attack = (attackerId: string, kind = "leader"): Intent => ({
+  type: "declare_attack",
+  attackerId,
+  target: { kind },
+});
+const give = (donId: string, targetId: string): Intent => ({ type: "give_don", donId, targetId });
 
-describe("endTurnNeedsConfirm", () => {
-  it("asks in 'actions' mode only while another turn action is legal", () => {
-    expect(endTurnNeedsConfirm("actions", canAttack)).toBe(true);
-    expect(endTurnNeedsConfirm("actions", endOnly)).toBe(false);
+describe("endTurnLeftovers", () => {
+  it("counts each active DON!! once, however many targets it could go on", () => {
+    const intents = [give("d1", "l"), give("d1", "c1"), give("d2", "l"), give("d2", "c1")];
+    expect(endTurnLeftovers(intents)).toBe("2 DON!! unused");
   });
 
-  it("always asks in 'always' mode and never in 'never' mode", () => {
-    expect(endTurnNeedsConfirm("always", endOnly)).toBe(true);
-    expect(endTurnNeedsConfirm("never", canAttack)).toBe(false);
+  it("counts each ready attacker once, however many targets it has", () => {
+    expect(endTurnLeftovers([attack("l"), attack("l", "character"), attack("c1")])).toBe(
+      "2 attackers ready",
+    );
+    expect(endTurnLeftovers([attack("l"), attack("l", "character")])).toBe("1 attacker ready");
+  });
+
+  it("names both when DON!! and attackers are left", () => {
+    expect(endTurnLeftovers([give("d1", "l"), attack("l")])).toBe("1 DON!! + 1 atk");
+    expect(endTurnLeftovers([give("d1", "l"), give("d2", "l"), attack("l"), attack("c1")])).toBe(
+      "2 DON!! + 2 atk",
+    );
+  });
+
+  it("stays quiet for actions that spend nothing useful", () => {
+    const optionalOnly: Intent[] = [
+      { type: "end_turn" },
+      { type: "activate_ability", sourceId: "s", abilityId: "a" },
+      { type: "activate_leader", sourceId: "l" },
+      { type: "play_card", handIndex: 0 },
+    ];
+    expect(endTurnLeftovers(optionalOnly)).toBeNull();
+    expect(endTurnLeftovers(endOnly)).toBeNull();
+  });
+});
+
+describe("endTurnWarning", () => {
+  it("asks in 'actions' mode only for unspent DON!! or a ready attacker, with the reason", () => {
+    expect(endTurnWarning("actions", [give("d1", "l")])).toEqual({ reason: "1 DON!! unused" });
+    expect(endTurnWarning("actions", [attack("c1")])).toEqual({ reason: "1 attacker ready" });
+    expect(endTurnWarning("actions", [{ type: "play_card", handIndex: 0 }])).toBeNull();
+    expect(endTurnWarning("actions", endOnly)).toBeNull();
+  });
+
+  it("always asks in 'always' mode, without a reason, and never in 'never' mode", () => {
+    expect(endTurnWarning("always", endOnly)).toEqual({ reason: null });
+    // Something is left here, yet "always" still carries no reason.
+    expect(endTurnWarning("always", [give("d1", "l")])).toEqual({ reason: null });
+    expect(endTurnWarning("never", [attack("c1")])).toBeNull();
   });
 });
 
@@ -42,7 +80,7 @@ describe("forcedDefensePass", () => {
   });
 
   it("never acts outside a block or counter step", () => {
-    expect(forcedDefensePass(canAttack)).toBeNull();
+    expect(forcedDefensePass([attack("c1"), ...endOnly])).toBeNull();
   });
 });
 

@@ -1,6 +1,7 @@
 import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
 import { ConfirmButton } from "./ConfirmButton";
 import { collapseReplacePlays, isReplacePlay } from "./dragIntents";
+import { actionKeyTags } from "./hotkeys";
 import { filterIntentsForSelection } from "./intentFilter";
 import { splitPrimaryIntent } from "./primaryIntent";
 
@@ -10,8 +11,8 @@ type Props = {
   disabled?: boolean;
   filterHandIndex?: number | null;
   selectedBoardId?: string | null;
-  /** End turn needs a second tap (gameplay setting). */
-  confirmEndTurn?: boolean;
+  /** End turn needs a second tap (gameplay setting); `reason` fills the armed label. */
+  confirmEndTurn?: { reason: string | null } | null;
   onSend: (intent: Intent) => void;
   /** Full-board play: ask which Character to replace instead of sending. */
   onChooseReplace?: (handIndex: number) => void;
@@ -40,7 +41,7 @@ export function IntentBar({
   disabled,
   filterHandIndex,
   selectedBoardId,
-  confirmEndTurn = false,
+  confirmEndTurn = null,
   onSend,
   onChooseReplace,
   defend,
@@ -54,6 +55,7 @@ export function IntentBar({
   const shown = defend
     ? []
     : collapseReplacePlays(filterIntentsForSelection(rest, { handIndex, boardId }));
+  const keyTags = actionKeyTags(shown);
   const mulliganPhase = view?.phase === "mulligan";
   const nothingSelected = handIndex == null && boardId == null;
 
@@ -92,6 +94,9 @@ export function IntentBar({
               type="button"
               className={btnClass(intent)}
               disabled={disabled}
+              data-key-num={keyTags[idx]!.num ?? undefined}
+              data-key-letter={keyTags[idx]!.letter ?? undefined}
+              data-key-tag={keyTags[idx]!.tag || undefined}
               onClick={() =>
                 onChooseReplace && isReplacePlay(intent)
                   ? onChooseReplace(intent.handIndex as number)
@@ -110,8 +115,17 @@ export function IntentBar({
               <ConfirmButton
                 className={`${btnClass(primary)} intent-btn-primary`}
                 label={intentLabel(primary, view)}
-                confirmLabel="Tap again to end"
-                title="Ends your turn after a second tap"
+                confirmLabel={
+                  confirmEndTurn.reason ? (
+                    <>
+                      <span className="end-warn-full">End turn? {confirmEndTurn.reason}</span>
+                      <span className="end-warn-short">Tap again to end</span>
+                    </>
+                  ) : (
+                    "Tap again to end"
+                  )
+                }
+                title={confirmEndTurn.reason ? `${confirmEndTurn.reason}. Tap again to end your turn.` : "Ends your turn after a second tap"}
                 disabled={disabled}
                 reserveWidth
                 onConfirm={() => onSend(primary)}

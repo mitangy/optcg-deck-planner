@@ -5,7 +5,13 @@ const KEYS: { keys: string; text: string }[] = [
   { keys: "Space", text: "Main action (End turn, Pass, Keep hand). Press twice when End turn asks to confirm." },
   { keys: "H", text: "Show or tuck the hand drawer (when the hand is not in the side rail)." },
   { keys: "S", text: "Sort the hand by cost." },
-  { keys: "Esc", text: "Cancel a DON!! selection or close a panel." },
+  { keys: "1–9", text: "Press the Nth action button shown for the selected card." },
+  { keys: "A", text: "Attack with the selected card (first attack shown)." },
+  { keys: "E", text: "Activate the selected card's ability." },
+  { keys: "P", text: "Play the selected hand card." },
+  { keys: "D", text: "Attach DON!! to the selected card (when offered)." },
+  { keys: "← →", text: "Select the previous or next hand card." },
+  { keys: "Esc", text: "Cancel a DON!! selection, then deselect the card; also closes a panel." },
   { keys: "?", text: "This list." },
 ];
 

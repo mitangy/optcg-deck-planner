@@ -26,6 +26,26 @@ describe("loadSettings", () => {
   });
 });
 
+describe("animation speed", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps a stored speed", () => {
+    stubStored({ animationSpeed: "fast" });
+    expect(loadSettings().animationSpeed).toBe("fast");
+    stubStored({ animationSpeed: "off" });
+    expect(loadSettings().animationSpeed).toBe("off");
+  });
+
+  it("defaults to normal, and replaces an unknown stored speed with it", () => {
+    stubStored({});
+    expect(loadSettings().animationSpeed).toBe("normal");
+    stubStored({ animationSpeed: "warp" });
+    expect(loadSettings().animationSpeed).toBe("normal");
+  });
+});
+
 describe("response stops migration", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

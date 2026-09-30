@@ -15,6 +15,7 @@ import type {
 } from "../net/protocol";
 import { BattleLogPanel } from "./BattleLogPanel";
 import { CardPreviewPanel } from "./CardPreviewPanel";
+import { RecentPlaysStrip } from "./RecentPlaysStrip";
 import { ChatPanel } from "./ChatPanel";
 import type { BattleLogEntry } from "./battleLog";
 import { describeMatchResult } from "./matchResult";
@@ -65,12 +66,14 @@ import { sortHandIndices } from "./handSort";
 import { useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { useDuelSettings } from "../settings";
-import { endTurnNeedsConfirm, responseStopPass } from "./gameplayPrefs";
+import { endTurnWarning, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
 import { HotkeyHelpSheet } from "./HotkeyHelp";
+import { stepHandSelection } from "./hotkeys";
 import { useBoardHotkeys } from "./useBoardHotkeys";
 import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
 import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
+import { useSoundCues } from "./soundCues";
 import { buzz } from "./haptics";
 import {
   markRotateHintSeen,
@@ -405,6 +408,12 @@ export function DuelBoard({
     sound: prefs.turnSound,
   });
   useIncomingAttackCue(attackKey, { sound: prefs.turnSound });
+  // Same master Sounds toggle: a tick per opponent card use, a thud per Life lost.
+  useSoundCues(view, battleLog, previewOppSeat, {
+    enabled: alertsOn,
+    sound: prefs.turnSound,
+    spectating,
+  });
 
   // iOS only plays sound after one started inside a gesture: unlock on the
   // first touch of the match so a later cue is allowed to play.
@@ -518,6 +527,22 @@ export function DuelBoard({
     over,
     // H only toggles the corner dock; the rail hand is always open.
     wide: wide && !railHand,
+    cardKeys: wide && !lp,
+    onEscape: () => {
+      // One layer per press: DON!! selection first, then the selected card.
+      if (selectedDonIds.size > 0 || pendingAttach != null) clearDonSelection();
+      else {
+        setHandFilter(null);
+        setSelectedBoardId(null);
+      }
+    },
+    onStepHand: (dir) => {
+      const order = handDisplayIndices ?? (view?.you.hand ?? []).map((_, i) => i);
+      const next = stepHandSelection(order, handFilter, dir);
+      if (next == null) return;
+      setSelectedBoardId(null);
+      setHandFilter(next);
+    },
     onToggleHand: () => {
       setHandPinned((v) => !v);
       if (handPinned) setHandFilter(null);
@@ -527,15 +552,6 @@ export function DuelBoard({
   });
 
   const donSelectActive = selectedDonIds.size > 0 || pendingAttach != null;
-
-  useEffect(() => {
-    if (!dndEnabled) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") clearDonSelection();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [dndEnabled]);
 
   // Click-away cancels the DON!! selection / confirm. Taps on the cost area,
   // the confirm itself, or a highlighted attach target are handled by their
@@ -903,7 +919,7 @@ export function DuelBoard({
       disabled={over}
       filterHandIndex={handFilter}
       selectedBoardId={selectedBoardId}
-      confirmEndTurn={endTurnNeedsConfirm(prefs.endTurnConfirm, view.legalIntents)}
+      confirmEndTurn={endTurnWarning(prefs.endTurnConfirm, view.legalIntents)}
       onSend={(intent) => {
         setHandFilter(null);
         setSelectedBoardId(null);
@@ -1281,6 +1297,7 @@ export function DuelBoard({
         ) : wide ? (
           <aside className="arena-left" aria-label="Card preview and battle log">
             <CardPreviewPanel />
+            {!lp ? <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} /> : null}
             <BattleLogPanel
               entries={battleLog}
               viewingSeat={spectating || mySeat == null ? undefined : mySeat}

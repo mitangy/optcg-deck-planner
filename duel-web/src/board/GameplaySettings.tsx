@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import {
   updateSettings,
   useDuelSettings,
+  type AnimationSpeed,
   type EndTurnConfirm,
   type ResponseStops,
   type ScreenOrientationPref,
@@ -51,13 +52,13 @@ const TOGGLES: Toggle[] = [
   {
     key: "turnSound",
     label: "Sounds",
-    hint: "A chime when your turn starts or you need to respond, and a lower two-tone cue when you are attacked. Works on iPhone too.",
+    hint: "A chime when your turn starts or you need to respond, a lower two-tone cue when you are attacked, a soft tick when the opponent plays a card, and a thud when a Life card is lost. Works on iPhone too.",
   },
 ];
 
 const END_TURN_OPTIONS: { value: EndTurnConfirm; label: string }[] = [
   { value: "always", label: "Always ask" },
-  { value: "actions", label: "Only if I can still act" },
+  { value: "actions", label: "Only if DON!! or attackers are left" },
   { value: "never", label: "Never ask" },
 ];
 
@@ -71,6 +72,12 @@ const ORIENTATION_OPTIONS: { value: ScreenOrientationPref; label: string }[] = [
   { value: "auto", label: "Follow my phone" },
   { value: "portrait", label: "Portrait" },
   { value: "landscape", label: "Landscape" },
+];
+
+const ANIMATION_OPTIONS: { value: AnimationSpeed; label: string }[] = [
+  { value: "normal", label: "Normal" },
+  { value: "fast", label: "Fast" },
+  { value: "off", label: "Off" },
 ];
 
 /** Gameplay preferences; saved in this browser and applied live. */
@@ -93,7 +100,7 @@ export function GameplaySettingsFields() {
           ))}
         </select>
         <p className="field-hint">
-          “Only if I can still act” asks while you have DON!!, an attack or a playable card left.
+          “Only if DON!! or attackers are left” asks while you have active DON!! or a ready attacker, and the button says which.
         </p>
       </div>
       <div className="field">
@@ -140,6 +147,24 @@ export function GameplaySettingsFields() {
             screen from the ⋯ menu).
           </p>
         ) : null}
+      </div>
+      <div className="field">
+        <label htmlFor="animation-speed">Animations</label>
+        <select
+          id="animation-speed"
+          value={settings.animationSpeed}
+          onChange={(e) => updateSettings({ animationSpeed: e.target.value as AnimationSpeed })}
+        >
+          {ANIMATION_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <p className="field-hint">
+          How fast cards fly for draws, plays and KOs. Off skips card motion. “Reduce animations”
+          keeps its short fade instead of Normal or Fast.
+        </p>
       </div>
       {TOGGLES.map((t) => (
         <div className="gameplay-toggle" key={t.key}>
