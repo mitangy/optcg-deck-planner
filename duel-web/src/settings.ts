@@ -52,8 +52,6 @@ export type DuelSettings = {
   screenOrientation: ScreenOrientationPref;
   /** Start every match with the hand sorted by cost. */
   sortHandByCost: boolean;
-  /** Wide layout: keep the hand dock open instead of tucking it away. */
-  keepHandOpen: boolean;
   /** Fanned hand at the bottom centre / bottom right, or the flat grid. */
   handLayout: HandLayout;
   /** Desktop: tilt the board away from you, seen from your seat. */
@@ -83,7 +81,6 @@ const DEFAULTS: DuelSettings = {
   responseStops: "always",
   screenOrientation: "auto",
   sortHandByCost: false,
-  keepHandOpen: false,
   handLayout: "fanCenter",
   tiltedBoard: false,
   turnSplash: true,
@@ -101,8 +98,11 @@ const HAND_LAYOUTS: readonly HandLayout[] = ["fanCenter", "fanRight", "grid"];
 const CHANGE_EVENT = "optcg-duel:settings-change";
 
 /** Stored values from older builds or hand edits fall back to defaults field by field. */
-function sanitize(parsed: Partial<DuelSettings> & { autoPassDefense?: unknown }): DuelSettings {
-  const { autoPassDefense, ...rest } = parsed;
+function sanitize(
+  parsed: Partial<DuelSettings> & { autoPassDefense?: unknown; keepHandOpen?: unknown },
+): DuelSettings {
+  // keepHandOpen was dropped: a hand that starts raised covers your DON!! row. H still pins it.
+  const { autoPassDefense, keepHandOpen: _keepHandOpen, ...rest } = parsed;
   const next = { ...DEFAULTS, ...rest };
   if (!END_TURN_CONFIRM.includes(next.endTurnConfirm)) next.endTurnConfirm = DEFAULTS.endTurnConfirm;
   // Older builds stored a boolean auto-pass: true is today's `auto`, anything else `always`.

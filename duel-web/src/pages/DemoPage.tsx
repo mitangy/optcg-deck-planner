@@ -581,6 +581,10 @@ export function DemoPage() {
         firstSeat: params.get("first") === "1" ? 1 : 0,
         battle: null,
         you: { ...base.you, mulliganDone: false },
+        legalIntents: [
+          { type: "mulligan", doMulligan: false },
+          { type: "mulligan", doMulligan: true },
+        ],
       }
     : withTurn;
   // `?motion`: one state per click; Replay remounts the board to replay the deal.
