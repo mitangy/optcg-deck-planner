@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arrangementAnswer, mergeArrangement, moveToRow, nudge, setSide, withoutIds } from "./deckOrder";
+import { arrangementAnswer, groupAnswer, mergeArrangement, moveToRow, nudge, setSide, withoutIds } from "./deckOrder";
 
 describe("deck put-back arrangement", () => {
   it("dragging a top card below the rest-of-deck row puts it on the bottom", () => {
@@ -29,5 +29,10 @@ describe("deck put-back arrangement", () => {
 
   it("answers with top cards first and only top cards as topOptionIds", () => {
     expect(arrangementAnswer({ top: ["b"], bottom: ["a", "c"] })).toEqual({ orderedOptionIds: ["b", "a", "c"], topOptionIds: ["b"] });
+  });
+
+  it("top-or-bottom answers keep every card on the same side", () => {
+    expect(groupAnswer(["a", "b"], "top")).toEqual({ orderedOptionIds: ["a", "b"], topOptionIds: ["a", "b"] });
+    expect(groupAnswer(["a", "b"], "bottom")).toEqual({ orderedOptionIds: ["a", "b"], topOptionIds: [] });
   });
 });
