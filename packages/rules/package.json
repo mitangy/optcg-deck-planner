@@ -10,6 +10,7 @@
     "test:watch": "vitest",
     "sim": "tsx src/sim/runBatch.ts",
     "export-atlas": "tsx src/scripts/exportAtlas.ts",
+    "export-planner-stats": "tsx src/scripts/exportPlannerStats.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

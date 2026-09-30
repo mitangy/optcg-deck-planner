@@ -321,12 +321,20 @@ export function CollapsibleDrawer({
   summary,
   storageKey,
   defaultOpen = false,
+  badge,
+  badgeLabel,
+  headerExtra,
   children,
 }: {
   label: string;
   summary?: string;
   storageKey?: string;
   defaultOpen?: boolean;
+  /** Small count pill beside the label, shown only while the drawer is collapsed. */
+  badge?: number;
+  badgeLabel?: string;
+  /** Always-visible row directly under the toggle (open or closed). */
+  headerExtra?: ReactNode;
   children: ReactNode;
 }) {
   const [open, setOpen] = usePersistedOpen(storageKey, defaultOpen);
@@ -345,10 +353,16 @@ export function CollapsibleDrawer({
           {label}
           {summary ? <span className="filter-drawer-summary"> · {summary}</span> : null}
         </span>
+        {!open && badge ? (
+          <span className="filter-drawer-badge" aria-label={`${badge} ${badgeLabel ?? "items"}`}>
+            {badge}
+          </span>
+        ) : null}
         <span className="filter-drawer-chevron" aria-hidden="true">
           {open ? "▴" : "▾"}
         </span>
       </button>
+      {headerExtra}
       {open ? (
         <div id={panelId} className="filter-drawer-body">
           {children}
