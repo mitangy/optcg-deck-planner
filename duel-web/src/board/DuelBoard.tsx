@@ -393,6 +393,8 @@ export function DuelBoard({
   const rotateHintDue =
     view != null &&
     !over &&
+    // Wait out an attack: the toast would sit over your field mid-response.
+    defend == null &&
     shouldShowRotateHint({
       portrait: portraitViewport,
       phone: phoneViewport,
@@ -407,7 +409,8 @@ export function DuelBoard({
     }
   }, [rotateHintDue]);
   // Turning the phone (or picking portrait) puts the hint away.
-  const rotateHintShown = rotateHintOpen && portraitViewport && orientationPref !== "portrait";
+  const rotateHintShown =
+    rotateHintOpen && portraitViewport && orientationPref !== "portrait" && defend == null;
   const closeRotateHint = useCallback(() => setRotateHintOpen(false), []);
 
   // Small haptic tap when a drag lifts a card / DON!!.
