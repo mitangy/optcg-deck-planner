@@ -136,6 +136,47 @@ export type CosmeticsMessage = {
 };
 
 
+/** A player's custom playmat / card back as small data URLs (null = default). */
+export type SeatSkin = {
+  playmat: string | null;
+  cardBack: string | null;
+};
+
+export type SkinMessage = {
+  protocolVersion: ProtocolVersion;
+  seat: Seat;
+  skin: SeatSkin;
+};
+
+/** Must match the game server's caps (game-server/src/protocol.ts). */
+export const SKIN_MAX_PLAYMAT_CHARS = 450_000;
+export const SKIN_MAX_CARD_BACK_CHARS = 90_000;
+
+const SKIN_DATA_URL = /^data:image\/(?:jpeg|webp|png);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+function asSkinImage(raw: unknown, maxChars: number): string | null {
+  // Only image data URLs are ever put in CSS `url(...)`; anything else is dropped.
+  return typeof raw === "string" && raw.length <= maxChars && SKIN_DATA_URL.test(raw)
+    ? raw
+    : null;
+}
+
+export function parseSkin(raw: unknown): SkinMessage {
+  if (!raw || typeof raw !== "object") throw new Error("skin body required");
+  const o = raw as Record<string, unknown>;
+  if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
+  if (o.seat !== 0 && o.seat !== 1) throw new Error("skin.seat required");
+  const skin = (o.skin && typeof o.skin === "object" ? o.skin : {}) as Record<string, unknown>;
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    seat: o.seat,
+    skin: {
+      playmat: asSkinImage(skin.playmat, SKIN_MAX_PLAYMAT_CHARS),
+      cardBack: asSkinImage(skin.cardBack, SKIN_MAX_CARD_BACK_CHARS),
+    },
+  };
+}
+
 /** Mirrors @optcg/rules PendingChoiceKind. */
 export type PendingChoiceKind =
   | "life_trigger"

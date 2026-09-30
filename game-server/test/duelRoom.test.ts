@@ -475,6 +475,42 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+  it("relays a seat's playmat / card back skin and rejects non-image payloads", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 7,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    type SkinMsg = { seat: number; skin: { playmat: string | null; cardBack: string | null } };
+    const skins: SkinMsg[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    c1.onMessage("skin", (m: SkinMsg) => skins.push(m));
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    const mat = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
+    c0.send("skin", { protocolVersion: PROTOCOL_VERSION, skin: { playmat: mat, cardBack: null } });
+    await waitUntil(() => skins.some((m) => m.seat === 0 && m.skin.playmat === mat), 5000);
+
+    const errorsBefore = bags[0].errors.length;
+    c0.send("skin", {
+      protocolVersion: PROTOCOL_VERSION,
+      skin: { playmat: 'data:text/html;base64,PHNjcmlwdD4=', cardBack: null },
+    });
+    await waitUntil(() => bags[0].errors.length > errorsBefore, 5000);
+    assert.equal(skins.filter((m) => m.skin.playmat !== mat).length, 0);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
   it("relays chat between seats, sanitizes text, and replays history on sync", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,

@@ -26,9 +26,13 @@ import type {
   TimerMessage,
   RematchAction,
   RematchState,
+  SeatSkin,
   UndoAction,
   UndoState,
 } from "../net/protocol";
+import { SKIN_MAX_CARD_BACK_CHARS, SKIN_MAX_PLAYMAT_CHARS } from "../net/protocol";
+import { cardBackShareUrl } from "../cardBack";
+import { playmatShareUrl } from "../playmat";
 import {
   initSeatArtPrefsFromStorage,
   replaceSeatArtPrefs,
@@ -93,6 +97,8 @@ type DuelSession = {
   undo: UndoState | null;
   /** Per seat: epoch ms until which a dropped player may reconnect (else null). */
   awayUntil: [number | null, number | null];
+  /** Per seat: custom playmat / card back shared by that player (online). */
+  seatSkins: [SeatSkin | null, SeatSkin | null];
   /** Rematch vote once the match is over (null until the server reports it). */
   rematch: RematchState | null;
   sendRematch: (action: RematchAction) => void;
@@ -140,6 +146,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [undo, setUndo] = useState<UndoState | null>(null);
   const [awayUntil, setAwayUntil] = useState<[number | null, number | null]>([null, null]);
   const [rematch, setRematch] = useState<RematchState | null>(null);
+  const [seatSkins, setSeatSkins] = useState<[SeatSkin | null, SeatSkin | null]>([null, null]);
   const [rating, setRating] = useState<number | null>(null);
   const [lastServerUrl, setLastServerUrl] = useState<string | null>(null);
 
@@ -189,6 +196,12 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
               client.sendCosmetics(prefs);
             });
             initSeatArtPrefsFromStorage(s);
+            void Promise.all([
+              playmatShareUrl(SKIN_MAX_PLAYMAT_CHARS),
+              cardBackShareUrl(SKIN_MAX_CARD_BACK_CHARS),
+            ]).then(([playmat, cardBack]) => {
+              if (playmat || cardBack) client.sendSkin({ playmat, cardBack });
+            });
           }
           const tok = client.getReconnectionToken();
           if (tok) persistToken(tok, id);
@@ -212,6 +225,13 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         },
         onCosmetics: (msg) => {
           replaceSeatArtPrefs(msg.seat, msg.artPrefs);
+        },
+        onSkin: (msg) => {
+          setSeatSkins((prev) => {
+            const next: [SeatSkin | null, SeatSkin | null] = [prev[0], prev[1]];
+            next[msg.seat] = msg.skin;
+            return next;
+          });
         },
         onError: (err) => {
           if (isSeatReservationExpiredError(err.message)) return;
@@ -283,6 +303,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       },
       undo,
       awayUntil,
+      seatSkins,
       rematch,
       sendRematch(action) {
         try {
@@ -457,6 +478,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         clearMatchResume();
         setCosmeticsPublisher(null);
         resetAllSeatArtPrefs();
+        setSeatSkins([null, null]);
         // Don't wait for the server's close handshake (slow on a cold / busy
         // server): reset locally and let the socket close in the background.
         void client.disconnect(true);
@@ -500,6 +522,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     chat,
     undo,
     awayUntil,
+    seatSkins,
     rematch,
     rating,
     lastServerUrl,

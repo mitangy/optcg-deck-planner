@@ -107,6 +107,57 @@ export type CosmeticsMessage = {
   artPrefs: ArtPrefsMap;
 };
 
+/**
+ * A player's custom playmat / card back, downscaled by the sender and relayed
+ * to the room as base64 data URLs. Purely cosmetic; null = use the default.
+ */
+export type SeatSkin = {
+  playmat: string | null;
+  cardBack: string | null;
+};
+
+export type SkinMessage = {
+  protocolVersion: ProtocolVersion;
+  seat: Seat;
+  skin: SeatSkin;
+};
+
+/** Size caps (characters of the data URL) so skins cannot bloat room memory. */
+export const SKIN_MAX_PLAYMAT_CHARS = 450_000;
+export const SKIN_MAX_CARD_BACK_CHARS = 90_000;
+
+const SKIN_DATA_URL = /^data:image\/(?:jpeg|webp|png);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+function asSkinImage(raw: unknown, maxChars: number, field: string): string | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== "string" || raw.length > maxChars || !SKIN_DATA_URL.test(raw)) {
+    throw Object.assign(new Error(`${field} must be a small base64 image data URL or null`), {
+      code: "bad_protocol" as const,
+    });
+  }
+  return raw;
+}
+
+/** Parse client → server skin update for the sender's seat. */
+export function parseSkinMessage(raw: unknown): SeatSkin {
+  if (!raw || typeof raw !== "object") {
+    throw Object.assign(new Error("skin message body required"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  const o = raw as Record<string, unknown>;
+  if (!isProtocolVersion(o.protocolVersion)) {
+    throw Object.assign(new Error("Unsupported or missing protocolVersion"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  const skin = (o.skin && typeof o.skin === "object" ? o.skin : {}) as Record<string, unknown>;
+  return {
+    playmat: asSkinImage(skin.playmat, SKIN_MAX_PLAYMAT_CHARS, "playmat"),
+    cardBack: asSkinImage(skin.cardBack, SKIN_MAX_CARD_BACK_CHARS, "cardBack"),
+  };
+}
+
 export function isProtocolVersion(v: unknown): v is ProtocolVersion {
   return v === PROTOCOL_VERSION;
 }

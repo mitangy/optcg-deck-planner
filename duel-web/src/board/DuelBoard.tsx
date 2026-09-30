@@ -6,6 +6,7 @@ import type {
   PlayerView,
   Seat,
   SeatPlayers,
+  SeatSkin,
   RematchAction,
   RematchState,
   TimerMessage,
@@ -98,6 +99,8 @@ type Props = {
   };
   /** Opponent dropped: epoch ms until which they may reconnect before forfeiting. */
   opponentAwayUntil?: number | null;
+  /** Online: each seat's shared custom playmat / card back (shown for the opponent only). */
+  seatSkins?: readonly [SeatSkin | null, SeatSkin | null];
   leaveLabel?: string;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
@@ -156,6 +159,7 @@ export function DuelBoard({
   onConcede,
   undo,
   opponentAwayUntil = null,
+  seatSkins,
   rematch,
   leaveLabel = "Leave",
   onSendIntent,
@@ -673,8 +677,10 @@ export function DuelBoard({
     />
   ) : null;
   // Practice: both halves are yours, so both show your playmat and card back.
-  const oppMatUrl = hotseatPass ? playmatUrl : null;
-  const oppCardBackUrl = hotseatPass ? cardBackUrl : null;
+  // Online: the opponent's own art, shared through the game server.
+  const oppSkin = seatSkins?.[oppSeat] ?? null;
+  const oppMatUrl = hotseatPass ? playmatUrl : (oppSkin?.playmat ?? null);
+  const oppCardBackUrl = hotseatPass ? cardBackUrl : (oppSkin?.cardBack ?? null);
 
   return (
     <div

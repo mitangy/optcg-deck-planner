@@ -34,6 +34,7 @@ import {
   PROTOCOL_VERSION,
   parseChatMessage,
   parseCosmeticsMessage,
+  parseSkinMessage,
   parseCreateOptions,
   parseIntentMessage,
   parseJoinOptions,
@@ -42,6 +43,8 @@ import {
   type ArtPrefsMap,
   type ChatMessage,
   type CosmeticsMessage,
+  type SeatSkin,
+  type SkinMessage,
   type ErrorCode,
   type PlayerDeckWire,
   type SeatPlayerInfo,
@@ -107,6 +110,8 @@ export class DuelRoom extends Room {
   private spectators: SpectatorSlot[] = [];
   /** Per-seat alt-art prefs (cosmetics only; not rules state). */
   private seatArtPrefs: [ArtPrefsMap, ArtPrefsMap] = [{}, {}];
+  /** Per-seat custom playmat / card back (cosmetics only). */
+  private seatSkins: [SeatSkin | null, SeatSkin | null] = [null, null];
   private intentTimestamps = new Map<string, number[]>();
   /** Recent chat lines, replayed on join / sync. Not persisted. */
   private chatLog: ChatMessage[] = [];
@@ -205,6 +210,9 @@ export class DuelRoom extends Room {
       client.send("pong", { t });
     });
 
+    this.onMessage("skin", (client, message) => {
+      this.handleSkin(client, message);
+    });
     this.onMessage("cosmetics", (client, message) => {
       this.handleCosmetics(client, message);
     });
@@ -715,6 +723,29 @@ export class DuelRoom extends Room {
     this.broadcast("cosmetics", payload);
   }
 
+  private handleSkin(client: Client, message: unknown) {
+    if (this.spectatorForClient(client)) {
+      this.sendError(client, "unauthorized", "Spectators cannot set cosmetics");
+      return;
+    }
+    const seat = this.seatForClient(client);
+    if (seat === null) {
+      this.sendError(client, "unauthorized", "No seat for cosmetics");
+      return;
+    }
+    let skin: SeatSkin;
+    try {
+      skin = parseSkinMessage(message);
+    } catch (e) {
+      const err = e as Error & { code?: ErrorCode };
+      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      return;
+    }
+    this.seatSkins[seat] = skin;
+    const payload: SkinMessage = { protocolVersion: PROTOCOL_VERSION, seat, skin };
+    this.broadcast("skin", payload);
+  }
+
   private handleChat(client: Client, message: unknown) {
     if (this.spectatorForClient(client)) {
       this.sendError(client, "unauthorized", "Spectators cannot chat");
@@ -784,6 +815,12 @@ export class DuelRoom extends Room {
         artPrefs,
       };
       client.send("cosmetics", payload);
+    }
+    for (const seat of [0, 1] as Seat[]) {
+      const skin = this.seatSkins[seat];
+      if (!skin) continue;
+      const payload: SkinMessage = { protocolVersion: PROTOCOL_VERSION, seat, skin };
+      client.send("skin", payload);
     }
   }
 
