@@ -2842,6 +2842,30 @@
   border-color: rgba(190, 225, 250, 0.8);
 }
 
+/* Mulligan: both labels are long ("Mulligan (shuffle & redraw 5)", "Keep
+   opening hand"). On a phone they ran past the right edge and the row scrolled
+   sideways, so split the bar evenly and let each label wrap to two lines. */
+.intent-bar-mulligan .intent-btn {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+.intent-bar-mulligan .intent-layout .intent-row {
+  overflow-x: visible;
+  padding-right: 0;
+}
+
+.intent-bar-mulligan .intent-row .intent-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.intent-bar-mulligan .intent-primary {
+  flex-basis: 50%;
+}
+
 /* Rail (desktop / landscape): the primary is a full-width button under the
    wrapped secondary actions. */
 .arena.arena-wide .arena-rail .intent-layout {

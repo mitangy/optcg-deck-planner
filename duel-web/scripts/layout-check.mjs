@@ -80,6 +80,27 @@ for (const vp of VIEWPORTS) {
     const promptSpill = await overflowOf(page, ".choice-prompt");
     if (promptSpill > 1) problems.push(`deck-order prompt ${promptSpill}px wider than itself`);
     await page.screenshot({ path: join(outDir, `${vp.name}-deck-order.png`) });
+
+    // Both mulligan buttons ("Keep opening hand" is the long one) must fit.
+    await page.goto(`${baseUrl}/demo?turn0`, { waitUntil: "networkidle" });
+    await page.waitForSelector(".intent-bar-mulligan .intent-btn", { timeout: 15000 }).catch(() => {});
+    const mull = await page.evaluate(() => {
+      const bar = document.querySelector(".intent-bar-mulligan");
+      if (!bar) return null;
+      const edge = bar.getBoundingClientRect().right;
+      const buttons = [...bar.querySelectorAll(".intent-btn")];
+      return {
+        buttons: buttons.length,
+        past: Math.max(0, ...buttons.map((b) => b.getBoundingClientRect().right - edge)),
+        spill: Math.max(0, ...buttons.map((b) => b.scrollWidth - b.clientWidth)),
+      };
+    });
+    if (!mull || mull.buttons < 2) problems.push("mulligan buttons not found on /demo?turn0");
+    else {
+      if (mull.past > 1) problems.push(`mulligan button runs ${Math.round(mull.past)}px past the action bar`);
+      if (mull.spill > 1) problems.push(`mulligan button label spills ${mull.spill}px past the button`);
+    }
+    await page.screenshot({ path: join(outDir, `${vp.name}-mulligan.png`) });
   }
   const narrow = m.cardWidths.length ? `${Math.min(...m.cardWidths).toFixed(0)}px` : "n/a";
   console.log(

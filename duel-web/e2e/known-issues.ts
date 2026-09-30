@@ -11,10 +11,6 @@ export const KNOWN_UI_ISSUES: Array<{ pattern: RegExp; note: string }> = [
     note: "Fanned hand covers the bottom of your mat on desktop: DON!! row, deck and trash counts, Leader caption, Trash button",
   },
   {
-    pattern: /^((spill|offscreen) .*intent-btn-keep "Keep opening hand"|hscroll div\.intent-bar\.intent-bar-mulligan )/,
-    note: "Phone mulligan: the two buttons don't fit; 'Keep opening hand' runs ~25px off the right edge and the row scrolls sideways",
-  },
-  {
     pattern: /"Summoning sick": text runs/,
     note: "Choice prompt: the 'Summoning sick' readiness chip spills out of its box",
   },
