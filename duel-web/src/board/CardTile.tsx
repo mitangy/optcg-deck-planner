@@ -22,6 +22,7 @@ import { costBreakdown, formatPowerDelta, powerBreakdown, tileStatusLabels } fro
 import {
   createClickDeferController,
   createLongPressController,
+  inspectOnContextMenu,
 } from "./inspectGestures";
 import { usePointerDrag } from "./usePointerDrag";
 import { StatusIcon } from "./StatusIcon";
@@ -434,6 +435,10 @@ export function CardTile({
     onPointerCancel: handlePointerCancel,
     onPointerEnter: handlePointerEnter,
     onDoubleClick: handleDoubleClick,
+    onContextMenu: (e: MouseEvent) => {
+      clickDeferRef.current?.cancel();
+      inspectOnContextMenu(e, () => setInspectOpen(true));
+    },
   };
 
   return (

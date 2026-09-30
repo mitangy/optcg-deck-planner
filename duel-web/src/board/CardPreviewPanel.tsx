@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { usePreviewCard } from "./cardPreview";
+import { CardInspect } from "./CardInspect";
+import { inspectOnContextMenu } from "./inspectGestures";
 import { LiveCardStatus } from "./LiveCardStatus";
 import { counterValueFor, formatCounter } from "../cards/counterValue";
 
@@ -9,6 +11,7 @@ import { counterValueFor, formatCounter } from "../cards/counterValue";
 export function CardPreviewPanel() {
   const preview = usePreviewCard();
   const [failed, setFailed] = useState<string | null>(null);
+  const [inspectOpen, setInspectOpen] = useState(false);
 
   if (!preview) {
     return (
@@ -19,6 +22,7 @@ export function CardPreviewPanel() {
     );
   }
 
+  const openInspect = (e: MouseEvent) => inspectOnContextMenu(e, () => setInspectOpen(true));
   const entry = lookupCard(preview.defId);
   const src = resolveCardImageUrl(preview.defId, {
     ownerSeat: preview.ownerSeat,
@@ -35,16 +39,23 @@ export function CardPreviewPanel() {
   ].filter(Boolean);
 
   return (
-    <aside className="card-preview" aria-label="Card preview" aria-live="polite">
+    <aside
+      className="card-preview"
+      aria-label="Card preview"
+      aria-live="polite"
+    >
       {src && src !== failed ? (
         <img
           className="card-preview-img"
           src={src}
           alt={entry.name}
           onError={() => setFailed(src)}
+          onContextMenu={openInspect}
         />
       ) : (
-        <div className="card-preview-placeholder">{entry.id}</div>
+        <div className="card-preview-placeholder" onContextMenu={openInspect}>
+          {entry.id}
+        </div>
       )}
       <div className="card-preview-meta">
         {preview.caption ? <p className="card-preview-caption">{preview.caption}</p> : null}
@@ -65,6 +76,13 @@ export function CardPreviewPanel() {
           {effect && effect !== "—" && effect !== "-" ? effect : "No printed ability."}
         </p>
       </div>
+      <CardInspect
+        defId={preview.defId}
+        open={inspectOpen}
+        onClose={() => setInspectOpen(false)}
+        ownerSeat={preview.ownerSeat}
+        live={preview.live}
+      />
     </aside>
   );
 }

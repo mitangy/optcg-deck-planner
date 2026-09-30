@@ -3,6 +3,7 @@ import type { Seat } from "../decks/seatArtPrefs";
 import type { BattleLogEntry, LogSegment, LogTone } from "./battleLog";
 import { groupBattleLogByTurn } from "./battleLog";
 import { CardInspect } from "./CardInspect";
+import { inspectOnContextMenu } from "./inspectGestures";
 import { setPreviewCard } from "./cardPreview";
 
 type Props = {
@@ -53,6 +54,7 @@ function CardName({
       }}
       onFocus={() => setPreviewCard({ defId: seg.defId, ownerSeat: seg.ownerSeat })}
       onClick={() => onInspect(seg)}
+      onContextMenu={(e) => inspectOnContextMenu(e, () => onInspect(seg))}
     >
       {seg.name}
     </button>
