@@ -86,6 +86,8 @@ type Props = {
   playCost?: number;
   /** Board instance id → `data-instance-id` (battle overlay anchor) + live hover preview tracking. */
   instanceId?: string;
+  /** Hand card id → `data-motion-id`, so draw / play / discard animations can find it. */
+  motionId?: string;
   /** Show the Counter value badge (hand cards). */
   showCounter?: boolean;
 };
@@ -103,6 +105,7 @@ export function CardTile({
   onClick,
   instantClick = false,
   instanceId,
+  motionId,
   inspectOnClick = false,
   inspectGestures = false,
   dragEnabled = false,
@@ -407,6 +410,7 @@ export function CardTile({
   const dropProps = {
     ...(dropAttr ? { "data-dnd-drop": dropAttr } : {}),
     ...(instanceId ? { "data-instance-id": instanceId } : {}),
+    ...(motionId ? { "data-motion-id": motionId } : {}),
   };
   const pointerHandlers = {
     onPointerDown: handlePointerDown,
