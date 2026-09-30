@@ -1,0 +1,56 @@
+import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+
+const KEYS: { keys: string; text: string }[] = [
+  { keys: "Space", text: "Main action (End turn, Pass, Keep hand). Press twice when End turn asks to confirm." },
+  { keys: "H", text: "Show or tuck the hand (wide screens)." },
+  { keys: "S", text: "Sort the hand by cost." },
+  { keys: "Esc", text: "Cancel a DON!! selection or close a panel." },
+  { keys: "?", text: "This list." },
+];
+
+/** Keyboard shortcut list; same sheet as Gameplay settings. */
+export function HotkeyHelpSheet({ onClose }: { onClose: () => void }) {
+  // Subscribed once: the board's own Esc handler re-renders mid-dispatch, and a
+  // listener re-added by an `[onClose]` effect would miss the same keypress.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return createPortal(
+    <div
+      className="sheet-backdrop"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+        <div className="sheet-head">
+          <span className="icon-btn-spacer" aria-hidden />
+          <h2 className="sheet-title">Shortcuts</h2>
+          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        <dl className="hotkey-list">
+          {KEYS.map((k) => (
+            <div className="hotkey-row" key={k.keys}>
+              <dt>
+                <kbd className="kbd">{k.keys}</kbd>
+              </dt>
+              <dd>{k.text}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>,
+    document.body,
+  );
+}

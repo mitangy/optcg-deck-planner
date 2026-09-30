@@ -2228,6 +2228,30 @@
   order: 2;
 }
 
+/* Mouse + keyboard desktops: a "Space" tab straddling the primary's top edge.
+   Absolutely positioned and click-through, so the button never resizes or moves. */
+@media (hover: hover) and (pointer: fine) {
+  .arena.arena-wide:not(.arena-lp) .arena-rail .intent-primary {
+    position: relative;
+  }
+
+  .arena.arena-wide:not(.arena-lp) .arena-rail .intent-primary::after {
+    content: "Space";
+    position: absolute;
+    top: -8px;
+    right: 10px;
+    padding: 0 0.4em;
+    border: 1px solid var(--line-strong);
+    border-radius: 5px;
+    background: var(--arena-panel);
+    color: var(--muted, inherit);
+    font-size: 0.66rem;
+    font-weight: 600;
+    line-height: 1.5;
+    pointer-events: none;
+  }
+}
+
 /* —— Portrait phones: opponent piles become a count row —— */
 
 .opp-counts {

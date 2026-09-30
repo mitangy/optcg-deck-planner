@@ -59,6 +59,8 @@ import { usePlaymatUrl } from "../playmat";
 import { useDuelSettings } from "../settings";
 import { endTurnNeedsConfirm, forcedDefensePass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
+import { HotkeyHelpSheet } from "./HotkeyHelp";
+import { useBoardHotkeys } from "./useBoardHotkeys";
 import { useTurnAlert } from "./turnAlert";
 import { seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
@@ -186,6 +188,7 @@ export function DuelBoard({
   }, [dragPayload, lp]);
   const [handSorted, setHandSorted] = useState(prefs.sortHandByCost);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const fullscreenOffered = useMemo(() => canOfferFullscreen(readInstallEnv()), []);
   const [isFullscreen, setIsFullscreen] = useState(
     () => typeof document !== "undefined" && document.fullscreenElement != null,
@@ -373,6 +376,18 @@ export function DuelBoard({
     // Sequential client-side intents (no batch protocol).
     for (const intent of toSend) onSendIntent(intent);
   }
+
+  useBoardHotkeys({
+    spectating,
+    over,
+    wide,
+    onToggleHand: () => {
+      setHandPinned((v) => !v);
+      if (handPinned) setHandFilter(null);
+    },
+    onSortHand: () => setHandSorted((v) => !v),
+    onHelp: () => setHelpOpen(true),
+  });
 
   const donSelectActive = selectedDonIds.size > 0 || pendingAttach != null;
 
@@ -971,6 +986,8 @@ export function DuelBoard({
       )}
 
       {settingsOpen ? <GameplaySettingsSheet onClose={() => setSettingsOpen(false)} /> : null}
+
+      {helpOpen ? <HotkeyHelpSheet onClose={() => setHelpOpen(false)} /> : null}
 
       {undoPendingTheirs && undoState?.pending ? (
         <div className="undo-request" role="alertdialog" aria-label="Undo request">
