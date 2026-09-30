@@ -53,6 +53,7 @@ export function CardPreviewPanel() {
           <LiveCardStatus
             live={preview.live}
             atlasPower={entry.power}
+            atlasCost={entry.cost}
             className="card-preview-live"
           />
         ) : null}

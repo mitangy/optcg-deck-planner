@@ -199,5 +199,7 @@ module.exports = {
     { id: "replace-prompt-always", file: `${src}/board/dragIntents.ts`, from: "  return playCardTrashTargetIds(intents, handIndex).length > 0;", to: "  return true;", kills: ["asks which Character to replace only when the board is full"] },
     { id: "replace-prompt-lists-every-character", file: `${src}/board/ReplacePrompt.tsx`, from: "view.you.characters.filter((c) => targetIds.includes(c.id))", to: "view.you.characters", kills: ["offers each Character the play may trash"] },
     { id: "replace-prompt-sends-unpicked", file: `${src}/board/ReplacePrompt.tsx`, from: "disabled={!intent}", to: "disabled={false}", kills: ["offers each Character the play may trash and waits for a pick"] },
+    {"id":"cost-delta-dropped","file":"duel-web/src/board/powerDisplay.ts","from":"delta: fieldCost - printedCost","to":"delta: 0","kills":["splits a +cost effect from the printed cost"]},
+    {"id":"cost-breakdown-null-guard","file":"duel-web/src/board/powerDisplay.ts","from":"  if (fieldCost == null) return null;\n","to":"","kills":["reports no delta for an unmodified cost and null without a live cost"]},
   ],
 };

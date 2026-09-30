@@ -1,17 +1,20 @@
 import type { PreviewLive } from "./cardPreview";
-import { formatPowerDelta, powerBreakdown } from "./powerDisplay";
+import { costBreakdown, formatPowerDelta, powerBreakdown } from "./powerDisplay";
 
 /** Current power + active statuses for an in-play card (preview panel / inspect). */
 export function LiveCardStatus({
   live,
   atlasPower,
+  atlasCost,
   className,
 }: {
   live: PreviewLive;
   atlasPower?: number;
+  atlasCost?: number;
   className?: string;
 }) {
   const pb = powerBreakdown(live.power, live.printedPower, atlasPower);
+  const cb = atlasCost != null ? costBreakdown(live.fieldCost, atlasCost) : null;
   const labels = [...(live.statusLabels ?? [])];
   if (live.rested && !labels.includes("Rested")) labels.unshift("Rested");
   const don = live.attachedDonCount ?? 0;
@@ -27,6 +30,20 @@ export function LiveCardStatus({
               {pb.base} base{" "}
               <span className={pb.delta > 0 ? "power-mod-up" : "power-mod-down"}>
                 {formatPowerDelta(pb.delta)}
+              </span>
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+      {cb ? (
+        <p className="live-status-power">
+          <span className="live-status-power-label">Cost</span>
+          <strong className="live-status-power-value">{cb.current}</strong>
+          {cb.delta !== 0 ? (
+            <span className="live-status-power-detail">
+              {cb.base} base{" "}
+              <span className={cb.delta > 0 ? "power-mod-up" : "power-mod-down"}>
+                {formatPowerDelta(cb.delta)}
               </span>
             </span>
           ) : null}
