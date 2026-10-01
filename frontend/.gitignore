@@ -38,3 +38,7 @@ public/dev-fixtures/
 # scan-descriptors workflow rather than committed. Regenerate locally with
 # npm run extract-descriptors to develop against it.
 public/scan-data/
+
+# Playwright e2e output
+test-results
+playwright-report

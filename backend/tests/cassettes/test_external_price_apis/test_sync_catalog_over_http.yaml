@@ -1,0 +1,119 @@
+# HAND-CRAFTED cassette: written from the response shapes app code parses, not recorded
+# from the live service. Re-record with: pytest tests/test_external_price_apis.py --record-mode=rewrite
+# (needs network; then re-check the test's expected values against the new data).
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Content-Type:
+      - application/json
+    method: GET
+    uri: https://tcgcsv.com/tcgplayer/68/groups
+  response:
+    body:
+      string: '{"success":true,"errors":[],"results":[{"groupId":1001,"name":"Romance Dawn","abbreviation":"OP01","isSupplemental":false,"publishedOn":"2022-12-02T00:00:00","modifiedOn":"2026-05-01T00:00:00","categoryId":68},{"groupId":1002,"name":"Paramount
+        War","abbreviation":"OP02","isSupplemental":false,"publishedOn":"2023-03-10T00:00:00","modifiedOn":"2026-05-01T00:00:00","categoryId":68},{"groupId":1003,"name":"Kingdoms
+        of Intrigue","abbreviation":"OP04","isSupplemental":false,"publishedOn":"2023-12-09T00:00:00","modifiedOn":"2026-05-01T00:00:00","categoryId":68}]}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Content-Type:
+      - application/json
+    method: GET
+    uri: https://tcgcsv.com/tcgplayer/68/1001/products
+  response:
+    body:
+      string: '{"success":true,"errors":[],"results":[{"productId":111,"name":"Monkey.D.Luffy","cleanName":"Monkey.D.Luffy","imageUrl":"https://tcgplayer-cdn.tcgplayer.com/product/111_200w.jpg","categoryId":68,"groupId":1001,"url":"https://www.tcgplayer.com/product/111/one-piece-card-game-x","modifiedOn":"2026-05-01T00:00:00.000Z","imageCount":1,"extendedData":[{"name":"Number","displayName":"Number","value":"OP01-001"},{"name":"Rarity","displayName":"Rarity","value":"L"},{"name":"CardType","displayName":"CardType","value":"Leader"},{"name":"Color","displayName":"Color","value":"Red"}]},{"productId":112,"name":"Monkey.D.Luffy
+        (Alternate Art)","cleanName":"Monkey.D.Luffy (Alternate Art)","imageUrl":"https://tcgplayer-cdn.tcgplayer.com/product/112_200w.jpg","categoryId":68,"groupId":1001,"url":"https://www.tcgplayer.com/product/112/one-piece-card-game-x","modifiedOn":"2026-05-01T00:00:00.000Z","imageCount":1,"extendedData":[{"name":"Number","displayName":"Number","value":"OP01-001"},{"name":"Rarity","displayName":"Rarity","value":"L"},{"name":"CardType","displayName":"CardType","value":"Leader"},{"name":"Color","displayName":"Color","value":"Red"}]},{"productId":113,"name":"DON!!
+        Card","cleanName":"DON!! Card","imageUrl":"https://tcgplayer-cdn.tcgplayer.com/product/113_200w.jpg","categoryId":68,"groupId":1001,"url":"https://www.tcgplayer.com/product/113/one-piece-card-game-x","modifiedOn":"2026-05-01T00:00:00.000Z","imageCount":1,"extendedData":[{"name":"Rarity","displayName":"Rarity","value":"DON!!"},{"name":"CardType","displayName":"CardType","value":"DON!!"}]}]}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Content-Type:
+      - application/json
+    method: GET
+    uri: https://tcgcsv.com/tcgplayer/68/1001/prices
+  response:
+    body:
+      string: '{"success":true,"errors":[],"results":[{"productId":111,"lowPrice":1.5,"midPrice":1.5,"highPrice":2.0,"marketPrice":2.0,"directLowPrice":null,"subTypeName":"Foil"},{"productId":111,"lowPrice":4.0,"midPrice":4.0,"highPrice":5.0,"marketPrice":5.0,"directLowPrice":null,"subTypeName":"Normal"},{"productId":112,"lowPrice":2.5,"midPrice":2.5,"highPrice":3.0,"marketPrice":3.0,"directLowPrice":null,"subTypeName":"Normal"},{"productId":113,"lowPrice":0.25,"midPrice":0.25,"highPrice":0.5,"marketPrice":0.5,"directLowPrice":null,"subTypeName":"Normal"}]}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Content-Type:
+      - application/json
+    method: GET
+    uri: https://tcgcsv.com/tcgplayer/68/1002/products
+  response:
+    body:
+      string: '{"success":false,"errors":["upstream timeout"],"results":[]}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 500
+      message: Internal Server Error
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Content-Type:
+      - application/json
+    method: GET
+    uri: https://tcgcsv.com/tcgplayer/68/1003/products
+  response:
+    body:
+      string: '{"success":true,"errors":[],"results":[{"productId":211,"name":"Roronoa Zoro","cleanName":"Roronoa
+        Zoro","imageUrl":"https://tcgplayer-cdn.tcgplayer.com/product/211_200w.jpg","categoryId":68,"groupId":1003,"url":"https://www.tcgplayer.com/product/211/one-piece-card-game-x","modifiedOn":"2026-05-01T00:00:00.000Z","imageCount":1,"extendedData":[{"name":"Number","displayName":"Number","value":"OP04-031"},{"name":"Rarity","displayName":"Rarity","value":"R"},{"name":"CardType","displayName":"CardType","value":"Character"},{"name":"Color","displayName":"Color","value":"Green"},{"name":"Cost","displayName":"Cost","value":"3"}]},{"productId":299,"name":"Kingdoms
+        of Intrigue Booster Box","cleanName":"Kingdoms of Intrigue Booster Box","imageUrl":"https://tcgplayer-cdn.tcgplayer.com/product/299_200w.jpg","categoryId":68,"groupId":1003,"url":"https://www.tcgplayer.com/product/299/one-piece-card-game-x","modifiedOn":"2026-05-01T00:00:00.000Z","imageCount":1,"extendedData":[{"name":"Rarity","displayName":"Rarity","value":""}]}]}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Content-Type:
+      - application/json
+    method: GET
+    uri: https://tcgcsv.com/tcgplayer/68/1003/prices
+  response:
+    body:
+      string: '{"success":true,"errors":[],"results":[{"productId":211,"lowPrice":0.75,"midPrice":0.75,"highPrice":null,"marketPrice":null,"directLowPrice":null,"subTypeName":"Normal"}]}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+version: 1

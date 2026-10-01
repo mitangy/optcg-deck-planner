@@ -864,6 +864,8 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
             don.attachedTo = dest.id;
             dest.card.attachedDonIds.push(don.id);
             sim.events.push({ type: "don_given", seat: src.seat, donId: don.id, targetId: dest.id, targetDefId: dest.defId, newPower: powerOf(state, dest.seat, dest.card) });
+            // Moving a given DON!! to another card "gives" it (OP02 Q&A: Garp triggers for DON!! given by effects).
+            dispatchEvent(state, "don_given", { seat: dest.seat, card: dest });
           } else continue;
           remaining -= 1;
           moved = true;

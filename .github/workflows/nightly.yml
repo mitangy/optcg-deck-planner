@@ -1,0 +1,76 @@
+name: Nightly regression
+
+# Slower checks than PR CI should carry. Any failing job opens (or comments on)
+# the "Nightly regression failure" issue; see the `report` job at the bottom.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      games:
+        description: "Fuzz games"
+        default: "2000"
+      seed:
+        description: "First fuzz seed (default: derived from today's UTC date)"
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Fuzz at high N
+        env:
+          GAMES: ${{ inputs.games || '2000' }}
+          SEED_INPUT: ${{ inputs.seed }}
+        run: |
+          # YYYYMMDD * 100 stays under 2^32; each run covers seeds [SEED, SEED + GAMES).
+          SEED="${SEED_INPUT:-$(( $(date -u +%Y%m%d) * 100 ))}"
+          echo "fuzz seed range: ${SEED}..$(( SEED + GAMES - 1 )) (replay one game: npx tsx src/sim/fuzz.ts 1 <seed>, in packages/rules)"
+          npm run fuzz -w @optcg/rules -- "$GAMES" "$SEED"
+
+  mutation-anchors:
+    # Fast stale-anchor check for every mutation suite; no tests run.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node tools/mutation-check/run.cjs --check-anchors
+
+  # --- Add later nightly jobs above this line, and list them in `report.needs`. ---
+
+  report:
+    needs: [fuzz, mutation-anchors]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const title = "Nightly regression failure";
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `Nightly regression run failed: ${runUrl}`;
+            const { owner, repo } = context.repo;
+            const open = await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: "open", per_page: 100 });
+            const existing = open.find((i) => !i.pull_request && i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body });
+            } else {
+              await github.rest.issues.create({ owner, repo, title, body });
+            }

@@ -1,0 +1,12 @@
+{
+  "owner_name": "Nami",
+  "kind": "deck",
+  "deck_name": "Oden Red/Green",
+  "items": [
+    { "card_id": "EB01-002", "name": "Izo", "rarity": "R", "color": "Red", "card_type": "Character", "cost": 5, "need": 4, "owned": 2, "still_need": 2, "market_price": 1.25, "low_price": 0.9, "remaining_cost": 2.5, "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/101_200w.jpg", "tcgplayer_url": "https://www.tcgplayer.com/product/101", "product_id": 101, "used_in": ["Oden Red/Green"], "alt_arts": [], "primary_leader_card_id": "EB01-001", "primary_leader_name": "Kouzuki Oden" },
+    { "card_id": "EB01-003", "name": "Kid & Killer", "rarity": "SR", "color": "Red", "card_type": "Character", "cost": 4, "need": 4, "owned": 0, "still_need": 4, "market_price": 6.8, "low_price": 5.5, "remaining_cost": 27.2, "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/102_200w.jpg", "tcgplayer_url": "https://www.tcgplayer.com/product/102", "product_id": 102, "used_in": ["Oden Red/Green"], "alt_arts": [], "primary_leader_card_id": "EB01-001", "primary_leader_name": "Kouzuki Oden" }
+  ],
+  "cards_still_needed": 6,
+  "remaining_market": 29.7,
+  "unique_cards": 2
+}

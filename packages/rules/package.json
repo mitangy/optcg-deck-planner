@@ -11,6 +11,8 @@
     "sim": "tsx src/sim/runBatch.ts",
     "replay:record": "tsx src/testing/replayCli.ts record",
     "replay:bless": "tsx src/testing/replayCli.ts bless",
+    "fuzz:smoke": "tsx src/sim/fuzzSmoke.ts",
+    "fuzz": "tsx src/sim/fuzz.ts",
     "export-atlas": "tsx src/scripts/exportAtlas.ts",
     "export-planner-stats": "tsx src/scripts/exportPlannerStats.ts",
     "typecheck": "tsc --noEmit"

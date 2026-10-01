@@ -1,0 +1,9 @@
+[
+  { "card_id": "EB01-001", "name": "Kouzuki Oden", "rarity": "L", "color": "Red/Green", "card_type": "Leader", "cost": null, "product_id": 100, "market_price": 2.4, "low_price": 1.9, "needed": 1, "owned": 1, "section": "main" },
+  { "card_id": "EB01-002", "name": "Izo", "rarity": "R", "color": "Red", "card_type": "Character", "cost": 5, "product_id": 101, "market_price": 1.25, "low_price": 0.9, "needed": 4, "owned": 2, "section": "main",
+    "alt_arts": [{ "product_id": 201, "name": "Izo (Alternate Art)", "market_price": 14.99, "low_price": 12.5, "group_name": "Extra Booster: Memorial Collection", "is_special": true }] },
+  { "card_id": "EB01-003", "name": "Kid & Killer", "rarity": "SR", "color": "Red", "card_type": "Character", "cost": 4, "product_id": 102, "market_price": 6.8, "low_price": 5.5, "needed": 4, "owned": 0, "section": "main" },
+  { "card_id": "EB01-006", "name": "Tony Tony.Chopper", "rarity": "C", "color": "Red", "card_type": "Character", "cost": 3, "product_id": 103, "market_price": 0.3, "low_price": 0.15, "needed": 3, "owned": 3, "section": "main" },
+  { "card_id": "EB01-009", "name": "Just Shut Up and Come with Us!!!!", "rarity": "UC", "color": "Red", "card_type": "Event", "cost": 1, "product_id": 104, "market_price": 3.5, "low_price": 2.75, "needed": 2, "owned": 0, "section": "main" },
+  { "card_id": "EB01-011", "name": "Mini-Merry", "rarity": "R", "color": "Red", "card_type": "Stage", "cost": 1, "product_id": null, "market_price": 0.1, "low_price": 0.05, "needed": 1, "owned": 0, "section": "main" }
+]
