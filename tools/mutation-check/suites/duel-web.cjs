@@ -493,5 +493,14 @@ module.exports = {
     { id: "planner-deeplink-ignores-signin", file: "duel-web/src/decks/planner.ts", from: "if (signedIn && link.plannerId !== null) {", to: "if (link.plannerId !== null) {", kills: ["falls back to the list when signed out, without calling the API"] },
     { id: "planner-deeplink-no-fetch-fallback", file: "duel-web/src/decks/planner.ts", from: "      planErr = e instanceof Error ? e.message : \"Could not load the planner deck\";", to: "      throw e;", kills: ["falls back to the list when the fetch fails"] },
     { id: "planner-deeplink-no-list-fallback", file: "duel-web/src/decks/planner.ts", from: "  if (link.list) return createDeckFromInput(link.name, link.list);\n", to: "", kills: ["falls back to the list when signed out, without calling the API", "falls back to the list when the fetch fails"] },
+    // account sync: settings + playmat / card back
+    { id: "settings-sync-sends-device-fields", file: "duel-web/src/settings.ts", from: "    if (!DEVICE_ONLY_KEYS.includes(k)) out[k] = s[k];", to: "    out[k] = s[k];", kills: ["never sends connection fields to the account"] },
+    { id: "settings-remote-overwrites-device-fields", file: "duel-web/src/settings.ts", from: "  for (const k of DEVICE_ONLY_KEYS) (next as Record<string, unknown>)[k] = local[k];\n", to: "", kills: ["keeps this device's connection fields"] },
+    { id: "settings-remote-ignored", file: "duel-web/src/settings.ts", from: "  const next = sanitize({ ...local, ...(remote as Partial<DuelSettings>) });", to: "  const next = sanitize({ ...local });", kills: ["keeps this device's connection fields"] },
+    { id: "cosmetic-sync-no-adopt", file: "duel-web/src/account/syncPlan.ts", from: "    if (localOnly) return { upload: \"activate\", apply: null };", to: "", kills: ["adopts a signed-out upload"] },
+    { id: "cosmetic-sync-never-clears", file: "duel-web/src/account/syncPlan.ts", from: "apply: local.hasImage ? \"clear\" : null };", to: "apply: null };", kills: ["went back to default"] },
+    { id: "cosmetic-sync-drops-local-upload", file: "duel-web/src/account/syncPlan.ts", from: "  const upload = localOnly ? \"history\" : null;", to: "  const upload = null;", kills: ["keeps a signed-out upload in history"] },
+    { id: "cosmetic-sync-local-wins", file: "duel-web/src/account/syncPlan.ts", from: "  if (local.hasImage && local.accountId === accountActive) return { upload, apply: null };", to: "  if (local.hasImage) return { upload, apply: null };", kills: ["downloads the account's choice"] },
+    { id: "cosmetic-sync-redownloads", file: "duel-web/src/account/syncPlan.ts", from: "  if (local.hasImage && local.accountId === accountActive) return { upload, apply: null };", to: "", kills: ["already shows the account's choice"] },
   ],
 };

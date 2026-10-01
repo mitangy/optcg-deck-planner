@@ -33,7 +33,12 @@ export type ImageSlot = {
   /** Cached URL: undefined = not loaded yet, null = none stored. */
   current(): string | null | undefined;
   load(): Promise<string | null>;
-  save(file: Blob): Promise<void>;
+  /** Encode and store an upload; resolves to the stored (re-encoded) image. */
+  save(file: Blob): Promise<Blob>;
+  /** Store an already-encoded image as-is (e.g. one downloaded from the account). */
+  put(blob: Blob): Promise<void>;
+  /** The stored image itself (null when none). */
+  blob(): Promise<Blob | null>;
   clear(): Promise<void>;
   subscribe(listener: () => void): () => void;
 };
@@ -210,10 +215,17 @@ export function createImageSlot(opts: ImageSlotOptions): ImageSlot {
         }
         emit(toUrl(blob));
         opts.afterSave?.();
-        return;
+        return blob;
       }
       if (lastQuota) throw new Error(QUOTA_MESSAGE);
       throw new Error("Could not save the image in this browser.");
+    },
+    async put(blob) {
+      await opts.backend.put(opts.key, blob);
+      emit(toUrl(blob));
+    },
+    async blob() {
+      return (await opts.backend.get(opts.key).catch(() => undefined)) ?? null;
     },
     async clear() {
       try {

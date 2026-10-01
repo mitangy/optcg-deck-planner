@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -486,6 +487,43 @@ class CardReport(Base):
     room_id: Mapped[str] = mapped_column(String(64), default="")
     client_build: Mapped[str] = mapped_column(String(40), default="")
     status: Mapped[str] = mapped_column(String(16), default="open", index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class DuelUserSettings(Base):
+    """A signed-in player's duel-web settings, shared by every device they use.
+
+    ``data`` is the client's JSON settings object (device-only fields such as
+    the game server URL stay in the browser). The active playmat / card back
+    point at that user's own ``DuelCosmetic`` rows; null means the default.
+    """
+
+    __tablename__ = "duel_user_settings"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    data: Mapped[str] = mapped_column(Text, default="")
+    active_playmat_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    active_card_back_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class DuelCosmetic(Base):
+    """An image a player uploaded as a playmat or card back (kept as history)."""
+
+    __tablename__ = "duel_cosmetics"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))  # playmat | cardBack
+    mime: Mapped[str] = mapped_column(String(32))
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    size: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

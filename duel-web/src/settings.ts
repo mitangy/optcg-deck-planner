@@ -119,6 +119,43 @@ function sanitize(
   return next;
 }
 
+/** Connection / dev fields that stay on this device; everything else follows the account. */
+const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
+  "serverUrl",
+  "joinSecret",
+  "useDevKey",
+  "devUserKey",
+];
+
+/** The part of the settings saved to a signed-in player's account. */
+export function syncedSettings(s: DuelSettings): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {};
+  for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
+    if (!DEVICE_ONLY_KEYS.includes(k)) out[k] = s[k];
+  }
+  return out;
+}
+
+/** Account settings laid over this device's, keeping its connection fields. */
+export function mergeRemoteSettings(local: DuelSettings, remote: Record<string, unknown>): DuelSettings {
+  const next = sanitize({ ...local, ...(remote as Partial<DuelSettings>) });
+  for (const k of DEVICE_ONLY_KEYS) (next as Record<string, unknown>)[k] = local[k];
+  return next;
+}
+
+/** Apply settings loaded from the account without echoing them back as a local edit. */
+export function applyRemoteSettings(remote: Record<string, unknown>): void {
+  saveSettings(mergeRemoteSettings(snapshot(), remote), { remote: true });
+}
+
+/** Listen for local edits (not account loads) — used to save them to the account. */
+export function onLocalSettingsChange(listener: (s: DuelSettings) => void): () => void {
+  localListeners.add(listener);
+  return () => localListeners.delete(listener);
+}
+
+const localListeners = new Set<(s: DuelSettings) => void>();
+
 export function loadSettings(): DuelSettings {
   try {
     const raw = localStorage.getItem(KEY);
@@ -130,7 +167,7 @@ export function loadSettings(): DuelSettings {
   }
 }
 
-export function saveSettings(next: DuelSettings): void {
+export function saveSettings(next: DuelSettings, opts: { remote?: boolean } = {}): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(next));
   } catch {
@@ -138,6 +175,7 @@ export function saveSettings(next: DuelSettings): void {
   }
   cached = next;
   if (typeof window !== "undefined") window.dispatchEvent(new Event(CHANGE_EVENT));
+  if (!opts.remote) for (const l of localListeners) l(next);
 }
 
 /** Merge a patch into the stored settings (used by the in-match settings sheet). */

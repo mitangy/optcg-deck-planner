@@ -580,3 +580,35 @@ class CardReportOut(BaseModel):
 
 class CardReportStatusIn(BaseModel):
     status: str = Field(pattern=r"^(open|fixed|wontfix)$")
+
+
+class DuelSettingsIn(BaseModel):
+    settings: dict[str, str | bool | int | float]
+
+
+class DuelSettingsOut(BaseModel):
+    # None until the player saves settings from any device.
+    settings: dict[str, str | bool | int | float] | None
+    updated_at: str | None = None
+
+
+class DuelCosmeticOut(BaseModel):
+    id: int
+    kind: str
+    size: int
+    created_at: str
+
+
+class DuelCosmeticActiveOut(BaseModel):
+    playmat: int | None = None
+    cardBack: int | None = None
+
+
+class DuelCosmeticsOut(BaseModel):
+    items: list[DuelCosmeticOut]
+    active: DuelCosmeticActiveOut
+
+
+class DuelCosmeticActiveIn(BaseModel):
+    kind: str
+    id: int | None = None

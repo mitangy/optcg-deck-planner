@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { startAccountSync } from "../account/accountSync";
 import { claimLoginTicket, mintSessionGameToken } from "../net/api";
 import { useDuelSession } from "../state/DuelSession";
 import { needsUsername } from "../auth/username";
@@ -25,6 +26,7 @@ export function AuthCompletePage() {
         const user = await claimLoginTicket(ticket);
         // Strip ticket from the URL so refreshes cannot reuse it.
         window.history.replaceState(null, "", "/auth/complete");
+        void startAccountSync(user);
         const minted = await mintSessionGameToken();
         if (cancelled) return;
         setRating(minted.rating);

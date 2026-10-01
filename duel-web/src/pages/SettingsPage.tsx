@@ -4,12 +4,13 @@ import { getOrCreateGuestId } from "../auth/guestId";
 import { UsernameSettings } from "../auth/UsernameSettings";
 import { BuildTag } from "../BuildTag";
 import {
-  CARD_BACK_ASPECT,
-  cardBackCssValue,
-  clearCardBack,
-  saveCardBack,
-  useCardBackUrl,
-} from "../cardBack";
+  chooseCosmetic,
+  saveCosmetic,
+  useAccountCosmetics,
+} from "../account/cosmeticsSync";
+import { startAccountSync, stopAccountSync } from "../account/accountSync";
+import { CARD_BACK_ASPECT, cardBackCssValue, useCardBackUrl } from "../cardBack";
+import { CosmeticHistory } from "../cosmetics/CosmeticHistory";
 import { ImageEditor } from "../cosmetics/ImageEditor";
 import { getApiBaseUrl, getGameServerUrl } from "../config";
 import {
@@ -18,12 +19,7 @@ import {
   logoutSession,
   type AuthUser,
 } from "../net/api";
-import {
-  PLAYMAT_ASPECT,
-  clearPlaymat,
-  savePlaymat,
-  usePlaymatUrl,
-} from "../playmat";
+import { PLAYMAT_ASPECT, usePlaymatUrl } from "../playmat";
 import { GameplaySettingsFields } from "../board/GameplaySettings";
 import {
   devKeyAllowed,
@@ -45,6 +41,10 @@ export function SettingsPage() {
   const cardBackUrl = useCardBackUrl();
   const [backBusy, setBackBusy] = useState(false);
   const [backError, setBackError] = useState<string | null>(null);
+  const { signedIn } = useAccountCosmetics();
+  const savedWhere = signedIn
+    ? "Saved to your account, so it follows you to every device."
+    : "Saved in this browser. Sign in to keep it on every device.";
 
   const [editing, setEditing] = useState<{
     kind: "playmat" | "cardBack";
@@ -56,7 +56,7 @@ export function SettingsPage() {
     setMatBusy(true);
     setMatError(null);
     try {
-      await savePlaymat(file);
+      await saveCosmetic("playmat", file);
     } catch (e) {
       setMatError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -69,7 +69,7 @@ export function SettingsPage() {
     setBackBusy(true);
     setBackError(null);
     try {
-      await saveCardBack(file);
+      await saveCosmetic("cardBack", file);
     } catch (e) {
       setBackError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -79,7 +79,10 @@ export function SettingsPage() {
 
   useEffect(() => {
     void fetchAuthMe()
-      .then((u) => setAuthUser(u))
+      .then((u) => {
+        setAuthUser(u);
+        void startAccountSync(u);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -116,6 +119,7 @@ export function SettingsPage() {
                   className="btn btn-secondary"
                   onClick={() => {
                     void logoutSession().then(() => {
+                      stopAccountSync();
                       setAuthUser(null);
                       setRating(null);
                     });
@@ -171,7 +175,10 @@ export function SettingsPage() {
         <section className="panel">
           <h2 className="panel-title">Gameplay</h2>
           <p className="field-hint">
-            Also under ⚙ during a match. Saved in this browser.
+            Also under ⚙ during a match.{" "}
+            {signedIn
+              ? "Saved to your account, so they follow you to every device."
+              : "Saved in this browser. Sign in to keep them on every device."}
           </p>
           <GameplaySettingsFields />
         </section>
@@ -193,8 +200,8 @@ export function SettingsPage() {
           </div>
           <p className="field-hint">
             Official playmats are 24 × 14 in (12:7). You can crop, rotate and
-            flip after choosing an image. Shown on your side of the board;
-            stored only in this browser.
+            flip after choosing an image. Shown on your side of the board.{" "}
+            {savedWhere}
           </p>
           <div className="btn-row">
             <label className={`btn btn-secondary${matBusy ? " is-busy" : ""}`}>
@@ -220,7 +227,11 @@ export function SettingsPage() {
                 type="button"
                 className="btn btn-ghost"
                 disabled={matBusy}
-                onClick={() => void clearPlaymat().catch(() => undefined)}
+                onClick={() =>
+                  void chooseCosmetic("playmat", null).catch((e: unknown) =>
+                    setMatError(e instanceof Error ? e.message : "Could not switch"),
+                  )
+                }
               >
                 Use default
               </button>
@@ -260,6 +271,7 @@ export function SettingsPage() {
               />
             </div>
           ) : null}
+          <CosmeticHistory kind="playmat" />
           {matError ? <p className="error-text">{matError}</p> : null}
         </section>
 
@@ -280,8 +292,8 @@ export function SettingsPage() {
                   ? "Custom card back."
                   : "Official ONE PIECE CARD GAME back."}{" "}
                 Shown on your deck and Life cards; opponents see the official
-                back. Crop, rotate and flip after choosing an image. Stored only
-                in this browser.
+                back. Crop, rotate and flip after choosing an image.{" "}
+                {savedWhere}
               </p>
               <div className="btn-row">
                 <label
@@ -309,7 +321,11 @@ export function SettingsPage() {
                     type="button"
                     className="btn btn-ghost"
                     disabled={backBusy}
-                    onClick={() => void clearCardBack().catch(() => undefined)}
+                    onClick={() =>
+                      void chooseCosmetic("cardBack", null).catch((e: unknown) =>
+                        setBackError(e instanceof Error ? e.message : "Could not switch"),
+                      )
+                    }
                   >
                     Use official
                   </button>
@@ -318,6 +334,7 @@ export function SettingsPage() {
               {backError ? <p className="error-text">{backError}</p> : null}
             </div>
           </div>
+          <CosmeticHistory kind="cardBack" />
         </section>
 
         <section className="panel">
