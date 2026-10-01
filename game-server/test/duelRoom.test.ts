@@ -3,7 +3,11 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import type { Room as ClientRoom } from "@colyseus/sdk";
 import appConfig from "../src/app.config.js";
 import { presence, type PresenceEntry } from "../src/presence.js";
-import { PROTOCOL_VERSION } from "../src/protocol.js";
+import {
+  PROTOCOL_VERSION,
+  SKIN_MAX_CARD_BACK_CHARS,
+  SKIN_MAX_PLAYMAT_CHARS,
+} from "../src/protocol.js";
 import { getGameTokenSecret } from "../src/env.js";
 import { createHmac } from "node:crypto";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
@@ -339,6 +343,35 @@ describe("DuelRoom", () => {
     assert.equal((bags[1].welcome as ViewWithLeader).you.leader.defId, "OP01-001");
   });
 
+  it("rejects a deck with unknown cards at join; valid seats still start the match", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 7,
+      autoSkipMulligan: true,
+    });
+    // Keep the room alive while it is empty after the rejected join.
+    room.autoDispose = false;
+    const badDeck = { leaderId: "ST01-001", deck: Array.from({ length: 50 }, () => "ZZ99-999") };
+    await assert.rejects(
+      () => colyseus.connectTo(room, { ...joinOpts("alice", 0), deck: badDeck }),
+      /Unknown card def: ZZ99-999/,
+    );
+    assert.equal(room.state.seatsFilled, 0, "the rejected host must not hold a seat");
+
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    assert.equal(bags[0].welcome!.seat, 0);
+    assert.equal(bags[1].welcome!.seat, 1);
+  });
+
   it("allows a spectator with public view and empty hands", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -526,6 +559,40 @@ describe("DuelRoom", () => {
     });
     await waitUntil(() => bags[0].errors.length > errorsBefore, 5000);
     assert.equal(skins.filter((m) => m.skin.playmat !== mat).length, 0);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("relays a cap-sized playmat and card back in one skin message", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 7,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    type SkinMsg = { seat: number; skin: { playmat: string | null; cardBack: string | null } };
+    const skins: SkinMsg[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    c1.onMessage("skin", (m: SkinMsg) => skins.push(m));
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    // The duel client sends both images in one message, each up to its cap.
+    const prefix = "data:image/jpeg;base64,";
+    const mat = prefix + "A".repeat(SKIN_MAX_PLAYMAT_CHARS - prefix.length);
+    const back = prefix + "B".repeat(SKIN_MAX_CARD_BACK_CHARS - prefix.length);
+    c0.send("skin", { protocolVersion: PROTOCOL_VERSION, skin: { playmat: mat, cardBack: back } });
+    await waitUntil(
+      () => skins.some((m) => m.seat === 0 && m.skin.playmat === mat && m.skin.cardBack === back),
+      5000,
+    );
 
     await c0.leave(true);
     await c1.leave(true);

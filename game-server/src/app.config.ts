@@ -3,14 +3,32 @@ import {
   defineRoom,
   monitor,
   playground,
+  WebSocketTransport,
 } from "colyseus";
 import { getDefsHealthSnapshot } from "@optcg/rules";
 import { getSeatReservationSeconds } from "./env.js";
-import { PROTOCOL_VERSION } from "./protocol.js";
+import {
+  PROTOCOL_VERSION,
+  SKIN_MAX_CARD_BACK_CHARS,
+  SKIN_MAX_PLAYMAT_CHARS,
+} from "./protocol.js";
 import { DuelRoom } from "./rooms/DuelRoom.js";
 import { MatchmakerRoom } from "./rooms/MatchmakerRoom.js";
 
+/**
+ * Largest websocket frame a client may send. Colyseus' default is 4 KB, which
+ * closes the socket (1009) on any real "skin" message: one message carries a
+ * playmat and a card back of up to SKIN_MAX_PLAYMAT_CHARS +
+ * SKIN_MAX_CARD_BACK_CHARS, plus JSON/msgpack overhead. 1 MB leaves headroom.
+ */
+export const WS_MAX_PAYLOAD_BYTES = 1024 * 1024;
+if (WS_MAX_PAYLOAD_BYTES < SKIN_MAX_PLAYMAT_CHARS + SKIN_MAX_CARD_BACK_CHARS + 4096) {
+  throw new Error("WS_MAX_PAYLOAD_BYTES must fit the largest skin message");
+}
+
 const server = defineServer({
+  transport: new WebSocketTransport({ maxPayload: WS_MAX_PAYLOAD_BYTES }),
+
   rooms: {
     duel: defineRoom(DuelRoom),
     ranked_queue: defineRoom(MatchmakerRoom),

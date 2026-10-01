@@ -273,6 +273,8 @@ function advanceStep(sim: Sim): void {
         state.steps.unshift(...next);
         return;
       }
+      // Defeat is decided once, from Life when battle damage is dealt: 0 Life loses.
+      if (state.players[defSeat].life.length === 0) { gameOver(sim, b.attackerSeat, "leader_battle_at_zero_life"); return; }
       b.damageRemaining = hasKeyword(state, b.attackerSeat, attacker, "double_attack") ? 2 : 1;
       state.steps.unshift({ kind: "life_damage" }, { kind: "end_battle" });
       return;
@@ -282,7 +284,8 @@ function advanceStep(sim: Sim): void {
       if (!b || !b.damageRemaining) { state.steps.shift(); return; }
       const defSeat = otherSeat(b.attackerSeat);
       const d = state.players[defSeat];
-      if (d.life.length === 0) { gameOver(sim, b.attackerSeat, "leader_battle_at_zero_life"); return; }
+      // Life ran out mid Double Attack: the remaining damage is lost, the game goes on.
+      if (d.life.length === 0) { b.damageRemaining = 0; state.steps.shift(); return; }
       b.damageRemaining -= 1;
       const attacker = locate(state, b.attackerId)?.card;
       const lifeId = d.zoneInstanceIds.life[0]!;

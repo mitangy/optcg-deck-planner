@@ -89,9 +89,9 @@ export function abilityGateOpen(state: MatchState, seat: Seat, source: { id: Ins
 }
 
 /** Queue every ability of `source` for `window` whose gates are open. */
-export function queueWindow(state: MatchState, window: Trigger, seat: Seat, source: { id: InstanceId; defId: string }, opts: { eventCardId?: InstanceId; ignoreNegation?: boolean } = {}): void {
+export function queueWindow(state: MatchState, window: Trigger, seat: Seat, source: { id: InstanceId; defId: string }, opts: { eventCardId?: InstanceId; ignoreNegation?: boolean; card?: CardInstance } = {}): void {
   const loc = locate(state, source.id);
-  const card = loc?.card;
+  const card = opts.card ?? loc?.card;
   if (card && isOnField(loc) && !opts.ignoreNegation && isNegated(state, card)) return;
   for (const ability of abilitiesFor(source.defId)) {
     if (ability.trigger !== window) continue;
@@ -172,16 +172,19 @@ export interface RemovalCause {
 /** K.O. a Character (no replacement check). Queues On K.O. and "when K.O.'d" triggers. */
 export function performKo(sim: Sim, loc: Located, cause: RemovalCause): void {
   const { state } = sim;
+  // [DON!! xN] gates read the card as it was on the field: leaving returns its DON!!.
+  const live = loc.card ?? locate(state, loc.id)?.card;
+  const koed = live ? { ...live, attachedDonIds: [...live.attachedDonIds] } : undefined;
   const entry = takeCard(state, loc);
   putCard(state, loc.seat, "trash", entry);
   sim.events.push({ type: "character_ko", seat: loc.seat, defId: entry.defId });
-  queueWindow(state, "on_ko", loc.seat, entry, { ignoreNegation: true });
+  queueWindow(state, "on_ko", loc.seat, entry, { ignoreNegation: true, ...(koed ? { card: koed } : {}) });
   for (const ability of abilitiesFor(entry.defId)) {
     const et = ability.eventTrigger;
     if (ability.trigger !== "on_event" || et?.event !== "self_ko") continue;
     if (et.byOpponentEffect && (cause.byEffectOf == null || cause.byEffectOf === loc.seat)) continue;
     if (et.byEffect && cause.byEffectOf == null) continue;
-    if (!abilityGateOpen(state, loc.seat, entry, ability)) continue;
+    if (!abilityGateOpen(state, loc.seat, { ...entry, ...(koed ? { card: koed } : {}) }, ability)) continue;
     state.triggerQueue.push({ id: alloc(state, "trig"), seat: loc.seat, sourceInstanceId: entry.id, sourceDefId: entry.defId, abilityId: ability.id, window: "on_event", batch: state.triggerBatch });
   }
   dispatchEvent(state, "character_ko", { seat: loc.seat, card: entry, ...(cause.byEffectOf != null ? { byEffectOf: cause.byEffectOf } : {}) });
