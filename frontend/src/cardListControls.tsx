@@ -353,8 +353,13 @@ export function CollapsibleDrawer({
           {label}
           {summary ? <span className="filter-drawer-summary"> · {summary}</span> : null}
         </span>
-        {!open && badge ? (
-          <span className="filter-drawer-badge" aria-label={`${badge} ${badgeLabel ?? "items"}`}>
+        {badge ? (
+          // Held (invisible) while open so a right-aligned trigger keeps its width and position.
+          <span
+            className={`filter-drawer-badge${open ? " filter-drawer-badge-held" : ""}`}
+            aria-label={`${badge} ${badgeLabel ?? "items"}`}
+            aria-hidden={open || undefined}
+          >
             {badge}
           </span>
         ) : null}

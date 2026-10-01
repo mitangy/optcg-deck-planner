@@ -9,6 +9,7 @@ import { listCardDefs } from "../cards/definitions.js";
 import { abilitiesFor } from "../cards/abilities.js";
 import { applyIntent, assertInvariants, createMatch, listLegalIntents, skipMulligans } from "../engine.js";
 import { createSeededRng, type Rng } from "../rng.js";
+import { assertConservation, assertSnapshotContinues, cardCounts } from "./invariants.js";
 import type { ChoiceRequest, Intent, MatchState, PendingChoice, Seat } from "../types.js";
 
 export function actingSeat(state: MatchState): Seat {
@@ -69,6 +70,13 @@ export function randomAnswer(rng: Rng, choice: PendingChoice): Intent {
 
 export interface FuzzResult { finished: boolean; intents: number; error?: string; deckIds: string[] }
 
+/** Intents between snapshot round-trip checks (each costs two extra engine runs). */
+const SNAPSHOT_EVERY = 60;
+
+/**
+ * Plays one random game. Errors are prefixed with the seed and the index of the
+ * intent being applied; replay with `npx tsx src/sim/fuzz.ts 1 <seed>`.
+ */
 export function fuzzGame(seed: number, maxIntents = 1500, focus?: string[]): FuzzResult {
   const rng = createSeededRng(seed);
   const a = randomDeck(rng, focus);
@@ -76,10 +84,12 @@ export function fuzzGame(seed: number, maxIntents = 1500, focus?: string[]): Fuz
   const deckIds = [...new Set([a.leaderId, b.leaderId, ...a.deck, ...b.deck])];
   let state = createMatch({ seed, firstSeat: (seed % 2) as Seat, players: [a, b] });
   state = skipMulligans(state, rng);
+  const baseline = cardCounts(state);
   let intents = 0;
   try {
     while (intents < maxIntents && state.winner === null) {
       assertInvariants(state);
+      assertConservation(state, baseline);
       const seat = actingSeat(state);
       const legal = listLegalIntents(state, seat);
       if (legal.length === 0) throw new Error(`No legal intents phase=${state.phase} seat=${seat} pending=${JSON.stringify(state.pendingChoices[0]?.request?.type)}`);
@@ -90,6 +100,7 @@ export function fuzzGame(seed: number, maxIntents = 1500, focus?: string[]): Fuz
         const end = legal.find((i) => i.type === "end_turn");
         pick = end && rng.next() < 0.15 ? end : legal[rng.nextInt(legal.length)]!;
       }
+      if (intents % SNAPSHOT_EVERY === 0 || (front && intents % 7 === 0)) assertSnapshotContinues(state, pick, seat);
       let r = applyIntent(state, pick, { seat, rng });
       if (!r.ok && front) {
         // A random answer may legitimately violate a constraint (e.g. total cost); fall back to the default.
@@ -100,9 +111,10 @@ export function fuzzGame(seed: number, maxIntents = 1500, focus?: string[]): Fuz
       intents += 1;
     }
     assertInvariants(state);
+    assertConservation(state, baseline);
   } catch (error) {
     const last = state.lastEvents.filter((e) => e.type === "ability_activated").map((e) => (e as { defId: string; text: string }).defId + ": " + (e as { text: string }).text).slice(-3).join(" | ");
-    return { finished: false, intents, error: `${(error as Error).message}\n    frames=${JSON.stringify(state.resolutionFrames.map((f) => f.abilityId))} lastAbilities=${last}\n    ${(error as Error).stack?.split("\n").slice(1, 4).join("\n    ")}`, deckIds };
+    return { finished: false, intents, error: `seed=${seed} intent=${intents}: ${(error as Error).message}\n    frames=${JSON.stringify(state.resolutionFrames.map((f) => f.abilityId))} lastAbilities=${last}\n    ${(error as Error).stack?.split("\n").slice(1, 4).join("\n    ")}`, deckIds };
   }
   return { finished: state.winner !== null, intents, deckIds };
 }

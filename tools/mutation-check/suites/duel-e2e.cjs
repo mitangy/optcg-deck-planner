@@ -42,7 +42,7 @@ module.exports = {
 
     // Find match opens the board at once; the queue (and token mint) runs behind it.
     { id: "e2e-queue-waits-in-lobby", args: "queue-board --project=desktop-1280", edits: [
-      { file: "duel-web/src/pages/LobbyPage.tsx", from: "            await queueRanked({ ...opts, deck: wire });\n            return;", to: "            await queueRanked({ ...opts, deck: wire });\n            navigate(\"/duel\");\n            return;" },
+      { file: "duel-web/src/pages/LobbyPage.tsx", from: "            await queueRanked({ ...opts, deck: wire }, gen);\n            return;", to: "            await queueRanked({ ...opts, deck: wire }, gen);\n            navigate(\"/duel\");\n            return;" },
       { file: "duel-web/src/pages/LobbyPage.tsx", from: "      if (mode !== \"spectate\") setSelectedDeckId(picked.id);\n      navigate(\"/duel\");", to: "      if (mode !== \"spectate\") setSelectedDeckId(picked.id);\n      if (mode !== \"queue\") navigate(\"/duel\");" },
     ], kills: [queueBoard] },
     { id: "e2e-pending-board-hides-your-leader", args: "queue-board --project=desktop-1280", file: "duel-web/src/board/PendingBoard.tsx", from: "data={emptySide(\"pending-you-leader\", waiting.youLeaderId)}", to: "data={emptySide(\"pending-you-leader\", null)}", kills: [queueBoard] },

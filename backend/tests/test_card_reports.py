@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
+from tests.db_support import make_test_engine
 from app.auth import SESSION_COOKIE, create_session_token
 from app.config import get_settings
 from app.db import get_db
 from app.game_tokens import mint_game_token
 from app.main import app
-from app.models import Base, User
+from app.models import User
 from app.routers import duel
 
 ADMIN = {"X-Catalog-Token": "test-admin-token"}
@@ -28,12 +27,7 @@ def client(monkeypatch: pytest.MonkeyPatch):
     get_settings.cache_clear()
     duel._report_rate._hits.clear()
 
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=engine)
+    engine = make_test_engine()
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
     def _override_db():
