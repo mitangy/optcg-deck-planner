@@ -181,5 +181,16 @@ module.exports = {
     // A replaced removal is skipped even when the replacement moved the target off the field itself
     { id: "replaced-removal-reapplied-off-field", file: "packages/rules/src/engine/runtime.ts", from: "if (frame.bindings[replKey] === true) continue;", to: "if (frame.bindings[replKey] === true && isOnField(loc)) continue;", kills: ["K.O.'ing himself instead of his own removal triggers [On K.O.] once"] },
     {"id": "planner-text-removal-own", "file": "packages/rules/src/scripts/plannerStats.ts", "from": "if (/opponent/i.test(clause) && /(K", "to": "if (/(K", "kills": ["falls back to printed text only"]},
+    // Golden replays (packages/rules/replays): each mutation changes the narration of the replays that exercise it
+    { id: "replay-tie-battle", file: "packages/rules/src/engine/procedure.ts", from: "const won = atk >= def;", to: "const won = atk > def;", kills: ["replays green-mirror", "replays blue-blockers", "replays red-blue-yellow-block", "replays yellow-green-blue-triggers", "replays purple-red-full-game"] },
+    { id: "replay-life-trigger-skipped", file: "packages/rules/src/engine/procedure.ts", from: "if (trigger) {\n        const choice: PendingChoice = { id: alloc(state, \"choice\"), seat: defSeat,", to: "if (false) {\n        const choice: PendingChoice = { id: alloc(state, \"choice\"), seat: defSeat,", kills: ["replays green-mirror", "replays purple-blue", "replays yellow-blue-purple-triggers", "replays yellow-green-blue-triggers"] },
+    { id: "replay-don-power-halved", file: "packages/rules/src/engine/queries.ts", from: "if (state.activeSeat === seat) p += card.attachedDonIds.length * 1000;", to: "if (state.activeSeat === seat) p += card.attachedDonIds.length * 500;", kills: ["replays red-blue-yellow-block", "replays yellow-red-black", "replays purple-red-full-game"] },
+    { id: "replay-no-blocker", file: "packages/rules/src/engine/intents.ts", from: "  if (!b || blocker.rested || !hasKeyword(state, seat, blocker, \"blocker\")) return false;", to: "  return false;", kills: ["replays blue-blockers", "replays green-yellow-kos"] },
+    { id: "replay-counter-no-power", file: "packages/rules/src/engine/intents.ts", from: "addModifier(state, seat, entry.id, { kind: \"card\", id: defender.id }, { type: \"power\", amount: value }, { kind: \"battle\" });", to: "", kills: ["replays blue-blockers", "replays black-purple-yellow"] },
+    { id: "replay-no-battle-ko", file: "packages/rules/src/engine/procedure.ts", from: "next.push({ kind: \"battle_ko\", targetSeat: defSeat, targetId: defender.id });", to: "void 0;", kills: ["replays green-yellow-kos", "replays blue-green-on-ko"] },
+    // Boodle (OP03-050) loses its [On K.O.]; the recorded resolve_pending_choice is then rejected
+    { id: "replay-on-ko-dropped", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP03-050"].abilities = a["OP03-050"].abilities.filter((x) => x.trigger !== "on_ko"); }, kills: ["replays blue-green-on-ko"] },
+    // Boa Hancock (PRB02-017) loses her Life [Trigger]: the card goes to hand with no prompt
+    { id: "replay-life-trigger-ability-dropped", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["PRB02-017"].abilities = a["PRB02-017"].abilities.filter((x) => x.trigger !== "trigger"); }, kills: ["replays yellow-green-blue-triggers"] },
   ],
 };

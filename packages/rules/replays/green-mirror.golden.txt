@@ -1,0 +1,213 @@
+# replay green-mirror
+# Green mirror: tied 5000 vs 5000 battles, attacks on Characters, a declined Life [Trigger] and a Blocker.
+seed 21, seat 1 goes first
+Seat 0 leader: Roronoa Zoro (OP12-020)
+Seat 1 leader: Roronoa Zoro (OP12-020)
+
+> #1 seat 1 play_card {"handIndex":3}
+  Seat 1 plays Perona (rests 1 DON!!)
+  Seat 1 activates Perona's ability
+  Seat 1 may resolve Perona's effect (Perona — look at the top 5 cards, choose up to 1, then place the rest at the bottom of the deck in any order.)
+
+> #2 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":["o1"],"orderedOptionIds":["o3","o0","o2","o4"]}
+  Seat 1 reveals Law & Bepo (trait matched)
+  Seat 1 moves Law & Bepo from deck to hand
+  Seat 1 accepts Perona's effect
+
+> #3 seat 1 end_turn
+  Phase → end (active seat 1)
+  Phase → refresh (active seat 0)
+  Seat 0 draws 1
+  Phase → draw (active seat 0)
+  Seat 0 places 2 DON!!
+  Phase → don (active seat 0)
+  Phase → main (active seat 0)
+
+> #4 seat 0 give_don {"donId":"don_2","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Roronoa Zoro → 6000 power
+
+> #5 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+> #6 seat 1 play_card {"handIndex":5}
+  Seat 1 plays Usopp (rests 3 DON!!)
+
+> #7 seat 1 declare_attack {"attackerId":"card_104","target":{"kind":"leader"}}
+  Seat 1 attacks Leader (2000 vs 5000)
+
+> #8 seat 0 pass_block
+
+> #9 seat 0 counter_from_hand {"handIndex":4}
+  Seat 0 counters with Kouzuki Hiyori (+1000)
+
+> #10 seat 0 counter_from_hand {"handIndex":0}
+  Seat 0 counters with Buchi (+1000)
+
+> #11 seat 0 counter_from_hand {"handIndex":0}
+  Seat 0 counters with Sengoku (+1000)
+
+> #12 seat 0 pass_counter
+  Battle fails (2000 vs 8000)
+
+> #13 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+  Seat 1 attacks Leader (5000 vs 5000)
+
+> #14 seat 0 pass_block
+
+> #15 seat 0 pass_counter
+  Battle hits (5000 vs 5000)
+  Seat 0 takes Life (Hatchan, Trigger pending)
+  Seat 0 Trigger available (Hatchan)
+  Seat 0 may resolve Hatchan's life trigger (Hatchan — activate this card's [Trigger]? [Trigger] If your Leader has the {East Blue} type, play this card.)
+
+> #16 seat 0 resolve_pending_choice {"accept":false}
+  Seat 0 declines Hatchan's life trigger
+  Seat 0 Trigger declined
+  Seat 0 moves Hatchan from life to hand
+
+> #17 seat 1 end_turn
+  Phase → end (active seat 1)
+  Phase → refresh (active seat 0)
+  Seat 0 draws 1
+  Phase → draw (active seat 0)
+  Seat 0 places 2 DON!!
+  Phase → don (active seat 0)
+  Phase → main (active seat 0)
+
+> #18 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"character","instanceId":"card_104"}}
+  Seat 0 attacks a Character (5000 vs 2000)
+
+> #19 seat 1 pass_block
+
+> #20 seat 1 counter_from_hand {"handIndex":1}
+  Seat 1 counters with Baby 5 (+1000)
+
+> #21 seat 1 counter_from_hand {"handIndex":2}
+  Seat 1 counters with Jinbe (+1000)
+
+> #22 seat 1 counter_from_hand {"handIndex":1}
+  Seat 1 counters with Milky (+2000)
+
+> #23 seat 1 pass_counter
+  Battle fails (5000 vs 6000)
+
+> #24 seat 0 play_card {"handIndex":1}
+  Seat 0 plays Helmeppo (rests 4 DON!!)
+
+> #25 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+> #26 seat 1 play_card {"handIndex":2}
+  Seat 1 plays Dracule Mihawk (rests 3 DON!!)
+  Seat 1 activates Dracule Mihawk's ability
+
+> #27 seat 1 give_don {"donId":"don_66","targetId":"card_118"}
+  Seat 1 attaches DON!! to Dracule Mihawk → 5000 power
+
+> #28 seat 1 declare_attack {"attackerId":"card_79","target":{"kind":"leader"}}
+  Seat 1 attacks Leader (5000 vs 5000)
+
+> #29 seat 0 declare_block {"blockerId":"card_42"}
+  Seat 0 blocks
+  Seat 0 activates Helmeppo's ability
+  Seat 0 may resolve Helmeppo's effect (Helmeppo — choose up to 1 card to rest.)
+
+> #30 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
+  Seat 0 accepts Helmeppo's effect
+
+> #31 seat 0 counter_from_hand {"handIndex":3}
+  Seat 0 counters with Jewelry Bonney (+1000)
+
+> #32 seat 0 pass_counter
+  Battle fails (5000 vs 6000)
+
+> #33 seat 1 give_don {"donId":"don_67","targetId":"card_104"}
+  Seat 1 attaches DON!! to Perona → 3000 power
+
+> #34 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"character","instanceId":"card_42"}}
+  Seat 1 attacks a Character (5000 vs 5000)
+
+> #35 seat 0 pass_block
+
+> #36 seat 0 pass_counter
+  Battle hits (5000 vs 5000)
+  Seat 0's Helmeppo is K.O.'d
+
+> #37 seat 1 declare_attack {"attackerId":"card_104","target":{"kind":"leader"}}
+  Seat 1 attacks Leader (3000 vs 5000)
+
+> #38 seat 0 pass_block
+
+> #39 seat 0 counter_from_hand {"handIndex":2}
+  Seat 0 counters with Hatchan (+2000)
+
+> #40 seat 0 pass_counter
+  Battle fails (3000 vs 7000)
+
+> #41 seat 1 end_turn
+  Phase → end (active seat 1)
+  Phase → refresh (active seat 0)
+  Seat 0 draws 1
+  Phase → draw (active seat 0)
+  Seat 0 places 2 DON!!
+  Phase → don (active seat 0)
+  Phase → main (active seat 0)
+
+> #42 seat 0 play_card {"handIndex":2}
+  Seat 0 plays Giovanni (rests 2 DON!!)
+
+> #43 seat 0 give_don {"donId":"don_5","targetId":"card_34"}
+  Seat 0 attaches DON!! to Giovanni → 4000 power
+
+> #44 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Roronoa Zoro → 6000 power
+
+> #45 seat 0 give_don {"donId":"don_4","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Roronoa Zoro → 7000 power
+
+> #46 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"character","instanceId":"card_79"}}
+  Seat 0 attacks a Character (7000 vs 5000)
+
+> #47 seat 1 pass_block
+
+> #48 seat 1 pass_counter
+  Battle hits (7000 vs 5000)
+  Seat 1's Usopp is K.O.'d
+
+> #49 seat 0 give_don {"donId":"don_7","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Roronoa Zoro → 8000 power
+
+> #50 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+== final state ==
+Seat 0: life 4, hand 2, deck 37, trash 6
+  leader: OP12-020 (rested) 5000p +3 DON!!
+  characters: OP08-026 3000p +1 DON!!
+  stage: none
+  DON!!: 0 active + 2 rested in cost area, 4 attached, 4 in DON!! deck
+Seat 1: life 5, hand 3, deck 36, trash 4
+  leader: OP12-020 5000p
+  characters: OP12-034 2000p; ST12-003 4000p
+  stage: none
+  DON!!: 7 active + 0 rested in cost area, 0 attached, 3 in DON!! deck
+Phase: main, turn 7, active seat 1
+Winner: none
