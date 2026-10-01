@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { CHAT_MAX_LENGTH, type ChatLine, type Seat } from "../net/protocol";
+import { unreadChatCount } from "./chatUnread";
 
 type Props = {
   lines: readonly ChatLine[];
@@ -19,15 +20,15 @@ function speaker(seat: Seat, mySeat: Seat | null): string {
 export function ChatPanel({ lines, mySeat, onSend, defaultOpen = false }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const [draft, setDraft] = useState("");
-  const [seenCount, setSeenCount] = useState(0);
+  const [lastSeenId, setLastSeenId] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const unread = open ? 0 : Math.max(0, lines.length - seenCount);
+  const unread = open ? 0 : unreadChatCount(lines, lastSeenId);
   const canSend = mySeat != null;
 
   useEffect(() => {
     if (!open) return;
-    setSeenCount(lines.length);
+    setLastSeenId(lines.length ? lines[lines.length - 1].id : null);
     const el = scrollerRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [open, lines]);

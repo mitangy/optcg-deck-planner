@@ -3,13 +3,14 @@ import {
   applyPlannerDeepLink,
   importPlannerDecks,
   parsePlannerDeepLink,
+  plannerDeckImported,
   plannerDecksNotLocal,
   plannerDeckToDecklist,
   refreshLinkedDeck,
   savedDeckToPlannerList,
   type PlannerDeckDetail,
 } from "./planner";
-import { getSavedDeck, saveDeck, upsertPlannerDeck } from "./storage";
+import { getSavedDeck, listSavedDecks, saveDeck, upsertPlannerDeck } from "./storage";
 
 const memory = new Map<string, string>();
 
@@ -128,6 +129,24 @@ describe("refreshLinkedDeck", () => {
     expect(getSavedDeck("planner-7")?.name).toBe("Red Luffy");
   });
 
+  it("refreshes a deck saved to the planner in place instead of duplicating it", async () => {
+    const saved = saveDeck({
+      id: "local-uuid",
+      name: "Mine",
+      leaderId: "ST01-001",
+      cards: ["ST01-003"],
+      artPrefs: { "ST01-003": "p1" },
+      plannerDeckId: 42,
+    });
+    const deck = await refreshLinkedDeck(saved, 100, async () => detail({ id: 42 }));
+    expect(deck.id).toBe("local-uuid");
+    const original = getSavedDeck("local-uuid")!;
+    expect(original.cards).toHaveLength(6);
+    expect(original.name).toBe("Red Luffy");
+    expect(original.artPrefs).toEqual({ "ST01-003": "p1" });
+    expect(listSavedDecks().filter((d) => d.plannerDeckId === 42).map((d) => d.id)).toEqual(["local-uuid"]);
+  });
+
   it("keeps the local copy when the fetch fails", async () => {
     const local = linked();
     const deck = await refreshLinkedDeck(local, 100, async () => {
@@ -232,5 +251,20 @@ describe("importPlannerDecks", () => {
     expect(r.errors).toHaveLength(2);
     expect(r.errors[0]).toBe("Offline: timeout");
     expect(r.errors[1]).toMatch(/^No leader: /);
+  });
+});
+
+describe("plannerDeckImported", () => {
+  it("is false for a swiped deck that failed while another ticked deck was added", async () => {
+    const { imported } = await importPlannerDecks(
+      [
+        { id: 7, name: "Red Luffy" },
+        { id: 9, name: "No leader" },
+      ],
+      async (id) =>
+        id === 9 ? detail({ id, leader_card_id: null, cards: [{ card_id: "ST01-003", needed: 4 }] }) : detail({ id }),
+    );
+    expect(plannerDeckImported(imported, 9)).toBe(false);
+    expect(plannerDeckImported(imported, 7)).toBe(true);
   });
 });

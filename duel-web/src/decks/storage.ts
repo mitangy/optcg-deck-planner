@@ -303,7 +303,11 @@ export function plannerLocalId(plannerId: number): string {
   return `planner-${plannerId}`;
 }
 
-/** Create or replace the local copy linked to a planner deck (keeps art prefs for cards still in the deck). */
+/**
+ * Create or replace the local copy linked to a planner deck (keeps art prefs for cards still in the deck).
+ * A deck already linked to this planner id (e.g. one saved to the planner from here) is updated in place
+ * under its own id; only an unlinked planner deck gets the `planner-<id>` local id.
+ */
 export function upsertPlannerDeck(input: {
   plannerId: number;
   name: string;
@@ -313,8 +317,8 @@ export function upsertPlannerDeck(input: {
   if (!v.ok || !v.leaderId) {
     return { ok: false, errors: v.errors, warnings: v.warnings };
   }
-  const id = plannerLocalId(input.plannerId);
-  const existing = getSavedDeck(id);
+  const existing = readAll().find((d) => d.plannerDeckId === input.plannerId);
+  const id = existing?.id ?? plannerLocalId(input.plannerId);
   const inDeckIds = new Set([v.leaderId, ...v.cards]);
   const kept = Object.fromEntries(
     Object.entries(existing?.artPrefs ?? {}).filter(([defId]) => inDeckIds.has(defId)),
