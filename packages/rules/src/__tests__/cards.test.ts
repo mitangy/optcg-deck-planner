@@ -268,3 +268,16 @@ describe("On K.O.", () => {
     expect(h.state.players[1].trash).toEqual(["OP17-015"]);
   });
 });
+
+describe("[DON!! xN] [On K.O.]", () => {
+  it("ST21-004 Jewelry Bonney draws when K.O.'d in battle with 2 DON!! attached", () => {
+    const h = new Harness();
+    const [bonney] = h.field(1, "ST21-004");
+    bonney!.rested = true;
+    h.attach(1, bonney!, 2);
+    h.attach(0, h.state.players[0].leader, 5);
+    h.attack(h.state.players[0].leader, bonney!).passBattle();
+    expect(h.state.players[1].trash).toContain("ST21-004");
+    expect(h.state.players[1].hand.length).toBe(1);
+  });
+});
