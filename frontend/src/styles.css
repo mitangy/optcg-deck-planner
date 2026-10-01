@@ -294,18 +294,15 @@ h1 {
   pointer-events: none;
 }
 
+/* One masthead width on every page so the logo/nav never jumps between routes. */
 .topbar-inner {
-  max-width: 1200px;
+  max-width: min(1760px, 100%);
   margin: 0 auto;
   padding: 0.7rem 1.25rem;
   display: flex;
   gap: 1rem;
   align-items: center;
   justify-content: space-between;
-}
-
-body:has(.group-buy-detail) .topbar-inner {
-  max-width: min(1600px, 100%);
 }
 
 .brand a {
@@ -3934,13 +3931,25 @@ tr.done td {
   gap: 0.45rem;
   align-content: start;
   flex: 1 1 auto;
-  /* Real header text block (eyebrow, title, leader line, counts) measured at 141px on desktop, ~182px when it wraps on phones. */
+  /* Real header text block (eyebrow, title, leader line, counts) measures 118-141px on desktop depending on wrapping, ~136px on phones. */
   min-height: 8.8rem;
 }
 
 @media (max-width: 800px) {
   .skeleton-deck-head-text {
-    min-height: 11.4rem;
+    min-height: 8.5rem;
+  }
+}
+
+/* Phones: the real action row is one row (Edit, Play, two icon buttons); keep the placeholder on one row too. */
+@media (max-width: 720px) {
+  .deck-head-actions > .skeleton-btn-deck {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .deck-head-actions > .skeleton-btn-deck:nth-child(n + 3) {
+    flex: 0 0 2.5rem;
   }
 }
 
@@ -5837,11 +5846,6 @@ button.ghost.scan-open:hover {
     max-width: min(1760px, 100%);
   }
 
-  /* Keep the masthead's logo/nav on the same edges as the widened page below it. */
-  body:has(.deck-layout) .topbar-inner {
-    max-width: min(1760px, 100%);
-  }
-
   .deck-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -5902,6 +5906,185 @@ button.ghost.scan-open:hover {
   }
 }
 
+/* ——— Deck page header: Edit deck > Play in Duel > quiet Share / More ——— */
+.btn.quiet {
+  width: auto;
+  margin-top: 0;
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.btn.quiet:not(:disabled):hover,
+.head-popover.open .btn.quiet {
+  background: var(--card-sunk);
+  color: var(--ink);
+}
+
+.head-popover-icon {
+  display: none;
+}
+
+.deck-size-inline,
+.deck-toolbar .filter-drawer-badge {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .page-head-actions.deck-head-actions {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+    justify-content: stretch;
+  }
+
+  .deck-head-actions > .btn {
+    flex: 1 1 auto;
+    padding: 0.45rem 0.6rem;
+    white-space: nowrap;
+  }
+
+  .deck-head-actions > .head-popover {
+    flex: 0 0 auto;
+  }
+
+  /* Edit deck absorbs the slack; Play in Duel keeps its full label. */
+  .deck-head-actions > .duel-play-btn {
+    flex: 0 0 auto;
+    min-width: max-content;
+  }
+
+  .deck-head-actions .head-popover-btn.quiet {
+    padding: 0.45rem 0.6rem;
+  }
+
+  /* Deck size rides on the title line instead of its own row. */
+  .deck-size-below {
+    display: none;
+  }
+
+  .deck-size-inline {
+    display: inline;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  /* Search, List/Grid and Filters share one row; the filter body opens below it. */
+  .list-toolbar.deck-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .deck-toolbar > .list-toolbar-row,
+  .deck-toolbar > .filter-drawer {
+    display: contents;
+  }
+
+  .deck-toolbar .card-search {
+    flex: 1 1 5rem;
+  }
+
+  .deck-toolbar .layout-toggle {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .deck-toolbar .layout-toggle button {
+    flex: 0 0 auto;
+    padding: 0.25rem 0.65rem;
+  }
+
+  .deck-toolbar .filter-drawer-toggle,
+  .deck-toolbar .filter-drawer.open .filter-drawer-toggle {
+    width: auto;
+    flex: 0 0 auto;
+    gap: 0.4rem;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
+  }
+
+  .deck-toolbar .filter-drawer-summary {
+    display: none;
+  }
+
+  .deck-toolbar .filter-drawer-badge {
+    display: inline-block;
+  }
+
+  .deck-toolbar .filter-drawer-body {
+    order: 3;
+    flex: 1 1 100%;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
+  }
+}
+
+/* Very narrow phones: Share and More shrink to icons (labels stay as accessible names) so the row never wraps. */
+@media (max-width: 420px) {
+  .deck-head-actions .head-popover-icon {
+    display: inline-flex;
+  }
+
+  .deck-head-actions .head-popover-label,
+  .deck-head-actions .head-popover-chevron {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .deck-head-actions .head-popover-btn.quiet {
+    min-width: 2.5rem;
+    justify-content: center;
+    padding: 0.45rem 0.5rem;
+  }
+}
+
+@media (max-width: 420px) {
+  /* Search gets its own full row; List/Grid and Filters share the next one. */
+  .deck-toolbar .card-search {
+    flex: 1 1 100%;
+  }
+
+  .deck-toolbar .filter-drawer-toggle,
+  .deck-toolbar .filter-drawer.open .filter-drawer-toggle {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 360px) {
+  .page-head-actions.deck-head-actions {
+    gap: 0.3rem;
+  }
+
+  .deck-head-actions > .btn,
+  .deck-head-actions .head-popover-btn.quiet {
+    padding: 0.45rem 0.45rem;
+    font-size: 0.85rem;
+  }
+
+  .deck-head-actions > .btn {
+    min-width: max-content;
+  }
+
+  .deck-head-actions .head-popover-btn.quiet {
+    min-width: 2.25rem;
+  }
+
+  /* "Done editing" would push the row past 320px; "Done" is enough next to the other actions. */
+  .done-editing-extra {
+    display: none;
+  }
+}
+
 /* ——— Deck list density: ~96px art in the list rows (grid view and other pages keep the big thumb) ——— */
 .deck-main .card-cell .thumb,
 .deck-main .card-cell .thumb.placeholder {
@@ -5913,11 +6096,14 @@ button.ghost.scan-open:hover {
   white-space: nowrap;
 }
 
-/* Header controls keep their width when the label flips between Edit deck / Done editing. */
-.page-head-actions .btn.deck-edit-toggle {
-  min-width: 9.5rem;
-  justify-content: center;
-  text-align: center;
+/* Header controls keep their width when the label flips between Edit deck / Done editing.
+   Phones size it with flex in the one-row action bar instead. */
+@media (min-width: 721px) {
+  .page-head-actions .btn.deck-edit-toggle {
+    min-width: 9.5rem;
+    justify-content: center;
+    text-align: center;
+  }
 }
 
 @media (max-width: 800px) {

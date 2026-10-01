@@ -374,13 +374,24 @@ export function CollapsibleDrawer({
 
 export function CollapsibleFilters({
   summary,
+  badge,
+  badgeLabel,
   children,
 }: {
   summary?: string;
+  /** Count of active filters, shown beside the label while collapsed. */
+  badge?: number;
+  badgeLabel?: string;
   children: ReactNode;
 }) {
   return (
-    <CollapsibleDrawer label="Filters" summary={summary} storageKey={FILTERS_OPEN_KEY}>
+    <CollapsibleDrawer
+      label="Filters"
+      summary={summary}
+      storageKey={FILTERS_OPEN_KEY}
+      badge={badge}
+      badgeLabel={badgeLabel}
+    >
       {children}
     </CollapsibleDrawer>
   );

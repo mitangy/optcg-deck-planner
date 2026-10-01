@@ -129,7 +129,7 @@ export function DeckDetailSkeleton() {
             <Skeleton className="skeleton-line skeleton-line-sm" />
           </div>
         </div>
-        <div className="page-head-actions">
+        <div className="page-head-actions deck-head-actions">
           <Skeleton className="skeleton-btn skeleton-btn-sm skeleton-btn-deck" />
           <Skeleton className="skeleton-btn skeleton-btn-sm skeleton-btn-deck" />
           <Skeleton className="skeleton-btn skeleton-btn-sm skeleton-btn-deck" />

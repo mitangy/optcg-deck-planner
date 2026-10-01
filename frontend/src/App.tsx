@@ -45,7 +45,7 @@ import { deckDelta } from "./deckHints";
 import type { DeckStatsCard } from "./deckStats";
 import { useStatsAtlas } from "./useStatsAtlas";
 import { CompassIcon } from "./ThemeIcons";
-import { HeadPopover } from "./HeadPopover";
+import { HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
 import { cardImageUrl } from "./cardImage";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
@@ -2988,6 +2988,7 @@ function DeckDetailPage() {
     if (layout === "grid") parts.push("Grid");
     return parts.join(" · ");
   }, [onlyNeed, effectiveSorts, showAltArts, layout]);
+  const filterCount = (onlyNeed ? 1 : 0) + (effectiveSorts.length ? 1 : 0) + (showAltArts ? 1 : 0);
 
   if (!data && lastError.current) {
     return <LoadErrorBlock title="Couldn't load this deck" message={lastError.current.message} retrying={isFetching} onRetry={() => void refetch()} />;
@@ -3026,6 +3027,9 @@ function DeckDetailPage() {
           <div className="deck-detail-title-row">
             <h1>{data.name}</h1>
             {data.is_main && <span className="deck-main-badge">Main deck</span>}
+            <span className="muted deck-size-inline">
+              Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {donCount}/{DON_DECK_LIMIT}
+            </span>
           </div>
           <p className="muted">
             {data.leader_card_id
@@ -3037,12 +3041,36 @@ function DeckDetailPage() {
                 ? " · Main deck for this leader"
                 : ""}
           </p>
-          <p className="muted deck-size-meta">
+          <p className="muted deck-size-meta deck-size-below">
             Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {donCount}/{DON_DECK_LIMIT}
           </p>
           </div>
         </div>
-        <div className="page-head-actions">
+        <div className="page-head-actions deck-head-actions">
+          <button
+            type="button"
+            className={`deck-edit-toggle ${editing ? "btn secondary" : "btn primary"}`}
+            aria-pressed={editing}
+            onClick={() => {
+              setEditing((v) => {
+                const next = !v;
+                if (!next && searchParams.get("edit") === "1") {
+                  const nextParams = new URLSearchParams(searchParams);
+                  nextParams.delete("edit");
+                  setSearchParams(nextParams, { replace: true });
+                }
+                return next;
+              });
+            }}
+          >
+            {editing ? (
+              <>
+                Done<span className="done-editing-extra"> editing</span>
+              </>
+            ) : (
+              "Edit deck"
+            )}
+          </button>
           {duelUrl ? (
             <a className="btn secondary duel-play-btn" href={duelUrl} target="_blank" rel="noopener">
               Play in Duel
@@ -3052,7 +3080,13 @@ function DeckDetailPage() {
               Play in Duel
             </span>
           )}
-          <HeadPopover label="Share" panelLabel="Share and export" width={360}>
+          <HeadPopover
+            label="Share"
+            icon={<ShareIcon />}
+            className="btn quiet"
+            panelLabel="Share and export"
+            width={360}
+          >
             <div className="head-popover-sections">
               <DeckSharePanel
                 shareMsg={shareMsg}
@@ -3067,7 +3101,13 @@ function DeckDetailPage() {
               />
             </div>
           </HeadPopover>
-          <HeadPopover label="More" panelLabel="More deck actions" width={260}>
+          <HeadPopover
+            label="More"
+            icon={<MoreIcon />}
+            className="btn quiet"
+            panelLabel="More deck actions"
+            width={260}
+          >
             {(close) => (
               <div className="head-popover-menu" role="menu">
                 {data.leader_card_id && !data.is_main && (
@@ -3106,24 +3146,6 @@ function DeckDetailPage() {
               </div>
             )}
           </HeadPopover>
-          <button
-            type="button"
-            className={`deck-edit-toggle ${editing ? "btn secondary" : "btn primary"}`}
-            aria-pressed={editing}
-            onClick={() => {
-              setEditing((v) => {
-                const next = !v;
-                if (!next && searchParams.get("edit") === "1") {
-                  const nextParams = new URLSearchParams(searchParams);
-                  nextParams.delete("edit");
-                  setSearchParams(nextParams, { replace: true });
-                }
-                return next;
-              });
-            }}
-          >
-            {editing ? "Done editing" : "Edit deck"}
-          </button>
         </div>
       </div>
 
@@ -3143,12 +3165,12 @@ function DeckDetailPage() {
 
       <DeckProgressSummary cards={progressCards} />
 
-      <div className="list-toolbar">
+      <div className="list-toolbar deck-toolbar">
         <div className="list-toolbar-row">
           <CardSearchInput value={search} onChange={setSearch} />
           <CardLayoutToggle layout={layout} onChange={setLayout} />
         </div>
-        <CollapsibleFilters summary={filterSummary}>
+        <CollapsibleFilters summary={filterSummary} badge={filterCount} badgeLabel="active filters">
           <div className="filters">
             <label>
               <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
