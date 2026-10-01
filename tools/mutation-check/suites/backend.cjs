@@ -233,7 +233,7 @@ module.exports = {
     { id: "prefs-any-bytes-accepted", file: prefs, from: "    return None\n\n\ndef _prefs", to: "    return \"image/png\"\n\n\ndef _prefs", kills: ["test_only_real_images_are_accepted"] },
     { id: "prefs-size-unchecked", edits: [
       { file: prefs, from: "    if declared and declared.isdigit() and int(declared) > limit:", to: "    if False:" },
-      { file: prefs, from: "    if len(data) > limit:", to: "    if False:" },
+      { file: prefs, from: "        if len(buf) > limit:", to: "        if False:" },
     ], kills: ["test_oversized_uploads_are_refused"] },
     { id: "prefs-prune-drops-active", file: prefs, from: "[i for i in ids if i != active_id][keep:]", to: "ids[MAX_PER_KIND:]", kills: ["test_history_is_capped_but_never_drops_the_image_in_use"] },
     { id: "prefs-history-unbounded", file: prefs, from: "    for old_id in [i for i in ids if i != active_id][keep:]:", to: "    for old_id in []:", kills: ["test_history_is_capped_but_never_drops_the_image_in_use"] },

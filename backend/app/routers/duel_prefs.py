@@ -156,9 +156,13 @@ async def upload_cosmetic(
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > limit:
         raise HTTPException(status_code=413, detail="Image is too large")
-    data = await request.body()
-    if len(data) > limit:
-        raise HTTPException(status_code=413, detail="Image is too large")
+    # Read in chunks so a body without Content-Length can't be buffered past the cap.
+    buf = bytearray()
+    async for chunk in request.stream():
+        buf += chunk
+        if len(buf) > limit:
+            raise HTTPException(status_code=413, detail="Image is too large")
+    data = bytes(buf)
     mime = _sniff_mime(data)
     if mime is None:
         raise HTTPException(status_code=415, detail="Upload a JPEG, PNG or WebP image")
