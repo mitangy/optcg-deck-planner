@@ -37,6 +37,9 @@ module.exports = {
     { id: "swipe-no-flick", file: `${src}/decks/useSwipeMove.ts`, from: "  return Math.abs(dx) >= FLICK_MIN && Math.abs(velocity) >= FLICK_SPEED && Math.sign(velocity) === Math.sign(dx);", to: "  return false;", kills: ["moves a deck on a quick flick short of the swipe distance"] },
     { id: "swipe-flick-any-speed", file: `${src}/decks/useSwipeMove.ts`, from: " && Math.abs(velocity) >= FLICK_SPEED &&", to: " &&", kills: ["moves a deck on a quick flick short of the swipe distance"] },
     { id: "swipe-flick-any-direction", file: `${src}/decks/useSwipeMove.ts`, from: " && Math.sign(velocity) === Math.sign(dx);", to: ";", kills: ["ignores a flick back the other way"] },
+    // match chat unread badge (chat keeps only the last 100 lines)
+    { id: "chat-unread-by-length", file: `${src}/board/chatUnread.ts`, from: "  return at < 0 ? lines.length : lines.length - 1 - at;", to: "  return Math.max(0, lines.length - 100);", kills: ["keeps counting new lines once chat is capped at 100"] },
+    { id: "chat-unread-drops-evicted", file: `${src}/board/chatUnread.ts`, from: "  return at < 0 ? lines.length : lines.length - 1 - at;", to: "  return at < 0 ? 0 : lines.length - 1 - at;", kills: ["counts every kept line once the seen one has scrolled out"] },
     // floating-card prompts (prototype)
     { id: "float-look-ignores-row-order", file: `${src}/board/floatOrder.ts`, from: "  const remaining = row.filter((id) => !picked.includes(id));", to: "  const remaining = request.options.map((o) => o.id).filter((id) => !picked.includes(id));", kills: ["puts the cards back in the dragged row order, without the taken card"] },
     { id: "float-look-puts-back-taken", file: `${src}/board/floatOrder.ts`, from: "  const remaining = row.filter((id) => !picked.includes(id));", to: "  const remaining = [...row];", kills: ["puts the cards back in the dragged row order, without the taken card"] },
