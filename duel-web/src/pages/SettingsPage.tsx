@@ -12,7 +12,6 @@ import { startAccountSync, stopAccountSync } from "../account/accountSync";
 import { CARD_BACK_ASPECT, cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { CosmeticHistory } from "../cosmetics/CosmeticHistory";
 import { ImageEditor } from "../cosmetics/ImageEditor";
-import { getApiBaseUrl, getGameServerUrl } from "../config";
 import {
   fetchAuthMe,
   googleLoginUrl,
@@ -34,7 +33,6 @@ export function SettingsPage() {
   const settings = useDuelSettings();
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const showDevKey = devKeyAllowed();
-  const defaultServer = getGameServerUrl();
   const playmatUrl = usePlaymatUrl();
   const [matBusy, setMatBusy] = useState(false);
   const [matError, setMatError] = useState<string | null>(null);
@@ -335,48 +333,6 @@ export function SettingsPage() {
             </div>
           </div>
           <CosmeticHistory kind="cardBack" />
-        </section>
-
-        <section className="panel">
-          <h2 className="panel-title">Connection</h2>
-          <div className="field">
-            <label htmlFor="gs">Game server URL</label>
-            <div className="field-inline">
-              <input
-                id="gs"
-                autoCapitalize="off"
-                autoCorrect="off"
-                value={settings.serverUrl}
-                onChange={(e) => update({ serverUrl: e.target.value })}
-                placeholder={defaultServer}
-              />
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={!settings.serverUrl}
-                onClick={() => update({ serverUrl: "" })}
-              >
-                Reset
-              </button>
-            </div>
-            <p className="field-hint">
-              Leave blank to use the default ({defaultServer}).
-            </p>
-          </div>
-
-          <div className="field">
-            <label htmlFor="secret">Join secret</label>
-            <input
-              id="secret"
-              autoCapitalize="off"
-              autoCorrect="off"
-              value={settings.joinSecret}
-              onChange={(e) => update({ joinSecret: e.target.value })}
-              placeholder="Optional — matches DEV_JOIN_SECRET"
-            />
-          </div>
-
-          <p className="field-hint">API: {getApiBaseUrl()}</p>
         </section>
 
         <section className="panel panel-quiet">

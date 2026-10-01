@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
-import { getApiBaseUrl, getPlannerUrl } from "../config";
+import { getApiBaseUrl, getGameServerUrl, getPlannerUrl } from "../config";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { refreshLinkedDeck } from "../decks/planner";
 import {
@@ -24,7 +24,7 @@ import {
   type AuthUser,
 } from "../net/api";
 import { clearMatchResume, loadMatchResume } from "../net/matchResume";
-import { devKeyAllowed, effectiveServerUrl, loadSettings } from "../settings";
+import { devKeyAllowed, loadSettings } from "../settings";
 import { useDuelSession, type MatchLaunch } from "../state/DuelSession";
 import { needsUsername } from "../auth/username";
 import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel";
@@ -254,8 +254,7 @@ export function LobbyPage() {
     useDuelSession();
   const location = useLocation();
   const [settings] = useState(loadSettings);
-  const serverUrl = effectiveServerUrl(settings);
-  const secret = settings.joinSecret.trim() || undefined;
+  const serverUrl = getGameServerUrl();
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [busy, setBusy] = useState(false);
   /** Short status while buttons are disabled (vs-self warm/mint). */
@@ -450,18 +449,18 @@ export function LobbyPage() {
       const minted = await mintGuestGameToken(getOrCreateGuestId());
       setRating(minted.rating);
       setBounty(minted.rating);
-      return { serverUrl, gameToken: minted.token, secret };
+      return { serverUrl, gameToken: minted.token };
     }
     if (authMode === "google") {
       const minted = await mintSessionGameToken();
       setRating(minted.rating);
       setBounty(minted.rating);
-      return { serverUrl, gameToken: minted.token, secret };
+      return { serverUrl, gameToken: minted.token };
     }
     const minted = await mintDevGameToken(settings.devUserKey.trim());
     setRating(minted.rating);
     setBounty(minted.rating);
-    return { serverUrl, gameToken: minted.token, secret };
+    return { serverUrl, gameToken: minted.token };
   }
 
   function hotseatUserKey(): string {
@@ -502,7 +501,6 @@ export function LobbyPage() {
         navigate("/hotseat", {
           state: {
             serverUrl,
-            secret,
             userKey: hotseatUserKey(),
             useToken: true,
             deckWire: wire,

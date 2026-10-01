@@ -121,27 +121,25 @@ describe("account settings", () => {
     vi.unstubAllGlobals();
   });
 
-  it("never sends connection fields to the account", () => {
-    stubStored({ serverUrl: "ws://mine", joinSecret: "s3cret", useDevKey: true, handLayout: "grid" });
+  it("never sends device-only fields to the account", () => {
+    stubStored({ useDevKey: true, devUserKey: "mine", handLayout: "grid" });
     const synced = syncedSettings(loadSettings());
     expect(synced.handLayout).toBe("grid");
-    expect(synced).not.toHaveProperty("serverUrl");
-    expect(synced).not.toHaveProperty("joinSecret");
     expect(synced).not.toHaveProperty("useDevKey");
     expect(synced).not.toHaveProperty("devUserKey");
   });
 
-  it("applies account settings but keeps this device's connection fields", () => {
-    stubStored({ serverUrl: "ws://mine", joinSecret: "s3cret", handLayout: "fanRight" });
+  it("applies account settings but keeps this device's device-only fields", () => {
+    stubStored({ useDevKey: true, devUserKey: "mine", handLayout: "fanRight" });
     const merged = mergeRemoteSettings(loadSettings(), {
       handLayout: "grid",
       turnSound: true,
-      serverUrl: "ws://other",
-      joinSecret: "",
+      useDevKey: false,
+      devUserKey: "other",
     });
     expect(merged.handLayout).toBe("grid");
     expect(merged.turnSound).toBe(true);
-    expect(merged.serverUrl).toBe("ws://mine");
-    expect(merged.joinSecret).toBe("s3cret");
+    expect(merged.useDevKey).toBe(true);
+    expect(merged.devUserKey).toBe("mine");
   });
 });
