@@ -186,9 +186,22 @@ export function matchesFilter(card: StatsAtlasCard, filter: Record<string, unkno
   return matched;
 }
 
+/**
+ * Label that tells same-named cards apart: `Nami · Cost 1 · OP01-016 (4x)`.
+ * Cost is omitted when the atlas has none (leaders); copies only when given.
+ */
+export function cardLabel(id: string, card: StatsAtlasCard, copies?: number): string {
+  const parts = [card.n ?? id];
+  if (typeof card.cost === "number") parts.push(`Cost ${card.cost}`);
+  if (card.n) parts.push(id);
+  return parts.join(" · ") + (copies === undefined ? "" : ` (${copies}x)`);
+}
+
 export type SearcherRow = {
   id: string;
   name: string;
+  /** Printed cost, when the atlas has one. */
+  cost?: number;
   look: number;
   /** Matching cards left in the deck (the searcher itself never counts). Null when the filter can't be evaluated. */
   hits: number | null;
@@ -211,6 +224,7 @@ export function searcherOdds(entries: readonly DeckEntry[]): SearcherRow[] {
       rows.push({
         id: s.id,
         name: s.card.n ?? s.id,
+        cost: s.card.cost,
         look: effect.look,
         hits,
         chance: hits === null ? null : hypergeomAtLeast(pool, hits, Math.min(effect.look, pool), 1),
