@@ -112,6 +112,35 @@ jobs:
             duel-web/test-results
           if-no-files-found: ignore
 
+  frontend-e2e:
+    # Click-through and layout-audit tests: the planner SPA in Chromium at 1200px
+    # and 375px (the FastAPI backend is faked in the browser). Retries are
+    # reported as "flaky" in the log, not hidden. See frontend/playwright.config.ts.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc -p e2e
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: frontend-e2e-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 15

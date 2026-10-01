@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "extract-descriptors": "tsx scripts/extract-descriptors.mjs",
-    "upload-descriptors": "node scripts/upload-descriptors.mjs"
+    "upload-descriptors": "node scripts/upload-descriptors.mjs",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.66.0",
@@ -21,6 +22,8 @@
     "react-router-dom": "^7.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@types/node": "^22.20.4",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vercel/blob": "^2.8.0",
