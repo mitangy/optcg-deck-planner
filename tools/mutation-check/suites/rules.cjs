@@ -3,6 +3,14 @@
  * behavior some test claims; `kills` lists test-name fragments that must fail.
  * Keep one entry per claimed behavior when adding tests (see ../README.md).
  */
+
+const ABILITIES = "packages/rules/src/cards/generated/abilities.json";
+const MANUAL = "packages/rules/src/cards/manualAbilities.ts";
+/** Scenario rows (src/__tests__/scenarios): alter one card's generated abilities; `kills` are row-name fragments. */
+const scn = (id, card, patch, kills) => ({ id: `scn-${id}`, json: ABILITIES, patch: (a) => patch(a[card].abilities), kills });
+/** Same for a reviewed manual override in manualAbilities.ts. */
+const scnManual = (id, from, to, kills) => ({ id: `scn-${id}`, file: MANUAL, from, to, kills });
+
 module.exports = {
   cwd: "packages/rules",
   runner: "vitest",
@@ -181,6 +189,82 @@ module.exports = {
     ], kills: ["accepting but returning nothing does not let the opponent play"] },
     // A replaced removal is skipped even when the replacement moved the target off the field itself
     { id: "replaced-removal-reapplied-off-field", file: "packages/rules/src/engine/runtime.ts", from: "if (frame.bindings[replKey] === true) continue;", to: "if (frame.bindings[replKey] === true && isOnField(loc)) continue;", kills: ["K.O.'ing himself instead of his own removal triggers [On K.O.] once"] },
+    // Card scenario rows. Optional costs: accept rows break through the effect, decline rows through the shared decline handling.
+    { id: "scn-decline-ignored", file: "packages/rules/src/engine/runtime.ts", from: "frame.bindings[b.__bind!] = answer.accept;", to: "frame.bindings[b.__bind!] = true;", kills: ["OP01-011 decline", "OP01-008 decline", "EB01-056 decline", "OP16-108 decline", "OP01-055 decline", "EB01-051 decline", "ST30-004 decline", "OP02-068 decline", "OP01-064 decline"] },
+    scn("gordon-draw", "OP01-011", (a) => { a[0].effect.count = 2; }, ["OP01-011 accept"]),
+    scn("cavendish-keyword", "OP01-008", (a) => { a[0].effect.keyword = "blocker"; }, ["OP01-008 accept"]),
+    scn("flampe-draw", "EB01-056", (a) => { a[0].effect.count = 2; }, ["EB01-056 accept"]),
+    scn("shiryu-bottom-of-life", "OP16-108", (a) => { a[0].effect.position = "bottom"; }, ["OP16-108 accept"]),
+    scn("shiryu-face-down", "OP16-108", (a) => { a[0].effect.faceUp = false; }, ["OP16-108 accept"]),
+    scn("samurai-draw", "OP01-055", (a) => { a[0].effect.count = 1; }, ["OP01-055 accept"]),
+    scn("samurai-rests-one", "OP01-055", (a) => { a[0].costs[0].count = 1; }, ["OP01-055 accept"]),
+    scn("finger-pistol-mills-one", "EB01-051", (a) => { a[0].costs[0].count = 1; }, ["EB01-051 accept"]),
+    scn("st30-ivankov-draw", "ST30-004", (a) => { a[0].effect.steps[0].count = 2; }, ["ST30-004 accept"]),
+    scn("gum-gum-rain-power", "OP02-068", (a) => { a[0].effect.amount = 2000; }, ["OP02-068 accept"]),
+    scn("alvida-rests-instead", "OP01-064", (a) => { a[0].effect.do = "rest"; }, ["OP01-064 accept"]),
+    // Mandatory effects: one mutation per target filter / condition / amount a row pins down.
+    scn("vista-filter", "OP02-011", (a) => { a[0].effect.target.selector.filter.power.value = 4000; }, ["OP02-011 leaves a 4000-power"]),
+    scn("vista-rests-instead", "OP02-011", (a) => { a[0].effect.do = "rest"; }, ["OP02-011 K.O.s a Character"]),
+    scn("izo-filter", "OP01-033", (a) => { a[0].effect.target.selector.filter.cost.value = 5; }, ["OP01-033 leaves a cost 5"]),
+    scn("izo-kos-instead", "OP01-033", (a) => { a[0].effect.do = "ko"; }, ["OP01-033 rests a Character"]),
+    scn("xdrake-any-state", "OP01-054", (a) => { delete a[0].effect.target.selector.filter.rested; }, ["OP01-054 leaves an active"]),
+    scn("xdrake-rests-instead", "OP01-054", (a) => { a[0].effect.do = "rest"; }, ["OP01-054 K.O.s only a rested"]),
+    scn("round-table-amount", "OP01-027", (a) => { a[0].effect.amount = -1000; }, ["OP01-027 gives the chosen"]),
+    scn("round-table-not-optional", "OP01-027", (a) => { a[0].effect.target.min = 1; }, ["OP01-027 choosing nobody"]),
+    scn("marchoo-rests-instead", "OP01-115", (a) => { a[0].effect.steps[0].do = "rest"; }, ["OP01-115 K.O.s a cost 2"]),
+    scn("marchoo-don-rested", "OP01-115", (a) => { a[0].effect.steps[1].rested = true; }, ["OP01-115 K.O.s a cost 2", "OP01-115 still adds"]),
+    scn("marchoo-filter", "OP01-115", (a) => { a[0].effect.steps[0].target.selector.filter.cost.value = 3; }, ["OP01-115 still adds"]),
+    scn("radical-beam-amount", "OP01-029", (a) => { a[0].effect.steps[0].amount = 1000; }, ["OP01-029 gives +2000 with 3 Life", "OP01-029 gives +4000 with 2 Life"]),
+    scn("radical-beam-life-limit-high", "OP01-029", (a) => { a[0].effect.steps[1].cond.right = 3; }, ["OP01-029 gives +2000 with 3 Life"]),
+    scn("radical-beam-life-limit-low", "OP01-029", (a) => { a[0].effect.steps[1].cond.right = 1; }, ["OP01-029 gives +4000 with 2 Life"]),
+    scn("usopp-block-limit", "ST01-002", (a) => { a[0].effect.value = 6000; }, ["ST01-002 stops a 5000-power"]),
+    scn("usopp-don-cost", "ST01-002", (a) => { a[0].don = 1; }, ["ST01-002 without 2 DON!!"]),
+    scn("deuce-don-cost", "OP02-017", (a) => { a[0].don = 1; }, ["OP02-017 does nothing with only 1"]),
+    scn("deuce-filter", "OP02-017", (a) => { a[0].effect.target.selector.filter.power.value = 3000; }, ["OP02-017 leaves a 3000-power"]),
+    scn("deuce-rests-instead", "OP02-017", (a) => { a[0].effect.do = "rest"; }, ["OP02-017 K.O.s a 1000-power"]),
+    scn("caribou-filter", "OP01-007", (a) => { a[0].effect.target.selector.filter.power.value = 5000; }, ["OP01-007 leaves Characters with more than 4000"]),
+    scn("caribou-rests-instead", "OP01-007", (a) => { a[0].effect.do = "rest"; }, ["OP01-007 when K.O.'d in battle"]),
+    scn("doc-q-leader-type", "OP16-109", (a) => { a[0].effect.cond.traits = ["Supernovas"]; }, ["OP16-109 with a Blackbeard Pirates Leader", "OP16-109 without a Blackbeard Pirates Leader"]),
+    scn("doc-q-draw", "OP16-109", (a) => { a[0].effect.then.steps[0].count = 2; }, ["OP16-109 with a Blackbeard Pirates Leader"]),
+    scn("doc-q-one-target", "OP16-109", (a) => { a[0].effect.then.steps[1].target.max = 1; }, ["OP16-109 with a Blackbeard Pirates Leader"]),
+    scn("rayleigh-rests-instead", "OP14-108", (a) => { a[0].effect.then.do = "rest"; }, ["OP14-108 with a multicolored Leader"]),
+    scn("rayleigh-ignores-leader-colors", "OP14-108", (a) => { a[0].effect.cond.conds = [a[0].effect.cond.conds[1]]; }, ["OP14-108 does nothing with a single-color Leader"]),
+    scn("rayleigh-ignores-life", "OP14-108", (a) => { a[0].effect.cond.conds = [a[0].effect.cond.conds[0]]; }, ["OP14-108 does nothing when the opponent has 4 Life"]),
+    scn("rayleigh-filter", "OP14-108", (a) => { a[0].effect.then.target.selector.filter.basePower.value = 8000; }, ["OP14-108 spares a Character"]),
+    scn("uta-color", "OP01-005", (a) => { a[0].effect.target.selector.filter.colors = ["blue"]; }, ["OP01-005 returns a red Character", "OP01-005 leaves a red Character"]),
+    scn("uta-cost", "OP01-005", (a) => { a[0].effect.target.selector.filter.cost.value = 5; }, ["OP01-005 leaves a red Character"]),
+    // Leaders, statics and Activate:Main
+    scn("oden-readies-one", "OP01-031", (a) => { a[0].effect.count = 1; }, ["OP01-031 trashes a Land of Wano", "OP01-031 activates only once"]),
+    scn("oden-cost-filter", "OP01-031", (a) => { a[0].costs[0].filter.traits = ["Animal"]; }, ["OP01-031 cannot activate without"]),
+    scn("oden-repeatable", "OP01-031", (a) => { a[0].oncePerTurn = false; }, ["OP01-031 activates only once"]),
+    scn("ivankov-leader-condition", "OP02-049", (a) => { a[0].effect.cond.op = "<="; a[0].effect.cond.right = 1; }, ["OP02-049 does not draw"]),
+    scn("ivankov-leader-draw", "OP02-049", (a) => { a[0].effect.then.count = 1; }, ["OP02-049 draws 2"]),
+    scn("whitebeard-takes-two", "OP02-001", (a) => { a[0].effect.count = 2; }, ["OP02-001 adds the top"]),
+    // Kaido's [When your opponent's Character is K.O.'d] once compiled as "your Character", via a greedy grammar rule.
+    { id: "scn-kaido-own-ko-trigger", edits: [
+      { file: "packages/rules/src/tools/cardText/compileCard.ts", from: "when (?:one of )?your (?!opponent's )(.+?) (?:is|are) KO'd$/i", to: "when (?:one of )?your (.+?) (?:is|are) KO'd$/i" },
+      { json: ABILITIES, patch: (a) => { a["OP01-061"].abilities[0].eventTrigger.player = "you"; } },
+    ], kills: ["OP01-061 adds an active", "OP01-061 triggers only once"] },
+    scn("kaido-no-don-requirement", "OP01-061", (a) => { delete a[0].don; }, ["OP01-061 adds nothing without"]),
+    scn("kaido-repeatable", "OP01-061", (a) => { a[0].oncePerTurn = false; }, ["OP01-061 triggers only once"]),
+    scn("king-amount", "OP01-091", (a) => { a[0].statics[0].amount = -500; }, ["OP01-091 gives opposing Characters -1000"]),
+    scn("king-nine-don", "OP01-091", (a) => { a[0].conditions[1].right = 9; }, ["OP01-091 gives no power change"]),
+    scn("smiley-per-card", "OP01-072", (a) => { a[0].statics[0].amount.times = 500; }, ["OP01-072 gains +1000 per hand card"]),
+    scn("smiley-no-don-requirement", "OP01-072", (a) => { delete a[0].don; }, ["OP01-072 gains nothing"]),
+    scn("franky-two-don", "OP01-021", (a) => { a[0].don = 2; }, ["OP01-021 with 1 DON!!"]),
+    scn("franky-no-don-requirement", "OP01-021", (a) => { delete a[0].don; }, ["OP01-021 without DON!!"]),
+    scn("moria-hand-size", "OP01-068", (a) => { a[0].conditions[1].right = 4; }, ["OP01-068 has no Double Attack"]),
+    scn("moria-keyword", "OP01-068", (a) => { a[0].statics[0].keyword = "rush"; }, ["OP01-068 has Double Attack"]),
+    scn("burgess-effect-ko-protection", "OP09-086", (a) => { a[0].statics[0].restriction = "cannot_be_ko_in_battle"; }, ["OP09-086 survives"]),
+    scn("burgess-per-two-cards", "OP09-086", (a) => { a[1].statics[0].amount.per = 2; }, ["OP09-086 with a Blackbeard Pirates Leader"]),
+    scn("burgess-any-leader", "OP09-086", (a) => { delete a[1].conditions; }, ["OP09-086 with another Leader"]),
+    // Manual overrides edit manualAbilities.ts
+    scnManual("chambres-leader-type", 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "to_hand", target: exactly(1, myChar(), { bind: "_ret" }) },', 'effect: when(leaderTrait("Impel Down"), seq(\n      { do: "to_hand", target: exactly(1, myChar(), { bind: "_ret" }) },', ["EB01-020 returns a red Character", "EB01-020 does nothing without"]),
+    scnManual("chambres-any-color", 'play(upTo(1, sel("you", "hand", { ...CHAR, cost: le(2), notColorsOfVar: "_ret" }))),', 'play(upTo(1, sel("you", "hand", { ...CHAR, cost: le(2) }))),', ["EB01-020 does not play a Character of the returned color"]),
+    scnManual("chambres-no-return", 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "to_hand", target: exactly(1, myChar(), { bind: "_ret" }) },', 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "rest", target: exactly(1, myChar(), { bind: "_ret" }) },', ["EB01-020 returns a red Character"]),
+    scnManual("loguetown-no-hand-cost", 'costs: [{ k: "hand_to_deck_bottom", count: 1 }, { k: "self_to_deck_bottom" }], effect: draw(2) }]),', 'costs: [{ k: "self_to_deck_bottom" }], effect: draw(2) }]),', ["EB01-030 places itself", "EB01-030 cannot activate with an empty hand"]),
+    scnManual("loguetown-draw", 'costs: [{ k: "hand_to_deck_bottom", count: 1 }, { k: "self_to_deck_bottom" }], effect: draw(2) }]),', 'costs: [{ k: "hand_to_deck_bottom", count: 1 }, { k: "self_to_deck_bottom" }], effect: draw(1) }]),', ["EB01-030 places itself"]),
+    scnManual("sunny-moves-all", 'to: exactly(1, myChar({ traits: ["Straw Hat Crew"] })), count: 1 } }]),', 'to: exactly(1, myChar({ traits: ["Straw Hat Crew"] })), count: 2 } }]),', ["EB02-009 moves a given DON!!"]),
     // [DON!! xN] [On K.O.] / self_ko gates read the DON!! attached before the K.O. returned them
     { id: "ko-gate-after-don-returned", edits: [
       { file: "packages/rules/src/engine/runtime.ts", from: "  queueWindow(state, \"on_ko\", loc.seat, entry, { ignoreNegation: true, ...(koed ? { card: koed } : {}) });", to: "  queueWindow(state, \"on_ko\", loc.seat, entry, { ignoreNegation: true });" },

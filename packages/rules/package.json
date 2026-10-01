@@ -15,6 +15,7 @@
     "fuzz": "tsx src/sim/fuzz.ts",
     "export-atlas": "tsx src/scripts/exportAtlas.ts",
     "export-planner-stats": "tsx src/scripts/exportPlannerStats.ts",
+    "scenario-coverage": "tsx src/scripts/scenarioCoverage.ts",
     "mutation:stryker": "stryker run",
     "typecheck": "tsc --noEmit"
   },
