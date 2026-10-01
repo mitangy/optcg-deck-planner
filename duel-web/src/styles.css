@@ -1152,14 +1152,22 @@ button {
 /* Buttons, top bar, panels, fields and the Play sheet live in ui.css. */
 
 .duel-root {
-  flex: 1;
+  /* Pinned to the real viewport, not 100dvh: a Home Screen app on iOS can
+     measure 100dvh taller than the screen, so the page scrolled a few px and
+     clipped the top bar under the status bar. */
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
-  height: 100dvh;
-  max-height: 100dvh;
   background: transparent;
   overflow: hidden;
+}
+
+/* While a match is up, the document itself never scrolls or rubber-bands. */
+html:has(.duel-root),
+html:has(.duel-root) body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* Overlay, not in flow: a drop/reclaim must not shove the board down and back. */

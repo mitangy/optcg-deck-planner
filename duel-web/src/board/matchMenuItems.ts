@@ -1,8 +1,8 @@
-export type MatchMenuItemId = "copy-room" | "settings" | "fullscreen" | "concede" | "leave";
+export type MatchMenuItemId = "copy-room" | "settings" | "fullscreen" | "reload" | "concede" | "leave";
 
 /**
  * Which entries the phone HUD's ⋯ menu shows, in display order (destructive
- * ones last). Concede is for live players only; hotseat has no room to share.
+ * ones last). Reload rejoins the saved match. Concede is for live players only; hotseat has no room to share.
  */
 export function matchMenuItems(o: {
   spectating: boolean;
@@ -15,6 +15,8 @@ export function matchMenuItems(o: {
   if (!o.hotseat) items.push("copy-room");
   items.push("settings");
   if (o.fullscreenOffered) items.push("fullscreen");
+  // A Home Screen app has no browser reload button or pull-to-refresh.
+  items.push("reload");
   if (o.canConcede && !o.spectating && !o.over) items.push("concede");
   items.push("leave");
   return items;

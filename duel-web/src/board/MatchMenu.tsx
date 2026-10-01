@@ -11,6 +11,8 @@ type Props = {
   leaveLabel?: string;
   onSettings: () => void;
   onToggleFullscreen: () => void;
+  /** Defaults to a full page reload; the saved match resumes on boot. */
+  onReload?: () => void;
   onConcede: () => void;
   onLeave: () => void;
   /** "left": opens beside the landscape icon rail instead of under the top bar. */
@@ -29,6 +31,7 @@ export function MatchMenu({
   leaveLabel = "Leave match",
   onSettings,
   onToggleFullscreen,
+  onReload = () => window.location.reload(),
   onConcede,
   onLeave,
   placement = "top",
@@ -143,6 +146,20 @@ export function MatchMenu({
                       onClick={choose(onToggleFullscreen)}
                     >
                       {isFullscreen ? "Exit full screen" : "Full screen"}
+                    </button>
+                  );
+                case "reload":
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      role="menuitem"
+                      data-menu-item
+                      className="match-menu-item"
+                      title="Reload the page and rejoin this match"
+                      onClick={choose(onReload)}
+                    >
+                      Reload game
                     </button>
                   );
                 case "concede":

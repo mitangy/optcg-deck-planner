@@ -30,6 +30,12 @@ describe("match menu items", () => {
     expect(matchMenuItems(live)).not.toContain("fullscreen");
   });
 
+  it("offers Reload in every match, hotseat and spectating included", () => {
+    expect(matchMenuItems(live)).toContain("reload");
+    expect(matchMenuItems({ ...live, hotseat: true })).toContain("reload");
+    expect(matchMenuItems({ ...live, spectating: true, over: true })).toContain("reload");
+  });
+
   it("always ends with Leave, after Concede", () => {
     const items = matchMenuItems({ ...live, fullscreenOffered: true });
     expect(items[items.length - 1]).toBe("leave");
