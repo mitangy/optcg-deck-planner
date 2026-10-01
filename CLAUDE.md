@@ -25,7 +25,9 @@ Only write a test for behavior you can actually break. A test earns its place by
 2. **Record the proof.** Add that edit as a mutation in `tools/mutation-check/suites/<suite>.cjs` (see `tools/mutation-check/README.md`), in the same PR as the test. `node tools/mutation-check/run.cjs <suite> --only <id>` must report it `killed`.
 3. **If nothing realistic breaks it, don't write it.** That means no tests of constants, string literals, fixtures, stylesheet text, or values true by construction (`[].reverse()` is `[]`; slicing a 7-char SHA to 7). Don't write tests whose data can't tell the right answer from the wrong one either: a leader that already sorts first, a default leader equal to the one under test, a loose regex that also matches the wrong value.
 4. **Layered guards need one mutation that removes every layer.** If two checks enforce one rule (a salt and a purpose check, say), a mutation that removes only one survives. List each layer in the mutation's `edits`.
-5. **Before a mutation run, make sure no other run is in progress.** Suites share one restore journal, so `run.cjs` refuses to start while another run is active.
+5. **Every bug fix ships a failing-first regression test** at the lowest layer that can show the bug: engine scenario (`packages/rules`) before duel-web unit before Playwright. Write the test first and watch it fail, then fix. Its mutation is the fix reverted.
+6. **Name tests after the behavior and the PR number**, e.g. `Marco On K.O. fires once when he K.O.s himself (#225)`.
+7. **Before a mutation run, make sure no other run is in progress.** Suites share one restore journal, so `run.cjs` refuses to start while another run is active.
 
 ## Product context
 
