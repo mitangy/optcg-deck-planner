@@ -593,9 +593,12 @@ function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kin
   for (; index < ids.length; index += 1) {
     const loc = locate(state, ids[index]!);
     if (!loc) continue;
+    // A replaced removal never happens, even when the replacement moved the
+    // target itself off the field (Marco K.O.'ing himself instead).
+    const replKey = `_repl:${loc.id}`;
+    if (frame.bindings[replKey] === true) continue;
     if (kind && isOnField(loc) && loc.zone !== "leader") {
       if (removalBlocked(state, loc, frame.seat, kind, locate(state, frame.sourceInstanceId))) continue;
-      const replKey = `_repl:${loc.id}`;
       const byOpponent = frame.seat !== loc.seat;
       if (frame.bindings[replKey] === undefined) {
         const events: ReplacementEvent[] = kind === "rest"
@@ -607,8 +610,6 @@ function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kin
           pushReplacementFrame(sim, hit, loc.id, frame.id);
           return "interrupt";
         }
-      } else if (frame.bindings[replKey] === true) {
-        continue;
       }
     }
     apply(loc);
