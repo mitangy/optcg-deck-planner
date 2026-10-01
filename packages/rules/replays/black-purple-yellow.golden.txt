@@ -1,0 +1,206 @@
+# replay black-purple-yellow
+# Black vs yellow/purple: a declined Life [Trigger], On Play effects and a counter Event.
+seed 163, seat 1 goes first
+Seat 0 leader: Monkey.D.Luffy (OP17-079)
+Seat 1 leader: Crocodile (OP04-058)
+
+> #1 seat 1 give_don {"donId":"don_63","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Crocodile → 6000 power
+
+> #2 seat 1 end_turn
+  Phase → end (active seat 1)
+  Phase → refresh (active seat 0)
+  Seat 0 draws 1
+  Phase → draw (active seat 0)
+  Seat 0 places 2 DON!!
+  Phase → don (active seat 0)
+  Phase → main (active seat 0)
+
+> #3 seat 0 give_don {"donId":"don_3","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Monkey.D.Luffy → 6000 power
+
+> #4 seat 0 give_don {"donId":"don_2","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Monkey.D.Luffy → 7000 power
+
+> #5 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+> #6 seat 1 give_don {"donId":"don_63","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Crocodile → 6000 power
+
+> #7 seat 1 play_card {"handIndex":1}
+  Seat 1 plays Tenguyama Hitetsu (rests 1 DON!!)
+
+> #8 seat 1 end_turn
+  Phase → end (active seat 1)
+  Phase → refresh (active seat 0)
+  Seat 0 draws 1
+  Phase → draw (active seat 0)
+  Seat 0 places 2 DON!!
+  Phase → don (active seat 0)
+  Phase → main (active seat 0)
+
+> #9 seat 0 play_card {"handIndex":5}
+  Seat 0 plays Baskerville (rests 3 DON!!)
+
+> #10 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
+  Seat 0 attacks Leader (5000 vs 5000)
+
+> #11 seat 1 pass_block
+
+> #12 seat 1 counter_from_hand {"handIndex":1}
+  Seat 1 counters with Queen (+1000)
+
+> #13 seat 1 counter_event {"handIndex":0}
+  Seat 1 counters with Gear Two (+0)
+  Seat 1 activates Gear Two's ability
+  Seat 1 may resolve Gear Two's effect (Gear Two — choose up to 1 card to +3000 power.)
+
+> #14 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
+  Seat 1 accepts Gear Two's effect
+
+> #15 seat 1 counter_from_hand {"handIndex":2}
+  Seat 1 counters with Charlotte Brulee (+1000)
+
+> #16 seat 1 counter_from_hand {"handIndex":1}
+  Seat 1 counters with Mamboshi (+2000)
+
+> #17 seat 1 pass_counter
+  Battle fails (5000 vs 9000)
+
+> #18 seat 0 give_don {"donId":"don_5","targetId":"card_31"}
+  Seat 0 attaches DON!! to Baskerville → 4000 power
+
+> #19 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+> #20 seat 1 give_don {"donId":"don_66","targetId":"card_88"}
+  Seat 1 attaches DON!! to Tenguyama Hitetsu → 3000 power
+
+> #21 seat 1 declare_attack {"attackerId":"card_88","target":{"kind":"leader"}}
+  Seat 1 attacks Leader (3000 vs 5000)
+
+> #22 seat 0 pass_block
+
+> #23 seat 0 counter_from_hand {"handIndex":0}
+  Seat 0 counters with Tashigi (+1000)
+
+> #24 seat 0 counter_from_hand {"handIndex":4}
+  Seat 0 counters with Ginrummy (+1000)
+
+> #25 seat 0 counter_from_hand {"handIndex":0}
+  Seat 0 counters with Van Augur (+1000)
+
+> #26 seat 0 counter_from_hand {"handIndex":0}
+  Seat 0 counters with Absalom (+1000)
+
+> #27 seat 0 pass_counter
+  Battle fails (3000 vs 9000)
+
+> #28 seat 1 end_turn
+  Phase → end (active seat 1)
+  Phase → refresh (active seat 0)
+  Seat 0 draws 1
+  Phase → draw (active seat 0)
+  Seat 0 places 2 DON!!
+  Phase → don (active seat 0)
+  Phase → main (active seat 0)
+
+> #29 seat 0 play_card {"handIndex":2}
+  Seat 0 plays Kaku (rests 3 DON!!)
+  Seat 0 activates Kaku's ability
+  Seat 0 moves Rebecca from deck to trash
+  Seat 0 moves Black Maria from deck to trash
+
+> #30 seat 0 give_don {"donId":"don_5","targetId":"card_18"}
+  Seat 0 attaches DON!! to Kaku → 5000 power
+
+> #31 seat 0 give_don {"donId":"don_7","targetId":"card_18"}
+  Seat 0 attaches DON!! to Kaku → 6000 power
+
+> #32 seat 0 declare_attack {"attackerId":"card_31","target":{"kind":"character","instanceId":"card_88"}}
+  Seat 0 attacks a Character (3000 vs 2000)
+
+> #33 seat 1 pass_block
+
+> #34 seat 1 pass_counter
+  Battle hits (3000 vs 2000)
+  Seat 1's Tenguyama Hitetsu is K.O.'d
+
+> #35 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Monkey.D.Luffy → 6000 power
+
+> #36 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
+  Seat 0 attacks Leader (6000 vs 5000)
+
+> #37 seat 1 pass_block
+
+> #38 seat 1 pass_counter
+  Battle hits (6000 vs 5000)
+  Seat 1 takes Life (Miss Doublefinger(Zala), Trigger pending)
+  Seat 1 Trigger available (Miss Doublefinger(Zala))
+  Seat 1 may resolve Miss Doublefinger(Zala)'s life trigger (Miss Doublefinger(Zala) — activate this card's [Trigger]? [Trigger] DON!! -1: Play this card.)
+
+> #39 seat 1 resolve_pending_choice {"accept":false}
+  Seat 1 declines Miss Doublefinger(Zala)'s life trigger
+  Seat 1 Trigger declined
+  Seat 1 moves Miss Doublefinger(Zala) from life to hand
+
+> #40 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+> #41 seat 1 play_card {"handIndex":3}
+  Seat 1 plays Miss.MerryChristmas(Drophy) (rests 4 DON!!)
+
+> #42 seat 1 give_don {"donId":"don_69","targetId":"card_82"}
+  Seat 1 attaches DON!! to Miss.MerryChristmas(Drophy) → 5000 power
+
+> #43 seat 1 play_card {"handIndex":1}
+  Seat 1 plays Nojiko (rests 2 DON!!)
+
+> #44 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+  Seat 1 attacks Leader (5000 vs 5000)
+
+> #45 seat 0 pass_block
+
+> #46 seat 0 counter_from_hand {"handIndex":1}
+  Seat 0 counters with T-Bone (+2000)
+
+> #47 seat 0 pass_counter
+  Battle fails (5000 vs 7000)
+
+> #48 seat 1 activate_ability {"sourceId":"card_77","abilityId":"eb05-057#m0"}
+  Seat 1 activates Nojiko's ability
+  Seat 1 attaches DON!! to Crocodile → 6000 power
+
+== final state ==
+Seat 0: life 5, hand 1, deck 35, trash 7
+  leader: OP17-079 (rested) 5000p +1 DON!!
+  characters: OP07-087 (rested) 3000p; EB04-043 4000p +2 DON!!
+  stage: none
+  DON!!: 0 active + 3 rested in cost area, 3 attached, 4 in DON!! deck
+Seat 1: life 3, hand 2, deck 38, trash 5
+  leader: OP04-058 (rested) 6000p +1 DON!!
+  characters: OP04-067 5000p +1 DON!!; EB05-057 0p
+  stage: none
+  DON!!: 0 active + 5 rested in cost area, 2 attached, 3 in DON!! deck
+Phase: main, turn 7, active seat 1
+Winner: none
