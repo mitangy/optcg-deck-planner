@@ -156,6 +156,14 @@ module.exports = {
     {"id": "planner-no-printed-trigger", "file": "packages/rules/src/scripts/plannerStats.ts", "from": "if (row.trigger) out.trg = 1;", "to": "", "kills": ["reads self keywords"]},
     {"id": "planner-text-always", "file": "packages/rules/src/scripts/plannerStats.ts", "from": "  for (const clause of unsupported) {", "to": "  for (const clause of [...unsupported, row.text]) {", "kills": ["falls back to printed text only"]},
     {"id": "planner-no-text-fallback", "file": "packages/rules/src/scripts/plannerStats.ts", "from": "    roleFromText(clause, found.roles);\n", "to": "", "kills": ["falls back to printed text only"]},
+    // OP15-020 Fire Fist: "you may trash 2 cards. If you do, K.O. ..." stays optional and says what it asks
+    { id: "fire-fist-trash-forced", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { const steps = a["OP15-020"].abilities[0].effect.steps; steps[1] = steps[1].then; }, kills: ["declining leaves the 0-power Character alive"] },
+    { id: "fire-fist-decline-ignored", file: "packages/rules/src/engine/runtime.ts", from: "frame.bindings[b.__bind!] = answer.accept;", to: "frame.bindings[b.__bind!] = true;", kills: ["declining leaves the 0-power Character alive"] },
+    { id: "fire-fist-generic-prompt", edits: [
+      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "prompt: restoreNames(m[1]!, ctx.ph) };", to: "};" },
+      { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { delete a["OP15-020"].abilities[0].effect.steps[1].prompt; } },
+    ], kills: ["asks whether to trash 2 cards for the K.O."] },
+    { id: "fire-fist-did-unbound", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP15-020"].abilities[0].effect.steps[1].bind = "_paid"; }, kills: ["trashing 2 cards K.O.s the 0-power Character"] },
     {"id": "planner-text-removal-own", "file": "packages/rules/src/scripts/plannerStats.ts", "from": "if (/opponent/i.test(clause) && /(K", "to": "if (/(K", "kills": ["falls back to printed text only"]},
   ],
 };

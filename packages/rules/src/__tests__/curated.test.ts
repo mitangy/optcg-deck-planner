@@ -305,3 +305,35 @@ describe("OP15-066 Satori", () => {
     expect(h.choice?.request?.type).not.toBe("look");
   });
 });
+
+describe("OP15-020 Fire Fist", () => {
+  function castOnZeroPower() {
+    const h = new Harness();
+    const [target] = h.field(1, FILLER);
+    h.hand(0, "OP15-020", FILLER, FILLER, FILLER);
+    h.don(0, 10);
+    h.play(0, "OP15-020");
+    h.pick(target!.id);
+    return { h, target: target! };
+  }
+
+  it("asks whether to trash 2 cards for the K.O., and declining leaves the 0-power Character alive", () => {
+    const { h, target } = castOnZeroPower();
+    expect(h.choice?.request?.type).toBe("confirm");
+    expect(h.choice?.prompt).toContain("trash 2 cards from your hand, and if you do, KO");
+    h.decline(0);
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[0].hand).toHaveLength(3);
+    expect(h.state.players[1].characters.map((c) => c.id)).toEqual([target.id]);
+    expect(h.view(1).you.characters[0]!.power).toBeLessThanOrEqual(0);
+  });
+
+  it("trashing 2 cards K.O.s the 0-power Character", () => {
+    const { h, target } = castOnZeroPower();
+    h.accept(0);
+    h.pick(FILLER, FILLER);
+    h.pick(target.id);
+    expect(h.state.players[0].hand).toHaveLength(1);
+    expect(h.state.players[1].characters).toHaveLength(0);
+  });
+});

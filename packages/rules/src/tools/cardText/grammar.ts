@@ -3,6 +3,7 @@
  * Every parser returns null unless it consumes its entire input.
  */
 import type { Cond, Cost, Duration, Effect, Filter, Keyword, LookPick, Placement, Rel, Restriction, Selector, Static, StaticTarget, Target, Value } from "../../effects/types.js";
+import { restoreNames } from "./normalize.js";
 import { nameList, num, parseCardPhrase, parseCountPhrase, quote, traitList, type CardPhrase, type Ctx, type PhraseOptions } from "./phrases.js";
 
 type Rule<T> = [RegExp, (m: RegExpExecArray, ctx: Ctx) => T | null];
@@ -638,7 +639,7 @@ export function parseEffectClause(text: string, ctx: Ctx): Effect | null {
   let m = /^you may (.+)$/i.exec(t);
   if (m) {
     const inner = parseEffectClause(m[1]!, ctx);
-    if (inner) return { do: "may", then: inner, bind: "_did" };
+    if (inner) return { do: "may", then: inner, bind: "_did", prompt: restoreNames(m[1]!, ctx.ph) };
   }
   // Suffix condition: "draw 1 card if you have 3 or less cards in your hand"
   m = /^(.+?) if (.+)$/i.exec(t);
@@ -741,8 +742,14 @@ export function parseEffectBody(body: string, ctx: Ctx, split: (text: string) =>
       failed.push(s); continue;
     }
     const eff = parseStatement(s, ctx);
-    if (eff) steps.push(eff);
-    else failed.push(s);
+    if (eff) {
+      const prev = steps[steps.length - 1];
+      // "You may X. If you do, Y": ask about X and name the payoff, so the prompt doesn't read as confirming the whole card.
+      if (prev?.do === "may" && prev.prompt && !prev.costs && !prev.chooser && eff.do === "if" && /^if you do, /i.test(clean(s))) {
+        prev.prompt = `${prev.prompt}, and if you do, ${restoreNames(clean(s).replace(/^if you do, /i, ""), ctx.ph)}`;
+      }
+      steps.push(eff);
+    } else failed.push(s);
   }
   if (failed.length) return { effect: null, failed };
   if (steps.length === 0) return { effect: null, failed: [body] };
