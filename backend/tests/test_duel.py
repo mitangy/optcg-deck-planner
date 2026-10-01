@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
+from tests.db_support import make_test_engine
 from app.config import get_settings
 from app.db import get_db
 from app.duel_ratings import apply_elo
 from app.game_tokens import mint_game_token, verify_game_token
 from app.main import app
-from app.models import Base, DuelMatch, User
+from app.models import DuelMatch, User
 
 
 @pytest.fixture()
@@ -24,12 +23,7 @@ def client(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite://")
     get_settings.cache_clear()
 
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=engine)
+    engine = make_test_engine()
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
     def _override_db():
@@ -144,12 +138,7 @@ def test_dev_token_hidden_without_flags(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite://")
     get_settings.cache_clear()
 
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=engine)
+    engine = make_test_engine()
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
     def _override_db():
@@ -181,12 +170,7 @@ def test_dev_token_via_staging_flag(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite://")
     get_settings.cache_clear()
 
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=engine)
+    engine = make_test_engine()
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
     def _override_db():

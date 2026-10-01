@@ -181,6 +181,7 @@ for (const name of selected) {
   console.log(`[${name}] baseline: ${baseline.total} tests pass; ${suite.mutations.length} mutations`);
   for (const mutation of suite.mutations) {
     if (only && !only.test(mutation.id)) continue;
+    if (mutation.requiresEnv && !process.env[mutation.requiresEnv]) { console.log(`  skipped  ${mutation.id}: set ${mutation.requiresEnv} to run it`); continue; }
     const anchorError = applyEdits(mutation);
     let result;
     try {

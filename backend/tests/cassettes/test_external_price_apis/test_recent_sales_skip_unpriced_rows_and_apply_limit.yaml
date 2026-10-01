@@ -1,0 +1,28 @@
+# HAND-CRAFTED cassette: written from the response shapes app code parses, not recorded
+# from the live service. Re-record with: pytest tests/test_external_price_apis.py --record-mode=rewrite
+# (needs network; then re-check the test's expected values against the new data).
+interactions:
+- request:
+    body: '{"conditions": [1], "languages": [1], "listingType": "All"}'
+    headers:
+      Accept:
+      - '*/*'
+      Content-Type:
+      - application/json
+    method: POST
+    uri: https://mpapi.tcgplayer.com/v2/product/555001/latestsales?limit=3
+  response:
+    body:
+      string: '{"previousPage":"","nextPage":"","resultCount":5,"totalResults":5,"data":[{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":2,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":12.5,"shippingPrice":1.27,"orderDate":"2026-05-02T14:11:03.35+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":"11.00","shippingPrice":null,"orderDate":"2026-05-01T09:00:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":null,"shippingPrice":0.99,"orderDate":"2026-04-30T22:10:00+00:00"},{"condition":"Lightly
+        Played","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":9.99,"shippingPrice":0.99,"orderDate":"2026-04-29T18:30:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":8.0,"shippingPrice":0.0,"orderDate":"2026-04-28T08:00:00+00:00"}]}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+version: 1
