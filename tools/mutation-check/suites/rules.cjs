@@ -75,7 +75,7 @@ module.exports = {
     {"id":"keyword-modifiers-ignored","file":"packages/rules/src/engine/queries.ts","from":"  for (const m of cardModifiers(state, card)) if (m.effect.type === \"keyword\") out.add(m.effect.keyword);","to":"","kills":["grants Double Attack"]},
     {"id":"turn-buffs-never-expire","file":"packages/rules/src/engine/modifiers.ts","from":"  state.modifiers = state.modifiers.filter((m) => !(m.expires.kind === \"end_of_turn\" && m.expires.turn <= state.turnNumber));","to":"","kills":["power reduction lasts for the turn","set power: OP07-002"]},
     {"id":"no-replacements","file":"packages/rules/src/engine/runtime.ts","from":"  const seat = loc.seat;\n  for (const card of fieldCards(state.players[seat])) {","to":"  return null;\n  const seat = loc.seat;\n  for (const card of fieldCards(state.players[seat])) {","kills":["offers to K.O. Marco instead","lets a Character survive a battle K.O."]},
-    {"id":"no-on-ko","file":"packages/rules/src/engine/runtime.ts","from":"  queueWindow(state, \"on_ko\", loc.seat, entry, { ignoreNegation: true });","to":"","kills":["OP16-014 Marco may replay itself"]},
+    {"id":"no-on-ko","file":"packages/rules/src/engine/runtime.ts","from":"  queueWindow(state, \"on_ko\", loc.seat, entry, { ignoreNegation: true, ...(koed ? { card: koed } : {}) });","to":"","kills":["OP16-014 Marco may replay itself"]},
     {"id":"opponent-turn-always","file":"packages/rules/src/engine/queries.ts","from":"    case \"opponent_turn\": return state.activeSeat !== ctx.seat;","to":"    case \"opponent_turn\": return true;","kills":["raises your Characters' cost during the opponent's turn only"]},
     {"id":"redirect-noop","file":"packages/rules/src/engine/runtime.ts","from":"      if (b && loc && loc.seat !== b.attackerSeat && (loc.zone === \"leader\" || loc.zone === \"character\")) b.target =","to":"      if (false) b.target =","kills":["redirect an attack to a Blackbeard Pirates Character"]},
     {"id":"unpayable-cost-prompted","file":"packages/rules/src/engine/runtime.ts","from":"      if (instr.costs && !canPayCosts(state, ctx, instr.costs)) { frame.bindings[instr.bind] = false; return \"next\"; }","to":"","kills":["offers nothing without a [Trigger] card in hand"]},
@@ -180,6 +180,11 @@ module.exports = {
     ], kills: ["accepting but returning nothing does not let the opponent play"] },
     // A replaced removal is skipped even when the replacement moved the target off the field itself
     { id: "replaced-removal-reapplied-off-field", file: "packages/rules/src/engine/runtime.ts", from: "if (frame.bindings[replKey] === true) continue;", to: "if (frame.bindings[replKey] === true && isOnField(loc)) continue;", kills: ["K.O.'ing himself instead of his own removal triggers [On K.O.] once"] },
+    // [DON!! xN] [On K.O.] / self_ko gates read the DON!! attached before the K.O. returned them
+    { id: "ko-gate-after-don-returned", edits: [
+      { file: "packages/rules/src/engine/runtime.ts", from: "  queueWindow(state, \"on_ko\", loc.seat, entry, { ignoreNegation: true, ...(koed ? { card: koed } : {}) });", to: "  queueWindow(state, \"on_ko\", loc.seat, entry, { ignoreNegation: true });" },
+      { file: "packages/rules/src/engine/runtime.ts", from: "    if (!abilityGateOpen(state, loc.seat, { ...entry, ...(koed ? { card: koed } : {}) }, ability)) continue;", to: "    if (!abilityGateOpen(state, loc.seat, entry, ability)) continue;" },
+    ], kills: ["ST21-004 Jewelry Bonney draws when K.O.'d in battle with 2 DON!! attached"] },
     {"id": "planner-text-removal-own", "file": "packages/rules/src/scripts/plannerStats.ts", "from": "if (/opponent/i.test(clause) && /(K", "to": "if (/(K", "kills": ["falls back to printed text only"]},
   ],
 };
