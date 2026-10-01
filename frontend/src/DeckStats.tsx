@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import { CollapsibleDrawer } from "./cardListControls";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DeckHintsTray, type HintsState } from "./DeckHints";
 import { useStatsAtlas } from "./useStatsAtlas";
 import { DrawOdds, SearcherOdds } from "./DrawOdds";
@@ -10,28 +9,6 @@ import {
   type DeckStatsCard,
   type NameCount,
 } from "./deckStats";
-
-export type StatsPlacement = "beside" | "below";
-
-const PLACEMENT_KEY = "optcg_deck_stats_placement";
-
-export function useStatsPlacement() {
-  const [placement, setPlacement] = useState<StatsPlacement>(() => {
-    try {
-      return localStorage.getItem(PLACEMENT_KEY) === "below" ? "below" : "beside";
-    } catch {
-      return "beside";
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(PLACEMENT_KEY, placement);
-    } catch {
-      /* ignore */
-    }
-  }, [placement]);
-  return [placement, setPlacement] as const;
-}
 
 const COLOR_DOT: Record<string, string> = {
   red: "#c4423a",
@@ -244,46 +221,154 @@ function StatsLoader({ cards, leaderId }: { cards: DeckStatsCard[]; leaderId: st
   );
 }
 
-export function DeckStatsPanel({
-  cards,
-  leaderId,
-  storageKey,
-  defaultOpen,
-  placement,
-  onPlacementChange,
-  hints,
-  showHints,
-}: {
-  cards: DeckStatsCard[];
-  leaderId: string | null;
-  storageKey: string;
-  defaultOpen: boolean;
-  /** Omit on read-only pages (public share) to hide the placement setting. */
-  placement?: StatsPlacement;
-  onPlacementChange?: (next: StatsPlacement) => void;
-  /** Owner-only build hints: the count badge shows while collapsed, the tray when `showHints`. */
-  hints?: HintsState;
-  showHints?: boolean;
-}) {
+/** Wide enough for the page to sit beside a stats column (matches the CSS breakpoint). */
+const DOCK_QUERY = "(min-width: 1100px)";
+const COLLAPSED_KEY = "optcg_deck_stats_collapsed";
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => (typeof window !== "undefined" && window.matchMedia ? window.matchMedia(query).matches : false));
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mq = window.matchMedia(query);
+    const on = () => setMatches(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [query]);
+  return matches;
+}
+
+function useStatsCollapsed() {
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(COLLAPSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [collapsed]);
+  return [collapsed, setCollapsed] as const;
+}
+
+function StatsIcon() {
   return (
-    <div className="deck-stats">
-      <CollapsibleDrawer label="Deck stats" storageKey={storageKey} defaultOpen={defaultOpen} badge={hints && hints.visible.length > 0 ? hints.visible.length : undefined} badgeLabel="build hints">
-        {hints && showHints ? <DeckHintsTray hints={hints} /> : null}
-        {placement && onPlacementChange ? (
-          <div className="ds-placement">
-            <span className="muted">Show</span>
-            <div className="layout-toggle" role="group" aria-label="Stats placement">
-              <button type="button" className={placement === "beside" ? "active" : ""} aria-pressed={placement === "beside"} onClick={() => onPlacementChange("beside")}>
-                Beside editor
-              </button>
-              <button type="button" className={placement === "below" ? "active" : ""} aria-pressed={placement === "below"} onClick={() => onPlacementChange("below")}>
-                Below list
+    <svg className="stats-dock-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d="M2 14V8h3v6zM6.5 14V2h3v12zM11 14V5h3v9z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function Chevron({ dir }: { dir: "left" | "right" }) {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d={dir === "right" ? "M6 3l5 5-5 5" : "M10 3L5 8l5 5"} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StatsContent({ cards, leaderId, hints }: { cards: DeckStatsCard[]; leaderId: string | null; hints?: HintsState }) {
+  return (
+    <>
+      {hints ? <DeckHintsTray hints={hints} /> : null}
+      <StatsLoader cards={cards} leaderId={leaderId} />
+    </>
+  );
+}
+
+/**
+ * Deck stats beside the deck list. Wide screens: a sticky right column that collapses to a slim
+ * rail. Narrow screens: a floating "Stats" pill that opens a bottom sheet, so the list stays put.
+ * `hints` (owner only) puts the build-hint tray at the top and its count on the rail / pill.
+ */
+export function DeckStatsDock({ cards, leaderId, hints }: { cards: DeckStatsCard[]; leaderId: string | null; hints?: HintsState }) {
+  const wide = useMediaQuery(DOCK_QUERY);
+  const [collapsed, setCollapsed] = useStatsCollapsed();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const pillRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const badge = hints && hints.visible.length > 0 ? hints.visible.length : 0;
+  const badgeEl = badge ? (
+    <span className="filter-drawer-badge" aria-label={`${badge} build hints`}>
+      {badge}
+    </span>
+  ) : null;
+
+  const sheetShown = sheetOpen && !wide;
+  useEffect(() => {
+    if (!sheetShown) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSheetOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const pill = pillRef.current;
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+      pill?.focus();
+    };
+  }, [sheetShown]);
+
+  if (wide) {
+    if (collapsed) {
+      return (
+        <aside className="stats-dock stats-dock-collapsed" aria-label="Deck stats">
+          <button type="button" className="stats-rail" aria-expanded={false} aria-label={badge ? `Expand deck stats, ${badge} build hints` : "Expand deck stats"} onClick={() => setCollapsed(false)}>
+            <Chevron dir="left" />
+            <StatsIcon />
+            {badgeEl}
+            <span className="stats-rail-label">Stats</span>
+          </button>
+        </aside>
+      );
+    }
+    return (
+      <aside className="stats-dock" aria-label="Deck stats">
+        <div className="stats-dock-panel deck-stats">
+          <div className="stats-dock-head">
+            <h2>Deck stats</h2>
+            <button type="button" className="ghost stats-dock-collapse" aria-expanded aria-label="Collapse deck stats" onClick={() => setCollapsed(true)}>
+              <Chevron dir="right" />
+            </button>
+          </div>
+          <div className="stats-dock-scroll">
+            <StatsContent cards={cards} leaderId={leaderId} hints={hints} />
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  return (
+    <>
+      <button ref={pillRef} type="button" className="stats-pill" aria-haspopup="dialog" aria-expanded={sheetShown} onClick={() => setSheetOpen(true)}>
+        <StatsIcon />
+        Stats
+        {badgeEl}
+      </button>
+      {sheetShown ? (
+        <div className="stats-sheet-backdrop" onClick={() => setSheetOpen(false)}>
+          <div className="stats-sheet deck-stats" role="dialog" aria-modal="true" aria-label="Deck stats" onClick={(e) => e.stopPropagation()}>
+            <div className="stats-dock-head">
+              <h2>Deck stats</h2>
+              <button ref={closeRef} type="button" className="ghost stats-dock-collapse" onClick={() => setSheetOpen(false)}>
+                Close
               </button>
             </div>
+            <div className="stats-dock-scroll">
+              <StatsContent cards={cards} leaderId={leaderId} hints={hints} />
+            </div>
           </div>
-        ) : null}
-        <StatsLoader cards={cards} leaderId={leaderId} />
-      </CollapsibleDrawer>
-    </div>
+        </div>
+      ) : null}
+    </>
   );
 }

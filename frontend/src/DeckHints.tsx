@@ -189,7 +189,10 @@ export function DeckHintsTray({ hints }: { hints: HintsState }) {
               {listed.slice(0, MAX_LISTED).map((id) => (
                 <li key={id}>
                   <span className="card-id">{id}</span>
-                  <span className="dh-pop-name">{hints.atlas?.[id]?.n ?? ""}</span>
+                  <span className="dh-pop-name">
+                    {hints.atlas?.[id]?.n ?? ""}
+                    {typeof hints.atlas?.[id]?.cost === "number" ? <span className="muted"> · Cost {hints.atlas[id]!.cost}</span> : null}
+                  </span>
                 </li>
               ))}
               {listed.length > MAX_LISTED ? <li className="muted">+{listed.length - MAX_LISTED} more</li> : null}

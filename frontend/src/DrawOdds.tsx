@@ -1,5 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import {
+  cardLabel,
   countHits,
   defaultHitCardId,
   deckSizeOf,
@@ -86,11 +87,11 @@ export function DrawOdds({ entries }: { entries: DeckEntry[] }) {
           </select>
         </label>
         {mode === "card" ? (
-          <label className="ds-field">
+          <label className="ds-field ds-field-wide">
             <span className="muted">Card</span>
             <select aria-label="Card" value={effCard ?? ""} onChange={(e) => setCardId(e.target.value)}>
               {sorted.map((e) => (
-                <option key={e.id} value={e.id}>{e.card.n ?? e.id} ({e.copies}x)</option>
+                <option key={e.id} value={e.id}>{cardLabel(e.id, e.card, e.copies)}</option>
               ))}
             </select>
           </label>
@@ -127,7 +128,12 @@ export function DrawOdds({ entries }: { entries: DeckEntry[] }) {
                   checked={effCustom.includes(e.id)}
                   onChange={(ev) => setCustom(ev.target.checked ? [...effCustom, e.id] : effCustom.filter((x) => x !== e.id))}
                 />
-                <span className="ds-pick-name">{e.card.n ?? e.id}</span>
+                <span className="ds-pick-name" title={cardLabel(e.id, e.card)}>
+                  {e.card.n ?? e.id}
+                  <span className="muted ds-pick-meta">
+                    {typeof e.card.cost === "number" ? ` · Cost ${e.card.cost}` : ""} · {e.id}
+                  </span>
+                </span>
                 <span className="ds-chip-count">{e.copies}</span>
               </label>
             </li>
@@ -148,7 +154,7 @@ export function DrawOdds({ entries }: { entries: DeckEntry[] }) {
       <ol className="ds-odds-row" aria-label="Draw odds by turn">
         {odds.map((p, i) => (
           <li key={i} className="ds-odds-cell">
-            <span className="ds-odds-turn">T{i + 1}</span>
+            <span className="ds-odds-turn">Turn {i + 1}</span>
             <strong className="ds-odds-val">{pct(p)}</strong>
             <span className="ds-odds-bar"><span style={{ height: `${p * 100}%` }} /></span>
           </li>
@@ -166,18 +172,26 @@ export function SearcherOdds({ entries }: { entries: DeckEntry[] }) {
   return (
     <div className="ds-block ds-searchers">
       <h3>Searchers</h3>
+      <p className="ds-note ds-search-help">
+        <strong>Targets in deck</strong> = cards this effect can pick up (copies, excluding the searcher). <strong>Hit chance</strong> = odds at least one is in the cards it looks at.
+      </p>
       <ul className="ds-search-list">
         <li className="ds-search-head" aria-hidden="true">
           <span>Card</span>
-          <span>Looks</span>
-          <span>Hits</span>
-          <span>Chance</span>
+          <span>Looks at</span>
+          <span>Targets in deck</span>
+          <span>Hit chance</span>
         </li>
         {rows.map((r, i) => {
           const low = r.chance !== null && r.chance < SEARCHER_WARN;
           return (
             <li key={`${r.id}-${i}`} className={low ? "ds-search-row ds-warn" : "ds-search-row"}>
-              <span className="ds-search-name" title={r.name}>{r.name}</span>
+              <span className="ds-search-name" title={`${r.name} · ${r.id}`}>
+                {r.name}
+                <span className="muted ds-search-meta">
+                  {typeof r.cost === "number" ? `Cost ${r.cost} · ` : ""}{r.id}
+                </span>
+              </span>
               <span className="ds-search-num">top {r.look}</span>
               <span className="ds-search-num">{r.hits === null ? "?" : r.hits}</span>
               <strong className="ds-search-chance" title={r.chance === null ? "This search filter can't be estimated" : undefined}>{r.chance === null ? "n/a" : pct(r.chance)}</strong>
@@ -185,7 +199,6 @@ export function SearcherOdds({ entries }: { entries: DeckEntry[] }) {
           );
         })}
       </ul>
-      <p className="ds-note">Chance to find at least one hit among the cards looked at. The searcher itself is not counted.</p>
     </div>
   );
 }

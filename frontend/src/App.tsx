@@ -39,8 +39,8 @@ import {
   type SortKey,
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
-import { DeckStatsPanel, useStatsPlacement } from "./DeckStats";
-import { DeckHintsTray, useDeckHints, type HintsState } from "./DeckHints";
+import { DeckStatsDock } from "./DeckStats";
+import { useDeckHints } from "./DeckHints";
 import { deckDelta } from "./deckHints";
 import type { DeckStatsCard } from "./deckStats";
 import { useStatsAtlas } from "./useStatsAtlas";
@@ -2263,7 +2263,7 @@ function CardTable({
                   <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
                   <OwnedClaimNote card={c} />
                 </td>
-                <td>
+                <td className="need-cell">
                   {editing && onNeededChange ? (
                     <>{c.still_need}/{" "}
                       <NeededStepper
@@ -2413,15 +2413,10 @@ function DeckEditorPanel({
   deckId,
   deck,
   onUpdated,
-  hints,
-  showHints,
 }: {
   deckId: number;
   deck: DeckDetail;
   onUpdated: (detail: DeckDetail) => void;
-  /** Build hints; the tray sits under the header when `showHints` (stats placed below the list). */
-  hints?: HintsState;
-  showHints?: boolean;
 }) {
   const atlas = useStatsAtlas().data;
   const [delta, setDelta] = useState<{ text: string; key: number } | null>(null);
@@ -2540,7 +2535,6 @@ function DeckEditorPanel({
         summary={searchSummary}
         storageKey={DECK_SEARCH_OPEN_KEY}
         defaultOpen
-        headerExtra={hints && showHints ? <DeckHintsTray hints={hints} /> : undefined}
       >
         <div className="deck-editor-filters">
           <CardSearchInput value={query} onChange={setQuery} />
@@ -2933,27 +2927,12 @@ function DeckDetailPage() {
     if (!data) return [];
     return data.cards.filter((c) => c.section !== "don" && !isDonCardType(c.card_type));
   }, [data]);
-  const [statsPlacement, setStatsPlacement] = useStatsPlacement();
   const statsCards = useMemo(
     () => progressCards.map((c) => ({ id: c.card_id, copies: c.needed })),
     [progressCards],
   );
   // While editing the 50-card count stays quiet; once the user is done (or just viewing) it is checked.
   const hints = useDeckHints(deckId, statsCards, data?.leader_card_id ?? null, !editing);
-  const statsPanel = (
-    <DeckStatsPanel
-      key={editing ? "edit" : "view"}
-      cards={statsCards}
-      leaderId={data?.leader_card_id ?? null}
-      storageKey={editing ? "optcg_deck_stats_open_edit" : "optcg_deck_stats_open_view"}
-      defaultOpen={editing}
-      placement={statsPlacement}
-      onPlacementChange={setStatsPlacement}
-      hints={hints}
-      showHints={!editing || statsPlacement === "beside"}
-    />
-  );
-
   const filterSummary = useMemo(() => {
     const parts: string[] = [];
     if (onlyNeed) parts.push("Still need");
@@ -2979,7 +2958,8 @@ function DeckDetailPage() {
     : undefined;
 
   return (
-    <section>
+    <div className="deck-layout">
+    <section className="deck-main">
       <div className="page-head">
         <div className="deck-detail-head">
           {leaderArt && (
@@ -3107,18 +3087,9 @@ function DeckDetailPage() {
         </p>
       )}
 
-      {editing && statsPlacement === "beside" ? (
-        <div className="deck-edit-layout">
-          <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} hints={hints} />
-          {statsPanel}
-        </div>
-      ) : (
-        editing && <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} hints={hints} showHints />
-      )}
+      {editing && <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />}
 
       <DeckProgressSummary cards={progressCards} />
-
-      {!editing && statsPlacement === "beside" && statsPanel}
 
       <div className="list-toolbar">
         <div className="list-toolbar-row">
@@ -3195,8 +3166,6 @@ function DeckDetailPage() {
         </>
       )}
 
-      {statsPlacement === "below" && statsPanel}
-
       <AvailableDonSection deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
 
       <h2 className="don-heading">
@@ -3222,6 +3191,8 @@ function DeckDetailPage() {
         />
       )}
     </section>
+    <DeckStatsDock cards={statsCards} leaderId={data.leader_card_id ?? null} hints={hints} />
+    </div>
   );
 }
 
@@ -3423,7 +3394,8 @@ function PublicSharePage() {
         {isLoading && <ShoppingListSkeleton />}
         {error && <p className="error">{(error as Error).message}</p>}
         {data && (
-          <section>
+          <div className={data.kind === "deck" ? "deck-layout" : undefined}>
+          <section className="deck-main">
             <div className="page-head">
               <div>
                 <p className="eyebrow">Public {data.kind === "deck" ? "deck" : "shopping"} list</p>
@@ -3433,15 +3405,6 @@ function PublicSharePage() {
                 </p>
               </div>
             </div>
-
-            {data.kind === "deck" && (
-              <DeckStatsPanel
-                cards={shareStatsCards}
-                leaderId={data.items[0]?.primary_leader_card_id ?? null}
-                storageKey="optcg_deck_stats_open_share"
-                defaultOpen
-              />
-            )}
 
             <div className="list-toolbar">
               <div className="list-toolbar-row">
@@ -3581,6 +3544,10 @@ function PublicSharePage() {
               </>
             )}
           </section>
+          {data.kind === "deck" && (
+            <DeckStatsDock cards={shareStatsCards} leaderId={data.items[0]?.primary_leader_card_id ?? null} />
+          )}
+          </div>
         )}
       </main>
     </div>

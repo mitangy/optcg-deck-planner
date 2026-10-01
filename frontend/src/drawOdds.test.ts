@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   atLeastWithMulligan,
   cardsSeen,
+  cardLabel,
   countHits,
   defaultHitCardId,
   deckEntries,
@@ -210,5 +211,18 @@ describe("searcherOdds", () => {
     const low = searcherOdds(deckEntries([{ id: "S", copies: 1 }, { id: "H", copies: 1 }, { id: "M", copies: 30 }, { id: "U", copies: 1 }], sAtlas));
     expect(low.map((r) => r.id)).toEqual(["S", "U"]);
     expect(low[0]!.chance).toBeLessThan(0.2);
+  });
+});
+
+describe("cardLabel", () => {
+  it("tells same-named cards apart by cost and code", () => {
+    const a = cardLabel("OP01-016", { n: "Nami", t: "character", col: ["red"], cost: 1 }, 4);
+    const b = cardLabel("OP05-001", { n: "Nami", t: "character", col: ["red"], cost: 4 }, 2);
+    expect(a).toBe("Nami · Cost 1 · OP01-016 (4x)");
+    expect(b).toBe("Nami · Cost 4 · OP05-001 (2x)");
+  });
+  it("keeps cost 0 and omits cost and copies when unknown", () => {
+    expect(cardLabel("ST01-014", { n: "Free", t: "event", col: ["red"], cost: 0 })).toBe("Free · Cost 0 · ST01-014");
+    expect(cardLabel("X-1", { n: "Lead", t: "leader", col: ["red"] })).toBe("Lead · X-1");
   });
 });

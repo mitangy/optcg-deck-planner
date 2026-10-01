@@ -4784,26 +4784,7 @@ button.ghost.scan-open:hover {
   --ds-event: var(--gold);
   --ds-stage: var(--violet-ink);
   --ds-none: color-mix(in srgb, var(--muted) 45%, var(--bg-deep));
-  margin: 0 0 1rem;
   min-width: 0;
-}
-
-.deck-stats .filter-drawer {
-  margin: 0;
-}
-
-.deck-stats .filter-drawer-body {
-  gap: 0.75rem;
-  padding: 0.75rem 0.9rem 0.9rem;
-  min-width: 0;
-}
-
-.ds-placement {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.6rem;
-  font-size: 0.9rem;
 }
 
 .ds-body {
@@ -5092,47 +5073,7 @@ button.ghost.scan-open:hover {
 }
 
 /* Editing: stats sit in a sticky column beside the editor on wide screens. */
-.deck-edit-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0 1rem;
-  min-width: 0;
-}
-
-.deck-edit-layout > * {
-  min-width: 0;
-}
-
-@media (min-width: 1100px) {
-  .deck-edit-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 25rem);
-    align-items: start;
-  }
-
-  .deck-edit-layout .deck-stats {
-    position: sticky;
-    top: 1rem;
-    max-height: calc(100dvh - 2rem);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    border-radius: 14px;
-  }
-
-  .deck-edit-layout .ds-grid,
-  .deck-edit-layout .ds-tiles {
-    grid-template-columns: repeat(var(--ds-side-cols, 1), minmax(0, 1fr));
-  }
-
-  .deck-edit-layout .ds-tiles {
-    --ds-side-cols: 2;
-  }
-}
-
 @media (max-width: 720px) {
-  .deck-stats {
-    margin-bottom: 0.65rem;
-  }
-
   .ds-columns {
     height: 7.25rem;
   }
@@ -5161,6 +5102,14 @@ button.ghost.scan-open:hover {
   flex: 1 1 10rem;
   min-width: 0;
   font-size: 0.8rem;
+}
+
+.ds-field-wide {
+  flex-basis: 100%;
+}
+
+.need-cell {
+  white-space: nowrap;
 }
 
 .ds-field select {
@@ -5295,25 +5244,30 @@ button.ghost.scan-open:hover {
 .ds-search-head,
 .ds-search-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 3.4rem 2.2rem 3.4rem;
+  grid-template-columns: minmax(0, 1fr) 3.1rem 3.6rem 3.1rem;
   align-items: center;
   gap: 0.5rem;
-  min-height: 1.9rem;
+  min-height: 2.4rem;
   padding: 0 0.4rem;
   border-radius: 8px;
   font-size: 0.84rem;
 }
 
 .ds-search-head {
+  align-items: end;
   min-height: 1.4rem;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
+  line-height: 1.15;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
-.ds-search-head span:nth-child(n + 2),
+.ds-search-head span:nth-child(n + 2) {
+  text-align: right;
+}
+
 .ds-search-num,
 .ds-search-chance {
   text-align: right;
@@ -5322,9 +5276,21 @@ button.ghost.scan-open:hover {
 }
 
 .ds-search-name {
+  display: grid;
+  min-width: 0;
+  line-height: 1.2;
+  padding: 0.2rem 0;
+}
+
+.ds-search-name,
+.ds-search-meta {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ds-search-meta {
+  font-size: 0.74rem;
 }
 
 .ds-search-row.ds-warn {
@@ -5363,7 +5329,8 @@ button.ghost.scan-open:hover {
   box-sizing: border-box;
 }
 
-.filter-drawer > .dh-tray {
+.filter-drawer > .dh-tray,
+.stats-dock-scroll > .dh-tray {
   padding: 0 0.75rem;
   border-top: 1px solid var(--line);
 }
@@ -5405,7 +5372,8 @@ button.ghost.scan-open:hover {
   box-shadow: var(--shadow-lift);
 }
 
-.filter-drawer > .dh-tray .dh-chips.dh-expanded {
+.filter-drawer > .dh-tray .dh-chips.dh-expanded,
+.stats-dock-scroll > .dh-tray .dh-chips.dh-expanded {
   left: 0.75rem;
 }
 
@@ -5586,5 +5554,198 @@ button.ghost.scan-open:hover {
   @keyframes dh-delta-fade {
     0%, 85% { opacity: 1; }
     100% { opacity: 0; }
+  }
+}
+
+.ds-search-help {
+  margin: 0 0 0.4rem;
+}
+
+.ds-pick-meta {
+  font-size: 0.78em;
+}
+
+/* ——— Deck page: main column + stats dock ——— */
+.deck-layout {
+  display: block;
+  min-width: 0;
+}
+
+.deck-main {
+  min-width: 0;
+}
+
+.stats-dock-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.stats-dock-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.5rem 0.3rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.stats-dock-head h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.stats-dock-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+.stats-dock-scroll {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  min-height: 0;
+  min-width: 0;
+  padding: 0 0 0.9rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.stats-dock-scroll > .ds-body,
+.stats-dock-scroll > .ds-placeholder {
+  padding: 0 0.9rem;
+}
+
+.stats-dock-scroll > .dh-tray {
+  border-top: 0;
+}
+
+.stats-pill {
+  position: fixed;
+  right: max(0.75rem, env(safe-area-inset-right, 0px));
+  bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2.75rem;
+  padding: 0 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  box-shadow: var(--shadow-lift);
+  cursor: pointer;
+}
+
+.stats-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.stats-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 44rem;
+  height: 85dvh;
+  max-height: 85dvh;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border: 1px solid var(--line-strong);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--card);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+}
+
+.stats-sheet .stats-dock-head {
+  padding-left: 1rem;
+}
+
+/* Room for the floating pill under the last card (not a big empty scroll). */
+@media (max-width: 1099px) {
+  .deck-layout {
+    padding-bottom: calc(2.75rem + 0.5rem);
+  }
+}
+
+@media (min-width: 1100px) {
+  .app-main:has(.deck-layout) {
+    max-width: min(1760px, 100%);
+  }
+
+  .deck-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0 1.25rem;
+    align-items: start;
+  }
+
+  .stats-dock {
+    position: sticky;
+    top: 1rem;
+    width: 26rem;
+    max-width: 100%;
+  }
+
+  .stats-dock-collapsed {
+    width: 2.75rem;
+  }
+
+  .stats-dock .stats-dock-panel {
+    max-height: calc(100dvh - 2rem);
+  }
+
+  .stats-dock .ds-grid,
+  .stats-dock .ds-tiles {
+    grid-template-columns: repeat(var(--ds-side-cols, 1), minmax(0, 1fr));
+  }
+
+  .stats-dock .ds-tiles {
+    --ds-side-cols: 2;
+  }
+
+  .stats-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.7rem 0 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .stats-rail:hover {
+    background: var(--card-sunk);
+  }
+
+  .stats-rail-label {
+    writing-mode: vertical-rl;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
   }
 }
