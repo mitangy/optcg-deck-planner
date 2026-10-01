@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { DuelBoard } from "../src/board/DuelBoard";
+import { floatingPromptsEnabled } from "../src/config";
 import { useDuelSession } from "../src/state/DuelSession";
 
 export default function DuelScreen() {
@@ -63,6 +64,7 @@ export default function DuelScreen() {
         errorBanner={errorBanner}
         matchOver={matchOver}
         spectator={spectating}
+        floatingPrompts={floatingPromptsEnabled()}
         onSendIntent={sendIntent}
         onLeave={async () => {
           await leave();

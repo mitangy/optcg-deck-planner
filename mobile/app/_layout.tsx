@@ -16,6 +16,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ title: "OPTCG Duel" }} />
         <Stack.Screen name="duel" options={{ title: "Duel", headerBackVisible: false }} />
+        <Stack.Screen name="demo" options={{ title: "Floating cards demo" }} />
       </Stack>
     </DuelSessionProvider>
   );

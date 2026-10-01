@@ -11,6 +11,7 @@ import type { Intent, MatchOverMessage, PlayerView, Seat } from "../net/protocol
 import { ChoicePrompt } from "./ChoicePrompt";
 import { CardTile } from "./CardTile";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
+import { canFloat, FloatingPrompt } from "./FloatingPrompt";
 import { IntentBar } from "./IntentBar";
 
 type Props = {
@@ -20,6 +21,8 @@ type Props = {
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
   spectator?: boolean;
+  /** Searches and effect ordering float their cards over the board instead of the inline prompt. */
+  floatingPrompts?: boolean;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
   onClearError: () => void;
@@ -32,6 +35,7 @@ export function DuelBoard({
   errorBanner,
   matchOver,
   spectator = false,
+  floatingPrompts = false,
   onSendIntent,
   onLeave,
   onClearError,
@@ -51,6 +55,9 @@ export function DuelBoard({
   const opp = view.opponent;
   const mySeat = seat ?? view.seat;
   const spectating = spectator || Boolean(view.spectator);
+  const front = view.pendingChoices?.[0];
+  const floating =
+    floatingPrompts && !spectating && front != null && front.seat === mySeat && canFloat(front);
   const handSlots = spectating
     ? Array.from({ length: you.handCount ?? 0 }, (_, i) => i)
     : you.hand.map((_, i) => i);
@@ -112,6 +119,8 @@ export function DuelBoard({
 
         {(() => {
           const front = view.pendingChoices?.[0];
+          // The floating overlay (below the scroll view) owns this choice.
+          if (floating) return null;
           const orderingEffects =
             !spectating && front?.kind === "order_effects" && front.seat === mySeat;
           const choosing =
@@ -239,6 +248,17 @@ export function DuelBoard({
           <Text style={styles.spectateText}>Read-only spectate — no intents</Text>
         </View>
       )}
+
+      {floating && front ? (
+        <FloatingPrompt
+          key={front.id}
+          choice={front}
+          onSend={(intent) => {
+            setHandFilter(null);
+            onSendIntent(intent);
+          }}
+        />
+      ) : null}
 
       <Modal visible={over} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
