@@ -222,10 +222,10 @@ function StatsLoader({ cards, leaderId }: { cards: DeckStatsCard[]; leaderId: st
 }
 
 /** Wide enough for the page to sit beside a stats column (matches the CSS breakpoint). */
-const DOCK_QUERY = "(min-width: 1200px)";
+export const DOCK_QUERY = "(min-width: 1200px)";
 const COLLAPSED_KEY = "optcg_deck_stats_collapsed";
 
-function useMediaQuery(query: string): boolean {
+export function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() => (typeof window !== "undefined" && window.matchMedia ? window.matchMedia(query).matches : false));
   useEffect(() => {
     if (!window.matchMedia) return;
@@ -286,8 +286,9 @@ function StatsContent({ cards, leaderId, hints }: { cards: DeckStatsCard[]; lead
  * rail. Narrow screens: a floating "Stats" pill that opens a bottom sheet, so the list stays put.
  * `hints` (owner only) puts the build-hint tray at the top and its count on the rail / pill.
  */
-export function DeckStatsDock({ cards, leaderId, hints }: { cards: DeckStatsCard[]; leaderId: string | null; hints?: HintsState }) {
-  const wide = useMediaQuery(DOCK_QUERY);
+export function DeckStatsDock({ cards, leaderId, hints, compact = false }: { cards: DeckStatsCard[]; leaderId: string | null; hints?: HintsState; compact?: boolean }) {
+  // `compact` keeps the pill + sheet even on a wide screen (the editor is using the dock's column).
+  const wide = useMediaQuery(DOCK_QUERY) && !compact;
   const [collapsed, setCollapsed] = useStatsCollapsed();
   const [sheetOpen, setSheetOpen] = useState(false);
   const pillRef = useRef<HTMLButtonElement>(null);
