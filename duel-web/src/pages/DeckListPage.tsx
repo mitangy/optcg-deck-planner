@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
@@ -20,6 +20,8 @@ import {
   type PlannerDeckSummary,
 } from "../decks/planner";
 import { acceptsDrop, useDeckDrag, type DeckDragItem, type DeckDropZone } from "../decks/useDeckDrag";
+import { useSwipeMove } from "../decks/useSwipeMove";
+import { DESKTOP_DECKS_QUERY, useMediaQuery } from "../board/useMediaQuery";
 import { fetchAuthMe, googleLoginUrl, type AuthUser } from "../net/api";
 import type { ImportIntoDeckResult } from "../decks/storage";
 
@@ -56,6 +58,43 @@ function DragHandle({
   );
 }
 
+/**
+ * One row of either list. On phones (below DESKTOP_DECKS_QUERY) a row that can
+ * change lists slides sideways under the finger and reveals where it is going;
+ * desktop keeps the grip drag.
+ */
+function SwipeRow({
+  className,
+  swipe,
+  children,
+}: {
+  className: string;
+  /** Set when a sideways swipe moves this deck to the other list. */
+  swipe?: { label: string; onMove: () => void };
+  children: ReactNode;
+}) {
+  const { dx, phase, armed, handlers } = useSwipeMove(Boolean(swipe), () => swipe?.onMove());
+  return (
+    <li className={`deck-swipe-slot${swipe ? " is-swipeable" : ""}`}>
+      {swipe && dx !== 0 ? (
+        <span
+          className={`deck-swipe-action${dx > 0 ? " from-left" : " from-right"}${armed ? " is-armed" : ""}`}
+          aria-hidden
+        >
+          {swipe.label}
+        </span>
+      ) : null}
+      <div
+        className={`${className}${phase === "dragging" ? " is-swiping" : ""}`}
+        style={dx !== 0 ? { transform: `translateX(${dx}px)` } : undefined}
+        {...handlers}
+      >
+        {children}
+      </div>
+    </li>
+  );
+}
+
 function PlannerRow({
   deck,
   busy,
@@ -63,25 +102,32 @@ function PlannerRow({
   dragging,
   onToggle,
   onDragStart,
+  onSwipe,
 }: {
   deck: PlannerDeckSummary;
   busy: boolean;
   selected: boolean;
   dragging: boolean;
   onToggle: () => void;
-  onDragStart: (e: ReactPointerEvent) => void;
+  /** Desktop: grip drag. */
+  onDragStart?: (e: ReactPointerEvent) => void;
+  /** Phones: swipe sideways to add. */
+  onSwipe?: () => void;
 }) {
   const art = deck.leader_image_url || null;
   const [failedArt, setFailedArt] = useState<string | null>(null);
   const showArt = Boolean(art) && art !== failedArt;
   const count = deck.main_cards || deck.card_count;
   return (
-    <li
+    <SwipeRow
       className={`deck-list-row deck-planner-row${selected ? " is-selected" : ""}${
         dragging ? " is-dragging" : ""
       }`}
+      swipe={onSwipe && !busy ? { label: "↑ Add to Your decks", onMove: onSwipe } : undefined}
     >
-      <DragHandle label={`Drag ${deck.name} to your decks`} onPointerDown={onDragStart} />
+      {onDragStart ? (
+        <DragHandle label={`Drag ${deck.name} to your decks`} onPointerDown={onDragStart} />
+      ) : null}
       <label className="deck-list-open deck-planner-pick">
         <input
           type="checkbox"
@@ -110,7 +156,7 @@ function PlannerRow({
           </div>
         </div>
       </label>
-    </li>
+    </SwipeRow>
   );
 }
 
@@ -120,13 +166,18 @@ function DeckRow({
   onOpen,
   onDelete,
   onDragStart,
+  onSwipe,
+  phone,
 }: {
   deck: SavedDeck;
   dragging: boolean;
   onOpen: () => void;
   onDelete: () => void;
-  /** Set for planner-linked copies while planner decks are shown; they can be dragged back down. */
+  /** Desktop: set for planner-linked copies while planner decks are shown; they can be dragged back down. */
   onDragStart?: (e: ReactPointerEvent) => void;
+  /** Phones: the same copies swipe sideways back to the planner. */
+  onSwipe?: () => void;
+  phone: boolean;
 }) {
   const leader = lookupCard(deck.leaderId);
   const leaderArt = resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" });
@@ -135,8 +186,11 @@ function DeckRow({
   const showArt = Boolean(leaderArt) && leaderArt !== failedArtSrc;
 
   return (
-    <li className={`deck-list-row${dragging ? " is-dragging" : ""}`}>
-      {onDragStart ? (
+    <SwipeRow
+      className={`deck-list-row${dragging ? " is-dragging" : ""}`}
+      swipe={onSwipe ? { label: "↓ Back to planner", onMove: onSwipe } : undefined}
+    >
+      {phone ? null : onDragStart ? (
         <DragHandle label={`Drag ${deck.name} back to your planner`} onPointerDown={onDragStart} />
       ) : (
         <span className="deck-drag-handle deck-drag-handle-none" aria-hidden />
@@ -167,7 +221,7 @@ function DeckRow({
           Delete
         </button>
       ) : null}
-    </li>
+    </SwipeRow>
   );
 }
 
@@ -180,6 +234,8 @@ export function DeckListPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const deepLinkHandled = useRef(false);
+  // Phones swipe rows between the lists; the grip drag could not reach the top of a long list.
+  const phone = !useMediaQuery(DESKTOP_DECKS_QUERY);
 
   function openImported(result: ImportIntoDeckResult) {
     if (!result.ok) {
@@ -305,10 +361,14 @@ export function DeckListPage() {
     });
   }
 
+  /** Dragging or swiping a ticked deck carries every ticked deck with it. */
+  function plannerGroup(d: PlannerDeckSummary) {
+    return selected.has(d.id) ? selectedLeft : [d];
+  }
+
   function dragPlanner(e: ReactPointerEvent, d: PlannerDeckSummary) {
     if (importing) return;
-    // Dragging a ticked deck carries every ticked deck with it.
-    const group = selected.has(d.id) ? selectedLeft : [d];
+    const group = plannerGroup(d);
     const item: DeckDragItem = {
       kind: "planner",
       ids: group.map((g) => g.id),
@@ -384,9 +444,15 @@ export function DeckListPage() {
                       deleteDeck(deck.id);
                       refresh();
                     }}
+                    phone={phone}
                     onDragStart={
-                      deck.plannerDeckId && planner.status === "ready"
+                      !phone && deck.plannerDeckId && planner.status === "ready"
                         ? (e) => startDrag(e, { kind: "local", id: deck.id, label: deck.name })
+                        : undefined
+                    }
+                    onSwipe={
+                      phone && deck.plannerDeckId && planner.status === "ready"
+                        ? () => moveBackToPlanner(deck.id)
                         : undefined
                     }
                   />
@@ -419,7 +485,9 @@ export function DeckListPage() {
               <>
                 <div className="deck-planner-toolbar">
                   <p className="meta deck-planner-hint">
-                    Tick decks to add them, or drag them to Your decks.
+                    {phone
+                      ? "Tick decks to add them, or swipe a deck sideways to move it between lists."
+                      : "Tick decks to add them, or drag them to Your decks."}
                   </p>
                   <div className="deck-planner-toolbar-actions">
                     <button
@@ -444,7 +512,9 @@ export function DeckListPage() {
                 </div>
                 {plannerLeft.length === 0 ? (
                   <p className="meta deck-planner-status">
-                    Every planner deck is in Your decks. Drag one back here to remove its copy.
+                    {phone
+                      ? "Every planner deck is in Your decks. Swipe one there to send it back."
+                      : "Every planner deck is in Your decks. Drag one back here to remove its copy."}
                   </p>
                 ) : (
                   <ul className="deck-list">
@@ -456,7 +526,12 @@ export function DeckListPage() {
                         selected={selected.has(d.id)}
                         dragging={dragIds.has(d.id)}
                         onToggle={() => toggle(d.id)}
-                        onDragStart={(e) => dragPlanner(e, d)}
+                        onDragStart={phone ? undefined : (e) => dragPlanner(e, d)}
+                        onSwipe={
+                          phone
+                            ? () => void addPlannerDecks(plannerGroup(d).map((g) => g.id))
+                            : undefined
+                        }
                       />
                     ))}
                   </ul>

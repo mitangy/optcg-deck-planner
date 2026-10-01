@@ -3955,6 +3955,61 @@ details.deck-config-section.deck-collapsible {
   color: var(--muted);
 }
 
+/* Phones: rows that can change lists swipe sideways (useSwipeMove) instead of the grip drag. */
+.deck-swipe-slot {
+  position: relative;
+  min-width: 0;
+}
+
+/* The row slides off inside its own slot instead of past the screen edge. */
+.deck-swipe-slot.is-swipeable {
+  overflow: clip;
+  border-radius: 8px;
+}
+
+.deck-swipe-slot.is-swipeable > .deck-list-row {
+  position: relative;
+  touch-action: pan-y;
+  transition: transform 0.18s ease;
+}
+
+.deck-swipe-slot > .deck-list-row.is-swiping {
+  transition: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.deck-swipe-action {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  border-radius: 8px;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.deck-swipe-action.from-left {
+  justify-content: flex-start;
+}
+
+.deck-swipe-action.from-right {
+  justify-content: flex-end;
+}
+
+.deck-swipe-action.is-armed {
+  border-style: solid;
+  border-color: var(--chrome-bright);
+  color: var(--chrome-bright);
+  background: rgba(255, 255, 255, 0.06);
+}
+
 /* The rounded drop outline would bend the planner divider into an arc; headings separate the lists. */
 .deck-planner-section.deck-drop-zone {
   border-top: none;
