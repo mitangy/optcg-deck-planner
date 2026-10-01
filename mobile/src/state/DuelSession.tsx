@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useMemo, useRef, useState } from "react";
+import { floatingPromptsEnabled } from "../config";
 import { DuelClient } from "../net/duelClient";
 import type {
   Intent,
@@ -41,6 +42,9 @@ type DuelSession = {
   leave: () => Promise<void>;
   clearError: () => void;
   setRating: (n: number | null) => void;
+  /** Settings: searches and effect ordering float their cards over the board (else the inline prompt). */
+  floatingCards: boolean;
+  setFloatingCards: (on: boolean) => void;
 };
 
 const Ctx = createContext<DuelSession | null>(null);
@@ -57,6 +61,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [matchOver, setMatchOver] = useState<MatchOverMessage["result"] | null>(null);
   const [rating, setRating] = useState<number | null>(null);
+  const [floatingCards, setFloatingCards] = useState(floatingPromptsEnabled);
 
   const value = useMemo<DuelSession>(() => {
     const client = clientRef.current;
@@ -171,6 +176,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       clearError() {
         setErrorBanner(null);
       },
+      floatingCards,
+      setFloatingCards,
     };
   }, [
     connected,
@@ -183,6 +190,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     errorBanner,
     matchOver,
     rating,
+    floatingCards,
   ]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

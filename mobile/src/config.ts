@@ -20,9 +20,9 @@ export function getDevJoinSecret(): string | undefined {
 }
 
 /**
- * Floating-card searches and effect ordering in live matches (prototype, off
- * by default like duel-web's `/demo?float`). The `/demo` screen always shows them.
+ * Floating-card searches and effect ordering in live matches (on by default,
+ * like duel-web). `EXPO_PUBLIC_FLOATING_PROMPTS=false` brings back the inline prompts.
  */
 export function floatingPromptsEnabled(): boolean {
-  return process.env.EXPO_PUBLIC_FLOATING_PROMPTS === "true";
+  return process.env.EXPO_PUBLIC_FLOATING_PROMPTS !== "false";
 }

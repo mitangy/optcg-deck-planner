@@ -217,7 +217,7 @@ function demoChoice(choice: NonNullable<PlayerView["pendingChoices"]>[number]): 
 
 /**
  * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|order|mode|effects`).
- * Add `&float` to see searches and effect ordering as floating cards (prototype).
+ * Searches and effect ordering float over the board; add `&box` to see the old pop-up.
  */
 export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
   don: demoChoice({
@@ -556,8 +556,8 @@ function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
  * (`&rematch=ask|wait|choose|left`), `?full` a full board, `?rest=N` / `?restlead` /
  * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
  * icons (see withManyStatuses), `?motion` a button that steps
- * through every card animation, `?float` floating-card searches and effect
- * ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` drag QA (see
+ * through every card animation, `?box` the old pop-up instead of floating-card
+ * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` drag QA (see
  * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {
@@ -653,7 +653,7 @@ export function DemoPage() {
         }
         battleLog={DEMO_BATTLE_LOG}
         leaveLabel="Leave match"
-        floatingPrompts={params.has("float")}
+        floatingPrompts={!params.has("box")}
         hotseatPass={
           params.has("practice") ? { otherSeat: 1, onPass: () => undefined } : undefined
         }

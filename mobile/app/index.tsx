@@ -14,7 +14,7 @@ import { useDuelSession } from "../src/state/DuelSession";
 
 export default function ConnectScreen() {
   const router = useRouter();
-  const { connect, queueRanked, cancelQueue, queueing, setRating } = useDuelSession();
+  const { connect, queueRanked, cancelQueue, queueing, setRating, floatingCards, setFloatingCards } = useDuelSession();
   const [serverUrl, setServerUrl] = useState(getGameServerUrl());
   const [apiUrl] = useState(getApiBaseUrl());
   const [userKey, setUserKey] = useState("mobile-dev");
@@ -109,6 +109,16 @@ export default function ConnectScreen() {
       >
         <Text style={styles.toggleText}>
           Auth: {useToken ? "POST /duel/dev-token (bearer)" : "legacy devUserId"}
+        </Text>
+      </Pressable>
+      <Pressable
+        style={styles.toggle}
+        onPress={() => setFloatingCards(!floatingCards)}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: floatingCards }}
+      >
+        <Text style={styles.toggleText}>
+          Floating cards: {floatingCards ? "On (searches float over the board)" : "Off (inline prompt)"}
         </Text>
       </Pressable>
       {ratingLabel ? (

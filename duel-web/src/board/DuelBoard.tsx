@@ -137,7 +137,7 @@ type Props = {
   /** Online: each seat's shared custom playmat / card back (shown for the opponent only). */
   seatSkins?: readonly [SeatSkin | null, SeatSkin | null];
   leaveLabel?: string;
-  /** Prototype (`/demo?float`): searches and effect ordering float cards over the board instead of a pop-up. */
+  /** Searches and effect ordering float cards over the board instead of a pop-up (default on; `/demo?box` shows the pop-up). */
   floatingPrompts?: boolean;
   /** Before the first view: what the empty board says (queueing, connecting, starting). */
   waiting?: BoardWaiting;
@@ -201,7 +201,7 @@ export function DuelBoard({
   seatSkins,
   rematch,
   leaveLabel = "Leave",
-  floatingPrompts = false,
+  floatingPrompts = true,
   waiting,
   onSendIntent,
   onLeave,
@@ -1759,6 +1759,7 @@ export function DuelBoard({
           }}
         />
       ) : floatingPrompts &&
+        prefs.floatingCards &&
         !spectating &&
         mySeat != null &&
         view.pendingChoices?.[0] &&

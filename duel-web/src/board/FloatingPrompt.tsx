@@ -7,7 +7,7 @@ import "./float.css";
 import { promptSourceName } from "./HideablePrompt";
 
 /**
- * Floating-card prompts (prototype, `/demo?float`): instead of a pop-up panel,
+ * Floating-card prompts (default on; `/demo?box` shows the old pop-up): instead of a pop-up panel,
  * the cards an effect is working with float over the board in a row. Tap a
  * card to pick it, drag cards left / right to reorder, then confirm. The row
  * always reads left → right: top of deck → bottom, or first effect → last.

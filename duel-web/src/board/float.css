@@ -1,4 +1,4 @@
-/* —— Floating-card prompts (FloatingPrompt.tsx, prototype behind /demo?float) ——
+/* —— Floating-card prompts (FloatingPrompt.tsx; /demo?box shows the old pop-up) ——
    The cards an effect works with float over the board in one row instead of a
    pop-up panel. The layer covers only the board column on wide layouts, so the
    log, rail and hand stay put; the scrim dims the mat without hiding it. */
