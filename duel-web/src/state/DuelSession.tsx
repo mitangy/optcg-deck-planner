@@ -89,8 +89,9 @@ type DuelSession = {
   /**
    * Open the board now and run `task` (mint, queue, connect) behind it. A
    * failure lands in errorBanner; Leave before it settles abandons it.
+   * `task` gets the launch's generation to hand to connect / queueRanked.
    */
-  startMatch: (launch: MatchLaunch, task: () => Promise<void>) => void;
+  startMatch: (launch: MatchLaunch, task: (launchGen: number) => Promise<void>) => void;
   connected: boolean;
   queueing: boolean;
   canReconnect: boolean;
@@ -124,9 +125,11 @@ type DuelSession = {
   sendUndo: (action: UndoAction) => void;
   rating: number | null;
   lastServerUrl: string | null;
-  connect: (opts: ConnectOpts) => Promise<void>;
+  /** `launchGen` is the startMatch generation; a superseded launch never reaches the client. */
+  connect: (opts: ConnectOpts, launchGen: number) => Promise<void>;
   queueRanked: (
     opts: Pick<ConnectOpts, "serverUrl" | "devUserId" | "gameToken" | "secret" | "deck">,
+    launchGen: number,
   ) => Promise<void>;
   cancelQueue: () => Promise<void>;
   reconnect: () => Promise<void>;
@@ -137,6 +140,13 @@ type DuelSession = {
   clearError: () => void;
   setRating: (n: number | null) => void;
 };
+
+/** A match request dropped by Leave or a newer request. */
+export class LaunchCancelledError extends Error {
+  constructor() {
+    super("Match request cancelled");
+  }
+}
 
 const Ctx = createContext<DuelSession | null>(null);
 
@@ -309,7 +319,11 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         void client.disconnect(true);
         resetMatch();
       }
-      return new Error("Match request cancelled");
+      return cancelled();
+    }
+
+    function cancelled(): Error {
+      return new LaunchCancelledError();
     }
 
     function resetMatch() {
@@ -387,7 +401,10 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       rating,
       lastServerUrl,
       setRating,
-      async connect(opts) {
+      async connect(opts, gen) {
+        // Left or relaunched while the task was minting / fetching the deck:
+        // touch neither the client nor the newer match's state.
+        if (launchGenRef.current !== gen) throw cancelled();
         setErrorBanner(null);
         setMatchOver(null);
         setTimer(null);
@@ -402,7 +419,6 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setLastServerUrl(opts.serverUrl);
         }
         wireHandlers();
-        const gen = launchGenRef.current;
         const info = await client.connect(opts);
         if (launchGenRef.current !== gen) throw abandon();
         seatRef.current = info.seat;
@@ -415,7 +431,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         const tok = client.getReconnectionToken();
         if (tok) persistToken(tok, info.matchId);
       },
-      async queueRanked(opts) {
+      async queueRanked(opts, gen) {
+        if (launchGenRef.current !== gen) throw cancelled();
         setErrorBanner(null);
         setMatchOver(null);
         setTimer(null);
@@ -429,7 +446,6 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setLastServerUrl(opts.serverUrl);
         }
         wireHandlers();
-        const gen = launchGenRef.current;
         try {
           const info = await client.queueRanked(opts);
           if (launchGenRef.current !== gen) throw abandon();
@@ -556,7 +572,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           launchingRef.current = false;
           setLaunching(false);
         };
-        task().then(
+        task(gen).then(
           () => {
             if (launchGenRef.current === gen) settle();
           },

@@ -257,7 +257,11 @@ export type PlayerView = {
     leader: CardView;
     characters: CardView[];
     stage: CardView | null;
-    hand: { id: string; defId: string; playCost?: number }[];
+    /**
+     * Own hand only. `playCost` is the live cost on your main phase; `counter` is the
+     * live Counter (printed plus "+N Counter" statics) during your counter step.
+     */
+    hand: { id: string; defId: string; playCost?: number; counter?: number }[];
     handCount?: number;
     deckCount: number;
     trash: string[];
