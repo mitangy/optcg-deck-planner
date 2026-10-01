@@ -21,6 +21,7 @@ export default function DuelScreen() {
     concede,
     leave,
     clearError,
+    floatingCards,
   } = useDuelSession();
 
   const spectating = role === "spectator" || Boolean(view?.spectator);
@@ -63,6 +64,7 @@ export default function DuelScreen() {
         errorBanner={errorBanner}
         matchOver={matchOver}
         spectator={spectating}
+        floatingPrompts={floatingCards}
         onSendIntent={sendIntent}
         onLeave={async () => {
           await leave();

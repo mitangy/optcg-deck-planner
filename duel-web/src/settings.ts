@@ -49,6 +49,8 @@ export type DuelSettings = {
   handLayout: HandLayout;
   /** Desktop: tilt the board away from you, seen from your seat. */
   tiltedBoard: boolean;
+  /** Searches and effect ordering float their cards over the board instead of a pop-up box. */
+  floatingCards: boolean;
   /** "Your turn" / "Opponent's turn" banner over the board. */
   turnSplash: boolean;
   /** Tone down board animations even when the OS has no reduced-motion preference. */
@@ -74,6 +76,7 @@ const DEFAULTS: DuelSettings = {
   sortHandByCost: false,
   handLayout: "fanCenter",
   tiltedBoard: false,
+  floatingCards: true,
   turnSplash: true,
   reduceMotion: false,
   animationSpeed: "normal",

@@ -26,6 +26,22 @@ describe("loadSettings", () => {
   });
 });
 
+describe("floating cards", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("floats cards for players whose saved settings predate the option", () => {
+    stubStored({ endTurnConfirm: "never" });
+    expect(loadSettings().floatingCards).toBe(true);
+  });
+
+  it("keeps the pop-up box for a player who turned floating cards off", () => {
+    stubStored({ floatingCards: false });
+    expect(loadSettings().floatingCards).toBe(false);
+  });
+});
+
 describe("animation speed", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

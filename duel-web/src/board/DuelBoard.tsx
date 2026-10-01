@@ -101,6 +101,8 @@ import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY,
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { matchMenuItems } from "./matchMenuItems";
+import { isPromptHidden } from "./promptHide";
+import { HideablePrompt, promptSourceName } from "./HideablePrompt";
 
 type Props = {
   view: PlayerView | null;
@@ -135,7 +137,7 @@ type Props = {
   /** Online: each seat's shared custom playmat / card back (shown for the opponent only). */
   seatSkins?: readonly [SeatSkin | null, SeatSkin | null];
   leaveLabel?: string;
-  /** Prototype (`/demo?float`): searches and effect ordering float cards over the board instead of a pop-up. */
+  /** Searches and effect ordering float cards over the board instead of a pop-up (default on; `/demo?box` shows the pop-up). */
   floatingPrompts?: boolean;
   /** Before the first view: what the empty board says (queueing, connecting, starting). */
   waiting?: BoardWaiting;
@@ -199,7 +201,7 @@ export function DuelBoard({
   seatSkins,
   rematch,
   leaveLabel = "Leave",
-  floatingPrompts = false,
+  floatingPrompts = true,
   waiting,
   onSendIntent,
   onLeave,
@@ -207,6 +209,8 @@ export function DuelBoard({
 }: Props) {
   const [handFilter, setHandFilter] = useState<number | null>(null);
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
+  /** Id of the choice whose pop-up the player tucked away to look at the hand/board. */
+  const [hiddenChoiceId, setHiddenChoiceId] = useState<string | null>(null);
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
   const [logCollapsed, setLogCollapsed] = useState(true);
   const [handCollapsed, setHandCollapsed] = useState(false);
@@ -1755,6 +1759,7 @@ export function DuelBoard({
           }}
         />
       ) : floatingPrompts &&
+        prefs.floatingCards &&
         !spectating &&
         mySeat != null &&
         view.pendingChoices?.[0] &&
@@ -1773,31 +1778,46 @@ export function DuelBoard({
       ) : !spectating &&
       view.pendingChoices?.[0]?.kind === "order_effects" &&
       view.pendingChoices[0].seat === mySeat ? (
-        <EffectOrderPrompt
-          key={view.pendingChoices[0].id}
-          choice={view.pendingChoices[0]}
-          onSend={(intent) => {
-            setHandFilter(null);
-            setSelectedBoardId(null);
-            onSendIntent(intent);
-          }}
-        />
+        <HideablePrompt
+          name="Order effects"
+          hidden={isPromptHidden(hiddenChoiceId, view.pendingChoices[0].id)}
+          onShow={() => setHiddenChoiceId(null)}
+        >
+          <EffectOrderPrompt
+            key={view.pendingChoices[0].id}
+            choice={view.pendingChoices[0]}
+            onHide={() => setHiddenChoiceId(view.pendingChoices?.[0]?.id ?? null)}
+            onSend={(intent) => {
+              setHandFilter(null);
+              setSelectedBoardId(null);
+              onSendIntent(intent);
+            }}
+          />
+        </HideablePrompt>
       ) : !spectating &&
         mySeat != null &&
         view.pendingChoices?.[0] &&
         view.pendingChoices[0].kind !== "order_effects" &&
         view.pendingChoices[0].seat === mySeat ? (
-        <ChoicePrompt
-          key={view.pendingChoices[0].id}
-          choice={view.pendingChoices[0]}
-          mySeat={mySeat}
-          view={view}
-          onSend={(intent) => {
-            setHandFilter(null);
-            setSelectedBoardId(null);
-            onSendIntent(intent);
-          }}
-        />
+        <HideablePrompt
+          name={promptSourceName(view.pendingChoices[0])}
+          hidden={isPromptHidden(hiddenChoiceId, view.pendingChoices[0].id)}
+          onShow={() => setHiddenChoiceId(null)}
+        >
+          <ChoicePrompt
+            key={view.pendingChoices[0].id}
+            choice={view.pendingChoices[0]}
+            mySeat={mySeat}
+            view={view}
+            hidden={isPromptHidden(hiddenChoiceId, view.pendingChoices[0].id)}
+            onHide={() => setHiddenChoiceId(view.pendingChoices?.[0]?.id ?? null)}
+            onSend={(intent) => {
+              setHandFilter(null);
+              setSelectedBoardId(null);
+              onSendIntent(intent);
+            }}
+          />
+        </HideablePrompt>
       ) : !spectating &&
         view.pendingChoices?.[0] &&
         view.pendingChoices[0].seat !== mySeat ? (

@@ -75,7 +75,7 @@ for (const vp of VIEWPORTS) {
   if (primarySpill > 1) problems.push(`primary button label spills ${primarySpill}px past the button`);
   if (vp.phone) {
     // A long card name in the Top / Bottom rows must not widen the prompt.
-    await page.goto(`${baseUrl}/demo?prompt=satori`, { waitUntil: "networkidle" });
+    await page.goto(`${baseUrl}/demo?box&prompt=satori`, { waitUntil: "networkidle" });
     await page.waitForSelector(".choice-prompt .order-row", { timeout: 15000 }).catch(() => {});
     const promptSpill = await overflowOf(page, ".choice-prompt");
     if (promptSpill > 1) problems.push(`deck-order prompt ${promptSpill}px wider than itself`);

@@ -18,3 +18,11 @@ export function getDevJoinSecret(): string | undefined {
   const s = process.env.EXPO_PUBLIC_DEV_JOIN_SECRET;
   return s && s.length > 0 ? s : undefined;
 }
+
+/**
+ * Floating-card searches and effect ordering in live matches (on by default,
+ * like duel-web). `EXPO_PUBLIC_FLOATING_PROMPTS=false` brings back the inline prompts.
+ */
+export function floatingPromptsEnabled(): boolean {
+  return process.env.EXPO_PUBLIC_FLOATING_PROMPTS !== "false";
+}
