@@ -1,12 +1,9 @@
 /**
- * Player-tweakable connection / identity settings, persisted in localStorage so
- * they can live on the Settings page instead of cluttering the lobby.
- *
- * Only overrides are stored: an empty `serverUrl` means "use the build default"
- * so a deploy that changes VITE_GAME_SERVER_URL is not shadowed by a stale value.
+ * Player-tweakable settings, persisted in localStorage so they can live on the
+ * Settings page instead of cluttering the lobby. The game server and join secret
+ * come from the build (VITE_GAME_SERVER_URL / VITE_DEV_JOIN_SECRET).
  */
 import { useSyncExternalStore } from "react";
-import { getGameServerUrl } from "./config";
 
 /** When "End turn" asks for a second tap. */
 export type EndTurnConfirm = "always" | "actions" | "never";
@@ -31,10 +28,6 @@ export type AnimationSpeed = "normal" | "fast" | "off";
 export type HandLayout = "fanCenter" | "fanRight" | "grid";
 
 export type DuelSettings = {
-  /** Game server URL override ("" = build default). */
-  serverUrl: string;
-  /** Optional DEV_JOIN_SECRET sent on join. */
-  joinSecret: string;
   /** Mint tokens with a dev user key instead of the guest id (dev builds only). */
   useDevKey: boolean;
   devUserKey: string;
@@ -71,8 +64,6 @@ export type DuelSettings = {
 const KEY = "optcg-duel:settings";
 
 const DEFAULTS: DuelSettings = {
-  serverUrl: "",
-  joinSecret: "",
   useDevKey: false,
   devUserKey: "web-dev",
   playmatDim: 0.35,
@@ -99,10 +90,22 @@ const CHANGE_EVENT = "optcg-duel:settings-change";
 
 /** Stored values from older builds or hand edits fall back to defaults field by field. */
 function sanitize(
-  parsed: Partial<DuelSettings> & { autoPassDefense?: unknown; keepHandOpen?: unknown },
+  parsed: Partial<DuelSettings> & {
+    autoPassDefense?: unknown;
+    keepHandOpen?: unknown;
+    serverUrl?: unknown;
+    joinSecret?: unknown;
+  },
 ): DuelSettings {
   // keepHandOpen was dropped: a hand that starts raised covers your DON!! row. H still pins it.
-  const { autoPassDefense, keepHandOpen: _keepHandOpen, ...rest } = parsed;
+  // serverUrl / joinSecret were dropped with the Connection panel; the build sets both.
+  const {
+    autoPassDefense,
+    keepHandOpen: _keepHandOpen,
+    serverUrl: _serverUrl,
+    joinSecret: _joinSecret,
+    ...rest
+  } = parsed;
   const next = { ...DEFAULTS, ...rest };
   if (!END_TURN_CONFIRM.includes(next.endTurnConfirm)) next.endTurnConfirm = DEFAULTS.endTurnConfirm;
   // Older builds stored a boolean auto-pass: true is today's `auto`, anything else `always`.
@@ -119,10 +122,8 @@ function sanitize(
   return next;
 }
 
-/** Connection / dev fields that stay on this device; everything else follows the account. */
+/** Dev fields that stay on this device; everything else follows the account. */
 const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
-  "serverUrl",
-  "joinSecret",
   "useDevKey",
   "devUserKey",
 ];
@@ -136,7 +137,7 @@ export function syncedSettings(s: DuelSettings): Record<string, string | number 
   return out;
 }
 
-/** Account settings laid over this device's, keeping its connection fields. */
+/** Account settings laid over this device's, keeping its device-only fields. */
 export function mergeRemoteSettings(local: DuelSettings, remote: Record<string, unknown>): DuelSettings {
   const next = sanitize({ ...local, ...(remote as Partial<DuelSettings>) });
   for (const k of DEVICE_ONLY_KEYS) (next as Record<string, unknown>)[k] = local[k];
@@ -214,11 +215,6 @@ export function currentSettings(): DuelSettings {
 /** Live settings: re-renders when they change on this page or in another tab. */
 export function useDuelSettings(): DuelSettings {
   return useSyncExternalStore(subscribe, snapshot, snapshot);
-}
-
-/** Effective game server URL (override or build default). */
-export function effectiveServerUrl(s: DuelSettings = loadSettings()): string {
-  return s.serverUrl.trim() || getGameServerUrl();
 }
 
 /** Dev key auth is only offered in dev builds or when explicitly enabled. */
