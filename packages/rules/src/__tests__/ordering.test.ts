@@ -170,6 +170,20 @@ describe("DON!! given by the rules", () => {
     h.pick(target!.id);
     expect(costOf(h.state, 1, h.find(1, "OP01-110")!)).toBe(5);
   });
+
+  it("moving a given DON!! with EB02-009 Thousand Sunny fires OP02-002 Garp's \"when given a DON!! card\" (#227)", () => {
+    const h = new Harness({ leaders: ["OP02-002", "ST01-001"] });
+    const [target] = h.field(1, "OP01-110");
+    h.field(0, "EB02-055");
+    const sunny = h.stage(0, "EB02-009");
+    const leader = h.state.players[0].leader;
+    h.attach(0, leader, 1);
+    h.act(0, { type: "activate_ability", sourceId: sunny.id, abilityId: "eb02-009#m0" });
+    h.pick(leader.id);
+    expect(h.find(0, "EB02-055")!.attachedDonIds.length).toBe(1);
+    if (h.choice) h.pick(target!.id);
+    expect(costOf(h.state, 1, h.find(1, "OP01-110")!)).toBe(5);
+  });
 });
 
 describe("paused choices", () => {
