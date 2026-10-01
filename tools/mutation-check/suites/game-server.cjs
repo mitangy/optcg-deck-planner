@@ -4,6 +4,7 @@ const room = "game-server/src/rooms/DuelRoom.ts";
 const queue = "game-server/src/rooms/MatchmakerRoom.ts";
 const cors = "game-server/src/cors.ts";
 const presence = "game-server/src/presence.ts";
+const appConfig = "game-server/src/app.config.ts";
 module.exports = {
   cwd: "game-server",
   runner: "mocha",
@@ -40,6 +41,7 @@ module.exports = {
     { id: "cosmetics-not-relayed", file: room, from: "    this.broadcast(\"cosmetics\", payload);", to: "    client.send(\"cosmetics\", payload);", kills: ["relays cosmetics artPrefs between seats"] },
     { id: "skin-not-relayed", file: room, from: "    this.broadcast(\"skin\", payload);", to: "    client.send(\"skin\", payload);", kills: ["relays a seat's playmat / card back skin"] },
     { id: "skin-any-mime", file: proto, from: "^data:image\\/(?:jpeg|webp|png);base64,", to: "^data:[a-z]+\\/[a-z]+;base64,", kills: ["relays a seat's playmat / card back skin"] },
+    { id: "skin-ws-default-max-payload", file: appConfig, from: "  transport: new WebSocketTransport({ maxPayload: WS_MAX_PAYLOAD_BYTES }),\n", to: "", kills: ["relays a cap-sized playmat and card back in one skin message"] },
     { id: "presence-room-unregistered", file: room, from: "    presence.register(this);\n", to: "", kills: ["friends presence: reports seats as waiting"] },
     { id: "presence-waiting-as-playing", file: room, from: "    const phase: PresenceEntry[\"phase\"] = !this.matchStarted\n      ? \"waiting\"", to: "    const phase: PresenceEntry[\"phase\"] = !this.matchStarted\n      ? \"playing\"", kills: ["friends presence: reports seats as waiting"] },
     { id: "presence-spectator-as-player", file: room, from: "role: \"spectator\", phase", to: "role: \"player\", phase", kills: ["friends presence: reports seats as waiting"] },
