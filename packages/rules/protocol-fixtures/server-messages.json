@@ -732,7 +732,8 @@
           "hand": [
             {
               "id": "c_t2",
-              "defId": "ST01-003"
+              "defId": "ST01-003",
+              "counter": 1000
             },
             {
               "id": "c_t3",
@@ -874,7 +875,8 @@
           "hand": [
             {
               "id": "c_t2",
-              "defId": "ST01-003"
+              "defId": "ST01-003",
+              "counter": 1000
             }
           ],
           "deckCount": 35,

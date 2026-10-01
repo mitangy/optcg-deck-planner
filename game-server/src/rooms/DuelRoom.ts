@@ -6,6 +6,7 @@ import {
   createSeededRng,
   DEFAULT_LEADER_ID,
   deserializeMatch,
+  ensureDefsForPlayers,
   getPlayerView,
   getSpectatorView,
   projectGameEvents,
@@ -157,6 +158,9 @@ export class DuelRoom extends Room implements PresenceSource {
     this.seed = parsed.seed;
     this.autoSkipMulligan = parsed.autoSkipMulligan;
     this.createPlayers = parsed.players;
+    if (parsed.players) {
+      for (const deck of parsed.players) assertKnownDeck(deck);
+    }
     if (parsed.ranked && parsed.players) {
       for (const deck of parsed.players) {
         const issues = unsupportedCardsForDeck(deck);
@@ -511,6 +515,9 @@ export class DuelRoom extends Room implements PresenceSource {
   } {
     const join = parseJoinOptions(options);
     const role = join.role ?? "player";
+    // Reject unknown cards here (onAuth) so only this client's join fails, with a
+    // clear message, instead of createMatch throwing when the opponent joins.
+    if (role === "player" && join.deck) assertKnownDeck(join.deck);
     const required = getDevJoinSecret();
     if (required && join.secret !== required) {
       throw Object.assign(new Error("unauthorized"), { code: "unauthorized" as const });
@@ -643,14 +650,33 @@ export class DuelRoom extends Room implements PresenceSource {
     const leaderB =
       this.seatDecks[1]?.leaderId ?? this.createPlayers?.[1]?.leaderId ?? DEFAULT_LEADER_ID;
 
-    let match = createMatch({
-      seed: this.seed,
-      firstSeat,
-      players: [
-        { leaderId: leaderA, deck: [...deckA] },
-        { leaderId: leaderB, deck: [...deckB] },
-      ],
-    });
+    let match: MatchState;
+    try {
+      match = createMatch({
+        seed: this.seed,
+        firstSeat,
+        players: [
+          { leaderId: leaderA, deck: [...deckA] },
+          { leaderId: leaderB, deck: [...deckB] },
+        ],
+      });
+    } catch (e) {
+      // Never leave both seats waiting on a match that cannot start.
+      const message = `Could not start match: ${e instanceof Error ? e.message : String(e)}`;
+      this.log("warn", "match_start_failed", { matchId: this.matchId, message });
+      for (const slot of this.seats) {
+        if (!slot) continue;
+        const client = this.clients.find((c) => c.sessionId === slot.sessionId);
+        if (client) {
+          this.sendError(client, "bad_protocol", message);
+          client.leave();
+        }
+      }
+      this.seats = [null, null];
+      this.state.seatsFilled = 0;
+      presence.markDirty();
+      return;
+    }
 
     if (this.autoSkipMulligan) {
       match = skipMulligans(match, this.rng);
@@ -1683,6 +1709,18 @@ export class DuelRoom extends Room implements PresenceSource {
     });
     if (level === "warn") console.warn(line);
     else console.log(line);
+  }
+}
+
+/** Same check createMatch applies (unknown ids / non-Leader leaders), surfaced at join. */
+function assertKnownDeck(deck: PlayerDeckWire): void {
+  try {
+    ensureDefsForPlayers([deck]);
+  } catch (e) {
+    throw Object.assign(
+      new Error(`Deck rejected: ${e instanceof Error ? e.message : String(e)}`),
+      { code: "bad_protocol" as const },
+    );
   }
 }
 

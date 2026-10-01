@@ -155,6 +155,11 @@ export async function importPlannerDecks(
   return out;
 }
 
+/** Whether a bulk import brought in this planner deck (a swiped row stays gone only then). */
+export function plannerDeckImported(imported: readonly Pick<SavedDeck, "plannerDeckId">[], plannerId: number): boolean {
+  return imported.some((d) => d.plannerDeckId === plannerId);
+}
+
 /**
  * Best-effort refresh before a match: any failure (offline, timeout, invalid
  * planner list) keeps the local copy as-is.
