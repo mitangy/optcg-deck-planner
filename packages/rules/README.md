@@ -34,6 +34,8 @@ npm run typecheck
 npm run sim          # ≥100 random games
 npm run export-atlas # writes mobile/assets/cardAtlas.json
 SIM_GAMES=200 npm run sim
+npm run scenario-coverage             # supported cards no test mentions, by set (a to-do list, not a gate)
+npm run scenario-coverage -- --summary OP01 EB01
 ```
 
 ## Official structure implemented
@@ -51,9 +53,11 @@ SIM_GAMES=200 npm run sim
 
 ## Curated card definitions
 
-The rules package currently has 44 curated definitions. `EFFECT_CATALOG` records
-each printed clause as implemented, partial, keyword-only, or stub. Default test
-duels use only cards whose full support status is `none`, `keywords`, or `ok`.
+Card definitions cover the whole catalog: abilities are generated from official text
+(`src/cards/generated/abilities.json`) with reviewed overrides in `src/cards/manualAbilities.ts`.
+`EFFECT_CATALOG` records each printed clause as implemented, partial, keyword-only, or stub. Default
+test duels use only cards whose full support status is `none`, `keywords`, or `ok`. The table below
+lists the original hand-curated starter cards.
 
 | ID | Name | Role / hooks |
 |----|------|----------------|
@@ -69,6 +73,34 @@ Art URLs prefer TCGPlayer CDN and remain display-only. Clients consume
 `buildCardAtlas()` / `export-atlas` JSON and never infer legality from cosmetics.
 
 Decks in tests/sims use **20 cards** (≤4 copies each) from this set — not full 50-card constructed.
+
+## Card scenario tests
+
+`src/testing/scenario.ts` turns table rows into vitest cases on top of the `Harness`. A row names
+one card, lays out both seats (`me` is seat 0 and active; `opp` is seat 1), replays steps, and
+states the resulting board:
+
+```ts
+{
+  card: "OP01-011", name: "accept: places a hand card at the bottom and draws",
+  me: { hand: ["OP01-011", "ST01-003"], don: { active: 2 }, deckTop: ["OP01-010"] },
+  steps: [{ play: "OP01-011" }, { accept: true }],
+  expect: { me: { hand: ["OP01-010"], field: ["OP01-011"], deckDelta: 0 } },
+}
+```
+
+Steps: `play`, `counter`, `attack`, `passBlock`, `passBattle`, `activate`, `accept`, `decline`,
+`pick` (definition ids or option labels), `endTurn`; `play`, `activate` and `attack` take
+`rejects: true` to assert the intent is refused. Expectations cover hand, field, stage, Life (count or
+cards, plus `faceUp`), trash, deck size/top, DON!!, rested Characters, power, attached DON!!,
+keywords, legal blockers, the pending choice type, and the winner. Hand, field and trash compare as
+multisets, so write exact ids.
+
+Rows live in `src/__tests__/scenarios/*.test.ts` and run as `"<card> <name>"`. Every optional
+"you may" / "if you do" card gets an accept row and a decline row; give rows data that tells the right
+answer from the wrong one (a target just outside the filter, a condition one short). Each row needs a
+mutation in `tools/mutation-check/suites/rules.cjs` (the `scn-` entries patch the card's generated
+abilities or `manualAbilities.ts`) that names it in `kills`.
 
 ## Encoding clarifications
 

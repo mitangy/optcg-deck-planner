@@ -11,6 +11,7 @@
     "sim": "tsx src/sim/runBatch.ts",
     "export-atlas": "tsx src/scripts/exportAtlas.ts",
     "export-planner-stats": "tsx src/scripts/exportPlannerStats.ts",
+    "scenario-coverage": "tsx src/scripts/scenarioCoverage.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
