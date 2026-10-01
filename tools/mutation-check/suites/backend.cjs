@@ -95,7 +95,7 @@ module.exports = {
     { id: "ingest-ratings-frozen", file: duel, from: "    if body.ranked:\n        score0", to: "    if False:\n        score0", kills: ["test_dev_token_and_match_ingest"] },
     { id: "leaderboard-ascending", file: duel, from: "        .order_by(DuelRating.rating.desc(), DuelRating.games_played.desc())", to: "        .order_by(DuelRating.rating.asc(), DuelRating.games_played.desc())", kills: ["test_dev_token_and_match_ingest"] },
     { id: "leaderboard-leaks-email", edits: [
-      { file: "backend/app/schemas.py", from: "    user_id: int\n    name: str\n    rating: int\n    games_played: int", to: "    user_id: int\n    name: str\n    rating: int\n    games_played: int\n    email: str | None = None" },
+      { file: "backend/app/schemas.py", from: "    rating: int\n    games_played: int\n\n\nclass DuelLeaderboardOut", to: "    rating: int\n    games_played: int\n    email: str | None = None\n\n\nclass DuelLeaderboardOut" },
       { file: duel, from: "        DuelLeaderboardEntryOut(\n            user_id=user.id,", to: "        DuelLeaderboardEntryOut(\n            email=user.email,\n            user_id=user.id," },
     ], kills: ["test_dev_token_and_match_ingest"] },
     { id: "guest-token-behind-dev-flags", file: duel, from: "    if not _GUEST_ID_RE.match(body.guest_id):", to: "    if not settings.enable_dev_login and not settings.enable_duel_dev_token:\n        raise HTTPException(status_code=404, detail=\"Not found\")\n    if not _GUEST_ID_RE.match(body.guest_id):", kills: ["test_guest_token_is_always_available"] },

@@ -30,6 +30,10 @@ jobs:
       - run: npm run typecheck -w @optcg/rules
       - run: npm run typecheck -w @optcg/game-server
       - run: npm test
+      # Fixed-seed fuzz games; a failure prints the seed and intent index to replay.
+      - run: npm run fuzz:smoke -w @optcg/rules
+      # Every mutation anchor must still match exactly once (no tests run).
+      - run: node tools/mutation-check/run.cjs --check-anchors
 
   duel-web:
     runs-on: ubuntu-latest
