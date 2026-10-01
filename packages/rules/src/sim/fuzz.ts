@@ -23,8 +23,10 @@ const defs = listCardDefs().filter((d) => d.dataSource !== "stub");
 const leaders = defs.filter((d) => d.type === "leader" && d.life != null);
 const mainCards = defs.filter((d) => d.type !== "leader");
 
-export function randomDeck(rng: Rng, focus?: string[]): { leaderId: string; deck: string[] } {
-  const leader = leaders[rng.nextInt(leaders.length)]!;
+export function randomDeck(rng: Rng, focus?: string[], leaderId?: string): { leaderId: string; deck: string[] } {
+  const picked = leaders[rng.nextInt(leaders.length)]!;
+  const leader = leaderId ? leaders.find((d) => d.id === leaderId) : picked;
+  if (!leader) throw new Error(`Unknown or unplayable leader ${leaderId}`);
   const pool = mainCards.filter((d) => d.colors.some((c) => leader.colors.includes(c)));
   const deck: string[] = [];
   for (const id of focus ?? []) for (let i = 0; i < 4 && deck.length < 50; i += 1) deck.push(id);
