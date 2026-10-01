@@ -308,3 +308,25 @@ describe("snapshots", () => {
     expect(() => deserializeMatch(JSON.stringify({ ...h.state, stateVersion: 2 }))).toThrow(IncompatibleSnapshotError);
   });
 });
+
+describe("Double Attack", () => {
+  it("against 1 Life takes the last Life card and the game continues", () => {
+    const h = new Harness();
+    const [p028] = h.field(0, "P-028");
+    h.life(1, FILLER);
+    h.attack(p028!, "leader").passBattle();
+    expect(h.state.winner).toBeNull();
+    expect(h.state.players[1].life.length).toBe(0);
+    expect(h.state.players[1].hand.length).toBe(1);
+    expect(h.state.phase).toBe("main");
+  });
+
+  it("against 0 Life wins the game", () => {
+    const h = new Harness();
+    const [p028] = h.field(0, "P-028");
+    h.life(1);
+    h.attack(p028!, "leader").passBattle();
+    expect(h.state.winner).toBe(0);
+    expect(h.state.winReason).toBe("leader_battle_at_zero_life");
+  });
+});

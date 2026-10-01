@@ -25,7 +25,7 @@ import {
 } from "../net/api";
 import { clearMatchResume, loadMatchResume } from "../net/matchResume";
 import { devKeyAllowed, loadSettings } from "../settings";
-import { useDuelSession, type MatchLaunch } from "../state/DuelSession";
+import { LaunchCancelledError, useDuelSession, type MatchLaunch } from "../state/DuelSession";
 import { needsUsername } from "../auth/username";
 import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel";
 import { dismissInvite, inviteFriend, type Friend, type FriendInvite } from "../friends/friendsApi";
@@ -291,7 +291,7 @@ export function LobbyPage() {
    * Shared by the friend actions: open the board at once, then mint + connect
    * behind it. A failure comes back to the lobby as a note.
    */
-  function runFriendAction(launch: MatchLaunch, fn: () => Promise<void>) {
+  function runFriendAction(launch: MatchLaunch, fn: (launchGen: number) => Promise<void>) {
     if (authMode === "dev" && !settings.devUserKey.trim()) {
       setFriendError("Set a dev user key in Settings first.");
       return;
@@ -317,7 +317,7 @@ export function LobbyPage() {
       return;
     }
     const launch = { status: `Inviting ${friend.username}…`, leaderId: selectedDeck.leaderId, invite: true };
-    runFriendAction(launch, async () => {
+    runFriendAction(launch, async (gen) => {
       const opts = await authOpts();
       const wire = deckToWire(await freshDeck(selectedDeck));
       await connect({
@@ -325,7 +325,7 @@ export function LobbyPage() {
         preferredSeat: 0,
         deck: wire,
         createOptions: { ranked: false, players: [wire, wire], timer: {} },
-      });
+      }, gen);
       const roomId = client.roomId;
       // The room is open either way; a failed invite must not strand the host
       // in the lobby while their room sits connected in the background.
@@ -339,15 +339,17 @@ export function LobbyPage() {
       return;
     }
     const launch = { status: `Joining ${invite.from_username}…`, leaderId: selectedDeck.leaderId, invite: false };
-    runFriendAction(launch, async () => {
+    runFriendAction(launch, async (gen) => {
       const opts = await authOpts();
       try {
         await connect({
           ...opts,
           roomId: invite.room_id,
           deck: deckToWire(await freshDeck(selectedDeck)),
-        });
-      } catch {
+        }, gen);
+      } catch (e) {
+        // A cancelled join never reached the room: keep the invite.
+        if (e instanceof LaunchCancelledError) throw e;
         void dismissInvite(invite.id).finally(() => void friends.refresh());
         throw new Error(`${invite.from_username}'s room is no longer open.`);
       }
@@ -358,9 +360,9 @@ export function LobbyPage() {
   function spectateFriend(friend: Friend) {
     if (!friend.room_id) return;
     const roomId = friend.room_id;
-    runFriendAction({ status: `Connecting to ${friend.username}'s match…`, leaderId: null, invite: false }, async () => {
+    runFriendAction({ status: `Connecting to ${friend.username}'s match…`, leaderId: null, invite: false }, async (gen) => {
       const opts = await authOpts();
-      await connect({ ...opts, roomId, role: "spectator" });
+      await connect({ ...opts, roomId, role: "spectator" }, gen);
     });
   }
 
@@ -529,15 +531,15 @@ export function LobbyPage() {
           leaderId: mode === "spectate" ? null : picked.leaderId,
           invite: create,
         },
-        async () => {
+        async (gen) => {
           const opts = await authOpts();
           if (mode === "spectate") {
-            await connect({ ...opts, roomId: room, role: "spectator" });
+            await connect({ ...opts, roomId: room, role: "spectator" }, gen);
             return;
           }
           const wire = deckToWire(await freshDeck(picked));
           if (mode === "queue") {
-            await queueRanked({ ...opts, deck: wire });
+            await queueRanked({ ...opts, deck: wire }, gen);
             return;
           }
           await connect({
@@ -548,7 +550,7 @@ export function LobbyPage() {
             createOptions: create
               ? { ranked: false, players: [wire, wire], timer: timerFromPreset(timerPreset) }
               : undefined,
-          });
+          }, gen);
         },
       );
       if (mode !== "spectate") setSelectedDeckId(picked.id);

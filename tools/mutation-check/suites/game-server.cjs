@@ -4,6 +4,7 @@ const room = "game-server/src/rooms/DuelRoom.ts";
 const queue = "game-server/src/rooms/MatchmakerRoom.ts";
 const cors = "game-server/src/cors.ts";
 const presence = "game-server/src/presence.ts";
+const appConfig = "game-server/src/app.config.ts";
 module.exports = {
   cwd: "game-server",
   runner: "mocha",
@@ -34,12 +35,14 @@ module.exports = {
     { id: "match-over-not-sent", file: room, from: "    this.onMatchAdvanced();\n    this.maybeSendMatchOver();\n  }\n\n  private broadcastViews", to: "    this.onMatchAdvanced();\n  }\n\n  private broadcastViews", kills: ["legal play reaches match_over"] },
     { id: "third-player-kept", file: room, from: "      this.sendError(client, \"room_full\", \"No free seat\");\n      client.leave();", to: "      this.sendError(client, \"room_full\", \"No free seat\");", kills: ["rejects a third player"] },
     { id: "join-deck-ignored", file: room, from: "    if (identity.deck) {\n      this.seatDecks[seat] = identity.deck;\n    }", to: "", kills: ["uses join-time seat decks for leaders"] },
+    { id: "join-unknown-card-deck-accepted", file: room, from: "    if (role === \"player\" && join.deck) assertKnownDeck(join.deck);\n", to: "", kills: ["rejects a deck with unknown cards at join"] },
     { id: "spectator-gets-player-view", file: room, from: "    const view = getSpectatorView(this.match, cameraSeat);\n    const welcome", to: "    const view = { ...getPlayerView(this.match, cameraSeat), spectator: true };\n    const welcome", kills: ["allows a spectator with public view"] },
     { id: "queue-same-seat", file: queue, from: "            roomId: room.roomId,\n            seat: 1,", to: "            roomId: room.roomId,\n            seat: 0,", kills: ["ranked_queue pairs two clients"] },
     { id: "queue-pairs-same-user", file: queue, from: "        const partnerIdx = this.queue.findIndex((q) => q.userId !== a.userId);", to: "        const partnerIdx = 0;", kills: ["ranked_queue skips same-user pair"] },
     { id: "cosmetics-not-relayed", file: room, from: "    this.broadcast(\"cosmetics\", payload);", to: "    client.send(\"cosmetics\", payload);", kills: ["relays cosmetics artPrefs between seats"] },
     { id: "skin-not-relayed", file: room, from: "    this.broadcast(\"skin\", payload);", to: "    client.send(\"skin\", payload);", kills: ["relays a seat's playmat / card back skin"] },
     { id: "skin-any-mime", file: proto, from: "^data:image\\/(?:jpeg|webp|png);base64,", to: "^data:[a-z]+\\/[a-z]+;base64,", kills: ["relays a seat's playmat / card back skin"] },
+    { id: "skin-ws-default-max-payload", file: appConfig, from: "  transport: new WebSocketTransport({ maxPayload: WS_MAX_PAYLOAD_BYTES }),\n", to: "", kills: ["relays a cap-sized playmat and card back in one skin message"] },
     { id: "presence-room-unregistered", file: room, from: "    presence.register(this);\n", to: "", kills: ["friends presence: reports seats as waiting"] },
     { id: "presence-waiting-as-playing", file: room, from: "    const phase: PresenceEntry[\"phase\"] = !this.matchStarted\n      ? \"waiting\"", to: "    const phase: PresenceEntry[\"phase\"] = !this.matchStarted\n      ? \"playing\"", kills: ["friends presence: reports seats as waiting"] },
     { id: "presence-spectator-as-player", file: room, from: "role: \"spectator\", phase", to: "role: \"player\", phase", kills: ["friends presence: reports seats as waiting"] },
