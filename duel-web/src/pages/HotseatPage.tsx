@@ -25,6 +25,7 @@ import {
   loadMatchResume,
   saveMatchResume,
   seatReservationUserMessage,
+  touchMatchResume,
   type HotseatResumeBlob,
 } from "../net/matchResume";
 import type {
@@ -683,6 +684,58 @@ export function HotseatPage() {
     persistResume();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSeat, ready]);
+
+  // Same as an online duel: keep the resume blob's clock at "last seen alive"
+  // while the phone is in another app, and on return reload into the saved
+  // match if either seat's socket died (a Home Screen app has no reload button).
+  useEffect(() => {
+    if (!ready) return;
+    const bothConnected = () => {
+      const [b0, b1] = bags.current;
+      return Boolean(b0?.connected && b1?.connected);
+    };
+    let checking = false;
+    async function recoverIfDropped() {
+      if (checking || leavingRef.current) return;
+      const seats = bags.current;
+      if (!seats[0] || !seats[1] || seats.some((b) => b?.matchOver)) return;
+      checking = true;
+      try {
+        for (const b of seats) {
+          if (!b || b.client.isReconnecting) continue;
+          if (!(await b.client.isAlive())) {
+            if (b.client.isReconnecting || leavingRef.current) return;
+            window.location.reload();
+            return;
+          }
+        }
+      } finally {
+        checking = false;
+      }
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void recoverIfDropped();
+      else if (bothConnected()) touchMatchResume();
+    };
+    const onPageHide = () => {
+      if (bothConnected()) touchMatchResume();
+    };
+    const onResume = () => void recoverIfDropped();
+    const heartbeat = window.setInterval(() => {
+      if (bothConnected()) touchMatchResume();
+    }, 5000);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pageshow", onResume);
+    window.addEventListener("online", onResume);
+    return () => {
+      window.clearInterval(heartbeat);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pageshow", onResume);
+      window.removeEventListener("online", onResume);
+    };
+  }, [ready]);
 
   // Auto-pass when the game moment changes (pending choice, block/counter,
   // mulligan, turn advance). Manual Pass is kept until that moment changes.
