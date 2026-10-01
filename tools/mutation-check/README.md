@@ -29,6 +29,7 @@ node tools/mutation-check/run.cjs rules --only "snapshot|rng"  # mutation ids ma
 | `game-server` | `game-server/test` | mocha |
 | `cosmetics` | `scripts/test_cosmetics_product_ids.py` | unittest |
 | `duel-e2e` | `duel-web/e2e` (starts a game server and Vite) | Playwright; a mutation's `args` narrows the spec and project |
+| `frontend-e2e` | `frontend/e2e` (starts Vite on :5180; the API is faked in the browser) | Playwright; a mutation's `args` narrows the spec and project |
 
 Every test in these suites is covered by at least one mutation. Each mutation
 re-runs its whole suite, so a full run of every suite takes a few hours; use

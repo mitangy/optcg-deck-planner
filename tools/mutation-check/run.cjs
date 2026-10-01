@@ -29,6 +29,7 @@ const SUITES = {
   "game-server": require("./suites/game-server.cjs"),
   cosmetics: require("./suites/cosmetics.cjs"),
   "duel-e2e": require("./suites/duel-e2e.cjs"),
+  "frontend-e2e": require("./suites/frontend-e2e.cjs"),
 };
 
 const args = process.argv.slice(2);

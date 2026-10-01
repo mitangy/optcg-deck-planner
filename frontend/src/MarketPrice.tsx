@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, money, type PrintingView } from "./api";
 import { CardThumb } from "./CardThumb";
 import { InlineSkeleton } from "./Skeleton";
@@ -21,6 +21,7 @@ export function MarketPrice({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null);
   const canExpand = productId != null && productId > 0;
   const salesQ = useQuery({
@@ -30,18 +31,30 @@ export function MarketPrice({
     staleTime: 30 * 60 * 1000,
   });
 
+  const place = useCallback(() => {
+    const btn = btnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const width = 224;
+    const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
+    // Drop below the price; flip above it when the panel would run off the bottom of the screen.
+    const height = panelRef.current?.offsetHeight ?? 0;
+    const below = rect.bottom + 6;
+    const above = rect.top - 6 - height;
+    const top = height > 0 && below + height > window.innerHeight - 8 && above >= 8 ? above : below;
+    setPanelPos((prev) => (prev && prev.top === top && prev.left === left ? prev : { top, left }));
+  }, []);
+
+  // Once the panel (or its sales list) is on screen its height is known, so re-check which side fits.
+  const placed = panelPos !== null;
+  useLayoutEffect(() => {
+    if (open && placed) place();
+  }, [open, placed, place, salesQ.isLoading, salesQ.data, salesQ.error]);
+
   useEffect(() => {
     if (!open) {
       setPanelPos(null);
       return;
-    }
-    function place() {
-      const btn = btnRef.current;
-      if (!btn) return;
-      const rect = btn.getBoundingClientRect();
-      const width = 224;
-      const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
-      setPanelPos({ top: rect.bottom + 6, left });
     }
     place();
     function onPointerDown(e: MouseEvent) {
@@ -60,7 +73,7 @@ export function MarketPrice({
       window.removeEventListener("mousedown", onPointerDown);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, place]);
 
   if (price == null || Number.isNaN(price)) {
     return <span className="muted">—</span>;
@@ -87,6 +100,7 @@ export function MarketPrice({
       </button>
       {open && panelPos && (
         <div
+          ref={panelRef}
           className="market-sales"
           role="region"
           aria-label="Last 3 sold prices"
