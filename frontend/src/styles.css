@@ -3924,13 +3924,25 @@ tr.done td {
   gap: 0.45rem;
   align-content: start;
   flex: 1 1 auto;
-  /* Real header text block (eyebrow, title, leader line, counts) measured at 141px on desktop, ~182px when it wraps on phones. */
+  /* Real header text block (eyebrow, title, leader line, counts) measures 118-141px on desktop depending on wrapping, ~136px on phones. */
   min-height: 8.8rem;
 }
 
 @media (max-width: 800px) {
   .skeleton-deck-head-text {
-    min-height: 11.4rem;
+    min-height: 8.5rem;
+  }
+}
+
+/* Phones: the real action row is one row (Edit, Play, two icon buttons); keep the placeholder on one row too. */
+@media (max-width: 720px) {
+  .deck-head-actions > .skeleton-btn-deck {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .deck-head-actions > .skeleton-btn-deck:nth-child(n + 3) {
+    flex: 0 0 2.5rem;
   }
 }
 
