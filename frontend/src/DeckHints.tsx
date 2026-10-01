@@ -169,12 +169,12 @@ export function DeckHintsTray({ hints }: { hints: HintsState }) {
       {hidden > 0 || expanded || hints.dismissed.length > 0 ? (
         <div className="dh-side">
           {hidden > 0 || expanded ? (
-            <button type="button" className="dh-link" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
-              {expanded ? "Less" : `+${hidden} more`}
+            <button type="button" className="dh-chip dh-toggle" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
+              {expanded ? "Show less" : `+${hidden} more`}
             </button>
           ) : null}
           {hints.dismissed.length > 0 ? (
-            <button type="button" className="dh-link" onClick={() => setShowDismissed((v) => !v)}>
+            <button type="button" className="dh-chip dh-toggle" aria-pressed={showDismissed} onClick={() => setShowDismissed((v) => !v)}>
               {showDismissed ? "Hide dismissed" : `Show ${hints.dismissed.length} dismissed`}
             </button>
           ) : null}
