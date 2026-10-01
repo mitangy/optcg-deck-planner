@@ -3960,3 +3960,119 @@ details.deck-config-section.deck-collapsible {
   border-top: none;
   padding-top: 0;
 }
+
+/*
+ * Decks page + deck editor on desktop (DESKTOP_DECKS_QUERY in useMediaQuery.ts).
+ * Below 1024px the wrappers are `display: contents`, so phones get the same
+ * single column as before.
+ */
+.deck-list-columns,
+.deck-editor-layout,
+.deck-editor-side,
+.deck-editor-main {
+  display: contents;
+}
+
+@media (min-width: 1024px) {
+  /* A flex item with auto margins shrinks to its content; fill up to the cap instead. */
+  .deck-config-wide {
+    width: 100%;
+    max-width: 1480px;
+  }
+
+  .deck-list-page {
+    max-width: 1240px;
+  }
+
+  /* Your decks and From your planner side by side; drag goes across, not down. */
+  .deck-list-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2rem;
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  .deck-list-columns .deck-planner-section {
+    margin-top: 0;
+  }
+
+  /* Both headings sit on one line; the planner toolbar keeps its own row below. */
+  .deck-list-columns .lobby-section-title {
+    min-height: 1.5rem;
+  }
+
+  /* Deck on the left, card search in a sticky column on the right. */
+  .deck-editor-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
+    gap: 1.5rem;
+    align-items: start;
+    min-width: 0;
+  }
+
+  .deck-editor-main {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  .deck-editor-side {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+    padding: 0 0.85rem 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--arena-deep);
+  }
+
+  /* The panel frames the column, so its first divider would double the border. */
+  .deck-editor-side > :first-child {
+    border-top: none;
+  }
+
+  /* Search box stays in view while the results scroll under it. */
+  .deck-editor-side .deck-search-query {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 0.35rem 0 0.45rem;
+    background: var(--arena-deep);
+  }
+
+  /* One scroll for the whole column instead of a list scrolling inside it. */
+  .deck-editor-side .deck-search-results {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .deck-editor-side .deck-filter-row {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+}
+
+/* Wide windows: the leader gets its own column so it does not take a whole row. */
+@media (min-width: 1440px) {
+  .deck-editor-main {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    column-gap: 1.25rem;
+    align-items: start;
+  }
+
+  .deck-editor-leader .deck-stack-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
