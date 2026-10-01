@@ -39,7 +39,7 @@ import {
   type SortKey,
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
-import { DeckStatsDock } from "./DeckStats";
+import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { useDeckHints } from "./DeckHints";
 import { deckDelta } from "./deckHints";
 import type { DeckStatsCard } from "./deckStats";
@@ -2182,6 +2182,7 @@ function CardTable({
         {cards.map((c) => (
           <article
             key={`${c.section}-${c.card_id}`}
+            data-card-id={c.card_id}
             className={`grid-card ${c.still_need > 0 ? "need" : "done"}`}
           >
             <div className="grid-card-media">
@@ -2244,7 +2245,7 @@ function CardTable({
           </thead>
           <tbody>
             {cards.map((c) => (
-              <tr key={`${c.section}-${c.card_id}`} className={c.still_need > 0 ? "need" : "done"}>
+              <tr key={`${c.section}-${c.card_id}`} data-card-id={c.card_id} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
                   <div className="card-cell-inner">
                     <CardThumb src={c.image_url || undefined} alt={c.name} />
@@ -2293,6 +2294,7 @@ function CardTable({
         {cards.map((c) => (
           <article
             key={`${c.section}-${c.card_id}`}
+            data-card-id={c.card_id}
             className={`mobile-card ${c.still_need > 0 ? "need" : "done"}`}
           >
             <div className="mobile-card-top">
@@ -2413,10 +2415,13 @@ function DeckEditorPanel({
   deckId,
   deck,
   onUpdated,
+  onChanged,
 }: {
   deckId: number;
   deck: DeckDetail;
   onUpdated: (detail: DeckDetail) => void;
+  /** Fired after a save that leaves the card in the deck, so the list can point at its row. */
+  onChanged?: (cardId: string) => void;
 }) {
   const atlas = useStatsAtlas().data;
   const [delta, setDelta] = useState<{ text: string; key: number } | null>(null);
@@ -2489,6 +2494,7 @@ function DeckEditorPanel({
       if (detail) {
         onUpdated(detail);
         flashDelta(card.card_id, detail);
+        onChanged?.(card.card_id);
       }
     } catch (e) {
       setErr((e as Error).message);
@@ -2505,6 +2511,7 @@ function DeckEditorPanel({
       if (detail) {
         onUpdated(detail);
         flashDelta(cardId, detail);
+        if (needed > 0) onChanged?.(cardId);
       }
     } catch (e) {
       setErr((e as Error).message);
@@ -2780,6 +2787,26 @@ function DeckDetailPage() {
   const [layout, setLayout] = useCardLayout();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(() => searchParams.get("edit") === "1");
+  // Wide enough for the dock column: the editor takes that column (sticky) while editing, stats move to the pill.
+  const sideEdit = useMediaQuery(DOCK_QUERY) && editing;
+  const [rowFlash, setRowFlash] = useState<{ id: string; n: number } | null>(null);
+  useEffect(() => {
+    if (!rowFlash) return;
+    const el = Array.from(document.querySelectorAll<HTMLElement>("[data-card-id]")).find(
+      (e) => e.dataset.cardId === rowFlash.id && e.offsetParent !== null,
+    );
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (sideEdit && (r.top < 0 || r.bottom > window.innerHeight)) {
+      const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ block: "nearest", behavior: calm ? "auto" : "smooth" });
+    }
+    el.classList.remove("row-flash");
+    void el.offsetWidth;
+    el.classList.add("row-flash");
+    const t = window.setTimeout(() => el.classList.remove("row-flash"), 1400);
+    return () => window.clearTimeout(t);
+  }, [rowFlash, sideEdit]);
   const [neededBusyId, setNeededBusyId] = useState<string | null>(null);
   const [neededErr, setNeededErr] = useState<string | null>(null);
   const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
@@ -2948,6 +2975,7 @@ function DeckDetailPage() {
 
   const duelUrl = duelPlayUrl(data);
   const refresh = () => invalidateOwnedViews(qc);
+  const flashRow = (id: string) => setRowFlash((f) => ({ id, n: (f?.n ?? 0) + 1 }));
   const visibleCount = main.length + additional.length + donCards.length;
   const mainCount = data.main_cards ?? progressCards.reduce((s, c) => s + c.needed, 0);
   const donCount = data.don_cards ?? data.cards
@@ -2958,7 +2986,7 @@ function DeckDetailPage() {
     : undefined;
 
   return (
-    <div className="deck-layout">
+    <div className={`deck-layout${sideEdit ? " deck-layout-editing" : ""}`}>
     <section className="deck-main">
       <div className="page-head">
         <div className="deck-detail-head">
@@ -3058,7 +3086,7 @@ function DeckDetailPage() {
           </HeadPopover>
           <button
             type="button"
-            className={editing ? "btn secondary" : "btn primary"}
+            className={`deck-edit-toggle ${editing ? "btn secondary" : "btn primary"}`}
             aria-pressed={editing}
             onClick={() => {
               setEditing((v) => {
@@ -3087,7 +3115,9 @@ function DeckDetailPage() {
         </p>
       )}
 
-      {editing && <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />}
+      {editing && !sideEdit && (
+        <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} onChanged={flashRow} />
+      )}
 
       <DeckProgressSummary cards={progressCards} />
 
@@ -3191,7 +3221,12 @@ function DeckDetailPage() {
         />
       )}
     </section>
-    <DeckStatsDock cards={statsCards} leaderId={data.leader_card_id ?? null} hints={hints} />
+    {sideEdit && (
+      <aside className="deck-editor-side" aria-label="Add cards">
+        <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} onChanged={flashRow} />
+      </aside>
+    )}
+    <DeckStatsDock cards={statsCards} leaderId={data.leader_card_id ?? null} hints={hints} compact={sideEdit} />
     </div>
   );
 }
