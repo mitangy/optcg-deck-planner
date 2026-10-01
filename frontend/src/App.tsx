@@ -2770,16 +2770,36 @@ function AvailableDonSection({
   );
 }
 
+/** Error state for a page-level fetch: message plus a Retry that keeps its size while refetching. */
+function LoadErrorBlock({ title, message, retrying, onRetry }: { title: string; message: string; retrying: boolean; onRetry: () => void }) {
+  return (
+    <div className="load-error" role="alert">
+      <div className="load-error-text">
+        <strong>{title}</strong>
+        <p className="muted">{message}</p>
+      </div>
+      <button type="button" className="btn secondary load-error-retry" disabled={retrying} aria-busy={retrying} onClick={onRetry}>
+        {retrying ? "Retrying…" : "Retry"}
+      </button>
+    </div>
+  );
+}
+
 function DeckDetailPage() {
   const { id } = useParams();
   const deckId = Number(id);
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["deck", deckId],
     queryFn: () => api.deck(deckId),
     enabled: Number.isFinite(deckId),
   });
+  // A failed deck query with no data goes back to "pending" while Retry refetches; remember the
+  // error so the block stays on screen (Retry disabled) instead of flashing the skeleton.
+  const lastError = useRef<Error | null>(null);
+  if (error) lastError.current = error as Error;
+  else if (data) lastError.current = null;
   const [onlyNeed, setOnlyNeed] = useState(true);
   const deckUnavailableSorts = useMemo(() => ["deck", "user"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, deckUnavailableSorts);
@@ -2970,8 +2990,10 @@ function DeckDetailPage() {
   }, [onlyNeed, effectiveSorts, showAltArts, layout]);
   const filterCount = (onlyNeed ? 1 : 0) + (effectiveSorts.length ? 1 : 0) + (showAltArts ? 1 : 0);
 
+  if (!data && lastError.current) {
+    return <LoadErrorBlock title="Couldn't load this deck" message={lastError.current.message} retrying={isFetching} onRetry={() => void refetch()} />;
+  }
   if (isLoading) return <DeckDetailSkeleton />;
-  if (error) return <p className="error">{(error as Error).message}</p>;
   if (!data) return null;
 
   const duelUrl = duelPlayUrl(data);

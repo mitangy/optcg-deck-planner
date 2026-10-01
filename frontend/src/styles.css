@@ -8,6 +8,8 @@
   --ink: #17252e;
   /* ≥ 6:1 on --bg-deep and --card — clears WCAG AA body text. */
   --muted: #4b565c;
+  /* Small uppercase labels: a notch darker than --muted. */
+  --label: #3f4a50;
   --card: #fffbf3;
   --card-sunk: #f8f1e4;
   --line: #ddd0b8;
@@ -41,6 +43,8 @@
   --gold-soft: #f6e8c6;
   --gold-ink: #7a5614;
   --warn: #b85f16;
+  /* --warn as text on tinted warn rows (--warn itself is 3.6:1 there). */
+  --warn-ink: #8f4a0e;
   --need: var(--card);
   --done: #e4efe4;
   --done-line: #b9d3bc;
@@ -72,6 +76,7 @@
     --bg-deep: #0b161c;
     --ink: #ece3cf;
     --muted: #a3afb3;
+    --label: #b4bec1;
     --card: #15252d;
     --card-sunk: #1a2c35;
     --line: #2a404b;
@@ -83,6 +88,7 @@
     --gold-soft: #33290f;
     --gold-ink: #e9c877;
     --warn: #e0954a;
+    --warn-ink: #e0954a;
     --done: #15301f;
     --done-line: #2b5a3d;
     --danger: #ec7a6e;
@@ -118,6 +124,7 @@
   --bg-deep: #0b161c;
   --ink: #ece3cf;
   --muted: #a3afb3;
+  --label: #b4bec1;
   --card: #15252d;
   --card-sunk: #1a2c35;
   --line: #2a404b;
@@ -129,6 +136,7 @@
   --gold-soft: #33290f;
   --gold-ink: #e9c877;
   --warn: #e0954a;
+  --warn-ink: #e0954a;
   --done: #15301f;
   --done-line: #2b5a3d;
   --danger: #ec7a6e;
@@ -2176,6 +2184,43 @@ tr.done td {
   color: var(--danger);
 }
 
+.load-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  box-sizing: border-box;
+  min-height: 5.5rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--danger) 8%, var(--card));
+}
+
+.load-error-text {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.load-error-text strong {
+  color: var(--danger);
+}
+
+.load-error-text p {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+/* Fixed width: "Retry" and "Retrying…" must not resize the button. */
+.load-error .load-error-retry {
+  flex: 0 0 auto;
+  width: auto;
+  margin-top: 0;
+  min-width: 8.5rem;
+  min-height: 2.75rem;
+}
+
 .center {
   text-align: center;
   padding: 3rem;
@@ -3856,6 +3901,39 @@ tr.done td {
   height: 2.35rem;
 }
 
+.skeleton-deck-leader {
+  flex: 0 0 auto;
+  width: 84px;
+  height: 117px;
+  border-radius: 8px;
+}
+
+@media (max-width: 800px) {
+  .skeleton-deck-leader {
+    width: 64px;
+    height: 89px;
+  }
+}
+
+.skeleton-btn-deck {
+  height: 2.5rem;
+}
+
+.skeleton-deck-head-text {
+  display: grid;
+  gap: 0.45rem;
+  align-content: start;
+  flex: 1 1 auto;
+  /* Real header text block (eyebrow, title, leader line, counts) measured at 141px on desktop, ~182px when it wraps on phones. */
+  min-height: 8.8rem;
+}
+
+@media (max-width: 800px) {
+  .skeleton-deck-head-text {
+    min-height: 11.4rem;
+  }
+}
+
 .skeleton-drawer {
   width: 100%;
   height: 2.75rem;
@@ -4824,7 +4902,7 @@ button.ghost.scan-open:hover {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--label);
 }
 
 .ds-tile-value {
@@ -5209,10 +5287,10 @@ button.ghost.scan-open:hover {
 }
 
 .ds-odds-turn {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--muted);
+  color: var(--label);
 }
 
 .ds-odds-val {
@@ -5260,12 +5338,12 @@ button.ghost.scan-open:hover {
 .ds-search-head {
   align-items: end;
   min-height: 1.4rem;
-  font-size: 0.68rem;
+  font-size: 0.74rem;
   line-height: 1.15;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--label);
 }
 
 .ds-search-head span:nth-child(n + 2) {
@@ -5302,7 +5380,7 @@ button.ghost.scan-open:hover {
 }
 
 .ds-search-row.ds-warn .ds-search-chance {
-  color: var(--warn);
+  color: var(--warn-ink);
 }
 
 /* Build hints (deck editor): chip tray, popover, delta chip. */
@@ -5328,7 +5406,7 @@ button.ghost.scan-open:hover {
   align-items: stretch;
   gap: 0.6rem;
   /* Two chip rows, always: chips coming and going never move what is below. */
-  height: 4.6rem;
+  height: 5.2rem;
   min-width: 0;
   box-sizing: border-box;
 }
@@ -5365,7 +5443,7 @@ button.ghost.scan-open:hover {
   z-index: 30;
   top: 0;
   left: 0;
-  right: 4.6rem;
+  right: 6.9rem;
   height: auto;
   max-height: 60dvh;
   overflow: hidden auto;
@@ -5397,7 +5475,7 @@ button.ghost.scan-open:hover {
   flex-direction: column;
   align-items: flex-end;
   justify-content: center;
-  gap: 0.1rem;
+  gap: 0.3rem;
 }
 
 .dh-chip {
@@ -5405,7 +5483,8 @@ button.ghost.scan-open:hover {
   align-items: center;
   gap: 0.4rem;
   max-width: 15rem;
-  min-height: 1.9rem;
+  /* Stable hit target: 32px on desktop, 44px on touch (see pointer: coarse below). */
+  min-height: 2rem;
   padding: 0.15rem 0.65rem 0.15rem 0.5rem;
   border: 1px solid color-mix(in srgb, var(--dh-c) 55%, var(--line));
   border-radius: 999px;
@@ -5430,8 +5509,38 @@ button.ghost.scan-open:hover {
 }
 
 .dh-chip.dh-off {
-  opacity: 0.6;
+  /* Dimmed by colour, not opacity: 0.6 opacity dropped the text to 3.8:1 in the light theme. */
+  color: var(--muted);
   border-style: dashed;
+}
+
+.dh-chip.dh-off .dh-dot {
+  opacity: 0.55;
+}
+
+/* "+N more" / "Show less" / dismissed toggles: chip-shaped, fixed width so toggling never reflows the tray. */
+.dh-chip.dh-toggle {
+  --dh-c: var(--muted);
+  justify-content: center;
+  min-width: 6.3rem;
+  padding: 0.15rem 0.7rem;
+  background: var(--card-sunk);
+  white-space: nowrap;
+}
+
+.dh-chip.dh-toggle:hover,
+.dh-chip.dh-toggle[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--muted) 16%, var(--card));
+}
+
+@media (pointer: coarse) {
+  .dh-tray {
+    height: 6.4rem;
+  }
+
+  .dh-chip {
+    min-height: 2.75rem;
+  }
 }
 
 .dh-dot {
@@ -5446,18 +5555,6 @@ button.ghost.scan-open:hover {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dh-link {
-  padding: 0.25rem 0.1rem;
-  border: none;
-  background: none;
-  color: var(--accent);
-  font: inherit;
-  font-size: 0.82rem;
-  text-decoration: underline;
-  cursor: pointer;
   white-space: nowrap;
 }
 

@@ -118,16 +118,22 @@ export function DecksListSkeleton() {
 export function DeckDetailSkeleton() {
   return (
     <SkeletonScreen label="Loading deck…">
+      {/* Same wrappers as the real deck header (leader art, 4 text rows, action row) so its height matches and nothing jumps on load. */}
       <div className="page-head">
-        <div className="skeleton-stack">
-          <Skeleton className="skeleton-line skeleton-line-xs" />
-          <Skeleton className="skeleton-title" />
-          <Skeleton className="skeleton-line skeleton-line-md" />
-          <Skeleton className="skeleton-line skeleton-line-sm" />
+        <div className="deck-detail-head">
+          <Skeleton className="skeleton-deck-leader" />
+          <div className="deck-detail-head-text skeleton-deck-head-text">
+            <Skeleton className="skeleton-line skeleton-line-xs" />
+            <Skeleton className="skeleton-title" />
+            <Skeleton className="skeleton-line skeleton-line-md" />
+            <Skeleton className="skeleton-line skeleton-line-sm" />
+          </div>
         </div>
         <div className="page-head-actions">
-          <Skeleton className="skeleton-btn skeleton-btn-sm" />
-          <Skeleton className="skeleton-btn skeleton-btn-sm" />
+          <Skeleton className="skeleton-btn skeleton-btn-sm skeleton-btn-deck" />
+          <Skeleton className="skeleton-btn skeleton-btn-sm skeleton-btn-deck" />
+          <Skeleton className="skeleton-btn skeleton-btn-sm skeleton-btn-deck" />
+          <Skeleton className="skeleton-btn skeleton-btn-sm skeleton-btn-deck" />
         </div>
       </div>
       <Skeleton className="skeleton-drawer" />
