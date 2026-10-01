@@ -1,0 +1,3025 @@
+[
+  {
+    "name": "mulligan",
+    "message": "view",
+    "viewerSeat": 0,
+    "choice": null,
+    "answerable": false,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 0,
+        "you": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [],
+          "stage": null,
+          "hand": [
+            {
+              "id": "card_33",
+              "defId": "ST01-003"
+            },
+            {
+              "id": "card_38",
+              "defId": "ST01-003"
+            },
+            {
+              "id": "card_24",
+              "defId": "ST01-003"
+            },
+            {
+              "id": "card_29",
+              "defId": "ST01-003"
+            },
+            {
+              "id": "card_27",
+              "defId": "ST01-003"
+            }
+          ],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 0,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 10,
+          "costArea": [],
+          "activeDonCount": 0,
+          "mulliganDone": false,
+          "turnsStarted": 0
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [],
+          "stage": null,
+          "handCount": 5,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 0,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 10,
+          "costAreaCount": 0,
+          "activeDonCount": 0,
+          "turnsStarted": 0,
+          "mulliganDone": false
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "mulligan",
+        "turnNumber": 0,
+        "battle": null,
+        "pendingChoices": [],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "mulligan",
+            "doMulligan": false
+          },
+          {
+            "type": "mulligan",
+            "doMulligan": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "main",
+    "message": "view",
+    "viewerSeat": 0,
+    "choice": null,
+    "answerable": false,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 0,
+        "you": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t2",
+              "defId": "ST01-003",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 3000,
+              "printedPower": 3000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            }
+          ],
+          "stage": null,
+          "hand": [
+            {
+              "id": "c_t1",
+              "defId": "ST01-003",
+              "playCost": 1
+            }
+          ],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costArea": [
+            {
+              "id": "don_5",
+              "rested": false
+            },
+            {
+              "id": "don_6",
+              "rested": true
+            }
+          ],
+          "activeDonCount": 1,
+          "mulliganDone": true,
+          "turnsStarted": 2
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t3",
+              "defId": "ST01-003",
+              "rested": true,
+              "attachedDonCount": 0,
+              "power": 3000,
+              "printedPower": 3000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": [
+                "Rested"
+              ]
+            }
+          ],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costAreaCount": 2,
+          "activeDonCount": 2,
+          "turnsStarted": 1,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "main",
+        "turnNumber": 3,
+        "battle": null,
+        "pendingChoices": [],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "end_turn"
+          },
+          {
+            "type": "give_don",
+            "donId": "don_5",
+            "targetId": "leader_1"
+          },
+          {
+            "type": "give_don",
+            "donId": "don_5",
+            "targetId": "c_t2"
+          },
+          {
+            "type": "activate_ability",
+            "sourceId": "leader_1",
+            "abilityId": "st01-001#0"
+          },
+          {
+            "type": "play_card",
+            "handIndex": 0
+          },
+          {
+            "type": "declare_attack",
+            "attackerId": "leader_1",
+            "target": {
+              "kind": "leader"
+            }
+          },
+          {
+            "type": "declare_attack",
+            "attackerId": "leader_1",
+            "target": {
+              "kind": "character",
+              "instanceId": "c_t3"
+            }
+          },
+          {
+            "type": "declare_attack",
+            "attackerId": "c_t2",
+            "target": {
+              "kind": "leader"
+            }
+          },
+          {
+            "type": "declare_attack",
+            "attackerId": "c_t2",
+            "target": {
+              "kind": "character",
+              "instanceId": "c_t3"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "main-full-field",
+    "message": "view",
+    "viewerSeat": 0,
+    "choice": null,
+    "answerable": false,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 0,
+        "you": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "ST01-003",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 3000,
+              "printedPower": 3000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            },
+            {
+              "id": "c_t2",
+              "defId": "ST01-003",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 3000,
+              "printedPower": 3000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            },
+            {
+              "id": "c_t3",
+              "defId": "ST01-003",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 3000,
+              "printedPower": 3000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            },
+            {
+              "id": "c_t4",
+              "defId": "ST01-003",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 3000,
+              "printedPower": 3000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            },
+            {
+              "id": "c_t5",
+              "defId": "ST01-003",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 3000,
+              "printedPower": 3000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            }
+          ],
+          "stage": null,
+          "hand": [
+            {
+              "id": "c_t6",
+              "defId": "ST01-003",
+              "playCost": 1
+            }
+          ],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 9,
+          "costArea": [
+            {
+              "id": "don_5",
+              "rested": false
+            }
+          ],
+          "activeDonCount": 1,
+          "mulliganDone": true,
+          "turnsStarted": 2
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costAreaCount": 2,
+          "activeDonCount": 2,
+          "turnsStarted": 1,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "main",
+        "turnNumber": 3,
+        "battle": null,
+        "pendingChoices": [],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "end_turn"
+          },
+          {
+            "type": "give_don",
+            "donId": "don_5",
+            "targetId": "leader_1"
+          },
+          {
+            "type": "give_don",
+            "donId": "don_5",
+            "targetId": "c_t1"
+          },
+          {
+            "type": "give_don",
+            "donId": "don_5",
+            "targetId": "c_t2"
+          },
+          {
+            "type": "give_don",
+            "donId": "don_5",
+            "targetId": "c_t3"
+          },
+          {
+            "type": "give_don",
+            "donId": "don_5",
+            "targetId": "c_t4"
+          },
+          {
+            "type": "give_don",
+            "donId": "don_5",
+            "targetId": "c_t5"
+          },
+          {
+            "type": "activate_ability",
+            "sourceId": "leader_1",
+            "abilityId": "st01-001#0"
+          },
+          {
+            "type": "play_card",
+            "handIndex": 0,
+            "trashCharacterId": "c_t1"
+          },
+          {
+            "type": "play_card",
+            "handIndex": 0,
+            "trashCharacterId": "c_t2"
+          },
+          {
+            "type": "play_card",
+            "handIndex": 0,
+            "trashCharacterId": "c_t3"
+          },
+          {
+            "type": "play_card",
+            "handIndex": 0,
+            "trashCharacterId": "c_t4"
+          },
+          {
+            "type": "play_card",
+            "handIndex": 0,
+            "trashCharacterId": "c_t5"
+          },
+          {
+            "type": "declare_attack",
+            "attackerId": "leader_1",
+            "target": {
+              "kind": "leader"
+            }
+          },
+          {
+            "type": "declare_attack",
+            "attackerId": "c_t1",
+            "target": {
+              "kind": "leader"
+            }
+          },
+          {
+            "type": "declare_attack",
+            "attackerId": "c_t2",
+            "target": {
+              "kind": "leader"
+            }
+          },
+          {
+            "type": "declare_attack",
+            "attackerId": "c_t3",
+            "target": {
+              "kind": "leader"
+            }
+          },
+          {
+            "type": "declare_attack",
+            "attackerId": "c_t4",
+            "target": {
+              "kind": "leader"
+            }
+          },
+          {
+            "type": "declare_attack",
+            "attackerId": "c_t5",
+            "target": {
+              "kind": "leader"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "block-step",
+    "message": "view",
+    "viewerSeat": 1,
+    "choice": null,
+    "answerable": false,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 1,
+        "you": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "ST01-006",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 1000,
+              "printedPower": 1000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [
+                "blocker"
+              ],
+              "statusLabels": [
+                "Blocker"
+              ]
+            }
+          ],
+          "stage": null,
+          "hand": [
+            {
+              "id": "c_t2",
+              "defId": "ST01-003"
+            },
+            {
+              "id": "c_t3",
+              "defId": "ST01-014"
+            }
+          ],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 7,
+          "costArea": [
+            {
+              "id": "don_55",
+              "rested": false
+            },
+            {
+              "id": "don_56",
+              "rested": false
+            },
+            {
+              "id": "don_57",
+              "rested": false
+            }
+          ],
+          "activeDonCount": 3,
+          "mulliganDone": true,
+          "turnsStarted": 1
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": true,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": [
+              "Rested"
+            ]
+          },
+          "characters": [],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 7,
+          "costAreaCount": 3,
+          "activeDonCount": 3,
+          "turnsStarted": 2,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "block",
+        "turnNumber": 3,
+        "battle": {
+          "attackerSeat": 0,
+          "attackerId": "leader_1",
+          "target": {
+            "kind": "leader"
+          },
+          "originalTargetId": "leader_52",
+          "defenderPowerBonus": 0,
+          "attackerPowerBonus": 0
+        },
+        "pendingChoices": [],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "pass_block"
+          },
+          {
+            "type": "declare_block",
+            "blockerId": "c_t1"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "counter-step",
+    "message": "view",
+    "viewerSeat": 1,
+    "choice": null,
+    "answerable": false,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 1,
+        "you": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "ST01-006",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 1000,
+              "printedPower": 1000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [
+                "blocker"
+              ],
+              "statusLabels": [
+                "Blocker"
+              ]
+            }
+          ],
+          "stage": null,
+          "hand": [
+            {
+              "id": "c_t2",
+              "defId": "ST01-003"
+            },
+            {
+              "id": "c_t3",
+              "defId": "ST01-014"
+            }
+          ],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 7,
+          "costArea": [
+            {
+              "id": "don_55",
+              "rested": false
+            },
+            {
+              "id": "don_56",
+              "rested": false
+            },
+            {
+              "id": "don_57",
+              "rested": false
+            }
+          ],
+          "activeDonCount": 3,
+          "mulliganDone": true,
+          "turnsStarted": 1
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": true,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": [
+              "Rested"
+            ]
+          },
+          "characters": [],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 7,
+          "costAreaCount": 3,
+          "activeDonCount": 3,
+          "turnsStarted": 2,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "counter",
+        "turnNumber": 3,
+        "battle": {
+          "attackerSeat": 0,
+          "attackerId": "leader_1",
+          "target": {
+            "kind": "leader"
+          },
+          "originalTargetId": "leader_52",
+          "defenderPowerBonus": 0,
+          "attackerPowerBonus": 0
+        },
+        "pendingChoices": [],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "pass_counter"
+          },
+          {
+            "type": "counter_from_hand",
+            "handIndex": 0
+          },
+          {
+            "type": "counter_event",
+            "handIndex": 1
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "choice-select",
+    "message": "view",
+    "viewerSeat": 1,
+    "choice": "select",
+    "answerable": true,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 1,
+        "you": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "ST01-006",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 1000,
+              "printedPower": 1000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [
+                "blocker"
+              ],
+              "statusLabels": [
+                "Blocker"
+              ]
+            }
+          ],
+          "stage": null,
+          "hand": [
+            {
+              "id": "c_t2",
+              "defId": "ST01-003"
+            }
+          ],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [
+            {
+              "id": "c_t3",
+              "defId": "ST01-014"
+            }
+          ],
+          "donDeckCount": 7,
+          "costArea": [
+            {
+              "id": "don_55",
+              "rested": true
+            },
+            {
+              "id": "don_56",
+              "rested": false
+            },
+            {
+              "id": "don_57",
+              "rested": false
+            }
+          ],
+          "activeDonCount": 2,
+          "mulliganDone": true,
+          "turnsStarted": 1
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": true,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": [
+              "Rested"
+            ]
+          },
+          "characters": [],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 7,
+          "costAreaCount": 3,
+          "activeDonCount": 3,
+          "turnsStarted": 2,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "counter",
+        "turnNumber": 3,
+        "battle": {
+          "attackerSeat": 0,
+          "attackerId": "leader_1",
+          "target": {
+            "kind": "leader"
+          },
+          "originalTargetId": "leader_52",
+          "defenderPowerBonus": 0,
+          "attackerPowerBonus": 0
+        },
+        "pendingChoices": [
+          {
+            "id": "choice_104",
+            "cardDefId": "ST01-014",
+            "sourceInstanceId": "c_t3",
+            "seat": 1,
+            "kind": "effect",
+            "optional": false,
+            "prompt": "Guard Point — choose up to 1 card to +3000 power.",
+            "request": {
+              "type": "select",
+              "min": 0,
+              "max": 1,
+              "options": [
+                {
+                  "id": "o0",
+                  "defId": "ST01-001",
+                  "zone": "leader",
+                  "ownerSeat": 1,
+                  "instanceId": "leader_52",
+                  "eligible": true,
+                  "rested": false
+                },
+                {
+                  "id": "o1",
+                  "defId": "ST01-006",
+                  "zone": "character",
+                  "ownerSeat": 1,
+                  "instanceId": "c_t1",
+                  "eligible": true,
+                  "rested": false
+                }
+              ]
+            }
+          }
+        ],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "resolve_pending_choice",
+            "accept": true,
+            "selectedOptionIds": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "choice-select-opponent",
+    "message": "view",
+    "viewerSeat": 0,
+    "choice": "select",
+    "answerable": false,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 0,
+        "you": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": true,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": [
+              "Rested"
+            ]
+          },
+          "characters": [],
+          "stage": null,
+          "hand": [],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 7,
+          "costArea": [
+            {
+              "id": "don_2",
+              "rested": false
+            },
+            {
+              "id": "don_3",
+              "rested": false
+            },
+            {
+              "id": "don_4",
+              "rested": false
+            }
+          ],
+          "activeDonCount": 3,
+          "mulliganDone": true,
+          "turnsStarted": 2
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "ST01-006",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 1000,
+              "printedPower": 1000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [
+                "blocker"
+              ],
+              "statusLabels": [
+                "Blocker"
+              ]
+            }
+          ],
+          "stage": null,
+          "handCount": 1,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [
+            {
+              "id": "c_t3",
+              "defId": "ST01-014"
+            }
+          ],
+          "donDeckCount": 7,
+          "costAreaCount": 3,
+          "activeDonCount": 2,
+          "turnsStarted": 1,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "counter",
+        "turnNumber": 3,
+        "battle": {
+          "attackerSeat": 0,
+          "attackerId": "leader_1",
+          "target": {
+            "kind": "leader"
+          },
+          "originalTargetId": "leader_52",
+          "defenderPowerBonus": 0,
+          "attackerPowerBonus": 0
+        },
+        "pendingChoices": [
+          {
+            "id": "choice_104",
+            "cardDefId": "ST01-014",
+            "sourceInstanceId": "c_t3",
+            "seat": 1,
+            "kind": "effect",
+            "optional": false,
+            "prompt": "Guard Point — choose up to 1 card to +3000 power.",
+            "request": {
+              "type": "select",
+              "min": 0,
+              "max": 1,
+              "options": [
+                {
+                  "id": "o0",
+                  "defId": "ST01-001",
+                  "zone": "leader",
+                  "ownerSeat": 1,
+                  "instanceId": "leader_52",
+                  "eligible": true,
+                  "rested": false
+                },
+                {
+                  "id": "o1",
+                  "defId": "ST01-006",
+                  "zone": "character",
+                  "ownerSeat": 1,
+                  "instanceId": "c_t1",
+                  "eligible": true,
+                  "rested": false
+                }
+              ]
+            }
+          }
+        ],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": []
+      }
+    }
+  },
+  {
+    "name": "choice-confirm",
+    "message": "view",
+    "viewerSeat": 0,
+    "choice": "confirm",
+    "answerable": true,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 0,
+        "you": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "OP02-062",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 7000,
+              "printedPower": 7000,
+              "fieldCost": 6,
+              "summoningSick": true,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": [
+                "Summoning sick"
+              ]
+            }
+          ],
+          "stage": null,
+          "hand": [
+            {
+              "id": "c_t2",
+              "defId": "ST01-003",
+              "playCost": 1
+            },
+            {
+              "id": "c_t3",
+              "defId": "ST01-003",
+              "playCost": 1
+            }
+          ],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 4,
+          "costArea": [
+            {
+              "id": "don_5",
+              "rested": true
+            },
+            {
+              "id": "don_6",
+              "rested": true
+            },
+            {
+              "id": "don_7",
+              "rested": true
+            },
+            {
+              "id": "don_8",
+              "rested": true
+            },
+            {
+              "id": "don_9",
+              "rested": true
+            },
+            {
+              "id": "don_10",
+              "rested": true
+            }
+          ],
+          "activeDonCount": 0,
+          "mulliganDone": true,
+          "turnsStarted": 2
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t4",
+              "defId": "ST01-003",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 3000,
+              "printedPower": 3000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            }
+          ],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costAreaCount": 2,
+          "activeDonCount": 2,
+          "turnsStarted": 1,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "main",
+        "turnNumber": 3,
+        "battle": null,
+        "pendingChoices": [
+          {
+            "id": "choice_105",
+            "cardDefId": "OP02-062",
+            "sourceInstanceId": "c_t1",
+            "seat": 0,
+            "kind": "effect",
+            "optional": true,
+            "prompt": "Monkey.D.Luffy — pay the cost to activate: [On Play]/[When Attacking] You may trash 2 cards from your hand: Return up to 1 Character with a cost of 4 or less to the owner's hand. Then, this Character gains [Double Attack] during this turn.",
+            "request": {
+              "type": "confirm"
+            }
+          }
+        ],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "resolve_pending_choice",
+            "accept": true
+          },
+          {
+            "type": "resolve_pending_choice",
+            "accept": false
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "choice-confirm-opponent",
+    "message": "view",
+    "viewerSeat": 1,
+    "choice": "confirm",
+    "answerable": false,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 1,
+        "you": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t4",
+              "defId": "ST01-003",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 3000,
+              "printedPower": 3000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            }
+          ],
+          "stage": null,
+          "hand": [],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costArea": [
+            {
+              "id": "don_53",
+              "rested": false
+            },
+            {
+              "id": "don_54",
+              "rested": false
+            }
+          ],
+          "activeDonCount": 2,
+          "mulliganDone": true,
+          "turnsStarted": 1
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "OP02-062",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 7000,
+              "printedPower": 7000,
+              "fieldCost": 6,
+              "summoningSick": true,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": [
+                "Summoning sick"
+              ]
+            }
+          ],
+          "stage": null,
+          "handCount": 2,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 4,
+          "costAreaCount": 6,
+          "activeDonCount": 0,
+          "turnsStarted": 2,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "main",
+        "turnNumber": 3,
+        "battle": null,
+        "pendingChoices": [
+          {
+            "id": "choice_105",
+            "cardDefId": "OP02-062",
+            "sourceInstanceId": "c_t1",
+            "seat": 0,
+            "kind": "effect",
+            "optional": true,
+            "prompt": "Monkey.D.Luffy — pay the cost to activate: [On Play]/[When Attacking] You may trash 2 cards from your hand: Return up to 1 Character with a cost of 4 or less to the owner's hand. Then, this Character gains [Double Attack] during this turn.",
+            "request": {
+              "type": "confirm"
+            }
+          }
+        ],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": []
+      }
+    }
+  },
+  {
+    "name": "choice-mode",
+    "message": "view",
+    "viewerSeat": 0,
+    "choice": "mode",
+    "answerable": true,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 0,
+        "you": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [],
+          "stage": null,
+          "hand": [],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [
+            {
+              "id": "c_t1",
+              "defId": "OP11-081"
+            }
+          ],
+          "donDeckCount": 4,
+          "costArea": [
+            {
+              "id": "don_5",
+              "rested": true
+            },
+            {
+              "id": "don_6",
+              "rested": true
+            },
+            {
+              "id": "don_7",
+              "rested": true
+            },
+            {
+              "id": "don_8",
+              "rested": true
+            },
+            {
+              "id": "don_9",
+              "rested": true
+            },
+            {
+              "id": "don_10",
+              "rested": true
+            }
+          ],
+          "activeDonCount": 0,
+          "mulliganDone": true,
+          "turnsStarted": 2
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t2",
+              "defId": "ST01-003",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 3000,
+              "printedPower": 3000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            }
+          ],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 36,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costAreaCount": 2,
+          "activeDonCount": 2,
+          "turnsStarted": 1,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "main",
+        "turnNumber": 3,
+        "battle": null,
+        "pendingChoices": [
+          {
+            "id": "choice_104",
+            "cardDefId": "OP11-081",
+            "sourceInstanceId": "c_t1",
+            "seat": 0,
+            "kind": "effect",
+            "optional": false,
+            "prompt": "Cognac Mama-Mash — choose a cost.",
+            "request": {
+              "type": "mode",
+              "options": [
+                {
+                  "id": "m0",
+                  "label": "0",
+                  "eligible": true
+                },
+                {
+                  "id": "m1",
+                  "label": "1",
+                  "eligible": true
+                },
+                {
+                  "id": "m2",
+                  "label": "2",
+                  "eligible": true
+                },
+                {
+                  "id": "m3",
+                  "label": "3",
+                  "eligible": true
+                },
+                {
+                  "id": "m4",
+                  "label": "4",
+                  "eligible": true
+                },
+                {
+                  "id": "m5",
+                  "label": "5",
+                  "eligible": true
+                },
+                {
+                  "id": "m6",
+                  "label": "6",
+                  "eligible": true
+                },
+                {
+                  "id": "m7",
+                  "label": "7",
+                  "eligible": true
+                },
+                {
+                  "id": "m8",
+                  "label": "8",
+                  "eligible": true
+                },
+                {
+                  "id": "m9",
+                  "label": "9",
+                  "eligible": true
+                },
+                {
+                  "id": "m10",
+                  "label": "10",
+                  "eligible": true
+                }
+              ]
+            }
+          }
+        ],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "resolve_pending_choice",
+            "accept": true,
+            "selectedOptionIds": [
+              "m0"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "choice-order",
+    "message": "view",
+    "viewerSeat": 0,
+    "choice": "order",
+    "answerable": true,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 0,
+        "you": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "EB02-053",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 4000,
+              "printedPower": 4000,
+              "fieldCost": 3,
+              "summoningSick": true,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": [
+                "Summoning sick"
+              ]
+            }
+          ],
+          "stage": null,
+          "hand": [],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 7,
+          "costArea": [
+            {
+              "id": "don_5",
+              "rested": true
+            },
+            {
+              "id": "don_6",
+              "rested": true
+            },
+            {
+              "id": "don_7",
+              "rested": true
+            }
+          ],
+          "activeDonCount": 0,
+          "mulliganDone": true,
+          "turnsStarted": 2
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 3,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costAreaCount": 2,
+          "activeDonCount": 2,
+          "turnsStarted": 1,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "main",
+        "turnNumber": 3,
+        "battle": null,
+        "pendingChoices": [
+          {
+            "id": "choice_106",
+            "cardDefId": "EB02-053",
+            "sourceInstanceId": "c_t1",
+            "seat": 0,
+            "kind": "effect",
+            "optional": false,
+            "prompt": "Myskina Olga — place each card at the top or bottom of the Life cards.",
+            "request": {
+              "type": "order",
+              "options": [
+                {
+                  "id": "o0",
+                  "defId": "OP01-016",
+                  "zone": "life",
+                  "ownerSeat": 1,
+                  "eligible": true
+                }
+              ],
+              "destination": "life",
+              "allowTopOrBottom": true
+            },
+            "privateToSeat": 0,
+            "optionCount": 1
+          }
+        ],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "resolve_pending_choice",
+            "accept": true,
+            "orderedOptionIds": [
+              "o0"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "choice-order-opponent",
+    "message": "view",
+    "viewerSeat": 1,
+    "choice": "order",
+    "answerable": false,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 1,
+        "you": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [],
+          "stage": null,
+          "hand": [],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 3,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costArea": [
+            {
+              "id": "don_53",
+              "rested": false
+            },
+            {
+              "id": "don_54",
+              "rested": false
+            }
+          ],
+          "activeDonCount": 2,
+          "mulliganDone": true,
+          "turnsStarted": 1
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "EB02-053",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 4000,
+              "printedPower": 4000,
+              "fieldCost": 3,
+              "summoningSick": true,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": [
+                "Summoning sick"
+              ]
+            }
+          ],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 7,
+          "costAreaCount": 3,
+          "activeDonCount": 0,
+          "turnsStarted": 2,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "main",
+        "turnNumber": 3,
+        "battle": null,
+        "pendingChoices": [
+          {
+            "id": "choice_106",
+            "cardDefId": "EB02-053",
+            "sourceInstanceId": "c_t1",
+            "seat": 0,
+            "kind": "effect",
+            "optional": false,
+            "prompt": "Myskina Olga — place each card at the top or bottom of the Life cards.",
+            "request": {
+              "type": "order",
+              "options": [
+                {
+                  "id": "o0",
+                  "eligible": false,
+                  "zone": "life",
+                  "defId": "HIDDEN"
+                }
+              ],
+              "destination": "life",
+              "allowTopOrBottom": true
+            },
+            "privateToSeat": 0,
+            "optionCount": 1
+          }
+        ],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": []
+      }
+    }
+  },
+  {
+    "name": "choice-look",
+    "message": "view",
+    "viewerSeat": 0,
+    "choice": "look",
+    "answerable": true,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 0,
+        "you": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "OP01-016",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 2000,
+              "printedPower": 2000,
+              "fieldCost": 1,
+              "summoningSick": true,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": [
+                "Summoning sick"
+              ]
+            }
+          ],
+          "stage": null,
+          "hand": [],
+          "deckCount": 40,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 9,
+          "costArea": [
+            {
+              "id": "don_5",
+              "rested": true
+            }
+          ],
+          "activeDonCount": 0,
+          "mulliganDone": true,
+          "turnsStarted": 2
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costAreaCount": 2,
+          "activeDonCount": 2,
+          "turnsStarted": 1,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "main",
+        "turnNumber": 3,
+        "battle": null,
+        "pendingChoices": [
+          {
+            "id": "choice_105",
+            "cardDefId": "OP01-016",
+            "sourceInstanceId": "c_t1",
+            "seat": 0,
+            "kind": "effect",
+            "optional": false,
+            "prompt": "Nami — look at the top 5 cards, choose up to 1, then place the rest at the bottom of the deck in any order.",
+            "request": {
+              "type": "look",
+              "options": [
+                {
+                  "id": "o0",
+                  "defId": "OP01-013",
+                  "zone": "deck",
+                  "ownerSeat": 0,
+                  "eligible": true
+                },
+                {
+                  "id": "o1",
+                  "defId": "OP01-014",
+                  "zone": "deck",
+                  "ownerSeat": 0,
+                  "eligible": true
+                },
+                {
+                  "id": "o2",
+                  "defId": "OP01-015",
+                  "zone": "deck",
+                  "ownerSeat": 0,
+                  "eligible": true
+                },
+                {
+                  "id": "o3",
+                  "defId": "OP01-017",
+                  "zone": "deck",
+                  "ownerSeat": 0,
+                  "eligible": true
+                },
+                {
+                  "id": "o4",
+                  "defId": "OP01-025",
+                  "zone": "deck",
+                  "ownerSeat": 0,
+                  "eligible": true
+                }
+              ],
+              "minSelect": 0,
+              "maxSelect": 1,
+              "groups": [
+                {
+                  "label": "Up to 1: add to hand",
+                  "max": 1,
+                  "eligibleIds": [
+                    "o0",
+                    "o1",
+                    "o2",
+                    "o3",
+                    "o4"
+                  ]
+                }
+              ],
+              "rest": "deck_bottom",
+              "restLabel": "place the rest at the bottom of the deck in any order"
+            },
+            "privateToSeat": 0,
+            "optionCount": 5
+          }
+        ],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "resolve_pending_choice",
+            "accept": true,
+            "selectedOptionIds": [],
+            "orderedOptionIds": [
+              "o0",
+              "o1",
+              "o2",
+              "o3",
+              "o4"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "choice-look-opponent",
+    "message": "view",
+    "viewerSeat": 1,
+    "choice": "look",
+    "answerable": false,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 1,
+        "you": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [],
+          "stage": null,
+          "hand": [],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costArea": [
+            {
+              "id": "don_53",
+              "rested": false
+            },
+            {
+              "id": "don_54",
+              "rested": false
+            }
+          ],
+          "activeDonCount": 2,
+          "mulliganDone": true,
+          "turnsStarted": 1
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "OP01-016",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 2000,
+              "printedPower": 2000,
+              "fieldCost": 1,
+              "summoningSick": true,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": [
+                "Summoning sick"
+              ]
+            }
+          ],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 40,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 9,
+          "costAreaCount": 1,
+          "activeDonCount": 0,
+          "turnsStarted": 2,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "main",
+        "turnNumber": 3,
+        "battle": null,
+        "pendingChoices": [
+          {
+            "id": "choice_105",
+            "cardDefId": "OP01-016",
+            "sourceInstanceId": "c_t1",
+            "seat": 0,
+            "kind": "effect",
+            "optional": false,
+            "prompt": "Nami — look at the top 5 cards, choose up to 1, then place the rest at the bottom of the deck in any order.",
+            "request": {
+              "type": "look",
+              "options": [
+                {
+                  "id": "o0",
+                  "eligible": false,
+                  "zone": "deck",
+                  "defId": "HIDDEN"
+                },
+                {
+                  "id": "o1",
+                  "eligible": false,
+                  "zone": "deck",
+                  "defId": "HIDDEN"
+                },
+                {
+                  "id": "o2",
+                  "eligible": false,
+                  "zone": "deck",
+                  "defId": "HIDDEN"
+                },
+                {
+                  "id": "o3",
+                  "eligible": false,
+                  "zone": "deck",
+                  "defId": "HIDDEN"
+                },
+                {
+                  "id": "o4",
+                  "eligible": false,
+                  "zone": "deck",
+                  "defId": "HIDDEN"
+                }
+              ],
+              "minSelect": 0,
+              "maxSelect": 1,
+              "groups": [
+                {
+                  "label": "Up to 1: add to hand",
+                  "max": 1,
+                  "eligibleIds": []
+                }
+              ],
+              "rest": "deck_bottom",
+              "restLabel": "place the rest at the bottom of the deck in any order"
+            },
+            "privateToSeat": 0,
+            "optionCount": 5
+          }
+        ],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": []
+      }
+    }
+  },
+  {
+    "name": "choice-order-effects",
+    "message": "view",
+    "viewerSeat": 1,
+    "choice": "order_effects",
+    "answerable": true,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 1,
+        "you": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "OP06-014",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 0,
+              "printedPower": null,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            },
+            {
+              "id": "c_t2",
+              "defId": "OP06-014",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 0,
+              "printedPower": null,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            }
+          ],
+          "stage": null,
+          "hand": [],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costArea": [
+            {
+              "id": "don_53",
+              "rested": false
+            },
+            {
+              "id": "don_54",
+              "rested": false
+            }
+          ],
+          "activeDonCount": 2,
+          "mulliganDone": true,
+          "turnsStarted": 1
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": true,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": [
+              "Rested"
+            ]
+          },
+          "characters": [],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 7,
+          "costAreaCount": 3,
+          "activeDonCount": 3,
+          "turnsStarted": 2,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "block",
+        "turnNumber": 3,
+        "battle": {
+          "attackerSeat": 0,
+          "attackerId": "leader_1",
+          "target": {
+            "kind": "leader"
+          },
+          "originalTargetId": "leader_52",
+          "defenderPowerBonus": 0,
+          "attackerPowerBonus": 0
+        },
+        "pendingChoices": [
+          {
+            "id": "choice_105",
+            "seat": 1,
+            "kind": "order_effects",
+            "cardDefId": "OP06-014",
+            "optional": false,
+            "prompt": "Choose the order to resolve your simultaneous effects.",
+            "unorderedChoices": [
+              {
+                "id": "trig_103",
+                "seat": 1,
+                "kind": "effect",
+                "cardDefId": "OP06-014",
+                "sourceInstanceId": "c_t1",
+                "optional": false,
+                "prompt": "Ratchet: [On Your Opponent's Attack] You may trash any number of {FILM} type cards from your hand. Your Leader or 1 of your Characters gains +1000 power during this battle for every card trashed."
+              },
+              {
+                "id": "trig_104",
+                "seat": 1,
+                "kind": "effect",
+                "cardDefId": "OP06-014",
+                "sourceInstanceId": "c_t2",
+                "optional": false,
+                "prompt": "Ratchet: [On Your Opponent's Attack] You may trash any number of {FILM} type cards from your hand. Your Leader or 1 of your Characters gains +1000 power during this battle for every card trashed."
+              }
+            ]
+          }
+        ],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "order_pending_effects",
+            "orderedIds": [
+              "trig_103",
+              "trig_104"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "choice-order-effects-opponent",
+    "message": "view",
+    "viewerSeat": 0,
+    "choice": "order_effects",
+    "answerable": false,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 0,
+        "you": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": true,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": [
+              "Rested"
+            ]
+          },
+          "characters": [],
+          "stage": null,
+          "hand": [],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 7,
+          "costArea": [
+            {
+              "id": "don_2",
+              "rested": false
+            },
+            {
+              "id": "don_3",
+              "rested": false
+            },
+            {
+              "id": "don_4",
+              "rested": false
+            }
+          ],
+          "activeDonCount": 3,
+          "mulliganDone": true,
+          "turnsStarted": 2
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "OP06-014",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 0,
+              "printedPower": null,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            },
+            {
+              "id": "c_t2",
+              "defId": "OP06-014",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 0,
+              "printedPower": null,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            }
+          ],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costAreaCount": 2,
+          "activeDonCount": 2,
+          "turnsStarted": 1,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "block",
+        "turnNumber": 3,
+        "battle": {
+          "attackerSeat": 0,
+          "attackerId": "leader_1",
+          "target": {
+            "kind": "leader"
+          },
+          "originalTargetId": "leader_52",
+          "defenderPowerBonus": 0,
+          "attackerPowerBonus": 0
+        },
+        "pendingChoices": [
+          {
+            "id": "choice_105",
+            "seat": 1,
+            "kind": "order_effects",
+            "cardDefId": "OP06-014",
+            "optional": false,
+            "prompt": "Choose the order to resolve your simultaneous effects.",
+            "unorderedChoices": [
+              {
+                "id": "trig_103",
+                "seat": 1,
+                "kind": "effect",
+                "cardDefId": "OP06-014",
+                "sourceInstanceId": "c_t1",
+                "optional": false,
+                "prompt": "Ratchet: [On Your Opponent's Attack] You may trash any number of {FILM} type cards from your hand. Your Leader or 1 of your Characters gains +1000 power during this battle for every card trashed."
+              },
+              {
+                "id": "trig_104",
+                "seat": 1,
+                "kind": "effect",
+                "cardDefId": "OP06-014",
+                "sourceInstanceId": "c_t2",
+                "optional": false,
+                "prompt": "Ratchet: [On Your Opponent's Attack] You may trash any number of {FILM} type cards from your hand. Your Leader or 1 of your Characters gains +1000 power during this battle for every card trashed."
+              }
+            ]
+          }
+        ],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": []
+      }
+    }
+  },
+  {
+    "name": "choice-life-trigger",
+    "message": "view",
+    "viewerSeat": 1,
+    "choice": "life_trigger",
+    "answerable": true,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 1,
+        "you": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [],
+          "stage": null,
+          "hand": [],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 2,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costArea": [
+            {
+              "id": "don_53",
+              "rested": false
+            },
+            {
+              "id": "don_54",
+              "rested": false
+            }
+          ],
+          "activeDonCount": 2,
+          "mulliganDone": true,
+          "turnsStarted": 1
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": true,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": [
+              "Rested"
+            ]
+          },
+          "characters": [],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 7,
+          "costAreaCount": 3,
+          "activeDonCount": 3,
+          "turnsStarted": 2,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "damage",
+        "turnNumber": 3,
+        "battle": {
+          "attackerSeat": 0,
+          "attackerId": "leader_1",
+          "target": {
+            "kind": "leader"
+          },
+          "originalTargetId": "leader_52",
+          "defenderPowerBonus": 0,
+          "attackerPowerBonus": 0,
+          "damageRemaining": 0
+        },
+        "pendingChoices": [
+          {
+            "id": "choice_103",
+            "seat": 1,
+            "kind": "life_trigger",
+            "cardDefId": "ST01-014",
+            "sourceInstanceId": "l_t1",
+            "optional": true,
+            "prompt": "Guard Point — activate this card's [Trigger]? [Trigger] Up to 1 of your Leader or Character cards gains +1000 power during this turn.",
+            "request": {
+              "type": "confirm"
+            },
+            "privateToSeat": 1,
+            "hideCardDefFromOthers": true
+          }
+        ],
+        "pendingTrigger": {
+          "seat": 1,
+          "cardDefId": "ST01-014"
+        },
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "resolve_pending_choice",
+            "accept": true
+          },
+          {
+            "type": "resolve_pending_choice",
+            "accept": false
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "choice-life-trigger-opponent",
+    "message": "view",
+    "viewerSeat": 0,
+    "choice": "life_trigger",
+    "answerable": false,
+    "body": {
+      "protocolVersion": 5,
+      "view": {
+        "seat": 0,
+        "you": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": true,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": [
+              "Rested"
+            ]
+          },
+          "characters": [],
+          "stage": null,
+          "hand": [],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 7,
+          "costArea": [
+            {
+              "id": "don_2",
+              "rested": false
+            },
+            {
+              "id": "don_3",
+              "rested": false
+            },
+            {
+              "id": "don_4",
+              "rested": false
+            }
+          ],
+          "activeDonCount": 3,
+          "mulliganDone": true,
+          "turnsStarted": 2
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 2,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costAreaCount": 2,
+          "activeDonCount": 2,
+          "turnsStarted": 1,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "damage",
+        "turnNumber": 3,
+        "battle": {
+          "attackerSeat": 0,
+          "attackerId": "leader_1",
+          "target": {
+            "kind": "leader"
+          },
+          "originalTargetId": "leader_52",
+          "defenderPowerBonus": 0,
+          "attackerPowerBonus": 0,
+          "damageRemaining": 0
+        },
+        "pendingChoices": [
+          {
+            "id": "choice_103",
+            "seat": 1,
+            "kind": "life_trigger",
+            "cardDefId": "HIDDEN",
+            "optional": true,
+            "prompt": "Opponent is resolving a private card choice.",
+            "request": {
+              "type": "confirm"
+            },
+            "privateToSeat": 1,
+            "hideCardDefFromOthers": true
+          }
+        ],
+        "pendingTrigger": {
+          "seat": 1,
+          "cardDefId": "HIDDEN"
+        },
+        "winner": null,
+        "winReason": null,
+        "legalIntents": []
+      }
+    }
+  },
+  {
+    "name": "welcome",
+    "message": "welcome",
+    "viewerSeat": 0,
+    "choice": "confirm",
+    "answerable": true,
+    "body": {
+      "protocolVersion": 5,
+      "matchId": "match-fixture",
+      "seat": 0,
+      "role": "player",
+      "view": {
+        "seat": 0,
+        "you": {
+          "leader": {
+            "id": "leader_1",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t1",
+              "defId": "OP02-062",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 7000,
+              "printedPower": 7000,
+              "fieldCost": 6,
+              "summoningSick": true,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": [
+                "Summoning sick"
+              ]
+            }
+          ],
+          "stage": null,
+          "hand": [
+            {
+              "id": "c_t2",
+              "defId": "ST01-003",
+              "playCost": 1
+            },
+            {
+              "id": "c_t3",
+              "defId": "ST01-003",
+              "playCost": 1
+            }
+          ],
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 4,
+          "costArea": [
+            {
+              "id": "don_5",
+              "rested": true
+            },
+            {
+              "id": "don_6",
+              "rested": true
+            },
+            {
+              "id": "don_7",
+              "rested": true
+            },
+            {
+              "id": "don_8",
+              "rested": true
+            },
+            {
+              "id": "don_9",
+              "rested": true
+            },
+            {
+              "id": "don_10",
+              "rested": true
+            }
+          ],
+          "activeDonCount": 0,
+          "mulliganDone": true,
+          "turnsStarted": 2
+        },
+        "opponent": {
+          "leader": {
+            "id": "leader_52",
+            "defId": "ST01-001",
+            "rested": false,
+            "attachedDonCount": 0,
+            "power": 5000,
+            "printedPower": 5000,
+            "fieldCost": 0,
+            "summoningSick": false,
+            "rush": false,
+            "keywords": [],
+            "statusLabels": []
+          },
+          "characters": [
+            {
+              "id": "c_t4",
+              "defId": "ST01-003",
+              "rested": false,
+              "attachedDonCount": 0,
+              "power": 3000,
+              "printedPower": 3000,
+              "fieldCost": 1,
+              "summoningSick": false,
+              "rush": false,
+              "keywords": [],
+              "statusLabels": []
+            }
+          ],
+          "stage": null,
+          "handCount": 0,
+          "deckCount": 35,
+          "trash": [],
+          "lifeCount": 5,
+          "faceUpLife": [],
+          "resolving": [],
+          "donDeckCount": 8,
+          "costAreaCount": 2,
+          "activeDonCount": 2,
+          "turnsStarted": 1,
+          "mulliganDone": true
+        },
+        "activeSeat": 0,
+        "firstSeat": 0,
+        "phase": "main",
+        "turnNumber": 3,
+        "battle": null,
+        "pendingChoices": [
+          {
+            "id": "choice_105",
+            "cardDefId": "OP02-062",
+            "sourceInstanceId": "c_t1",
+            "seat": 0,
+            "kind": "effect",
+            "optional": true,
+            "prompt": "Monkey.D.Luffy — pay the cost to activate: [On Play]/[When Attacking] You may trash 2 cards from your hand: Return up to 1 Character with a cost of 4 or less to the owner's hand. Then, this Character gains [Double Attack] during this turn.",
+            "request": {
+              "type": "confirm"
+            }
+          }
+        ],
+        "pendingTrigger": null,
+        "winner": null,
+        "winReason": null,
+        "legalIntents": [
+          {
+            "type": "resolve_pending_choice",
+            "accept": true
+          },
+          {
+            "type": "resolve_pending_choice",
+            "accept": false
+          }
+        ]
+      },
+      "players": [
+        {
+          "name": "Alice"
+        },
+        {
+          "name": "Bob"
+        }
+      ]
+    }
+  }
+]

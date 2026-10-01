@@ -11,6 +11,7 @@
     "sim": "tsx src/sim/runBatch.ts",
     "export-atlas": "tsx src/scripts/exportAtlas.ts",
     "export-planner-stats": "tsx src/scripts/exportPlannerStats.ts",
+    "export-protocol-fixtures": "tsx src/scripts/exportProtocolFixtures.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

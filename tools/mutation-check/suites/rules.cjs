@@ -181,5 +181,8 @@ module.exports = {
     // A replaced removal is skipped even when the replacement moved the target off the field itself
     { id: "replaced-removal-reapplied-off-field", file: "packages/rules/src/engine/runtime.ts", from: "if (frame.bindings[replKey] === true) continue;", to: "if (frame.bindings[replKey] === true && isOnField(loc)) continue;", kills: ["K.O.'ing himself instead of his own removal triggers [On K.O.] once"] },
     {"id": "planner-text-removal-own", "file": "packages/rules/src/scripts/plannerStats.ts", "from": "if (/opponent/i.test(clause) && /(K", "to": "if (/(K", "kills": ["falls back to printed text only"]},
+    // protocol fixtures (packages/rules/protocol-fixtures)
+    {"id": "protocol-fixture-look-field-renamed", "file": "packages/rules/src/engine/runtime.ts", "from": "const request: ChoiceRequest = { type: \"look\", options, minSelect, maxSelect,", "to": "const request: ChoiceRequest = { type: \"look\", options, minPick: minSelect, maxSelect,", "kills": ["server-messages.json matches what the engine produces"]},
+    {"id": "protocol-fixture-version-bumped", "file": "packages/rules/src/state/snapshot.ts", "from": "export const RULES_PROTOCOL_VERSION = 5 as const;", "to": "export const RULES_PROTOCOL_VERSION = 6 as const;", "kills": ["protocol.json matches what the engine produces"]},
   ],
 };

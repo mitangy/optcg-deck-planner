@@ -47,5 +47,10 @@ module.exports = {
     { id: "presence-no-ingest-secret", file: presence, from: "\"X-Duel-Ingest-Token\": getDuelIngestSecret()", to: "\"X-Duel-Ingest-Token\": \"\"", kills: ["pushes a full snapshot of real accounts"] },
     { id: "presence-pushes-before-start", file: presence, from: "    if (!this.started || this.debounce) return;", to: "    if (this.debounce) return;", kills: ["pushes soon after a change once started, and not before"] },
     { id: "presence-change-not-pushed", file: presence, from: "    if (!this.started || this.debounce) return;", to: "    return;", kills: ["pushes soon after a change once started, and not before"] },
+    // protocol contract (golden fixtures from packages/rules)
+    {"id": "contract-version-bumped", "file": "game-server/src/protocol.ts", "from": "export const PROTOCOL_VERSION = 5 as const;", "to": "export const PROTOCOL_VERSION = 6 as const;", "kills": ["speaks the protocol version the fixtures were generated for"]},
+    {"id": "contract-any-version-accepted", "file": "game-server/src/protocol.ts", "from": "  return v === PROTOCOL_VERSION;", "to": "  return typeof v === \"number\";", "kills": ["rejects malformed variants of every client intent fixture"]},
+    {"id": "contract-intent-type-unchecked", "file": "game-server/src/protocol.ts", "from": "    typeof (o.intent as { type?: unknown }).type !== \"string\"", "to": "    false", "kills": ["rejects malformed variants of every client intent fixture"]},
+    {"id": "contract-intent-envelope-returned", "file": "game-server/src/protocol.ts", "from": "  return o.intent as Intent;", "to": "  return { ...(o.intent as Intent), protocolVersion: o.protocolVersion } as Intent;", "kills": ["parses every client intent fixture to its intent unchanged"]},
   ],
 };
