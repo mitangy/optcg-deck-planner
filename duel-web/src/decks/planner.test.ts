@@ -3,6 +3,7 @@ import {
   applyPlannerDeepLink,
   importPlannerDecks,
   parsePlannerDeepLink,
+  plannerDeckImported,
   plannerDecksNotLocal,
   plannerDeckToDecklist,
   refreshLinkedDeck,
@@ -250,5 +251,20 @@ describe("importPlannerDecks", () => {
     expect(r.errors).toHaveLength(2);
     expect(r.errors[0]).toBe("Offline: timeout");
     expect(r.errors[1]).toMatch(/^No leader: /);
+  });
+});
+
+describe("plannerDeckImported", () => {
+  it("is false for a swiped deck that failed while another ticked deck was added", async () => {
+    const { imported } = await importPlannerDecks(
+      [
+        { id: 7, name: "Red Luffy" },
+        { id: 9, name: "No leader" },
+      ],
+      async (id) =>
+        id === 9 ? detail({ id, leader_card_id: null, cards: [{ card_id: "ST01-003", needed: 4 }] }) : detail({ id }),
+    );
+    expect(plannerDeckImported(imported, 9)).toBe(false);
+    expect(plannerDeckImported(imported, 7)).toBe(true);
   });
 });

@@ -14,6 +14,7 @@ import {
 import {
   applyPlannerDeepLink,
   importPlannerDecks,
+  plannerDeckImported,
   listPlannerDecks,
   parsePlannerDeepLink,
   plannerDecksNotLocal,
@@ -287,7 +288,11 @@ export function DeckListPage() {
     setArrived(new Set(ids));
   }
 
-  async function addPlannerDecks(ids: number[], via: "swipe" | "other" = "other") {
+  /**
+   * With `swipedId` (a phone swipe), resolves true only when that deck itself
+   * arrived, so its row comes back if it failed while other ticked decks were added.
+   */
+  async function addPlannerDecks(ids: number[], via: "swipe" | "other" = "other", swipedId?: number) {
     if (planner.status !== "ready" || ids.length === 0) return;
     const picked = planner.decks.filter((d) => ids.includes(d.id));
     setImportErr(null);
@@ -319,7 +324,7 @@ export function DeckListPage() {
         }
       }
       if (errors.length) setImportErr(errors.join(" · "));
-      return imported.length > 0;
+      return swipedId != null ? plannerDeckImported(imported, swipedId) : imported.length > 0;
     } finally {
       setImporting(false);
       refresh();
@@ -611,7 +616,7 @@ export function DeckListPage() {
                         onDragStart={phone ? undefined : (e) => dragPlanner(e, d)}
                         onSwipe={
                           phone
-                            ? () => addPlannerDecks(plannerGroup(d).map((g) => g.id), "swipe")
+                            ? () => addPlannerDecks(plannerGroup(d).map((g) => g.id), "swipe", d.id)
                             : undefined
                         }
                       />
