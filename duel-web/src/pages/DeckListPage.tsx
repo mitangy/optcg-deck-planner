@@ -20,7 +20,7 @@ import {
   plannerDecksNotLocal,
   type PlannerDeckSummary,
 } from "../decks/planner";
-import { acceptsDrop, useDeckDrag, type DeckDragItem, type DeckDropZone } from "../decks/useDeckDrag";
+import { useDeckDrag, type DeckDragItem } from "../decks/useDeckDrag";
 import { useSwipeMove } from "../decks/useSwipeMove";
 import { DESKTOP_DECKS_QUERY, useMediaQuery } from "../board/useMediaQuery";
 import { fetchAuthMe, googleLoginUrl, type AuthUser } from "../net/api";
@@ -59,22 +59,18 @@ function DragHandle({
   );
 }
 
-function SwipeIcon({ kind }: { kind: "add" | "back" }) {
+function SwipeIcon() {
   return (
     <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
-      {kind === "add" ? (
-        <path d="M12 5v14M5 12h14" />
-      ) : (
-        <path d="M12 5v12M6.5 11.5 12 17l5.5-5.5M5 20h14" />
-      )}
+      <path d="M12 5v14M5 12h14" />
     </svg>
   );
 }
 
 /**
- * One row of either list. On phones (below DESKTOP_DECKS_QUERY) a row that can
- * change lists slides sideways under the finger over a coloured action that
- * fills in as the swipe nears the distance that moves it; desktop keeps the grip drag.
+ * One row of either list. On phones (below DESKTOP_DECKS_QUERY) a planner row
+ * slides sideways under the finger over a coloured action that fills in as the
+ * swipe nears the distance that adds it; desktop keeps the grip drag.
  */
 function SwipeRow({
   className,
@@ -83,8 +79,8 @@ function SwipeRow({
   children,
 }: {
   className: string;
-  /** Set when a sideways swipe moves this deck to the other list. */
-  swipe?: { kind: "add" | "back"; label: string; onMove: () => unknown };
+  /** Set when a sideways swipe adds this planner deck to Your decks. */
+  swipe?: { label: string; onMove: () => unknown };
   /** The deck just landed in this list: flash it once. */
   arrived?: boolean;
   children: ReactNode;
@@ -99,12 +95,12 @@ function SwipeRow({
     >
       {swipe && dx !== 0 ? (
         <span
-          className={`deck-swipe-action is-${swipe.kind} ${side}${armed ? " is-armed" : ""}`}
+          className={`deck-swipe-action ${side}${armed ? " is-armed" : ""}`}
           style={{ ["--swipe-p" as string]: progress.toFixed(3) }}
           aria-hidden
         >
           <span className="deck-swipe-action-inner">
-            <SwipeIcon kind={swipe.kind} />
+            <SwipeIcon />
             <span className="deck-swipe-action-label">{swipe.label}</span>
           </span>
         </span>
@@ -151,7 +147,7 @@ function PlannerRow({
         dragging ? " is-dragging" : ""
       }`}
       arrived={arrived}
-      swipe={onSwipe && !busy ? { kind: "add", label: "Add", onMove: onSwipe } : undefined}
+      swipe={onSwipe && !busy ? { label: "Add", onMove: onSwipe } : undefined}
     >
       {onDragStart ? (
         <DragHandle label={`Drag ${deck.name} to your decks`} onPointerDown={onDragStart} />
@@ -190,24 +186,14 @@ function PlannerRow({
 
 function DeckRow({
   deck,
-  dragging,
   onOpen,
   onDelete,
-  onDragStart,
-  onSwipe,
-  phone,
   arrived,
 }: {
   deck: SavedDeck;
-  dragging: boolean;
   arrived: boolean;
   onOpen: () => void;
   onDelete: () => void;
-  /** Desktop: set for planner-linked copies while planner decks are shown; they can be dragged back down. */
-  onDragStart?: (e: ReactPointerEvent) => void;
-  /** Phones: the same copies swipe sideways back to the planner. */
-  onSwipe?: () => void;
-  phone: boolean;
 }) {
   const leader = lookupCard(deck.leaderId);
   const leaderArt = resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" });
@@ -217,15 +203,9 @@ function DeckRow({
 
   return (
     <SwipeRow
-      className={`deck-list-row${dragging ? " is-dragging" : ""}`}
+      className="deck-list-row"
       arrived={arrived}
-      swipe={onSwipe ? { kind: "back", label: "To planner", onMove: onSwipe } : undefined}
     >
-      {phone ? null : onDragStart ? (
-        <DragHandle label={`Drag ${deck.name} back to your planner`} onPointerDown={onDragStart} />
-      ) : (
-        <span className="deck-drag-handle deck-drag-handle-none" aria-hidden />
-      )}
       <button type="button" className="deck-list-open" onClick={onOpen}>
         {showArt ? (
           <img
@@ -331,28 +311,6 @@ export function DeckListPage() {
     }
   }
 
-  function moveBackToPlanner(id: string, via: "swipe" | "other" = "other") {
-    const deck = decks.find((d) => d.id === id);
-    const plannerId = deck?.plannerDeckId;
-    if (!deck || plannerId == null) return;
-    deleteDeck(id);
-    setImportErr(null);
-    flashArrived([plannerId]);
-    const text = `Moved ${deck.name} back to your planner.`;
-    if (via === "swipe") {
-      setToast({
-        text: `${deck.name} back in planner`,
-        undo: () => {
-          setToast(null);
-          void addPlannerDecks([plannerId]);
-        },
-      });
-    } else {
-      setNotice(text);
-    }
-    refresh();
-  }
-
   // The toast steps aside on its own; a new swipe replaces it.
   useEffect(() => {
     if (!toast) return;
@@ -367,10 +325,7 @@ export function DeckListPage() {
     return () => window.clearTimeout(t);
   }, [arrived]);
 
-  const { drag, startDrag } = useDeckDrag((item, zone) => {
-    if (zone === "local" && item.kind === "planner") void addPlannerDecks(item.ids);
-    if (zone === "planner" && item.kind === "local") moveBackToPlanner(item.id);
-  });
+  const { drag, startDrag } = useDeckDrag((item) => void addPlannerDecks(item.ids));
 
   useEffect(() => {
     // The deep link (and its hash fallback) is consumed once; the ref guards StrictMode's
@@ -462,15 +417,8 @@ export function DeckListPage() {
     startDrag(e, item);
   }
 
-  const dragIds = new Set<number | string>(
-    !drag ? [] : drag.item.kind === "planner" ? drag.item.ids : [drag.item.id],
-  );
-  const dropClass = (zone: DeckDropZone) =>
-    drag && acceptsDrop(drag.item, zone)
-      ? drag.over === zone
-        ? " is-drop-target is-drop-over"
-        : " is-drop-target"
-      : "";
+  const dragIds = new Set<number>(drag ? drag.item.ids : []);
+  const dropClass = drag ? (drag.over ? " is-drop-target is-drop-over" : " is-drop-target") : "";
 
   return (
     <div className={`app-shell${drag ? " is-deck-dragging" : ""}`}>
@@ -494,7 +442,7 @@ export function DeckListPage() {
 
         <div className="deck-list-columns">
           <section
-            className={`deck-drop-zone${dropClass("local")}`}
+            className={`deck-drop-zone${dropClass}`}
             data-deck-drop="local"
             aria-label="Your decks"
           >
@@ -513,7 +461,6 @@ export function DeckListPage() {
                   <DeckRow
                     key={deck.id}
                     deck={deck}
-                    dragging={dragIds.has(deck.id)}
                     onOpen={() => {
                       setSelectedDeckId(deck.id);
                       navigate(`/decks/${deck.id}/configure`);
@@ -521,7 +468,9 @@ export function DeckListPage() {
                     onDelete={() => {
                       if (
                         !window.confirm(
-                          `Delete “${deck.name}”? This cannot be undone.`,
+                          deck.plannerDeckId
+                            ? `Delete “${deck.name}” from your duel decks? It stays in your planner.`
+                            : `Delete “${deck.name}”? This cannot be undone.`,
                         )
                       ) {
                         return;
@@ -529,18 +478,7 @@ export function DeckListPage() {
                       deleteDeck(deck.id);
                       refresh();
                     }}
-                    phone={phone}
                     arrived={arrived.has(deck.id)}
-                    onDragStart={
-                      !phone && deck.plannerDeckId && planner.status === "ready"
-                        ? (e) => startDrag(e, { kind: "local", id: deck.id, label: deck.name })
-                        : undefined
-                    }
-                    onSwipe={
-                      phone && deck.plannerDeckId && planner.status === "ready"
-                        ? () => moveBackToPlanner(deck.id, "swipe")
-                        : undefined
-                    }
                   />
                 ))}
               </ul>
@@ -548,8 +486,7 @@ export function DeckListPage() {
           </section>
 
           <section
-            className={`deck-planner-section deck-drop-zone${dropClass("planner")}`}
-            data-deck-drop="planner"
+            className="deck-planner-section deck-drop-zone"
             aria-label="From your planner"
           >
             <h2 className="lobby-section-title">From your planner</h2>
@@ -572,7 +509,7 @@ export function DeckListPage() {
                 <div className="deck-planner-toolbar">
                   <p className="meta deck-planner-hint">
                     {phone
-                      ? "Tick decks to add them, or swipe a deck sideways to move it between lists."
+                      ? "Tick decks to add them, or swipe a deck sideways to add it."
                       : "Tick decks to add them, or drag them to Your decks."}
                   </p>
                   <div className="deck-planner-toolbar-actions">
@@ -598,9 +535,7 @@ export function DeckListPage() {
                 </div>
                 {plannerLeft.length === 0 ? (
                   <p className="meta deck-planner-status">
-                    {phone
-                      ? "Every planner deck is in Your decks. Swipe one there to send it back."
-                      : "Every planner deck is in Your decks. Drag one back here to remove its copy."}
+                    Every planner deck is in Your decks.
                   </p>
                 ) : (
                   <ul className="deck-list">
@@ -647,14 +582,12 @@ export function DeckListPage() {
       ) : null}
       {drag ? (
         <div
-          className={`deck-drag-ghost${drag.over && acceptsDrop(drag.item, drag.over) ? " is-over" : ""}`}
+          className={`deck-drag-ghost${drag.over ? " is-over" : ""}`}
           style={{ left: drag.x, top: drag.y }}
           aria-hidden
         >
           {drag.item.label}
-          <span className="deck-drag-ghost-hint">
-            {drag.item.kind === "planner" ? "→ Your decks" : "→ Planner"}
-          </span>
+          <span className="deck-drag-ghost-hint">→ Your decks</span>
         </div>
       ) : null}
     </div>

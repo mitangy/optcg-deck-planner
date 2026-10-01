@@ -1,24 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
-/** Where a deck can be dropped on the Decks page (`data-deck-drop` on the section). */
-export type DeckDropZone = "local" | "planner";
+/**
+ * Where a deck can be dropped on the Decks page (`data-deck-drop` on the section).
+ * Import is one way: planner decks drop only into Your decks; removing a copy is Delete.
+ */
+export type DeckDropZone = "local";
 
-export type DeckDragItem =
-  | { kind: "planner"; ids: number[]; label: string }
-  | { kind: "local"; id: string; label: string };
+/** Planner decks being dragged into Your decks (one deck, or the ticked group). */
+export type DeckDragItem = { kind: "planner"; ids: number[]; label: string };
 
 export type DeckDragState = { item: DeckDragItem; x: number; y: number; over: DeckDropZone | null };
-
-/** Planner decks go up to "Your decks"; linked local copies go back down to the planner. */
-export function acceptsDrop(item: DeckDragItem, zone: DeckDropZone | null): boolean {
-  return (item.kind === "planner" && zone === "local") || (item.kind === "local" && zone === "planner");
-}
 
 function zoneAt(x: number, y: number): DeckDropZone | null {
   const el = document.elementFromPoint(x, y)?.closest("[data-deck-drop]");
   const zone = el?.getAttribute("data-deck-drop");
-  return zone === "local" || zone === "planner" ? zone : null;
+  return zone === "local" ? zone : null;
 }
 
 /** How close to the viewport edge (px) a drag starts scrolling the page. */
@@ -55,7 +52,7 @@ export function useDeckDrag(onDrop: (item: DeckDragItem, zone: DeckDropZone) => 
       const zone = zoneAt(e.clientX, e.clientY);
       const d = dragRef.current;
       setDrag(null);
-      if (d && zone && acceptsDrop(d.item, zone)) dropRef.current(d.item, zone);
+      if (d && zone) dropRef.current(d.item, zone);
     };
     const cancel = () => setDrag(null);
     const key = (e: KeyboardEvent) => {
