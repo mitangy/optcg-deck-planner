@@ -1,0 +1,35 @@
+# HAND-CRAFTED cassette: written from the response shapes app code parses, not recorded
+# from the live service. Re-record with: pytest tests/test_external_price_apis.py --record-mode=rewrite
+# (needs network; then re-check the test's expected values against the new data).
+interactions:
+- request:
+    body: '{"conditions": [1], "languages": [1], "listingType": "All"}'
+    headers:
+      Accept:
+      - '*/*'
+      Content-Type:
+      - application/json
+    method: POST
+    uri: https://mpapi.tcgplayer.com/v2/product/555003/latestsales?limit=10
+  response:
+    body:
+      string: '{"previousPage":"","nextPage":"","resultCount":12,"totalResults":12,"data":[{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":20.0,"shippingPrice":1.0,"orderDate":"2026-05-20T10:00:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":19.0,"shippingPrice":1.0,"orderDate":"2026-05-19T10:00:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":18.0,"shippingPrice":1.0,"orderDate":"2026-05-18T10:00:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":17.0,"shippingPrice":1.0,"orderDate":"2026-05-17T10:00:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":16.0,"shippingPrice":1.0,"orderDate":"2026-05-16T10:00:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":15.0,"shippingPrice":1.0,"orderDate":"2026-05-15T10:00:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":14.0,"shippingPrice":1.0,"orderDate":"2026-05-14T10:00:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":13.0,"shippingPrice":1.0,"orderDate":"2026-05-13T10:00:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":12.0,"shippingPrice":1.0,"orderDate":"2026-05-12T10:00:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":11.0,"shippingPrice":1.0,"orderDate":"2026-05-11T10:00:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":10.0,"shippingPrice":1.0,"orderDate":"2026-05-10T10:00:00+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":9.0,"shippingPrice":1.0,"orderDate":"2026-05-09T10:00:00+00:00"}]}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+version: 1

@@ -38,6 +38,7 @@ node tools/mutation-check/run.cjs --check-anchors   # all suites, no tests
 | `game-server` | `game-server/test` | mocha |
 | `cosmetics` | `scripts/test_cosmetics_product_ids.py` | unittest |
 | `duel-e2e` | `duel-web/e2e` (starts a game server and Vite) | Playwright; a mutation's `args` narrows the spec and project |
+| `frontend-e2e` | `frontend/e2e` (starts Vite on :5180; the API is faked in the browser) | Playwright; a mutation's `args` narrows the spec and project |
 
 Every test in these suites is covered by at least one mutation. Each mutation
 re-runs its whole suite, so a full run of every suite takes a few hours; use
@@ -100,6 +101,9 @@ When you add or change a test, add one mutation per behavior it claims, in
 - Use `edits: [{ file, from, to }, …]` when one behavior is enforced in
   several places (for example, duplicate-id checks in both the validator and
   the registry).
+- A mutation can set `requiresEnv: "NAME"` when it only has an effect with
+  that environment variable set (for example Postgres-only behavior under
+  `TEST_DATABASE_URL`); without it the runner reports it as skipped.
 - pytest mutations can set `args` (e.g. `"tests/test_config.py"`) when the
   opposite condition breaks app startup and would crash collection for the
   whole suite before the named test can report its own failure.

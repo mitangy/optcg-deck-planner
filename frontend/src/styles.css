@@ -5451,6 +5451,10 @@ button.ghost.scan-open:hover {
   text-align: center;
 }
 
+.filter-drawer-badge-held {
+  visibility: hidden;
+}
+
 .dh-tray {
   --dh-rule: var(--danger);
   --dh-shape: var(--warn);
@@ -6174,6 +6178,11 @@ tr.row-flash > td {
 }
 
 @media (min-width: 1200px) {
+  /* The editor takes a column, so the list narrows; tighter cells keep the Cost column from scrolling off the right edge. */
+  .deck-layout-editing .deck-main .data-table :is(th, td) {
+    padding-inline: 0.5rem;
+  }
+
   .deck-layout-editing .deck-editor-side {
     position: sticky;
     top: 1rem;

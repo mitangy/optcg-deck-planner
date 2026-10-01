@@ -1,0 +1,30 @@
+name: Update planner snapshots
+
+# Re-blesses the planner's pixel baselines (frontend/e2e/visual.spec.ts) on the
+# same runner image CI compares them on. Nothing is committed: download the
+# artifact and copy the PNGs into frontend/e2e/visual.spec.ts-snapshots/.
+on:
+  workflow_dispatch:
+
+jobs:
+  update-snapshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test e2e/visual.spec.ts --update-snapshots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: planner-snapshots
+          path: frontend/e2e/visual.spec.ts-snapshots
+          if-no-files-found: error

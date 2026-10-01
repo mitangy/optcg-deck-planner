@@ -297,6 +297,7 @@ function applyInner(sim: Sim, intent: Intent, seat: Seat): ApplyError {
       target.attachedDonIds.push(don!.id);
       p.attachedDons.push(don!);
       sim.events.push({ type: "don_given", seat, donId: don!.id, targetId: target.id, targetDefId: target.defId, newPower: powerOf(state, seat, target) });
+      dispatchEvent(state, "don_given", { seat, card: target });
       return null;
     }
     case "play_card": {
