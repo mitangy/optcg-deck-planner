@@ -116,6 +116,63 @@ jobs:
             duel-web/test-results
           if-no-files-found: ignore
 
+  frontend-e2e:
+    # Click-through and layout-audit tests: the planner SPA in Chromium at 1200px
+    # and 375px (the FastAPI backend is faked in the browser). Retries are
+    # reported as "flaky" in the log, not hidden. See frontend/playwright.config.ts.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc -p e2e
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --grep-invert @visual
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: frontend-e2e-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+
+  frontend-visual:
+    # Pixel snapshots (@visual) of the planner at 1200px and 375px. Baselines are
+    # per platform; on a mismatch the report and test-results hold the
+    # expected/actual/diff PNGs. To re-bless, run "Update planner snapshots".
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e:visual
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: frontend-visual-diffs
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -171,3 +228,40 @@ jobs:
       - name: Script tests (importer, cosmetics)
         working-directory: scripts
         run: python -m unittest test_bandai_metadata test_cosmetics_product_ids
+
+  backend-postgres:
+    # Same pytest suite against a real Postgres (prod is Neon): catches dialect
+    # differences SQLite hides, like boolean ALTER defaults in the startup migrations.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: optcg_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend deps
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Backend tests (Postgres)
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/optcg_test
+        run: python -m pytest -q

@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
+from tests.db_support import make_bare_engine, make_test_engine, using_postgres
 from app.config import get_settings
 from app.db import _ensure_user_username, get_db
 from app.game_tokens import verify_game_token
 from app.main import app
-from app.models import Base, User
+from app.models import User
 from app.routers import auth as auth_router
 from app.usernames import (
     UsernameError,
@@ -35,12 +35,7 @@ def client(monkeypatch: pytest.MonkeyPatch):
     # Fresh limiter per test so repeated PATCHes don't trip 429.
     monkeypatch.setattr(auth_router, "_username_rate", auth_router.RateLimiter(1000, 60))
 
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=engine)
+    engine = make_test_engine()
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
     def _override_db():
@@ -156,12 +151,15 @@ def test_db_enforces_case_insensitive_uniqueness(db):
     db.commit()
 
 
+_PK = "SERIAL" if using_postgres() else "INTEGER"
+
+
 def test_migration_adds_column_and_index_to_legacy_users_table():
-    engine = create_engine("sqlite://", poolclass=StaticPool)
+    engine = make_bare_engine()
     with engine.begin() as conn:
         conn.execute(
             text(
-                "CREATE TABLE users (id INTEGER PRIMARY KEY, email VARCHAR(320), "
+                f"CREATE TABLE users (id {_PK} PRIMARY KEY, email VARCHAR(320), "
                 "name VARCHAR(255), google_sub VARCHAR(255))"
             )
         )
@@ -173,9 +171,13 @@ def test_migration_adds_column_and_index_to_legacy_users_table():
     cols = {c["name"] for c in inspect(engine).get_columns("users")}
     assert "username" in cols
     with engine.begin() as conn:
-        # Expression indexes aren't reflected by SQLAlchemy on SQLite; read the catalog.
+        # Expression indexes aren't reflected by SQLAlchemy; read the catalog.
         idx = conn.execute(
-            text("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='users'")
+            text(
+                "SELECT indexname FROM pg_indexes WHERE tablename = 'users'"
+                if engine.dialect.name == "postgresql"
+                else "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='users'"
+            )
         ).scalars().all()
         assert "ix_users_username_lower" in idx
         assert conn.execute(text("SELECT username FROM users")).scalar() is None
