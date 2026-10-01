@@ -58,35 +58,59 @@ function DragHandle({
   );
 }
 
+function SwipeIcon({ kind }: { kind: "add" | "back" }) {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+      {kind === "add" ? (
+        <path d="M12 5v14M5 12h14" />
+      ) : (
+        <path d="M12 5v12M6.5 11.5 12 17l5.5-5.5M5 20h14" />
+      )}
+    </svg>
+  );
+}
+
 /**
  * One row of either list. On phones (below DESKTOP_DECKS_QUERY) a row that can
- * change lists slides sideways under the finger and reveals where it is going;
- * desktop keeps the grip drag.
+ * change lists slides sideways under the finger over a coloured action that
+ * fills in as the swipe nears the distance that moves it; desktop keeps the grip drag.
  */
 function SwipeRow({
   className,
   swipe,
+  arrived,
   children,
 }: {
   className: string;
   /** Set when a sideways swipe moves this deck to the other list. */
-  swipe?: { label: string; onMove: () => void };
+  swipe?: { kind: "add" | "back"; label: string; onMove: () => unknown };
+  /** The deck just landed in this list: flash it once. */
+  arrived?: boolean;
   children: ReactNode;
 }) {
-  const { dx, phase, armed, handlers } = useSwipeMove(Boolean(swipe), () => swipe?.onMove());
+  const { dx, phase, progress, armed, handlers } = useSwipeMove(Boolean(swipe), () => swipe?.onMove());
+  const side = dx > 0 ? "from-left" : "from-right";
   return (
-    <li className={`deck-swipe-slot${swipe ? " is-swipeable" : ""}`}>
+    <li
+      className={`deck-swipe-slot${swipe ? " is-swipeable" : ""}${
+        phase === "collapsing" ? " is-collapsing" : ""
+      }${arrived ? " is-arrived" : ""}`}
+    >
       {swipe && dx !== 0 ? (
         <span
-          className={`deck-swipe-action${dx > 0 ? " from-left" : " from-right"}${armed ? " is-armed" : ""}`}
+          className={`deck-swipe-action is-${swipe.kind} ${side}${armed ? " is-armed" : ""}`}
+          style={{ ["--swipe-p" as string]: progress.toFixed(3) }}
           aria-hidden
         >
-          {swipe.label}
+          <span className="deck-swipe-action-inner">
+            <SwipeIcon kind={swipe.kind} />
+            <span className="deck-swipe-action-label">{swipe.label}</span>
+          </span>
         </span>
       ) : null}
       <div
-        className={`${className}${phase === "dragging" ? " is-swiping" : ""}`}
-        style={dx !== 0 ? { transform: `translateX(${dx}px)` } : undefined}
+        className={`${className} swipe-${phase}`}
+        style={dx !== 0 ? { transform: `translate3d(${dx}px, 0, 0)` } : undefined}
         {...handlers}
       >
         {children}
@@ -100,19 +124,21 @@ function PlannerRow({
   busy,
   selected,
   dragging,
+  arrived,
   onToggle,
   onDragStart,
   onSwipe,
 }: {
   deck: PlannerDeckSummary;
+  arrived: boolean;
   busy: boolean;
   selected: boolean;
   dragging: boolean;
   onToggle: () => void;
   /** Desktop: grip drag. */
   onDragStart?: (e: ReactPointerEvent) => void;
-  /** Phones: swipe sideways to add. */
-  onSwipe?: () => void;
+  /** Phones: swipe sideways to add; resolves false when nothing was added. */
+  onSwipe?: () => Promise<boolean | undefined>;
 }) {
   const art = deck.leader_image_url || null;
   const [failedArt, setFailedArt] = useState<string | null>(null);
@@ -123,7 +149,8 @@ function PlannerRow({
       className={`deck-list-row deck-planner-row${selected ? " is-selected" : ""}${
         dragging ? " is-dragging" : ""
       }`}
-      swipe={onSwipe && !busy ? { label: "↑ Add to Your decks", onMove: onSwipe } : undefined}
+      arrived={arrived}
+      swipe={onSwipe && !busy ? { kind: "add", label: "Add", onMove: onSwipe } : undefined}
     >
       {onDragStart ? (
         <DragHandle label={`Drag ${deck.name} to your decks`} onPointerDown={onDragStart} />
@@ -168,9 +195,11 @@ function DeckRow({
   onDragStart,
   onSwipe,
   phone,
+  arrived,
 }: {
   deck: SavedDeck;
   dragging: boolean;
+  arrived: boolean;
   onOpen: () => void;
   onDelete: () => void;
   /** Desktop: set for planner-linked copies while planner decks are shown; they can be dragged back down. */
@@ -188,7 +217,8 @@ function DeckRow({
   return (
     <SwipeRow
       className={`deck-list-row${dragging ? " is-dragging" : ""}`}
-      swipe={onSwipe ? { label: "↓ Back to planner", onMove: onSwipe } : undefined}
+      arrived={arrived}
+      swipe={onSwipe ? { kind: "back", label: "To planner", onMove: onSwipe } : undefined}
     >
       {phone ? null : onDragStart ? (
         <DragHandle label={`Drag ${deck.name} back to your planner`} onPointerDown={onDragStart} />
@@ -232,6 +262,10 @@ export function DeckListPage() {
   const [importing, setImporting] = useState(false);
   const [importErr, setImportErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** Phones: what the last swipe did, with a way to undo it. */
+  const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
+  /** Decks that just changed lists, flashed once where they landed. */
+  const [arrived, setArrived] = useState<Set<number | string>>(() => new Set());
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const deepLinkHandled = useRef(false);
   // Phones swipe rows between the lists; the grip drag could not reach the top of a long list.
@@ -249,7 +283,11 @@ export function DeckListPage() {
     });
   }
 
-  async function addPlannerDecks(ids: number[]) {
+  function flashArrived(ids: (number | string)[]) {
+    setArrived(new Set(ids));
+  }
+
+  async function addPlannerDecks(ids: number[], via: "swipe" | "other" = "other") {
     if (planner.status !== "ready" || ids.length === 0) return;
     const picked = planner.decks.filter((d) => ids.includes(d.id));
     setImportErr(null);
@@ -260,27 +298,69 @@ export function DeckListPage() {
       const done = new Set(imported.map((d) => d.plannerDeckId));
       setSelected((prev) => new Set([...prev].filter((id) => !done.has(id))));
       if (imported.length) {
-        setNotice(
+        const text =
           imported.length === 1
             ? `Added ${imported[0].name} to your decks.`
-            : `Added ${imported.length} decks to your decks.`,
-        );
+            : `Added ${imported.length} decks to your decks.`;
+        flashArrived(imported.map((d) => d.id));
+        if (via === "swipe") {
+          const ids = imported.map((d) => d.id);
+          setToast({
+            text: imported.length === 1 ? `Added ${imported[0].name}` : `Added ${imported.length} decks`,
+            undo: () => {
+              ids.forEach((id) => deleteDeck(id));
+              flashArrived([...done].filter((id): id is number => id != null));
+              setToast(null);
+              refresh();
+            },
+          });
+        } else {
+          setNotice(text);
+        }
       }
       if (errors.length) setImportErr(errors.join(" · "));
+      return imported.length > 0;
     } finally {
       setImporting(false);
       refresh();
     }
   }
 
-  function moveBackToPlanner(id: string) {
+  function moveBackToPlanner(id: string, via: "swipe" | "other" = "other") {
     const deck = decks.find((d) => d.id === id);
-    if (!deck?.plannerDeckId) return;
+    const plannerId = deck?.plannerDeckId;
+    if (!deck || plannerId == null) return;
     deleteDeck(id);
     setImportErr(null);
-    setNotice(`Moved ${deck.name} back to your planner.`);
+    flashArrived([plannerId]);
+    const text = `Moved ${deck.name} back to your planner.`;
+    if (via === "swipe") {
+      setToast({
+        text: `${deck.name} back in planner`,
+        undo: () => {
+          setToast(null);
+          void addPlannerDecks([plannerId]);
+        },
+      });
+    } else {
+      setNotice(text);
+    }
     refresh();
   }
+
+  // The toast steps aside on its own; a new swipe replaces it.
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 4500);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
+  // The landing flash plays once (styles.css .is-arrived).
+  useEffect(() => {
+    if (arrived.size === 0) return;
+    const t = window.setTimeout(() => setArrived(new Set()), 1200);
+    return () => window.clearTimeout(t);
+  }, [arrived]);
 
   const { drag, startDrag } = useDeckDrag((item, zone) => {
     if (zone === "local" && item.kind === "planner") void addPlannerDecks(item.ids);
@@ -445,6 +525,7 @@ export function DeckListPage() {
                       refresh();
                     }}
                     phone={phone}
+                    arrived={arrived.has(deck.id)}
                     onDragStart={
                       !phone && deck.plannerDeckId && planner.status === "ready"
                         ? (e) => startDrag(e, { kind: "local", id: deck.id, label: deck.name })
@@ -452,7 +533,7 @@ export function DeckListPage() {
                     }
                     onSwipe={
                       phone && deck.plannerDeckId && planner.status === "ready"
-                        ? () => moveBackToPlanner(deck.id)
+                        ? () => moveBackToPlanner(deck.id, "swipe")
                         : undefined
                     }
                   />
@@ -525,11 +606,12 @@ export function DeckListPage() {
                         busy={importing}
                         selected={selected.has(d.id)}
                         dragging={dragIds.has(d.id)}
+                        arrived={arrived.has(d.id)}
                         onToggle={() => toggle(d.id)}
                         onDragStart={phone ? undefined : (e) => dragPlanner(e, d)}
                         onSwipe={
                           phone
-                            ? () => void addPlannerDecks(plannerGroup(d).map((g) => g.id))
+                            ? () => addPlannerDecks(plannerGroup(d).map((g) => g.id), "swipe")
                             : undefined
                         }
                       />
@@ -548,6 +630,16 @@ export function DeckListPage() {
           </section>
         </div>
       </div>
+      {phone && toast ? (
+        <div className="deck-swipe-toast" role="status" key={toast.text}>
+          <span className="deck-swipe-toast-text">{toast.text}</span>
+          {toast.undo ? (
+            <button type="button" className="deck-swipe-toast-undo" onClick={toast.undo}>
+              Undo
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {drag ? (
         <div
           className={`deck-drag-ghost${drag.over && acceptsDrop(drag.item, drag.over) ? " is-over" : ""}`}

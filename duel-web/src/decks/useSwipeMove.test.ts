@@ -26,3 +26,14 @@ describe("swipeCommits", () => {
     expect(swipeCommits(141, 800)).toBe(true);
   });
 });
+
+describe("swipe flicks", () => {
+  it("moves a deck on a quick flick short of the swipe distance", () => {
+    expect(swipeCommits(60, 343, 0.9)).toBe(true);
+    expect(swipeCommits(60, 343, 0.2)).toBe(false);
+  });
+
+  it("ignores a flick back the other way", () => {
+    expect(swipeCommits(60, 343, -0.9)).toBe(false);
+  });
+});
