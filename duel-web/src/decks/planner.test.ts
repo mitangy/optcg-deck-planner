@@ -9,7 +9,7 @@ import {
   savedDeckToPlannerList,
   type PlannerDeckDetail,
 } from "./planner";
-import { getSavedDeck, saveDeck, upsertPlannerDeck } from "./storage";
+import { getSavedDeck, listSavedDecks, saveDeck, upsertPlannerDeck } from "./storage";
 
 const memory = new Map<string, string>();
 
@@ -126,6 +126,24 @@ describe("refreshLinkedDeck", () => {
     const deck = await refreshLinkedDeck(linked(), 100, async () => detail());
     expect(deck.cards).toHaveLength(6);
     expect(getSavedDeck("planner-7")?.name).toBe("Red Luffy");
+  });
+
+  it("refreshes a deck saved to the planner in place instead of duplicating it", async () => {
+    const saved = saveDeck({
+      id: "local-uuid",
+      name: "Mine",
+      leaderId: "ST01-001",
+      cards: ["ST01-003"],
+      artPrefs: { "ST01-003": "p1" },
+      plannerDeckId: 42,
+    });
+    const deck = await refreshLinkedDeck(saved, 100, async () => detail({ id: 42 }));
+    expect(deck.id).toBe("local-uuid");
+    const original = getSavedDeck("local-uuid")!;
+    expect(original.cards).toHaveLength(6);
+    expect(original.name).toBe("Red Luffy");
+    expect(original.artPrefs).toEqual({ "ST01-003": "p1" });
+    expect(listSavedDecks().filter((d) => d.plannerDeckId === 42).map((d) => d.id)).toEqual(["local-uuid"]);
   });
 
   it("keeps the local copy when the fetch fails", async () => {
