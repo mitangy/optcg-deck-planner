@@ -73,6 +73,16 @@ describe("OP16-118 Portgas.D.Ace", () => {
     h.act(1, { type: "counter_from_hand", handIndex: 0 });
     expect(h.view(1).you.characters[0]!.power).toBe(5000);
   });
+
+  it("shows the defender the live +2000 hand Counter, not the printed +1000", () => {
+    const h = new Harness();
+    h.field(1, "OP16-118");
+    h.hand(1, "OP16-005");
+    h.hand(1, "OP16-005");
+    h.attack(h.state.players[0].leader, "leader");
+    h.act(1, { type: "pass_block" });
+    expect(h.view(1).you.hand.map((c) => c.counter)).toEqual([2000, 2000]);
+  });
 });
 
 describe("OP17-005 Edward.Newgate", () => {
