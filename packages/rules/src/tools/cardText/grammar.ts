@@ -3,6 +3,7 @@
  * Every parser returns null unless it consumes its entire input.
  */
 import type { Cond, Cost, Duration, Effect, Filter, Keyword, LookPick, Placement, Rel, Restriction, Selector, Static, StaticTarget, Target, Value } from "../../effects/types.js";
+import { restoreNames } from "./normalize.js";
 import { nameList, num, parseCardPhrase, parseCountPhrase, quote, traitList, type CardPhrase, type Ctx, type PhraseOptions } from "./phrases.js";
 
 type Rule<T> = [RegExp, (m: RegExpExecArray, ctx: Ctx) => T | null];
@@ -638,7 +639,7 @@ export function parseEffectClause(text: string, ctx: Ctx): Effect | null {
   let m = /^you may (.+)$/i.exec(t);
   if (m) {
     const inner = parseEffectClause(m[1]!, ctx);
-    if (inner) return { do: "may", then: inner, bind: "_did" };
+    if (inner) return { do: "may", then: inner, bind: "_did", prompt: restoreNames(m[1]!, ctx.ph) };
   }
   // Suffix condition: "draw 1 card if you have 3 or less cards in your hand"
   m = /^(.+?) if (.+)$/i.exec(t);
@@ -741,12 +742,32 @@ export function parseEffectBody(body: string, ctx: Ctx, split: (text: string) =>
       failed.push(s); continue;
     }
     const eff = parseStatement(s, ctx);
-    if (eff) steps.push(eff);
-    else failed.push(s);
+    if (eff) {
+      if (eff.do === "if" && /^if you do, /i.test(clean(s))) linkIfYouDo(steps, eff, s, ctx);
+      steps.push(eff);
+    } else failed.push(s);
   }
   if (failed.length) return { effect: null, failed };
   if (steps.length === 0) return { effect: null, failed: [body] };
   return { effect: steps.length === 1 ? steps[0]! : { do: "seq", steps }, failed: [] };
+}
+
+/**
+ * Tie an "If you do, Y" sentence to the step before it.
+ * After "you may X": X becomes a cost when it parses as one, so it is only offered when it can be paid in full
+ * and the payoff never follows a partial payment; the prompt names X and the payoff.
+ * After a plain action ("Play up to 1 ... If you do, ..."): gate on that action having affected a card.
+ */
+function linkIfYouDo(steps: Effect[], gate: Extract<Effect, { do: "if" }>, sentence: string, ctx: Ctx): void {
+  const prev = steps[steps.length - 1];
+  if (!prev || gate.cond.c !== "var_count" || gate.cond.name !== "_did") return;
+  if (prev.do !== "may") { if (!JSON.stringify(prev).includes('"do":"may"')) gate.cond = { ...gate.cond, name: "_affected" }; return; }
+  if (!prev.prompt || prev.costs || prev.chooser) return;
+  const costs = parseCosts(prev.prompt, ctx);
+  if (costs?.length) steps[steps.length - 1] = { do: "may", costs, then: { do: "nothing" }, bind: prev.bind ?? "_did", prompt: prev.prompt };
+  // Not a cost (e.g. "return up to 1 ..."): accepting and then choosing nothing isn't "doing" it.
+  else gate.cond = { c: "and", conds: [gate.cond, { c: "var_count", name: "_affected", op: ">=", value: 1 }] };
+  (steps[steps.length - 1] as Extract<Effect, { do: "may" }>).prompt = `${prev.prompt}, and if you do, ${restoreNames(clean(sentence).replace(/^if you do, /i, ""), ctx.ph)}`;
 }
 
 /** One sentence: optional "You may COST: EFFECT", conditionals, plain effects. */

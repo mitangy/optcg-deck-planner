@@ -399,7 +399,7 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
     case "confirm": {
       if (instr.costs && !canPayCosts(state, ctx, instr.costs)) { frame.bindings[instr.bind] = false; frame.bindings.__declined = true; return "next"; }
       const ability = abilityById(frame.abilityId)?.ability;
-      const detail = frame.program === "replacement" ? `use ${nameOf(frame.sourceDefId)}'s effect instead?` : instr.costs ? `pay the cost to activate: ${ability?.text ?? ""}` : `${instr.prompt}? ${ability?.text ?? ""}`;
+      const detail = frame.program === "replacement" ? `use ${nameOf(frame.sourceDefId)}'s effect instead?` : instr.costs && (instr.prompt === "pay the cost" || instr.prompt === "use this effect") ? `pay the cost to activate: ${ability?.text ?? ""}` : `${instr.prompt}? ${ability?.text ?? ""}`;
       pushChoice(sim, frame, { seat: instr.chooser === "opponent" ? otherSeat(frame.seat) : frame.seat, kind: "effect", optional: true, prompt: `${promptPrefix(frame)} — ${detail}`.trim(), request: { type: "confirm" }, bindings: { __bind: instr.bind } });
       return "wait";
     }

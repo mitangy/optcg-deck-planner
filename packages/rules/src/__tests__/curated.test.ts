@@ -305,3 +305,89 @@ describe("OP15-066 Satori", () => {
     expect(h.choice?.request?.type).not.toBe("look");
   });
 });
+
+describe("OP15-020 Fire Fist", () => {
+  function castOnZeroPower() {
+    const h = new Harness();
+    const [target] = h.field(1, FILLER);
+    h.hand(0, "OP15-020", FILLER, FILLER, FILLER);
+    h.don(0, 10);
+    h.play(0, "OP15-020");
+    h.pick(target!.id);
+    return { h, target: target! };
+  }
+
+  it("asks whether to trash 2 cards for the K.O., and declining leaves the 0-power Character alive", () => {
+    const { h, target } = castOnZeroPower();
+    expect(h.choice?.request?.type).toBe("confirm");
+    expect(h.choice?.prompt).toContain("trash 2 cards from your hand, and if you do, KO");
+    h.decline(0);
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[0].hand).toHaveLength(3);
+    expect(h.state.players[1].characters.map((c) => c.id)).toEqual([target.id]);
+    expect(h.view(1).you.characters[0]!.power).toBeLessThanOrEqual(0);
+  });
+
+  it("trashing 2 cards K.O.s the 0-power Character", () => {
+    const { h, target } = castOnZeroPower();
+    h.accept(0);
+    h.pick(FILLER, FILLER);
+    h.pick(target.id);
+    expect(h.state.players[0].hand).toHaveLength(1);
+    expect(h.state.players[1].characters).toHaveLength(0);
+  });
+});
+
+describe("OP15-020 Fire Fist without 2 cards to trash", () => {
+  it("does not offer the trash, so 1 card in hand stays and the 0-power Character survives", () => {
+    const h = new Harness();
+    const [target] = h.field(1, FILLER);
+    h.hand(0, "OP15-020", FILLER);
+    h.don(0, 10);
+    h.play(0, "OP15-020");
+    h.pick(target!.id);
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[0].hand).toHaveLength(1);
+    expect(h.state.players[1].characters).toHaveLength(1);
+  });
+});
+
+describe("OP09-103 Koala", () => {
+  function playKoala(playSabo: boolean) {
+    const h = new Harness();
+    h.hand(0, "OP09-103", "EB02-002");
+    h.don(0, 10);
+    h.play(0, "OP09-103");
+    h.accept(0);
+    h.pick("Top");
+    if (playSabo) h.pick("EB02-002"); else h.decline(0);
+    return h;
+  }
+
+  it("draws 1 after playing a Revolutionary Army Character", () => {
+    const h = playKoala(true);
+    expect(h.find(0, "EB02-002")).toBeDefined();
+    expect(h.state.players[0].hand).toHaveLength(2);
+  });
+
+  it("does not draw when nothing is played", () => {
+    const h = playKoala(false);
+    expect(h.state.players[0].hand).toHaveLength(2); // the Life card and the unplayed Sabo, no draw
+  });
+});
+
+describe("OP13-119 (you may return up to 1; if you do, the opponent plays)", () => {
+  it("accepting but returning nothing does not let the opponent play", () => {
+    const h = new Harness();
+    h.field(1, FILLER);
+    h.hand(1, FILLER);
+    h.hand(0, "OP13-119");
+    h.don(0, 10);
+    h.play(0, "OP13-119");
+    while (h.choice && h.choice.request?.type !== "confirm") h.decline(h.choice.seat);
+    h.accept(0);
+    h.decline(0);
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].hand).toHaveLength(1);
+  });
+});
