@@ -3863,12 +3863,6 @@ details.deck-config-section.deck-collapsible {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.deck-drag-handle-none,
-.deck-drag-handle-none:hover {
-  cursor: default;
-  background: none;
-}
-
 .deck-list-row .deck-list-open {
   flex-basis: 10rem;
 }
@@ -4033,11 +4027,6 @@ details.deck-config-section.deck-collapsible {
   color: var(--lane);
   pointer-events: none;
   transition: background-color 0.16s ease, color 0.16s ease;
-}
-
-.deck-swipe-action.is-back {
-  --lane: #5aa9c2;
-  --lane-ink: #04161d;
 }
 
 .deck-swipe-action.from-left {
