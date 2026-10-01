@@ -294,7 +294,7 @@
   min-width: 10rem;
 }
 
-/* "See board": the cards tuck away behind one pill until you come back. */
+/* "Hide": the cards tuck away behind one pill until you come back. */
 .float-layer-peek {
   align-items: flex-start;
   padding-top: calc(var(--safe-t) + 4.5rem);
@@ -340,6 +340,40 @@
     padding-top: 0.3rem;
     padding-bottom: 0.3rem;
   }
+}
+
+/* "Hide" on the regular choice / effect-order pop-ups: same pill brings them back. */
+.prompt-hide {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.85rem;
+  z-index: 1;
+  height: 1.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(17, 33, 45, 0.95);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.prompt-hide:hover {
+  border-color: var(--chrome);
+  color: var(--chrome-bright);
+}
+
+/* Header text stays clear of the Hide button. */
+.ability-prompt:has(> .prompt-hide) > h3 {
+  display: flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding-right: 4.5rem;
+}
+
+.prompt-hide-wrap[hidden] {
+  display: none;
 }
 
 @keyframes float-in {

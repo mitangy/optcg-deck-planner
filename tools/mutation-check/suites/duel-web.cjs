@@ -45,6 +45,8 @@ module.exports = {
     { id: "float-tap-cannot-clear", file: `${src}/board/floatOrder.ts`, from: "  if (tapped.includes(id)) return { order: [...order], tapped: tapped.filter((x) => x !== id) };\n", to: "", kills: ["tapping a numbered card again clears its number and leaves the row"] },
     { id: "float-slot-ignores-rows", file: `${src}/board/floatOrder.ts`, from: "    const d = (c.x - x) ** 2 + (c.y - y) ** 2;", to: "    const d = (c.x - x) ** 2;", kills: ["drops on the nearest slot, including the next row on phones"] },
     { id: "float-slot-farthest", file: `${src}/board/floatOrder.ts`, from: "    if (d < bestD) {", to: "    if (d > bestD || bestD === Infinity) {", kills: ["drops on the nearest slot, including the next row on phones"] },
+    { id: "prompt-hide-sticks-to-next-choice", file: `${src}/board/promptHide.ts`, from: "  return hiddenChoiceId === frontChoiceId;", to: "  return hiddenChoiceId != null;", kills: ["shows the next choice even though the last one was hidden"] },
+    { id: "prompt-hide-never-hides", file: `${src}/board/promptHide.ts`, from: "  return hiddenChoiceId === frontChoiceId;", to: "  return false;", kills: ["keeps the pop-up hidden for the choice it was hidden on"] },
     // board helpers
     { id: "hotkeys-space-dead", file: `${src}/board/hotkeys.ts`, from: "    return \"primary\";", to: "    return null;", kills: ["fires the primary action on Space"] },
     { id: "hotkeys-typing-fires", file: `${src}/board/hotkeys.ts`, from: "if (ctx.typing || ctx.over) return null;", to: "if (ctx.over) return null;", kills: ["ignores every key while typing"] },

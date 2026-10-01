@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { lookupCard } from "../cards/atlas";
 import type { ChoiceOptionView, ChoiceRequestView, Intent, PendingChoiceView, PlayerView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
 import { DON_CARD_ART } from "./donArt";
 import { arrangementAnswer, arrangementRows, groupAnswer, initialArrangement, mergeArrangement, moveToRow, nudge, setSide, withoutIds, type Arrangement } from "./deckOrder";
 import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "./liveTargets";
+import { PromptHideButton } from "./HideablePrompt";
+
+/** True while the pop-up is tucked away (see `HideablePrompt`). */
+const PromptHiddenContext = createContext(false);
 
 type Props = {
   choice: PendingChoiceView;
@@ -12,6 +16,10 @@ type Props = {
   onSend: (intent: Intent) => void;
   /** Current board, so field targets show their live status (rested, sick, power…). */
   view?: PlayerView | null;
+  /** Tucks the pop-up away so the hand and board can be read first. */
+  onHide?: () => void;
+  /** Tucked away: board clicks must not pick targets for a prompt you can't see. */
+  hidden?: boolean;
 };
 
 const ZONE_LABEL: Record<string, string> = {
@@ -292,10 +300,12 @@ export function boardTargetOption(options: readonly ChoiceOptionView[], instance
  * click (select card / show actions) never sees these clicks.
  */
 function useBoardTargetClicks(options: readonly ChoiceOptionView[], onPick: (optionId: string) => void) {
-  const live = useRef({ options, onPick });
-  live.current = { options, onPick };
+  const hidden = useContext(PromptHiddenContext);
+  const live = useRef({ options, onPick, hidden });
+  live.current = { options, onPick, hidden };
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
+      if (live.current.hidden) return;
       const tile = (e.target as Element | null)?.closest?.<HTMLElement>(".side-field .card-tile[data-instance-id]");
       const optionId = boardTargetOption(live.current.options, tile?.dataset.instanceId);
       if (!optionId) return;
@@ -453,20 +463,23 @@ function OrderBody({ request, onSend }: { request: Extract<ChoiceRequestView, { 
  * Generic prompt for every server choice request (protocol 5). The server
  * validates all answers; this component only helps build a legal one.
  */
-export function ChoicePrompt({ choice, mySeat, onSend, view }: Props) {
+export function ChoicePrompt({ choice, mySeat, onSend, view, onHide, hidden = false }: Props) {
   const liveCards = useMemo(() => indexLiveCards(view), [view]);
   return (
     <LiveCardsContext.Provider value={liveCards}>
-      <ChoicePromptBody choice={choice} mySeat={mySeat} onSend={onSend} />
+      <PromptHiddenContext.Provider value={hidden}>
+        <ChoicePromptBody choice={choice} mySeat={mySeat} onSend={onSend} onHide={onHide} />
+      </PromptHiddenContext.Provider>
     </LiveCardsContext.Provider>
   );
 }
 
-function ChoicePromptBody({ choice, mySeat, onSend }: Omit<Props, "view">) {
+function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view" | "hidden">) {
   const request: ChoiceRequestView = choice.request ?? { type: "confirm" };
   const showSource = request.type === "confirm" && choice.cardDefId && choice.cardDefId !== "HIDDEN";
   return (
     <div className={`ability-prompt choice-prompt choice-${request.type}`} role="dialog" aria-label={choice.prompt}>
+      <PromptHideButton onHide={onHide} />
       <SourceHeader choice={choice} />
       <div className="choice-intro">
         {showSource ? <CardTile defId={choice.cardDefId} compact inspectGestures viewingSeat={mySeat} /> : null}

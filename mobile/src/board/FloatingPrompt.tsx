@@ -169,7 +169,7 @@ function Shell({ title, prompt, count, peek, onPeek, axis, note, actions, childr
         {note && !landscape ? <Text style={styles.note}>{note}</Text> : null}
         <View style={styles.actions}>
           <Pressable style={styles.secondary} onPress={() => onPeek(true)} accessibilityRole="button">
-            <Text style={styles.buttonText}>See board</Text>
+            <Text style={styles.buttonText}>Hide</Text>
           </Pressable>
           {actions}
         </View>

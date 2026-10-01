@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
 import { lookupCard } from "../cards/atlas";
+import { PromptHideButton } from "./HideablePrompt";
 import type { Intent, PendingChoiceView } from "../net/protocol";
 
 type Props = {
   choice: PendingChoiceView;
   onSend: (intent: Intent) => void;
+  /** Tucks the pop-up away so the hand and board can be read first. */
+  onHide?: () => void;
 };
 
 /**
@@ -12,7 +15,7 @@ type Props = {
  * `legalIntents` only exposes a default (wrapper) sequence for sims/bots —
  * this UI is the real player-facing ordering path.
  */
-export function EffectOrderPrompt({ choice, onSend }: Props) {
+export function EffectOrderPrompt({ choice, onSend, onHide }: Props) {
   const initial = choice.unorderedChoices ?? [];
   const [order, setOrder] = useState<PendingChoiceView[]>(() => [...initial]);
 
@@ -48,6 +51,7 @@ export function EffectOrderPrompt({ choice, onSend }: Props) {
 
   return (
     <div className="ability-prompt effect-order-prompt" role="dialog" aria-label="Order effects">
+      <PromptHideButton onHide={onHide} />
       <h3>Order simultaneous effects</h3>
       <p>{choice.prompt}</p>
       <div className="ability-prompt-section">

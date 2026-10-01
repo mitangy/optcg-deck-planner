@@ -4,6 +4,7 @@ import type { ChoiceRequestView, Intent, PendingChoiceView, Seat } from "../net/
 import { CardTile } from "./CardTile";
 import { floatLookAnswer, moveId, nearestSlot, tapInOrder } from "./floatOrder";
 import "./float.css";
+import { promptSourceName } from "./HideablePrompt";
 
 /**
  * Floating-card prompts (prototype, `/demo?float`): instead of a pop-up panel,
@@ -19,9 +20,7 @@ export function canFloat(choice: PendingChoiceView): boolean {
   return request?.type === "look" && request.options.every((o) => o.defId && o.defId !== "HIDDEN" && o.zone !== "don");
 }
 
-function sourceName(choice: PendingChoiceView): string {
-  return choice.cardDefId && choice.cardDefId !== "HIDDEN" ? lookupCard(choice.cardDefId).name : "Effect";
-}
+const sourceName = promptSourceName;
 
 const DRAG_START_PX = 14;
 
@@ -170,7 +169,7 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
         {note ? <div className="float-note">{note}</div> : null}
         <div className="float-actions">
           <button type="button" className="btn btn-secondary float-peek" onClick={() => onPeek(true)}>
-            See board
+            Hide
           </button>
           {actions}
         </div>
