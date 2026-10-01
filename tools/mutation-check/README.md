@@ -18,6 +18,15 @@ node tools/mutation-check/run.cjs rules                       # one suite
 node tools/mutation-check/run.cjs rules --only "snapshot|rng"  # mutation ids matching a regex
 ```
 
+`--check-anchors` runs no tests: it only checks that every mutation's `from`
+(and each `edits[].from`) still matches exactly once and every `json` patch
+applies, exiting 1 on any stale one. It takes about a second for all suites and
+runs in PR CI and nightly.
+
+```bash
+node tools/mutation-check/run.cjs --check-anchors   # all suites, no tests
+```
+
 | Suite | Tests | Runner |
 |---|---|---|
 | `rules` | `packages/rules/src/__tests__` | vitest |

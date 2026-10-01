@@ -6,7 +6,10 @@
  * file), runs the owning test suite, and requires the listed tests to fail.
  * Files are always restored, including on Ctrl+C.
  *
- *   node tools/mutation-check/run.cjs [suite ...] [--only <regex>]
+ *   node tools/mutation-check/run.cjs [suite ...] [--only <regex>] [--check-anchors]
+ *
+ * --check-anchors only verifies that every mutation's anchors still match
+ * exactly once and json patches apply (no tests run); exit 1 when any is stale.
  *
  * Suites: see SUITES below (default: all). Exit code 1 when any
  * mutation survives or its anchor no longer matches the source exactly once.
@@ -37,6 +40,27 @@ const onlyIndex = args.indexOf("--only");
 const only = onlyIndex >= 0 ? new RegExp(args[onlyIndex + 1]) : null;
 const suiteNames = args.filter((a, i) => !a.startsWith("--") && !(onlyIndex >= 0 && i === onlyIndex + 1));
 const selected = suiteNames.length ? suiteNames : Object.keys(SUITES);
+
+const crlf = (x) => x.split("\n").join("\r\n");
+
+// --check-anchors: verify every mutation still applies (each anchor matches
+// exactly once, json patches run) without running any tests. Read-only, so it
+// needs neither the lock nor the restore journal.
+if (args.includes("--check-anchors")) {
+  for (const name of selected) if (!SUITES[name]) { console.error(`Unknown suite ${name}; expected ${Object.keys(SUITES).join(", ")}`); process.exit(2); }
+  let stale = 0;
+  let checked = 0;
+  for (const name of selected) {
+    for (const mutation of SUITES[name].mutations) {
+      if (only && !only.test(mutation.id)) continue;
+      checked += 1;
+      const { error } = planEdits(mutation, (file) => fs.readFileSync(file, "utf8"));
+      if (error) { stale += 1; console.log(`STALE    [${name}] ${mutation.id}: ${error}`); }
+    }
+  }
+  console.log(stale ? `\n${stale} of ${checked} mutation(s) stale.` : `All ${checked} mutation anchors match.`);
+  process.exit(stale ? 1 : 0);
+}
 
 // Restore everything we touched, whatever happens. Originals are also journaled
 // to disk so a hard kill (which skips exit handlers) is repaired on the next run.
@@ -71,8 +95,6 @@ if (fs.existsSync(JOURNAL)) {
 for (const name of selected) if (!SUITES[name]) { console.error(`Unknown suite ${name}; expected ${Object.keys(SUITES).join(", ")}`); process.exit(2); }
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { restoreAll(); process.exit(130); });
 process.on("exit", restoreAll);
-
-const crlf = (x) => x.split("\n").join("\r\n");
 
 /** Failed test names for a runner. */
 const runners = {
@@ -141,30 +163,45 @@ const runners = {
   },
 };
 
-function applyEdits(mutation) {
+/**
+ * Resolve a mutation's edits against the current sources without writing:
+ * returns { error } when an anchor does not match exactly once or a json patch
+ * throws, else { next } mapping each file to its mutated text. `read` supplies
+ * the pristine text of a file.
+ */
+function planEdits(mutation, read) {
   const edits = mutation.edits ?? (mutation.json ? [{ json: mutation.json, patch: mutation.patch }] : [{ file: mutation.file, from: mutation.from, to: mutation.to }]);
   const next = new Map();
   for (const edit of edits) {
     const file = path.join(REPO, edit.json ?? edit.file);
-    const original = touched.get(file) ?? fs.readFileSync(file, "utf8");
-    const current = next.get(file) ?? original;
+    const current = next.get(file) ?? read(file);
     let updated;
     if (edit.json) {
-      const data = JSON.parse(current);
-      edit.patch(data);
-      updated = `${JSON.stringify(data, null, 2)}\n`;
+      try {
+        const data = JSON.parse(current);
+        edit.patch(data);
+        updated = `${JSON.stringify(data, null, 2)}\n`;
+      } catch (e) {
+        return { error: `json patch for ${edit.json} failed: ${e.message}` };
+      }
     } else {
       let { from, to } = edit;
       if (!current.includes(from) && current.includes(crlf(from))) { from = crlf(from); to = crlf(to); }
       const count = current.split(from).length - 1;
-      if (count !== 1) return `anchor in ${edit.file} matched ${count} times: ${JSON.stringify(edit.from.slice(0, 80))}`;
+      if (count !== 1) return { error: `anchor in ${edit.file} matched ${count} times: ${JSON.stringify(edit.from.slice(0, 80))}` };
       updated = current.replace(from, to);
     }
-    if (!touched.has(file)) touched.set(file, original);
     next.set(file, updated);
   }
+  return { next };
+}
+
+function applyEdits(mutation) {
+  const plan = planEdits(mutation, (file) => touched.get(file) ?? fs.readFileSync(file, "utf8"));
+  if (plan.error) return plan.error;
+  for (const file of plan.next.keys()) if (!touched.has(file)) touched.set(file, fs.readFileSync(file, "utf8"));
   journal();
-  for (const [file, text] of next) fs.writeFileSync(file, text);
+  for (const [file, text] of plan.next) fs.writeFileSync(file, text);
   return null;
 }
 
