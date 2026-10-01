@@ -1,0 +1,5 @@
+# Nightly breadth mutation testing only (see tools/mutation-check/README.md).
+# Not installed on Render. Install in a separate step AFTER requirements.txt:
+# requirements.txt is hash-locked, and pip refuses unhashed lines in the same call.
+#   pip install -r requirements.txt && pip install -r requirements-mutation.txt
+mutmut>=3.8,<4

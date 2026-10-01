@@ -50,10 +50,120 @@ jobs:
           node-version: "22"
       - run: node tools/mutation-check/run.cjs --check-anchors
 
+  stryker-rules:
+    # Report-only breadth mutation run over the rules engine. Survivors never
+    # fail the job (thresholds.break is null); only a tool error does.
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Restore Stryker incremental file
+        uses: actions/cache@v4
+        with:
+          path: packages/rules/reports/stryker-incremental.json
+          key: stryker-rules-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            stryker-rules-${{ runner.os }}-
+      - name: Stryker
+        run: npm run mutation:stryker -w @optcg/rules
+      - name: Survivors summary
+        if: ${{ !cancelled() }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const f = "packages/rules/reports/mutation/mutation.json";
+            if (!fs.existsSync(f)) { console.log("No Stryker report produced."); process.exit(0); }
+            const rep = JSON.parse(fs.readFileSync(f, "utf8"));
+            const out = ["## Stryker survivors (packages/rules)", "", "| File | Killed | Survived | No coverage |", "|---|---|---|---|"];
+            const worst = [];
+            for (const [file, d] of Object.entries(rep.files)) {
+              const c = { Killed: 0, Timeout: 0, Survived: 0, NoCoverage: 0 };
+              for (const m of d.mutants) {
+                if (m.status in c) c[m.status]++;
+                if (m.status === "Survived") worst.push(`${file}:${m.location.start.line} ${m.mutatorName}`);
+              }
+              out.push(`| ${file} | ${c.Killed + c.Timeout} | ${c.Survived} | ${c.NoCoverage} |`);
+            }
+            out.push("", `First survivors (${worst.length} total):`, "", ...worst.slice(0, 40).map((s) => `- ${s}`));
+            out.push("", "Survivors are a to-do list for tools/mutation-check entries, not a score to chase.");
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, out.join("\n") + "\n");
+          '
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: stryker-rules-report
+          path: packages/rules/reports/mutation/
+          if-no-files-found: ignore
+
+  mutmut-backend:
+    # Report-only breadth mutation run over backend pricing/aggregation modules
+    # (see backend/setup.cfg). mutmut works in backend/mutants, a copy. CI only:
+    # never run it locally alongside tools/mutation-check/run.cjs.
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: "pip"
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-mutation.txt
+      - name: Install backend deps
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-mutation.txt
+      - name: Restore mutmut state
+        uses: actions/cache@v4
+        with:
+          path: backend/mutants
+          key: mutmut-backend-${{ github.run_id }}
+          restore-keys: |
+            mutmut-backend-
+      - name: mutmut
+        working-directory: backend
+        run: mutmut run
+      - name: Survivors summary
+        if: ${{ !cancelled() }}
+        working-directory: backend
+        run: |
+          if [ -d mutants ]; then
+            mutmut results > mutmut-results.txt || true
+            {
+              echo "## mutmut survivors (backend)"
+              echo
+              echo "Survived: $(grep -c ': survived' mutmut-results.txt || true)"
+              echo
+              echo '```'
+              grep ': survived' mutmut-results.txt | head -40 || true
+              echo '```'
+              echo
+              echo "Survivors are a to-do list for tools/mutation-check entries, not a score to chase."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No mutmut results produced." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: mutmut-backend-results
+          path: |
+            backend/mutmut-results.txt
+            backend/mutants/mutmut-stats.json
+          if-no-files-found: ignore
+
   # --- Add later nightly jobs above this line, and list them in `report.needs`. ---
 
   report:
-    needs: [fuzz, mutation-anchors]
+    needs: [fuzz, mutation-anchors, stryker-rules, mutmut-backend]
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5

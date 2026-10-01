@@ -16,9 +16,13 @@
     "export-atlas": "tsx src/scripts/exportAtlas.ts",
     "export-planner-stats": "tsx src/scripts/exportPlannerStats.ts",
     "export-protocol-fixtures": "tsx src/scripts/exportProtocolFixtures.ts",
+    "scenario-coverage": "tsx src/scripts/scenarioCoverage.ts",
+    "mutation:stryker": "stryker run",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
     "@types/node": "^22.20.2",
     "tsx": "^4.19.2",
     "typescript": "~5.7.2",
