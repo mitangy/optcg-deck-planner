@@ -1,28 +1,32 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from app.models import Base, CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, User
+from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, User
+from tests.db_support import make_test_engine
+
+
+@pytest.fixture(scope="module")
+def vcr_config() -> dict:
+    # Keep credentials out of any (re-)recorded cassette.
+    return {
+        "filter_headers": ["authorization", "cookie", "set-cookie", "x-api-key", "x-catalog-token"],
+        "filter_query_parameters": ["api_key", "apikey", "access_token", "token"],
+        "decode_compressed_response": True,
+    }
 
 
 @pytest.fixture()
 def db() -> Session:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=engine)
+    engine = make_test_engine()
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     session = SessionLocal()
     try:
         yield session
     finally:
         session.close()
-        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
 
 
 def make_user(db: Session, *, email: str, name: str, sub: str) -> User:

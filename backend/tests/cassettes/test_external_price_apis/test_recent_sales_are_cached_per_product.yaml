@@ -1,0 +1,26 @@
+# HAND-CRAFTED cassette: written from the response shapes app code parses, not recorded
+# from the live service. Re-record with: pytest tests/test_external_price_apis.py --record-mode=rewrite
+# (needs network; then re-check the test's expected values against the new data).
+interactions:
+- request:
+    body: '{"conditions": [1], "languages": [1], "listingType": "All"}'
+    headers:
+      Accept:
+      - '*/*'
+      Content-Type:
+      - application/json
+    method: POST
+    uri: https://mpapi.tcgplayer.com/v2/product/555002/latestsales?limit=3
+  response:
+    body:
+      string: '{"previousPage":"","nextPage":"","resultCount":3,"totalResults":3,"data":[{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":4.25,"shippingPrice":1.0,"orderDate":"2026-05-02T14:11:03.35+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":4.0,"shippingPrice":1.0,"orderDate":"2026-05-02T14:11:03.35+00:00"},{"condition":"Near
+        Mint","variant":"Normal","language":"English","quantity":1,"title":"Monkey.D.Luffy","listingType":"ListingWithoutPhotos","customListingId":"","purchasePrice":3.5,"shippingPrice":1.0,"orderDate":"2026-05-02T14:11:03.35+00:00"}]}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+version: 1

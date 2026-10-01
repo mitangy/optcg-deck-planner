@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { execSync } from "node:child_process";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
@@ -44,6 +45,8 @@ export default defineConfig(({ mode }) => {
     define: {
       "import.meta.env.VITE_GIT_SHA": JSON.stringify(gitSha),
     },
+    // e2e/ holds Playwright specs (`npm run e2e`), not unit tests.
+    test: { include: ["src/**/*.test.{ts,tsx}"] },
     server: {
       port: 5173,
     },
