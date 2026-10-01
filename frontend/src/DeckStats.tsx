@@ -222,7 +222,7 @@ function StatsLoader({ cards, leaderId }: { cards: DeckStatsCard[]; leaderId: st
 }
 
 /** Wide enough for the page to sit beside a stats column (matches the CSS breakpoint). */
-const DOCK_QUERY = "(min-width: 1100px)";
+const DOCK_QUERY = "(min-width: 1200px)";
 const COLLAPSED_KEY = "optcg_deck_stats_collapsed";
 
 function useMediaQuery(query: string): boolean {
@@ -292,6 +292,11 @@ export function DeckStatsDock({ cards, leaderId, hints }: { cards: DeckStatsCard
   const [sheetOpen, setSheetOpen] = useState(false);
   const pillRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const collapseRef = useRef<HTMLButtonElement>(null);
+  const railRef = useRef<HTMLButtonElement>(null);
+  const toggled = useRef(false);
+  const [pillHidden, setPillHidden] = useState(false);
   const badge = hints && hints.visible.length > 0 ? hints.visible.length : 0;
   const badgeEl = badge ? (
     <span className="filter-drawer-badge" aria-label={`${badge} build hints`}>
@@ -300,6 +305,37 @@ export function DeckStatsDock({ cards, leaderId, hints }: { cards: DeckStatsCard
   ) : null;
 
   const sheetShown = sheetOpen && !wide;
+  // Swapping the rail and the panel unmounts the focused button; hand focus to its counterpart.
+  useEffect(() => {
+    if (!toggled.current) return;
+    toggled.current = false;
+    (collapsed ? railRef.current : collapseRef.current)?.focus();
+  }, [collapsed]);
+  const toggle = (next: boolean) => {
+    toggled.current = true;
+    setCollapsed(next);
+  };
+  // The pill sits over the list: tuck it away while scrolling down, bring it back on scroll up.
+  useEffect(() => {
+    if (wide) return;
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - last) < 8) return;
+      setPillHidden(y > last && y > 160);
+      last = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [wide]);
+  const trapTab = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab") return;
+    const items = Array.from(sheetRef.current?.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])") ?? []);
+    if (!items.length) return;
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
   useEffect(() => {
     if (!sheetShown) return;
     const prev = document.body.style.overflow;
@@ -321,7 +357,7 @@ export function DeckStatsDock({ cards, leaderId, hints }: { cards: DeckStatsCard
     if (collapsed) {
       return (
         <aside className="stats-dock stats-dock-collapsed" aria-label="Deck stats">
-          <button type="button" className="stats-rail" aria-expanded={false} aria-label={badge ? `Expand deck stats, ${badge} build hints` : "Expand deck stats"} onClick={() => setCollapsed(false)}>
+          <button ref={railRef} type="button" className="stats-rail" aria-expanded={false} aria-label={badge ? `Expand deck stats, ${badge} build hints` : "Expand deck stats"} onClick={() => toggle(false)}>
             <Chevron dir="left" />
             <StatsIcon />
             {badgeEl}
@@ -335,7 +371,7 @@ export function DeckStatsDock({ cards, leaderId, hints }: { cards: DeckStatsCard
         <div className="stats-dock-panel deck-stats">
           <div className="stats-dock-head">
             <h2>Deck stats</h2>
-            <button type="button" className="ghost stats-dock-collapse" aria-expanded aria-label="Collapse deck stats" onClick={() => setCollapsed(true)}>
+            <button ref={collapseRef} type="button" className="ghost stats-dock-collapse" aria-expanded aria-label="Collapse deck stats" onClick={() => toggle(true)}>
               <Chevron dir="right" />
             </button>
           </div>
@@ -349,14 +385,14 @@ export function DeckStatsDock({ cards, leaderId, hints }: { cards: DeckStatsCard
 
   return (
     <>
-      <button ref={pillRef} type="button" className="stats-pill" aria-haspopup="dialog" aria-expanded={sheetShown} onClick={() => setSheetOpen(true)}>
+      <button ref={pillRef} type="button" className={`stats-pill${pillHidden ? " stats-pill-hidden" : ""}`} aria-haspopup="dialog" aria-expanded={sheetShown} onClick={() => setSheetOpen(true)}>
         <StatsIcon />
         Stats
         {badgeEl}
       </button>
       {sheetShown ? (
         <div className="stats-sheet-backdrop" onClick={() => setSheetOpen(false)}>
-          <div className="stats-sheet deck-stats" role="dialog" aria-modal="true" aria-label="Deck stats" onClick={(e) => e.stopPropagation()}>
+          <div ref={sheetRef} className="stats-sheet deck-stats" role="dialog" aria-modal="true" aria-label="Deck stats" onKeyDown={trapTab} onClick={(e) => e.stopPropagation()}>
             <div className="stats-dock-head">
               <h2>Deck stats</h2>
               <button ref={closeRef} type="button" className="ghost stats-dock-collapse" onClick={() => setSheetOpen(false)}>

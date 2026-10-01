@@ -5631,7 +5631,9 @@ button.ghost.scan-open:hover {
 
 .stats-pill {
   position: fixed;
-  right: max(0.75rem, env(safe-area-inset-right, 0px));
+  /* Left: card rows keep their steppers / Add buttons on the right. */
+  left: max(0.75rem, env(safe-area-inset-left, 0px));
+  transition: transform 0.2s ease, opacity 0.2s ease;
   bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
   z-index: 30;
   display: inline-flex;
@@ -5647,6 +5649,39 @@ button.ghost.scan-open:hover {
   font-weight: 700;
   box-shadow: var(--shadow-lift);
   cursor: pointer;
+}
+
+.stats-pill-hidden:not(:focus-visible) {
+  transform: translateY(calc(100% + 1.5rem));
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stats-pill {
+    transition: none;
+  }
+}
+
+.stats-sheet .stats-dock-collapse {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+}
+
+/* Deck page header: keep the action buttons together on one row; the title block shrinks or the whole group drops below it. */
+@media (min-width: 801px) {
+  .deck-main > .page-head {
+    flex-wrap: wrap;
+  }
+
+  .deck-main > .page-head > .deck-detail-head {
+    flex: 1 1 22rem;
+  }
+
+  .deck-main > .page-head > .page-head-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+  }
 }
 
 .stats-sheet-backdrop {
@@ -5680,14 +5715,19 @@ button.ghost.scan-open:hover {
 }
 
 /* Room for the floating pill under the last card (not a big empty scroll). */
-@media (max-width: 1099px) {
+@media (max-width: 1199px) {
   .deck-layout {
     padding-bottom: calc(2.75rem + 0.5rem);
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1200px) {
   .app-main:has(.deck-layout) {
+    max-width: min(1760px, 100%);
+  }
+
+  /* Keep the masthead's logo/nav on the same edges as the widened page below it. */
+  body:has(.deck-layout) .topbar-inner {
     max-width: min(1760px, 100%);
   }
 
@@ -5701,7 +5741,8 @@ button.ghost.scan-open:hover {
   .stats-dock {
     position: sticky;
     top: 1rem;
-    width: 26rem;
+    /* Narrower near the breakpoint so the table beside it keeps every column. */
+    width: clamp(21rem, 26vw, 26rem);
     max-width: 100%;
   }
 
