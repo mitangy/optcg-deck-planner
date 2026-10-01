@@ -507,5 +507,7 @@ module.exports = {
     { id: "cosmetic-sync-drops-local-upload", file: "duel-web/src/account/syncPlan.ts", from: "  const upload = localOnly ? \"history\" : null;", to: "  const upload = null;", kills: ["keeps a signed-out upload in history"] },
     { id: "cosmetic-sync-local-wins", file: "duel-web/src/account/syncPlan.ts", from: "  if (local.hasImage && local.accountId === accountActive) return { upload, apply: null };", to: "  if (local.hasImage) return { upload, apply: null };", kills: ["downloads the account's choice"] },
     { id: "cosmetic-sync-redownloads", file: "duel-web/src/account/syncPlan.ts", from: "  if (local.hasImage && local.accountId === accountActive) return { upload, apply: null };", to: "", kills: ["already shows the account's choice"] },
+    // Smart counter stop: hand Counter values come from the engine's live counterOf, not the printed atlas value
+    { id: "defend-counter-printed-value", file: `${src}/board/defendModel.ts`, from: "          value: card.counter ?? counterValueFor(entry)?.base ?? null,", to: "          value: counterValueFor(entry)?.base ?? null,", kills: ["uses the engine's live hand Counter over the printed one", "does not auto-pass in smart mode when the live Counters close the gap"] },
   ],
 };

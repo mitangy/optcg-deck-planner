@@ -187,5 +187,7 @@ module.exports = {
       { file: "packages/rules/src/engine/runtime.ts", from: "    if (!abilityGateOpen(state, loc.seat, { ...entry, ...(koed ? { card: koed } : {}) }, ability)) continue;", to: "    if (!abilityGateOpen(state, loc.seat, entry, ability)) continue;" },
     ], kills: ["ST21-004 Jewelry Bonney draws when K.O.'d in battle with 2 DON!! attached"] },
     {"id": "planner-text-removal-own", "file": "packages/rules/src/scripts/plannerStats.ts", "from": "if (/opponent/i.test(clause) && /(K", "to": "if (/(K", "kills": ["falls back to printed text only"]},
+    // The defender's own-hand view rows carry the live Counter (counterOf), not the printed one
+    { id: "view-hand-counter-printed", file: "packages/rules/src/engine/views.ts", from: "if (defending && def.type === \"character\") row.counter = counterOf(state, seat, c);", to: "if (defending && def.type === \"character\") row.counter = def.counter ?? 0;", kills: ["shows the defender the live +2000 hand Counter, not the printed +1000"] },
   ],
 };

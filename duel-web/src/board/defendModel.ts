@@ -108,7 +108,8 @@ export function deriveDefend(
           id: card.id,
           defId: card.defId,
           name: entry.name,
-          value: counterValueFor(entry)?.base ?? null,
+          // The engine's live Counter (statics like "+2000 Counter") beats the printed one.
+          value: card.counter ?? counterValueFor(entry)?.base ?? null,
         });
       } else if (i.type === "counter_event") {
         const value = counterValueFor(entry);
