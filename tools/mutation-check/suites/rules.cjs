@@ -178,6 +178,8 @@ module.exports = {
       { file: "packages/rules/src/tools/cardText/grammar.ts", from: "  else gate.cond = { c: \"and\", conds: [gate.cond, { c: \"var_count\", name: \"_affected\", op: \">=\", value: 1 }] };", to: "" },
       { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { const g = a["OP13-119"].abilities[1].effect.steps[2]; g.cond = g.cond.conds[0]; } },
     ], kills: ["accepting but returning nothing does not let the opponent play"] },
+    // A replaced removal is skipped even when the replacement moved the target off the field itself
+    { id: "replaced-removal-reapplied-off-field", file: "packages/rules/src/engine/runtime.ts", from: "if (frame.bindings[replKey] === true) continue;", to: "if (frame.bindings[replKey] === true && isOnField(loc)) continue;", kills: ["K.O.'ing himself instead of his own removal triggers [On K.O.] once"] },
     {"id": "planner-text-removal-own", "file": "packages/rules/src/scripts/plannerStats.ts", "from": "if (/opponent/i.test(clause) && /(K", "to": "if (/(K", "kills": ["falls back to printed text only"]},
   ],
 };

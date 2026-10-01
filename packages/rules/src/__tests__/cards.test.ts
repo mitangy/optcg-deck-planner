@@ -250,4 +250,21 @@ describe("On K.O.", () => {
     expect(h.state.players[1].characters.map((c) => c.defId)).toEqual(["OP16-014"]);
     expect(h.state.players[1].trash).toContain("OP01-110");
   });
+
+  it("OP17-015 Marco K.O.'ing himself instead of his own removal triggers [On K.O.] once", () => {
+    const h = new Harness();
+    const [marco] = h.field(1, "OP17-015");
+    marco!.rested = true;
+    h.hand(1, "OP17-015");
+    h.hand(0, "OP04-030");
+    h.don(0, 6);
+    h.play(0, "OP04-030");
+    h.pick("OP17-015");
+    expect(h.choice?.prompt).toBe("Marco — use Marco's effect instead?");
+    h.accept(1);
+    expect(h.choice?.prompt).toMatch(/^Marco — pay the cost to activate: \[On KO\]/);
+    h.decline(1);
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].trash).toEqual(["OP17-015"]);
+  });
 });
