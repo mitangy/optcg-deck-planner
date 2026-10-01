@@ -38,6 +38,20 @@ npm run scenario-coverage             # supported cards no test mentions, by set
 npm run scenario-coverage -- --summary OP01 EB01
 ```
 
+## Golden replays
+
+`replays/<name>.json` is a fixture (seed, first seat, both decks, and every intent played; no timestamps or runtime ids). `replays/<name>.golden.txt` is the engine's narration of it: one line per event from `describeEvents`, then a final-state summary (life, hand/deck/trash counts, field cards with power, DON!! per seat, winner). `src/__tests__/replays.test.ts` replays every fixture and fails with a line diff when the narration changes. Tests never write goldens, and `replay:bless` refuses to run when `CI` is set.
+
+```bash
+# New replay from a bug report seed (add --leaders A,B to pin leaders, --full to play to a winner)
+npm run replay:record -- my-bug 4821 --first 1 --lines 90 --note "why this replay exists"
+# After an intended rules/card-data/narration change: review the diff, then rewrite goldens
+npm run replay:bless             # all fixtures, or: npm run replay:bless -- my-bug
+git diff replays/
+```
+
+`record` plays the seed with the fuzzer's deck builder and a random legal-move policy and stops at a quiet Main Phase once about `--lines` event lines exist. Fixtures are inputs only: if a rules change makes a recorded intent illegal, the golden shows `!! REJECTED` at that step; re-record the replay rather than blessing it.
+
 ## Official structure implemented
 
 - Zones: Leader, Characters (max 5), Stage (max 1), Deck, Trash, Life, Hand, DON!! deck, Cost area  

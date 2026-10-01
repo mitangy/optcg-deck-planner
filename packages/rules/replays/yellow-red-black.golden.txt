@@ -1,0 +1,208 @@
+# replay yellow-red-black
+# Yellow vs red/black: DON!! attach heavy, Shirley On Play look at Life, Portgas.D.Ace On Play.
+seed 192, seat 0 goes first
+Seat 0 leader: Kalgara (OP08-098)
+Seat 1 leader: Koby (OP11-001)
+
+> #1 seat 0 give_don {"donId":"don_2","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Kalgara → 6000 power
+
+> #2 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+> #3 seat 1 give_don {"donId":"don_63","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Koby → 6000 power
+
+> #4 seat 1 give_don {"donId":"don_64","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Koby → 7000 power
+
+> #5 seat 1 end_turn
+  Phase → end (active seat 1)
+  Phase → refresh (active seat 0)
+  Seat 0 draws 1
+  Phase → draw (active seat 0)
+  Seat 0 places 2 DON!!
+  Phase → don (active seat 0)
+  Phase → main (active seat 0)
+
+> #6 seat 0 give_don {"donId":"don_3","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Kalgara → 6000 power
+
+> #7 seat 0 give_don {"donId":"don_2","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Kalgara → 7000 power
+
+> #8 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
+  Seat 0 attacks Leader (7000 vs 5000)
+  Seat 0 activates Kalgara's ability
+
+> #9 seat 1 pass_block
+
+> #10 seat 1 counter_from_hand {"handIndex":4}
+  Seat 1 counters with Yasopp (+1000)
+
+> #11 seat 1 counter_from_hand {"handIndex":1}
+  Seat 1 counters with Emporio.Ivankov (+1000)
+
+> #12 seat 1 counter_from_hand {"handIndex":1}
+  Seat 1 counters with Bartolomeo (+2000)
+
+> #13 seat 1 pass_counter
+  Battle fails (7000 vs 9000)
+
+> #14 seat 0 give_don {"donId":"don_4","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Kalgara → 8000 power
+
+> #15 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+> #16 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+  Seat 1 attacks Leader (5000 vs 5000)
+
+> #17 seat 0 pass_block
+
+> #18 seat 0 counter_from_hand {"handIndex":5}
+  Seat 0 counters with Jewelry Bonney (+1000)
+
+> #19 seat 0 counter_from_hand {"handIndex":3}
+  Seat 0 counters with Gyogyo (+1000)
+
+> #20 seat 0 counter_from_hand {"handIndex":2}
+  Seat 0 counters with Jewelry Bonney (+2000)
+
+> #21 seat 0 counter_from_hand {"handIndex":1}
+  Seat 0 counters with Ran (+1000)
+
+> #22 seat 0 pass_counter
+  Battle fails (5000 vs 10000)
+
+> #23 seat 1 give_don {"donId":"don_65","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Koby → 6000 power
+
+> #24 seat 1 give_don {"donId":"don_63","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Koby → 7000 power
+
+> #25 seat 1 give_don {"donId":"don_64","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Koby → 8000 power
+
+> #26 seat 1 give_don {"donId":"don_66","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Koby → 9000 power
+
+> #27 seat 1 end_turn
+  Phase → end (active seat 1)
+  Phase → refresh (active seat 0)
+  Seat 0 draws 1
+  Phase → draw (active seat 0)
+  Seat 0 places 2 DON!!
+  Phase → don (active seat 0)
+  Phase → main (active seat 0)
+
+> #28 seat 0 give_don {"donId":"don_3","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Kalgara → 6000 power
+
+> #29 seat 0 play_card {"handIndex":2}
+  Seat 0 plays Shirley (rests 3 DON!!)
+  Seat 0 activates Shirley's ability
+  Seat 0 may resolve Shirley's effect (Shirley — look at whose Life cards?)
+
+> #30 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["m1"]}
+  Seat 0 accepts Shirley's effect
+  Seat 0 may resolve Shirley's effect (Shirley — place each card at the top or bottom of the Life cards.)
+
+> #31 seat 0 resolve_pending_choice {"accept":true,"orderedOptionIds":["o0"]}
+  Seat 0 accepts Shirley's effect
+
+> #32 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Kalgara → 7000 power
+
+> #33 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+> #34 seat 1 give_don {"donId":"don_63","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Koby → 6000 power
+
+> #35 seat 1 give_don {"donId":"don_64","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Koby → 7000 power
+
+> #36 seat 1 play_card {"handIndex":3}
+  Seat 1 plays Gismonda (rests 2 DON!!)
+
+> #37 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+  Seat 1 attacks Leader (7000 vs 5000)
+
+> #38 seat 0 declare_block {"blockerId":"card_19"}
+  Seat 0 blocks
+
+> #39 seat 0 pass_counter
+  Battle hits (7000 vs 3000)
+  Seat 0's Shirley is K.O.'d
+
+> #40 seat 1 give_don {"donId":"don_68","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Koby → 8000 power
+
+> #41 seat 1 give_don {"donId":"don_67","targetId":"card_94"}
+  Seat 1 attaches DON!! to Gismonda → 3000 power
+
+> #42 seat 1 end_turn
+  Phase → end (active seat 1)
+  Phase → refresh (active seat 0)
+  Seat 0 draws 1
+  Phase → draw (active seat 0)
+  Seat 0 places 2 DON!!
+  Phase → don (active seat 0)
+  Phase → main (active seat 0)
+
+> #43 seat 0 give_don {"donId":"don_8","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Kalgara → 6000 power
+
+> #44 seat 0 play_card {"handIndex":0}
+  Seat 0 plays Portgas.D.Ace (rests 5 DON!!)
+  Seat 0 activates Portgas.D.Ace's ability
+
+> #45 seat 0 give_don {"donId":"don_7","targetId":"card_56"}
+  Seat 0 attaches DON!! to Portgas.D.Ace → 8000 power
+
+> #46 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
+  Seat 0 attacks Leader (6000 vs 5000)
+  Seat 0 activates Kalgara's ability
+
+> #47 seat 1 declare_block {"blockerId":"card_94"}
+  Seat 1 blocks
+
+> #48 seat 1 counter_from_hand {"handIndex":3}
+  Seat 1 counters with Lily Carnation (+1000)
+
+> #49 seat 1 pass_counter
+  Battle hits (6000 vs 3000)
+  Seat 1's Gismonda is K.O.'d
+
+== final state ==
+Seat 0: life 5, hand 2, deck 37, trash 5
+  leader: OP08-098 (rested) 6000p +1 DON!!
+  characters: PRB02-018 8000p +1 DON!!
+  stage: none
+  DON!!: 0 active + 5 rested in cost area, 2 attached, 3 in DON!! deck
+Seat 1: life 4, hand 3, deck 38, trash 5
+  leader: OP11-001 (rested) 5000p +3 DON!!
+  characters: none
+  stage: none
+  DON!!: 0 active + 3 rested in cost area, 3 attached, 4 in DON!! deck
+Phase: main, turn 7, active seat 0
+Winner: none

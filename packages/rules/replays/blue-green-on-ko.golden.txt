@@ -1,0 +1,189 @@
+# replay blue-green-on-ko
+# Blue vs green/blue: Boodle's On K.O. optional trash, resolved through a pending choice.
+seed 156, seat 0 goes first
+Seat 0 leader: Boa Hancock (OP07-038)
+Seat 1 leader: Monkey.D.Luffy (OP16-022)
+
+> #1 seat 0 give_don {"donId":"don_2","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Boa Hancock → 6000 power
+
+> #2 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+> #3 seat 1 end_turn
+  Phase → end (active seat 1)
+  Phase → refresh (active seat 0)
+  Seat 0 draws 1
+  Phase → draw (active seat 0)
+  Seat 0 places 2 DON!!
+  Phase → don (active seat 0)
+  Phase → main (active seat 0)
+
+> #4 seat 0 give_don {"donId":"don_3","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Boa Hancock → 6000 power
+
+> #5 seat 0 play_card {"handIndex":0}
+  Seat 0 plays Boodle (rests 2 DON!!)
+
+> #6 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+> #7 seat 1 play_card {"handIndex":3}
+  Seat 1 plays Ms. All Sunday (rests 3 DON!!)
+
+> #8 seat 1 give_don {"donId":"don_66","targetId":"card_81"}
+  Seat 1 attaches DON!! to Ms. All Sunday → 2000 power
+
+> #9 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+  Seat 1 attacks Leader (5000 vs 5000)
+
+> #10 seat 0 declare_block {"blockerId":"card_22"}
+  Seat 0 blocks
+
+> #11 seat 0 pass_counter
+  Battle hits (5000 vs 0)
+  Seat 0's Boodle is K.O.'d
+  Seat 0 activates Boodle's ability
+  Seat 0 may resolve Boodle's effect (Boodle — trash 1 card from the top of your deck? [On KO] You may trash 1 card from the top of your deck.)
+
+> #12 seat 0 resolve_pending_choice {"accept":true}
+  Seat 0 accepts Boodle's effect
+  Seat 0 moves Edward Weevil from deck to trash
+
+> #13 seat 1 activate_ability {"sourceId":"leader_62","abilityId":"op16-022#0"}
+  Seat 1 activates Monkey.D.Luffy's ability
+
+> #14 seat 1 end_turn
+  Phase → end (active seat 1)
+  Phase → refresh (active seat 0)
+  Seat 0 draws 1
+  Phase → draw (active seat 0)
+  Seat 0 places 2 DON!!
+  Phase → don (active seat 0)
+  Phase → main (active seat 0)
+
+> #15 seat 0 play_card {"handIndex":3}
+  Seat 0 plays Atmos (rests 4 DON!!)
+  Seat 0 activates Atmos's ability
+
+> #16 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
+  Seat 0 attaches DON!! to Boa Hancock → 6000 power
+
+> #17 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+> #18 seat 1 give_don {"donId":"don_65","targetId":"card_81"}
+  Seat 1 attaches DON!! to Ms. All Sunday → 2000 power
+
+> #19 seat 1 declare_attack {"attackerId":"card_81","target":{"kind":"leader"}}
+  Seat 1 attacks Leader (2000 vs 5000)
+
+> #20 seat 0 pass_block
+
+> #21 seat 0 counter_from_hand {"handIndex":1}
+  Seat 0 counters with Hamlet (+1000)
+
+> #22 seat 0 counter_from_hand {"handIndex":1}
+  Seat 0 counters with Nami (+1000)
+
+> #23 seat 0 pass_counter
+  Battle fails (2000 vs 7000)
+
+> #24 seat 1 give_don {"donId":"don_68","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Monkey.D.Luffy → 6000 power
+
+> #25 seat 1 give_don {"donId":"don_66","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Monkey.D.Luffy → 7000 power
+
+> #26 seat 1 give_don {"donId":"don_67","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Monkey.D.Luffy → 8000 power
+
+> #27 seat 1 play_card {"handIndex":1}
+  Seat 1 plays Gloriosa (Grandma Nyon) (rests 1 DON!!)
+  Seat 1 activates Gloriosa (Grandma Nyon)'s ability
+  Seat 1 may resolve Gloriosa (Grandma Nyon)'s effect (Gloriosa (Grandma Nyon) — look at the top 5 cards, choose up to 1, then place the rest at the bottom of the deck in any order.)
+
+> #28 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[],"orderedOptionIds":["o1","o0","o3","o2","o4"]}
+  Seat 1 accepts Gloriosa (Grandma Nyon)'s effect
+
+> #29 seat 1 give_don {"donId":"don_64","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Monkey.D.Luffy → 9000 power
+
+> #30 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+  Seat 1 attacks Leader (9000 vs 5000)
+
+> #31 seat 0 pass_block
+
+> #32 seat 0 pass_counter
+  Battle hits (9000 vs 5000)
+  Seat 0 moves Kuzan from life to hand
+  Seat 0 takes Life (Kuzan → hand)
+
+> #33 seat 1 end_turn
+  Phase → end (active seat 1)
+  Phase → refresh (active seat 0)
+  Seat 0 draws 1
+  Phase → draw (active seat 0)
+  Seat 0 places 2 DON!!
+  Phase → don (active seat 0)
+  Phase → main (active seat 0)
+
+> #34 seat 0 end_turn
+  Phase → end (active seat 0)
+  Phase → refresh (active seat 1)
+  Seat 1 draws 1
+  Phase → draw (active seat 1)
+  Seat 1 places 2 DON!!
+  Phase → don (active seat 1)
+  Phase → main (active seat 1)
+
+> #35 seat 1 give_don {"donId":"don_69","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Monkey.D.Luffy → 6000 power
+
+> #36 seat 1 give_don {"donId":"don_65","targetId":"card_81"}
+  Seat 1 attaches DON!! to Ms. All Sunday → 2000 power
+
+> #37 seat 1 play_card {"handIndex":0}
+  Seat 1 plays Roronoa Zoro (rests 1 DON!!)
+  Seat 1 activates Roronoa Zoro's ability
+
+> #38 seat 1 give_don {"donId":"don_64","targetId":"card_81"}
+  Seat 1 attaches DON!! to Ms. All Sunday → 3000 power
+
+> #39 seat 1 give_don {"donId":"don_68","targetId":"leader_62"}
+  Seat 1 attaches DON!! to Monkey.D.Luffy → 7000 power
+
+> #40 seat 1 give_don {"donId":"don_67","targetId":"card_122"}
+  Seat 1 attaches DON!! to Roronoa Zoro → 3000 power
+
+== final state ==
+Seat 0: life 4, hand 5, deck 36, trash 4
+  leader: OP07-038 5000p
+  characters: OP08-040 5000p
+  stage: none
+  DON!!: 7 active + 0 rested in cost area, 0 attached, 3 in DON!! deck
+Seat 1: life 4, hand 6, deck 37, trash 0
+  leader: OP16-022 7000p +2 DON!!
+  characters: OP01-079 3000p +2 DON!!; OP07-041 0p; ST32-005 3000p +1 DON!!
+  stage: none
+  DON!!: 2 active + 1 rested in cost area, 5 attached, 2 in DON!! deck
+Phase: main, turn 8, active seat 1
+Winner: none

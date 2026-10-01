@@ -51,6 +51,38 @@ second run would "restore" files the first is mutating mid-test and make its
 mutations falsely survive. `run.cjs` holds `.run.lock` and refuses to start
 while another run is alive.
 
+## Breadth tools (nightly, report-only)
+
+The curated suites above prove that specific tests can fail. Two generic
+mutation tools run nightly (`.github/workflows/nightly.yml`) to find code that
+**no** test kills: StrykerJS for `packages/rules` (`src/engine`, `src/effects`;
+`packages/rules/stryker.config.json`) and mutmut for the backend pricing and
+aggregation modules (`backend/setup.cfg`).
+
+- Survivors are a to-do list, not a score. Read the step summary, pick the ones
+  that are real behavior, and add a test plus a curated entry here. Many are
+  equivalent or cosmetic mutants (log strings, ids); ignore those and do not
+  chase a percentage. Neither tool fails the job on survivors
+  (`thresholds.break` is null; mutmut exits 0). Only tool errors fail the job
+  and open the nightly issue.
+- Smoke runs, from `packages/rules`: `npx stryker run --mutate src/engine/modifiers.ts`
+  (about 3 minutes; `npm run mutation:stryker -w @optcg/rules` is the full run).
+  Stryker works in a sandbox copy (`.stryker-tmp`), so it is safe next to
+  `run.cjs`. Output goes to the git-ignored `packages/rules/reports/`.
+- Known caveat: with the vitest runner Stryker's incremental IDs can churn
+  (stryker-js #6004), so the cached `reports/stryker-incremental.json` may
+  invalidate and re-run mutants it should have reused. The nightly cache is a
+  best-effort speedup; a cold run just takes longer.
+- mutmut install: `pip install -r backend/requirements-mutation.txt` after
+  `requirements.txt` (a separate step because the lock is hash-pinned). Smoke
+  run, from `backend`: `mutmut run "app.group_buy_merge*"`, then `mutmut results`.
+  mutmut 3 writes a copy of `app/` and `tests/` to the git-ignored
+  `backend/mutants/` and mutates there, but it runs pytest for every mutant and
+  reuses `backend/tests`, so treat it as heavy and CI-first. Never run it, or
+  Stryker's full run, at the same time as `run.cjs` in one checkout: both load
+  the machine and the timeouts they rely on become flaky, which produces false
+  survivors in the curated run.
+
 ## Adding a test
 
 When you add or change a test, add one mutation per behavior it claims, in
