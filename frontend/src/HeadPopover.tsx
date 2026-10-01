@@ -8,6 +8,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 export function HeadPopover({
   label,
   badge,
+  icon,
   className = "btn secondary",
   panelLabel,
   width = 320,
@@ -16,6 +17,8 @@ export function HeadPopover({
   label: ReactNode;
   /** Small status text inside the trigger, e.g. "On". */
   badge?: string;
+  /** Decorative glyph shown instead of the text label on very narrow screens (the label stays as the accessible name). */
+  icon?: ReactNode;
   className?: string;
   /** Accessible name for the dialog panel. */
   panelLabel: string;
@@ -74,9 +77,15 @@ export function HeadPopover({
         className={`${className} head-popover-btn`}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
+        title={typeof label === "string" ? label : undefined}
         onClick={() => setOpen((v) => !v)}
       >
-        {label}
+        {icon ? (
+          <span className="head-popover-icon" aria-hidden="true">
+            {icon}
+          </span>
+        ) : null}
+        <span className="head-popover-label">{label}</span>
         {badge ? <span className="head-popover-badge">{badge}</span> : null}
         <span className="head-popover-chevron" aria-hidden="true">
           ▾
@@ -94,5 +103,23 @@ export function HeadPopover({
         </div>
       )}
     </div>
+  );
+}
+
+export function ShareIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13V3M6.5 6.5 10 3l3.5 3.5M4.5 10v6h11v-6" />
+    </svg>
+  );
+}
+
+export function MoreIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
+      <circle cx="4.5" cy="10" r="1.6" />
+      <circle cx="10" cy="10" r="1.6" />
+      <circle cx="15.5" cy="10" r="1.6" />
+    </svg>
   );
 }
