@@ -343,6 +343,35 @@ describe("DuelRoom", () => {
     assert.equal((bags[1].welcome as ViewWithLeader).you.leader.defId, "OP01-001");
   });
 
+  it("rejects a deck with unknown cards at join; valid seats still start the match", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 7,
+      autoSkipMulligan: true,
+    });
+    // Keep the room alive while it is empty after the rejected join.
+    room.autoDispose = false;
+    const badDeck = { leaderId: "ST01-001", deck: Array.from({ length: 50 }, () => "ZZ99-999") };
+    await assert.rejects(
+      () => colyseus.connectTo(room, { ...joinOpts("alice", 0), deck: badDeck }),
+      /Unknown card def: ZZ99-999/,
+    );
+    assert.equal(room.state.seatsFilled, 0, "the rejected host must not hold a seat");
+
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    assert.equal(bags[0].welcome!.seat, 0);
+    assert.equal(bags[1].welcome!.seat, 1);
+  });
+
   it("allows a spectator with public view and empty hands", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
