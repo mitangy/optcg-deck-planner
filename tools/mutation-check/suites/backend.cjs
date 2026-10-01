@@ -10,6 +10,7 @@ const gb = "backend/app/group_buy.py";
 const merge = "backend/app/group_buy_merge.py";
 const settle = "backend/app/group_buy_settlement.py";
 const friends = "backend/app/routers/friends.py";
+const prefs = "backend/app/routers/duel_prefs.py";
 
 module.exports = {
   cwd: "backend",
@@ -225,5 +226,17 @@ module.exports = {
     { id: "invite-dismiss-noop", file: friends, from: "            DuelInvite.id == invite_id,", to: "            DuelInvite.id == -1,", kills: ["test_dismissed_invite_is_gone_but_others_cannot_dismiss"] },
     { id: "presence-secret-unchecked", file: duel, from: "    _require_ingest_secret(settings, x_duel_ingest_token)\n    if not _presence_rate", to: "    if not _presence_rate", kills: ["test_presence_requires_ingest_secret"] },
     { id: "presence-snapshot-appends", file: duel, from: "    db.execute(delete(DuelPresence).where(DuelPresence.instance_id == body.instance_id))\n", to: "", kills: ["test_friend_status_follows_presence_snapshots"] },
+    { id: "prefs-device-keys-synced", file: prefs, from: "if k not in DEVICE_ONLY_KEYS}", to: "if True}", kills: ["test_settings_follow_the_account_without_device_only_fields"] },
+    { id: "prefs-upload-not-activated", file: prefs, from: "    if activate:\n        setattr", to: "    if False:\n        setattr", kills: ["test_upload_becomes_active_and_older_uploads_can_be_picked_again"] },
+    { id: "prefs-select-ignored", file: prefs, from: "    setattr(_prefs(db, user.id), _active_attr(kind), body.id)", to: "    _prefs(db, user.id)", kills: ["test_upload_becomes_active_and_older_uploads_can_be_picked_again"] },
+    { id: "prefs-images-not-owner-checked", file: prefs, from: "    if row is None or row.user_id != user.id:", to: "    if row is None:", kills: ["test_images_are_private_to_their_owner"] },
+    { id: "prefs-any-bytes-accepted", file: prefs, from: "    return None\n\n\ndef _prefs", to: "    return \"image/png\"\n\n\ndef _prefs", kills: ["test_only_real_images_are_accepted"] },
+    { id: "prefs-size-unchecked", edits: [
+      { file: prefs, from: "    if declared and declared.isdigit() and int(declared) > limit:", to: "    if False:" },
+      { file: prefs, from: "        if len(buf) > limit:", to: "        if False:" },
+    ], kills: ["test_oversized_uploads_are_refused"] },
+    { id: "prefs-prune-drops-active", file: prefs, from: "[i for i in ids if i != active_id][keep:]", to: "ids[MAX_PER_KIND:]", kills: ["test_history_is_capped_but_never_drops_the_image_in_use"] },
+    { id: "prefs-history-unbounded", file: prefs, from: "    for old_id in [i for i in ids if i != active_id][keep:]:", to: "    for old_id in []:", kills: ["test_history_is_capped_but_never_drops_the_image_in_use"] },
+    { id: "prefs-delete-keeps-active", file: prefs, from: "    if getattr(prefs, attr) == row.id:\n        setattr(prefs, attr, None)\n", to: "", kills: ["test_deleting_the_active_image_falls_back_to_default"] },
   ],
 };

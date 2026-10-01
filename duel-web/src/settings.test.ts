@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadSettings } from "./settings";
+import { loadSettings, mergeRemoteSettings, syncedSettings } from "./settings";
 
 function stubStored(value: unknown) {
   vi.stubGlobal("localStorage", { getItem: () => JSON.stringify(value) });
@@ -113,5 +113,35 @@ describe("hand layout", () => {
   it("replaces an unknown stored hand layout with the centre fan", () => {
     stubStored({ handLayout: "dock" });
     expect(loadSettings().handLayout).toBe("fanCenter");
+  });
+});
+
+describe("account settings", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("never sends connection fields to the account", () => {
+    stubStored({ serverUrl: "ws://mine", joinSecret: "s3cret", useDevKey: true, handLayout: "grid" });
+    const synced = syncedSettings(loadSettings());
+    expect(synced.handLayout).toBe("grid");
+    expect(synced).not.toHaveProperty("serverUrl");
+    expect(synced).not.toHaveProperty("joinSecret");
+    expect(synced).not.toHaveProperty("useDevKey");
+    expect(synced).not.toHaveProperty("devUserKey");
+  });
+
+  it("applies account settings but keeps this device's connection fields", () => {
+    stubStored({ serverUrl: "ws://mine", joinSecret: "s3cret", handLayout: "fanRight" });
+    const merged = mergeRemoteSettings(loadSettings(), {
+      handLayout: "grid",
+      turnSound: true,
+      serverUrl: "ws://other",
+      joinSecret: "",
+    });
+    expect(merged.handLayout).toBe("grid");
+    expect(merged.turnSound).toBe(true);
+    expect(merged.serverUrl).toBe("ws://mine");
+    expect(merged.joinSecret).toBe("s3cret");
   });
 });

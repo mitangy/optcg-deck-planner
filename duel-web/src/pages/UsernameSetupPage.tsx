@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { stopAccountSync } from "../account/accountSync";
 import { UsernameForm } from "../auth/UsernameForm";
 import { fetchAuthMe, fetchUsernameSuggestion, logoutSession } from "../net/api";
 import { useDuelSession } from "../state/DuelSession";
@@ -64,6 +65,7 @@ export function UsernameSetupPage() {
               className="btn btn-ghost btn-sm"
               onClick={() => {
                 void logoutSession().then(() => {
+                  stopAccountSync();
                   setRating(null);
                   navigate("/", { replace: true });
                 });

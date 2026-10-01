@@ -2,7 +2,8 @@
  * Custom playmat art. Uploaded images are cover-cropped to the official OPTCG
  * playmat ratio (24" × 14" → 12:7) and stored as a JPEG Blob in IndexedDB —
  * localStorage is too small for multi-megabyte art (it is only a fallback when
- * IndexedDB is unavailable). Survives reloads and new sessions in this browser.
+ * IndexedDB is unavailable). Signed-in players also keep it, and every earlier
+ * upload, on their account (account/cosmeticsSync.ts).
  */
 import {
   cosmeticBackend,
@@ -16,7 +17,7 @@ import { createImageSlot } from "./cosmetics/imageSlot";
 /** Official playmat aspect ratio (width / height). */
 export const PLAYMAT_ASPECT = 12 / 7;
 
-const playmatSlot = createImageSlot({
+export const playmatSlot = createImageSlot({
   key: "mine",
   backend: cosmeticBackend("playmat"),
   encode: coverCropEncoder(PLAYMAT_ASPECT, "image/jpeg"),
@@ -29,14 +30,6 @@ const playmatSlot = createImageSlot({
   ],
   afterSave: requestPersistentStorage,
 });
-
-export function savePlaymat(file: File): Promise<void> {
-  return playmatSlot.save(file);
-}
-
-export function clearPlaymat(): Promise<void> {
-  return playmatSlot.clear();
-}
 
 /**
  * Small JPEG data URL of the playmat for the opponent (null when none set).

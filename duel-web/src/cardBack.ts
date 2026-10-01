@@ -3,8 +3,9 @@
  *
  * The official Bandai backs ship in /public/cards. A custom main-deck back can
  * be uploaded on the Settings page; it is cover-cropped to the 63 × 88 mm card
- * ratio and stored in IndexedDB like the custom playmat. Only your own side of
- * the board shows it — opponents always see the official back.
+ * ratio and stored in IndexedDB (and on the account, when signed in) like the
+ * custom playmat. Only your own side of the board shows it — opponents always
+ * see the official back.
  */
 import {
   cosmeticBackend,
@@ -23,7 +24,7 @@ export const OFFICIAL_DON_BACK = "/cards/don-back.webp";
 /** Standard card ratio (width / height): 63 × 88 mm. */
 export const CARD_BACK_ASPECT = 63 / 88;
 
-const cardBackSlot = createImageSlot({
+export const cardBackSlot = createImageSlot({
   key: "mine",
   backend: cosmeticBackend("cardBack"),
   // WebP keeps transparent corners; browsers without WebP encode fall back to PNG.
@@ -35,14 +36,6 @@ const cardBackSlot = createImageSlot({
   ],
   afterSave: requestPersistentStorage,
 });
-
-export function saveCardBack(file: File): Promise<void> {
-  return cardBackSlot.save(file);
-}
-
-export function clearCardBack(): Promise<void> {
-  return cardBackSlot.clear();
-}
 
 /** Small WebP data URL of the card back for the opponent (null when none set). */
 export async function cardBackShareUrl(maxChars: number): Promise<string | null> {
