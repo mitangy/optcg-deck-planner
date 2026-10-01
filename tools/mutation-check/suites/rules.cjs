@@ -164,6 +164,20 @@ module.exports = {
       { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { delete a["OP15-020"].abilities[0].effect.steps[1].prompt; } },
     ], kills: ["asks whether to trash 2 cards for the K.O."] },
     { id: "fire-fist-did-unbound", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP15-020"].abilities[0].effect.steps[1].bind = "_paid"; }, kills: ["trashing 2 cards K.O.s the 0-power Character"] },
+    // "you may X. If you do, Y": X is a real cost when it parses as one; "If you do" after a plain action gates on it having happened
+    { id: "may-cost-partial-payment", edits: [
+      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "  if (costs?.length) steps[steps.length - 1] = {", to: "  if (false) steps[steps.length - 1] = {" },
+      { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP15-020"].abilities[0].effect.steps[1] = { do: "may", then: { do: "discard", player: "you", count: 2 }, bind: "_did", prompt: "trash 2 cards from your hand" }; } },
+    ], kills: ["does not offer the trash, so 1 card in hand stays"] },
+    { id: "if-you-do-after-action-unset", edits: [
+      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "gate.cond = { ...gate.cond, name: \"_affected\" };", to: "void 0;" },
+      { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP09-103"].abilities[1].effect.steps[1].cond.name = "_did"; } },
+    ], kills: ["draws 1 after playing a Revolutionary Army Character"] },
+    { id: "if-you-do-after-action-always", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { const steps = a["OP09-103"].abilities[1].effect.steps; steps[1] = steps[1].then; }, kills: ["does not draw when nothing is played"] },
+    { id: "if-you-do-may-chose-nothing", edits: [
+      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "  else gate.cond = { c: \"and\", conds: [gate.cond, { c: \"var_count\", name: \"_affected\", op: \">=\", value: 1 }] };", to: "" },
+      { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { const g = a["OP13-119"].abilities[1].effect.steps[2]; g.cond = g.cond.conds[0]; } },
+    ], kills: ["accepting but returning nothing does not let the opponent play"] },
     {"id": "planner-text-removal-own", "file": "packages/rules/src/scripts/plannerStats.ts", "from": "if (/opponent/i.test(clause) && /(K", "to": "if (/(K", "kills": ["falls back to printed text only"]},
   ],
 };
