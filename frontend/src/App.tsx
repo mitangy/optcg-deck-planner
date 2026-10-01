@@ -482,7 +482,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
                 width={562}
                 height={145}
               />
-              <span>OPTCG Tracker</span>
+              <span>Planner</span>
             </Link>
           </div>
           <nav aria-label="Primary">
@@ -3432,7 +3432,7 @@ function PublicSharePage() {
                 width={562}
                 height={145}
               />
-              <span>OPTCG Tracker</span>
+              <span>Planner</span>
             </Link>
           </div>
           <div className="user">

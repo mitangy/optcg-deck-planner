@@ -1944,7 +1944,7 @@ export function PublicGroupBuyPage() {
                 width={562}
                 height={145}
               />
-              <span>OPTCG Tracker</span>
+              <span>Planner</span>
             </Link>
           </div>
           <div className="user">

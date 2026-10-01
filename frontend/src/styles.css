@@ -2294,8 +2294,15 @@ tr.done td {
     height: 1.45rem;
   }
 
+  /* The title wraps onto a clipped second line whenever it doesn't fit beside
+     the header buttons, instead of running underneath them. */
   .brand a {
+    display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
+    height: 1.45rem;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .brand a span {
