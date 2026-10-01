@@ -10,7 +10,8 @@
     "test": "vitest run",
     "extract-descriptors": "tsx scripts/extract-descriptors.mjs",
     "upload-descriptors": "node scripts/upload-descriptors.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "e2e:visual": "playwright test --grep @visual"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.66.0",

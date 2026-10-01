@@ -11,6 +11,7 @@ const layout = "frontend/src/CardLayout.tsx";
 
 const deck = "deck.spec.ts";
 const share = "shopping-share.spec.ts";
+const visual = "visual.spec.ts";
 const trigger = `${deck} > expanding a market price shows the last sales without moving the price`;
 
 module.exports = {
@@ -44,6 +45,13 @@ module.exports = {
       { file: app, from: "                    `${c.still_need}/${c.needed}`\n", to: "                    `${c.needed}/${c.still_need}`\n" },
       { file: app, from: "[c.color, `${c.still_need}/${c.needed} still needed`, c.card_type || \"\"]", to: "[c.color, `${c.needed}/${c.still_need} still needed`, c.card_type || \"\"]" },
     ], kills: [`${deck} > each card row names the card, how many are still needed and its price [desktop-1200]`, `${deck} > each card row names the card, how many are still needed and its price [phone-375]`] },
+
+    // Pixel snapshots (@visual): small CSS regressions that no DOM assertion sees
+    { id: "e2e-visual-card-surface-colour", args: "visual", file: css, from: "  --card: #fffbf3;", to: "  --card: #c9dff2;", kills: [`${visual} > deck list view @visual [desktop-1200]`, `${visual} > deck grid view @visual [phone-375]`, `${visual} > share page @visual [desktop-1200]`] },
+    { id: "e2e-visual-topbar-taller", args: "visual", file: css, from: "  padding: 0.7rem 1.25rem;", to: "  padding: 1.1rem 1.25rem;", kills: [`${visual} > deck list view @visual [desktop-1200]`, `${visual} > share page @visual [desktop-1200]`] },
+    { id: "e2e-visual-layout-toggle-reversed", args: "visual", file: css, from: ".layout-toggle {\n  display: inline-flex;", to: ".layout-toggle {\n  display: inline-flex;\n  flex-direction: row-reverse;", kills: [`${visual} > deck list view @visual [phone-375]`] },
+    { id: "e2e-visual-grid-card-padding", args: "visual", file: css, from: "  gap: 0.65rem;\n  padding: 0.75rem;\n  border: 1px solid var(--line);\n  border-radius: 16px;", to: "  gap: 0.65rem;\n  padding: 1.25rem;\n  border: 1px solid var(--line);\n  border-radius: 16px;", kills: [`${visual} > deck grid view @visual [desktop-1200]`, `${visual} > deck grid view @visual [phone-375]`] },
+    { id: "e2e-visual-price-panel-wider", args: "visual", file: css, from: ".market-sales {\n  position: fixed;\n  width: 14rem;", to: ".market-sales {\n  position: fixed;\n  width: 18rem;", kills: [`${visual} > deck market price panel open @visual [desktop-1200]`] },
 
     // Shopping list
     { id: "e2e-shopping-shows-owned-cards", args: "shopping-share -g \"shopping list hides\" --project=desktop-1200", file: app, from: "  const filteredItems = useMemo(() => {\n    let list = data?.items ?? [];\n    if (onlyNeed) list = list.filter((i) => i.still_need > 0);\n", to: "  const filteredItems = useMemo(() => {\n    let list = data?.items ?? [];\n", kills: [`${share} > shopping list hides fully owned cards and passes the audit [desktop-1200]`] },
