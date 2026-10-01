@@ -52,3 +52,10 @@ export const LANDSCAPE_PHONE_QUERY =
  * on landscape phones (`wide && !lp`); shorter windows (150% zoom) keep the dock.
  */
 export const RAIL_HAND_QUERY = "(min-height: 680px)";
+
+/**
+ * Decks page and deck editor desktop layout (side-by-side lists, card search
+ * beside the deck). Must match the 1024px blocks in styles.css; phones and
+ * small tablets keep the single column.
+ */
+export const DESKTOP_DECKS_QUERY = "(min-width: 1024px)";

@@ -111,7 +111,7 @@ export function DeckConfigurePage() {
 
   return (
     <div className="app-shell">
-      <div className="deck-config">
+      <div className="deck-config deck-config-wide">
         <header className="deck-config-header">
           <Link to="/decks" className="btn btn-secondary deck-config-back">
             ← Decks
@@ -155,17 +155,22 @@ export function DeckConfigurePage() {
         {plannerErr ? <p className="error-text deck-config-notice">{plannerErr}</p> : null}
         {notice ? <p className="meta deck-config-notice">{notice}</p> : null}
 
-        <DeckImportPanel
-          collapsible
-          importText={importText}
-          onImportTextChange={setImportText}
-          onImport={onImportIntoDeck}
-          busy={importBusy}
-          error={importErr}
-          message={importMsg}
+        <DeckEditor
+          deckId={deck.id}
+          refreshKey={tick}
+          onDeckChanged={refresh}
+          sideTop={
+            <DeckImportPanel
+              collapsible
+              importText={importText}
+              onImportTextChange={setImportText}
+              onImport={onImportIntoDeck}
+              busy={importBusy}
+              error={importErr}
+              message={importMsg}
+            />
+          }
         />
-
-        <DeckEditor deckId={deck.id} refreshKey={tick} onDeckChanged={refresh} />
       </div>
     </div>
   );

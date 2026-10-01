@@ -329,7 +329,7 @@ export function DeckListPage() {
 
   return (
     <div className={`app-shell${drag ? " is-deck-dragging" : ""}`}>
-      <div className="deck-config">
+      <div className="deck-config deck-config-wide deck-list-page">
         <header className="deck-config-header">
           <Link to="/" className="btn btn-secondary deck-config-back">
             ← Home
@@ -347,129 +347,131 @@ export function DeckListPage() {
           </button>
         </header>
 
-        <section
-          className={`deck-drop-zone${dropClass("local")}`}
-          data-deck-drop="local"
-          aria-label="Your decks"
-        >
-          <h2 className="lobby-section-title">Your decks</h2>
-          {decks.length === 0 ? (
-            <p className="meta">
-              No decks yet.{" "}
-              <button type="button" className="linkish" onClick={() => navigate("/decks/new")}>
-                Create a deck
-              </button>
-              .
-            </p>
-          ) : (
-            <ul className="deck-list">
-              {decks.map((deck) => (
-                <DeckRow
-                  key={deck.id}
-                  deck={deck}
-                  dragging={dragIds.has(deck.id)}
-                  onOpen={() => {
-                    setSelectedDeckId(deck.id);
-                    navigate(`/decks/${deck.id}/configure`);
-                  }}
-                  onDelete={() => {
-                    if (
-                      !window.confirm(
-                        `Delete “${deck.name}”? This cannot be undone.`,
-                      )
-                    ) {
-                      return;
-                    }
-                    deleteDeck(deck.id);
-                    refresh();
-                  }}
-                  onDragStart={
-                    deck.plannerDeckId && planner.status === "ready"
-                      ? (e) => startDrag(e, { kind: "local", id: deck.id, label: deck.name })
-                      : undefined
-                  }
-                />
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section
-          className={`deck-planner-section deck-drop-zone${dropClass("planner")}`}
-          data-deck-drop="planner"
-          aria-label="From your planner"
-        >
-          <h2 className="lobby-section-title">From your planner</h2>
-          {planner.status === "loading" ? (
-            <p className="meta deck-planner-status">Loading planner decks…</p>
-          ) : planner.status === "signed-out" ? (
-            <p className="meta deck-planner-status">
-              Planner decks appear after{" "}
-              <a className="linkish" href={googleLoginUrl(window.location.origin + "/decks")}>
-                signing in with Google
-              </a>
-              .
-            </p>
-          ) : planner.status === "error" ? (
-            <p className="error-text deck-planner-status">{planner.message}</p>
-          ) : planner.decks.length === 0 ? (
-            <p className="meta deck-planner-status">No planner decks yet.</p>
-          ) : (
-            <>
-              <div className="deck-planner-toolbar">
-                <p className="meta deck-planner-hint">
-                  Tick decks to add them, or drag them up to Your decks.
-                </p>
-                <div className="deck-planner-toolbar-actions">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled={importing || plannerLeft.length === 0}
-                    onClick={() =>
-                      setSelected(allSelected ? new Set() : new Set(plannerLeft.map((d) => d.id)))
-                    }
-                  >
-                    {allSelected ? "Clear" : "Select all"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary deck-planner-add"
-                    disabled={importing || selectedLeft.length === 0}
-                    onClick={() => void addPlannerDecks(selectedLeft.map((d) => d.id))}
-                  >
-                    {importing ? "Adding…" : `Add selected (${selectedLeft.length})`}
-                  </button>
-                </div>
-              </div>
-              {plannerLeft.length === 0 ? (
-                <p className="meta deck-planner-status">
-                  Every planner deck is in Your decks. Drag one back here to remove its copy.
-                </p>
-              ) : (
-                <ul className="deck-list">
-                  {plannerLeft.map((d) => (
-                    <PlannerRow
-                      key={d.id}
-                      deck={d}
-                      busy={importing}
-                      selected={selected.has(d.id)}
-                      dragging={dragIds.has(d.id)}
-                      onToggle={() => toggle(d.id)}
-                      onDragStart={(e) => dragPlanner(e, d)}
-                    />
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-          <p
-            className={`${importErr ? "error-text" : "meta"} deck-planner-error`}
-            role="alert"
-            aria-live="polite"
+        <div className="deck-list-columns">
+          <section
+            className={`deck-drop-zone${dropClass("local")}`}
+            data-deck-drop="local"
+            aria-label="Your decks"
           >
-            {importErr ?? notice}
-          </p>
-        </section>
+            <h2 className="lobby-section-title">Your decks</h2>
+            {decks.length === 0 ? (
+              <p className="meta">
+                No decks yet.{" "}
+                <button type="button" className="linkish" onClick={() => navigate("/decks/new")}>
+                  Create a deck
+                </button>
+                .
+              </p>
+            ) : (
+              <ul className="deck-list">
+                {decks.map((deck) => (
+                  <DeckRow
+                    key={deck.id}
+                    deck={deck}
+                    dragging={dragIds.has(deck.id)}
+                    onOpen={() => {
+                      setSelectedDeckId(deck.id);
+                      navigate(`/decks/${deck.id}/configure`);
+                    }}
+                    onDelete={() => {
+                      if (
+                        !window.confirm(
+                          `Delete “${deck.name}”? This cannot be undone.`,
+                        )
+                      ) {
+                        return;
+                      }
+                      deleteDeck(deck.id);
+                      refresh();
+                    }}
+                    onDragStart={
+                      deck.plannerDeckId && planner.status === "ready"
+                        ? (e) => startDrag(e, { kind: "local", id: deck.id, label: deck.name })
+                        : undefined
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section
+            className={`deck-planner-section deck-drop-zone${dropClass("planner")}`}
+            data-deck-drop="planner"
+            aria-label="From your planner"
+          >
+            <h2 className="lobby-section-title">From your planner</h2>
+            {planner.status === "loading" ? (
+              <p className="meta deck-planner-status">Loading planner decks…</p>
+            ) : planner.status === "signed-out" ? (
+              <p className="meta deck-planner-status">
+                Planner decks appear after{" "}
+                <a className="linkish" href={googleLoginUrl(window.location.origin + "/decks")}>
+                  signing in with Google
+                </a>
+                .
+              </p>
+            ) : planner.status === "error" ? (
+              <p className="error-text deck-planner-status">{planner.message}</p>
+            ) : planner.decks.length === 0 ? (
+              <p className="meta deck-planner-status">No planner decks yet.</p>
+            ) : (
+              <>
+                <div className="deck-planner-toolbar">
+                  <p className="meta deck-planner-hint">
+                    Tick decks to add them, or drag them to Your decks.
+                  </p>
+                  <div className="deck-planner-toolbar-actions">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={importing || plannerLeft.length === 0}
+                      onClick={() =>
+                        setSelected(allSelected ? new Set() : new Set(plannerLeft.map((d) => d.id)))
+                      }
+                    >
+                      {allSelected ? "Clear" : "Select all"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary deck-planner-add"
+                      disabled={importing || selectedLeft.length === 0}
+                      onClick={() => void addPlannerDecks(selectedLeft.map((d) => d.id))}
+                    >
+                      {importing ? "Adding…" : `Add selected (${selectedLeft.length})`}
+                    </button>
+                  </div>
+                </div>
+                {plannerLeft.length === 0 ? (
+                  <p className="meta deck-planner-status">
+                    Every planner deck is in Your decks. Drag one back here to remove its copy.
+                  </p>
+                ) : (
+                  <ul className="deck-list">
+                    {plannerLeft.map((d) => (
+                      <PlannerRow
+                        key={d.id}
+                        deck={d}
+                        busy={importing}
+                        selected={selected.has(d.id)}
+                        dragging={dragIds.has(d.id)}
+                        onToggle={() => toggle(d.id)}
+                        onDragStart={(e) => dragPlanner(e, d)}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+            <p
+              className={`${importErr ? "error-text" : "meta"} deck-planner-error`}
+              role="alert"
+              aria-live="polite"
+            >
+              {importErr ?? notice}
+            </p>
+          </section>
+        </div>
       </div>
       {drag ? (
         <div
