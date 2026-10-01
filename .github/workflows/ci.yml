@@ -131,11 +131,39 @@ jobs:
       - run: npm ci
       - run: npx tsc -p e2e
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test
+      - run: npx playwright test --grep-invert @visual
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: frontend-e2e-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+
+  frontend-visual:
+    # Pixel snapshots (@visual) of the planner at 1200px and 375px. Baselines are
+    # per platform; on a mismatch the report and test-results hold the
+    # expected/actual/diff PNGs. To re-bless, run "Update planner snapshots".
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e:visual
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: frontend-visual-diffs
           path: |
             frontend/playwright-report
             frontend/test-results
