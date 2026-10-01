@@ -167,3 +167,40 @@ jobs:
       - name: Script tests (importer, cosmetics)
         working-directory: scripts
         run: python -m unittest test_bandai_metadata test_cosmetics_product_ids
+
+  backend-postgres:
+    # Same pytest suite against a real Postgres (prod is Neon): catches dialect
+    # differences SQLite hides, like boolean ALTER defaults in the startup migrations.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: optcg_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend deps
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Backend tests (Postgres)
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/optcg_test
+        run: python -m pytest -q
