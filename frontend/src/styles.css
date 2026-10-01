@@ -4856,6 +4856,41 @@ button.ghost.scan-open:hover {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
   }
+
+  /* Tighter header pills, and the wordmark scales down to whatever room is left
+     instead of being cropped (it lost "ECE" at 320px). */
+  .topbar .user {
+    gap: 0.35rem;
+  }
+
+  .topbar .user .duel-nav-link,
+  .topbar .user button.ghost,
+  .topbar .user .btn {
+    padding: 0.3rem 0.55rem;
+  }
+
+  .topbar .brand a {
+    align-items: center;
+  }
+
+  .topbar .brand-logo {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    max-height: 1.45rem;
+  }
+}
+
+/* Public share page: "Sign in" sits in the top bar as a small pill like Log out,
+   not a full-size button that crowds out the logo on phones. */
+@media (max-width: 800px) {
+  .topbar .user .btn {
+    width: auto;
+    margin-top: 0;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.88rem;
+  }
 }
 
 /* "Play in Duel" link in deck page head: never wraps inside the pill. */
