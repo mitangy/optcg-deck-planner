@@ -1,0 +1,317 @@
+[
+  {
+    "name": "mulligan-keep",
+    "message": "intent",
+    "intentType": "mulligan",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "mulligan",
+        "doMulligan": false
+      }
+    }
+  },
+  {
+    "name": "mulligan-redraw",
+    "message": "intent",
+    "intentType": "mulligan",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "mulligan",
+        "doMulligan": true
+      }
+    }
+  },
+  {
+    "name": "end-turn",
+    "message": "intent",
+    "intentType": "end_turn",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "end_turn"
+      }
+    }
+  },
+  {
+    "name": "play-card",
+    "message": "intent",
+    "intentType": "play_card",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "play_card",
+        "handIndex": 0
+      }
+    }
+  },
+  {
+    "name": "give-don",
+    "message": "intent",
+    "intentType": "give_don",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "give_don",
+        "donId": "don_5",
+        "targetId": "leader_1"
+      }
+    }
+  },
+  {
+    "name": "activate-ability",
+    "message": "intent",
+    "intentType": "activate_ability",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "activate_ability",
+        "sourceId": "leader_1",
+        "abilityId": "st01-001#0"
+      }
+    }
+  },
+  {
+    "name": "attack-leader",
+    "message": "intent",
+    "intentType": "declare_attack",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "declare_attack",
+        "attackerId": "leader_1",
+        "target": {
+          "kind": "leader"
+        }
+      }
+    }
+  },
+  {
+    "name": "attack-character",
+    "message": "intent",
+    "intentType": "declare_attack",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "declare_attack",
+        "attackerId": "leader_1",
+        "target": {
+          "kind": "character",
+          "instanceId": "c_t3"
+        }
+      }
+    }
+  },
+  {
+    "name": "play-card-replace",
+    "message": "intent",
+    "intentType": "play_card",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "play_card",
+        "handIndex": 0,
+        "trashCharacterId": "c_t1"
+      }
+    }
+  },
+  {
+    "name": "declare-block",
+    "message": "intent",
+    "intentType": "declare_block",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "declare_block",
+        "blockerId": "c_t1"
+      }
+    }
+  },
+  {
+    "name": "pass-block",
+    "message": "intent",
+    "intentType": "pass_block",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "pass_block"
+      }
+    }
+  },
+  {
+    "name": "pass-counter",
+    "message": "intent",
+    "intentType": "pass_counter",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "pass_counter"
+      }
+    }
+  },
+  {
+    "name": "counter-from-hand",
+    "message": "intent",
+    "intentType": "counter_from_hand",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "counter_from_hand",
+        "handIndex": 0
+      }
+    }
+  },
+  {
+    "name": "counter-event",
+    "message": "intent",
+    "intentType": "counter_event",
+    "answers": null,
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "counter_event",
+        "handIndex": 1
+      }
+    }
+  },
+  {
+    "name": "resolve-select",
+    "message": "intent",
+    "intentType": "resolve_pending_choice",
+    "answers": "choice-select",
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "resolve_pending_choice",
+        "accept": true,
+        "selectedOptionIds": [
+          "o0"
+        ]
+      }
+    }
+  },
+  {
+    "name": "resolve-accept",
+    "message": "intent",
+    "intentType": "resolve_pending_choice",
+    "answers": "choice-confirm",
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "resolve_pending_choice",
+        "accept": true
+      }
+    }
+  },
+  {
+    "name": "resolve-decline",
+    "message": "intent",
+    "intentType": "resolve_pending_choice",
+    "answers": "choice-confirm",
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "resolve_pending_choice",
+        "accept": false
+      }
+    }
+  },
+  {
+    "name": "resolve-mode",
+    "message": "intent",
+    "intentType": "resolve_pending_choice",
+    "answers": "choice-mode",
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "resolve_pending_choice",
+        "accept": true,
+        "selectedOptionIds": [
+          "m0"
+        ]
+      }
+    }
+  },
+  {
+    "name": "resolve-order",
+    "message": "intent",
+    "intentType": "resolve_pending_choice",
+    "answers": "choice-order",
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "resolve_pending_choice",
+        "accept": true,
+        "orderedOptionIds": [
+          "o0"
+        ],
+        "topOptionIds": []
+      }
+    }
+  },
+  {
+    "name": "resolve-look",
+    "message": "intent",
+    "intentType": "resolve_pending_choice",
+    "answers": "choice-look",
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "resolve_pending_choice",
+        "accept": true,
+        "selectedOptionIds": [
+          "o0"
+        ],
+        "orderedOptionIds": [
+          "o1",
+          "o2",
+          "o3",
+          "o4"
+        ]
+      }
+    }
+  },
+  {
+    "name": "order-effects",
+    "message": "intent",
+    "intentType": "order_pending_effects",
+    "answers": "choice-order-effects",
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "order_pending_effects",
+        "orderedIds": [
+          "trig_104",
+          "trig_103"
+        ]
+      }
+    }
+  },
+  {
+    "name": "resolve-trigger",
+    "message": "intent",
+    "intentType": "resolve_pending_choice",
+    "answers": "choice-life-trigger",
+    "body": {
+      "protocolVersion": 5,
+      "intent": {
+        "type": "resolve_pending_choice",
+        "accept": true
+      }
+    }
+  }
+]
