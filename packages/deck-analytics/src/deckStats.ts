@@ -108,7 +108,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 /** Mirrors `deckConstructionErrors` in packages/rules (deck_rule statics on Leaders). */
-function ruleOffends(rule: string, card: StatsAtlasCard): boolean {
+export function ruleOffends(rule: string, card: StatsAtlasCard): boolean {
   const [kind, arg] = rule.split(":");
   if (kind === "max_cost") return (card.cost ?? 0) > Number(arg);
   if (kind === "no_events_cost_ge") return card.t === "event" && (card.cost ?? 0) >= Number(arg);

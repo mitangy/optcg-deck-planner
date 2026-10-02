@@ -208,3 +208,112 @@ def test_ingest_rejects_bad_secret(client):
         headers={"X-Duel-Ingest-Token": "wrong"},
     )
     assert r.status_code == 401
+
+
+def _ingest(c, match_id: str, seat0: int, seat1: int, winner: int, **extra):
+    r = c.post(
+        "/duel/matches",
+        json={
+            "match_id": match_id,
+            "seat0_user_id": seat0,
+            "seat1_user_id": seat1,
+            "winner_seat": winner,
+            "reason": "life",
+            "ranked": True,
+            **extra,
+        },
+        headers={"X-Duel-Ingest-Token": "test-ingest"},
+    )
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_ingest_keeps_leaders_turns_and_replay_server_side(client):
+    """Ingest stores leader ids, turn count and the replay (#244)."""
+    from app.models import DuelMatchLog
+    import json as _json
+
+    c, SessionLocal = client
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()
+    replay = {"schema": 1, "seed": 42, "intents": [{"seat": 0, "intent": {"kind": "end_turn"}}]}
+    _ingest(c, "r1", a["user_id"], b["user_id"], 1, seat0_leader_id="OP01-001", seat1_leader_id="OP05-060", turns=9, replay=replay)
+
+    db = SessionLocal()
+    try:
+        row = db.query(DuelMatch).filter_by(match_id="r1").one()
+        assert (row.seat0_leader_id, row.seat1_leader_id, row.turns) == ("OP01-001", "OP05-060", 9)
+        assert _json.loads(db.get(DuelMatchLog, "r1").replay) == replay
+    finally:
+        db.close()
+
+
+def test_oversized_replay_is_dropped_but_the_result_still_counts(client, monkeypatch: pytest.MonkeyPatch):
+    """An oversized replay is dropped; the result still counts (#244)."""
+    from app.models import DuelMatchLog
+    from app.routers import duel as duel_router
+
+    c, SessionLocal = client
+    monkeypatch.setattr(duel_router, "MAX_REPLAY_BYTES", 200)
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()
+    body = _ingest(c, "big", a["user_id"], b["user_id"], 0, replay={"intents": ["x" * 300]})
+    assert body["created"] is True
+    _ingest(c, "small", a["user_id"], b["user_id"], 0, replay={"intents": ["x" * 10]})
+
+    db = SessionLocal()
+    try:
+        assert db.query(DuelMatch).count() == 2
+        assert db.get(DuelMatchLog, "big") is None
+        assert db.get(DuelMatchLog, "small") is not None
+    finally:
+        db.close()
+
+
+def test_my_matches_lists_only_my_games_from_my_seat(client):
+    """Match history lists only my games, from my seat, newest first (#244)."""
+    c, _ = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()
+    # I sit in seat 1 and win; then seat 0 and lose; then a game I'm not in.
+    _ingest(c, "g1", a["user_id"], me["id"], 1, seat0_leader_id="OP01-001", seat1_leader_id="OP05-060", turns=7, replay={"seed": 1})
+    _ingest(c, "g2", me["id"], b["user_id"], 1, seat0_leader_id="OP05-060", seat1_leader_id="OP12-001", turns=11)
+    _ingest(c, "g3", a["user_id"], b["user_id"], 0)
+
+    r = c.get("/duel/matches/me")
+    assert r.status_code == 200, r.text
+    matches = r.json()["matches"]
+    assert [m["match_id"] for m in matches] == ["g2", "g1"]
+    g2, g1 = matches
+    assert g1 | {"created_at": None, "rating_before": 0, "rating_after": 0} == {
+        "match_id": "g1",
+        "created_at": None,
+        "ranked": True,
+        "your_seat": 1,
+        "won": True,
+        "reason": "life",
+        "turns": 7,
+        "your_leader_id": "OP05-060",
+        "opponent_leader_id": "OP01-001",
+        "opponent_name": "alice",
+        "rating_before": 0,
+        "rating_after": 0,
+        "has_replay": True,
+    }
+    assert g1["rating_after"] > g1["rating_before"]
+    assert (g2["your_seat"], g2["won"], g2["your_leader_id"], g2["opponent_leader_id"], g2["has_replay"]) == (
+        0,
+        False,
+        "OP05-060",
+        "OP12-001",
+        False,
+    )
+    assert g2["rating_after"] < g2["rating_before"]
+    assert [m["match_id"] for m in c.get("/duel/matches/me?limit=1").json()["matches"]] == ["g2"]
+
+
+def test_my_matches_needs_sign_in(client):
+    """Match history needs a signed-in player (#244)."""
+    c, _ = client
+    assert c.get("/duel/matches/me").status_code == 401

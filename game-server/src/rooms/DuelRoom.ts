@@ -11,11 +11,15 @@ import {
   getSpectatorView,
   projectGameEvents,
   listLegalIntents,
+  MATCH_REPLAY_SCHEMA,
+  REGISTRY_HASH,
+  RULES_VERSION,
   serializeMatch,
   skipMulligans,
   unsupportedCardsForDeck,
   type GameEvent,
   type Intent,
+  type MatchReplay,
   type MatchState,
   type Rng,
   type RngState,
@@ -93,6 +97,8 @@ type TurnSnapshot = {
   match: string;
   rng: RngState;
   turnNumber: number;
+  /** Replay intents up to this state, so an undo drops the rewound ones. */
+  intentCount: number;
 };
 
 export class DuelRoom extends Room implements PresenceSource {
@@ -103,6 +109,8 @@ export class DuelRoom extends Room implements PresenceSource {
   private rng: Rng | null = null;
   private matchId = "";
   private seed = 0;
+  /** This game's inputs, sent with the result for the backend to keep. Never sent to players. */
+  private replay: MatchReplay | null = null;
   private autoSkipMulligan = true;
   private ranked = true;
   private createPlayers: [PlayerDeckWire, PlayerDeckWire] | undefined;
@@ -681,6 +689,19 @@ export class DuelRoom extends Room implements PresenceSource {
     if (this.autoSkipMulligan) {
       match = skipMulligans(match, this.rng);
     }
+    this.replay = {
+      schema: MATCH_REPLAY_SCHEMA,
+      rulesVersion: RULES_VERSION,
+      registryHash: REGISTRY_HASH,
+      seed: this.seed,
+      firstSeat,
+      skipMulligans: this.autoSkipMulligan,
+      players: [
+        { leaderId: leaderA, deck: [...deckA] },
+        { leaderId: leaderB, deck: [...deckB] },
+      ],
+      intents: [],
+    };
 
     this.match = match;
     this.matchStarted = true;
@@ -936,6 +957,7 @@ export class DuelRoom extends Room implements PresenceSource {
     }
 
     this.match = result.state;
+    this.replay?.intents.push({ seat, intent });
     this.recordTurnSnapshot();
     this.syncPublicState();
     this.broadcastViews(result.events);
@@ -949,6 +971,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.matchOverSent = false;
     this.resultPending = null;
     this.endReason = null;
+    this.replay = null;
     this.turnSnapshots = [];
     this.actedSinceSnapshot = false;
     this.undoRequest = null;
@@ -1052,6 +1075,7 @@ export class DuelRoom extends Room implements PresenceSource {
         match: serializeMatch(m),
         rng: this.rng.snapshot(),
         turnNumber: m.turnNumber,
+        intentCount: this.replay?.intents.length ?? 0,
       });
       if (this.turnSnapshots.length > UNDO_HISTORY_LIMIT) this.turnSnapshots.shift();
       this.actedSinceSnapshot = false;
@@ -1183,6 +1207,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.match = deserializeMatch(snap.match);
     this.rng = createSeededRng(snap.rng);
     this.turnSnapshots = this.turnSnapshots.slice(0, idx + 1);
+    this.replay?.intents.splice(snap.intentCount);
     this.actedSinceSnapshot = false;
     this.undoRequest = null;
     this.log("info", "undo_applied", { matchId: this.matchId, by, toTurn: snap.turnNumber });
@@ -1435,6 +1460,7 @@ export class DuelRoom extends Room implements PresenceSource {
       return;
     }
     this.match = result.state;
+    this.replay?.intents.push({ seat, intent });
     this.recordTurnSnapshot();
     this.syncPublicState();
     this.broadcastViews(result.events);
@@ -1537,15 +1563,7 @@ export class DuelRoom extends Room implements PresenceSource {
       this.log("warn", "match_ingest_skip", { matchId: this.matchId, reason: "local_outbox_disabled" });
       return;
     }
-    const payload: MatchResultPayload = {
-      // Rematches share the room: key each game's result separately.
-      match_id: this.gameNumber > 1 ? `${this.matchId}-r${this.gameNumber - 1}` : this.matchId,
-      seat0_user_id: s0,
-      seat1_user_id: s1,
-      winner_seat: winner,
-      reason,
-      ranked: this.ranked,
-    };
+    const payload = this.resultPayload(s0, s1, winner, reason);
     // Keep the immutable payload and room alive across transient database outages.
     // A process crash before the first commit remains outside this outbox guarantee.
     for (;;) {
@@ -1557,6 +1575,22 @@ export class DuelRoom extends Room implements PresenceSource {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
+  }
+
+  private resultPayload(s0: number, s1: number, winner: Seat, reason: string): MatchResultPayload {
+    return {
+      // Rematches share the room: key each game's result separately.
+      match_id: this.gameNumber > 1 ? `${this.matchId}-r${this.gameNumber - 1}` : this.matchId,
+      seat0_user_id: s0,
+      seat1_user_id: s1,
+      winner_seat: winner,
+      reason,
+      ranked: this.ranked,
+      seat0_leader_id: this.replay?.players[0].leaderId,
+      seat1_leader_id: this.replay?.players[1].leaderId,
+      turns: this.match?.turnNumber,
+      replay: this.replay ? { ...this.replay, intents: [...this.replay.intents], end: { winner, reason } } : undefined,
+    };
   }
 
   protected persistMatchResult(payload: MatchResultPayload): Promise<void> {

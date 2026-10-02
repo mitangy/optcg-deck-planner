@@ -31,6 +31,7 @@ module.exports = {
     { id: "stats-events-rule-any-type", file: stats, from: "return card.t === \"event\" && (card.cost ?? 0) >= Number(arg);", to: "return (card.cost ?? 0) >= Number(arg);", kills: ["only applies no_events_cost_ge to Events"] },
     { id: "stats-events-rule-exclusive", file: stats, from: "(card.cost ?? 0) >= Number(arg);\n  if (kind === \"only_trait\")", to: "(card.cost ?? 0) > Number(arg);\n  if (kind === \"only_trait\")", kills: ["only applies no_events_cost_ge to Events"] },
     { id: "stats-only-trait-inverted", file: stats, from: "return !(card.tr ?? []).includes(arg ?? \"\");", to: "return (card.tr ?? []).includes(arg ?? \"\");", kills: ["flags max_cost and only_trait separately"] },
+    { id: "hints-any-number-capped", file: hints, from: "n > T.maxCopies && !atlas[id]?.rules?.includes(\"any_number\")", to: "n > T.maxCopies", kills: ["lets cards that allow any number of copies go past 4"] },
     // draw odds + searchers
     { id: "odds-first-draws-turn-1", file: odds, from: "return OPENING_HAND + (goingFirst ? turn - 1 : turn);", to: "return OPENING_HAND + turn;", kills: ["going first skips the turn-1 draw"] },
     { id: "odds-second-no-turn-1-draw", file: odds, from: "return OPENING_HAND + (goingFirst ? turn - 1 : turn);", to: "return OPENING_HAND + (goingFirst ? turn - 1 : turn - 1);", kills: ["going first skips the turn-1 draw"] },

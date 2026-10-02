@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from app.config import get_settings
 from app.cors import TieredCORSMiddleware
 from app.db import init_db
-from app.routers import api, auth, duel, duel_prefs, friends
+from app.routers import analyst, api, auth, duel, duel_prefs, friends
 
 settings = get_settings()
 
@@ -71,6 +71,7 @@ app.include_router(api.router)
 app.include_router(duel.router)
 app.include_router(friends.router)
 app.include_router(duel_prefs.router)
+app.include_router(analyst.router)
 
 
 @app.get("/")

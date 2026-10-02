@@ -11,6 +11,7 @@ import { HotseatPage } from "./pages/HotseatPage";
 import { LegalPage } from "./pages/LegalPage";
 import { LobbyPage } from "./pages/LobbyPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { HistoryPage } from "./pages/HistoryPage";
 import { UsernameSetupPage } from "./pages/UsernameSetupPage";
 import { useDuelSettings } from "./settings";
 import { showsSiteFooter } from "./siteFooter";
@@ -42,6 +43,7 @@ export function App() {
         <Route path="/duel" element={<DuelPage />} />
         <Route path="/hotseat" element={<HotseatPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/history" element={<HistoryPage />} />
         <Route path="/auth/complete" element={<AuthCompletePage />} />
         <Route path="/welcome/username" element={<UsernameSetupPage />} />
         <Route path="/demo" element={<DemoPage />} />

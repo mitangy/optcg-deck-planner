@@ -623,6 +623,14 @@ export function LobbyPage() {
                 />
               </svg>
             </a>
+            <Link to="/history" className="icon-btn" aria-label="Match history" title="Match history">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
+                <path
+                  fill="currentColor"
+                  d="M13 3a9 9 0 0 0-9 9H1l3.9 3.9.07.14L9 12H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3Zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12Z"
+                />
+              </svg>
+            </Link>
             <Link to="/settings" className="icon-btn" aria-label="Settings" title="Settings">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
                 <path

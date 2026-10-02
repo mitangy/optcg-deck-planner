@@ -1,5 +1,6 @@
 /** duel-web mutations: source edits, plus data edits for atlas-content assertions. */
 const src = "duel-web/src";
+const matchRowFile = "duel-web/src/history/matchRow.ts";
 module.exports = {
   cwd: "duel-web",
   runner: "vitest",
@@ -552,5 +553,12 @@ module.exports = {
     { id: "mode-device-only", file: `${src}/settings.ts`, from: "  \"devUserKey\",\n];", to: "  \"devUserKey\",\n  \"colorMode\",\n];", kills: ["takes the light or dark mode saved to the account on another device"] },
     // deck stats in the editor (#243)
     { id: "deck-stats-cards-distinct", file: `${src}/decks/DeckStatsSection.tsx`, from: "copies.set(id, (copies.get(id) ?? 0) + 1);", to: "copies.set(id, 1);", kills: ["turns the editor's one-id-per-copy list into copies per card"] },
+    // match history rows
+    { id: "history-reason-blames-wrong-side", file: matchRowFile, from: "`${m.won ? \"Opponent\" : \"You\"} ${reason}`", to: "`${m.won ? \"You\" : \"Opponent\"} ${reason}`", kills: ["says who conceded, left or took the last hit from your side"] },
+    { id: "history-outcome-inverted", file: matchRowFile, from: "    outcome: m.won ? \"Won\" : \"Lost\",", to: "    outcome: \"Won\",", kills: ["says who conceded, left or took the last hit from your side"] },
+    { id: "history-leaders-swapped", file: matchRowFile, from: "    yourLeader: m.your_leader_id ? cardName(m.your_leader_id)", to: "    yourLeader: m.opponent_leader_id ? cardName(m.opponent_leader_id)", kills: ["puts your leader first and names both"] },
+    { id: "history-loss-delta-unsigned", file: matchRowFile, from: "(delta >= 0 ? `+${delta}` : `\u2212${Math.abs(delta)}`)", to: "`+${delta}`", kills: ["shows the Bounty change with its sign"] },
+    { id: "history-unranked-delta-shown", file: matchRowFile, from: "    bountyDelta: m.ranked ? (", to: "    bountyDelta: true ? (", kills: ["shows the Bounty change with its sign"] },
+    { id: "history-hours-as-minutes", file: matchRowFile, from: "  if (mins < 60) return `${mins}m ago`;", to: "  if (mins < 600) return `${mins}m ago`;", kills: ["dates recent games relative to now"] },
   ],
 };

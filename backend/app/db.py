@@ -133,6 +133,28 @@ def _ensure_user_username(bind: Engine | None = None) -> None:
         )
 
 
+def _ensure_duel_match_replay_columns() -> None:
+    """Add leader ids and turn count to duel_matches on existing DBs."""
+    inspector = inspect(engine)
+    if "duel_matches" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("duel_matches")}
+    additions = [
+        (name, typ)
+        for name, typ in (
+            ("seat0_leader_id", "VARCHAR(32)"),
+            ("seat1_leader_id", "VARCHAR(32)"),
+            ("turns", "INTEGER"),
+        )
+        if name not in existing
+    ]
+    if not additions:
+        return
+    with engine.begin() as conn:
+        for name, typ in additions:
+            conn.execute(text(f"ALTER TABLE duel_matches ADD COLUMN {name} {typ}"))
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_group_buy_columns()
@@ -140,6 +162,7 @@ def init_db() -> None:
     _ensure_deck_is_main()
     _ensure_user_sum_across_leaders()
     _ensure_user_username()
+    _ensure_duel_match_replay_columns()
 
 
 def get_db() -> Generator[Session, None, None]:

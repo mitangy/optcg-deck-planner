@@ -12,7 +12,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app import db as app_db
-from app.models import Deck, GroupBuy, User
+from app.models import Deck, DuelMatch, GroupBuy, User
 from tests.db_support import make_bare_engine, requires_postgres, using_postgres
 
 _PK = "SERIAL" if using_postgres() else "INTEGER"
@@ -33,9 +33,19 @@ _LEGACY_DDL = [
         id {_PK} PRIMARY KEY, host_user_id INTEGER NOT NULL REFERENCES users (id),
         title VARCHAR(200), status VARCHAR(32), invite_token VARCHAR(64) NOT NULL UNIQUE,
         created_at {_TS}, locked_at {_TS})""",
+    # duel_matches before leader ids / turns (match replays)
+    f"""CREATE TABLE duel_matches (
+        id {_PK} PRIMARY KEY, match_id VARCHAR(64) NOT NULL UNIQUE,
+        seat0_user_id INTEGER NOT NULL REFERENCES users (id), seat1_user_id INTEGER NOT NULL REFERENCES users (id),
+        winner_seat INTEGER NOT NULL, reason VARCHAR(64), ranked BOOLEAN,
+        seat0_rating_before INTEGER NOT NULL, seat1_rating_before INTEGER NOT NULL,
+        seat0_rating_after INTEGER NOT NULL, seat1_rating_after INTEGER NOT NULL, created_at {_TS})""",
     "INSERT INTO users (email, name, google_sub) VALUES ('old@example.com', 'Old', 'sub-old')",
     "INSERT INTO decks (user_id, name, leader_card_id, sort_order) VALUES (1, 'Red Luffy', 'OP01-001', 0)",
     "INSERT INTO group_buys (host_user_id, title, status, invite_token) VALUES (1, 'Old pool', 'open', 'tok-old')",
+    "INSERT INTO duel_matches (match_id, seat0_user_id, seat1_user_id, winner_seat, reason, ranked, "
+    "seat0_rating_before, seat1_rating_before, seat0_rating_after, seat1_rating_after) "
+    "VALUES ('old-match', 1, 1, 0, 'life', TRUE, 1000, 1000, 1016, 984)",
 ]
 
 
@@ -77,11 +87,14 @@ def test_old_rows_get_defaults_for_every_added_column(legacy_engine):
         assert gb.receipt_text == ""
         # pre-existing columns are untouched
         assert (gb.title, gb.status, gb.invite_token) == ("Old pool", "open", "tok-old")
+        match = db.query(DuelMatch).one()
+        assert (match.seat0_leader_id, match.seat1_leader_id, match.turns) == (None, None, None)
+        assert (match.match_id, match.seat0_rating_after) == ("old-match", 1016)
 
 
 def test_every_current_model_column_exists_after_migration(legacy_engine):
     app_db.init_db()
-    for model in (User, Deck, GroupBuy):
+    for model in (User, Deck, GroupBuy, DuelMatch):
         table = model.__table__
         assert set(table.columns.keys()) <= set(_columns(legacy_engine, table.name)), table.name
 

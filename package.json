@@ -3,16 +3,19 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "game-server"
+    "game-server",
+    "analyst"
   ],
   "scripts": {
-    "test": "npm run test -w @optcg/rules && npm run test -w @optcg/deck-analytics && npm run test -w @optcg/game-server",
+    "test": "npm run test -w @optcg/rules && npm run test -w @optcg/deck-analytics && npm run test -w @optcg/game-server && npm run test -w @optcg/analyst",
     "test:rules": "npm run test -w @optcg/rules",
     "test:deck-analytics": "npm run test -w @optcg/deck-analytics",
     "test:game-server": "npm run test -w @optcg/game-server",
     "start:game-server": "npm run start -w @optcg/game-server",
     "dev:game-server": "npm run dev -w @optcg/game-server",
-    "test:mutation": "node tools/mutation-check/run.cjs"
+    "test:mutation": "node tools/mutation-check/run.cjs",
+    "test:analyst": "npm run test -w @optcg/analyst",
+    "start:analyst": "npm run start -w @optcg/analyst"
   },
   "engines": {
     "node": ">=22"

@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import hmac
 import hashlib
+import json
+import logging
 import re
 import time
 from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, or_, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
@@ -21,7 +23,7 @@ from app.config import Settings, get_settings
 from app.db import get_db
 from app.duel_ratings import INITIAL_RATING, apply_elo
 from app.game_tokens import mint_game_token, verify_game_token
-from app.models import CardReport, DuelMatch, DuelPresence, DuelRating, User
+from app.models import CardReport, DuelMatch, DuelMatchLog, DuelPresence, DuelRating, User
 from app.rate_limit import RateLimiter, client_ip
 from app.usernames import duel_display_name
 from app.routers.api import _require_catalog_token
@@ -33,6 +35,8 @@ from app.schemas import (
     DuelGuestTokenIn,
     DuelLeaderboardEntryOut,
     DuelLeaderboardOut,
+    DuelMatchHistoryEntry,
+    DuelMatchHistoryOut,
     DuelMatchIngest,
     DuelMatchOut,
     DuelPresenceSnapshot,
@@ -41,6 +45,10 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/duel", tags=["duel"])
+log = logging.getLogger(__name__)
+
+# A long game is a few hundred intents (tens of KB). Anything far larger is dropped, not the result.
+MAX_REPLAY_BYTES = 1_000_000
 
 _token_rate = RateLimiter(max_calls=30, period_s=60)
 _ingest_rate = RateLimiter(max_calls=120, period_s=60)
@@ -250,8 +258,18 @@ def ingest_match(
         seat1_rating_before=before1,
         seat0_rating_after=after0,
         seat1_rating_after=after1,
+        seat0_leader_id=body.seat0_leader_id,
+        seat1_leader_id=body.seat1_leader_id,
+        turns=body.turns,
     )
     db.add(row)
+    if body.replay is not None:
+        replay_text = json.dumps(body.replay, separators=(",", ":"))
+        if len(replay_text) <= MAX_REPLAY_BYTES:
+            db.flush()
+            db.add(DuelMatchLog(match_id=body.match_id, replay=replay_text))
+        else:
+            log.warning("duel replay for %s dropped: %d bytes", body.match_id, len(replay_text))
     db.commit()
     return DuelMatchOut(
         match_id=row.match_id,
@@ -319,6 +337,54 @@ def my_rating(
         rating=rating.rating,
         games_played=rating.games_played,
     )
+
+
+@router.get("/matches/me", response_model=DuelMatchHistoryOut)
+def my_matches(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+    limit: int = 20,
+) -> DuelMatchHistoryOut:
+    """The signed-in player's recent duels, newest first."""
+    return DuelMatchHistoryOut(matches=match_history(db, user, limit))
+
+
+def match_history(db: Session, user: User, limit: int) -> list[DuelMatchHistoryEntry]:
+    """A player's recent duels from their own seat, newest first (also read by the analyst)."""
+    limit = max(1, min(limit, 100))
+    rows = db.scalars(
+        select(DuelMatch)
+        .where(or_(DuelMatch.seat0_user_id == user.id, DuelMatch.seat1_user_id == user.id))
+        .order_by(DuelMatch.created_at.desc(), DuelMatch.id.desc())
+        .limit(limit)
+    ).all()
+    opponent_ids = {r.seat1_user_id if r.seat0_user_id == user.id else r.seat0_user_id for r in rows}
+    opponents = {u.id: u for u in db.scalars(select(User).where(User.id.in_(opponent_ids))).all()} if opponent_ids else {}
+    with_replay = set(
+        db.scalars(select(DuelMatchLog.match_id).where(DuelMatchLog.match_id.in_([r.match_id for r in rows]))).all()
+    ) if rows else set()
+    matches = []
+    for r in rows:
+        seat = 0 if r.seat0_user_id == user.id else 1
+        opponent = opponents.get(r.seat1_user_id if seat == 0 else r.seat0_user_id)
+        matches.append(
+            DuelMatchHistoryEntry(
+                match_id=r.match_id,
+                created_at=r.created_at.isoformat() if r.created_at else None,
+                ranked=r.ranked,
+                your_seat=seat,
+                won=r.winner_seat == seat,
+                reason=r.reason,
+                turns=r.turns,
+                your_leader_id=r.seat0_leader_id if seat == 0 else r.seat1_leader_id,
+                opponent_leader_id=r.seat1_leader_id if seat == 0 else r.seat0_leader_id,
+                opponent_name=duel_display_name(opponent) if opponent else "Player",
+                rating_before=r.seat0_rating_before if seat == 0 else r.seat1_rating_before,
+                rating_after=r.seat0_rating_after if seat == 0 else r.seat1_rating_after,
+                has_replay=r.match_id in with_replay,
+            )
+        )
+    return matches
 
 
 @router.get("/leaderboard", response_model=DuelLeaderboardOut)

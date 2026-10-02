@@ -1,0 +1,120 @@
+/* Match history list (HistoryPage) and the Log Pose link panel (SettingsPage). */
+
+.history-note {
+  color: var(--muted);
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.history-row {
+  display: grid;
+  grid-template-columns: 3.4rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 12px;
+  background: var(--arena-panel);
+  min-width: 0;
+}
+
+.history-row[data-outcome="won"] {
+  border-left-color: var(--ok);
+}
+
+.history-row[data-outcome="lost"] {
+  border-left-color: var(--danger);
+}
+
+.history-outcome {
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--chrome-bright);
+}
+
+.history-main {
+  min-width: 0;
+}
+
+/* Wrap instead of clipping: both leader names matter on a phone. */
+.history-leaders,
+.history-meta {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.history-leaders {
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.history-vs {
+  margin: 0 0.35rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.history-meta {
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.history-bounty {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--chrome);
+  min-width: 3ch;
+  text-align: right;
+}
+
+.analyst-link-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.analyst-link-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.analyst-link-row .btn {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+}
+
+/* Keep each leader name on one line; the pair wraps between names. */
+.history-leaders > span:not(.history-vs) {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.history-hint a {
+  color: var(--chrome);
+}

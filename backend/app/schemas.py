@@ -457,6 +457,65 @@ class DuelMatchIngest(BaseModel):
     winner_seat: int = Field(ge=0, le=1)
     reason: str = Field(default="unknown", max_length=64)
     ranked: bool = True
+    seat0_leader_id: str | None = Field(default=None, max_length=32)
+    seat1_leader_id: str | None = Field(default=None, max_length=32)
+    turns: int | None = Field(default=None, ge=0, le=10_000)
+    # Seed, decks and accepted intents (see game-server MatchReplay). Kept server-side only.
+    replay: dict | None = None
+
+
+class DuelMatchHistoryEntry(BaseModel):
+    match_id: str
+    created_at: str | None
+    ranked: bool
+    your_seat: int
+    won: bool
+    reason: str
+    turns: int | None
+    your_leader_id: str | None
+    opponent_leader_id: str | None
+    opponent_name: str
+    rating_before: int
+    rating_after: int
+    has_replay: bool
+
+
+class DuelMatchHistoryOut(BaseModel):
+    matches: list[DuelMatchHistoryEntry]
+
+
+class AnalystTokenStatus(BaseModel):
+    has_token: bool
+    created_at: str | None
+    name: str | None = None
+
+
+class AnalystTokenCreated(BaseModel):
+    token: str
+    # Full URL to add in Claude as a custom connector; null when ANALYST_PUBLIC_URL is unset.
+    connector_url: str | None
+
+
+class AnalystReplayOut(BaseModel):
+    match_id: str
+    your_seat: int
+    replay: dict
+
+
+class AnalystDeckCard(BaseModel):
+    id: str
+    copies: int
+
+
+class AnalystDeckOut(BaseModel):
+    id: int
+    name: str
+    leader_id: str | None
+    cards: list[AnalystDeckCard]
+
+
+class AnalystDecksOut(BaseModel):
+    decks: list[AnalystDeckOut]
 
 
 class DuelMatchOut(BaseModel):
