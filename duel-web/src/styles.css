@@ -1514,6 +1514,27 @@ html:has(.duel-root) body {
   align-items: flex-end;
 }
 
+/* Face-up far hand (spectators): back-sized tiles that overlap once the row
+   runs out of room, so a big hand never widens the strip. */
+.opp-hand-faces {
+  --face-w: 22px;
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 0;
+}
+
+.opp-hand-faces .card-tile.opp-hand-face {
+  flex: 0 0 auto;
+  width: var(--face-w);
+  height: calc(var(--face-w) * 1.38);
+  border-width: 1px;
+  border-radius: 2px;
+}
+
+.opp-hand-faces .opp-hand-face + .opp-hand-face {
+  margin-left: min(0.2rem, calc((100% - var(--n) * var(--face-w)) / max(var(--n) - 1, 1)));
+}
+
 .card-back {
   width: 22px;
   height: 30px;

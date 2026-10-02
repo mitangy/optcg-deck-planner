@@ -565,5 +565,8 @@ module.exports = {
     { id: "history-loss-delta-unsigned", file: matchRowFile, from: "(delta >= 0 ? `+${delta}` : `\u2212${Math.abs(delta)}`)", to: "`+${delta}`", kills: ["shows the Bounty change with its sign"] },
     { id: "history-unranked-delta-shown", file: matchRowFile, from: "    bountyDelta: m.ranked ? (", to: "    bountyDelta: true ? (", kills: ["shows the Bounty change with its sign"] },
     { id: "history-hours-as-minutes", file: matchRowFile, from: "  if (mins < 60) return `${mins}m ago`;", to: "  if (mins < 600) return `${mins}m ago`;", kills: ["dates recent games relative to now"] },
+    // spectators see the far hand face up (#250)
+    {"id": "opp-hint-ignores-revealed-hand", "file": "duel-web/src/board/TurnStatusPanel.tsx", "from": "      {cards ? (\n        <div\n          className=\"opp-hand-backs opp-hand-faces\"", "to": "      {false ? (\n        <div\n          className=\"opp-hand-backs opp-hand-faces\"", "kills": ["shows the far player's hand face up instead of backs in the narrow strip (#250)"]},
+    {"id": "opp-fan-ignores-revealed-hand", "file": "duel-web/src/board/TurnStatusPanel.tsx", "from": "        {cards\n          ? cards.map((c, i) => (", "to": "        {false\n          ? [].map((c, i) => (", "kills": ["shows the far player's hand face up instead of backs in the rail fan (#250)"]},
   ],
 };

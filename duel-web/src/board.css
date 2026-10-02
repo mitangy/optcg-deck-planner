@@ -57,6 +57,10 @@
   border-radius: 2px;
 }
 
+.arena .opp-hand-faces {
+  --face-w: 13px;
+}
+
 /* Battle / choice prompt gets its own strip between the mats. The strip is
    always reserved (ornament when idle) so a battle starting never moves the
    board, and the mat-size math below subtracts it. */
@@ -912,6 +916,22 @@
 .opp-hand-fan .opp-fan-card + .opp-fan-card {
   /* 1.5rem slack keeps the rotated outer cards inside the rail. */
   margin-left: min(0.2rem, calc((100% - 1.5rem - var(--n) * var(--fan-w)) / max(var(--n) - 1, 1)));
+}
+
+/* Spectators of unranked rooms: the far hand face up. Not tucked, so the cost
+   and name at the top of the card stay visible; tap a card to read it. */
+.opp-hand-fan .card-tile.opp-fan-face {
+  width: var(--fan-w);
+  height: calc(var(--fan-w) * 1.4);
+  margin-top: 0;
+  border-width: 1px;
+}
+
+.opp-fan-face .card-caption,
+.opp-fan-face .card-overlays,
+.opp-hand-face .card-caption,
+.opp-hand-face .card-overlays {
+  display: none;
 }
 
 .opp-hand-fan-count {
@@ -2053,6 +2073,10 @@
   .arena .opp-hand-hint .card-back {
     width: 10px;
     height: 14px;
+  }
+
+  .arena .opp-hand-faces {
+    --face-w: 10px;
   }
 
   /* Mats may run wider than 12:7 so the (height-bound) cards stay as big as

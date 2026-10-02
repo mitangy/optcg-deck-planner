@@ -1247,7 +1247,7 @@ export class DuelRoom extends Room implements PresenceSource {
     for (const spec of this.spectators) {
       const client = this.clients.find((c) => c.sessionId === spec.sessionId);
       if (!client) continue;
-      const view = getSpectatorView(this.match, spec.cameraSeat);
+      const view = this.spectatorView(this.match, spec.cameraSeat);
       client.send("events", {
         protocolVersion: PROTOCOL_VERSION,
         events: projectGameEvents(events, null),
@@ -1679,12 +1679,20 @@ export class DuelRoom extends Room implements PresenceSource {
     }
   }
 
+  /**
+   * Spectators see both hands in unranked rooms. Ranked keeps hands hidden so a
+   * spectator can't relay them to a player.
+   */
+  private spectatorView(match: MatchState, cameraSeat: Seat) {
+    return getSpectatorView(match, cameraSeat, { revealHands: !this.ranked });
+  }
+
   private sendSpectatorSync(client: Client, cameraSeat: Seat) {
     if (!this.match) {
       this.sendError(client, "match_not_ready", "Match not started");
       return;
     }
-    const view = getSpectatorView(this.match, cameraSeat);
+    const view = this.spectatorView(this.match, cameraSeat);
     const welcome: WelcomeMessage = {
       protocolVersion: PROTOCOL_VERSION,
       matchId: this.matchId,

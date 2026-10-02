@@ -8,7 +8,7 @@ import {
   SKIN_MAX_CARD_BACK_CHARS,
   SKIN_MAX_PLAYMAT_CHARS,
 } from "../src/protocol.js";
-import { getGameTokenSecret } from "../src/env.js";
+import { getGameTokenSecret, getRankedMatchCreateSecret } from "../src/env.js";
 import { createHmac } from "node:crypto";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
 import type { MatchResultPayload } from "../src/writeback.js";
@@ -407,11 +407,22 @@ describe("DuelRoom", () => {
     assert.equal(bags[1].welcome!.seat, 1);
   });
 
-  it("allows a spectator with public view and empty hands", async () => {
+  type SpecWelcome = {
+    role?: string;
+    view: PlayerView & {
+      spectator?: boolean;
+      you: PlayerView["you"] & { handCount?: number };
+      revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+    };
+  };
+
+  /** Seat two players, then join a spectator on seat 0's camera. */
+  async function watchRoom(createOpts: Record<string, unknown>) {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 42,
       autoSkipMulligan: true,
+      ...createOpts,
     });
     const bags: [SeatBag, SeatBag] = [
       { views: [], errors: [] },
@@ -424,38 +435,43 @@ describe("DuelRoom", () => {
     await syncSeat(c0, bags[0]);
     await syncSeat(c1, bags[1]);
 
-    type SpecBag = {
-      welcome?: {
-        role?: string;
-        view: PlayerView & {
-          spectator?: boolean;
-          you: PlayerView["you"] & { handCount?: number };
-        };
-      };
-      views: unknown[];
-      errors: { code: string; message: string }[];
-    };
-    const specBag: SpecBag = { views: [], errors: [] };
+    let welcome: SpecWelcome | undefined;
     const spec = await colyseus.connectTo(room, {
       protocolVersion: PROTOCOL_VERSION,
       devUserId: "watcher",
       role: "spectator",
       preferredSeat: 0,
     });
-    spec.onMessage("welcome", (msg: SpecBag["welcome"]) => {
-      specBag.welcome = msg;
+    spec.onMessage("welcome", (msg: SpecWelcome) => {
+      welcome = msg;
     });
-    spec.onMessage("error", (msg: { code: string; message: string }) => {
-      specBag.errors.push(msg);
-    });
+    spec.onMessage("error", () => {});
     spec.send("sync", { protocolVersion: PROTOCOL_VERSION });
-    await waitUntil(() => specBag.welcome != null, 8000);
+    await waitUntil(() => welcome != null, 8000);
+    return { welcome: welcome!, bags };
+  }
 
-    assert.equal(specBag.welcome!.role, "spectator");
-    assert.equal(specBag.welcome!.view.spectator, true);
-    assert.deepEqual(specBag.welcome!.view.you.hand, []);
-    assert.ok((specBag.welcome!.view.you.handCount ?? 0) > 0);
-    assert.deepEqual(specBag.welcome!.view.legalIntents, []);
+  it("allows a spectator with public view and empty hands", async () => {
+    const { welcome } = await watchRoom({});
+    assert.equal(welcome.role, "spectator");
+    assert.equal(welcome.view.spectator, true);
+    assert.deepEqual(welcome.view.you.hand, []);
+    assert.ok((welcome.view.you.handCount ?? 0) > 0);
+    assert.deepEqual(welcome.view.legalIntents, []);
+  });
+
+  it("spectators of an unranked room see both players' hands (#250)", async () => {
+    const { welcome, bags } = await watchRoom({});
+    const ids = (hand: { id: string }[] | undefined) => (hand ?? []).map((c) => c.id);
+    assert.ok(bags[0].welcome!.you.hand.length > 0);
+    assert.deepEqual(ids(welcome.view.revealedHands?.[0]), ids(bags[0].welcome!.you.hand));
+    assert.deepEqual(ids(welcome.view.revealedHands?.[1]), ids(bags[1].welcome!.you.hand));
+  });
+
+  it("spectators of a ranked room see no hands (#250)", async () => {
+    const { welcome } = await watchRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() });
+    assert.equal(welcome.view.revealedHands, undefined);
+    assert.deepEqual(welcome.view.you.hand, []);
   });
 
   it("ranked_queue pairs two clients into a duel room id", async () => {

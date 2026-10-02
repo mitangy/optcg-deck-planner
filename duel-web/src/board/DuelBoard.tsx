@@ -823,6 +823,9 @@ export function DuelBoard({
   })();
   const boardSeat: Seat = mySeat ?? view.seat;
   const oppSeat: Seat = boardSeat === 0 ? 1 : 0;
+  // Unranked rooms send spectators both hands face up.
+  const nearHand = spectating ? view.revealedHands?.[boardSeat] : undefined;
+  const farHand = spectating ? view.revealedHands?.[oppSeat] : undefined;
   const viewingSeat: Seat | undefined = spectating ? undefined : boardSeat;
   // Older servers omit firstSeat; they always started seat 0.
   const firstSeat: Seat = view.firstSeat ?? 0;
@@ -882,6 +885,19 @@ export function DuelBoard({
       const p = fanPose(i, n);
       return { "--rot": `${p.rot.toFixed(2)}deg`, "--drop": p.drop.toFixed(4) } as CSSProperties;
     };
+    if (spectating && nearHand) {
+      return nearHand.map((c, i) => (
+        <CardTile
+          key={c.id}
+          motionId={c.id}
+          defId={c.defId}
+          showCounter
+          inspectOnClick
+          ownerSeat={boardSeat}
+          style={pose(i, nearHand.length)}
+        />
+      ));
+    }
     if (spectating) {
       const n = Math.min(you.handCount ?? 0, 8);
       const back = skins.near.cardBack
@@ -1020,7 +1036,9 @@ export function DuelBoard({
     />
   ) : (
     <div className="intent-bar">
-      <p className="intent-empty">Spectating — both hands hidden; intents disabled</p>
+      <p className="intent-empty">
+        {nearHand ? "Spectating — both hands shown; intents disabled" : "Spectating — both hands hidden; intents disabled"}
+      </p>
     </div>
   );
 
@@ -1408,7 +1426,7 @@ export function DuelBoard({
 
         <div className="playmat">
           <div className="playmat-inner">
-            <OppHandHint count={opp.handCount} cardBackUrl={oppCardBackUrl} />
+            <OppHandHint count={opp.handCount} cardBackUrl={oppCardBackUrl} cards={farHand} ownerSeat={oppSeat} />
 
             <SideField
               side="opp"
@@ -1549,7 +1567,13 @@ export function DuelBoard({
             {lp && (hotseatPass || (undo && undoState?.enabled && !spectating && !over)) ? (
               <div className="lp-actions">{hudUndoPass}</div>
             ) : null}
-            <OppHandFan count={opp.handCount} cardBackUrl={oppCardBackUrl} compact={lp} />
+            <OppHandFan
+              count={opp.handCount}
+              cardBackUrl={oppCardBackUrl}
+              compact={lp}
+              cards={farHand}
+              ownerSeat={oppSeat}
+            />
             <TurnStatusPanel
               view={view}
               boardSeat={boardSeat}
@@ -1596,7 +1620,7 @@ export function DuelBoard({
             {defendTray ?? (
               <div className={`hand-rail${handCollapsed ? " collapsed" : ""}`}>
                 <div className="hand-rail-head">
-                  <span className="hand-rail-title">{spectating ? "Seat hand (hidden)" : "Hand"}</span>
+                  <span className="hand-rail-title">{spectating ? (nearHand ? "Seat hand" : "Seat hand (hidden)") : "Hand"}</span>
                   <span className="hand-rail-count">{handCount}</span>
                   {!spectating ? (
                     <div className="hand-rail-actions">

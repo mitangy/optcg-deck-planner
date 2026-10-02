@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { PlayerView, Seat, SeatPlayers } from "../net/protocol";
 import { cardBackCssValue } from "../cardBack";
 import { seatName } from "./playerNames";
+import { CardTile } from "./CardTile";
 
 /** Formatted per-player (chess) clocks; `running` is whose is ticking. */
 export type SeatClocks = {
@@ -224,6 +225,8 @@ export function TurnStatusPanel({
   );
 }
 
+type HandCard = { id: string; defId: string };
+
 /** Opponent's hand size as a number, so nobody has to count the backs. */
 export function OppHandCount({ count }: { count: number }) {
   return (
@@ -237,25 +240,47 @@ export function OppHandCount({ count }: { count: number }) {
 export function OppHandHint({
   count,
   cardBackUrl,
+  cards,
+  ownerSeat,
 }: {
   count: number;
   cardBackUrl: string | null;
+  /** Spectators of unranked rooms: the far player's hand, face up. */
+  cards?: readonly HandCard[];
+  ownerSeat?: Seat;
 }) {
   return (
     <div className="opp-hand-hint" aria-label={`Opponent hand: ${count} cards`}>
       <span className="opp-hand-label">Opp hand</span>
-      <div
-        className="opp-hand-backs"
-        style={
-          cardBackUrl
-            ? ({ "--card-back-art": cardBackCssValue(cardBackUrl) } as CSSProperties)
-            : undefined
-        }
-      >
-        {Array.from({ length: Math.min(count, 8) }).map((_, i) => (
-          <span key={i} className="card-back" />
-        ))}
-      </div>
+      {cards ? (
+        <div
+          className="opp-hand-backs opp-hand-faces"
+          style={{ "--n": Math.max(cards.length, 1) } as CSSProperties}
+        >
+          {cards.map((c) => (
+            <CardTile
+              key={c.id}
+              defId={c.defId}
+              ownerSeat={ownerSeat}
+              inspectOnClick
+              classNameExtra="opp-hand-face"
+            />
+          ))}
+        </div>
+      ) : (
+        <div
+          className="opp-hand-backs"
+          style={
+            cardBackUrl
+              ? ({ "--card-back-art": cardBackCssValue(cardBackUrl) } as CSSProperties)
+              : undefined
+          }
+        >
+          {Array.from({ length: Math.min(count, 8) }).map((_, i) => (
+            <span key={i} className="card-back" />
+          ))}
+        </div>
+      )}
       <OppHandCount count={count} />
     </div>
   );
@@ -266,11 +291,16 @@ export function OppHandFan({
   count,
   cardBackUrl,
   compact = false,
+  cards,
+  ownerSeat,
 }: {
   count: number;
   cardBackUrl: string | null;
   /** Landscape phones: a one-line count, no fan. */
   compact?: boolean;
+  /** Spectators of unranked rooms: the far player's hand, face up. */
+  cards?: readonly HandCard[];
+  ownerSeat?: Seat;
 }) {
   if (compact) {
     return (
@@ -290,7 +320,7 @@ export function OppHandFan({
       </div>
     );
   }
-  const shown = Math.min(count, 10);
+  const shown = cards ? cards.length : Math.min(count, 10);
   const mid = (shown - 1) / 2;
   return (
     <div
@@ -304,13 +334,24 @@ export function OppHandFan({
       }
     >
       <div className="opp-hand-fan-cards">
-        {Array.from({ length: shown }).map((_, i) => (
-          <span
-            key={i}
-            className="card-back opp-fan-card"
-            style={{ "--i": i - mid } as CSSProperties}
-          />
-        ))}
+        {cards
+          ? cards.map((c, i) => (
+              <CardTile
+                key={c.id}
+                defId={c.defId}
+                ownerSeat={ownerSeat}
+                inspectOnClick
+                classNameExtra="opp-fan-card opp-fan-face"
+                style={{ "--i": i - mid } as CSSProperties}
+              />
+            ))
+          : Array.from({ length: shown }).map((_, i) => (
+              <span
+                key={i}
+                className="card-back opp-fan-card"
+                style={{ "--i": i - mid } as CSSProperties}
+              />
+            ))}
       </div>
       <span className="opp-hand-fan-count">
         <OppHandCount count={count} /> in hand

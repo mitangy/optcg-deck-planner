@@ -20,6 +20,7 @@ npx playwright show-report               # traces and screenshots of failures
 |---|---|---|
 | `rules-attack.spec.ts` | A scripted rule, clicked through: no attack on either player's first turn; a Leader hit moves one Life card to hand. Reads the numbers the player sees. | ~10s |
 | `playthrough.spec.ts` | A seeded practice match played to a winner by clicking only what the UI offers. Fails on a page error, a server rejection of an offered action, a turn with no way forward, or a new UI audit issue on any turn. | ~1 min per seed per size |
+| `spectate.spec.ts` | A second browser spectates a practice room (unranked) by room id and sees both opening hands face up. | ~10s |
 | `demo-audit.spec.ts` | The UI audit on every `/demo` fixture screen (prompts, full board, statuses, match over) at each size. | ~1 min |
 
 Each runs at `desktop-1280` and `phone-375` (the rules scenario on desktop only).

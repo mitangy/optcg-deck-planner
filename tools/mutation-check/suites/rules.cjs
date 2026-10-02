@@ -40,7 +40,7 @@ module.exports = {
     {"id":"no-blocker","file":"packages/rules/src/engine/intents.ts","from":"  if (!b || blocker.rested || !hasKeyword(state, seat, blocker, \"blocker\")) return false;","to":"  return false;","kills":["Blocker redirects the attack"]},
     {"id":"counter-no-power","file":"packages/rules/src/engine/intents.ts","from":"      addModifier(state, seat, entry.id, { kind: \"card\", id: defender.id }, { type: \"power\", amount: value }, { kind: \"battle\" });","to":"","kills":["Counter cards add power"]},
     {"id":"show-opponent-hand","file":"packages/rules/src/engine/views.ts","from":"      handCount: opp.hand.length,\n      deckCount: opp.deck.length,","to":"      handCount: opp.hand.length, hand: opp.hand,\n      deckCount: opp.deck.length,","kills":["hides the opponent hand"]},
-    {"id":"spectator-sees-hand","file":"packages/rules/src/engine/views.ts","from":"you: { ...base.you, hand: [] as { id: string; defId: string }[], handCount: base.you.hand.length },","to":"you: { ...base.you, hand: base.you.hand as { id: string; defId: string }[], handCount: base.you.hand.length },","kills":["spectators see no hands"]},
+    {"id":"spectator-sees-hand","file":"packages/rules/src/engine/views.ts","from":"you: { ...base.you, hand: [] as HandCard[], handCount: base.you.hand.length },","to":"you: { ...base.you, hand: base.you.hand as HandCard[], handCount: base.you.hand.length },","kills":["spectators see no hands"]},
     {"id":"look-eligibility-leak","file":"packages/rules/src/engine/views.ts","from":"    if (projected.request && projected.request.type === \"look\") {","to":"    if (false) {","kills":["redacts private look options"]},
     {"id":"look-defid-leak","file":"packages/rules/src/engine/views.ts","from":"...(o.instanceId ? { instanceId: o.instanceId, defId: o.defId } : { defId: \"HIDDEN\" })","to":"instanceId: o.instanceId, defId: o.defId","kills":["redacts private look options"]},
     {"id":"snapshot-any-registry","file":"packages/rules/src/state/snapshot.ts","from":"  if (state.registryHash !== REGISTRY_HASH) throw","to":"  if (false) throw","kills":["rejects snapshots from another registry"]},
@@ -312,5 +312,8 @@ module.exports = {
     // match replays
     { id: "replay-divergence-ignored", file: "packages/rules/src/matchReplay.ts", from: "    if (!result.ok) {\n      throw new Error(", to: "    if (!result.ok) {\n      return;\n      throw new Error(", kills: ["stops with the intent's index when a recorded move is no longer legal"] },
     { id: "describe-hidden-card-unknown", file: "packages/rules/src/describeEvents.ts", from: "  return id === \"HIDDEN\" ? \"a hidden card\" : getCardDef(id).name;", to: "  return getCardDef(id).name;", kills: ["narrates cards a seat can't see as hidden"] },
+    // spectators of unranked rooms see both hands (#250)
+    {"id": "spectator-hands-never-revealed", "file": "packages/rules/src/engine/views.ts", "from": "    ...(opts.revealHands ? { revealedHands:", "to": "    ...(false ? { revealedHands:", "kills": ["spectators see both hands only when revealHands is set (#250)"]},
+    {"id": "spectator-hands-always-revealed", "file": "packages/rules/src/engine/views.ts", "from": "    ...(opts.revealHands ? { revealedHands:", "to": "    ...(true ? { revealedHands:", "kills": ["spectators see both hands only when revealHands is set (#250)"]},
   ],
 };
