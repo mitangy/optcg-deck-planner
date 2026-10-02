@@ -73,7 +73,7 @@ describe("splitStatuses", () => {
 });
 
 describe("status colours and tooltips", () => {
-  it("colours disables red, keywords green, sick amber, negation purple (#PR_F)", () => {
+  it("colours disables red, keywords green, sick amber, negation purple (#256)", () => {
     expect(statusTone("Cannot attack")).toBe("disable");
     expect(statusTone("Won't refresh")).toBe("disable");
     expect(statusTone("Stunned")).toBe("disable");
@@ -85,7 +85,7 @@ describe("status colours and tooltips", () => {
     expect(statusTone("Glows softly")).toBe("default");
   });
 
-  it("explains every engine status label in the tooltip (#PR_F)", () => {
+  it("explains every engine status label in the tooltip (#256)", () => {
     for (const label of [...ENGINE_LABELS, "Rested"]) {
       expect(statusTooltip(label).text, label).toBeTruthy();
     }
@@ -96,13 +96,13 @@ describe("status colours and tooltips", () => {
 describe("placeTip", () => {
   const tip = { width: 200, height: 40 };
   const vp = { width: 375, height: 700 };
-  it("centres above the badge when there is room (#PR_F)", () => {
+  it("centres above the badge when there is room (#256)", () => {
     expect(placeTip({ left: 150, top: 300, width: 20, height: 20 }, tip, vp)).toEqual({ left: 60, top: 254 });
   });
-  it("flips below when the badge is at the top edge (#PR_F)", () => {
+  it("flips below when the badge is at the top edge (#256)", () => {
     expect(placeTip({ left: 150, top: 10, width: 20, height: 20 }, tip, vp).top).toBe(36);
   });
-  it("clamps inside the viewport at the right edge (#PR_F)", () => {
+  it("clamps inside the viewport at the right edge (#256)", () => {
     expect(placeTip({ left: 360, top: 300, width: 14, height: 20 }, tip, vp).left).toBe(167);
   });
 });
