@@ -87,7 +87,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   border-color: var(--line-strong);
-  background: rgba(11, 23, 32, 0.94);
+  background: rgb(var(--deep-rgb) / 0.94);
   box-shadow: none;
 }
 
@@ -116,25 +116,25 @@
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='none' stroke='%23d2a54d' stroke-opacity='0.09' stroke-width='1'%3E%3Ccircle cx='100' cy='100' r='70'/%3E%3Ccircle cx='100' cy='100' r='56'/%3E%3Cpath d='M100 10 L112 100 L100 190 L88 100 Z M10 100 L100 88 L190 100 L100 112 Z'/%3E%3Cpath d='M45 45 L104 96 L155 155 L96 104 Z M155 45 L104 104 L45 155 L96 96 Z' stroke-opacity='0.06'/%3E%3C/g%3E%3C/svg%3E")
       center / 46cqh no-repeat,
-    radial-gradient(90% 120% at 50% 50%, rgba(47, 111, 134, 0.16), transparent 70%),
-    linear-gradient(180deg, #12303d, #0e2230);
+    radial-gradient(90% 120% at 50% 50%, rgb(var(--sea-rgb) / 0.16), transparent 70%),
+    linear-gradient(180deg, var(--mat-top), var(--mat-bottom));
 }
 
 .arena .side-field.mirrored {
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='none' stroke='%23d2a54d' stroke-opacity='0.07' stroke-width='1'%3E%3Ccircle cx='100' cy='100' r='70'/%3E%3Ccircle cx='100' cy='100' r='56'/%3E%3Cpath d='M100 10 L112 100 L100 190 L88 100 Z M10 100 L100 88 L190 100 L100 112 Z'/%3E%3C/g%3E%3C/svg%3E")
       center / 46cqh no-repeat,
-    radial-gradient(90% 120% at 50% 50%, rgba(120, 64, 44, 0.14), transparent 70%),
-    linear-gradient(0deg, #1a2530, #121c25);
+    radial-gradient(90% 120% at 50% 50%, rgb(var(--foe-glow-rgb) / 0.14), transparent 70%),
+    linear-gradient(0deg, var(--mat-foe-top), var(--mat-foe-bottom));
 }
 
 /* Uploaded art (your side): cover the mat, dimmed so cards stay readable. */
 .arena .side-field.has-mat-art {
   background:
-    linear-gradient(rgba(5, 10, 14, var(--mat-dim, 0.35)), rgba(5, 10, 14, var(--mat-dim, 0.35))),
-    linear-gradient(rgba(14, 34, 48, var(--mat-veil, 0)), rgba(14, 34, 48, var(--mat-veil, 0))),
+    linear-gradient(rgb(var(--abyss-rgb) / var(--mat-dim, 0.35)), rgb(var(--abyss-rgb) / var(--mat-dim, 0.35))),
+    linear-gradient(rgb(var(--mat-rgb) / var(--mat-veil, 0)), rgb(var(--mat-rgb) / var(--mat-veil, 0))),
     var(--mat-art) center / cover no-repeat,
-    #0e2230;
+    var(--mat-bottom);
 }
 
 /* Registered so the cqw values resolve once against the mat (then inherit as
@@ -156,7 +156,7 @@
    on the far side of the table. Drawn on a pseudo-element so only the art
    rotates, not the cards. */
 .arena .side-field.mirrored.has-mat-art {
-  background: #0e2230;
+  background: var(--mat-bottom);
 }
 
 .arena .side-field.mirrored.has-mat-art::before {
@@ -166,8 +166,8 @@
   z-index: 0;
   pointer-events: none;
   background:
-    linear-gradient(rgba(5, 10, 14, var(--mat-dim, 0.35)), rgba(5, 10, 14, var(--mat-dim, 0.35))),
-    linear-gradient(rgba(14, 34, 48, var(--mat-veil, 0)), rgba(14, 34, 48, var(--mat-veil, 0))),
+    linear-gradient(rgb(var(--abyss-rgb) / var(--mat-dim, 0.35)), rgb(var(--abyss-rgb) / var(--mat-dim, 0.35))),
+    linear-gradient(rgb(var(--mat-rgb) / var(--mat-veil, 0)), rgb(var(--mat-rgb) / var(--mat-veil, 0))),
     var(--mat-art) center / cover no-repeat;
   transform: rotate(180deg);
 }
@@ -192,7 +192,7 @@
   line-height: 1.3;
   pointer-events: none;
   color: var(--ink);
-  background: rgba(11, 23, 32, 0.85);
+  background: rgb(var(--deep-rgb) / 0.85);
   border: 1px solid var(--line-strong);
 }
 
@@ -204,9 +204,9 @@
 }
 
 .arena .mat-order-first {
-  color: #1d1406;
-  background: linear-gradient(180deg, #e6bd62, #c7963d);
-  border-color: rgba(255, 236, 190, 0.5);
+  color: var(--on-chrome);
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  border-color: rgb(var(--btn-edge-rgb) / 0.5);
 }
 
 /* Printed-mat layout on a 7-column card grid. --c is one card width. */
@@ -357,7 +357,7 @@
 }
 
 .arena .side-field .zone-slot {
-  border: 1px dashed rgba(240, 220, 168, 0.18);
+  border: 1px dashed rgb(var(--chrome-bright-rgb) / 0.18);
   background: rgba(0, 0, 0, 0.14);
   font-size: calc(var(--c) * 0.12);
 }
@@ -433,7 +433,7 @@
   margin-top: calc(var(--c) * -0.46);
   overflow: hidden;
   border-radius: calc(var(--c) * 0.06);
-  border-color: rgba(240, 220, 168, 0.35);
+  border-color: rgb(var(--chrome-bright-rgb) / 0.35);
   background: #15202c;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
@@ -640,7 +640,7 @@
   min-height: 0;
   min-width: 0;
   border-right: 1px solid var(--line);
-  background: rgba(8, 17, 24, 0.55);
+  background: rgb(var(--deep-rgb) / 0.55);
   /* Landscape notch: column keeps its width, content clears the inset. */
   padding-left: var(--safe-l);
 }
@@ -809,7 +809,7 @@
   border-radius: 0;
   border-width: 1px 0 0;
   box-shadow: none;
-  background: rgba(8, 17, 24, 0.6);
+  background: rgb(var(--deep-rgb) / 0.6);
 }
 
 .arena.arena-wide .arena-rail .chat-panel:not(.collapsed) {
@@ -940,7 +940,7 @@
   text-align: center;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: rgba(8, 17, 24, 0.55);
+  background: rgb(var(--deep-rgb) / 0.55);
 }
 
 .turn-banner-kicker {
@@ -976,7 +976,7 @@
 
 .turn-panel-mine .turn-banner {
   border-color: var(--chrome);
-  background: linear-gradient(180deg, rgba(210, 165, 77, 0.3), rgba(210, 165, 77, 0.08));
+  background: linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.3), rgb(var(--chrome-rgb) / 0.08));
   animation: turn-banner-glow 2.2s ease-in-out infinite;
 }
 
@@ -985,8 +985,8 @@
 }
 
 .turn-panel-theirs .turn-banner {
-  border-color: rgba(127, 182, 214, 0.6);
-  background: linear-gradient(180deg, rgba(80, 140, 180, 0.28), rgba(80, 140, 180, 0.06));
+  border-color: rgb(var(--sea-bright-rgb) / 0.6);
+  background: linear-gradient(180deg, rgb(var(--sea-rgb) / 0.28), rgb(var(--sea-rgb) / 0.06));
 }
 
 .turn-panel-theirs .turn-banner-title {
@@ -1006,10 +1006,10 @@
 @keyframes turn-banner-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 rgba(210, 165, 77, 0);
+    box-shadow: 0 0 0 rgb(var(--chrome-rgb) / 0);
   }
   50% {
-    box-shadow: 0 0 18px rgba(210, 165, 77, 0.45);
+    box-shadow: 0 0 18px rgb(var(--chrome-rgb) / 0.45);
   }
 }
 
@@ -1032,12 +1032,12 @@
 
 .turn-player-you.is-active {
   border-color: var(--line-strong);
-  background: rgba(210, 165, 77, 0.1);
+  background: rgb(var(--chrome-rgb) / 0.1);
 }
 
 .turn-player-opp.is-active {
-  border-color: rgba(127, 182, 214, 0.55);
-  background: rgba(80, 140, 180, 0.12);
+  border-color: rgb(var(--sea-bright-rgb) / 0.55);
+  background: rgb(var(--sea-rgb) / 0.12);
 }
 
 .turn-player-head {
@@ -1079,9 +1079,9 @@
 .turn-order-badge {
   flex: none;
   padding: 0.08rem 0.5rem;
-  border: 1px solid rgba(120, 180, 220, 0.55);
+  border: 1px solid rgb(var(--sea-bright-rgb) / 0.55);
   border-radius: 999px;
-  background: rgba(80, 140, 180, 0.18);
+  background: rgb(var(--sea-rgb) / 0.18);
   color: #c8e4f5;
   font-size: 0.68rem;
   font-weight: 800;
@@ -1089,9 +1089,9 @@
 }
 
 .turn-order-badge.first {
-  color: #1d1406;
-  background: linear-gradient(180deg, #e6bd62, #c7963d);
-  border-color: rgba(255, 236, 190, 0.5);
+  color: var(--on-chrome);
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  border-color: rgb(var(--btn-edge-rgb) / 0.5);
 }
 
 .turn-player-stats {
@@ -1140,7 +1140,7 @@
   border-right: none;
   border-bottom: none;
   border-radius: 14px 0 0 0;
-  background: linear-gradient(180deg, rgba(29, 51, 68, 0.97), rgba(11, 23, 32, 0.98));
+  background: linear-gradient(180deg, rgb(var(--raised-rgb) / 0.97), rgb(var(--deep-rgb) / 0.98));
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
   /* Tucked: only the handle and the top of each card show. The short delay
      keeps it from snapping shut when the pointer grazes the edge. */
@@ -1322,7 +1322,7 @@
   padding: 0 0.6rem;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
-  background: rgba(11, 23, 32, 0.92);
+  background: rgb(var(--deep-rgb) / 0.92);
   color: var(--chrome-bright);
   font: inherit;
   font-size: 0.72rem;
@@ -1340,7 +1340,7 @@
 
 .hand-fan-head .hand-rail-btn {
   min-height: 1.75rem;
-  background: rgba(11, 23, 32, 0.92);
+  background: rgb(var(--deep-rgb) / 0.92);
 }
 
 .hand-fan-cards {
@@ -1638,14 +1638,14 @@
 /* —— HUD turn-order chip —— */
 
 .hud-turn-chip.hud-order {
-  border-color: rgba(120, 180, 220, 0.55);
-  background: rgba(80, 140, 180, 0.18);
+  border-color: rgb(var(--sea-bright-rgb) / 0.55);
+  background: rgb(var(--sea-rgb) / 0.18);
   color: #c8e4f5;
 }
 
 .hud-turn-chip.hud-order.first {
   border-color: var(--chrome);
-  background: rgba(210, 165, 77, 0.22);
+  background: rgb(var(--chrome-rgb) / 0.22);
   color: var(--chrome-bright);
 }
 
@@ -1660,7 +1660,7 @@
   max-height: min(48vh, 420px);
   display: flex;
   flex-direction: column;
-  background: rgba(12, 18, 28, 0.94);
+  background: rgb(var(--deep-rgb) / 0.94);
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -1714,7 +1714,7 @@
 
 .chat-unread {
   background: var(--chrome);
-  color: #1d1406;
+  color: var(--on-chrome);
 }
 
 .chat-body {
@@ -1785,17 +1785,17 @@
 .chat-input:focus-visible {
   outline: none;
   border-color: var(--chrome);
-  box-shadow: 0 0 0 3px rgba(210, 165, 77, 0.2);
+  box-shadow: 0 0 0 3px rgb(var(--chrome-rgb) / 0.2);
 }
 
 .chat-send {
   flex: 0 0 auto;
   min-height: 36px;
   padding: 0 0.8rem;
-  border: 1px solid rgba(255, 236, 190, 0.45);
+  border: 1px solid rgb(var(--btn-edge-rgb) / 0.45);
   border-radius: 8px;
-  background: linear-gradient(180deg, #e6bd62, #c7963d);
-  color: #1d1406;
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  color: var(--on-chrome);
   font: inherit;
   font-size: 0.8rem;
   font-weight: 700;
@@ -2127,8 +2127,8 @@
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.03),
     inset 0 0 60px rgba(0, 0, 0, 0.35),
-    0 0 0 2px rgba(210, 165, 77, 0.8),
-    0 0 26px rgba(210, 165, 77, 0.4);
+    0 0 0 2px rgb(var(--chrome-rgb) / 0.8),
+    0 0 26px rgb(var(--chrome-rgb) / 0.4);
 }
 
 .arena .side-opp.is-active-turn {
@@ -2136,8 +2136,8 @@
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.03),
     inset 0 0 60px rgba(0, 0, 0, 0.35),
-    0 0 0 2px rgba(127, 182, 214, 0.75),
-    0 0 26px rgba(90, 166, 207, 0.35);
+    0 0 0 2px rgb(var(--sea-bright-rgb) / 0.75),
+    0 0 26px rgb(var(--sea-bright-rgb) / 0.35);
 }
 
 /* Turn-order tag on each mat: bigger and spelled out. */
@@ -2148,8 +2148,8 @@
 }
 
 .hud-turn-chip.hud-turn-theirs {
-  border-color: rgba(127, 182, 214, 0.6);
-  background: rgba(80, 140, 180, 0.2);
+  border-color: rgb(var(--sea-bright-rgb) / 0.6);
+  background: rgb(var(--sea-rgb) / 0.2);
   color: #d6ecf8;
 }
 
@@ -2174,7 +2174,7 @@
   padding: 0.9rem 2.2rem 1rem;
   border: 2px solid var(--line-strong);
   border-radius: 14px;
-  background: rgba(8, 17, 24, 0.92);
+  background: rgb(var(--deep-rgb) / 0.92);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
   animation: turn-splash var(--splash-ms, 1500ms) ease forwards;
 }
@@ -2197,7 +2197,7 @@
 
 .turn-splash-mine .turn-splash-card {
   border-color: var(--chrome);
-  box-shadow: 0 0 40px rgba(210, 165, 77, 0.4), 0 20px 50px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 40px rgb(var(--chrome-rgb) / 0.4), 0 20px 50px rgba(0, 0, 0, 0.55);
 }
 
 .turn-splash-mine .turn-splash-card strong {
@@ -2206,7 +2206,7 @@
 
 .turn-splash-theirs .turn-splash-card {
   border-color: #7fb6d6;
-  box-shadow: 0 0 40px rgba(90, 166, 207, 0.35), 0 20px 50px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 40px rgb(var(--sea-bright-rgb) / 0.35), 0 20px 50px rgba(0, 0, 0, 0.55);
 }
 
 .turn-splash-theirs .turn-splash-card strong {
@@ -2313,7 +2313,7 @@
 .hud-undo-btn:not(:disabled):hover,
 .hud-undo-btn.armed {
   border-color: var(--chrome);
-  background: rgba(210, 165, 77, 0.16);
+  background: rgb(var(--chrome-rgb) / 0.16);
 }
 
 .hud-undo-btn:disabled {
@@ -2352,7 +2352,7 @@
   padding: 0.75rem 0.9rem;
   border: 1px solid var(--chrome);
   border-radius: 12px;
-  background: rgba(12, 18, 28, 0.97);
+  background: rgb(var(--deep-rgb) / 0.97);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
 }
 
@@ -2462,7 +2462,7 @@
 .hud-seat-clock.running {
   opacity: 1;
   border-color: var(--chrome);
-  background: rgba(210, 165, 77, 0.2);
+  background: rgb(var(--chrome-rgb) / 0.2);
   color: var(--chrome-bright);
 }
 
@@ -2488,7 +2488,7 @@
 .turn-player-clock.running {
   border-color: var(--chrome);
   color: var(--chrome-bright);
-  background: rgba(210, 165, 77, 0.14);
+  background: rgb(var(--chrome-rgb) / 0.14);
 }
 
 .turn-player-clock.low.running {
@@ -2581,8 +2581,8 @@
 }
 
 .choice-readiness-rested {
-  border-color: rgba(149, 164, 173, 0.5);
-  background: rgba(149, 164, 173, 0.14);
+  border-color: rgb(var(--muted-rgb) / 0.5);
+  background: rgb(var(--muted-rgb) / 0.14);
   color: #c7d1d7;
 }
 
@@ -2743,7 +2743,7 @@
   padding: 10px;
   border: 1px solid var(--line-strong);
   border-radius: 12px;
-  background: rgba(12, 18, 28, 0.98);
+  background: rgb(var(--deep-rgb) / 0.98);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
 }
 
@@ -3142,7 +3142,7 @@
     min-height: 0;
     padding: 6px 0 6px var(--safe-l);
     border-right: 1px solid var(--line);
-    background: rgba(8, 17, 24, 0.55);
+    background: rgb(var(--deep-rgb) / 0.55);
   }
 
   .lp-rail-btn {
@@ -3162,7 +3162,7 @@
 
   .lp-rail-btn.active {
     border-color: var(--chrome);
-    background: rgba(210, 165, 77, 0.2);
+    background: rgb(var(--chrome-rgb) / 0.2);
   }
 
   .lp-rail-btn:focus-visible {
@@ -3208,7 +3208,7 @@
     border-left: none;
     border-bottom: none;
     border-radius: 0 12px 0 0;
-    background: rgba(12, 18, 28, 0.98);
+    background: rgb(var(--deep-rgb) / 0.98);
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
   }
 
@@ -3434,8 +3434,8 @@
 
 .defend-chip.staged {
   border-color: var(--chrome-bright);
-  background: rgba(210, 165, 77, 0.24);
-  box-shadow: 0 0 0 1px var(--chrome), 0 0 10px rgba(240, 220, 168, 0.35);
+  background: rgb(var(--chrome-rgb) / 0.24);
+  box-shadow: 0 0 0 1px var(--chrome), 0 0 10px rgb(var(--chrome-bright-rgb) / 0.35);
 }
 
 .defend-chip:focus-visible {
@@ -3591,7 +3591,7 @@
   padding: 0 0 0 0.7rem;
   border: 1px solid var(--chrome);
   border-radius: 999px;
-  background: rgba(12, 18, 28, 0.96);
+  background: rgb(var(--deep-rgb) / 0.96);
   color: var(--ink);
   font-size: 0.75rem;
   font-weight: 700;
@@ -3649,7 +3649,7 @@
 .arena .side-field .don-strip-label {
   padding: 0.1em 0.45em 0.15em;
   border-radius: 6px;
-  background: rgba(6, 12, 18, 0.74);
+  background: rgb(var(--abyss-rgb) / 0.74);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
   opacity: 1;
 }
@@ -3759,7 +3759,7 @@
   flex: none;
   width: 0.8rem;
   height: 0.8rem;
-  border: 2px solid rgba(240, 220, 168, 0.25);
+  border: 2px solid rgb(var(--chrome-bright-rgb) / 0.25);
   border-top-color: var(--gold, #f0dca8);
   border-radius: 50%;
   animation: pending-spin 0.9s linear infinite;

@@ -27,6 +27,7 @@ import {
   type DuelSettings,
 } from "../settings";
 import { useDuelSession } from "../state/DuelSession";
+import { THEMES } from "../theme";
 
 export function SettingsPage() {
   const { setRating } = useDuelSession();
@@ -168,6 +169,37 @@ export function SettingsPage() {
               ) : null}
             </div>
           ) : null}
+        </section>
+
+        <section className="panel">
+          <h2 className="panel-title" id="theme-title">Theme</h2>
+          <div className="theme-grid" role="radiogroup" aria-labelledby="theme-title">
+            {THEMES.map((t) => (
+              <label
+                key={t.id}
+                className={`theme-option${settings.theme === t.id ? " is-active" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="theme"
+                  className="visually-hidden"
+                  value={t.id}
+                  checked={settings.theme === t.id}
+                  onChange={() => update({ theme: t.id })}
+                />
+                <span className="theme-chip" data-theme={t.id} aria-hidden>
+                  <span className="theme-chip-mat" />
+                  <span className="theme-chip-btn" />
+                  <span className="theme-chip-dot" />
+                </span>
+                <span className="theme-name">{t.name}</span>
+                <span className="theme-blurb">{t.blurb}</span>
+              </label>
+            ))}
+          </div>
+          <p className="field-hint">
+            Colours for the whole app, from One Piece crews and places. {savedWhere}
+          </p>
         </section>
 
         <section className="panel">

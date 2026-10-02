@@ -73,7 +73,7 @@
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgba(23, 42, 56, 0.6);
+  background: rgb(var(--panel-rgb) / 0.6);
   overflow: hidden;
 }
 

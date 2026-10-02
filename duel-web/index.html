@@ -25,6 +25,21 @@
     />
   </head>
   <body>
+    <script>
+      // Apply the saved colour theme before the first paint (App re-applies it
+      // on every change). theme-color follows the theme's background so the
+      // Home Screen status bar matches from launch.
+      try {
+        var t = JSON.parse(localStorage.getItem("optcg-duel:settings") || "{}").theme;
+        if (typeof t === "string" && t !== "nightSea") {
+          var r = document.documentElement;
+          r.dataset.theme = t;
+          var bg = getComputedStyle(r).getPropertyValue("--arena-deep").trim();
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (bg && m) m.setAttribute("content", bg);
+        }
+      } catch (e) {}
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

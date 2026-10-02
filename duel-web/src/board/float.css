@@ -29,7 +29,7 @@
 .float-scrim {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 80% 65% at center, rgba(5, 11, 16, 0.9), rgba(5, 11, 16, 0.7) 70%, rgba(5, 11, 16, 0.5));
+  background: radial-gradient(ellipse 80% 65% at center, rgb(var(--abyss-rgb) / 0.9), rgb(var(--abyss-rgb) / 0.7) 70%, rgb(var(--abyss-rgb) / 0.5));
   backdrop-filter: blur(1.5px);
   animation: float-fade 160ms ease-out;
 }
@@ -131,8 +131,8 @@
 
 /* Takeable cards glow; the rest of the look sits a little darker. */
 .float-card.is-eligible .card-tile {
-  border-color: rgba(240, 220, 168, 0.7);
-  box-shadow: 0 0 0 1px rgba(240, 220, 168, 0.35), 0 0 16px rgba(240, 220, 168, 0.3), 0 10px 24px rgba(0, 0, 0, 0.6);
+  border-color: rgb(var(--chrome-bright-rgb) / 0.7);
+  box-shadow: 0 0 0 1px rgb(var(--chrome-bright-rgb) / 0.35), 0 0 16px rgb(var(--chrome-bright-rgb) / 0.3), 0 10px 24px rgba(0, 0, 0, 0.6);
 }
 
 .float-card.is-ineligible .float-card-inner {
@@ -145,7 +145,7 @@
 
 .float-card.is-picked .card-tile {
   border-color: var(--chrome-bright);
-  box-shadow: 0 0 0 3px rgba(240, 220, 168, 0.6), 0 0 24px rgba(240, 220, 168, 0.55), 0 14px 26px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 0 3px rgb(var(--chrome-bright-rgb) / 0.6), 0 0 24px rgb(var(--chrome-bright-rgb) / 0.55), 0 14px 26px rgba(0, 0, 0, 0.6);
 }
 
 .float-badge,
@@ -164,7 +164,7 @@
   padding: 0.1rem 0.55rem;
   border-radius: 999px;
   background: var(--chrome-bright);
-  color: #1d1406;
+  color: var(--on-chrome);
   font-size: 0.72rem;
 }
 
@@ -177,13 +177,13 @@
   place-items: center;
   border-radius: 50%;
   background: var(--chrome-bright);
-  color: #1d1406;
+  color: var(--on-chrome);
   font-size: 0.9rem;
 }
 
 /* Not tapped yet: the number it would resolve at, quieter. */
 .float-order-num.is-auto {
-  background: rgba(11, 23, 32, 0.85);
+  background: rgb(var(--deep-rgb) / 0.85);
   color: var(--muted);
   border: 1px solid var(--line-strong);
 }
@@ -202,7 +202,7 @@
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 0.4rem;
-  background: rgba(17, 33, 45, 0.9);
+  background: rgb(var(--mid-rgb) / 0.9);
   color: var(--ink);
   font-size: 0.6rem;
   cursor: pointer;
@@ -305,7 +305,7 @@
   padding: 0.6rem 1.1rem;
   border-radius: 999px;
   border: 1px solid var(--chrome);
-  background: rgba(23, 42, 56, 0.95);
+  background: rgb(var(--panel-rgb) / 0.95);
   color: var(--chrome-bright);
   font-weight: 700;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
@@ -352,7 +352,7 @@
   padding: 0 0.75rem;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
-  background: rgba(17, 33, 45, 0.95);
+  background: rgb(var(--mid-rgb) / 0.95);
   color: var(--ink);
   font-size: 0.75rem;
   font-weight: 700;

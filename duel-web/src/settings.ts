@@ -4,6 +4,7 @@
  * come from the build (VITE_GAME_SERVER_URL / VITE_DEV_JOIN_SECRET).
  */
 import { useSyncExternalStore } from "react";
+import { DEFAULT_THEME, THEME_IDS, type ThemeId } from "./theme";
 
 /** When "End turn" asks for a second tap. */
 export type EndTurnConfirm = "always" | "actions" | "never";
@@ -35,6 +36,8 @@ export type DuelSettings = {
   playmatDim: number;
   /** Playmat art opacity (0.2–1); lower fades the art toward the plain mat. */
   playmatOpacity: number;
+  /** Colour theme (a One Piece crew or place); see theme.ts. */
+  theme: ThemeId;
 
   // —— Gameplay ——
   /** Second tap before ending the turn: always, only while you can still act, or never. */
@@ -70,6 +73,7 @@ const DEFAULTS: DuelSettings = {
   devUserKey: "web-dev",
   playmatDim: 0.35,
   playmatOpacity: 1,
+  theme: DEFAULT_THEME,
   endTurnConfirm: "always",
   responseStops: "always",
   screenOrientation: "auto",
@@ -119,6 +123,8 @@ function sanitize(
   }
   if (!ANIMATION_SPEEDS.includes(next.animationSpeed)) next.animationSpeed = DEFAULTS.animationSpeed;
   if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;
+  // A theme removed in a later build (or synced from a newer one) falls back to the default.
+  if (!THEME_IDS.includes(next.theme)) next.theme = DEFAULTS.theme;
   for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
     if (typeof next[k] !== typeof DEFAULTS[k]) (next as Record<string, unknown>)[k] = DEFAULTS[k];
   }

@@ -8,6 +8,7 @@ import { startAccountSync } from "./account/accountSync";
 import { App } from "./App";
 import { DuelSessionProvider } from "./state/DuelSession";
 import "./styles.css";
+import "./themes.css";
 import "./ui.css";
 import "./board.css";
 import "./interactions.css";

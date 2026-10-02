@@ -1,0 +1,275 @@
+/* Crew and location themes (Settings → Theme). Each one overrides the palette
+   tokens from styles.css; the default "Night Sea" theme is :root itself.
+   Ids match THEMES in theme.ts. Every theme stays dark so card art and the
+   red danger / green OK cues read the same in all of them. */
+
+/* Straw Hat Pirates: Luffy's straw hat and red vest over the Thousand Sunny's
+   warm wood deck, with Sunny-day sky blue as the second accent. */
+[data-theme="strawHat"] {
+  --arena-deep: #170d0b;
+  --arena-mid: #21130f;
+  --arena-panel: #2c1913;
+  --arena-raised: #3a2119;
+  --chrome: #f0c544;
+  --chrome-bright: #fbe7a1;
+  --chrome-dim: #9b7d2a;
+  --ink: #f8eddb;
+  --muted: #b5a094;
+  --sea: #2f7fb8;
+  --deep-rgb: 23 13 11;
+  --abyss-rgb: 11 6 5;
+  --mid-rgb: 33 19 15;
+  --panel-rgb: 44 25 19;
+  --raised-rgb: 58 33 25;
+  --mat-rgb: 46 24 18;
+  --chrome-rgb: 240 197 68;
+  --chrome-bright-rgb: 251 231 161;
+  --sea-rgb: 47 127 184;
+  --sea-bright-rgb: 142 197 234;
+  --muted-rgb: 181 160 148;
+  --foe-glow-rgb: 47 127 184;
+  --btn-top: #f6d35c;
+  --btn-bottom: #dba62c;
+  --on-chrome: #2a1204;
+  --btn-edge-rgb: 255 240 190;
+  --btn-shine-rgb: 255 250 225;
+  --btn-shade-rgb: 110 50 10;
+  --mat-top: #3b1f17;
+  --mat-bottom: #29150f;
+  --mat-foe-top: #1d1a1f;
+  --mat-foe-bottom: #141216;
+  --glow-top: #c4302b40;
+  --glow-low: #f0c54430;
+}
+
+/* Donquixote Pirates: Doflamingo's pink feather coat and the orange of his
+   glasses and trousers, over a plum night in Dressrosa. */
+[data-theme="donquixote"] {
+  --arena-deep: #170a14;
+  --arena-mid: #200e1c;
+  --arena-panel: #2b1326;
+  --arena-raised: #3a1a33;
+  --chrome: #ff5fa8;
+  --chrome-bright: #ffc6e0;
+  --chrome-dim: #a3416f;
+  --ink: #fbeaf3;
+  --muted: #b598aa;
+  --sea: #e07a2e;
+  --deep-rgb: 23 10 20;
+  --abyss-rgb: 11 4 9;
+  --mid-rgb: 32 14 28;
+  --panel-rgb: 43 19 38;
+  --raised-rgb: 58 26 51;
+  --mat-rgb: 46 16 39;
+  --chrome-rgb: 255 95 168;
+  --chrome-bright-rgb: 255 198 224;
+  --sea-rgb: 224 122 46;
+  --sea-bright-rgb: 255 188 130;
+  --muted-rgb: 181 152 170;
+  --foe-glow-rgb: 224 122 46;
+  --btn-top: #ff7ab8;
+  --btn-bottom: #e0408a;
+  --on-chrome: #2a0619;
+  --btn-edge-rgb: 255 214 234;
+  --btn-shine-rgb: 255 235 245;
+  --btn-shade-rgb: 110 10 60;
+  --mat-top: #3a1431;
+  --mat-bottom: #260c21;
+  --mat-foe-top: #1f1420;
+  --mat-foe-bottom: #160e17;
+  --glow-top: #ff4fa344;
+  --glow-low: #ff8c3a2e;
+}
+
+/* Marines: the white "Justice" coat and seagull emblem over navy, with the
+   blue of the sailor neckerchief as the second accent. */
+[data-theme="marines"] {
+  --arena-deep: #0a1530;
+  --arena-mid: #0f1d3d;
+  --arena-panel: #15284f;
+  --arena-raised: #1c3461;
+  --chrome: #e4ebf6;
+  --chrome-bright: #ffffff;
+  --chrome-dim: #8a9bbd;
+  --ink: #f4f7fc;
+  --muted: #9fb0cc;
+  --sea: #3f7fe0;
+  --deep-rgb: 10 21 48;
+  --abyss-rgb: 4 9 22;
+  --mid-rgb: 15 29 61;
+  --panel-rgb: 21 40 79;
+  --raised-rgb: 28 52 97;
+  --mat-rgb: 18 38 80;
+  --chrome-rgb: 228 235 246;
+  --chrome-bright-rgb: 255 255 255;
+  --sea-rgb: 63 127 224;
+  --sea-bright-rgb: 156 195 255;
+  --muted-rgb: 159 176 204;
+  --foe-glow-rgb: 120 64 44;
+  --btn-top: #ffffff;
+  --btn-bottom: #d3ddef;
+  --on-chrome: #0a1a3d;
+  --btn-edge-rgb: 255 255 255;
+  --btn-shine-rgb: 255 255 255;
+  --btn-shade-rgb: 40 60 110;
+  --mat-top: #173163;
+  --mat-bottom: #0f2249;
+  --mat-foe-top: #1a1f2e;
+  --mat-foe-bottom: #121622;
+  --glow-top: #3f7fe055;
+  --glow-low: #ffffff14;
+}
+
+/* Wano Country: vermilion torii and gold leaf over sumi-ink night, with
+   sakura pink as the second accent. */
+[data-theme="wano"] {
+  --arena-deep: #120e18;
+  --arena-mid: #1a1422;
+  --arena-panel: #241b2e;
+  --arena-raised: #30233b;
+  --chrome: #e8603c;
+  --chrome-bright: #f3cf73;
+  --chrome-dim: #9a4630;
+  --ink: #f5ece0;
+  --muted: #a99caf;
+  --sea: #c9587a;
+  --deep-rgb: 18 14 24;
+  --abyss-rgb: 8 6 11;
+  --mid-rgb: 26 20 34;
+  --panel-rgb: 36 27 46;
+  --raised-rgb: 48 35 59;
+  --mat-rgb: 38 24 33;
+  --chrome-rgb: 232 96 60;
+  --chrome-bright-rgb: 243 207 115;
+  --sea-rgb: 201 88 122;
+  --sea-bright-rgb: 244 182 200;
+  --muted-rgb: 169 156 175;
+  --foe-glow-rgb: 201 88 122;
+  --btn-top: #ee7a50;
+  --btn-bottom: #c9472a;
+  --on-chrome: #1e0805;
+  --btn-edge-rgb: 255 214 190;
+  --btn-shine-rgb: 255 236 220;
+  --btn-shade-rgb: 90 20 5;
+  --mat-top: #2b1a24;
+  --mat-bottom: #1d1219;
+  --mat-foe-top: #1b1724;
+  --mat-foe-bottom: #13101a;
+  --glow-top: #e8603c33;
+  --glow-low: #f3cf732e;
+}
+
+/* Heart Pirates: the Polar Tang's yellow hull and light green underside, on
+   Law's black. */
+[data-theme="heart"] {
+  --arena-deep: #0f1112;
+  --arena-mid: #161a1b;
+  --arena-panel: #1e2324;
+  --arena-raised: #283031;
+  --chrome: #f2cf1d;
+  --chrome-bright: #fff2a0;
+  --chrome-dim: #8f7c14;
+  --ink: #f2f2ee;
+  --muted: #a3aaa8;
+  --sea: #6fb35a;
+  --deep-rgb: 15 17 18;
+  --abyss-rgb: 6 7 8;
+  --mid-rgb: 22 26 27;
+  --panel-rgb: 30 35 36;
+  --raised-rgb: 40 48 49;
+  --mat-rgb: 30 35 34;
+  --chrome-rgb: 242 207 29;
+  --chrome-bright-rgb: 255 242 160;
+  --sea-rgb: 111 179 90;
+  --sea-bright-rgb: 196 232 180;
+  --muted-rgb: 163 170 168;
+  --foe-glow-rgb: 120 64 44;
+  --btn-top: #f7dc3a;
+  --btn-bottom: #d6b10f;
+  --on-chrome: #141100;
+  --btn-edge-rgb: 255 246 190;
+  --btn-shine-rgb: 255 252 225;
+  --btn-shade-rgb: 90 75 0;
+  --mat-top: #262c2b;
+  --mat-bottom: #191d1d;
+  --mat-foe-top: #1d1b1b;
+  --mat-foe-bottom: #141313;
+  --glow-top: #f2cf1d22;
+  --glow-low: #6fb35a26;
+}
+
+/* Fish-Man Island: coral reef over the deep sea, lit by bioluminescent aqua. */
+[data-theme="fishMan"] {
+  --arena-deep: #04171c;
+  --arena-mid: #072128;
+  --arena-panel: #0b2c34;
+  --arena-raised: #103a44;
+  --chrome: #ff8a6b;
+  --chrome-bright: #ffd2c2;
+  --chrome-dim: #a3543f;
+  --ink: #eaf8f6;
+  --muted: #8fb3b2;
+  --sea: #1fa8a3;
+  --deep-rgb: 4 23 28;
+  --abyss-rgb: 1 10 13;
+  --mid-rgb: 7 33 40;
+  --panel-rgb: 11 44 52;
+  --raised-rgb: 16 58 68;
+  --mat-rgb: 9 46 54;
+  --chrome-rgb: 255 138 107;
+  --chrome-bright-rgb: 255 210 194;
+  --sea-rgb: 31 168 163;
+  --sea-bright-rgb: 143 230 224;
+  --muted-rgb: 143 179 178;
+  --foe-glow-rgb: 120 64 44;
+  --btn-top: #ff9d7f;
+  --btn-bottom: #e86a4b;
+  --on-chrome: #2a0a03;
+  --btn-edge-rgb: 255 220 205;
+  --btn-shine-rgb: 255 240 232;
+  --btn-shade-rgb: 110 35 15;
+  --mat-top: #0c3a42;
+  --mat-bottom: #072a31;
+  --mat-foe-top: #0f2028;
+  --mat-foe-bottom: #0a171d;
+  --glow-top: #22b5b055;
+  --glow-low: #ff8a6b2e;
+}
+
+/* Thriller Bark: Moria's haunted purple fog and Perona's ghostly green glow. */
+[data-theme="thrillerBark"] {
+  --arena-deep: #120c1a;
+  --arena-mid: #1a1225;
+  --arena-panel: #241932;
+  --arena-raised: #2f2142;
+  --chrome: #9be36b;
+  --chrome-bright: #dcffc0;
+  --chrome-dim: #5d8a3f;
+  --ink: #efe8f7;
+  --muted: #a597b5;
+  --sea: #8b5cd6;
+  --deep-rgb: 18 12 26;
+  --abyss-rgb: 8 5 12;
+  --mid-rgb: 26 18 37;
+  --panel-rgb: 36 25 50;
+  --raised-rgb: 47 33 66;
+  --mat-rgb: 36 24 50;
+  --chrome-rgb: 155 227 107;
+  --chrome-bright-rgb: 220 255 192;
+  --sea-rgb: 139 92 214;
+  --sea-bright-rgb: 201 177 242;
+  --muted-rgb: 165 151 181;
+  --foe-glow-rgb: 139 92 214;
+  --btn-top: #aef07c;
+  --btn-bottom: #74c34a;
+  --on-chrome: #0f1a06;
+  --btn-edge-rgb: 225 255 205;
+  --btn-shine-rgb: 240 255 230;
+  --btn-shade-rgb: 30 70 10;
+  --mat-top: #2a1c3a;
+  --mat-bottom: #1b1227;
+  --mat-foe-top: #1a1620;
+  --mat-foe-bottom: #121017;
+  --glow-top: #8b5cd644;
+  --glow-low: #9be36b22;
+}
