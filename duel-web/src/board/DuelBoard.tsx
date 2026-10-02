@@ -67,8 +67,9 @@ import {
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
-import { useCardBackUrl } from "../cardBack";
+import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
+import { sideSkins } from "./seatSkins";
 import { useDuelSettings } from "../settings";
 import { endTurnWarning, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
@@ -883,8 +884,11 @@ export function DuelBoard({
     };
     if (spectating) {
       const n = Math.min(you.handCount ?? 0, 8);
+      const back = skins.near.cardBack
+        ? ({ "--card-back-art": cardBackCssValue(skins.near.cardBack) } as CSSProperties)
+        : undefined;
       return Array.from({ length: n }).map((_, i) => (
-        <span key={i} className="card-back hand-back" style={pose(i, n)} />
+        <span key={i} className="card-back hand-back" style={{ ...back, ...pose(i, n) }} />
       ));
     }
     const order = handDisplayIndices ?? you.hand.map((_, i) => i);
@@ -1028,11 +1032,16 @@ export function DuelBoard({
       defaultOpen={wide}
     />
   ) : null;
-  // Practice: both halves are yours, so both show your playmat and card back.
-  // Online: the opponent's own art, shared through the game server.
-  const oppSkin = seatSkins?.[oppSeat] ?? null;
-  const oppMatUrl = hotseatPass ? playmatUrl : (oppSkin?.playmat ?? null);
-  const oppCardBackUrl = hotseatPass ? cardBackUrl : (oppSkin?.cardBack ?? null);
+  const skins = sideSkins({
+    own: { playmat: playmatUrl, cardBack: cardBackUrl },
+    seatSkins,
+    nearSeat: boardSeat,
+    farSeat: oppSeat,
+    hotseat: Boolean(hotseatPass),
+    spectating,
+  });
+  const oppMatUrl = skins.far.playmat;
+  const oppCardBackUrl = skins.far.cardBack;
 
   const hudUndoPass = (
     <>
@@ -1455,10 +1464,10 @@ export function DuelBoard({
               side="you"
               turnOrder={youFirst ? "first" : "second"}
               activeTurn={youActive}
-              matImageUrl={playmatUrl}
+              matImageUrl={skins.near.playmat}
               matDim={playmatDim}
               matOpacity={playmatOpacity}
-              cardBackUrl={cardBackUrl}
+              cardBackUrl={skins.near.cardBack}
               ownerSeat={boardSeat}
               viewingSeat={viewingSeat}
               data={{
