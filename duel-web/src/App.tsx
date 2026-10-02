@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthCompletePage } from "./pages/AuthCompletePage";
 import { DeckConfigurePage } from "./pages/DeckConfigurePage";
@@ -11,9 +11,13 @@ import { LobbyPage } from "./pages/LobbyPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { UsernameSetupPage } from "./pages/UsernameSetupPage";
 import { useDuelSettings } from "./settings";
+import { applyTheme } from "./theme";
 
 export function App() {
-  const { reduceMotion } = useDuelSettings();
+  const { reduceMotion, theme } = useDuelSettings();
+  // Before paint, so switching theme (or loading it from the account) never
+  // flashes the old palette.
+  useLayoutEffect(() => applyTheme(theme), [theme]);
   // CSS mirrors its prefers-reduced-motion rules under [data-motion="reduce"].
   useEffect(() => {
     if (reduceMotion) document.documentElement.dataset.motion = "reduce";

@@ -9,6 +9,7 @@ import { App } from "./App";
 import { startUpdateChecks } from "./appVersion";
 import { DuelSessionProvider } from "./state/DuelSession";
 import "./styles.css";
+import "./themes.css";
 import "./ui.css";
 import "./board.css";
 import "./interactions.css";

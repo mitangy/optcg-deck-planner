@@ -537,5 +537,9 @@ module.exports = {
     {"id": "contract-order-answer-all-top", "file": "duel-web/src/board/deckOrder.ts", "from": "topOptionIds: [...a.top] };", "to": "topOptionIds: [...a.top, ...a.bottom] };", "kills": ["builds the order answer the fixture sends"]},
     // Smart counter stop: hand Counter values come from the engine's live counterOf, not the printed atlas value
     { id: "defend-counter-printed-value", file: `${src}/board/defendModel.ts`, from: "          value: card.counter ?? counterValueFor(entry)?.base ?? null,", to: "          value: counterValueFor(entry)?.base ?? null,", kills: ["uses the engine's live hand Counter over the printed one", "does not auto-pass in smart mode when the live Counters close the gap"] },
+    // colour themes (Settings → Theme)
+    { id: "theme-status-bar-stale", file: `${src}/theme.ts`, from: "  if (bg) target.themeColorMeta?.setAttribute(\"content\", bg);\n", to: "", kills: ["tints the status bar with the chosen theme's background"] },
+    { id: "theme-unknown-kept", file: `${src}/settings.ts`, from: "  if (!THEME_IDS.includes(next.theme)) next.theme = DEFAULTS.theme;\n", to: "", kills: ["replaces a stored theme this build doesn't know with the default"] },
+    { id: "theme-device-only", file: `${src}/settings.ts`, from: "  \"devUserKey\",\n];", to: "  \"devUserKey\",\n  \"theme\",\n];", kills: ["takes the theme saved to the account on another device"] },
   ],
 };

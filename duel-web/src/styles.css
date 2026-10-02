@@ -1,4 +1,8 @@
-:root {
+/* Palette tokens. The default theme ("Night Sea") lives here; crew themes in
+   themes.css override the same tokens under [data-theme]. The *-rgb triples
+   feed translucent tints: rgb(var(--chrome-rgb) / 0.24). */
+:root,
+[data-theme="nightSea"] {
   /* Night-sea base + parchment ink + straw-hat gold. Crimson is reserved for
      danger / attack cues so it never competes with primary actions. */
   --arena-deep: #0b1720;
@@ -15,11 +19,34 @@
   --crimson-bright: #d24a3f;
   --warn: #c9822f;
   --sea: #2f6f86;
-  --line: rgba(210, 165, 77, 0.24);
-  --line-strong: rgba(210, 165, 77, 0.5);
-  --focus: 0 0 0 2px var(--arena-deep), 0 0 0 4px var(--chrome-bright);
+  --deep-rgb: 11 23 32;
+  --abyss-rgb: 5 11 16;
+  --mid-rgb: 17 33 45;
+  --panel-rgb: 23 42 56;
+  --raised-rgb: 29 51 68;
+  --mat-rgb: 14 34 48;
+  --chrome-rgb: 210 165 77;
+  --chrome-bright-rgb: 240 220 168;
+  --sea-rgb: 47 111 134;
+  --sea-bright-rgb: 127 182 214;
+  --muted-rgb: 149 164 173;
+  --foe-glow-rgb: 120 64 44;
+  /* Primary ("go") buttons: gradient, the ink on them, and their bevel. */
+  --btn-top: #e6bd62;
+  --btn-bottom: #c7963d;
+  --on-chrome: #1d1406;
+  --btn-edge-rgb: 255 236 190;
+  --btn-shine-rgb: 255 250 230;
+  --btn-shade-rgb: 90 60 10;
+  /* Default playmat felt: yours, then the opponent's. */
+  --mat-top: #12303d;
+  --mat-bottom: #0e2230;
+  --mat-foe-top: #1a2530;
+  --mat-foe-bottom: #121c25;
+  /* Page glows: cool light from above, warm lantern low-right. */
+  --glow-top: #1f4a5c55;
+  --glow-low: #4a321444;
   --radius: 10px;
-  --vignette: radial-gradient(ellipse at center, transparent 40%, #050b10bb 100%);
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-body: "Sora", system-ui, sans-serif;
   /* Notch / home-indicator insets (viewport-fit=cover in index.html). 0 on
@@ -29,6 +56,17 @@
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
   color-scheme: dark;
+}
+
+/* Tokens built from the palette, declared again on every themed element so a
+   theme preview chip ([data-theme] on a span) resolves them from its own
+   palette rather than inheriting the page's. */
+:root,
+[data-theme] {
+  --line: rgb(var(--chrome-rgb) / 0.24);
+  --line-strong: rgb(var(--chrome-rgb) / 0.5);
+  --focus: 0 0 0 2px var(--arena-deep), 0 0 0 4px var(--chrome-bright);
+  --vignette: radial-gradient(ellipse at center, transparent 40%, rgb(var(--abyss-rgb) / 0.73) 100%);
 }
 
 *,
@@ -52,8 +90,8 @@ html {
   /* Moonlit sea: cool glow from above, faint warm lantern low-right, and a
      barely-there wave line texture. */
   background:
-    radial-gradient(1000px 560px at 50% -12%, #1f4a5c55, transparent 62%),
-    radial-gradient(640px 380px at 100% 100%, #4a321444, transparent 60%),
+    radial-gradient(1000px 560px at 50% -12%, var(--glow-top), transparent 62%),
+    radial-gradient(640px 380px at 100% 100%, var(--glow-low), transparent 60%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='24' viewBox='0 0 120 24'%3E%3Cpath d='M0 12c15 0 15-8 30-8s15 8 30 8 15-8 30-8 15 8 30 8' fill='none' stroke='%23d2a54d' stroke-opacity='0.035' stroke-width='1.2'/%3E%3C/svg%3E"),
     var(--arena-deep);
 }
@@ -111,7 +149,7 @@ button {
   border-radius: 10px;
   padding: 1rem 1.1rem 1.15rem;
   background:
-    linear-gradient(180deg, rgba(201, 162, 39, 0.1), transparent 55%),
+    linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.1), transparent 55%),
     var(--arena-panel);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
@@ -207,7 +245,7 @@ button {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: rgba(4, 8, 12, 0.82);
+  background: rgb(var(--abyss-rgb) / 0.82);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -451,7 +489,7 @@ button {
   line-height: 0.95;
   color: var(--chrome-bright);
   margin: 0;
-  text-shadow: 0 0 24px rgba(201, 162, 39, 0.35);
+  text-shadow: 0 0 24px rgb(var(--chrome-rgb) / 0.35);
 }
 
 .lobby-sub {
@@ -512,7 +550,7 @@ button {
 }
 
 .version-status[data-status="update"] .version-dot {
-  background: #d2a54d;
+  background: var(--chrome);
 }
 
 .version-status[data-status="update"] .version-state {
@@ -916,7 +954,7 @@ button {
   min-width: 1.75rem;
   padding: 0.15rem 0.4rem;
   border-radius: 999px;
-  background: rgba(8, 12, 18, 0.82);
+  background: rgb(var(--abyss-rgb) / 0.82);
   border: 1px solid var(--chrome);
   color: var(--chrome-bright);
   font-size: 0.75rem;
@@ -1308,7 +1346,7 @@ html:has(.duel-root) body {
   padding: calc(var(--hud-py) + var(--safe-t)) max(var(--hud-px), var(--safe-r)) var(--hud-py)
     max(var(--hud-px), var(--safe-l));
   background:
-    linear-gradient(180deg, rgba(201, 162, 39, 0.14), transparent 70%),
+    linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.14), transparent 70%),
     var(--arena-panel);
   border-bottom: 1px solid var(--line);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -1352,7 +1390,7 @@ html:has(.duel-root) body {
   padding: 0.15rem 0.45rem;
   border-radius: 999px;
   border: 1px solid var(--chrome);
-  background: rgba(201, 162, 39, 0.18);
+  background: rgb(var(--chrome-rgb) / 0.18);
   color: var(--chrome-bright);
   font-size: 0.65rem;
   letter-spacing: 0.06em;
@@ -1360,8 +1398,8 @@ html:has(.duel-root) body {
 
 .hud-turn-chip.hud-timer {
   font-variant-numeric: tabular-nums;
-  border-color: rgba(120, 180, 220, 0.55);
-  background: rgba(80, 140, 180, 0.18);
+  border-color: rgb(var(--sea-bright-rgb) / 0.55);
+  background: rgb(var(--sea-rgb) / 0.18);
   color: #c8e4f5;
 }
 
@@ -1487,7 +1525,7 @@ html:has(.duel-root) body {
   padding: 0 0.35em;
   border-radius: 999px;
   border: 1px solid var(--chrome-dim);
-  background: rgba(8, 17, 24, 0.75);
+  background: rgb(var(--deep-rgb) / 0.75);
   color: var(--chrome-bright);
   font-size: 0.72rem;
   font-weight: 700;
@@ -1572,7 +1610,7 @@ html:has(.duel-root) body {
   width: 56px;
   height: 78px;
   border-radius: 6px;
-  border: 1px dashed rgba(201, 162, 39, 0.25);
+  border: 1px dashed rgb(var(--chrome-rgb) / 0.25);
   background: rgba(0, 0, 0, 0.18);
   flex-shrink: 0;
 }
@@ -1763,7 +1801,7 @@ button.zone-pile {
   position: absolute;
   inset: 0;
   border-radius: 4px;
-  border: 1px dashed rgba(240, 220, 168, 0.24);
+  border: 1px dashed rgb(var(--chrome-bright-rgb) / 0.24);
   background: rgba(0, 0, 0, 0.16);
 }
 
@@ -1775,7 +1813,7 @@ button.zone-pile {
   position: fixed;
   inset: 0;
   z-index: 190;
-  background: rgba(4, 8, 12, 0.82);
+  background: rgb(var(--abyss-rgb) / 0.82);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1971,7 +2009,7 @@ button.zone-pile {
 .card-tile.drop-highlight {
   border-color: var(--chrome-bright);
   box-shadow:
-    0 0 0 2px rgba(240, 215, 140, 0.45),
+    0 0 0 2px rgb(var(--chrome-bright-rgb) / 0.45),
     0 8px 18px rgba(0, 0, 0, 0.45);
 }
 
@@ -2000,10 +2038,10 @@ button.zone-pile {
 
 .zone-characters.drop-highlight-zone,
 .zone-stage.drop-highlight-zone {
-  outline: 2px solid rgba(240, 215, 140, 0.55);
+  outline: 2px solid rgb(var(--chrome-bright-rgb) / 0.55);
   outline-offset: 2px;
   border-radius: 8px;
-  background: rgba(240, 215, 140, 0.06);
+  background: rgb(var(--chrome-bright-rgb) / 0.06);
 }
 
 .board-root.is-dnd {
@@ -2104,7 +2142,7 @@ img.zone-pile-face {
 .hand-rail {
   border-top: 1px solid var(--line);
   background:
-    linear-gradient(0deg, rgba(201, 162, 39, 0.1), transparent 55%),
+    linear-gradient(0deg, rgb(var(--chrome-rgb) / 0.1), transparent 55%),
     var(--arena-panel);
   padding: 0.45rem 0.75rem 0.55rem;
   box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.35);
@@ -2204,14 +2242,14 @@ img.zone-pile-face {
 .card-tile.leader-frame {
   border-color: var(--chrome);
   box-shadow:
-    0 0 0 1px rgba(240, 215, 140, 0.25),
+    0 0 0 1px rgb(var(--chrome-bright-rgb) / 0.25),
     0 8px 18px rgba(0, 0, 0, 0.45);
 }
 
 .card-tile.selected {
   border-color: var(--chrome-bright);
   box-shadow:
-    0 0 0 2px rgba(240, 215, 140, 0.35),
+    0 0 0 2px rgb(var(--chrome-bright-rgb) / 0.35),
     0 10px 22px rgba(0, 0, 0, 0.5);
 }
 
@@ -2445,10 +2483,10 @@ img.zone-pile-face {
 @keyframes turn-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(240, 215, 140, 0.15);
+    box-shadow: 0 0 0 0 rgb(var(--chrome-bright-rgb) / 0.15);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(240, 215, 140, 0);
+    box-shadow: 0 0 0 6px rgb(var(--chrome-bright-rgb) / 0);
   }
 }
 
@@ -2689,7 +2727,7 @@ img.zone-pile-face {
   max-height: min(48vh, 420px);
   display: flex;
   flex-direction: column;
-  background: rgba(12, 18, 28, 0.92);
+  background: rgb(var(--deep-rgb) / 0.92);
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -3165,9 +3203,9 @@ img.zone-pile-face {
 .mulligan-banner {
   margin: 0.5rem 0.75rem 0;
   padding: 0.65rem 0.85rem;
-  border: 1px solid rgba(201, 162, 39, 0.45);
+  border: 1px solid rgb(var(--chrome-rgb) / 0.45);
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(201, 162, 39, 0.16), rgba(20, 28, 24, 0.9));
+  background: linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.16), rgba(20, 28, 24, 0.9));
   color: var(--ink);
   font-size: 0.82rem;
   line-height: 1.35;
@@ -3193,7 +3231,7 @@ img.zone-pile-face {
 
 /* Discoverability: board cards with contextual actions available */
 .card-tile.has-actions {
-  box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.55);
+  box-shadow: 0 0 0 2px rgb(var(--chrome-rgb) / 0.55);
 }
 
 
@@ -3233,7 +3271,7 @@ img.zone-pile-face {
 .hand-rail-btn.active {
   color: var(--ink);
   border-color: var(--gold);
-  background: rgba(201, 162, 39, 0.12);
+  background: rgb(var(--chrome-rgb) / 0.12);
 }
 .hand-rail.collapsed {
   padding-bottom: 0.35rem;
@@ -3250,7 +3288,7 @@ img.zone-pile-face {
   transform: translateX(-50%);
   z-index: 25;
   width: min(420px, calc(100vw - 1.5rem));
-  background: rgba(12, 18, 28, 0.96);
+  background: rgb(var(--deep-rgb) / 0.96);
   border: 1px solid var(--chrome);
   border-radius: 12px;
   padding: 0.75rem 0.85rem;
@@ -3563,7 +3601,7 @@ img.zone-pile-face {
 .choice-place[aria-pressed="true"] {
   position: relative;
   border-color: var(--chrome) !important;
-  background: rgba(210, 165, 77, 0.22) !important;
+  background: rgb(var(--chrome-rgb) / 0.22) !important;
   color: var(--chrome-bright) !important;
   font-weight: 700;
 }
@@ -3628,7 +3666,7 @@ img.zone-pile-face {
 }
 .order-list .order-row.is-drag {
   border-color: var(--chrome);
-  background: rgba(210, 165, 77, 0.16);
+  background: rgb(var(--chrome-rgb) / 0.16);
 }
 .order-grip {
   flex: none;
@@ -3678,15 +3716,15 @@ img.zone-pile-face {
   border-color: var(--line);
   border-radius: 14px;
   background:
-    radial-gradient(120% 90% at 50% 0%, rgba(47, 111, 134, 0.12), transparent 60%),
-    linear-gradient(180deg, rgba(240, 220, 168, 0.025), transparent 40%),
+    radial-gradient(120% 90% at 50% 0%, rgb(var(--sea-rgb) / 0.12), transparent 60%),
+    linear-gradient(180deg, rgb(var(--chrome-bright-rgb) / 0.025), transparent 40%),
     var(--arena-mid);
 }
 
 .side-field.mirrored {
   background:
     radial-gradient(120% 90% at 50% 100%, rgba(120, 60, 40, 0.1), transparent 60%),
-    linear-gradient(0deg, rgba(240, 220, 168, 0.02), transparent 40%),
+    linear-gradient(0deg, rgb(var(--chrome-bright-rgb) / 0.02), transparent 40%),
     #0f1c26;
 }
 
@@ -3697,7 +3735,7 @@ img.zone-pile-face {
 }
 
 .zone-slot {
-  border-color: rgba(210, 165, 77, 0.2);
+  border-color: rgb(var(--chrome-rgb) / 0.2);
   background: rgba(0, 0, 0, 0.16);
 }
 
@@ -3724,12 +3762,12 @@ img.zone-pile-face {
   width: var(--don-w);
   height: calc(var(--don-w) * 1.4);
   border-radius: calc(var(--don-w) * 0.07);
-  border-color: rgba(240, 220, 168, 0.55);
+  border-color: rgb(var(--chrome-bright-rgb) / 0.55);
 }
 
 .don-chip.rested {
   margin: 0 calc(var(--don-w) * 0.2);
-  border-color: rgba(149, 164, 173, 0.45);
+  border-color: rgb(var(--muted-rgb) / 0.45);
 }
 
 /* Overlap instead of shrinking when the rail runs out of room: spread evenly
@@ -3760,7 +3798,7 @@ img.zone-pile-face {
 
 .hud-bar {
   background:
-    linear-gradient(180deg, rgba(210, 165, 77, 0.1), transparent 70%),
+    linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.1), transparent 70%),
     var(--arena-panel);
 }
 
@@ -3772,12 +3810,12 @@ img.zone-pile-face {
 
 .hand-rail {
   background:
-    linear-gradient(0deg, rgba(210, 165, 77, 0.07), transparent 55%),
+    linear-gradient(0deg, rgb(var(--chrome-rgb) / 0.07), transparent 55%),
     var(--arena-panel);
 }
 
 .intent-bar {
-  background: rgba(8, 17, 24, 0.92);
+  background: rgb(var(--deep-rgb) / 0.92);
 }
 
 /* Actions read as calm secondary buttons; End turn is the gold primary. */
@@ -3800,13 +3838,13 @@ img.zone-pile-face {
 }
 
 .intent-btn-end {
-  color: #1d1406;
-  background: linear-gradient(180deg, #e6bd62, #c7963d);
-  border-color: rgba(255, 236, 190, 0.45);
+  color: var(--on-chrome);
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  border-color: rgb(var(--btn-edge-rgb) / 0.45);
 }
 
 .intent-btn-end:not(:disabled):hover {
-  background: linear-gradient(180deg, #e6bd62, #c7963d);
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
   filter: brightness(1.06);
 }
 
@@ -4146,11 +4184,11 @@ details.deck-config-section.deck-collapsible {
 @keyframes deck-swipe-arrive {
   0% {
     border-color: var(--chrome-bright);
-    box-shadow: 0 0 0 2px rgba(240, 220, 168, 0.45);
+    box-shadow: 0 0 0 2px rgb(var(--chrome-bright-rgb) / 0.45);
     background-color: var(--arena-raised);
   }
   100% {
-    box-shadow: 0 0 0 2px rgba(240, 220, 168, 0);
+    box-shadow: 0 0 0 2px rgb(var(--chrome-bright-rgb) / 0);
   }
 }
 
