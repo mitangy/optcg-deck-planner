@@ -252,7 +252,7 @@ export async function claimLoginTicket(ticket: string): Promise<AuthUser> {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Claim failed (${res.status}): ${text.slice(0, 160)}`);
+    throw new ApiError(res.status, `Claim failed (${res.status}): ${text.slice(0, 160)}`);
   }
   return (await res.json()) as AuthUser;
 }

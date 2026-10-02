@@ -41,7 +41,23 @@ type Props = {
   hidePrimary?: boolean;
   /** Phones and landscape: the wait for the opponent shows in the primary's slot. */
   waiting?: WaitingOnOpponent | null;
+  /** Why the rail is empty when it is not your move (desktop shows the wait in the board dock). */
+  idle?: "prompt" | "opponent" | null;
 };
+
+/** What the empty action rail says. */
+export function emptyIntentText(o: {
+  mulliganWaiting: boolean;
+  idle: "prompt" | "opponent" | null;
+  nothingSelected: boolean;
+  hasIntents: boolean;
+}): string {
+  if (o.mulliganWaiting) return "Waiting for opponent to finish mulligan…";
+  if (o.idle === "prompt") return "Answer the prompt to continue";
+  if (o.idle === "opponent") return "Waiting for your opponent…";
+  if (o.nothingSelected && o.hasIntents) return "Select a card for actions";
+  return "No legal actions right now";
+}
 
 export function IntentBar({
   intents,
@@ -58,6 +74,7 @@ export function IntentBar({
   onCard,
   hidePrimary = false,
   waiting = null,
+  idle = null,
 }: Props) {
   const handIndex = filterHandIndex ?? null;
   const boardId = selectedBoardId ?? null;
@@ -83,11 +100,12 @@ export function IntentBar({
     return (
       <div className="intent-bar">
         <p className="intent-empty">
-          {mulliganPhase && view?.you.mulliganDone
-            ? "Waiting for opponent to finish mulligan…"
-            : nothingSelected && intents.length > 0
-              ? "Select a card for actions"
-              : "No legal actions right now"}
+          {emptyIntentText({
+            mulliganWaiting: Boolean(mulliganPhase && view?.you.mulliganDone),
+            idle,
+            nothingSelected,
+            hasIntents: intents.length > 0,
+          })}
         </p>
       </div>
     );

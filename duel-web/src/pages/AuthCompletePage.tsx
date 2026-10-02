@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { startAccountSync } from "../account/accountSync";
-import { claimLoginTicket, mintSessionGameToken } from "../net/api";
+import { claimLoginTicket, googleLoginUrl, mintSessionGameToken } from "../net/api";
+import { MissingTicketError, signInErrorMessage } from "../auth/signInError";
 import { useDuelSession } from "../state/DuelSession";
 import { needsUsername } from "../auth/username";
 
@@ -22,7 +23,7 @@ export function AuthCompletePage() {
         const hash = window.location.hash.replace(/^#/, "");
         const params = new URLSearchParams(hash);
         const ticket = params.get("ticket");
-        if (!ticket) throw new Error("Missing login ticket");
+        if (!ticket) throw new MissingTicketError();
         const user = await claimLoginTicket(ticket);
         // Strip ticket from the URL so refreshes cannot reuse it.
         window.history.replaceState(null, "", "/auth/complete");
@@ -34,7 +35,8 @@ export function AuthCompletePage() {
         navigate(needsUsername(user) ? "/welcome/username" : "/", { replace: true });
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Sign-in failed");
+          console.warn("Sign-in failed", e);
+          setError(signInErrorMessage(e));
         }
       }
     }
@@ -47,12 +49,27 @@ export function AuthCompletePage() {
   if (error) {
     return (
       <div className="app-shell">
-        <p className="error-text" style={{ padding: 16 }}>
-          {error}
-        </p>
-        <button type="button" className="btn btn-secondary" onClick={() => navigate("/")}>
-          Back to home
-        </button>
+        <div className="page page-narrow">
+          <header className="page-header">
+            <Link to="/" className="btn btn-ghost btn-sm page-back" aria-label="Back to home">
+              ← Home
+            </Link>
+            <h1 className="page-title">Sign-in failed</h1>
+          </header>
+          <section className="panel">
+            <p className="panel-copy" role="alert">
+              {error}
+            </p>
+            <div className="btn-row">
+              <a className="btn btn-primary" href={googleLoginUrl()}>
+                Sign in with Google
+              </a>
+              <Link to="/" className="btn btn-secondary">
+                Back to home
+              </Link>
+            </div>
+          </section>
+        </div>
       </div>
     );
   }

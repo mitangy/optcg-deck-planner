@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { CardArt } from "../cards/CardArt";
 import { CardInspect } from "./CardInspect";
 import { DESKTOP_DECKS_QUERY } from "./useMediaQuery";
 import { lookupCard } from "../cards/atlas";
@@ -94,11 +95,12 @@ function StackCard({
         aria-label={`View details for ${entry.name}`}
       >
         <div className="deck-stack-art">
-          {imageUrl ? (
-            <img src={imageUrl} alt="" className="deck-stack-img" />
-          ) : (
-            <div className="deck-stack-fallback">{defId}</div>
-          )}
+          <CardArt
+            src={imageUrl}
+            defId={defId}
+            className="deck-stack-img"
+            fallback={<div className="deck-stack-fallback">{defId}</div>}
+          />
           <span className="deck-stack-badge" aria-label={`${count} copies`}>
             ×{count}
           </span>
@@ -114,25 +116,27 @@ function StackCard({
         </button>
         {editable ? (
           <div className="deck-stack-edit">
-            <button
-              type="button"
-              className="btn btn-secondary deck-stack-qty"
-              aria-label={`Remove one ${entry.name}`}
-              disabled={count <= 0}
-              onClick={() => bump(-1)}
-            >
-              −
-            </button>
-            <span className="deck-stack-qty-label">{count}</span>
-            <button
-              type="button"
-              className="btn btn-secondary deck-stack-qty"
-              aria-label={`Add one ${entry.name}`}
-              disabled={count >= MAX_COPIES_PER_CARD}
-              onClick={() => bump(1)}
-            >
-              +
-            </button>
+            <span className="deck-stack-stepper">
+              <button
+                type="button"
+                className="btn btn-secondary deck-stack-qty"
+                aria-label={`Remove one ${entry.name}`}
+                disabled={count <= 0}
+                onClick={() => bump(-1)}
+              >
+                −
+              </button>
+              <span className="deck-stack-qty-label">{count}</span>
+              <button
+                type="button"
+                className="btn btn-secondary deck-stack-qty"
+                aria-label={`Add one ${entry.name}`}
+                disabled={count >= MAX_COPIES_PER_CARD}
+                onClick={() => bump(1)}
+              >
+                +
+              </button>
+            </span>
             <button
               type="button"
               className="btn btn-secondary deck-stack-remove"
@@ -494,11 +498,7 @@ export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged, sideTop }: P
                           aria-label={`View details for ${entry.name}`}
                         >
                           <div className="deck-search-thumb">
-                            {imageUrl ? (
-                              <img src={imageUrl} alt="" />
-                            ) : (
-                              <span>{entry.id}</span>
-                            )}
+                            <CardArt src={imageUrl} defId={entry.id} fallback={<span>{entry.id}</span>} />
                           </div>
                           <div className="deck-search-meta">
                             <div className="deck-stack-name">{entry.name}</div>

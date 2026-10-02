@@ -1,21 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { nextBoardFocusIndex, takesTab, type TabContext } from "./boardFocus";
+import { nextTabTarget, takesTab, type TabContext } from "./boardFocus";
 
-describe("nextBoardFocusIndex", () => {
-  it("steps through the cards and wraps at both ends (#257)", () => {
-    expect(nextBoardFocusIndex(4, 1, false)).toBe(2);
-    expect(nextBoardFocusIndex(4, 3, false)).toBe(0);
-    expect(nextBoardFocusIndex(4, 1, true)).toBe(0);
-    expect(nextBoardFocusIndex(4, 0, true)).toBe(3);
+describe("nextTabTarget", () => {
+  // Page order: Concede, opp card, your card, End turn, hand card, settings.
+  const page = ["concede", "opp1", "you1", "endTurn", "hand1", "settings"];
+  // Board order: field cards, then the hand.
+  const ring = ["you1", "opp1", "hand1"];
+  const next = (active: string | null, back = false) => nextTabTarget(page, ring, active, back);
+
+  it("steps through the field cards, then the hand (#262)", () => {
+    expect(next("you1")).toBe("opp1");
+    expect(next("opp1")).toBe("hand1");
+    expect(next("hand1", true)).toBe("opp1");
   });
 
-  it("enters the board at the first card on Tab and the last on Shift+Tab from elsewhere (#257)", () => {
-    expect(nextBoardFocusIndex(4, -1, false)).toBe(0);
-    expect(nextBoardFocusIndex(4, -1, true)).toBe(3);
+  it("leaves the cards after the last one, and Shift+Tab before the first goes back out (#262)", () => {
+    // The cards are one stop, where the first card ("you1") sits in the page.
+    expect(next("hand1")).toBe("endTurn");
+    expect(next("you1", true)).toBe("concede");
   });
 
-  it("has nothing to focus on an empty board (#257)", () => {
-    expect(nextBoardFocusIndex(0, -1, false)).toBeNull();
+  it("reaches every other control by Tab and comes back to the cards (#262)", () => {
+    expect(next("endTurn")).toBe("settings");
+    expect(next("settings")).toBe("concede");
+    expect(next("concede")).toBe("you1");
+    expect(next("endTurn", true)).toBe("hand1");
+  });
+
+  it("goes straight to the cards when nothing is focused (#262)", () => {
+    expect(next(null)).toBe("you1");
+    expect(next(null, true)).toBe("hand1");
+  });
+
+  it("has nothing to focus on an empty board (#262)", () => {
+    expect(nextTabTarget(page, [], "concede", false)).toBeNull();
   });
 });
 

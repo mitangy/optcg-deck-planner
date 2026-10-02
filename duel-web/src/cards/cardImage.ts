@@ -32,3 +32,11 @@ export function localCardArtPath(defId: string): string {
 export function isTcgplayerCdnUrl(src: string | undefined | null): boolean {
   return !!src && TCGPLAYER_PRODUCT_IMAGE.test(src.trim());
 }
+
+/**
+ * The art to try after `failed` did not load: the local mirror once when the
+ * TCGplayer CDN fails, then nothing (show the text fallback).
+ */
+export function artAfterError(failed: string, defId: string): string | null {
+  return isTcgplayerCdnUrl(failed) ? localCardArtPath(defId) : null;
+}

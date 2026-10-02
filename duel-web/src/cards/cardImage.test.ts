@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardImageUrl, isTcgplayerCdnUrl } from "./cardImage";
+import { artAfterError, cardImageUrl, isTcgplayerCdnUrl } from "./cardImage";
 import { lookupCard } from "./atlas";
 
 describe("cardImageUrl", () => {
@@ -25,5 +25,14 @@ describe("OP16-080 Teach art", () => {
       "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg",
     );
     expect(isTcgplayerCdnUrl(teach.imageUrl)).toBe(true);
+  });
+});
+
+describe("artAfterError", () => {
+  it("tries the local mirror once after the CDN fails, then gives up for the text fallback (#262)", () => {
+    const cdn = "https://tcgplayer-cdn.tcgplayer.com/product/123456_200w.jpg";
+    const local = artAfterError(cdn, "op01-001");
+    expect(local).toBe("/cards/OP01-001.png");
+    expect(artAfterError(local!, "op01-001")).toBeNull();
   });
 });

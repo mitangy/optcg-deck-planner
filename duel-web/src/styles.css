@@ -1045,11 +1045,24 @@ button {
   margin-top: 0.25rem;
 }
 
+/* − count + never splits across lines; only Remove wraps under it. */
+.deck-stack-stepper {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .deck-stack-qty {
   min-width: 2.25rem;
   min-height: 36px;
   padding: 0.25rem 0.5rem;
   flex: 0 0 auto;
+}
+
+.deck-stack-qty:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .deck-stack-qty-label {
@@ -3330,6 +3343,15 @@ img.zone-pile-face {
 
 .mulligan-banner strong {
   color: var(--chrome-bright);
+}
+
+/* Small phones: the explainer would squeeze the board to a thumbnail. The
+   turn-order splash, the "Going 1st" badge and the Mulligan / Keep buttons
+   already say it, so it is left out there. */
+@media (max-width: 359px) {
+  .mulligan-banner-explainer {
+    display: none;
+  }
 }
 
 .intent-bar-mulligan h2 {
