@@ -77,6 +77,7 @@ import { stepHandSelection } from "./hotkeys";
 import { useBoardHotkeys } from "./useBoardHotkeys";
 import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
 import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
+import { useGameSfx } from "./sfx";
 import { useSoundCues } from "./soundCues";
 import { buzz } from "./haptics";
 import {
@@ -438,6 +439,7 @@ export function DuelBoard({
     sound: prefs.turnSound,
     spectating,
   });
+  useGameSfx(view, battleLog, { sound: prefs.turnSound, muted: hotseatPass || autoPass != null, spectating });
 
   // iOS only plays sound after one started inside a gesture: unlock on the
   // first touch of the match so a later cue is allowed to play.

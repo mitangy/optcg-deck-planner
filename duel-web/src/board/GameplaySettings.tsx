@@ -73,7 +73,7 @@ const TOGGLES: Toggle[] = [
   {
     key: "turnSound",
     label: "Sounds",
-    hint: "A chime when your turn starts or you need to respond, a lower two-tone cue when you are attacked, a soft tick when the opponent plays a card, and a thud when a Life card is lost. Works on iPhone too.",
+    hint: "A chime when your turn starts or you need to respond, a lower two-tone cue when you are attacked, a thud when a Life card is lost, and short effects for drawing, playing, attacking, blocking, countering, K.O.s, DON!!, Triggers and the result. Works on iPhone too.",
   },
 ];
 

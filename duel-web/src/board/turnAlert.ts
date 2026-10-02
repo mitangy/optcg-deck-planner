@@ -5,7 +5,7 @@ const TITLE_MARK = "● Your move · ";
 
 let audio: AudioContext | null = null;
 
-function audioContext(): AudioContext | null {
+export function audioContext(): AudioContext | null {
   try {
     const Ctor =
       window.AudioContext ??
@@ -42,9 +42,17 @@ export function audioUnlocked(): boolean {
   return audio?.state === "running";
 }
 
-type Note = { freq: number; at: number; len: number; gain: number; type: OscillatorType };
+export type Note = {
+  freq: number;
+  at: number;
+  len: number;
+  gain: number;
+  type: OscillatorType;
+  /** Glide to this frequency over the note. */
+  to?: number;
+};
 
-function playNotes(notes: Note[]): void {
+export function playNotes(notes: Note[]): void {
   try {
     const ctx = audioContext();
     if (!ctx) return;
@@ -54,7 +62,8 @@ function playNotes(notes: Note[]): void {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = n.type;
-      osc.frequency.value = n.freq;
+      osc.frequency.setValueAtTime(n.freq, t);
+      if (n.to) osc.frequency.exponentialRampToValueAtTime(n.to, t + n.len);
       gain.gain.setValueAtTime(0.0001, t);
       gain.gain.exponentialRampToValueAtTime(n.gain, t + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + n.len);
