@@ -4,6 +4,7 @@
  * come from the build (VITE_GAME_SERVER_URL / VITE_DEV_JOIN_SECRET).
  */
 import { useSyncExternalStore } from "react";
+import { OPP_HAND_SPOTS, type OppHandSpot } from "./board/panelLayout";
 import { COLOR_MODES, DEFAULT_THEME, THEME_IDS, type ColorMode, type ThemeId } from "./theme";
 
 /** When "End turn" asks for a second tap. */
@@ -75,6 +76,11 @@ export type DuelSettings = {
   oneTapActions: boolean;
   /** Show the opponent's hand as a fan of card backs in the top-right corner of the board. */
   oppHandTopRight: boolean;
+  /**
+   * Desktop: the opponent's hand pinned above the playmat ("left", "centre" or
+   * "right") instead of in its side panel; "" keeps it in the panel.
+   */
+  oppHandSpot: OppHandSpot;
   /** Text size (power numbers, card text, buttons), scaled further by the window size. */
   textSize: TextSize;
   /** Desktop: tilt the board away from you, seen from your seat. */
@@ -117,6 +123,7 @@ const DEFAULTS: DuelSettings = {
   layoutGrips: true,
   oneTapActions: false,
   oppHandTopRight: false,
+  oppHandSpot: "",
   textSize: "medium",
   tiltedBoard: false,
   floatingCards: true,
@@ -169,6 +176,7 @@ function sanitize(
   if (storedLayout === "fanRight" && rest.handFanPos === undefined) next.handFanPos = LEGACY_RIGHT_FAN_POS;
   if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;
   if (!TEXT_SIZES.includes(next.textSize)) next.textSize = DEFAULTS.textSize;
+  if (!OPP_HAND_SPOTS.includes(next.oppHandSpot)) next.oppHandSpot = DEFAULTS.oppHandSpot;
   // A theme removed in a later build (or synced from a newer one) falls back to the default.
   if (!THEME_IDS.includes(next.theme)) next.theme = DEFAULTS.theme;
   if (!COLOR_MODES.includes(next.colorMode)) next.colorMode = DEFAULTS.colorMode;

@@ -672,6 +672,11 @@ module.exports = {
     { id: "waiting-their-turn-pulses", file: `${src}/board/waitingOnOpponent.ts`, from: "turn: { detail: \"Opponent's turn\", urgent: false }", to: "turn: { detail: \"Opponent's turn\", urgent: true }", kills: ["shows their turn calmly: not urgent, unlike a pending answer (#257)"] },
     { id: "waiting-spectator", file: `${src}/board/waitingOnOpponent.ts`, from: "view.spectator || ", to: "", kills: ["is null for spectators and finished matches (#257)"] },
     { id: "waiting-after-game-over", file: `${src}/board/waitingOnOpponent.ts`, from: " || view.winner != null", to: "", kills: ["is null for spectators and finished matches (#257)"] },
+    // opponent hand pinned to the top of the mat (#264)
+    { id: "matspot-whole-mat", file: `${src}/board/panelLayout.ts`, from: "  if (y < mat.top - band / 2 || y > mat.top + band) return null;\n", to: "", kills: ["is not a mat spot lower on the mat or beside it, so the panel goes to a column (#264)"] },
+    { id: "matspot-beside-mat", file: `${src}/board/panelLayout.ts`, from: "  if (x < mat.left || x > mat.right) return null;\n", to: "", kills: ["is not a mat spot lower on the mat or beside it, so the panel goes to a column (#264)"] },
+    { id: "matspot-no-right", file: `${src}/board/panelLayout.ts`, from: "  if (x > mat.right - third) return \"right\";\n", to: "", kills: ["pins to the left, centre or right third over the top of the mat (#264)"] },
+    { id: "opp-hand-spot-unchecked", file: `${src}/settings.ts`, from: "  if (!OPP_HAND_SPOTS.includes(next.oppHandSpot)) next.oppHandSpot = DEFAULTS.oppHandSpot;\n", to: "", kills: ["keeps a pinned opponent hand spot and drops an unknown one (#264)"] },
     // review fixes (#262)
     { id: "signin-shows-raw-error", file: `${src}/auth/signInError.ts`, from: "  return \"We couldn't finish signing you in. Please try again in a moment.\";", to: "  return e instanceof Error ? e.message : \"Sign-in failed\";", kills: ["never shows the raw API error text (#262)"] },
     { id: "signin-server-error-as-expired", file: `${src}/auth/signInError.ts`, from: "e.status >= 400 && e.status < 500", to: "e.status >= 400", kills: ["asks to sign in again for a used or expired link, and to retry on a server error (#262)"] },

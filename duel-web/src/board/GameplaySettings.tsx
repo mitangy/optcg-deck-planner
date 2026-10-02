@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import type { OppHandSpot } from "./panelLayout";
 import { createPortal } from "react-dom";
 import {
   updateSettings,
@@ -225,8 +226,8 @@ export function GameplaySettingsFields() {
               type="button"
               className="btn btn-secondary"
               aria-describedby="side-panels-label"
-              disabled={!settings.panelLayout && !settings.handFanPos}
-              onClick={() => updateSettings({ panelLayout: "", handFanPos: "" })}
+              disabled={!settings.panelLayout && !settings.handFanPos && !settings.oppHandSpot}
+              onClick={() => updateSettings({ panelLayout: "", handFanPos: "", oppHandSpot: "" })}
             >
               Reset layout
             </button>
@@ -234,8 +235,24 @@ export function GameplaySettingsFields() {
           <p className="field-hint">
             With Drag handles on, drag the grip at the top of any side panel (card preview, battle
             log, actions, Grid hand, chat ...) to snap it into the left or right column, and the
-            fanned hand&apos;s grip to move it anywhere. Reset puts every panel and the hand back.
+            fanned hand&apos;s grip to move it anywhere. Drop the opponent hand on the top of the
+            playmat to pin it there. Reset puts every panel and both hands back.
           </p>
+        </div>
+      ) : null}
+      {desktop ? (
+        <div className="field">
+          <label htmlFor="opp-hand-spot">Opponent hand</label>
+          <select
+            id="opp-hand-spot"
+            value={settings.oppHandSpot}
+            onChange={(e) => updateSettings({ oppHandSpot: e.target.value as OppHandSpot })}
+          >
+            <option value="">In its side panel</option>
+            <option value="left">Top left of the mat</option>
+            <option value="centre">Top centre of the mat</option>
+            <option value="right">Top right of the mat</option>
+          </select>
         </div>
       ) : null}
       <div className="field">

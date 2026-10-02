@@ -8,6 +8,7 @@ import {
   serializePanelLayout,
   type PanelId,
   type PanelRect,
+  matSpotAt,
 } from "./panelLayout";
 
 describe("parsePanelLayout", () => {
@@ -111,5 +112,24 @@ describe("nudgePanel", () => {
       right: ["oppHand", "turn", "actions", "hand"],
     });
     expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "chat", "right", visible)).toBe(DEFAULT_PANEL_LAYOUT);
+  });
+});
+
+describe("matSpotAt", () => {
+  // Mat 600 px wide from x 300, top at y 100, 500 px tall (top band 100 px).
+  const mat = { left: 300, right: 900, top: 100, bottom: 600 };
+
+  it("pins to the left, centre or right third over the top of the mat (#264)", () => {
+    expect(matSpotAt(mat, 350, 120)).toBe("left");
+    expect(matSpotAt(mat, 600, 120)).toBe("centre");
+    expect(matSpotAt(mat, 850, 120)).toBe("right");
+    // Just above the mat counts too.
+    expect(matSpotAt(mat, 600, 70)).toBe("centre");
+  });
+
+  it("is not a mat spot lower on the mat or beside it, so the panel goes to a column (#264)", () => {
+    expect(matSpotAt(mat, 600, 300)).toBeNull();
+    expect(matSpotAt(mat, 250, 120)).toBeNull();
+    expect(matSpotAt(mat, 600, 20)).toBeNull();
   });
 });

@@ -4403,3 +4403,81 @@ body.is-panel-drag * {
 .opp-hand-corner > .opp-hand-count {
   order: 2;
 }
+
+/* —— Opponent hand pinned above the playmat (desktop, oppHandSpot) ——
+   The mats give up a strip at the top for it, like the phone hint row, so
+   it never covers the opponent's cards. */
+.arena.arena-wide .playmat:has(> .playmat-inner > .opp-hand-mat) {
+  --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);
+}
+
+.opp-hand-mat {
+  flex: 0 0 auto;
+  display: flex;
+  /* As wide as the mats (see .side-field), so left / right line up with
+     the mat's corners. */
+  width: calc(
+    min(
+        calc((100cqh - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2),
+        calc(100cqw * 7 / 12)
+      ) * 12 / 7
+  );
+  max-width: 100%;
+  height: var(--hint-h);
+  min-width: 0;
+}
+
+.opp-hand-mat-left {
+  justify-content: flex-start;
+}
+
+.opp-hand-mat-centre {
+  justify-content: center;
+}
+
+.opp-hand-mat-right {
+  justify-content: flex-end;
+}
+
+.arena.arena-wide .opp-hand-mat > .board-panel {
+  max-width: 100%;
+}
+
+/* Cards hang from the top edge with the count beside them. */
+.opp-hand-corner-mat {
+  align-items: flex-start;
+  gap: 0.45rem;
+  height: 100%;
+  padding: 0 0.4rem;
+  overflow: hidden;
+}
+
+.opp-hand-corner-mat .opp-corner-card {
+  width: var(--corner-w);
+  height: calc(var(--corner-w) * 1.4);
+  margin-top: calc(var(--corner-w) * -0.4);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+.opp-hand-corner-mat .opp-corner-card + .opp-corner-card {
+  margin-left: calc(var(--corner-w) * -0.45);
+}
+
+.opp-hand-corner.opp-hand-corner-mat > .opp-hand-count {
+  align-self: center;
+}
+
+.opp-hand-mat-right .opp-hand-corner-mat > .opp-hand-count {
+  order: -1;
+}
+
+/* Drop target while dragging the opponent hand over the top of the mat. */
+.panel-drop-spot {
+  position: fixed;
+  z-index: 90;
+  box-sizing: border-box;
+  border: 2px dashed var(--chrome-bright);
+  border-radius: 8px;
+  background: rgb(var(--chrome-bright-rgb) / 0.14);
+  pointer-events: none;
+}
