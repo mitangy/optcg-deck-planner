@@ -579,5 +579,8 @@ module.exports = {
     { id: "history-loss-delta-unsigned", file: matchRowFile, from: "(delta >= 0 ? `+${delta}` : `\u2212${Math.abs(delta)}`)", to: "`+${delta}`", kills: ["shows the Bounty change with its sign"] },
     { id: "history-unranked-delta-shown", file: matchRowFile, from: "    bountyDelta: m.ranked ? (", to: "    bountyDelta: true ? (", kills: ["shows the Bounty change with its sign"] },
     { id: "history-hours-as-minutes", file: matchRowFile, from: "  if (mins < 60) return `${mins}m ago`;", to: "  if (mins < 600) return `${mins}m ago`;", kills: ["dates recent games relative to now"] },
+    // DON!! drawn under a card (#PR_D)
+    { id: "don-under-uncapped", file: `${src}/board/donUnder.ts`, from: "const n = Math.min(Math.max(0, Math.floor(attached)), DON_UNDER_MAX_LAYERS);", to: "const n = Math.max(0, Math.floor(attached));", kills: ["draws one DON!! layer per attached DON!! up to the cap (#PR_D)"] },
+    { id: "don-under-fixed-spacing", file: `${src}/board/donUnder.ts`, from: "const k = STEP_SCALE[n] ?? 0.5;", to: "const k = 1;", kills: ["tightens the spacing as the count grows (#PR_D)"] },
   ],
 };
