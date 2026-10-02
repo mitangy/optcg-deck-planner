@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import type { MatchReplay } from "@optcg/rules";
 import { getApiBaseUrl, getDuelIngestSecret, getMatchOutboxDatabaseUrl } from "./env.js";
 
 export type MatchResultPayload = {
@@ -8,6 +9,11 @@ export type MatchResultPayload = {
   winner_seat: 0 | 1;
   reason: string;
   ranked: boolean;
+  seat0_leader_id?: string;
+  seat1_leader_id?: string;
+  turns?: number;
+  /** Seed, decks and intents; the backend stores it and never serves it to players. */
+  replay?: MatchReplay;
 };
 export interface OutboxDatabase {
   query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;

@@ -398,6 +398,28 @@ class DuelMatch(Base):
     seat1_rating_before: Mapped[int] = mapped_column(Integer)
     seat0_rating_after: Mapped[int] = mapped_column(Integer)
     seat1_rating_after: Mapped[int] = mapped_column(Integer)
+    # Added with match replays; null on older rows.
+    seat0_leader_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    seat1_leader_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    turns: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class DuelMatchLog(Base):
+    """Full replay of one duel: seed, decks and every accepted intent, as JSON text.
+
+    The engine is deterministic, so this replays the whole game. It holds both
+    hands and decks, so it is never sent to players as-is.
+    """
+
+    __tablename__ = "duel_match_logs"
+
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("duel_matches.match_id", ondelete="CASCADE"), primary_key=True
+    )
+    replay: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

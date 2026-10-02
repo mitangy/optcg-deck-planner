@@ -40,6 +40,7 @@ export {
   isNegated,
 } from "./engine.js";
 export { describeEvents } from "./describeEvents.js";
+export { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay, type ReplayStep } from "./matchReplay.js";
 export type {
   Seat,
   InstanceId,

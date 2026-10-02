@@ -11,6 +11,8 @@ import {
 import { getGameTokenSecret } from "../src/env.js";
 import { createHmac } from "node:crypto";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
+import type { MatchResultPayload } from "../src/writeback.js";
+import { replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
 
 type PlayerView = {
   seat: 0 | 1;
@@ -89,6 +91,39 @@ function presenceFor(roomId: string): PresenceEntry[] {
     .snapshot()
     .filter((e) => e.room_id === roomId)
     .sort((a, b) => a.user_id - b.user_id);
+}
+
+/** Server-side room internals the replay tests read. */
+type RoomInternals = {
+  match: MatchState;
+  replay: MatchReplay | null;
+  expireTurnClock(): void;
+  resultPayload(s0: number, s1: number, winner: 0 | 1, reason: string): MatchResultPayload;
+};
+const internals = (room: DuelRoom) => room as unknown as RoomInternals;
+
+/** Send `steps` legal intents from whichever seat can act, ending the turn now and then. */
+async function playSome(clients: [ClientRoom, ClientRoom], bags: [SeatBag, SeatBag], steps: number) {
+  for (let i = 0; i < steps; i++) {
+    const seat = ([0, 1] as const).find((s) => bags[s].views.at(-1)!.winner == null && bags[s].views.at(-1)!.legalIntents.length > 0);
+    if (seat === undefined) return;
+    const legal = bags[seat].views.at(-1)!.legalIntents;
+    const pick = i % 4 === 3 ? (legal.find((x) => x.type === "end_turn") ?? legal[0]!) : legal[0]!;
+    const seen: [number, number] = [bags[0].views.length, bags[1].views.length];
+    const errs = bags[seat].errors.length;
+    clients[seat].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: pick });
+    await waitUntil(
+      () => (bags[0].views.length > seen[0] && bags[1].views.length > seen[1]) || bags[seat].errors.length > errs,
+      5000,
+    );
+  }
+}
+
+/** The recorded replay, re-run through the engine, lands on the room's exact state. */
+function assertReplayRebuilds(room: DuelRoom) {
+  const { match, replay } = internals(room);
+  assert.ok(replay, "room has a replay");
+  assert.equal(serializeMatch(replayMatch(replay)), serializeMatch(match));
 }
 
 describe("DuelRoom", () => {
@@ -918,5 +953,115 @@ describe("DuelRoom", () => {
 
     await spec.leave();
     await waitUntil(() => presenceFor(room.roomId).length === 2, 8000);
+  });
+  it("the recorded replay rebuilds the game, including turn-clock auto moves (#244)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 51,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    await playSome([c0, c1], bags, 12);
+    const played = internals(room).replay!.intents.length;
+    assert.ok(played >= 8, `recorded ${played} intents`);
+    // The turn clock running out makes a move for the seat that must act.
+    const turnBefore = internals(room).match.turnNumber;
+    internals(room).expireTurnClock();
+    assert.equal(internals(room).replay!.intents.length, played + 1);
+    assert.ok(internals(room).match.turnNumber >= turnBefore);
+    assertReplayRebuilds(room);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("an accepted undo drops the rewound moves from the replay (#244)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 52,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const applied: unknown[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("undo_applied", (msg: unknown) => applied.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    const active = bags[0].views.at(-1)!.activeSeat;
+    const clients: [ClientRoom, ClientRoom] = [c0, c1];
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).match.activeSeat !== active, 5000);
+    const atTurnStart = internals(room).replay!.intents.length;
+    // The next player acts, then asks to take it back.
+    const next = (1 - active) as 0 | 1;
+    await waitUntil(() => bags[next].views.at(-1)!.activeSeat === next, 5000);
+    clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).replay!.intents.length > atTurnStart, 5000);
+    clients[active].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await new Promise((r) => setTimeout(r, 50));
+    clients[next].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
+    await waitUntil(() => applied.length === 1, 5000);
+
+    assert.ok(internals(room).replay!.intents.length < atTurnStart + 1);
+    assertReplayRebuilds(room);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("the result sent to the backend carries leaders, turns, the replay and how it ended (#244)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 53,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    // Seat 0 brings OP01-001; seat 1 gets the default ST01-001, so swapped seats show.
+    const zoroDeck = { leaderId: "OP01-001", deck: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "ST01-014"].flatMap((id) => [id, id, id, id]) };
+    const c0 = await colyseus.connectTo(room, { ...joinOpts("alice", 0), deck: zoroDeck });
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    await playSome([c0, c1], bags, 6);
+
+    c1.send("concede", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => bags[0].over != null, 8000);
+    const { match, replay } = internals(room);
+    const payload = internals(room).resultPayload(11, 12, 0, "concede");
+    assert.equal(match.players[0].leader.defId, "OP01-001");
+    assert.equal(payload.seat0_leader_id, "OP01-001");
+    assert.equal(payload.seat1_leader_id, "ST01-001");
+    assert.equal(payload.turns, match.turnNumber);
+    assert.ok(payload.turns! > 1);
+    assert.deepEqual(payload.replay!.end, { winner: 0, reason: "concede" });
+    assert.equal(payload.replay!.seed, 53);
+    assert.deepEqual(payload.replay!.intents, replay!.intents);
+    // The engine never saw the concession: replaying the intents alone leaves the game running.
+    assert.equal(replayMatch(payload.replay!).winner, null);
+
+    await c0.leave(true);
+    await c1.leave(true);
   });
 });
