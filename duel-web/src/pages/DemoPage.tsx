@@ -224,7 +224,7 @@ function withExtraOption(view: PlayerView): PlayerView {
 }
 
 /**
- * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|order|mode|effects`).
+ * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|order|mode|effects|don|don2`).
  * Searches and effect ordering float over the board; add `&box` to see the old pop-up.
  */
 export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
@@ -245,6 +245,28 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
         { id: "o1", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "Rested DON!!", rested: true },
         { id: "o2", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "DON!! on Monkey.D.Luffy", rested: false },
         { id: "o3", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "DON!! on Nico Robin", rested: false },
+      ],
+    },
+  }),
+  // DON!! −2: every DON!! on your field, picked straight off the board.
+  don2: demoChoice({
+    id: "demo-don2",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP10-074",
+    sourceInstanceId: "y-c1",
+    optional: false,
+    prompt: "Pica — choose 2 cards to return to your DON!! deck (cost).",
+    request: {
+      type: "select",
+      min: 2,
+      max: 2,
+      options: [
+        ...[0, 1, 2].map((i) => ({ id: `o${i}`, defId: "DON", zone: "don" as const, ownerSeat: 0 as const, eligible: true, label: "Active DON!!", rested: false })),
+        ...[0, 1, 2].map((i) => ({ id: `o${i + 3}`, defId: "DON", zone: "don" as const, ownerSeat: 0 as const, eligible: true, label: "Rested DON!!", rested: true })),
+        { id: "o6", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "DON!! on Monkey.D.Luffy", rested: false },
+        { id: "o7", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "DON!! on Monkey.D.Luffy", rested: false },
+        { id: "o8", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "DON!! on Nico Robin", rested: false },
       ],
     },
   }),

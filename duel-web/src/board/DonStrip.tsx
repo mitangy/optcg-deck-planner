@@ -73,7 +73,12 @@ function DonChip({
       aria-label={label}
       aria-pressed={canDrag ? isSelected : undefined}
       title={label}
-      disabled={!canDrag}
+      // Never disabled: a choice that asks for DON!! (DON!! −N) picks chips
+      // straight off the board, and disabled buttons get no clicks. Without a
+      // give_don it has no click of its own, so it stays out of the Tab order.
+      tabIndex={canDrag ? undefined : -1}
+      data-don-id={token.id}
+      data-don-rested={token.rested ? "true" : "false"}
       // Keep HTML5 DnD off; pointer drag owns the gesture.
       draggable={false}
       onClick={canDrag ? () => onToggleSelect?.(token.id) : undefined}
