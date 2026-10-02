@@ -67,4 +67,15 @@ describe("recentPlays", () => {
     expect(recentPlays(e, 1)[0]!.mine).toBe(true);
     expect(recentPlays(e, 0)[0]!.mine).toBe(false);
   });
+
+  it("labels each row with who used the card, what they did and the turn (#247)", () => {
+    const got = recentPlays(
+      [entry("a", "counter", 1, "A", 4), entry("b", "play", 0, "B", 5)],
+      0,
+    );
+    expect(got.map((p) => [p.who, p.detail])).toEqual([
+      ["You", "played \u00b7 Turn 5"],
+      ["Opponent", "countered \u00b7 Turn 4"],
+    ]);
+  });
 });

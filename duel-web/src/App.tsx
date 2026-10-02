@@ -12,20 +12,23 @@ import { LegalPage } from "./pages/LegalPage";
 import { LobbyPage } from "./pages/LobbyPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { MatchLogPage } from "./pages/MatchLogPage";
 import { UsernameSetupPage } from "./pages/UsernameSetupPage";
 import { useDuelSettings } from "./settings";
 import { showsSiteFooter } from "./siteFooter";
+import { applyTextSize } from "./textSize";
 import { applyTheme, LIGHT_QUERY } from "./theme";
 import { useMediaQuery } from "./board/useMediaQuery";
 
 export function App() {
-  const { reduceMotion, theme, colorMode } = useDuelSettings();
+  const { reduceMotion, theme, colorMode, textSize } = useDuelSettings();
   // Re-applies when the device switches light / dark while on "Match my device".
   const deviceLight = useMediaQuery(LIGHT_QUERY);
   const { pathname } = useLocation();
   // Before paint, so switching theme (or loading it from the account) never
   // flashes the old palette.
   useLayoutEffect(() => applyTheme(theme, colorMode), [theme, colorMode, deviceLight]);
+  useLayoutEffect(() => applyTextSize(textSize), [textSize]);
   // CSS mirrors its prefers-reduced-motion rules under [data-motion="reduce"].
   useEffect(() => {
     if (reduceMotion) document.documentElement.dataset.motion = "reduce";
@@ -44,6 +47,7 @@ export function App() {
         <Route path="/hotseat" element={<HotseatPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/history" element={<HistoryPage />} />
+        <Route path="/history/:matchId" element={<MatchLogPage />} />
         <Route path="/auth/complete" element={<AuthCompletePage />} />
         <Route path="/welcome/username" element={<UsernameSetupPage />} />
         <Route path="/demo" element={<DemoPage />} />

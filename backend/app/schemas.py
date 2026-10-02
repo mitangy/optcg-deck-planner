@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Annotated, Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -462,6 +464,8 @@ class DuelMatchIngest(BaseModel):
     turns: int | None = Field(default=None, ge=0, le=10_000)
     # Seed, decks and accepted intents (see game-server MatchReplay). Kept server-side only.
     replay: dict | None = None
+    # [seat 0's log, seat 1's log] (see @optcg/rules SeatLog); each player only ever reads their own.
+    seat_logs: list[dict] | None = Field(default=None, min_length=2, max_length=2)
 
 
 class DuelMatchHistoryEntry(BaseModel):
@@ -478,10 +482,17 @@ class DuelMatchHistoryEntry(BaseModel):
     rating_before: int
     rating_after: int
     has_replay: bool
+    has_log: bool = False
 
 
 class DuelMatchHistoryOut(BaseModel):
     matches: list[DuelMatchHistoryEntry]
+
+
+class DuelMatchDetailOut(BaseModel):
+    match: DuelMatchHistoryEntry
+    # The game turn by turn from your seat (@optcg/rules SeatLog); null when none was kept.
+    log: dict | None
 
 
 class AnalystTokenStatus(BaseModel):
@@ -516,6 +527,42 @@ class AnalystDeckOut(BaseModel):
 
 class AnalystDecksOut(BaseModel):
     decks: list[AnalystDeckOut]
+
+
+class AnalystSharing(BaseModel):
+    share_matches: bool
+
+
+CARD_ID_PATTERN = r"^(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})$"
+
+
+class AnalystLessonIn(BaseModel):
+    text: str = Field(min_length=10, max_length=1000)
+    leader_id: str | None = Field(default=None, pattern=CARD_ID_PATTERN)
+    opponent_id: str | None = Field(default=None, pattern=CARD_ID_PATTERN)
+    cards: list[Annotated[str, Field(pattern=CARD_ID_PATTERN)]] = Field(default_factory=list, max_length=10)
+    match_ids: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(default_factory=list, max_length=10)
+
+
+class AnalystLessonOut(BaseModel):
+    id: int
+    status: str
+    text: str
+    leader_id: str | None
+    opponent_id: str | None
+    cards: list[str]
+    match_ids: list[str]
+    created_at: str | None
+    reviewed_at: str | None
+
+
+class AnalystLessonsOut(BaseModel):
+    lessons: list[AnalystLessonOut]
+
+
+class AnalystLessonReview(BaseModel):
+    status: Literal["draft", "approved", "rejected"] | None = None
+    text: str | None = Field(default=None, min_length=10, max_length=1000)
 
 
 class DuelMatchOut(BaseModel):

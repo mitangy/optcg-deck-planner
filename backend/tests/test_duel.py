@@ -300,6 +300,7 @@ def test_my_matches_lists_only_my_games_from_my_seat(client):
         "rating_before": 0,
         "rating_after": 0,
         "has_replay": True,
+        "has_log": False,
     }
     assert g1["rating_after"] > g1["rating_before"]
     assert (g2["your_seat"], g2["won"], g2["your_leader_id"], g2["opponent_leader_id"], g2["has_replay"]) == (
@@ -311,6 +312,42 @@ def test_my_matches_lists_only_my_games_from_my_seat(client):
     )
     assert g2["rating_after"] < g2["rating_before"]
     assert [m["match_id"] for m in c.get("/duel/matches/me?limit=1").json()["matches"]] == ["g2"]
+
+
+def test_match_page_shows_only_my_seats_log(client):
+    """A match opened from history carries the log from my seat, never the opponent's (#252)."""
+    c, _ = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()
+    logs = [{"seat": 0, "turns": [{"turn": 1}]}, {"seat": 1, "turns": [{"turn": 1}, {"turn": 2}]}]
+    _ingest(c, "mine", a["user_id"], me["id"], 1, seat0_leader_id="OP01-001", seat1_leader_id="OP05-060", turns=2, seat_logs=logs)
+    _ingest(c, "theirs", a["user_id"], b["user_id"], 0, seat_logs=logs)
+
+    assert c.get("/duel/matches/me").json()["matches"][0]["has_log"] is True
+    r = c.get("/duel/matches/me/mine")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["log"] == logs[1]
+    assert (body["match"]["your_seat"], body["match"]["your_leader_id"], body["match"]["won"]) == (1, "OP05-060", True)
+    assert c.get("/duel/matches/me/theirs").status_code == 404
+
+
+def test_oversized_seat_log_is_dropped_but_the_result_still_counts(client, monkeypatch: pytest.MonkeyPatch):
+    """An oversized seat log is dropped; the match still opens, without a log (#252)."""
+    from app.routers import duel as duel_router
+
+    c, _ = client
+    monkeypatch.setattr(duel_router, "MAX_REPLAY_BYTES", 200)
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    big = {"seat": 0, "turns": ["x" * 300]}
+    small = {"seat": 1, "turns": []}
+    _ingest(c, "big", me["id"], a["user_id"], 0, seat_logs=[big, small])
+    _ingest(c, "small", a["user_id"], me["id"], 0, seat_logs=[big, small])
+
+    assert c.get("/duel/matches/me/big").json()["log"] is None
+    assert c.get("/duel/matches/me/small").json()["log"] == small
 
 
 def test_my_matches_needs_sign_in(client):

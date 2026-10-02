@@ -5,6 +5,28 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // text size setting
+    { id: "text-size-xlarge-not-larger", file: `${src}/textSize.ts`, from: "  xlarge: 1.25,", to: "  xlarge: 1,", kills: ["scales text down for Small and up for Extra large, and Medium clears it (#PR_A)"] },
+    { id: "text-size-medium-leaves-scale", file: `${src}/textSize.ts`, from: "  if (scale === 1) root.style.removeProperty(\"--text-scale\");\n  else root.style.setProperty", to: "  root.style.setProperty", kills: ["scales text down for Small and up for Extra large, and Medium clears it (#PR_A)"] },
+    // recent plays list rows
+    { id: "recent-plays-who-swapped", file: `${src}/board/recentPlays.ts`, from: "      who: mine ? \"You\" : \"Opponent\",", to: "      who: mine ? \"Opponent\" : \"You\",", kills: ["labels each row with who used the card, what they did and the turn (#PR_A)"] },
+    { id: "recent-plays-wrong-turn", file: `${src}/board/recentPlays.ts`, from: "detail: `${use.verb} \\u00b7 Turn ${e.turn}`", to: "detail: `${use.verb} \\u00b7 Turn ${e.turn - 1}`", kills: ["labels each row with who used the card, what they did and the turn (#PR_A)"] },
+    { id: "field-targets-some-on-field", file: `${src}/board/fieldTargets.ts`, from: "every((o) => o.zone", to: "some((o) => o.zone", kills: ["keep the pop-up when a pickable card is not on the field (#254)"] },
+    { id: "field-targets-don-on-field", file: `${src}/board/fieldTargets.ts`, from: "o.zone !== \"don\" && ", to: "", kills: ["keep the pop-up for DON!! options even when they carry an instance id (#254)"] },
+    { id: "field-targets-empty-set", file: `${src}/board/fieldTargets.ts`, from: "pickable.length > 0 && ", to: "", kills: ["ignore ineligible off-field options but never pick an empty set (#254)"] },
+    { id: "field-targets-count-ineligible", file: `${src}/board/fieldTargets.ts`, from: "options.filter((o) => o.eligible)", to: "options.filter(() => true)", kills: ["ignore ineligible off-field options but never pick an empty set (#254)"] },
+    { id: "pick-single-no-swap", file: `${src}/board/fieldTargets.ts`, from: "  if (max === 1) return [id];\n", to: "", kills: ["a single pick swaps and a second tap clears it (#254)"] },
+    { id: "pick-over-max", file: `${src}/board/fieldTargets.ts`, from: "selected.length >= max ?", to: "selected.length > max ?", kills: ["stops adding at the maximum (#254)"] },
+    { id: "one-tap-optional", file: `${src}/board/fieldTargets.ts`, from: "oneTap && min === 1 && max === 1", to: "oneTap && max === 1", kills: ["one-tap answers only for exactly one required pick (#254)"] },
+    { id: "one-tap-always", file: `${src}/board/fieldTargets.ts`, from: "oneTap && min === 1 && max === 1", to: "min === 1 && max === 1", kills: ["one-tap answers only for exactly one required pick (#254)"] },
+    { id: "pick-caption-count", file: `${src}/board/fieldTargets.ts`, from: "max > 1 ? `Choose ${range} \u00b7 selected ${selectedCount}` : `Choose ${range}`", to: "`Choose ${range}`", kills: ["captions the range and the running count (#254)"] },
+    { id: "choice-field-bar-off", file: `${src}/board/ChoicePrompt.tsx`, from: "if (request.type === \"select\" && allOptionsOnField(request.options, liveCards)) {", to: "if (false) {", kills: ["are answered on the board with a slim bar, no card grid (#254)"] },
+    { id: "choice-field-bar-always", file: `${src}/board/ChoicePrompt.tsx`, from: "allOptionsOnField(request.options, liveCards)) {", to: "request.options.length > 0) {", kills: ["keep the pop-up when a pickable card is not on the field (#254)"] },
+    { id: "field-bar-confirm-enabled", file: `${src}/board/ChoicePrompt.tsx`, from: "<button type=\"button\" className=\"btn btn-primary\" disabled={!valid} onClick={() => answer(selected)}>\n            {selected.length === 0 && request.min === 0", to: "<button type=\"button\" className=\"btn btn-primary\" onClick={() => answer(selected)}>\n            {selected.length === 0 && request.min === 0", kills: ["are answered on the board with a slim bar, no card grid (#254)"] },
+    { id: "field-bar-one-tap-confirm", file: `${src}/board/ChoicePrompt.tsx`, from: "const oneTap = useDuelSettings().oneTapActions && resolvesOnPick(true, request.min, request.max);", to: "const oneTap = false;", kills: ["drop the Confirm button under One-tap actions when exactly one is picked (#254)"] },
+    { id: "replace-highlights-all", file: `${src}/board/ReplacePrompt.tsx`, from: "<BoardHighlight ids={targetIds} kind=\"candidate\" />", to: "<BoardHighlight ids={view.you.characters.map((c) => c.id)} kind=\"candidate\" />", kills: ["outlines only the Characters the play may trash and waits for a pick (#254)"] },
+    { id: "replace-confirm-enabled", file: `${src}/board/ReplacePrompt.tsx`, from: "disabled={!intent} onClick", to: "onClick", kills: ["outlines only the Characters the play may trash and waits for a pick (#254)"] },
+    { id: "replace-one-tap-ignored", file: `${src}/board/ReplacePrompt.tsx`, from: "{resolvesOnPick(oneTap, 1, 1) ? null : (", to: "{false ? null : (", kills: ["has no Trash & play button under One-tap actions: the pick answers (#254)"] },
     // legal footer: hidden during a match, shown on the other pages
     { id: "site-footer-during-match", file: `${src}/siteFooter.ts`, from: "  return !NO_FOOTER.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return true;", kills: ["stays out of the way during a match (#245)"] },
     { id: "site-footer-nowhere", file: `${src}/siteFooter.ts`, from: "  return !NO_FOOTER.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return !NO_FOOTER.some((p) => pathname.startsWith(p.slice(0, 2)));", kills: ["shows on the lobby, decks, settings and legal pages (#245)"] },
@@ -109,6 +131,8 @@ module.exports = {
     { id: "anim-speed-setting-always-reset", file: `${src}/settings.ts`, from: "if (!ANIMATION_SPEEDS.includes(next.animationSpeed)) next", to: "if (true) next", kills: ["keeps a stored speed"] },
     { id: "hand-layout-setting-invalid-kept", file: `${src}/settings.ts`, from: "  if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;\n", to: "", kills: ["replaces an unknown stored hand layout"] },
     { id: "hand-layout-setting-always-reset", file: `${src}/settings.ts`, from: "if (!HAND_LAYOUTS.includes(next.handLayout)) next", to: "if (true) next", kills: ["keeps a stored hand layout"] },
+    { id: "keep-hand-open-dropped", file: `${src}/settings.ts`, from: "  const next = { ...DEFAULTS, ...rest };", to: "  const next = { ...DEFAULTS, ...rest, keepHandOpen: false };", kills: ["keeps the hand open for a player who saved Keep hand open"] },
+    { id: "text-size-invalid-kept", file: `${src}/settings.ts`, from: "  if (!TEXT_SIZES.includes(next.textSize)) next.textSize = DEFAULTS.textSize;\n", to: "", kills: ["replaces an unknown one with medium"] },
     { id: "hand-fan-spread-uncapped", file: `${src}/board/handFan.ts`, from: "Math.min(FAN_STEP_DEG, FAN_MAX_SPREAD_DEG / (n - 1))", to: "FAN_STEP_DEG", kills: ["no further apart than the max spread"] },
     { id: "hand-fan-off-centre", file: `${src}/board/handFan.ts`, from: "const k = i - (n - 1) / 2;", to: "const k = i - n / 2;", kills: ["mirrors the fan around the middle card"] },
     { id: "hand-fan-flat", file: `${src}/board/handFan.ts`, from: "const drop = FAN_RADIUS * (1 - Math.cos((rot * Math.PI) / 180));", to: "const drop = 0 * FAN_RADIUS;", kills: ["mirrors the fan around the middle card"] },
@@ -310,8 +334,6 @@ module.exports = {
     { id: "battle-banner-own-leader", file: `${src}/board/battleBanner.ts`, from: "  const def = ends ? findCard(view, ends.targetId) : null;", to: "  const def = view.you.leader.id === b.attackerId ? view.opponent.leader : view.you.leader;", kills: ["names the defending seat's Leader when a Character attacks a Leader"] },
     { id: "replace-plays-not-collapsed", file: `${src}/board/dragIntents.ts`, from: "    if (seen.has(i.handIndex)) return false;\n", to: "", kills: ["offers one replace play per hand card"] },
     { id: "replace-prompt-always", file: `${src}/board/dragIntents.ts`, from: "  return playCardTrashTargetIds(intents, handIndex).length > 0;", to: "  return true;", kills: ["asks which Character to replace only when the board is full"] },
-    { id: "replace-prompt-lists-every-character", file: `${src}/board/ReplacePrompt.tsx`, from: "view.you.characters.filter((c) => targetIds.includes(c.id))", to: "view.you.characters", kills: ["offers each Character the play may trash"] },
-    { id: "replace-prompt-sends-unpicked", file: `${src}/board/ReplacePrompt.tsx`, from: "disabled={!intent}", to: "disabled={false}", kills: ["offers each Character the play may trash and waits for a pick"] },
     {"id":"cost-delta-dropped","file":"duel-web/src/board/powerDisplay.ts","from":"delta: fieldCost - printedCost","to":"delta: 0","kills":["splits a +cost effect from the printed cost"]},
     {"id":"cost-breakdown-null-guard","file":"duel-web/src/board/powerDisplay.ts","from":"  if (fieldCost == null) return null;\n","to":"","kills":["reports no delta for an unmodified cost and null without a live cost"]},
     // install prompt
@@ -533,7 +555,7 @@ module.exports = {
     {"id": "contract-private-look-leak-allowed", "file": "duel-web/src/net/protocol.ts", "from": "    if (hiddenViewer && request &&", "to": "    if (false && hiddenViewer && request &&", "kills": ["refuses a private look whose cards are readable by the other seat"]},
     {"id": "contract-choice-answer-is-primary", "file": "duel-web/src/board/primaryIntent.ts", "from": "    case \"resolve_pending_choice\":\n    case \"order_pending_effects\":\n      return null;", "to": "    case \"resolve_pending_choice\":\n      return 0;\n    case \"order_pending_effects\":\n      return null;", "kills": ["never offers a choice answer as the primary action"]},
     {"id": "contract-mode-prompt-dropped", "file": "duel-web/src/board/ChoicePrompt.tsx", "from": "      ) : request.type === \"mode\" ? (", "to": "      ) : request.type === \"mode_\" ? (", "kills": ["choice-mode renders its prompt, not a fallback"]},
-    {"id": "contract-select-prompt-dropped", "file": "duel-web/src/board/ChoicePrompt.tsx", "from": "      ) : request.type === \"select\" ? (", "to": "      ) : request.type === \"select_\" ? (", "kills": ["choice-select renders its prompt, not a fallback"]},
+    {"id": "contract-select-prompt-dropped", "edits": [{"file": "duel-web/src/board/ChoicePrompt.tsx", "from": "      ) : request.type === \"select\" ? (", "to": "      ) : request.type === \"select_\" ? ("}, {"file": "duel-web/src/board/ChoicePrompt.tsx", "from": "if (request.type === \"select\" && allOptionsOnField(request.options, liveCards)) {", "to": "if (false) {"}], "kills": ["choice-select renders its prompt, not a fallback"]},
     {"id": "contract-look-prompt-dropped", "file": "duel-web/src/board/ChoicePrompt.tsx", "from": "      ) : request.type === \"look\" ? (", "to": "      ) : request.type === \"look_\" ? (", "kills": ["choice-look renders its prompt, not a fallback"]},
     {"id": "contract-life-trigger-plain-yes", "file": "duel-web/src/board/ChoicePrompt.tsx", "from": "            {choice.kind === \"life_trigger\" ? \"Activate Trigger\" : \"Yes\"}", "to": "            Yes", "kills": ["choice-life-trigger renders its prompt, not a fallback"]},
     {"id": "contract-effect-order-empty", "file": "duel-web/src/board/EffectOrderPrompt.tsx", "from": "  const initial = choice.unorderedChoices ?? [];", "to": "  const initial: PendingChoiceView[] = [];", "kills": ["choice-order-effects renders its prompt, not a fallback"]},
@@ -553,6 +575,20 @@ module.exports = {
     { id: "mode-device-only", file: `${src}/settings.ts`, from: "  \"devUserKey\",\n];", to: "  \"devUserKey\",\n  \"colorMode\",\n];", kills: ["takes the light or dark mode saved to the account on another device"] },
     // deck stats in the editor (#243)
     { id: "deck-stats-cards-distinct", file: `${src}/decks/DeckStatsSection.tsx`, from: "copies.set(id, (copies.get(id) ?? 0) + 1);", to: "copies.set(id, 1);", kills: ["turns the editor's one-id-per-copy list into copies per card"] },
+    // match page log
+    { id: "matchlog-turns-from-seat-0", file: "duel-web/src/history/matchLog.ts", from: "    const yours = t.activeSeat === log.seat;", to: "    const yours = t.activeSeat === 0;", kills: ["labels each turn from your seat (#252)"] },
+    { id: "matchlog-board-cards-ignored", file: "duel-web/src/history/matchLog.ts", from: "new Map(log.boardCards.map(([id, defId, seat]) => [id, { defId, seat }]))", to: "new Map()", kills: ["names the attacking card from the cards that were on the board (#252)"] },
+    // Log Pose lessons + stats opt-out (#246)
+    { id: "lesson-rows-no-status-order", file: "duel-web/src/history/lessonRow.ts", from: "    .sort((a, b) => ORDER[a.l.status] - ORDER[b.l.status] || a.i - b.i)\n", to: "", kills: ["puts drafts first and keeps newest first within each status"] },
+    { id: "lesson-rows-oldest-first", file: "duel-web/src/history/lessonRow.ts", from: "ORDER[a.l.status] - ORDER[b.l.status] || a.i - b.i", to: "ORDER[a.l.status] - ORDER[b.l.status] || b.i - a.i", kills: ["puts drafts first and keeps newest first within each status"] },
+    { id: "lesson-rows-approve-approved", file: "duel-web/src/history/lessonRow.ts", from: "        ...(l.status !== \"approved\" ? [", to: "        ...(true ? [", kills: ["offers only the reviews that change a lesson's status"] },
+    { id: "lesson-rows-reject-rejected", file: "duel-web/src/history/lessonRow.ts", from: "        ...(l.status !== \"rejected\" ? [", to: "        ...(true ? [", kills: ["offers only the reviews that change a lesson's status"] },
+    { id: "lesson-rows-opponent-dropped", file: "duel-web/src/history/lessonRow.ts", from: "          ? `${cardName(l.leader_id)} vs ${cardName(l.opponent_id)}`", to: "          ? cardName(l.leader_id)", kills: ["names the matchup and cards a lesson is about"] },
+    { id: "lesson-rows-opponent-only-dropped", file: "duel-web/src/history/lessonRow.ts", from: "          ? `vs ${cardName(l.opponent_id)}`\n          : null,", to: "          ? null\n          : null,", kills: ["names the matchup and cards a lesson is about"] },
+    { id: "sharing-put-ignores-choice", file: "duel-web/src/history/historyApi.ts", from: "JSON.stringify({ share_matches: share })", to: "JSON.stringify({ share_matches: true })", kills: ["saves the stats opt-out"] },
+    { id: "lesson-review-wrong-id", file: "duel-web/src/history/historyApi.ts", from: "    `/analyst/lessons/review/${id}`,", to: "    `/analyst/lessons/review`,", kills: ["reviews and deletes one lesson by id"] },
+    { id: "lesson-review-sends-nothing", file: "duel-web/src/history/historyApi.ts", from: "body: JSON.stringify({ status }) },", to: "body: JSON.stringify({}) },", kills: ["reviews and deletes one lesson by id"] },
+    { id: "lesson-delete-as-patch", file: "duel-web/src/history/historyApi.ts", from: "{ method: \"DELETE\" }, \"Could not delete the lesson\"", to: "{ method: \"PATCH\" }, \"Could not delete the lesson\"", kills: ["reviews and deletes one lesson by id"] },
     // match history rows
     { id: "history-reason-blames-wrong-side", file: matchRowFile, from: "`${m.won ? \"Opponent\" : \"You\"} ${reason}`", to: "`${m.won ? \"You\" : \"Opponent\"} ${reason}`", kills: ["says who conceded, left or took the last hit from your side"] },
     { id: "history-outcome-inverted", file: matchRowFile, from: "    outcome: m.won ? \"Won\" : \"Lost\",", to: "    outcome: \"Won\",", kills: ["says who conceded, left or took the last hit from your side"] },
@@ -560,5 +596,8 @@ module.exports = {
     { id: "history-loss-delta-unsigned", file: matchRowFile, from: "(delta >= 0 ? `+${delta}` : `\u2212${Math.abs(delta)}`)", to: "`+${delta}`", kills: ["shows the Bounty change with its sign"] },
     { id: "history-unranked-delta-shown", file: matchRowFile, from: "    bountyDelta: m.ranked ? (", to: "    bountyDelta: true ? (", kills: ["shows the Bounty change with its sign"] },
     { id: "history-hours-as-minutes", file: matchRowFile, from: "  if (mins < 60) return `${mins}m ago`;", to: "  if (mins < 600) return `${mins}m ago`;", kills: ["dates recent games relative to now"] },
+    // DON!! drawn under a card (#PR_D)
+    { id: "don-under-uncapped", file: `${src}/board/donUnder.ts`, from: "const n = Math.min(Math.max(0, Math.floor(attached)), DON_UNDER_MAX_LAYERS);", to: "const n = Math.max(0, Math.floor(attached));", kills: ["draws one DON!! layer per attached DON!! up to the cap (#PR_D)"] },
+    { id: "don-under-fixed-spacing", file: `${src}/board/donUnder.ts`, from: "const k = STEP_SCALE[n] ?? 0.5;", to: "const k = 1;", kills: ["tightens the spacing as the count grows (#PR_D)"] },
   ],
 };

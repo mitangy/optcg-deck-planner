@@ -20,7 +20,7 @@ type Props = {
  * Text-presentation glyphs (U+FE0E keeps ⚔/✖ from rendering as emoji) so the
  * icon column stays a fixed width on every platform.
  */
-const TONE_ICON: Partial<Record<LogTone, string>> = {
+export const TONE_ICON: Partial<Record<LogTone, string>> = {
   play: "▸",
   attack: "⚔︎",
   block: "◆",

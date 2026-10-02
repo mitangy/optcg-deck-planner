@@ -7,7 +7,7 @@ import { CardInspect } from "./CardInspect";
 import { inspectOnContextMenu } from "./inspectGestures";
 import { recentPlays, type RecentPlay } from "./recentPlays";
 
-/** Hearthstone-style row of the last card uses, newest first (wide layouts). */
+/** The last card uses by either player as a list (thumbnail, name, who and when), newest first (wide layouts). */
 export function RecentPlaysStrip({
   entries,
   youSeat,
@@ -19,6 +19,7 @@ export function RecentPlaysStrip({
   const [inspect, setInspect] = useState<RecentPlay | null>(null);
   return (
     <section className="recent-plays" aria-label="Recent plays">
+      <h3 className="recent-plays-heading">Recent plays</h3>
       {plays.length === 0 ? (
         <p className="recent-plays-empty">No cards played yet.</p>
       ) : (
@@ -39,9 +40,14 @@ export function RecentPlaysStrip({
                   onClick={() => setPreviewCard({ defId: p.defId, ownerSeat: p.ownerSeat })}
                   onContextMenu={(e) => inspectOnContextMenu(e, () => setInspect(p))}
                 >
-                  {src ? <img src={src} alt="" draggable={false} /> : <span aria-hidden>{p.defId}</span>}
-                  <span className="recent-play-mark" aria-hidden>
-                    {p.mine ? "Y" : "O"}
+                  <span className="recent-play-thumb" aria-hidden>
+                    {src ? <img src={src} alt="" draggable={false} /> : p.defId}
+                  </span>
+                  <span className="recent-play-text">
+                    <span className="recent-play-name">{lookupCard(p.defId).name}</span>
+                    <span className="recent-play-meta">
+                      <span className="recent-play-who">{p.who}</span> {p.detail}
+                    </span>
                   </span>
                 </button>
               </li>

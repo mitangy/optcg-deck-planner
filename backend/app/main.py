@@ -18,9 +18,12 @@ async def lifespan(_app: FastAPI):
     from app.catalog_sync import refresh_special_flags
     from app.db import SessionLocal
 
+    from app.analyst_stats import backfill_seats
+
     db = SessionLocal()
     try:
         refresh_special_flags(db)
+        backfill_seats(db)
     finally:
         db.close()
     yield
