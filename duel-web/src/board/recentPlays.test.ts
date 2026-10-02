@@ -68,7 +68,7 @@ describe("recentPlays", () => {
     expect(recentPlays(e, 0)[0]!.mine).toBe(false);
   });
 
-  it("labels each row with who used the card, what they did and the turn (#PR_A)", () => {
+  it("labels each row with who used the card, what they did and the turn (#247)", () => {
     const got = recentPlays(
       [entry("a", "counter", 1, "A", 4), entry("b", "play", 0, "B", 5)],
       0,

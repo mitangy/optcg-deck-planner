@@ -13,7 +13,7 @@ function fakeRoot() {
 }
 
 describe("text size", () => {
-  it("scales text down for Small and up for Extra large, and Medium clears it (#PR_A)", () => {
+  it("scales text down for Small and up for Extra large, and Medium clears it (#247)", () => {
     const root = fakeRoot();
     applyTextSize("small", root);
     expect(Number(root.props.get("--text-scale"))).toBeLessThan(1);
