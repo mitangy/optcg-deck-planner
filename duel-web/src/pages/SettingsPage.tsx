@@ -28,6 +28,8 @@ import {
 import { useDuelSession } from "../state/DuelSession";
 import { THEMES, type ColorMode } from "../theme";
 import { VersionStatus } from "../VersionStatus";
+import { AnalystLinkPanel } from "../history/AnalystLinkPanel";
+import "../history/history.css";
 
 const MODE_OPTIONS: { value: ColorMode; label: string }[] = [
   { value: "dark", label: "Dark" },
@@ -119,6 +121,9 @@ export function SettingsPage() {
               </p>
               <UsernameSettings user={authUser} onChange={setAuthUser} />
               <div className="btn-row">
+                <Link to="/history" className="btn btn-secondary">
+                  Match history
+                </Link>
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -176,6 +181,8 @@ export function SettingsPage() {
             </div>
           ) : null}
         </section>
+
+        {authUser ? <AnalystLinkPanel /> : null}
 
         <section className="panel">
           <h2 className="panel-title" id="theme-title">Theme</h2>

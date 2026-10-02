@@ -346,6 +346,11 @@ def my_matches(
     limit: int = 20,
 ) -> DuelMatchHistoryOut:
     """The signed-in player's recent duels, newest first."""
+    return DuelMatchHistoryOut(matches=match_history(db, user, limit))
+
+
+def match_history(db: Session, user: User, limit: int) -> list[DuelMatchHistoryEntry]:
+    """A player's recent duels from their own seat, newest first (also read by the analyst)."""
     limit = max(1, min(limit, 100))
     rows = db.scalars(
         select(DuelMatch)
@@ -379,7 +384,7 @@ def my_matches(
                 has_replay=r.match_id in with_replay,
             )
         )
-    return DuelMatchHistoryOut(matches=matches)
+    return matches
 
 
 @router.get("/leaderboard", response_model=DuelLeaderboardOut)

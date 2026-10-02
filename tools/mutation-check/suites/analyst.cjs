@@ -4,6 +4,7 @@ const search = "analyst/src/search.ts";
 const catalog = "analyst/src/catalog.ts";
 const analysis = "analyst/src/analysis.ts";
 const auth = "analyst/src/auth.ts";
+const matches = "analyst/src/matches.ts";
 module.exports = {
   cwd: "analyst",
   runner: "vitest",
@@ -27,5 +28,17 @@ module.exports = {
     { id: "analysis-hit-ids-case", file: analysis, from: "ids: spec.cardIds.map((id) => id.trim().toUpperCase())", to: "ids: spec.cardIds.map((id) => id.trim())", kills: ["counts hits for lower-case card numbers"] },
     // connector key
     { id: "auth-any-key", file: auth, from: "return a.length === b.length && timingSafeEqual(a, b);", to: "return true;", kills: ["rejects a wrong or missing key"] },
+    // match review (personal link)
+    { id: "review-unprojected-events", file: matches, from: "      for (const event of projectGameEvents(step.events, seat)) {", to: "      for (const event of step.events) {", kills: ["names a taken Life card only for the player who took it"] },
+    { id: "review-seat-labels-swapped", file: matches, from: "  const who = (s: string) => (Number(s) === seat ? \"you\" : \"opponent\");", to: "  const who = (s: string) => (Number(s) !== seat ? \"you\" : \"opponent\");", kills: ["names a taken Life card only for the player who took it"] },
+    { id: "review-turn-headers-dropped", file: matches, from: "          if (event.activeSeat !== active) {", to: "          if (false) {", kills: ["reads only the asked turns and cuts long logs"] },
+    { id: "review-went-first-for-everyone", file: matches, from: "    wentFirst: replay.firstSeat === seat,", to: "    wentFirst: true,", kills: ["tells the game from the reviewing player's seat"] },
+    { id: "review-result-not-from-seat", file: matches, from: "      ? { won: replay.end.winner === seat, reason: replay.end.reason }", to: "      ? { won: true, reason: replay.end.reason }", kills: ["tells the game from the reviewing player's seat"] },
+    { id: "review-opening-hand-seat-0", file: matches, from: "    yourOpeningHand: opening.players[seat].hand", to: "    yourOpeningHand: opening.players[0].hand", kills: ["tells the game from the reviewing player's seat"] },
+    { id: "review-turn-range-ignored", file: matches, from: "        if (turn < fromTurn || turn > toTurn) continue;\n", to: "", kills: ["reads only the asked turns and cuts long logs"] },
+    { id: "review-max-lines-ignored", file: matches, from: "    if (lines.length >= maxLines) truncated = true;\n    else lines.push(line);", to: "    lines.push(line);", kills: ["reads only the asked turns and cuts long logs"] },
+    { id: "review-service-secret-not-sent", file: matches, from: "  if (service) headers[\"X-Analyst-Service\"] = api.serviceSecret;\n", to: "", kills: ["asks the planner for a replay with the player's token and the service secret"] },
+    { id: "review-unconfigured-still-calls", file: matches, from: "  if (!api.serviceSecret) throw new Error(\"Match review isn't set up on this server (ANALYST_SERVICE_SECRET is unset).\");\n", to: "", kills: ["asks the planner for a replay with the player's token and the service secret"] },
+    { id: "token-any-error-means-dead", file: matches, from: "    if (err instanceof PlannerApiError && err.status === 401) return false;", to: "    return false;", kills: ["treats only a 401 as a dead personal link"] },
   ],
 };

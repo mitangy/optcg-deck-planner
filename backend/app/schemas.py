@@ -484,6 +484,40 @@ class DuelMatchHistoryOut(BaseModel):
     matches: list[DuelMatchHistoryEntry]
 
 
+class AnalystTokenStatus(BaseModel):
+    has_token: bool
+    created_at: str | None
+    name: str | None = None
+
+
+class AnalystTokenCreated(BaseModel):
+    token: str
+    # Full URL to add in Claude as a custom connector; null when ANALYST_PUBLIC_URL is unset.
+    connector_url: str | None
+
+
+class AnalystReplayOut(BaseModel):
+    match_id: str
+    your_seat: int
+    replay: dict
+
+
+class AnalystDeckCard(BaseModel):
+    id: str
+    copies: int
+
+
+class AnalystDeckOut(BaseModel):
+    id: int
+    name: str
+    leader_id: str | None
+    cards: list[AnalystDeckCard]
+
+
+class AnalystDecksOut(BaseModel):
+    decks: list[AnalystDeckOut]
+
+
 class DuelMatchOut(BaseModel):
     match_id: str
     created: bool

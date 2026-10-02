@@ -425,6 +425,18 @@ class DuelMatchLog(Base):
     )
 
 
+class AnalystToken(Base):
+    """A player's personal Log Pose connector token (stored hashed, one per user)."""
+
+    __tablename__ = "analyst_tokens"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class Friendship(Base):
     """A friend request or accepted friendship between two users.
 

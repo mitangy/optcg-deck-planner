@@ -1,5 +1,6 @@
 /** duel-web mutations: source edits, plus data edits for atlas-content assertions. */
 const src = "duel-web/src";
+const matchRowFile = "duel-web/src/history/matchRow.ts";
 module.exports = {
   cwd: "duel-web",
   runner: "vitest",
@@ -547,5 +548,12 @@ module.exports = {
     { id: "mode-auto-ignores-device", file: `${src}/theme.ts`, from: "if (mode === \"system\") return deviceLight ? \"light\" : \"dark\";", to: "if (mode === \"system\") return \"dark\";", kills: ["Auto mode follows the device's light or dark setting"] },
     { id: "mode-unknown-kept", file: `${src}/settings.ts`, from: "  if (!COLOR_MODES.includes(next.colorMode)) next.colorMode = DEFAULTS.colorMode;\n", to: "", kills: ["replaces a stored colour mode this build doesn't know with dark"] },
     { id: "mode-device-only", file: `${src}/settings.ts`, from: "  \"devUserKey\",\n];", to: "  \"devUserKey\",\n  \"colorMode\",\n];", kills: ["takes the light or dark mode saved to the account on another device"] },
+    // match history rows
+    { id: "history-reason-blames-wrong-side", file: matchRowFile, from: "`${m.won ? \"Opponent\" : \"You\"} ${reason}`", to: "`${m.won ? \"You\" : \"Opponent\"} ${reason}`", kills: ["says who conceded, left or took the last hit from your side"] },
+    { id: "history-outcome-inverted", file: matchRowFile, from: "    outcome: m.won ? \"Won\" : \"Lost\",", to: "    outcome: \"Won\",", kills: ["says who conceded, left or took the last hit from your side"] },
+    { id: "history-leaders-swapped", file: matchRowFile, from: "    yourLeader: m.your_leader_id ? cardName(m.your_leader_id)", to: "    yourLeader: m.opponent_leader_id ? cardName(m.opponent_leader_id)", kills: ["puts your leader first and names both"] },
+    { id: "history-loss-delta-unsigned", file: matchRowFile, from: "(delta >= 0 ? `+${delta}` : `\u2212${Math.abs(delta)}`)", to: "`+${delta}`", kills: ["shows the Bounty change with its sign"] },
+    { id: "history-unranked-delta-shown", file: matchRowFile, from: "    bountyDelta: m.ranked ? (", to: "    bountyDelta: true ? (", kills: ["shows the Bounty change with its sign"] },
+    { id: "history-hours-as-minutes", file: matchRowFile, from: "  if (mins < 60) return `${mins}m ago`;", to: "  if (mins < 600) return `${mins}m ago`;", kills: ["dates recent games relative to now"] },
   ],
 };

@@ -11,6 +11,7 @@ const merge = "backend/app/group_buy_merge.py";
 const settle = "backend/app/group_buy_settlement.py";
 const friends = "backend/app/routers/friends.py";
 const prefs = "backend/app/routers/duel_prefs.py";
+const analyst = "backend/app/routers/analyst.py";
 
 module.exports = {
   cwd: "backend",
@@ -276,6 +277,19 @@ module.exports = {
     { id: "sync-don-card-skipped", file: "backend/app/catalog_sync.py", from: "    if is_don_product(name=name, card_type=card_type, rarity=rarity):\n        return synthetic_don_card_id(product_id)\n", to: "", kills: ["test_sync_catalog_over_http"] },
     { id: "sync-numberless-product-kept", file: "backend/app/catalog_sync.py", from: "    return None\n\n\ndef _pick_price", to: "    return f\"X-{product_id}\"\n\n\ndef _pick_price", kills: ["test_sync_catalog_over_http"] },
     { id: "sync-product-url-dropped", file: "backend/app/catalog_sync.py", from: "\"tcgplayer_url\": product.get(\"url\") or \"\",", to: "\"tcgplayer_url\": \"\",", kills: ["test_sync_catalog_over_http"] },
+    // Log Pose personal connector
+    { id: "analyst-token-stored-raw", file: analyst, from: "    db.add(AnalystToken(user_id=user.id, token_hash=_hash(token)))", to: "    db.add(AnalystToken(user_id=user.id, token_hash=token))", kills: ["test_a_new_link_replaces_the_old_one_and_revoking_ends_it"] },
+    { id: "analyst-old-token-kept", file: analyst, from: "    db.execute(delete(AnalystToken).where(AnalystToken.user_id == user.id))\n    db.add(", to: "    db.add(", kills: ["test_a_new_link_replaces_the_old_one_and_revoking_ends_it"] },
+    { id: "analyst-revoke-noop", file: analyst, from: "    db.execute(delete(AnalystToken).where(AnalystToken.user_id == user.id))\n    db.commit()\n    return Response(status_code=204)", to: "    return Response(status_code=204)", kills: ["test_a_new_link_replaces_the_old_one_and_revoking_ends_it"] },
+    { id: "analyst-connector-url-missing-path", file: analyst, from: "    return f\"{base}/mcp/u/{token}\" if base else None", to: "    return f\"{base}/{token}\" if base else None", kills: ["test_a_new_link_replaces_the_old_one_and_revoking_ends_it"] },
+    { id: "analyst-any-token-accepted", file: analyst, from: "    user = db.get(User, row.user_id) if row else None", to: "    user = db.get(User, row.user_id) if row else db.scalars(select(User)).first()", kills: ["test_a_new_link_replaces_the_old_one_and_revoking_ends_it"] },
+    { id: "analyst-matches-wrong-user", file: analyst, from: "    return DuelMatchHistoryOut(matches=match_history(db, user, limit))\n\n\n@router.get(\"/matches/{match_id}", to: "    return DuelMatchHistoryOut(matches=match_history(db, db.scalars(select(User)).first(), limit))\n\n\n@router.get(\"/matches/{match_id}", kills: ["test_the_analyst_lists_only_the_link_owners_games"] },
+    { id: "analyst-replay-service-unchecked", file: analyst, from: "    _require_service(settings, x_analyst_service)\n", to: "", kills: ["test_full_replays_need_the_service_secret_and_a_seat_in_the_game", "test_replays_stay_closed_without_a_service_secret"] },
+    { id: "analyst-replay-empty-secret-open", file: analyst, from: "    if not expected:\n        raise HTTPException(status_code=503, detail=\"Replays are not enabled\")\n    if not given or", to: "    if", kills: ["test_replays_stay_closed_without_a_service_secret"] },
+    { id: "analyst-replay-any-match", file: analyst, from: "    if match is None or user.id not in (match.seat0_user_id, match.seat1_user_id):", to: "    if match is None:", kills: ["test_full_replays_need_the_service_secret_and_a_seat_in_the_game"] },
+    { id: "analyst-replay-seat-always-0", file: analyst, from: "    seat = 0 if match.seat0_user_id == user.id else 1\n    return AnalystReplayOut", to: "    seat = 0\n    return AnalystReplayOut", kills: ["test_full_replays_need_the_service_secret_and_a_seat_in_the_game"] },
+    { id: "analyst-decks-everyone", file: analyst, from: "select(Deck).where(Deck.user_id == user.id).order_by", to: "select(Deck).order_by", kills: ["test_the_analyst_reads_the_link_owners_planner_decks"] },
+    { id: "analyst-decks-zero-kept", file: analyst, from: " for c in d.cards if c.needed > 0]", to: " for c in d.cards]", kills: ["test_the_analyst_reads_the_link_owners_planner_decks"] },
     // duel match replays and history
     { id: "replay-leaders-not-stored", file: duel, from: "        seat0_leader_id=body.seat0_leader_id,\n        seat1_leader_id=body.seat1_leader_id,\n", to: "", kills: ["test_ingest_keeps_leaders_turns_and_replay_server_side", "test_my_matches_lists_only_my_games_from_my_seat"] },
     { id: "replay-turns-not-stored", file: duel, from: "        turns=body.turns,\n    )\n    db.add(row)", to: "    )\n    db.add(row)", kills: ["test_ingest_keeps_leaders_turns_and_replay_server_side", "test_my_matches_lists_only_my_games_from_my_seat"] },

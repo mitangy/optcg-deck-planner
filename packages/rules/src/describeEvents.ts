@@ -1,6 +1,11 @@
 import { getCardDef } from "./cards/definitions.js";
 import type { GameEvent } from "./types.js";
 
+/** Card name, or "a hidden card" for ids a seat's projected events hide (see projectGameEvents). */
+function nameOf(id: string): string {
+  return id === "HIDDEN" ? "a hidden card" : getCardDef(id).name;
+}
+
 /** Human-readable lines for a batch of engine events (battle log / sim). */
 export function describeEvents(events: readonly GameEvent[]): string[] {
   const lines: string[] = [];
@@ -22,27 +27,27 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
         break;
       case "card_played":
         lines.push(
-          `Seat ${e.seat} plays ${getCardDef(e.defId).name} (rests ${e.costPaid} DON!!)`,
+          `Seat ${e.seat} plays ${nameOf(e.defId)} (rests ${e.costPaid} DON!!)`,
         );
         break;
       case "stage_replaced":
         lines.push(
-          `Seat ${e.seat} replaces Stage (trashes ${getCardDef(e.trashedDefId).name})`,
+          `Seat ${e.seat} replaces Stage (trashes ${nameOf(e.trashedDefId)})`,
         );
         break;
       case "stage_trashed":
         lines.push(
-          `Seat ${e.seat} trashes Stage ${getCardDef(e.defId).name}`,
+          `Seat ${e.seat} trashes Stage ${nameOf(e.defId)}`,
         );
         break;
       case "character_trashed_for_space":
         lines.push(
-          `Seat ${e.seat} trashes ${getCardDef(e.defId).name} for board space`,
+          `Seat ${e.seat} trashes ${nameOf(e.defId)} for board space`,
         );
         break;
       case "don_given":
         lines.push(
-          `Seat ${e.seat} attaches DON!! to ${getCardDef(e.targetDefId).name} → ${e.newPower} power`,
+          `Seat ${e.seat} attaches DON!! to ${nameOf(e.targetDefId)} → ${e.newPower} power`,
         );
         break;
       case "attack_declared": {
@@ -58,7 +63,7 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
         break;
       case "counter_applied":
         lines.push(
-          `Seat ${e.seat} counters with ${getCardDef(e.defId).name} (+${e.bonus})`,
+          `Seat ${e.seat} counters with ${nameOf(e.defId)} (+${e.bonus})`,
         );
         break;
       case "battle_resolved":
@@ -67,18 +72,18 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
         );
         break;
       case "character_ko":
-        lines.push(`Seat ${e.seat}'s ${getCardDef(e.defId).name} is K.O.'d`);
+        lines.push(`Seat ${e.seat}'s ${nameOf(e.defId)} is K.O.'d`);
         break;
       case "life_taken":
         lines.push(
-          `Seat ${e.seat} takes Life (${getCardDef(e.defId).name}${
+          `Seat ${e.seat} takes Life (${nameOf(e.defId)}${
             e.toHand ? " → hand" : ", Trigger pending"
           })`,
         );
         break;
       case "trigger_available":
         lines.push(
-          `Seat ${e.seat} Trigger available (${getCardDef(e.defId).name})`,
+          `Seat ${e.seat} Trigger available (${nameOf(e.defId)})`,
         );
         break;
       case "trigger_resolved":
@@ -88,31 +93,31 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
         break;
       case "card_revealed":
         lines.push(
-          `Seat ${e.seat} reveals ${getCardDef(e.defId).name}` +
+          `Seat ${e.seat} reveals ${nameOf(e.defId)}` +
             (e.matchedTrait ? " (trait matched)" : ""),
         );
         break;
       case "power_buff_applied":
         lines.push(
-          `Seat ${e.seat} gives ${getCardDef(e.targetDefId).name} +${e.amount} power this ${e.duration}`,
+          `Seat ${e.seat} gives ${nameOf(e.targetDefId)} +${e.amount} power this ${e.duration}`,
         );
         break;
       case "card_moved":
         lines.push(
-          `Seat ${e.seat} moves ${e.defId === "HIDDEN" ? "a card" : getCardDef(e.defId).name} from ${e.from} to ${e.to}`,
+          `Seat ${e.seat} moves ${e.defId === "HIDDEN" ? "a card" : nameOf(e.defId)} from ${e.from} to ${e.to}`,
         );
         break;
       case "ability_activated":
-        lines.push(`Seat ${e.seat} activates ${getCardDef(e.defId).name}'s ability`);
+        lines.push(`Seat ${e.seat} activates ${nameOf(e.defId)}'s ability`);
         break;
       case "pending_choice_added":
         lines.push(
-          `Seat ${e.seat} may resolve ${getCardDef(e.cardDefId).name}'s ${e.kind.replace(/_/g, " ")} (${e.prompt})`,
+          `Seat ${e.seat} may resolve ${nameOf(e.cardDefId)}'s ${e.kind.replace(/_/g, " ")} (${e.prompt})`,
         );
         break;
       case "pending_choice_resolved":
         lines.push(
-          `Seat ${e.seat} ${e.accepted ? "accepts" : "declines"} ${getCardDef(e.cardDefId).name}'s ${e.kind.replace(/_/g, " ")}`,
+          `Seat ${e.seat} ${e.accepted ? "accepts" : "declines"} ${nameOf(e.cardDefId)}'s ${e.kind.replace(/_/g, " ")}`,
         );
         break;
       case "game_over":

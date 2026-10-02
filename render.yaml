@@ -17,6 +17,11 @@ envVarGroups:
       # Match-result ingest header (game-server → API).
       - key: DUEL_INGEST_SECRET
         sync: false
+  - name: optcg-analyst-shared
+    envVars:
+      # Lets the Log Pose service read full match replays from the API (set once, same on both).
+      - key: ANALYST_SERVICE_SECRET
+        sync: false
 
 services:
   - type: web
@@ -35,6 +40,10 @@ services:
         - render.yaml
     envVars:
       - fromGroup: optcg-duel-shared
+      - fromGroup: optcg-analyst-shared
+      # Public URL of optcg-analyst, for personal connector links made in duel-web Settings.
+      - key: ANALYST_PUBLIC_URL
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: SESSION_SECRET
@@ -115,7 +124,8 @@ services:
         value: info
 
   # Log Pose: deck analyst tools for Claude, served over MCP (Claude custom connector).
-  # Connector URL: https://<this service>.onrender.com/mcp/<ANALYST_CONNECTOR_KEY>
+  # Connector URL: https://<this service>.onrender.com/mcp/<ANALYST_CONNECTOR_KEY>,
+  # or a personal https://<this service>.onrender.com/mcp/u/<token> link from duel-web Settings.
   - type: web
     name: optcg-analyst
     runtime: node
@@ -123,17 +133,18 @@ services:
     plan: free
     autoDeploy: true
     healthCheckPath: /health
-    buildCommand: npm ci --workspace=@optcg/deck-analytics --workspace=@optcg/analyst
+    buildCommand: npm ci --workspace=@optcg/rules --workspace=@optcg/deck-analytics --workspace=@optcg/analyst
     startCommand: npm run start -w @optcg/analyst
     buildFilter:
       paths:
         - analyst/**
         - packages/deck-analytics/**
-        - packages/rules/src/cards/**
+        - packages/rules/**
         - package.json
         - package-lock.json
         - render.yaml
     envVars:
+      - fromGroup: optcg-analyst-shared
       - key: NODE_VERSION
         value: "22"
       - key: NODE_ENV

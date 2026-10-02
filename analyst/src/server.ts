@@ -7,6 +7,7 @@ import { z } from "zod";
 import { analyzeDeck, deckDrawOdds, describeDeck, rawDrawOdds } from "./analysis";
 import type { Catalog, CardRow } from "./catalog";
 import { exportDeck, resolveDeck } from "./decks";
+import { listMyDecks, listMyMatches, reviewMatch, type PlannerApi } from "./matches";
 import { searchCards } from "./search";
 
 export const INSTRUCTIONS = `You are Log Pose, a One Piece Card Game deck analyst for the OPTCG Deck Planner.
@@ -19,6 +20,12 @@ Ground rules:
 - Decks can be pasted as text (OPTCGSim "4xOP01-006" lines, Limitless "4 OP01-006", most "qty + card number" lists) or given as a deck planner share link. When a user mentions a deck, load it first with analyze_deck.
 - Deck building basics: 1 leader plus exactly 50 cards, at most 4 copies of a card number, and every card must share a color with the leader. Some leaders add their own deck rules; analyze_deck checks them.
 - When you suggest changes, list them as +N / -N lines with card numbers so they are easy to apply, and offer export_deck to produce an OPTCGSim list.`;
+
+const PERSONAL_INSTRUCTIONS = `
+
+This is the player's personal link, so you can also see their own games and decks:
+- list_my_decks lists their deck planner decks; pass a deck's cards to analyze_deck.
+- list_my_matches lists their recent duels (leaders, result, turns). review_match replays one game turn by turn from their seat. Review it like a coach: the turns that decided the game, misplays and better lines, and what the opponent's deck showed. You never see the opponent's hidden cards, so don't guess them as fact.`;
 
 const cardColors = z.enum(["red", "green", "blue", "purple", "black", "yellow"]);
 
@@ -51,8 +58,14 @@ const failure = (err: unknown) => ({
   content: [{ type: "text" as const, text: err instanceof Error ? err.message : String(err) }],
 });
 
-export function createServer(catalog: Catalog, fetchImpl?: typeof fetch): McpServer {
-  const server = new McpServer({ name: "log-pose", version: "0.1.0" }, { instructions: INSTRUCTIONS });
+/** The signed-in player behind a personal connector link. */
+export type PersonalContext = { api: PlannerApi; token: string };
+
+export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, personal?: PersonalContext): McpServer {
+  const server = new McpServer(
+    { name: "log-pose", version: "0.1.0" },
+    { instructions: personal ? INSTRUCTIONS + PERSONAL_INSTRUCTIONS : INSTRUCTIONS },
+  );
   const readOnly = { readOnlyHint: true, openWorldHint: false } as const;
 
   server.registerTool(
@@ -203,5 +216,69 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch): McpSer
     },
   );
 
+  if (personal) registerPersonalTools(server, personal);
   return server;
+}
+
+function registerPersonalTools(server: McpServer, { api, token }: PersonalContext) {
+  const readOnly = { readOnlyHint: true, openWorldHint: false } as const;
+
+  server.registerTool(
+    "list_my_decks",
+    {
+      title: "List my decks",
+      description: "The player's own decks from the deck planner: name, leader and cards. Pass a deck's leaderId and cards to analyze_deck.",
+      inputSchema: {},
+      annotations: readOnly,
+    },
+    async () => {
+      try {
+        return json({ decks: await listMyDecks(api, token) });
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "list_my_matches",
+    {
+      title: "List my matches",
+      description:
+        "The player's recent duels in the duel app, newest first: both leaders, won or lost, how it ended, turns, rating change, and whether a replay was kept (has_replay).",
+      inputSchema: { limit: z.number().int().min(1).max(100).optional().describe("Default 20") },
+      annotations: readOnly,
+    },
+    async ({ limit }) => {
+      try {
+        return json({ matches: await listMyMatches(api, token, limit) });
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "review_match",
+    {
+      title: "Review match",
+      description:
+        "Replay one of the player's duels (a match_id from list_my_matches with has_replay) and return a turn-by-turn log from their seat, " +
+        "their opening hand, the result and the final board. Long games are cut at maxLines; use fromTurn/toTurn to read a stretch.",
+      inputSchema: {
+        matchId: z.string().max(80),
+        fromTurn: z.number().int().min(1).max(200).optional(),
+        toTurn: z.number().int().min(1).max(200).optional(),
+        maxLines: z.number().int().min(20).max(1000).optional().describe("Default 400"),
+      },
+      annotations: readOnly,
+    },
+    async ({ matchId, ...opts }) => {
+      try {
+        return json(await reviewMatch(api, token, matchId, opts));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
 }

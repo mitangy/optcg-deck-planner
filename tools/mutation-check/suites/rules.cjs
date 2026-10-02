@@ -309,5 +309,8 @@ module.exports = {
     {"id": "pending-choice-not-blocking", "file": "packages/rules/src/engine/intents.ts", "from": "  if (!idle(state)) return err(\"PENDING\", \"Resolve the pending effect first\");\n", "to": "", "kills": ["blocks every other action until the choice is answered"]},
     // The defender's own-hand view rows carry the live Counter (counterOf), not the printed one
     { id: "view-hand-counter-printed", file: "packages/rules/src/engine/views.ts", from: "if (defending && def.type === \"character\") row.counter = counterOf(state, seat, c);", to: "if (defending && def.type === \"character\") row.counter = def.counter ?? 0;", kills: ["shows the defender the live +2000 hand Counter, not the printed +1000"] },
+    // match replays
+    { id: "replay-divergence-ignored", file: "packages/rules/src/matchReplay.ts", from: "    if (!result.ok) {\n      throw new Error(", to: "    if (!result.ok) {\n      return;\n      throw new Error(", kills: ["stops with the intent's index when a recorded move is no longer legal"] },
+    { id: "describe-hidden-card-unknown", file: "packages/rules/src/describeEvents.ts", from: "  return id === \"HIDDEN\" ? \"a hidden card\" : getCardDef(id).name;", to: "  return getCardDef(id).name;", kills: ["narrates cards a seat can't see as hidden"] },
   ],
 };

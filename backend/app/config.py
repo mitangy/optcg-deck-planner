@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     game_token_secret: str = ""
     # Game-server → API match ingest header secret.
     duel_ingest_secret: str = "dev-duel-ingest"
+    # Log Pose analyst service: its public URL (for personal connector links) and the
+    # shared secret it sends to read full match replays. Replays stay closed when unset.
+    analyst_public_url: str = ""
+    analyst_service_secret: str = ""
     # Extra CORS origins for Expo / duel-web (comma-separated).
     duel_cors_origins: str = (
         "http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,"

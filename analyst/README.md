@@ -14,6 +14,14 @@ Design doc: https://claude.ai/artifact/DHEmpEwqp9UD1btA2BN5Rv
 | `draw_odds` | Exact odds of seeing at least N hits by each turn, going first or second, with or without a mulligan. |
 | `export_deck` | Deck list text for OPTCGSim or Limitless. |
 
+A personal link (below) adds three more:
+
+| Tool | What it does |
+|------|--------------|
+| `list_my_decks` | Your deck planner decks, ready to pass to `analyze_deck`. |
+| `list_my_matches` | Your recent duels: both leaders, result, how it ended, turns, rating change, and whether a replay was kept. |
+| `review_match` | Re-runs one of your games in the duel engine and returns a turn-by-turn log from your seat, your opening hand, the result and the final board. The opponent's face-down cards stay hidden. |
+
 The server's instructions tell Claude to take card facts and numbers from these tools and to treat matchup opinions as its own judgement.
 
 ## Add it to Claude
@@ -22,6 +30,12 @@ The server's instructions tell Claude to take card facts and numbers from these 
 2. In the Render dashboard, copy the generated `ANALYST_CONNECTOR_KEY`.
 3. In Claude, open Settings, then Connectors, and add a custom connector with the URL `https://<service>.onrender.com/mcp/<ANALYST_CONNECTOR_KEY>`.
 4. In a chat, turn the connector on and paste a deck or a share link: "Review this deck: …".
+
+### Personal link (your games and decks)
+
+In the duel app, open Settings and make a Log Pose link. It looks like `https://<service>.onrender.com/mcp/u/<token>`; add it as a custom connector instead of the keyed URL. Making a new link stops the old one, and you can revoke it there too. The API keeps only a hash of the token.
+
+This needs `ANALYST_PUBLIC_URL` on `optcg-api` and the same `ANALYST_SERVICE_SECRET` on both services (env group `optcg-analyst-shared`). Full replays are only served to a request carrying both the player's token and that secret.
 
 The key in the path is the only access control, so treat the URL like a password. Rotate it by changing the env var. The tools only read public card data and public share links.
 
