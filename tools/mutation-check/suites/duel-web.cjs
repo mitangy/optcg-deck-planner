@@ -5,6 +5,9 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // legal footer: hidden during a match, shown on the other pages
+    { id: "site-footer-during-match", file: `${src}/siteFooter.ts`, from: "  return !NO_FOOTER.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return true;", kills: ["stays out of the way during a match (#245)"] },
+    { id: "site-footer-nowhere", file: `${src}/siteFooter.ts`, from: "  return !NO_FOOTER.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return !NO_FOOTER.some((p) => pathname.startsWith(p.slice(0, 2)));", kills: ["shows on the lobby, decks, settings and legal pages (#245)"] },
     // analytics URL redaction
     { id: "analytics-keeps-query-and-hash", file: "duel-web/src/analytics.ts", from: "  return `${parsed.origin}${parsed.pathname}`;", to: "  return url;", kills: ["drops invite codes and auth tokens"] },
     { id: "card-report-untrimmed", file: "duel-web/src/cards/cardReport.ts", from: "  const len = description.trim().length;", to: "  const len = description.length;", kills: ["refuses a padded description that is too short"] },
@@ -548,6 +551,8 @@ module.exports = {
     { id: "mode-auto-ignores-device", file: `${src}/theme.ts`, from: "if (mode === \"system\") return deviceLight ? \"light\" : \"dark\";", to: "if (mode === \"system\") return \"dark\";", kills: ["Auto mode follows the device's light or dark setting"] },
     { id: "mode-unknown-kept", file: `${src}/settings.ts`, from: "  if (!COLOR_MODES.includes(next.colorMode)) next.colorMode = DEFAULTS.colorMode;\n", to: "", kills: ["replaces a stored colour mode this build doesn't know with dark"] },
     { id: "mode-device-only", file: `${src}/settings.ts`, from: "  \"devUserKey\",\n];", to: "  \"devUserKey\",\n  \"colorMode\",\n];", kills: ["takes the light or dark mode saved to the account on another device"] },
+    // deck stats in the editor (#243)
+    { id: "deck-stats-cards-distinct", file: `${src}/decks/DeckStatsSection.tsx`, from: "copies.set(id, (copies.get(id) ?? 0) + 1);", to: "copies.set(id, 1);", kills: ["turns the editor's one-id-per-copy list into copies per card"] },
     // match history rows
     { id: "history-reason-blames-wrong-side", file: matchRowFile, from: "`${m.won ? \"Opponent\" : \"You\"} ${reason}`", to: "`${m.won ? \"You\" : \"Opponent\"} ${reason}`", kills: ["says who conceded, left or took the last hit from your side"] },
     { id: "history-outcome-inverted", file: matchRowFile, from: "    outcome: m.won ? \"Won\" : \"Lost\",", to: "    outcome: \"Won\",", kills: ["says who conceded, left or took the last hit from your side"] },

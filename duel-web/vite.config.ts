@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -44,6 +45,15 @@ export default defineConfig(() => {
   process.env.VITE_GIT_SHA = gitSha;
   return {
     plugins: [react(), versionFile(gitSha, builtAt)],
+    resolve: {
+      // Deck stats, odds and build hints plus the legal footer and pages, shared with the planner; see packages/.
+      alias: [
+        { find: /^@optcg\/deck-analytics/, replacement: fileURLToPath(new URL("../packages/deck-analytics/src", import.meta.url)) },
+        { find: /^@optcg\/site-legal/, replacement: fileURLToPath(new URL("../packages/site-legal/src", import.meta.url)) },
+      ],
+      // Package sources sit outside this app, so pin React to this app's copy.
+      dedupe: ["react", "react-dom"],
+    },
     define: {
       "import.meta.env.VITE_GIT_SHA": JSON.stringify(gitSha),
       "import.meta.env.VITE_BUILD_TIME": JSON.stringify(builtAt),

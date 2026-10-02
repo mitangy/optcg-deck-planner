@@ -44,8 +44,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     resolve: {
-      // Shared deck analytics (stats, odds, hints) are compiled from source; see packages/deck-analytics.
-      alias: [{ find: /^@optcg\/deck-analytics/, replacement: fileURLToPath(new URL("../packages/deck-analytics/src", import.meta.url)) }],
+      // Shared deck analytics and the legal footer / pages are compiled from source; see packages/.
+      alias: [
+        { find: /^@optcg\/deck-analytics/, replacement: fileURLToPath(new URL("../packages/deck-analytics/src", import.meta.url)) },
+        { find: /^@optcg\/site-legal/, replacement: fileURLToPath(new URL("../packages/site-legal/src", import.meta.url)) },
+      ],
       // Package sources sit outside this app, so pin React to this app's copy.
       dedupe: ["react", "react-dom"],
     },

@@ -18,12 +18,14 @@ import {
   removeAllCopiesFromDeck,
   removeCardFromDeck,
 } from "../decks/editDeck";
+import { DeckStatsSection } from "../decks/DeckStatsSection";
 import { groupDeckStacks } from "../decks/groupStacks";
 import {
   getSavedDeck,
   setDeckArtPref,
   type SavedDeck,
 } from "../decks/storage";
+import { useDuelSettings } from "../settings";
 
 const ATTRIBUTE_OPTIONS = [
   "Strike",
@@ -199,6 +201,7 @@ export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged, sideTop }: P
   const [rush, setRush] = useState<"" | "yes" | "no">("");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [inspectDefId, setInspectDefId] = useState<string | null>(null);
+  const { deckStats } = useDuelSettings();
   // Desktop opens the search beside the deck; phones keep it folded. Only the
   // first render decides, so resizing never snaps it open or shut.
   const [addOpen, setAddOpen] = useState(
@@ -305,6 +308,7 @@ export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged, sideTop }: P
     <div className="deck-editor-layout">
       <aside className="deck-editor-side">
         {sideTop}
+        {deckStats ? <DeckStatsSection deck={currentDeck} /> : null}
         <details
           className="deck-config-section deck-collapsible deck-add-cards"
           aria-label="Add cards"
