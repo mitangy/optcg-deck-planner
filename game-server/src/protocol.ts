@@ -6,6 +6,9 @@ import type { GameEvent, Intent, Seat } from "@optcg/rules";
 
 export const PROTOCOL_VERSION = 5 as const;
 
+/** Ranked games share one 15 minute clock for the whole game. */
+export const RANKED_MATCH_SECONDS = 15 * 60;
+
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
 export type DuelJoinOptions = {
@@ -35,7 +38,7 @@ export type DuelCreateOptions = {
   autoSkipMulligan?: boolean;
   players?: [PlayerDeckWire, PlayerDeckWire];
   /**
-   * Optional clocks. Ranked queue always forces turnSeconds=30.
+   * Optional clocks. Ranked queue always forces a 15 minute match clock and no turn clock.
    * Omit / 0 = disabled for that clock.
    */
   timer?: {
@@ -286,9 +289,11 @@ export function parseCreateOptions(raw: unknown): {
   if (turnSeconds === 0) turnSeconds = null;
   if (matchSeconds === 0) matchSeconds = null;
   if (seatSeconds === 0) seatSeconds = null;
-  // Ranked always enforces 30s player turns (match clock remains optional).
+  // Ranked always enforces one 15 minute clock for the whole game, with no per-turn limit.
   if (ranked) {
-    turnSeconds = 30;
+    turnSeconds = null;
+    matchSeconds = RANKED_MATCH_SECONDS;
+    seatSeconds = null;
   }
   return {
     protocolVersion: PROTOCOL_VERSION,
