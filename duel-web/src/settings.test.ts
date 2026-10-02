@@ -165,12 +165,12 @@ describe("hand, one-tap and text size settings", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps the hand open for a player who saved Keep hand open (#PR_A)", () => {
+  it("keeps the hand open for a player who saved Keep hand open (#247)", () => {
     stubStored({ keepHandOpen: true });
     expect(loadSettings().keepHandOpen).toBe(true);
   });
 
-  it("keeps a stored text size and replaces an unknown one with medium (#PR_A)", () => {
+  it("keeps a stored text size and replaces an unknown one with medium (#247)", () => {
     stubStored({ textSize: "xlarge" });
     expect(loadSettings().textSize).toBe("xlarge");
     stubStored({ textSize: "huge" });
