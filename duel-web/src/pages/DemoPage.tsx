@@ -478,6 +478,22 @@ function withRestedField(base: PlayerView, params: URLSearchParams): PlayerView 
 }
 
 /**
+ * `?dons`: attaches 6 / 1 / 2 / 5 DON!! to the leader and first Characters of
+ * both mats (pair with `?rest=2` for rested cards), to check the DON!! drawn
+ * under a card.
+ */
+function withAttachedDon(base: PlayerView): PlayerView {
+  const counts = [1, 2, 5, 8];
+  const give = (c: CardView, n: number): CardView => ({ ...c, attachedDonCount: n });
+  const side = <T extends { leader: CardView; characters: CardView[] }>(s: T): T => ({
+    ...s,
+    leader: give(s.leader, 6),
+    characters: s.characters.map((c, i) => (counts[i] ? give(c, counts[i]) : c)),
+  });
+  return { ...base, you: side(base.you), opponent: side(base.opponent) };
+}
+
+/**
  * `?statuses`: stacks several status icons on both leaders and a few
  * Characters (one buffed + DON!!, one rested), to check the badge corner
  * against the power / DON!! stack and the name caption.
@@ -568,8 +584,9 @@ export function DemoPage() {
     params,
   );
   const field = withRestedField(params.has("full") ? withFullBoard(base) : base, params);
+  const withStatuses = params.has("statuses") ? withManyStatuses(field) : field;
   const board = withBattleDrag(
-    params.has("statuses") ? withManyStatuses(field) : field,
+    params.has("dons") ? withAttachedDon(withStatuses) : withStatuses,
     params,
   );
   const withTurn: PlayerView = params.has("oppturn") ? { ...board, activeSeat: 1 } : board;

@@ -2262,7 +2262,8 @@ img.zone-pile-face {
 
 .card-tile {
   position: relative;
-  border-radius: 7px;
+  --tile-r: 7px;
+  border-radius: var(--tile-r);
   border: 2px solid #2a3544;
   overflow: hidden;
   background: #0e1620;
@@ -4531,4 +4532,75 @@ details.deck-config-section.deck-collapsible {
 
 .duel-deck-stats .dh-tray {
   margin-bottom: 0.25rem;
+}
+
+/* —— DON!! under a card ——
+   Attached DON!! cards peek out from beneath a Leader / Character, fanned down
+   and to the right (up and to the left on the opponent's mat, which is turned
+   180 degrees). The layers are children of the tile but sit behind it
+   (isolation + z-index -1) and are clipped to the L-shape outside the card's
+   own rectangle, so they never repaint the card's border. A tile with DON!!
+   under it gives up overflow: hidden, so the art and caption round their own
+   corners. Pointer events pass through: they are decoration; the numeric
+   count stays in the DON!! badge. */
+.card-tile.has-don-under {
+  overflow: visible;
+  isolation: isolate;
+}
+
+.card-tile.has-don-under > img,
+.card-tile.has-don-under > .card-fallback {
+  border-radius: max(0px, calc(var(--tile-r) - 1px)) max(0px, calc(var(--tile-r) - 1px)) 0 0;
+}
+
+.card-tile.has-don-under > .card-caption {
+  border-radius: 0 0 max(0px, calc(var(--tile-r) - 1px)) max(0px, calc(var(--tile-r) - 1px));
+}
+
+.don-under {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Turned with the mat, so the DON!! art reads upside down like it would across the table. */
+.side-opp .don-under {
+  transform: rotate(180deg);
+}
+
+.don-under-layer {
+  position: absolute;
+  inset: 0;
+  transform: translate(var(--dx), var(--dy));
+  clip-path: polygon(
+    calc(100% - var(--dx)) 0,
+    100% 0,
+    100% 100%,
+    0 100%,
+    0 calc(100% - var(--dy)),
+    calc(100% - var(--dx)) calc(100% - var(--dy))
+  );
+  border-radius: var(--tile-r);
+  background-color: #e9ece8;
+  background-image: url("/cards/DON.jpg");
+  /* Zoomed so the slivers that peek out show the white burst, not just the
+     card's black frame. */
+  background-size: 150% 150%;
+  background-position: 70% 55%;
+  box-shadow: 0 0 0 1px #2f7f6f, 3px 4px 8px rgba(0, 0, 0, 0.45);
+}
+
+/* Portrait phones collapse the opponent's piles into a count row right above
+   their back row, so their DON!! fans down like yours instead of up over it. */
+@media (max-width: 899px) and (orientation: portrait) {
+  .side-opp .don-under {
+    transform: none;
+  }
+}
+
+/* Picker tiles are tiny and sit right on top of their caption: the "×n" badge
+   carries the count there, so skip the peeking cards. */
+.choice-option .don-under {
+  display: none;
 }

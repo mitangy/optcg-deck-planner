@@ -306,7 +306,8 @@
   max-width: none;
   aspect-ratio: auto;
   margin: 0;
-  border-radius: calc(var(--c) * 0.07);
+  --tile-r: calc(var(--c) * 0.07);
+  border-radius: var(--tile-r);
 }
 
 .arena .side-field .card-tile {
@@ -468,9 +469,9 @@
   justify-content: center;
 }
 
-/* Bottom-row piles sit in a shorter row than the card rows. */
-.arena .side-field .zone-don-deck .zone-pile-stack,
-.arena .side-field .zone-trash .zone-pile-stack {
+/* The DON!! deck sits in the shorter bottom row, so it is a little smaller. The
+   trash is the same size as the Deck pile (the base .zone-pile-stack rule). */
+.arena .side-field .zone-don-deck .zone-pile-stack {
   width: calc(var(--c) * 0.64);
   height: calc(var(--c) * 0.88);
 }
@@ -617,8 +618,7 @@
   padding: 0;
 }
 
-.arena.arena-wide:not(.arena-lp) .side-field .zone-don-deck .zone-pile-stack,
-.arena.arena-wide:not(.arena-lp) .side-field .zone-trash .zone-pile-stack {
+.arena.arena-wide:not(.arena-lp) .side-field .zone-don-deck .zone-pile-stack {
   width: calc(var(--c) * 0.46);
   height: calc(var(--c) * 0.64);
 }
@@ -2157,13 +2157,13 @@
     display: none;
   }
 
-  .arena .side-field .zone-deck .zone-pile-stack {
+  .arena .side-field .zone-deck .zone-pile-stack,
+  .arena .side-field .zone-trash .zone-pile-stack {
     width: calc(var(--c) * 0.7);
     height: calc(var(--c) * 0.96);
   }
 
-  .arena .side-field .zone-don-deck .zone-pile-stack,
-  .arena .side-field .zone-trash .zone-pile-stack {
+  .arena .side-field .zone-don-deck .zone-pile-stack {
     width: calc(var(--c) * 0.54);
     height: calc(var(--c) * 0.72);
   }
@@ -3882,4 +3882,22 @@
 .arena-pending .arena-left,
 .arena-pending .arena-rail {
   opacity: 0;
+}
+
+/* —— Trash: same pile size as the Deck, caption overlaid on its face ——
+   The trash sits in the short bottom row, so a full Deck-sized stack plus a
+   caption line underneath would spill into the Deck pile above it (or off the
+   mat). The one-line chip rides on the bottom of the stack instead, so the pile
+   is exactly as tall as its face. */
+.arena .side-field .zone-trash .zone-pile {
+  position: relative;
+}
+
+.arena .side-field .zone-trash .zone-pile-meta {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--c) * 0.03);
+  transform: translateX(-50%);
+  max-width: 100%;
+  pointer-events: none;
 }
