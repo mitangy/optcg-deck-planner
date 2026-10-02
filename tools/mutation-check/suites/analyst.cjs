@@ -1,10 +1,17 @@
-/** analyst mutations (analyst/src, vitest): Log Pose connector tools (deck parsing, card search, analysis). */
+/** analyst mutations (analyst/src, vitest): Log Pose connector tools (deck parsing, card search, analysis, official rules, playbook). */
 const decks = "analyst/src/decks.ts";
 const search = "analyst/src/search.ts";
 const catalog = "analyst/src/catalog.ts";
 const analysis = "analyst/src/analysis.ts";
 const auth = "analyst/src/auth.ts";
 const matches = "analyst/src/matches.ts";
+const rules = "analyst/src/official/rules.ts";
+const qa = "analyst/src/official/qa.ts";
+const banlist = "analyst/src/official/banlist.ts";
+const errata = "analyst/src/official/errata.ts";
+const library = "analyst/src/official/library.ts";
+const knowledge = "analyst/src/knowledge.ts";
+const playbook = "analyst/src/playbook.ts";
 module.exports = {
   cwd: "analyst",
   runner: "vitest",
@@ -40,5 +47,29 @@ module.exports = {
     { id: "review-service-secret-not-sent", file: matches, from: "  if (service) headers[\"X-Analyst-Service\"] = api.serviceSecret;\n", to: "", kills: ["asks the planner for a replay with the player's token and the service secret"] },
     { id: "review-unconfigured-still-calls", file: matches, from: "  if (!api.serviceSecret) throw new Error(\"Match review isn't set up on this server (ANALYST_SERVICE_SECRET is unset).\");\n", to: "", kills: ["asks the planner for a replay with the player's token and the service secret"] },
     { id: "token-any-error-means-dead", file: matches, from: "    if (err instanceof PlannerApiError && err.status === 401) return false;", to: "    return false;", kills: ["treats only a 401 as a dead personal link"] },
+    // official rules material (#246)
+    { id: "rules-any-numbered-line-opens-chapter", file: rules, from: " : Number(id) === chapter + 1 && /^[A-Z][^.]{0,60}$/.test(m[2]!.trim());", to: " : Number(id) === chapter + 1;", kills: ["keeps wrapped lines in their section"] },
+    { id: "rules-page-numbers-kept", file: rules, from: "if (!line || PAGE_NUMBER.test(line) || /\\.{5,}/.test(line)) continue;", to: "if (!line || /\\.{5,}/.test(line)) continue;", kills: ["keeps wrapped lines in their section"] },
+    { id: "rules-no-heading-boost", file: rules, from: "      if (text.replace(/[[\\]]/g, \"\").trim() === phrase.replace(/[[\\]]/g, \"\")) score += terms.length + 1;\n", to: "", kills: ["ranks the heading that names a keyword"] },
+    { id: "qa-labels-not-shifted", file: qa, from: "    for (const it of labels) rowAt(it.y, line).label.push(it);", to: "    for (const it of labels) rowAt(it.y).label.push(it);", kills: ["matches each question and answer to its card"] },
+    { id: "qa-answers-to-row-below", file: qa, from: "      for (let n = rows.length - 1; n >= 0; n--) if (y <= rows[n]!.top + shift + 2) return rows[n]!;", to: "      for (let n = 0; n < rows.length; n++) if (y >= rows[n]!.top - shift - 2) return rows[n]!;", kills: ["matches each question and answer to its card"] },
+    { id: "qa-page-break-row-split", file: qa, from: "        if (n === 0 && prev) {", to: "        if (false) {", kills: ["joins a row that runs over a page break"] },
+    { id: "qa-set-range-st01-st04", file: qa, from: "    const part = raw.replace(/^(op|eb|st|prb)(-?\\d+)-\\1-?(\\d+)$/i, \"$1$2-$3\");", to: "    const part = raw;", kills: ["reads which sets each FAQ file covers"] },
+    { id: "ban-upcoming-never-applies", file: banlist, from: "  for (const change of list.upcoming.filter((u) => u.effective <= today)) {", to: "  for (const change of list.upcoming.filter((u) => false)) {", kills: ["keeps announced bans upcoming until their date"] },
+    { id: "ban-upcoming-applies-early", file: banlist, from: "  for (const change of list.upcoming.filter((u) => u.effective <= today)) {", to: "  for (const change of list.upcoming) {", kills: ["keeps announced bans upcoming until their date"] },
+    { id: "ban-pairs-merged", file: banlist, from: "if (category === \"pair\" && b.tag === \"ul\" && found.length === 2) list.bannedPairs.push([found[0]!, found[1]!]);", to: "if (category === \"pair\") list.banned.push(...found);", kills: ["reads each banned pair from its own list"] },
+    { id: "ban-restricted-one-copy-flagged", file: banlist, from: "if ((copies.get(id) ?? 0) > 1) problems.push", to: "if ((copies.get(id) ?? 0) >= 1) problems.push", kills: ["flags banned cards, a second restricted copy"] },
+    { id: "ban-pair-one-half-flagged", file: banlist, from: "if (copies.has(a) && copies.has(b)) problems.push", to: "if (copies.has(a) || copies.has(b)) problems.push", kills: ["flags banned cards, a second restricted copy"] },
+    { id: "errata-heading-date-ignored", file: errata, from: "date: ownDate ?? date,", to: "date,", kills: ["takes the date from the card heading"] },
+    { id: "errata-alt-art-repeats", file: errata, from: "if (!after || out.some((e) => e.cardId === id[1] && e.after === after)) continue;", to: "if (!after) continue;", kills: ["skips alt-art repeats"] },
+    { id: "library-no-stale-fallback", file: library, from: "          if (slot.value !== undefined) return slot.value;\n", to: "", kills: ["serves the last good copy when a refresh fails"] },
+    { id: "library-never-refreshes", file: library, from: "const fresh = slot.value !== undefined && this.now().getTime() - slot.at < this.ttlMs;", to: "const fresh = slot.value !== undefined;", kills: ["serves the last good copy when a refresh fails"] },
+    { id: "rulings-upcoming-ban-hidden", file: knowledge, from: "  const soon = list.upcoming.find((u) => u.banned.includes(id) || u.restricted.includes(id));", to: "  const soon = undefined as BanList[\"upcoming\"][number] | undefined;", kills: ["ban status including announced bans"] },
+    { id: "rulings-mentions-include-own", file: knowledge, from: "faq?.entries.filter((e) => e.cardId !== id && `${e.question} ${e.answer}`.includes(id))", to: "faq?.entries.filter((e) => `${e.cardId} ${e.question} ${e.answer}`.includes(id))", kills: ["rulings that mention it"] },
+    { id: "deck-ban-upcoming-dropped", file: knowledge, from: "    const next: BanList = { ...list, banned: [...list.banned, ...u.banned],", to: "    const next: BanList = { ...list, banned: [...list.banned],", kills: ["lists ban problems now and the ones an announced change will add"] },
+    { id: "playbook-opponent-side-wrong-key", file: playbook, from: "      fromOpponentSide: leader ? (opponentNote?.matchups[leader] ?? null) : null,", to: "      fromOpponentSide: opponentNote?.matchups[opponent!] ?? null,", kills: ["gives both sides of a matchup"] },
+    { id: "playbook-stale-never", file: playbook, from: "    stale: Number.isFinite(written) && Number.isFinite(current) && written < current,", to: "    stale: false,", kills: ["flags notes older than the current set"] },
+    { id: "playbook-newest-counts-previews", file: playbook, from: "  const newest = Math.max(0, ...[...counts].filter(([, c]) => c >= minCards).map(([n]) => n));", to: "  const newest = Math.max(0, ...[...counts].map(([n]) => n));", kills: ["takes the newest booster with a full card list"] },
+    { id: "playbook-matchups-by-heading-text", file: playbook, from: "      if (id) matchups[id] = { heading: subHeading,", to: "      if (id) matchups[subHeading] = { heading: subHeading,", kills: ["reads front matter, sections and matchups"] },
   ],
 };

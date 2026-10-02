@@ -7,7 +7,10 @@ import { z } from "zod";
 import { analyzeDeck, deckDrawOdds, describeDeck, rawDrawOdds } from "./analysis";
 import type { Catalog, CardRow } from "./catalog";
 import { exportDeck, resolveDeck } from "./decks";
+import { banListView, cardRulings, deckBanCheck, rulesLookup } from "./knowledge";
 import { listMyDecks, listMyMatches, reviewMatch, type PlannerApi } from "./matches";
+import type { OfficialLibrary } from "./official/library";
+import { newestFormat, queryPlaybook, type Playbook } from "./playbook";
 import { searchCards } from "./search";
 
 export const INSTRUCTIONS = `You are Log Pose, a One Piece Card Game deck analyst for the OPTCG Deck Planner.
@@ -18,7 +21,9 @@ Ground rules:
 - Numbers come from tools. Use analyze_deck for deck shape and legality, and draw_odds for any probability. Quote the numbers you were given; don't estimate them yourself.
 - Matchup opinions are your judgement. Say so, and say which cards or turns they hinge on. This server has no match statistics yet, so don't claim win rates.
 - Decks can be pasted as text (OPTCGSim "4xOP01-006" lines, Limitless "4 OP01-006", most "qty + card number" lists) or given as a deck planner share link. When a user mentions a deck, load it first with analyze_deck.
-- Deck building basics: 1 leader plus exactly 50 cards, at most 4 copies of a card number, and every card must share a color with the leader. Some leaders add their own deck rules; analyze_deck checks them.
+- Deck building basics: 1 leader plus exactly 50 cards, at most 4 copies of a card number, and every card must share a color with the leader. Some leaders add their own deck rules; analyze_deck checks them, and the official ban list (banned cards, restricted cards, banned pairs, and announced changes with their start date).
+- Rules questions: use rules_lookup and cite comprehensive rules section numbers. For how a specific card works or interacts, check card_rulings first: official Q&A answers and errata outrank your own reading of the text. Say when no official ruling covers the case.
+- Strategy: check playbook for the leader (and the matchup) before giving a game plan. Notes say which set they were written for and whether a player has reviewed them; mention it when a note is a draft or older than the current set, and don't present it as settled fact.
 - When you suggest changes, list them as +N / -N lines with card numbers so they are easy to apply, and offer export_deck to produce an OPTCGSim list.`;
 
 const PERSONAL_INSTRUCTIONS = `
@@ -61,7 +66,10 @@ const failure = (err: unknown) => ({
 /** The signed-in player behind a personal connector link. */
 export type PersonalContext = { api: PlannerApi; token: string };
 
-export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, personal?: PersonalContext): McpServer {
+/** Official rules material and the strategy playbook; tools that need them are left out without them. */
+export type Knowledge = { library?: OfficialLibrary; playbook?: Playbook };
+
+export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, personal?: PersonalContext, knowledge: Knowledge = {}): McpServer {
   const server = new McpServer(
     { name: "log-pose", version: "0.1.0" },
     { instructions: personal ? INSTRUCTIONS + PERSONAL_INSTRUCTIONS : INSTRUCTIONS },
@@ -155,7 +163,11 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
     },
     async (args) => {
       try {
-        return json(analyzeDeck(catalog, await resolveDeck(catalog, args, fetchImpl)));
+        const deck = await resolveDeck(catalog, args, fetchImpl);
+        const analysis = analyzeDeck(catalog, deck);
+        if (!knowledge.library) return json(analysis);
+        const banList = await deckBanCheck(knowledge.library, deck);
+        return json({ ...analysis, legal: analysis.legal && banList.problems.length === 0, banList });
       } catch (err) {
         return failure(err);
       }
@@ -216,8 +228,79 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
     },
   );
 
+  if (knowledge.library) registerOfficialTools(server, catalog, knowledge.library);
+  if (knowledge.playbook) registerPlaybook(server, catalog, knowledge.playbook);
   if (personal) registerPersonalTools(server, personal);
   return server;
+}
+
+function registerOfficialTools(server: McpServer, catalog: Catalog, library: OfficialLibrary) {
+  const official = { readOnlyHint: true, openWorldHint: true } as const;
+
+  server.registerTool(
+    "rules_lookup",
+    {
+      title: "Rules lookup",
+      description:
+        "Search the official ONE PIECE CARD GAME Comprehensive Rules by words (query) or read a numbered section with everything under it (section, e.g. 7-1 or 10-1-4). " +
+        "A query also returns matching official general rules Q&A. Read live from the official site.",
+      inputSchema: {
+        query: z.string().max(200).optional().describe("Words to find, e.g. 'blocker once per battle' or 'deck out'"),
+        section: z.string().max(20).optional().describe("Section number, e.g. 6-5-3 or 10-1-4"),
+        limit: z.number().int().min(1).max(15).optional().describe("Default 6"),
+      },
+      annotations: official,
+    },
+    async (args) => {
+      if (!args.query && !args.section) return failure(new Error("Give a query or a section number."));
+      return json(await rulesLookup(library, args));
+    },
+  );
+
+  server.registerTool(
+    "card_rulings",
+    {
+      title: "Card rulings",
+      description:
+        "Official rulings for cards: the Q&A answers from Bandai's FAQ for each card, rulings on other cards that mention it, any errata (before and after text), " +
+        "and whether it is banned, restricted, part of a banned pair, or about to be.",
+      inputSchema: { ids: z.array(z.string().max(20)).min(1).max(10).describe("Card numbers, e.g. OP14-020") },
+      annotations: official,
+    },
+    async ({ ids }) => json(await cardRulings(library, catalog, ids)),
+  );
+
+  server.registerTool(
+    "ban_list",
+    {
+      title: "Ban list",
+      description: "The official banned cards, restricted cards and banned pairs in force today, plus announced changes and the date they start.",
+      inputSchema: {},
+      annotations: official,
+    },
+    async () => json(await banListView(library, catalog)),
+  );
+}
+
+function registerPlaybook(server: McpServer, catalog: Catalog, playbook: Playbook) {
+  const currentFormat = newestFormat(catalog.cards.keys());
+  server.registerTool(
+    "playbook",
+    {
+      title: "Playbook",
+      description:
+        "Strategy notes from the Log Pose playbook. No arguments: the list of leaders with notes and the general principles. " +
+        "leader: that leader's game plan, key cards, mulligan, lines and cheese, and matchups. leader + opponent: both sides' notes on that matchup. " +
+        "card: note lines that mention the card. Each note has the set it was written for, a stale flag, and whether a player reviewed it.",
+      inputSchema: {
+        leader: z.string().max(20).optional().describe("Leader card number"),
+        opponent: z.string().max(20).optional().describe("Opponent's leader card number"),
+        card: z.string().max(20).optional().describe("Card number to find in the notes"),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async (args) => json(queryPlaybook(playbook, args, currentFormat)),
+  );
 }
 
 function registerPersonalTools(server: McpServer, { api, token }: PersonalContext) {
