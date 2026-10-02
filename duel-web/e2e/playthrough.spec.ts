@@ -53,8 +53,8 @@ async function candidates(page: Page): Promise<Candidate[]> {
       }
       return null;
     }
-    const dialog = document.querySelector(".float-layer:not(.float-layer-peek), [role=dialog][aria-label], .choice-prompt");
-    const buttonScopes = ".intent-bar, .ability-prompt, .choice-prompt, .float-layer, .defend-tray";
+    const dialog = document.querySelector(".float-layer:not(.float-layer-peek), [role=dialog][aria-label], .choice-prompt, .field-bar");
+    const buttonScopes = ".intent-bar, .ability-prompt, .choice-prompt, .field-bar, .float-layer, .defend-tray";
     const cardScopes =
       ".hand-fan-cards .card-tile, .hand-row-inner .card-tile, .rail-hand-cards .card-tile, .hand-dock-cards .card-tile, .side-field .card-tile[data-instance-id]";
     const els = [

@@ -13,7 +13,7 @@ const SCREENS = [
   "?statuses",
   "?over",
   "?undo=ask",
-  ...["don", "look", "satori", "rest", "select", "confirm", "order", "effects", "mode"].map((p) => `?prompt=${p}`),
+  ...["don", "look", "satori", "rest", "select", "restgrid", "selectgrid", "confirm", "order", "effects", "mode"].map((p) => `?prompt=${p}`),
   // Searches and effect ordering float by default; `?box` keeps the old pop-up.
   ...["look", "satori", "effects"].map((p) => `?box&prompt=${p}`),
 ];

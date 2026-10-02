@@ -215,6 +215,14 @@ function demoChoice(choice: NonNullable<PlayerView["pendingChoices"]>[number]): 
   };
 }
 
+/** Adds a trash card to a select request so it can't be answered on the board alone. */
+function withExtraOption(view: PlayerView): PlayerView {
+  const choice = view.pendingChoices![0]!;
+  const request = choice.request as Extract<NonNullable<typeof choice.request>, { type: "select" }>;
+  const options = [...request.options, { id: "o9", defId: "ST01-003", zone: "trash" as const, ownerSeat: 0 as const, eligible: true }];
+  return { ...view, pendingChoices: [{ ...choice, request: { ...request, options } }] };
+}
+
 /**
  * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|order|mode|effects`).
  * Searches and effect ordering float over the board; add `&box` to see the old pop-up.
@@ -317,6 +325,43 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
       ],
     },
   }),
+  // Same picks, but one of them is off the field, so the pop-up grid is used.
+  restgrid: withExtraOption(demoChoice({
+    id: "demo-restgrid",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP01-017",
+    optional: false,
+    prompt: "Effect — choose up to 1 card to rest.",
+    request: {
+      type: "select",
+      min: 0,
+      max: 1,
+      options: [
+        { id: "o0", defId: "ST01-003", zone: "character", ownerSeat: 0, instanceId: "y-c1", eligible: true },
+        { id: "o1", defId: "ST01-006", zone: "character", ownerSeat: 0, instanceId: "y-c2", eligible: true, rested: true },
+        { id: "o2", defId: "ST01-008", zone: "character", ownerSeat: 0, instanceId: "y-c3", eligible: true },
+        { id: "o3", defId: "ST01-001", zone: "leader", ownerSeat: 1, instanceId: "o-leader", eligible: true },
+      ],
+    },
+  })),
+  selectgrid: withExtraOption(demoChoice({
+    id: "demo-selectgrid",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP01-017",
+    optional: false,
+    prompt: "Nico Robin — choose up to 1 card to K.O.",
+    request: {
+      type: "select",
+      min: 0,
+      max: 1,
+      options: [
+        { id: "o0", defId: "OP09-086", zone: "character", ownerSeat: 1, instanceId: "o-c1", eligible: true },
+        { id: "o1", defId: "ST01-006", zone: "character", ownerSeat: 1, instanceId: "o-c2", eligible: true, rested: true },
+      ],
+    },
+  })),
   confirm: demoChoice({
     id: "demo-confirm",
     seat: 0,
