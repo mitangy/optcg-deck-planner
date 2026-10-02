@@ -407,6 +407,22 @@ class DuelMatch(Base):
     )
 
 
+class DuelMatchSeatLog(Base):
+    """One player's turn-by-turn log of a duel, as the game server saw it from their seat.
+
+    Built from the replay with the opponent's hidden cards hidden, so it is safe to
+    show that player (and only that player) in their match history.
+    """
+
+    __tablename__ = "duel_match_seat_logs"
+
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("duel_matches.match_id", ondelete="CASCADE"), primary_key=True
+    )
+    seat: Mapped[int] = mapped_column(Integer, primary_key=True)
+    log: Mapped[str] = mapped_column(Text)
+
+
 class DuelMatchLog(Base):
     """Full replay of one duel: seed, decks and every accepted intent, as JSON text.
 

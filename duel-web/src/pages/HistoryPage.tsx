@@ -67,19 +67,26 @@ export function HistoryPage() {
         {rows.length > 0 ? (
           <ol className="history-list">
             {rows.map((r) => (
-              <li key={r.id} className="history-row" data-outcome={r.outcome === "Won" ? "won" : "lost"}>
-                <span className="history-outcome">{r.outcome}</span>
-                <div className="history-main">
-                  <p className="history-leaders">
-                    <span>{r.yourLeader}</span>
-                    <span className="history-vs">vs</span>
-                    <span>{r.opponentLeader}</span>
-                  </p>
-                  <p className="history-meta">
-                    {[r.opponent, r.how, r.turns, r.when].filter(Boolean).join(" · ")}
-                  </p>
-                </div>
-                {r.bountyDelta ? <span className="history-bounty" title="Bounty change">{r.bountyDelta}</span> : null}
+              <li key={r.id}>
+                <Link
+                  to={`/history/${encodeURIComponent(r.id)}`}
+                  className="history-row history-row-link"
+                  data-outcome={r.outcome === "Won" ? "won" : "lost"}
+                >
+                  <span className="history-outcome">{r.outcome}</span>
+                  <div className="history-main">
+                    <p className="history-leaders">
+                      <span>{r.yourLeader}</span>
+                      <span className="history-vs">vs</span>
+                      <span>{r.opponentLeader}</span>
+                    </p>
+                    <p className="history-meta">
+                      {[r.opponent, r.how, r.turns, r.when].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                  {r.bountyDelta ? <span className="history-bounty" title="Bounty change">{r.bountyDelta}</span> : null}
+                  <span className="history-chevron" aria-hidden>›</span>
+                </Link>
               </li>
             ))}
           </ol>
@@ -87,8 +94,8 @@ export function HistoryPage() {
 
         {state.status === "ready" ? (
           <p className="field-hint history-hint">
-            Want a coach's take? Add your Log Pose link from <Link to="/settings">Settings</Link> to Claude and ask it
-            to review a game.
+            Tap a game to read it turn by turn. Want a coach's take? Add your Log Pose link from{" "}
+            <Link to="/settings">Settings</Link> to Claude and ask it to review a game.
           </p>
         ) : null}
       </div>
