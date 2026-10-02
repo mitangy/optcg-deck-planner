@@ -14,6 +14,7 @@ import {
   MATCH_REPLAY_SCHEMA,
   REGISTRY_HASH,
   RULES_VERSION,
+  seatLog,
   serializeMatch,
   skipMulligans,
   unsupportedCardsForDeck,
@@ -1590,7 +1591,19 @@ export class DuelRoom extends Room implements PresenceSource {
       seat1_leader_id: this.replay?.players[1].leaderId,
       turns: this.match?.turnNumber,
       replay: this.replay ? { ...this.replay, intents: [...this.replay.intents], end: { winner, reason } } : undefined,
+      seat_logs: this.seatLogs(),
     };
+  }
+
+  /** Each player's turn-by-turn log for their match history, with the opponent's hidden cards hidden. */
+  private seatLogs(): MatchResultPayload["seat_logs"] {
+    if (!this.replay) return undefined;
+    try {
+      return [seatLog(this.replay, 0), seatLog(this.replay, 1)];
+    } catch {
+      this.log("warn", "seat_log_failed", { matchId: this.matchId });
+      return undefined;
+    }
   }
 
   protected persistMatchResult(payload: MatchResultPayload): Promise<void> {

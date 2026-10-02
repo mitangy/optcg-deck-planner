@@ -1,0 +1,75 @@
+/**
+ * A finished game as one player saw it: the replay re-run, every event projected
+ * for that seat (the opponent's hand, deck and face-down cards stay hidden) and
+ * grouped by turn. This is what a player's match history shows; the full replay
+ * never leaves the server.
+ */
+import { projectGameEvents } from "./engine.js";
+import { replayMatch, type MatchReplay } from "./matchReplay.js";
+import type { CardDefId, GameEvent, InstanceId, MatchState, Seat } from "./types.js";
+
+export const SEAT_LOG_SCHEMA = 1;
+
+export interface SeatLogTurn {
+  /** The engine's turn number; 0 is the mulligan step when it was played. */
+  turn: number;
+  activeSeat: Seat;
+  events: GameEvent[];
+}
+
+export interface SeatLog {
+  schema: typeof SEAT_LOG_SCHEMA;
+  seat: Seat;
+  /** Your hand once mulligans were done. */
+  openingHand: CardDefId[];
+  turns: SeatLogTurn[];
+  /** Every Leader, Character and Stage that was on the board, so attackers and blockers can be named. */
+  boardCards: [InstanceId, CardDefId, Seat][];
+  /** Set when the engine could no longer replay the game; the log stops there. */
+  diverged?: string;
+}
+
+function indexBoard(state: MatchState, into: Map<InstanceId, [InstanceId, CardDefId, Seat]>) {
+  for (const seat of [0, 1] as Seat[]) {
+    const p = state.players[seat];
+    for (const c of [p.leader, ...p.characters, ...(p.stage ? [p.stage] : [])]) {
+      if (!into.has(c.id)) into.set(c.id, [c.id, c.defId, seat]);
+    }
+  }
+}
+
+export function seatLog(replay: MatchReplay, seat: Seat): SeatLog {
+  const opening = replayMatch({ ...replay, intents: [] });
+  const board = new Map<InstanceId, [InstanceId, CardDefId, Seat]>();
+  indexBoard(opening, board);
+  let openingHand = opening.phase === "mulligan" ? null : opening.players[seat].hand.map((c) => c.defId);
+  let current: SeatLogTurn = { turn: opening.turnNumber, activeSeat: opening.activeSeat, events: [] };
+  const turns: SeatLogTurn[] = [current];
+  let diverged: string | undefined;
+  try {
+    replayMatch(replay, (step) => {
+      for (const event of projectGameEvents(step.events, seat)) {
+        // The engine starts every turn (extra turns included) with a refresh phase and counts it.
+        if (event.type === "phase_changed" && event.phase === "refresh") {
+          current = { turn: current.turn + 1, activeSeat: event.activeSeat, events: [] };
+          turns.push(current);
+        }
+        current.events.push(event);
+      }
+      indexBoard(step.state, board);
+      if (openingHand === null && step.state.phase !== "mulligan") {
+        openingHand = step.state.players[seat].hand.map((c) => c.defId);
+      }
+    });
+  } catch (err) {
+    diverged = err instanceof Error ? err.message : String(err);
+  }
+  return {
+    schema: SEAT_LOG_SCHEMA,
+    seat,
+    openingHand: openingHand ?? opening.players[seat].hand.map((c) => c.defId),
+    turns: turns.filter((t) => t.events.length > 0),
+    boardCards: [...board.values()],
+    ...(diverged ? { diverged } : {}),
+  };
+}

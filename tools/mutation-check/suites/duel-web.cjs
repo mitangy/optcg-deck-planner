@@ -561,6 +561,9 @@ module.exports = {
     { id: "mode-device-only", file: `${src}/settings.ts`, from: "  \"devUserKey\",\n];", to: "  \"devUserKey\",\n  \"colorMode\",\n];", kills: ["takes the light or dark mode saved to the account on another device"] },
     // deck stats in the editor (#243)
     { id: "deck-stats-cards-distinct", file: `${src}/decks/DeckStatsSection.tsx`, from: "copies.set(id, (copies.get(id) ?? 0) + 1);", to: "copies.set(id, 1);", kills: ["turns the editor's one-id-per-copy list into copies per card"] },
+    // match page log
+    { id: "matchlog-turns-from-seat-0", file: "duel-web/src/history/matchLog.ts", from: "    const yours = t.activeSeat === log.seat;", to: "    const yours = t.activeSeat === 0;", kills: ["labels each turn from your seat (#252)"] },
+    { id: "matchlog-board-cards-ignored", file: "duel-web/src/history/matchLog.ts", from: "new Map(log.boardCards.map(([id, defId, seat]) => [id, { defId, seat }]))", to: "new Map()", kills: ["names the attacking card from the cards that were on the board (#252)"] },
     // Log Pose lessons + stats opt-out (#246)
     { id: "lesson-rows-no-status-order", file: "duel-web/src/history/lessonRow.ts", from: "    .sort((a, b) => ORDER[a.l.status] - ORDER[b.l.status] || a.i - b.i)\n", to: "", kills: ["puts drafts first and keeps newest first within each status"] },
     { id: "lesson-rows-oldest-first", file: "duel-web/src/history/lessonRow.ts", from: "ORDER[a.l.status] - ORDER[b.l.status] || a.i - b.i", to: "ORDER[a.l.status] - ORDER[b.l.status] || b.i - a.i", kills: ["puts drafts first and keeps newest first within each status"] },

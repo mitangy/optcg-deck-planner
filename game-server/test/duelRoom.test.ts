@@ -1026,7 +1026,7 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("the result sent to the backend carries leaders, turns, the replay and how it ended (#244)", async () => {
+  it("the result sent to the backend carries leaders, turns, the replay, each seat's log and how it ended (#244, #252)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 53,
@@ -1060,6 +1060,9 @@ describe("DuelRoom", () => {
     assert.deepEqual(payload.replay!.intents, replay!.intents);
     // The engine never saw the concession: replaying the intents alone leaves the game running.
     assert.equal(replayMatch(payload.replay!).winner, null);
+    // Each seat gets its own log of the same game, numbered like the room's turns.
+    assert.deepEqual(payload.seat_logs!.map((l) => l.seat), [0, 1]);
+    assert.equal(payload.seat_logs![0].turns.at(-1)!.turn, match.turnNumber);
 
     await c0.leave(true);
     await c1.leave(true);

@@ -1,0 +1,42 @@
+import { describe, expect, it } from "vitest";
+import { lookupCard } from "../cards/atlas";
+import type { SeatLogJson } from "./historyApi";
+import { matchLogTurns } from "./matchLog";
+
+const zoro = "OP01-001";
+const log: SeatLogJson = {
+  schema: 1,
+  seat: 1,
+  openingHand: [],
+  boardCards: [["c7", zoro, 0], ["L1", "OP05-060", 1]],
+  turns: [
+    { turn: 0, activeSeat: 0, events: [{ type: "mulligan_resolved", seat: 1, didMulligan: false }] },
+    { turn: 1, activeSeat: 0, events: [{ type: "phase_changed", phase: "refresh", activeSeat: 0 }, { type: "don_placed", seat: 0, count: 1 }] },
+    {
+      turn: 2,
+      activeSeat: 1,
+      events: [{ type: "drew", seat: 1, count: 1 }],
+    },
+    {
+      turn: 3,
+      activeSeat: 0,
+      events: [{ type: "attack_declared", seat: 0, attackerId: "c7", target: { kind: "leader", instanceId: "L1" }, attackerPower: 6000, defenderPower: 5000 }],
+    },
+  ],
+};
+
+describe("match page log", () => {
+  it("labels each turn from your seat (#252)", () => {
+    expect(matchLogTurns(log).map((t) => [t.turn, t.label])).toEqual([
+      [0, "Before the game"],
+      [1, "Opponent's turn"],
+      [2, "Your turn"],
+      [3, "Opponent's turn"],
+    ]);
+  });
+
+  it("names the attacking card from the cards that were on the board (#252)", () => {
+    const attack = matchLogTurns(log).find((t) => t.turn === 3)!.entries[0]!;
+    expect(attack.text).toBe(`Opponent's ${lookupCard(zoro).name} attacks your Leader (6000 vs 5000)`);
+  });
+});
