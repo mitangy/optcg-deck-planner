@@ -70,6 +70,8 @@ import { ChoicePrompt } from "./ChoicePrompt";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { canFloat, FloatingPrompt } from "./FloatingPrompt";
 import { IntentBar } from "./IntentBar";
+import { PrimaryDock } from "./PrimaryDock";
+import { waitingOnOpponent } from "./waitingOnOpponent";
 import { DefendTray } from "./DefendTray";
 import { deriveDefend } from "./defendModel";
 import { clockFraction, resolveStagedCounters } from "./defendTray";
@@ -1102,19 +1104,28 @@ export function DuelBoard({
     },
   }));
 
+  // Desktop: the primary action floats at the board's midline instead of the rail.
+  // Mulligan keeps Keep / Mulligan together in the rail.
+  const docked = wide && !lp && !spectating && !over;
+  const dockedPrimary = docked && !mulliganPhase;
+  const oppWait =
+    spectating || over || hotseatPass ? null : waitingOnOpponent(view, mySeat);
+  const sendPrimary = (intent: Intent) => {
+    setHandFilter(null);
+    setSelectedBoardId(null);
+    onSendIntent(intent);
+  };
   const intentPanel = !spectating ? (
     <IntentBar
+      hidePrimary={dockedPrimary}
+      waiting={docked ? null : oppWait}
       intents={barIntents}
       view={view}
       disabled={over}
       filterHandIndex={handFilter}
       selectedBoardId={selectedBoardId}
       confirmEndTurn={endTurnWarning(prefs.endTurnConfirm, view.legalIntents)}
-      onSend={(intent) => {
-        setHandFilter(null);
-        setSelectedBoardId(null);
-        onSendIntent(intent);
-      }}
+      onSend={sendPrimary}
       onChooseReplace={openReplace}
       defend={defendPrimary}
       counterLabel={counterLabel}
@@ -1550,7 +1561,7 @@ export function DuelBoard({
               }
             />
 
-            <div className="midline">
+            <div className={`midline${docked && midlineText ? " midline-docked" : ""}`}>
               {midlineText ? (
                 <div className="prompt" title={midlineText}>
                   {midlineText}
@@ -1937,7 +1948,7 @@ export function DuelBoard({
             }}
           />
         </HideablePrompt>
-      ) : !spectating &&
+      ) : hotseatPass &&
         view.pendingChoices?.[0] &&
         view.pendingChoices[0].seat !== mySeat ? (
         <div className="ability-prompt ability-prompt-waiting" role="status">
@@ -1945,6 +1956,19 @@ export function DuelBoard({
           <p>{view.pendingChoices[0].prompt}</p>
           <p className="meta">They are resolving an effect choice.</p>
         </div>
+      ) : null}
+
+      {docked ? (
+        <PrimaryDock
+          primary={dockedPrimary ? splitPrimaryIntent(barIntents).primary : null}
+          waiting={oppWait}
+          view={view}
+          disabled={over}
+          confirmEndTurn={endTurnWarning(prefs.endTurnConfirm, view.legalIntents)}
+          defend={defendPrimary}
+          counterLabel={counterLabel}
+          onSend={sendPrimary}
+        />
       ) : null}
 
       {/* Fixed overlays (portals) — never participate in board layout. */}

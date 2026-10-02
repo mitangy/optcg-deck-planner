@@ -37,9 +37,15 @@ test("an unblocked Leader attack moves one Life card to the defender's hand", as
   await expect(root).toHaveAttribute("data-phase", "main");
   await expect(root).toHaveAttribute("data-turn", "1");
 
-  // Neither player may attack on their first turn: the Leader offers no attack.
-  await endTurn(page);
+  // Space ends the turn even while a board card has focus (it must not just re-select the card (#PR_G)).
+  await page.locator(".side-field.side-you .zone-leader .card-tile").click();
+  await page.keyboard.press("Space");
+  if (await page.locator(".intent-btn-primary.armed").isVisible().catch(() => false)) {
+    await page.keyboard.press("Space");
+  }
   await expect(root).toHaveAttribute("data-turn", "2");
+
+  // Neither player may attack on their first turn: the Leader offers no attack.
   await expect(root).toHaveAttribute("data-seat", "1");
   await page.locator(".side-field.side-you .zone-leader .card-tile").click();
   // Card actions sit on the selected card (a popover), not in the intent bar.

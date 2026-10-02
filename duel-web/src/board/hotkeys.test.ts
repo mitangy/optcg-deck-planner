@@ -3,7 +3,7 @@ import { actionKeyTags, hotkeyAction, stepHandSelection, type HotkeyContext } fr
 
 const base: HotkeyContext = {
   typing: false,
-  keyboardFocusedControl: false,
+  focus: "none",
   modalOpen: false,
   spectating: false,
   over: false,
@@ -30,7 +30,11 @@ describe("hotkeyAction", () => {
   });
 
   it("leaves Space to a keyboard-focused button", () => {
-    expect(hotkeyAction(space, { ...base, keyboardFocusedControl: true })).toBeNull();
+    expect(hotkeyAction(space, { ...base, focus: "control" })).toBeNull();
+  });
+
+  it("still ends the turn with Space while a board or hand card has focus (#PR_G)", () => {
+    expect(hotkeyAction(space, { ...base, focus: "card" })).toBe("primary");
   });
 
   it("ignores a held Space so End turn cannot arm and confirm itself", () => {

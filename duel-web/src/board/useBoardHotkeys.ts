@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { nextBoardFocusIndex, takesTab } from "./boardFocus";
 import { hotkeyAction, type HotkeyAction } from "./hotkeys";
 
 type Options = {
@@ -20,6 +21,25 @@ const MODAL_SELECTOR =
 /** Popovers that close themselves on Esc; the board must not also drop the selection. */
 const ESC_OWNER_SELECTOR = ".lp-overlay, .match-menu";
 
+/** Dialogs, prompts and sheets keep Tab for their own controls (a hidden prompt does not count). */
+const DIALOG_SELECTOR =
+  '[role="dialog"]:not(.card-actions), [role="alertdialog"]';
+
+function dialogOpen(): boolean {
+  return Array.from(document.querySelectorAll(`${MODAL_SELECTOR}, ${DIALOG_SELECTOR}`)).some(
+    (el) => !el.closest("[hidden]"),
+  );
+}
+
+/** Your board cards (Leader, Characters, Stage), then opponent cards that are targets right now. */
+function boardCardButtons(): HTMLButtonElement[] {
+  return Array.from(
+    document.querySelectorAll<HTMLButtonElement>(
+      ".board-root .side-you button[data-instance-id], .board-root .side-opp button[data-instance-id]",
+    ),
+  ).filter((el) => !el.disabled && el.getClientRects().length > 0);
+}
+
 function isTyping(el: Element | null): boolean {
   if (!el) return false;
   const tag = el.tagName;
@@ -31,13 +51,21 @@ function isTyping(el: Element | null): boolean {
   );
 }
 
-/** Focus-visible buttons and links activate themselves on Space; leave those alone. */
-function isKeyboardFocusedControl(el: Element | null): boolean {
-  if (!el || !el.matches('button, a, [role="button"]')) return false;
+/** Board and hand tiles: Space belongs to the primary action there, Enter selects. */
+const CARD_FOCUS_SELECTOR =
+  ".side-field .card-tile, .hand-fan .card-tile, .rail-hand .card-tile, .hand-row .card-tile";
+
+/**
+ * Focus-visible buttons and links activate themselves on Space, except card
+ * tiles: a focused card must not swallow the Space that ends the turn.
+ */
+function focusKind(el: Element | null): "none" | "card" | "control" {
+  if (!el || !el.matches('button, a, [role="button"]')) return "none";
+  if (el.matches(CARD_FOCUS_SELECTOR)) return "card";
   try {
-    return el.matches(":focus-visible");
+    return el.matches(":focus-visible") ? "control" : "none";
   } catch {
-    return false;
+    return "none";
   }
 }
 
@@ -79,10 +107,30 @@ export function useBoardHotkeys(opts: Options) {
 
     function onKeyDown(e: KeyboardEvent) {
       const active = document.activeElement;
+      if (e.key === "Tab") {
+        const cards = boardCardButtons();
+        if (
+          takesTab(e, {
+            typing: isTyping(active),
+            dialogOpen: dialogOpen(),
+            inActions: active?.closest(".card-actions") != null,
+            over: ref.current.over,
+            cardCount: cards.length,
+          })
+        ) {
+          const at = active ? cards.indexOf(active as HTMLButtonElement) : -1;
+          const next = nextBoardFocusIndex(cards.length, at, e.shiftKey);
+          if (next != null) {
+            e.preventDefault();
+            cards[next]!.focus();
+          }
+        }
+        return;
+      }
       const o = ref.current;
       const action = hotkeyAction(e, {
         typing: isTyping(active),
-        keyboardFocusedControl: isKeyboardFocusedControl(active),
+        focus: focusKind(active),
         modalOpen: document.querySelector(MODAL_SELECTOR) != null,
         spectating: o.spectating,
         over: o.over,
