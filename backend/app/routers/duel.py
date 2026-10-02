@@ -18,12 +18,13 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.analyst_stats import seats_for
 from app.auth import get_current_user, get_optional_user
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.duel_ratings import INITIAL_RATING, apply_elo
 from app.game_tokens import mint_game_token, verify_game_token
-from app.models import CardReport, DuelMatch, DuelMatchLog, DuelPresence, DuelRating, User
+from app.models import CardReport, DuelMatch, DuelMatchLog, DuelMatchSeatLog, DuelPresence, DuelRating, User
 from app.rate_limit import RateLimiter, client_ip
 from app.usernames import duel_display_name
 from app.routers.api import _require_catalog_token
@@ -35,6 +36,7 @@ from app.schemas import (
     DuelGuestTokenIn,
     DuelLeaderboardEntryOut,
     DuelLeaderboardOut,
+    DuelMatchDetailOut,
     DuelMatchHistoryEntry,
     DuelMatchHistoryOut,
     DuelMatchIngest,
@@ -263,13 +265,21 @@ def ingest_match(
         turns=body.turns,
     )
     db.add(row)
+    db.flush()
     if body.replay is not None:
         replay_text = json.dumps(body.replay, separators=(",", ":"))
         if len(replay_text) <= MAX_REPLAY_BYTES:
-            db.flush()
             db.add(DuelMatchLog(match_id=body.match_id, replay=replay_text))
         else:
             log.warning("duel replay for %s dropped: %d bytes", body.match_id, len(replay_text))
+    for seat, seat_log in enumerate(body.seat_logs or []):
+        log_text = json.dumps(seat_log, separators=(",", ":"))
+        if len(log_text) <= MAX_REPLAY_BYTES:
+            db.add(DuelMatchSeatLog(match_id=body.match_id, seat=seat, log=log_text))
+        else:
+            log.warning("duel seat %d log for %s dropped: %d bytes", seat, body.match_id, len(log_text))
+    # Leaders, decks and who went first, for Log Pose matchup stats.
+    db.add_all(seats_for(row, body.replay))
     db.commit()
     return DuelMatchOut(
         match_id=row.match_id,
@@ -358,11 +368,22 @@ def match_history(db: Session, user: User, limit: int) -> list[DuelMatchHistoryE
         .order_by(DuelMatch.created_at.desc(), DuelMatch.id.desc())
         .limit(limit)
     ).all()
+    return _history_entries(db, user, rows)
+
+
+def _history_entries(db: Session, user: User, rows: list[DuelMatch]) -> list[DuelMatchHistoryEntry]:
+    if not rows:
+        return []
+    ids = [r.match_id for r in rows]
     opponent_ids = {r.seat1_user_id if r.seat0_user_id == user.id else r.seat0_user_id for r in rows}
-    opponents = {u.id: u for u in db.scalars(select(User).where(User.id.in_(opponent_ids))).all()} if opponent_ids else {}
-    with_replay = set(
-        db.scalars(select(DuelMatchLog.match_id).where(DuelMatchLog.match_id.in_([r.match_id for r in rows]))).all()
-    ) if rows else set()
+    opponents = {u.id: u for u in db.scalars(select(User).where(User.id.in_(opponent_ids))).all()}
+    with_replay = set(db.scalars(select(DuelMatchLog.match_id).where(DuelMatchLog.match_id.in_(ids))).all())
+    with_log = {
+        (match_id, seat)
+        for match_id, seat in db.execute(
+            select(DuelMatchSeatLog.match_id, DuelMatchSeatLog.seat).where(DuelMatchSeatLog.match_id.in_(ids))
+        ).all()
+    }
     matches = []
     for r in rows:
         seat = 0 if r.seat0_user_id == user.id else 1
@@ -382,9 +403,28 @@ def match_history(db: Session, user: User, limit: int) -> list[DuelMatchHistoryE
                 rating_before=r.seat0_rating_before if seat == 0 else r.seat1_rating_before,
                 rating_after=r.seat0_rating_after if seat == 0 else r.seat1_rating_after,
                 has_replay=r.match_id in with_replay,
+                has_log=(r.match_id, seat) in with_log,
             )
         )
     return matches
+
+
+@router.get("/matches/me/{match_id}", response_model=DuelMatchDetailOut)
+def my_match(
+    match_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> DuelMatchDetailOut:
+    """One of the signed-in player's duels with their own turn-by-turn log (never the opponent's)."""
+    row = db.scalar(select(DuelMatch).where(DuelMatch.match_id == match_id))
+    if row is None or user.id not in (row.seat0_user_id, row.seat1_user_id):
+        raise HTTPException(status_code=404, detail="Match not found")
+    seat = 0 if row.seat0_user_id == user.id else 1
+    seat_log = db.get(DuelMatchSeatLog, (match_id, seat))
+    return DuelMatchDetailOut(
+        match=_history_entries(db, user, [row])[0],
+        log=json.loads(seat_log.log) if seat_log else None,
+    )
 
 
 @router.get("/leaderboard", response_model=DuelLeaderboardOut)

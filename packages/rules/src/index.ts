@@ -41,6 +41,7 @@ export {
 } from "./engine.js";
 export { describeEvents } from "./describeEvents.js";
 export { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay, type ReplayStep } from "./matchReplay.js";
+export { SEAT_LOG_SCHEMA, seatLog, type SeatLog, type SeatLogTurn } from "./seatLog.js";
 export type {
   Seat,
   InstanceId,

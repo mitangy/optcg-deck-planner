@@ -28,6 +28,9 @@ export type AnimationSpeed = "normal" | "fast" | "off";
  */
 export type HandLayout = "fanCenter" | "fanRight" | "grid";
 
+/** Text size across the app, on top of the automatic scaling with the window. */
+export type TextSize = "small" | "medium" | "large" | "xlarge";
+
 export type DuelSettings = {
   /** Mint tokens with a dev user key instead of the guest id (dev builds only). */
   useDevKey: boolean;
@@ -52,6 +55,15 @@ export type DuelSettings = {
   sortHandByCost: boolean;
   /** Fanned hand at the bottom centre / bottom right, or the flat grid. */
   handLayout: HandLayout;
+  /** Desktop: the fanned hand (or corner dock) stays raised instead of tucking away. */
+  keepHandOpen: boolean;
+  /**
+   * One tap plays a Counter card, declares a Blocker, attaches selected DON!!
+   * or picks a single target, instead of selecting it and then confirming.
+   */
+  oneTapActions: boolean;
+  /** Text size (power numbers, card text, buttons), scaled further by the window size. */
+  textSize: TextSize;
   /** Desktop: tilt the board away from you, seen from your seat. */
   tiltedBoard: boolean;
   /** Searches and effect ordering float their cards over the board instead of a pop-up box. */
@@ -86,6 +98,9 @@ const DEFAULTS: DuelSettings = {
   screenOrientation: "auto",
   sortHandByCost: false,
   handLayout: "fanCenter",
+  keepHandOpen: false,
+  oneTapActions: false,
+  textSize: "medium",
   tiltedBoard: false,
   floatingCards: true,
   turnSplash: true,
@@ -101,22 +116,20 @@ const RESPONSE_STOPS: readonly ResponseStops[] = ["always", "auto", "smart"];
 const SCREEN_ORIENTATIONS: readonly ScreenOrientationPref[] = ["auto", "portrait", "landscape"];
 const ANIMATION_SPEEDS: readonly AnimationSpeed[] = ["normal", "fast", "off"];
 const HAND_LAYOUTS: readonly HandLayout[] = ["fanCenter", "fanRight", "grid"];
+export const TEXT_SIZES: readonly TextSize[] = ["small", "medium", "large", "xlarge"];
 const CHANGE_EVENT = "optcg-duel:settings-change";
 
 /** Stored values from older builds or hand edits fall back to defaults field by field. */
 function sanitize(
   parsed: Partial<DuelSettings> & {
     autoPassDefense?: unknown;
-    keepHandOpen?: unknown;
     serverUrl?: unknown;
     joinSecret?: unknown;
   },
 ): DuelSettings {
-  // keepHandOpen was dropped: a hand that starts raised covers your DON!! row. H still pins it.
   // serverUrl / joinSecret were dropped with the Connection panel; the build sets both.
   const {
     autoPassDefense,
-    keepHandOpen: _keepHandOpen,
     serverUrl: _serverUrl,
     joinSecret: _joinSecret,
     ...rest
@@ -131,6 +144,7 @@ function sanitize(
   }
   if (!ANIMATION_SPEEDS.includes(next.animationSpeed)) next.animationSpeed = DEFAULTS.animationSpeed;
   if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;
+  if (!TEXT_SIZES.includes(next.textSize)) next.textSize = DEFAULTS.textSize;
   // A theme removed in a later build (or synced from a newer one) falls back to the default.
   if (!THEME_IDS.includes(next.theme)) next.theme = DEFAULTS.theme;
   if (!COLOR_MODES.includes(next.colorMode)) next.colorMode = DEFAULTS.colorMode;

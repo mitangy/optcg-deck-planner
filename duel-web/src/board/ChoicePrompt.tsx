@@ -5,7 +5,10 @@ import { CardTile } from "./CardTile";
 import { DON_CARD_ART } from "./donArt";
 import { arrangementAnswer, arrangementRows, groupAnswer, initialArrangement, mergeArrangement, moveToRow, nudge, setSide, withoutIds, type Arrangement } from "./deckOrder";
 import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "./liveTargets";
-import { PromptHideButton } from "./HideablePrompt";
+import { promptSourceName, PromptHideButton } from "./HideablePrompt";
+import { allOptionsOnField, pickCaption, resolvesOnPick, toggleSelection } from "./fieldTargets";
+import { FieldTargetBar } from "./FieldTargetBar";
+import { useDuelSettings } from "../settings";
 
 /** True while the pop-up is tucked away (see `HideablePrompt`). */
 const PromptHiddenContext = createContext(false);
@@ -299,7 +302,7 @@ export function boardTargetOption(options: readonly ChoiceOptionView[], instance
  * prompt. Listens on the document in the capture phase so the board's own
  * click (select card / show actions) never sees these clicks.
  */
-function useBoardTargetClicks(options: readonly ChoiceOptionView[], onPick: (optionId: string) => void) {
+export function useBoardTargetClicks(options: readonly ChoiceOptionView[], onPick: (optionId: string) => void) {
   const hidden = useContext(PromptHiddenContext);
   const live = useRef({ options, onPick, hidden });
   live.current = { options, onPick, hidden };
@@ -318,14 +321,26 @@ function useBoardTargetClicks(options: readonly ChoiceOptionView[], onPick: (opt
   }, []);
 }
 
-function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<ChoiceRequestView, { type: "select" }>; choice: PendingChoiceView; mySeat: Seat; onSend: (i: Intent) => void }) {
+/** Selection state shared by the pop-up grid and the on-board bar. */
+function useSelectPicks(request: Extract<ChoiceRequestView, { type: "select" }>, onSend: (i: Intent) => void) {
+  const oneTap = useDuelSettings().oneTapActions;
   const [selected, setSelected] = useState<string[]>([]);
-  const toggle = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : request.max === 1 ? [id] : cur.length >= request.max ? cur : [...cur, id]));
+  const answer = (ids: string[]) => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
+  // One-tap: with exactly one pick wanted, picking it is the answer.
+  const toggle = (id: string) => {
+    if (resolvesOnPick(oneTap, request.min, request.max)) return answer([id]);
+    setSelected((cur) => toggleSelection(cur, id, request.max));
+  };
   const valid = selected.length >= request.min && selected.length <= request.max;
-  const range = request.min === request.max ? `${request.max}` : request.min === 0 ? `up to ${request.max}` : `${request.min}–${request.max}`;
   const boardIds = request.options.filter((o) => o.eligible && o.instanceId).map((o) => o.instanceId!);
   const selectedBoardIds = request.options.filter((o) => o.instanceId && selected.includes(o.id)).map((o) => o.instanceId!);
   useBoardTargetClicks(request.options, toggle);
+  return { selected, toggle, valid, boardIds, selectedBoardIds, answer };
+}
+
+function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<ChoiceRequestView, { type: "select" }>; choice: PendingChoiceView; mySeat: Seat; onSend: (i: Intent) => void }) {
+  const { selected, toggle, valid, boardIds, selectedBoardIds, answer } = useSelectPicks(request, onSend);
+  const range = request.min === request.max ? `${request.max}` : request.min === 0 ? `up to ${request.max}` : `${request.min}–${request.max}`;
   return (
     <>
       <BoardHighlight ids={boardIds} kind="candidate" />
@@ -342,7 +357,7 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
         </div>
       </div>
       <div className="ability-prompt-actions">
-        <button type="button" className="btn btn-primary" disabled={!valid} onClick={() => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: selected })}>
+        <button type="button" className="btn btn-primary" disabled={!valid} onClick={() => answer(selected)}>
           {selected.length === 0
             ? request.min > 0
               ? `Choose ${request.min}`
@@ -353,6 +368,37 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
           <button type="button" className="btn btn-secondary" onClick={() => onSend({ type: "resolve_pending_choice", accept: false })}>Decline</button>
         ) : null}
       </div>
+    </>
+  );
+}
+
+/**
+ * Every target is a card on the field: no pop-up, the player taps the board.
+ * Candidates are outlined, picks highlighted; the bar only carries the words
+ * and the Confirm / Decline buttons.
+ */
+function FieldSelectBar({ request, choice, onSend }: { request: Extract<ChoiceRequestView, { type: "select" }>; choice: PendingChoiceView; onSend: (i: Intent) => void }) {
+  const { selected, valid, boardIds, selectedBoardIds, answer } = useSelectPicks(request, onSend);
+  const oneTap = useDuelSettings().oneTapActions && resolvesOnPick(true, request.min, request.max);
+  return (
+    <>
+      <BoardHighlight ids={boardIds} kind="candidate" />
+      <BoardHighlight ids={selectedBoardIds} kind="hover" />
+      <FieldTargetBar
+        title={promptSourceName(choice)}
+        text={choice.prompt}
+        caption={pickCaption(request.min, request.max, selected.length)}
+        label={choice.prompt}
+      >
+        {oneTap ? null : (
+          <button type="button" className="btn btn-primary" disabled={!valid} onClick={() => answer(selected)}>
+            {selected.length === 0 && request.min === 0 ? "Choose none" : "Confirm"}
+          </button>
+        )}
+        {choice.optional ? (
+          <button type="button" className="btn btn-secondary" onClick={() => onSend({ type: "resolve_pending_choice", accept: false })}>Decline</button>
+        ) : null}
+      </FieldTargetBar>
     </>
   );
 }
@@ -476,6 +522,10 @@ export function ChoicePrompt({ choice, mySeat, onSend, view, onHide, hidden = fa
 
 function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view" | "hidden">) {
   const request: ChoiceRequestView = choice.request ?? { type: "confirm" };
+  const liveCards = useContext(LiveCardsContext);
+  if (request.type === "select" && allOptionsOnField(request.options, liveCards)) {
+    return <FieldSelectBar request={request} choice={choice} onSend={onSend} />;
+  }
   const showSource = request.type === "confirm" && choice.cardDefId && choice.cardDefId !== "HIDDEN";
   return (
     <div className={`ability-prompt choice-prompt choice-${request.type}`} role="dialog" aria-label={choice.prompt}>

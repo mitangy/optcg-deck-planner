@@ -13,7 +13,7 @@ const SCREENS = [
   "?statuses",
   "?over",
   "?undo=ask",
-  ...["don", "look", "satori", "rest", "select", "confirm", "order", "effects", "mode"].map((p) => `?prompt=${p}`),
+  ...["don", "look", "satori", "rest", "select", "restgrid", "selectgrid", "confirm", "order", "effects", "mode"].map((p) => `?prompt=${p}`),
   // Searches and effect ordering float by default; `?box` keeps the old pop-up.
   ...["look", "satori", "effects"].map((p) => `?box&prompt=${p}`),
 ];
@@ -63,4 +63,18 @@ test("the centre hand fan tucks away after a click once the pointer leaves", asy
   await page.locator(".hand-fan-head .hand-rail-btn").click(); // Sort keeps focus too
   await page.mouse.move(640, 120);
   await expect.poll(donCovered, { timeout: 3000 }).toBe(false);
+});
+
+// Clicking an empty card slot or a pile must not drop a blinking text caret on the mat.
+test("clicking board slots leaves no text caret on the mat (#246)", async ({ page }) => {
+  await page.goto("/demo");
+  await page.locator(".board-root").waitFor();
+  for (const target of [".side-field .zone-slot", ".side-field .zone-pile-deck", ".side-field .zone-pile-don"]) {
+    await page.locator(target).first().click({ force: true });
+    const selection = await page.evaluate(() => {
+      const s = getSelection();
+      return { type: s?.type, inField: !!s?.anchorNode?.parentElement?.closest(".side-field") };
+    });
+    expect({ target, ...selection }).not.toMatchObject({ type: "Caret", inField: true });
+  }
 });
