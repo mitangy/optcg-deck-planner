@@ -57,8 +57,11 @@ export function useBoardHotkeys(opts: Options) {
           action.kind === "slot"
             ? `[data-key-num="${action.n}"]`
             : `[data-key-letter="${action.letter}"]`;
+        // Card actions live in a popover on the card (a portal), the rest in the bar.
         document
-          .querySelector<HTMLButtonElement>(`.board-root .intent-row ${sel}:not(:disabled)`)
+          .querySelector<HTMLButtonElement>(
+            `.board-root .intent-row ${sel}:not(:disabled), .card-actions ${sel}:not(:disabled)`,
+          )
           ?.click();
       } else if (action === "escape") o.onEscape();
       else if (action === "hand_prev") o.onStepHand(-1);

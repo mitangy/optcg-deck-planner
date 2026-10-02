@@ -30,6 +30,7 @@ import {
   giveDonTargetIdsForAll,
   playCardTrashTargetIds,
   playNeedsReplace,
+  isReplacePlay,
   resolveDropIntents,
   type DragPayload,
 } from "./dragIntents";
@@ -39,7 +40,21 @@ import { describeBattle } from "./battleBanner";
 import { battleEndpoints } from "./battleArc";
 import { canOfferFullscreen, readInstallEnv } from "../installPrompt";
 import { useScreenWakeLock } from "./wakeLock";
-import { DonAttachConfirm, DonQuickRow, DragGhost, type GhostPayload } from "./BoardOverlays";
+import {
+  CardActionPopover,
+  DonAttachConfirm,
+  DragGhost,
+  type CardActionButton,
+  type GhostPayload,
+} from "./BoardOverlays";
+import {
+  blockIntentFor,
+  cardActionText,
+  counterIntentForCard,
+  counterIntentForHand,
+  counterPrimaryLabel,
+  splitCardActions,
+} from "./cardActions";
 import {
   attachTargetIds,
   beginAttach,
@@ -62,8 +77,10 @@ import { ReplacePrompt } from "./ReplacePrompt";
 import {
   attackTargetIdsForAttacker,
   findAttackIntent,
+  filterIntentsForSelection,
   hasBoardActions,
 } from "./intentFilter";
+import { splitPrimaryIntent } from "./primaryIntent";
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
@@ -74,7 +91,7 @@ import { useDuelSettings } from "../settings";
 import { endTurnWarning, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
 import { HotkeyHelpSheet } from "./HotkeyHelp";
-import { stepHandSelection } from "./hotkeys";
+import { actionKeyTags, stepHandSelection } from "./hotkeys";
 import { useBoardHotkeys } from "./useBoardHotkeys";
 import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
 import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
@@ -149,6 +166,13 @@ type Props = {
 };
 
 const EMPTY_IDS = new Set<string>();
+
+/** Your own Leader / Character / Stage by instance id (what the card popover anchors to). */
+function findOwnCard(view: PlayerView, id: string): { id: string; defId: string } | null {
+  if (view.you.leader.id === id) return view.you.leader;
+  if (view.you.stage?.id === id) return view.you.stage;
+  return view.you.characters.find((c) => c.id === id) ?? null;
+}
 
 function formatCountdown(endsAt: number | null | undefined, now: number): string | null {
   if (endsAt == null) return null;
@@ -552,8 +576,8 @@ export function DuelBoard({
     setPendingAttach(null);
   }
 
-  function confirmAttach() {
-    const toSend = resolveAttachIntents(intents, pendingAttach);
+  function confirmAttach(pending: PendingAttach | null = pendingAttach) {
+    const toSend = resolveAttachIntents(intents, pending);
     clearDonSelection();
     if (toSend.length === 0) return;
     setHandFilter(null);
@@ -729,6 +753,15 @@ export function DuelBoard({
   }
 
   function selectHandCard(idx: number) {
+    if (prefs.oneTapActions && !trayHere && defend?.phase === "counter") {
+      const counter = counterIntentForHand(intents, idx);
+      if (counter) {
+        setHandFilter(null);
+        setSelectedBoardId(null);
+        onSendIntent(counter);
+        return;
+      }
+    }
     setSelectedBoardId(null);
     setHandFilter((prev) => (prev === idx ? null : idx));
   }
@@ -738,10 +771,21 @@ export function DuelBoard({
       // DON!! selected → tapping a legal Leader/Character asks to attach.
       const pending = beginAttach(intents, selectedDonIds, id);
       if (pending) {
-        setPendingAttach(pending);
+        // One-tap: the tap itself is the confirmation.
+        if (prefs.oneTapActions) confirmAttach(pending);
+        else setPendingAttach(pending);
         return;
       }
       clearDonSelection();
+    }
+    if (prefs.oneTapActions && !trayHere && defend?.phase === "block") {
+      const block = blockIntentFor(intents, id);
+      if (block) {
+        setHandFilter(null);
+        setSelectedBoardId(null);
+        onSendIntent(block);
+        return;
+      }
     }
     setHandFilter(null);
     setSelectedBoardId((prev) => (prev === id ? null : id));
@@ -816,13 +860,6 @@ export function DuelBoard({
         ? you.leader
         : you.characters.find((c) => c.id === pendingAttach.targetId);
     return card ? lookupCard(card.defId).name : "target";
-  })();
-  const quickTargetName = (() => {
-    const card =
-      you.leader.id === selectedBoardId
-        ? you.leader
-        : you.characters.find((c) => c.id === selectedBoardId);
-    return card ? lookupCard(card.defId).name : "card";
   })();
   const boardSeat: Seat = mySeat ?? view.seat;
   const oppSeat: Seat = boardSeat === 0 ? 1 : 0;
@@ -967,8 +1004,10 @@ export function DuelBoard({
           : { label: "No block" }
         : defend.stagedIds.length > 0
           ? { label: "Confirm counter", onPress: confirmCounters }
-          : { label: defend.remaining === 0 ? "Done" : "Take hit" }
+          : { label: counterPrimaryLabel(defend, true) }
       : undefined;
+  const counterLabel =
+    !trayHere && defend?.phase === "counter" ? counterPrimaryLabel(defend, false) : undefined;
 
   const defendTray =
     trayHere && defend ? (
@@ -976,12 +1015,21 @@ export function DuelBoard({
         model={defend}
         ownerSeat={boardSeat}
         clock={clockFraction(timer, now, boardSeat)}
-        onToggleBlocker={(id) => setStagedBlockerId((cur) => (cur === id ? null : id))}
-        onToggleCounter={(id) =>
-          setStagedCounterIds((cur) =>
-            cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
-          )
-        }
+        onToggleBlocker={(id) => {
+          const block = prefs.oneTapActions ? blockIntentFor(intents, id) : null;
+          if (block) {
+            setStagedBlockerId(null);
+            onSendIntent(block);
+          } else setStagedBlockerId((cur) => (cur === id ? null : id));
+        }}
+        onToggleCounter={(id) => {
+          const counter = prefs.oneTapActions ? counterIntentForCard(intents, you.hand, id) : null;
+          if (counter) onSendIntent(counter);
+          else
+            setStagedCounterIds((cur) =>
+              cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
+            );
+        }}
         onCounterEvent={(i) => {
           const intent = defend.events[i]?.intent;
           if (intent) onSendIntent(intent);
@@ -1005,24 +1053,58 @@ export function DuelBoard({
       />
     ) : null;
 
+  const barIntents = (() => {
+    const front = view.pendingChoices?.[0];
+    // ChoicePrompt / EffectOrderPrompt own every pending-choice answer.
+    if (front) {
+      return view.legalIntents.filter(
+        (i) => i.type !== "resolve_pending_choice" && i.type !== "order_pending_effects",
+      );
+    }
+    // The quick row replaces the row of identical "Give DON" buttons.
+    return quickCounts.length > 0
+      ? view.legalIntents.filter((i) => !(i.type === "give_don" && i.targetId === selectedBoardId))
+      : view.legalIntents;
+  })();
+  // The selected card's own actions live on the card (a popover), not in the bar.
+  const cardIntents =
+    spectating || defendPrimary
+      ? []
+      : splitCardActions(
+          filterIntentsForSelection(splitPrimaryIntent(barIntents).rest, {
+            handIndex: handFilter,
+            boardId: selectedBoardId,
+          }),
+        ).card;
+  const anchorCard =
+    handFilter != null ? you.hand[handFilter] : selectedBoardId ? findOwnCard(view, selectedBoardId) : null;
+  const popoverOpen =
+    anchorCard != null &&
+    !dragPayload &&
+    !replaceOpen &&
+    !donSelectActive &&
+    (cardIntents.length > 0 || quickCounts.length > 0);
+  const cardTags = actionKeyTags(cardIntents);
+  const popoverActions: CardActionButton[] = cardIntents.map((intent, i) => ({
+    id: `${intent.type}-${i}`,
+    text: cardActionText(intent, view),
+    keyNum: cardTags[i]!.num,
+    keyLetter: cardTags[i]!.letter,
+    keyTag: cardTags[i]!.tag,
+    onPress: () => {
+      if (isReplacePlay(intent)) {
+        openReplace(intent.handIndex as number);
+        return;
+      }
+      setHandFilter(null);
+      setSelectedBoardId(null);
+      onSendIntent(intent);
+    },
+  }));
+
   const intentPanel = !spectating ? (
     <IntentBar
-      intents={(() => {
-        const front = view.pendingChoices?.[0];
-        // ChoicePrompt / EffectOrderPrompt own every pending-choice answer.
-        const structuredOwns = Boolean(front);
-        if (!structuredOwns) {
-          // The quick row replaces the row of identical "Give DON" buttons.
-          return quickCounts.length > 0
-            ? view.legalIntents.filter(
-                (i) => !(i.type === "give_don" && i.targetId === selectedBoardId),
-              )
-            : view.legalIntents;
-        }
-        return view.legalIntents.filter(
-          (i) => i.type !== "resolve_pending_choice" && i.type !== "order_pending_effects",
-        );
-      })()}
+      intents={barIntents}
       view={view}
       disabled={over}
       filterHandIndex={handFilter}
@@ -1035,7 +1117,8 @@ export function DuelBoard({
       }}
       onChooseReplace={openReplace}
       defend={defendPrimary}
-      emptyHint={quickCounts.length > 0 ? "Use the DON!! buttons by the card" : undefined}
+      counterLabel={counterLabel}
+      onCard={{ count: cardIntents.length, active: popoverOpen }}
     />
   ) : (
     <div className="intent-bar">
@@ -1869,12 +1952,13 @@ export function DuelBoard({
       <AttackIndicator view={over ? null : view} />
       <BoardMotion view={view} />
       <DragGhost payload={ghostPayload} />
-      {quickCounts.length > 0 && selectedBoardId ? (
-        <DonQuickRow
-          targetId={selectedBoardId}
-          targetName={quickTargetName}
-          counts={quickCounts}
-          onPick={quickAttach}
+      {popoverOpen && anchorCard ? (
+        <CardActionPopover
+          anchorId={anchorCard.id}
+          cardName={lookupCard(anchorCard.defId).name}
+          actions={popoverActions}
+          donCounts={handFilter == null ? quickCounts : []}
+          onDon={quickAttach}
         />
       ) : null}
       {pendingAttach && dndEnabled ? (

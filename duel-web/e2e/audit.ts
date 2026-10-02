@@ -64,6 +64,8 @@ const DEFAULT_OVERLAYS = [
   // On-board target picks: the slim instruction bar sits over the bottom of
   // the board while the player taps cards (it replaced a full pop-up).
   ".field-bar",
+  // A selected card's actions float over the card and the board edge beside it.
+  ".card-actions",
 ];
 
 export async function auditPage(

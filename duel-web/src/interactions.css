@@ -271,22 +271,7 @@
   outline-offset: 2px;
 }
 
-/* Quick attach row: +1 / +2 / All over the selected card (fixed, never in flow). */
-.don-quick {
-  position: fixed;
-  z-index: 30;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 6px;
-  border-radius: 10px;
-  border: 1px solid var(--chrome);
-  background: rgb(var(--deep-rgb) / 0.97);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
-  white-space: nowrap;
-}
-
+/* +1 / +2 / All chips inside the card-actions popover. */
 .don-quick-icon {
   width: 22px;
   height: 31px;
@@ -313,6 +298,87 @@
 .don-quick-btn:focus-visible {
   outline: 2px solid var(--chrome-bright);
   outline-offset: 2px;
+}
+
+/* On-card actions: one popover per selected card (fixed, never in flow). */
+.card-actions {
+  position: fixed;
+  z-index: 31;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: min(260px, calc(100vw - 16px));
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--chrome);
+  background: rgb(var(--deep-rgb) / 0.97);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+}
+
+.card-actions-don {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.card-action-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 132px;
+  min-height: 44px;
+  padding: 4px 12px;
+  border: 1px solid #6bc48a55;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #3f7a54, var(--ok));
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card-action-sub {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.66rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.card-action-btn:focus-visible {
+  outline: 2px solid var(--chrome-bright);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card-action-btn[data-key-tag]::after {
+    content: attr(data-key-tag);
+    position: absolute;
+    top: -7px;
+    left: 8px;
+    min-width: 1.5em;
+    padding: 0 0.3em;
+    border: 1px solid var(--line-strong);
+    border-radius: 5px;
+    background: var(--arena-panel);
+    color: var(--muted, inherit);
+    font-size: 0.62rem;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    pointer-events: none;
+  }
 }
 
 /* —— Drag ghost (mouse + touch) —— */

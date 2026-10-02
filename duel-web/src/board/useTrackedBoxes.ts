@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { sameBox, type Box } from "./battleArc";
 
-/** Viewport rect of the board card rendered for this instance id. */
+/**
+ * Viewport rect of the card rendered for this id: a board card by its
+ * instance id, else a hand card by its motion id.
+ */
 export function findInstanceBox(instanceId: string): Box | null {
   if (typeof document === "undefined") return null;
-  const el = document.querySelector<HTMLElement>(
-    `[data-instance-id="${CSS.escape(instanceId)}"]`,
-  );
+  const id = CSS.escape(instanceId);
+  const el =
+    document.querySelector<HTMLElement>(`[data-instance-id="${id}"]`) ??
+    document.querySelector<HTMLElement>(`[data-motion-id="${id}"]`);
   if (!el) return null;
   const r = el.getBoundingClientRect();
   if (r.width === 0 && r.height === 0) return null;

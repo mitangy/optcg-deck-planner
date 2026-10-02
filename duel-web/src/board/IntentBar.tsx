@@ -1,6 +1,7 @@
 import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
 import { ConfirmButton } from "./ConfirmButton";
-import { collapseReplacePlays, isReplacePlay } from "./dragIntents";
+import { splitCardActions } from "./cardActions";
+import { isReplacePlay } from "./dragIntents";
 import { actionKeyTags } from "./hotkeys";
 import { filterIntentsForSelection } from "./intentFilter";
 import { splitPrimaryIntent } from "./primaryIntent";
@@ -22,8 +23,16 @@ type Props = {
    * counter"). `onPress` replaces sending the primary intent itself.
    */
   defend?: { label: string; onPress?: () => void };
+  /** Relabels a Pass counter primary ("Resolve" once the defender is safe). */
+  counterLabel?: string;
   /** Replaces "No actions for this card" while something else already answers it. */
   emptyHint?: string;
+  /**
+   * The selected card's own actions are shown on the card (a popover), so this
+   * bar keeps only the phase-wide ones and a hint. `count` shifts the hotkey
+   * numbers of the bar's buttons past the card's; `active` says a popover is up.
+   */
+  onCard?: { count: number; active: boolean };
 };
 
 function btnClass(intent: Intent): string {
@@ -45,17 +54,19 @@ export function IntentBar({
   onSend,
   onChooseReplace,
   defend,
+  counterLabel,
   emptyHint,
+  onCard,
 }: Props) {
   const handIndex = filterHandIndex ?? null;
   const boardId = selectedBoardId ?? null;
   // The primary comes from every legal intent, not the selection-filtered
   // list, so its slot never changes when a card is tapped.
   const { primary, rest } = splitPrimaryIntent(intents);
-  const shown = defend
-    ? []
-    : collapseReplacePlays(filterIntentsForSelection(rest, { handIndex, boardId }));
-  const keyTags = actionKeyTags(shown);
+  const selected = defend ? [] : filterIntentsForSelection(rest, { handIndex, boardId });
+  const split = splitCardActions(selected);
+  const shown = onCard ? split.bar : [...split.card, ...split.bar];
+  const keyTags = actionKeyTags(shown, onCard?.count ?? 0);
   const mulliganPhase = view?.phase === "mulligan";
   const nothingSelected = handIndex == null && boardId == null;
 
@@ -85,7 +96,11 @@ export function IntentBar({
           {shown.length === 0 && !defend ? (
             <p className="intent-empty">
               {emptyHint ??
-                (nothingSelected ? "Select a card for actions" : "No actions for this card")}
+                (onCard?.active
+                  ? "Choose an action on the card"
+                  : nothingSelected
+                    ? "Select a card for actions"
+                    : "No actions for this card")}
             </p>
           ) : null}
           {shown.map((intent, idx) => (
@@ -137,7 +152,11 @@ export function IntentBar({
                 disabled={disabled}
                 onClick={() => (defend?.onPress ? defend.onPress() : onSend(primary))}
               >
-                {defend ? defend.label : intentLabel(primary, view)}
+                {defend
+                  ? defend.label
+                  : primary.type === "pass_counter" && counterLabel
+                    ? counterLabel
+                    : intentLabel(primary, view)}
               </button>
             )}
           </div>

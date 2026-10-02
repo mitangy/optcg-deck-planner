@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
@@ -6,6 +6,7 @@ import type { Seat } from "../net/protocol";
 import { boxCenter } from "./battleArc";
 import { DON_CARD_ART } from "./donArt";
 import { attachLabel, type PendingAttach } from "./donSelection";
+import { popoverPlacement, type CardActionText } from "./cardActions";
 import { useTrackedBoxes } from "./useTrackedBoxes";
 
 const CONFIRM_W = 250;
@@ -81,58 +82,89 @@ export function DonAttachConfirm({
   );
 }
 
-const QUICK_EDGE = 8;
+export type CardActionButton = {
+  id: string;
+  text: CardActionText;
+  /** Hotkey badge data, as on the intent bar's buttons. */
+  keyNum?: number | null;
+  keyLetter?: string | null;
+  keyTag?: string;
+  onPress: () => void;
+};
 
 /**
- * "+1 / +2 / All" DON!! chips over the selected Leader / Character. Fixed
- * overlay (portal) that follows the card, above it when there is room and
- * below otherwise, and never leaves the viewport, so it cannot shift the board.
+ * The selected card's actions, as a small popover on the card itself ("Activate
+ * Ability", "Counter +2000", Play, Attack...). With `donCounts` the +1 / +2 / All
+ * DON!! chips sit in the same popover, so one card never gets two overlays.
+ * Fixed overlay (portal) that follows the card, tucked over its top edge or
+ * below it when there is no room, clamped to the viewport; never shifts layout.
  */
-export function DonQuickRow({
-  targetId,
-  targetName,
-  counts,
-  onPick,
+export function CardActionPopover({
+  anchorId,
+  cardName,
+  actions,
+  donCounts = [],
+  onDon,
 }: {
-  targetId: string;
-  targetName: string;
-  counts: number[];
-  onPick: (count: number) => void;
+  anchorId: string;
+  cardName: string;
+  actions: CardActionButton[];
+  donCounts?: number[];
+  onDon?: (count: number) => void;
 }) {
-  const boxes = useTrackedBoxes([targetId]);
+  const boxes = useTrackedBoxes([anchorId]);
   const box = boxes?.[0] ?? null;
-  const rowRef = useRef<HTMLDivElement | null>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
-  useEffect(() => {
-    setWidth(rowRef.current?.offsetWidth ?? 0);
-  }, [counts.length, box == null]);
+  const shape = `${actions.map((a) => a.id).join("|")}/${donCounts.join(",")}`;
+  useLayoutEffect(() => {
+    setWidth(ref.current?.offsetWidth ?? 0);
+  }, [shape, box == null]);
   if (!box || typeof document === "undefined") return null;
-  const vw = window.innerWidth;
-  const c = boxCenter(box);
-  const half = width / 2;
-  const x = Math.min(Math.max(c.x, QUICK_EDGE + half), vw - QUICK_EDGE - half);
-  const above = box.top > 64;
-  const style: CSSProperties = above
-    ? { left: x, top: box.top - 6, transform: "translate(-50%, -100%)" }
-    : { left: x, top: box.top + box.height + 6, transform: "translate(-50%, 0)" };
+  const place = popoverPlacement(box, width, window.innerWidth);
+  const style: CSSProperties = {
+    left: place.left,
+    top: place.top,
+    transform: place.above ? "translate(-50%, -100%)" : "translate(-50%, 0)",
+  };
   return createPortal(
     <div
-      ref={rowRef}
-      className="don-quick"
+      ref={ref}
+      className="card-actions"
       role="group"
-      aria-label={`Give DON!! to ${targetName}`}
+      aria-label={`Actions for ${cardName}`}
       style={style}
     >
-      <img src={DON_CARD_ART} alt="" className="don-quick-icon" draggable={false} />
-      {counts.map((n, i) => (
+      {donCounts.length > 0 && onDon ? (
+        <div className="card-actions-don" role="group" aria-label={`Give DON!! to ${cardName}`}>
+          <img src={DON_CARD_ART} alt="" className="don-quick-icon" draggable={false} />
+          {donCounts.map((n, i) => (
+            <button
+              key={n}
+              type="button"
+              className="don-quick-btn"
+              aria-label={`Give ${n} DON!! to ${cardName}`}
+              onClick={() => onDon(n)}
+            >
+              {i === donCounts.length - 1 && n > 2 ? `All (${n})` : `+${n}`}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {actions.map((a) => (
         <button
-          key={n}
+          key={a.id}
           type="button"
-          className="don-quick-btn"
-          aria-label={`Give ${n} DON!! to ${targetName}`}
-          onClick={() => onPick(n)}
+          className="card-action-btn"
+          title={a.text.title}
+          aria-label={a.text.title}
+          data-key-num={a.keyNum ?? undefined}
+          data-key-letter={a.keyLetter ?? undefined}
+          data-key-tag={a.keyTag || undefined}
+          onClick={a.onPress}
         >
-          {i === counts.length - 1 && n > 2 ? `All (${n})` : `+${n}`}
+          <span className="card-action-label">{a.text.label}</span>
+          {a.text.sub ? <span className="card-action-sub">{a.text.sub}</span> : null}
         </button>
       ))}
     </div>,
