@@ -22,6 +22,8 @@ module.exports = {
 
     // random playthrough: the device must reach whoever has to answer
     { id: "e2e-hotseat-keeps-device-on-attacker", args: "playthrough --project=desktop-1280", file: "duel-web/src/board/hotseatControlSeat.ts", from: "      if (seatHasBlockOrCounterIntents(defenderView)) {\n        return defender;\n      }\n", to: "", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [desktop-1280]"] },
+    // preview effect text: trailing spaces must not hang past the box (#256)
+    { id: "e2e-preview-effect-hanging-spaces", args: "playthrough --project=desktop-1280", file: "duel-web/src/board.css", from: "  color: var(--ink);\n  white-space: pre-line;\n}", to: "  color: var(--ink);\n  white-space: pre-wrap;\n}", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [desktop-1280]"] },
 
     // UI audit
     // #190's deck-order fix has three layers (shrinkable column, wrapping row, clamped name); undo all of them.
