@@ -193,6 +193,17 @@ describe("privacy", () => {
     expect(spectator.legalIntents).toEqual([]);
   });
 
+  it("spectators see both hands only when revealHands is set (#250)", () => {
+    const { state } = fresh(5);
+    const hands = [0, 1].map((seat) => state.players[seat as 0 | 1].hand.map((c) => c.defId));
+    expect(getSpectatorView(state, 0).revealedHands).toBeUndefined();
+    const revealed = getSpectatorView(state, 1, { revealHands: true });
+    expect(revealed.revealedHands?.map((h) => h.map((c) => c.defId))).toEqual(hands);
+    // Old clients reject a spectator view with a hand on either side.
+    expect(revealed.you.hand).toEqual([]);
+    expect((revealed.opponent as { hand?: unknown }).hand).toBeUndefined();
+  });
+
   it("redacts private look options for the opponent and spectators", () => {
     const h = new Harness();
     h.hand(0, "OP01-016");

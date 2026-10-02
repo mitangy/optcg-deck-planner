@@ -301,6 +301,8 @@ export type PlayerView = {
   winner: Seat | null;
   winReason: string | null;
   legalIntents: Intent[];
+  /** Spectators of unranked rooms: both hands, indexed by seat. */
+  revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
 };
 
 export function isProtocolVersion(v: unknown): v is ProtocolVersion {

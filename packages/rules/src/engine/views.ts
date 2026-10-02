@@ -125,13 +125,23 @@ export function getPlayerView(state: MatchState, seat: Seat) {
   };
 }
 
-export function getSpectatorView(state: MatchState, cameraSeat: Seat = 0) {
+type HandCard = { id: string; defId: string };
+
+/**
+ * Spectator view from `cameraSeat`. `you.hand` stays empty and the opponent has
+ * no `hand`, so clients that guard against hand leaks keep working. With
+ * `revealHands` (unranked rooms) both hands ride along as `revealedHands`,
+ * indexed by seat.
+ */
+export function getSpectatorView(state: MatchState, cameraSeat: Seat = 0, opts: { revealHands?: boolean } = {}) {
   const base = getPlayerView(state, cameraSeat);
+  const handOf = (seat: Seat): HandCard[] => state.players[seat].hand.map((c) => ({ id: c.id, defId: c.defId }));
   return {
     ...base,
     spectator: true as const,
     cameraSeat,
-    you: { ...base.you, hand: [] as { id: string; defId: string }[], handCount: base.you.hand.length },
+    you: { ...base.you, hand: [] as HandCard[], handCount: base.you.hand.length },
+    ...(opts.revealHands ? { revealedHands: [handOf(0), handOf(1)] as [HandCard[], HandCard[]] } : null),
     pendingChoices: state.pendingChoices.map((choice) => projectPendingChoice(choice, null)),
     pendingTrigger: state.pendingChoices[0]?.kind === "life_trigger" ? { seat: state.pendingChoices[0].seat, cardDefId: "HIDDEN" } : null,
     legalIntents: [] as Intent[],

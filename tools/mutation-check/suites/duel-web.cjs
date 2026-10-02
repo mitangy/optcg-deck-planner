@@ -156,6 +156,11 @@ module.exports = {
     { id: "control-never-to-defender", file: `${src}/board/hotseatControlSeat.ts`, from: "      if (seatHasBlockOrCounterIntents(defenderView)) {", to: "      if (false) {", kills: ["hands to defender once block intents are legal"] },
     { id: "control-ignores-mulligan", file: `${src}/board/hotseatControlSeat.ts`, from: "    if (v0 && !v0.you.mulliganDone) return 0;\n    if (v1 && !v1.you.mulliganDone) return 1;", to: "", kills: ["prefers unfinished mulligan over turn player"] },
     { id: "control-follows-viewer", file: `${src}/board/hotseatControlSeat.ts`, from: "  const active = v0?.activeSeat ?? v1?.activeSeat ?? primary.activeSeat;", to: "  const active = primary.seat;", kills: ["follows the active seat in main"] },
+    // spectators see each seat's shared art, not their own (#250)
+    { id: "spectator-near-uses-own-art", file: `${src}/board/seatSkins.ts`, from: "    near: spectating ? shared(nearSeat) : own,", to: "    near: own,", kills: ["spectating shows each seated player's playmat and card back, not the viewer's (#250)", "spectating a seat with no shared art falls back to the default, not the viewer's (#250)"] },
+    { id: "player-near-uses-shared-art", file: `${src}/board/seatSkins.ts`, from: "    near: spectating ? shared(nearSeat) : own,", to: "    near: shared(nearSeat),", kills: ["playing online keeps your own art on your half and the opponent's on theirs (#250)"] },
+    { id: "far-side-uses-own-art", file: `${src}/board/seatSkins.ts`, from: "    far: shared(farSeat),", to: "    far: own,", kills: ["spectating shows each seated player's playmat and card back, not the viewer's (#250)", "playing online keeps your own art on your half and the opponent's on theirs (#250)"] },
+    { id: "practice-far-uses-shared-art", file: `${src}/board/seatSkins.ts`, from: "  if (hotseat) return { near: own, far: own };\n", to: "", kills: ["practice shows your art on both halves (#250)"] },
     { id: "log-seat-labels-swapped", file: `${src}/board/battleLog.ts`, from: "    return seat === youSeat ? \"You\" : \"Opponent\";", to: "    return seat === youSeat ? \"Opponent\" : \"You\";", kills: ["describes attack, block, counter, and plays"] },
     { id: "log-attack-power-missing", file: `${src}/board/battleLog.ts`, from: "        ...tgt,\n        pow,\n", to: "        ...tgt,\n", kills: ["describes attack, block, counter, and plays"] },
     { id: "log-battle-always-hits", file: `${src}/board/battleLog.ts`, from: "`Battle ${e.attackerWon ? \"hits\" : \"fails\"}${pow}`", to: "`Battle hits${pow}`", kills: ["describes attack, block, counter, and plays"] },
@@ -616,5 +621,8 @@ module.exports = {
     // DON!! drawn under a card (#PR_D)
     { id: "don-under-uncapped", file: `${src}/board/donUnder.ts`, from: "const n = Math.min(Math.max(0, Math.floor(attached)), DON_UNDER_MAX_LAYERS);", to: "const n = Math.max(0, Math.floor(attached));", kills: ["draws one DON!! layer per attached DON!! up to the cap (#PR_D)"] },
     { id: "don-under-fixed-spacing", file: `${src}/board/donUnder.ts`, from: "const k = STEP_SCALE[n] ?? 0.5;", to: "const k = 1;", kills: ["tightens the spacing as the count grows (#PR_D)"] },
+    // spectators see the far hand face up (#250)
+    {"id": "opp-hint-ignores-revealed-hand", "file": "duel-web/src/board/TurnStatusPanel.tsx", "from": "      {cards ? (\n        <div\n          className=\"opp-hand-backs opp-hand-faces\"", "to": "      {false ? (\n        <div\n          className=\"opp-hand-backs opp-hand-faces\"", "kills": ["shows the far player's hand face up instead of backs in the narrow strip (#250)"]},
+    {"id": "opp-fan-ignores-revealed-hand", "file": "duel-web/src/board/TurnStatusPanel.tsx", "from": "        {cards\n          ? cards.map((c, i) => (", "to": "        {false\n          ? [].map((c, i) => (", "kills": ["shows the far player's hand face up instead of backs in the rail fan (#250)"]},
   ],
 };

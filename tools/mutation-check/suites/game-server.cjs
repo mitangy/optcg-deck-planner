@@ -39,7 +39,7 @@ module.exports = {
     { id: "third-player-kept", file: room, from: "      this.sendError(client, \"room_full\", \"No free seat\");\n      client.leave();", to: "      this.sendError(client, \"room_full\", \"No free seat\");", kills: ["rejects a third player"] },
     { id: "join-deck-ignored", file: room, from: "    if (identity.deck) {\n      this.seatDecks[seat] = identity.deck;\n    }", to: "", kills: ["uses join-time seat decks for leaders"] },
     { id: "join-unknown-card-deck-accepted", file: room, from: "    if (role === \"player\" && join.deck) assertKnownDeck(join.deck);\n", to: "", kills: ["rejects a deck with unknown cards at join"] },
-    { id: "spectator-gets-player-view", file: room, from: "    const view = getSpectatorView(this.match, cameraSeat);\n    const welcome", to: "    const view = { ...getPlayerView(this.match, cameraSeat), spectator: true };\n    const welcome", kills: ["allows a spectator with public view"] },
+    { id: "spectator-gets-player-view", file: room, from: "    const view = this.spectatorView(this.match, cameraSeat);\n    const welcome", to: "    const view = { ...getPlayerView(this.match, cameraSeat), spectator: true };\n    const welcome", kills: ["allows a spectator with public view"] },
     { id: "queue-same-seat", file: queue, from: "            roomId: room.roomId,\n            seat: 1,", to: "            roomId: room.roomId,\n            seat: 0,", kills: ["ranked_queue pairs two clients"] },
     { id: "queue-pairs-same-user", file: queue, from: "        const partnerIdx = this.queue.findIndex((q) => q.userId !== a.userId);", to: "        const partnerIdx = 0;", kills: ["ranked_queue skips same-user pair"] },
     { id: "cosmetics-not-relayed", file: room, from: "    this.broadcast(\"cosmetics\", payload);", to: "    client.send(\"cosmetics\", payload);", kills: ["relays cosmetics artPrefs between seats"] },
@@ -69,5 +69,8 @@ module.exports = {
     { id: "result-turns-dropped", file: room, from: "      turns: this.match?.turnNumber,\n", to: "", kills: ["the result sent to the backend carries leaders, turns, the replay, each seat's log and how it ended (#244, #252)"] },
     { id: "result-replay-without-end", file: room, from: "intents: [...this.replay.intents], end: { winner, reason } }", to: "intents: [...this.replay.intents] }", kills: ["the result sent to the backend carries leaders, turns, the replay, each seat's log and how it ended (#244, #252)"] },
     { id: "result-seat-logs-dropped", file: room, from: "      seat_logs: this.seatLogs(),\n", to: "", kills: ["the result sent to the backend carries leaders, turns, the replay, each seat\'s log and how it ended (#244, #252)"] },
+    // spectators see both hands in unranked rooms only (#250)
+    {"id": "spectator-hands-in-ranked", "file": "game-server/src/rooms/DuelRoom.ts", "from": "{ revealHands: !this.ranked }", "to": "{ revealHands: true }", "kills": ["spectators of a ranked room see no hands (#250)"]},
+    {"id": "spectator-hands-never-sent", "file": "game-server/src/rooms/DuelRoom.ts", "from": "{ revealHands: !this.ranked }", "to": "{ revealHands: false }", "kills": ["spectators of an unranked room see both players' hands (#250)"]},
   ],
 };
