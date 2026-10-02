@@ -1285,3 +1285,7 @@ label.btn.is-busy {
   line-height: 1.35;
   color: var(--muted);
 }
+
+.segmented-3 {
+  grid-template-columns: repeat(3, 1fr);
+}

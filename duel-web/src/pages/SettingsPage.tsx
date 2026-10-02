@@ -26,8 +26,14 @@ import {
   type DuelSettings,
 } from "../settings";
 import { useDuelSession } from "../state/DuelSession";
-import { THEMES } from "../theme";
+import { THEMES, type ColorMode } from "../theme";
 import { VersionStatus } from "../VersionStatus";
+
+const MODE_OPTIONS: { value: ColorMode; label: string }[] = [
+  { value: "dark", label: "Dark" },
+  { value: "light", label: "Light" },
+  { value: "system", label: "Auto" },
+];
 
 export function SettingsPage() {
   const { setRating } = useDuelSession();
@@ -173,6 +179,20 @@ export function SettingsPage() {
 
         <section className="panel">
           <h2 className="panel-title" id="theme-title">Theme</h2>
+          <div className="segmented segmented-3" role="radiogroup" aria-label="Mode">
+            {MODE_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                role="radio"
+                aria-checked={settings.colorMode === o.value}
+                className={settings.colorMode === o.value ? "active" : undefined}
+                onClick={() => update({ colorMode: o.value })}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
           <div className="theme-grid" role="radiogroup" aria-labelledby="theme-title">
             {THEMES.map((t) => (
               <label
@@ -198,7 +218,9 @@ export function SettingsPage() {
             ))}
           </div>
           <p className="field-hint">
-            Colours for the whole app, from One Piece crews and places. {savedWhere}
+            Colours for the whole app, from One Piece crews and places. Light mode
+            brightens menus and panels; the playmat stays dark so cards read
+            clearly. Auto follows your device. {savedWhere}
           </p>
         </section>
 

@@ -26,14 +26,20 @@
   </head>
   <body>
     <script>
-      // Apply the saved colour theme before the first paint (App re-applies it
-      // on every change). theme-color follows the theme's background so the
+      // Apply the saved colour theme and light / dark mode before the first
+      // paint (App re-applies them on every change). theme-color follows the theme's background so the
       // Home Screen status bar matches from launch.
       try {
-        var t = JSON.parse(localStorage.getItem("optcg-duel:settings") || "{}").theme;
-        if (typeof t === "string" && t !== "nightSea") {
-          var r = document.documentElement;
-          r.dataset.theme = t;
+        var s = JSON.parse(localStorage.getItem("optcg-duel:settings") || "{}");
+        var r = document.documentElement;
+        var t = s.theme;
+        var mode = s.colorMode;
+        if (mode === "system") {
+          mode = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        }
+        if (typeof t === "string" && t !== "nightSea") r.dataset.theme = t;
+        if (mode === "light") r.dataset.mode = "light";
+        if (r.dataset.theme || r.dataset.mode) {
           var bg = getComputedStyle(r).getPropertyValue("--arena-deep").trim();
           var m = document.querySelector('meta[name="theme-color"]');
           if (bg && m) m.setAttribute("content", bg);
