@@ -13,7 +13,7 @@ import {
   type Seat,
 } from "@optcg/rules";
 import { describe, expect, it } from "vitest";
-import { narrateReplay, reviewMatch, tokenIsValid } from "./matches";
+import { draftLesson, matchupStats, myLessons, narrateReplay, reviewMatch, tokenIsValid } from "./matches";
 
 /** Play legal moves until a Life card goes to a hand. */
 function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, { type: "life_taken" }> } {
@@ -106,5 +106,47 @@ describe("match review", () => {
     await expect(tokenIsValid(answer(200), "t")).resolves.toBe(true);
     await expect(tokenIsValid(answer(401), "t")).resolves.toBe(false);
     await expect(tokenIsValid(answer(502), "t")).rejects.toThrow(/HTTP 502/);
+  });
+});
+
+type Call = { url: string; method: string; headers: Record<string, string>; body?: string };
+function recorder(answer: unknown) {
+  const calls: Call[] = [];
+  const fetchImpl = (async (url: string, init: RequestInit) => {
+    calls.push({ url, method: init.method ?? "GET", headers: init.headers as Record<string, string>, body: init.body as string | undefined });
+    return new Response(JSON.stringify(answer), { status: 200 });
+  }) as unknown as typeof fetch;
+  return { calls, api: { baseUrl: "https://api.test", serviceSecret: "svc", fetchImpl } };
+}
+
+describe("learning loop", () => {
+  it("reads matchup stats with the service secret only and names every card (#246)", async () => {
+    const { calls, api } = recorder({ leader: "OP01-001", matchups: [{ opponent: "OP01-060", games: 6 }], cards: [{ id: "OP01-006", with_rate: 0.5 }] });
+    const stats = (await matchupStats(api, { leader: " op01-001", opponent: "op01-060", days: 30, rankedOnly: true })) as Record<string, any>;
+    expect(calls).toEqual([
+      { url: "https://api.test/analyst/stats/matchups?leader=OP01-001&opponent=OP01-060&days=30&ranked_only=true", method: "GET", headers: { "X-Analyst-Service": "svc" }, body: undefined },
+    ]);
+    expect(stats.leader_name).toBe(getCardDef("OP01-001").name);
+    expect(stats.matchups[0].opponent_name).toBe(getCardDef("OP01-060").name);
+    expect(stats.cards[0].id_name).toBe(getCardDef("OP01-006").name);
+    await expect(matchupStats({ ...api, serviceSecret: "" }, {})).rejects.toThrow(/ANALYST_SERVICE_SECRET/);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("posts a lesson draft as JSON with the player's token (#246)", async () => {
+    const { calls, api } = recorder({ id: 7, status: "draft" });
+    const lesson = { text: "Keep Kuzan for the turn they swing with 2 rested DON", leader_id: "OP01-001", match_ids: ["m1"] };
+    await expect(draftLesson(api, "tok", lesson)).resolves.toEqual({ id: 7, status: "draft" });
+    expect(calls).toEqual([
+      { url: "https://api.test/analyst/lessons", method: "POST", headers: { "X-Analyst-Token": "tok", "Content-Type": "application/json" }, body: JSON.stringify(lesson) },
+    ]);
+  });
+
+  it("asks for lessons by status and leader (#246)", async () => {
+    const { calls, api } = recorder({ lessons: [{ id: 1 }] });
+    await expect(myLessons(api, "tok", "draft", " op01-001 ")).resolves.toEqual([{ id: 1 }]);
+    await myLessons(api, "tok");
+    expect(calls.map((c) => c.url)).toEqual(["https://api.test/analyst/lessons?status=draft&leader=OP01-001", "https://api.test/analyst/lessons?status=approved"]);
+    expect(calls[0]!.headers).toEqual({ "X-Analyst-Token": "tok" });
   });
 });

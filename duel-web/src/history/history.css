@@ -118,3 +118,86 @@
 .history-hint a {
   color: var(--chrome);
 }
+
+/* Log Pose lessons review list (Settings). */
+.analyst-subtitle {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.95rem;
+  color: var(--chrome-bright);
+}
+
+.lesson-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lesson-row {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 12px;
+  background: var(--arena-panel);
+  min-width: 0;
+}
+
+.lesson-row[data-status="draft"] {
+  border-left-color: var(--chrome);
+}
+
+.lesson-row[data-status="approved"] {
+  border-left-color: var(--ok);
+}
+
+.lesson-row[data-status="rejected"] {
+  border-left-color: var(--danger);
+  opacity: 0.75;
+}
+
+.lesson-meta,
+.lesson-text,
+.lesson-cards {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.lesson-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.lesson-status {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--chrome-bright);
+}
+
+.lesson-text {
+  margin-top: 0.3rem;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.lesson-cards {
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.lesson-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.lesson-actions .btn {
+  min-width: 5.5rem;
+}

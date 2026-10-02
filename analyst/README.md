@@ -17,14 +17,23 @@ Design doc: https://claude.ai/artifact/DHEmpEwqp9UD1btA2BN5Rv
 | `card_rulings` | Official FAQ answers for each card, rulings on other cards that mention it, errata (before and after), and ban status, including announced bans and their start date. |
 | `ban_list` | Banned cards, restricted cards and banned pairs in force today, plus announced changes. `analyze_deck` also checks a deck against it. |
 | `playbook` | Strategy notes from [`playbook/`](playbook/README.md): a leader's game plan, key cards, mulligan, lines and matchups, both sides of a matchup, or notes mentioning a card. |
+| `matchup_stats` | Win rates from recorded duels: a leader's overall record, going first and second, each matchup (mirrors apart), and per-card rates with and without the card. Totals only, with a Wilson interval; buckets under 5 games are held back. Needs `ANALYST_SERVICE_SECRET`. |
 
-A personal link (below) adds three more:
+A personal link (below) adds five more:
 
 | Tool | What it does |
 |------|--------------|
 | `list_my_decks` | Your deck planner decks, ready to pass to `analyze_deck`. |
 | `list_my_matches` | Your recent duels: both leaders, result, how it ended, turns, rating change, and whether a replay was kept. |
 | `review_match` | Re-runs one of your games in the duel engine and returns a turn-by-turn log from your seat, your opening hand, the result and the final board. The opponent's face-down cards stay hidden. |
+| `draft_lesson` | Saves a lesson Claude learned from your games (with the leader, opponent, cards and match ids it came from) as a draft for you to review. |
+| `my_lessons` | Your approved lessons (or drafts), optionally for one leader, so Claude can apply them in later chats. |
+
+### Learning loop
+
+Every finished duel is stored per seat (leader, deck, result, who went first, turns), and `matchup_stats` aggregates those rows. Players can leave their games out of everyone's stats with **Count my games in Log Pose stats** in duel-web Settings; it is on by default, and only totals are ever returned.
+
+After reviewing your games, Claude can call `draft_lesson`. Drafts appear under **Lessons from your games** in duel-web Settings, where you approve, reject or delete them. Only approved lessons come back from `my_lessons`, and only to you. The shared `playbook/` stays in the repo and changes by pull request.
 
 The server's instructions tell Claude to take card facts and numbers from these tools, cite rules by section number, prefer official rulings over its own reading of card text, and treat matchup opinions (and draft playbook notes) as judgement.
 

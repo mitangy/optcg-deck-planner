@@ -24,6 +24,7 @@ const plannerApi: PlannerApi = {
 const knowledge: Knowledge = {
   library: new OfficialLibrary({ baseUrl: process.env.OFFICIAL_SITE_URL || undefined }),
   playbook: loadPlaybook(),
+  stats: plannerApi.serviceSecret ? plannerApi : undefined,
 };
 knowledge.library!.warm();
 

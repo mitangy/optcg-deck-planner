@@ -8,7 +8,7 @@ import { analyzeDeck, deckDrawOdds, describeDeck, rawDrawOdds } from "./analysis
 import type { Catalog, CardRow } from "./catalog";
 import { exportDeck, resolveDeck } from "./decks";
 import { banListView, cardRulings, deckBanCheck, rulesLookup } from "./knowledge";
-import { listMyDecks, listMyMatches, reviewMatch, type PlannerApi } from "./matches";
+import { draftLesson, listMyDecks, listMyMatches, matchupStats, myLessons, reviewMatch, type PlannerApi } from "./matches";
 import type { OfficialLibrary } from "./official/library";
 import { newestFormat, queryPlaybook, type Playbook } from "./playbook";
 import { searchCards } from "./search";
@@ -19,7 +19,7 @@ Talk like a veteran player and judge: give game plans, mulligan advice, matchup 
 Ground rules:
 - Card facts come from tools. Look cards up with search_cards or get_cards before quoting text, cost, power, counter, traits or keywords. Never invent card numbers.
 - Numbers come from tools. Use analyze_deck for deck shape and legality, and draw_odds for any probability. Quote the numbers you were given; don't estimate them yourself.
-- Matchup opinions are your judgement. Say so, and say which cards or turns they hinge on. This server has no match statistics yet, so don't claim win rates.
+- Matchup opinions are your judgement. Say so, and say which cards or turns they hinge on. Win rates come only from matchup_stats: quote them with the number of games and the interval, say when a sample is marked too_few_games, and say they come from games on optcgduel.app, not tournaments. Never estimate a win rate yourself.
 - Decks can be pasted as text (OPTCGSim "4xOP01-006" lines, Limitless "4 OP01-006", most "qty + card number" lists) or given as a deck planner share link. When a user mentions a deck, load it first with analyze_deck.
 - Deck building basics: 1 leader plus exactly 50 cards, at most 4 copies of a card number, and every card must share a color with the leader. Some leaders add their own deck rules; analyze_deck checks them, and the official ban list (banned cards, restricted cards, banned pairs, and announced changes with their start date).
 - Rules questions: use rules_lookup and cite comprehensive rules section numbers. For how a specific card works or interacts, check card_rulings first: official Q&A answers and errata outrank your own reading of the text. Say when no official ruling covers the case.
@@ -30,7 +30,8 @@ const PERSONAL_INSTRUCTIONS = `
 
 This is the player's personal link, so you can also see their own games and decks:
 - list_my_decks lists their deck planner decks; pass a deck's cards to analyze_deck.
-- list_my_matches lists their recent duels (leaders, result, turns). review_match replays one game turn by turn from their seat. Review it like a coach: the turns that decided the game, misplays and better lines, and what the opponent's deck showed. You never see the opponent's hidden cards, so don't guess them as fact.`;
+- list_my_matches lists their recent duels (leaders, result, turns). review_match replays one game turn by turn from their seat. Review it like a coach: the turns that decided the game, misplays and better lines, and what the opponent's deck showed. You never see the opponent's hidden cards, so don't guess them as fact.
+- Lessons: when reviews show a pattern the player can act on, offer to save it with draft_lesson: one or two specific sentences, the leader and opponent it applies to, and the match ids it came from. Drafts wait for the player to approve them in the duel app (Settings, Log Pose). my_lessons returns their approved lessons; check it with playbook before advising on a leader they play.`;
 
 const cardColors = z.enum(["red", "green", "blue", "purple", "black", "yellow"]);
 
@@ -67,7 +68,7 @@ const failure = (err: unknown) => ({
 export type PersonalContext = { api: PlannerApi; token: string };
 
 /** Official rules material and the strategy playbook; tools that need them are left out without them. */
-export type Knowledge = { library?: OfficialLibrary; playbook?: Playbook };
+export type Knowledge = { library?: OfficialLibrary; playbook?: Playbook; stats?: PlannerApi };
 
 export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, personal?: PersonalContext, knowledge: Knowledge = {}): McpServer {
   const server = new McpServer(
@@ -230,6 +231,7 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
 
   if (knowledge.library) registerOfficialTools(server, catalog, knowledge.library);
   if (knowledge.playbook) registerPlaybook(server, catalog, knowledge.playbook);
+  if (knowledge.stats) registerStats(server, knowledge.stats);
   if (personal) registerPersonalTools(server, personal);
   return server;
 }
@@ -303,6 +305,33 @@ function registerPlaybook(server: McpServer, catalog: Catalog, playbook: Playboo
   );
 }
 
+function registerStats(server: McpServer, api: PlannerApi) {
+  server.registerTool(
+    "matchup_stats",
+    {
+      title: "Matchup stats",
+      description:
+        "Win rates from games recorded on optcgduel.app (aggregates only, no player names or deck lists). No leader: every leader's games, play share and win rate. " +
+        "leader: its overall record, its record against each opponent leader, and win rates with and without each card it plays. leader + opponent: that matchup. " +
+        "Every rate has games, wins, a 95% interval, going first and second splits, and too_few_games when there are under 5 games.",
+      inputSchema: {
+        leader: z.string().max(20).optional().describe("Leader card number"),
+        opponent: z.string().max(20).optional().describe("Opponent's leader card number (needs leader)"),
+        days: z.number().int().min(1).max(3650).optional().describe("How far back to look (default 90)"),
+        rankedOnly: z.boolean().optional().describe("Only ranked games (default false)"),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async (args) => {
+      try {
+        return json(await matchupStats(api, args));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+}
+
 function registerPersonalTools(server: McpServer, { api, token }: PersonalContext) {
   const readOnly = { readOnlyHint: true, openWorldHint: false } as const;
 
@@ -359,6 +388,53 @@ function registerPersonalTools(server: McpServer, { api, token }: PersonalContex
     async ({ matchId, ...opts }) => {
       try {
         return json(await reviewMatch(api, token, matchId, opts));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  const cardId = z.string().regex(/^(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})$/, "a card number like OP01-001");
+
+  server.registerTool(
+    "draft_lesson",
+    {
+      title: "Draft lesson",
+      description:
+        "Save a short strategy lesson for the player to review. It stays a draft until they approve it in the duel app (Settings, Log Pose). " +
+        "Cite the games it came from with matchIds (their own matches only). Ask the player before saving.",
+      inputSchema: {
+        text: z.string().min(10).max(1000).describe("One or two specific, actionable sentences"),
+        leader: cardId.optional().describe("The leader the lesson is for"),
+        opponent: cardId.optional().describe("The opponent's leader, for a matchup lesson"),
+        cards: z.array(cardId).max(10).optional().describe("Cards the lesson is about"),
+        matchIds: z.array(z.string().max(64)).max(10).optional().describe("match_id values from list_my_matches"),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    },
+    async ({ text, leader, opponent, cards, matchIds }) => {
+      try {
+        return json(await draftLesson(api, token, { text, leader_id: leader, opponent_id: opponent, cards, match_ids: matchIds }));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "my_lessons",
+    {
+      title: "My lessons",
+      description: "The player's own lessons: approved ones by default, or drafts waiting for review. leader narrows to lessons for that leader or against it.",
+      inputSchema: {
+        status: z.enum(["approved", "draft", "rejected", "all"]).optional(),
+        leader: z.string().max(20).optional(),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ status, leader }) => {
+      try {
+        return json({ lessons: await myLessons(api, token, status, leader) });
       } catch (err) {
         return failure(err);
       }
