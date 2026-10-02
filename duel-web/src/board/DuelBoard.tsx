@@ -296,8 +296,15 @@ export function DuelBoard({
   /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
   const panelLayout = useMemo(() => parsePanelLayout(prefs.panelLayout), [prefs.panelLayout]);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
-  const panelDrag = usePanelDrag(arenaBodyRef, panelLayout, (next) =>
-    updateSettings({ panelLayout: serializePanelLayout(next) }),
+  const panelDrag = usePanelDrag(
+    arenaBodyRef,
+    panelLayout,
+    (next) => updateSettings({ panelLayout: serializePanelLayout(next) }),
+    {
+      id: "oppHand",
+      spot: prefs.oppHandSpot || null,
+      onChange: (spot) => updateSettings({ oppHandSpot: spot ?? "" }),
+    },
   );
   const [lpPanel, setLpPanel] = useState<LandscapePanel | null>(null);
   // Starting a drag (or leaving landscape) must never leave an overlay over the board.
@@ -953,6 +960,8 @@ export function DuelBoard({
   // Unranked rooms send spectators both hands face up.
   const nearHand = spectating ? view.revealedHands?.[boardSeat] : undefined;
   const farHand = spectating ? view.revealedHands?.[oppSeat] : undefined;
+  /** Desktop: the opponent hand pinned above the playmat instead of its side panel. */
+  const oppHandOnMat = wide && !lp && !farHand && prefs.oppHandSpot ? prefs.oppHandSpot : null;
   const viewingSeat: Seat | undefined = spectating ? undefined : boardSeat;
   // Older servers omit firstSeat; they always started seat 0.
   const firstSeat: Seat = view.firstSeat ?? 0;
@@ -1263,8 +1272,7 @@ export function DuelBoard({
         alwaysOpen
       />
     ),
-    oppHand:
-      prefs.oppHandTopRight && !farHand ? (
+    oppHand: oppHandOnMat ? null : prefs.oppHandTopRight && !farHand ? (
         <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="fan" />
       ) : (
         <OppHandFan
@@ -1690,9 +1698,19 @@ export function DuelBoard({
           </aside>
         ) : null}
 
-        <div className="playmat">
+        <div className="playmat" data-mat-drop={wide && !lp ? "" : undefined}>
           <div className="playmat-inner">
-            {prefs.oppHandTopRight && !farHand ? (
+            {oppHandOnMat ? (
+              <div className={`opp-hand-mat opp-hand-mat-${oppHandOnMat}`}>
+                <SidePanel
+                  id="oppHand"
+                  dragging={panelDrag.draggingId === "oppHand"}
+                  grip={prefs.layoutGrips ? panelDrag.gripProps("oppHand") : null}
+                >
+                  <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="mat" />
+                </SidePanel>
+              </div>
+            ) : prefs.oppHandTopRight && !farHand ? (
               <div className="opp-hand-hint opp-hand-hint-right">
                 <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" />
               </div>

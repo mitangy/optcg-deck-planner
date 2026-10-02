@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom";
 import {
   PANEL_LABELS,
+  matSpotAt,
   movePanel,
   nudgePanel,
   panelDropAt,
   samePanelLayout,
   type ColumnRect,
+  type MatSpot,
   type PanelColumn,
   type PanelDrop,
   type PanelId,
@@ -21,7 +23,15 @@ type DragState = {
   drop: PanelDrop;
   /** Fixed-position insertion line (viewport px). */
   line: { left: number; width: number; top: number };
+  /** Over a playmat spot (the opponent hand only): lands there instead of a column. */
+  mat: { spot: MatSpot; left: number; top: number; width: number; height: number } | null;
 };
+
+/**
+ * A panel that can also be pinned onto the playmat (the opponent hand):
+ * `spot` is where it is pinned now (null = in its column).
+ */
+export type MatPin = { id: PanelId; spot: MatSpot | null; onChange: (spot: MatSpot | null) => void };
 
 /** Measure the desktop side columns and their panels inside `root`. */
 function measure(root: HTMLElement) {
@@ -48,12 +58,13 @@ export function usePanelDrag(
   rootRef: React.RefObject<HTMLElement | null>,
   layout: PanelLayout,
   onChange: (next: PanelLayout) => void,
+  matPin?: MatPin,
 ) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
-  const latest = useRef({ layout, onChange });
-  latest.current = { layout, onChange };
+  const latest = useRef({ layout, onChange, matPin });
+  latest.current = { layout, onChange, matPin };
 
   const track = useCallback(
     (id: PanelId, x: number, y: number) => {
@@ -66,7 +77,18 @@ export function usePanelDrag(
       const rest = panels.filter((p) => p.column === drop.column && p.id !== id);
       const before = drop.beforeId ? rest.find((p) => p.id === drop.beforeId) : null;
       const top = before ? before.top : rest.length ? Math.max(...rest.map((p) => p.bottom)) : col.top;
-      setDrag({ id, x, y, drop, line: { left: col.left, width: col.right - col.left, top } });
+      let mat: DragState["mat"] = null;
+      const matEl = latest.current.matPin?.id === id ? root.querySelector<HTMLElement>("[data-mat-drop]") : null;
+      if (matEl) {
+        const r = matEl.getBoundingClientRect();
+        const spot = matSpotAt(r, x, y);
+        if (spot) {
+          const width = r.width / 3;
+          const left = r.left + (spot === "left" ? 0 : spot === "centre" ? width : 2 * width);
+          mat = { spot, left, top: r.top, width, height: Math.min(r.height * 0.2, 96) };
+        }
+      }
+      setDrag({ id, x, y, drop, line: { left: col.left, width: col.right - col.left, top }, mat });
     },
     [rootRef],
   );
@@ -75,9 +97,15 @@ export function usePanelDrag(
     const d = dragRef.current;
     setDrag(null);
     if (!d || !commit) return;
-    const { layout: cur, onChange: change } = latest.current;
+    const { layout: cur, onChange: change, matPin } = latest.current;
+    if (d.mat) {
+      matPin!.onChange(d.mat.spot);
+      return;
+    }
     const next = movePanel(cur, d.id, d.drop.column, d.drop.beforeId);
     if (!samePanelLayout(next, cur)) change(next);
+    // Dropped in a column: off the mat.
+    if (matPin?.id === d.id && matPin.spot) matPin.onChange(null);
   }, []);
 
   const dragging = drag != null;
@@ -134,11 +162,24 @@ export function usePanelDrag(
     drag && typeof document !== "undefined"
       ? createPortal(
           <>
-            <div
-              className="panel-drop-line"
-              aria-hidden
-              style={{ left: drag.line.left, width: drag.line.width, top: drag.line.top }}
-            />
+            {drag.mat ? (
+              <div
+                className="panel-drop-spot"
+                aria-hidden
+                style={{
+                  left: drag.mat.left,
+                  top: drag.mat.top,
+                  width: drag.mat.width,
+                  height: drag.mat.height,
+                }}
+              />
+            ) : (
+              <div
+                className="panel-drop-line"
+                aria-hidden
+                style={{ left: drag.line.left, width: drag.line.width, top: drag.line.top }}
+              />
+            )}
             <div className="panel-drag-ghost" aria-hidden style={{ left: drag.x, top: drag.y }}>
               {PANEL_LABELS[drag.id]}
             </div>

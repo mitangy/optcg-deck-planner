@@ -140,6 +140,13 @@ describe("hand layout", () => {
     stubStored({ handLayout: "fanRight", handFanPos: "0.2,0.5" });
     expect(loadSettings().handFanPos).toBe("0.2,0.5");
   });
+
+  it("keeps a pinned opponent hand spot and drops an unknown one (#264)", () => {
+    stubStored({ oppHandSpot: "centre" });
+    expect(loadSettings().oppHandSpot).toBe("centre");
+    stubStored({ oppHandSpot: "bottom" });
+    expect(loadSettings().oppHandSpot).toBe("");
+  });
 });
 
 describe("account settings", () => {

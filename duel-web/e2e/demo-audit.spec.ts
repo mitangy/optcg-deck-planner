@@ -445,3 +445,47 @@ test("the action rail says to answer the prompt or that it is waiting (#262)", a
   await page.goto("/demo?wait=opponent");
   await expect(page.locator(".intent-empty")).toHaveText("Waiting for your opponent…");
 });
+
+// The opponent hand pins above the top of the playmat (left, centre or right)
+// instead of its side panel, and drags back into a column (#264).
+test("the opponent hand pins to the top of the mat, stays after a reload, and drags back to a column (#264)", async ({ page, duel }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "side panels move on desktop only");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const drag = async (to: (box: { x: number; y: number; width: number; height: number }) => { x: number; y: number }, target: string) => {
+    const panel = page.locator('[data-panel="oppHand"]');
+    await panel.hover();
+    const grip = (await panel.locator("> .panel-grip").boundingBox())!;
+    const box = (await page.locator(target).first().boundingBox())!;
+    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+    await page.mouse.down();
+    const p = to(box);
+    await page.mouse.move(p.x, p.y, { steps: 6 });
+  };
+  const inColumn = () => page.locator('[data-panel-col] > [data-panel="oppHand"]').count();
+
+  // Over the top of the opponent's mat, right third: a dashed spot shows.
+  await drag((m) => ({ x: m.x + m.width * 0.85, y: m.y + 10 }), ".side-field.side-opp");
+  await expect(page.locator(".panel-drop-spot")).toBeVisible();
+  await page.mouse.up();
+  await expect(page.locator(".opp-hand-mat-right .opp-hand-corner")).toBeVisible();
+  expect(await inColumn()).toBe(0);
+  // It sits above the opponent's mat, not over its cards.
+  const hand = (await page.locator(".opp-hand-mat").boundingBox())!;
+  const mat = (await page.locator(".side-field.side-opp").boundingBox())!;
+  expect(hand.y + hand.height).toBeLessThanOrEqual(mat.y + 1);
+  const issues = (await duel.audit()).filter((i) => !isKnown(i));
+  if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
+  expect(issues, formatIssues(issues)).toEqual([]);
+
+  await page.reload();
+  await expect(page.locator(".opp-hand-mat-right .opp-hand-corner")).toBeVisible();
+
+  // Back into the right column, above Turn and clocks.
+  await drag((t) => ({ x: t.x + t.width / 2, y: t.y + 6 }), '[data-panel="turn"]');
+  await expect(page.locator(".panel-drop-line")).toBeVisible();
+  await page.mouse.up();
+  await expect(page.locator(".opp-hand-mat")).toHaveCount(0);
+  await expect.poll(inColumn).toBe(1);
+  expect(duel.errors).toEqual([]);
+});

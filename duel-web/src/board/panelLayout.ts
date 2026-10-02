@@ -152,3 +152,28 @@ export function nudgePanel(
 export function samePanelLayout(a: PanelLayout, b: PanelLayout): boolean {
   return serializePanelLayoutRaw(a) === serializePanelLayoutRaw(b);
 }
+
+/**
+ * The opponent's hand can also be pinned above the playmat, at its left,
+ * centre or right ("" = in its side panel). Saved as `oppHandSpot`.
+ */
+export type MatSpot = "left" | "centre" | "right";
+export type OppHandSpot = MatSpot | "";
+export const OPP_HAND_SPOTS: readonly OppHandSpot[] = ["", "left", "centre", "right"];
+
+export type MatRect = { left: number; right: number; top: number; bottom: number };
+
+/**
+ * The mat spot a dragged opponent hand lands on: over the top strip of the
+ * playmat (its top fifth, or just above it), by thirds of its width. Null
+ * anywhere else, so it goes back to a column.
+ */
+export function matSpotAt(mat: MatRect, x: number, y: number): MatSpot | null {
+  if (x < mat.left || x > mat.right) return null;
+  const band = (mat.bottom - mat.top) * 0.2;
+  if (y < mat.top - band / 2 || y > mat.top + band) return null;
+  const third = (mat.right - mat.left) / 3;
+  if (x < mat.left + third) return "left";
+  if (x > mat.right - third) return "right";
+  return "centre";
+}
