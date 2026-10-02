@@ -37,7 +37,7 @@ test("an unblocked Leader attack moves one Life card to the defender's hand", as
   await expect(root).toHaveAttribute("data-phase", "main");
   await expect(root).toHaveAttribute("data-turn", "1");
 
-  // Space ends the turn even while a board card has focus (it must not just re-select the card (#PR_G)).
+  // Space ends the turn even while a board card has focus (it must not just re-select the card (#257)).
   await page.locator(".side-field.side-you .zone-leader .card-tile").click();
   await page.keyboard.press("Space");
   if (await page.locator(".intent-btn-primary.armed").isVisible().catch(() => false)) {

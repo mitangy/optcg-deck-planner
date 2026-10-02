@@ -33,7 +33,7 @@ describe("hotkeyAction", () => {
     expect(hotkeyAction(space, { ...base, focus: "control" })).toBeNull();
   });
 
-  it("still ends the turn with Space while a board or hand card has focus (#PR_G)", () => {
+  it("still ends the turn with Space while a board or hand card has focus (#257)", () => {
     expect(hotkeyAction(space, { ...base, focus: "card" })).toBe("primary");
   });
 
