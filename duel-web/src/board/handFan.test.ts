@@ -21,14 +21,14 @@ describe("fanPose", () => {
 describe("handDrawer", () => {
   const rest = { pinned: false, hidden: false, mulligan: false, selected: false };
 
-  it("keeps a hidden hand hidden even while pinned or with a card selected (#PR_H)", () => {
+  it("keeps a hidden hand hidden even while pinned or with a card selected (#259)", () => {
     expect(handDrawer({ ...rest, pinned: true, hidden: true })).toBe("hidden");
     expect(handDrawer({ ...rest, pinned: true, hidden: true, selected: true })).toBe("hidden");
     expect(handDrawer({ ...rest, pinned: true })).toBe("open");
     expect(handDrawer(rest)).toBe("tucked");
   });
 
-  it("shows a hidden hand during the mulligan (#PR_H)", () => {
+  it("shows a hidden hand during the mulligan (#259)", () => {
     expect(handDrawer({ ...rest, pinned: true, hidden: true, mulligan: true })).toBe("open");
   });
 });

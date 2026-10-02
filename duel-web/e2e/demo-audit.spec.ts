@@ -96,7 +96,7 @@ test("DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits und
 });
 
 // Keep hand open: H (or the Hide button) tucks the whole hand away and brings it back.
-test("H hides and shows the hand with Keep hand open (#PR_H)", async ({ page }) => {
+test("H hides and shows the hand with Keep hand open (#259)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
   await page.addInitScript(() =>
     localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true })),
@@ -123,7 +123,7 @@ test("H hides and shows the hand with Keep hand open (#PR_H)", async ({ page }) 
 });
 
 // Status icons follow the card size (so the window) and the Text size setting.
-test("status icons scale with the card and the Text size setting (#PR_H)", async ({ page }) => {
+test("status icons scale with the card and the Text size setting (#259)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "one desktop size is enough");
   const iconRatio = async (textSize: string, w: number, h: number) => {
     await page.setViewportSize({ width: w, height: h });

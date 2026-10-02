@@ -47,7 +47,7 @@ describe("hotkeyAction", () => {
     expect(hotkeyAction({ key: "h" }, { ...base, wide: false })).toBeNull();
   });
 
-  it("H hides and shows the hand instead of pinning it when Keep hand open is on (#PR_H)", () => {
+  it("H hides and shows the hand instead of pinning it when Keep hand open is on (#259)", () => {
     expect(hotkeyAction({ key: "h" }, { ...base, handHides: true })).toBe("hide_hand");
     expect(hotkeyAction({ key: "h" }, base)).toBe("toggle_hand");
     expect(hotkeyAction({ key: "h" }, { ...base, handHides: true, wide: false })).toBeNull();
