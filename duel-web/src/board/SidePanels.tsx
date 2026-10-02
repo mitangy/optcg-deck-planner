@@ -150,7 +150,7 @@ export function usePanelDrag(
   return { draggingId: drag?.id ?? null, gripProps, overlay };
 }
 
-/** One movable side panel: the panel itself plus a grip that shows on hover. */
+/** One movable side panel: the panel itself plus a grip that shows on hover (Drag handles on). */
 export function SidePanel({
   id,
   dragging,
@@ -159,20 +159,23 @@ export function SidePanel({
 }: {
   id: PanelId;
   dragging: boolean;
-  grip: ReturnType<ReturnType<typeof usePanelDrag>["gripProps"]>;
+  /** Null when Drag handles is off: the panel keeps its place, without a grip. */
+  grip: ReturnType<ReturnType<typeof usePanelDrag>["gripProps"]> | null;
   children: ReactNode;
 }) {
   return (
     <div className={`board-panel${dragging ? " is-panel-dragging" : ""}`} data-panel={id}>
-      <button
-        type="button"
-        className="panel-grip"
-        aria-label={`Move ${PANEL_LABELS[id]} (drag, or arrow keys)`}
-        title={`Drag to move ${PANEL_LABELS[id]}`}
-        {...grip}
-      >
-        <span aria-hidden />
-      </button>
+      {grip ? (
+        <button
+          type="button"
+          className="panel-grip"
+          aria-label={`Move ${PANEL_LABELS[id]} (drag, or arrow keys)`}
+          title={`Drag to move ${PANEL_LABELS[id]}`}
+          {...grip}
+        >
+          <span aria-hidden />
+        </button>
+      ) : null}
       {children}
     </div>
   );

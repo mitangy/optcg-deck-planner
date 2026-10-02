@@ -122,13 +122,23 @@ describe("hand layout", () => {
   it("keeps a stored hand layout", () => {
     stubStored({ handLayout: "grid" });
     expect(loadSettings().handLayout).toBe("grid");
-    stubStored({ handLayout: "fanRight" });
-    expect(loadSettings().handLayout).toBe("fanRight");
+    stubStored({ handLayout: "fan" });
+    expect(loadSettings().handLayout).toBe("fan");
   });
 
-  it("replaces an unknown stored hand layout with the centre fan", () => {
+  it("replaces an unknown stored hand layout with the fan", () => {
     stubStored({ handLayout: "dock" });
-    expect(loadSettings().handLayout).toBe("fanCenter");
+    expect(loadSettings().handLayout).toBe("fan");
+  });
+
+  it("turns the old centre and right fans into the one fan, the right one kept at the bottom right (#261)", () => {
+    stubStored({ handLayout: "fanCenter" });
+    expect(loadSettings()).toMatchObject({ handLayout: "fan", handFanPos: "" });
+    stubStored({ handLayout: "fanRight" });
+    expect(loadSettings()).toMatchObject({ handLayout: "fan", handFanPos: "0.88,1" });
+    // A spot saved since then wins over the old right fan.
+    stubStored({ handLayout: "fanRight", handFanPos: "0.2,0.5" });
+    expect(loadSettings().handFanPos).toBe("0.2,0.5");
   });
 });
 
@@ -146,7 +156,7 @@ describe("account settings", () => {
   });
 
   it("applies account settings but keeps this device's device-only fields", () => {
-    stubStored({ useDevKey: true, devUserKey: "mine", handLayout: "fanRight" });
+    stubStored({ useDevKey: true, devUserKey: "mine", handLayout: "fan" });
     const merged = mergeRemoteSettings(loadSettings(), {
       handLayout: "grid",
       turnSound: true,

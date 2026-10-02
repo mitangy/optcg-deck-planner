@@ -188,3 +188,74 @@ test("the Grid hand drags into the left column, stays after a reload, and Reset 
   expect(await column("right")).toContain("hand");
   expect(duel.errors).toEqual([]);
 });
+
+// One fan, moved by its grip anywhere on the screen; Drag handles off hides
+// every grip but keeps the layout.
+test("the fanned hand drags to the middle of the screen and floats there after a reload, and Drag handles off hides the grips (#261)", async ({ page, duel }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "the fan moves on desktop only");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const fan = page.locator(".hand-fan");
+  await expect(fan).toHaveClass(/hand-fan-center/);
+
+  const grip = (await page.locator(".hand-fan-grip").boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + 200, 360, { steps: 8 });
+  await page.mouse.up();
+  await expect(fan).toHaveClass(/hand-fan-float/);
+  const box = (await fan.boundingBox())!;
+  // Fully shown above the bottom edge, not tucked off it.
+  expect(box.y + box.height).toBeLessThan(720 - 100);
+
+  const issues = (await duel.audit()).filter((i) => !isKnown(i));
+  if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
+  expect(issues, formatIssues(issues)).toEqual([]);
+
+  await page.reload();
+  await page.locator(".board-root").waitFor();
+  await expect(fan).toHaveClass(/hand-fan-float/);
+  await expect(page.locator(".hand-fan-grip")).toHaveCount(1);
+  await expect(page.locator(".panel-grip").first()).toBeAttached();
+
+  await page.getByRole("button", { name: "Gameplay settings" }).click();
+  await page.getByLabel("Drag handles").uncheck();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".hand-fan-grip")).toHaveCount(0);
+  await expect(page.locator(".panel-grip")).toHaveCount(0);
+  await expect(fan).toHaveClass(/hand-fan-float/);
+  expect(duel.errors).toEqual([]);
+});
+
+// The Battle log's own heading sat above the grip, so its drag selected text instead.
+test("the Battle log drags by its grip into the right column (#261)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "side panels move on desktop only");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await page.locator('[data-panel="log"]').hover();
+  const grip = (await page.locator('[data-panel="log"] > .panel-grip').boundingBox())!;
+  const rail = (await page.locator('[data-panel-col="right"]').boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(rail.x + rail.width / 2, rail.y + rail.height - 20, { steps: 6 });
+  await page.mouse.up();
+  await expect
+    .poll(() => page.$$eval('[data-panel-col="right"] > [data-panel]', (els) => els.map((e) => (e as HTMLElement).dataset.panel)))
+    .toContain("log");
+  expect(await page.evaluate(() => getSelection()?.toString() ?? "")).toBe("");
+});
+
+// With every panel in one column the Actions panel shrank to its title.
+test("Actions keeps room for its buttons with every panel in the right column (#261)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "side panels move on desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "optcg-duel:settings",
+      JSON.stringify({ panelLayout: "|oppHand,turn,actions,preview,recent,log,hand,chat" }),
+    ),
+  );
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const actions = (await page.locator('[data-panel="actions"]').boundingBox())!;
+  expect(actions.height).toBeGreaterThanOrEqual(80);
+});

@@ -943,6 +943,9 @@
 
 .arena.arena-wide .board-panel {
   position: relative;
+  /* The panel's own layers (the Battle log heading sits at z-index 12) stay
+     inside it, under its grip. */
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -973,8 +976,9 @@
   min-height: min(calc(clamp(60px, 9.4dvh, 150px) * 1.4 + 3.4rem), 50%);
 }
 
+/* Never squeezed by panels moved in beside it: the others give way first. */
 .arena.arena-wide .board-panel[data-panel="actions"] {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   max-height: 34%;
 }
 
@@ -995,7 +999,7 @@
   position: absolute;
   top: 0;
   left: 50%;
-  z-index: 6;
+  z-index: 30;
   width: 44px;
   height: 14px;
   margin-left: -22px;
@@ -1479,20 +1483,17 @@ body.is-panel-drag * {
 
 /* —— Fanned hand (desktop): held like real cards, peeks until hovered ——
 
-   .hand-fan-center sits under the board column, which keeps a strip free for
-   the tucked cards (so they never cover your DON!!, deck or trash);
-   .hand-fan-right sits under the rail like the old dock. Hovering, keyboard
+   .hand-fan-center (the default spot) sits under the board column, which
+   keeps a strip free for the tucked cards (so they never cover your DON!!,
+   deck or trash). Dragged by its grip it becomes .hand-fan-free: on the
+   bottom edge (.hand-fan-docked) it still tucks, anywhere else
+   (.hand-fan-float) it stays fully shown (handFanPos.ts). Hovering, keyboard
    focus, pinning (H) or selecting a card raises the fan and spreads it out
    over the board; dragging a card out tucks it again so the whole board is a
    drop target. Only :focus-visible raises it, not :focus-within: a clicked
    card, Sort or Hand button keeps focus, and the fan would stay up over your
    DON!! row after the pointer leaves. The container ignores the pointer, so only the cards and the handle
    catch clicks. Per-card tilt and drop come from handFan.ts (--rot, --drop). */
-
-/* The rail keeps the tucked right fan's strip free (handle + top of the cards). */
-.arena.arena-fan-right {
-  --dock-peek: calc(1.75rem + 0.6rem + var(--fan-ch) * 0.42 + var(--safe-b));
-}
 
 .arena.arena-fan-center .playmat {
   padding-bottom: calc(var(--fan-ch) * var(--fan-peek-center) + var(--safe-b) + 4px);
@@ -1664,41 +1665,125 @@ body.is-panel-drag * {
   width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
 }
 
-/* Right: under the rail at rest (the rail keeps --dock-peek free), spreading
-   left over the board when raised. */
-.hand-fan-right {
-  right: 0;
-  width: var(--rail-w);
-  max-width: calc(100vw - var(--left-w) - 1rem);
-  padding: 0 calc(var(--fan-cw) * 0.6 + var(--safe-r)) var(--safe-b) 0.6rem;
-  gap: 0.6rem;
-  transition:
-    transform 200ms ease 140ms,
-    width 200ms ease 140ms;
+/* Moved fan: centred on --fan-x (share of the window), as wide as the spread
+   cards, kept on screen. The handle row sits above the cards. */
+.hand-fan-free {
+  --fan-w: calc(var(--fan-cw) * (0.8 * var(--n) + 0.9));
+  left: clamp(0px, calc(var(--fan-x) * 100vw - var(--fan-w) / 2), calc(100vw - var(--fan-w)));
+  width: var(--fan-w);
+  max-width: 100vw;
+  box-sizing: border-box;
+  padding-inline: calc(var(--fan-cw) * 0.35);
+  gap: 0.35rem;
 }
 
-.hand-fan-right .hand-fan-head {
-  align-self: stretch;
-}
-
-.hand-fan-right .hand-fan-cards {
+.hand-fan-free .hand-fan-cards {
   width: 100%;
 }
 
-.hand-fan-right.is-open,
-.hand-fan-right:has(:focus-visible) {
-  width: max(var(--rail-w), calc(var(--fan-cw) * (0.8 * var(--n) + 0.8) + 0.6rem + var(--safe-r)));
+/* Docked on the bottom edge: tucked cards overlap by half like the default
+   fan, and spread out when it rises. */
+.hand-fan.hand-fan-docked {
+  --fan-w: calc(var(--fan-cw) * (0.5 * var(--n) + 1.2));
+  transition:
+    transform 200ms ease 140ms,
+    width 200ms ease 140ms,
+    left 200ms ease 140ms;
+}
+
+.hand-fan.hand-fan-docked:is(.is-open, :has(:focus-visible)) {
+  --fan-w: calc(var(--fan-cw) * (0.8 * var(--n) + 0.9));
+  transition-delay: 0s;
 }
 
 @media (hover: hover) {
-  .hand-fan-right:hover {
-    width: max(var(--rail-w), calc(var(--fan-cw) * (0.8 * var(--n) + 0.8) + 0.6rem + var(--safe-r)));
+  .hand-fan.hand-fan-docked:hover {
+    --fan-w: calc(var(--fan-cw) * (0.8 * var(--n) + 0.9));
+    transition-delay: 0s;
   }
 }
 
-.hand-fan-right.is-dragging,
-.hand-fan-right.is-dragging:hover {
-  width: var(--rail-w);
+.hand-fan.hand-fan-docked:is(.is-dragging, .is-hidden),
+.hand-fan.hand-fan-docked.is-dragging:hover {
+  --fan-w: calc(var(--fan-cw) * (0.5 * var(--n) + 1.2));
+}
+
+/* Floating: bottom edge at --fan-y, fully shown (never tucks), on screen and
+   below the top bar (about 3.75rem), so its grip can always be reached. */
+.hand-fan.hand-fan-float {
+  bottom: clamp(
+    0px,
+    calc((1 - var(--fan-y)) * 100dvh),
+    calc(100dvh - var(--fan-ch) * 1.15 - 2.4rem - 3.75rem)
+  );
+  padding-bottom: calc(var(--fan-ch) * 0.1);
+}
+
+.hand-fan.hand-fan-float,
+.hand-fan.hand-fan-float:is(:hover, .is-open, .is-dragging, .is-hidden, :has(:focus-visible)) {
+  transform: none;
+}
+
+/* While a card is dragged out, the floating fan steps aside so the board
+   under it stays a drop target. */
+.hand-fan.hand-fan-float.is-dragging {
+  opacity: 0.35;
+}
+
+.hand-fan.hand-fan-float.is-dragging > * {
+  pointer-events: none;
+}
+
+/* Following the pointer: no easing, so it never lags behind. */
+.hand-fan.is-moving {
+  z-index: 92;
+  transition: none;
+}
+
+/* The fan's grip: a small handle at the left of its handle row (Drag handles on). */
+.hand-fan-grip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgb(var(--deep-rgb) / 0.92);
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.hand-fan-grip > span {
+  position: relative;
+  display: block;
+  width: 12px;
+  height: 8px;
+  box-sizing: border-box;
+  border-top: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+}
+
+.hand-fan-grip > span::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1.5px solid currentColor;
+  transform: translateY(-50%);
+}
+
+.hand-fan-grip:hover,
+.hand-fan-grip:focus-visible {
+  color: var(--chrome-bright);
+}
+
+.hand-fan-grip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }
 
 /* Hidden (Keep hand open + H / Hide): only the handle row stays, at the
@@ -1720,22 +1805,6 @@ body.is-panel-drag * {
 
 .hand-fan-center.is-hidden .hand-fan-cards {
   width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
-}
-
-.hand-fan-right.is-hidden {
-  width: var(--rail-w);
-}
-
-/* Tall windows have room under the rail's action bar: the right fan rests
-   almost fully shown there, like a hand held at the table edge. */
-@media (min-height: 680px) {
-  .hand-fan-right {
-    --fan-peek: 0.85;
-  }
-
-  .arena.arena-fan-right {
-    --dock-peek: calc(1.75rem + 0.6rem + var(--fan-ch) * 0.85 + var(--safe-b));
-  }
 }
 
 /* Portrait phones: the hand strip overlaps its cards in a shallow fan so the

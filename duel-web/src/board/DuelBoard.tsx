@@ -96,6 +96,8 @@ import { sideSkins } from "./seatSkins";
 import { updateSettings, useDuelSettings } from "../settings";
 import { parsePanelLayout, serializePanelLayout, type PanelId } from "./panelLayout";
 import { SidePanel, usePanelDrag } from "./SidePanels";
+import { fanDocked, parseFanPos, serializeFanPos } from "./handFanPos";
+import { useFanMove } from "./useFanMove";
 import { endTurnWarning, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
 import { HotkeyHelpSheet } from "./HotkeyHelp";
@@ -265,7 +267,21 @@ export function DuelBoard({
   const lp = wide && landscapePhone;
   /** Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). */
   const fanHand = wide && !lp && prefs.handLayout !== "grid";
-  const fanCenter = fanHand && prefs.handLayout === "fanCenter";
+  /** Desktop fan: where the player dragged it (null = bottom centre of the board). */
+  const fanPos = useMemo(() => parseFanPos(prefs.handFanPos), [prefs.handFanPos]);
+  const fanRef = useRef<HTMLDivElement | null>(null);
+  const fanMove = useFanMove(
+    fanRef,
+    fanPos,
+    (next) => updateSettings({ handFanPos: serializeFanPos(next) }),
+    () => {
+      const r = document.querySelector(".arena .playmat")?.getBoundingClientRect();
+      return r ? r.left + r.width / 2 : window.innerWidth / 2;
+    },
+  );
+  const shownFanPos = fanMove.livePos ?? fanPos;
+  /** Default spot: the board keeps a strip free under it for the tucked cards. */
+  const fanCenter = fanHand && shownFanPos == null;
   /** Desktop / landscape tablet: the board leans back in perspective, seen from your seat. */
   const tiltFits = useMediaQuery(TILT_BOARD_QUERY);
   const tilted = wide && !lp && tiltFits && prefs.tiltedBoard;
@@ -1296,7 +1312,12 @@ export function DuelBoard({
     const el = sidePanels[id];
     if (el == null) return null;
     return (
-      <SidePanel key={id} id={id} dragging={panelDrag.draggingId === id} grip={panelDrag.gripProps(id)}>
+      <SidePanel
+        key={id}
+        id={id}
+        dragging={panelDrag.draggingId === id}
+        grip={prefs.layoutGrips ? panelDrag.gripProps(id) : null}
+      >
         {el}
       </SidePanel>
     );
@@ -1381,7 +1402,7 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : fanHand ? " arena-fan-right" : ""}${
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : ""}${
         tilted ? " arena-tilt" : ""
       }`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
@@ -1809,7 +1830,7 @@ export function DuelBoard({
           <div className="arena-rail board-col" data-panel-col="right">
             {panelLayout.right.map(renderSidePanel)}
             {/* Reserves the strip the collapsed hand dock peeks into. */}
-            {railHand || fanCenter ? null : <div className="rail-dock-spacer" aria-hidden />}
+            {railHand || fanHand ? null : <div className="rail-dock-spacer" aria-hidden />}
           </div>
         ) : wide ? (
           // Landscape phones keep a fixed right column (no movable panels).
@@ -1922,13 +1943,34 @@ export function DuelBoard({
 
       {fanHand ? (
         <div
-          className={`hand-fan ${fanCenter ? "hand-fan-center" : "hand-fan-right"}${drawerClass}${
-            dragPayload ? " is-dragging" : ""
-          }`}
-          style={{ "--n": Math.max(handCount, 1) } as CSSProperties}
+          ref={fanRef}
+          className={`hand-fan ${
+            shownFanPos == null
+              ? "hand-fan-center"
+              : fanMove.livePos || !fanDocked(shownFanPos)
+                ? "hand-fan-free hand-fan-float"
+                : "hand-fan-free hand-fan-docked"
+          }${fanMove.livePos ? " is-moving" : ""}${drawerClass}${dragPayload ? " is-dragging" : ""}`}
+          style={
+            {
+              "--n": Math.max(handCount, 1),
+              ...(shownFanPos ? { "--fan-x": shownFanPos.x, "--fan-y": shownFanPos.y } : null),
+            } as CSSProperties
+          }
           aria-label={`Your hand: ${handCount} cards`}
         >
           <div className="hand-fan-head">
+            {prefs.layoutGrips ? (
+              <button
+                type="button"
+                className="hand-fan-grip"
+                aria-label="Move your hand (drag, or arrow keys)"
+                title="Drag to move your hand anywhere"
+                {...fanMove.gripProps}
+              >
+                <span aria-hidden />
+              </button>
+            ) : null}
             <button
               type="button"
               className="hand-fan-toggle"

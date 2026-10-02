@@ -713,5 +713,14 @@ module.exports = {
     { id: "panels-drop-counts-dragged", file: `${src}/board/panelLayout.ts`, from: "p.column === column && p.id !== dragId", to: "p.column === column", kills: ["ignores the dragged panel itself when finding the slot (#261)"] },
     { id: "panels-nudge-counts-hidden", file: `${src}/board/panelLayout.ts`, from: "layout[column].filter((p) => visible.has(p) || p === id)", to: "layout[column]", kills: ["moves past a hidden panel in one step, which keeps its place (#261)"] },
     { id: "panels-nudge-wrong-column", file: `${src}/board/panelLayout.ts`, from: "return dir === column ? layout : movePanel(layout, id, dir, null);", to: "return dir === column ? layout : movePanel(layout, id, dir === \"left\" ? \"right\" : \"left\", null);", kills: ["sends a panel to the end of the other column with Left / Right (#261)"] },
+    // one fanned hand, moved anywhere (#261)
+    { id: "fanpos-unclamped", file: `${src}/board/handFanPos.ts`, from: "  return { x: clamp01(x), y: clamp01(y) };", to: "  return { x, y };", kills: ["reads a saved spot and keeps it inside the window (#261)"] },
+    { id: "fanpos-broken-kept", file: `${src}/board/handFanPos.ts`, from: "  if (!m) return null;", to: "  if (!m) return { x: 0.5, y: 1 };", kills: ["treats an empty or broken spot as the default (#261)"] },
+    { id: "fanpos-no-default-snap", file: `${src}/board/handFanPos.ts`, from: "  if (nearBottom && Math.abs(centreX - defaultCentreX) <= FAN_SNAP_PX) return null;\n", to: "", kills: ["goes back to the default spot when dropped near it on the bottom edge (#261)"] },
+    { id: "fanpos-no-bottom-snap", file: `${src}/board/handFanPos.ts`, from: "y: nearBottom ? 1 : clamp01(bottom / vp.height)", to: "y: clamp01(bottom / vp.height)", kills: ["snaps onto the bottom edge away from the default spot, so it still tucks (#261)"] },
+    { id: "fanpos-docked-midscreen", file: `${src}/board/handFanPos.ts`, from: "  return pos.y >= 1;", to: "  return pos.y >= 0.5;", kills: ["floats where it is dropped higher up (#261)"] },
+    { id: "fanpos-nudge-never-docks", file: `${src}/board/handFanPos.ts`, from: "pos.y + step >= 1 - step / 2 ? 1 : pos.y + step", to: "pos.y + step", kills: ["moves by a step and lands on the bottom edge from just above it (#261)"] },
+    { id: "legacy-right-fan-recentred", file: `${src}/settings.ts`, from: "  if (storedLayout === \"fanRight\" && rest.handFanPos === undefined) next.handFanPos = LEGACY_RIGHT_FAN_POS;\n", to: "", kills: ["turns the old centre and right fans into the one fan, the right one kept at the bottom right (#261)"] },
+    { id: "legacy-right-fan-overrides-spot", file: `${src}/settings.ts`, from: "storedLayout === \"fanRight\" && rest.handFanPos === undefined", to: "storedLayout === \"fanRight\"", kills: ["turns the old centre and right fans into the one fan, the right one kept at the bottom right (#261)"] },
   ],
 };
