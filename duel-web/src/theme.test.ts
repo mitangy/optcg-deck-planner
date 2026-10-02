@@ -19,7 +19,7 @@ describe("colour themes", () => {
     vi.unstubAllGlobals();
   });
 
-  it("tints the status bar with the chosen theme's background (#PRNUM)", () => {
+  it("tints the status bar with the chosen theme's background (#240)", () => {
     const page = fakePage({ nightSea: "#0b1720", donquixote: " #170a14" });
     applyTheme("donquixote", page.target);
     expect(page.root.dataset.theme).toBe("donquixote");
@@ -29,14 +29,14 @@ describe("colour themes", () => {
     expect(page.meta.content).toBe("#0b1720");
   });
 
-  it("replaces a stored theme this build doesn't know with the default (#PRNUM)", () => {
+  it("replaces a stored theme this build doesn't know with the default (#240)", () => {
     vi.stubGlobal("localStorage", { getItem: () => JSON.stringify({ theme: "baroqueWorks" }) });
     expect(loadSettings().theme).toBe("nightSea");
     vi.stubGlobal("localStorage", { getItem: () => JSON.stringify({ theme: "wano" }) });
     expect(loadSettings().theme).toBe("wano");
   });
 
-  it("takes the theme saved to the account on another device (#PRNUM)", () => {
+  it("takes the theme saved to the account on another device (#240)", () => {
     vi.stubGlobal("localStorage", { getItem: () => null });
     const local = loadSettings();
     expect(mergeRemoteSettings(local, { theme: "marines" }).theme).toBe("marines");
