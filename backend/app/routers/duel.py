@@ -18,6 +18,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.analyst_stats import seats_for
 from app.auth import get_current_user, get_optional_user
 from app.config import Settings, get_settings
 from app.db import get_db
@@ -264,20 +265,21 @@ def ingest_match(
         turns=body.turns,
     )
     db.add(row)
+    db.flush()
     if body.replay is not None:
         replay_text = json.dumps(body.replay, separators=(",", ":"))
         if len(replay_text) <= MAX_REPLAY_BYTES:
-            db.flush()
             db.add(DuelMatchLog(match_id=body.match_id, replay=replay_text))
         else:
             log.warning("duel replay for %s dropped: %d bytes", body.match_id, len(replay_text))
     for seat, seat_log in enumerate(body.seat_logs or []):
         log_text = json.dumps(seat_log, separators=(",", ":"))
         if len(log_text) <= MAX_REPLAY_BYTES:
-            db.flush()
             db.add(DuelMatchSeatLog(match_id=body.match_id, seat=seat, log=log_text))
         else:
             log.warning("duel seat %d log for %s dropped: %d bytes", seat, body.match_id, len(log_text))
+    # Leaders, decks and who went first, for Log Pose matchup stats.
+    db.add_all(seats_for(row, body.replay))
     db.commit()
     return DuelMatchOut(
         match_id=row.match_id,

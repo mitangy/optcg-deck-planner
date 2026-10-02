@@ -9,7 +9,9 @@ import type { Request, Response } from "express";
 import { keyMatches } from "./auth";
 import { loadCatalog } from "./catalog";
 import { tokenIsValid, type PlannerApi } from "./matches";
-import { createServer, type PersonalContext } from "./server";
+import { OfficialLibrary } from "./official/library";
+import { loadPlaybook } from "./playbook";
+import { createServer, type Knowledge, type PersonalContext } from "./server";
 
 const catalog = loadCatalog();
 const connectorKey = process.env.ANALYST_CONNECTOR_KEY ?? "";
@@ -19,10 +21,17 @@ const plannerApi: PlannerApi = {
   serviceSecret: process.env.ANALYST_SERVICE_SECRET ?? "",
 };
 
+const knowledge: Knowledge = {
+  library: new OfficialLibrary({ baseUrl: process.env.OFFICIAL_SITE_URL || undefined }),
+  playbook: loadPlaybook(),
+  stats: plannerApi.serviceSecret ? plannerApi : undefined,
+};
+knowledge.library!.warm();
+
 const app = createMcpExpressApp({ host: "0.0.0.0" });
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, cards: catalog.cards.size });
+  res.json({ ok: true, cards: catalog.cards.size, playbookNotes: knowledge.playbook!.notes.size });
 });
 
 /** Personal links checked recently, so each MCP request doesn't wait on the planner API. */
@@ -58,7 +67,7 @@ async function handleMcp(req: Request, res: Response) {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  const server = createServer(catalog, undefined, personal);
+  const server = createServer(catalog, undefined, personal, knowledge);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on("close", () => {
     void transport.close();

@@ -70,3 +70,47 @@ export function createAnalystLink(): Promise<AnalystLinkCreated> {
 export function revokeAnalystLink(): Promise<void> {
   return call<void>("/analyst/token", { method: "DELETE" }, "Could not turn off the link");
 }
+
+export type AnalystLessonStatus = "draft" | "approved" | "rejected";
+export type AnalystLesson = {
+  id: number;
+  status: AnalystLessonStatus;
+  text: string;
+  leader_id: string | null;
+  opponent_id: string | null;
+  cards: string[];
+  match_ids: string[];
+  created_at: string | null;
+  reviewed_at: string | null;
+};
+
+/** Whether your games count toward Log Pose matchup stats (on unless you turn it off). */
+export async function fetchAnalystSharing(): Promise<boolean> {
+  return (await call<{ share_matches: boolean }>("/analyst/sharing", {}, "Could not load your stats setting")).share_matches;
+}
+
+export async function setAnalystSharing(share: boolean): Promise<boolean> {
+  const body = await call<{ share_matches: boolean }>(
+    "/analyst/sharing",
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ share_matches: share }) },
+    "Could not save your stats setting",
+  );
+  return body.share_matches;
+}
+
+/** Lessons Claude drafted from your games, newest first. */
+export async function fetchAnalystLessons(): Promise<AnalystLesson[]> {
+  return (await call<{ lessons: AnalystLesson[] }>("/analyst/lessons/review", {}, "Could not load lessons")).lessons;
+}
+
+export function reviewAnalystLesson(id: number, status: AnalystLessonStatus): Promise<AnalystLesson> {
+  return call<AnalystLesson>(
+    `/analyst/lessons/review/${id}`,
+    { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) },
+    "Could not save the lesson",
+  );
+}
+
+export function deleteAnalystLesson(id: number): Promise<void> {
+  return call<void>(`/analyst/lessons/review/${id}`, { method: "DELETE" }, "Could not delete the lesson");
+}

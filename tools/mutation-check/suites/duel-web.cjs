@@ -556,6 +556,17 @@ module.exports = {
     // match page log
     { id: "matchlog-turns-from-seat-0", file: "duel-web/src/history/matchLog.ts", from: "    const yours = t.activeSeat === log.seat;", to: "    const yours = t.activeSeat === 0;", kills: ["labels each turn from your seat (#252)"] },
     { id: "matchlog-board-cards-ignored", file: "duel-web/src/history/matchLog.ts", from: "new Map(log.boardCards.map(([id, defId, seat]) => [id, { defId, seat }]))", to: "new Map()", kills: ["names the attacking card from the cards that were on the board (#252)"] },
+    // Log Pose lessons + stats opt-out (#246)
+    { id: "lesson-rows-no-status-order", file: "duel-web/src/history/lessonRow.ts", from: "    .sort((a, b) => ORDER[a.l.status] - ORDER[b.l.status] || a.i - b.i)\n", to: "", kills: ["puts drafts first and keeps newest first within each status"] },
+    { id: "lesson-rows-oldest-first", file: "duel-web/src/history/lessonRow.ts", from: "ORDER[a.l.status] - ORDER[b.l.status] || a.i - b.i", to: "ORDER[a.l.status] - ORDER[b.l.status] || b.i - a.i", kills: ["puts drafts first and keeps newest first within each status"] },
+    { id: "lesson-rows-approve-approved", file: "duel-web/src/history/lessonRow.ts", from: "        ...(l.status !== \"approved\" ? [", to: "        ...(true ? [", kills: ["offers only the reviews that change a lesson's status"] },
+    { id: "lesson-rows-reject-rejected", file: "duel-web/src/history/lessonRow.ts", from: "        ...(l.status !== \"rejected\" ? [", to: "        ...(true ? [", kills: ["offers only the reviews that change a lesson's status"] },
+    { id: "lesson-rows-opponent-dropped", file: "duel-web/src/history/lessonRow.ts", from: "          ? `${cardName(l.leader_id)} vs ${cardName(l.opponent_id)}`", to: "          ? cardName(l.leader_id)", kills: ["names the matchup and cards a lesson is about"] },
+    { id: "lesson-rows-opponent-only-dropped", file: "duel-web/src/history/lessonRow.ts", from: "          ? `vs ${cardName(l.opponent_id)}`\n          : null,", to: "          ? null\n          : null,", kills: ["names the matchup and cards a lesson is about"] },
+    { id: "sharing-put-ignores-choice", file: "duel-web/src/history/historyApi.ts", from: "JSON.stringify({ share_matches: share })", to: "JSON.stringify({ share_matches: true })", kills: ["saves the stats opt-out"] },
+    { id: "lesson-review-wrong-id", file: "duel-web/src/history/historyApi.ts", from: "    `/analyst/lessons/review/${id}`,", to: "    `/analyst/lessons/review`,", kills: ["reviews and deletes one lesson by id"] },
+    { id: "lesson-review-sends-nothing", file: "duel-web/src/history/historyApi.ts", from: "body: JSON.stringify({ status }) },", to: "body: JSON.stringify({}) },", kills: ["reviews and deletes one lesson by id"] },
+    { id: "lesson-delete-as-patch", file: "duel-web/src/history/historyApi.ts", from: "{ method: \"DELETE\" }, \"Could not delete the lesson\"", to: "{ method: \"PATCH\" }, \"Could not delete the lesson\"", kills: ["reviews and deletes one lesson by id"] },
     // match history rows
     { id: "history-reason-blames-wrong-side", file: matchRowFile, from: "`${m.won ? \"Opponent\" : \"You\"} ${reason}`", to: "`${m.won ? \"You\" : \"Opponent\"} ${reason}`", kills: ["says who conceded, left or took the last hit from your side"] },
     { id: "history-outcome-inverted", file: matchRowFile, from: "    outcome: m.won ? \"Won\" : \"Lost\",", to: "    outcome: \"Won\",", kills: ["says who conceded, left or took the last hit from your side"] },
