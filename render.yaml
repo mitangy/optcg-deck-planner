@@ -113,3 +113,33 @@ services:
         value: 'https://optcg-duel-web-git-[a-z0-9-]+-miko21\.vercel\.app'
       - key: LOG_LEVEL
         value: info
+
+  # Log Pose: deck analyst tools for Claude, served over MCP (Claude custom connector).
+  # Connector URL: https://<this service>.onrender.com/mcp/<ANALYST_CONNECTOR_KEY>
+  - type: web
+    name: optcg-analyst
+    runtime: node
+    # Free instances sleep when idle; the first tool call after a nap waits for a cold start.
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    buildCommand: npm ci --workspace=@optcg/deck-analytics --workspace=@optcg/analyst
+    startCommand: npm run start -w @optcg/analyst
+    buildFilter:
+      paths:
+        - analyst/**
+        - packages/deck-analytics/**
+        - packages/rules/src/cards/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      # Secret path segment of the connector URL. Copy it from the dashboard.
+      - key: ANALYST_CONNECTOR_KEY
+        generateValue: true
+      - key: PLANNER_API_URL
+        value: https://optcg-deck-planner.app/api

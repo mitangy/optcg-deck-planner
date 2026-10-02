@@ -1,0 +1,29 @@
+{
+  "name": "@optcg/analyst",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Log Pose: deck analyst tools served over MCP (Claude custom connector)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@optcg/deck-analytics": "*",
+    "express": "^5.2.1",
+    "tsx": "^4.21.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.2",
+    "typescript": "~5.7.2",
+    "vitest": "^3.0.5"
+  }
+}

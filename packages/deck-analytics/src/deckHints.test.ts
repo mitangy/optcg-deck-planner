@@ -24,6 +24,7 @@ const atlas: StatsAtlas = {
   "T-H3": ch({ cost: 12 }),
   "T-X1": ch({}),
   "T-X2": ch({}),
+  "T-ANY": ch({ rules: ["any_number"] }),
   "T-BLUE": { t: "character", col: ["blue"], cost: 6 },
   "T-SPLIT": { t: "character", col: ["blue", "red"], cost: 6 },
   "T-S1": ch({ tr: ["Rare"], srch: [{ look: 5, filter: { traits: ["Rare"] } }] }),
@@ -87,6 +88,13 @@ describe("computeDeckHints", () => {
       const hint = hintsFor(five).find((h) => h.id === "copies")!;
       expect(hint.tier).toBe("rule");
       expect(hint.cardIds).toEqual(["T-X1"]);
+    });
+
+    it("lets cards that allow any number of copies go past 4, still flagging the rest (#244)", () => {
+      const cards = [...withCopies(withCopies(base(), "T-X1", 0), "T-X2", 0), { id: "T-ANY", copies: 6 }];
+      expect(idsFor(cards)).not.toContain("copies");
+      const withFive = [...withCopies(cards, "T-E1", 5)];
+      expect(hintsFor(withFive).find((h) => h.id === "copies")?.cardIds).toEqual(["T-E1"]);
     });
 
     it("does not treat the leader row as a main-deck copy", () => {

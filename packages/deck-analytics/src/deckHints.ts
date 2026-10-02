@@ -83,7 +83,8 @@ export function computeDeckHints(
       detail: `A legal deck has exactly ${T.deckSize} cards besides the leader and DON!!. This one has ${count}.`,
     });
   }
-  const over = [...copies].filter(([, n]) => n > T.maxCopies).map(([id]) => id).sort();
+  // Cards like Pacifista print "you may have any number of this card in your deck".
+  const over = [...copies].filter(([id, n]) => n > T.maxCopies && !atlas[id]?.rules?.includes("any_number")).map(([id]) => id).sort();
   if (over.length) {
     hints.push({
       id: "copies",
