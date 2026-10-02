@@ -176,7 +176,7 @@ describe("counters printed outside the counter box", () => {
     "X-LS": { t: "leader", col: ["green", "red"], gc: [{ v: 3000, t: ["stage"] }] },
   };
 
-  it("counts Rocks.D.Xebec's +2000 Counter in hand by default and names it (#264)", () => {
+  it("counts Rocks.D.Xebec's +2000 Counter in hand by default and names it (#265)", () => {
     const s = computeDeckStats([{ id: "X-ROCKS", copies: 4 }, { id: "X-NAVY0", copies: 4 }], cards, "X-LP");
     expect(s.counter.totalCounter).toBe(8000);
     expect(s.counter.average).toBe(1000);
@@ -184,7 +184,7 @@ describe("counters printed outside the counter box", () => {
     expect(s.counter.granted).toEqual([{ id: "X-ROCKS", name: "Rocks.D.Xebec", copies: 4, value: 2000, source: "self" }]);
   });
 
-  it("applies a Leader's counter grant only to the named trait and type, and only without a printed counter (#264)", () => {
+  it("applies a Leader's counter grant only to the named trait and type, and only without a printed counter (#265)", () => {
     const wano = computeDeckStats(
       [{ id: "X-WANO0", copies: 2 }, { id: "X-WANO1", copies: 2 }, { id: "X-NAVY0", copies: 2 }, { id: "X-STAGE", copies: 1 }],
       cards,
@@ -197,7 +197,7 @@ describe("counters printed outside the counter box", () => {
     expect(stages.counter.totalCounter).toBe(6000);
   });
 
-  it("adds [Counter] events' base +power only when event counters are on (#264)", () => {
+  it("adds [Counter] events' base +power only when event counters are on (#265)", () => {
     const deck = [{ id: "X-EV", copies: 2 }, { id: "X-NAVY0", copies: 2 }];
     const off = computeDeckStats(deck, cards, "X-LP");
     expect(off.counter).toMatchObject({ totalCounter: 0, none: 4, eventsCounted: false });

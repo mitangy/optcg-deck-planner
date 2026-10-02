@@ -100,7 +100,7 @@ describe("leader trait mentions", () => {
 });
 
 describe("counter data", () => {
-  it("exports an event's base [Counter] +power from the [Counter] clause, not [Main] or the conditional extra (#264)", () => {
+  it("exports an event's base [Counter] +power from the [Counter] clause, not [Main] or the conditional extra (#265)", () => {
     const text =
       "[Main] Your Leader gains +5000 power during this turn. [Counter] Up to 1 of your Leader or Character cards gains +2000 power during this battle. Then, if you have 2 or less Life cards, that card gains an additional +3000 power.";
     expect(derivePlannerCard(row({ type: "event", text }), []).ec).toBe(2000);
@@ -108,7 +108,7 @@ describe("counter data", () => {
     expect(derivePlannerCard(row({ type: "event", text: noBoost }), []).ec).toBeUndefined();
   });
 
-  it("exports a card's own in-hand counter, and counter grants only from Leaders (#264)", () => {
+  it("exports a card's own in-hand counter, and counter grants only from Leaders (#265)", () => {
     const self = ab("static", { statics: [{ s: "counter", filter: { onlySelf: true }, mode: "add", value: 2000 }] });
     expect(derivePlannerCard(row({ cost: 10 }), [self]).hc).toBe(2000);
     const grant = ab("static", { statics: [{ s: "counter", filter: { types: ["character"], traits: ["Land of Wano"] }, mode: "set", value: 1000, onlyWithoutCounter: true }] });
