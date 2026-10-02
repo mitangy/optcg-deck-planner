@@ -10,7 +10,7 @@ const view = {
   seat: 0,
   you: {
     leader: { id: "L0", defId: "ST01-001", power: 5000 },
-    characters: [{ id: "c1", defId: "ST01-004" }],
+    characters: [{ id: "c1", defId: "ST01-004" }, { id: "c2", defId: "ST01-008", attachedDonCount: 1 }],
     stage: null,
     hand: [],
   },
@@ -54,5 +54,28 @@ describe("select choices over field cards", () => {
     } finally {
       updateSettings({ oneTapActions: false });
     }
+  });
+
+  it("DON!! −N is answered on the board: cost-area chips and the DON!! host outlined, no DON!! grid (#258)", () => {
+    const html = render(
+      choice(
+        [
+          { id: "d0", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "Active DON!!", rested: false },
+          { id: "d1", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "DON!! on Nico Robin", rested: false },
+        ],
+        2,
+        2,
+      ),
+    );
+    expect(html).toContain("field-bar");
+    expect(html).not.toContain("choice-don");
+    expect(html).toContain('.don-strip-you .don-chip-btn[data-don-rested="false"] .don-chip { outline: 2px dashed');
+    expect(html).toContain('.card-tile[data-instance-id="c2"] { outline: 2px dashed');
+  });
+
+  it("keeps the DON!! grid when the DON!! host can't be found on the board (#258)", () => {
+    const html = render(choice([{ id: "d1", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "DON!! on Karoo", rested: false }]));
+    expect(html).toContain("choice-don");
+    expect(html).not.toContain("field-bar");
   });
 });

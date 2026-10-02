@@ -13,7 +13,7 @@ const SCREENS = [
   "?statuses",
   "?over",
   "?undo=ask",
-  ...["don", "look", "satori", "rest", "select", "restgrid", "selectgrid", "confirm", "order", "effects", "mode"].map((p) => `?prompt=${p}`),
+  ...["don", "don2", "look", "satori", "rest", "select", "restgrid", "selectgrid", "confirm", "order", "effects", "mode"].map((p) => `?prompt=${p}`),
   // Searches and effect ordering float by default; `?box` keeps the old pop-up.
   ...["look", "satori", "effects"].map((p) => `?box&prompt=${p}`),
 ];
@@ -77,4 +77,20 @@ test("clicking board slots leaves no text caret on the mat (#246)", async ({ pag
     });
     expect({ target, ...selection }).not.toMatchObject({ type: "Caret", inField: true });
   }
+});
+
+// DON!! −N used to open a grid of DON!! cards: pick them off the board instead.
+test("DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258)", async ({ page }) => {
+  await page.goto("/demo?prompt=don2");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".field-bar")).toBeVisible();
+  await expect(page.locator(".choice-prompt")).toHaveCount(0);
+  // force: skip Playwright's enabled check, so a disabled chip fails on the count below instead of timing out.
+  await page.locator('.don-strip-you .don-chip-btn[data-don-id="d4"]').click({ force: true });
+  await page.locator('.side-you .card-tile[data-instance-id="y-leader"]').first().click();
+  await expect(page.locator(".field-bar-count")).toHaveText("Choose 2 · selected 2");
+  await page.locator(".field-bar .btn-primary").click();
+  const sent = await page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents);
+  // o3 is the first rested DON!!, o6 the first DON!! on the Leader.
+  expect(sent).toEqual([{ type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o3", "o6"] }]);
 });

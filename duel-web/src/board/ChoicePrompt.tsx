@@ -6,7 +6,7 @@ import { DON_CARD_ART } from "./donArt";
 import { arrangementAnswer, arrangementRows, groupAnswer, initialArrangement, mergeArrangement, moveToRow, nudge, setSide, withoutIds, type Arrangement } from "./deckOrder";
 import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "./liveTargets";
 import { promptSourceName, PromptHideButton } from "./HideablePrompt";
-import { allOptionsOnField, pickCaption, resolvesOnPick, toggleSelection } from "./fieldTargets";
+import { boardPickSpots, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo, type BoardPick, type BoardSpot } from "./fieldTargets";
 import { FieldTargetBar } from "./FieldTargetBar";
 import { useDuelSettings } from "../settings";
 
@@ -372,18 +372,103 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
   );
 }
 
+/** The board spot under a click: a field card tile or a cost-area DON!! chip. */
+function spotAtClick(target: Element | null, spots: ReadonlySet<BoardSpot>): { spot: BoardSpot; chipId?: string } | null {
+  const tile = target?.closest?.<HTMLElement>(".side-field .card-tile[data-instance-id]");
+  const id = tile?.dataset.instanceId;
+  if (id) {
+    if (spots.has(`card:${id}`)) return { spot: `card:${id}` };
+    if (spots.has(`host:${id}`)) return { spot: `host:${id}` };
+    return null;
+  }
+  const chip = target?.closest?.<HTMLElement>(".don-strip .don-chip-btn[data-don-id]");
+  const side = chip?.closest(".don-strip-you") ? "you" : chip?.closest(".don-strip-opp") ? "opp" : null;
+  if (!chip || !side) return null;
+  const spot = `don:${side}:${chip.dataset.donRested === "true" ? "rested" : "active"}`;
+  return spots.has(spot) ? { spot, chipId: chip.dataset.donId } : null;
+}
+
 /**
- * Every target is a card on the field: no pop-up, the player taps the board.
- * Candidates are outlined, picks highlighted; the bar only carries the words
- * and the Confirm / Decline buttons.
+ * Taps on the board's targets (cards, DON!! chips) pick them. Capture phase,
+ * so the board's own click (select card / show actions) never sees them.
  */
-function FieldSelectBar({ request, choice, onSend }: { request: Extract<ChoiceRequestView, { type: "select" }>; choice: PendingChoiceView; onSend: (i: Intent) => void }) {
-  const { selected, valid, boardIds, selectedBoardIds, answer } = useSelectPicks(request, onSend);
-  const oneTap = useDuelSettings().oneTapActions && resolvesOnPick(true, request.min, request.max);
+function useBoardSpotClicks(spots: ReadonlyMap<string, BoardSpot>, onTap: (spot: BoardSpot, chipId?: string) => void) {
+  const hidden = useContext(PromptHiddenContext);
+  const live = useRef({ spots, onTap, hidden });
+  live.current = { spots, onTap, hidden };
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (live.current.hidden) return;
+      const hit = spotAtClick(e.target as Element | null, new Set(live.current.spots.values()));
+      if (!hit) return;
+      e.preventDefault();
+      e.stopPropagation();
+      live.current.onTap(hit.spot, hit.chipId);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+}
+
+/** Outline cost-area DON!! chips: every chip of a pickable state, or the picked ones. */
+function DonHighlight({ spots, chipIds, kind }: { spots: BoardSpot[]; chipIds: string[]; kind: "hover" | "candidate" }) {
+  const esc = (id: string) => (typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, ""));
+  const selectors = [
+    ...spots.map((s) => {
+      const [, side, state] = s.split(":");
+      return `.don-strip-${side} .don-chip-btn[data-don-rested="${state === "rested"}"]`;
+    }),
+    ...chipIds.map((id) => `.don-strip .don-chip-btn[data-don-id="${esc(id)}"]`),
+  ];
+  if (!selectors.length) return null;
+  const rule =
+    kind === "hover"
+      ? `${selectors.join(", ")} { z-index: 2; transform: translateY(-4px); } ${selectors.map((x) => `${x} .don-chip`).join(", ")} { outline: 3px solid var(--chrome-bright); outline-offset: 1px; box-shadow: 0 0 14px rgba(240, 220, 168, 0.8); }`
+      : `${selectors.join(", ")} { cursor: pointer; } ${selectors.map((x) => `${x} .don-chip`).join(", ")} { outline: 2px dashed rgba(240, 220, 168, 0.75); outline-offset: 1px; }`;
+  return <style>{rule}</style>;
+}
+
+/** Field card info the board-pick routing needs (owner, name, DON!! under it). */
+function boardCards(live: ReadonlyMap<string, { seat: number; defId: string; attachedDonCount?: number }>): Map<string, BoardCardInfo> {
+  const out = new Map<string, BoardCardInfo>();
+  for (const [id, c] of live) out.set(id, { seat: c.seat, name: lookupCard(c.defId).name, attachedDonCount: c.attachedDonCount });
+  return out;
+}
+
+/**
+ * Every target is on the board (field cards, cost-area DON!!, DON!! under a
+ * card): no pop-up, the player taps the board. Candidates are outlined, picks
+ * highlighted; the bar only carries the words and the Confirm / Decline buttons.
+ */
+function FieldSelectBar({ request, choice, spots, onSend }: {
+  request: Extract<ChoiceRequestView, { type: "select" }>;
+  choice: PendingChoiceView;
+  spots: Map<string, BoardSpot>;
+  onSend: (i: Intent) => void;
+}) {
+  const oneTapSetting = useDuelSettings().oneTapActions;
+  const [pick, setPick] = useState<BoardPick>({ selected: [], chips: {} });
+  const answer = (ids: string[]) => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
+  const oneTap = resolvesOnPick(oneTapSetting, request.min, request.max);
+  useBoardSpotClicks(spots, (spot, chipId) => {
+    const next = tapBoardSpot(pick, spots, spot, request.max, chipId);
+    // One-tap: with exactly one pick wanted, picking it is the answer.
+    if (oneTap && next.selected.length === 1 && !pick.selected.includes(next.selected[0]!)) return answer(next.selected);
+    setPick(next);
+  });
+  const { selected } = pick;
+  const valid = selected.length >= request.min && selected.length <= request.max;
+  const all = [...spots.values()];
+  const picked = selected.map((id) => spots.get(id)).filter((s): s is BoardSpot => !!s);
+  const cardIds = (list: BoardSpot[]) => [...new Set(list.filter((s) => s.startsWith("card:") || s.startsWith("host:")).map((s) => s.slice(s.indexOf(":") + 1)))];
+  const donSpots = [...new Set(all.filter((s) => s.startsWith("don:")))];
+  const pickedChips = selected.map((id) => pick.chips[id]).filter((c): c is string => !!c);
   return (
     <>
-      <BoardHighlight ids={boardIds} kind="candidate" />
-      <BoardHighlight ids={selectedBoardIds} kind="hover" />
+      <BoardHighlight ids={cardIds(all)} kind="candidate" />
+      <BoardHighlight ids={cardIds(picked)} kind="hover" />
+      <DonHighlight spots={donSpots} chipIds={[]} kind="candidate" />
+      <DonHighlight spots={[]} chipIds={pickedChips} kind="hover" />
       <FieldTargetBar
         title={promptSourceName(choice)}
         text={choice.prompt}
@@ -523,8 +608,10 @@ export function ChoicePrompt({ choice, mySeat, onSend, view, onHide, hidden = fa
 function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view" | "hidden">) {
   const request: ChoiceRequestView = choice.request ?? { type: "confirm" };
   const liveCards = useContext(LiveCardsContext);
-  if (request.type === "select" && allOptionsOnField(request.options, liveCards)) {
-    return <FieldSelectBar request={request} choice={choice} onSend={onSend} />;
+  const cards = useMemo(() => boardCards(liveCards), [liveCards]);
+  const spots = request.type === "select" ? boardPickSpots(request.options, cards, mySeat) : null;
+  if (request.type === "select" && spots) {
+    return <FieldSelectBar request={request} choice={choice} spots={spots} onSend={onSend} />;
   }
   const showSource = request.type === "confirm" && choice.cardDefId && choice.cardDefId !== "HIDDEN";
   return (
