@@ -259,3 +259,189 @@ test("Actions keeps room for its buttons with every panel in the right column (#
   const actions = (await page.locator('[data-panel="actions"]').boundingBox())!;
   expect(actions.height).toBeGreaterThanOrEqual(80);
 });
+
+// Tab goes through the field cards, then the hand, then out to the other
+// controls and back, instead of looping over the field cards (#262).
+test("Tab visits the field cards, the hand, then the other controls and comes back (#262)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "keyboard play is desktop");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const seen: string[] = [];
+  for (let i = 0; i < 80; i++) {
+    await page.keyboard.press("Tab");
+    seen.push(
+      await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement | null;
+        if (!el) return "none";
+        if (el.closest(".side-field")) return "field";
+        if (el.closest(".hand-fan-cards, .hand-row-inner")) return "hand";
+        return `other:${el.getAttribute("aria-label") ?? el.textContent?.trim().slice(0, 20)}`;
+      }),
+    );
+  }
+  const firstHand = seen.indexOf("hand");
+  expect(seen[0]).toBe("field");
+  expect(firstHand).toBeGreaterThan(0);
+  expect(seen.slice(0, firstHand).every((s) => s === "field")).toBe(true);
+  const others = seen.filter((s) => s.startsWith("other:"));
+  expect(others.some((s) => /concede/i.test(s)), seen.join(", ")).toBe(true);
+  // After the other controls, Tab comes back round to the cards.
+  expect(seen.lastIndexOf("field")).toBeGreaterThan(seen.indexOf(others[0]!));
+});
+
+// Landscape phone: the "Waiting for opponent" pill fits in the right rail
+// instead of running off the screen (#262).
+test("the waiting pill stays on screen on a landscape phone (#262)", async ({ page }, info) => {
+  test.skip(info.project.name !== "phone-375", "landscape phone layout");
+  await page.setViewportSize({ width: 812, height: 375 });
+  await page.goto("/demo?wait=opponent");
+  const pill = page.locator(".waiting-opp").first();
+  await pill.waitFor();
+  const box = (await pill.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(812);
+  const text = await pill.locator(".waiting-opp-text strong").evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(text).toBeLessThanOrEqual(1);
+});
+
+// Deck editor (#262): art that fails to load falls back to the card id
+// instead of a broken image, and − count + stay on one row.
+async function openSeededDeck(page: import("@playwright/test").Page, failArt: boolean) {
+  await page.addInitScript(() => {
+    const cards = [...Array(4).fill("ST01-004"), ...Array(4).fill("ST01-005"), ...Array(2).fill("ST01-006")];
+    localStorage.setItem(
+      "optcg.duel.savedDecks.v1",
+      JSON.stringify([{ id: "review-deck", name: "Review deck", leaderId: "ST01-001", cards, updatedAt: 1 }]),
+    );
+  });
+  if (failArt) await page.route(/\.(png|jpe?g|webp)(\?.*)?$/, (r) => r.fulfill({ status: 404, body: "" }));
+  await page.goto("/decks/review-deck/configure");
+  await page.locator(".deck-stack").first().waitFor();
+}
+
+test("deck editor shows the card id when art fails to load (#262)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "one size is enough");
+  await openSeededDeck(page, true);
+  await expect(page.locator(".deck-stack-fallback").first()).toBeVisible();
+  await expect.poll(() => page.locator(".deck-stack-art img").count()).toBe(0);
+});
+
+test("deck editor keeps − count + on one row (#262)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "the stepper wrapped on desktop widths");
+  for (const width of [1280, 960]) {
+    await page.setViewportSize({ width, height: 800 });
+    await openSeededDeck(page, false);
+    const row = page.locator(".deck-stack-edit").first();
+    const minus = (await row.getByRole("button", { name: /Remove one/ }).boundingBox())!;
+    const plus = (await row.getByRole("button", { name: /Add one/ }).boundingBox())!;
+    expect(Math.abs(minus.y - plus.y), `at ${width}px`).toBeLessThan(2);
+  }
+});
+
+// 150 % zoom on a laptop (960x600): the centre fan's handle stays inside the
+// board column instead of covering the Battle log (#262).
+test("the centre fan handle stays off the Battle log at 960x600 (#262)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "the fan is desktop only");
+  await page.setViewportSize({ width: 960, height: 600 });
+  await page.goto("/demo?full");
+  const fan = page.locator(".hand-fan-center");
+  await fan.waitFor();
+  const col = (await fan.boundingBox())!;
+  const head = (await fan.locator(".hand-fan-head").boundingBox())!;
+  expect(head.x).toBeGreaterThanOrEqual(col.x);
+});
+
+// 320px phone: the mulligan explainer stays short, so the board keeps
+// nearly the size it has once play starts instead of shrinking to a thumbnail (#262).
+test("the mulligan explainer leaves the board its size on a 320px phone (#262)", async ({ page }, info) => {
+  test.skip(info.project.name !== "phone-375", "small phone");
+  await page.setViewportSize({ width: 320, height: 640 });
+  const matHeight = async (url: string) => {
+    await page.goto(url);
+    const mat = page.locator(".side-field.side-you").first();
+    await mat.waitFor();
+    return (await mat.boundingBox())!.height;
+  };
+  const playing = await matHeight("/demo");
+  const mulligan = await matHeight("/demo?turn0");
+  expect(mulligan).toBeGreaterThanOrEqual(playing * 0.85);
+});
+
+// Light mode: secondary text on light panels meets WCAG AA (4.5:1) in every
+// crew theme (#262).
+const LIGHT_THEMES = ["nightSea", "strawHat", "donquixote", "marines", "wano", "heart", "fishMan", "thrillerBark", "disco"];
+const LIGHT_TEXT: Record<string, string[]> = {
+  "/demo?full": [
+    ".recent-play-meta",
+    ".card-preview-caption",
+    ".card-preview-traits",
+    ".battle-log-turn-title",
+    ".turn-order-badge:not(.first)",
+  ],
+  "/": [".home-kicker"],
+  "/settings": [".panel-title"],
+};
+
+test("light mode secondary text meets 4.5:1 contrast in every theme (#262)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "colours do not depend on size");
+  test.setTimeout(120_000);
+  const low: string[] = [];
+  for (const theme of LIGHT_THEMES) {
+    await page.addInitScript(
+      (t) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ theme: t, colorMode: "light" })),
+      theme,
+    );
+    for (const [url, selectors] of Object.entries(LIGHT_TEXT)) {
+      await page.goto(url);
+      await page.locator(selectors[0]!).first().waitFor();
+      const ratios = await page.evaluate((sels) => {
+        const parse = (c: string) => {
+          const m = c.match(/[\d.]+/g)!.map(Number);
+          return { r: m[0]!, g: m[1]!, b: m[2]!, a: m[3] ?? 1 };
+        };
+        const over = (top: { r: number; g: number; b: number; a: number }, under: { r: number; g: number; b: number }) => ({
+          r: top.r * top.a + under.r * (1 - top.a),
+          g: top.g * top.a + under.g * (1 - top.a),
+          b: top.b * top.a + under.b * (1 - top.a),
+          a: 1,
+        });
+        const lum = (c: { r: number; g: number; b: number }) => {
+          const f = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+          return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+        };
+        const background = (el: Element) => {
+          const layers: ReturnType<typeof parse>[] = [];
+          for (let n: Element | null = el; n; n = n.parentElement) {
+            const bg = parse(getComputedStyle(n).backgroundColor);
+            if (bg.a > 0) layers.push(bg);
+            if (bg.a >= 1) break;
+          }
+          let c = { r: 255, g: 255, b: 255 };
+          for (const l of layers.reverse()) c = over(l, c);
+          return c;
+        };
+        return sels.map((sel) => {
+          const el = document.querySelector(sel);
+          if (!el) return { sel, ratio: -1 };
+          const bg = background(el);
+          const fg = over(parse(getComputedStyle(el).color), bg);
+          const [hi, lo] = [lum(fg), lum(bg)].sort((a, b) => b - a);
+          return { sel, ratio: (hi! + 0.05) / (lo! + 0.05) };
+        });
+      }, selectors);
+      for (const { sel, ratio } of ratios) {
+        if (ratio < 4.5) low.push(`${theme} ${sel} ${ratio < 0 ? "missing" : ratio.toFixed(2)}`);
+      }
+    }
+  }
+  expect(low).toEqual([]);
+});
+
+// The desktop action rail says why it is empty instead of "No legal actions"
+// while you answer a prompt or wait on the opponent (#262).
+test("the action rail says to answer the prompt or that it is waiting (#262)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "the desktop rail");
+  await page.goto("/demo?prompt=select");
+  await expect(page.locator(".intent-empty")).toHaveText("Answer the prompt to continue");
+  await page.goto("/demo?wait=opponent");
+  await expect(page.locator(".intent-empty")).toHaveText("Waiting for your opponent…");
+});

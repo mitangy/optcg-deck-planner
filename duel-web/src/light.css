@@ -80,3 +80,21 @@
 [data-mode="light"] .live-status-chip-don {
   color: #2f6a1a;
 }
+
+/* Secondary text on light panels: the gold and muted tokens are tuned for
+   dark panels and fall below 4.5:1 here, so take the darker ink (#262). */
+[data-mode="light"] .card-preview-caption,
+[data-mode="light"] .card-preview-traits,
+[data-mode="light"] .battle-log-turn-title,
+[data-mode="light"] .home-kicker,
+[data-mode="light"] .panel-title {
+  color: var(--chrome-bright);
+}
+
+[data-mode="light"] .recent-play-meta {
+  color: color-mix(in srgb, var(--muted) 70%, var(--ink));
+}
+
+[data-mode="light"] .turn-order-badge:not(.first) {
+  color: color-mix(in srgb, rgb(var(--sea-bright-rgb)) 70%, var(--ink));
+}

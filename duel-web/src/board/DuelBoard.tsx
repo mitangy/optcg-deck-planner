@@ -1208,6 +1208,7 @@ export function DuelBoard({
     <IntentBar
       hidePrimary={dockedPrimary}
       waiting={docked ? null : oppWait}
+      idle={oppWait ? "opponent" : view.pendingChoices?.[0]?.seat === mySeat ? "prompt" : null}
       intents={barIntents}
       view={view}
       disabled={over}
@@ -1646,7 +1647,10 @@ export function DuelBoard({
       ) : null}
 
       {mulliganPhase && !spectating ? (
-        <div className="mulligan-banner" role="status">
+        <div
+          className={`mulligan-banner${view.you.mulliganDone ? "" : " mulligan-banner-explainer"}`}
+          role="status"
+        >
           {view.you.mulliganDone ? (
             <>
               <strong>Mulligan locked in.</strong> Waiting for the other seat

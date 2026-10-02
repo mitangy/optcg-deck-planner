@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { nextBoardFocusIndex, takesTab } from "./boardFocus";
+import { nextTabTarget, takesTab } from "./boardFocus";
 import { hotkeyAction, type HotkeyAction } from "./hotkeys";
 
 type Options = {
@@ -35,12 +35,29 @@ function dialogOpen(): boolean {
 }
 
 /** Your board cards (Leader, Characters, Stage), then opponent cards that are targets right now. */
-function boardCardButtons(): HTMLButtonElement[] {
-  return Array.from(
-    document.querySelectorAll<HTMLButtonElement>(
-      ".board-root .side-you button[data-instance-id], .board-root .side-opp button[data-instance-id]",
-    ),
-  ).filter((el) => !el.disabled && el.getClientRects().length > 0);
+function shown(el: HTMLElement): boolean {
+  return !(el as HTMLButtonElement).disabled && el.getClientRects().length > 0 && !el.closest("[inert]");
+}
+
+/** Board cards in Tab order: field cards, then the hand. */
+function boardCardButtons(): HTMLElement[] {
+  const field = document.querySelectorAll<HTMLElement>(
+    ".board-root .side-you button[data-instance-id], .board-root .side-opp button[data-instance-id]",
+  );
+  const hand = document.querySelectorAll<HTMLElement>(
+    ".board-root .hand-row-inner button.card-tile, .board-root .hand-fan-cards button.card-tile",
+  );
+  return [...field, ...hand].filter(shown);
+}
+
+const TABBABLE =
+  "a[href], button, input:not([type=hidden]), select, textarea, [tabindex], summary, [contenteditable=true]";
+
+/** Everything Tab can reach, in page order. */
+function tabbables(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>(TABBABLE)).filter(
+    (el) => el.tabIndex >= 0 && shown(el),
+  );
 }
 
 function isTyping(el: Element | null): boolean {
@@ -122,11 +139,11 @@ export function useBoardHotkeys(opts: Options) {
             cardCount: cards.length,
           })
         ) {
-          const at = active ? cards.indexOf(active as HTMLButtonElement) : -1;
-          const next = nextBoardFocusIndex(cards.length, at, e.shiftKey);
-          if (next != null) {
+          const focused = active && active !== document.body ? (active as HTMLElement) : null;
+          const next = nextTabTarget(tabbables(), cards, focused, e.shiftKey);
+          if (next) {
             e.preventDefault();
-            cards[next]!.focus();
+            next.focus();
           }
         }
         return;

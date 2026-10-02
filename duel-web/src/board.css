@@ -1622,9 +1622,11 @@ body.is-panel-drag * {
   --fan-peek: var(--fan-peek-center);
   left: var(--left-w);
   right: var(--rail-w);
-  /* Cards centred on the column, handle to their left. */
+  /* Cards centred on the column, handle to their left. The handle's column
+     never shrinks below the handle, so on a narrow board (150 % zoom) the
+     cards shift right instead of the handle spilling over the left column. */
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(max-content, 1fr) auto minmax(0, 1fr);
   align-items: start;
   column-gap: calc(0.6rem + var(--fan-cw) * 0.15);
   /* Room for the tilted outer cards' corners inside the column. */
@@ -4253,7 +4255,8 @@ body.is-panel-drag * {
 
 .waiting-opp-text strong {
   font-size: 0.85rem;
-  white-space: nowrap;
+  /* Wraps in a narrow rail (landscape phone) instead of running off it. */
+  overflow-wrap: anywhere;
 }
 
 .waiting-opp-text span {
