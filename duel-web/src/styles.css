@@ -476,6 +476,62 @@ button {
   opacity: 0.7;
 }
 
+/* Version + "am I on the latest deploy?" line (Settings › About, lobby footer). */
+.version-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.version-line {
+  min-width: 0;
+}
+
+.version-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.version-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: none;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+.version-status[data-status="latest"] .version-dot {
+  background: var(--ok);
+}
+
+.version-status[data-status="update"] .version-dot {
+  background: #d2a54d;
+}
+
+.version-status[data-status="update"] .version-state {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.home-version {
+  display: flex;
+  justify-content: center;
+  margin-top: auto;
+  padding-top: 1rem;
+  opacity: 0.8;
+}
+
+.home-version .version-status {
+  justify-content: center;
+}
+
 .lobby label {
   color: var(--muted);
   font-size: 0.75rem;

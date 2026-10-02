@@ -6,6 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { analyticsBeforeSend } from "./analytics";
 import { startAccountSync } from "./account/accountSync";
 import { App } from "./App";
+import { startUpdateChecks } from "./appVersion";
 import { DuelSessionProvider } from "./state/DuelSession";
 import "./styles.css";
 import "./ui.css";
@@ -15,6 +16,8 @@ import "./auth/username.css";
 
 // Signed-in players get their settings and playmat / card back from the account.
 void startAccountSync();
+// Lobby and Settings say when a newer deploy is live than this bundle.
+startUpdateChecks();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
