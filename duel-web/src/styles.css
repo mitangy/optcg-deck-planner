@@ -1,8 +1,11 @@
 /* Palette tokens. The default theme ("Night Sea") lives here; crew themes in
    themes.css override the same tokens under [data-theme]. The *-rgb triples
    feed translucent tints: rgb(var(--chrome-rgb) / 0.24). */
+/* Game surfaces that stay dark in light mode (see themes.css). */
 :root,
-[data-theme="nightSea"] {
+[data-theme="nightSea"],
+.playmat,
+.turn-splash {
   /* Night-sea base + parchment ink + straw-hat gold. Crimson is reserved for
      danger / attack cues so it never competes with primary actions. */
   --arena-deep: #0b1720;
@@ -62,7 +65,9 @@
    theme preview chip ([data-theme] on a span) resolves them from its own
    palette rather than inheriting the page's. */
 :root,
-[data-theme] {
+[data-theme],
+.playmat,
+.turn-splash {
   --line: rgb(var(--chrome-rgb) / 0.24);
   --line-strong: rgb(var(--chrome-rgb) / 0.5);
   --focus: 0 0 0 2px var(--arena-deep), 0 0 0 4px var(--chrome-bright);
