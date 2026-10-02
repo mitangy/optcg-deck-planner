@@ -8,6 +8,7 @@ import {
   type HandLayout,
   type ResponseStops,
   type ScreenOrientationPref,
+  type TextSize,
 } from "../settings";
 import { useLockNote } from "./orientation";
 import { playTurnChime } from "./turnAlert";
@@ -98,6 +99,13 @@ const HAND_LAYOUT_OPTIONS: { value: HandLayout; label: string }[] = [
   { value: "fanCenter", label: "Fan, bottom centre" },
   { value: "fanRight", label: "Fan, bottom right" },
   { value: "grid", label: "Grid (no fan)" },
+];
+
+const TEXT_SIZE_OPTIONS: { value: TextSize; label: string }[] = [
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+  { value: "xlarge", label: "Extra large" },
 ];
 
 const ANIMATION_OPTIONS: { value: AnimationSpeed; label: string }[] = [
@@ -193,6 +201,24 @@ export function GameplaySettingsFields() {
           Desktop: the fan peeks off the bottom of the board (centre) or of the right column, and
           rises when you point at it. Grid keeps the hand open in the right column. Phones: either
           fan overlaps the hand strip so every card fits without scrolling.
+        </p>
+      </div>
+      <div className="field">
+        <label htmlFor="text-size">Text size</label>
+        <select
+          id="text-size"
+          value={settings.textSize}
+          onChange={(e) => updateSettings({ textSize: e.target.value as TextSize })}
+        >
+          {TEXT_SIZE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <p className="field-hint">
+          Text already grows with your window; this sets it larger or smaller on top, including
+          card power numbers and the card text on the left.
         </p>
       </div>
       <div className="field">

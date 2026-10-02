@@ -367,7 +367,7 @@
 }
 
 .arena .side-field .card-caption .name {
-  font-size: clamp(0.5rem, calc(var(--c) * 0.12), 0.74rem);
+  font-size: clamp(0.5rem, calc(var(--c) * 0.12 * var(--text-scale, 1)), 0.74rem);
   /* One line, cut with an ellipsis mid-word. A one-line clamp wraps at the
      space first ("Nico Robin" read "Nico…") and leaves the hidden second
      line sitting under the cost line. */
@@ -377,7 +377,7 @@
 }
 
 .arena .side-field .card-caption .meta {
-  font-size: clamp(0.45rem, calc(var(--c) * 0.1), 0.64rem);
+  font-size: clamp(0.45rem, calc(var(--c) * 0.1 * var(--text-scale, 1)), 0.64rem);
 }
 
 /* Sit the status row right on the caption, which grows with --c (about 22px
@@ -388,7 +388,7 @@
 
 .arena .side-field .power-badge,
 .arena .side-field .don-badge {
-  font-size: clamp(0.48rem, calc(var(--c) * 0.1), 0.7rem);
+  font-size: min(clamp(0.48rem, calc(var(--c) * 0.1 * var(--text-scale, 1)), 0.7rem), 21cqw);
 }
 
 /* Piles (life, deck, DON!! deck, trash). */
@@ -403,7 +403,7 @@
 }
 
 .arena .side-field .zone-pile-label {
-  font-size: clamp(0.45rem, calc(var(--c) * 0.1), 0.66rem);
+  font-size: clamp(calc(0.45rem / var(--root-scale, 1)), calc(var(--c) * 0.1 * var(--text-scale, 1)), 0.66rem);
 }
 
 .arena .side-field .zone-pile-count {
@@ -488,7 +488,7 @@
 }
 
 .arena .side-field .don-strip-label {
-  font-size: clamp(0.45rem, calc(var(--c) * 0.1), 0.66rem);
+  font-size: clamp(calc(0.45rem / var(--root-scale, 1)), calc(var(--c) * 0.1 * var(--text-scale, 1)), 0.66rem);
   margin-bottom: calc(var(--c) * 0.04);
 }
 
@@ -645,52 +645,84 @@
   padding-left: var(--safe-l);
 }
 
+/* The preview is a fixed-size block (a share of the column), so a card with a
+   long ability never moves the recent plays or battle log under it: the art
+   keeps its size and the text scrolls inside the block. */
 .arena.arena-wide .arena-left .card-preview {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  flex: 0 1 auto;
-  max-height: 62%;
+  gap: 0.5rem;
+  flex: 0 0 var(--preview-h, 56%);
+  height: var(--preview-h, 56%);
   min-height: 0;
-  overflow-y: auto;
-  padding: 0.8rem;
+  overflow: hidden;
+  padding: 0.8rem 0.8rem 0.5rem;
+  box-sizing: border-box;
 }
 
-/* Art is height-capped so the log below always keeps real space. */
+.arena-left .card-preview-meta {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding-right: 0.15rem;
+}
+
+/* Art is height-capped so the text below keeps real space. */
 .arena-left .card-preview-img,
 .arena-left .card-preview-placeholder {
   width: auto;
   max-width: 100%;
-  height: min(38dvh, calc((var(--left-w) - 1.6rem) * 1.4));
+  flex: 0 0 auto;
+  height: min(17dvh, calc((var(--left-w) - 1.6rem) * 1.4));
   align-self: center;
 }
 
-/* Recent plays: fixed height so the log below never jumps. */
+/* Recent plays: a fixed-height list (about three rows, scrolls for the rest) so
+   the log below never jumps. Each row is a card thumbnail, its name and who
+   used it when. */
 .recent-plays {
   flex: 0 0 auto;
-  height: 3.6rem;
+  height: clamp(6.5rem, 15dvh, 11rem);
   box-sizing: border-box;
-  padding: 0.35rem 0.8rem;
   border-top: 1px solid var(--line);
   overflow: hidden;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.recent-plays-heading {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.4rem 0.8rem 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .recent-plays-empty {
   margin: 0;
-  font-size: 0.72rem;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.85rem;
   color: var(--muted);
 }
 
 .recent-plays-row {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 0.5rem 0.4rem;
+  flex: 1 1 0;
+  min-height: 0;
   display: flex;
-  gap: 0.35rem;
-  min-width: 0;
-  overflow: hidden;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .recent-plays-row li {
@@ -699,53 +731,88 @@
 
 .recent-play {
   position: relative;
-  display: block;
-  width: 2.2rem;
-  aspect-ratio: 5 / 7;
-  padding: 0;
-  border: 0;
-  border-bottom: 3px solid var(--line);
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.25);
-  color: var(--muted);
-  font-size: 0.5rem;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.2rem 0.4rem 0.2rem 0.2rem;
+  border: 1px solid transparent;
+  border-left: 3px solid var(--line);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
-.recent-play img {
+.recent-play:hover {
+  background: rgb(var(--chrome-bright-rgb) / 0.1);
+}
+
+.recent-play-thumb {
+  flex: 0 0 auto;
+  width: 2.1rem;
+  aspect-ratio: 5 / 7;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--muted);
+  font-size: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recent-play-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
+.recent-play-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.1rem;
+}
+
+.recent-play-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-play-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .recent-play-you {
-  border-bottom-color: #4fb3ff;
+  border-left-color: #4fb3ff;
 }
 
 .recent-play-opp {
-  border-bottom-color: #ff6b5e;
+  border-left-color: #ff6b5e;
 }
 
-.recent-play-mark {
-  position: absolute;
-  top: 0;
-  left: 0;
-  padding: 0 0.22rem;
-  border-radius: 0 0 4px 0;
-  font-size: 0.55rem;
+.recent-play-you .recent-play-who {
+  color: #4fb3ff;
+}
+
+.recent-play-opp .recent-play-who {
+  color: #ff6b5e;
+}
+
+.recent-play-who {
   font-weight: 700;
-  line-height: 1.2;
-  color: #06121a;
-}
-
-.recent-play-you .recent-play-mark {
-  background: #4fb3ff;
-}
-
-.recent-play-opp .recent-play-mark {
-  background: #ff6b5e;
 }
 
 .recent-play:focus-visible {
@@ -1592,7 +1659,7 @@
 
 .card-preview-caption {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--gold, var(--chrome));
 }
@@ -1600,7 +1667,7 @@
 .card-preview-name {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   line-height: 1.2;
   color: var(--chrome-bright);
 }
@@ -1608,7 +1675,7 @@
 .card-preview-stats,
 .card-preview-traits {
   margin: 0;
-  font-size: 0.74rem;
+  font-size: 0.9rem;
   color: var(--muted);
 }
 
@@ -1618,7 +1685,7 @@
 
 .card-preview-effect {
   margin: 0.2rem 0 0;
-  font-size: 0.8rem;
+  font-size: 0.98rem;
   line-height: 1.5;
   color: var(--ink);
   white-space: pre-wrap;

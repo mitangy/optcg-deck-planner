@@ -91,6 +91,15 @@ body,
 }
 
 html {
+  /* Text grows with the window (16px on phones, ~18px at 1440, 20px on big
+     monitors) times the Text size setting (--text-scale, set from settings). */
+  --text-scale: 1;
+  font-size: calc(clamp(16px, 12.8px + 0.36vw, 20px) * var(--root-scale));
+  /* Phones are tight: the setting counts for only 60% of its step there, and
+     card badges (which use the full --text-scale) carry the rest. */
+  --root-scale: var(--text-scale);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   overflow-x: clip;
   /* Moonlit sea: cool glow from above, faint warm lantern low-right, and a
      barely-there wave line texture. */
@@ -99,6 +108,12 @@ html {
     radial-gradient(640px 380px at 100% 100%, var(--glow-low), transparent 60%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='24' viewBox='0 0 120 24'%3E%3Cpath d='M0 12c15 0 15-8 30-8s15 8 30 8 15-8 30-8 15 8 30 8' fill='none' stroke='%23d2a54d' stroke-opacity='0.035' stroke-width='1.2'/%3E%3C/svg%3E"),
     var(--arena-deep);
+}
+
+@media (max-width: 600px), (max-height: 499px) {
+  html {
+    --root-scale: calc(1 + (var(--text-scale) - 1) * 0.6);
+  }
 }
 
 body,

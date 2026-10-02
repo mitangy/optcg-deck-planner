@@ -5,6 +5,12 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // text size setting
+    { id: "text-size-xlarge-not-larger", file: `${src}/textSize.ts`, from: "  xlarge: 1.25,", to: "  xlarge: 1,", kills: ["scales text down for Small and up for Extra large, and Medium clears it (#PR_A)"] },
+    { id: "text-size-medium-leaves-scale", file: `${src}/textSize.ts`, from: "  if (scale === 1) root.style.removeProperty(\"--text-scale\");\n  else root.style.setProperty", to: "  root.style.setProperty", kills: ["scales text down for Small and up for Extra large, and Medium clears it (#PR_A)"] },
+    // recent plays list rows
+    { id: "recent-plays-who-swapped", file: `${src}/board/recentPlays.ts`, from: "      who: mine ? \"You\" : \"Opponent\",", to: "      who: mine ? \"Opponent\" : \"You\",", kills: ["labels each row with who used the card, what they did and the turn (#PR_A)"] },
+    { id: "recent-plays-wrong-turn", file: `${src}/board/recentPlays.ts`, from: "detail: `${use.verb} \\u00b7 Turn ${e.turn}`", to: "detail: `${use.verb} \\u00b7 Turn ${e.turn - 1}`", kills: ["labels each row with who used the card, what they did and the turn (#PR_A)"] },
     // legal footer: hidden during a match, shown on the other pages
     { id: "site-footer-during-match", file: `${src}/siteFooter.ts`, from: "  return !NO_FOOTER.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return true;", kills: ["stays out of the way during a match (#245)"] },
     { id: "site-footer-nowhere", file: `${src}/siteFooter.ts`, from: "  return !NO_FOOTER.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return !NO_FOOTER.some((p) => pathname.startsWith(p.slice(0, 2)));", kills: ["shows on the lobby, decks, settings and legal pages (#245)"] },

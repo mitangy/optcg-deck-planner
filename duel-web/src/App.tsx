@@ -15,17 +15,19 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { UsernameSetupPage } from "./pages/UsernameSetupPage";
 import { useDuelSettings } from "./settings";
 import { showsSiteFooter } from "./siteFooter";
+import { applyTextSize } from "./textSize";
 import { applyTheme, LIGHT_QUERY } from "./theme";
 import { useMediaQuery } from "./board/useMediaQuery";
 
 export function App() {
-  const { reduceMotion, theme, colorMode } = useDuelSettings();
+  const { reduceMotion, theme, colorMode, textSize } = useDuelSettings();
   // Re-applies when the device switches light / dark while on "Match my device".
   const deviceLight = useMediaQuery(LIGHT_QUERY);
   const { pathname } = useLocation();
   // Before paint, so switching theme (or loading it from the account) never
   // flashes the old palette.
   useLayoutEffect(() => applyTheme(theme, colorMode), [theme, colorMode, deviceLight]);
+  useLayoutEffect(() => applyTextSize(textSize), [textSize]);
   // CSS mirrors its prefers-reduced-motion rules under [data-motion="reduce"].
   useEffect(() => {
     if (reduceMotion) document.documentElement.dataset.motion = "reduce";
