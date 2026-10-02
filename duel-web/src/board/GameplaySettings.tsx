@@ -19,6 +19,7 @@ type Toggle = {
     | "sortHandByCost"
     | "keepHandOpen"
     | "oneTapActions"
+    | "oppHandTopRight"
     | "tiltedBoard"
     | "floatingCards"
     | "turnSplash"
@@ -44,6 +45,11 @@ const TOGGLES: Toggle[] = [
     key: "oneTapActions",
     label: "One-tap actions",
     hint: "Skips the second tap: tapping a Counter card plays it, tapping a Blocker blocks, tapping a Leader or Character gives it the selected DON!!, and picking the only target of an effect resolves it.",
+  },
+  {
+    key: "oppHandTopRight",
+    label: "Opponent hand, top right",
+    hint: "Shows the opponent's hand as a fan of card backs with the count in the top-right corner, mirroring your own hand. Portrait phones: a compact row at the right of the opponent's half.",
   },
   {
     key: "tiltedBoard",

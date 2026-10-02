@@ -37,6 +37,11 @@ export type BattleLogEntry = {
   /** Key moment: bold + accent (counters, K.O.s, Life, searches, discards…). */
   important: boolean;
   segments: LogSegment[];
+  /**
+   * Set when the line shows a card being revealed (a reveal, or a search that
+   * reveals and adds to hand): the card to put on screen for the viewer.
+   */
+  reveal?: { defId: string; ownerSeat: 0 | 1 };
 };
 
 /** Board instance → card identity, remembered across views (K.O.'d cards too). */
@@ -155,6 +160,7 @@ export function narrateEvents(
   const ctx: Ctx = { youSeat: opts.youSeat, instances: opts.instances };
   const list = events as readonly LooseEvent[];
   let i = 0;
+  let carriedReveal: BattleLogEntry["reveal"];
   for (let idx = 0; idx < list.length; idx += 1) {
     const e = list[idx] ?? {};
     const next = list[idx + 1];
@@ -167,10 +173,13 @@ export function narrateEvents(
       next.seat === e.seat &&
       next.defId === e.defId
     ) {
+      carriedReveal = revealOf(e);
       continue;
     }
     const prev = list[idx - 1];
     const l = narrateOne(e, ctx, prev);
+    const reveal = e.type === "card_revealed" ? revealOf(e) : carriedReveal;
+    carriedReveal = undefined;
     if (!l) continue;
     const segments = toSegments(l.parts);
     out.push({
@@ -180,6 +189,7 @@ export function narrateEvents(
       tone: l.tone,
       important: Boolean(l.important),
       segments,
+      ...(reveal ? { reveal } : {}),
     });
   }
   return out;
@@ -188,6 +198,12 @@ export function narrateEvents(
 function instanceCard(ctx: Ctx, id: unknown, fallback: string): LogSegment {
   const hit = typeof id === "string" ? ctx.instances?.get(id) : undefined;
   return hit ? card(hit.defId, hit.seat) : { kind: "text", text: fallback };
+}
+
+/** The visible card of a `card_revealed` event (hidden for a viewer who can't see it). */
+function revealOf(e: LooseEvent): BattleLogEntry["reveal"] {
+  const seat = asSeat(e.seat);
+  return seat != null && !isHiddenDef(e.defId) ? { defId: e.defId as string, ownerSeat: seat } : undefined;
 }
 
 function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line | null {

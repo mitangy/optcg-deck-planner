@@ -71,3 +71,12 @@
 [data-mode="light"] .opp-hand-label {
   color: var(--page-muted);
 }
+
+/* Status chips on light panels (inspect): darker ink of the same hue. */
+[data-mode="light"] .live-status-chip {
+  background: rgb(255 255 255 / 0.55);
+  color: var(--st-ink, #7a5a10);
+}
+[data-mode="light"] .live-status-chip-don {
+  color: #2f6a1a;
+}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CardView, ChatLine, PlayerView, RematchState, UndoState } from "../net/protocol";
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
@@ -683,8 +683,22 @@ export function DemoPage() {
     params.has("dons") ? withAttachedDon(withStatuses) : withStatuses,
     params,
   );
+  // `?cantattack`: your main phase where only the Leader may attack, so the
+  // summoning-sick / rested Characters show the "can't attack" warning.
+  const mainPhase: PlayerView = params.has("cantattack")
+    ? {
+        ...board,
+        phase: "main",
+        battle: null,
+        legalIntents: [
+          { type: "end_turn" },
+          { type: "declare_attack", attackerId: "y-leader", target: { kind: "leader" } },
+          ...board.legalIntents.filter((i) => i.type === "give_don"),
+        ],
+      }
+    : board;
   const withTurn: PlayerView = withWaiting(
-    params.has("oppturn") ? { ...board, activeSeat: 1 } : board,
+    params.has("oppturn") ? { ...mainPhase, activeSeat: 1 } : mainPhase,
     params.get("wait"),
   );
   const view: PlayerView = params.has("turn0")
@@ -716,6 +730,17 @@ export function DemoPage() {
       : null,
   );
   const [chat, setChat] = useState<ChatLine[]>(DEMO_CHAT);
+  // `?reveal`: the opponent reveals a card (then another) a moment after load.
+  const [log, setLog] = useState<BattleLogEntry[]>(DEMO_BATTLE_LOG);
+  useEffect(() => {
+    if (!params.has("reveal")) return;
+    const t = window.setTimeout(() => {
+      const events = [{ type: "card_revealed", seat: 1, defId: "ST01-009" }];
+      if (params.get("reveal") === "2") events.push({ type: "card_revealed", seat: 1, defId: "ST01-006" });
+      setLog((prev) => [...prev, ...narrateEvents(events, { youSeat: 0, turnNumber: 3, instances: DEMO_INSTANCES })]);
+    }, 1200);
+    return () => window.clearTimeout(t);
+  }, []);
   const [demoClockEnds] = useState(() => Date.now() + 612_000);
   const [rematch, setRematch] = useState<RematchState>(() => {
     const mode = params.get("rematch");
@@ -765,7 +790,7 @@ export function DemoPage() {
               }
             : undefined
         }
-        battleLog={DEMO_BATTLE_LOG}
+        battleLog={log}
         leaveLabel="Leave match"
         floatingPrompts={!params.has("box")}
         hotseatPass={

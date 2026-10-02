@@ -22,6 +22,8 @@ module.exports = {
 
     // random playthrough: the device must reach whoever has to answer
     { id: "e2e-hotseat-keeps-device-on-attacker", args: "playthrough --project=desktop-1280", file: "duel-web/src/board/hotseatControlSeat.ts", from: "      if (seatHasBlockOrCounterIntents(defenderView)) {\n        return defender;\n      }\n", to: "", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [desktop-1280]"] },
+    // preview effect text: trailing spaces must not hang past the box (#256)
+    { id: "e2e-preview-effect-hanging-spaces", args: "playthrough --project=desktop-1280", file: "duel-web/src/board.css", from: "  color: var(--ink);\n  white-space: pre-line;\n}", to: "  color: var(--ink);\n  white-space: pre-wrap;\n}", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [desktop-1280]"] },
 
     // UI audit
     // #190's deck-order fix has three layers (shrinkable column, wrapping row, clamped name); undo all of them.
@@ -50,6 +52,6 @@ module.exports = {
     { id: "e2e-match-error-dropped", args: "queue-board --project=desktop-1280", file: "duel-web/src/pages/DuelPage.tsx", from: "state: errorBanner ? { matchError: errorBanner } : null", to: "state: null", kills: ["queue-board.spec.ts > a failed match request returns to the lobby and says why [desktop-1280]"] },
     // spectator board shows both hands face up (#250)
     {"id": "e2e-spectator-near-hand-hidden", "args": "spectate --project=desktop-1280", "file": "duel-web/src/board/DuelBoard.tsx", "from": "    if (spectating && nearHand) {", "to": "    if (false && nearHand) {", "kills": ["spectate.spec.ts > a spectator of an unranked room sees both hands face up (#250) [desktop-1280]"]},
-    {"id": "e2e-spectator-far-hand-hidden", "args": "spectate --project=desktop-1280", "edits": [{"file": "duel-web/src/board/DuelBoard.tsx", "from": "cardBackUrl={oppCardBackUrl} cards={farHand} ownerSeat={oppSeat} />", "to": "cardBackUrl={oppCardBackUrl} ownerSeat={oppSeat} />"}, {"file": "duel-web/src/board/DuelBoard.tsx", "from": "              compact={lp}\n              cards={farHand}\n", "to": "              compact={lp}\n"}], "kills": ["spectate.spec.ts > a spectator of an unranked room sees both hands face up (#250) [desktop-1280]"]},
+    {"id": "e2e-spectator-far-hand-hidden", "args": "spectate --project=desktop-1280", "edits": [{"file": "duel-web/src/board/DuelBoard.tsx", "from": "cardBackUrl={oppCardBackUrl} cards={farHand} ownerSeat={oppSeat} />", "to": "cardBackUrl={oppCardBackUrl} ownerSeat={oppSeat} />"}, {"file": "duel-web/src/board/DuelBoard.tsx", "from": "                compact={lp}\n                cards={farHand}\n", "to": "                compact={lp}\n"}], "kills": ["spectate.spec.ts > a spectator of an unranked room sees both hands face up (#250) [desktop-1280]"]},
   ],
 };

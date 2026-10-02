@@ -1708,7 +1708,7 @@
   font-size: 0.98rem;
   line-height: 1.5;
   color: var(--ink);
-  white-space: pre-wrap;
+  white-space: pre-line;
 }
 
 @media (max-width: 720px) {
@@ -4069,4 +4069,85 @@
   background: none;
   border: 0;
   box-shadow: none;
+}
+
+/* —— Opponent hand, top right (setting "Opponent hand, top right") —— */
+.opp-hand-corner {
+  --corner-w: calc(var(--dock-cw, 4.6rem) * 0.62);
+  display: flex;
+  align-items: flex-start;
+  pointer-events: none;
+}
+.opp-hand-corner .opp-corner-cards {
+  display: flex;
+  justify-content: center;
+}
+.opp-hand-corner .opp-corner-card {
+  flex: 0 0 auto;
+  border-radius: 3px;
+  transform: rotate(var(--rot, 0deg));
+  transform-origin: 50% 0;
+}
+/* Rail (desktop): a fan hanging off the top edge, count underneath. */
+.opp-hand-corner-fan {
+  position: relative;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0 0.7rem 0.4rem;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent);
+}
+.opp-hand-corner-fan .opp-corner-cards {
+  width: 100%;
+  height: calc(var(--corner-w) * 1.05);
+}
+.opp-hand-corner-fan .opp-corner-card {
+  width: var(--corner-w);
+  height: calc(var(--corner-w) * 1.4);
+  margin-top: calc(var(--corner-w) * -0.4);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+.opp-hand-corner-fan .opp-corner-card + .opp-corner-card {
+  margin-left: min(0.1rem, calc((100% - 1.5rem - var(--n) * var(--corner-w)) / max(var(--n) - 1, 1)));
+}
+/* Phones: a right-aligned overlapping strip in the opponent half's hint row,
+   which is reserved already, so nothing moves. */
+.opp-hand-corner-row {
+  align-items: center;
+  gap: 0.4rem;
+}
+.opp-hand-corner-row .opp-corner-cards {
+  padding-right: 0.5rem;
+}
+.opp-hand-corner-row .opp-corner-card {
+  width: 13px;
+  height: 18px;
+  margin-left: -7px;
+  transform: rotate(calc(var(--rot) * 0.6));
+  transform-origin: 50% 100%;
+}
+.opp-hand-corner-row .opp-corner-card:first-child {
+  margin-left: 0;
+}
+.arena .opp-hand-hint.opp-hand-hint-right {
+  justify-content: flex-end;
+  align-self: flex-end;
+  padding-right: 8px;
+}
+/* Portrait phones keep the Battle log pill in the very corner; the strip sits
+   just left of it. */
+@media (max-width: 640px) and (orientation: portrait) {
+  .arena .opp-hand-hint.opp-hand-hint-right {
+    margin-right: 7.2rem;
+  }
+}
+.arena.arena-lp .arena-rail > .opp-hand-corner-row {
+  justify-content: flex-end;
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+.opp-hand-corner > .opp-hand-count {
+  order: 2;
 }

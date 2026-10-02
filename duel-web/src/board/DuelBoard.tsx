@@ -18,6 +18,10 @@ import { CardPreviewPanel } from "./CardPreviewPanel";
 import { RecentPlaysStrip } from "./RecentPlaysStrip";
 import { ChatPanel } from "./ChatPanel";
 import type { BattleLogEntry } from "./battleLog";
+import { AttackWarning, type AttackWarn } from "./AttackWarning";
+import { cantAttackReason } from "./attackBlock";
+import { useAttackAttempt } from "./useAttackAttempt";
+import { RevealOverlay, useOpponentReveals } from "./RevealOverlay";
 import { describeMatchResult } from "./matchResult";
 import { CardTile } from "./CardTile";
 import {
@@ -114,7 +118,7 @@ import { RematchPanel } from "./RematchPanel";
 import { RoomChip } from "./RoomShare";
 import { PendingBoard, type BoardWaiting } from "./PendingBoard";
 import { fanPose } from "./handFan";
-import { OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
+import { OppHandCorner, OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
 import { getLastHoverAt, getPreviewCard, setAutoPreviewCard, shouldAutoPreview } from "./cardPreview";
 import { latestOpponentPlay, opponentPlayCaption } from "./opponentPlay";
@@ -461,6 +465,7 @@ export function DuelBoard({
   });
   useIncomingAttackCue(attackKey, { sound: prefs.turnSound });
   // Same master Sounds toggle: a tick per opponent card use, a thud per Life lost.
+  const reveals = useOpponentReveals(battleLog, previewOppSeat, !spectating && !over);
   useSoundCues(view, battleLog, previewOppSeat, {
     enabled: alertsOn,
     sound: prefs.turnSound,
@@ -803,6 +808,27 @@ export function DuelBoard({
       view.you.stage?.id === selectedBoardId;
     if (!stillOnBoard) setSelectedBoardId(null);
   }, [selectedBoardId, view]);
+
+  // "Can't attack" feedback: dragging a card that has no legal attack, or
+  // tapping an opposing card with such a card selected (a plain tap only selects).
+  const [attackWarn, setAttackWarn] = useState<AttackWarn | null>(null);
+  useAttackAttempt({
+    enabled: dndEnabled,
+    selectedId: selectedBoardId,
+    reasonFor: (id) => {
+      if (!view) return null;
+      const card =
+        view.you.leader.id === id ? view.you.leader : view.you.characters.find((c) => c.id === id);
+      if (!card) return null;
+      return cantAttackReason(card, {
+        phase: view.phase,
+        busy: Boolean(view.battle) || Boolean(view.pendingChoices?.length),
+        turnsStarted: view.you.turnsStarted,
+        intents,
+      });
+    },
+    onAttempt: (a) => setAttackWarn({ ...a, nonce: Date.now() }),
+  });
 
   function selectAttackTarget(targetId: string) {
     if (!view || !selectedBoardId) return;
@@ -1523,7 +1549,13 @@ export function DuelBoard({
 
         <div className="playmat">
           <div className="playmat-inner">
-            <OppHandHint count={opp.handCount} cardBackUrl={oppCardBackUrl} cards={farHand} ownerSeat={oppSeat} />
+            {prefs.oppHandTopRight && !farHand ? (
+              <div className="opp-hand-hint opp-hand-hint-right">
+                <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" />
+              </div>
+            ) : (
+              <OppHandHint count={opp.handCount} cardBackUrl={oppCardBackUrl} cards={farHand} ownerSeat={oppSeat} />
+            )}
 
             <SideField
               side="opp"
@@ -1664,13 +1696,21 @@ export function DuelBoard({
             {lp && (hotseatPass || (undo && undoState?.enabled && !spectating && !over)) ? (
               <div className="lp-actions">{hudUndoPass}</div>
             ) : null}
-            <OppHandFan
-              count={opp.handCount}
-              cardBackUrl={oppCardBackUrl}
-              compact={lp}
-              cards={farHand}
-              ownerSeat={oppSeat}
-            />
+            {prefs.oppHandTopRight && !farHand ? (
+              <OppHandCorner
+                count={opp.handCount}
+                cardBackUrl={oppCardBackUrl}
+                variant={lp ? "row" : "fan"}
+              />
+            ) : (
+              <OppHandFan
+                count={opp.handCount}
+                cardBackUrl={oppCardBackUrl}
+                compact={lp}
+                cards={farHand}
+                ownerSeat={oppSeat}
+              />
+            )}
             <TurnStatusPanel
               view={view}
               boardSeat={boardSeat}
@@ -1973,6 +2013,13 @@ export function DuelBoard({
 
       {/* Fixed overlays (portals) — never participate in board layout. */}
       <TurnSplash message={splash} />
+      <AttackWarning warn={attackWarn} />
+      <RevealOverlay
+        reveal={reveals.current}
+        waiting={reveals.waiting}
+        oppSeat={previewOppSeat}
+        onDismiss={reveals.dismiss}
+      />
       <AttackIndicator view={over ? null : view} />
       <BoardMotion view={view} />
       <DragGhost payload={ghostPayload} />
