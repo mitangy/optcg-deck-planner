@@ -30,6 +30,7 @@ import { needsUsername } from "../auth/username";
 import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel";
 import { dismissInvite, inviteFriend, type Friend, type FriendInvite } from "../friends/friendsApi";
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
+import { UpdateNotice, VersionStatus } from "../VersionStatus";
 
 /** Which play mode the user is configuring inside the Play sheet. */
 type PlayMode = "hotseat" | "create" | "join" | "queue" | "spectate";
@@ -643,6 +644,8 @@ export function LobbyPage() {
           </div>
         </div>
 
+        <UpdateNotice />
+
         {showIosHint ? (
           <section className="notice" aria-label="Install on your iPhone">
             <div className="notice-body">
@@ -754,6 +757,9 @@ export function LobbyPage() {
           onInvite={inviteToPrivateRoom}
           onSpectate={spectateFriend}
         />
+        <div className="home-version">
+          <VersionStatus />
+        </div>
       </main>
 
       {sheetOpen ? (
