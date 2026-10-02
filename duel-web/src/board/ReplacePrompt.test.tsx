@@ -47,7 +47,7 @@ function fullBoardView(): PlayerView {
 }
 
 describe("replace prompt", () => {
-  it("outlines only the Characters the play may trash and waits for a pick (#PR_C)", () => {
+  it("outlines only the Characters the play may trash and waits for a pick (#254)", () => {
     const view = fullBoardView();
     const intents: Intent[] = ["c1", "c3"].map((id) => ({ type: "play_card", handIndex: 0, trashCharacterId: id }));
     const html = renderToStaticMarkup(
@@ -60,7 +60,7 @@ describe("replace prompt", () => {
     expect(html).toContain(">Cancel</button>");
   });
 
-  it("has no Trash & play button under One-tap actions: the pick answers (#PR_C)", () => {
+  it("has no Trash & play button under One-tap actions: the pick answers (#254)", () => {
     updateSettings({ oneTapActions: true });
     try {
       const intents: Intent[] = [{ type: "play_card", handIndex: 0, trashCharacterId: "c1" }];

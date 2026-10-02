@@ -33,20 +33,20 @@ const onField: ChoiceOptionView = { id: "o0", defId: "ST01-004", zone: "characte
 const inHand: ChoiceOptionView = { id: "o1", defId: "ST01-003", zone: "hand", ownerSeat: 0, instanceId: "h9", eligible: true };
 
 describe("select choices over field cards", () => {
-  it("are answered on the board with a slim bar, no card grid (#PR_C)", () => {
+  it("are answered on the board with a slim bar, no card grid (#254)", () => {
     const html = render(choice([onField]));
     expect(html).toContain("field-bar");
     expect(html).not.toContain("choice-grid");
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Confirm<\/button>/);
   });
 
-  it("keep the pop-up when a pickable card is not on the field (#PR_C)", () => {
+  it("keep the pop-up when a pickable card is not on the field (#254)", () => {
     const html = render(choice([onField, inHand]));
     expect(html).toContain("choice-grid");
     expect(html).not.toContain("field-bar");
   });
 
-  it("drop the Confirm button under One-tap actions when exactly one is picked (#PR_C)", () => {
+  it("drop the Confirm button under One-tap actions when exactly one is picked (#254)", () => {
     updateSettings({ oneTapActions: true });
     try {
       expect(render(choice([onField]))).not.toContain(">Confirm<");
