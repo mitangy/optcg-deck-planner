@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { Intent, PlayerView } from "../net/protocol";
+import { updateSettings } from "../settings";
 import { ReplacePrompt } from "./ReplacePrompt";
 
 // Card art reads saved art prefs; server rendering has no storage.
@@ -46,14 +47,30 @@ function fullBoardView(): PlayerView {
 }
 
 describe("replace prompt", () => {
-  it("offers each Character the play may trash and waits for a pick", () => {
+  it("outlines only the Characters the play may trash and waits for a pick (#PR_C)", () => {
     const view = fullBoardView();
     const intents: Intent[] = ["c1", "c3"].map((id) => ({ type: "play_card", handIndex: 0, trashCharacterId: id }));
     const html = renderToStaticMarkup(
       <ReplacePrompt view={view} intents={intents} handIndex={0} mySeat={0} onSend={() => {}} onCancel={() => {}} />,
     );
-    expect(html.match(/class="choice-option[ "]/g)).toHaveLength(2);
+    expect(html).toContain('data-instance-id="c1"');
+    expect(html).toContain('data-instance-id="c3"');
+    expect(html).not.toContain('data-instance-id="c2"');
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Trash &amp; play<\/button>/);
     expect(html).toContain(">Cancel</button>");
+  });
+
+  it("has no Trash & play button under One-tap actions: the pick answers (#PR_C)", () => {
+    updateSettings({ oneTapActions: true });
+    try {
+      const intents: Intent[] = [{ type: "play_card", handIndex: 0, trashCharacterId: "c1" }];
+      const html = renderToStaticMarkup(
+        <ReplacePrompt view={fullBoardView()} intents={intents} handIndex={0} mySeat={0} onSend={() => {}} onCancel={() => {}} />,
+      );
+      expect(html).not.toContain("Trash &amp; play");
+      expect(html).toContain(">Cancel</button>");
+    } finally {
+      updateSettings({ oneTapActions: false });
+    }
   });
 });

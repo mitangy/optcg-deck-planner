@@ -89,6 +89,12 @@ describe("protocol contract (golden fixtures)", () => {
       const html = renderToStaticMarkup(<ChoicePrompt choice={choice} mySeat={f.viewerSeat} onSend={() => {}} view={f.body.view} />);
       // A life trigger is a yes/no question; every other kind is named by its request.
       const type = f.choice === "life_trigger" ? "confirm" : request!.type;
+      // Field-only select choices are answered on the board: a bar, not a pop-up.
+      const onBoardBar = type === "select" && html.includes('class="field-bar"');
+      if (onBoardBar) {
+        expect(html).toContain(escapeHtml(choice.prompt));
+        return;
+      }
       expect(html).toContain(`choice-prompt choice-${type}"`);
       if (type === "confirm") {
         expect(html).toContain(f.choice === "life_trigger" ? "Activate Trigger" : "Yes");
