@@ -117,18 +117,24 @@ export function narrateReplay(replay: MatchReplay, seat: Seat, opts: NarrateOpti
     else lines.push(line);
   };
   const opening = replayMatch({ ...replay, intents: [] });
+  // Without played mulligans the opening state is already turn 1; otherwise it's the mulligan step (turn 0)
+  // and the hand to report is the one kept after this seat's mulligan choice.
+  let openingHand = opening.players[seat].hand.map((c) => cardName(c.defId));
   let final = opening;
   let divergedAt: string | null = null;
   try {
     let turn = opening.turnNumber;
     let active = opening.activeSeat;
     const header = () => `--- Turn ${turn} (${active === seat ? "your" : "opponent's"} turn) ---`;
-    if (turn >= fromTurn && turn <= toTurn) push(header());
+    if (opening.phase !== "mulligan" && turn >= fromTurn && turn <= toTurn) push(header());
     final = replayMatch(replay, (step) => {
+      if (step.intent.type === "mulligan" && step.seat === seat) {
+        openingHand = step.state.players[seat].hand.map((c) => cardName(c.defId));
+      }
       for (const event of projectGameEvents(step.events, seat)) {
         if (event.type === "phase_changed") {
-          // Turns alternate, so a new active seat starts the next turn.
-          if (event.activeSeat !== active) {
+          // The engine starts every turn (extra turns included) with a refresh phase and counts it.
+          if (event.phase === "refresh") {
             turn += 1;
             active = event.activeSeat;
             if (turn >= fromTurn && turn <= toTurn) push(header());
@@ -149,7 +155,7 @@ export function narrateReplay(replay: MatchReplay, seat: Seat, opts: NarrateOpti
     wentFirst: replay.firstSeat === seat,
     yourLeader: cardName(replay.players[seat].leaderId),
     opponentLeader: cardName(replay.players[(1 - seat) as Seat].leaderId),
-    yourOpeningHand: opening.players[seat].hand.map((c) => cardName(c.defId)),
+    yourOpeningHand: openingHand,
     result: replay.end
       ? { won: replay.end.winner === seat, reason: replay.end.reason }
       : null,

@@ -50,6 +50,33 @@ function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, {
 }
 
 const { replay, taken } = gameWithLifeTaken();
+
+/** A game with the mulligan step played, as duel-web records it: each seat's choice, then seat 0 and seat 1 end a turn each. */
+function gameWithMulligans(seed: number, redraw: [boolean, boolean]) {
+  const players: MatchReplay["players"] = [
+    { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
+    { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
+  ];
+  const rng = createSeededRng(seed);
+  let state = createMatch({ seed, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] });
+  const dealt = state.players.map((p) => p.hand.map((c) => getCardDef(c.defId).name));
+  const intents: MatchReplay["intents"] = [
+    { seat: 0, intent: { type: "mulligan", doMulligan: redraw[0] } },
+    { seat: 1, intent: { type: "mulligan", doMulligan: redraw[1] } },
+    { seat: 0, intent: { type: "end_turn" } },
+    { seat: 1, intent: { type: "end_turn" } },
+  ];
+  let kept: string[][] = [];
+  for (const [i, { seat, intent }] of intents.entries()) {
+    const result = applyIntent(state, intent, { seat, rng });
+    expect(result.ok).toBe(true);
+    state = result.state;
+    if (i === 1) kept = state.players.map((p) => p.hand.map((c) => getCardDef(c.defId).name));
+  }
+  expect(state.turnNumber).toBe(3);
+  const played: MatchReplay = { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: false, players, intents };
+  return { replay: played, dealt, kept };
+}
 const lifeCard = getCardDef(taken.defId).name;
 
 describe("match review", () => {
@@ -85,6 +112,26 @@ describe("match review", () => {
     const short = narrateReplay(replay, 0, { maxLines: 3 });
     expect(short.log).toHaveLength(3);
     expect(short.truncated).toBe(true);
+  });
+
+  it("numbers turns like the engine when the mulligan step was played", () => {
+    const { replay: played } = gameWithMulligans(5, [false, false]);
+    const review = narrateReplay(played, 0);
+    expect(review.finalState.turn).toBe(3);
+    const headers = review.log.filter((l) => l.startsWith("---"));
+    expect(headers).toEqual(["--- Turn 1 (your turn) ---", "--- Turn 2 (opponent's turn) ---", "--- Turn 3 (your turn) ---"]);
+    // Seat 0's first turn (no draw, one DON!!) is read under Turn 1, including with fromTurn/toTurn.
+    const turn1 = narrateReplay(played, 0, { fromTurn: 1, toTurn: 1 }).log;
+    expect(turn1[0]).toBe("--- Turn 1 (your turn) ---");
+    expect(turn1.length).toBeGreaterThan(1);
+    expect(turn1).toEqual(review.log.slice(0, review.log.indexOf("--- Turn 2 (opponent's turn) ---")));
+  });
+
+  it("gives the opening hand after a mulligan redraw", () => {
+    const { replay: played, dealt, kept } = gameWithMulligans(5, [true, false]);
+    expect(kept[0]).not.toEqual(dealt[0]);
+    expect(narrateReplay(played, 0).yourOpeningHand).toEqual(kept[0]);
+    expect(narrateReplay(played, 1).yourOpeningHand).toEqual(kept[1]);
   });
 
   it("asks the planner for a replay with the player's token and the service secret (#244)", async () => {
