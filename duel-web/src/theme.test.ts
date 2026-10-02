@@ -50,7 +50,7 @@ describe("colour themes", () => {
     expect(mergeRemoteSettings(local, { theme: "marines" }).theme).toBe("marines");
   });
 
-  it("light mode brightens the page and tints the status bar to match (#241)", () => {
+  it("light mode brightens the page and tints the status bar to match (#242)", () => {
     const page = fakePage({ nightSea: "#0b1720", "nightSea/light": "#e9f1f7" });
     applyTheme("nightSea", "light", page.target);
     expect(page.root.dataset.mode).toBe("light");
@@ -60,7 +60,7 @@ describe("colour themes", () => {
     expect(page.meta.content).toBe("#0b1720");
   });
 
-  it("Auto mode follows the device's light or dark setting (#241)", () => {
+  it("Auto mode follows the device's light or dark setting (#242)", () => {
     const page = fakePage({ wano: "#140b10", "wano/light": "#eee9f7" });
     page.device.light = true;
     applyTheme("wano", "system", page.target);
@@ -72,14 +72,14 @@ describe("colour themes", () => {
     expect(page.meta.content).toBe("#140b10");
   });
 
-  it("replaces a stored colour mode this build doesn't know with dark (#241)", () => {
+  it("replaces a stored colour mode this build doesn't know with dark (#242)", () => {
     vi.stubGlobal("localStorage", { getItem: () => JSON.stringify({ colorMode: "sepia" }) });
     expect(loadSettings().colorMode).toBe("dark");
     vi.stubGlobal("localStorage", { getItem: () => JSON.stringify({ colorMode: "light" }) });
     expect(loadSettings().colorMode).toBe("light");
   });
 
-  it("takes the light or dark mode saved to the account on another device (#241)", () => {
+  it("takes the light or dark mode saved to the account on another device (#242)", () => {
     vi.stubGlobal("localStorage", { getItem: () => null });
     const local = loadSettings();
     expect(mergeRemoteSettings(local, { colorMode: "system" }).colorMode).toBe("system");
