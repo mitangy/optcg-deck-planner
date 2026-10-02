@@ -71,6 +71,7 @@ import {
   type PendingAttach,
 } from "./donSelection";
 import { ChoicePrompt } from "./ChoicePrompt";
+import { isHandPick } from "./fieldTargets";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { canFloat, FloatingPrompt } from "./FloatingPrompt";
 import { IntentBar } from "./IntentBar";
@@ -258,7 +259,9 @@ export function DuelBoard({
    * button). For this visit only, not saved: a reload brings the hand back.
    */
   const [handHiddenRaw, setHandHidden] = useState(false);
-  const handHidden = handHiddenRaw && prefs.keepHandOpen;
+  /** An effect asks me to pick cards from my hand: they are tapped in the hand, so it stays in view. */
+  const handPick = !spectator && !view?.spectator && isHandPick(view?.pendingChoices?.[0], seat ?? view?.seat ?? null);
+  const handHidden = handHiddenRaw && prefs.keepHandOpen && !handPick;
   const wide = useMediaQuery(WIDE_BOARD_QUERY);
   const compactHud = useMediaQuery(COMPACT_HUD_QUERY);
   const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
@@ -973,6 +976,7 @@ export function DuelBoard({
     hidden: handHidden,
     mulligan: decidingMulligan,
     selected: handFilter != null,
+    picking: handPick,
   });
   const handOpen = drawer === "open";
   const drawerClass = drawer === "open" ? " is-open" : drawer === "hidden" ? " is-hidden" : "";
@@ -1870,7 +1874,7 @@ export function DuelBoard({
         ) : (
           <div className="arena-rail">
             {defendTray ?? (
-              <div className={`hand-rail${handCollapsed ? " collapsed" : ""}`}>
+              <div className={`hand-rail${handCollapsed && !handPick ? " collapsed" : ""}`}>
                 <div className="hand-rail-head">
                   <span className="hand-rail-title">{spectating ? (nearHand ? "Seat hand" : "Seat hand (hidden)") : "Hand"}</span>
                   <span className="hand-rail-count">{handCount}</span>
@@ -1895,7 +1899,7 @@ export function DuelBoard({
                           });
                         }}
                       >
-                        {handCollapsed ? "Show" : "Hide"}
+                        {handCollapsed && !handPick ? "Show" : "Hide"}
                       </button>
                     </div>
                   ) : null}

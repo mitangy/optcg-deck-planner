@@ -488,7 +488,12 @@ const EFFECT_RULES: EffectRule[] = [
   [new RegExp("^(.+?)'s? base power becomes the same as (your opponent's leader|the selected character's power|that character's power|the selected character) " + DUR + "$", "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[3]); if (!target || !d) return null; const value = /leader/i.test(m[2]!) ? { count: { of: "leader_power" as const, player: "opponent" as const } } : { count: { of: "var_sum" as const, name: "_last", field: "power" as const } }; return { do: "base_power", target, value, duration: d }; }],
   [new RegExp("^your opponent cannot activate (?:a )?\\[Blocker\\](?: character)? that has (\\d+) or less power " + DUR + "$", "i"), (m) => { const d = parseDuration(m[2]); return d ? { do: "restrict", target: { ref: "self" }, restriction: "cannot_be_blocked_by_power_or_less", value: num(m[1]!), duration: d } : null; }],
   [/^trash (\d+|a) cards? from your opponent's hand$/i, (m) => ({ do: "discard", player: "opponent", count: num(m[1]!), chooser: "you", random: true })],
-  [/^you may trash any number of (.+?) from your hand$/i, (m, ctx) => { const p = /^cards?$/i.test(m[1]!) ? null : parseCardPhrase("all " + m[1]!, ctx); return { do: "discard", player: "you", count: 99, min: 0, ...(p?.selector.filter ? { filter: p.selector.filter } : {}) }; }],
+  // Ask first (only when the hand has a card it could trash), then pick the cards.
+  [/^you may trash any number of (.+?) from your hand$/i, (m, ctx) => {
+    const p = /^cards?$/i.test(m[1]!) ? null : parseCardPhrase("all " + m[1]!, ctx);
+    const filter = p?.selector.filter ? { filter: p.selector.filter } : {};
+    return { do: "if", cond: { c: "exists", selector: { player: "you", zone: "hand", ...filter } }, then: { do: "may", then: { do: "discard", player: "you", count: 99, min: 0, ...filter }, prompt: restoreNames(`trash ${m[1]!} from your hand`, ctx.ph) } };
+  }],
   [/^play (.+?) from your deck( rested)?$/i, (m, ctx) => { const target = zoneTarget(m[1]!, "deck", ctx); return target ? { do: "play", target, ...(m[2] ? { rested: true } : {}) } : null; }],
   [/^return all cards in your hand to your deck$/i, () => ({ do: "to_deck", target: { ref: "all", selector: { player: "you", zone: "hand" } }, position: "bottom" })],
   [/^your opponent places (\d+) cards? from their trash at the (top|bottom) of their deck(?: in any order)?$/i, (m) => ({ do: "to_deck", target: { ref: "choose", selector: { player: "opponent", zone: "trash" }, min: num(m[1]!), max: num(m[1]!), chooser: "opponent" }, position: m[2]!.toLowerCase() as "top" | "bottom" })],

@@ -33,16 +33,17 @@ export type HandDrawer = "open" | "tucked" | "hidden";
 /**
  * Raised, tucked (peeking, raised on hover) or hidden (only its handle shows;
  * hover does not raise it). Hiding is the Keep hand open escape hatch (H), so
- * it wins over the pin and a selected card, but never over the mulligan, where
- * you have to see your opening hand.
+ * it wins over the pin and a selected card, but never over the mulligan or an
+ * effect asking you to pick cards from your hand, where you have to see it.
  */
 export function handDrawer(s: {
   pinned: boolean;
   hidden: boolean;
   mulligan: boolean;
   selected: boolean;
+  picking?: boolean;
 }): HandDrawer {
-  if (s.mulligan) return "open";
+  if (s.mulligan || s.picking) return "open";
   if (s.hidden) return "hidden";
   return s.pinned || s.selected ? "open" : "tucked";
 }

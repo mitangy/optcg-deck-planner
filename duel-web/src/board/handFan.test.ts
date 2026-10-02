@@ -31,4 +31,9 @@ describe("handDrawer", () => {
   it("shows a hidden hand during the mulligan (#259)", () => {
     expect(handDrawer({ ...rest, pinned: true, hidden: true, mulligan: true })).toBe("open");
   });
+
+  it("shows a hidden or tucked hand while an effect picks cards from it (#263)", () => {
+    expect(handDrawer({ ...rest, hidden: true, picking: true })).toBe("open");
+    expect(handDrawer({ ...rest, picking: true })).toBe("open");
+  });
 });

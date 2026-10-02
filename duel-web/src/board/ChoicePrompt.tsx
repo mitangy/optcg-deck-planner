@@ -134,10 +134,10 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge
  * Outline board cards by instance id without touching the board's DOM: a
  * scoped style rule keyed on the tiles' `data-instance-id`.
  */
-export function BoardHighlight({ ids, kind }: { ids: string[]; kind: "hover" | "candidate" }) {
+export function BoardHighlight({ ids, kind, hand = false }: { ids: string[]; kind: "hover" | "candidate"; hand?: boolean }) {
   if (!ids.length) return null;
   const esc = (id: string) => (typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, ""));
-  const selector = ids.map((id) => `.side-field .card-tile[data-instance-id="${esc(id)}"]`).join(", ");
+  const selector = ids.map((id) => (hand ? `${HAND_TILE}[data-motion-id="${esc(id)}"]` : `.side-field .card-tile[data-instance-id="${esc(id)}"]`)).join(", ");
   const rule =
     kind === "hover"
       ? `${selector} { outline: 3px solid var(--chrome-bright); outline-offset: 2px; box-shadow: 0 0 18px rgba(240, 220, 168, 0.8); z-index: 4; }`
@@ -372,8 +372,13 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
   );
 }
 
-/** The board spot under a click: a field card tile or a cost-area DON!! chip. */
+/** Your hand's card tiles: only hand cards carry a motion id (the hand card's instance id). */
+const HAND_TILE = ".card-tile[data-motion-id]";
+
+/** The board spot under a click: a field card tile, a hand card or a cost-area DON!! chip. */
 function spotAtClick(target: Element | null, spots: ReadonlySet<BoardSpot>): { spot: BoardSpot; chipId?: string } | null {
+  const handId = target?.closest?.<HTMLElement>(HAND_TILE)?.dataset.motionId;
+  if (handId) return spots.has(`hand:${handId}`) ? { spot: `hand:${handId}` } : null;
   const tile = target?.closest?.<HTMLElement>(".side-field .card-tile[data-instance-id]");
   const id = tile?.dataset.instanceId;
   if (id) {
@@ -461,12 +466,15 @@ function FieldSelectBar({ request, choice, spots, onSend }: {
   const all = [...spots.values()];
   const picked = selected.map((id) => spots.get(id)).filter((s): s is BoardSpot => !!s);
   const cardIds = (list: BoardSpot[]) => [...new Set(list.filter((s) => s.startsWith("card:") || s.startsWith("host:")).map((s) => s.slice(s.indexOf(":") + 1)))];
+  const handIds = (list: BoardSpot[]) => list.filter((s) => s.startsWith("hand:")).map((s) => s.slice("hand:".length));
   const donSpots = [...new Set(all.filter((s) => s.startsWith("don:")))];
   const pickedChips = selected.map((id) => pick.chips[id]).filter((c): c is string => !!c);
   return (
     <>
       <BoardHighlight ids={cardIds(all)} kind="candidate" />
       <BoardHighlight ids={cardIds(picked)} kind="hover" />
+      <BoardHighlight ids={handIds(all)} kind="candidate" hand />
+      <BoardHighlight ids={handIds(picked)} kind="hover" hand />
       <DonHighlight spots={donSpots} chipIds={[]} kind="candidate" />
       <DonHighlight spots={[]} chipIds={pickedChips} kind="hover" />
       <FieldTargetBar
@@ -474,10 +482,11 @@ function FieldSelectBar({ request, choice, spots, onSend }: {
         text={choice.prompt}
         caption={pickCaption(request.min, request.max, selected.length)}
         label={choice.prompt}
+        handPick={handIds(all).length > 0}
       >
         {oneTap ? null : (
           <button type="button" className="btn btn-primary" disabled={!valid} onClick={() => answer(selected)}>
-            {selected.length === 0 && request.min === 0 ? "Choose none" : "Confirm"}
+            {selected.length === 0 && request.min === 0 ? (handIds(all).length ? "None" : "Choose none") : "Confirm"}
           </button>
         )}
         {choice.optional ? (

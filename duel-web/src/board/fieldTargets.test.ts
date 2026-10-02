@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ChoiceOptionView } from "../net/protocol";
-import { boardPickSpots, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo } from "./fieldTargets";
+import type { ChoiceOptionView, PendingChoiceView } from "../net/protocol";
+import { boardPickSpots, isHandPick, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo } from "./fieldTargets";
 
 const board = new Map<string, BoardCardInfo>([
   ["c1", { seat: 0, name: "Karoo" }],
@@ -118,5 +118,25 @@ describe("pick helpers", () => {
     expect(pickCaption(1, 1, 0)).toBe("Choose 1");
     expect(pickCaption(0, 2, 1)).toBe("Choose up to 2 · selected 1");
     expect(pickCaption(1, 3, 2)).toBe("Choose 1–3 · selected 2");
+  });
+});
+
+describe("hand choices", () => {
+  const hand = (id: string, extra: Partial<ChoiceOptionView> = {}) => opt(id, { zone: "hand", ...extra });
+  const select = (options: ChoiceOptionView[], seat = 0) =>
+    ({ id: "p1", seat, kind: "effect", cardDefId: "OP15-002", optional: false, prompt: "", request: { type: "select", min: 0, max: 2, options } }) as PendingChoiceView;
+
+  it("are picked by tapping your own hand cards (#263)", () => {
+    expect(boardPickSpots([hand("h1"), hand("h2"), hand("h3", { eligible: false })], board, 0)).toEqual(
+      new Map([["h1", "hand:h1"], ["h2", "hand:h2"]]),
+    );
+    expect(isHandPick(select([hand("h1")]), 0)).toBe(true);
+  });
+
+  it("keep the pop-up for the opponent's hand, unnamed hand cards, or a mix with the field (#263)", () => {
+    expect(onBoard([hand("h1", { ownerSeat: 1 })])).toBe(false);
+    expect(onBoard([hand("h1", { instanceId: undefined })])).toBe(false);
+    expect(isHandPick(select([hand("h1"), opt("c1")]), 0)).toBe(false);
+    expect(isHandPick(select([hand("h1")], 1), 0)).toBe(false);
   });
 });
