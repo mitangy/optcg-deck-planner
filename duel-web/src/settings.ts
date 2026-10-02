@@ -23,10 +23,11 @@ export type ScreenOrientationPref = "auto" | "portrait" | "landscape";
 export type AnimationSpeed = "normal" | "fast" | "off";
 
 /**
- * Where your hand sits: fanned off the bottom edge of the board (centre) or of
- * the right column, or the flat grid / scrolling row with no fan.
+ * Your hand: fanned like cards held in one hand (desktop: anywhere on the
+ * screen, see `handFanPos`), or the flat grid (a side panel on desktop) /
+ * scrolling row with no fan.
  */
-export type HandLayout = "fanCenter" | "fanRight" | "grid";
+export type HandLayout = "fan" | "grid";
 
 /** Text size across the app, on top of the automatic scaling with the window. */
 export type TextSize = "small" | "medium" | "large" | "xlarge";
@@ -53,10 +54,20 @@ export type DuelSettings = {
   screenOrientation: ScreenOrientationPref;
   /** Start every match with the hand sorted by cost. */
   sortHandByCost: boolean;
-  /** Fanned hand at the bottom centre / bottom right, or the flat grid. */
+  /** Fanned hand or the flat grid. */
   handLayout: HandLayout;
+  /** Desktop: where the fanned hand sits ("x,y" share of the window); "" = bottom centre. */
+  handFanPos: string;
   /** Desktop: the fanned hand (or corner dock) stays raised instead of tucking away. */
   keepHandOpen: boolean;
+  /**
+   * Desktop: which side column each panel (card preview, battle log, hand
+   * grid, chat ...) sits in and in what order; "" is the default layout.
+   * See board/panelLayout.ts.
+   */
+  panelLayout: string;
+  /** Desktop: show the grips that drag side panels and the fanned hand around. */
+  layoutGrips: boolean;
   /**
    * One tap plays a Counter card, declares a Blocker, attaches selected DON!!
    * or picks a single target, instead of selecting it and then confirming.
@@ -99,8 +110,11 @@ const DEFAULTS: DuelSettings = {
   responseStops: "always",
   screenOrientation: "auto",
   sortHandByCost: false,
-  handLayout: "fanCenter",
+  handLayout: "fan",
+  handFanPos: "",
   keepHandOpen: false,
+  panelLayout: "",
+  layoutGrips: true,
   oneTapActions: false,
   oppHandTopRight: false,
   textSize: "medium",
@@ -118,7 +132,12 @@ const END_TURN_CONFIRM: readonly EndTurnConfirm[] = ["always", "actions", "never
 const RESPONSE_STOPS: readonly ResponseStops[] = ["always", "auto", "smart"];
 const SCREEN_ORIENTATIONS: readonly ScreenOrientationPref[] = ["auto", "portrait", "landscape"];
 const ANIMATION_SPEEDS: readonly AnimationSpeed[] = ["normal", "fast", "off"];
-const HAND_LAYOUTS: readonly HandLayout[] = ["fanCenter", "fanRight", "grid"];
+const HAND_LAYOUTS: readonly HandLayout[] = ["fan", "grid"];
+/**
+ * Builds before #261 had two fans ("fanCenter", "fanRight"); both become the
+ * one fan (unknown layout), the right one kept at the bottom right.
+ */
+const LEGACY_RIGHT_FAN_POS = "0.88,1";
 export const TEXT_SIZES: readonly TextSize[] = ["small", "medium", "large", "xlarge"];
 const CHANGE_EVENT = "optcg-duel:settings-change";
 
@@ -146,6 +165,8 @@ function sanitize(
     next.screenOrientation = DEFAULTS.screenOrientation;
   }
   if (!ANIMATION_SPEEDS.includes(next.animationSpeed)) next.animationSpeed = DEFAULTS.animationSpeed;
+  const storedLayout = next.handLayout as string;
+  if (storedLayout === "fanRight" && rest.handFanPos === undefined) next.handFanPos = LEGACY_RIGHT_FAN_POS;
   if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;
   if (!TEXT_SIZES.includes(next.textSize)) next.textSize = DEFAULTS.textSize;
   // A theme removed in a later build (or synced from a newer one) falls back to the default.

@@ -12,12 +12,13 @@ import {
 } from "../settings";
 import { useLockNote } from "./orientation";
 import { playTurnChime } from "./turnAlert";
-import { TILT_BOARD_QUERY, useMediaQuery } from "./useMediaQuery";
+import { DESKTOP_BOARD_QUERY, TILT_BOARD_QUERY, useMediaQuery } from "./useMediaQuery";
 
 type Toggle = {
   key:
     | "sortHandByCost"
     | "keepHandOpen"
+    | "layoutGrips"
     | "oneTapActions"
     | "oppHandTopRight"
     | "tiltedBoard"
@@ -40,6 +41,11 @@ const TOGGLES: Toggle[] = [
     key: "keepHandOpen",
     label: "Keep hand open",
     hint: "Desktop: the fanned hand (or the corner dock in short windows) stays up instead of tucking away. It can cover your DON!! row and Trash: press H or its Hide button during a match to hide the hand completely, and again to bring it back.",
+  },
+  {
+    key: "layoutGrips",
+    label: "Drag handles",
+    hint: "Desktop: shows a grip on each side panel and on the fanned hand so you can move them. Turn it off to hide the grips once your layout is set; the layout stays.",
   },
   {
     key: "oneTapActions",
@@ -102,9 +108,8 @@ const ORIENTATION_OPTIONS: { value: ScreenOrientationPref; label: string }[] = [
 ];
 
 const HAND_LAYOUT_OPTIONS: { value: HandLayout; label: string }[] = [
-  { value: "fanCenter", label: "Fan, bottom centre" },
-  { value: "fanRight", label: "Fan, bottom right" },
-  { value: "grid", label: "Grid (no fan)" },
+  { value: "fan", label: "Fan" },
+  { value: "grid", label: "Grid" },
 ];
 
 const TEXT_SIZE_OPTIONS: { value: TextSize; label: string }[] = [
@@ -126,6 +131,8 @@ export function GameplaySettingsFields() {
   const lockNote = useLockNote(settings.screenOrientation);
   // Phones and tall windows keep the flat board, so the switch would do nothing there.
   const tiltFits = useMediaQuery(TILT_BOARD_QUERY);
+  // Phones keep their fixed layout, so only desktop windows offer the panel reset.
+  const desktop = useMediaQuery(DESKTOP_BOARD_QUERY);
   return (
     <div className="gameplay-settings">
       <div className="field">
@@ -204,11 +211,33 @@ export function GameplaySettingsFields() {
           ))}
         </select>
         <p className="field-hint">
-          Desktop: the fan peeks off the bottom of the board (centre) or of the right column, and
-          rises when you point at it. Grid keeps the hand open in the right column. Phones: either
-          fan overlaps the hand strip so every card fits without scrolling.
+          Desktop: the fan peeks off the bottom of the board and rises when you point at it; drag
+          its grip to put it anywhere on the screen (on the bottom edge it still tucks away). Grid
+          keeps the hand open as a side panel you can move to either column. Phones: the fan
+          overlaps the hand strip so every card fits without scrolling.
         </p>
       </div>
+      {desktop ? (
+        <div className="field">
+          <span className="field-label" id="side-panels-label">Side panels</span>
+          <div className="panel-layout-row">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              aria-describedby="side-panels-label"
+              disabled={!settings.panelLayout && !settings.handFanPos}
+              onClick={() => updateSettings({ panelLayout: "", handFanPos: "" })}
+            >
+              Reset layout
+            </button>
+          </div>
+          <p className="field-hint">
+            With Drag handles on, drag the grip at the top of any side panel (card preview, battle
+            log, actions, Grid hand, chat ...) to snap it into the left or right column, and the
+            fanned hand&apos;s grip to move it anywhere. Reset puts every panel and the hand back.
+          </p>
+        </div>
+      ) : null}
       <div className="field">
         <label htmlFor="text-size">Text size</label>
         <select
@@ -245,7 +274,9 @@ export function GameplaySettingsFields() {
           keeps its short fade instead of Normal or Fast.
         </p>
       </div>
-      {TOGGLES.filter((t) => t.key !== "tiltedBoard" || tiltFits).map((t) => (
+      {TOGGLES.filter(
+        (t) => (t.key !== "tiltedBoard" || tiltFits) && (t.key !== "layoutGrips" || desktop),
+      ).map((t) => (
         <div className="gameplay-toggle" key={t.key}>
           <label className="switch">
             <input

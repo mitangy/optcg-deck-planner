@@ -518,10 +518,11 @@
 
 /* ≥900px landscape (and landscape phones): the board gets a left column
    (hovered card + battle log, always open) and a right rail (opponent hand,
-   whose-turn panel, actions, chat). Your hand fans off the bottom edge
-   (centre or right, the Hand setting) and rises when hovered; the Grid
-   setting keeps it in the rail, or a corner dock on short windows and
-   landscape phones. DuelBoard adds .arena-wide
+   whose-turn panel, actions, chat). On desktop players can drag any of
+   those panels to either column (the panelLayout setting). Your hand fans
+   off the bottom edge (centre or right, the Hand setting) and rises when
+   hovered; the Grid setting makes it a side panel, or a corner dock on
+   short windows and landscape phones. DuelBoard adds .arena-wide
    from the same media query (WIDE_BOARD_QUERY).
 
    Column widths live on the board root, not .arena-body, so fixed overlays
@@ -643,6 +644,7 @@
   flex-direction: column;
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
   border-right: 1px solid var(--line);
   background: rgb(var(--deep-rgb) / 0.55);
   /* Landscape notch: column keeps its width, content clears the inset. */
@@ -652,19 +654,18 @@
 /* The preview is a fixed-size block (a share of the column), so a card with a
    long ability never moves the recent plays or battle log under it: the art
    keeps its size and the text scrolls inside the block. */
-.arena.arena-wide .arena-left .card-preview {
+.arena.arena-wide .board-col .card-preview {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  flex: 0 0 var(--preview-h, 52%);
-  height: var(--preview-h, 52%);
+  flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
   padding: 0.8rem 0.8rem 0.5rem;
   box-sizing: border-box;
 }
 
-.arena-left .card-preview-meta {
+.board-col .card-preview-meta {
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
@@ -674,8 +675,8 @@
 }
 
 /* Art is height-capped so the text below keeps real space. */
-.arena-left .card-preview-img,
-.arena-left .card-preview-placeholder {
+.board-col .card-preview-img,
+.board-col .card-preview-placeholder {
   width: auto;
   max-width: 100%;
   flex: 0 0 auto;
@@ -824,10 +825,10 @@
   outline-offset: 1px;
 }
 
-.arena.arena-wide .arena-left .battle-log {
+.arena.arena-wide .board-col .battle-log {
   position: static;
   flex: 1 1 0;
-  min-height: 7rem;
+  min-height: 0;
   width: auto;
   max-width: none;
   max-height: none;
@@ -855,25 +856,25 @@
   padding-right: var(--safe-r);
 }
 
-.arena.arena-wide .arena-rail > * {
+.arena.arena-wide .board-col > * {
   flex: 0 0 auto;
 }
 
-.arena.arena-wide .arena-rail .intent-bar {
+.arena.arena-wide .board-col .intent-bar {
   max-height: 34%;
   overflow-y: auto;
   border-top: 1px solid var(--line);
   padding: 0.6rem 0.7rem 0.7rem;
 }
 
-.arena.arena-wide .arena-rail .intent-row {
+.arena.arena-wide .board-col .intent-row {
   flex-wrap: wrap;
   overflow-x: visible;
   padding-right: 0;
 }
 
-.arena.arena-wide .arena-rail .chat-panel,
-.arena.arena-wide .arena-rail .chat-panel.collapsed {
+.arena.arena-wide .board-col .chat-panel,
+.arena.arena-wide .board-col .chat-panel.collapsed {
   position: static;
   width: auto;
   max-height: none;
@@ -883,13 +884,13 @@
   background: rgb(var(--deep-rgb) / 0.6);
 }
 
-.arena.arena-wide .arena-rail .chat-panel:not(.collapsed) {
+.arena.arena-wide .board-col .chat-panel:not(.collapsed) {
   flex: 1 1 0;
-  min-height: 7rem;
+  min-height: 0;
 }
 
-/* Tall desktop: the hand fills the rail below the intent bar (see RAIL_HAND_QUERY). */
-.arena.arena-wide .arena-rail > .rail-hand {
+/* Tall desktop, Grid hand: an always-open grid panel (see RAIL_HAND_QUERY). */
+.arena.arena-wide .board-col .rail-hand {
   --rail-hand-cw: clamp(60px, 9.4dvh, 150px);
   flex: 1 1 0;
   min-height: 0;
@@ -935,9 +936,152 @@
   margin: 0;
 }
 
-.arena.arena-wide .arena-rail > .rail-hand ~ .chat-panel:not(.collapsed) {
+/* —— Movable side panels (desktop) ——
+   Each panel sits in a .board-panel wrapper in either column (the order is
+   the panelLayout setting). The wrapper carries the panel's share of the
+   column, so a panel sizes the same in the left or the right column. */
+
+.arena.arena-wide .board-panel {
+  position: relative;
+  /* The panel's own layers (the Battle log heading sits at z-index 12) stay
+     inside it, under its grip. */
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.arena.arena-wide .board-panel > :not(.panel-grip) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Fixed share, so a long ability never moves the panels below it. It only
+   gives way (down to a third) when the Grid hand shares its column. */
+.arena.arena-wide .board-panel[data-panel="preview"] {
+  flex: 0 1 var(--preview-h, 52%);
+  min-height: 33%;
+}
+
+.arena.arena-wide .board-panel[data-panel="log"],
+.arena.arena-wide .board-panel[data-panel="hand"],
+.arena.arena-wide .board-panel[data-panel="chat"]:has(> .chat-panel:not(.collapsed)) {
+  flex: 1 1 0;
+  min-height: 7rem;
+}
+
+/* At least one full row of cards beside other panels. */
+.arena.arena-wide .board-panel[data-panel="hand"] {
+  min-height: min(calc(clamp(60px, 9.4dvh, 150px) * 1.4 + 3.4rem), 50%);
+}
+
+/* Never squeezed by panels moved in beside it: the others give way first. */
+.arena.arena-wide .board-panel[data-panel="actions"] {
+  flex: 0 0 auto;
+  max-height: 34%;
+}
+
+.arena.arena-wide .board-panel > .intent-bar {
+  max-height: none;
+}
+
+/* Chat sharing a column with the Grid hand stays small; the hand gets the room. */
+.arena.arena-wide .board-col:has(> [data-panel="hand"])
+  > .board-panel[data-panel="chat"]:has(> .chat-panel:not(.collapsed)) {
   flex: 0 1 8rem;
   min-height: 5rem;
+}
+
+/* The grip: a small bar on the panel's top edge, shown on hover / focus.
+   Absolutely placed, so showing it never moves the panel. */
+.panel-grip {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 30;
+  width: 44px;
+  height: 14px;
+  margin-left: -22px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 0 7px 7px;
+  background: rgb(var(--deep-rgb) / 0.85);
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.panel-grip > span {
+  display: block;
+  width: 22px;
+  height: 4px;
+  margin: 3px auto 0;
+  border-top: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  box-sizing: border-box;
+}
+
+.board-panel:hover > .panel-grip,
+.panel-grip:focus-visible,
+body.is-panel-drag .panel-grip {
+  opacity: 1;
+}
+
+.panel-grip:hover,
+.panel-grip:focus-visible {
+  color: var(--chrome-bright);
+}
+
+.panel-grip:focus-visible {
+  outline: 2px solid var(--chrome-bright);
+  outline-offset: -2px;
+}
+
+/* Touch screens have no hover: keep the grip faintly visible. */
+@media (hover: none) {
+  .panel-grip {
+    opacity: 0.55;
+  }
+}
+
+.board-panel.is-panel-dragging > :not(.panel-grip) {
+  opacity: 0.35;
+}
+
+body.is-panel-drag,
+body.is-panel-drag * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.panel-drop-line {
+  position: fixed;
+  z-index: 90;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 2px;
+  background: var(--chrome-bright);
+  box-shadow: 0 0 0 1px rgb(var(--deep-rgb) / 0.6), 0 0 10px rgb(var(--chrome-bright-rgb) / 0.6);
+  pointer-events: none;
+}
+
+.panel-drag-ghost {
+  position: fixed;
+  z-index: 91;
+  transform: translate(12px, -50%);
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--arena-panel);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
 }
 
 /* Keeps the rail's last panel clear of the tucked hand dock. */
@@ -1339,20 +1483,17 @@
 
 /* —— Fanned hand (desktop): held like real cards, peeks until hovered ——
 
-   .hand-fan-center sits under the board column, which keeps a strip free for
-   the tucked cards (so they never cover your DON!!, deck or trash);
-   .hand-fan-right sits under the rail like the old dock. Hovering, keyboard
+   .hand-fan-center (the default spot) sits under the board column, which
+   keeps a strip free for the tucked cards (so they never cover your DON!!,
+   deck or trash). Dragged by its grip it becomes .hand-fan-free: on the
+   bottom edge (.hand-fan-docked) it still tucks, anywhere else
+   (.hand-fan-float) it stays fully shown (handFanPos.ts). Hovering, keyboard
    focus, pinning (H) or selecting a card raises the fan and spreads it out
    over the board; dragging a card out tucks it again so the whole board is a
    drop target. Only :focus-visible raises it, not :focus-within: a clicked
    card, Sort or Hand button keeps focus, and the fan would stay up over your
    DON!! row after the pointer leaves. The container ignores the pointer, so only the cards and the handle
    catch clicks. Per-card tilt and drop come from handFan.ts (--rot, --drop). */
-
-/* The rail keeps the tucked right fan's strip free (handle + top of the cards). */
-.arena.arena-fan-right {
-  --dock-peek: calc(1.75rem + 0.6rem + var(--fan-ch) * 0.42 + var(--safe-b));
-}
 
 .arena.arena-fan-center .playmat {
   padding-bottom: calc(var(--fan-ch) * var(--fan-peek-center) + var(--safe-b) + 4px);
@@ -1524,41 +1665,125 @@
   width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
 }
 
-/* Right: under the rail at rest (the rail keeps --dock-peek free), spreading
-   left over the board when raised. */
-.hand-fan-right {
-  right: 0;
-  width: var(--rail-w);
-  max-width: calc(100vw - var(--left-w) - 1rem);
-  padding: 0 calc(var(--fan-cw) * 0.6 + var(--safe-r)) var(--safe-b) 0.6rem;
-  gap: 0.6rem;
-  transition:
-    transform 200ms ease 140ms,
-    width 200ms ease 140ms;
+/* Moved fan: centred on --fan-x (share of the window), as wide as the spread
+   cards, kept on screen. The handle row sits above the cards. */
+.hand-fan-free {
+  --fan-w: calc(var(--fan-cw) * (0.8 * var(--n) + 0.9));
+  left: clamp(0px, calc(var(--fan-x) * 100vw - var(--fan-w) / 2), calc(100vw - var(--fan-w)));
+  width: var(--fan-w);
+  max-width: 100vw;
+  box-sizing: border-box;
+  padding-inline: calc(var(--fan-cw) * 0.35);
+  gap: 0.35rem;
 }
 
-.hand-fan-right .hand-fan-head {
-  align-self: stretch;
-}
-
-.hand-fan-right .hand-fan-cards {
+.hand-fan-free .hand-fan-cards {
   width: 100%;
 }
 
-.hand-fan-right.is-open,
-.hand-fan-right:has(:focus-visible) {
-  width: max(var(--rail-w), calc(var(--fan-cw) * (0.8 * var(--n) + 0.8) + 0.6rem + var(--safe-r)));
+/* Docked on the bottom edge: tucked cards overlap by half like the default
+   fan, and spread out when it rises. */
+.hand-fan.hand-fan-docked {
+  --fan-w: calc(var(--fan-cw) * (0.5 * var(--n) + 1.2));
+  transition:
+    transform 200ms ease 140ms,
+    width 200ms ease 140ms,
+    left 200ms ease 140ms;
+}
+
+.hand-fan.hand-fan-docked:is(.is-open, :has(:focus-visible)) {
+  --fan-w: calc(var(--fan-cw) * (0.8 * var(--n) + 0.9));
+  transition-delay: 0s;
 }
 
 @media (hover: hover) {
-  .hand-fan-right:hover {
-    width: max(var(--rail-w), calc(var(--fan-cw) * (0.8 * var(--n) + 0.8) + 0.6rem + var(--safe-r)));
+  .hand-fan.hand-fan-docked:hover {
+    --fan-w: calc(var(--fan-cw) * (0.8 * var(--n) + 0.9));
+    transition-delay: 0s;
   }
 }
 
-.hand-fan-right.is-dragging,
-.hand-fan-right.is-dragging:hover {
-  width: var(--rail-w);
+.hand-fan.hand-fan-docked:is(.is-dragging, .is-hidden),
+.hand-fan.hand-fan-docked.is-dragging:hover {
+  --fan-w: calc(var(--fan-cw) * (0.5 * var(--n) + 1.2));
+}
+
+/* Floating: bottom edge at --fan-y, fully shown (never tucks), on screen and
+   below the top bar (about 3.75rem), so its grip can always be reached. */
+.hand-fan.hand-fan-float {
+  bottom: clamp(
+    0px,
+    calc((1 - var(--fan-y)) * 100dvh),
+    calc(100dvh - var(--fan-ch) * 1.15 - 2.4rem - 3.75rem)
+  );
+  padding-bottom: calc(var(--fan-ch) * 0.1);
+}
+
+.hand-fan.hand-fan-float,
+.hand-fan.hand-fan-float:is(:hover, .is-open, .is-dragging, .is-hidden, :has(:focus-visible)) {
+  transform: none;
+}
+
+/* While a card is dragged out, the floating fan steps aside so the board
+   under it stays a drop target. */
+.hand-fan.hand-fan-float.is-dragging {
+  opacity: 0.35;
+}
+
+.hand-fan.hand-fan-float.is-dragging > * {
+  pointer-events: none;
+}
+
+/* Following the pointer: no easing, so it never lags behind. */
+.hand-fan.is-moving {
+  z-index: 92;
+  transition: none;
+}
+
+/* The fan's grip: a small handle at the left of its handle row (Drag handles on). */
+.hand-fan-grip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgb(var(--deep-rgb) / 0.92);
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.hand-fan-grip > span {
+  position: relative;
+  display: block;
+  width: 12px;
+  height: 8px;
+  box-sizing: border-box;
+  border-top: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+}
+
+.hand-fan-grip > span::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1.5px solid currentColor;
+  transform: translateY(-50%);
+}
+
+.hand-fan-grip:hover,
+.hand-fan-grip:focus-visible {
+  color: var(--chrome-bright);
+}
+
+.hand-fan-grip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }
 
 /* Hidden (Keep hand open + H / Hide): only the handle row stays, at the
@@ -1580,22 +1805,6 @@
 
 .hand-fan-center.is-hidden .hand-fan-cards {
   width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
-}
-
-.hand-fan-right.is-hidden {
-  width: var(--rail-w);
-}
-
-/* Tall windows have room under the rail's action bar: the right fan rests
-   almost fully shown there, like a hand held at the table edge. */
-@media (min-height: 680px) {
-  .hand-fan-right {
-    --fan-peek: 0.85;
-  }
-
-  .arena.arena-fan-right {
-    --dock-peek: calc(1.75rem + 0.6rem + var(--fan-ch) * 0.85 + var(--safe-b));
-  }
 }
 
 /* Portrait phones: the hand strip overlaps its cards in a shallow fan so the
@@ -1652,7 +1861,7 @@
   }
 
   /* No room for the art here; the log fills the column. */
-  .arena.arena-wide .arena-left .card-preview {
+  .arena.arena-wide .board-col .card-preview {
     display: none;
   }
 
@@ -2225,7 +2434,7 @@
     height: calc(var(--c) * 0.72);
   }
 
-  .arena.arena-wide .arena-rail .intent-bar {
+  .arena.arena-wide .board-col .intent-bar {
     padding: 0.35rem 0.5rem 0.4rem;
   }
 }
@@ -3003,15 +3212,15 @@
 
 /* Rail (desktop / landscape): the primary is a full-width button under the
    wrapped secondary actions. */
-.arena.arena-wide .arena-rail .intent-layout {
+.arena.arena-wide .board-col .intent-layout {
   flex-direction: column;
 }
 
-.arena.arena-wide .arena-rail .intent-layout .intent-row {
+.arena.arena-wide .board-col .intent-layout .intent-row {
   flex: none;
 }
 
-.arena.arena-wide .arena-rail .intent-primary {
+.arena.arena-wide .board-col .intent-primary {
   flex: none;
   order: 2;
 }
@@ -3019,24 +3228,24 @@
 /* Desktop rail: the primary sits above the card actions, so selecting a card
    (which fills the actions row) never pushes End turn down. Landscape phones
    anchor the primary to the bottom instead (see .arena-lp below). */
-.arena.arena-wide:not(.arena-lp) .arena-rail .intent-primary {
+.arena.arena-wide:not(.arena-lp) .board-col .intent-primary {
   order: -1;
 }
 
 /* One button row is reserved, so a card with a single action doesn't nudge
    the hand below either. */
-.arena.arena-wide:not(.arena-lp) .arena-rail .intent-layout .intent-row {
+.arena.arena-wide:not(.arena-lp) .board-col .intent-layout .intent-row {
   min-height: 40px;
 }
 
 /* Mouse + keyboard desktops: a "Space" tab straddling the primary's top edge.
    Absolutely positioned and click-through, so the button never resizes or moves. */
 @media (hover: hover) and (pointer: fine) {
-  .arena.arena-wide:not(.arena-lp) .arena-rail .intent-primary {
+  .arena.arena-wide:not(.arena-lp) .board-col .intent-primary {
     position: relative;
   }
 
-  .arena.arena-wide:not(.arena-lp) .arena-rail .intent-primary::after {
+  .arena.arena-wide:not(.arena-lp) .board-col .intent-primary::after {
     content: "Space";
     position: absolute;
     top: -8px;
@@ -3056,11 +3265,11 @@
 /* Same tab on each secondary action: the letter (A/E/P/D) or the 1-9 key that
    presses it. Absolutely positioned and click-through, so buttons never resize. */
 @media (hover: hover) and (pointer: fine) {
-  .arena.arena-wide:not(.arena-lp) .arena-rail .intent-row .intent-btn[data-key-tag] {
+  .arena.arena-wide:not(.arena-lp) .board-col .intent-row .intent-btn[data-key-tag] {
     position: relative;
   }
 
-  .arena.arena-wide:not(.arena-lp) .arena-rail .intent-row .intent-btn[data-key-tag]::after {
+  .arena.arena-wide:not(.arena-lp) .board-col .intent-row .intent-btn[data-key-tag]::after {
     content: attr(data-key-tag);
     position: absolute;
     top: -7px;
@@ -3831,7 +4040,7 @@
 /* Desktop rail: long action labels ("Activate X → Y") wrap inside the rail
    instead of running past its edge. Wrapping (not clipping) keeps the key tab
    above the button visible. */
-.arena.arena-wide:not(.arena-lp) .arena-rail .intent-row .intent-btn {
+.arena.arena-wide:not(.arena-lp) .board-col .intent-row .intent-btn {
   max-width: 100%;
   min-width: 0;
   white-space: normal;
