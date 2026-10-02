@@ -64,6 +64,10 @@ export type DuelSettings = {
   turnAlert: boolean;
   /** Short chime when the game needs you. */
   turnSound: boolean;
+
+  // —— Deck editor ——
+  /** Deck stats, draw odds and build hints (shared with the planner) in the deck editor. */
+  deckStats: boolean;
 };
 
 const KEY = "optcg-duel:settings";
@@ -86,6 +90,7 @@ const DEFAULTS: DuelSettings = {
   animationSpeed: "normal",
   turnAlert: true,
   turnSound: false,
+  deckStats: true,
 };
 
 const END_TURN_CONFIRM: readonly EndTurnConfirm[] = ["always", "actions", "never"];

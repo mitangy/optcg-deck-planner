@@ -541,5 +541,7 @@ module.exports = {
     { id: "theme-status-bar-stale", file: `${src}/theme.ts`, from: "  if (bg) target.themeColorMeta?.setAttribute(\"content\", bg);\n", to: "", kills: ["tints the status bar with the chosen theme's background"] },
     { id: "theme-unknown-kept", file: `${src}/settings.ts`, from: "  if (!THEME_IDS.includes(next.theme)) next.theme = DEFAULTS.theme;\n", to: "", kills: ["replaces a stored theme this build doesn't know with the default"] },
     { id: "theme-device-only", file: `${src}/settings.ts`, from: "  \"devUserKey\",\n];", to: "  \"devUserKey\",\n  \"theme\",\n];", kills: ["takes the theme saved to the account on another device"] },
+    // deck stats in the editor (#242)
+    { id: "deck-stats-cards-distinct", file: `${src}/decks/DeckStatsSection.tsx`, from: "copies.set(id, (copies.get(id) ?? 0) + 1);", to: "copies.set(id, 1);", kills: ["turns the editor's one-id-per-copy list into copies per card"] },
   ],
 };

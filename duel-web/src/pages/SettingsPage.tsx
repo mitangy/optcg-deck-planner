@@ -214,6 +214,24 @@ export function SettingsPage() {
         </section>
 
         <section className="panel">
+          <h2 className="panel-title">Deck editor</h2>
+          <div className="gameplay-toggle">
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={settings.deckStats}
+                onChange={(e) => update({ deckStats: e.target.checked })}
+              />
+              <span>Deck stats</span>
+            </label>
+            <p className="field-hint">
+              Cost curve, counters, draw odds, searchers and build hints, the same as the deck
+              planner. Shown as a Deck stats section when you edit a deck. {savedWhere}
+            </p>
+          </div>
+        </section>
+
+        <section className="panel">
           <h2 className="panel-title">Playmat</h2>
           <div
             className={`playmat-preview${playmatUrl ? " has-art" : ""}`}

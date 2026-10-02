@@ -4385,3 +4385,114 @@ details.deck-config-section.deck-collapsible {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/*
+ * Deck stats in the deck editor (packages/deck-analytics panels). The shared CSS reads the
+ * planner's token names; map them onto the duel theme here so every crew theme follows.
+ */
+.duel-deck-stats {
+  --label: var(--muted);
+  --card: var(--arena-panel);
+  --card-sunk: var(--arena-mid);
+  --bg-deep: var(--arena-deep);
+  --accent: var(--sea);
+  --gold: var(--chrome);
+  --gold-bright: var(--chrome-bright);
+  --gold-soft: rgb(var(--chrome-rgb) / 0.18);
+  --gold-ink: var(--chrome-bright);
+  --violet-ink: #9a7fd0;
+  --warn-ink: color-mix(in srgb, var(--warn) 65%, var(--ink));
+  --shadow-lift: 0 12px 32px rgb(var(--abyss-rgb) / 0.6);
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.deck-stats-badge {
+  min-width: 1.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--warn);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.deck-stats-badge.is-empty {
+  visibility: hidden;
+}
+
+/* Host primitives the shared panels expect (planner class names). */
+.duel-deck-stats .muted {
+  color: var(--muted);
+}
+
+.duel-deck-stats .error {
+  color: #ef9a9a;
+}
+
+.duel-deck-stats .card-id {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.duel-deck-stats .btn.secondary {
+  min-height: 36px;
+  padding: 0.45rem 0.9rem;
+  background: var(--arena-raised);
+  border-color: var(--line);
+}
+
+.duel-deck-stats .btn.secondary:not(:disabled):hover {
+  border-color: var(--line-strong);
+}
+
+.duel-deck-stats select {
+  min-height: 40px;
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 0 0.5rem;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.duel-deck-stats .layout-toggle {
+  display: inline-flex;
+  gap: 0.15rem;
+  padding: 0.15rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--arena-deep);
+}
+
+.duel-deck-stats .layout-toggle button {
+  min-height: 2rem;
+  padding: 0.25rem 0.75rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.duel-deck-stats .layout-toggle button.active {
+  background: var(--arena-raised);
+  color: var(--chrome-bright);
+}
+
+.duel-deck-stats input[type="checkbox"] {
+  accent-color: var(--chrome);
+}
+
+/* The side column is ~370px: two tiles per row, and the tray sits flush with the panel. */
+.duel-deck-stats .ds-tiles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.duel-deck-stats .dh-tray {
+  margin-bottom: 0.25rem;
+}
