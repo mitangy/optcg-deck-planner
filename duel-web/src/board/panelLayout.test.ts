@@ -11,14 +11,14 @@ import {
 } from "./panelLayout";
 
 describe("parsePanelLayout", () => {
-  it("reads a saved layout with the hand in the left column (#PR)", () => {
+  it("reads a saved layout with the hand in the left column (#261)", () => {
     expect(parsePanelLayout("preview,hand,recent,log|oppHand,turn,actions,chat")).toEqual({
       left: ["preview", "hand", "recent", "log"],
       right: ["oppHand", "turn", "actions", "chat"],
     });
   });
 
-  it("drops unknown and repeated panels and puts missing ones back in their default column (#PR)", () => {
+  it("drops unknown and repeated panels and puts missing ones back in their default column (#261)", () => {
     expect(parsePanelLayout("hand,bogus,hand,chat|log")).toEqual({
       left: ["hand", "chat", "preview", "recent"],
       right: ["log", "oppHand", "turn", "actions"],
@@ -27,7 +27,7 @@ describe("parsePanelLayout", () => {
 });
 
 describe("serializePanelLayout", () => {
-  it("saves the default layout as empty, and a moved one so it reads back the same (#PR)", () => {
+  it("saves the default layout as empty, and a moved one so it reads back the same (#261)", () => {
     expect(serializePanelLayout(DEFAULT_PANEL_LAYOUT)).toBe("");
     const moved = movePanel(DEFAULT_PANEL_LAYOUT, "hand", "left", "log");
     const saved = serializePanelLayout(moved);
@@ -37,7 +37,7 @@ describe("serializePanelLayout", () => {
 });
 
 describe("movePanel", () => {
-  it("moves a panel into the other column before a given panel, or to its end (#PR)", () => {
+  it("moves a panel into the other column before a given panel, or to its end (#261)", () => {
     expect(movePanel(DEFAULT_PANEL_LAYOUT, "hand", "left", "recent")).toEqual({
       left: ["preview", "hand", "recent", "log"],
       right: ["oppHand", "turn", "actions", "chat"],
@@ -48,7 +48,7 @@ describe("movePanel", () => {
     });
   });
 
-  it("reorders within a column (#PR)", () => {
+  it("reorders within a column (#261)", () => {
     expect(movePanel(DEFAULT_PANEL_LAYOUT, "log", "left", "preview").left).toEqual([
       "log",
       "preview",
@@ -68,19 +68,19 @@ const PANELS: PanelRect[] = [
 ];
 
 describe("panelDropAt", () => {
-  it("lands before the first panel whose middle is below the pointer (#PR)", () => {
+  it("lands before the first panel whose middle is below the pointer (#261)", () => {
     // y 460 is above recent's middle (475): before recent, not before log.
     expect(panelDropAt(COLS, PANELS, "hand", 100, 460)).toEqual({ column: "left", beforeId: "recent" });
     expect(panelDropAt(COLS, PANELS, "hand", 100, 500)).toEqual({ column: "left", beforeId: "log" });
     expect(panelDropAt(COLS, PANELS, "hand", 100, 800)).toEqual({ column: "left", beforeId: null });
   });
 
-  it("picks the nearer column while the pointer is over the board (#PR)", () => {
+  it("picks the nearer column while the pointer is over the board (#261)", () => {
     expect(panelDropAt(COLS, PANELS, "log", 350, 100).column).toBe("left");
     expect(panelDropAt(COLS, PANELS, "log", 900, 100).column).toBe("right");
   });
 
-  it("ignores the dragged panel itself when finding the slot (#PR)", () => {
+  it("ignores the dragged panel itself when finding the slot (#261)", () => {
     // Above actions' own middle while dragging actions: the slot is before hand.
     expect(panelDropAt(COLS, PANELS, "actions", 1100, 240)).toEqual({ column: "right", beforeId: "hand" });
   });
@@ -89,7 +89,7 @@ describe("panelDropAt", () => {
 describe("nudgePanel", () => {
   const visible = new Set<PanelId>(["preview", "recent", "log", "oppHand", "turn", "actions", "chat"]);
 
-  it("moves past a hidden panel in one step, which keeps its place (#PR)", () => {
+  it("moves past a hidden panel in one step, which keeps its place (#261)", () => {
     // The Grid hand is off screen (fan hand): Down on actions swaps it with chat.
     expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "actions", "down", visible).right).toEqual([
       "oppHand",
@@ -105,7 +105,7 @@ describe("nudgePanel", () => {
     ]);
   });
 
-  it("sends a panel to the end of the other column with Left / Right (#PR)", () => {
+  it("sends a panel to the end of the other column with Left / Right (#261)", () => {
     expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "chat", "left", visible)).toEqual({
       left: ["preview", "recent", "log", "chat"],
       right: ["oppHand", "turn", "actions", "hand"],

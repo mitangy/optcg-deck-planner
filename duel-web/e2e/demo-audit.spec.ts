@@ -148,7 +148,7 @@ test("status icons scale with the card and the Text size setting (#259)", async 
 
 // Side panels: drag a panel's grip into the other column; the layout is saved
 // with the settings and Reset layout puts every panel back.
-test("the Grid hand drags into the left column, stays after a reload, and Reset layout puts it back (#PR)", async ({ page, duel }, info) => {
+test("the Grid hand drags into the left column, stays after a reload, and Reset layout puts it back (#261)", async ({ page, duel }, info) => {
   test.skip(info.project.name !== "desktop-1280", "side panels move on desktop only");
   await page.addInitScript(() => {
     if (!localStorage.getItem("optcg-duel:settings")) {
