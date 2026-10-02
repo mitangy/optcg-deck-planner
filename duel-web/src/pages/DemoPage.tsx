@@ -584,8 +584,19 @@ function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
     return { ...base, phase: "main", battle: null, legalIntents: [...base.legalIntents, ...attacks] };
   }
   if (params.has("counter")) {
+    // `?counter=short`: a 9000-power attacker, so counters are still needed (no "Resolve" yet).
+    const opponent =
+      params.get("counter") === "short"
+        ? {
+            ...base.opponent,
+            characters: base.opponent.characters.map((c) =>
+              c.id === "o-c1" ? { ...c, power: 9000 } : c,
+            ),
+          }
+        : base.opponent;
     return {
       ...base,
+      opponent,
       activeSeat: 1,
       phase: "counter",
       battle: {
@@ -618,7 +629,7 @@ function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
  * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
  * icons (see withManyStatuses), `?motion` a button that steps
  * through every card animation, `?box` the old pop-up instead of floating-card
- * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` drag QA (see
+ * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed) drag QA (see
  * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {

@@ -42,7 +42,8 @@ test("an unblocked Leader attack moves one Life card to the defender's hand", as
   await expect(root).toHaveAttribute("data-turn", "2");
   await expect(root).toHaveAttribute("data-seat", "1");
   await page.locator(".side-field.side-you .zone-leader .card-tile").click();
-  await expect(page.locator(".intent-bar")).toContainText("Activate");
+  // Card actions sit on the selected card (a popover), not in the intent bar.
+  await expect(page.locator(".card-actions")).toContainText("Activate");
   await expect(page.getByRole("button", { name: /^Attack/ })).toHaveCount(0);
   await endTurn(page);
 
@@ -56,7 +57,7 @@ test("an unblocked Leader attack moves one Life card to the defender's hand", as
 
   // The device passes to the defender, who neither blocks nor counters.
   await expect(root).toHaveAttribute("data-seat", "1");
-  for (const name of [/^Pass block$/, /^(Pass counter|Take hit)$/]) {
+  for (const name of [/^Pass block$/, /^(Pass counter|Take hit|Resolve)$/]) {
     await page.locator(".intent-btn-primary", { hasText: name }).click();
   }
 

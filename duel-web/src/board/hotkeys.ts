@@ -85,10 +85,10 @@ export type ActionKeyTag = {
 };
 
 /** Key tags for the visible secondary buttons, in display order. */
-export function actionKeyTags(intents: { type: string }[]): ActionKeyTag[] {
+export function actionKeyTags(intents: { type: string }[], offset = 0): ActionKeyTag[] {
   const taken = new Set<string>();
   return intents.map((intent, i) => {
-    const num = i < 9 ? i + 1 : null;
+    const num = i + offset < 9 ? i + offset + 1 : null;
     const l = MNEMONIC_BY_TYPE[intent.type] ?? null;
     const letter = l && !taken.has(l) ? l : null;
     if (letter) taken.add(letter);

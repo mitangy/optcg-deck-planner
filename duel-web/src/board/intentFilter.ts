@@ -18,7 +18,7 @@ export type IntentSelection = {
   boardId?: string | null;
 };
 
-function isGlobalIntent(intent: Intent): boolean {
+export function isGlobalIntent(intent: Intent): boolean {
   return GLOBAL_INTENT_TYPES.has(intent.type);
 }
 
