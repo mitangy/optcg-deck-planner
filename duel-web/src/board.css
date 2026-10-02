@@ -3925,3 +3925,148 @@
   max-width: 100%;
   pointer-events: none;
 }
+
+/* —— Primary action dock (desktop) ——
+   End turn / Pass block / Pass counter float at the right end of the board's
+   midline instead of the side rail. Fixed, anchored by getBoundingClientRect
+   (so the tilted mat needs no special case), above the raised hand fan (16) and
+   below prompts / HUD. Its box never changes size: the armed End turn wraps
+   inside it and "Waiting for opponent" takes the same slot. */
+.primary-dock {
+  --dock-w: 13rem;
+  --dock-h: 2.75rem;
+  position: fixed;
+  z-index: 17;
+  width: var(--dock-w);
+  height: var(--dock-h);
+  transform: translate(-100%, -50%);
+  display: flex;
+  pointer-events: none;
+}
+
+.primary-dock > * {
+  pointer-events: auto;
+}
+
+.primary-dock .intent-btn.intent-btn-primary {
+  height: 100%;
+  min-height: 0;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+/* The battle line stays clear of the dock. */
+.arena .midline.midline-docked {
+  box-sizing: border-box;
+  padding-right: calc(13rem + 1.25rem);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .primary-dock.has-primary::after {
+    content: "Space";
+    position: absolute;
+    right: 6px;
+    bottom: 3px;
+    padding: 0 0.35em;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.58rem;
+    font-weight: 600;
+    line-height: 1.4;
+    pointer-events: none;
+  }
+}
+
+/* Waiting for the opponent: same slot and size as the primary button. Fixed
+   dark colours: it sits on the (always dark) playmat in light mode too. */
+.waiting-opp {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid rgba(240, 220, 168, 0.55);
+  border-radius: 8px;
+  background: #14222e;
+  color: #f4ead2;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.waiting-opp-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.waiting-opp-text strong {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.waiting-opp-text span {
+  font-size: 0.72rem;
+  color: #cfd8de;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waiting-opp-dot {
+  flex: none;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: #f0dca8;
+  opacity: 0.55;
+}
+
+.waiting-opp.is-urgent {
+  border-color: #f0dca8;
+  animation: waiting-opp-ring 1.6s ease-in-out infinite;
+}
+
+.waiting-opp.is-urgent .waiting-opp-dot {
+  opacity: 1;
+  animation: waiting-opp-dot 1.2s ease-in-out infinite;
+}
+
+@keyframes waiting-opp-ring {
+  0%,
+  100% {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 0 0 rgba(240, 220, 168, 0.5);
+  }
+  50% {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 0 7px rgba(240, 220, 168, 0);
+  }
+}
+
+@keyframes waiting-opp-dot {
+  0%,
+  100% {
+    transform: scale(0.75);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waiting-opp.is-urgent,
+  .waiting-opp.is-urgent .waiting-opp-dot {
+    animation: none;
+  }
+}
+
+/* In the phone / landscape action bar the indicator is the bar. */
+.intent-bar-waiting {
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}

@@ -24,8 +24,12 @@ export type HotkeyInput = {
 export type HotkeyContext = {
   /** Focus is in a text field (input, textarea, select, contenteditable), e.g. chat. */
   typing: boolean;
-  /** Keyboard-focused (focus-visible) button or link: let Space/Enter activate it natively. */
-  keyboardFocusedControl: boolean;
+  /**
+   * What holds keyboard focus. A "card" (board or hand tile) hands Space to the
+   * primary action (Enter still selects it); another focus-visible button or
+   * link ("control") keeps Space for itself.
+   */
+  focus: "none" | "card" | "control";
   /** A modal, dialog or sheet is open (card inspect, settings, trash viewer, prompts). */
   modalOpen: boolean;
   spectating: boolean;
@@ -46,7 +50,7 @@ export function hotkeyAction(e: HotkeyInput, ctx: HotkeyContext): HotkeyAction {
   if (e.key === "?") return "help";
   if (e.key === " " || e.code === "Space") {
     // A held key would otherwise arm and then confirm End turn on its own.
-    if (ctx.keyboardFocusedControl || ctx.spectating || e.repeat) return null;
+    if (ctx.focus === "control" || ctx.spectating || e.repeat) return null;
     return "primary";
   }
   if (ctx.spectating) return null;

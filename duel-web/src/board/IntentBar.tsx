@@ -1,10 +1,11 @@
 import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
-import { ConfirmButton } from "./ConfirmButton";
 import { splitCardActions } from "./cardActions";
 import { isReplacePlay } from "./dragIntents";
 import { actionKeyTags } from "./hotkeys";
 import { filterIntentsForSelection } from "./intentFilter";
 import { splitPrimaryIntent } from "./primaryIntent";
+import { PrimaryActionButton, WaitingIndicator, intentBtnClass } from "./PrimaryDock";
+import type { WaitingOnOpponent } from "./waitingOnOpponent";
 
 type Props = {
   intents: Intent[];
@@ -33,16 +34,14 @@ type Props = {
    * numbers of the bar's buttons past the card's; `active` says a popover is up.
    */
   onCard?: { count: number; active: boolean };
+  /**
+   * Desktop: the primary lives in the floating board dock, not in this rail
+   * (one End turn button, not two). Keep / Mulligan stay together here.
+   */
+  hidePrimary?: boolean;
+  /** Phones and landscape: the wait for the opponent shows in the primary's slot. */
+  waiting?: WaitingOnOpponent | null;
 };
-
-function btnClass(intent: Intent): string {
-  if (intent.type === "end_turn") return "intent-btn intent-btn-end";
-  if (intent.type === "pass_counter" || intent.type === "pass_block") {
-    return "intent-btn intent-btn-pass";
-  }
-  if (intent.type !== "mulligan") return "intent-btn";
-  return intent.doMulligan ? "intent-btn intent-btn-mulligan" : "intent-btn intent-btn-keep";
-}
 
 export function IntentBar({
   intents,
@@ -57,6 +56,8 @@ export function IntentBar({
   counterLabel,
   emptyHint,
   onCard,
+  hidePrimary = false,
+  waiting = null,
 }: Props) {
   const handIndex = filterHandIndex ?? null;
   const boardId = selectedBoardId ?? null;
@@ -69,6 +70,14 @@ export function IntentBar({
   const keyTags = actionKeyTags(shown, onCard?.count ?? 0);
   const mulliganPhase = view?.phase === "mulligan";
   const nothingSelected = handIndex == null && boardId == null;
+
+  if (shown.length === 0 && !primary && waiting) {
+    return (
+      <div className="intent-bar intent-bar-waiting">
+        <WaitingIndicator waiting={waiting} />
+      </div>
+    );
+  }
 
   if (shown.length === 0 && !primary) {
     return (
@@ -107,7 +116,7 @@ export function IntentBar({
             <button
               key={`${intent.type}-${idx}`}
               type="button"
-              className={btnClass(intent)}
+              className={intentBtnClass(intent)}
               disabled={disabled}
               data-key-num={keyTags[idx]!.num ?? undefined}
               data-key-letter={keyTags[idx]!.letter ?? undefined}
@@ -124,41 +133,17 @@ export function IntentBar({
             </button>
           ))}
         </div>
-        {primary ? (
+        {primary && !hidePrimary ? (
           <div className="intent-primary">
-            {primary.type === "end_turn" && confirmEndTurn ? (
-              <ConfirmButton
-                className={`${btnClass(primary)} intent-btn-primary`}
-                label={intentLabel(primary, view)}
-                confirmLabel={
-                  confirmEndTurn.reason ? (
-                    <>
-                      <span className="end-warn-full">End turn? {confirmEndTurn.reason}</span>
-                      <span className="end-warn-short">Tap again to end</span>
-                    </>
-                  ) : (
-                    "Tap again to end"
-                  )
-                }
-                title={confirmEndTurn.reason ? `${confirmEndTurn.reason}. Tap again to end your turn.` : "Ends your turn after a second tap"}
-                disabled={disabled}
-                reserveWidth
-                onConfirm={() => onSend(primary)}
-              />
-            ) : (
-              <button
-                type="button"
-                className={`${btnClass(primary)} intent-btn-primary`}
-                disabled={disabled}
-                onClick={() => (defend?.onPress ? defend.onPress() : onSend(primary))}
-              >
-                {defend
-                  ? defend.label
-                  : primary.type === "pass_counter" && counterLabel
-                    ? counterLabel
-                    : intentLabel(primary, view)}
-              </button>
-            )}
+            <PrimaryActionButton
+              primary={primary}
+              view={view}
+              disabled={disabled}
+              confirmEndTurn={confirmEndTurn}
+              defend={defend}
+              counterLabel={counterLabel}
+              onSend={onSend}
+            />
           </div>
         ) : null}
       </div>

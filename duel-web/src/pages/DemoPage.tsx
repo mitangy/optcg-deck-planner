@@ -619,6 +619,44 @@ function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
 }
 
 /**
+ * `?wait=block|counter|trigger|effect|turn`: you have nothing to do and the
+ * game waits on the opponent (their block / counter step to your attack, a Life
+ * trigger or effect choice of theirs, or just their turn).
+ */
+function withWaiting(base: PlayerView, kind: string | null): PlayerView {
+  if (!kind) return base;
+  const none = { ...base, legalIntents: [] };
+  if (kind === "turn") return { ...none, activeSeat: 1, phase: "main", battle: null };
+  if (kind === "block" || kind === "counter") {
+    return {
+      ...none,
+      activeSeat: 0,
+      phase: kind,
+      battle: {
+        attackerSeat: 0,
+        attackerId: "y-leader",
+        target: { kind: "leader" },
+        defenderPowerBonus: 0,
+        attackerPowerBonus: 0,
+      },
+    };
+  }
+  return {
+    ...none,
+    pendingChoices: [
+      {
+        id: "wait-1",
+        seat: 1,
+        kind: kind === "trigger" ? "life_trigger" : "effect",
+        cardDefId: "ST01-014",
+        optional: true,
+        prompt: kind === "trigger" ? "Opponent may activate a Life trigger." : "Opponent chooses a target.",
+      },
+    ],
+  };
+}
+
+/**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
  * state (`&first=1` makes the opponent go first), `?practice` hotseat chrome
  * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
@@ -645,7 +683,10 @@ export function DemoPage() {
     params.has("dons") ? withAttachedDon(withStatuses) : withStatuses,
     params,
   );
-  const withTurn: PlayerView = params.has("oppturn") ? { ...board, activeSeat: 1 } : board;
+  const withTurn: PlayerView = withWaiting(
+    params.has("oppturn") ? { ...board, activeSeat: 1 } : board,
+    params.get("wait"),
+  );
   const view: PlayerView = params.has("turn0")
     ? {
         ...withTurn,
