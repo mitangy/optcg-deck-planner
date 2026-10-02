@@ -16,6 +16,8 @@ import { TILT_BOARD_QUERY, useMediaQuery } from "./useMediaQuery";
 type Toggle = {
   key:
     | "sortHandByCost"
+    | "keepHandOpen"
+    | "oneTapActions"
     | "tiltedBoard"
     | "floatingCards"
     | "turnSplash"
@@ -31,6 +33,16 @@ const TOGGLES: Toggle[] = [
     key: "sortHandByCost",
     label: "Sort hand by cost",
     hint: "Starts each match with the hand's Sort button on.",
+  },
+  {
+    key: "keepHandOpen",
+    label: "Keep hand open",
+    hint: "Desktop: the fanned hand (or the corner dock in short windows) stays up instead of tucking away. It can cover your DON!! row and Trash; H or the Hand button tucks it during a match.",
+  },
+  {
+    key: "oneTapActions",
+    label: "One-tap actions",
+    hint: "Skips the second tap: tapping a Counter card plays it, tapping a Blocker blocks, tapping a Leader or Character gives it the selected DON!!, and picking the only target of an effect resolves it.",
   },
   {
     key: "tiltedBoard",

@@ -109,6 +109,8 @@ module.exports = {
     { id: "anim-speed-setting-always-reset", file: `${src}/settings.ts`, from: "if (!ANIMATION_SPEEDS.includes(next.animationSpeed)) next", to: "if (true) next", kills: ["keeps a stored speed"] },
     { id: "hand-layout-setting-invalid-kept", file: `${src}/settings.ts`, from: "  if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;\n", to: "", kills: ["replaces an unknown stored hand layout"] },
     { id: "hand-layout-setting-always-reset", file: `${src}/settings.ts`, from: "if (!HAND_LAYOUTS.includes(next.handLayout)) next", to: "if (true) next", kills: ["keeps a stored hand layout"] },
+    { id: "keep-hand-open-dropped", file: `${src}/settings.ts`, from: "  const next = { ...DEFAULTS, ...rest };", to: "  const next = { ...DEFAULTS, ...rest, keepHandOpen: false };", kills: ["keeps the hand open for a player who saved Keep hand open"] },
+    { id: "text-size-invalid-kept", file: `${src}/settings.ts`, from: "  if (!TEXT_SIZES.includes(next.textSize)) next.textSize = DEFAULTS.textSize;\n", to: "", kills: ["replaces an unknown one with medium"] },
     { id: "hand-fan-spread-uncapped", file: `${src}/board/handFan.ts`, from: "Math.min(FAN_STEP_DEG, FAN_MAX_SPREAD_DEG / (n - 1))", to: "FAN_STEP_DEG", kills: ["no further apart than the max spread"] },
     { id: "hand-fan-off-centre", file: `${src}/board/handFan.ts`, from: "const k = i - (n - 1) / 2;", to: "const k = i - n / 2;", kills: ["mirrors the fan around the middle card"] },
     { id: "hand-fan-flat", file: `${src}/board/handFan.ts`, from: "const drop = FAN_RADIUS * (1 - Math.cos((rot * Math.PI) / 180));", to: "const drop = 0 * FAN_RADIUS;", kills: ["mirrors the fan around the middle card"] },
