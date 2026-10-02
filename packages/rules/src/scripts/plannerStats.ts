@@ -1,5 +1,5 @@
 /**
- * Compact per-card stats for the deck planner SPA (`frontend/public/deckStats.json`).
+ * Compact per-card stats for the deck planner SPA (`packages/deck-analytics/deckStats.json`).
  * The planner cannot import @optcg/rules, so everything it needs is derived here
  * from the printed card data plus the compiled ability DSL.
  */

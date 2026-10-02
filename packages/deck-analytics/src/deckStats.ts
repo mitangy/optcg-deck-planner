@@ -1,7 +1,7 @@
 /**
  * Pure deck statistics (no React, no network) so the planner and duel-web can share it.
  * Input is a card list plus the compact per-card atlas exported by
- * `packages/rules` (`npm run export-planner-stats` -> public/deckStats.json).
+ * `packages/rules` (`npm run export-planner-stats` -> packages/deck-analytics/deckStats.json).
  */
 
 export type StatsCardType = "character" | "event" | "stage" | "leader";

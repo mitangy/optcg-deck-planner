@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { computeDeckHints, splitDismissed, type DeckHint } from "./deckHints";
-import { computeDeckStats, type DeckStatsCard, type StatsAtlas } from "./deckStats";
+import { computeDeckHints, splitDismissed, type DeckHint } from "../deckHints";
+import { computeDeckStats, type DeckStatsCard, type StatsAtlas } from "../deckStats";
 import { useStatsAtlas } from "./useStatsAtlas";
 
 export type HintsState = {

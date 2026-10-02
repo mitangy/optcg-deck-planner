@@ -6,8 +6,9 @@
     "game-server"
   ],
   "scripts": {
-    "test": "npm run test -w @optcg/rules && npm run test -w @optcg/game-server",
+    "test": "npm run test -w @optcg/rules && npm run test -w @optcg/deck-analytics && npm run test -w @optcg/game-server",
     "test:rules": "npm run test -w @optcg/rules",
+    "test:deck-analytics": "npm run test -w @optcg/deck-analytics",
     "test:game-server": "npm run test -w @optcg/game-server",
     "start:game-server": "npm run start -w @optcg/game-server",
     "dev:game-server": "npm run dev -w @optcg/game-server",

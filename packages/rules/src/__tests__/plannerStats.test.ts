@@ -99,9 +99,9 @@ describe("leader trait mentions", () => {
   });
 });
 
-describe("frontend/public/deckStats.json", () => {
+describe("packages/deck-analytics/deckStats.json", () => {
   it("matches the card data and ability registry (run `npm run export-planner-stats`)", () => {
-    const committed = readFileSync(resolve(__dirname, "../../../../frontend/public/deckStats.json"), "utf8");
+    const committed = readFileSync(resolve(__dirname, "../../../deck-analytics/deckStats.json"), "utf8");
     expect(committed).toBe(serializePlannerStats(buildPlannerStats()));
   });
 

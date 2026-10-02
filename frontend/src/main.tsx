@@ -7,6 +7,7 @@ import { BrowserRouter } from "react-router-dom";
 import { analyticsBeforeSend } from "./analytics";
 import App from "./App";
 import "./styles.css";
+import "@optcg/deck-analytics/ui/deckAnalytics.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
