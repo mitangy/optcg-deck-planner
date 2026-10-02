@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
 /** Short SHA for the build tag in the SPA chrome. */
@@ -19,14 +19,34 @@ function resolveGitSha(): string {
   }
 }
 
+/**
+ * Emits `/version.json` next to the bundle. The running app fetches it
+ * uncached to tell whether a newer deploy is live (src/appVersion.ts).
+ */
+function versionFile(sha: string, builtAt: string): Plugin {
+  return {
+    name: "duel-version-file",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "version.json",
+        source: `${JSON.stringify({ sha, builtAt })}\n`,
+      });
+    },
+  };
+}
+
 export default defineConfig(() => {
   const gitSha = resolveGitSha();
+  const builtAt = new Date().toISOString();
   // Bake the commit into import.meta.env.VITE_GIT_SHA for the UI build tag.
   process.env.VITE_GIT_SHA = gitSha;
   return {
-    plugins: [react()],
+    plugins: [react(), versionFile(gitSha, builtAt)],
     define: {
       "import.meta.env.VITE_GIT_SHA": JSON.stringify(gitSha),
+      "import.meta.env.VITE_BUILD_TIME": JSON.stringify(builtAt),
     },
     server: {
       port: 5174,

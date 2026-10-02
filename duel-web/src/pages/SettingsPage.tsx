@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { UsernameSettings } from "../auth/UsernameSettings";
-import { BuildTag } from "../BuildTag";
 import {
   chooseCosmetic,
   saveCosmetic,
@@ -28,6 +27,7 @@ import {
 } from "../settings";
 import { useDuelSession } from "../state/DuelSession";
 import { THEMES } from "../theme";
+import { VersionStatus } from "../VersionStatus";
 
 export function SettingsPage() {
   const { setRating } = useDuelSession();
@@ -373,9 +373,7 @@ export function SettingsPage() {
             Private prototype. Rules engine and card effects are a work in
             progress.
           </p>
-          <p className="field-hint">
-            Build <BuildTag />
-          </p>
+          <VersionStatus actions />
         </section>
       </div>
       {editing ? (

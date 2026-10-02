@@ -184,6 +184,12 @@ module.exports = {
     // build tag / config
     { id: "build-tag-full-sha", file: `${src}/buildInfo.ts`, from: "  return trimmed.slice(0, 7);", to: "  return trimmed;", kills: ["uses the first 7 characters of a full SHA"] },
     { id: "build-tag-blank-not-dev", file: `${src}/buildInfo.ts`, from: "  const trimmed = (sha ?? \"\").trim();", to: "  const trimmed = sha ?? \"\";", kills: ["falls back to dev when missing"] },
+    // "am I on the latest app?" check against /version.json
+    { id: "version-never-updates", file: `${src}/appVersion.ts`, from: "  if (deployed.sha === running) return { kind: \"latest\" };", to: "  return { kind: \"latest\" };", kills: ["offers an update when the live deploy is a different commit"] },
+    { id: "version-always-updates", file: `${src}/appVersion.ts`, from: "  if (deployed.sha === running) return { kind: \"latest\" };", to: "", kills: ["says up to date when the live deploy is the running commit"] },
+    { id: "version-full-sha-kept", file: `${src}/appVersion.ts`, from: "    sha: sha.trim().slice(0, 7),", to: "    sha: sha.trim(),", kills: ["matches a full SHA in the version file against the short running SHA"] },
+    { id: "version-nags-dev", file: `${src}/appVersion.ts`, from: "  if (!deployed || running === \"dev\" || running === \"unknown\") return { kind: \"unknown\" };", to: "  if (!deployed) return { kind: \"unknown\" };", kills: ["never nags a dev build"] },
+    { id: "version-accepts-junk", file: `${src}/appVersion.ts`, from: "  if (typeof sha !== \"string\" || !/^[0-9a-f]{7,40}$/i.test(sha.trim())) return null;", to: "  if (typeof sha !== \"string\") return null;", kills: ["treats an HTML fallback page or junk as unknown, not an update"] },
     { id: "loopback-page-rewritten", file: `${src}/config.ts`, from: "  if (!pageHost || pageHost === \"localhost\" || pageHost === \"127.0.0.1\") {", to: "  if (!pageHost || pageHost === \"localhost\") {", kills: ["leaves URLs unchanged on localhost pages"] },
     { id: "loopback-ip-not-rewritten", file: `${src}/config.ts`, from: "(localhost|127\\.0\\.0\\.1)(?=", to: "(localhost)(?=", kills: ["rewrites localhost service hosts to the page hostname"] },
     // cards

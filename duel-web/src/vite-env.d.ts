@@ -8,6 +8,8 @@ interface ImportMetaEnv {
   readonly VITE_PLANNER_URL?: string;
   /** Short git SHA injected at build time (see vite.config.ts). */
   readonly VITE_GIT_SHA?: string;
+  /** ISO build time injected at build time (see vite.config.ts). */
+  readonly VITE_BUILD_TIME?: string;
 }
 
 interface ImportMeta {
