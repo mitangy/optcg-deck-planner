@@ -1,12 +1,14 @@
 /* Crew and location themes (Settings → Theme). Each one overrides the palette
    tokens from styles.css; the default "Night Sea" theme is :root itself.
    Ids match THEMES in theme.ts. Accents are soft pastels on dusky, muted
-   backgrounds; every theme stays dark so card art and the red danger / green
-   OK cues read the same in all of them. */
+   backgrounds. The playmat and turn banner (.playmat, .turn-splash) take the
+   theme's dark palette even in light mode, so card art and the red danger /
+   green OK cues always sit on a dark mat. */
 
 /* Straw Hat Pirates: Luffy's straw hat and red vest over the Thousand Sunny's
    warm wood deck, with Sunny-day sky blue as the second accent. */
-[data-theme="strawHat"] {
+[data-theme="strawHat"],
+[data-theme="strawHat"] :is(.playmat, .turn-splash) {
   --arena-deep: #1e1614;
   --arena-mid: #27201c;
   --arena-panel: #332823;
@@ -45,7 +47,8 @@
 
 /* Donquixote Pirates: Doflamingo's pink feather coat and the orange of his
    glasses and trousers, over a plum night in Dressrosa. */
-[data-theme="donquixote"] {
+[data-theme="donquixote"],
+[data-theme="donquixote"] :is(.playmat, .turn-splash) {
   --arena-deep: #1f1422;
   --arena-mid: #281b2b;
   --arena-panel: #342335;
@@ -84,7 +87,8 @@
 
 /* Marines: the white "Justice" coat and seagull emblem over navy, with the
    blue of the sailor neckerchief as the second accent. */
-[data-theme="marines"] {
+[data-theme="marines"],
+[data-theme="marines"] :is(.playmat, .turn-splash) {
   --arena-deep: #101a32;
   --arena-mid: #16213c;
   --arena-panel: #1d2b4a;
@@ -123,7 +127,8 @@
 
 /* Wano Country: vermilion torii and gold leaf over sumi-ink night, with
    sakura pink as the second accent. */
-[data-theme="wano"] {
+[data-theme="wano"],
+[data-theme="wano"] :is(.playmat, .turn-splash) {
   --arena-deep: #1a1621;
   --arena-mid: #221c2b;
   --arena-panel: #2c2436;
@@ -162,7 +167,8 @@
 
 /* Heart Pirates: the Polar Tang's yellow hull and light green underside, on
    Law's black. */
-[data-theme="heart"] {
+[data-theme="heart"],
+[data-theme="heart"] :is(.playmat, .turn-splash) {
   --arena-deep: #18191a;
   --arena-mid: #1f2122;
   --arena-panel: #272b2d;
@@ -200,7 +206,8 @@
 }
 
 /* Fish-Man Island: coral reef over the deep sea, lit by bioluminescent aqua. */
-[data-theme="fishMan"] {
+[data-theme="fishMan"],
+[data-theme="fishMan"] :is(.playmat, .turn-splash) {
   --arena-deep: #101f24;
   --arena-mid: #15282f;
   --arena-panel: #1b333b;
@@ -238,7 +245,8 @@
 }
 
 /* Thriller Bark: Moria's haunted purple fog and Perona's ghostly green glow. */
-[data-theme="thrillerBark"] {
+[data-theme="thrillerBark"],
+[data-theme="thrillerBark"] :is(.playmat, .turn-splash) {
   --arena-deep: #1a1423;
   --arena-mid: #211b2d;
   --arena-panel: #2b223a;
@@ -273,4 +281,292 @@
   --mat-foe-bottom: #17151b;
   --glow-top: #a986ec30;
   --glow-low: #afe9821a;
+}
+
+/* D$ Disco: the Sabaody auctioneer's stage, with mirror-ball magenta and
+   dance-floor cyan spotlights over a midnight violet floor. */
+[data-theme="disco"],
+[data-theme="disco"] :is(.playmat, .turn-splash) {
+  --arena-deep: #16132d;
+  --arena-mid: #1c1839;
+  --arena-panel: #252046;
+  --arena-raised: #2e2855;
+  --chrome: #ff83e8;
+  --chrome-bright: #ffc1f1;
+  --chrome-dim: #a46298;
+  --ink: #f6f0fa;
+  --muted: #aea6c2;
+  --sea: #72def8;
+  --deep-rgb: 22 19 45;
+  --abyss-rgb: 10 9 20;
+  --mid-rgb: 28 24 57;
+  --panel-rgb: 37 32 70;
+  --raised-rgb: 46 40 85;
+  --mat-rgb: 36 29 76;
+  --chrome-rgb: 255 131 232;
+  --chrome-bright-rgb: 255 193 241;
+  --sea-rgb: 114 222 248;
+  --sea-bright-rgb: 179 235 251;
+  --muted-rgb: 174 166 194;
+  --foe-glow-rgb: 114 222 248;
+  --btn-top: #ff9ded;
+  --btn-bottom: #ee70d8;
+  --on-chrome: #2e1029;
+  --btn-edge-rgb: 255 216 248;
+  --btn-shine-rgb: 255 240 252;
+  --btn-shade-rgb: 89 46 81;
+  --mat-top: #2a2256;
+  --mat-bottom: #1f1842;
+  --mat-foe-top: #1f1c2a;
+  --mat-foe-bottom: #16141f;
+  --glow-top: #72def830;
+  --glow-low: #ff83e822;
+}
+
+/* ===== Light mode (Settings → Mode). Light page, panels and menus in each
+   theme's colours; the game surfaces above keep their dark palette. Buttons
+   and the playmat preview keep the dark-mode values. Theme preview chips
+   follow the mode too. */
+
+[data-mode="light"],
+[data-mode="light"] [data-theme="nightSea"] {
+  color-scheme: light;
+  --arena-deep: #e9f1f7;
+  --arena-mid: #dbe7f0;
+  --arena-panel: #f9fbfd;
+  --arena-raised: #eff4f8;
+  --chrome: #9b7427;
+  --chrome-bright: #6e521c;
+  --chrome-dim: #caac72;
+  --ink: #17232b;
+  --muted: #5a6872;
+  --sea: #32778f;
+  --deep-rgb: 233 241 247;
+  --abyss-rgb: 42 58 70;
+  --mid-rgb: 219 231 240;
+  --panel-rgb: 249 251 253;
+  --raised-rgb: 239 244 248;
+  --chrome-rgb: 155 116 39;
+  --chrome-bright-rgb: 110 82 28;
+  --sea-rgb: 50 119 143;
+  --sea-bright-rgb: 40 94 113;
+  --muted-rgb: 90 104 114;
+  --glow-top: #68b0ca30;
+  --glow-low: #d6ad5c24;
+}
+
+[data-mode="light"][data-theme="strawHat"],
+[data-mode="light"] [data-theme="strawHat"] {
+  color-scheme: light;
+  --arena-deep: #f7ece9;
+  --arena-mid: #f0dfdb;
+  --arena-panel: #fdfaf9;
+  --arena-raised: #f8f1ef;
+  --chrome: #aa8218;
+  --chrome-bright: #755b15;
+  --chrome-dim: #cab272;
+  --ink: #2b1b17;
+  --muted: #725f5a;
+  --sea: #226ba0;
+  --deep-rgb: 247 236 233;
+  --abyss-rgb: 70 48 42;
+  --mid-rgb: 240 223 219;
+  --panel-rgb: 253 250 249;
+  --raised-rgb: 248 241 239;
+  --chrome-rgb: 170 130 24;
+  --chrome-bright-rgb: 117 91 21;
+  --sea-rgb: 34 107 160;
+  --sea-bright-rgb: 27 85 126;
+  --muted-rgb: 114 95 90;
+  --glow-top: #5ca3d630;
+  --glow-low: #d6b55c24;
+}
+
+[data-mode="light"][data-theme="donquixote"],
+[data-mode="light"] [data-theme="donquixote"] {
+  color-scheme: light;
+  --arena-deep: #f4e9f7;
+  --arena-mid: #ebdbf0;
+  --arena-panel: #fcf9fd;
+  --arena-raised: #f6eff8;
+  --chrome: #aa1854;
+  --chrome-bright: #75153d;
+  --chrome-dim: #ca7297;
+  --ink: #27172b;
+  --muted: #6d5a72;
+  --sea: #a05d22;
+  --deep-rgb: 244 233 247;
+  --abyss-rgb: 64 42 70;
+  --mid-rgb: 235 219 240;
+  --panel-rgb: 252 249 253;
+  --raised-rgb: 246 239 248;
+  --chrome-rgb: 170 24 84;
+  --chrome-bright-rgb: 117 21 61;
+  --sea-rgb: 160 93 34;
+  --sea-bright-rgb: 126 73 27;
+  --muted-rgb: 109 90 114;
+  --glow-top: #d6955c30;
+  --glow-low: #d65c8e24;
+}
+
+[data-mode="light"][data-theme="marines"],
+[data-mode="light"] [data-theme="marines"] {
+  color-scheme: light;
+  --arena-deep: #e9edf7;
+  --arena-mid: #dbe1f0;
+  --arena-panel: #f9fafd;
+  --arena-raised: #eff2f8;
+  --chrome: #26599c;
+  --chrome-bright: #1b3f6f;
+  --chrome-dim: #7298ca;
+  --ink: #171d2b;
+  --muted: #5a6172;
+  --sea: #2256a0;
+  --deep-rgb: 233 237 247;
+  --abyss-rgb: 42 50 70;
+  --mid-rgb: 219 225 240;
+  --panel-rgb: 249 250 253;
+  --raised-rgb: 239 242 248;
+  --chrome-rgb: 38 89 156;
+  --chrome-bright-rgb: 27 63 111;
+  --sea-rgb: 34 86 160;
+  --sea-bright-rgb: 27 68 126;
+  --muted-rgb: 90 97 114;
+  --glow-top: #5c8ed630;
+  --glow-low: #5c91d624;
+}
+
+[data-mode="light"][data-theme="wano"],
+[data-mode="light"] [data-theme="wano"] {
+  color-scheme: light;
+  --arena-deep: #eee9f7;
+  --arena-mid: #e3dbf0;
+  --arena-panel: #fbf9fd;
+  --arena-raised: #f2eff8;
+  --chrome: #aa3b18;
+  --chrome-bright: #752c15;
+  --chrome-dim: #ca8872;
+  --ink: #1e172b;
+  --muted: #635a72;
+  --sea: #a0224b;
+  --deep-rgb: 238 233 247;
+  --abyss-rgb: 52 42 70;
+  --mid-rgb: 227 219 240;
+  --panel-rgb: 251 249 253;
+  --raised-rgb: 242 239 248;
+  --chrome-rgb: 170 59 24;
+  --chrome-bright-rgb: 117 44 21;
+  --sea-rgb: 160 34 75;
+  --sea-bright-rgb: 126 27 60;
+  --muted-rgb: 99 90 114;
+  --glow-top: #d65c8430;
+  --glow-low: #d6795c24;
+}
+
+[data-mode="light"][data-theme="heart"],
+[data-mode="light"] [data-theme="heart"] {
+  color-scheme: light;
+  --arena-deep: #f4f3eb;
+  --arena-mid: #ece9df;
+  --arena-panel: #fdfcf9;
+  --arena-raised: #f8f6ef;
+  --chrome: #aa8f18;
+  --chrome-bright: #756315;
+  --chrome-dim: #caba72;
+  --ink: #2b2717;
+  --muted: #726e5a;
+  --sea: #479230;
+  --deep-rgb: 244 243 235;
+  --abyss-rgb: 70 65 42;
+  --mid-rgb: 236 233 223;
+  --panel-rgb: 253 252 249;
+  --raised-rgb: 248 246 239;
+  --chrome-rgb: 170 143 24;
+  --chrome-bright-rgb: 117 99 21;
+  --sea-rgb: 71 146 48;
+  --sea-bright-rgb: 56 115 38;
+  --muted-rgb: 114 110 90;
+  --glow-top: #7dcd6530;
+  --glow-low: #d6c05c24;
+}
+
+[data-mode="light"][data-theme="fishMan"],
+[data-mode="light"] [data-theme="fishMan"] {
+  color-scheme: light;
+  --arena-deep: #e9f3f7;
+  --arena-mid: #dbebf0;
+  --arena-panel: #f9fcfd;
+  --arena-raised: #eff6f8;
+  --chrome: #aa3618;
+  --chrome-bright: #752915;
+  --chrome-dim: #ca8472;
+  --ink: #17262b;
+  --muted: #5a6c72;
+  --sea: #279b8d;
+  --deep-rgb: 233 243 247;
+  --abyss-rgb: 42 63 70;
+  --mid-rgb: 219 235 240;
+  --panel-rgb: 249 252 253;
+  --raised-rgb: 239 246 248;
+  --chrome-rgb: 170 54 24;
+  --chrome-bright-rgb: 117 41 21;
+  --sea-rgb: 39 155 141;
+  --sea-bright-rgb: 31 122 112;
+  --muted-rgb: 90 108 114;
+  --glow-top: #5cd6c830;
+  --glow-low: #d6755c24;
+}
+
+[data-mode="light"][data-theme="thrillerBark"],
+[data-mode="light"] [data-theme="thrillerBark"] {
+  color-scheme: light;
+  --arena-deep: #eee9f7;
+  --arena-mid: #e3dbf0;
+  --arena-panel: #fbf9fd;
+  --arena-raised: #f3eff8;
+  --chrome: #58a51d;
+  --chrome-bright: #3f7515;
+  --chrome-dim: #99ca72;
+  --ink: #1f172b;
+  --muted: #645a72;
+  --sea: #4d22a0;
+  --deep-rgb: 238 233 247;
+  --abyss-rgb: 53 42 70;
+  --mid-rgb: 227 219 240;
+  --panel-rgb: 251 249 253;
+  --raised-rgb: 243 239 248;
+  --chrome-rgb: 88 165 29;
+  --chrome-bright-rgb: 63 117 21;
+  --sea-rgb: 77 34 160;
+  --sea-bright-rgb: 61 27 126;
+  --muted-rgb: 100 90 114;
+  --glow-top: #865cd630;
+  --glow-low: #91d65c24;
+}
+
+[data-mode="light"][data-theme="disco"],
+[data-mode="light"] [data-theme="disco"] {
+  color-scheme: light;
+  --arena-deep: #eae9f7;
+  --arena-mid: #dedbf0;
+  --arena-panel: #faf9fd;
+  --arena-raised: #f0eff8;
+  --chrome: #aa188f;
+  --chrome-bright: #751563;
+  --chrome-dim: #ca72ba;
+  --ink: #19172b;
+  --muted: #5d5a72;
+  --sea: #2287a0;
+  --deep-rgb: 234 233 247;
+  --abyss-rgb: 45 42 70;
+  --mid-rgb: 222 219 240;
+  --panel-rgb: 250 249 253;
+  --raised-rgb: 240 239 248;
+  --chrome-rgb: 170 24 143;
+  --chrome-bright-rgb: 117 21 99;
+  --sea-rgb: 34 135 160;
+  --sea-bright-rgb: 27 107 126;
+  --muted-rgb: 93 90 114;
+  --glow-top: #5cbed630;
+  --glow-low: #d65cbf24;
 }

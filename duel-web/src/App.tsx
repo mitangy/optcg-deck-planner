@@ -11,13 +11,16 @@ import { LobbyPage } from "./pages/LobbyPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { UsernameSetupPage } from "./pages/UsernameSetupPage";
 import { useDuelSettings } from "./settings";
-import { applyTheme } from "./theme";
+import { applyTheme, LIGHT_QUERY } from "./theme";
+import { useMediaQuery } from "./board/useMediaQuery";
 
 export function App() {
-  const { reduceMotion, theme } = useDuelSettings();
+  const { reduceMotion, theme, colorMode } = useDuelSettings();
+  // Re-applies when the device switches light / dark while on "Match my device".
+  const deviceLight = useMediaQuery(LIGHT_QUERY);
   // Before paint, so switching theme (or loading it from the account) never
   // flashes the old palette.
-  useLayoutEffect(() => applyTheme(theme), [theme]);
+  useLayoutEffect(() => applyTheme(theme, colorMode), [theme, colorMode, deviceLight]);
   // CSS mirrors its prefers-reduced-motion rules under [data-motion="reduce"].
   useEffect(() => {
     if (reduceMotion) document.documentElement.dataset.motion = "reduce";

@@ -1,0 +1,73 @@
+/*
+ * Light mode fixes for chrome that hardcodes pale text meant for a dark
+ * background (palette tokens flip on their own in themes.css). Only panels,
+ * the HUD and the battle log are covered: anything inside the playmat or the
+ * turn splash keeps the dark palette, so these selectors stop at it.
+ */
+
+[data-mode="light"] .battle-log-lines,
+[data-mode="light"] .log-important {
+  color: var(--ink);
+}
+
+[data-mode="light"] .log-icon {
+  color: color-mix(in srgb, var(--log-accent) 65%, #000);
+}
+
+[data-mode="light"] .log-card,
+[data-mode="light"] .log-important .log-card {
+  color: var(--sea);
+  text-decoration-color: rgb(var(--sea-rgb) / 0.45);
+}
+
+[data-mode="light"] .log-important .log-card {
+  color: color-mix(in srgb, var(--log-accent) 55%, #000);
+}
+
+[data-mode="light"] .log-card:hover,
+[data-mode="light"] .log-card:focus-visible {
+  color: var(--chrome-bright);
+}
+
+[data-mode="light"] .battle-log-count {
+  background: rgb(var(--abyss-rgb) / 0.08);
+}
+
+/* Sea-blue turn chips and the "2nd" seat badge. */
+[data-mode="light"] .turn-banner-clock,
+[data-mode="light"] .turn-order-badge,
+[data-mode="light"] .hud-turn-chip.hud-order,
+[data-mode="light"] .hud-turn-chip.hud-timer,
+[data-mode="light"] .hud-turn-chip.hud-turn-theirs,
+[data-mode="light"] .turn-panel-theirs .turn-banner-title {
+  color: var(--sea);
+}
+
+[data-mode="light"] .turn-order-badge.first,
+[data-mode="light"] .hud-turn-chip.hud-order.first {
+  color: var(--on-chrome);
+}
+
+[data-mode="light"] .turn-panel-respond .turn-banner-title {
+  color: #b0342a;
+}
+
+[data-mode="light"] .hud-concede-btn {
+  color: #b0342a;
+}
+
+[data-mode="light"] .hud-concede-btn:hover,
+[data-mode="light"] .hud-concede-btn.armed {
+  color: #fff;
+}
+
+/* The opponent's hand strip sits inside the playmat (dark tokens) but on the
+   light page between the mats, so it takes the page's muted ink. Custom
+   properties inherit their resolved value, so this is the light --muted. */
+[data-mode="light"] {
+  --page-muted: var(--muted);
+}
+
+[data-mode="light"] .opp-hand-label {
+  color: var(--page-muted);
+}
