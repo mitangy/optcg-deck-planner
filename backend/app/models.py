@@ -425,6 +425,66 @@ class DuelMatchLog(Base):
     )
 
 
+class DuelMatchSeat(Base):
+    """One side of a finished duel, kept for Log Pose matchup stats.
+
+    Built from the result and its replay at ingest (and backfilled for older
+    replays): the leader, the deck as {card id: copies}, who went first and
+    who won. Stats only ever report aggregates of these rows.
+    """
+
+    __tablename__ = "duel_match_seats"
+    __table_args__ = (UniqueConstraint("match_id", "seat", name="uq_duel_match_seat"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("duel_matches.match_id", ondelete="CASCADE"), index=True
+    )
+    seat: Mapped[int] = mapped_column(Integer)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    leader_id: Mapped[str] = mapped_column(String(32), index=True)
+    won: Mapped[bool] = mapped_column(Boolean)
+    went_first: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    ranked: Mapped[bool] = mapped_column(Boolean, default=True)
+    turns: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    deck: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class AnalystPrefs(Base):
+    """Whether a player's games count toward Log Pose stats (on unless they turn it off)."""
+
+    __tablename__ = "analyst_prefs"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    share_matches: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class AnalystLesson(Base):
+    """A short strategy lesson Claude drafted through a player's personal link.
+
+    Drafts wait for that player to approve or reject them in duel-web; only
+    approved lessons are read back to Claude alongside the playbook.
+    """
+
+    __tablename__ = "analyst_lessons"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(16), default="draft")  # draft | approved | rejected
+    leader_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    opponent_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    cards: Mapped[str] = mapped_column(String(400), default="")
+    text: Mapped[str] = mapped_column(Text)
+    evidence: Mapped[str] = mapped_column(Text, default="[]")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class AnalystToken(Base):
     """A player's personal Log Pose connector token (stored hashed, one per user)."""
 

@@ -6,21 +6,29 @@ import hashlib
 import hmac
 import json
 import secrets
-from typing import Annotated
+from datetime import datetime, timezone
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Response
-from sqlalchemy import delete, select
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.analyst_stats import matchup_stats
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.models import AnalystToken, Deck, DuelMatch, DuelMatchLog, User
+from app.models import AnalystLesson, AnalystPrefs, AnalystToken, Deck, DuelMatch, DuelMatchLog, User
 from app.routers.duel import match_history
 from app.schemas import (
+    CARD_ID_PATTERN,
     AnalystDeckOut,
     AnalystDecksOut,
+    AnalystLessonIn,
+    AnalystLessonOut,
+    AnalystLessonReview,
+    AnalystLessonsOut,
     AnalystReplayOut,
+    AnalystSharing,
     AnalystTokenCreated,
     AnalystTokenStatus,
     DuelMatchHistoryOut,
@@ -151,3 +159,170 @@ def analyst_decks(
             for d in decks
         ]
     )
+
+
+@router.get("/stats/matchups")
+def analyst_matchup_stats(
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    leader: Annotated[str | None, Query(pattern=CARD_ID_PATTERN)] = None,
+    opponent: Annotated[str | None, Query(pattern=CARD_ID_PATTERN)] = None,
+    days: Annotated[int, Query(ge=1, le=3650)] = 90,
+    ranked_only: bool = False,
+    x_analyst_service: Annotated[str | None, Header()] = None,
+) -> dict:
+    """Leader and matchup win rates from recorded duels (aggregates only), for the analyst service."""
+    _require_service(settings, x_analyst_service)
+    if opponent and not leader:
+        raise HTTPException(status_code=400, detail="Give a leader with the opponent")
+    return matchup_stats(db, leader, opponent, days, ranked_only)
+
+
+@router.get("/sharing", response_model=AnalystSharing)
+def get_sharing(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> AnalystSharing:
+    row = db.get(AnalystPrefs, user.id)
+    return AnalystSharing(share_matches=row.share_matches if row else True)
+
+
+@router.put("/sharing", response_model=AnalystSharing)
+def put_sharing(
+    body: AnalystSharing,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> AnalystSharing:
+    """Whether this player's games count toward Log Pose stats. Turning it off removes them from every aggregate."""
+    row = db.get(AnalystPrefs, user.id)
+    if row is None:
+        db.add(AnalystPrefs(user_id=user.id, share_matches=body.share_matches))
+    else:
+        row.share_matches = body.share_matches
+    db.commit()
+    return body
+
+
+MAX_DRAFT_LESSONS = 100
+
+
+def _lesson_out(row: AnalystLesson) -> AnalystLessonOut:
+    return AnalystLessonOut(
+        id=row.id,
+        status=row.status,
+        text=row.text,
+        leader_id=row.leader_id,
+        opponent_id=row.opponent_id,
+        cards=[c for c in row.cards.split(",") if c],
+        match_ids=json.loads(row.evidence or "[]"),
+        created_at=row.created_at.isoformat() if row.created_at else None,
+        reviewed_at=row.reviewed_at.isoformat() if row.reviewed_at else None,
+    )
+
+
+def _lessons(db: Session, user: User, status: str, leader: str | None) -> list[AnalystLessonOut]:
+    q = select(AnalystLesson).where(AnalystLesson.user_id == user.id)
+    if status != "all":
+        q = q.where(AnalystLesson.status == status)
+    if leader:
+        q = q.where(or_(AnalystLesson.leader_id == leader, AnalystLesson.opponent_id == leader))
+    rows = db.scalars(q.order_by(AnalystLesson.created_at.desc(), AnalystLesson.id.desc()).limit(200)).all()
+    return [_lesson_out(r) for r in rows]
+
+
+@router.post("/lessons", response_model=AnalystLessonOut, status_code=201)
+def draft_lesson(
+    body: AnalystLessonIn,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(analyst_user)],
+) -> AnalystLessonOut:
+    """Claude saves a lesson as a draft for the link owner to review. Evidence must be the owner's own games."""
+    waiting = db.scalar(
+        select(func.count()).select_from(AnalystLesson).where(AnalystLesson.user_id == user.id, AnalystLesson.status == "draft")
+    )
+    if waiting >= MAX_DRAFT_LESSONS:
+        raise HTTPException(status_code=409, detail="Too many lessons are waiting for review")
+    match_ids = list(dict.fromkeys(body.match_ids))
+    if match_ids:
+        own = set(
+            db.scalars(
+                select(DuelMatch.match_id).where(
+                    DuelMatch.match_id.in_(match_ids),
+                    or_(DuelMatch.seat0_user_id == user.id, DuelMatch.seat1_user_id == user.id),
+                )
+            ).all()
+        )
+        unknown = [m for m in match_ids if m not in own]
+        if unknown:
+            raise HTTPException(status_code=400, detail=f"Not your matches: {', '.join(unknown)}")
+    row = AnalystLesson(
+        user_id=user.id,
+        status="draft",
+        text=body.text.strip(),
+        leader_id=body.leader_id,
+        opponent_id=body.opponent_id,
+        cards=",".join(dict.fromkeys(body.cards)),
+        evidence=json.dumps(match_ids),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _lesson_out(row)
+
+
+@router.get("/lessons", response_model=AnalystLessonsOut)
+def analyst_lessons(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(analyst_user)],
+    status: Literal["draft", "approved", "rejected", "all"] = "approved",
+    leader: Annotated[str | None, Query(pattern=CARD_ID_PATTERN)] = None,
+) -> AnalystLessonsOut:
+    """The link owner's lessons for Claude; approved ones unless asked otherwise."""
+    return AnalystLessonsOut(lessons=_lessons(db, user, status, leader))
+
+
+@router.get("/lessons/review", response_model=AnalystLessonsOut)
+def review_lessons(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+    status: Literal["draft", "approved", "rejected", "all"] = "all",
+) -> AnalystLessonsOut:
+    """The signed-in player's lessons, for the review list in duel-web Settings."""
+    return AnalystLessonsOut(lessons=_lessons(db, user, status, None))
+
+
+def _own_lesson(db: Session, user: User, lesson_id: int) -> AnalystLesson:
+    row = db.get(AnalystLesson, lesson_id)
+    if row is None or row.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    return row
+
+
+@router.patch("/lessons/review/{lesson_id}", response_model=AnalystLessonOut)
+def review_lesson(
+    lesson_id: int,
+    body: AnalystLessonReview,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> AnalystLessonOut:
+    """Approve, reject or edit one of the player's own lessons."""
+    row = _own_lesson(db, user, lesson_id)
+    if body.text is not None:
+        row.text = body.text.strip()
+    if body.status is not None and body.status != row.status:
+        row.status = body.status
+        row.reviewed_at = None if body.status == "draft" else datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return _lesson_out(row)
+
+
+@router.delete("/lessons/review/{lesson_id}", status_code=204)
+def delete_lesson(
+    lesson_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> Response:
+    db.delete(_own_lesson(db, user, lesson_id))
+    db.commit()
+    return Response(status_code=204)

@@ -23,11 +23,15 @@ export class PlannerApiError extends Error {
   }
 }
 
-async function getJson<T>(api: PlannerApi, token: string, path: string, service = false): Promise<T> {
-  const headers: Record<string, string> = { "X-Analyst-Token": token };
+async function getJson<T>(api: PlannerApi, token: string | null, path: string, service = false, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (token !== null) headers["X-Analyst-Token"] = token;
   if (service) headers["X-Analyst-Service"] = api.serviceSecret;
+  if (body !== undefined) headers["Content-Type"] = "application/json";
   const res = await (api.fetchImpl ?? fetch)(`${api.baseUrl.replace(/\/$/, "")}${path}`, {
+    method: body === undefined ? "GET" : "POST",
     headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) {
@@ -183,4 +187,41 @@ export async function reviewMatch(api: PlannerApi, token: string, matchId: strin
     true,
   );
   return { matchId: body.match_id, ...narrateReplay(body.replay, body.your_seat as Seat, opts) };
+}
+
+export type StatsQuery = { leader?: string; opponent?: string; days?: number; rankedOnly?: boolean };
+
+/** Leader and matchup win rates from recorded duels (aggregates only), named for reading. */
+export async function matchupStats(api: PlannerApi, q: StatsQuery) {
+  if (!api.serviceSecret) throw new Error("Match stats aren't set up on this server (ANALYST_SERVICE_SECRET is unset).");
+  const params = new URLSearchParams();
+  if (q.leader) params.set("leader", q.leader.trim().toUpperCase());
+  if (q.opponent) params.set("opponent", q.opponent.trim().toUpperCase());
+  if (q.days) params.set("days", String(q.days));
+  if (q.rankedOnly) params.set("ranked_only", "true");
+  const stats = await getJson<Record<string, unknown>>(api, null, `/analyst/stats/matchups?${params}`, true);
+  // Card names next to every card number, so the model never has to guess one.
+  const named = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(named);
+    if (!value || typeof value !== "object") return value;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = named(v);
+      if ((k === "leader" || k === "opponent" || k === "id") && typeof v === "string") out[`${k}_name`] = cardName(v);
+    }
+    return out;
+  };
+  return named(stats);
+}
+
+export type LessonDraft = { text: string; leader_id?: string; opponent_id?: string; cards?: string[]; match_ids?: string[] };
+
+export async function draftLesson(api: PlannerApi, token: string, lesson: LessonDraft) {
+  return getJson<Record<string, unknown>>(api, token, "/analyst/lessons", false, lesson);
+}
+
+export async function myLessons(api: PlannerApi, token: string, status = "approved", leader?: string) {
+  const params = new URLSearchParams({ status });
+  if (leader) params.set("leader", leader.trim().toUpperCase());
+  return (await getJson<{ lessons: unknown[] }>(api, token, `/analyst/lessons?${params}`)).lessons;
 }

@@ -12,6 +12,7 @@ const settle = "backend/app/group_buy_settlement.py";
 const friends = "backend/app/routers/friends.py";
 const prefs = "backend/app/routers/duel_prefs.py";
 const analyst = "backend/app/routers/analyst.py";
+const stats = "backend/app/analyst_stats.py";
 
 module.exports = {
   cwd: "backend",
@@ -284,7 +285,7 @@ module.exports = {
     { id: "analyst-connector-url-missing-path", file: analyst, from: "    return f\"{base}/mcp/u/{token}\" if base else None", to: "    return f\"{base}/{token}\" if base else None", kills: ["test_a_new_link_replaces_the_old_one_and_revoking_ends_it"] },
     { id: "analyst-any-token-accepted", file: analyst, from: "    user = db.get(User, row.user_id) if row else None", to: "    user = db.get(User, row.user_id) if row else db.scalars(select(User)).first()", kills: ["test_a_new_link_replaces_the_old_one_and_revoking_ends_it"] },
     { id: "analyst-matches-wrong-user", file: analyst, from: "    return DuelMatchHistoryOut(matches=match_history(db, user, limit))\n\n\n@router.get(\"/matches/{match_id}", to: "    return DuelMatchHistoryOut(matches=match_history(db, db.scalars(select(User)).first(), limit))\n\n\n@router.get(\"/matches/{match_id}", kills: ["test_the_analyst_lists_only_the_link_owners_games"] },
-    { id: "analyst-replay-service-unchecked", file: analyst, from: "    _require_service(settings, x_analyst_service)\n", to: "", kills: ["test_full_replays_need_the_service_secret_and_a_seat_in_the_game", "test_replays_stay_closed_without_a_service_secret"] },
+    { id: "analyst-replay-service-unchecked", file: analyst, from: "it holds the opponent's hand and deck, and the analyst narrates it from the player's seat.\"\"\"\n    _require_service(settings, x_analyst_service)\n", to: "it holds the opponent's hand and deck, and the analyst narrates it from the player's seat.\"\"\"\n", kills: ["test_full_replays_need_the_service_secret_and_a_seat_in_the_game", "test_replays_stay_closed_without_a_service_secret"] },
     { id: "analyst-replay-empty-secret-open", file: analyst, from: "    if not expected:\n        raise HTTPException(status_code=503, detail=\"Replays are not enabled\")\n    if not given or", to: "    if", kills: ["test_replays_stay_closed_without_a_service_secret"] },
     { id: "analyst-replay-any-match", file: analyst, from: "    if match is None or user.id not in (match.seat0_user_id, match.seat1_user_id):", to: "    if match is None:", kills: ["test_full_replays_need_the_service_secret_and_a_seat_in_the_game"] },
     { id: "analyst-replay-seat-always-0", file: analyst, from: "    seat = 0 if match.seat0_user_id == user.id else 1\n    return AnalystReplayOut", to: "    seat = 0\n    return AnalystReplayOut", kills: ["test_full_replays_need_the_service_secret_and_a_seat_in_the_game"] },
@@ -303,5 +304,23 @@ module.exports = {
     { id: "history-signed-out-allowed", file: duel, from: "    user: Annotated[User, Depends(get_current_user)],\n    limit: int = 20,\n) -> DuelMatchHistoryOut:", to: "    user: Annotated[User | None, Depends(get_optional_user)],\n    limit: int = 20,\n) -> DuelMatchHistoryOut:\n    if user is None:\n        return DuelMatchHistoryOut(matches=[])", kills: ["test_my_matches_needs_sign_in"] },
     { id: "migration-duel-replay-columns-skipped", file: "backend/app/db.py", from: "    _ensure_duel_match_replay_columns()\n", to: "", kills: ["test_old_rows_get_defaults_for_every_added_column", "test_every_current_model_column_exists_after_migration"] },
     { id: "sync-group-name-dropped", file: "backend/app/catalog_sync.py", from: "\"group_name\": group_name,", to: "\"group_name\": \"\",", kills: ["test_sync_catalog_over_http"] },
+    // Log Pose learning loop (#246)
+    { id: "stats-went-first-flipped", file: stats, from: "went_first=(first == seat) if first in (0, 1) else None,", to: "went_first=(first != seat) if first in (0, 1) else None,", kills: ["test_matchup_stats_count_wins_by_side_and_by_who_went_first", "test_older_matches_get_seats_from_their_replay_on_startup"] },
+    { id: "stats-won-always-seat0", file: stats, from: "won=match.winner_seat == seat,", to: "won=seat == 0,", kills: ["test_matchup_stats_count_wins_by_side_and_by_who_went_first"] },
+    { id: "stats-ingest-no-seats", file: duel, from: "    db.add_all(seats_for(row, body.replay))\n", to: "", kills: ["test_matchup_stats_count_wins_by_side_and_by_who_went_first"] },
+    { id: "stats-wilson-normal-approx", file: stats, from: "    centre = (p + z * z / (2 * games)) / denom\n    half = z * math.sqrt(p * (1 - p) / games + z * z / (4 * games * games)) / denom", to: "    centre = p\n    half = z * math.sqrt(p * (1 - p) / games)", kills: ["test_wilson_interval_matches_the_textbook_value"] },
+    { id: "stats-opt-out-ignored", file: stats, from: "        if len(rows) != 2 or any(r.user_id in opted_out for r in rows):", to: "        if len(rows) != 2:", kills: ["test_players_who_turn_sharing_off_drop_out_of_every_stat"] },
+    { id: "stats-mirrors-in-overall", file: stats, from: "        \"overall\": _split([(s, o) for s, o in pairs if o.leader_id != leader]),", to: "        \"overall\": _split(pairs),", kills: ["test_a_leaders_overview_leaves_mirrors_out"] },
+    { id: "stats-mirror-counted-twice", file: stats, from: "\"mirror\": True, \"games\": len(vs) // 2}", to: "\"mirror\": True, \"games\": len(vs)}", kills: ["test_a_leaders_overview_leaves_mirrors_out"] },
+    { id: "stats-cards-without-unchecked", file: stats, from: "        if len(with_card) < MIN_GAMES or len(without) < MIN_GAMES:", to: "        if len(with_card) < MIN_GAMES:", kills: ["test_card_rates_need_enough_games_with_and_without_the_card"] },
+    { id: "stats-window-ignored", file: stats, from: "    q = select(DuelMatchSeat).where(DuelMatchSeat.created_at >= since)", to: "    q = select(DuelMatchSeat)", kills: ["test_stats_only_count_games_inside_the_window"] },
+    { id: "stats-endpoint-open", file: analyst, from: "    \"\"\"Leader and matchup win rates from recorded duels (aggregates only), for the analyst service.\"\"\"\n    _require_service(settings, x_analyst_service)\n", to: "", kills: ["test_stats_are_for_the_analyst_service_only"] },
+    { id: "stats-backfill-ignores-replay", file: stats, from: "            replay = json.loads(log.replay) if log else None", to: "            replay = None", kills: ["test_older_matches_get_seats_from_their_replay_on_startup"] },
+    { id: "stats-deck-not-counted", file: stats, from: "    return dict(sorted(Counter(cards).items()))", to: "    return {c: 1 for c in cards}", kills: ["test_older_matches_get_seats_from_their_replay_on_startup"] },
+    { id: "lesson-evidence-unchecked", file: analyst, from: "        if unknown:\n            raise HTTPException(status_code=400, detail=f\"Not your matches: {', '.join(unknown)}\")", to: "        if False:\n            pass", kills: ["test_claude_drafts_lessons_only_from_the_link_owners_games"] },
+    { id: "lesson-drafts-served", file: analyst, from: "    status: Literal[\"draft\", \"approved\", \"rejected\", \"all\"] = \"approved\",", to: "    status: Literal[\"draft\", \"approved\", \"rejected\", \"all\"] = \"all\",", kills: ["test_claude_drafts_lessons_only_from_the_link_owners_games"] },
+    { id: "lesson-any-owner", file: analyst, from: "    if row is None or row.user_id != user.id:\n        raise HTTPException(status_code=404, detail=\"Lesson not found\")", to: "    if row is None:\n        raise HTTPException(status_code=404, detail=\"Lesson not found\")", kills: ["test_only_the_owner_can_review_a_lesson"] },
+    { id: "lesson-review-lists-everyone", file: analyst, from: "    q = select(AnalystLesson).where(AnalystLesson.user_id == user.id)", to: "    q = select(AnalystLesson)", kills: ["test_only_the_owner_can_review_a_lesson"] },
+    { id: "lesson-limit-off-by-one", file: analyst, from: "    if waiting >= MAX_DRAFT_LESSONS:", to: "    if waiting > MAX_DRAFT_LESSONS:", kills: ["test_drafts_stop_at_the_review_limit"] },
   ],
 };
