@@ -201,3 +201,101 @@
 .lesson-actions .btn {
   min-width: 5.5rem;
 }
+
+/* Each history row opens that game's log (MatchLogPage). */
+.history-list > li {
+  min-width: 0;
+}
+
+.history-row-link {
+  grid-template-columns: 3.4rem minmax(0, 1fr) auto auto;
+  color: inherit;
+  text-decoration: none;
+  min-height: 44px;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.history-row-link .history-chevron {
+  grid-column: 4;
+  color: var(--muted);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.history-row-link:hover,
+.history-row-link:focus-visible {
+  background: color-mix(in srgb, var(--arena-panel) 85%, var(--chrome) 15%);
+  outline: none;
+}
+
+.history-row-link:focus-visible {
+  box-shadow: var(--focus);
+}
+
+/* —— Match log page —— */
+.match-summary {
+  margin-bottom: 0.25rem;
+}
+
+.match-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.match-log-hand,
+.match-log-turn {
+  padding: 0.65rem 0.9rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--arena-panel);
+  min-width: 0;
+}
+
+.match-log-turn[data-yours] {
+  border-left: 4px solid var(--chrome);
+}
+
+.match-log-turn-title {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.match-log-turn-no {
+  color: var(--chrome-bright);
+  font-weight: 700;
+}
+
+.match-log-hand-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+/* Bigger than the in-game sidebar: this is a page you read. */
+.match-log-lines {
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.match-log-lines .log-line {
+  grid-template-columns: 1.2rem minmax(0, 1fr);
+}
+
+.match-log-lines .log-routine,
+.match-log-lines .log-miss {
+  font-size: 0.8rem;
+}
+
+.match-log-lines .log-icon {
+  font-size: 0.8rem;
+}

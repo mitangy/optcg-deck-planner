@@ -215,6 +215,14 @@ function demoChoice(choice: NonNullable<PlayerView["pendingChoices"]>[number]): 
   };
 }
 
+/** Adds a trash card to a select request so it can't be answered on the board alone. */
+function withExtraOption(view: PlayerView): PlayerView {
+  const choice = view.pendingChoices![0]!;
+  const request = choice.request as Extract<NonNullable<typeof choice.request>, { type: "select" }>;
+  const options = [...request.options, { id: "o9", defId: "ST01-003", zone: "trash" as const, ownerSeat: 0 as const, eligible: true }];
+  return { ...view, pendingChoices: [{ ...choice, request: { ...request, options } }] };
+}
+
 /**
  * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|order|mode|effects`).
  * Searches and effect ordering float over the board; add `&box` to see the old pop-up.
@@ -317,6 +325,43 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
       ],
     },
   }),
+  // Same picks, but one of them is off the field, so the pop-up grid is used.
+  restgrid: withExtraOption(demoChoice({
+    id: "demo-restgrid",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP01-017",
+    optional: false,
+    prompt: "Effect — choose up to 1 card to rest.",
+    request: {
+      type: "select",
+      min: 0,
+      max: 1,
+      options: [
+        { id: "o0", defId: "ST01-003", zone: "character", ownerSeat: 0, instanceId: "y-c1", eligible: true },
+        { id: "o1", defId: "ST01-006", zone: "character", ownerSeat: 0, instanceId: "y-c2", eligible: true, rested: true },
+        { id: "o2", defId: "ST01-008", zone: "character", ownerSeat: 0, instanceId: "y-c3", eligible: true },
+        { id: "o3", defId: "ST01-001", zone: "leader", ownerSeat: 1, instanceId: "o-leader", eligible: true },
+      ],
+    },
+  })),
+  selectgrid: withExtraOption(demoChoice({
+    id: "demo-selectgrid",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP01-017",
+    optional: false,
+    prompt: "Nico Robin — choose up to 1 card to K.O.",
+    request: {
+      type: "select",
+      min: 0,
+      max: 1,
+      options: [
+        { id: "o0", defId: "OP09-086", zone: "character", ownerSeat: 1, instanceId: "o-c1", eligible: true },
+        { id: "o1", defId: "ST01-006", zone: "character", ownerSeat: 1, instanceId: "o-c2", eligible: true, rested: true },
+      ],
+    },
+  })),
   confirm: demoChoice({
     id: "demo-confirm",
     seat: 0,
@@ -478,6 +523,22 @@ function withRestedField(base: PlayerView, params: URLSearchParams): PlayerView 
 }
 
 /**
+ * `?dons`: attaches 6 / 1 / 2 / 5 DON!! to the leader and first Characters of
+ * both mats (pair with `?rest=2` for rested cards), to check the DON!! drawn
+ * under a card.
+ */
+function withAttachedDon(base: PlayerView): PlayerView {
+  const counts = [1, 2, 5, 8];
+  const give = (c: CardView, n: number): CardView => ({ ...c, attachedDonCount: n });
+  const side = <T extends { leader: CardView; characters: CardView[] }>(s: T): T => ({
+    ...s,
+    leader: give(s.leader, 6),
+    characters: s.characters.map((c, i) => (counts[i] ? give(c, counts[i]) : c)),
+  });
+  return { ...base, you: side(base.you), opponent: side(base.opponent) };
+}
+
+/**
  * `?statuses`: stacks several status icons on both leaders and a few
  * Characters (one buffed + DON!!, one rested), to check the badge corner
  * against the power / DON!! stack and the name caption.
@@ -568,8 +629,9 @@ export function DemoPage() {
     params,
   );
   const field = withRestedField(params.has("full") ? withFullBoard(base) : base, params);
+  const withStatuses = params.has("statuses") ? withManyStatuses(field) : field;
   const board = withBattleDrag(
-    params.has("statuses") ? withManyStatuses(field) : field,
+    params.has("dons") ? withAttachedDon(withStatuses) : withStatuses,
     params,
   );
   const withTurn: PlayerView = params.has("oppturn") ? { ...board, activeSeat: 1 } : board;

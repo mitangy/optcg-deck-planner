@@ -39,6 +39,8 @@
         }
         if (typeof t === "string" && t !== "nightSea") r.dataset.theme = t;
         if (mode === "light") r.dataset.mode = "light";
+        var ts = { small: 0.9, large: 1.12, xlarge: 1.25 }[s.textSize];
+        if (ts) r.style.setProperty("--text-scale", String(ts));
         if (r.dataset.theme || r.dataset.mode) {
           var bg = getComputedStyle(r).getPropertyValue("--arena-deep").trim();
           var m = document.querySelector('meta[name="theme-color"]');

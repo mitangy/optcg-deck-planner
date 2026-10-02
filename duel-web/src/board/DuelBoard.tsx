@@ -216,7 +216,7 @@ export function DuelBoard({
   const [handCollapsed, setHandCollapsed] = useState(false);
   /** Wide layout: hand dock pinned open (click / tap on its handle). */
   const prefs = useDuelSettings();
-  const [handPinned, setHandPinned] = useState(false);
+  const [handPinned, setHandPinned] = useState(prefs.keepHandOpen);
   const wide = useMediaQuery(WIDE_BOARD_QUERY);
   const compactHud = useMediaQuery(COMPACT_HUD_QUERY);
   const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
@@ -272,6 +272,7 @@ export function DuelBoard({
   const playmatOpacity = prefs.playmatOpacity;
 
   // Changing a setting mid-match applies it straight away.
+  useEffect(() => setHandPinned(prefs.keepHandOpen), [prefs.keepHandOpen]);
   useEffect(() => setHandSorted(prefs.sortHandByCost), [prefs.sortHandByCost]);
 
   useEffect(() => {

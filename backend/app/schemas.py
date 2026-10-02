@@ -464,6 +464,8 @@ class DuelMatchIngest(BaseModel):
     turns: int | None = Field(default=None, ge=0, le=10_000)
     # Seed, decks and accepted intents (see game-server MatchReplay). Kept server-side only.
     replay: dict | None = None
+    # [seat 0's log, seat 1's log] (see @optcg/rules SeatLog); each player only ever reads their own.
+    seat_logs: list[dict] | None = Field(default=None, min_length=2, max_length=2)
 
 
 class DuelMatchHistoryEntry(BaseModel):
@@ -480,10 +482,17 @@ class DuelMatchHistoryEntry(BaseModel):
     rating_before: int
     rating_after: int
     has_replay: bool
+    has_log: bool = False
 
 
 class DuelMatchHistoryOut(BaseModel):
     matches: list[DuelMatchHistoryEntry]
+
+
+class DuelMatchDetailOut(BaseModel):
+    match: DuelMatchHistoryEntry
+    # The game turn by turn from your seat (@optcg/rules SeatLog); null when none was kept.
+    log: dict | None
 
 
 class AnalystTokenStatus(BaseModel):

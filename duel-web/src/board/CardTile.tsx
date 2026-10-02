@@ -27,6 +27,7 @@ import {
 } from "./inspectGestures";
 import { usePointerDrag } from "./usePointerDrag";
 import { StatusRow } from "./StatusIcon";
+import { donUnderLayers } from "./donUnder";
 
 const COLOR_CHIP: Record<string, string> = {
   red: "#c62828",
@@ -209,11 +210,14 @@ export function CardTile({
     idleTouchAction: dragTouchAction,
   });
 
+  const donLayers = donUnderLayers(attachedDonCount ?? 0);
+
   const className = [
     "card-tile",
     compact ? "compact" : "full",
     selected ? "selected" : "",
     rested ? "rested" : "",
+    donLayers.length ? "has-don-under" : "",
     frame === "leader" ? "leader-frame" : "",
     dropHighlight ? "drop-highlight" : "",
     dragEnabled ? "card-draggable" : "",
@@ -298,6 +302,20 @@ export function CardTile({
 
   const body = (
     <>
+      {donLayers.length ? (
+        // DON!! cards tucked under this card, fanned out below / beside it.
+        // Farthest layer first so the nearest paints on top. Purely visual:
+        // the numeric count lives in the DON!! badge below.
+        <span className="don-under" aria-hidden>
+          {[...donLayers].reverse().map((l) => (
+            <span
+              key={`${l.dx}/${l.dy}`}
+              className="don-under-layer"
+              style={{ "--dx": `${l.dx}%`, "--dy": `${l.dy}%` } as CSSProperties}
+            />
+          ))}
+        </span>
+      ) : null}
       {!imgFailed && imageUrl ? (
         <img
           src={imageUrl}
