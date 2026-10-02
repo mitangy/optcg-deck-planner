@@ -31,10 +31,15 @@ module.exports = {
     // match review (personal link)
     { id: "review-unprojected-events", file: matches, from: "      for (const event of projectGameEvents(step.events, seat)) {", to: "      for (const event of step.events) {", kills: ["names a taken Life card only for the player who took it"] },
     { id: "review-seat-labels-swapped", file: matches, from: "  const who = (s: string) => (Number(s) === seat ? \"you\" : \"opponent\");", to: "  const who = (s: string) => (Number(s) !== seat ? \"you\" : \"opponent\");", kills: ["names a taken Life card only for the player who took it"] },
-    { id: "review-turn-headers-dropped", file: matches, from: "          if (event.activeSeat !== active) {", to: "          if (false) {", kills: ["reads only the asked turns and cuts long logs"] },
+    { id: "review-turn-headers-dropped", file: matches, from: "          if (event.phase === \"refresh\") {", to: "          if (false) {", kills: ["reads only the asked turns and cuts long logs"] },
+    { id: "review-turns-by-seat-alternation", edits: [
+      { file: matches, from: "          if (event.phase === \"refresh\") {", to: "          if (event.activeSeat !== active) {" },
+      { file: matches, from: "    if (opening.phase !== \"mulligan\" && turn >= fromTurn && turn <= toTurn) push(header());", to: "    if (turn >= fromTurn && turn <= toTurn) push(header());" },
+    ], kills: ["numbers turns like the engine when the mulligan step was played"] },
+    { id: "review-opening-hand-before-mulligan", file: matches, from: "      if (step.intent.type === \"mulligan\" && step.seat === seat) {\n        openingHand = step.state.players[seat].hand.map((c) => cardName(c.defId));\n      }\n", to: "", kills: ["gives the opening hand after a mulligan redraw"] },
     { id: "review-went-first-for-everyone", file: matches, from: "    wentFirst: replay.firstSeat === seat,", to: "    wentFirst: true,", kills: ["tells the game from the reviewing player's seat"] },
     { id: "review-result-not-from-seat", file: matches, from: "      ? { won: replay.end.winner === seat, reason: replay.end.reason }", to: "      ? { won: true, reason: replay.end.reason }", kills: ["tells the game from the reviewing player's seat"] },
-    { id: "review-opening-hand-seat-0", file: matches, from: "    yourOpeningHand: opening.players[seat].hand", to: "    yourOpeningHand: opening.players[0].hand", kills: ["tells the game from the reviewing player's seat"] },
+    { id: "review-opening-hand-seat-0", file: matches, from: "  let openingHand = opening.players[seat].hand", to: "  let openingHand = opening.players[0].hand", kills: ["tells the game from the reviewing player's seat"] },
     { id: "review-turn-range-ignored", file: matches, from: "        if (turn < fromTurn || turn > toTurn) continue;\n", to: "", kills: ["reads only the asked turns and cuts long logs"] },
     { id: "review-max-lines-ignored", file: matches, from: "    if (lines.length >= maxLines) truncated = true;\n    else lines.push(line);", to: "    lines.push(line);", kills: ["reads only the asked turns and cuts long logs"] },
     { id: "review-service-secret-not-sent", file: matches, from: "  if (service) headers[\"X-Analyst-Service\"] = api.serviceSecret;\n", to: "", kills: ["asks the planner for a replay with the player's token and the service secret"] },
