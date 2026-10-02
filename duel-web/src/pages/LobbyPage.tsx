@@ -35,7 +35,7 @@ import { UpdateNotice, VersionStatus } from "../VersionStatus";
 /** Which play mode the user is configuring inside the Play sheet. */
 type PlayMode = "hotseat" | "create" | "join" | "queue" | "spectate";
 
-/** Private-room timer presets (ranked always forces 30s turns). */
+/** Private-room timer presets (ranked always forces a 15 minute match clock). */
 type TimerPreset = "off" | "turn_30" | "seat_15m" | "turn_30_seat_15m";
 
 function timerFromPreset(preset: TimerPreset): {
@@ -70,7 +70,7 @@ const MODE_CARDS: Array<{
   {
     mode: "queue",
     title: "Ranked",
-    blurb: "Match a random opponent. 30 second turns.",
+    blurb: "Match a random opponent. 15 minute game clock.",
     glyph: "⚓︎",
   },
   {
@@ -716,7 +716,7 @@ export function LobbyPage() {
           <section className="notice" aria-live="polite">
             <div className="notice-body">
               <strong>Searching for an opponent…</strong>
-              <span>Ranked queue · 30 second turns</span>
+              <span>Ranked queue · 15 minute game clock</span>
             </div>
             <div className="notice-actions">
               <button
@@ -908,7 +908,7 @@ export function LobbyPage() {
 
                 {mode === "queue" ? (
                   <p className="field-hint">
-                    Ranked always enforces 30 second turns. Your Bounty updates after the match.
+                    Ranked games use a 15 minute clock for the whole game. Your Bounty updates after the match.
                   </p>
                 ) : null}
 

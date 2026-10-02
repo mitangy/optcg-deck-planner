@@ -77,6 +77,20 @@ describe("protocol parsers", () => {
     assert.equal(parseCreateOptions({ ranked: true }).ranked, true);
   });
 
+  it("ranked games get one 15 minute clock for the whole game and no turn timer (#248)", () => {
+    const asked = { turnSeconds: 30, matchSeconds: 60, seatSeconds: 120 };
+    assert.deepEqual(parseCreateOptions({ ranked: true, timer: asked }).timer, {
+      turnSeconds: null,
+      matchSeconds: 15 * 60,
+      seatSeconds: null,
+    });
+    assert.deepEqual(parseCreateOptions({ ranked: false, timer: asked }).timer, {
+      turnSeconds: 30,
+      matchSeconds: 60,
+      seatSeconds: 120,
+    });
+  });
+
   it("rejects invalid ranked seat reservations", () => {
     assert.throws(
       () => parseCreateOptions({ seatUserIds: [1, 1] }),

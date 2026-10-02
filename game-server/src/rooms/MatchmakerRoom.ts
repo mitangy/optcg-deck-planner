@@ -7,7 +7,7 @@ import {
   requireGameToken,
 } from "../env.js";
 import { verifyGameToken } from "../gameToken.js";
-import { PROTOCOL_VERSION, parseJoinOptions } from "../protocol.js";
+import { PROTOCOL_VERSION, RANKED_MATCH_SECONDS, parseJoinOptions } from "../protocol.js";
 
 type Queued = {
   sessionId: string;
@@ -114,8 +114,8 @@ export class MatchmakerRoom extends Room {
             ranked: true,
             rankedAttestation: getRankedMatchCreateSecret(),
             seatUserIds: [a.userId, b.userId],
-            // Ranked always enforces 30s turns (also forced in parseCreateOptions).
-            timer: { turnSeconds: 30 },
+            // Ranked always enforces a 15 minute match clock (also forced in parseCreateOptions).
+            timer: { matchSeconds: RANKED_MATCH_SECONDS },
           });
           a.client.send("matched", {
             protocolVersion: PROTOCOL_VERSION,
