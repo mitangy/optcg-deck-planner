@@ -39,7 +39,7 @@ const TOGGLES: Toggle[] = [
   {
     key: "keepHandOpen",
     label: "Keep hand open",
-    hint: "Desktop: the fanned hand (or the corner dock in short windows) stays up instead of tucking away. It can cover your DON!! row and Trash; H or the Hand button tucks it during a match.",
+    hint: "Desktop: the fanned hand (or the corner dock in short windows) stays up instead of tucking away. It can cover your DON!! row and Trash: press H or its Hide button during a match to hide the hand completely, and again to bring it back.",
   },
   {
     key: "oneTapActions",

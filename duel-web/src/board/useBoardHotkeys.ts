@@ -11,6 +11,9 @@ type Options = {
   onEscape: () => void;
   onStepHand: (dir: 1 | -1) => void;
   onToggleHand: () => void;
+  /** Keep hand open: H hides / shows the hand instead of pinning it. */
+  handHides: boolean;
+  onHideHand: () => void;
   onSortHand: () => void;
   onHelp: () => void;
 };
@@ -95,6 +98,7 @@ export function useBoardHotkeys(opts: Options) {
       else if (action === "hand_prev") o.onStepHand(-1);
       else if (action === "hand_next") o.onStepHand(1);
       else if (action === "toggle_hand") o.onToggleHand();
+      else if (action === "hide_hand") o.onHideHand();
       else if (action === "sort_hand") o.onSortHand();
       else if (action === "help") o.onHelp();
       else {
@@ -137,6 +141,7 @@ export function useBoardHotkeys(opts: Options) {
         wide: o.wide,
         cardKeys: o.cardKeys,
         escOwned: document.querySelector(ESC_OWNER_SELECTOR) != null,
+        handHides: o.handHides,
       });
       if (!action) return;
       e.preventDefault();
