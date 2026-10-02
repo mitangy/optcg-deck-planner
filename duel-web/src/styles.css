@@ -1558,6 +1558,10 @@ html:has(.duel-root) body {
     var(--arena-mid);
   padding: 0.55rem 0.6rem 0.65rem;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  /* Taps on slots and piles must not drop a blinking text caret or start a selection. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .side-field.mirrored {
