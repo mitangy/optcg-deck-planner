@@ -8,7 +8,7 @@ import {
   searcherOdds,
   type DeckEntry,
   type HitGroup,
-} from "./drawOdds";
+} from "../drawOdds";
 
 type Mode = "card" | "counter2000" | "blocker" | "costMax" | "trait" | "custom";
 

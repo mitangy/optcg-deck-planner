@@ -40,10 +40,8 @@ import {
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
 import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
-import { useDeckHints } from "./DeckHints";
-import { deckDelta } from "./deckHints";
-import type { DeckStatsCard } from "./deckStats";
-import { useStatsAtlas } from "./useStatsAtlas";
+import { deckDelta, type DeckStatsCard } from "@optcg/deck-analytics";
+import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
 import { CompassIcon } from "./ThemeIcons";
 import { HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";

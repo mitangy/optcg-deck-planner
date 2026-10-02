@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -42,6 +43,12 @@ export default defineConfig(({ mode }) => {
   process.env.VITE_GIT_SHA = gitSha;
   return {
     plugins: [react()],
+    resolve: {
+      // Shared deck analytics (stats, odds, hints) are compiled from source; see packages/deck-analytics.
+      alias: [{ find: /^@optcg\/deck-analytics/, replacement: fileURLToPath(new URL("../packages/deck-analytics/src", import.meta.url)) }],
+      // Package sources sit outside this app, so pin React to this app's copy.
+      dedupe: ["react", "react-dom"],
+    },
     define: {
       "import.meta.env.VITE_GIT_SHA": JSON.stringify(gitSha),
     },
