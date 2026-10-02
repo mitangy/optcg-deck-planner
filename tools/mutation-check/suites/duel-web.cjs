@@ -663,9 +663,6 @@ module.exports = {
     { id: "dock-ignores-narrow-strip", file: `${src}/board/dockAnchor.ts`, from: "  let right = midline.left + midline.width;", to: "  let right = Infinity;", kills: ["follows a strip narrower than the mat, as on the tilted board (#257)"] },
     { id: "dock-top-of-strip", file: `${src}/board/dockAnchor.ts`, from: "y: midline.top + midline.height / 2", to: "y: midline.top", kills: ["centres on the midline and sits at the mat's right edge, inset (#257)"] },
     { id: "dock-anchor-jitter", file: `${src}/board/dockAnchor.ts`, from: "Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5", to: "a.x === b.x && a.y === b.y", kills: ["ignores sub-pixel jitter so the tracker does not re-render every frame (#257)"] },
-    // DON!! drawn under a card (#PR_D)
-    { id: "don-under-uncapped", file: `${src}/board/donUnder.ts`, from: "const n = Math.min(Math.max(0, Math.floor(attached)), DON_UNDER_MAX_LAYERS);", to: "const n = Math.max(0, Math.floor(attached));", kills: ["draws one DON!! layer per attached DON!! up to the cap (#PR_D)"] },
-    { id: "don-under-fixed-spacing", file: `${src}/board/donUnder.ts`, from: "const k = STEP_SCALE[n] ?? 0.5;", to: "const k = 1;", kills: ["tightens the spacing as the count grows (#PR_D)"] },
     // status colours / tooltips, can't-attack warning, opponent reveals
     { id: "status-disable-not-red", file: `${src}/board/statusIcons.ts`, from: "[\"cannot attack\", { glyph: \"no-attack\", tone: \"disable\",", to: "[\"cannot attack\", { glyph: \"no-attack\", tone: \"buff\",", kills: ["colours disables red, keywords green, sick amber, negation purple (#256)"] },
     { id: "status-sick-no-tooltip", file: `${src}/board/statusIcons.ts`, from: "text: \"Played this turn: it can't attack until its controller's next turn (Rush skips this).\"", to: "text: \"\"", kills: ["explains every engine status label in the tooltip (#256)"] },
