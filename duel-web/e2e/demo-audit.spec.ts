@@ -145,3 +145,46 @@ test("status icons scale with the card and the Text size setting (#259)", async 
   // Never wider than a third of the card.
   expect(xlarge.icon).toBeLessThanOrEqual(xlarge.tile / 3);
 });
+
+// Side panels: drag a panel's grip into the other column; the layout is saved
+// with the settings and Reset layout puts every panel back.
+test("the Grid hand drags into the left column, stays after a reload, and Reset layout puts it back (#PR)", async ({ page, duel }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "side panels move on desktop only");
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("optcg-duel:settings")) {
+      localStorage.setItem("optcg-duel:settings", JSON.stringify({ handLayout: "grid" }));
+    }
+  });
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const column = (col: "left" | "right") =>
+    page.$$eval(`[data-panel-col="${col}"] > [data-panel]`, (els) => els.map((e) => (e as HTMLElement).dataset.panel));
+  expect(await column("left")).toEqual(["preview", "recent", "log"]);
+
+  await page.locator('[data-panel="hand"]').hover();
+  const grip = (await page.locator('[data-panel="hand"] > .panel-grip').boundingBox())!;
+  const log = (await page.locator('[data-panel="log"]').boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(log.x + log.width / 2, log.y + 8, { steps: 6 });
+  await expect(page.locator(".panel-drop-line")).toBeVisible();
+  await page.mouse.up();
+  await expect.poll(() => column("left")).toEqual(["preview", "recent", "hand", "log"]);
+  expect(await column("right")).not.toContain("hand");
+
+  // The hand still works from its new column and nothing overlaps.
+  const issues = (await duel.audit()).filter((i) => !isKnown(i));
+  if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
+  expect(issues, formatIssues(issues)).toEqual([]);
+
+  await page.reload();
+  await page.locator(".board-root").waitFor();
+  await expect.poll(() => column("left")).toEqual(["preview", "recent", "hand", "log"]);
+
+  await page.getByRole("button", { name: "Gameplay settings" }).click();
+  await page.getByRole("button", { name: "Reset layout" }).click();
+  await page.keyboard.press("Escape");
+  await expect.poll(() => column("left")).toEqual(["preview", "recent", "log"]);
+  expect(await column("right")).toContain("hand");
+  expect(duel.errors).toEqual([]);
+});

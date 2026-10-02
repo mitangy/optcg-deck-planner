@@ -42,6 +42,9 @@ export const PORTRAIT_MAT_QUERY = "(max-width: 899px) and (orientation: portrait
 export const TILT_BOARD_QUERY =
   "(min-width: 900px) and (min-height: 500px) and (orientation: landscape)";
 
+/** Desktop windows: the wide board minus landscape phones, where side panels can be moved. */
+export const DESKTOP_BOARD_QUERY = "(min-width: 900px) and (min-height: 500px)";
+
 /** Landscape phones (the wide board with the short-viewport layout). */
 export const LANDSCAPE_PHONE_QUERY =
   "(orientation: landscape) and (min-width: 600px) and (max-height: 499px)";

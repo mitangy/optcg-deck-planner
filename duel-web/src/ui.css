@@ -359,7 +359,8 @@
   min-width: 0;
 }
 
-.field label {
+.field label,
+.field .field-label {
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 600;

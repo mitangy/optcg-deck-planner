@@ -24,7 +24,8 @@ export type AnimationSpeed = "normal" | "fast" | "off";
 
 /**
  * Where your hand sits: fanned off the bottom edge of the board (centre) or of
- * the right column, or the flat grid / scrolling row with no fan.
+ * the right column, or the flat grid (a side panel on desktop) / scrolling row
+ * with no fan.
  */
 export type HandLayout = "fanCenter" | "fanRight" | "grid";
 
@@ -57,6 +58,12 @@ export type DuelSettings = {
   handLayout: HandLayout;
   /** Desktop: the fanned hand (or corner dock) stays raised instead of tucking away. */
   keepHandOpen: boolean;
+  /**
+   * Desktop: which side column each panel (card preview, battle log, hand
+   * grid, chat ...) sits in and in what order; "" is the default layout.
+   * See board/panelLayout.ts.
+   */
+  panelLayout: string;
   /**
    * One tap plays a Counter card, declares a Blocker, attaches selected DON!!
    * or picks a single target, instead of selecting it and then confirming.
@@ -101,6 +108,7 @@ const DEFAULTS: DuelSettings = {
   sortHandByCost: false,
   handLayout: "fanCenter",
   keepHandOpen: false,
+  panelLayout: "",
   oneTapActions: false,
   oppHandTopRight: false,
   textSize: "medium",

@@ -93,7 +93,9 @@ import { sortHandIndices } from "./handSort";
 import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { sideSkins } from "./seatSkins";
-import { useDuelSettings } from "../settings";
+import { updateSettings, useDuelSettings } from "../settings";
+import { parsePanelLayout, serializePanelLayout, type PanelId } from "./panelLayout";
+import { SidePanel, usePanelDrag } from "./SidePanels";
 import { endTurnWarning, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
 import { HotkeyHelpSheet } from "./HotkeyHelp";
@@ -267,11 +269,17 @@ export function DuelBoard({
   /** Desktop / landscape tablet: the board leans back in perspective, seen from your seat. */
   const tiltFits = useMediaQuery(TILT_BOARD_QUERY);
   const tilted = wide && !lp && tiltFits && prefs.tiltedBoard;
-  /** Tall desktop, Grid layout: the hand is an always-open grid in the right rail (no dock). */
+  /** Tall desktop, Grid layout: the hand is an always-open grid side panel (no dock). */
   const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
   const railHand = wide && !lp && railHandTall && !fanHand;
   /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling. */
   const phoneFan = !wide && prefs.handLayout !== "grid";
+  /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
+  const panelLayout = useMemo(() => parsePanelLayout(prefs.panelLayout), [prefs.panelLayout]);
+  const arenaBodyRef = useRef<HTMLDivElement | null>(null);
+  const panelDrag = usePanelDrag(arenaBodyRef, panelLayout, (next) =>
+    updateSettings({ panelLayout: serializePanelLayout(next) }),
+  );
   const [lpPanel, setLpPanel] = useState<LandscapePanel | null>(null);
   // Starting a drag (or leaving landscape) must never leave an overlay over the board.
   useEffect(() => {
@@ -1223,6 +1231,78 @@ export function DuelBoard({
   const oppMatUrl = skins.far.playmat;
   const oppCardBackUrl = skins.far.cardBack;
 
+  /** Desktop side panels, by id; null when a panel has nothing to show right now. */
+  const sidePanels: Record<PanelId, React.ReactNode> = {
+    preview: <CardPreviewPanel />,
+    recent: <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} />,
+    log: (
+      <BattleLogPanel
+        entries={battleLog}
+        viewingSeat={spectating || mySeat == null ? undefined : mySeat}
+        alwaysOpen
+      />
+    ),
+    oppHand:
+      prefs.oppHandTopRight && !farHand ? (
+        <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="fan" />
+      ) : (
+        <OppHandFan
+          count={opp.handCount}
+          cardBackUrl={oppCardBackUrl}
+          cards={farHand}
+          ownerSeat={oppSeat}
+        />
+      ),
+    turn: (
+      <TurnStatusPanel
+        view={view}
+        boardSeat={boardSeat}
+        firstSeat={firstSeat}
+        players={players}
+        spectating={spectating}
+        turnClock={turnClock}
+        matchClock={matchClock}
+        seatClocks={seatClocks}
+      />
+    ),
+    actions: intentPanel,
+    hand: railHand ? (
+      <section
+        className={`rail-hand${dragPayload ? " is-dragging" : ""}`}
+        aria-label={`Your hand: ${handCount} cards`}
+      >
+        <div className="rail-hand-head">
+          <span className="rail-hand-title">{spectating ? "Seat hand" : "Hand"}</span>
+          <span className="hand-rail-count">{handCount}</span>
+          {!spectating ? (
+            <button
+              type="button"
+              className={`hand-rail-btn${handSorted ? " active" : ""}`}
+              aria-pressed={handSorted}
+              onClick={() => setHandSorted((v) => !v)}
+            >
+              Sort
+            </button>
+          ) : null}
+        </div>
+        <div className="rail-hand-cards" ref={handRowRef}>
+          {renderHandCards()}
+        </div>
+      </section>
+    ) : null,
+    chat: chatPanel,
+  };
+  function renderSidePanel(id: PanelId) {
+    const el = sidePanels[id];
+    if (el == null) return null;
+    return (
+      <SidePanel key={id} id={id} dragging={panelDrag.draggingId === id} grip={panelDrag.gripProps(id)}>
+        {el}
+      </SidePanel>
+    );
+  }
+
+
   const hudUndoPass = (
     <>
     {undo && undoState?.enabled && !spectating && !over ? (
@@ -1565,7 +1645,8 @@ export function DuelBoard({
         </div>
       ) : null}
 
-      <div className="arena-body">
+      <div className="arena-body" ref={arenaBodyRef}>
+        {panelDrag.overlay}
         {lp ? (
           <LandscapeRail
             open={lpPanel}
@@ -1575,14 +1656,8 @@ export function DuelBoard({
             menu={matchMenuEl("left")}
           />
         ) : wide ? (
-          <aside className="arena-left" aria-label="Card preview and battle log">
-            <CardPreviewPanel />
-            {!lp ? <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} /> : null}
-            <BattleLogPanel
-              entries={battleLog}
-              viewingSeat={spectating || mySeat == null ? undefined : mySeat}
-              alwaysOpen
-            />
+          <aside className="arena-left board-col" data-panel-col="left" aria-label="Side panels, left">
+            {panelLayout.left.map(renderSidePanel)}
           </aside>
         ) : null}
 
@@ -1730,22 +1805,25 @@ export function DuelBoard({
           </div>
         </div>
 
-        {wide ? (
-          <div className="arena-rail">
-            {lp && (hotseatPass || (undo && undoState?.enabled && !spectating && !over)) ? (
+        {wide && !lp ? (
+          <div className="arena-rail board-col" data-panel-col="right">
+            {panelLayout.right.map(renderSidePanel)}
+            {/* Reserves the strip the collapsed hand dock peeks into. */}
+            {railHand || fanCenter ? null : <div className="rail-dock-spacer" aria-hidden />}
+          </div>
+        ) : wide ? (
+          // Landscape phones keep a fixed right column (no movable panels).
+          <div className="arena-rail board-col">
+            {hotseatPass || (undo && undoState?.enabled && !spectating && !over) ? (
               <div className="lp-actions">{hudUndoPass}</div>
             ) : null}
             {prefs.oppHandTopRight && !farHand ? (
-              <OppHandCorner
-                count={opp.handCount}
-                cardBackUrl={oppCardBackUrl}
-                variant={lp ? "row" : "fan"}
-              />
+              <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" />
             ) : (
               <OppHandFan
                 count={opp.handCount}
                 cardBackUrl={oppCardBackUrl}
-                compact={lp}
+                compact
                 cards={farHand}
                 ownerSeat={oppSeat}
               />
@@ -1759,37 +1837,10 @@ export function DuelBoard({
               turnClock={turnClock}
               matchClock={matchClock}
               seatClocks={seatClocks}
-              compact={lp}
+              compact
             />
-            {lp ? defendTray : null}
+            {defendTray}
             {intentPanel}
-            {railHand ? (
-              <section
-                className={`rail-hand${dragPayload ? " is-dragging" : ""}`}
-                aria-label={`Your hand: ${handCount} cards`}
-              >
-                <div className="rail-hand-head">
-                  <span className="rail-hand-title">{spectating ? "Seat hand" : "Hand"}</span>
-                  <span className="hand-rail-count">{handCount}</span>
-                  {!spectating ? (
-                    <button
-                      type="button"
-                      className={`hand-rail-btn${handSorted ? " active" : ""}`}
-                      aria-pressed={handSorted}
-                      onClick={() => setHandSorted((v) => !v)}
-                    >
-                      Sort
-                    </button>
-                  ) : null}
-                </div>
-                <div className="rail-hand-cards" ref={handRowRef}>
-                  {renderHandCards()}
-                </div>
-              </section>
-            ) : null}
-            {lp ? null : chatPanel}
-            {/* Reserves the strip the collapsed hand dock peeks into. */}
-            {lp || railHand || fanCenter ? null : <div className="rail-dock-spacer" aria-hidden />}
           </div>
         ) : (
           <div className="arena-rail">
