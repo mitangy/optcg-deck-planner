@@ -117,7 +117,7 @@ import { ConfirmButton } from "./ConfirmButton";
 import { RematchPanel } from "./RematchPanel";
 import { RoomChip } from "./RoomShare";
 import { PendingBoard, type BoardWaiting } from "./PendingBoard";
-import { fanPose } from "./handFan";
+import { fanPose, handDrawer } from "./handFan";
 import { OppHandCorner, OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
 import { getLastHoverAt, getPreviewCard, setAutoPreviewCard, shouldAutoPreview } from "./cardPreview";
@@ -249,6 +249,12 @@ export function DuelBoard({
   /** Wide layout: hand dock pinned open (click / tap on its handle). */
   const prefs = useDuelSettings();
   const [handPinned, setHandPinned] = useState(prefs.keepHandOpen);
+  /**
+   * Keep hand open: the player tucked the hand fully away (H or its Hide
+   * button). For this visit only, not saved: a reload brings the hand back.
+   */
+  const [handHiddenRaw, setHandHidden] = useState(false);
+  const handHidden = handHiddenRaw && prefs.keepHandOpen;
   const wide = useMediaQuery(WIDE_BOARD_QUERY);
   const compactHud = useMediaQuery(COMPACT_HUD_QUERY);
   const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
@@ -304,7 +310,10 @@ export function DuelBoard({
   const playmatOpacity = prefs.playmatOpacity;
 
   // Changing a setting mid-match applies it straight away.
-  useEffect(() => setHandPinned(prefs.keepHandOpen), [prefs.keepHandOpen]);
+  useEffect(() => {
+    setHandPinned(prefs.keepHandOpen);
+    setHandHidden(false);
+  }, [prefs.keepHandOpen]);
   useEffect(() => setHandSorted(prefs.sortHandByCost), [prefs.sortHandByCost]);
 
   useEffect(() => {
@@ -578,6 +587,25 @@ export function DuelBoard({
     if (!stillLegal) setPendingAttach(null);
   }, [pendingAttach, selectedDonIds, intents]);
 
+  /** Keep hand open: tuck the whole hand away (only its handle stays), or bring it back. */
+  function toggleHandHidden() {
+    setHandHidden((v) => !v);
+    setHandFilter(null);
+  }
+
+  /** Under the handle: Hide / Show, only with Keep hand open (H does the same). */
+  const hideHandBtn = prefs.keepHandOpen ? (
+    <button
+      type="button"
+      className={`hand-rail-btn hand-hide-btn${handHidden ? " active" : ""}`}
+      aria-pressed={handHidden}
+      title={handHidden ? "Show your hand (H)" : "Hide your hand (H)"}
+      onClick={toggleHandHidden}
+    >
+      {handHidden ? "Show" : "Hide"}
+    </button>
+  ) : null;
+
   function clearDonSelection() {
     setSelectedDonIds(new Set());
     setPendingAttach(null);
@@ -599,6 +627,7 @@ export function DuelBoard({
     // H only toggles the fan / corner dock; the rail hand is always open.
     wide: wide && !railHand,
     cardKeys: wide && !lp,
+    handHides: prefs.keepHandOpen,
     onEscape: () => {
       // One layer per press: DON!! selection first, then the selected card.
       if (selectedDonIds.size > 0 || pendingAttach != null) clearDonSelection();
@@ -613,11 +642,14 @@ export function DuelBoard({
       if (next == null) return;
       setSelectedBoardId(null);
       setHandFilter(next);
+      // Picking a hand card from the keyboard brings a hidden hand back.
+      setHandHidden(false);
     },
     onToggleHand: () => {
       setHandPinned((v) => !v);
       if (handPinned) setHandFilter(null);
     },
+    onHideHand: toggleHandHidden,
     onSortHand: () => setHandSorted((v) => !v),
     onHelp: () => setHelpOpen(true),
   });
@@ -912,7 +944,14 @@ export function DuelBoard({
   const handCount = spectating ? (you.handCount ?? 0) : you.hand.length;
   // Hearthstone-style dock: peeks until hovered; stays open while you pick
   // your opening hand or have a hand card selected.
-  const handOpen = handPinned || decidingMulligan || handFilter != null;
+  const drawer = handDrawer({
+    pinned: handPinned,
+    hidden: handHidden,
+    mulligan: decidingMulligan,
+    selected: handFilter != null,
+  });
+  const handOpen = drawer === "open";
+  const drawerClass = drawer === "open" ? " is-open" : drawer === "hidden" ? " is-hidden" : "";
 
   const splash: SplashMessage | null = over || !prefs.turnSplash
     ? null
@@ -1832,9 +1871,9 @@ export function DuelBoard({
 
       {fanHand ? (
         <div
-          className={`hand-fan ${fanCenter ? "hand-fan-center" : "hand-fan-right"}${
-            handOpen ? " is-open" : ""
-          }${dragPayload ? " is-dragging" : ""}`}
+          className={`hand-fan ${fanCenter ? "hand-fan-center" : "hand-fan-right"}${drawerClass}${
+            dragPayload ? " is-dragging" : ""
+          }`}
           style={{ "--n": Math.max(handCount, 1) } as CSSProperties}
           aria-label={`Your hand: ${handCount} cards`}
         >
@@ -1843,8 +1882,21 @@ export function DuelBoard({
               type="button"
               className="hand-fan-toggle"
               aria-expanded={handOpen}
-              title={handPinned ? "Let the hand tuck away (H)" : "Keep the hand up (H)"}
+              title={
+                handHidden
+                  ? "Show your hand (H)"
+                  : handPinned
+                    ? prefs.keepHandOpen
+                      ? "Let the hand tuck away"
+                      : "Let the hand tuck away (H)"
+                    : "Keep the hand up (H)"
+              }
               onClick={() => {
+                if (handHidden) {
+                  setHandHidden(false);
+                  setHandPinned(true);
+                  return;
+                }
                 setHandPinned((v) => !v);
                 if (handPinned) setHandFilter(null);
               }}
@@ -1865,14 +1917,15 @@ export function DuelBoard({
                 Sort
               </button>
             ) : null}
+            {hideHandBtn}
           </div>
-          <div className="hand-fan-cards" ref={handRowRef}>
+          <div className="hand-fan-cards" ref={handRowRef} inert={handHidden || undefined}>
             {renderHandCards(true)}
           </div>
         </div>
       ) : wide && !railHand ? (
         <div
-          className={`hand-dock${handOpen ? " is-open" : ""}${dragPayload ? " is-dragging" : ""}`}
+          className={`hand-dock${drawerClass}${dragPayload ? " is-dragging" : ""}`}
           style={
             {
               "--n": Math.max(handCount, 1),
@@ -1886,8 +1939,13 @@ export function DuelBoard({
               type="button"
               className="hand-dock-toggle"
               aria-expanded={handOpen}
-              title={handPinned ? "Let the hand tuck away" : "Keep the hand open"}
+              title={handHidden ? "Show your hand (H)" : handPinned ? "Let the hand tuck away" : "Keep the hand open"}
               onClick={() => {
+                if (handHidden) {
+                  setHandHidden(false);
+                  setHandPinned(true);
+                  return;
+                }
                 setHandPinned((v) => !v);
                 if (handPinned) setHandFilter(null);
               }}
@@ -1908,8 +1966,9 @@ export function DuelBoard({
                 Sort
               </button>
             ) : null}
+            {hideHandBtn}
           </div>
-          <div className="hand-dock-cards" ref={handRowRef}>
+          <div className="hand-dock-cards" ref={handRowRef} inert={handHidden || undefined}>
             {renderHandCards()}
           </div>
         </div>

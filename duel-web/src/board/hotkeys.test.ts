@@ -10,6 +10,7 @@ const base: HotkeyContext = {
   wide: true,
   cardKeys: true,
   escOwned: false,
+  handHides: false,
 };
 const space = { key: " ", code: "Space" };
 
@@ -44,6 +45,12 @@ describe("hotkeyAction", () => {
   it("toggles the hand only on the wide layout", () => {
     expect(hotkeyAction({ key: "h" }, base)).toBe("toggle_hand");
     expect(hotkeyAction({ key: "h" }, { ...base, wide: false })).toBeNull();
+  });
+
+  it("H hides and shows the hand instead of pinning it when Keep hand open is on (#259)", () => {
+    expect(hotkeyAction({ key: "h" }, { ...base, handHides: true })).toBe("hide_hand");
+    expect(hotkeyAction({ key: "h" }, base)).toBe("toggle_hand");
+    expect(hotkeyAction({ key: "h" }, { ...base, handHides: true, wide: false })).toBeNull();
   });
 
   it("matches letter keys case-insensitively", () => {

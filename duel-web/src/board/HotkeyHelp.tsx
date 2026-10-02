@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 
 const KEYS: { keys: string; text: string }[] = [
   { keys: "Space", text: "Main action (End turn, Pass, Keep hand). Press twice when End turn asks to confirm." },
-  { keys: "H", text: "Show or tuck the hand drawer (when the hand is not in the side rail)." },
+  { keys: "H", text: "Show or tuck the hand drawer (when the hand is not in the side rail). With Keep hand open on, hide the hand completely or bring it back." },
   { keys: "S", text: "Sort the hand by cost." },
   { keys: "1–9", text: "Press the Nth action button shown for the selected card." },
   { keys: "A", text: "Attack with the selected card (first attack shown)." },

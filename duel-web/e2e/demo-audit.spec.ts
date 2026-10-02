@@ -94,3 +94,54 @@ test("DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits und
   // o3 is the first rested DON!!, o6 the first DON!! on the Leader.
   expect(sent).toEqual([{ type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o3", "o6"] }]);
 });
+
+// Keep hand open: H (or the Hide button) tucks the whole hand away and brings it back.
+test("H hides and shows the hand with Keep hand open (#259)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true })),
+  );
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await page.mouse.move(640, 120);
+  const card = page.locator(".hand-fan-cards > .card-tile").nth(2);
+  // Any part of the card on screen and drawn (a tucked hand still shows its top edge).
+  const cardShown = () =>
+    card.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return getComputedStyle(el).visibility !== "hidden" && r.top < innerHeight - 1 && r.bottom > 0;
+    });
+  await expect.poll(cardShown, { timeout: 3000 }).toBe(true);
+
+  await page.keyboard.press("h");
+  await expect.poll(cardShown, { timeout: 3000 }).toBe(false);
+  await expect(page.locator(".hand-fan .hand-hide-btn")).toHaveText("Show");
+
+  await page.mouse.move(640, 120);
+  await page.keyboard.press("h");
+  await expect.poll(cardShown, { timeout: 3000 }).toBe(true);
+});
+
+// Status icons follow the card size (so the window) and the Text size setting.
+test("status icons scale with the card and the Text size setting (#259)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "one desktop size is enough");
+  const iconRatio = async (textSize: string, w: number, h: number) => {
+    await page.setViewportSize({ width: w, height: h });
+    await page.evaluate((t) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ textSize: t })), textSize);
+    await page.goto("/demo?statuses");
+    await page.locator(".board-root").waitFor();
+    return page.locator(".side-you .status-icon").first().evaluate((el) => ({
+      icon: (el as HTMLElement).offsetWidth,
+      tile: (el.closest(".card-tile") as HTMLElement).offsetWidth,
+    }));
+  };
+  await page.goto("/demo");
+  const big = await iconRatio("medium", 2560, 1440);
+  // A big window's cards get proportionally big icons, not a fixed small cap.
+  expect(big.icon / big.tile).toBeGreaterThan(0.15);
+  const medium = await iconRatio("medium", 1440, 900);
+  const xlarge = await iconRatio("xlarge", 1440, 900);
+  expect(xlarge.icon).toBeGreaterThan(medium.icon);
+  // Never wider than a third of the card.
+  expect(xlarge.icon).toBeLessThanOrEqual(xlarge.tile / 3);
+});

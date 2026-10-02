@@ -1,6 +1,8 @@
 export type HotkeyAction =
   | "primary"
   | "toggle_hand"
+  /** Keep hand open is on: tuck the hand fully away, or bring it back. */
+  | "hide_hand"
   | "sort_hand"
   | "help"
   | "escape"
@@ -39,6 +41,8 @@ export type HotkeyContext = {
   cardKeys: boolean;
   /** A popover that closes itself on Esc (match menu, landscape panel) is open. */
   escOwned: boolean;
+  /** Keep hand open is on: H hides / shows the hand instead of pinning it. */
+  handHides: boolean;
 };
 
 /** Maps a keydown to a desktop shortcut; the DOM facts arrive in `ctx` so this stays pure. */
@@ -64,7 +68,10 @@ export function hotkeyAction(e: HotkeyInput, ctx: HotkeyContext): HotkeyAction {
     if (/^[1-9]$/.test(e.key)) return { kind: "slot", n: Number(e.key) };
     if (MNEMONIC_LETTERS.has(k)) return { kind: "letter", letter: k };
   }
-  if (k === "h") return ctx.wide ? "toggle_hand" : null;
+  if (k === "h") {
+    if (!ctx.wide) return null;
+    return ctx.handHides ? "hide_hand" : "toggle_hand";
+  }
   if (k === "s") return "sort_hand";
   return null;
 }

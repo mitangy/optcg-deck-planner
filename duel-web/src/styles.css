@@ -3148,6 +3148,16 @@ img.zone-pile-face {
    doesn't fit for a "+N" badge instead of wrapping, so the row never climbs
    into the top-right power / DON!! stack or covers the name. */
 .status-chips {
+  /* Badge size follows the tile's card width (so the window size) and the
+     Text size setting, sublinearly so big tiles don't drown in icons. 13px
+     keeps a hit target on the smallest phone tiles; 30% of the card keeps a
+     large Text size from swamping a small one (StatusRow's "+N" takes what
+     doesn't fit). One size per tile, so a status appearing never re-flows. */
+  --status-icon-size: clamp(
+    13px,
+    calc((var(--c, 56px) * 0.13 + 8px) * var(--text-scale, 1)),
+    calc(var(--c, 56px) * 0.3)
+  );
   position: absolute;
   right: 3px;
   bottom: 1.55rem;
@@ -3178,7 +3188,7 @@ img.zone-pile-face {
   background: rgba(0, 0, 0, 0.72);
   border: 1px solid rgba(255, 200, 80, 0.45);
   color: #ffe0a0;
-  font-size: 0.5rem;
+  font-size: max(0.5rem, calc(var(--status-icon-size, 16px) * 0.55));
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -3187,10 +3197,9 @@ img.zone-pile-face {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Icon badge: fixed square (scales with the mat's card width) so a status
+/* Icon badge: fixed square (--status-icon-size on .status-chips) so a status
    appearing never resizes or re-flows its neighbours. */
 .status-icon {
-  --status-icon-size: clamp(13px, calc(var(--c, 56px) * 0.26), 18px);
   flex: 0 0 auto;
   box-sizing: border-box;
   display: inline-flex;

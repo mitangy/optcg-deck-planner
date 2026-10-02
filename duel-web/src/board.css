@@ -1259,6 +1259,14 @@
   transform: translateY(calc(var(--dock-card-h) * 0.58 + 0.6rem));
 }
 
+/* Hidden (Keep hand open + H / Hide): only the handle shows (after the
+   hover / focus-visible rules, so they don't raise it). */
+.hand-dock.is-hidden {
+  width: var(--rail-w);
+  transform: translateY(calc(100% - var(--dock-head) - var(--safe-b)));
+  transition-delay: 0s;
+}
+
 .hand-dock-head {
   display: flex;
   align-items: center;
@@ -1550,6 +1558,31 @@
 
 .hand-fan-right.is-dragging,
 .hand-fan-right.is-dragging:hover {
+  width: var(--rail-w);
+}
+
+/* Hidden (Keep hand open + H / Hide): only the handle row stays, at the
+   bottom edge. These rules come after the hover / focus-visible ones of the
+   same specificity, so hovering or focusing the handle doesn't raise it. The
+   fan is fixed, so nothing on the board moves (the centre column keeps its
+   tucked strip). */
+.hand-fan.is-hidden {
+  transform: translateY(calc(100% - 1.75rem - 4px - var(--safe-b)));
+  transition-delay: 0s;
+}
+
+.hand-fan.is-hidden .hand-fan-cards {
+  visibility: hidden;
+  transition:
+    width 200ms ease,
+    visibility 0s linear 200ms;
+}
+
+.hand-fan-center.is-hidden .hand-fan-cards {
+  width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
+}
+
+.hand-fan-right.is-hidden {
   width: var(--rail-w);
 }
 
@@ -3400,6 +3433,13 @@
 
   .arena.arena-lp .hand-dock.is-dragging,
   .arena.arena-lp .hand-dock.is-dragging:hover {
+    width: auto;
+    transform: translateY(calc(var(--dock-card-h) + 0.6rem));
+  }
+
+  .arena.arena-lp .hand-dock.is-hidden,
+  .arena.arena-lp .hand-dock.is-hidden:hover,
+  .arena.arena-lp .hand-dock.is-hidden:focus-within {
     width: auto;
     transform: translateY(calc(var(--dock-card-h) + 0.6rem));
   }

@@ -26,3 +26,23 @@ export function fanPose(i: number, n: number): FanPose {
   const drop = FAN_RADIUS * (1 - Math.cos((rot * Math.PI) / 180));
   return { rot, drop };
 }
+
+/** Where the desktop hand (fan or corner dock) sits. */
+export type HandDrawer = "open" | "tucked" | "hidden";
+
+/**
+ * Raised, tucked (peeking, raised on hover) or hidden (only its handle shows;
+ * hover does not raise it). Hiding is the Keep hand open escape hatch (H), so
+ * it wins over the pin and a selected card, but never over the mulligan, where
+ * you have to see your opening hand.
+ */
+export function handDrawer(s: {
+  pinned: boolean;
+  hidden: boolean;
+  mulligan: boolean;
+  selected: boolean;
+}): HandDrawer {
+  if (s.mulligan) return "open";
+  if (s.hidden) return "hidden";
+  return s.pinned || s.selected ? "open" : "tucked";
+}
