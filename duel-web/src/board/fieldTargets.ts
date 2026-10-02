@@ -1,4 +1,4 @@
-import type { ChoiceOptionView } from "../net/protocol";
+import type { ChoiceOptionView, PendingChoiceView } from "../net/protocol";
 
 /** Toggle one id in a pick list that holds at most `max` ids (a single pick swaps). */
 export function toggleSelection(selected: readonly string[], id: string, max: number): string[] {
@@ -23,7 +23,8 @@ export function pickCaption(min: number, max: number, selectedCount: number): st
  * - `card:<id>`: a Leader / Character / Stage tile;
  * - `don:<you|opp>:<active|rested>`: a DON!! in a cost area (cost-area DON!!
  *   of one state are interchangeable, so any chip of that state stands for it);
- * - `host:<id>`: a DON!! attached to that Leader / Character (tap the card).
+ * - `host:<id>`: a DON!! attached to that Leader / Character (tap the card);
+ * - `hand:<id>`: a card in your own hand (tap it in the hand).
  */
 export type BoardSpot = string;
 
@@ -63,12 +64,29 @@ export function boardPickSpots(
   const pickable = options.filter((o) => o.eligible);
   if (!pickable.length) return null;
   const spots = new Map<string, BoardSpot>();
+  // Only your own hand cards (e.g. "trash any number of cards from your hand"): tap them in the hand.
+  if (pickable.every((o) => isOwnHandCard(o, mySeat))) {
+    for (const option of pickable) spots.set(option.id, `hand:${option.instanceId}`);
+    return spots;
+  }
   for (const option of pickable) {
     const spot = spotFor(option, cards, mySeat);
     if (!spot) return null;
     spots.set(option.id, spot);
   }
   return spots;
+}
+
+function isOwnHandCard(option: ChoiceOptionView, mySeat: number): boolean {
+  return option.zone === "hand" && option.ownerSeat === mySeat && !!option.instanceId;
+}
+
+/** The front choice is mine and is answered by tapping cards in my hand: keep the hand in view. */
+export function isHandPick(choice: PendingChoiceView | undefined, mySeat: number | null): boolean {
+  const request = choice?.request;
+  if (mySeat == null || choice?.seat !== mySeat || request?.type !== "select") return false;
+  const pickable = request.options.filter((o) => o.eligible);
+  return pickable.length > 0 && pickable.every((o) => isOwnHandCard(o, mySeat));
 }
 
 /** Picks so far, plus which cost-area DON!! chip stands for each DON!! pick. */

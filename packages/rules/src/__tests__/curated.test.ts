@@ -401,3 +401,43 @@ describe("OP13-119 (you may return up to 1; if you do, the opponent plays)", () 
     expect(h.state.players[1].hand).toHaveLength(1);
   });
 });
+
+describe("OP15-002 Lucy (Leader)", () => {
+  function opponentAttacksLucy() {
+    const h = new Harness({ leaders: ["ST01-001", "OP15-002"] });
+    const events = h.hand(1, "ST01-014", "ST01-014");
+    h.hand(1, FILLER);
+    h.attack(h.state.players[0].leader, "leader");
+    return { h, events };
+  }
+
+  it("asks before trashing from hand on the opponent's attack, then picks from the hand (#263)", () => {
+    const { h, events } = opponentAttacksLucy();
+    expect(h.choice?.seat).toBe(1);
+    expect(h.choice?.request?.type).toBe("confirm");
+    expect(h.choice?.optional).toBe(true);
+    h.accept(1);
+    const req = h.choice?.request;
+    expect(req?.type).toBe("select");
+    if (req?.type !== "select") return;
+    // Only Events / Stages are offered, each tagged with its hand card so the client can pick it in the hand.
+    expect(req.options.map((o) => o.instanceId)).toEqual(events.map((c) => c.id));
+    h.pick(events[0]!.id);
+    expect(h.state.players[1].hand.map((c) => c.defId)).toEqual(["ST01-014", FILLER]);
+    expect(h.view(1).you.leader.power).toBe(6000);
+  });
+
+  it("declining the prompt trashes nothing (#263)", () => {
+    const { h } = opponentAttacksLucy();
+    h.decline(1);
+    expect(h.state.players[1].hand).toHaveLength(3);
+    expect(h.state.pendingChoices).toHaveLength(0);
+  });
+
+  it("does not ask when the hand has no Event or Stage (#263)", () => {
+    const h = new Harness({ leaders: ["ST01-001", "OP15-002"] });
+    h.hand(1, FILLER);
+    h.attack(h.state.players[0].leader, "leader");
+    expect(h.state.pendingChoices).toHaveLength(0);
+  });
+});

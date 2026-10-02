@@ -35,19 +35,21 @@ function useMidlineAnchor(): CSSProperties | undefined {
 /**
  * Slim instruction bar for picking cards straight off the board: what to pick
  * and how many, plus the buttons. Desktop: one line in the gap between the
- * mats. Phones: docked over the hand, which can't be played mid-pick. Fixed
- * position and size, so opening it or ticking a card moves nothing.
+ * mats. Phones: docked over the hand, which can't be played mid-pick, or at
+ * the top when the picks are in the hand (`handPick`). Fixed position and
+ * size, so opening it or ticking a card moves nothing.
  */
-export function FieldTargetBar({ title, text, caption, label, children }: {
+export function FieldTargetBar({ title, text, caption, label, handPick = false, children }: {
   title: string;
   text: string;
   caption: string;
   label: string;
+  handPick?: boolean;
   children: ReactNode;
 }) {
   const mid = useMidlineAnchor();
   return (
-    <div className={`field-bar${mid ? " field-bar-mid" : ""}`} style={mid} role="group" aria-label={label}>
+    <div className={`field-bar${mid ? " field-bar-mid" : handPick ? " field-bar-top" : ""}`} style={mid} role="group" aria-label={label}>
       <div className="field-bar-text">
         {/* Effect prompts often already start with the card's name. */}
         {text.startsWith(title) ? null : <strong className="field-bar-title">{title}</strong>}

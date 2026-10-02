@@ -172,6 +172,17 @@ module.exports = {
       { file: "packages/rules/src/tools/cardText/grammar.ts", from: "prompt: restoreNames(m[1]!, ctx.ph) };", to: "};" },
       { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { delete a["OP15-020"].abilities[0].effect.steps[1].prompt; } },
     ], kills: ["asks whether to trash 2 cards for the K.O."] },
+    // OP15-002 Lucy: "you may trash any number of Event or Stage cards" asks first, then picks from the hand (#263)
+    { id: "lucy-trash-unasked", edits: [
+      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "then: { do: \"may\", then: { do: \"discard\", player: \"you\", count: 99, min: 0, ...filter }, prompt: restoreNames(`trash ${m[1]!} from your hand`, ctx.ph) } };", to: "then: { do: \"discard\", player: \"you\", count: 99, min: 0, ...filter } };" },
+      { json: ABILITIES, patch: (a) => { const g = a["OP15-002"].abilities[1].effect.steps[0]; g.then = g.then.then; } },
+    ], kills: ["asks before trashing from hand on the opponent's attack"] },
+    { id: "lucy-asks-with-nothing-to-trash", edits: [
+      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "return { do: \"if\", cond: { c: \"exists\", selector: { player: \"you\", zone: \"hand\", ...filter } }, then:", to: "return { do: \"if\", cond: { c: \"not\", cond: { c: \"exists\", selector: { player: \"you\", zone: \"hand\", ...filter } } }, then:" },
+      { json: ABILITIES, patch: (a) => { const steps = a["OP15-002"].abilities[1].effect.steps; steps[0] = steps[0].then; } },
+    ], kills: ["does not ask when the hand has no Event or Stage"] },
+    { id: "lucy-decline-ignored", file: "packages/rules/src/engine/runtime.ts", from: "frame.bindings[b.__bind!] = answer.accept;", to: "frame.bindings[b.__bind!] = true;", kills: ["declining the prompt trashes nothing"] },
+    { id: "hand-options-unnamed", file: "packages/rules/src/engine/runtime.ts", from: " || (loc.zone === \"hand\" && chooser === loc.seat) ? { instanceId: loc.id } : {}),", to: " ? { instanceId: loc.id } : {}),", kills: ["then picks from the hand"] },
     { id: "fire-fist-did-unbound", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP15-020"].abilities[0].effect.steps[1].bind = "_paid"; }, kills: ["trashing 2 cards K.O.s the 0-power Character"] },
     // "you may X. If you do, Y": X is a real cost when it parses as one; "If you do" after a plain action gates on it having happened
     { id: "may-cost-partial-payment", edits: [

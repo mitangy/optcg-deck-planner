@@ -145,3 +145,10 @@
 .arena:has(.field-bar-mid) .midline .prompt {
   visibility: hidden;
 }
+
+/* Picks in the hand: dock at the top so the hand stays tappable (after the
+   landscape-phone and wide rules, which would put it back at the bottom). */
+.arena .field-bar.field-bar-top {
+  bottom: auto;
+  top: calc(0.4rem + var(--safe-t));
+}

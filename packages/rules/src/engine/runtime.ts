@@ -274,7 +274,8 @@ function optionFor(state: MatchState, loc: Located, id: string, chooser?: Seat):
     defId: hidden ? "HIDDEN" : loc.defId,
     zone: loc.zone,
     ownerSeat: loc.seat,
-    ...(public_ && isOnField(loc) ? { instanceId: loc.id } : {}),
+    // Field cards, and the chooser's own hand cards so the client can pick them in the hand.
+    ...((public_ && isOnField(loc)) || (loc.zone === "hand" && chooser === loc.seat) ? { instanceId: loc.id } : {}),
     eligible: true,
     ...(loc.card && isOnField(loc) ? { rested: loc.card.rested } : {}),
   };

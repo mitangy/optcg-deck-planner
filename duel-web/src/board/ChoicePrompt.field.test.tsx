@@ -79,3 +79,17 @@ describe("select choices over field cards", () => {
     expect(html).not.toContain("field-bar");
   });
 });
+
+describe("select choices over your hand", () => {
+  it("are answered by tapping the hand with a slim bar and a None button, no card grid (#263)", () => {
+    const html = render(choice([inHand, { ...inHand, id: "o2", instanceId: "h8" }], 0, 2));
+    expect(html).toContain("field-bar");
+    expect(html).not.toContain("choice-grid");
+    expect(html).toContain(">None<");
+  });
+
+  it("dock the bar at the top on phones so it doesn't cover the hand (#263)", () => {
+    expect(render(choice([inHand]))).toContain("field-bar-top");
+    expect(render(choice([onField]))).not.toContain("field-bar-top");
+  });
+});

@@ -224,7 +224,7 @@ function withExtraOption(view: PlayerView): PlayerView {
 }
 
 /**
- * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|order|mode|effects|don|don2`).
+ * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|hand|order|mode|effects|don|don2`).
  * Searches and effect ordering float over the board; add `&box` to see the old pop-up.
  */
 export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
@@ -392,6 +392,25 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     optional: true,
     prompt: "Monkey.D.Luffy — pay the cost to activate: [On Play] You may trash 2 cards from your hand: Return up to 1 Character with a cost of 4 or less to the owner's hand.",
     request: { type: "confirm" },
+  }),
+  // Lucy's [On Your Opponent's Attack]: Event / Stage cards are tapped in the hand.
+  hand: demoChoice({
+    id: "demo-hand",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP15-002",
+    optional: false,
+    prompt: "Lucy — choose up to 2 cards to trash.",
+    privateToSeat: 0,
+    request: {
+      type: "select",
+      min: 0,
+      max: 2,
+      options: [
+        { id: "o0", defId: "ST01-014", zone: "hand", ownerSeat: 0, instanceId: "y-h5", eligible: true },
+        { id: "o1", defId: "OP01-029", zone: "hand", ownerSeat: 0, instanceId: "y-h6", eligible: true },
+      ],
+    },
   }),
   order: demoChoice({
     id: "demo-order",
