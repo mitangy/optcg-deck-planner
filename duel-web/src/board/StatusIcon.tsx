@@ -1,5 +1,94 @@
-import { useLayoutEffect, useRef, useState } from "react";
-import { splitStatuses, statusGlyph, type StatusGlyph, type StatusIconSpec } from "./statusIcons";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import {
+  placeTip,
+  splitStatuses,
+  statusGlyph,
+  statusTone,
+  statusTooltip,
+  type StatusGlyph,
+  type StatusIconSpec,
+} from "./statusIcons";
+
+/**
+ * Hover / focus tooltip for status badges. It is a fixed overlay in a portal
+ * (so it never shifts layout and is not tilted with the board) placed beside
+ * the badge and clamped to the viewport, which also covers a 375px phone.
+ * Touch: tapping a badge focuses it, and long-press still opens card inspect
+ * (which lists every status in the same colours).
+ */
+function useStatusTip(labels: string[]) {
+  const anchorRef = useRef<HTMLElement | null>(null);
+  const tipRef = useRef<HTMLDivElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const show = useCallback(() => setOpen(true), []);
+  const hide = useCallback(() => {
+    setOpen(false);
+    setPos(null);
+  }, []);
+
+  useLayoutEffect(() => {
+    const a = anchorRef.current;
+    const t = tipRef.current;
+    if (!open || !a || !t) return;
+    const r = a.getBoundingClientRect();
+    const vv = window.visualViewport;
+    setPos(
+      placeTip(
+        { left: r.left, top: r.top, width: r.width, height: r.height },
+        { width: t.offsetWidth, height: t.offsetHeight },
+        { width: vv?.width ?? window.innerWidth, height: vv?.height ?? window.innerHeight },
+      ),
+    );
+  }, [open, labels.join("|")]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && hide();
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", hide, true);
+    window.addEventListener("resize", hide);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", hide, true);
+      window.removeEventListener("resize", hide);
+    };
+  }, [open, hide]);
+
+  const bind = {
+    ref: (el: HTMLElement | null) => {
+      anchorRef.current = el;
+    },
+    tabIndex: 0,
+    onMouseEnter: show,
+    onMouseLeave: hide,
+    onFocus: show,
+    onBlur: hide,
+  };
+  const tip = open
+    ? createPortal(
+        <div
+          ref={tipRef}
+          className="status-tip"
+          role="tooltip"
+          style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, visibility: "hidden" }}
+        >
+          {labels.map((label) => {
+            const { text } = statusTooltip(label);
+            return (
+              <div key={label} className={`status-tip-row status-tone-${statusTone(label)}`}>
+                <strong className="status-tip-label">{label}</strong>
+                {text ? <span className="status-tip-text">{text}</span> : null}
+              </div>
+            );
+          })}
+        </div>,
+        document.body,
+      )
+    : null;
+  return { bind, tip };
+}
 
 /** 24x24 line icons; stroke/fill use currentColor so the tone class colours them. */
 function Glyph({ glyph }: { glyph: StatusGlyph }) {
@@ -63,27 +152,58 @@ function Glyph({ glyph }: { glyph: StatusGlyph }) {
 
 /** Fixed-size square badge for one status label; the full label is the tooltip / accessible name. */
 export function StatusIcon({ label, spec }: { label: string; spec: StatusIconSpec }) {
+  const { bind, tip } = useStatusTip([label]);
+  const { text } = statusTooltip(label);
   return (
-    <span
-      role="img"
-      className={`status-icon status-icon-${spec.tone}`}
-      aria-label={label}
-      title={label}
-    >
-      <svg viewBox="0 0 24 24" aria-hidden focusable="false">
-        <Glyph glyph={spec.glyph} />
-      </svg>
-    </span>
+    <>
+      <span
+        role="img"
+        className={`status-icon status-tone-${spec.tone}`}
+        aria-label={text ? `${label}: ${text}` : label}
+        {...bind}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden focusable="false">
+          <Glyph glyph={spec.glyph} />
+        </svg>
+      </span>
+      {tip}
+    </>
+  );
+}
+
+/** Text chip for a status with no icon; same tooltip and colours. */
+function StatusChip({ label }: { label: string }) {
+  const { bind, tip } = useStatusTip([label]);
+  return (
+    <>
+      <span className={`status-chip status-tone-${statusTone(label)}`} {...bind}>
+        {label}
+      </span>
+      {tip}
+    </>
+  );
+}
+
+/** The row's "+N" badge: hovering lists the hidden statuses. */
+function StatusMore({ hidden }: { hidden: string[] }) {
+  const { bind, tip } = useStatusTip(hidden);
+  return (
+    <>
+      <span
+        role="img"
+        className="status-icon status-more"
+        aria-label={`${hidden.length} more: ${hidden.join(", ")}`}
+        {...bind}
+      >
+        +{hidden.length}
+      </span>
+      {tip}
+    </>
   );
 }
 
 /** Smallest .status-icon size (see --status-icon-size in styles.css). */
 const ICON_MIN_PX = 13;
-
-/** CSS modifier for text status chips (stun, unrestable, …). */
-function slugStatus(label: string): string {
-  return label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
 
 /**
  * One row of statuses in the tile's bottom-right corner. The row never wraps
@@ -153,21 +273,10 @@ export function StatusRow({ labels, stackKey }: { labels: string[]; stackKey: st
         return icon ? (
           <StatusIcon key={label} label={label} spec={icon} />
         ) : (
-          <span key={label} className={`status-chip status-chip-${slugStatus(label)}`}>
-            {label}
-          </span>
+          <StatusChip key={label} label={label} />
         );
       })}
-      {hidden.length ? (
-        <span
-          role="img"
-          className="status-icon status-more"
-          aria-label={`${hidden.length} more: ${hidden.join(", ")}`}
-          title={hidden.join(", ")}
-        >
-          +{hidden.length}
-        </span>
-      ) : null}
+      {hidden.length ? <StatusMore hidden={hidden} /> : null}
     </div>
   );
 }

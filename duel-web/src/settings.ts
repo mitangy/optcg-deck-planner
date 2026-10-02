@@ -62,6 +62,8 @@ export type DuelSettings = {
    * or picks a single target, instead of selecting it and then confirming.
    */
   oneTapActions: boolean;
+  /** Show the opponent's hand as a fan of card backs in the top-right corner of the board. */
+  oppHandTopRight: boolean;
   /** Text size (power numbers, card text, buttons), scaled further by the window size. */
   textSize: TextSize;
   /** Desktop: tilt the board away from you, seen from your seat. */
@@ -100,6 +102,7 @@ const DEFAULTS: DuelSettings = {
   handLayout: "fanCenter",
   keepHandOpen: false,
   oneTapActions: false,
+  oppHandTopRight: false,
   textSize: "medium",
   tiltedBoard: false,
   floatingCards: true,

@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { PlayerView, Seat, SeatPlayers } from "../net/protocol";
 import { cardBackCssValue } from "../cardBack";
+import { fanPose } from "./handFan";
 import { seatName } from "./playerNames";
 import { CardTile } from "./CardTile";
 
@@ -282,6 +283,50 @@ export function OppHandHint({
         </div>
       )}
       <OppHandCount count={count} />
+    </div>
+  );
+}
+
+/**
+ * Opponent's hand as a fan of backs in the top-right corner (the "Opponent
+ * hand, top right" setting): bigger cards on the same arc as your own hand,
+ * hanging from the top edge, with the count beside them. Narrow layouts get
+ * `row`: a right-aligned overlapping strip in the opponent hint row.
+ */
+export function OppHandCorner({
+  count,
+  cardBackUrl,
+  variant,
+}: {
+  count: number;
+  cardBackUrl: string | null;
+  variant: "fan" | "row";
+}) {
+  const shown = Math.min(count, variant === "row" ? 8 : 10);
+  return (
+    <div
+      className={`opp-hand-corner opp-hand-corner-${variant}`}
+      aria-label={`Opponent hand: ${count} cards`}
+      style={
+        {
+          "--n": Math.max(shown, 1),
+          ...(cardBackUrl ? { "--card-back-art": cardBackCssValue(cardBackUrl) } : null),
+        } as CSSProperties
+      }
+    >
+      <OppHandCount count={count} />
+      <div className="opp-corner-cards">
+        {Array.from({ length: shown }).map((_, i) => {
+          const pose = fanPose(i, shown);
+          return (
+            <span
+              key={i}
+              className="card-back opp-corner-card"
+              style={{ "--rot": `${pose.rot}deg` } as CSSProperties}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }

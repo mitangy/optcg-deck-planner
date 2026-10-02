@@ -1,4 +1,5 @@
 import type { PreviewLive } from "./cardPreview";
+import { statusTone, statusTooltip } from "./statusIcons";
 import { costBreakdown, formatPowerDelta, powerBreakdown } from "./powerDisplay";
 
 /** Current power + active statuses for an in-play card (preview panel / inspect). */
@@ -7,11 +8,14 @@ export function LiveCardStatus({
   atlasPower,
   atlasCost,
   className,
+  describe = false,
 }: {
   live: PreviewLive;
   atlasPower?: number;
   atlasCost?: number;
   className?: string;
+  /** Spell out what each status does (card inspect; the hover panel stays compact). */
+  describe?: boolean;
 }) {
   const pb = powerBreakdown(live.power, live.printedPower, atlasPower);
   const cb = atlasCost != null ? costBreakdown(live.fieldCost, atlasCost) : null;
@@ -50,11 +54,14 @@ export function LiveCardStatus({
         </p>
       ) : null}
       {labels.length || don ? (
-        <ul className="live-status-chips">
+        <ul className={`live-status-chips${describe ? " live-status-chips-described" : ""}`}>
           {don ? <li className="live-status-chip live-status-chip-don">DON!! ×{don}</li> : null}
           {labels.map((l) => (
-            <li key={l} className="live-status-chip">
+            <li key={l} className={`live-status-chip status-tone-${statusTone(l)}`}>
               {l}
+              {describe && statusTooltip(l).text ? (
+                <span className="live-status-desc">{statusTooltip(l).text}</span>
+              ) : null}
             </li>
           ))}
         </ul>

@@ -194,7 +194,7 @@ export function CardInspect({
             {live ? (
               <div className="card-inspect-effect">
                 <div className="card-inspect-effect-label">In play</div>
-                <LiveCardStatus live={live} atlasPower={entry.power} atlasCost={entry.cost} />
+                <LiveCardStatus live={live} atlasPower={entry.power} atlasCost={entry.cost} describe />
               </div>
             ) : null}
             <div className="card-inspect-effect">
