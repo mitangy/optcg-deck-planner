@@ -5,7 +5,7 @@
  */
 import { cardAbilities } from "../cards/abilities.js";
 import { cardDataFor, listCardDataIds, type CardDataRow } from "../cards/cardData.js";
-import type { Ability } from "../effects/types.js";
+import type { Ability, Filter } from "../effects/types.js";
 
 export type PlannerRole = "draw" | "search" | "removal" | "ramp" | "lifeGain";
 
@@ -38,6 +38,24 @@ export interface PlannerCard {
   lt?: string[];
   /** Look-at-top-N-and-add-to-hand effects. */
   srch?: PlannerSearch[];
+  /** Events: base +power their [Counter] gives one of your cards (conditional extras not counted). */
+  ec?: number;
+  /** Counter this card prints for itself while in hand (e.g. Rocks.D.Xebec OP17-118: +2000). */
+  hc?: number;
+  /** Leaders only: counters the Leader grants to cards in hand. */
+  gc?: PlannerCounterGrant[];
+}
+
+/**
+ * A Leader's "cards in your hand have a +N Counter": the counter becomes `v`, or printed + `v` with `add`.
+ * `tr` matches any listed trait; `nc` only cards without a printed counter.
+ */
+export interface PlannerCounterGrant {
+  v: number;
+  add?: 1;
+  t?: ("character" | "event" | "stage")[];
+  tr?: string[];
+  nc?: 1;
 }
 
 const KEYWORD_LABEL: Record<string, string> = {
@@ -124,6 +142,27 @@ function roleFromText(clause: string, roles: Set<PlannerRole>): void {
   if (/add up to \d+ cards? from (?:the top of )?your (?:deck|hand) to the top of your Life/i.test(clause)) roles.add("lifeGain");
 }
 
+/** First "+N power" one of your own cards gains in the printed [Counter] clause. */
+export function eventCounterPower(text: string): number | undefined {
+  const clause = /\[Counter\](.*)$/s.exec(text)?.[1];
+  const m = clause ? /\byour\b[^.]*?\bgains? \+(\d+) power/i.exec(clause) : null;
+  return m ? Number(m[1]) : undefined;
+}
+
+const GRANT_FILTER_KEYS = new Set(["types", "traits"]);
+
+function counterGrant(s: { filter: Filter; mode: "set" | "add"; value: number; onlyWithoutCounter?: boolean }): PlannerCounterGrant | null {
+  // Filters narrower than type / trait (power, cost...) are left out rather than guessed.
+  if (!Object.keys(s.filter).every((k) => GRANT_FILTER_KEYS.has(k))) return null;
+  const g: PlannerCounterGrant = { v: s.value };
+  const types = (s.filter.types ?? []).filter((t): t is "character" | "event" | "stage" => t !== "leader");
+  if (types.length) g.t = types;
+  if (s.filter.traits?.length) g.tr = [...s.filter.traits];
+  if (s.mode === "add") g.add = 1;
+  if (s.onlyWithoutCounter) g.nc = 1;
+  return g;
+}
+
 export function derivePlannerCard(row: CardDataRow, abilities: readonly Ability[], unsupported: readonly string[] = []): PlannerCard {
   const out: PlannerCard = { n: row.name, t: row.type, col: [...row.colors] };
   if (row.type !== "leader" && row.cost != null) out.cost = row.cost;
@@ -139,6 +178,7 @@ export function derivePlannerCard(row: CardDataRow, abilities: readonly Ability[
   const found: Found = { roles: new Set(), search: [] };
   const rules: string[] = [];
   const aliases: string[] = [];
+  const grants: PlannerCounterGrant[] = [];
   for (const ability of abilities) {
     const label = TIMING_LABEL[ability.trigger];
     if (label) timing.add(label);
@@ -146,6 +186,12 @@ export function derivePlannerCard(row: CardDataRow, abilities: readonly Ability[
       if (s.s === "keyword" && s.target === "self" && KEYWORD_LABEL[s.keyword]) keywords.add(KEYWORD_LABEL[s.keyword]!);
       if (s.s === "deck_rule") rules.push(s.rule);
       if (s.s === "name_alias") for (const a of s.names) if (!aliases.includes(a)) aliases.push(a);
+      if (s.s === "counter" && s.filter.onlySelf) out.hc = s.mode === "add" ? (row.counter ?? 0) + s.value : s.value;
+      // Grants from a Character only hold while it is on the field, so only Leaders export them.
+      if (s.s === "counter" && !s.filter.onlySelf && row.type === "leader") {
+        const g = counterGrant(s);
+        if (g) grants.push(g);
+      }
     }
     walkEffect(ability.effect, found);
   }
@@ -165,6 +211,11 @@ export function derivePlannerCard(row: CardDataRow, abilities: readonly Ability[
   }
   if (aliases.length) out.al = aliases;
   if (found.search.length) out.srch = found.search;
+  if (row.type === "event") {
+    const ec = eventCounterPower(row.text);
+    if (ec) out.ec = ec;
+  }
+  if (grants.length) out.gc = grants;
   return out;
 }
 

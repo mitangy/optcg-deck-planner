@@ -31,6 +31,13 @@ module.exports = {
     { id: "stats-events-rule-any-type", file: stats, from: "return card.t === \"event\" && (card.cost ?? 0) >= Number(arg);", to: "return (card.cost ?? 0) >= Number(arg);", kills: ["only applies no_events_cost_ge to Events"] },
     { id: "stats-events-rule-exclusive", file: stats, from: "(card.cost ?? 0) >= Number(arg);\n  if (kind === \"only_trait\")", to: "(card.cost ?? 0) > Number(arg);\n  if (kind === \"only_trait\")", kills: ["only applies no_events_cost_ge to Events"] },
     { id: "stats-only-trait-inverted", file: stats, from: "return !(card.tr ?? []).includes(arg ?? \"\");", to: "return (card.tr ?? []).includes(arg ?? \"\");", kills: ["flags max_cost and only_trait separately"] },
+    { id: "stats-counter-self-grant-ignored", file: stats, from: "if (card.hc && card.hc > value) {", to: "if (false) {", kills: ["counts Rocks.D.Xebec's +2000 Counter in hand by default"] },
+    { id: "stats-counter-grant-any-trait", file: stats, from: "    if (g.tr && !g.tr.some((t) => (card.tr ?? []).includes(t))) continue;\n", to: "", kills: ["applies a Leader's counter grant only to the named trait and type"] },
+    { id: "stats-counter-grant-any-type", file: stats, from: "    if (g.t && !g.t.includes(card.t)) continue;\n", to: "", kills: ["applies a Leader's counter grant only to the named trait and type"] },
+    { id: "stats-counter-grant-over-printed", file: stats, from: "    if (g.nc && printed > 0) continue;\n", to: "", kills: ["only without a printed counter"] },
+    { id: "stats-counter-leader-grants-ignored", file: stats, from: "for (const g of leader?.gc ?? []) {", to: "for (const g of [] as StatsCounterGrant[]) {", kills: ["applies a Leader's counter grant only to the named trait and type"] },
+    { id: "stats-counter-events-always-on", file: stats, from: "if (eventCounters && card.t === \"event\" && card.ec", to: "if (card.t === \"event\" && card.ec", kills: ["adds [Counter] events' base +power only when event counters are on"] },
+    { id: "stats-counter-events-never-on", file: stats, from: "const eff = effectiveCounter(card, leader, opts.eventCounters);", to: "const eff = effectiveCounter(card, leader);", kills: ["adds [Counter] events' base +power only when event counters are on"] },
     { id: "hints-any-number-capped", file: hints, from: "n > T.maxCopies && !atlas[id]?.rules?.includes(\"any_number\")", to: "n > T.maxCopies", kills: ["lets cards that allow any number of copies go past 4"] },
     // draw odds + searchers
     { id: "odds-first-draws-turn-1", file: odds, from: "return OPENING_HAND + (goingFirst ? turn - 1 : turn);", to: "return OPENING_HAND + turn;", kills: ["going first skips the turn-1 draw"] },

@@ -188,6 +188,21 @@
   border-left: 2px solid var(--card);
 }
 
+.ds-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.55rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ds-toggle input {
+  flex: none;
+  margin: 0;
+}
+
 .ds-note {
   margin: 0.55rem 0 0;
   font-size: 0.88rem;

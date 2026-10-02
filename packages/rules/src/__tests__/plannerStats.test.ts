@@ -99,6 +99,25 @@ describe("leader trait mentions", () => {
   });
 });
 
+describe("counter data", () => {
+  it("exports an event's base [Counter] +power from the [Counter] clause, not [Main] or the conditional extra (#264)", () => {
+    const text =
+      "[Main] Your Leader gains +5000 power during this turn. [Counter] Up to 1 of your Leader or Character cards gains +2000 power during this battle. Then, if you have 2 or less Life cards, that card gains an additional +3000 power.";
+    expect(derivePlannerCard(row({ type: "event", text }), []).ec).toBe(2000);
+    const noBoost = "[Counter] Give up to 1 of your opponent's Leader or Character cards −2000 power during this turn.";
+    expect(derivePlannerCard(row({ type: "event", text: noBoost }), []).ec).toBeUndefined();
+  });
+
+  it("exports a card's own in-hand counter, and counter grants only from Leaders (#264)", () => {
+    const self = ab("static", { statics: [{ s: "counter", filter: { onlySelf: true }, mode: "add", value: 2000 }] });
+    expect(derivePlannerCard(row({ cost: 10 }), [self]).hc).toBe(2000);
+    const grant = ab("static", { statics: [{ s: "counter", filter: { types: ["character"], traits: ["Land of Wano"] }, mode: "set", value: 1000, onlyWithoutCounter: true }] });
+    expect(derivePlannerCard(row({ type: "leader", cost: undefined, life: 4 }), [grant]).gc).toEqual([{ v: 1000, t: ["character"], tr: ["Land of Wano"], nc: 1 }]);
+    // Kaido OP17-063 grants it only while he is on the field.
+    expect(derivePlannerCard(row(), [grant]).gc).toBeUndefined();
+  });
+});
+
 describe("packages/deck-analytics/deckStats.json", () => {
   it("matches the card data and ability registry (run `npm run export-planner-stats`)", () => {
     const committed = readFileSync(resolve(__dirname, "../../../deck-analytics/deckStats.json"), "utf8");
