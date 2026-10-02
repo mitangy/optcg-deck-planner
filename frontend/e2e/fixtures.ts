@@ -46,7 +46,7 @@ type Planner = {
   /** Open `path` (the fake session is always signed in). */
   open(path: string): Promise<void>;
   /** Audit the current screen; issues matching known-issues.ts are dropped. */
-  audit(): Promise<AuditIssue[]>;
+  audit(opts?: Parameters<typeof auditPage>[1]): Promise<AuditIssue[]>;
   /** Owned counts as the fake backend holds them. */
   owned: Map<string, number>;
   /** Requests the page made to the fake API, e.g. "PUT /owned/EB01-002". */
@@ -182,8 +182,8 @@ export const test = base.extend<{ planner: Planner }>({
       async open(path) {
         await page.goto(path);
       },
-      async audit() {
-        return (await auditPage(page)).filter((i) => !isKnown(i));
+      async audit(opts) {
+        return (await auditPage(page, opts)).filter((i) => !isKnown(i));
       },
     });
   },

@@ -24,6 +24,8 @@ import {
   optcgSimFilename,
 } from "./optcgsimExport";
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
+import { SiteFooter } from "@optcg/site-legal";
+import { LegalPage } from "./LegalPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
   CardSearchInput,
@@ -3633,61 +3635,67 @@ function PublicSharePage() {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/share/:token" element={<PublicSharePage />} />
-      <Route path="/group-buy/join/:token" element={<GroupBuyJoinPage />} />
-      <Route path="/group-buy/view/:token" element={<PublicGroupBuyPage />} />
-      {import.meta.env.DEV && <Route path="/dev/scan-validate" element={<ScanValidatePage />} />}
-      <Route
-        path="/"
-        element={
-          <RequireAuth>
-            <ShoppingPage />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/decks"
-        element={
-          <RequireAuth>
-            <DecksPage />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/decks/:id"
-        element={
-          <RequireAuth>
-            <DeckDetailPage />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/group-buys"
-        element={
-          <RequireAuth>
-            <GroupBuysPage />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/group-buys/:id"
-        element={
-          <RequireAuth>
-            <GroupBuyDetailPage />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/import"
-        element={
-          <RequireAuth>
-            <ImportPage />
-          </RequireAuth>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/share/:token" element={<PublicSharePage />} />
+        <Route path="/group-buy/join/:token" element={<GroupBuyJoinPage />} />
+        <Route path="/group-buy/view/:token" element={<PublicGroupBuyPage />} />
+        <Route path="/terms" element={<LegalPage kind="terms" />} />
+        <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+        <Route path="/cookies" element={<LegalPage kind="cookies" />} />
+        {import.meta.env.DEV && <Route path="/dev/scan-validate" element={<ScanValidatePage />} />}
+        <Route
+          path="/"
+          element={
+            <RequireAuth>
+              <ShoppingPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/decks"
+          element={
+            <RequireAuth>
+              <DecksPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/decks/:id"
+          element={
+            <RequireAuth>
+              <DeckDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/group-buys"
+          element={
+            <RequireAuth>
+              <GroupBuysPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/group-buys/:id"
+          element={
+            <RequireAuth>
+              <GroupBuyDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/import"
+          element={
+            <RequireAuth>
+              <ImportPage />
+            </RequireAuth>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <SiteFooter Link={Link} />
+    </>
   );
 }
