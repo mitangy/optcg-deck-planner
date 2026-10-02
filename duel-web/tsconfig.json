@@ -19,6 +19,8 @@
     "paths": {
       "@optcg/deck-analytics": ["../packages/deck-analytics/src/index.ts"],
       "@optcg/deck-analytics/*": ["../packages/deck-analytics/src/*"],
+      "@optcg/site-legal": ["../packages/site-legal/src/index.ts"],
+      "@optcg/site-legal/*": ["../packages/site-legal/src/*"],
       "react": ["./node_modules/@types/react"],
       "react/*": ["./node_modules/@types/react/*"]
     }

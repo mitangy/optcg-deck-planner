@@ -88,7 +88,9 @@ test("expanding a market price shows the last sales without moving the price", a
   // Dates come from the fixed clock, not today's date.
   await expect(panel.getByRole("listitem").first()).toContainText("Jan 10");
   await expect(panel).toBeInViewport({ ratio: 1 });
-  const issues = await planner.audit();
+  // The audit scrolls the whole page and the open panel follows its price off
+  // the top edge; its on-screen fit is the toBeInViewport check above.
+  const issues = await planner.audit({ offscreenOk: [".market-sales"] });
   expect(issues, formatIssues(issues)).toEqual([]);
 
   await expectStationary(price, () => page.keyboard.press("Escape"), "market price close");

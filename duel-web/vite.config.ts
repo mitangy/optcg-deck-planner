@@ -46,8 +46,11 @@ export default defineConfig(() => {
   return {
     plugins: [react(), versionFile(gitSha, builtAt)],
     resolve: {
-      // Deck stats, odds and build hints shared with the planner; see packages/deck-analytics.
-      alias: [{ find: /^@optcg\/deck-analytics/, replacement: fileURLToPath(new URL("../packages/deck-analytics/src", import.meta.url)) }],
+      // Deck stats, odds and build hints plus the legal footer and pages, shared with the planner; see packages/.
+      alias: [
+        { find: /^@optcg\/deck-analytics/, replacement: fileURLToPath(new URL("../packages/deck-analytics/src", import.meta.url)) },
+        { find: /^@optcg\/site-legal/, replacement: fileURLToPath(new URL("../packages/site-legal/src", import.meta.url)) },
+      ],
       // Package sources sit outside this app, so pin React to this app's copy.
       dedupe: ["react", "react-dom"],
     },

@@ -211,6 +211,18 @@ body {
   background-attachment: fixed;
 }
 
+/* With the legal footer below a page, the page fills the screen minus the
+   footer, so short pages put it at the bottom edge instead of below the fold. */
+#root:has(> .site-footer) {
+  display: flex;
+  flex-direction: column;
+}
+
+#root:has(> .site-footer) > :not(.site-footer) {
+  flex: 1 0 auto;
+  min-height: 0;
+}
+
 a {
   color: var(--accent);
   text-underline-offset: 0.15em;
