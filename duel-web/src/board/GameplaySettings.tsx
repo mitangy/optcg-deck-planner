@@ -8,6 +8,7 @@ import {
   type HandLayout,
   type ResponseStops,
   type ScreenOrientationPref,
+  type TextSize,
 } from "../settings";
 import { useLockNote } from "./orientation";
 import { playTurnChime } from "./turnAlert";
@@ -16,6 +17,8 @@ import { TILT_BOARD_QUERY, useMediaQuery } from "./useMediaQuery";
 type Toggle = {
   key:
     | "sortHandByCost"
+    | "keepHandOpen"
+    | "oneTapActions"
     | "tiltedBoard"
     | "floatingCards"
     | "turnSplash"
@@ -31,6 +34,16 @@ const TOGGLES: Toggle[] = [
     key: "sortHandByCost",
     label: "Sort hand by cost",
     hint: "Starts each match with the hand's Sort button on.",
+  },
+  {
+    key: "keepHandOpen",
+    label: "Keep hand open",
+    hint: "Desktop: the fanned hand (or the corner dock in short windows) stays up instead of tucking away. It can cover your DON!! row and Trash; H or the Hand button tucks it during a match.",
+  },
+  {
+    key: "oneTapActions",
+    label: "One-tap actions",
+    hint: "Skips the second tap: tapping a Counter card plays it, tapping a Blocker blocks, tapping a Leader or Character gives it the selected DON!!, and picking the only target of an effect resolves it.",
   },
   {
     key: "tiltedBoard",
@@ -86,6 +99,13 @@ const HAND_LAYOUT_OPTIONS: { value: HandLayout; label: string }[] = [
   { value: "fanCenter", label: "Fan, bottom centre" },
   { value: "fanRight", label: "Fan, bottom right" },
   { value: "grid", label: "Grid (no fan)" },
+];
+
+const TEXT_SIZE_OPTIONS: { value: TextSize; label: string }[] = [
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+  { value: "xlarge", label: "Extra large" },
 ];
 
 const ANIMATION_OPTIONS: { value: AnimationSpeed; label: string }[] = [
@@ -181,6 +201,24 @@ export function GameplaySettingsFields() {
           Desktop: the fan peeks off the bottom of the board (centre) or of the right column, and
           rises when you point at it. Grid keeps the hand open in the right column. Phones: either
           fan overlaps the hand strip so every card fits without scrolling.
+        </p>
+      </div>
+      <div className="field">
+        <label htmlFor="text-size">Text size</label>
+        <select
+          id="text-size"
+          value={settings.textSize}
+          onChange={(e) => updateSettings({ textSize: e.target.value as TextSize })}
+        >
+          {TEXT_SIZE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <p className="field-hint">
+          Text already grows with your window; this sets it larger or smaller on top, including
+          card power numbers and the card text on the left.
         </p>
       </div>
       <div className="field">

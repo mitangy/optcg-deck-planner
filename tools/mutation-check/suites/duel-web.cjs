@@ -5,6 +5,12 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // text size setting
+    { id: "text-size-xlarge-not-larger", file: `${src}/textSize.ts`, from: "  xlarge: 1.25,", to: "  xlarge: 1,", kills: ["scales text down for Small and up for Extra large, and Medium clears it (#PR_A)"] },
+    { id: "text-size-medium-leaves-scale", file: `${src}/textSize.ts`, from: "  if (scale === 1) root.style.removeProperty(\"--text-scale\");\n  else root.style.setProperty", to: "  root.style.setProperty", kills: ["scales text down for Small and up for Extra large, and Medium clears it (#PR_A)"] },
+    // recent plays list rows
+    { id: "recent-plays-who-swapped", file: `${src}/board/recentPlays.ts`, from: "      who: mine ? \"You\" : \"Opponent\",", to: "      who: mine ? \"Opponent\" : \"You\",", kills: ["labels each row with who used the card, what they did and the turn (#PR_A)"] },
+    { id: "recent-plays-wrong-turn", file: `${src}/board/recentPlays.ts`, from: "detail: `${use.verb} \\u00b7 Turn ${e.turn}`", to: "detail: `${use.verb} \\u00b7 Turn ${e.turn - 1}`", kills: ["labels each row with who used the card, what they did and the turn (#PR_A)"] },
     // legal footer: hidden during a match, shown on the other pages
     { id: "site-footer-during-match", file: `${src}/siteFooter.ts`, from: "  return !NO_FOOTER.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return true;", kills: ["stays out of the way during a match (#245)"] },
     { id: "site-footer-nowhere", file: `${src}/siteFooter.ts`, from: "  return !NO_FOOTER.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return !NO_FOOTER.some((p) => pathname.startsWith(p.slice(0, 2)));", kills: ["shows on the lobby, decks, settings and legal pages (#245)"] },
@@ -109,6 +115,8 @@ module.exports = {
     { id: "anim-speed-setting-always-reset", file: `${src}/settings.ts`, from: "if (!ANIMATION_SPEEDS.includes(next.animationSpeed)) next", to: "if (true) next", kills: ["keeps a stored speed"] },
     { id: "hand-layout-setting-invalid-kept", file: `${src}/settings.ts`, from: "  if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;\n", to: "", kills: ["replaces an unknown stored hand layout"] },
     { id: "hand-layout-setting-always-reset", file: `${src}/settings.ts`, from: "if (!HAND_LAYOUTS.includes(next.handLayout)) next", to: "if (true) next", kills: ["keeps a stored hand layout"] },
+    { id: "keep-hand-open-dropped", file: `${src}/settings.ts`, from: "  const next = { ...DEFAULTS, ...rest };", to: "  const next = { ...DEFAULTS, ...rest, keepHandOpen: false };", kills: ["keeps the hand open for a player who saved Keep hand open"] },
+    { id: "text-size-invalid-kept", file: `${src}/settings.ts`, from: "  if (!TEXT_SIZES.includes(next.textSize)) next.textSize = DEFAULTS.textSize;\n", to: "", kills: ["replaces an unknown one with medium"] },
     { id: "hand-fan-spread-uncapped", file: `${src}/board/handFan.ts`, from: "Math.min(FAN_STEP_DEG, FAN_MAX_SPREAD_DEG / (n - 1))", to: "FAN_STEP_DEG", kills: ["no further apart than the max spread"] },
     { id: "hand-fan-off-centre", file: `${src}/board/handFan.ts`, from: "const k = i - (n - 1) / 2;", to: "const k = i - n / 2;", kills: ["mirrors the fan around the middle card"] },
     { id: "hand-fan-flat", file: `${src}/board/handFan.ts`, from: "const drop = FAN_RADIUS * (1 - Math.cos((rot * Math.PI) / 180));", to: "const drop = 0 * FAN_RADIUS;", kills: ["mirrors the fan around the middle card"] },

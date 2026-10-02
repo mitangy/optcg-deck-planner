@@ -159,3 +159,21 @@ describe("account settings", () => {
     expect(merged.devUserKey).toBe("mine");
   });
 });
+
+describe("hand, one-tap and text size settings", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps the hand open for a player who saved Keep hand open (#247)", () => {
+    stubStored({ keepHandOpen: true });
+    expect(loadSettings().keepHandOpen).toBe(true);
+  });
+
+  it("keeps a stored text size and replaces an unknown one with medium (#247)", () => {
+    stubStored({ textSize: "xlarge" });
+    expect(loadSettings().textSize).toBe("xlarge");
+    stubStored({ textSize: "huge" });
+    expect(loadSettings().textSize).toBe("medium");
+  });
+});
