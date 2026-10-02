@@ -25,9 +25,9 @@ module.exports = {
     // preview effect text: trailing spaces must not hang past the box (#256)
     { id: "e2e-preview-effect-hanging-spaces", args: "playthrough --project=desktop-1280", file: "duel-web/src/board.css", from: "  color: var(--ink);\n  white-space: pre-line;\n}", to: "  color: var(--ink);\n  white-space: pre-wrap;\n}", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [desktop-1280]"] },
 
-    // DON!! −N picked off the board (#PR_I)
-    { id: "e2e-don-chip-clicks-ignored", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/ChoicePrompt.tsx", from: "  const chip = target?.closest?.<HTMLElement>(\".don-strip .don-chip-btn[data-don-id]\");", to: "  const chip = null as HTMLElement | null;", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#PR_I) [desktop-1280]"] },
-    { id: "e2e-don-chip-disabled", args: "demo-audit --project=phone-375", file: "duel-web/src/board/DonStrip.tsx", from: "      tabIndex={canDrag ? undefined : -1}\n", to: "      disabled={!canDrag}\n", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#PR_I) [phone-375]"] },
+    // DON!! −N picked off the board (#258)
+    { id: "e2e-don-chip-clicks-ignored", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/ChoicePrompt.tsx", from: "  const chip = target?.closest?.<HTMLElement>(\".don-strip .don-chip-btn[data-don-id]\");", to: "  const chip = null as HTMLElement | null;", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [desktop-1280]"] },
+    { id: "e2e-don-chip-disabled", args: "demo-audit --project=phone-375", file: "duel-web/src/board/DonStrip.tsx", from: "      tabIndex={canDrag ? undefined : -1}\n", to: "      disabled={!canDrag}\n", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [phone-375]"] },
 
     // UI audit
     // #190's deck-order fix has three layers (shrinkable column, wrapping row, clamped name); undo all of them.

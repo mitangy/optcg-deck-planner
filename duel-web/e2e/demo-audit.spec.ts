@@ -80,7 +80,7 @@ test("clicking board slots leaves no text caret on the mat (#246)", async ({ pag
 });
 
 // DON!! −N used to open a grid of DON!! cards: pick them off the board instead.
-test("DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#PR_I)", async ({ page }) => {
+test("DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258)", async ({ page }) => {
   await page.goto("/demo?prompt=don2");
   await page.locator(".board-root").waitFor();
   await expect(page.locator(".field-bar")).toBeVisible();

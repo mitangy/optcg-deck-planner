@@ -36,22 +36,22 @@ describe("field target choices", () => {
 });
 
 describe("DON!! choices on the board", () => {
-  it("DON!! −N picks cost-area DON!! by state, yours or the opponent's (#PR_I)", () => {
+  it("DON!! −N picks cost-area DON!! by state, yours or the opponent's (#258)", () => {
     const spots = boardPickSpots([don("d1", "Active DON!!"), don("d2", "Rested DON!!"), don("d3", "Rested DON!!", { ownerSeat: 1 })], board, 0);
     expect(spots && Object.fromEntries(spots)).toEqual({ d1: "don:you:active", d2: "don:you:rested", d3: "don:opp:rested" });
   });
 
-  it("attached DON!! are picked by tapping the card they sit under, on the owner's side (#PR_I)", () => {
+  it("attached DON!! are picked by tapping the card they sit under, on the owner's side (#258)", () => {
     const spots = boardPickSpots([don("d1", "DON!! on Monkey.D.Luffy"), don("d2", "DON!! on Nico Robin")], board, 0);
     expect(spots && Object.fromEntries(spots)).toEqual({ d1: "host:L1", d2: "host:c2" });
   });
 
-  it("keep the pop-up when two cards share the DON!! host's name (#PR_I)", () => {
+  it("keep the pop-up when two cards share the DON!! host's name (#258)", () => {
     const twins = new Map(board).set("c3", { seat: 0, name: "Nico Robin", attachedDonCount: 2 });
     expect(boardPickSpots([don("d1", "DON!! on Nico Robin")], twins, 0)).toBeNull();
   });
 
-  it("keep the pop-up when the named host has no DON!! under it (#PR_I)", () => {
+  it("keep the pop-up when the named host has no DON!! under it (#258)", () => {
     expect(boardPickSpots([don("d1", "DON!! on Karoo")], board, 0)).toBeNull();
   });
 });
@@ -67,7 +67,7 @@ describe("tapping board spots", () => {
   ]);
   const empty = { selected: [], chips: {} };
 
-  it("a cost-area chip picks one DON!! of its state and a second tap on it drops it (#PR_I)", () => {
+  it("a cost-area chip picks one DON!! of its state and a second tap on it drops it (#258)", () => {
     const one = tapBoardSpot(empty, spots, "don:you:active", 3, "chipA");
     expect(one).toEqual({ selected: ["a1"], chips: { a1: "chipA" } });
     const two = tapBoardSpot(one, spots, "don:you:active", 3, "chipB");
@@ -75,19 +75,19 @@ describe("tapping board spots", () => {
     expect(tapBoardSpot(two, spots, "don:you:active", 3, "chipA")).toEqual({ selected: ["a2"], chips: { a2: "chipB" } });
   });
 
-  it("a chip of a state with every DON!! already picked adds nothing (#PR_I)", () => {
+  it("a chip of a state with every DON!! already picked adds nothing (#258)", () => {
     const both = { selected: ["a1", "a2"], chips: { a1: "chipA", a2: "chipB" } };
     expect(tapBoardSpot(both, spots, "don:you:active", 5, "chipC")).toEqual(both);
   });
 
-  it("a card with DON!! under it counts up per tap, then drops them all (#PR_I)", () => {
+  it("a card with DON!! under it counts up per tap, then drops them all (#258)", () => {
     const one = tapBoardSpot(empty, spots, "host:L1", 3);
     const two = tapBoardSpot(one, spots, "host:L1", 3);
     expect(two.selected).toEqual(["h1", "h2"]);
     expect(tapBoardSpot(two, spots, "host:L1", 3).selected).toEqual([]);
   });
 
-  it("stops at the maximum and a single pick swaps (#PR_I)", () => {
+  it("stops at the maximum and a single pick swaps (#258)", () => {
     const full = { selected: ["c1"], chips: {} };
     expect(tapBoardSpot(full, spots, "host:L1", 1).selected).toEqual(["h1"]);
     expect(tapBoardSpot(full, spots, "don:you:rested", 1, "x")).toEqual({ selected: ["r1"], chips: { r1: "x" } });

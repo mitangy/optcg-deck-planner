@@ -56,7 +56,7 @@ describe("select choices over field cards", () => {
     }
   });
 
-  it("DON!! −N is answered on the board: cost-area chips and the DON!! host outlined, no DON!! grid (#PR_I)", () => {
+  it("DON!! −N is answered on the board: cost-area chips and the DON!! host outlined, no DON!! grid (#258)", () => {
     const html = render(
       choice(
         [
@@ -73,7 +73,7 @@ describe("select choices over field cards", () => {
     expect(html).toContain('.card-tile[data-instance-id="c2"] { outline: 2px dashed');
   });
 
-  it("keeps the DON!! grid when the DON!! host can't be found on the board (#PR_I)", () => {
+  it("keeps the DON!! grid when the DON!! host can't be found on the board (#258)", () => {
     const html = render(choice([{ id: "d1", defId: "DON", zone: "don", ownerSeat: 0, eligible: true, label: "DON!! on Karoo", rested: false }]));
     expect(html).toContain("choice-don");
     expect(html).not.toContain("field-bar");
