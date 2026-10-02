@@ -29,7 +29,16 @@ export type StatsAtlasCard = {
   /** Leaders only: traits named as {Trait} in the printed text. */
   lt?: string[];
   srch?: StatsSearch[];
+  /** Events: base +power their [Counter] gives one of your cards. */
+  ec?: number;
+  /** Counter the card prints for itself while in hand (Rocks.D.Xebec OP17-118). */
+  hc?: number;
+  /** Leaders only: counters granted to cards in hand. */
+  gc?: StatsCounterGrant[];
 };
+
+/** Counter becomes `v` (or printed + `v` with `add`); `t` / `tr` narrow by type / any trait; `nc` only cards without a printed counter. */
+export type StatsCounterGrant = { v: number; add?: 1; t?: StatsCardType[]; tr?: string[]; nc?: 1 };
 
 export type StatsAtlas = Record<string, StatsAtlasCard>;
 
@@ -38,6 +47,8 @@ export type DeckStatsCard = { id: string; copies: number };
 export type NameCount = { name: string; count: number };
 
 export type CostBucket = { cost: number; character: number; event: number; stage: number; total: number };
+
+export type GrantedCounter = { id: string; name: string; copies: number; value: number; source: "self" | "leader" };
 
 export type RuleViolation = { rule: string; cardIds: string[] };
 
@@ -62,6 +73,10 @@ export type DeckStats = {
     other: number;
     /** Event cards with a [Counter] ability. */
     events: number;
+    /** Cards whose counter comes from printed text rather than the counter box (self or Leader grants). */
+    granted: GrantedCounter[];
+    /** Whether [Counter] events' base +power is included in the totals. */
+    eventsCounted: boolean;
   };
   keywords: NameCount[];
   timing: NameCount[];
@@ -107,6 +122,36 @@ const ROLE_LABEL: Record<string, string> = {
   lifeGain: "Life gain",
 };
 
+/** Counter a card has in hand: printed, then its own printed grant, then the Leader's grants. */
+export function effectiveCounter(
+  card: StatsAtlasCard,
+  leader: StatsAtlasCard | undefined,
+  eventCounters = false,
+): { value: number; source: "printed" | "self" | "leader" | "event" } {
+  const printed = card.ctr ?? 0;
+  let value = printed;
+  let source: "printed" | "self" | "leader" | "event" = "printed";
+  if (card.hc && card.hc > value) {
+    value = card.hc;
+    source = "self";
+  }
+  for (const g of leader?.gc ?? []) {
+    if (g.t && !g.t.includes(card.t)) continue;
+    if (g.tr && !g.tr.some((t) => (card.tr ?? []).includes(t))) continue;
+    if (g.nc && printed > 0) continue;
+    const next = g.add ? value + g.v : g.v;
+    if (next > value) {
+      value = next;
+      source = "leader";
+    }
+  }
+  if (eventCounters && card.t === "event" && card.ec && card.ec > value) {
+    value = card.ec;
+    source = "event";
+  }
+  return { value, source };
+}
+
 /** Mirrors `deckConstructionErrors` in packages/rules (deck_rule statics on Leaders). */
 export function ruleOffends(rule: string, card: StatsAtlasCard): boolean {
   const [kind, arg] = rule.split(":");
@@ -120,7 +165,7 @@ export function computeDeckStats(
   cards: readonly DeckStatsCard[],
   atlas: StatsAtlas,
   leaderId?: string | null,
-  opts: { topTraits?: number } = {},
+  opts: { topTraits?: number; eventCounters?: boolean } = {},
 ): DeckStats {
   const copiesById = new Map<string, number>();
   for (const c of cards) {
@@ -137,7 +182,7 @@ export function computeDeckStats(
   const colors = new Map<string, number>();
   const roles = new Map<string, number>();
   const byType = { character: 0, event: 0, stage: 0 };
-  const counter = { totalCounter: 0, average: 0, none: 0, c1000: 0, c2000: 0, other: 0, events: 0 };
+  const counter = { totalCounter: 0, average: 0, none: 0, c1000: 0, c2000: 0, other: 0, events: 0, granted: [] as GrantedCounter[], eventsCounted: !!opts.eventCounters };
   let total = 0;
   let unknown = 0;
   let triggers = 0;
@@ -166,7 +211,9 @@ export function computeDeckStats(
       powers.set(step, (powers.get(step) ?? 0) + copies);
     }
 
-    const ctr = card.ctr ?? 0;
+    const eff = effectiveCounter(card, leader, opts.eventCounters);
+    const ctr = eff.value;
+    if (eff.source === "self" || eff.source === "leader") counter.granted.push({ id, name: card.n ?? id, copies, value: ctr, source: eff.source });
     counter.totalCounter += ctr * copies;
     if (ctr === 0) counter.none += copies;
     else if (ctr === 1000) counter.c1000 += copies;
@@ -194,6 +241,7 @@ export function computeDeckStats(
   }
 
   counter.average = total ? counter.totalCounter / total : 0;
+  counter.granted.sort((a, b) => b.copies - a.copies || a.name.localeCompare(b.name));
 
   const powerKeys = [...powers.keys()];
   const powerCurve: { power: number; count: number }[] = [];

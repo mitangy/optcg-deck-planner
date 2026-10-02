@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { computeDeckStats, type DeckStats, type DeckStatsCard, type NameCount } from "../deckStats";
 import { deckEntries, type DeckEntry } from "../drawOdds";
 import { DeckHintsTray, type HintsState } from "./DeckHints";
@@ -118,8 +118,48 @@ function PowerCurve({ stats }: { stats: DeckStats }) {
   );
 }
 
-function CounterBlock({ stats }: { stats: DeckStats }) {
+const EVENT_COUNTERS_KEY = "optcg:deck-stats-event-counters";
+
+function readEventCounters(): boolean {
+  try {
+    return localStorage.getItem(EVENT_COUNTERS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function useEventCounters(): [boolean, (on: boolean) => void] {
+  const [on, setOn] = useState(readEventCounters);
+  return [
+    on,
+    (next) => {
+      setOn(next);
+      try {
+        localStorage.setItem(EVENT_COUNTERS_KEY, next ? "1" : "0");
+      } catch {
+        /* private mode: the toggle still works for this visit */
+      }
+    },
+  ];
+}
+
+/** Where counters printed outside the counter box came from (Rocks.D.Xebec in hand, Leader grants). */
+function grantedNote(c: DeckStats["counter"]): string | null {
+  const self = c.granted.filter((g) => g.source === "self");
+  const fromLeader = c.granted.filter((g) => g.source === "leader");
+  const parts: string[] = [];
+  if (self.length) parts.push(self.map((g) => `${g.name} ×${g.copies} at +${fmt(g.value)}`).join(", "));
+  if (fromLeader.length) {
+    const copies = fromLeader.reduce((n, g) => n + g.copies, 0);
+    const values = [...new Set(fromLeader.map((g) => g.value))].map((v) => `+${fmt(v)}`).join(" / ");
+    parts.push(`${copies} card${copies === 1 ? "" : "s"} at ${values} from your Leader`);
+  }
+  return parts.length ? `Includes counters from card text: ${parts.join("; ")}.` : null;
+}
+
+function CounterBlock({ stats, onEventCounters }: { stats: DeckStats; onEventCounters: (on: boolean) => void }) {
   const c = stats.counter;
+  const granted = grantedNote(c);
   const parts = [
     { key: "none", label: "No counter", n: c.none },
     { key: "c1000", label: "+1000", n: c.c1000 },
@@ -145,6 +185,11 @@ function CounterBlock({ stats }: { stats: DeckStats }) {
           Counter events <strong>{c.events}</strong>
         </li>
       </ul>
+      <label className="ds-toggle">
+        <input type="checkbox" checked={c.eventsCounted} onChange={(e) => onEventCounters(e.target.checked)} />
+        Count counter events (base +power)
+      </label>
+      {granted ? <p className="ds-note">{granted}</p> : null}
       <p className="ds-note">
         Opening hand of {stats.openingHand.size}: about <strong>{fmt(stats.openingHand.expectedCounter)}</strong> counter and{" "}
         <strong>{fmt(stats.openingHand.expectedTriggers, 1)}</strong> Trigger cards.
@@ -153,19 +198,19 @@ function CounterBlock({ stats }: { stats: DeckStats }) {
   );
 }
 
-function StatsBody({ stats, entries }: { stats: DeckStats; entries: DeckEntry[] }) {
+function StatsBody({ stats, entries, onEventCounters }: { stats: DeckStats; entries: DeckEntry[]; onEventCounters: (on: boolean) => void }) {
   const blockers = stats.keywords.find((k) => k.name === "Blocker")?.count ?? 0;
   return (
     <div className="ds-body">
       <div className="ds-tiles">
         <Tile label="Cards" value={String(stats.total)} sub={`${stats.byType.character} Char · ${stats.byType.event} Event · ${stats.byType.stage} Stage`} />
-        <Tile label="Avg counter" value={fmt(stats.counter.average)} sub="per card" />
+        <Tile label="Avg counter" value={fmt(stats.counter.average)} sub={stats.counter.eventsCounted ? "per card, events in" : "per card"} />
         <Tile label="Triggers" value={String(stats.triggers)} />
         <Tile label="Blockers" value={String(blockers)} />
       </div>
       <div className="ds-grid">
         <CostCurve stats={stats} />
-        <CounterBlock stats={stats} />
+        <CounterBlock stats={stats} onEventCounters={onEventCounters} />
         <PowerCurve stats={stats} />
         <div className="ds-block">
           <h3>Keywords</h3>
@@ -197,9 +242,13 @@ function StatsBody({ stats, entries }: { stats: DeckStats; entries: DeckEntry[] 
 
 function StatsLoader({ cards, leaderId }: { cards: DeckStatsCard[]; leaderId: string | null }) {
   const q = useStatsAtlas();
-  const stats = useMemo(() => (q.data ? computeDeckStats(cards, q.data, leaderId) : null), [cards, q.data, leaderId]);
+  const [eventCounters, setEventCounters] = useEventCounters();
+  const stats = useMemo(
+    () => (q.data ? computeDeckStats(cards, q.data, leaderId, { eventCounters }) : null),
+    [cards, q.data, leaderId, eventCounters],
+  );
   const entries = useMemo(() => (q.data ? deckEntries(cards, q.data) : []), [cards, q.data]);
-  if (stats) return <StatsBody stats={stats} entries={entries} />;
+  if (stats) return <StatsBody stats={stats} entries={entries} onEventCounters={setEventCounters} />;
   return (
     <div className="ds-placeholder" aria-busy={q.isLoading}>
       {q.error ? (

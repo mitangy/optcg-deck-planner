@@ -162,3 +162,47 @@ describe("leader deck rules", () => {
     expect(s.leader?.ruleViolations).toEqual([{ rule: "no_events_cost_ge:3", cardIds: ["T-E1"] }]);
   });
 });
+
+describe("counters printed outside the counter box", () => {
+  const cards: StatsAtlas = {
+    "X-ROCKS": { n: "Rocks.D.Xebec", t: "character", col: ["blue"], cost: 10, pow: 12000, tr: ["Rocks Pirates"], hc: 2000 },
+    "X-WANO0": { n: "Wano 0", t: "character", col: ["red"], cost: 3, tr: ["Land of Wano"] },
+    "X-WANO1": { n: "Wano 1k", t: "character", col: ["red"], cost: 3, ctr: 1000, tr: ["Land of Wano"] },
+    "X-NAVY0": { n: "Navy 0", t: "character", col: ["red"], cost: 3, tr: ["Navy"] },
+    "X-STAGE": { n: "Stage", t: "stage", col: ["green"], cost: 1 },
+    "X-EV": { n: "Guard Point", t: "event", col: ["red"], cost: 1, tm: ["Counter"], ec: 4000 },
+    "X-LP": { t: "leader", col: ["red", "blue", "green"] },
+    "X-LW": { t: "leader", col: ["red"], gc: [{ v: 2000, t: ["character"], tr: ["Land of Wano"], nc: 1 }] },
+    "X-LS": { t: "leader", col: ["green", "red"], gc: [{ v: 3000, t: ["stage"] }] },
+  };
+
+  it("counts Rocks.D.Xebec's +2000 Counter in hand by default and names it (#265)", () => {
+    const s = computeDeckStats([{ id: "X-ROCKS", copies: 4 }, { id: "X-NAVY0", copies: 4 }], cards, "X-LP");
+    expect(s.counter.totalCounter).toBe(8000);
+    expect(s.counter.average).toBe(1000);
+    expect(s.counter.c2000).toBe(4);
+    expect(s.counter.granted).toEqual([{ id: "X-ROCKS", name: "Rocks.D.Xebec", copies: 4, value: 2000, source: "self" }]);
+  });
+
+  it("applies a Leader's counter grant only to the named trait and type, and only without a printed counter (#265)", () => {
+    const wano = computeDeckStats(
+      [{ id: "X-WANO0", copies: 2 }, { id: "X-WANO1", copies: 2 }, { id: "X-NAVY0", copies: 2 }, { id: "X-STAGE", copies: 1 }],
+      cards,
+      "X-LW",
+    );
+    // Wano 0 -> 2000, Wano 1k keeps its printed 1000, Navy and the Stage stay at 0.
+    expect(wano.counter.totalCounter).toBe(6000);
+    expect(wano.counter.granted).toEqual([{ id: "X-WANO0", name: "Wano 0", copies: 2, value: 2000, source: "leader" }]);
+    const stages = computeDeckStats([{ id: "X-STAGE", copies: 2 }, { id: "X-NAVY0", copies: 2 }], cards, "X-LS");
+    expect(stages.counter.totalCounter).toBe(6000);
+  });
+
+  it("adds [Counter] events' base +power only when event counters are on (#265)", () => {
+    const deck = [{ id: "X-EV", copies: 2 }, { id: "X-NAVY0", copies: 2 }];
+    const off = computeDeckStats(deck, cards, "X-LP");
+    expect(off.counter).toMatchObject({ totalCounter: 0, none: 4, eventsCounted: false });
+    const on = computeDeckStats(deck, cards, "X-LP", { eventCounters: true });
+    expect(on.counter).toMatchObject({ totalCounter: 8000, average: 2000, none: 2, other: 2, eventsCounted: true });
+    expect(on.counter.granted).toEqual([]);
+  });
+});
