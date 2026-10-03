@@ -580,7 +580,7 @@ module.exports = {
     // account sync: settings + playmat / card back
     { id: "settings-sync-sends-device-fields", file: "duel-web/src/settings.ts", from: "    if (!DEVICE_ONLY_KEYS.includes(k)) out[k] = s[k];", to: "    out[k] = s[k];", kills: ["never sends device-only fields to the account"] },
     { id: "settings-remote-overwrites-device-fields", file: "duel-web/src/settings.ts", from: "  for (const k of DEVICE_ONLY_KEYS) (next as Record<string, unknown>)[k] = local[k];\n", to: "", kills: ["keeps this device's device-only fields"] },
-    { id: "settings-remote-ignored", file: "duel-web/src/settings.ts", from: "  const next = sanitize({ ...local, ...(remote as Partial<DuelSettings>) });", to: "  const next = sanitize({ ...local });", kills: ["keeps this device's device-only fields"] },
+    { id: "settings-remote-ignored", file: "duel-web/src/settings.ts", from: "  const next = sanitize({ ...base, ...(remote as Partial<DuelSettings>) });", to: "  const next = sanitize({ ...base });", kills: ["keeps this device's device-only fields"] },
     { id: "settings-sync-load-overwrites-edits", file: "duel-web/src/account/settingsSync.ts", from: "applyRemoteSettings({ ...settings, ...edited });", to: "applyRemoteSettings(settings);", kills: ["keeps and saves a setting changed before the load finished"] },
     { id: "settings-sync-edits-not-pushed", file: "duel-web/src/account/settingsSync.ts", from: "      await putAccountSettings(syncedSettings(currentSettings())).catch(() => undefined);\n", to: "", kills: ["keeps and saves a setting changed before the load finished"] },
     { id: "settings-sync-stop-during-load", file: "duel-web/src/account/settingsSync.ts", from: "  if (gen !== syncGen) return;\n", to: "", kills: ["stopping during the load neither applies the account nor keeps saving"] },
@@ -750,5 +750,7 @@ module.exports = {
     { id: "fanpos-nudge-never-docks", file: `${src}/board/handFanPos.ts`, from: "pos.y + step >= 1 - step / 2 ? 1 : pos.y + step", to: "pos.y + step", kills: ["moves by a step and lands on the bottom edge from just above it (#261)"] },
     { id: "legacy-right-fan-recentred", file: `${src}/settings.ts`, from: "  if (storedLayout === \"fanRight\" && rest.handFanPos === undefined) next.handFanPos = LEGACY_RIGHT_FAN_POS;\n", to: "", kills: ["turns the old centre and right fans into the one fan, the right one kept at the bottom right (#261)"] },
     { id: "legacy-right-fan-overrides-spot", file: `${src}/settings.ts`, from: "storedLayout === \"fanRight\" && rest.handFanPos === undefined", to: "storedLayout === \"fanRight\"", kills: ["turns the old centre and right fans into the one fan, the right one kept at the bottom right (#261)"] },
+    { id: "remote-legacy-fan-masked-by-local-spot", file: `${src}/settings.ts`, from: "  const base: Partial<DuelSettings> = legacyFan ? localRest : local;", to: "  const base: Partial<DuelSettings> = local;", kills: ["keeps the old right and centre fans from the account over this device's fan spot (#261)"] },
+    { id: "remote-legacy-centre-fan-masked", file: `${src}/settings.ts`, from: "(remote.handLayout === \"fanRight\" || remote.handLayout === \"fanCenter\")", to: "remote.handLayout === \"fanRight\"", kills: ["keeps the old right and centre fans from the account over this device's fan spot (#261)"] },
   ],
 };

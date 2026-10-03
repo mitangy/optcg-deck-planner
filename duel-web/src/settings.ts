@@ -203,7 +203,12 @@ export function syncedSettings(s: DuelSettings): Record<string, string | number 
 
 /** Account settings laid over this device's, keeping its device-only fields. */
 export function mergeRemoteSettings(local: DuelSettings, remote: Record<string, unknown>): DuelSettings {
-  const next = sanitize({ ...local, ...(remote as Partial<DuelSettings>) });
+  // An account last saved before #261 has an old fan and no fan spot: this device's
+  // spot must not hide that fan's own spot from the migration in sanitize.
+  const legacyFan = (remote.handLayout === "fanRight" || remote.handLayout === "fanCenter") && remote.handFanPos === undefined;
+  const { handFanPos: _localFanPos, ...localRest } = local;
+  const base: Partial<DuelSettings> = legacyFan ? localRest : local;
+  const next = sanitize({ ...base, ...(remote as Partial<DuelSettings>) });
   for (const k of DEVICE_ONLY_KEYS) (next as Record<string, unknown>)[k] = local[k];
   return next;
 }
