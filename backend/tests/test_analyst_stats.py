@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app import analyst_stats
-from app.models import DuelMatchSeat
+from app.models import DuelMatch, DuelMatchSeat
 from tests.test_analyst import _me_and_token, analyst  # noqa: F401  (fixture)
 from tests.test_duel import _ingest, client  # noqa: F401  (fixture)
 
@@ -43,15 +43,15 @@ def test_matchup_stats_count_wins_by_side_and_by_who_went_first(analyst):  # noq
     """A leader pair's record, win rate interval and first/second split come from each side's seat (#246)."""
     c, _ = analyst
     a, b = _users(c, "alice", "bob")
-    # Zoro wins 4 of 6; going first (games 0, 2, 4) Zoro wins 3 of 3.
-    _zoro_vs_lucci(c, "m", a, b, [(0, 0), (1, 1), (0, 0), (1, 1), (0, 0), (0, 1)])
+    # Zoro wins 6 of 10: 4 of the 5 going first, 2 of the 5 going second.
+    _zoro_vs_lucci(c, "m", a, b, [(0, 0)] * 4 + [(1, 0)] + [(0, 1)] * 2 + [(1, 1)] * 3)
     s = _stats(c, leader=ZORO, opponent=LUCCI)
-    assert (s["games"], s["wins"], s["win_rate"], s["too_few_games"]) == (6, 4, 0.667, False)
-    assert s["interval"] == list(analyst_stats.wilson(4, 6))
-    assert (s["going_first"]["games"], s["going_first"]["wins"]) == (3, 3)
-    assert (s["going_second"]["games"], s["going_second"]["wins"]) == (3, 1)
+    assert (s["games"], s["wins"], s["win_rate"], s["too_few_games"]) == (10, 6, 0.6, False)
+    assert s["interval"] == list(analyst_stats.wilson(6, 10))
+    assert (s["going_first"]["games"], s["going_first"]["wins"]) == (5, 4)
+    assert (s["going_second"]["games"], s["going_second"]["wins"]) == (5, 2)
     other = _stats(c, leader=LUCCI, opponent=ZORO)
-    assert (other["games"], other["wins"], other["going_first"]["wins"]) == (6, 2, 2)
+    assert (other["games"], other["wins"], other["going_first"]["wins"]) == (10, 4, 3)
 
 
 def test_wilson_interval_matches_the_textbook_value(analyst):  # noqa: F811
@@ -83,7 +83,7 @@ def test_a_leaders_overview_leaves_mirrors_out_and_reports_them_on_their_own(ana
     for n in range(3):
         _ingest(c, f"mirror{n}", a, b, 0, seat0_leader_id=ZORO, seat1_leader_id=ZORO)
     s = _stats(c, leader=ZORO)
-    assert (s["overall"]["games"], s["overall"]["wins"]) == (2, 1)
+    assert s["overall"]["games"] == 2
     assert [o["opponent"] for o in s["opponents"]] == [LUCCI]
     assert _stats(c, leader=ZORO, opponent=ZORO) == {**_stats(c, leader=ZORO, opponent=ZORO), "mirror": True, "games": 3}
 
@@ -109,13 +109,52 @@ def test_stats_only_count_games_inside_the_window(analyst):  # noqa: F811
     _zoro_vs_lucci(c, "m", a, b, [(0, 0), (1, 0)])
     db = SessionLocal()
     try:
-        for row in db.query(DuelMatchSeat).filter(DuelMatchSeat.match_id == "m0"):
-            row.created_at = datetime.now(timezone.utc) - timedelta(days=40)
+        db.query(DuelMatch).filter(DuelMatch.match_id == "m0").one().created_at = datetime.now(timezone.utc) - timedelta(days=40)
         db.commit()
     finally:
         db.close()
     assert _stats(c, leader=ZORO, opponent=LUCCI, days=30)["games"] == 1
     assert _stats(c, leader=ZORO, opponent=LUCCI, days=60)["games"] == 2
+
+
+def test_backfilled_games_count_in_the_window_of_their_match_not_of_the_backfill_run(analyst):  # noqa: F811
+    """A game played 200 days ago and backfilled today stays out of a 90-day window (#246)."""
+    c, SessionLocal = analyst
+    a, b = _users(c, "alice", "bob")
+    _zoro_vs_lucci(c, "old", a, b, [(0, 0)])
+    _zoro_vs_lucci(c, "new", a, b, [(1, 0)])
+    db = SessionLocal()
+    try:
+        old = db.query(DuelMatch).filter(DuelMatch.match_id == "old0").one()
+        old.created_at = datetime.now(timezone.utc) - timedelta(days=200)
+        db.query(DuelMatchSeat).filter(DuelMatchSeat.match_id == "old0").delete()
+        db.commit()
+        assert analyst_stats.backfill_seats(db) == 2
+    finally:
+        db.close()
+    assert _stats(c, leader=ZORO, opponent=LUCCI, days=90)["games"] == 1
+    assert _stats(c, leader=ZORO, opponent=LUCCI, days=365)["games"] == 2
+
+
+def test_under_five_games_only_the_game_count_is_given(analyst):  # noqa: F811
+    """Fewer than five games show their count but no wins, rates, intervals or game length, per split too (#246)."""
+    c, _ = analyst
+    a, b = _users(c, "alice", "bob")
+    _zoro_vs_lucci(c, "one", a, b, [(0, 0)])
+    held_back = {"wins": None, "win_rate": None, "interval": None, "too_few_games": True}
+    one = _stats(c, leader=ZORO, opponent=LUCCI)
+    assert one == {**one, "games": 1, **held_back, "average_turns": None}
+    assert one["going_first"] == {"games": 1, **held_back}
+    assert one["going_second"] == {"games": 0, **held_back}
+    overview = _stats(c)["leaders"]
+    assert [(r["leader"], r["games"], r["wins"], r["average_turns"]) for r in overview] == [(ZORO, 1, None, None), (LUCCI, 1, None, None)]
+
+    # Six games: the whole record shows, but each three-game split is held back on its own.
+    _zoro_vs_lucci(c, "more", a, b, [(0, 0), (1, 1), (0, 0), (1, 1), (0, 1)])
+    six = _stats(c, leader=ZORO, opponent=LUCCI)
+    assert (six["games"], six["wins"], six["too_few_games"], six["average_turns"]) == (6, 4, False, 9.7)
+    assert six["going_first"] == {"games": 3, **held_back}
+    assert six["going_second"] == {"games": 3, **held_back}
 
 
 def test_stats_are_for_the_analyst_service_only(analyst):  # noqa: F811
