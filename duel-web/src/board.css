@@ -3304,11 +3304,8 @@ body.is-panel-drag * {
 }
 
 @media (max-width: 899px) and (orientation: portrait) {
-  /* No piles to make room for, so the mat can run wider than 12:7. */
-  .arena .side-opp.side-counts {
-    width: min(100cqw, calc(var(--mat-h) * 1.9));
-  }
-
+  /* Same width as your mat (the base portrait rule), so when the height binds (mulligan
+     explainer, 320px screens) both mats shrink together and stay centred on one axis. */
   .arena .side-opp.side-counts .side-grid {
     --g: 1.6cqw;
     --c: min(

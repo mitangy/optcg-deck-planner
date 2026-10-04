@@ -212,10 +212,9 @@ export function GameplaySettingsFields() {
           ))}
         </select>
         <p className="field-hint">
-          Desktop: the fan peeks off the bottom of the board and rises when you point at it; drag
-          its grip to put it anywhere on the screen (on the bottom edge it still tucks away). Grid
-          keeps the hand open as a side panel you can move to either column. Phones: the fan
-          overlaps the hand strip so every card fits without scrolling.
+          {desktop
+            ? "Desktop: the fan peeks off the bottom of the board and rises when you point at it; drag its grip to put it anywhere on the screen. Grid keeps the hand open as a side panel you can move to either column."
+            : "Fan overlaps the hand so every card fits; Grid shows them side by side and scrolls."}
         </p>
       </div>
       {desktop ? (
@@ -292,7 +291,11 @@ export function GameplaySettingsFields() {
         </p>
       </div>
       {TOGGLES.filter(
-        (t) => (t.key !== "tiltedBoard" || tiltFits) && (t.key !== "layoutGrips" || desktop),
+        (t) =>
+          (t.key !== "tiltedBoard" || tiltFits) &&
+          (t.key !== "layoutGrips" || desktop) &&
+          // The tucked-away fan / corner dock only exists on desktop windows.
+          (t.key !== "keepHandOpen" || desktop),
       ).map((t) => (
         <div className="gameplay-toggle" key={t.key}>
           <label className="switch">

@@ -1290,3 +1290,52 @@ label.btn.is-busy {
 .segmented-3 {
   grid-template-columns: repeat(3, 1fr);
 }
+
+/* iPhone install tip: one quiet line under Play, not a card above it. */
+.install-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0 0 0 0.25rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.install-hint strong {
+  color: var(--ink);
+}
+
+.install-hint-close {
+  flex: none;
+  width: 44px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* Landscape phones: a compact header so Play stays on the first screen. */
+@media (orientation: landscape) and (max-height: 499px) {
+  .home {
+    padding-top: 0.75rem;
+    padding-bottom: 1rem;
+    gap: 0.75rem;
+  }
+
+  .home-hero {
+    margin-bottom: 0;
+  }
+
+  .home-kicker,
+  .home-rule {
+    display: none;
+  }
+
+  .home-brand {
+    font-size: 2rem;
+  }
+}

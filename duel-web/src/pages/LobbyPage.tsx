@@ -654,29 +654,6 @@ export function LobbyPage() {
 
         <UpdateNotice />
 
-        {showIosHint ? (
-          <section className="notice" aria-label="Install on your iPhone">
-            <div className="notice-body">
-              <strong>Install on your iPhone</strong>
-              <span>
-                Tap Share, then Add to Home Screen. It opens full screen with no browser bars.
-              </span>
-            </div>
-            <div className="notice-actions">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  dismissIosHint(readInstallEnv());
-                  setShowIosHint(false);
-                }}
-              >
-                Dismiss
-              </button>
-            </div>
-          </section>
-        ) : null}
-
         {pendingResume ? (
           <section className="notice notice-gold" aria-label="Resume match">
             <div className="notice-body">
@@ -749,6 +726,25 @@ export function LobbyPage() {
             Play
           </button>
         </div>
+
+        {showIosHint ? (
+          <div className="install-hint" role="note" aria-label="Install on your iPhone">
+            <span>
+              <strong>Install:</strong> tap Share, then Add to Home Screen.
+            </span>
+            <button
+              type="button"
+              className="install-hint-close"
+              aria-label="Dismiss install tip"
+              onClick={() => {
+                dismissIosHint(readInstallEnv());
+                setShowIosHint(false);
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
 
         {selectedDeck ? (
           <DeckSwitcher decks={decks} selectedDeck={selectedDeck} onChoose={chooseDeck} />
