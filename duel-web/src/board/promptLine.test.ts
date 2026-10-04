@@ -24,17 +24,17 @@ const KO_PICK = choice({
 });
 
 describe("promptShortLine", () => {
-  it("shows a confirm as its question, without the card name or the rest of the text (#__P1__)", () => {
+  it("shows a confirm as its question, without the card name or the rest of the text (#278)", () => {
     expect(promptShortLine(choice({}))).toBe(
       "Rest 1 of your DON!! cards, and if you do, give your opponent's Leader and all of their Characters -1000 power during this turn?",
     );
   });
 
-  it("shows a pick as what the effect asks for, without the card name (#__P1__)", () => {
+  it("shows a pick as what the effect asks for, without the card name (#278)", () => {
     expect(promptShortLine(KO_PICK)).toBe("Choose up to 1 card to K.O.");
   });
 
-  it("treats a choice with no request as a confirm (#__P1__)", () => {
+  it("treats a choice with no request as a confirm (#278)", () => {
     const life = choice({
       prompt: "Rayleigh — activate this card's [Trigger]? [Trigger] K.O. up to 1 Character.",
       request: undefined,
@@ -46,7 +46,7 @@ describe("promptShortLine", () => {
 describe("respondSubline", () => {
   const base = { oppName: "Teach", mySeat: 0 as const };
 
-  it("says block or counter only in the block / counter step with nothing open (#__P1__)", () => {
+  it("says block or counter only in the block / counter step with nothing open (#278)", () => {
     expect(respondSubline({ ...base, phase: "block", choice: null })).toBe(
       "Teach is attacking — block or counter",
     );
@@ -55,21 +55,21 @@ describe("respondSubline", () => {
     );
   });
 
-  it("asks the open confirm's question instead of block or counter (#__P1__)", () => {
+  it("asks the open confirm's question instead of block or counter (#278)", () => {
     expect(respondSubline({ ...base, phase: "counter", choice: choice({}) })).toMatch(/^Rest 1 of your DON!!/);
   });
 
-  it("names the pick when a K.O. choice is open during the battle (#__P1__)", () => {
+  it("names the pick when a K.O. choice is open during the battle (#278)", () => {
     expect(respondSubline({ ...base, phase: "counter", choice: KO_PICK })).toBe("Choose up to 1 card to K.O.");
   });
 
-  it("does not say block or counter outside those steps (#__P1__)", () => {
+  it("does not say block or counter outside those steps (#278)", () => {
     const sub = respondSubline({ ...base, phase: "main", choice: null });
     expect(sub).not.toMatch(/block or counter/);
     expect(sub).not.toBe("");
   });
 
-  it("ignores the opponent's choice, which is not yours to answer (#__P1__)", () => {
+  it("ignores the opponent's choice, which is not yours to answer (#278)", () => {
     expect(respondSubline({ ...base, phase: "counter", choice: choice({ seat: 1 }) })).toBe(
       "Teach is attacking — block or counter",
     );

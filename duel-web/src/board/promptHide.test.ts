@@ -12,16 +12,16 @@ describe("isPromptHidden", () => {
 });
 
 describe("promptOpenFor", () => {
-  it("is open for your own visible choice, so the battle arrow fades (#__P1__)", () => {
+  it("is open for your own visible choice, so the battle arrow fades (#278)", () => {
     expect(promptOpenFor({ id: "c1", seat: 0 }, 0, null)).toBe(true);
     expect(promptOpenFor({ id: "c2", seat: 0 }, 0, "c1")).toBe(true);
   });
 
-  it("is not open for the opponent's choice (#__P1__)", () => {
+  it("is not open for the opponent's choice (#278)", () => {
     expect(promptOpenFor({ id: "c1", seat: 1 }, 0, null)).toBe(false);
   });
 
-  it("is not open once you tuck your prompt away (#__P1__)", () => {
+  it("is not open once you tuck your prompt away (#278)", () => {
     expect(promptOpenFor({ id: "c1", seat: 0 }, 0, "c1")).toBe(false);
   });
 });
