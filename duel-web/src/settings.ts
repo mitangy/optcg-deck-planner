@@ -166,9 +166,8 @@ function sanitize(
   const next = { ...DEFAULTS, ...rest };
   if (!END_TURN_CONFIRM.includes(next.endTurnConfirm)) next.endTurnConfirm = DEFAULTS.endTurnConfirm;
   // Older builds stored a boolean auto-pass: true is today's `auto`, anything else `always`.
-  if (rest.responseStops === undefined) {
-    next.responseStops = autoPassDefense === true ? "auto" : deviceDefaults().responseStops;
-  }
+  if (rest.responseStops === undefined) next.responseStops = deviceDefaults().responseStops;
+  if (rest.responseStops === undefined && autoPassDefense === true) next.responseStops = "auto";
   if (!RESPONSE_STOPS.includes(next.responseStops)) next.responseStops = DEFAULTS.responseStops;
   if (!SCREEN_ORIENTATIONS.includes(next.screenOrientation)) {
     next.screenOrientation = DEFAULTS.screenOrientation;
