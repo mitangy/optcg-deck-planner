@@ -3,6 +3,7 @@ import type { CardView, ChatLine, PlayerView, RematchState, UndoState } from "..
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
 import { motionDemoSteps } from "./motionDemo";
+import type { MatchHistoryEntry } from "../history/historyApi";
 
 const DEMO_INSTANCES: InstanceIndex = new Map([
   ["y-leader", { defId: "ST01-001", seat: 0 }],
@@ -42,6 +43,25 @@ export const DEMO_BATTLE_LOG: BattleLogEntry[] = [
     { youSeat: 0, turnNumber: 3, instances: DEMO_INSTANCES },
   ),
 ];
+
+/** `?over`: a saved ranked match with a log, as the match-over card finds it (`&guest` leaves it out). */
+const loadDemoRecord = (matchId: string): Promise<MatchHistoryEntry> =>
+  Promise.resolve({
+    match_id: matchId,
+    created_at: null,
+    ranked: true,
+    your_seat: 0,
+    won: false,
+    reason: "leader_battle_at_zero_life",
+    turns: 9,
+    your_leader_id: "ST01-001",
+    opponent_leader_id: "ST01-001",
+    opponent_name: "Opponent",
+    rating_before: 1028,
+    rating_after: 1012,
+    has_replay: false,
+    has_log: true,
+  });
 
 /** Static playmat preview for layout QA (`/demo`). Not a live match. */
 export const DEMO_VIEW: PlayerView = {
@@ -460,7 +480,7 @@ function intParam(params: URLSearchParams, key: string): number | null {
 
 /**
  * Pile / cost-area overrides for layout QA, e.g. `/demo?don=10&rested=10&dondeck=0`
- * or `/demo?deck=0&trash=0&life=0`. Applied to both seats so each mat is checked.
+ * or `/demo?deck=0&trash=0&life=0`; `hand=N` sets the size of your hand. Applied to both seats so each mat is checked.
  */
 export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): PlayerView {
   const don = intParam(params, "don");
@@ -469,7 +489,8 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
   const deck = intParam(params, "deck");
   const trash = intParam(params, "trash");
   const life = intParam(params, "life");
-  if ([don, rested, donDeck, deck, trash, life].every((v) => v == null)) return base;
+  const hand = intParam(params, "hand");
+  if ([don, rested, donDeck, deck, trash, life, hand].every((v) => v == null)) return base;
 
   const touchDon = don != null || rested != null;
   const total = don ?? base.you.costArea.length;
@@ -491,6 +512,14 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
       deckCount: deck ?? base.you.deckCount,
       lifeCount: life ?? base.you.lifeCount,
       trash: trashFor(base.you.trash),
+      // `?hand=19`: a big hand (the fan must stay on screen), cycling the sample cards.
+      hand:
+        hand == null
+          ? base.you.hand
+          : Array.from({ length: hand }, (_, i) => ({
+              id: `y-h${i + 1}`,
+              defId: base.you.hand[i % base.you.hand.length]!.defId,
+            })),
     },
     opponent: {
       ...base.opponent,
@@ -748,7 +777,7 @@ function withWaiting(base: PlayerView, kind: string | null): PlayerView {
  * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
  * undo (`?undo=ask` shows an incoming request), `?waiting` the invite screen,
  * `?oppturn` the opponent's turn, `?clock` per-player clocks, `?away` a
- * disconnected opponent, `?over` the match-over screen with a rematch vote
+ * disconnected opponent, `?over` the match-over screen (`&guest`: no saved match) with a rematch vote
  * (`&rematch=ask|wait|choose|left`), `?full` a full board, `?rest=N` / `?restlead` /
  * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
  * icons (see withManyStatuses), `?motion` a button that steps
@@ -864,6 +893,7 @@ export function DemoPage() {
         matchId="demo-playmat"
         errorBanner={null}
         matchOver={params.has("over") ? { winner: 1, reason: "leader_battle_at_zero_life" } : null}
+        loadMatchRecord={params.has("over") && !params.has("guest") ? loadDemoRecord : undefined}
         rematch={
           params.has("over")
             ? {

@@ -17,6 +17,7 @@ import {
 } from "../decks/storage";
 import {
   fetchAuthMe,
+  googleLoginUrl,
   mintDevGameToken,
   mintGuestGameToken,
   mintSessionGameToken,
@@ -599,6 +600,11 @@ export function LobbyPage() {
         <div className="topbar-inner">
           <span className="topbar-mark" aria-hidden />
           <div className="topbar-right">
+            {authMode === "guest" ? (
+              <a className="btn btn-primary btn-sm" href={googleLoginUrl()}>
+                Sign in
+              </a>
+            ) : null}
             <Link to="/settings" className="account-chip" title="Account settings">
               <span className="account-dot" data-mode={authMode} aria-hidden />
               <span className="account-name">{accountName}</span>

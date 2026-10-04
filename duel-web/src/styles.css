@@ -2539,6 +2539,73 @@ img.zone-pile-face {
   font-size: 0.95rem;
   margin-bottom: 0.35rem;
 }
+/* Turn count and rating change; the rating joins when the saved match lands. */
+.modal-card .match-result-facts {
+  color: var(--muted);
+  font-size: 0.82rem;
+  min-height: 1.2em;
+}
+.match-result-rating {
+  color: var(--ink);
+  font-weight: 700;
+}
+.match-result-log {
+  align-self: center;
+  color: var(--chrome);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+[data-mode="light"] .match-result-log {
+  color: var(--chrome-bright);
+}
+.match-result-board {
+  align-self: stretch;
+}
+
+/* "View board": the result steps aside to a slim pill under the top bar. */
+.match-result-pill {
+  position: fixed;
+  top: 3.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 38;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.35rem 0.5rem 0.35rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgb(var(--deep-rgb) / 0.94);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+/* Desktop: bottom of the right rail, so the board itself stays fully in view. */
+.match-result-pill.match-result-pill-rail {
+  top: auto;
+  bottom: 1rem;
+  left: auto;
+  right: calc(1rem + var(--safe-r, 0px));
+  transform: none;
+}
+.match-result-pill.match-result-loss span {
+  color: var(--crimson-bright);
+}
+.match-result-pill.match-result-win span {
+  color: var(--chrome-bright);
+}
+.match-result-pill span {
+  white-space: nowrap;
+}
+.match-result-pill .btn {
+  min-height: 2rem;
+  padding: 0.2rem 0.8rem;
+  white-space: nowrap;
+}
 
 .loading,
 .arena-loading {
@@ -4705,4 +4772,12 @@ details.deck-config-section.deck-collapsible {
    carries the count there, so skip the peeking cards. */
 .choice-option .don-under {
   display: none;
+}
+
+/* A card name and the punctuation after it ("'s", ".") never wrap apart. */
+.log-glued {
+  white-space: nowrap;
+}
+.log-glued .log-card {
+  white-space: normal;
 }

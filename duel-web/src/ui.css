@@ -296,6 +296,55 @@
   max-width: 600px;
 }
 
+/* Settings: one column on phones (the wrappers vanish, so the page order is
+   unchanged); from 1024px Gameplay, the longest panel, takes the right column
+   and everything else stacks on the left. */
+.settings-cols,
+.settings-a,
+.settings-b,
+.settings-c {
+  display: contents;
+}
+
+@media (min-width: 1024px) {
+  .page.page-settings {
+    max-width: 1120px;
+  }
+
+  .settings-cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* The last left block takes up the slack when Gameplay is the taller side. */
+    grid-template-rows: auto 1fr;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .settings-a,
+  .settings-b,
+  .settings-c {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  .settings-a {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .settings-c {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .settings-b {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
 .page-header {
   display: flex;
   align-items: center;

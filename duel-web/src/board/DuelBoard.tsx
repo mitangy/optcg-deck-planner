@@ -96,10 +96,12 @@ import { sortHandIndices } from "./handSort";
 import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { sideSkins } from "./seatSkins";
-import { updateSettings, useDuelSettings } from "../settings";
+import { resolveHandLayout, updateSettings, useDuelSettings } from "../settings";
 import { parsePanelLayout, serializePanelLayout, type PanelId } from "./panelLayout";
 import { SidePanel, usePanelDrag } from "./SidePanels";
 import { fanDocked, parseFanPos, serializeFanPos } from "./handFanPos";
+import { MatchOverFactsList, type LoadMatchRecord } from "./MatchOverFacts";
+import { useFanFit } from "./useFanFit";
 import { useFanMove } from "./useFanMove";
 import { endTurnWarning, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
@@ -159,6 +161,11 @@ type Props = {
    * also this player (practice), so no request / answer UI is shown.
    */
   undo?: { state: UndoState | null; onAction: (action: UndoAction) => void; autoAccept?: boolean };
+  /**
+   * Online ranked / casual matches: loads the saved match (History's entry) so the
+   * match-over card can show the rating change and link the match log.
+   */
+  loadMatchRecord?: LoadMatchRecord;
   /** Rematch vote on the match-over screen (unranked rooms). */
   rematch?: {
     state: RematchState | null;
@@ -240,6 +247,7 @@ export function DuelBoard({
   opponentAwayUntil = null,
   seatSkins,
   rematch,
+  loadMatchRecord,
   leaveLabel = "Leave",
   floatingPrompts = true,
   waiting,
@@ -279,8 +287,12 @@ export function DuelBoard({
   const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_QUERY);
   /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
   const lp = wide && landscapePhone;
+  /** Tall desktop, Grid layout: the hand is an always-open grid side panel (no dock). */
+  const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
+  /** "auto" (never chosen) is the Grid on a tall desktop window and the fan elsewhere. */
+  const handLayout = resolveHandLayout(prefs.handLayout, wide && !lp && railHandTall);
   /** Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). */
-  const fanHand = wide && !lp && prefs.handLayout !== "grid";
+  const fanHand = wide && !lp && handLayout !== "grid";
   /** Desktop fan: where the player dragged it (null = bottom centre of the board). */
   const fanPos = useMemo(() => parseFanPos(prefs.handFanPos), [prefs.handFanPos]);
   const fanRef = useRef<HTMLDivElement | null>(null);
@@ -299,11 +311,9 @@ export function DuelBoard({
   /** Desktop / landscape tablet: the board leans back in perspective, seen from your seat. */
   const tiltFits = useMediaQuery(TILT_BOARD_QUERY);
   const tilted = wide && !lp && tiltFits && prefs.tiltedBoard;
-  /** Tall desktop, Grid layout: the hand is an always-open grid side panel (no dock). */
-  const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
   const railHand = wide && !lp && railHandTall && !fanHand;
   /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling. */
-  const phoneFan = !wide && prefs.handLayout !== "grid";
+  const phoneFan = !wide && handLayout !== "grid";
   /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
   const panelLayout = useMemo(() => parsePanelLayout(prefs.panelLayout), [prefs.panelLayout]);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
@@ -421,6 +431,11 @@ export function DuelBoard({
   const midlineTitle = view?.pendingChoices?.length ? view.pendingChoices[0].prompt : midlineText;
   // Screen stays on through the opponent's long turns; released when the match ends.
   useScreenWakeLock(!over);
+  /** "View board" on the match-over card: the card steps aside so the final board shows. */
+  const [resultHidden, setResultHidden] = useState(false);
+  useEffect(() => {
+    if (!over) setResultHidden(false);
+  }, [over]);
   const mySeat = seat ?? view?.seat ?? null;
   const spectating = spectator || Boolean(view?.spectator);
   const result = describeMatchResult({
@@ -921,6 +936,13 @@ export function DuelBoard({
       onSendIntent(intent);
     }
   }
+
+  useFanFit(
+    fanRef,
+    view ? (spectating ? (view.you.handCount ?? 0) : view.you.hand.length) : 0,
+    fanHand && view != null,
+    shownFanPos == null ? "centre" : fanMove.livePos || !fanDocked(shownFanPos) ? "float" : "docked",
+  );
 
   if (!view) {
     return (
@@ -2259,7 +2281,21 @@ export function DuelBoard({
         />
       ) : null}
 
-      {over ? (
+      {over && resultHidden ? (
+        <div
+          className={`match-result-pill match-result-${result.outcome}${wide && !lp ? " match-result-pill-rail" : ""}`}
+          role="status"
+        >
+          <span>
+            Match over · {result.headline}
+          </span>
+          <button type="button" className="btn btn-secondary" onClick={() => setResultHidden(false)}>
+            Show result
+          </button>
+        </div>
+      ) : null}
+
+      {over && !resultHidden ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className={`modal-card match-result match-result-${result.outcome}`}>
             <p className="match-result-kicker">Match over</p>
@@ -2273,6 +2309,14 @@ export function DuelBoard({
               })()}
             </h2>
             <p className="match-result-detail">{result.detail}</p>
+            <MatchOverFactsList
+              matchId={matchId}
+              turnNumber={view.turnNumber}
+              loadRecord={spectating ? undefined : loadMatchRecord}
+            />
+            <button type="button" className="btn btn-secondary match-result-board" onClick={() => setResultHidden(true)}>
+              View board
+            </button>
             {rematch && !spectating ? (
               <RematchPanel
                 state={rematch.state}

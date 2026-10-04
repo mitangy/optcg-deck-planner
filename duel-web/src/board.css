@@ -215,6 +215,13 @@
   right: 2.4cqw;
 }
 
+/* Tilted board: the End turn dock hangs off the right end of the midline and
+   covers the opponent's bottom-right corner, so their tag moves to the left. */
+.arena.arena-tilt .side-opp .mat-order {
+  right: auto;
+  left: 2.4cqw;
+}
+
 .arena .mat-order-first {
   color: var(--on-chrome);
   background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
@@ -682,6 +689,27 @@
   padding-right: 0.15rem;
 }
 
+/* Text below the fold: a fade with a "More" hint pinned to the bottom of the
+   scroll box (useMoreBelow). It overlaps the last line instead of taking space. */
+.board-col .card-preview-meta.has-more::after {
+  content: "More \25BE";
+  display: block;
+  position: sticky;
+  bottom: 0;
+  height: 1.7rem;
+  margin-top: -1.7rem;
+  padding-top: 0.9rem;
+  box-sizing: border-box;
+  background: linear-gradient(to bottom, transparent, rgb(var(--deep-rgb) / 0.95) 70%);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
 /* Art is height-capped so the text below keeps real space. */
 .board-col .card-preview-img,
 .board-col .card-preview-placeholder {
@@ -740,6 +768,59 @@
 
 .recent-plays-row li {
   flex: 0 0 auto;
+}
+
+/* Short windows (a 720 px laptop, or 150 % zoom): the card preview comes first.
+   Recent plays shrinks to its heading and one row (the list still scrolls), the
+   art gets smaller and the preview takes a bigger share than the log, so the
+   effect text reads instead of showing a line or two. */
+@media (max-height: 760px) {
+  .recent-plays {
+    height: 5.3rem;
+  }
+
+  .arena.arena-wide .board-col .card-preview {
+    flex-grow: 2;
+  }
+
+  .board-col .card-preview-img,
+  .board-col .card-preview-placeholder {
+    height: min(12dvh, calc((var(--left-w) - 1.6rem) * 1.4));
+  }
+}
+
+/* 150 % zoom on a laptop (about 960x600): smaller preview type, so a card's
+   effect shows beside its name instead of scrolling out of sight. */
+@media (max-height: 640px) {
+  .arena.arena-wide .board-col .card-preview {
+    flex-grow: 3;
+    gap: 0.3rem;
+    padding-top: 0.5rem;
+  }
+
+  .board-col .card-preview-img,
+  .board-col .card-preview-placeholder {
+    height: min(9dvh, calc((var(--left-w) - 1.6rem) * 1.4));
+  }
+
+  .board-col .card-preview-meta {
+    gap: 0.2rem;
+  }
+
+  .board-col .card-preview-caption,
+  .board-col .card-preview-stats,
+  .board-col .card-preview-traits {
+    font-size: 0.75rem;
+  }
+
+  .board-col .card-preview-name {
+    font-size: 1.05rem;
+  }
+
+  .board-col .card-preview-effect {
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
 }
 
 .recent-play {
@@ -1679,32 +1760,33 @@ body.is-panel-drag * {
 }
 
 .hand-fan-center .hand-fan-cards {
-  /* Tucked: cards overlap by half. Open: spread with a gap, up to the column. */
-  width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
+  /* Tucked: cards overlap by half. Open: spread with a gap. useFanFit caps
+     both at the mat's width (--fan-tuck-w / --fan-open-w), overlapping more. */
+  width: var(--fan-tuck-w, calc(var(--fan-cw) * (0.5 * var(--n) + 0.5)));
   transition: width 200ms ease 140ms;
 }
 
 .hand-fan-center.is-open .hand-fan-cards,
 .hand-fan-center:has(:focus-visible) .hand-fan-cards {
-  width: calc(var(--fan-cw) * (0.8 * var(--n) + 0.2));
+  width: var(--fan-open-w, calc(var(--fan-cw) * (0.8 * var(--n) + 0.2)));
   transition-delay: 0s;
 }
 
 @media (hover: hover) {
   .hand-fan-center:hover .hand-fan-cards {
-    width: calc(var(--fan-cw) * (0.8 * var(--n) + 0.2));
+    width: var(--fan-open-w, calc(var(--fan-cw) * (0.8 * var(--n) + 0.2)));
     transition-delay: 0s;
   }
 }
 
 .hand-fan-center.is-dragging .hand-fan-cards {
-  width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
+  width: var(--fan-tuck-w, calc(var(--fan-cw) * (0.5 * var(--n) + 0.5)));
 }
 
 /* Moved fan: centred on --fan-x (share of the window), as wide as the spread
    cards, kept on screen. The handle row sits above the cards. */
 .hand-fan-free {
-  --fan-w: calc(var(--fan-cw) * (0.8 * var(--n) + 0.9));
+  --fan-w: calc(var(--fan-open-w, calc(var(--fan-cw) * (0.8 * var(--n) + 0.2))) + var(--fan-cw) * 0.7);
   left: clamp(0px, calc(var(--fan-x) * 100vw - var(--fan-w) / 2), calc(100vw - var(--fan-w)));
   width: var(--fan-w);
   max-width: 100vw;
@@ -1720,7 +1802,7 @@ body.is-panel-drag * {
 /* Docked on the bottom edge: tucked cards overlap by half like the default
    fan, and spread out when it rises. */
 .hand-fan.hand-fan-docked {
-  --fan-w: calc(var(--fan-cw) * (0.5 * var(--n) + 1.2));
+  --fan-w: calc(var(--fan-tuck-w, calc(var(--fan-cw) * (0.5 * var(--n) + 0.5))) + var(--fan-cw) * 0.7);
   transition:
     transform 200ms ease 140ms,
     width 200ms ease 140ms,
@@ -1728,20 +1810,20 @@ body.is-panel-drag * {
 }
 
 .hand-fan.hand-fan-docked:is(.is-open, :has(:focus-visible)) {
-  --fan-w: calc(var(--fan-cw) * (0.8 * var(--n) + 0.9));
+  --fan-w: calc(var(--fan-open-w, calc(var(--fan-cw) * (0.8 * var(--n) + 0.2))) + var(--fan-cw) * 0.7);
   transition-delay: 0s;
 }
 
 @media (hover: hover) {
   .hand-fan.hand-fan-docked:hover {
-    --fan-w: calc(var(--fan-cw) * (0.8 * var(--n) + 0.9));
+    --fan-w: calc(var(--fan-open-w, calc(var(--fan-cw) * (0.8 * var(--n) + 0.2))) + var(--fan-cw) * 0.7);
     transition-delay: 0s;
   }
 }
 
 .hand-fan.hand-fan-docked:is(.is-dragging, .is-hidden),
 .hand-fan.hand-fan-docked.is-dragging:hover {
-  --fan-w: calc(var(--fan-cw) * (0.5 * var(--n) + 1.2));
+  --fan-w: calc(var(--fan-tuck-w, calc(var(--fan-cw) * (0.5 * var(--n) + 0.5))) + var(--fan-cw) * 0.7);
 }
 
 /* Floating: bottom edge at --fan-y, fully shown (never tucks), on screen and
@@ -2549,6 +2631,23 @@ body.is-panel-drag * {
   background: rgb(var(--deep-rgb) / 0.92);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
   animation: turn-splash var(--splash-ms, 1500ms) ease forwards;
+}
+
+/* Desktop: over the opponent's mat (TurnSplash.tsx), smaller, so it never sits
+   on the End turn dock, the midline or your hand while you mulligan. */
+.turn-splash-anchored .turn-splash-card {
+  padding: 0.5rem 1.5rem 0.6rem;
+  border-width: 1px;
+  border-radius: 10px;
+  gap: 0.15rem;
+}
+
+.turn-splash-anchored .turn-splash-card strong {
+  font-size: clamp(1.15rem, 2.1vw, 1.9rem);
+}
+
+.turn-splash-anchored .turn-splash-card span {
+  font-size: clamp(0.7rem, 0.9vw, 0.85rem);
 }
 
 .turn-splash-card strong {

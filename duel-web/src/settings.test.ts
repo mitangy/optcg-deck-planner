@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadSettings, mergeRemoteSettings, syncedSettings } from "./settings";
+import { loadSettings, mergeRemoteSettings, resolveHandLayout, syncedSettings } from "./settings";
 
 function stubStored(value: unknown) {
   vi.stubGlobal("localStorage", { getItem: () => JSON.stringify(value) });
@@ -126,9 +126,18 @@ describe("hand layout", () => {
     expect(loadSettings().handLayout).toBe("fan");
   });
 
-  it("replaces an unknown stored hand layout with the fan", () => {
+  it("starts on automatic for a player who never chose, and for an unknown stored value (#__P2__)", () => {
+    stubStored({});
+    expect(loadSettings().handLayout).toBe("auto");
     stubStored({ handLayout: "dock" });
-    expect(loadSettings().handLayout).toBe("fan");
+    expect(loadSettings().handLayout).toBe("auto");
+  });
+
+  it("automatic is the Grid only on a tall desktop window; a saved choice always wins (#__P2__)", () => {
+    expect(resolveHandLayout("auto", true)).toBe("grid");
+    expect(resolveHandLayout("auto", false)).toBe("fan");
+    expect(resolveHandLayout("fan", true)).toBe("fan");
+    expect(resolveHandLayout("grid", false)).toBe("grid");
   });
 
   it("turns the old centre and right fans into the one fan, the right one kept at the bottom right (#261)", () => {

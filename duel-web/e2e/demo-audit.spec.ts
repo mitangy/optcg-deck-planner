@@ -3,7 +3,7 @@
  * match over, …) at each project's screen size. The fixtures cover prompt
  * states a random playthrough rarely reaches.
  */
-import { test, expect, formatIssues } from "./fixtures";
+import { test, expect, formatIssues, preferFan } from "./fixtures";
 import { isKnown } from "./known-issues";
 
 const SCREENS = [
@@ -35,6 +35,7 @@ for (const screen of ["?full", "?statuses", "?attack"]) {
     await page.addInitScript(() =>
       localStorage.setItem("optcg-duel:settings", JSON.stringify({ tiltedBoard: true })),
     );
+    await preferFan(page);
     await page.goto(`/demo${screen}`);
     await page.locator(".board-root").waitFor();
     const issues = (await duel.audit()).filter((i) => !isKnown(i));
@@ -48,6 +49,7 @@ for (const screen of ["?full", "?statuses", "?attack"]) {
 // once the pointer leaves it, or it sits on your DON!! row (flat board).
 test("the centre hand fan tucks away after a click once the pointer leaves", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await preferFan(page);
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
   const donCovered = () =>
@@ -101,6 +103,7 @@ test("H hides and shows the hand with Keep hand open (#259)", async ({ page }) =
   await page.addInitScript(() =>
     localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true })),
   );
+  await preferFan(page);
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
   await page.mouse.move(640, 120);
@@ -193,6 +196,7 @@ test("the Grid hand drags into the left column, stays after a reload, and Reset 
 // every grip but keeps the layout.
 test("the fanned hand drags to the middle of the screen and floats there after a reload, and Drag handles off hides the grips (#261)", async ({ page, duel }, info) => {
   test.skip(info.project.name !== "desktop-1280", "the fan moves on desktop only");
+  await preferFan(page);
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
   const fan = page.locator(".hand-fan");
@@ -376,6 +380,9 @@ const LIGHT_TEXT: Record<string, string[]> = {
     ".card-preview-traits",
     ".battle-log-turn-title",
     ".turn-order-badge:not(.first)",
+    ".recent-play-you .recent-play-who",
+    ".recent-play-opp .recent-play-who",
+    ".log-phase .log-text",
   ],
   "/": [".home-kicker"],
   "/settings": [".panel-title"],

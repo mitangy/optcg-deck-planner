@@ -99,7 +99,7 @@ export function SettingsPage() {
 
   return (
     <div className="app-shell">
-      <div className="page page-narrow">
+      <div className="page page-narrow page-settings">
         <header className="page-header">
           <Link
             to="/"
@@ -111,6 +111,9 @@ export function SettingsPage() {
           <h1 className="page-title">Settings</h1>
         </header>
 
+        {/* Phones: one column in this order. 1024px and up: Gameplay on the right, the rest on the left. */}
+        <div className="settings-cols">
+        <div className="settings-a">
         <section className="panel">
           <h2 className="panel-title">Account</h2>
           {authUser ? (
@@ -231,6 +234,8 @@ export function SettingsPage() {
           </p>
         </section>
 
+        </div>
+        <div className="settings-b">
         <section className="panel">
           <h2 className="panel-title">Gameplay</h2>
           <p className="field-hint">
@@ -242,6 +247,8 @@ export function SettingsPage() {
           <GameplaySettingsFields />
         </section>
 
+        </div>
+        <div className="settings-c">
         <section className="panel">
           <h2 className="panel-title">Deck editor</h2>
           <div className="gameplay-toggle">
@@ -422,6 +429,8 @@ export function SettingsPage() {
           </p>
           <VersionStatus actions />
         </section>
+        </div>
+        </div>
       </div>
       {editing ? (
         <ImageEditor

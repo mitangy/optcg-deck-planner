@@ -45,15 +45,17 @@ export function NewDeckPage() {
         </header>
 
         <form className="deck-new-form" onSubmit={onCreate}>
-          <label htmlFor="new-deck-name">Deck name</label>
-          <input
-            id="new-deck-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="My red ST01"
-            required
-            autoFocus
-          />
+          <div className="field">
+            <label htmlFor="new-deck-name">Deck name</label>
+            <input
+              id="new-deck-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="My red ST01"
+              required
+              autoFocus
+            />
+          </div>
 
           <DeckImportPanel
             heading="Import deck list (optional)"
