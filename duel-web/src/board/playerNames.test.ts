@@ -23,7 +23,7 @@ describe("player names", () => {
 });
 
 describe("pass-and-play labels", () => {
-  it("numbers the players from 1 although seats count from 0 (#__P3__)", () => {
+  it("numbers the players from 1 although seats count from 0 (#282)", () => {
     expect(playerNumberLabel(0)).toBe("Player 1");
     expect(playerNumberLabel(1)).toBe("Player 2");
   });

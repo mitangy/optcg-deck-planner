@@ -31,7 +31,7 @@ describe("end-turn confirm default", () => {
     vi.unstubAllGlobals();
   });
 
-  it("asks only while DON!! or attackers are left for players who never chose, and keeps a saved Always ask (#__P3__)", () => {
+  it("asks only while DON!! or attackers are left for players who never chose, and keeps a saved Always ask (#282)", () => {
     stubStored({});
     expect(loadSettings().endTurnConfirm).toBe("actions");
     stubStored({ endTurnConfirm: "always" });

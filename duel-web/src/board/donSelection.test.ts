@@ -132,7 +132,7 @@ describe("quickAttachCounts", () => {
 });
 
 describe("quickAttachLabel", () => {
-  it("spells out the DON!! given and the power it adds, with 'all' only on the All chip (#__P3__)", () => {
+  it("spells out the DON!! given and the power it adds, with 'all' only on the All chip (#282)", () => {
     const counts = quickAttachCounts(5);
     expect(quickAttachLabel(1, counts)).toBe("Give 1 DON!! (+1000)");
     expect(quickAttachLabel(2, counts)).toBe("Give 2 DON!! (+2000)");

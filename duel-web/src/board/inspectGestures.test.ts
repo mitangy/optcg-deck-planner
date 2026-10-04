@@ -173,7 +173,7 @@ describe("inspectOnContextMenu", () => {
 });
 
 describe("isInspectKey", () => {
-  it("is a bare I, either case, so Ctrl/Cmd/Alt combos and other keys are left alone (#__P3__)", () => {
+  it("is a bare I, either case, so Ctrl/Cmd/Alt combos and other keys are left alone (#282)", () => {
     expect(isInspectKey({ key: "i" })).toBe(true);
     expect(isInspectKey({ key: "I" })).toBe(true);
     expect(isInspectKey({ key: "i", ctrlKey: true })).toBe(false);

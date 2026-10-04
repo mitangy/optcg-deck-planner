@@ -37,7 +37,7 @@ describe("match history rows", () => {
     expect([row.yourLeader, row.opponentLeader]).toEqual(["Roronoa Zoro", "Monkey.D.Luffy"]);
   });
 
-  it("carries your Leader's card id so the row can show its art (#__P3__)", () => {
+  it("carries your Leader's card id so the row can show its art (#282)", () => {
     expect(matchRow(entry({}), cardName, now).yourLeaderId).toBe("OP01-001");
     expect(matchRow(entry({ your_leader_id: null }), cardName, now).yourLeaderId).toBeNull();
   });

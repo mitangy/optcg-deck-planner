@@ -20,12 +20,12 @@ const entry = (over: Partial<MatchHistoryEntry>): MatchHistoryEntry => ({
 });
 
 describe("historySummary", () => {
-  it("counts wins and losses over every listed game, ranked or not (#__P3__)", () => {
+  it("counts wins and losses over every listed game, ranked or not (#282)", () => {
     const s = historySummary([entry({}), entry({ won: false }), entry({ won: false, ranked: false }), entry({})]);
     expect(s).toMatchObject({ wins: 2, losses: 2 });
   });
 
-  it("takes the Bounty from the newest ranked game whatever order the list is in (#__P3__)", () => {
+  it("takes the Bounty from the newest ranked game whatever order the list is in (#282)", () => {
     const s = historySummary([
       entry({ created_at: "2026-10-01T10:00:00Z", rating_after: 1000 }),
       entry({ created_at: "2026-10-03T10:00:00Z", rating_after: 1042 }),
@@ -36,7 +36,7 @@ describe("historySummary", () => {
     expect(s?.rating).toBe(1042);
   });
 
-  it("has no Bounty before a ranked game, and no summary before any game (#__P3__)", () => {
+  it("has no Bounty before a ranked game, and no summary before any game (#282)", () => {
     expect(historySummary([entry({ ranked: false })])?.rating).toBeNull();
     expect(historySummary([])).toBeNull();
   });
