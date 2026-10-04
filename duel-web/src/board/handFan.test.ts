@@ -39,22 +39,22 @@ describe("handDrawer", () => {
 });
 
 describe("fanSpan", () => {
-  it("squeezes a big hand to the mat's width instead of running off the screen (#__P2__)", () => {
+  it("squeezes a big hand to the mat's width instead of running off the screen (#281)", () => {
     // 19 cards of 100px raised would be 1540px wide; the mat is 700px.
     expect(fanSpan(19, 100, 0.8, 700)).toBe(700);
   });
 
-  it("leaves a small hand at its natural width (#__P2__)", () => {
+  it("leaves a small hand at its natural width (#281)", () => {
     // 4 cards, each after the first adds 0.8 of a card: 340px, well inside 700px.
     expect(fanSpan(4, 100, 0.8, 700)).toBeCloseTo(340);
   });
 
-  it("stops overlapping at the minimum step when even the mat is too small (#__P2__)", () => {
+  it("stops overlapping at the minimum step when even the mat is too small (#281)", () => {
     // The mat allows 300px, but 19 cards need 100 * (0.22 * 18 + 1) to stay readable.
     expect(fanSpan(19, 100, 0.8, 300)).toBeCloseTo(100 * (FAN_MIN_STEP * 18 + 1));
   });
 
-  it("is uncapped when the mat could not be measured (#__P2__)", () => {
+  it("is uncapped when the mat could not be measured (#281)", () => {
     expect(fanSpan(19, 100, 0.8, null)).toBeCloseTo(100 * (0.8 * 18 + 1));
   });
 });

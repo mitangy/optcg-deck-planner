@@ -126,14 +126,14 @@ describe("hand layout", () => {
     expect(loadSettings().handLayout).toBe("fan");
   });
 
-  it("starts on automatic for a player who never chose, and for an unknown stored value (#__P2__)", () => {
+  it("starts on automatic for a player who never chose, and for an unknown stored value (#281)", () => {
     stubStored({});
     expect(loadSettings().handLayout).toBe("auto");
     stubStored({ handLayout: "dock" });
     expect(loadSettings().handLayout).toBe("auto");
   });
 
-  it("automatic is the Grid only on a tall desktop window; a saved choice always wins (#__P2__)", () => {
+  it("automatic is the Grid only on a tall desktop window; a saved choice always wins (#281)", () => {
     expect(resolveHandLayout("auto", true)).toBe("grid");
     expect(resolveHandLayout("auto", false)).toBe("fan");
     expect(resolveHandLayout("fan", true)).toBe("fan");

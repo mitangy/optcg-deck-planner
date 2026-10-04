@@ -241,7 +241,7 @@ describe("rewindBattleLog", () => {
 });
 
 describe("log noise and wrapping", () => {
-  it("drops Phase lines and zero-count DON!! events but keeps the Main phase rule and real DON!! (#__P2__)", () => {
+  it("drops Phase lines and zero-count DON!! events but keeps the Main phase rule and real DON!! (#281)", () => {
     const lines = narrateEvents(
       [
         { type: "phase_changed", phase: "refresh", activeSeat: 0 },
@@ -255,7 +255,7 @@ describe("log noise and wrapping", () => {
     expect(lines).toEqual(["You place 2 DON!!", "—— Main phase · You ——"]);
   });
 
-  it("keeps the 's after a card name on the name's line, and leaves spaced text free to wrap (#__P2__)", () => {
+  it("keeps the 's after a card name on the name's line, and leaves spaced text free to wrap (#281)", () => {
     const [entry] = narrateEvents(
       [{ type: "pending_choice_resolved", seat: 0, kind: "effect", accepted: false, cardDefId: "ST01-003" }],
       { youSeat: 0, turnNumber: 3 },
@@ -267,7 +267,7 @@ describe("log noise and wrapping", () => {
     expect(entry!.text).not.toMatch(/ 's/);
   });
 
-  it("does not glue a card name to text that starts with a space (#__P2__)", () => {
+  it("does not glue a card name to text that starts with a space (#281)", () => {
     const parts = glueSegments([
       { kind: "card", defId: "ST01-003", name: "Nami" },
       { kind: "text", text: " to hand" },

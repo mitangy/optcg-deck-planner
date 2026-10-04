@@ -160,7 +160,7 @@ describe("event triggers", () => {
     expect(h.state.players[1].characters.some((c) => c.id === small!.id)).toBe(false);
   });
 
-  it("a K.O. pick prompt ends in one period, not \"K.O..\" (#__P2__)", () => {
+  it("a K.O. pick prompt ends in one period, not \"K.O..\" (#281)", () => {
     const h = new Harness();
     h.field(0, "OP06-076");
     h.field(1, FILLER);
