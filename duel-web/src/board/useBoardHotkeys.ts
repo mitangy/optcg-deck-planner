@@ -45,7 +45,7 @@ function boardCardButtons(): HTMLElement[] {
     ".board-root .side-you button[data-instance-id], .board-root .side-opp button[data-instance-id]",
   );
   const hand = document.querySelectorAll<HTMLElement>(
-    ".board-root .hand-row-inner button.card-tile, .board-root .hand-fan-cards button.card-tile",
+    ".board-root .hand-row-inner button.card-tile, .board-root .hand-fan-cards button.card-tile, .board-root .rail-hand-cards button.card-tile",
   );
   return [...field, ...hand].filter(shown);
 }

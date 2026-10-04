@@ -215,11 +215,12 @@
   right: 2.4cqw;
 }
 
-/* Tilted board: the End turn dock hangs off the right end of the midline and
-   covers the opponent's bottom-right corner, so their tag moves to the left. */
+/* Tilted board: the End turn dock covers the opponent's bottom-right corner
+   and their bottom-left holds a Character's caption, with no free corner left
+   on the smaller, leaning mat. The rail's 1st / 2nd chips and the top bar
+   already say who went first, so the tag steps out. */
 .arena.arena-tilt .side-opp .mat-order {
-  right: auto;
-  left: 2.4cqw;
+  display: none;
 }
 
 .arena .mat-order-first {

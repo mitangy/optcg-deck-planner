@@ -652,6 +652,9 @@ button {
 }
 
 .deck-config {
+  /* A column-flex child with auto margins shrinks to its content, so the page
+     would change width (and jump) as search results and art load; fill instead. */
+  width: 100%;
   max-width: 920px;
   margin: 0 auto;
   padding: max(1.25rem, var(--safe-t)) max(1.25rem, var(--safe-r))

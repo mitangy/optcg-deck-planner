@@ -278,7 +278,7 @@ test("Tab visits the field cards, the hand, then the other controls and comes ba
         const el = document.activeElement as HTMLElement | null;
         if (!el) return "none";
         if (el.closest(".side-field")) return "field";
-        if (el.closest(".hand-fan-cards, .hand-row-inner")) return "hand";
+        if (el.closest(".hand-fan-cards, .hand-row-inner, .rail-hand-cards")) return "hand";
         return `other:${el.getAttribute("aria-label") ?? el.textContent?.trim().slice(0, 20)}`;
       }),
     );
@@ -286,7 +286,7 @@ test("Tab visits the field cards, the hand, then the other controls and comes ba
   const firstHand = seen.indexOf("hand");
   expect(seen[0]).toBe("field");
   expect(firstHand).toBeGreaterThan(0);
-  expect(seen.slice(0, firstHand).every((s) => s === "field")).toBe(true);
+  expect(seen.slice(0, firstHand).every((s) => s === "field"), seen.join(", ")).toBe(true);
   const others = seen.filter((s) => s.startsWith("other:"));
   expect(others.some((s) => /concede/i.test(s)), seen.join(", ")).toBe(true);
   // After the other controls, Tab comes back round to the cards.

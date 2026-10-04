@@ -288,7 +288,16 @@ function runAudit(
 
         // Covered: sample each text line's centre (wrapped inline text has gaps
         // in its bounding box), or the centre and four inset points of a control.
-        const lines = textBox ? ownTextLines(el).filter((r) => r.right > box.left && r.left < box.right && r.bottom > box.top && r.top < box.bottom) : [];
+        // A line half scrolled out of its scroll box is sampled on the part still in view.
+        const lines = textBox
+          ? ownTextLines(el)
+              .filter((r) => r.right > box.left && r.left < box.right && r.bottom > box.top && r.top < box.bottom)
+              .map((r) => {
+                const l = Math.max(r.left, box.left);
+                const t = Math.max(r.top, box.top);
+                return new DOMRect(l, t, Math.min(r.right, box.right) - l, Math.min(r.bottom, box.bottom) - t);
+              })
+          : [];
         const pts: Array<[number, number]> = lines.length
           ? lines.slice(0, 5).flatMap((r) => [
               [r.left + r.width / 2, r.top + r.height / 2] as [number, number],
