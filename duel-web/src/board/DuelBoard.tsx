@@ -133,7 +133,8 @@ import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY,
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { matchMenuItems } from "./matchMenuItems";
-import { isPromptHidden } from "./promptHide";
+import { isPromptHidden, promptOpenFor } from "./promptHide";
+import { promptShortLine } from "./promptLine";
 import { HideablePrompt, promptSourceName } from "./HideablePrompt";
 
 type Props = {
@@ -409,13 +410,15 @@ export function DuelBoard({
   }, [oppPlayId]);
 
   const over = matchOver != null || view?.winner != null;
+  // The strip shows the short question; the full server text stays in the tooltip.
   const midlineText = view
     ? view.pendingChoices?.length
-      ? view.pendingChoices[0].prompt
+      ? promptShortLine(view.pendingChoices[0])
       : view.battle
         ? describeBattle(view, (defId) => lookupCard(defId).name)
         : null
     : null;
+  const midlineTitle = view?.pendingChoices?.length ? view.pendingChoices[0].prompt : midlineText;
   // Screen stays on through the opponent's long turns; released when the match ends.
   useScreenWakeLock(!over);
   const mySeat = seat ?? view?.seat ?? null;
@@ -499,6 +502,10 @@ export function DuelBoard({
       ? deriveDefend(view, intents, { counterIds: stagedCounterIds, blockerId: stagedBlockerId })
       : null;
   const trayHere = defend != null && (!wide || lp);
+  // Desktop: the same tray sits in the right rail (one tap plays a counter or
+  // blocks) so each card's value and what you still need are in view; the
+  // dock keeps the Pass block / Pass counter / Resolve button.
+  const railDefend = defend != null && wide && !lp;
   const defendKey =
     trayHere && view ? `${view.turnNumber}:${defend.phase}:${JSON.stringify(view.battle ?? null)}` : null;
   useEffect(() => {
@@ -939,6 +946,11 @@ export function DuelBoard({
   const handConfirm = spectating
     ? null
     : handConfirmAnchor(view.pendingChoices?.[0], mySeat, handUse, you);
+  // Wide boards: mid-battle, the centred prompt keeps off the card being hit.
+  const promptBattle = (() => {
+    const ends = wide && !lp ? battleEndpoints(view) : null;
+    return ends ? { defenderId: ends.targetId, attackerId: ends.attackerId } : null;
+  })();
 
   const ghostPayload: GhostPayload | null =
     dragPayload?.type === "give_don"
@@ -1120,20 +1132,22 @@ export function DuelBoard({
     !trayHere && defend?.phase === "counter" ? counterPrimaryLabel(defend, false) : undefined;
 
   const defendTray =
-    trayHere && defend ? (
+    (trayHere || railDefend) && defend ? (
       <DefendTray
         model={defend}
+        layout={railDefend ? "rail" : "tray"}
         ownerSeat={boardSeat}
         clock={clockFraction(timer, now, boardSeat)}
         onToggleBlocker={(id) => {
-          const block = prefs.oneTapActions ? blockIntentFor(intents, id) : null;
+          const block = prefs.oneTapActions || railDefend ? blockIntentFor(intents, id) : null;
           if (block) {
             setStagedBlockerId(null);
             onSendIntent(block);
           } else setStagedBlockerId((cur) => (cur === id ? null : id));
         }}
         onToggleCounter={(id) => {
-          const counter = prefs.oneTapActions ? counterIntentForCard(intents, you.hand, id) : null;
+          const counter =
+            prefs.oneTapActions || railDefend ? counterIntentForCard(intents, you.hand, id) : null;
           if (counter) onSendIntent(counter);
           else
             setStagedCounterIds((cur) =>
@@ -1223,7 +1237,9 @@ export function DuelBoard({
     setSelectedBoardId(null);
     onSendIntent(intent);
   };
-  const intentPanel = !spectating ? (
+  const intentPanel = railDefend && defendTray ? (
+    defendTray
+  ) : !spectating ? (
     <IntentBar
       hidePrimary={dockedPrimary}
       waiting={docked ? null : oppWait}
@@ -1762,8 +1778,8 @@ export function DuelBoard({
 
             <div className={`midline${docked && midlineText ? " midline-docked" : ""}`}>
               {midlineText ? (
-                <div className="prompt" title={midlineText}>
-                  {midlineText}
+                <div className="prompt" title={midlineTitle ?? undefined}>
+                  <span className="prompt-text">{midlineText}</span>
                 </div>
               ) : rotateHintShown ? (
                 <RotateHint onClose={closeRotateHint} />
@@ -2146,6 +2162,7 @@ export function DuelBoard({
       view.pendingChoices[0].seat === mySeat ? (
         <HideablePrompt
           name="Order effects"
+          dodge={promptBattle}
           hidden={isPromptHidden(hiddenChoiceId, view.pendingChoices[0].id)}
           onShow={() => setHiddenChoiceId(null)}
         >
@@ -2167,6 +2184,7 @@ export function DuelBoard({
         view.pendingChoices[0].seat === mySeat ? (
         <HideablePrompt
           name={promptSourceName(view.pendingChoices[0])}
+          dodge={promptBattle}
           hidden={isPromptHidden(hiddenChoiceId, view.pendingChoices[0].id)}
           onShow={() => setHiddenChoiceId(null)}
         >
@@ -2216,7 +2234,10 @@ export function DuelBoard({
         oppSeat={previewOppSeat}
         onDismiss={reveals.dismiss}
       />
-      <AttackIndicator view={over ? null : view} />
+      <AttackIndicator
+        view={over ? null : view}
+        dimmed={promptOpenFor(view.pendingChoices?.[0], spectating ? null : mySeat, hiddenChoiceId)}
+      />
       <BoardMotion view={view} />
       <DragGhost payload={ghostPayload} />
       <DragAttackArrow attackerId={dragPayload?.type === "attack" ? dragPayload.attackerId : null} />

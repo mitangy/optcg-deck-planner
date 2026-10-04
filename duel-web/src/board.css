@@ -986,6 +986,14 @@
   max-height: none;
 }
 
+/* The defend tray lists every counter card, so it takes the height it needs;
+   on a short window it gives way (the chips scroll) rather than overflow. */
+.arena.arena-wide .board-panel[data-panel="actions"]:has(> .defend-rail) {
+  max-height: none;
+  flex: 0 1 auto;
+  min-height: 9rem;
+}
+
 /* Chat sharing a column with the Grid hand stays small; the hand gets the room. */
 .arena.arena-wide .board-col:has(> [data-panel="hand"])
   > .board-panel[data-panel="chat"]:has(> .chat-panel:not(.collapsed)) {
@@ -1232,6 +1240,24 @@ body.is-panel-drag * {
 
 .turn-panel-respond .turn-banner-title {
   color: #ffe0da;
+}
+
+/* What you are answering can be a sentence: two lines, never cut mid-word.
+   Two lines are always reserved here, so a prompt opening or closing
+   mid-response does not nudge the panels below. */
+.turn-panel-respond .turn-banner-sub {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  min-height: 2.5em;
+}
+
+.arena.arena-lp .turn-panel-respond .turn-banner-sub {
+  min-height: 0;
 }
 
 @keyframes turn-banner-glow {
@@ -1847,7 +1873,10 @@ body.is-panel-drag * {
 
 .arena.arena-wide .ability-prompt {
   left: calc(var(--left-w) + (100vw - var(--left-w) - var(--rail-w)) / 2);
-  bottom: 1.25rem;
+  /* usePromptDodge moves it to the top of the board while a battle's target
+     sits under the bottom spot. */
+  top: var(--prompt-top, auto);
+  bottom: var(--prompt-bottom, 1.25rem);
   width: min(460px, calc(100vw - var(--left-w) - var(--rail-w) - 1.5rem));
   max-height: calc(100dvh - 6.5rem);
 }
@@ -3838,6 +3867,30 @@ body.is-panel-drag * {
   border-color: var(--line-strong);
 }
 
+/* Desktop right rail: the tray as a card in the column. Chips wrap so every
+   counter value is on show (no sideways scroll), and the battle line may take
+   a second line instead of cutting off the defender's power. */
+.defend-tray.defend-rail {
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: none;
+  padding: 9px 10px 8px;
+}
+
+.defend-rail .defend-line,
+.defend-rail .defend-verdict {
+  white-space: normal;
+  overflow: visible;
+}
+
+.defend-rail .defend-chips {
+  flex-wrap: wrap;
+  align-content: flex-start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  touch-action: auto;
+}
+
 /* The bar only relabels the primary while the tray is up. */
 .intent-bar-defend h2,
 .intent-bar-defend .intent-row {
@@ -4205,10 +4258,32 @@ body.is-panel-drag * {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
-/* The battle line stays clear of the dock. */
+/* The battle line stays clear of the dock. PrimaryDock measures how far the
+   dock reaches into the strip (it can sit well inside the strip's right edge). */
 .arena .midline.midline-docked {
   box-sizing: border-box;
-  padding-right: calc(13rem + 1.25rem);
+  padding-right: var(--dock-reserve, calc(13rem + 1.25rem));
+}
+
+/* Beside the dock the strip has little room at 1280 wide: a long matchup
+   ("Edward.Newgate (5000) → Marshall.D.Teach (5000)") takes a second line in
+   the same fixed-height strip instead of being cut off. */
+.arena.arena-wide .midline.midline-docked .prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  line-height: 1.05;
+  white-space: normal;
+}
+
+.arena.arena-wide .midline.midline-docked .prompt-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 @media (hover: hover) and (pointer: fine) {

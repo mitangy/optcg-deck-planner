@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dockAnchor, sameAnchor } from "./dockAnchor";
+import { dockAnchor, sameAnchor, stripReserve } from "./dockAnchor";
 
 const box = (left: number, top: number, width: number, height: number) => ({ left, top, width, height });
 
@@ -18,6 +18,16 @@ describe("dockAnchor", () => {
   it("has no anchor before the board is laid out (#257)", () => {
     expect(dockAnchor(null, [])).toBeNull();
     expect(dockAnchor(box(0, 0, 0, 0), [])).toBeNull();
+  });
+
+  it("keeps the battle strip clear of the dock where the strip runs past the mat (#__P1__)", () => {
+    // 1280x720: the strip spans 238-990 but the dock hugs the mat edge at 879, 226 wide.
+    // The strip's right side is covered from the dock's left edge (653) to 990, plus the gap.
+    expect(stripReserve(box(238, 356, 752, 28), 879, 226, 12)).toBe(349);
+  });
+
+  it("reserves the dock's width plus the gap when the dock sits at the strip's right edge (#__P1__)", () => {
+    expect(stripReserve(box(100, 400, 800, 26), 900, 200, 10)).toBe(210);
   });
 
   it("ignores sub-pixel jitter so the tracker does not re-render every frame (#257)", () => {

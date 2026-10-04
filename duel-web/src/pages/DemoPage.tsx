@@ -626,24 +626,32 @@ function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
   }
   if (params.has("counter")) {
     // `?counter=short`: a 9000-power attacker, so counters are still needed (no "Resolve" yet).
-    const opponent =
-      params.get("counter") === "short"
-        ? {
-            ...base.opponent,
-            characters: base.opponent.characters.map((c) =>
-              c.id === "o-c1" ? { ...c, power: 9000 } : c,
-            ),
-          }
-        : base.opponent;
+    // `?counter=newgate`: long names on both sides (Edward.Newgate -> Marshall.D.Teach),
+    // to check the battle strip against the dock.
+    const mode = params.get("counter");
+    const attacker =
+      mode === "short"
+        ? { power: 9000 }
+        : mode === "newgate"
+          ? { defId: "OP12-002", power: 5000 }
+          : null;
+    const opponent = attacker
+      ? {
+          ...base.opponent,
+          characters: base.opponent.characters.map((c) => (c.id === "o-c1" ? { ...c, ...attacker } : c)),
+        }
+      : base.opponent;
     // `?counter=haki`: the [Counter] event is Color of the Supreme King Haki,
     // whose "rest 1 DON!!?" Yes/No shows above the hand once it is played.
     const you =
-      params.get("counter") === "haki"
+      mode === "haki"
         ? {
             ...base.you,
             hand: base.you.hand.map((c) => (c.id === "y-h6" ? { ...c, defId: "OP12-018" } : c)),
           }
-        : base.you;
+        : mode === "newgate"
+          ? { ...base.you, leader: { ...base.you.leader, defId: "OP09-081", power: 5000 } }
+          : base.you;
     return {
       ...base,
       you,
@@ -745,7 +753,7 @@ function withWaiting(base: PlayerView, kind: string | null): PlayerView {
  * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
  * icons (see withManyStatuses), `?motion` a button that steps
  * through every card animation, `?box` the old pop-up instead of floating-card
- * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=haki`: the Haki's Yes/No above the hand) drag QA (see
+ * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=newgate`: long names on both sides; `=haki`: the Haki's Yes/No above the hand) drag QA (see
  * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {

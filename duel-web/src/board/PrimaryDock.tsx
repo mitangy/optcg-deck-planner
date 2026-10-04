@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
 import { ConfirmButton } from "./ConfirmButton";
-import { dockAnchor, sameAnchor, type DockAnchor } from "./dockAnchor";
+import { dockAnchor, sameAnchor, stripReserve, type DockAnchor } from "./dockAnchor";
 import type { WaitingOnOpponent } from "./waitingOnOpponent";
 
 export function intentBtnClass(intent: Intent): string {
@@ -98,28 +98,48 @@ export function WaitingIndicator({ waiting }: { waiting: WaitingOnOpponent }) {
   );
 }
 
-/** Tracks the board's midline strip (rAF, state only on change): follows resizes, zoom and tilt. */
+/**
+ * Tracks the board's midline strip (rAF, state only on change): follows resizes, zoom and tilt.
+ * Also tells the strip how much of its right side the dock covers (`--dock-reserve`
+ * on `.midline`), so the battle text ends before the button instead of under it.
+ */
 function useDockAnchor(enabled: boolean): DockAnchor | null {
   const [anchor, setAnchor] = useState<DockAnchor | null>(null);
   useEffect(() => {
+    const midEl = () => document.querySelector<HTMLElement>(".board-root .midline");
     if (!enabled) {
       setAnchor(null);
       return;
     }
     let raf = 0;
     let last: DockAnchor | null = null;
+    let reserve = "";
     const tick = () => {
       const rect = (sel: string) =>
         document.querySelector<HTMLElement>(`.board-root ${sel}`)?.getBoundingClientRect() ?? null;
-      const next = dockAnchor(rect(".midline"), [rect(".side-you"), rect(".playmat")]);
+      const mid = rect(".midline");
+      const next = dockAnchor(mid, [rect(".side-you"), rect(".playmat")]);
       if (!sameAnchor(next, last)) {
         last = next;
         setAnchor(next);
       }
+      if (next && mid) {
+        const dockW =
+          document.querySelector<HTMLElement>(".board-root .primary-dock")?.offsetWidth ||
+          13 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+        const px = `${Math.round(stripReserve(mid, next.x, dockW))}px`;
+        if (px !== reserve) {
+          reserve = px;
+          midEl()?.style.setProperty("--dock-reserve", px);
+        }
+      }
       raf = window.requestAnimationFrame(tick);
     };
     tick();
-    return () => window.cancelAnimationFrame(raf);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      midEl()?.style.removeProperty("--dock-reserve");
+    };
   }, [enabled]);
   return anchor;
 }
