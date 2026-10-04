@@ -95,6 +95,14 @@
   box-shadow: none;
 }
 
+/* The text sits in its own span (the docked wide strip clamps it to two
+   lines); everywhere else it keeps the strip's one-line ellipsis. */
+.arena .midline .prompt-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* —— One playmat —— */
 
 .arena .side-field {
