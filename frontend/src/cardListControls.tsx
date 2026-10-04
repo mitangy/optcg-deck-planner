@@ -8,15 +8,21 @@ export const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
 export const COLOR_ORDER = ["Red", "Green", "Blue", "Purple", "Black", "Yellow"];
 const SET_PREFIX_ORDER = ["OP", "ST", "EB", "PRB", "P"];
 
-export type SortKey = "still_need" | "color" | "set" | "deck" | "user" | "price";
+export type SortKey = "still_need" | "color" | "set" | "deck" | "user" | "price" | "value" | "owned";
 
 export const ALL_SORT_KEYS: SortKey[] = ["deck", "user", "still_need", "price", "color", "set"];
 export const DEFAULT_SORTS: SortKey[] = ["color", "set"];
+/** Sorts offered on the Collection page (owned cards). */
+export const OWNED_SORT_KEYS: SortKey[] = ["value", "owned", "price", "color", "set"];
+export const OWNED_DEFAULT_SORTS: SortKey[] = ["value"];
+export const OWNED_SORTS_KEY = "optcg_owned_sorts";
 export const SORT_LABELS: Record<SortKey, string> = {
   deck: "Deck",
   user: "User",
   still_need: "Still need",
   price: "Price",
+  value: "Value",
+  owned: "Owned",
   color: "Color",
   set: "Set",
 };
@@ -24,11 +30,22 @@ export const SORT_LABELS: Record<SortKey, string> = {
 export type SortableCard = {
   card_id: string;
   color: string;
-  still_need: number;
+  still_need?: number;
   deck_sort_key?: string;
   user_sort_key?: string;
   market_price?: number | null;
+  owned?: number;
+  /** Owned copies × market price (Collection page). */
+  value?: number | null;
 };
+
+/** Highest first; cards without a number sort last. */
+function compareDesc(a: number | null | undefined, b: number | null | undefined): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return b - a;
+}
 
 function colorSortKey(color: string): string {
   const parts = color
@@ -57,7 +74,7 @@ function setSortKey(cardId: string): string {
 }
 
 function compareBySortKey(a: SortableCard, b: SortableCard, key: SortKey): number {
-  if (key === "still_need") return b.still_need - a.still_need;
+  if (key === "still_need") return (b.still_need ?? 0) - (a.still_need ?? 0);
   if (key === "color") return colorSortKey(a.color).localeCompare(colorSortKey(b.color));
   if (key === "deck") {
     return (a.deck_sort_key || "zzzz").localeCompare(b.deck_sort_key || "zzzz");
@@ -65,14 +82,9 @@ function compareBySortKey(a: SortableCard, b: SortableCard, key: SortKey): numbe
   if (key === "user") {
     return (a.user_sort_key || "zzzz").localeCompare(b.user_sort_key || "zzzz");
   }
-  if (key === "price") {
-    const ap = a.market_price;
-    const bp = b.market_price;
-    if (ap == null && bp == null) return 0;
-    if (ap == null) return 1;
-    if (bp == null) return -1;
-    return bp - ap;
-  }
+  if (key === "price") return compareDesc(a.market_price, b.market_price);
+  if (key === "value") return compareDesc(a.value, b.value);
+  if (key === "owned") return compareDesc(a.owned, b.owned);
   return setSortKey(a.card_id).localeCompare(setSortKey(b.card_id));
 }
 
@@ -84,21 +96,32 @@ export function compareCardOrder(a: SortableCard, b: SortableCard, sorts: SortKe
   return a.card_id.localeCompare(b.card_id);
 }
 
-function loadCardSorts(): SortKey[] {
+type CardSortOptions = {
+  /** localStorage key; pages with a different key set keep their own order. */
+  storageKey?: string;
+  keys?: SortKey[];
+  defaults?: SortKey[];
+};
+
+function loadCardSorts(storageKey: string, keys: SortKey[], defaults: SortKey[]): SortKey[] {
   try {
-    const raw = localStorage.getItem(CARD_SORTS_KEY);
-    if (!raw) return DEFAULT_SORTS;
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return defaults;
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return DEFAULT_SORTS;
-    const valid = parsed.filter((k): k is SortKey => ALL_SORT_KEYS.includes(k as SortKey));
-    return valid.length ? valid : DEFAULT_SORTS;
+    if (!Array.isArray(parsed)) return defaults;
+    const valid = parsed.filter((k): k is SortKey => keys.includes(k as SortKey));
+    return valid.length ? valid : defaults;
   } catch {
-    return DEFAULT_SORTS;
+    return defaults;
   }
 }
 
-export function useCardSorts(onlyNeed: boolean, unavailableKeys: SortKey[] = []) {
-  const [sorts, setSorts] = useState<SortKey[]>(() => loadCardSorts());
+export function useCardSorts(
+  onlyNeed: boolean,
+  unavailableKeys: SortKey[] = [],
+  { storageKey = CARD_SORTS_KEY, keys = ALL_SORT_KEYS, defaults = DEFAULT_SORTS }: CardSortOptions = {},
+) {
+  const [sorts, setSorts] = useState<SortKey[]>(() => loadCardSorts(storageKey, keys, defaults));
 
   useEffect(() => {
     if (!onlyNeed) return;
@@ -107,11 +130,11 @@ export function useCardSorts(onlyNeed: boolean, unavailableKeys: SortKey[] = [])
 
   useEffect(() => {
     try {
-      localStorage.setItem(CARD_SORTS_KEY, JSON.stringify(sorts));
+      localStorage.setItem(storageKey, JSON.stringify(sorts));
     } catch {
       /* ignore */
     }
-  }, [sorts]);
+  }, [sorts, storageKey]);
 
   const effectiveSorts = useMemo(
     () =>
@@ -131,11 +154,14 @@ export function SortMenu({
   onChange,
   onlyNeed,
   unavailableKeys = [],
+  keys = ALL_SORT_KEYS,
 }: {
   sorts: SortKey[];
   onChange: (next: SortKey[]) => void;
   onlyNeed: boolean;
   unavailableKeys?: SortKey[];
+  /** Sort options this page offers (defaults to the shopping/deck set). */
+  keys?: SortKey[];
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -157,9 +183,9 @@ export function SortMenu({
   }, [open]);
 
   const menuKeys = useMemo(() => {
-    const inactive = ALL_SORT_KEYS.filter((k) => !sorts.includes(k));
+    const inactive = keys.filter((k) => !sorts.includes(k));
     return [...sorts, ...inactive];
-  }, [sorts]);
+  }, [sorts, keys]);
 
   const summary =
     sorts.filter((k) => !unavailableKeys.includes(k) && !(k === "still_need" && onlyNeed)).length === 0
@@ -212,8 +238,11 @@ export function SortMenu({
       {open && (
         <div className="sort-menu-panel" role="menu">
           <p className="sort-menu-hint">
-            Top option sorts first. Price is highest market price first. Deck groups by leader
-            (earliest deck first); cards used by multiple leaders stay under their earliest leader.
+            Top option sorts first. Price is highest market price first.
+            {keys.includes("value") ? " Value is owned copies × market price, highest first." : ""}
+            {keys.includes("deck")
+              ? " Deck groups by leader (earliest deck first); cards used by multiple leaders stay under their earliest leader."
+              : ""}
           </p>
           <ul className="sort-menu-list">
             {menuKeys.map((key) => {

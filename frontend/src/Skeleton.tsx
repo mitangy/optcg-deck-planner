@@ -42,9 +42,9 @@ export function AuthLoadingSkeleton({ label = "Loading…" }: { label?: string }
   );
 }
 
-export function ShoppingListSkeleton() {
+export function ShoppingListSkeleton({ label = "Loading shopping list…" }: { label?: string } = {}) {
   return (
-    <SkeletonScreen label="Loading shopping list…">
+    <SkeletonScreen label={label}>
       <div className="page-head">
         <div className="skeleton-stack">
           <Skeleton className="skeleton-title" />

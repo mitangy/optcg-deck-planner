@@ -327,5 +327,11 @@ module.exports = {
     { id: "lesson-any-owner", file: analyst, from: "    if row is None or row.user_id != user.id:\n        raise HTTPException(status_code=404, detail=\"Lesson not found\")", to: "    if row is None:\n        raise HTTPException(status_code=404, detail=\"Lesson not found\")", kills: ["test_only_the_owner_can_review_a_lesson"] },
     { id: "lesson-review-lists-everyone", file: analyst, from: "    q = select(AnalystLesson).where(AnalystLesson.user_id == user.id)", to: "    q = select(AnalystLesson)", kills: ["test_only_the_owner_can_review_a_lesson"] },
     { id: "lesson-limit-off-by-one", file: analyst, from: "    if waiting >= MAX_DRAFT_LESSONS:", to: "    if waiting > MAX_DRAFT_LESSONS:", kills: ["test_drafts_stop_at_the_review_limit"] },
+
+    // Collection page (owned cards + value), #268
+    { id: "owned-value-ignores-copies", file: services, from: "        value = round(qty * market, 2) if market is not None else None", to: "        value = round(market, 2) if market is not None else None", kills: ["test_collection_value_is_copies_times_market_price_268"] },
+    { id: "owned-unpriced-not-counted", file: services, from: "        if value is None:\n            unpriced += 1\n        else:", to: "        if value is None:\n            pass\n        else:", kills: ["test_collection_value_is_copies_times_market_price_268"] },
+    { id: "owned-zero-qty-listed", file: services, from: "    owned = {card_id: qty for card_id, qty in _owned_map(db, user.id).items() if qty > 0}", to: "    owned = dict(_owned_map(db, user.id))", kills: ["test_collection_skips_zero_owned_and_lists_decks_268"] },
+    { id: "owned-used-in-dropped", file: services, from: "                used_in=used_in.get(card_id, []),\n            )\n        )\n    return OwnedCollectionResponse(", to: "                used_in=[],\n            )\n        )\n    return OwnedCollectionResponse(", kills: ["test_collection_skips_zero_owned_and_lists_decks_268"] },
   ],
 };

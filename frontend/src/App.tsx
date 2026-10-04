@@ -10,6 +10,8 @@ import {
   DeckSummary,
   money,
   needBreakdownLabel,
+  OwnedCard,
+  OwnedCollectionResponse,
   ShoppingItem,
   ShoppingResponse,
   User,
@@ -34,13 +36,18 @@ import {
   COLOR_ORDER,
   compareCardOrder,
   matchesCardSearch,
+  OWNED_DEFAULT_SORTS,
+  OWNED_SORT_KEYS,
+  OWNED_SORTS_KEY,
   SORT_LABELS,
   SortMenu,
   useCardSorts,
+  usePersistedOpen,
   useShowAltArts,
   type SortKey,
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
+import { collectionTotals, patchOwnedCollection } from "./ownedCollection";
 import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { deckDelta, type DeckStatsCard } from "@optcg/deck-analytics";
 import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
@@ -256,6 +263,7 @@ function useMe() {
 function invalidateOwnedViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["shopping"] });
   void qc.invalidateQueries({ queryKey: ["deck"] });
+  void qc.invalidateQueries({ queryKey: ["owned"] });
 }
 
 function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
@@ -443,6 +451,9 @@ function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: str
       remaining_market: Math.round(remaining * 100) / 100,
     };
   });
+  qc.setQueriesData<OwnedCollectionResponse>({ queryKey: ["owned"] }, (old) =>
+    old ? patchOwnedCollection(old, id, qty) : old,
+  );
   qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) => {
     if (!old) return old;
     return {
@@ -490,6 +501,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
               Shopping
             </NavLink>
             <NavLink to="/decks">Decks</NavLink>
+            <NavLink to="/collection">Collection</NavLink>
             <NavLink to="/group-buys">Group buys</NavLink>
             <NavLink to="/import">Import</NavLink>
           </nav>
@@ -1741,6 +1753,502 @@ function ShoppingPage() {
         <CardScanner
           items={data?.items ?? []}
           initialImage={droppedImage}
+          onClose={() => {
+            setScanOpen(false);
+            setDroppedImage(null);
+          }}
+        />
+      )}
+    </section>
+  );
+}
+
+const COLLECTION_SHOW_DONS_KEY = "optcg_collection_show_dons";
+const COLLECTION_SPARES_KEY = "optcg_collection_spares_only";
+const COLLECTION_COLORS_KEY = "optcg_collection_colors";
+
+function loadCollectionColors(): string[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(COLLECTION_COLORS_KEY) ?? "[]") as unknown;
+    return Array.isArray(parsed) ? parsed.filter((c): c is string => COLOR_ORDER.includes(c as string)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function cardHasColor(card: { color: string }, colors: string[]): boolean {
+  const parts = card.color.split(/[/,&]+/).map((p) => p.trim().toLowerCase());
+  return colors.some((c) => parts.includes(c.toLowerCase()));
+}
+
+function CollectionStatStrip({ data }: { data: OwnedCollectionResponse | undefined }) {
+  return (
+    <ul className="stat-strip" aria-label="Collection totals">
+      <li>
+        <span className="stat-label">Cards</span>
+        <span className="stat-value">{data?.unique_cards ?? 0}</span>
+      </li>
+      <li>
+        <span className="stat-label">Copies</span>
+        <span className="stat-value">{data?.total_copies ?? 0}</span>
+      </li>
+      <li>
+        <span className="stat-label">Est. value</span>
+        <span className="stat-value gold">
+          {money(data?.total_value ?? 0)}
+          {data?.unpriced_cards ? <small> + {data.unpriced_cards} unpriced</small> : null}
+        </span>
+      </li>
+    </ul>
+  );
+}
+
+function CollectionItemsView({
+  items,
+  layout,
+  onOwnedSaved,
+}: {
+  items: OwnedCard[];
+  layout: CardLayout;
+  onOwnedSaved: () => void;
+}) {
+  if (items.length === 0) return null;
+  const usedIn = (item: OwnedCard) => (item.used_in.length ? item.used_in.join(", ") : "Not in a deck");
+
+  if (layout === "grid") {
+    return (
+      <div className="card-grid">
+        {items.map((item) => (
+          <article key={item.card_id} className="grid-card-wrap collection-grid-wrap" data-card-id={item.card_id}>
+            <div className="grid-card collection-grid-card">
+              <div className="grid-card-media">
+                <CardThumb src={item.image_url || undefined} alt={item.name} />
+              </div>
+              <div className="grid-card-body">
+                <div className="card-id">{item.card_id}</div>
+                <div className="grid-card-name">{item.name}</div>
+                <div className="grid-card-meta muted">
+                  Value <strong className="collection-value">{money(item.value)}</strong>
+                </div>
+                <div className="grid-card-price">
+                  <MarketPrice price={item.market_price} productId={item.product_id} />
+                </div>
+                <div className="grid-card-owned">
+                  <span>Owned</span>
+                  <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+                </div>
+                {item.tcgplayer_url && (
+                  <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                    TCGPlayer
+                  </a>
+                )}
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="table-wrap desktop-table">
+        <table className="data-table collection-table">
+          <thead>
+            <tr>
+              <th>Card</th>
+              <th>Owned</th>
+              <th>Market</th>
+              <th>Value</th>
+              <th>Cost</th>
+              <th>Used in</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.card_id} data-card-id={item.card_id}>
+                <td className="card-cell">
+                  <div className="card-cell-inner">
+                    <CardThumb src={item.image_url || undefined} alt={item.name} />
+                    <div>
+                      <div className="card-id">{item.card_id}</div>
+                      <div>{item.name}</div>
+                      {item.tcgplayer_url && (
+                        <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                          TCGPlayer
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+                </td>
+                <td>
+                  <MarketPrice price={item.market_price} productId={item.product_id} />
+                </td>
+                <td className="collection-value">{money(item.value)}</td>
+                <td>{item.cost ?? "—"}</td>
+                <td className={`used-in${item.used_in.length ? "" : " muted"}`}>{usedIn(item)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mobile-card-list">
+        {items.map((item) => (
+          <article key={item.card_id} className="mobile-card" data-card-id={item.card_id}>
+            <div className="mobile-card-top">
+              <MobileCardMedia
+                src={item.image_url || undefined}
+                alt={item.name}
+                cost={item.cost}
+                rarity={item.rarity}
+              />
+              <div className="mobile-card-info">
+                <div className="card-id">{item.card_id}</div>
+                <div className="mobile-card-name">{item.name}</div>
+                <div className="mobile-card-meta">
+                  {[item.color, `Value ${money(item.value)}`].filter(Boolean).join(" · ")}
+                </div>
+                <div className="mobile-card-price-row">
+                  <div className="mobile-card-price-main">
+                    <span className="muted">Market</span>
+                    <MarketPrice price={item.market_price} productId={item.product_id} />
+                    {item.tcgplayer_url ? (
+                      <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                        TCGPlayer
+                      </a>
+                    ) : null}
+                  </div>
+                  <div className="mobile-card-owned">
+                    <span>Owned</span>
+                    <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p className={`used-in mobile-used-in${item.used_in.length ? "" : " muted"}`}>{usedIn(item)}</p>
+          </article>
+        ))}
+      </div>
+    </>
+  );
+}
+
+const COLLECTION_ADD_OPEN_KEY = "optcg_collection_add_open";
+
+/** "Add" for a card you don't own yet, the Owned stepper once you do. Same footprint either way. */
+function CollectionOwnedControl({
+  cardId,
+  owned,
+  onSaved,
+}: {
+  cardId: string;
+  owned: number;
+  onSaved: () => void;
+}) {
+  const qc = useQueryClient();
+  const add = useMutation({
+    mutationFn: () => api.setOwned(cardId, 1),
+    // Refetch so the new card joins the list with its catalog details and price.
+    onSuccess: () => invalidateOwnedViews(qc),
+  });
+  return (
+    <span className="collection-owned-control">
+      {owned > 0 ? (
+        <OwnedInput cardId={cardId} value={owned} onSaved={onSaved} />
+      ) : (
+        <button
+          type="button"
+          className="btn secondary"
+          disabled={add.isPending}
+          aria-label={`Add ${cardId} to collection`}
+          title={add.error ? (add.error as Error).message : undefined}
+          onClick={() => add.mutate()}
+        >
+          {add.isError ? "Retry" : "Add"}
+        </button>
+      )}
+    </span>
+  );
+}
+
+function CollectionAddPanel({
+  ownedById,
+  defaultOpen,
+  onScan,
+  onOwnedSaved,
+}: {
+  ownedById: Map<string, number>;
+  defaultOpen: boolean;
+  onScan: () => void;
+  onOwnedSaved: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [color, setColor] = useState("");
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(query.trim()), 250);
+    return () => window.clearTimeout(t);
+  }, [query]);
+
+  const searchEnabled = Boolean(debouncedQ || color);
+  const searchQ = useQuery({
+    queryKey: ["catalog-search", debouncedQ, color, ""],
+    queryFn: () => api.searchCatalog({ q: debouncedQ || undefined, color: color || undefined, limit: 40 }),
+    enabled: searchEnabled,
+  });
+
+  return (
+    <div className="deck-editor collection-add">
+      <CollapsibleDrawer
+        label="Add cards"
+        summary="Search the catalog or scan a card"
+        storageKey={COLLECTION_ADD_OPEN_KEY}
+        defaultOpen={defaultOpen}
+      >
+        <div className="deck-editor-filters">
+          <CardSearchInput value={query} onChange={setQuery} />
+          <div className="deck-editor-filter-row">
+            <label className="deck-editor-select">
+              <span className="sr-only">Color</span>
+              <select value={color} onChange={(e) => setColor(e.target.value)} aria-label="Filter catalog by color">
+                <option value="">All colors</option>
+                {COLOR_ORDER.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="ghost scan-open" onClick={onScan}>
+              Scan
+            </button>
+          </div>
+        </div>
+
+        {!searchEnabled && <p className="muted deck-editor-status">Search the catalog by name or ID to add cards</p>}
+        {searchEnabled && searchQ.isLoading && <InlineSkeleton lines={3} label="Searching catalog…" />}
+        {searchEnabled && searchQ.error && (
+          <p className="error deck-editor-status">{(searchQ.error as Error).message}</p>
+        )}
+        {searchEnabled && searchQ.data && searchQ.data.length === 0 && (
+          <p className="muted deck-editor-status">No catalog matches</p>
+        )}
+        {searchQ.data && searchQ.data.length > 0 && (
+          <ul className="deck-editor-results">
+            {searchQ.data.map((card) => (
+              <li key={card.card_id} className="deck-editor-result" data-catalog-id={card.card_id}>
+                <div className="deck-editor-result-main">
+                  <CardThumb src={card.image_url || undefined} alt={card.name} />
+                  <div>
+                    <div className="card-id">{card.card_id}</div>
+                    <div>{card.name}</div>
+                    <div className="muted">
+                      {[card.color, card.card_type, money(card.market_price)].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                </div>
+                <div className="deck-editor-result-actions">
+                  <CollectionOwnedControl
+                    cardId={card.card_id}
+                    owned={ownedById.get(card.card_id) ?? 0}
+                    onSaved={onOwnedSaved}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CollapsibleDrawer>
+    </div>
+  );
+}
+
+function CollectionPage() {
+  const qc = useQueryClient();
+  const { data, isLoading, error } = useQuery({ queryKey: ["owned"], queryFn: api.ownedCollection });
+  const noUnavailableSorts = useMemo(() => [] as SortKey[], []);
+  const { sorts, setSorts, effectiveSorts } = useCardSorts(false, noUnavailableSorts, {
+    storageKey: OWNED_SORTS_KEY,
+    keys: OWNED_SORT_KEYS,
+    defaults: OWNED_DEFAULT_SORTS,
+  });
+  const [layout, setLayout] = useCardLayout();
+  const [search, setSearch] = useState("");
+  const [showDons, setShowDons] = usePersistedOpen(COLLECTION_SHOW_DONS_KEY, true);
+  const [sparesOnly, setSparesOnly] = usePersistedOpen(COLLECTION_SPARES_KEY, false);
+  const [colors, setColors] = useState<string[]>(loadCollectionColors);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [droppedImage, setDroppedImage] = useState<Blob | null>(null);
+  const [pageDragging, setPageDragging] = useState(false);
+  // Same as Shopping: drop a card image anywhere on the page to scan it.
+  useImageDrop({
+    enabled: !scanOpen,
+    onImage: (blob) => {
+      setDroppedImage(blob);
+      setScanOpen(true);
+    },
+    onDragStateChange: setPageDragging,
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLECTION_COLORS_KEY, JSON.stringify(colors));
+    } catch {
+      /* ignore */
+    }
+  }, [colors]);
+
+  const allItems = data?.items ?? [];
+  const ownedById = useMemo(() => new Map(allItems.map((i) => [i.card_id, i.owned])), [allItems]);
+  const items = useMemo(() => {
+    let list = allItems;
+    if (!showDons) list = list.filter((i) => !isDonCard(i));
+    if (sparesOnly) list = list.filter((i) => i.used_in.length === 0);
+    if (colors.length) list = list.filter((i) => cardHasColor(i, colors));
+    if (search.trim()) list = list.filter((i) => matchesCardSearch(i, search));
+    return [...list].sort((a, b) => compareCardOrder(a, b, effectiveSorts));
+  }, [allItems, showDons, sparesOnly, colors, search, effectiveSorts]);
+
+  const shown = useMemo(() => collectionTotals(items.filter((i) => i.owned > 0)), [items]);
+  const narrowed = items.length !== allItems.length;
+
+  const filterSummary = useMemo(() => {
+    const parts: string[] = [];
+    if (effectiveSorts.length) parts.push(effectiveSorts.map((k) => SORT_LABELS[k]).join(" › "));
+    if (colors.length) parts.push(colors.join("/"));
+    if (sparesOnly) parts.push("Not in a deck");
+    if (!showDons) parts.push("No DON!!");
+    if (layout === "grid") parts.push("Grid");
+    return parts.join(" · ");
+  }, [effectiveSorts, colors, sparesOnly, showDons, layout]);
+  const activeFilters = colors.length + (sparesOnly ? 1 : 0) + (showDons ? 0 : 1);
+
+  function toggleColor(color: string) {
+    setColors((prev) => (prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color]));
+  }
+
+  // Shopping and deck pages refetch; this page keeps its optimistic copy so a
+  // card stepped down to 0 stays put instead of vanishing under the pointer.
+  const onOwnedSaved = () => {
+    void qc.invalidateQueries({ queryKey: ["shopping"] });
+    void qc.invalidateQueries({ queryKey: ["deck"] });
+  };
+
+  if (isLoading) return <ShoppingListSkeleton label="Loading your collection…" />;
+  if (error) return <p className="error">{(error as Error).message}</p>;
+
+  return (
+    <section>
+      <div className="page-head">
+        <div>
+          <p className="eyebrow">Cards you own</p>
+          <h1>Collection</h1>
+          <CollectionStatStrip data={data} />
+        </div>
+      </div>
+
+      <CollectionAddPanel
+        ownedById={ownedById}
+        defaultOpen={allItems.length === 0}
+        onScan={() => setScanOpen(true)}
+        onOwnedSaved={onOwnedSaved}
+      />
+
+      {allItems.length === 0 ? (
+        <p className="muted">
+          No owned cards yet. Add some above, or set Owned on the <Link to="/">shopping list</Link> or a{" "}
+          <Link to="/decks">deck</Link>. Owned is shared, so every deck counts these copies.
+        </p>
+      ) : (
+        <>
+          <div className="list-toolbar">
+            <div className="list-toolbar-row">
+              <CardSearchInput value={search} onChange={setSearch} />
+              <CardLayoutToggle layout={layout} onChange={setLayout} />
+            </div>
+            <CollapsibleFilters summary={filterSummary} badge={activeFilters} badgeLabel="filters on">
+              <div className="filters">
+                <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={false} keys={OWNED_SORT_KEYS} />
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={sparesOnly}
+                    onChange={(e) => setSparesOnly(e.target.checked)}
+                  />
+                  Not in a deck
+                </label>
+                <label>
+                  <input type="checkbox" checked={showDons} onChange={(e) => setShowDons(e.target.checked)} />
+                  Show DON!!
+                </label>
+              </div>
+              <div className="deck-filter">
+                <div className="deck-filter-head">
+                  <span>Colors</span>
+                  {colors.length > 0 && (
+                    <button type="button" className="ghost" onClick={() => setColors([])}>
+                      Any color
+                    </button>
+                  )}
+                </div>
+                <div className="deck-filter-list">
+                  {COLOR_ORDER.map((color) => (
+                    <label key={color} className="deck-chip">
+                      <input
+                        type="checkbox"
+                        checked={colors.includes(color)}
+                        onChange={() => toggleColor(color)}
+                      />
+                      {color}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <p className="need-mode-note muted">
+                Value is owned copies × the standard printing&apos;s TCGPlayer market price.
+              </p>
+            </CollapsibleFilters>
+          </div>
+
+          {narrowed && (
+            <p className="search-result-note muted" role="status">
+              Showing {shown.cards} of {allItems.length} cards · {shown.copies}{" "}
+              {shown.copies === 1 ? "copy" : "copies"} ·{" "}
+              {money(shown.value)}
+            </p>
+          )}
+          {items.length === 0 ? (
+            <p className="muted">No owned cards match the current search and filters.</p>
+          ) : (
+            <CollectionItemsView items={items} layout={layout} onOwnedSaved={onOwnedSaved} />
+          )}
+        </>
+      )}
+      {pageDragging && !scanOpen && (
+        <div className="page-drop-hint" role="status">
+          Drop the card image to scan it
+        </div>
+      )}
+      {scanOpen && (
+        <CardScanner
+          items={[]}
+          showNeed={false}
+          initialImage={droppedImage}
+          renderHitAction={(card) => (
+            <div className="scan-hit-owned">
+              <span className="muted">In collection</span>
+              <CollectionOwnedControl
+                cardId={card.card_id}
+                owned={ownedById.get(card.card_id) ?? 0}
+                onSaved={onOwnedSaved}
+              />
+            </div>
+          )}
           onClose={() => {
             setScanOpen(false);
             setDroppedImage(null);
@@ -3133,7 +3641,7 @@ function DeckDetailPage() {
                     close();
                     const ok = window.confirm(
                       "Reset owned counts to 0 for every card in this deck?\n\n" +
-                        "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks.",
+                        "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks, and leave your Collection.",
                     );
                     if (!ok) return;
                     setResetMsg(null);
@@ -3141,7 +3649,7 @@ function DeckDetailPage() {
                   }}
                 >
                   {resetOwned.isPending ? "Resetting…" : "Reset owned counts"}
-                  <span className="muted">Sets every card in this deck to 0 owned</span>
+                  <span className="muted">Sets every card in this deck to 0 owned (also removes them from Collection)</span>
                 </button>
               </div>
             )}
@@ -3666,6 +4174,14 @@ export default function App() {
           element={
             <RequireAuth>
               <DeckDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/collection"
+          element={
+            <RequireAuth>
+              <CollectionPage />
             </RequireAuth>
           }
         />
