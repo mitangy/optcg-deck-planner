@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import type { PlayerView, Seat, SeatPlayers } from "../net/protocol";
 import { cardBackCssValue } from "../cardBack";
 import { fanPose } from "./handFan";
-import { seatName } from "./playerNames";
+import { playerLabel, seatName } from "./playerNames";
 import { CardTile } from "./CardTile";
 
 /** Formatted per-player (chess) clocks; `running` is whose is ticking. */
@@ -113,9 +113,9 @@ export function TurnStatusPanel({
     !spectating && !youActive && !over && !mulligan && view.legalIntents.length > 0;
 
   const youName = spectating
-    ? seatName(players, boardSeat) ?? `Seat ${boardSeat}`
+    ? seatName(players, boardSeat) ?? playerLabel(boardSeat)
     : seatName(players, boardSeat) ?? "You";
-  const oppName = seatName(players, oppSeat) ?? (spectating ? `Seat ${oppSeat}` : "Opponent");
+  const oppName = seatName(players, oppSeat) ?? (spectating ? playerLabel(oppSeat) : "Opponent");
   const activeName = youActive ? youName : oppName;
 
   let tone: "mine" | "theirs" | "respond" | "neutral";

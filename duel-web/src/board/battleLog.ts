@@ -1,5 +1,6 @@
 import { lookupCard } from "../cards/atlas";
 import { endReasonLabel } from "./matchResult";
+import { playerLabel } from "./playerNames";
 
 /**
  * Visual weight of a log line. `routine` lines (phases, DON!!, draws, buffs)
@@ -94,7 +95,7 @@ function seatLabel(seat: unknown, youSeat: number | null): string {
   if (youSeat === 0 || youSeat === 1) {
     return seat === youSeat ? "You" : "Opponent";
   }
-  return `Seat ${seat}`;
+  return playerLabel(seat);
 }
 
 function possessive(seat: unknown, youSeat: number | null): string {
@@ -216,8 +217,9 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
         `${act(e.seat, youSeat, e.didMulligan ? "mulligan" : "keep", e.didMulligan ? "mulligans" : "keeps")} opening hand`,
       );
     case "phase_changed":
+      // Turn headers already split the log; the other phase changes are engine noise.
       if (e.phase === "main") return line("phase", false, `—— Main phase · ${seatLabel(e.activeSeat, youSeat)} ——`);
-      return line("routine", false, `Phase → ${String(e.phase)}`);
+      return null;
     case "drew":
       return line("routine", false, `${act(e.seat, youSeat, "draw", "draws")} ${Number(e.count) || 1}`);
     case "don_placed":
@@ -424,7 +426,7 @@ export function rewindBattleLog(
   by: 0 | 1,
   youSeat: number | null,
 ): BattleLogEntry[] {
-  const who = youSeat == null ? `Seat ${by}` : by === youSeat ? "You" : "Opponent";
+  const who = youSeat == null ? playerLabel(by) : by === youSeat ? "You" : "Opponent";
   const text = `${who} undid the turn — rewound to the start of turn ${toTurn}.`;
   return [
     ...entries.filter((e) => e.turn <= toTurn),

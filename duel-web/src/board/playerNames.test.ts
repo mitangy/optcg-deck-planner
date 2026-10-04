@@ -6,11 +6,11 @@ import { seatLabel, seatName, winnerHeadline } from "./playerNames";
 const players: SeatPlayers = [{ name: "Luffy" }, { name: "Kaido" }];
 
 describe("player names", () => {
-  it("labels seats with names and falls back to Seat N", () => {
+  it("labels seats with names and falls back to Player N, counted from 1 (#276)", () => {
     expect(seatName(players, 1)).toBe("Kaido");
     expect(seatLabel(players, 0)).toBe("Luffy");
-    expect(seatLabel(null, 1)).toBe("Seat 1");
-    expect(seatLabel([{ name: null }, { name: "B" }], 0)).toBe("Seat 0");
+    expect(seatLabel(null, 1)).toBe("Player 2");
+    expect(seatLabel([{ name: null }, { name: "B" }], 0)).toBe("Player 1");
   });
 
   it("headlines the winner from the viewer's perspective", () => {
@@ -18,7 +18,7 @@ describe("player names", () => {
     expect(winnerHeadline(players, 1, 0, false)).toBe("Kaido wins");
     expect(winnerHeadline(null, 1, 0, false)).toBe("You lose");
     expect(winnerHeadline(players, 1, 0, true)).toBe("Kaido wins");
-    expect(winnerHeadline(null, 0, null, true)).toBe("Seat 0 wins");
+    expect(winnerHeadline(null, 0, null, true)).toBe("Player 1 wins");
   });
 });
 

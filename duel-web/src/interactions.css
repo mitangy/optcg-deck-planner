@@ -24,6 +24,18 @@
   z-index: 55;
 }
 
+/* An open menu, landscape panel or (phones) the floating battle log covers the board, and
+   the arrow would paint over its text: hide it until they close. */
+body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  body:has(.arena .battle-log:not(.collapsed)) .attack-overlay:not(.attack-aim) {
+    display: none;
+  }
+}
+
 .attack-overlay.attack-incoming {
   --atk: #e0503f;
   --atk-glow: rgba(235, 70, 50, 0.6);

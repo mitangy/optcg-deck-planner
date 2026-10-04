@@ -4519,3 +4519,26 @@ body.is-panel-drag * {
   background: rgb(var(--chrome-bright-rgb) / 0.14);
   pointer-events: none;
 }
+
+/* A hand card that costs more than your active DON!!. */
+.arena .card-tile.hand-unaffordable:not(.selected) {
+  opacity: 0.55;
+  filter: saturate(0.6);
+}
+
+/* Phone boards: names and power at 10px or more (they were 7 to 8px), and the printed
+   cost line goes (the art shows it) unless an effect changed it. */
+@media (pointer: coarse) and (max-width: 599px), (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+  .arena .side-field .card-caption .name {
+    font-size: clamp(0.625rem, calc(var(--c) * 0.12 * var(--text-scale, 1)), 0.74rem);
+  }
+
+  .arena .side-field .card-caption .meta:not(.meta-changed) {
+    display: none;
+  }
+
+  .arena .side-field .power-badge,
+  .arena .side-field .don-badge {
+    font-size: min(clamp(0.625rem, calc(var(--c) * 0.1 * var(--text-scale, 1)), 0.7rem), 21cqw);
+  }
+}

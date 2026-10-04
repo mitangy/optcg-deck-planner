@@ -166,7 +166,9 @@ function sanitize(
   const next = { ...DEFAULTS, ...rest };
   if (!END_TURN_CONFIRM.includes(next.endTurnConfirm)) next.endTurnConfirm = DEFAULTS.endTurnConfirm;
   // Older builds stored a boolean auto-pass: true is today's `auto`, anything else `always`.
-  if (rest.responseStops === undefined && autoPassDefense === true) next.responseStops = "auto";
+  if (rest.responseStops === undefined) {
+    next.responseStops = autoPassDefense === true ? "auto" : deviceDefaults().responseStops;
+  }
   if (!RESPONSE_STOPS.includes(next.responseStops)) next.responseStops = DEFAULTS.responseStops;
   if (!SCREEN_ORIENTATIONS.includes(next.screenOrientation)) {
     next.screenOrientation = DEFAULTS.screenOrientation;
@@ -221,14 +223,28 @@ export function onLocalSettingsChange(listener: (s: DuelSettings) => void): () =
 
 const localListeners = new Set<(s: DuelSettings) => void>();
 
+/** A phone-sized touch screen (a landscape phone is under 900px wide too). */
+export function isPhoneScreen(): boolean {
+  try {
+    return typeof matchMedia === "function" && matchMedia("(pointer: coarse) and (max-width: 900px)").matches;
+  } catch {
+    return false;
+  }
+}
+
+/** Defaults that depend on the device: phones skip the block step when there is no blocker. */
+function deviceDefaults(): DuelSettings {
+  return { ...DEFAULTS, responseStops: isPhoneScreen() ? "auto" : DEFAULTS.responseStops };
+}
+
 export function loadSettings(): DuelSettings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULTS };
+    if (!raw) return deviceDefaults();
     const parsed = JSON.parse(raw) as Partial<DuelSettings>;
     return sanitize(parsed && typeof parsed === "object" ? parsed : {});
   } catch {
-    return { ...DEFAULTS };
+    return deviceDefaults();
   }
 }
 

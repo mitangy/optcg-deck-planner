@@ -6,6 +6,7 @@ import { DON_CARD_ART } from "./donArt";
 import { arrangementAnswer, arrangementRows, groupAnswer, initialArrangement, mergeArrangement, moveToRow, nudge, setSide, withoutIds, type Arrangement } from "./deckOrder";
 import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "./liveTargets";
 import { promptSourceName, PromptHideButton } from "./HideablePrompt";
+import { promptBody } from "./promptText";
 import { boardPickSpots, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo, type BoardPick, type BoardSpot } from "./fieldTargets";
 import { FieldTargetBar } from "./FieldTargetBar";
 import { useDuelSettings } from "../settings";
@@ -490,7 +491,7 @@ function FieldSelectBar({ request, choice, spots, onSend }: {
       <DonHighlight spots={[]} chipIds={pickedChips} kind="hover" />
       <FieldTargetBar
         title={promptSourceName(choice)}
-        text={choice.prompt}
+        text={promptBody(promptSourceName(choice), choice.prompt)}
         caption={pickCaption(request.min, request.max, selected.length)}
         label={choice.prompt}
         handPick={handIds(all).length > 0}
@@ -640,7 +641,7 @@ function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view"
       <SourceHeader choice={choice} />
       <div className="choice-intro">
         {showSource ? <CardTile defId={choice.cardDefId} compact inspectGestures viewingSeat={mySeat} /> : null}
-        <p>{choice.prompt}</p>
+        <p>{promptBody(promptSourceName(choice), choice.prompt)}</p>
       </div>
       {request.type === "confirm" ? (
         <div className="ability-prompt-actions">

@@ -762,6 +762,16 @@ module.exports = {
     { id: "phone-fan-any-size", file: `${src}/board/handLayout.ts`, from: "handCount <= PHONE_FAN_MAX", to: "true", kills: ["portrait phones fan up to 8 cards and scroll a bigger hand (#271)"] },
     { id: "phone-fan-off-by-one", file: `${src}/board/handLayout.ts`, from: "handCount <= PHONE_FAN_MAX", to: "handCount < PHONE_FAN_MAX", kills: ["portrait phones fan up to 8 cards and scroll a bigger hand (#271)"] },
     { id: "rail-hand-not-landscape", file: `${src}/board/handLayout.ts`, from: "wide && (landscapePhone || (tall && !fanHand))", to: "wide && tall && !fanHand", kills: ["landscape phones keep the hand in the right column, even in a short window (#271)"] },
+    // phone P2 fixes (#276)
+    { id: "log-phase-noise", file: `${src}/board/battleLog.ts`, from: "      return null;\n    case \"drew\":", to: "      return line(\"routine\", false, `Phase \u2192 ${String(e.phase)}`);\n    case \"drew\":", kills: ["keeps the Main phase header and drops the other phase changes (#276)"] },
+    { id: "phase-label-raw", file: `${src}/board/phaseLabel.ts`, from: "  return LABELS[phase] ?? ", to: "  return phase ?? ", kills: ["never prints the engine's game_over id (#276)"] },
+    { id: "player-label-zero-based", file: `${src}/board/playerNames.ts`, from: "return `Player ${seat + 1}`;", to: "return `Player ${seat}`;", kills: ["labels seats with names and falls back to Player N, counted from 1 (#276)"] },
+    { id: "placeholder-art-portrait", file: `${src}/cards/cardImage.ts`, from: "naturalWidth > 0 && naturalWidth > naturalHeight", to: "naturalWidth > 0 && naturalWidth < naturalHeight", kills: ["a landscape picture from the CDN is the Image Coming Soon placeholder (#276)"] },
+    { id: "placeholder-art-any-source", file: `${src}/cards/cardImage.ts`, from: "return isTcgplayerCdnUrl(src) && naturalWidth > 0", to: "return naturalWidth > 0", kills: ["only judges CDN pictures that have loaded (#276)"] },
+    { id: "don-shortfall-off-by-one", file: `${src}/board/handAffordance.ts`, from: "Math.max(0, cost - activeDon)", to: "Math.max(0, cost - activeDon - 1)", kills: ["a card that costs exactly the active DON!! is affordable (#276)", "a cost-3 card with 1 active DON!! is 2 short and says so (#276)"] },
+    { id: "prompt-body-keeps-name", file: `${src}/board/promptText.ts`, from: "return prompt.slice(lead.length);", to: "return prompt;", kills: ["drops the card name the sheet already shows as its title (#276)"] },
+    { id: "prompt-body-empty", file: `${src}/board/promptText.ts`, from: " && prompt.length > lead.length", to: "", kills: ["keeps a sentence that merely mentions another name, or is only the name (#276)"] },
+    { id: "response-stops-phone-always", file: `${src}/settings.ts`, from: "isPhoneScreen() ? \"auto\" : DEFAULTS.responseStops", to: "DEFAULTS.responseStops", kills: ["defaults to auto on a phone-sized touch screen and always elsewhere (#276)"] },
     { id: "hand-confirm-never", file: `${src}/board/handPrompt.ts`, from: "  return used.box;", to: "  return null;", kills: ["puts the Haki's rest-a-DON!! Yes/No on its hand slot instead of a pop-up (#270)"] },
     { id: "confirm-question-full-text", edits: [
       { file: `${src}/board/handPrompt.ts`, from: "    question = mark >= 0 ? body.slice(0, mark + 1) : body;", to: "    question = body;" },

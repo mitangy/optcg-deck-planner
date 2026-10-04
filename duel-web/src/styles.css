@@ -2373,12 +2373,31 @@ img.zone-pile-face {
 .card-fallback {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.15rem;
   padding: 0.25rem;
   color: #fff;
   font-size: 0.65rem;
   font-weight: 700;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* No art to tell cards apart by: the name leads, wrapped, and the id sits small under it. */
+.card-fallback-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.15;
+}
+
+.card-fallback-id {
+  font-size: 0.5rem;
+  font-weight: 600;
+  opacity: 0.75;
 }
 
 .power-badge,

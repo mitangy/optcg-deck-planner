@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
+import { isPlaceholderArt, isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import type { DefendModel } from "./defendModel";
@@ -23,6 +23,12 @@ function Thumb({ defId, ownerSeat }: { defId: string; ownerSeat: Seat }) {
           draggable={false}
           // Same fallback as CardTile: CDN art first, then the local mirror.
           onError={() => (!local && isTcgplayerCdnUrl(primary) ? setLocal(true) : setFailed(true))}
+          onLoad={(e) => {
+            if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) {
+              if (!local) setLocal(true);
+              else setFailed(true);
+            }
+          }}
         />
       ) : (
         <span className="defend-chip-fallback">{defId}</span>

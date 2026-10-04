@@ -9,6 +9,18 @@ import {
 } from "./battleLog";
 
 describe("narrateEvents", () => {
+  it("keeps the Main phase header and drops the other phase changes (#276)", () => {
+    const lines = narrateEvents(
+      [
+        { type: "phase_changed", phase: "end", activeSeat: 0 },
+        { type: "phase_changed", phase: "refresh", activeSeat: 1 },
+        { type: "phase_changed", phase: "main", activeSeat: 1 },
+      ],
+      { youSeat: 0, turnNumber: 2 },
+    ).map((e) => e.text);
+    expect(lines).toEqual(["—— Main phase · Opponent ——"]);
+  });
+
   it("describes attack, block, counter, and plays from your seat", () => {
     const lines = narrateEvents(
       [

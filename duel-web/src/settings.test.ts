@@ -79,6 +79,20 @@ describe("response stops migration", () => {
     expect(loadSettings().responseStops).toBe("always");
   });
 
+  it("defaults to auto on a phone-sized touch screen and always elsewhere (#276)", () => {
+    const phone = (matches: boolean) =>
+      vi.stubGlobal("matchMedia", (q: string) => ({ matches: matches && q.includes("pointer: coarse") }));
+    phone(true);
+    stubStored({});
+    expect(loadSettings().responseStops).toBe("auto");
+    // A stored choice still wins over the device default.
+    stubStored({ responseStops: "always" });
+    expect(loadSettings().responseStops).toBe("always");
+    phone(false);
+    stubStored({});
+    expect(loadSettings().responseStops).toBe("always");
+  });
+
   it("falls back to always for an unknown value", () => {
     stubStored({ responseStops: "banana" });
     expect(loadSettings().responseStops).toBe("always");

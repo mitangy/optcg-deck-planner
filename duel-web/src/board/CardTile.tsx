@@ -9,7 +9,7 @@ import {
   type PointerEvent,
 } from "react";
 import { resolveCardImageUrl } from "../decks/artPrefs";
-import { isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
+import { isPlaceholderArt, isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
 import {
   getArtPrefsTick,
   subscribeArtPrefs,
@@ -321,11 +321,16 @@ export function CardTile({
           src={imageUrl}
           alt={entry.name}
           onError={handleImgError}
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            if (isPlaceholderArt(imageUrl, img.naturalWidth, img.naturalHeight)) handleImgError();
+          }}
           draggable={false}
         />
       ) : (
         <div className="card-fallback" style={{ backgroundColor: chip }}>
-          {entry.id}
+          <span className="card-fallback-name">{entry.name}</span>
+          <span className="card-fallback-id">{entry.id}</span>
         </div>
       )}
       {/* Badges live in an overlay that counter-rotates on rested (sideways)
@@ -396,7 +401,9 @@ export function CardTile({
       <div className="card-caption">
         <div className="name">{entry.name}</div>
         <div
-          className={`meta${!(cb && cb.delta !== 0) && playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}`}
+          className={`meta${!(cb && cb.delta !== 0) && playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}${
+            (cb && cb.delta !== 0) || (playCost != null && playCost !== entry.cost) ? " meta-changed" : ""
+          }`}
           title={
             cb && cb.delta !== 0
               ? `Cost ${cb.current} (printed ${cb.base}, ${formatPowerDelta(cb.delta)})`

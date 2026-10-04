@@ -40,3 +40,11 @@ export function isTcgplayerCdnUrl(src: string | undefined | null): boolean {
 export function artAfterError(failed: string, defId: string): string | null {
   return isTcgplayerCdnUrl(failed) ? localCardArtPath(defId) : null;
 }
+
+/**
+ * TCGplayer answers a missing product image with a landscape "Image Coming Soon"
+ * picture and HTTP 200, so `onError` never fires. Real card art is portrait.
+ */
+export function isPlaceholderArt(src: string | undefined | null, naturalWidth: number, naturalHeight: number): boolean {
+  return isTcgplayerCdnUrl(src) && naturalWidth > 0 && naturalWidth > naturalHeight;
+}

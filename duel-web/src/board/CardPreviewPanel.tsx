@@ -1,5 +1,6 @@
 import { useState, type MouseEvent } from "react";
 import { lookupCard } from "../cards/atlas";
+import { isPlaceholderArt } from "../cards/cardImage";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { usePreviewCard } from "./cardPreview";
 import { CardInspect } from "./CardInspect";
@@ -50,6 +51,9 @@ export function CardPreviewPanel() {
           src={src}
           alt={entry.name}
           onError={() => setFailed(src)}
+          onLoad={(e) => {
+            if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) setFailed(src);
+          }}
           onContextMenu={openInspect}
         />
       ) : (
