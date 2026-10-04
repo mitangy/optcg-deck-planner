@@ -239,14 +239,9 @@ button {
 }
 
 .card-inspect-chip {
-  /* Lives in .card-overlays, mid-left: the corners belong to the power / DON!!
-     stack (top right) and the status icons (bottom right), also on rested
-     tiles, whose overlay turns upright. */
   position: absolute;
-  top: 50%;
-  left: 3px;
-  transform: translateY(-50%);
-  pointer-events: auto;
+  top: 2px;
+  right: 2px;
   z-index: 2;
   width: 16px;
   height: 16px;
@@ -263,12 +258,16 @@ button {
   transition: opacity 0.15s ease, background 0.15s ease;
 }
 
-/* Hit area of 26px around the 16px chip, with no layout change. */
-.card-inspect-chip::before {
-  content: "";
-  position: absolute;
-  inset: -5px;
-  border-radius: 50%;
+/* Desktop with a mouse: mid-left, since the corners belong to the power /
+   DON!! stack (top right) and the status icons (bottom right). Touch keeps the
+   corner: mid-card is where a tap lands, and it must select the card. */
+@media (min-width: 900px) and (min-height: 500px) and (hover: hover) and (pointer: fine) {
+  .card-inspect-chip {
+    top: 50%;
+    right: auto;
+    left: 3px;
+    transform: translateY(-50%);
+  }
 }
 
 .card-tile:hover .card-inspect-chip,

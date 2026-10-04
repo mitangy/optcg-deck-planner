@@ -393,20 +393,6 @@ export function CardTile({
             stackKey={`${pb?.current ?? ""}/${pb?.delta ?? 0}/${counter ? formatCounter(counter) : ""}/${attachedDonCount ?? 0}`}
           />
         ) : null}
-        {showInspectChip ? (
-          // Mouse / touch shortcut; keyboard players press I on the focused card
-          // instead, so the chip stays out of the Tab order (~30 stops a board).
-          <span
-            role="button"
-            tabIndex={-1}
-            className="card-inspect-chip"
-            title="Inspect card (or double-click / right-click / long-press)"
-            aria-label={`Inspect ${entry.name}`}
-            onClick={openInspectFromChip}
-          >
-            i
-          </span>
-        ) : null}
       </div>
       <div className="card-caption">
         <div className="name">{entry.name}</div>
@@ -434,6 +420,20 @@ export function CardTile({
               : `Cost ${entry.cost}`}
         </div>
       </div>
+      {showInspectChip ? (
+        // Mouse / touch shortcut; keyboard players press I on the focused card
+        // instead, so the chip stays out of the Tab order (~30 stops a board).
+        <span
+          role="button"
+          tabIndex={-1}
+          className="card-inspect-chip"
+          title="Inspect card (or double-click / right-click / long-press)"
+          aria-label={`Inspect ${entry.name}`}
+          onClick={openInspectFromChip}
+        >
+          i
+        </span>
+      ) : null}
     </>
   );
 

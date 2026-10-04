@@ -1127,13 +1127,6 @@
   box-sizing: border-box;
 }
 
-/* A wider, taller hit area than the 44x14 bar itself; no layout change. */
-.panel-grip::before {
-  content: "";
-  position: absolute;
-  inset: 0 -14px -10px;
-}
-
 .board-panel:hover > .panel-grip,
 .panel-grip:focus-visible,
 body.is-panel-drag .panel-grip {

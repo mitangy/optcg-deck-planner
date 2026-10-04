@@ -1424,13 +1424,15 @@ export function DuelBoard({
       )
     ) : null}
     {hotseatPass ? (
+      // The phone bar is tight: "→ P2" here, the full wording in its name.
       <button
         type="button"
         className="hud-pass-btn"
         title={`Hand the device to ${playerNumberLabel(hotseatPass.otherSeat)}`}
+        aria-label={`Switch to ${playerNumberLabel(hotseatPass.otherSeat)}`}
         onClick={hotseatPass.onPass}
       >
-        Switch to {playerNumberLabel(hotseatPass.otherSeat)}
+        → P{hotseatPass.otherSeat + 1}
       </button>
     ) : null}
     </>
