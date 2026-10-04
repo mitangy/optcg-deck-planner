@@ -47,7 +47,8 @@ const DEFAULT_STACKS = [
 const DEFAULT_OFFSCREEN_OK = [".hand-fan-cards"];
 
 /** Containers that scroll sideways on purpose. */
-const DEFAULT_HSCROLL_OK: string[] = [];
+/** `.hand-row`: a portrait hand of more than 8 cards scrolls as a strip (#271). */
+const DEFAULT_HSCROLL_OK: string[] = [".hand-row"];
 
 /** Layers that intentionally sit over the board (a covered board under them is expected). */
 const DEFAULT_OVERLAYS = [
