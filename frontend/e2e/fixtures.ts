@@ -167,7 +167,26 @@ export const test = base.extend<{ planner: Planner }>({
           unpriced_cards: 0,
         });
       }
-      if (path === "/catalog/cards") return json([]);
+      if (path === "/catalog/cards") {
+        // Name / ID search over the fixture cards (the deck editor and Collection "Add cards" use it).
+        const q = (new URL(req.url()).searchParams.get("q") ?? "").toLowerCase();
+        if (!q) return json([]);
+        return json(
+          CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q)).map((c) => ({
+            card_id: c.card_id,
+            name: c.name,
+            rarity: c.rarity,
+            color: c.color,
+            card_type: c.card_type,
+            cost: c.cost,
+            market_price: c.market_price,
+            low_price: c.low_price,
+            image_url: img(c.product_id),
+            tcgplayer_url: "",
+            group_name: "Extra Booster: Memorial Collection",
+          })),
+        );
+      }
       if ((m = path.match(/^\/owned\/(.+)$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!);
         const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;

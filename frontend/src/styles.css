@@ -5544,3 +5544,28 @@ tr.row-flash > td {
 .grid-card-wrap.collection-grid-wrap {
   grid-template-columns: minmax(0, 1fr);
 }
+
+.collection-add {
+  margin-bottom: 0.75rem;
+}
+
+/* Add and the Owned stepper share one slot so swapping them moves nothing. */
+.collection-owned-control {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-width: 7.75rem;
+}
+
+.scan-hit-owned {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin: 0.35rem 0;
+}
+
+.collection-add .deck-editor-result-actions {
+  margin-left: auto;
+}

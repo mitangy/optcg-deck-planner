@@ -5,6 +5,7 @@
  * uploaded and nothing is stored — the image never leaves the device.
  */
 
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import type { CatalogCardResult, ShoppingItem } from "./api";
@@ -180,12 +181,18 @@ export function CardScanner({
   items,
   onClose,
   initialImage = null,
+  showNeed = true,
+  renderHitAction,
 }: {
   /** Current shopping rows, used to answer "do I still need this?". */
   items: ShoppingItem[];
   onClose: () => void;
   /** An image dropped on the page before the dialog opened. */
   initialImage?: Blob | null;
+  /** Show the shopping "still need" line for a hit (off on the Collection page). */
+  showNeed?: boolean;
+  /** Extra control under a hit, e.g. the Collection page's Add / Owned stepper. */
+  renderHitAction?: (card: CatalogCardResult) => ReactNode;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [manual, setManual] = useState("");
@@ -419,13 +426,16 @@ export function CardScanner({
                 <div className="scan-hit-price">
                   <MarketPrice price={phase.card.market_price} />
                 </div>
-                <p className={`scan-hit-need${need && need.still_need > 0 ? " wanted" : ""}`}>
-                  {need
-                    ? need.still_need > 0
-                      ? `You still need ${need.still_need} — ${need.used_in.join(", ")}`
-                      : `Covered — you own ${need.owned} of ${need.need}`
-                    : "Not in any of your decks"}
-                </p>
+                {showNeed && (
+                  <p className={`scan-hit-need${need && need.still_need > 0 ? " wanted" : ""}`}>
+                    {need
+                      ? need.still_need > 0
+                        ? `You still need ${need.still_need} — ${need.used_in.join(", ")}`
+                        : `Covered — you own ${need.owned} of ${need.need}`
+                      : "Not in any of your decks"}
+                  </p>
+                )}
+                {renderHitAction?.(phase.card)}
                 {phase.note && <p className="scan-hit-warn">{phase.note}</p>}
                 <a href={phase.card.tcgplayer_url} target="_blank" rel="noreferrer">
                   View on TCGPlayer

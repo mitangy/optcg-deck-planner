@@ -49,3 +49,30 @@ test("color filter narrows the list and shows the filtered total (#268)", async 
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
 });
+
+test("Add cards finds an unowned card and adds it to the collection (#268)", async ({ page, planner }) => {
+  await page.getByRole("button", { name: /Add cards/ }).click();
+  await page.locator(".collection-add").getByRole("searchbox").fill("Kid");
+  const add = page.getByRole("button", { name: "Add EB01-003 to collection" });
+  await add.click();
+  await expect.poll(() => planner.owned.get("EB01-003")).toBe(1);
+  // Kid & Killer (1 × $6.80) joins the list and the total; the result row now shows its Owned stepper.
+  await expect(page.getByRole("list", { name: "Collection totals" })).toContainText("$12.60");
+  await expect(page.locator(row("EB01-003"))).toBeVisible();
+  await expect(page.locator('[data-catalog-id="EB01-003"]').getByRole("textbox")).toHaveValue("1");
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+test("a scanned or looked-up card can be added from the scanner (#268)", async ({ page, planner }) => {
+  await page.getByRole("button", { name: /Add cards/ }).click();
+  await page.locator(".collection-add").getByRole("button", { name: "Scan", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Scan a card" });
+  await dialog.getByLabel("Or type the card number").fill("EB01-009");
+  await dialog.getByRole("button", { name: "Look up" }).click();
+  await dialog.getByRole("button", { name: "Add EB01-009 to collection" }).click();
+  await expect.poll(() => planner.owned.get("EB01-009")).toBe(1);
+  await expect(dialog.locator(".scan-hit-owned").getByRole("textbox")).toHaveValue("1");
+  await dialog.getByRole("button", { name: "Close scanner" }).click();
+  await expect(page.locator(row("EB01-009"))).toBeVisible();
+});

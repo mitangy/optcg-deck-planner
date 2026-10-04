@@ -1937,6 +1937,137 @@ function CollectionItemsView({
   );
 }
 
+const COLLECTION_ADD_OPEN_KEY = "optcg_collection_add_open";
+
+/** "Add" for a card you don't own yet, the Owned stepper once you do. Same footprint either way. */
+function CollectionOwnedControl({
+  cardId,
+  owned,
+  onSaved,
+}: {
+  cardId: string;
+  owned: number;
+  onSaved: () => void;
+}) {
+  const qc = useQueryClient();
+  const add = useMutation({
+    mutationFn: () => api.setOwned(cardId, 1),
+    // Refetch so the new card joins the list with its catalog details and price.
+    onSuccess: () => invalidateOwnedViews(qc),
+  });
+  return (
+    <span className="collection-owned-control">
+      {owned > 0 ? (
+        <OwnedInput cardId={cardId} value={owned} onSaved={onSaved} />
+      ) : (
+        <button
+          type="button"
+          className="btn secondary"
+          disabled={add.isPending}
+          aria-label={`Add ${cardId} to collection`}
+          title={add.error ? (add.error as Error).message : undefined}
+          onClick={() => add.mutate()}
+        >
+          {add.isError ? "Retry" : "Add"}
+        </button>
+      )}
+    </span>
+  );
+}
+
+function CollectionAddPanel({
+  ownedById,
+  defaultOpen,
+  onScan,
+  onOwnedSaved,
+}: {
+  ownedById: Map<string, number>;
+  defaultOpen: boolean;
+  onScan: () => void;
+  onOwnedSaved: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [color, setColor] = useState("");
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(query.trim()), 250);
+    return () => window.clearTimeout(t);
+  }, [query]);
+
+  const searchEnabled = Boolean(debouncedQ || color);
+  const searchQ = useQuery({
+    queryKey: ["catalog-search", debouncedQ, color, ""],
+    queryFn: () => api.searchCatalog({ q: debouncedQ || undefined, color: color || undefined, limit: 40 }),
+    enabled: searchEnabled,
+  });
+
+  return (
+    <div className="deck-editor collection-add">
+      <CollapsibleDrawer
+        label="Add cards"
+        summary="Search the catalog or scan a card"
+        storageKey={COLLECTION_ADD_OPEN_KEY}
+        defaultOpen={defaultOpen}
+      >
+        <div className="deck-editor-filters">
+          <CardSearchInput value={query} onChange={setQuery} />
+          <div className="deck-editor-filter-row">
+            <label className="deck-editor-select">
+              <span className="sr-only">Color</span>
+              <select value={color} onChange={(e) => setColor(e.target.value)} aria-label="Filter catalog by color">
+                <option value="">All colors</option>
+                {COLOR_ORDER.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="ghost scan-open" onClick={onScan}>
+              Scan
+            </button>
+          </div>
+        </div>
+
+        {!searchEnabled && <p className="muted deck-editor-status">Search the catalog by name or ID to add cards</p>}
+        {searchEnabled && searchQ.isLoading && <InlineSkeleton lines={3} label="Searching catalog…" />}
+        {searchEnabled && searchQ.error && (
+          <p className="error deck-editor-status">{(searchQ.error as Error).message}</p>
+        )}
+        {searchEnabled && searchQ.data && searchQ.data.length === 0 && (
+          <p className="muted deck-editor-status">No catalog matches</p>
+        )}
+        {searchQ.data && searchQ.data.length > 0 && (
+          <ul className="deck-editor-results">
+            {searchQ.data.map((card) => (
+              <li key={card.card_id} className="deck-editor-result" data-catalog-id={card.card_id}>
+                <div className="deck-editor-result-main">
+                  <CardThumb src={card.image_url || undefined} alt={card.name} />
+                  <div>
+                    <div className="card-id">{card.card_id}</div>
+                    <div>{card.name}</div>
+                    <div className="muted">
+                      {[card.color, card.card_type, money(card.market_price)].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                </div>
+                <div className="deck-editor-result-actions">
+                  <CollectionOwnedControl
+                    cardId={card.card_id}
+                    owned={ownedById.get(card.card_id) ?? 0}
+                    onSaved={onOwnedSaved}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CollapsibleDrawer>
+    </div>
+  );
+}
+
 function CollectionPage() {
   const qc = useQueryClient();
   const { data, isLoading, error } = useQuery({ queryKey: ["owned"], queryFn: api.ownedCollection });
@@ -1951,6 +2082,18 @@ function CollectionPage() {
   const [showDons, setShowDons] = usePersistedOpen(COLLECTION_SHOW_DONS_KEY, true);
   const [sparesOnly, setSparesOnly] = usePersistedOpen(COLLECTION_SPARES_KEY, false);
   const [colors, setColors] = useState<string[]>(loadCollectionColors);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [droppedImage, setDroppedImage] = useState<Blob | null>(null);
+  const [pageDragging, setPageDragging] = useState(false);
+  // Same as Shopping: drop a card image anywhere on the page to scan it.
+  useImageDrop({
+    enabled: !scanOpen,
+    onImage: (blob) => {
+      setDroppedImage(blob);
+      setScanOpen(true);
+    },
+    onDragStateChange: setPageDragging,
+  });
 
   useEffect(() => {
     try {
@@ -1961,6 +2104,7 @@ function CollectionPage() {
   }, [colors]);
 
   const allItems = data?.items ?? [];
+  const ownedById = useMemo(() => new Map(allItems.map((i) => [i.card_id, i.owned])), [allItems]);
   const items = useMemo(() => {
     let list = allItems;
     if (!showDons) list = list.filter((i) => !isDonCard(i));
@@ -2008,10 +2152,17 @@ function CollectionPage() {
         </div>
       </div>
 
+      <CollectionAddPanel
+        ownedById={ownedById}
+        defaultOpen={allItems.length === 0}
+        onScan={() => setScanOpen(true)}
+        onOwnedSaved={onOwnedSaved}
+      />
+
       {allItems.length === 0 ? (
         <p className="muted">
-          No owned cards yet. Set Owned on the <Link to="/">shopping list</Link> or a{" "}
-          <Link to="/decks">deck</Link> and they show up here with their market value.
+          No owned cards yet. Add some above, or set Owned on the <Link to="/">shopping list</Link> or a{" "}
+          <Link to="/decks">deck</Link>. Owned is shared, so every deck counts these copies.
         </p>
       ) : (
         <>
@@ -2077,6 +2228,32 @@ function CollectionPage() {
             <CollectionItemsView items={items} layout={layout} onOwnedSaved={onOwnedSaved} />
           )}
         </>
+      )}
+      {pageDragging && !scanOpen && (
+        <div className="page-drop-hint" role="status">
+          Drop the card image to scan it
+        </div>
+      )}
+      {scanOpen && (
+        <CardScanner
+          items={[]}
+          showNeed={false}
+          initialImage={droppedImage}
+          renderHitAction={(card) => (
+            <div className="scan-hit-owned">
+              <span className="muted">In collection</span>
+              <CollectionOwnedControl
+                cardId={card.card_id}
+                owned={ownedById.get(card.card_id) ?? 0}
+                onSaved={onOwnedSaved}
+              />
+            </div>
+          )}
+          onClose={() => {
+            setScanOpen(false);
+            setDroppedImage(null);
+          }}
+        />
       )}
     </section>
   );
@@ -3464,7 +3641,7 @@ function DeckDetailPage() {
                     close();
                     const ok = window.confirm(
                       "Reset owned counts to 0 for every card in this deck?\n\n" +
-                        "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks.",
+                        "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks, and leave your Collection.",
                     );
                     if (!ok) return;
                     setResetMsg(null);
@@ -3472,7 +3649,7 @@ function DeckDetailPage() {
                   }}
                 >
                   {resetOwned.isPending ? "Resetting…" : "Reset owned counts"}
-                  <span className="muted">Sets every card in this deck to 0 owned</span>
+                  <span className="muted">Sets every card in this deck to 0 owned (also removes them from Collection)</span>
                 </button>
               </div>
             )}
