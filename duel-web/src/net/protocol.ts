@@ -267,6 +267,8 @@ export type PlayerView = {
     trash: string[];
     lifeCount: number;
     faceUpLife?: Array<{ index: number; defId: string }>;
+    /** Your events (and other cards) mid-resolution, between the hand and the trash. */
+    resolving?: { id: string; defId: string }[];
     donDeckCount: number;
     costArea: { id: string; rested: boolean }[];
     activeDonCount: number;

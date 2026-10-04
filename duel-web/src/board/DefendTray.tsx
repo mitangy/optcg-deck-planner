@@ -71,6 +71,7 @@ function CounterChipButton({
       aria-label={label}
       onClick={onClick}
       draggable={false}
+      data-hand-card-id={cardId}
       {...bind}
     >
       {children}
