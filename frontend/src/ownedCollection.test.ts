@@ -20,12 +20,12 @@ const card = (card_id: string, owned: number, market_price: number | null): Owne
 });
 
 describe("owned collection", () => {
-  it("totals leave unpriced cards out of the value but count their copies (#PRNUM)", () => {
+  it("totals leave unpriced cards out of the value but count their copies (#268)", () => {
     const totals = collectionTotals([card("A", 3, 2.5), card("B", 2, null)]);
     expect(totals).toEqual({ cards: 2, copies: 5, value: 7.5, unpriced: 1 });
   });
 
-  it("stepping Owned reprices the card and the collection total (#PRNUM)", () => {
+  it("stepping Owned reprices the card and the collection total (#268)", () => {
     const old: OwnedCollectionResponse = {
       items: [card("A", 3, 2.5), card("B", 1, 10)],
       unique_cards: 2,
@@ -39,7 +39,7 @@ describe("owned collection", () => {
     expect(next.total_copies).toBe(6);
   });
 
-  it("a card stepped to 0 stays listed but leaves the totals (#PRNUM)", () => {
+  it("a card stepped to 0 stays listed but leaves the totals (#268)", () => {
     const old: OwnedCollectionResponse = {
       items: [card("A", 3, 2.5), card("B", 1, 10)],
       unique_cards: 2,
@@ -53,7 +53,7 @@ describe("owned collection", () => {
     expect(next.total_value).toBe(7.5);
   });
 
-  it("Value sort puts the most valuable holding first, not the priciest card (#PRNUM)", () => {
+  it("Value sort puts the most valuable holding first, not the priciest card (#268)", () => {
     const playset = card("OP01-001", 10, 1); // $10 held
     const single = card("OP01-002", 1, 5); // $5 held, higher price
     const unpriced = card("OP01-003", 4, null);

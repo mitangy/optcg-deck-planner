@@ -86,5 +86,10 @@ module.exports = {
     { id: "mass-alts-ignored", file: mass, from: "  for (const alt of card.alt_arts ?? []) {", to: "  for (const alt of [] as MassEntryAlt[]) {", kills: ["allocates still_need to alt wants before the primary product"] },
     { id: "mass-url-too-long", file: mass, from: "    if (candidate.length <= MASS_ENTRY_URL_MAX_LEN) {", to: "    if (true) {", kills: ["omits url when the list is too long"] },
     { id: "mass-alt-uncapped", file: mass, from: "    const take = Math.min(Math.max(0, want), remaining);", to: "    const take = Math.max(0, want);", kills: ["caps alt allocation by still_need"] },
+    // Collection page (owned cards + value), #268
+    { id: "collection-unpriced-not-counted", file: "frontend/src/ownedCollection.ts", from: "    if (item.value == null) unpriced += 1;", to: "    if (item.value == null) unpriced += 0;", kills: ["totals leave unpriced cards out of the value"] },
+    { id: "collection-patch-value-stale", file: "frontend/src/ownedCollection.ts", from: "    return { ...item, owned: qty, value };", to: "    return { ...item, owned: qty };", kills: ["stepping Owned reprices the card"] },
+    { id: "collection-zero-kept-in-totals", file: "frontend/src/ownedCollection.ts", from: "  const totals = collectionTotals(items.filter((i) => i.owned > 0));", to: "  const totals = collectionTotals(items);", kills: ["a card stepped to 0 stays listed but leaves the totals"] },
+    { id: "value-sort-uses-price", file: "frontend/src/cardListControls.tsx", from: "  if (key === \"value\") return compareDesc(a.value, b.value);", to: "  if (key === \"value\") return compareDesc(a.market_price, b.market_price);", kills: ["Value sort puts the most valuable holding first"] },
   ],
 };

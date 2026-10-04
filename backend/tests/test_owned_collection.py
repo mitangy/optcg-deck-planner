@@ -4,7 +4,7 @@ from app import services
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
 
-def test_collection_value_is_copies_times_market_price_PRNUM(db):
+def test_collection_value_is_copies_times_market_price_268(db):
     """Total value adds owned × market per card; unpriced cards are counted, not valued."""
     add_catalog(db, "OP01-001", name="Luffy", product_id=1, market=2.5)
     add_catalog(db, "OP01-002", name="Zoro", product_id=2, market=10.0)
@@ -25,7 +25,7 @@ def test_collection_value_is_copies_times_market_price_PRNUM(db):
     assert col.unpriced_cards == 1
 
 
-def test_collection_skips_zero_owned_and_lists_decks_PRNUM(db):
+def test_collection_skips_zero_owned_and_lists_decks_268(db):
     """Cards set back to 0 owned leave the collection; used_in names the decks with the card."""
     add_catalog(db, "OP01-001", name="Luffy", product_id=1, market=1.0)
     add_catalog(db, "OP01-002", name="Zoro", product_id=2, market=50.0)
