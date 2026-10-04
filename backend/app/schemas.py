@@ -206,6 +206,33 @@ class ShoppingResponse(BaseModel):
     unique_cards: int
 
 
+class OwnedCardItem(BaseModel):
+    card_id: str
+    name: str
+    rarity: str = ""
+    color: str = ""
+    card_type: str = ""
+    cost: int | str | None = None
+    owned: int
+    market_price: float | None = None
+    low_price: float | None = None
+    # owned × market_price of the standard printing; None when the card has no price.
+    value: float | None = None
+    image_url: str = ""
+    tcgplayer_url: str = ""
+    product_id: int | None = None
+    used_in: list[str] = []
+
+
+class OwnedCollectionResponse(BaseModel):
+    items: list[OwnedCardItem]
+    unique_cards: int
+    total_copies: int
+    total_value: float
+    # Owned cards with no market price (left out of total_value).
+    unpriced_cards: int
+
+
 class OwnedUpdate(BaseModel):
     qty: int = Field(ge=0, le=10_000)
 

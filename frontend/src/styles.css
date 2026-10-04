@@ -2381,9 +2381,10 @@ tr.done td {
     height: 168px;
   }
 
-  /* Underlined tabs instead of four fat pills — saves ~20px of chrome. */
+  /* Underlined tabs instead of fat pills — saves ~20px of chrome. Tabs size
+     to their label (not equal widths) so five fit on a 320px phone. */
   .topbar nav a {
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
     display: inline-flex;
     align-items: center;
@@ -5405,6 +5406,12 @@ button.ghost.scan-open:hover {
   .done-editing-extra {
     display: none;
   }
+  /* Five nav tabs (with Collection) need a touch less type to fit 320px. */
+  .topbar nav a {
+    padding-left: 0.1rem;
+    padding-right: 0.1rem;
+    font-size: 0.8rem;
+  }
 }
 
 /* ——— Deck list density: ~96px art in the list rows (grid view and other pages keep the big thumb) ——— */
@@ -5521,4 +5528,19 @@ tr.row-flash > td {
     right: 0.6rem;
     justify-content: center;
   }
+}
+
+/* ——— Collection page (owned cards) ——— */
+.collection-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid-card.collection-grid-card {
+  background: var(--surface);
+}
+
+/* No select checkbox on Collection cards, so no checkbox column either. */
+.grid-card-wrap.collection-grid-wrap {
+  grid-template-columns: minmax(0, 1fr);
 }

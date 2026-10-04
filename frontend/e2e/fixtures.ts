@@ -154,6 +154,19 @@ export const test = base.extend<{ planner: Planner }>({
       if (path === `/decks/${DECK_ID}`) return json(deckDetail());
       if (path === "/shopping") return json(shopping());
       if (path === "/share/shopping") return json(null);
+      if (path === "/owned" && method === "GET") {
+        const items = CARDS.filter((c) => (owned.get(c.card_id) ?? 0) > 0).map((c) => {
+          const v = cardView(c);
+          return { ...v, value: Math.round(v.owned * v.market_price * 100) / 100, used_in: ["Oden Red/Green"] };
+        });
+        return json({
+          items,
+          unique_cards: items.length,
+          total_copies: items.reduce((s, i) => s + i.owned, 0),
+          total_value: Math.round(items.reduce((s, i) => s + i.value, 0) * 100) / 100,
+          unpriced_cards: 0,
+        });
+      }
       if (path === "/catalog/cards") return json([]);
       if ((m = path.match(/^\/owned\/(.+)$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!);
