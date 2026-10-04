@@ -74,6 +74,7 @@ import { ChoicePrompt } from "./ChoicePrompt";
 import { HandConfirmPrompt } from "./HandConfirmPrompt";
 import { handConfirmAnchor, handUseFromIntent, measureHandCard, type HandUse } from "./handPrompt";
 import { isHandPick } from "./fieldTargets";
+import { usesPhoneFan, usesRailHand } from "./handLayout";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { canFloat, FloatingPrompt } from "./FloatingPrompt";
 import { IntentBar } from "./IntentBar";
@@ -300,9 +301,10 @@ export function DuelBoard({
   const tilted = wide && !lp && tiltFits && prefs.tiltedBoard;
   /** Tall desktop, Grid layout: the hand is an always-open grid side panel (no dock). */
   const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
-  const railHand = wide && !lp && railHandTall && !fanHand;
+  // Landscape phones keep the hand in the right column (a scrolling grid), never over the field.
+  const railHand = usesRailHand(wide, lp, railHandTall, fanHand);
   /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling. */
-  const phoneFan = !wide && prefs.handLayout !== "grid";
+  const phoneFan = usesPhoneFan(wide, prefs.handLayout, view?.you.hand.length ?? 0);
   /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
   const panelLayout = useMemo(() => parsePanelLayout(prefs.panelLayout), [prefs.panelLayout]);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
@@ -1113,7 +1115,11 @@ export function DuelBoard({
             }
           : { label: "No block" }
         : defend.stagedIds.length > 0
-          ? { label: "Confirm counter", onPress: confirmCounters }
+          ? {
+              label: counterPrimaryLabel(defend, true),
+              onPress: confirmCounters,
+              warn: counterPrimaryLabel(defend, true) !== "Confirm counter",
+            }
           : { label: counterPrimaryLabel(defend, true) }
       : undefined;
   const counterLabel =
@@ -1881,18 +1887,21 @@ export function DuelBoard({
                 ownerSeat={oppSeat}
               />
             )}
-            <TurnStatusPanel
-              view={view}
-              boardSeat={boardSeat}
-              firstSeat={firstSeat}
-              players={players}
-              spectating={spectating}
-              turnClock={turnClock}
-              matchClock={matchClock}
-              seatClocks={seatClocks}
-              compact
-            />
-            {defendTray}
+            {/* Answering an attack: the tray gets the whole column (the turn card repeats it). */}
+            {defendTray ? null : (
+              <TurnStatusPanel
+                view={view}
+                boardSeat={boardSeat}
+                firstSeat={firstSeat}
+                players={players}
+                spectating={spectating}
+                turnClock={turnClock}
+                matchClock={matchClock}
+                seatClocks={seatClocks}
+                compact
+              />
+            )}
+            {defendTray ?? sidePanels.hand}
             {intentPanel}
           </div>
         ) : (

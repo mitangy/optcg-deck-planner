@@ -135,6 +135,16 @@ describe("counter step primary label (#255)", () => {
     // The desktop bar has no staging, so the same state is just Resolve.
     expect(counterPrimaryLabel({ remaining: 0, stagedIds: ["y-h5"] }, false)).toBe("Resolve");
   });
+
+  it("warns instead of Confirm counter while the staged counters are still short (#271)", () => {
+    expect(counterPrimaryLabel({ remaining: 1000, stagedIds: ["y-h5"] }, true)).toBe(
+      "Counter anyway (still lose)",
+    );
+    // An unreadable staged value can't be called short.
+    expect(
+      counterPrimaryLabel({ remaining: 1000, stagedIds: ["y-h5"], stagedUnknown: true }, true),
+    ).toBe("Confirm counter");
+  });
 });
 
 describe("popoverPlacement (#255)", () => {

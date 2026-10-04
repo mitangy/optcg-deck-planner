@@ -469,7 +469,8 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
   const deck = intParam(params, "deck");
   const trash = intParam(params, "trash");
   const life = intParam(params, "life");
-  if ([don, rested, donDeck, deck, trash, life].every((v) => v == null)) return base;
+  const hand = intParam(params, "hand");
+  if ([don, rested, donDeck, deck, trash, life, hand].every((v) => v == null)) return base;
 
   const touchDon = don != null || rested != null;
   const total = don ?? base.you.costArea.length;
@@ -490,6 +491,13 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
       donDeckCount: donDeck ?? base.you.donDeckCount,
       deckCount: deck ?? base.you.deckCount,
       lifeCount: life ?? base.you.lifeCount,
+      hand:
+        hand == null
+          ? base.you.hand
+          : Array.from({ length: hand }, (_, i) => ({
+              ...base.you.hand[i % base.you.hand.length]!,
+              id: `y-h${i + 1}`,
+            })),
       trash: trashFor(base.you.trash),
     },
     opponent: {
@@ -746,7 +754,7 @@ function withWaiting(base: PlayerView, kind: string | null): PlayerView {
  * icons (see withManyStatuses), `?motion` a button that steps
  * through every card animation, `?box` the old pop-up instead of floating-card
  * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=haki`: the Haki's Yes/No above the hand) drag QA (see
- * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts: see applyDemoZoneParams.
+ * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts and `?hand=N` hand size: see applyDemoZoneParams.
  */
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);

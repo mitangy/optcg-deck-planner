@@ -20,7 +20,7 @@ type ButtonProps = {
   /** End turn needs a second tap (gameplay setting); `reason` fills the armed label. */
   confirmEndTurn?: { reason: string | null } | null;
   /** The defend tray relabels the primary and may replace sending it. */
-  defend?: { label: string; onPress?: () => void };
+  defend?: { label: string; onPress?: () => void; warn?: boolean };
   /** Relabels a Pass counter primary ("Resolve" once the defender is safe). */
   counterLabel?: string;
   onSend: (intent: Intent) => void;
@@ -65,7 +65,7 @@ export function PrimaryActionButton({
   return (
     <button
       type="button"
-      className={`${intentBtnClass(primary)} intent-btn-primary`}
+      className={`${intentBtnClass(primary)} intent-btn-primary${defend?.warn ? " intent-btn-warn" : ""}`}
       disabled={disabled}
       onClick={() => (defend?.onPress ? defend.onPress() : onSend(primary))}
     >

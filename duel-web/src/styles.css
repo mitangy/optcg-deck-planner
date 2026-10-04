@@ -4706,3 +4706,10 @@ details.deck-config-section.deck-collapsible {
 .choice-option .don-under {
   display: none;
 }
+
+/* Touch: long-press already inspects; the nested chip steals taps on small cards. */
+@media (pointer: coarse) {
+  .card-inspect-chip {
+    display: none;
+  }
+}

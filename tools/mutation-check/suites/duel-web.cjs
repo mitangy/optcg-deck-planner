@@ -756,6 +756,12 @@ module.exports = {
     { id: "hand-confirm-after-resolving", file: `${src}/board/handPrompt.ts`, from: "  if (!you.resolving?.some((c) => c.id === used.instanceId)) return null;\n", to: "", kills: ["keeps the pop-up once the used card is no longer resolving (#270)"] },
     { id: "hand-confirm-any-request", file: `${src}/board/handPrompt.ts`, from: "  if ((choice.request?.type ?? \"confirm\") !== \"confirm\") return null;\n", to: "", kills: ["keeps the pop-up for a pick from that card (#270)"] },
     { id: "hand-confirm-any-seat", file: `${src}/board/handPrompt.ts`, from: "  if (choice.seat !== mySeat) return null;\n", to: "", kills: ["does not answer the opponent's choice above your hand (#270)"] },
+    // phone P1 fixes (#271)
+    { id: "counter-short-confirms", file: `${src}/board/cardActions.ts`, from: "const short = model.remaining != null && model.remaining > 0 && !model.stagedUnknown;", to: "const short = false;", kills: ["warns instead of Confirm counter while the staged counters are still short (#271)"] },
+    { id: "counter-unknown-warns", file: `${src}/board/cardActions.ts`, from: " && !model.stagedUnknown;", to: ";", kills: ["warns instead of Confirm counter while the staged counters are still short (#271)"] },
+    { id: "phone-fan-any-size", file: `${src}/board/handLayout.ts`, from: "handCount <= PHONE_FAN_MAX", to: "true", kills: ["portrait phones fan up to 8 cards and scroll a bigger hand (#271)"] },
+    { id: "phone-fan-off-by-one", file: `${src}/board/handLayout.ts`, from: "handCount <= PHONE_FAN_MAX", to: "handCount < PHONE_FAN_MAX", kills: ["portrait phones fan up to 8 cards and scroll a bigger hand (#271)"] },
+    { id: "rail-hand-not-landscape", file: `${src}/board/handLayout.ts`, from: "wide && (landscapePhone || (tall && !fanHand))", to: "wide && tall && !fanHand", kills: ["landscape phones keep the hand in the right column, even in a short window (#271)"] },
     { id: "hand-confirm-never", file: `${src}/board/handPrompt.ts`, from: "  return used.box;", to: "  return null;", kills: ["puts the Haki's rest-a-DON!! Yes/No on its hand slot instead of a pop-up (#270)"] },
     { id: "confirm-question-full-text", edits: [
       { file: `${src}/board/handPrompt.ts`, from: "    question = mark >= 0 ? body.slice(0, mark + 1) : body;", to: "    question = body;" },

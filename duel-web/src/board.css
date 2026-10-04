@@ -3188,6 +3188,13 @@ body.is-panel-drag * {
   border-color: rgba(190, 225, 250, 0.8);
 }
 
+/* Counter staged but still short: the confirm spends the cards without saving you. */
+.intent-btn.intent-btn-warn {
+  color: #fff;
+  background: linear-gradient(180deg, #b0572a, #8a3d17);
+  border-color: rgba(255, 190, 140, 0.6);
+}
+
 /* Mulligan: both labels are long ("Mulligan (shuffle & redraw 5)", "Keep
    opening hand"). On a phone they ran past the right edge and the row scrolled
    sideways, so split the bar evenly and let each label wrap to two lines. */
@@ -3603,7 +3610,7 @@ body.is-panel-drag * {
   .arena.arena-lp .arena-rail .intent-bar {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-height: 0;
     max-height: none;
     overflow: visible;
@@ -3913,6 +3920,37 @@ body.is-panel-drag * {
   .arena.arena-lp .arena-rail .intent-bar-defend {
     flex: 0 0 auto;
     justify-content: flex-end;
+  }
+
+  /* Names and +values need the rail's full width: one chip per row. */
+  .arena.arena-lp .defend-chips {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Spend the column on the hand: no heading, a one-line hint. */
+  .arena.arena-lp .arena-rail .intent-bar:not(.intent-bar-defend) > h2 {
+    display: none;
+  }
+
+  .arena.arena-lp .arena-rail .intent-bar .intent-empty {
+    margin: 0;
+    font-size: 0.64rem;
+  }
+
+  /* The hand lives in the right column as a scrolling grid. */
+  .arena.arena-lp .board-col .rail-hand {
+    --rail-hand-cw: 60px;
+  }
+
+  .arena.arena-lp .rail-hand-head {
+    padding: 0.2rem 0.5rem 0.1rem;
+    font-size: 0.7rem;
+  }
+
+  .arena.arena-lp .rail-hand-cards {
+    padding: 0.15rem 0.5rem 0.3rem;
+    gap: 0.25rem;
+    touch-action: pan-y;
   }
 }
 
