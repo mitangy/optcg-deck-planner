@@ -417,7 +417,7 @@ export function DuelBoard({
     ? view.pendingChoices?.length
       ? view.pendingChoices[0].prompt
       : view.battle
-        ? describeBattle(view, (defId) => lookupCard(defId).name)
+        ? describeBattle(view, (defId) => lookupCard(defId).name, !(spectator || view.spectator))
         : null
     : null;
   // On phones every pending prompt already shows its sentence (sheet, field bar or floating

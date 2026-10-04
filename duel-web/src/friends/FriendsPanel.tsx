@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   acceptFriendRequest,
   dismissInvite,
@@ -175,7 +176,10 @@ export function FriendsPanel({
         <div className="friends-head">
           <h2 className="friends-title">Friends</h2>
         </div>
-        <p className="friends-empty">Sign in with Google in Settings to add friends, invite them, and watch their games.</p>
+        <p className="friends-empty">Sign in to add friends, invite them, and watch their games.</p>
+        <Link to="/settings" className="btn btn-secondary btn-sm">
+          Sign in
+        </Link>
       </section>
     );
   }

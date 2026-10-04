@@ -931,12 +931,8 @@
     padding: 0.75rem;
   }
 
-  .topbar-mark {
-    display: none;
-  }
-
   .topbar-inner {
-    justify-content: flex-end;
+    justify-content: space-between;
   }
 }
 
@@ -1338,4 +1334,49 @@ label.btn.is-busy {
   .home-brand {
     font-size: 2rem;
   }
+}
+
+.topbar-mark {
+  text-decoration: none;
+}
+
+/* The lobby's three icons carry a one-word label so they are not guesswork. */
+.topbar-right .icon-btn:has(.icon-btn-label) {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: auto;
+  min-width: 48px;
+  height: 48px;
+  padding: 0 0.3rem;
+}
+
+.icon-btn-label {
+  font-size: 0.6rem;
+  line-height: 1;
+  color: var(--muted);
+}
+
+/* No room for the wordmark next to the account chip and three labelled icons. */
+@media (max-width: 479px) {
+  .topbar-mark {
+    display: none;
+  }
+
+  .topbar-inner {
+    justify-content: flex-end;
+  }
+}
+
+/* Long deck names end in an ellipsis instead of being cut mid-letter. */
+.deck-picker select,
+.deck-config-switcher select,
+.field select,
+.lobby select {
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }

@@ -483,11 +483,6 @@ button {
   min-height: 40px;
 }
 
-.card-inspect-close-bottom {
-  align-self: stretch;
-  min-height: 44px;
-  margin-top: 0.25rem;
-}
 
 @media (min-width: 641px) {
   .card-inspect-backdrop {
@@ -800,9 +795,18 @@ button {
 }
 
 .deck-list-edit,
-.deck-list-delete {
+.deck-list-delete,
+.deck-list-builtin {
   flex: 0 0 auto;
   align-self: center;
+  min-width: 5.25rem;
+  text-align: center;
+}
+
+/* Keeps a built-in deck's row the same height as one with a Delete button. */
+.deck-list-builtin {
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 .deck-planner-section {
@@ -3377,15 +3381,12 @@ img.zone-pile-face {
   color: var(--chrome-bright);
 }
 
-.intent-btn-keep {
-  background: linear-gradient(180deg, #3f7a54, var(--ok)) !important;
-}
-
+/* Keep is the main choice (theme button); Mulligan is the quieter outline. */
 .intent-btn-mulligan {
-  background: linear-gradient(180deg, #8a6238, #c48a4a) !important;
-  border-color: #e0b07055 !important;
+  background: transparent !important;
+  color: var(--chrome-bright) !important;
+  border-color: var(--chrome) !important;
 }
-
 
 /* Discoverability: board cards with contextual actions available */
 .card-tile.has-actions {

@@ -4539,3 +4539,11 @@ body.is-panel-drag * {
     font-size: min(clamp(0.625rem, calc(var(--c) * 0.1 * var(--text-scale, 1)), 0.7rem), 21cqw);
   }
 }
+
+/* Landscape phones: the rail is narrow, so the pill's subtext wraps instead of being cut. */
+@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+  .waiting-opp-text span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}

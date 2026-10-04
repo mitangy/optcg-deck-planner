@@ -772,6 +772,9 @@ module.exports = {
     { id: "prompt-body-keeps-name", file: `${src}/board/promptText.ts`, from: "return prompt.slice(lead.length);", to: "return prompt;", kills: ["drops the card name the sheet already shows as its title (#276)"] },
     { id: "prompt-body-empty", file: `${src}/board/promptText.ts`, from: " && prompt.length > lead.length", to: "", kills: ["keeps a sentence that merely mentions another name, or is only the name (#276)"] },
     { id: "response-stops-phone-always", file: `${src}/settings.ts`, from: "isPhoneScreen() ? \"auto\" : DEFAULTS.responseStops", to: "DEFAULTS.responseStops", kills: ["defaults to auto on a phone-sized touch screen and always elsewhere (#276)"] },
+    // phone P3 polish (#277)
+    { id: "battle-banner-seat-swapped", file: `${src}/board/battleBanner.ts`, from: "return isAttacker ? (mine ? \"Your Leader\" : \"Their Leader\")", to: "return isAttacker ? (mine ? \"Their Leader\" : \"Your Leader\")", kills: ["reads from your seat as Their Leader and your Leader (#277)"] },
+    { id: "battle-banner-character-as-leader", file: `${src}/board/battleBanner.ts`, from: "      return nameOf(card.defId);\n    };", to: "      return \"Their Leader\";\n    };", kills: ["reads from your seat as Their Leader and your Leader (#277)"] },
     { id: "hand-confirm-never", file: `${src}/board/handPrompt.ts`, from: "  return used.box;", to: "  return null;", kills: ["puts the Haki's rest-a-DON!! Yes/No on its hand slot instead of a pop-up (#270)"] },
     { id: "confirm-question-full-text", edits: [
       { file: `${src}/board/handPrompt.ts`, from: "    question = mark >= 0 ? body.slice(0, mark + 1) : body;", to: "    question = body;" },
