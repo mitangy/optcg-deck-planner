@@ -18,6 +18,12 @@
   z-index: 14;
 }
 
+/* Aiming an attack by drag: the arrow follows the pointer over docks and
+   panels (nothing else is open mid-drag), still under the drag ghost (60). */
+.attack-overlay.attack-aim {
+  z-index: 55;
+}
+
 .attack-overlay.attack-incoming {
   --atk: #e0503f;
   --atk-glow: rgba(235, 70, 50, 0.6);
@@ -381,6 +387,74 @@
   }
 }
 
+/* —— Yes/No above a card just used from the hand —— */
+
+.hand-confirm {
+  position: fixed;
+  z-index: 33;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: min(300px, calc(100vw - 16px));
+  transform: translate(-50%, -100%);
+  /* Only the bubble and card take clicks; the gap shows the board through. */
+  pointer-events: none;
+}
+
+.hand-confirm-bubble {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 100%;
+  padding: 8px 10px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--chrome);
+  background: rgb(var(--deep-rgb) / 0.97);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+}
+
+.hand-confirm-question {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.hand-confirm-question strong {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: var(--chrome-bright);
+}
+
+.hand-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.hand-confirm-actions .btn {
+  flex: 1 1 0;
+  min-width: 88px;
+  min-height: 40px;
+}
+
+.hand-confirm-card {
+  /* Held up from the hand slot it was played from. */
+  transform: translate(var(--card-shift, 0px), -12px);
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 2px var(--chrome-bright),
+    0 0 18px rgb(var(--chrome-bright-rgb) / 0.55);
+  pointer-events: auto;
+}
+
 /* —— Drag ghost (mouse + touch) —— */
 
 .drag-ghost {
@@ -421,15 +495,6 @@
   font-weight: 800;
   color: #1a1206;
   background: #ffd54f;
-}
-
-/* Attack drag: the card you carry reads as a strike, not a play. */
-.drag-ghost-attack img,
-.drag-ghost-attack > span:first-child {
-  border-color: var(--danger);
-  box-shadow:
-    0 0 0 2px rgba(163, 59, 59, 0.55),
-    0 10px 24px rgba(0, 0, 0, 0.55);
 }
 
 /* —— Counter chips in the defend tray double as drag sources —— */

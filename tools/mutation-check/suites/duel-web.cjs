@@ -750,5 +750,19 @@ module.exports = {
     { id: "fanpos-nudge-never-docks", file: `${src}/board/handFanPos.ts`, from: "pos.y + step >= 1 - step / 2 ? 1 : pos.y + step", to: "pos.y + step", kills: ["moves by a step and lands on the bottom edge from just above it (#261)"] },
     { id: "legacy-right-fan-recentred", file: `${src}/settings.ts`, from: "  if (storedLayout === \"fanRight\" && rest.handFanPos === undefined) next.handFanPos = LEGACY_RIGHT_FAN_POS;\n", to: "", kills: ["turns the old centre and right fans into the one fan, the right one kept at the bottom right (#261)"] },
     { id: "legacy-right-fan-overrides-spot", file: `${src}/settings.ts`, from: "storedLayout === \"fanRight\" && rest.handFanPos === undefined", to: "storedLayout === \"fanRight\"", kills: ["turns the old centre and right fans into the one fan, the right one kept at the bottom right (#261)"] },
+    // Yes/No above the hand card it came from + attack drag arrow (#270)
+    { id: "hand-use-wrong-card", file: `${src}/board/handPrompt.ts`, from: "  const card = hand[intent.handIndex];", to: "  const card = hand[0];", kills: ["remembers which hand card an intent used and where it sat (#270)"] },
+    { id: "hand-confirm-any-source", file: `${src}/board/handPrompt.ts`, from: "  if (choice.sourceInstanceId !== used.instanceId) return null;\n", to: "", kills: ["keeps the pop-up for a card other than the one just used from the hand (#270)"] },
+    { id: "hand-confirm-after-resolving", file: `${src}/board/handPrompt.ts`, from: "  if (!you.resolving?.some((c) => c.id === used.instanceId)) return null;\n", to: "", kills: ["keeps the pop-up once the used card is no longer resolving (#270)"] },
+    { id: "hand-confirm-any-request", file: `${src}/board/handPrompt.ts`, from: "  if ((choice.request?.type ?? \"confirm\") !== \"confirm\") return null;\n", to: "", kills: ["keeps the pop-up for a pick from that card (#270)"] },
+    { id: "hand-confirm-any-seat", file: `${src}/board/handPrompt.ts`, from: "  if (choice.seat !== mySeat) return null;\n", to: "", kills: ["does not answer the opponent's choice above your hand (#270)"] },
+    { id: "hand-confirm-never", file: `${src}/board/handPrompt.ts`, from: "  return used.box;", to: "  return null;", kills: ["puts the Haki's rest-a-DON!! Yes/No on its hand slot instead of a pop-up (#270)"] },
+    { id: "confirm-question-full-text", edits: [
+      { file: `${src}/board/handPrompt.ts`, from: "    question = mark >= 0 ? body.slice(0, mark + 1) : body;", to: "    question = body;" },
+      { file: `${src}/board/handPrompt.ts`, from: "  if (/^pay the cost to activate:/i.test(body)) question = \"Pay the cost to use this effect?\";\n  else {", to: "  {" },
+    ], kills: ["asks only the question, without the card name or the full card text (#270)"] },
+    { id: "drag-arrow-no-snap", file: `${src}/board/dragArrow.ts`, from: "  const targetBox = hoverId ? findBox(hoverId) : null;", to: "  const targetBox: Box | null = null;", kills: ["snaps onto a legal target under the pointer (#270)"] },
+    { id: "drag-arrow-only-on-targets", file: `${src}/board/dragArrow.ts`, from: "  if (inside) return null;\n", to: "  return null;\n", kills: ["is drawn to the pointer as soon as the drag leaves the attacker (#270)"] },
+    { id: "drag-arrow-on-attacker", file: `${src}/board/dragArrow.ts`, from: "  if (inside) return null;\n", to: "", kills: ["draws nothing while the pointer is still on the attacker (#270)"] },
   ],
 };

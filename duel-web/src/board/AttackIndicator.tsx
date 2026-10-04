@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PlayerView } from "../net/protocol";
 import { useDuelSettings } from "../settings";
-import { arcGeometry, battleEndpoints, boxCenter } from "./battleArc";
-import { useTrackedBoxes } from "./useTrackedBoxes";
+import { arcGeometry, battleEndpoints, boxCenter, type Box, type Pt } from "./battleArc";
+import { findDropTargetAtPoint } from "./dragIntents";
+import { dragArrow } from "./dragArrow";
+import { findInstanceBox, useTrackedBoxes } from "./useTrackedBoxes";
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(
@@ -45,7 +47,7 @@ export function AttackIndicator({ view }: { view: PlayerView | null }) {
 
   const arc = arcGeometry(atkBox, tgtBox);
   const tc = boxCenter(tgtBox);
-  const reticleR = Math.max(16, Math.min(tgtBox.width, tgtBox.height) * 0.36);
+  const reticleR = reticleRadius(tgtBox);
   const tone = ends.incoming ? "incoming" : "outgoing";
   const flightSec = Math.min(1.6, Math.max(0.8, arc.length / 420));
   const flightDur = `${flightSec.toFixed(2)}s`;
@@ -57,31 +59,7 @@ export function AttackIndicator({ view }: { view: PlayerView | null }) {
       aria-hidden
       focusable="false"
     >
-      <defs>
-        <filter id="atk-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="4" result="b" />
-          <feMerge>
-            <feMergeNode in="b" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-        <radialGradient id="atk-ball" cx="35%" cy="35%" r="65%">
-          <stop offset="0%" stopColor="#9aa3a8" />
-          <stop offset="45%" stopColor="#3a4247" />
-          <stop offset="100%" stopColor="#0c0f11" />
-        </radialGradient>
-        <marker
-          id="atk-head"
-          viewBox="0 0 12 12"
-          refX="7"
-          refY="6"
-          markerWidth="5"
-          markerHeight="5"
-          orient="auto-start-reverse"
-        >
-          <path d="M1 1 L11 6 L1 11 L4 6 Z" className="atk-head" />
-        </marker>
-      </defs>
+      <AttackDefs />
 
       {origBox ? (
         <line
@@ -162,27 +140,121 @@ export function AttackIndicator({ view }: { view: PlayerView | null }) {
       </g>
 
       {/* Gunsight reticle on the target card. */}
-      <g className="atk-reticle" transform={`translate(${tc.x} ${tc.y})`}>
-        <circle className="atk-reticle-ring" r={reticleR} />
-        <g className="atk-reticle-spin">
-          <circle className="atk-reticle-dash" r={reticleR + 6} />
-          {[0, 90, 180, 270].map((deg) => (
-            <line
-              key={deg}
-              className="atk-reticle-tick"
-              x1={0}
-              y1={-(reticleR - 6)}
-              x2={0}
-              y2={-(reticleR + 12)}
-              transform={`rotate(${deg})`}
-            />
-          ))}
-        </g>
-        <circle className="atk-reticle-core" r={3} />
-      </g>
+      <Reticle box={tgtBox} />
 
     </svg>
   );
 
   return createPortal(overlay, document.body);
+}
+
+function reticleRadius(box: Box): number {
+  return Math.max(16, Math.min(box.width, box.height) * 0.36);
+}
+
+/** Glow filter, cannonball shading and arrowhead shared by the battle overlays. */
+function AttackDefs() {
+  return (
+    <defs>
+      <filter id="atk-glow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="4" result="b" />
+        <feMerge>
+          <feMergeNode in="b" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+      <radialGradient id="atk-ball" cx="35%" cy="35%" r="65%">
+        <stop offset="0%" stopColor="#9aa3a8" />
+        <stop offset="45%" stopColor="#3a4247" />
+        <stop offset="100%" stopColor="#0c0f11" />
+      </radialGradient>
+      <marker
+        id="atk-head"
+        viewBox="0 0 12 12"
+        refX="7"
+        refY="6"
+        markerWidth="5"
+        markerHeight="5"
+        orient="auto-start-reverse"
+      >
+        <path d="M1 1 L11 6 L1 11 L4 6 Z" className="atk-head" />
+      </marker>
+    </defs>
+  );
+}
+
+/** Spinning gunsight on a target card. */
+function Reticle({ box }: { box: Box }) {
+  const c = boxCenter(box);
+  const r = reticleRadius(box);
+  return (
+    <g className="atk-reticle" transform={`translate(${c.x} ${c.y})`}>
+      <circle className="atk-reticle-ring" r={r} />
+      <g className="atk-reticle-spin">
+        <circle className="atk-reticle-dash" r={r + 6} />
+        {[0, 90, 180, 270].map((deg) => (
+          <line
+            key={deg}
+            className="atk-reticle-tick"
+            x1={0}
+            y1={-(r - 6)}
+            x2={0}
+            y2={-(r + 12)}
+            transform={`rotate(${deg})`}
+          />
+        ))}
+      </g>
+      <circle className="atk-reticle-core" r={3} />
+    </g>
+  );
+}
+
+/**
+ * Aim arrow while you drag an attacker: the powder trail is drawn from the
+ * attacker to the pointer as soon as the drag starts, and snaps onto a legal
+ * target (with its reticle) when the pointer is over one. No cannonball until
+ * the attack is declared. Fixed-position SVG portal; never participates in layout.
+ */
+export function DragAttackArrow({ attackerId }: { attackerId: string | null }) {
+  const boxes = useTrackedBoxes(attackerId ? [attackerId] : null);
+  const [pointer, setPointer] = useState<Pt | null>(null);
+  const active = attackerId != null;
+
+  useEffect(() => {
+    if (!active) {
+      setPointer(null);
+      return;
+    }
+    const onMove = (e: PointerEvent) => setPointer({ x: e.clientX, y: e.clientY });
+    window.addEventListener("pointermove", onMove, { capture: true, passive: true });
+    return () => window.removeEventListener("pointermove", onMove, { capture: true });
+  }, [active]);
+
+  const atkBox = boxes?.[0] ?? null;
+  if (!active || !atkBox || !pointer || typeof document === "undefined") return null;
+  const aim = dragArrow(atkBox, pointer, findDropTargetAtPoint(pointer.x, pointer.y), findInstanceBox);
+  if (!aim) return null;
+
+  return createPortal(
+    <svg
+      className={`attack-overlay attack-outgoing attack-aim${aim.targetBox ? " attack-aim-locked" : ""}`}
+      aria-hidden
+      focusable="false"
+    >
+      <AttackDefs />
+      <rect
+        className="atk-source"
+        x={atkBox.left - 4}
+        y={atkBox.top - 4}
+        width={atkBox.width + 8}
+        height={atkBox.height + 8}
+        rx={10}
+      />
+      <path className="atk-trail-glow" d={aim.arc.d} filter="url(#atk-glow)" />
+      <path className="atk-trail" d={aim.arc.d} markerEnd="url(#atk-head)" />
+      {aim.targetBox ? <path className="atk-fuse" d={aim.arc.d} /> : null}
+      {aim.targetBox ? <Reticle box={aim.targetBox} /> : null}
+    </svg>,
+    document.body,
+  );
 }

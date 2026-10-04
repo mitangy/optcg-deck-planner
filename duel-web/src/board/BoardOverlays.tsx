@@ -174,7 +174,7 @@ export function CardActionPopover({
 
 export type GhostPayload =
   | { type: "give_don"; count: number }
-  | { type: "play_card" | "attack" | "counter"; defId: string; ownerSeat?: Seat };
+  | { type: "play_card" | "counter"; defId: string; ownerSeat?: Seat };
 
 /**
  * Card that follows the pointer while a drag is in flight (mouse or touch),
