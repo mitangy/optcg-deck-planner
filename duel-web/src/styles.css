@@ -91,10 +91,10 @@ body,
 }
 
 html {
-  /* Text grows with the window (16px on phones, ~18px at 1440, 20px on big
-     monitors) times the Text size setting (--text-scale, set from settings). */
+  /* Text grows with the window (16px on phones, ~18px at 1440, 20px at 1920,
+     22px at 2560) times the Text size setting (--text-scale, set from settings). */
   --text-scale: 1;
-  font-size: calc(clamp(16px, 12.8px + 0.36vw, 20px) * var(--root-scale));
+  font-size: calc(clamp(16px, 12.8px + 0.36vw, 22px) * var(--root-scale));
   /* Phones are tight: the setting counts for only 60% of its step there, and
      card badges (which use the full --text-scale) carry the rest. */
   --root-scale: var(--text-scale);
@@ -239,9 +239,14 @@ button {
 }
 
 .card-inspect-chip {
+  /* Lives in .card-overlays, mid-left: the corners belong to the power / DON!!
+     stack (top right) and the status icons (bottom right), also on rested
+     tiles, whose overlay turns upright. */
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 50%;
+  left: 3px;
+  transform: translateY(-50%);
+  pointer-events: auto;
   z-index: 2;
   width: 16px;
   height: 16px;
@@ -256,6 +261,14 @@ button {
   cursor: pointer;
   opacity: 0.55;
   transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+/* Hit area of 26px around the 16px chip, with no layout change. */
+.card-inspect-chip::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
 }
 
 .card-tile:hover .card-inspect-chip,
@@ -481,12 +494,6 @@ button {
 
 .card-report-actions .btn {
   min-height: 40px;
-}
-
-.card-inspect-close-bottom {
-  align-self: stretch;
-  min-height: 44px;
-  margin-top: 0.25rem;
 }
 
 @media (min-width: 641px) {
@@ -849,6 +856,12 @@ button {
   border-radius: 999px;
   color: var(--muted);
   vertical-align: middle;
+}
+
+/* In the page header, the planner actions sit at the end of the row beside the title. */
+.deck-header-actions {
+  margin-left: auto;
+  min-height: 0;
 }
 
 .deck-planner-actions {
@@ -1967,6 +1980,19 @@ button.zone-pile {
   }
 }
 
+/* Desktop: the cards are at least board size (68 / 89 / 109 / 150 px wide at
+   1280 / 1440 / 1920 / 2560), not the 64px phone thumbnails in a wide box. */
+@media (min-width: 900px) and (min-height: 500px) {
+  .trash-viewer-grid {
+    gap: 0.75rem;
+  }
+
+  .trash-viewer-grid .card-tile.compact {
+    width: clamp(96px, 7.5vw, 160px);
+    height: calc(clamp(96px, 7.5vw, 160px) * 1.4);
+  }
+}
+
 .zone-pile-meta {
   text-align: center;
   line-height: 1.15;
@@ -3006,11 +3032,9 @@ img.zone-pile-face {
   cursor: pointer;
   overflow-wrap: anywhere;
 }
-@media (pointer: coarse) {
-  /* Taller tap target without changing line layout. */
-  .log-card {
-    padding-block: 0.2rem;
-  }
+/* Taller click / tap target without changing line layout (vertical padding on an inline button adds no height to the line). */
+.log-card {
+  padding-block: 0.2rem;
 }
 .log-card:hover,
 .log-card:focus-visible {

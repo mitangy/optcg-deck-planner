@@ -67,6 +67,7 @@ import {
   nextDonSelection,
   pruneDonSelection,
   quickAttachCounts,
+  quickAttachLabel,
   resolveAttachIntents,
   type PendingAttach,
 } from "./donSelection";
@@ -121,7 +122,7 @@ import {
   syncOrientationLock,
 } from "./orientation";
 import { RotateHint } from "./RotateHint";
-import { seatLabel, seatName, winnerHeadline } from "./playerNames";
+import { playerNumberLabel, seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
 import { RematchPanel } from "./RematchPanel";
 import { RoomChip } from "./RoomShare";
@@ -1277,6 +1278,15 @@ export function DuelBoard({
       defend={defendPrimary}
       counterLabel={counterLabel}
       onCard={{ count: cardIntents.length, active: popoverOpen }}
+      quickActions={
+        popoverOpen && handFilter == null
+          ? quickCounts.map((n) => ({
+              id: `don-${n}`,
+              label: quickAttachLabel(n, quickCounts),
+              onPress: () => quickAttach(n),
+            }))
+          : []
+      }
     />
   ) : (
     <div className="intent-bar">
@@ -1389,7 +1399,7 @@ export function DuelBoard({
           type="button"
           className="hud-undo-btn hud-icon-btn armed"
           aria-label="Cancel undo request"
-          title="Waiting for your opponent to accept — tap to cancel"
+          title="Waiting for your opponent to accept. Press to cancel."
           onClick={() => undo.onAction("cancel")}
         >
           ↺ Cancel
@@ -1417,10 +1427,10 @@ export function DuelBoard({
       <button
         type="button"
         className="hud-pass-btn"
-        title={`Pass device to seat ${hotseatPass.otherSeat}`}
+        title={`Hand the device to ${playerNumberLabel(hotseatPass.otherSeat)}`}
         onClick={hotseatPass.onPass}
       >
-        Pass → {hotseatPass.otherSeat}
+        Switch to {playerNumberLabel(hotseatPass.otherSeat)}
       </button>
     ) : null}
     </>
@@ -1442,7 +1452,7 @@ export function DuelBoard({
               spectating ? 1 : oppSeat,
             )}`
           : null,
-        seat: spectating ? "Spectating" : `Seat ${mySeat}`,
+        seat: spectating ? "Spectating" : null,
         order: orderLabel,
       }}
       roomId={matchId}
@@ -1545,9 +1555,9 @@ export function DuelBoard({
                   {seatLabel(players, spectating ? 1 : oppSeat)}
                 </span>
               </span>
-            ) : (
-              <span>{spectating ? "Spectating" : `Seat ${mySeat}`}</span>
-            )}
+            ) : spectating ? (
+              <span>Spectating</span>
+            ) : null}
             <span className={`hud-turn-chip hud-order${youFirst ? " first" : ""}`}>
               {orderLabel}
             </span>
@@ -1625,10 +1635,10 @@ export function DuelBoard({
               <button
                 type="button"
                 className="hud-pass-btn"
-                title={`Pass device to seat ${hotseatPass.otherSeat}`}
+                title={`Hand the device to ${playerNumberLabel(hotseatPass.otherSeat)}`}
                 onClick={hotseatPass.onPass}
               >
-                Pass → {hotseatPass.otherSeat}
+                Switch to {playerNumberLabel(hotseatPass.otherSeat)}
               </button>
             ) : null}
             {onConcede && !spectating && !over ? (

@@ -721,6 +721,11 @@
   align-self: center;
 }
 
+/* Fit, never crop: the "Image Coming Soon" placeholder is not card-shaped. */
+.board-col .card-preview-img {
+  object-fit: contain;
+}
+
 /* Recent plays: a fixed-height list (about four rows, scrolls for the rest) so
    the log below never jumps. Each row is a card thumbnail, its name and who
    used it when. */
@@ -1120,6 +1125,13 @@
   border-top: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   box-sizing: border-box;
+}
+
+/* A wider, taller hit area than the 44x14 bar itself; no layout change. */
+.panel-grip::before {
+  content: "";
+  position: absolute;
+  inset: 0 -14px -10px;
 }
 
 .board-panel:hover > .panel-grip,
@@ -2290,6 +2302,25 @@ body.is-panel-drag * {
 
   .hand-dock .card-tile .card-caption .meta {
     font-size: clamp(0.62rem, 0.45vw, 0.8rem);
+  }
+}
+
+/* —— Narrow desktop windows (1280 down to 150% zoom on a laptop): the logo and
+   room name give way so the status chips never wrap onto a second line —— */
+
+@media (min-width: 900px) and (min-height: 500px) and (max-width: 1099px) {
+  .arena .hud-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .arena .hud-bar .hud-brand {
+    display: none;
+  }
+}
+
+@media (min-width: 900px) and (min-height: 500px) and (max-width: 1019px) {
+  .arena .hud-actions .match-id {
+    display: none;
   }
 }
 

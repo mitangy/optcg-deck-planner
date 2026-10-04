@@ -20,9 +20,22 @@ describe("loadSettings", () => {
   it("falls back per field when a stored value is invalid", () => {
     stubStored({ endTurnConfirm: "sometimes", turnSplash: "no", responseStops: "smart" });
     const s = loadSettings();
-    expect(s.endTurnConfirm).toBe("always");
+    expect(s.endTurnConfirm).toBe("actions");
     expect(s.turnSplash).toBe(true);
     expect(s.responseStops).toBe("smart");
+  });
+});
+
+describe("end-turn confirm default", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("asks only while DON!! or attackers are left for players who never chose, and keeps a saved Always ask (#__P3__)", () => {
+    stubStored({});
+    expect(loadSettings().endTurnConfirm).toBe("actions");
+    stubStored({ endTurnConfirm: "always" });
+    expect(loadSettings().endTurnConfirm).toBe("always");
   });
 });
 

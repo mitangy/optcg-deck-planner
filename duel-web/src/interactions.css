@@ -404,7 +404,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--hold-gap, 8px);
   width: max-content;
   max-width: min(300px, calc(100vw - 16px));
   transform: translate(-50%, -100%);
@@ -455,7 +455,7 @@
 
 .hand-confirm-card {
   /* Held up from the hand slot it was played from. */
-  transform: translate(var(--card-shift, 0px), -12px);
+  transform: translate(var(--card-shift, 0px), var(--card-lift, -12px));
   border-radius: 8px;
   box-shadow:
     0 0 0 2px var(--chrome-bright),

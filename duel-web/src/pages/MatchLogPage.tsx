@@ -7,7 +7,9 @@ import type { LogSegment } from "../board/battleLog";
 import { fetchMatchDetail, type MatchDetail } from "../history/historyApi";
 import { matchLogTurns } from "../history/matchLog";
 import { matchRow } from "../history/matchRow";
+import { useClickCopy } from "../board/clickCopy";
 import { ApiError, googleLoginUrl } from "../net/api";
+import { BackLink } from "./BackLink";
 import "../history/history.css";
 
 type State =
@@ -21,8 +23,9 @@ type Inspect = { defId: string; ownerSeat?: 0 | 1 };
 const cardName = (id: string) => lookupCard(id).name || id;
 
 function CardButton({ defId, name, onInspect }: { defId: string; name: string; onInspect: () => void }) {
+  const copy = useClickCopy();
   return (
-    <button type="button" className="log-card" title={`${name} — tap to inspect`} onClick={onInspect} data-def={defId}>
+    <button type="button" className="log-card" title={copy(`${name} — tap to inspect`)} onClick={onInspect} data-def={defId}>
       {name}
     </button>
   );
@@ -66,9 +69,7 @@ export function MatchLogPage() {
     <div className="app-shell">
       <div className="page page-narrow">
         <header className="page-header">
-          <Link to="/history" className="btn btn-ghost btn-sm page-back" aria-label="Back to match history">
-            ← History
-          </Link>
+          <BackLink to="/history" label="History" ariaLabel="Back to match history" />
           <h1 className="page-title">Match log</h1>
         </header>
 

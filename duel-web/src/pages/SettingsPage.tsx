@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { BackLink } from "./BackLink";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { UsernameSettings } from "../auth/UsernameSettings";
 import {
@@ -101,13 +102,7 @@ export function SettingsPage() {
     <div className="app-shell">
       <div className="page page-narrow page-settings">
         <header className="page-header">
-          <Link
-            to="/"
-            className="btn btn-ghost btn-sm page-back"
-            aria-label="Back to home"
-          >
-            ← Home
-          </Link>
+          <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <h1 className="page-title">Settings</h1>
         </header>
 

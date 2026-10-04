@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
 import { ConfirmButton } from "./ConfirmButton";
+import { useClickCopy } from "./clickCopy";
 import { dockAnchor, sameAnchor, stripReserve, type DockAnchor } from "./dockAnchor";
 import type { WaitingOnOpponent } from "./waitingOnOpponent";
 
@@ -36,6 +37,7 @@ export function PrimaryActionButton({
   counterLabel,
   onSend,
 }: ButtonProps) {
+  const copy = useClickCopy();
   if (primary.type === "end_turn" && confirmEndTurn) {
     return (
       <ConfirmButton
@@ -45,16 +47,16 @@ export function PrimaryActionButton({
           confirmEndTurn.reason ? (
             <>
               <span className="end-warn-full">End turn? {confirmEndTurn.reason}</span>
-              <span className="end-warn-short">Tap again to end</span>
+              <span className="end-warn-short">{copy("Tap again to end")}</span>
             </>
           ) : (
-            "Tap again to end"
+            copy("Tap again to end")
           )
         }
         title={
           confirmEndTurn.reason
-            ? `${confirmEndTurn.reason}. Tap again to end your turn.`
-            : "Ends your turn after a second tap"
+            ? copy(`${confirmEndTurn.reason}. Tap again to end your turn.`)
+            : copy("Ends your turn after a second tap")
         }
         disabled={disabled}
         reserveWidth

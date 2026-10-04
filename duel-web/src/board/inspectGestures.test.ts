@@ -6,6 +6,7 @@ import {
   createClickDeferController,
   createLongPressController,
   inspectOnContextMenu,
+  isInspectKey,
   shouldCancelLongPress,
   shouldInspectOnContextMenu,
 } from "./inspectGestures";
@@ -168,5 +169,16 @@ describe("inspectOnContextMenu", () => {
     const phone = run(false, "mouse");
     expect(phone.open).not.toHaveBeenCalled();
     expect(phone.preventDefault).not.toHaveBeenCalled();
+  });
+});
+
+describe("isInspectKey", () => {
+  it("is a bare I, either case, so Ctrl/Cmd/Alt combos and other keys are left alone (#__P3__)", () => {
+    expect(isInspectKey({ key: "i" })).toBe(true);
+    expect(isInspectKey({ key: "I" })).toBe(true);
+    expect(isInspectKey({ key: "i", ctrlKey: true })).toBe(false);
+    expect(isInspectKey({ key: "i", metaKey: true })).toBe(false);
+    expect(isInspectKey({ key: "i", altKey: true })).toBe(false);
+    expect(isInspectKey({ key: "e" })).toBe(false);
   });
 });

@@ -24,6 +24,7 @@ import {
   createClickDeferController,
   createLongPressController,
   inspectOnContextMenu,
+  isInspectKey,
 } from "./inspectGestures";
 import { usePointerDrag } from "./usePointerDrag";
 import { StatusRow } from "./StatusIcon";
@@ -392,6 +393,20 @@ export function CardTile({
             stackKey={`${pb?.current ?? ""}/${pb?.delta ?? 0}/${counter ? formatCounter(counter) : ""}/${attachedDonCount ?? 0}`}
           />
         ) : null}
+        {showInspectChip ? (
+          // Mouse / touch shortcut; keyboard players press I on the focused card
+          // instead, so the chip stays out of the Tab order (~30 stops a board).
+          <span
+            role="button"
+            tabIndex={-1}
+            className="card-inspect-chip"
+            title="Inspect card (or double-click / right-click / long-press)"
+            aria-label={`Inspect ${entry.name}`}
+            onClick={openInspectFromChip}
+          >
+            i
+          </span>
+        ) : null}
       </div>
       <div className="card-caption">
         <div className="name">{entry.name}</div>
@@ -419,25 +434,6 @@ export function CardTile({
               : `Cost ${entry.cost}`}
         </div>
       </div>
-      {showInspectChip ? (
-        // Quiet keyboard-accessible control — prefer double-click / long-press.
-        <span
-          role="button"
-          tabIndex={0}
-          className="card-inspect-chip"
-          title="Inspect card (or double-click / long-press)"
-          aria-label={`Inspect ${entry.name}`}
-          onClick={openInspectFromChip}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              openInspectFromChip(e as unknown as MouseEvent);
-            }
-          }}
-        >
-          i
-        </span>
-      ) : null}
     </>
   );
 
@@ -467,6 +463,12 @@ export function CardTile({
           className={className}
           onClick={handleClick}
           onClickCapture={dragBind.onClickCapture}
+          onKeyDown={(e) => {
+            if (canInspect && e.target === e.currentTarget && isInspectKey(e)) {
+              e.preventDefault();
+              setInspectOpen(true);
+            }
+          }}
           draggable={false}
           style={style ? { ...style, ...dragBind.style } : dragBind.style}
           {...dropProps}

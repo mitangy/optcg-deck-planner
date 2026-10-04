@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { BackLink } from "./BackLink";
+import { isIncompleteDeck } from "../decks/deckStatus";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import {
@@ -221,7 +223,14 @@ function DeckRow({
           </span>
         )}
         <div className="deck-list-meta">
-          <div className="deck-list-name">{deck.name}</div>
+          <div className="deck-list-name">
+            {deck.name}
+            {isIncompleteDeck(deck) ? (
+              <span className="deck-incomplete-badge" title={`${deck.cards.length} of 50 main-deck cards`}>
+                Incomplete
+              </span>
+            ) : null}
+          </div>
           <div className="deck-list-sub">
             {leader.name} ({deck.leaderId}) · {deck.cards.length} main
           </div>
@@ -424,9 +433,7 @@ export function DeckListPage() {
     <div className={`app-shell${drag ? " is-deck-dragging" : ""}`}>
       <div className="deck-config deck-config-wide deck-list-page">
         <header className="deck-config-header">
-          <Link to="/" className="btn btn-secondary deck-config-back">
-            ← Home
-          </Link>
+          <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <div className="deck-config-heading">
             <h1 className="deck-config-title">Decks</h1>
             <p className="meta">Choose a deck to edit, or create a new one.</p>

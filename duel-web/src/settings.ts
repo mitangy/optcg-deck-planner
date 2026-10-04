@@ -119,7 +119,7 @@ const DEFAULTS: DuelSettings = {
   playmatOpacity: 1,
   theme: DEFAULT_THEME,
   colorMode: "dark",
-  endTurnConfirm: "always",
+  endTurnConfirm: "actions",
   responseStops: "always",
   screenOrientation: "auto",
   sortHandByCost: false,

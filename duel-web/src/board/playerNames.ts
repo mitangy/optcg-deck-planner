@@ -10,6 +10,11 @@ export function seatLabel(players: SeatPlayers | null | undefined, seat: Seat): 
   return seatName(players, seat) ?? `Seat ${seat}`;
 }
 
+/** "Player 1" / "Player 2" for a seat, for pass-and-play where nobody has a name. */
+export function playerNumberLabel(seat: Seat): string {
+  return `Player ${seat + 1}`;
+}
+
 /** Match-over headline: personal for players, named for spectators. */
 export function winnerHeadline(
   players: SeatPlayers | null | undefined,
