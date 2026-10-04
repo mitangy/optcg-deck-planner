@@ -45,6 +45,13 @@ describe("card data", () => {
     expect(getDefsHealthSnapshot().defsCount).toBe(before);
   });
 
+  it("rejects a Leader card in the main deck (#266)", () => {
+    // ST01-001 is a real Leader; ST01-003 is a real Character. Parallel art must not slip a Leader through.
+    expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["ST01-003", "ST01-001"] }])).toThrow("Leader ST01-001 cannot be used in the main deck");
+    expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["st01-001_p1"] }])).toThrow("cannot be used in the main deck");
+    expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["ST01-003"] }])).not.toThrow();
+  });
+
   it("does not infer keywords from text mentions", () => {
     // Roger's text mentions an opponent activating [Blocker]; he has Rush, not Blocker.
     const atlas = buildCardAtlas();
