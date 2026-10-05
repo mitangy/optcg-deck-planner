@@ -129,6 +129,20 @@ describe("OP17-112 Charlotte Linlin", () => {
   });
 });
 
+describe("OP17-049 Charlotte Linlin", () => {
+  it("words the opponent's choose-one options from the opponent's side (#305)", () => {
+    const h = new Harness();
+    h.hand(0, "OP17-049");
+    h.don(0, 5);
+    h.play(0, "OP17-049");
+    expect(h.choice?.seat).toBe(1);
+    expect(h.choice?.request?.type === "mode" && h.choice.request.options.map((o) => o.label)).toEqual(["Your opponent draws 2 cards.", "Trash 2 cards from your hand."]);
+    const before = h.state.players[0].hand.length;
+    h.pick("Your opponent draws 2 cards.");
+    expect(h.state.players[0].hand.length).toBe(before + 2);
+  });
+});
+
 describe("OP12-018 Color of the Supreme King Haki", () => {
   it("buffs, then optionally rests a DON!! to weaken the attacker's side", () => {
     const h = new Harness();
