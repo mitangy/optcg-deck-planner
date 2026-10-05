@@ -101,6 +101,56 @@ test("the hand fan tucks away after Let the hand tuck away and a key press (#291
   await expect.poll(fanUp, { timeout: 3000 }).toBe(false);
 });
 
+// The pointer is still on the Hand button after the click, so hover held the
+// fan up and "Let the hand tuck away" looked like it did nothing (#307).
+test("Let the hand tuck away lowers the fan at once, under the pointer (#307)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true })),
+  );
+  await preferFan(page);
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const fan = page.locator(".hand-fan");
+  const lift = () => fan.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
+  await expect.poll(lift, { timeout: 3000 }).toBeLessThan(0); // raised
+  await page.locator(".hand-fan-toggle").click();
+  // The pointer has not moved off the button.
+  await expect.poll(lift, { timeout: 3000 }).toBeGreaterThan(20);
+  await expect(page.locator(".hand-fan-toggle")).toHaveAttribute("title", "Keep the hand up (H)");
+});
+
+// A floating fan was always fully shown, so its tuck button did nothing (#307).
+test("a floating hand fan tucks to its handle and shows its cards on hover (#307)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "optcg-duel:settings",
+      JSON.stringify({ keepHandOpen: true, handLayout: "fan", handFanPos: "0.5,0.6" }),
+    ),
+  );
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".hand-fan")).toHaveClass(/hand-fan-float/);
+  const cards = page.locator(".hand-fan-cards");
+  const cardsShown = () => cards.evaluate((el) => getComputedStyle(el).visibility !== "hidden");
+  await expect.poll(cardsShown).toBe(true);
+
+  const toggle = page.locator(".hand-fan-toggle");
+  await expect(toggle).toHaveAttribute("title", "Let the hand tuck away");
+  await toggle.click();
+  await expect.poll(cardsShown, { timeout: 3000 }).toBe(false);
+  await page.mouse.move(640, 120);
+  await toggle.hover();
+  await expect.poll(cardsShown, { timeout: 3000 }).toBe(true);
+  await page.mouse.move(640, 120);
+  await expect.poll(cardsShown, { timeout: 3000 }).toBe(false);
+
+  await toggle.click(); // Keep the hand up
+  await page.mouse.move(640, 120);
+  await expect.poll(cardsShown, { timeout: 3000 }).toBe(true);
+});
+
 // Clicking an empty card slot or a pile must not drop a blinking text caret on the mat.
 test("clicking board slots leaves no text caret on the mat (#246)", async ({ page }) => {
   await page.goto("/demo");
@@ -112,6 +162,21 @@ test("clicking board slots leaves no text caret on the mat (#246)", async ({ pag
       return { type: s?.type, inField: !!s?.anchorNode?.parentElement?.closest(".side-field") };
     });
     expect({ target, ...selection }).not.toMatchObject({ type: "Caret", inField: true });
+  }
+});
+
+// The idle midline ornament is a 45°-rotated span, so a caret dropped in it drew as a slanted text cursor.
+test("clicking the midline between the mats leaves no text caret (#314)", async ({ page }) => {
+  await page.goto("/demo?cantattack");
+  await page.locator(".midline-ornament").waitFor();
+  const box = (await page.locator(".midline").first().boundingBox())!;
+  for (const fx of [0.5, 0.2]) {
+    await page.mouse.click(box.x + box.width * fx, box.y + box.height / 2);
+    const selection = await page.evaluate(() => {
+      const s = getSelection();
+      return { type: s?.type, inMidline: !!s?.anchorNode?.parentElement?.closest(".midline") };
+    });
+    expect({ fx, ...selection }).not.toMatchObject({ type: "Caret", inMidline: true });
   }
 });
 
@@ -688,4 +753,44 @@ test("right-clicking the trash shows the top card, left click opens the trash (#
   await pile.click();
   await expect(page.locator(".trash-viewer-grid .card-tile").first()).toContainText(name);
   await expect(page.locator(".card-inspect")).toHaveCount(0);
+});
+
+// "Opponent hand, top right" used to only restyle the side panel's fan on
+// desktop. It is now the top-right spot: pinned on the mat on desktop, the
+// right of the opponent's half on phones, where the switch still lives (#297).
+test("Opponent hand, top right pins the hand top right on desktop and phones (#297)", async ({ page, duel }, info) => {
+  const desktop = info.project.name === "desktop-1280";
+  // A setting saved by an older build.
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("optcg-duel:settings")) {
+      localStorage.setItem("optcg-duel:settings", JSON.stringify({ oppHandTopRight: true }));
+    }
+  });
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  if (desktop) {
+    await expect(page.locator(".opp-hand-mat-right .opp-hand-corner")).toBeVisible();
+    await expect(page.locator('[data-panel-col] > [data-panel="oppHand"]')).toHaveCount(0);
+  } else {
+    await expect(page.locator(".opp-hand-hint-right .opp-hand-corner")).toBeVisible();
+  }
+  const issues = (await duel.audit()).filter((i) => !isKnown(i));
+  if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
+  expect(issues, formatIssues(issues)).toEqual([]);
+
+  await page.goto("/settings");
+  const toggle = page.getByLabel("Opponent hand, top right");
+  if (desktop) {
+    // Desktop picks the spot from the Opponent hand position list instead.
+    await expect(toggle).toHaveCount(0);
+    await expect(page.getByLabel("Opponent hand position")).toHaveValue("right");
+    return;
+  }
+  await expect(toggle).toBeChecked();
+  await toggle.uncheck();
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".opp-hand-hint-right")).toHaveCount(0);
+  await expect(page.locator(".opp-hand-hint")).toBeVisible();
+  expect(duel.errors).toEqual([]);
 });
