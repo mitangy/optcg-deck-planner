@@ -148,7 +148,7 @@ describe("hand layout", () => {
     expect(loadSettings().oppHandSpot).toBe("");
   });
 
-  it("turns the old Opponent hand, top right switch into the hand pinned top right (#PRNUM)", () => {
+  it("turns the old Opponent hand, top right switch into the hand pinned top right (#297)", () => {
     stubStored({ oppHandTopRight: true });
     expect(loadSettings().oppHandSpot).toBe("right");
     // A spot picked since wins, and off keeps the side panel.

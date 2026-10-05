@@ -492,8 +492,8 @@ test("the opponent hand pins to the top of the mat, stays after a reload, and dr
 
 // "Opponent hand, top right" used to only restyle the side panel's fan on
 // desktop. It is now the top-right spot: pinned on the mat on desktop, the
-// right of the opponent's half on phones, where the switch still lives (#PRNUM).
-test("Opponent hand, top right pins the hand top right on desktop and phones (#PRNUM)", async ({ page, duel }, info) => {
+// right of the opponent's half on phones, where the switch still lives (#297).
+test("Opponent hand, top right pins the hand top right on desktop and phones (#297)", async ({ page, duel }, info) => {
   const desktop = info.project.name === "desktop-1280";
   // A setting saved by an older build.
   await page.addInitScript(() => {
