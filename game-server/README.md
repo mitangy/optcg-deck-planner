@@ -40,7 +40,7 @@ Dev tools (non-production):
 | `PORT` | `2567` | HTTP / WebSocket bind port |
 | `DEV_JOIN_SECRET` | unset | If set, join options must include matching `secret` |
 | `GAME_TOKEN_SECRET` | `SESSION_SECRET` or weak default | HMAC secret shared with FastAPI for `gameToken` |
-| `REQUIRE_GAME_TOKEN` | `false` | When `true`, reject `devUserId`-only joins |
+| `REQUIRE_GAME_TOKEN` | `false` | When `true`, reject `devUserId`-only joins (always on when `NODE_ENV=production`) |
 | `API_BASE_URL` | `http://localhost:8000` | FastAPI base for match result ingest |
 | `DUEL_INGEST_SECRET` | `dev-duel-ingest` | Must match FastAPI `DUEL_INGEST_SECRET` |
 | `RECONNECT_GRACE_SECONDS` | `120` | Seat reclaim window after drop |

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { assertProductionAuthConfig } from "../src/env.js";
+import { assertProductionAuthConfig, requireGameToken } from "../src/env.js";
 import { gameSeed } from "../src/matchmakeGuard.js";
 import { parseCreateOptions } from "../src/protocol.js";
 
@@ -44,10 +44,11 @@ describe("production auth config", () => {
     );
   });
 
-  it("refuses to start in production without REQUIRE_GAME_TOKEN (#318)", () => {
-    assert.throws(
-      () => assertProductionAuthConfig({ NODE_ENV: "production", GAME_TOKEN_SECRET: "s3cret" }),
-      /REQUIRE_GAME_TOKEN/,
-    );
+  it("starts in production without REQUIRE_GAME_TOKEN and still requires tokens (#321)", () => {
+    const prod = { NODE_ENV: "production", GAME_TOKEN_SECRET: "s3cret" };
+    assert.doesNotThrow(() => assertProductionAuthConfig(prod));
+    assert.equal(requireGameToken(prod), true);
+    assert.equal(requireGameToken({ ...prod, REQUIRE_GAME_TOKEN: "false" }), true);
+    assert.equal(requireGameToken({}), false);
   });
 });
