@@ -219,6 +219,31 @@ describe("optional costs and K.O. (OP02-062 Luffy / OP01-006 Otama)", () => {
   });
 });
 
+describe("OP09-093 Marshall.D.Teach negate durations", () => {
+  // Official text: 相手のキャラ1枚までを、次の相手のターン終了時まで、効果を無効にし、そのキャラはアタックできない。
+  // The Character's negation and "cannot attack" share one duration; the Leader's negation is "this turn" only.
+  it("Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)", () => {
+    const h = new Harness({ leaders: ["OP09-081", "ST01-001"] });
+    h.hand(0, "OP09-093");
+    h.don(0, 10);
+    h.field(1, FILLER);
+    h.play(0, "OP09-093");
+    const teach = h.find(0, "OP09-093")!;
+    h.act(0, { type: "activate_ability", sourceId: teach.id, abilityId: "op09-093#1" });
+    h.pick(FILLER);
+    expect(h.view(0).opponent.characters[0]!.statusLabels).toEqual(expect.arrayContaining(["Effects negated", "Cannot attack"]));
+    expect(h.view(0).opponent.leader.statusLabels).toContain("Effects negated");
+
+    h.act(0, { type: "end_turn" });
+    expect(h.view(1).you.leader.statusLabels).not.toContain("Effects negated");
+    expect(h.view(1).you.characters[0]!.statusLabels).toEqual(expect.arrayContaining(["Effects negated", "Cannot attack"]));
+
+    h.act(1, { type: "end_turn" });
+    expect(h.view(0).opponent.characters[0]!.statusLabels).not.toContain("Effects negated");
+    expect(h.view(0).opponent.characters[0]!.statusLabels).not.toContain("Cannot attack");
+  });
+});
+
 describe("replacement effects (OP16-014 Marco)", () => {
   it("offers to K.O. Marco instead when an opponent's effect would remove your Character", () => {
     const h = new Harness();

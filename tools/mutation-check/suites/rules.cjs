@@ -356,6 +356,10 @@ module.exports = {
     // "Your opponent chooses one" options are reworded for the opponent who picks (#305)
     { id: "opp-mode-labels-controller-view", file: "packages/rules/src/engine/runtime.ts", from: "label: chooser === frame.seat ? label : forOpponent(label)", to: "label", kills: ["OP17-049 Charlotte Linlin words the opponent's choose-one options from the opponent's side (#305)"] },
     { id: "opp-mode-sentences-unflipped", file: "packages/rules/src/engine/perspective.ts", from: "    const flipped = flipSentence(end ? trimmed.slice(0, -1) : trimmed);", to: "    const flipped = end ? trimmed.slice(0, -1) : trimmed;", kills: ["OP17-049 Charlotte Linlin words the opponent's choose-one options from the opponent's side (#305)"] },
+    // OP09-093 Teach: the Character's negation lasts as long as its "cannot attack"; the Leader's only this turn (#333)
+    { id: "teach-char-negate-this-turn", json: ABILITIES, patch: (a) => { a["OP09-093"].abilities[1].effect.steps[1].steps[0].duration = "turn"; }, kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
+    { id: "teach-leader-negate-next-turn", json: ABILITIES, patch: (a) => { a["OP09-093"].abilities[1].effect.steps[0].then.duration = "until_end_of_opponent_next_turn"; }, kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
+    { id: "teach-char-negate-never-expires", file: "packages/rules/src/engine/runtime.ts", from: "{ type: \"negate\" }, expiryFor(state, frame.seat, effect.duration));", to: "{ type: \"negate\" }, expiryFor(state, frame.seat, \"permanent\"));", kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
     // select prompts: a purpose that already ends in a period ("K.O.") does not get a second one (#281)
     {"id": "p2-select-prompt-double-period", "file": "packages/rules/src/engine/runtime.ts", "from": "to ${instr.purpose}${instr.purpose.endsWith(\".\") ? \"\" : \".\"}`;", "to": "to ${instr.purpose}.`;", "kills": ["a K.O. pick prompt ends in one period, not \"K.O..\" (#281)"]},
   ],
