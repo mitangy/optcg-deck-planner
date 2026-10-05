@@ -142,5 +142,18 @@ module.exports = {
     { id: "e2e-opp-hand-top-right-switch-on-desktop", args: "demo-audit --project=desktop-1280 -g \"Opponent hand, top right\"", file: "duel-web/src/board/gameplayFields.ts", from: "  if (key === \"oppHandTopRight\") return !d.desktop;\n", to: "", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [desktop-1280]"] },
     { id: "e2e-opp-hand-top-right-switch-unbound", args: "demo-audit --project=phone-375 -g \"Opponent hand, top right\"", file: "duel-web/src/board/GameplaySettings.tsx", from: "t.key === \"oppHandTopRight\" ? settings.oppHandSpot === \"right\" : settings[t.key]", to: "t.key === \"oppHandTopRight\" ? false : settings[t.key]", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [phone-375]"] },
     { id: "e2e-opp-hand-top-right-phone-row-gone", args: "demo-audit --project=phone-375 -g \"Opponent hand, top right\"", file: "duel-web/src/board/DuelBoard.tsx", from: "  const oppHandRight = prefs.oppHandSpot === \"right\" && !farHand;", to: "  const oppHandRight = false;", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [phone-375]"] },
+    // Yes/No prompt keys (#324)
+    { id: "e2e-confirm-keys-prompt-unhooked", args: "confirm-keys --project=desktop-1280 -g \"on a Yes/No prompt\"", file: "duel-web/src/board/ChoicePrompt.tsx", from: "  useConfirmKeys(request.type === \"confirm\" && !hidden, choice.optional,", to: "  useConfirmKeys(false, choice.optional,", kills: [
+      "confirm-keys.spec.ts > Y answers Yes on a Yes/No prompt (#324) [desktop-1280]",
+      "confirm-keys.spec.ts > N answers No on a Yes/No prompt (#324) [desktop-1280]",
+      "confirm-keys.spec.ts > Space answers Yes on a Yes/No prompt (#324) [desktop-1280]",
+    ] },
+    { id: "e2e-confirm-keys-phone-unhooked", args: "confirm-keys --project=phone-375 -g \"Y answers Yes on a Yes/No prompt\"", file: "duel-web/src/board/ChoicePrompt.tsx", from: "  useConfirmKeys(request.type === \"confirm\" && !hidden, choice.optional,", to: "  useConfirmKeys(false, choice.optional,", kills: ["confirm-keys.spec.ts > Y answers Yes on a Yes/No prompt (#324) [phone-375]"] },
+    { id: "e2e-confirm-keys-hidden-prompt-answers", args: "confirm-keys --project=desktop-1280 -g hidden", file: "duel-web/src/board/ChoicePrompt.tsx", from: "  useConfirmKeys(request.type === \"confirm\" && !hidden, choice.optional,", to: "  useConfirmKeys(request.type === \"confirm\", choice.optional,", kills: ["confirm-keys.spec.ts > a hidden Yes/No prompt ignores the Yes/No keys (#324) [desktop-1280]"] },
+    { id: "e2e-confirm-keys-typing-answers", args: "confirm-keys --project=desktop-1280 -g typing", file: "duel-web/src/board/useBoardHotkeys.ts", from: "        typing: isTyping(active),\n        focus: focusKind(active),\n        modalOpen: document.querySelector(MODAL_SELECTOR) != null,\n        optional:", to: "        typing: false,\n        focus: focusKind(active),\n        modalOpen: document.querySelector(MODAL_SELECTOR) != null,\n        optional:", kills: ["confirm-keys.spec.ts > Yes/No keys do nothing while typing in a text field (#324) [desktop-1280]"] },
+    { id: "e2e-confirm-keys-hand-card-unhooked", args: "confirm-keys --project=desktop-1280 -g \"hand card\"", file: "duel-web/src/board/HandConfirmPrompt.tsx", from: "  useConfirmKeys(true, choice.optional,", to: "  useConfirmKeys(false, choice.optional,", kills: [
+      "confirm-keys.spec.ts > Y answers Yes on the Yes/No shown on a hand card (#324) [desktop-1280]",
+      "confirm-keys.spec.ts > N answers No on the Yes/No shown on a hand card (#324) [desktop-1280]",
+    ] },
   ],
 };

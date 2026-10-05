@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { nextTabTarget, takesTab } from "./boardFocus";
-import { hotkeyAction, type HotkeyAction } from "./hotkeys";
+import { confirmKeyAnswer, hotkeyAction, type HotkeyAction } from "./hotkeys";
 
 type Options = {
   spectating: boolean;
@@ -60,7 +60,7 @@ function tabbables(): HTMLElement[] {
   );
 }
 
-function isTyping(el: Element | null): boolean {
+export function isTyping(el: Element | null): boolean {
   if (!el) return false;
   const tag = el.tagName;
   return (
@@ -79,7 +79,7 @@ const CARD_FOCUS_SELECTOR =
  * Focus-visible buttons and links activate themselves on Space, except card
  * tiles: a focused card must not swallow the Space that ends the turn.
  */
-function focusKind(el: Element | null): "none" | "card" | "control" {
+export function focusKind(el: Element | null): "none" | "card" | "control" {
   if (!el || !el.matches('button, a, [role="button"]')) return "none";
   if (el.matches(CARD_FOCUS_SELECTOR)) return "card";
   try {
@@ -179,4 +179,44 @@ export function useBoardHotkeys(opts: Options) {
       window.removeEventListener("keyup", onKeyUp);
     };
   }, []);
+}
+
+/**
+ * Y / Space answer Yes and N answers No on a Yes/No prompt. Runs in the capture
+ * phase so the board's own Space (primary action) never sees the key.
+ */
+export function useConfirmKeys(enabled: boolean, optional: boolean, answer: (accept: boolean) => void) {
+  const ref = useRef({ optional, answer });
+  ref.current = { optional, answer };
+  useEffect(() => {
+    if (!enabled) return;
+    let swallowKeyup = false;
+    function onKeyDown(e: KeyboardEvent) {
+      const active = document.activeElement;
+      const accept = confirmKeyAnswer(e, {
+        typing: isTyping(active),
+        focus: focusKind(active),
+        modalOpen: document.querySelector(MODAL_SELECTOR) != null,
+        optional: ref.current.optional,
+      });
+      if (accept == null) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // A focused (not focus-visible) button would otherwise click on Space's keyup.
+      if (e.key === " " || e.code === "Space") swallowKeyup = true;
+      ref.current.answer(accept);
+    }
+    function onKeyUp(e: KeyboardEvent) {
+      if (!swallowKeyup || (e.key !== " " && e.code !== "Space")) return;
+      swallowKeyup = false;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("keyup", onKeyUp, true);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("keyup", onKeyUp, true);
+    };
+  }, [enabled]);
 }

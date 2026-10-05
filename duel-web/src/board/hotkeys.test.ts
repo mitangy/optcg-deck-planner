@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionKeyTags, hotkeyAction, stepHandSelection, type HotkeyContext } from "./hotkeys";
+import { actionKeyTags, confirmKeyAnswer, hotkeyAction, stepHandSelection, type ConfirmKeyContext, type HotkeyContext } from "./hotkeys";
 
 const base: HotkeyContext = {
   typing: false,
@@ -194,5 +194,46 @@ describe("stepHandSelection", () => {
 
   it("selects nothing from an empty hand", () => {
     expect(stepHandSelection([], null, 1)).toBeNull();
+  });
+});
+
+describe("confirmKeyAnswer (Yes/No prompt keys)", () => {
+  const prompt: ConfirmKeyContext = { typing: false, focus: "none", modalOpen: false, optional: true };
+
+  it("Y answers Yes and N answers No, either case (#324)", () => {
+    expect(confirmKeyAnswer({ key: "y" }, prompt)).toBe(true);
+    expect(confirmKeyAnswer({ key: "Y" }, prompt)).toBe(true);
+    expect(confirmKeyAnswer({ key: "n" }, prompt)).toBe(false);
+    expect(confirmKeyAnswer({ key: "N" }, prompt)).toBe(false);
+  });
+
+  it("Space answers Yes, also while a board or hand card has focus (#324)", () => {
+    expect(confirmKeyAnswer(space, prompt)).toBe(true);
+    expect(confirmKeyAnswer(space, { ...prompt, focus: "card" })).toBe(true);
+  });
+
+  it("leaves Space to a keyboard-focused button on the prompt (#324)", () => {
+    expect(confirmKeyAnswer(space, { ...prompt, focus: "control" })).toBeNull();
+    expect(confirmKeyAnswer({ key: "n" }, { ...prompt, focus: "control" })).toBe(false);
+  });
+
+  it("N does nothing when the prompt has no No (#324)", () => {
+    expect(confirmKeyAnswer({ key: "n" }, { ...prompt, optional: false })).toBeNull();
+    expect(confirmKeyAnswer({ key: "y" }, { ...prompt, optional: false })).toBe(true);
+  });
+
+  it("never answers while typing in chat or with a sheet open (#324)", () => {
+    for (const ctx of [{ ...prompt, typing: true }, { ...prompt, modalOpen: true }]) {
+      expect(confirmKeyAnswer({ key: "y" }, ctx)).toBeNull();
+      expect(confirmKeyAnswer({ key: "n" }, ctx)).toBeNull();
+      expect(confirmKeyAnswer(space, ctx)).toBeNull();
+    }
+  });
+
+  it("ignores a held key and modifier combos (#324)", () => {
+    expect(confirmKeyAnswer({ ...space, repeat: true }, prompt)).toBeNull();
+    expect(confirmKeyAnswer({ key: "y", repeat: true }, prompt)).toBeNull();
+    expect(confirmKeyAnswer({ key: "n", ctrlKey: true }, prompt)).toBeNull();
+    expect(confirmKeyAnswer({ key: "y", metaKey: true }, prompt)).toBeNull();
   });
 });

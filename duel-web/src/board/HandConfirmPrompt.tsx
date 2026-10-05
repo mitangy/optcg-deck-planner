@@ -6,6 +6,7 @@ import type { Box } from "./battleArc";
 import { CardTile } from "./CardTile";
 import { confirmQuestion } from "./handPrompt";
 import { heldCardSpot } from "./heldCardSpot";
+import { useConfirmKeys } from "./useBoardHotkeys";
 
 const EDGE = 8;
 
@@ -35,6 +36,7 @@ export function HandConfirmPrompt({
   useEffect(() => {
     yesRef.current?.focus({ preventScroll: true });
   }, [choice.id]);
+  useConfirmKeys(true, choice.optional, (accept) => onSend({ type: "resolve_pending_choice", accept }));
   if (typeof document === "undefined") return null;
 
   const name = lookupCard(choice.cardDefId).name;
@@ -75,6 +77,7 @@ export function HandConfirmPrompt({
             ref={yesRef}
             type="button"
             className="btn btn-primary"
+            aria-keyshortcuts="Y Space"
             onClick={() => onSend({ type: "resolve_pending_choice", accept: true })}
           >
             Yes
@@ -83,6 +86,7 @@ export function HandConfirmPrompt({
             <button
               type="button"
               className="btn btn-secondary"
+              aria-keyshortcuts="N"
               onClick={() => onSend({ type: "resolve_pending_choice", accept: false })}
             >
               No
