@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hmac
+import os
 import threading
 import time
 import weakref
@@ -44,11 +46,33 @@ class RateLimiter:
             return True
 
 
+# Set by the Vercel /api rewrite (vercel.json transforms) from the PROXY_SHARED_SECRET env var.
+PROXY_SECRET_HEADER = "x-optcg-proxy-secret"
+
+
+def _from_vercel(request) -> bool:
+    secret = os.environ.get("PROXY_SHARED_SECRET", "")
+    if not secret:
+        return True  # Not configured yet: keep trusting X-Forwarded-For as before.
+    sent = request.headers.get(PROXY_SECRET_HEADER, "")
+    return hmac.compare_digest(sent.encode(), secret.encode())
+
+
 def client_ip(request) -> str:
-    """Best-effort client IP (honors first X-Forwarded-For hop)."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip() or "unknown"
+    """Client IP for rate limits.
+
+    Vercel overwrites X-Forwarded-For with the visitor's IP, so behind the /api rewrite its first
+    hop is real. Render keeps whatever X-Forwarded-For a caller sends, so on the onrender.com URL
+    the first hop is caller-chosen; there Cloudflare's CF-Connecting-IP is the real caller.
+    """
+    if _from_vercel(request):
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip() or "unknown"
+    for header in ("cf-connecting-ip", "true-client-ip"):
+        value = (request.headers.get(header) or "").strip()
+        if value:
+            return value
     if request.client and request.client.host:
         return request.client.host
     return "unknown"
