@@ -43,6 +43,7 @@ import { AttackIndicator, DragAttackArrow } from "./AttackIndicator";
 import { BoardMotion } from "./BoardMotion";
 import { describeBattle } from "./battleBanner";
 import { battleEndpoints } from "./battleArc";
+import { followUpCounter } from "./counterSkipBlock";
 import { canOfferFullscreen, readInstallEnv } from "../installPrompt";
 import { useScreenWakeLock } from "./wakeLock";
 import {
@@ -270,6 +271,8 @@ export function DuelBoard({
   /** Card last used from the hand and where it sat, for a Yes/No it asks next. */
   const [handUse, setHandUse] = useState<HandUse | null>(null);
   function onSendIntent(intent: Intent) {
+    // Blocking after all: a skip-block Counter must not follow onto the Blocker.
+    if (intent.type === "declare_block") setQueuedCounter(null);
     if (view && typeof intent.handIndex === "number") {
       setHandUse(handUseFromIntent(intent, view.you.hand, measureHandCard));
     }
@@ -501,8 +504,21 @@ export function DuelBoard({
           return d ? { gap: d.gap, values: d.counters.map((c) => c.value) } : undefined;
         })()
       : undefined;
+  /**
+   * A Counter dropped (or tapped) in the block step: the block is passed, and
+   * this card is played (`send`) or staged (`stage`) once the counter step is up.
+   */
+  const [queuedCounter, setQueuedCounter] = useState<{
+    cardId: string;
+    mode: "send" | "stage";
+  } | null>(null);
   const autoPass =
-    stopMode !== "always" && view && !spectating && !over && !view.pendingChoices?.length
+    stopMode !== "always" &&
+    view &&
+    !spectating &&
+    !over &&
+    !view.pendingChoices?.length &&
+    queuedCounter == null
       ? responseStopPass(stopMode, intents, counterOutlook)
       : null;
   const autoPassKey =
@@ -547,6 +563,27 @@ export function DuelBoard({
     setStagedCounterIds([]);
     setStagedBlockerId(null);
   }, [defendKey]);
+  // After the step reset above: the block has passed, so play or stage the
+  // queued Counter if the counter step takes it.
+  useEffect(() => {
+    if (!queuedCounter || !view) return;
+    const { settled, intent } = followUpCounter(intents, view.you.hand, queuedCounter.cardId);
+    if (!settled) return;
+    setQueuedCounter(null);
+    if (!intent) return;
+    if (queuedCounter.mode === "send") onSendIntent(intent);
+    else setStagedCounterIds([queuedCounter.cardId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queuedCounter, intents, view]);
+
+  /** Block step: skip the block, then play (or stage) this Counter in the counter step. */
+  function skipBlockToCounter(cardId: string, mode: "send" | "stage") {
+    const pass = intents.find((i) => i.type === "pass_block");
+    if (!pass) return;
+    setStagedBlockerId(null);
+    setQueuedCounter({ cardId, mode });
+    onSendIntent(pass);
+  }
 
   // Hotseat hands the device over itself; alerts only matter online.
   const alertsOn = !spectating && !over && !hotseatPass && autoPass == null;
@@ -627,8 +664,15 @@ export function DuelBoard({
   }, [dragging]);
 
   const dndEnabled = yourTurn && !spectating && !over && !mulliganPhase;
-  /** Counter step: a Counter card can be dragged from hand onto the defender. */
-  const counterDragEnabled = defend?.phase === "counter";
+  /**
+   * Counter step: a Counter card can be dragged from hand onto the defender.
+   * Block step too: the drop skips the block, then plays the Counter.
+   */
+  const counterDragEnabled = defend != null;
+  const earlyCounterIds = useMemo(
+    () => new Set(defend?.earlyCounters.map((c) => c.id) ?? []),
+    [defend?.earlyCounters],
+  );
   const counterDefenderId = useMemo(() => {
     if (!counterDragEnabled) return null;
     const ends = battleEndpoints(view);
@@ -892,6 +936,11 @@ export function DuelBoard({
         // A dropped card is played now, so it is no longer staged in the tray.
         const cardId = view?.you.hand[payload.handIndex]?.id;
         setStagedCounterIds((cur) => cur.filter((id) => id !== cardId));
+        // Block step: only the pass goes now; the Counter follows it.
+        if (cardId && toSend[0]?.type === "pass_block") {
+          setStagedBlockerId(null);
+          setQueuedCounter({ cardId, mode: "send" });
+        }
       }
       for (const intent of toSend) onSendIntent(intent);
       if (payload.type === "give_don") clearDonSelection();
@@ -1152,7 +1201,10 @@ export function DuelBoard({
     return order.map((idx, pos) => {
       const c = you.hand[idx]!;
       const playable = dndEnabled && canDragHandCard(intents, idx);
-      const counterable = !playable && counterDragEnabled && canDragCounter(intents, idx);
+      const counterable =
+        !playable &&
+        counterDragEnabled &&
+        (defend?.phase === "block" ? earlyCounterIds.has(c.id) : canDragCounter(intents, idx));
       const boardDrag = playable || counterable;
       const cost = c.playCost ?? lookupCard(c.defId).cost;
       // Main phase, no legal play for it, and not enough active DON!!: show it as out of reach.
@@ -1256,8 +1308,9 @@ export function DuelBoard({
           const intent = defend.events[i]?.intent;
           if (intent) onSendIntent(intent);
         }}
+        onSkipBlockCounter={(id) => skipBlockToCounter(id, prefs.oneTapActions ? "send" : "stage")}
         counterDrag={
-          defend.phase === "counter"
+          defend.phase === "counter" || defend.earlyCounters.length > 0
             ? {
                 onStart: (cardId) => {
                   const handIndex = you.hand.findIndex((c) => c.id === cardId);

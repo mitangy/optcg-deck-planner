@@ -2,6 +2,7 @@ import { lookupCard } from "../cards/atlas";
 import { counterValueFor, formatCounter } from "../cards/counterValue";
 import type { Intent, PlayerView } from "../net/protocol";
 import { battleEndpoints } from "./battleArc";
+import { counterAfterBlock } from "./counterSkipBlock";
 import { findCard } from "./battleBanner";
 import { defenseStatus, stagedCounterTotal } from "./defendTray";
 
@@ -16,6 +17,8 @@ export type DefendStaging = {
 
 export type BlockerChip = { id: string; defId: string; name: string; power: number | null };
 export type CounterChip = { id: string; defId: string; name: string; value: number | null };
+/** Block step: a hand card that skips the block and counters (drag, or tap). */
+export type EarlyCounterChip = { id: string; defId: string; name: string; label: string };
 export type EventChip = {
   id: string;
   defId: string;
@@ -43,6 +46,8 @@ export type DefendModel = {
   blockers: BlockerChip[];
   counters: CounterChip[];
   events: EventChip[];
+  /** Block step only: Counter cards / Events the counter step will take. */
+  earlyCounters: EarlyCounterChip[];
   /** Staged counters that are still legal, in tap order. */
   stagedIds: string[];
   stagedTotal: number;
@@ -125,6 +130,21 @@ export function deriveDefend(
     }
   }
 
+  const earlyCounters: EarlyCounterChip[] = [];
+  if (phase === "block") {
+    for (const card of view.you.hand) {
+      if (!counterAfterBlock(card, view.you.activeDonCount)) continue;
+      const entry = lookupCard(card.defId);
+      const value = card.counter != null ? null : counterValueFor(entry);
+      earlyCounters.push({
+        id: card.id,
+        defId: card.defId,
+        name: entry.name,
+        label: card.counter != null ? `+${card.counter}` : value ? formatCounter(value) : "Counter",
+      });
+    }
+  }
+
   const legal = new Set(counters.map((c) => c.id));
   const stagedIds = [...new Set(staging.counterIds)].filter((id) => legal.has(id));
   const values = new Map<string, number>();
@@ -155,6 +175,7 @@ export function deriveDefend(
     blockers,
     counters,
     events,
+    earlyCounters,
     stagedIds,
     stagedTotal,
     stagedUnknown: stagedIds.some((id) => !values.has(id)),

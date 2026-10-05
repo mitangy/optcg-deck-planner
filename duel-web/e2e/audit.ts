@@ -48,7 +48,11 @@ const DEFAULT_OFFSCREEN_OK = [".hand-fan-cards"];
 
 /** Containers that scroll sideways on purpose. */
 /** `.hand-row`: a portrait hand of more than 8 cards scrolls as a strip (#271). */
-const DEFAULT_HSCROLL_OK: string[] = [".hand-row"];
+const DEFAULT_HSCROLL_OK: string[] = [
+  ".hand-row",
+  // Phone defend tray: Blockers / Counter chips are a sideways-swiping strip by design.
+  ".defend-chips",
+];
 
 /** Layers that intentionally sit over the board (a covered board under them is expected). */
 const DEFAULT_OVERLAYS = [

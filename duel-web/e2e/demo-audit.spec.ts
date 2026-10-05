@@ -13,6 +13,7 @@ const SCREENS = [
   "?statuses",
   "?over",
   "?undo=ask",
+  "?counter=block",
   ...["don", "don2", "look", "satori", "rest", "select", "restgrid", "selectgrid", "confirm", "hand", "order", "effects", "mode"].map((p) => `?prompt=${p}`),
   // Searches and effect ordering float by default; `?box` keeps the old pop-up.
   ...["look", "satori", "effects"].map((p) => `?box&prompt=${p}`),
@@ -528,6 +529,42 @@ test("the opponent hand pins to the top of the mat, stays after a reload, and dr
   await expect(page.locator(".opp-hand-mat")).toHaveCount(0);
   await expect.poll(inColumn).toBe(1);
   expect(duel.errors).toEqual([]);
+});
+
+// Block step: dragging a Counter onto the defender passes the block and plays
+// that Counter in one gesture (desktop: from the hand, phone: from the tray).
+test("dragging a Counter onto the defender in the block step skips the block and counters (#300)", async ({ page }) => {
+  await page.goto("/demo?counter=block");
+  await page.locator(".board-root").waitFor();
+  const phone = test.info().project.name === "phone-375";
+  const source = phone
+    ? page.locator('.defend-chip-early[data-hand-card-id="y-h1"]')
+    : page.locator(":is(.hand-fan-cards, .rail-hand-cards, .hand-dock-cards, .hand-row-inner) > .card-tile").first();
+  const leader = page.locator('.side-you .card-tile[data-instance-id="y-leader"]').first();
+  await expect(source).toBeVisible();
+  // Let the turn splash clear: it sits over the Leader.
+  await page.waitForTimeout(2500);
+  const to = (await leader.boundingBox())!;
+  // The desktop fan overlaps and peeks up from the bottom edge: grab a point
+  // where the dragged card itself is on top.
+  const [sx, sy] = await source.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    for (let y = r.top + 6; y < Math.min(r.bottom, innerHeight); y += 4) {
+      for (let x = r.left + 4; x < r.right; x += 4) {
+        if (document.elementFromPoint(x, y)?.closest(".card-tile, .defend-chip") === el) return [x, y];
+      }
+    }
+    return [r.left + r.width / 2, r.top + r.height / 2];
+  });
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  // Small first steps on the card, or the drag never arms.
+  for (let i = 1; i <= 4; i += 1) await page.mouse.move(sx, sy + i * 3);
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await expect
+    .poll(() => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents))
+    .toEqual([{ type: "pass_block" }, { type: "counter_from_hand", handIndex: 0 }]);
 });
 
 // Hand sort off: a hand card dropped back on the hand moves there instead of

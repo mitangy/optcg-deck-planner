@@ -9,7 +9,7 @@ export type DragPayload =
   | { type: "play_card"; handIndex: number }
   /** Your Leader / Character dragged onto an opposing card to declare an attack. */
   | { type: "attack"; attackerId: string }
-  /** A hand card dragged onto your defending card during the counter step. */
+  /** A hand card dragged onto your defending card (counter step, or block step to skip the block). */
   | { type: "counter"; handIndex: number };
 
 export type DropTarget =
@@ -235,7 +235,11 @@ export function resolveDropIntents(
     // Only the card actually taking the hit accepts a counter.
     if (!ctx.defenderId || drop.targetId !== ctx.defenderId) return [];
     const intent = matchCounter(intents, payload.handIndex);
-    return intent ? [intent] : [];
+    if (intent) return [intent];
+    // Block step: the drop skips the block; the counter follows once the
+    // counter step is up (see followUpCounter).
+    const pass = intents.find((i) => i.type === "pass_block");
+    return pass ? [pass] : [];
   }
   if (payload.type === "give_don" && drop.kind === "give_don_target") {
     return matchGiveDonMulti(intents, payload.donIds, drop.targetId);

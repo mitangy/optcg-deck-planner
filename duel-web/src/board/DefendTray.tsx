@@ -99,7 +99,9 @@ type Props = {
   onToggleBlocker: (id: string) => void;
   onToggleCounter: (id: string) => void;
   onCounterEvent: (index: number) => void;
-  /** Drag-to-counter from the chips (counter step only). */
+  /** Block step: tap a Counter chip to skip the block and counter with it. */
+  onSkipBlockCounter?: (id: string) => void;
+  /** Drag-to-counter from the chips (counter step, and block step to skip the block). */
   counterDrag?: CounterDragHandlers;
 };
 
@@ -117,6 +119,7 @@ export function DefendTray({
   onToggleBlocker,
   onToggleCounter,
   onCounterEvent,
+  onSkipBlockCounter,
   counterDrag,
 }: Props) {
   const m = model;
@@ -161,25 +164,48 @@ export function DefendTray({
       </p>
       <div className="defend-chips">
         {m.phase === "block" ? (
-          m.blockers.length === 0 ? (
+          m.blockers.length === 0 && m.earlyCounters.length === 0 ? (
             <p className="defend-none">No Blocker available</p>
           ) : (
-            m.blockers.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                className={`defend-chip${m.stagedBlockerId === b.id ? " staged" : ""}`}
-                aria-pressed={m.stagedBlockerId === b.id}
-                aria-label={`Block with ${b.name}, power ${power(b.power)}`}
-                onClick={() => onToggleBlocker(b.id)}
-              >
-                <Thumb defId={b.defId} ownerSeat={ownerSeat} />
-                <span className="defend-chip-text">
-                  <span className="defend-chip-main">{power(b.power)}</span>
-                  <span className="defend-chip-sub">{b.name}</span>
+            <>
+              {m.blockers.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  className={`defend-chip${m.stagedBlockerId === b.id ? " staged" : ""}`}
+                  aria-pressed={m.stagedBlockerId === b.id}
+                  aria-label={`Block with ${b.name}, power ${power(b.power)}`}
+                  onClick={() => onToggleBlocker(b.id)}
+                >
+                  <Thumb defId={b.defId} ownerSeat={ownerSeat} />
+                  <span className="defend-chip-text">
+                    <span className="defend-chip-main">{power(b.power)}</span>
+                    <span className="defend-chip-sub">{b.name}</span>
+                  </span>
+                </button>
+              ))}
+              {m.earlyCounters.length > 0 ? (
+                <span className="defend-chips-sep" aria-hidden>
+                  {m.blockers.length > 0 ? "or" : "No Blocker"}
                 </span>
-              </button>
-            ))
+              ) : null}
+              {m.earlyCounters.map((c) => (
+                <CounterChipButton
+                  key={c.id}
+                  cardId={c.id}
+                  className="defend-chip defend-chip-early"
+                  label={`No block, counter with ${c.name}, ${c.label}`}
+                  onClick={() => onSkipBlockCounter?.(c.id)}
+                  drag={counterDrag}
+                >
+                  <Thumb defId={c.defId} ownerSeat={ownerSeat} />
+                  <span className="defend-chip-text">
+                    <span className="defend-chip-main">{c.label}</span>
+                    <span className="defend-chip-sub">{c.name}</span>
+                  </span>
+                </CounterChipButton>
+              ))}
+            </>
           )
         ) : (
           <>
