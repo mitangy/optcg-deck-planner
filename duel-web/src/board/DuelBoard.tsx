@@ -127,7 +127,7 @@ import {
   syncOrientationLock,
 } from "./orientation";
 import { RotateHint } from "./RotateHint";
-import { donShortfall, needsDonHint } from "./handAffordance";
+import { handCardOutOfReach, needsDonHint } from "./handAffordance";
 import { phaseLabel } from "./phaseLabel";
 import { playerLabel, seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
@@ -1208,7 +1208,14 @@ export function DuelBoard({
       const boardDrag = playable || counterable;
       const cost = c.playCost ?? lookupCard(c.defId).cost;
       // Main phase, no legal play for it, and not enough active DON!!: show it as out of reach.
-      const unaffordable = yourTurn && view?.phase === "main" && !handPick && !playable && donShortfall(cost, you.activeDonCount) > 0;
+      const unaffordable = handCardOutOfReach({
+        dimSetting: prefs.dimUnplayable,
+        mainPhase: yourTurn && view?.phase === "main",
+        picking: !!handPick,
+        playable,
+        cost,
+        activeDon: you.activeDonCount,
+      });
       const payload: DragPayload = counterable
         ? { type: "counter", handIndex: idx }
         : { type: "play_card", handIndex: idx };

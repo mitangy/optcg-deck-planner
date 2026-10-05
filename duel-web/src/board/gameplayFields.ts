@@ -13,6 +13,7 @@ export type ToggleKey =
   | "keepHandOpen"
   | "layoutGrips"
   | "oneTapActions"
+  | "dimUnplayable"
   | "oppHandTopRight"
   | "tiltedBoard"
   | "turnSplash"

@@ -81,6 +81,8 @@ export type DuelSettings = {
    * or picks a single target, instead of selecting it and then confirming.
    */
   oneTapActions: boolean;
+  /** Fade hand cards you can't play this main phase (no legal play, not enough active DON!!). */
+  dimUnplayable: boolean;
   /** Show the opponent's hand as a fan of card backs in the top-right corner of the board. */
   oppHandTopRight: boolean;
   /**
@@ -127,6 +129,7 @@ const DEFAULTS: DuelSettings = {
   panelLayout: "",
   layoutGrips: true,
   oneTapActions: false,
+  dimUnplayable: true,
   oppHandTopRight: false,
   oppHandSpot: "",
   textSize: "medium",

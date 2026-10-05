@@ -7,3 +7,19 @@ export function donShortfall(cost: number, activeDon: number): number {
 export function needsDonHint(cost: number, activeDon: number): string | null {
   return donShortfall(cost, activeDon) > 0 ? `Needs ${cost} DON!! (you have ${activeDon})` : null;
 }
+
+/**
+ * Whether a hand card is grayed out as out of reach: your main phase, no pick
+ * open, no legal play for it, short on active DON!!, and the setting is on.
+ */
+export function handCardOutOfReach(c: {
+  dimSetting: boolean;
+  mainPhase: boolean;
+  picking: boolean;
+  playable: boolean;
+  cost: number;
+  activeDon: number;
+}): boolean {
+  if (!c.dimSetting) return false;
+  return c.mainPhase && !c.picking && !c.playable && donShortfall(c.cost, c.activeDon) > 0;
+}

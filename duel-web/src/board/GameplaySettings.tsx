@@ -55,6 +55,11 @@ const TOGGLES: Toggle[] = [
     hint: "Skips the second tap: tapping a Counter card plays it, tapping a Blocker blocks, tapping a Leader or Character gives it the selected DON!!, and picking the only target of an effect resolves it.",
   },
   {
+    key: "dimUnplayable",
+    label: "Gray out unplayable cards",
+    hint: "In your main phase, fades hand cards that cost more than your active DON!! and have no other play. Turn it off to keep every card at full colour.",
+  },
+  {
     key: "oppHandTopRight",
     label: "Opponent hand fan, top right",
     hint: "Shows the opponent's hand as a fan of card backs with the count in the top-right corner, mirroring your own hand. Portrait phones: a compact row at the right of the opponent's half.",
