@@ -23,6 +23,39 @@ function act(state: MatchState, seat: Seat, intent: Intent, rng: ReturnType<type
   return r.state;
 }
 
+describe("Imu start-of-game Stage", () => {
+  const IMU = "OP13-079";
+  const MARY_GEOISE = "OP05-097";
+  const EMPTY_THRONE = "OP13-099";
+  const imuMatch = (stages: string[]) => createMatch({ seed: 7, firstSeat: 0, players: [{ leaderId: IMU, deck: [...buildTestDeck(20), ...stages] }, { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }] });
+
+  for (const pick of [MARY_GEOISE, EMPTY_THRONE]) {
+    it(`Imu player chooses which Stage to play at the start of the game: ${pick} (#284)`, () => {
+      const rng = createSeededRng(7);
+      let state = imuMatch([MARY_GEOISE, MARY_GEOISE, EMPTY_THRONE, EMPTY_THRONE]);
+      const choice = state.pendingChoices[0]!;
+      expect(choice.seat).toBe(0);
+      expect(choice.request?.type === "select" && choice.request.options.map((o) => o.defId).sort()).toEqual([MARY_GEOISE, EMPTY_THRONE].sort());
+      expect(state.players[0].stage).toBeNull();
+      expect(applyIntent(state, { type: "mulligan", doMulligan: false }, { seat: 1, rng }).ok).toBe(false);
+      const option = choice.request?.type === "select" ? choice.request.options.find((o) => o.defId === pick)! : null;
+      state = act(state, 0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [option!.id] }, rng);
+      expect(state.players[0].stage?.defId).toBe(pick);
+      expect(state.players[0].hand).toHaveLength(5);
+      expect([...state.players[0].deck, ...state.players[0].hand.map((c) => c.defId)].filter((id) => id === pick)).toHaveLength(1);
+      state = skipMulligans(state, rng);
+      expect(state.phase).toBe("main");
+    });
+  }
+
+  it("Imu plays the only eligible Stage without a prompt, even with several copies (#284)", () => {
+    const state = imuMatch([EMPTY_THRONE, EMPTY_THRONE, EMPTY_THRONE]);
+    expect(state.pendingChoices).toHaveLength(0);
+    expect(state.players[0].stage?.defId).toBe(EMPTY_THRONE);
+    expect(state.players[0].hand).toHaveLength(5);
+  });
+});
+
 describe("match setup and mulligan", () => {
   it("sets Life from the Leader after mulligans and is deterministic per seed", () => {
     const a = fresh(42).state;
