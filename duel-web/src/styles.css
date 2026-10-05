@@ -2009,16 +2009,11 @@ button.zone-pile {
   }
 }
 
-/* Desktop: the cards are at least board size (68 / 89 / 109 / 150 px wide at
-   1280 / 1440 / 1920 / 2560), not the 64px phone thumbnails in a wide box. */
+/* Desktop: a little more room between the readable cards (their width comes
+   from the grid above, 140px and up). */
 @media (min-width: 900px) and (min-height: 500px) {
   .trash-viewer-grid {
     gap: 0.75rem;
-  }
-
-  .trash-viewer-grid .card-tile.compact {
-    width: clamp(96px, 7.5vw, 160px);
-    height: calc(clamp(96px, 7.5vw, 160px) * 1.4);
   }
 }
 
