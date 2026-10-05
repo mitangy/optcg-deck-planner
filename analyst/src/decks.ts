@@ -22,6 +22,9 @@ export type DeckInput = {
   cards?: DeckStatsCard[];
 };
 
+/** Most copies one line may add. A legal deck has 4; anything far past it is a typo or an attack. */
+export const MAX_LINE_COPIES = 50;
+
 const CARD_ID = /\b(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})(?:_[PR]\d+)?\b/i;
 
 /** Quantity and card number from one line, or null when the line names no card. */
@@ -49,9 +52,15 @@ export function deckFromLines(catalog: Catalog, entries: readonly { id: string; 
     warnings.push(`${leaderId} is not a known leader.`);
     leaderId = null;
   }
+  const oversized = new Set<string>();
   for (const e of entries) {
     if (!(e.copies > 0)) continue;
     const id = normalizeStatsCardId(e.id);
+    // Draw odds work in time and memory proportional to the deck size, so a huge count must not reach them.
+    if (e.copies > MAX_LINE_COPIES) {
+      oversized.add(id);
+      continue;
+    }
     const card = catalog.cards.get(id);
     if (!card) {
       unknown.add(id);
@@ -66,6 +75,7 @@ export function deckFromLines(catalog: Catalog, entries: readonly { id: string; 
   }
   if (!leaderId) warnings.push("No leader found. Add a line such as 1xOP01-001.");
   if (unknown.size) warnings.push(`Unknown card numbers left out: ${[...unknown].join(", ")}.`);
+  if (oversized.size) warnings.push(`Lines with more than ${MAX_LINE_COPIES} copies left out: ${[...oversized].join(", ")}.`);
   const cards = [...copies].map(([id, n]) => ({ id, copies: n })).sort((a, b) => a.id.localeCompare(b.id));
   return { leaderId, cards, unknown: [...unknown], warnings };
 }
