@@ -9,6 +9,8 @@ import {
   SKIN_MAX_PLAYMAT_CHARS,
 } from "../src/protocol.js";
 import { getGameTokenSecret, getRankedMatchCreateSecret } from "../src/env.js";
+import { MAX_ROOMS_PER_CREATOR } from "../src/matchmakeGuard.js";
+import { matchMaker } from "colyseus";
 import { createHmac } from "node:crypto";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
 import type { MatchProgressPayload, MatchResultPayload } from "../src/writeback.js";
@@ -84,6 +86,18 @@ function gameToken(uid: number): string {
     Buffer.from(JSON.stringify({ uid, email: `u${uid}@x.com`, exp: Math.floor(Date.now() / 1000) + 600 })),
   );
   return `${body}.${b64url(createHmac("sha256", getGameTokenSecret()).update(body).digest())}`;
+}
+
+/** Runs `fn` with REQUIRE_GAME_TOKEN=true, as on the deployed server. */
+async function withTokensRequired<T>(fn: () => Promise<T> | T): Promise<T> {
+  const prev = process.env.REQUIRE_GAME_TOKEN;
+  process.env.REQUIRE_GAME_TOKEN = "true";
+  try {
+    return await fn();
+  } finally {
+    if (prev === undefined) delete process.env.REQUIRE_GAME_TOKEN;
+    else process.env.REQUIRE_GAME_TOKEN = prev;
+  }
 }
 
 function presenceFor(roomId: string): PresenceEntry[] {
@@ -504,34 +518,30 @@ describe("DuelRoom", () => {
     await c2.leave(true);
   });
 
-  it("ranked_queue skips same-user pair and matches a distinct third client", async () => {
+  it("ranked_queue keeps one place per account, dropping the older entry (#318)", async () => {
     const dupA = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("same-user"));
+    let aLeft = false;
+    dupA.onLeave(() => {
+      aLeft = true;
+    });
     const dupB = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("same-user"));
-    let earlyMatch = false;
-    dupA.onMessage("matched", () => {
-      earlyMatch = true;
-    });
-    dupB.onMessage("matched", () => {
-      earlyMatch = true;
-    });
-    await new Promise((r) => setTimeout(r, 80));
-    assert.equal(earlyMatch, false);
+    await waitUntil(() => aLeft, 3000);
 
     const other = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("other-user"));
-    const msg = await new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
-      const t = setTimeout(() => reject(new Error("third matched timeout")), 5000);
-      other.onMessage("matched", (m: { roomId: string; seat: number }) => {
-        clearTimeout(t);
-        resolve(m);
-      });
-      dupA.onMessage("matched", (m: { roomId: string; seat: number }) => {
-        clearTimeout(t);
-        resolve(m);
-      });
-    });
-    assert.equal(typeof msg.roomId, "string");
-    assert.ok(msg.seat === 0 || msg.seat === 1);
-    await dupA.leave(true);
+    const [mine, theirs] = await Promise.all(
+      [dupB, other].map(
+        (c) =>
+          new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
+            const t = setTimeout(() => reject(new Error("matched timeout")), 5000);
+            c.onMessage("matched", (m: { roomId: string; seat: number }) => {
+              clearTimeout(t);
+              resolve(m);
+            });
+          }),
+      ),
+    );
+    assert.equal(mine!.roomId, theirs!.roomId);
+    assert.notEqual(mine!.seat, theirs!.seat);
     await dupB.leave(true);
     await other.leave(true);
   });
@@ -1262,5 +1272,52 @@ describe("DuelRoom", () => {
 
     await c0.leave(true);
     await c1.leave(true);
+  });
+
+  it("refuses to create a room without a game token when tokens are required (#318)", async () => {
+    // The matchmake HTTP call itself (what the SDK sends before opening the socket) must fail:
+    // a room created here would hold seat reservations even though the socket join is refused later.
+    const http = { token: "", headers: new Headers(), ip: "127.0.0.1" } as unknown as Parameters<typeof matchMaker.create>[2];
+    await withTokensRequired(async () => {
+      await assert.rejects(() => matchMaker.create("duel", { protocolVersion: PROTOCOL_VERSION }, http), /gameToken required/);
+      await assert.rejects(() => matchMaker.joinOrCreate("ranked_queue", { protocolVersion: PROTOCOL_VERSION }, http), /gameToken required/);
+    });
+    assert.equal((await matchMaker.query({ name: "duel" })).length, 0);
+  });
+
+  it("duel rooms can only be joined by id, never by an id-less matchmake join (#318)", async () => {
+    const host = await colyseus.sdk.create("duel", { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(501) });
+    await assert.rejects(() => colyseus.sdk.join("duel", { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(502) }));
+    const guest = await colyseus.sdk.joinById(host.roomId, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(502) });
+    assert.equal(guest.roomId, host.roomId);
+    await guest.leave(true);
+    await host.leave(true);
+  });
+
+  it("caps how many open rooms one account can create (#318)", async () => {
+    const opts = { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(601) };
+    const rooms = await withTokensRequired(async () => {
+      const made = [];
+      for (let i = 0; i < MAX_ROOMS_PER_CREATOR; i++) made.push(await colyseus.sdk.create("duel", opts));
+      await assert.rejects(() => colyseus.sdk.create("duel", opts), /Too many open rooms/);
+      assert.equal((await matchMaker.query({ name: "duel" })).length, MAX_ROOMS_PER_CREATOR);
+      // Another account is not affected.
+      made.push(await colyseus.sdk.create("duel", { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(602) }));
+      return made;
+    });
+    for (const r of rooms) await r.leave(true);
+  });
+
+  it("drops a client that floods the room with messages (#318)", async () => {
+    const room = await colyseus.sdk.create("duel", { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(701) });
+    let pongs = 0;
+    room.onMessage("pong", () => {
+      pongs++;
+    });
+    for (let i = 0; i < 100; i++) room.send("ping", { t: i });
+    await new Promise((r) => setTimeout(r, 1000));
+    // The server stops answering once the client passes the per-second cap and is cut off.
+    assert.ok(pongs < 100, `answered ${pongs} of 100 pings`);
+    assert.equal(colyseus.getRoomById(room.roomId)?.clients.length ?? 0, 0);
   });
 });

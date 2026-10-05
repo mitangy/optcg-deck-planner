@@ -13,6 +13,11 @@ export type ToggleKey =
   | "keepHandOpen"
   | "layoutGrips"
   | "oneTapActions"
+  | "dimUnplayable"
+  | "shortcutTags"
+  | "handCounters"
+  | "cantAttackWarning"
+  | "battleArrow"
   | "oppHandTopRight"
   | "tiltedBoard"
   | "turnSplash"
@@ -27,7 +32,7 @@ export function showOrientation(d: FieldDevice): boolean {
 
 /**
  * Whether a switch is listed. Tilted board needs a window that can show it,
- * Drag handles a desktop window. Vibration is phone-only: on a desktop the
+ * Drag handles a desktop window, Opponent hand, top right a phone. Vibration is phone-only: on a desktop the
  * same switch only marks the browser tab, which the page words as a Tab alert.
  */
 export function toggleShown(key: ToggleKey, d: FieldDevice): boolean {
@@ -35,6 +40,10 @@ export function toggleShown(key: ToggleKey, d: FieldDevice): boolean {
   if (key === "layoutGrips") return d.desktop;
   // The tucked-away fan / corner dock only exists on desktop windows.
   if (key === "keepHandOpen") return d.desktop;
+  // Key tabs are only drawn with a mouse and keyboard.
+  if (key === "shortcutTags") return d.finePointer;
+  // Desktop picks the spot in the Opponent hand position list instead.
+  if (key === "oppHandTopRight") return !d.desktop;
   return true;
 }
 

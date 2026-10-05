@@ -1524,6 +1524,15 @@ body.is-panel-drag * {
   transform: translateY(calc(var(--dock-card-h) * 0.58 + 0.6rem));
 }
 
+/* Just tucked by its own button or H, pointer still on it: stay tucked until
+   the pointer leaves once, or the click looks like it did nothing. */
+@media (hover: hover) {
+  .hand-dock.is-tucking:hover:not(:has(:focus-visible)) {
+    width: var(--rail-w);
+    transform: translateY(calc(var(--dock-card-h) * 0.58 + 0.6rem));
+  }
+}
+
 /* Hidden (Keep hand open + H / Hide): only the handle shows (after the
    hover / focus-visible rules, so they don't raise it). */
 .hand-dock.is-hidden {
@@ -1908,6 +1917,37 @@ body.is-panel-drag * {
 .hand-fan-grip:focus-visible {
   outline: none;
   box-shadow: var(--focus);
+}
+
+/* Just tucked by its own button or H, pointer still on it: stay tucked until
+   the pointer leaves once, or the click looks like it did nothing. */
+@media (hover: hover) {
+  .hand-fan.is-tucking:hover:not(:has(:focus-visible)) {
+    transform: translateY(calc(var(--fan-ch) * (1 - var(--fan-peek))));
+  }
+
+  .hand-fan-center.is-tucking:hover:not(:has(:focus-visible)) .hand-fan-cards {
+    width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
+  }
+
+  .hand-fan.hand-fan-docked.is-tucking:hover:not(:has(:focus-visible)) {
+    --fan-w: calc(var(--fan-cw) * (0.5 * var(--n) + 1.2));
+  }
+}
+
+/* Floating and tucked ("Let the hand tuck away"): only the handle row shows,
+   and the cards come back while you hover it. The short delay lets the
+   pointer cross from the handle to the cards. */
+.hand-fan.hand-fan-float:not(.is-open, .is-hidden, .is-moving, :has(:focus-visible)) .hand-fan-cards {
+  visibility: hidden;
+  transition: visibility 0s linear 160ms;
+}
+
+@media (hover: hover) {
+  .hand-fan.hand-fan-float:not(.is-tucking, .is-hidden):hover .hand-fan-cards {
+    visibility: visible;
+    transition-delay: 0s;
+  }
 }
 
 /* Hidden (Keep hand open + H / Hide): only the handle row stays, at the
@@ -4370,8 +4410,37 @@ body.is-panel-drag * {
   pointer-events: none;
 }
 
-.arena-pending .pending-invite .room-invite {
+/* Incoming friend invites ride above the room card, so the card never moves
+   when one arrives or is dismissed. */
+.arena-pending .pending-invite-stack {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: min(460px, 100%);
+  min-width: 0;
+}
+
+.arena-pending .pending-invite-incoming {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 0.6rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.arena-pending .pending-invite-stack:not(:has(.room-invite)) .pending-invite-incoming {
+  position: static;
+}
+
+.arena-pending .pending-invite .room-invite,
+.arena-pending .pending-invite .notice {
   pointer-events: auto;
+}
+
+.arena-pending .pending-invite .notice {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 .arena-pending .arena-left,
@@ -4471,6 +4540,12 @@ body.is-panel-drag * {
   }
 }
 
+/* Shortcut key tags off (Gameplay setting): no "Space" tab on the primary. */
+.arena.arena-wide:not(.arena-lp) .board-col .intent-primary.no-key-tag::after,
+.primary-dock.has-primary.no-key-tag::after {
+  content: none;
+}
+
 /* Waiting for the opponent: same slot and size as the primary button. Fixed
    dark colours: it sits on the (always dark) playmat in light mode too. */
 .waiting-opp {
@@ -4565,7 +4640,7 @@ body.is-panel-drag * {
   box-shadow: none;
 }
 
-/* —— Opponent hand, top right (setting "Opponent hand, top right") —— */
+/* —— Opponent hand pinned to a spot (setting oppHandSpot; phones: "Opponent hand, top right") —— */
 .opp-hand-corner {
   --corner-w: calc(var(--dock-cw, 4.6rem) * 0.62);
   display: flex;
@@ -4581,30 +4656,6 @@ body.is-panel-drag * {
   border-radius: 3px;
   transform: rotate(var(--rot, 0deg));
   transform-origin: 50% 0;
-}
-/* Rail (desktop): a fan hanging off the top edge, count underneath. */
-.opp-hand-corner-fan {
-  position: relative;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 0 0.7rem 0.4rem;
-  overflow: hidden;
-  border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent);
-}
-.opp-hand-corner-fan .opp-corner-cards {
-  width: 100%;
-  height: calc(var(--corner-w) * 1.05);
-}
-.opp-hand-corner-fan .opp-corner-card {
-  width: var(--corner-w);
-  height: calc(var(--corner-w) * 1.4);
-  margin-top: calc(var(--corner-w) * -0.4);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
-}
-.opp-hand-corner-fan .opp-corner-card + .opp-corner-card {
-  margin-left: min(0.1rem, calc((100% - 1.5rem - var(--n) * var(--corner-w)) / max(var(--n) - 1, 1)));
 }
 /* Phones: a right-aligned overlapping strip in the opponent half's hint row,
    which is reserved already, so nothing moves. */

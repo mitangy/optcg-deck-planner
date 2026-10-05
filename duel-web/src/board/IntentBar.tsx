@@ -6,6 +6,7 @@ import { filterIntentsForSelection } from "./intentFilter";
 import { splitPrimaryIntent } from "./primaryIntent";
 import { PrimaryActionButton, WaitingIndicator, intentBtnClass } from "./PrimaryDock";
 import type { WaitingOnOpponent } from "./waitingOnOpponent";
+import { useDuelSettings } from "../settings";
 
 type Props = {
   intents: Intent[];
@@ -88,6 +89,8 @@ export function IntentBar({
   const split = splitCardActions(selected);
   const shown = onCard ? split.bar : [...split.card, ...split.bar];
   const keyTags = actionKeyTags(shown, onCard?.count ?? 0);
+  // The keys work either way; the setting only hides their tabs.
+  const showKeyTags = useDuelSettings().shortcutTags;
   const mulliganPhase = view?.phase === "mulligan";
   const nothingSelected = handIndex == null && boardId == null;
 
@@ -146,7 +149,7 @@ export function IntentBar({
               disabled={disabled}
               data-key-num={keyTags[idx]!.num ?? undefined}
               data-key-letter={keyTags[idx]!.letter ?? undefined}
-              data-key-tag={keyTags[idx]!.tag || undefined}
+              data-key-tag={(showKeyTags && keyTags[idx]!.tag) || undefined}
               onClick={() =>
                 onChooseReplace && isReplacePlay(intent)
                   ? onChooseReplace(intent.handIndex as number)
@@ -160,7 +163,7 @@ export function IntentBar({
           ))}
         </div>
         {primary && !hidePrimary ? (
-          <div className="intent-primary">
+          <div className={`intent-primary${showKeyTags ? "" : " no-key-tag"}`}>
             <PrimaryActionButton
               primary={primary}
               view={view}

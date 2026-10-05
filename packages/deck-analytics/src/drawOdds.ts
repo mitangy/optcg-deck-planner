@@ -7,8 +7,13 @@ import { normalizeStatsCardId, OPENING_HAND, type DeckStatsCard, type StatsAtlas
 export const DEFAULT_DECK_SIZE = 50;
 export const ODDS_TURNS = 6;
 
+/** Largest deck the odds maths will build its table for (a real deck is 50). */
+export const MAX_ODDS_DECK = 1000;
+
 const logFactCache: number[] = [0, 0];
 function logFact(n: number): number {
+  // The table grows to n, so an absurd deck size must not size it (NaN odds instead).
+  if (!(n <= MAX_ODDS_DECK)) return NaN;
   for (let i = logFactCache.length; i <= n; i++) logFactCache[i] = logFactCache[i - 1]! + Math.log(i);
   return logFactCache[n]!;
 }

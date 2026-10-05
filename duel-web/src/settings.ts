@@ -81,11 +81,21 @@ export type DuelSettings = {
    * or picks a single target, instead of selecting it and then confirming.
    */
   oneTapActions: boolean;
-  /** Show the opponent's hand as a fan of card backs in the top-right corner of the board. */
-  oppHandTopRight: boolean;
+  /** Fade hand cards you can't play this main phase (no legal play, not enough active DON!!). */
+  dimUnplayable: boolean;
+  /** Desktop: the key tabs ("Space", A/E/P/D, 1-9) on the action buttons. */
+  shortcutTags: boolean;
+  /** The +1000 / +2000 Counter badge on your hand cards. */
+  handCounters: boolean;
+  /** Red outline, shake and note when you try to attack with a card that can't. */
+  cantAttackWarning: boolean;
+  /** The "cannon shot" arc from the attacker to its target during a battle. */
+  battleArrow: boolean;
   /**
    * Desktop: the opponent's hand pinned above the playmat ("left", "centre" or
-   * "right") instead of in its side panel; "" keeps it in the panel.
+   * "right") instead of in its side panel; "" keeps it in the panel. Phones
+   * only tell "right" apart (the "Opponent hand, top right" switch): its row
+   * moves to the right of the opponent's half.
    */
   oppHandSpot: OppHandSpot;
   /** Text size (power numbers, card text, buttons), scaled further by the window size. */
@@ -127,7 +137,11 @@ const DEFAULTS: DuelSettings = {
   panelLayout: "",
   layoutGrips: true,
   oneTapActions: false,
-  oppHandTopRight: false,
+  dimUnplayable: true,
+  shortcutTags: true,
+  handCounters: true,
+  cantAttackWarning: true,
+  battleArrow: true,
   oppHandSpot: "",
   textSize: "medium",
   tiltedBoard: false,
@@ -162,6 +176,7 @@ const CHANGE_EVENT = "optcg-duel:settings-change";
 function sanitize(
   parsed: Partial<DuelSettings> & {
     autoPassDefense?: unknown;
+    oppHandTopRight?: unknown;
     serverUrl?: unknown;
     joinSecret?: unknown;
     floatingCards?: unknown;
@@ -171,6 +186,7 @@ function sanitize(
   // floatingCards was dropped too: searches always float now (#288).
   const {
     autoPassDefense,
+    oppHandTopRight,
     serverUrl: _serverUrl,
     joinSecret: _joinSecret,
     floatingCards: _floatingCards,
@@ -193,6 +209,9 @@ function sanitize(
   if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;
   if (!TEXT_SIZES.includes(next.textSize)) next.textSize = DEFAULTS.textSize;
   if (!OPP_HAND_SPOTS.includes(next.oppHandSpot)) next.oppHandSpot = DEFAULTS.oppHandSpot;
+  // Builds before #295 had a separate "Opponent hand, top right" switch; on is
+  // the hand pinned top right, unless a spot was picked since.
+  if (oppHandTopRight === true && !next.oppHandSpot) next.oppHandSpot = "right";
   // A theme removed in a later build (or synced from a newer one) falls back to the default.
   if (!THEME_IDS.includes(next.theme)) next.theme = DEFAULTS.theme;
   if (!COLOR_MODES.includes(next.colorMode)) next.colorMode = DEFAULTS.colorMode;

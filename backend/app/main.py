@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from app.body_limit import BodySizeLimitMiddleware
 from app.config import get_settings
 from app.cors import TieredCORSMiddleware
 from app.db import init_db
@@ -63,6 +64,8 @@ for o in _cors_origins:
         _cors_unique.append(o)
 _cors_origins = _cors_unique
 
+# Inside CORS, so a 413 still carries the CORS headers the browser needs to read it.
+app.add_middleware(BodySizeLimitMiddleware)
 app.add_middleware(
     TieredCORSMiddleware,
     credentialed_origins=_cors_origins,

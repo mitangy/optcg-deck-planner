@@ -8,6 +8,7 @@ import {
   deckEntries,
   groupMatches,
   hypergeomAtLeast,
+  MAX_ODDS_DECK,
   matchesFilter,
   oddsByTurn,
   searcherOdds,
@@ -22,6 +23,10 @@ describe("hypergeomAtLeast", () => {
     // 1 - C(46,5)/C(50,5) and 1 - C(46,7)/C(50,7)
     expect(pct(hypergeomAtLeast(50, 4, 5, 1))).toBe(35.3);
     expect(pct(hypergeomAtLeast(50, 4, 7, 1))).toBe(46.4);
+  });
+  it("gives no odds for a deck too large to tabulate instead of growing the table (#318)", () => {
+    expect(hypergeomAtLeast(MAX_ODDS_DECK + 1, 4, 5, 1)).toBeNaN();
+    expect(hypergeomAtLeast(MAX_ODDS_DECK, 4, 5, 1)).toBeGreaterThan(0);
   });
   it("needs two hits for k=2", () => {
     // 1 - P(0) - P(1) with 4 hits, 5 cards of 50

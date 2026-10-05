@@ -68,9 +68,24 @@ _presence_rate = RateLimiter(max_calls=120, period_s=60)
 # One snapshot per turn per live game, all from the game server's address.
 _progress_rate = RateLimiter(max_calls=1200, period_s=60)
 _report_rate = RateLimiter(max_calls=10, period_s=600)
+# Reports are stored forever and the per-IP key can be spoofed (X-Forwarded-For),
+# so cap the total too.
+_report_global_rate = RateLimiter(max_calls=60, period_s=3600)
+# Guest and dev ids are client-chosen, so a fresh id per request would create a
+# User + DuelRating row every time. New accounts are capped per IP and in total.
+_new_account_ip_rate = RateLimiter(max_calls=20, period_s=3600)
+_new_account_global_rate = RateLimiter(max_calls=600, period_s=3600)
 
 _USER_KEY_RE = re.compile(r"^[a-zA-Z0-9_.:-]{1,64}$")
 _GUEST_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{8,64}$")
+
+
+def _allow_new_account(request: Request) -> None:
+    """Spend one new-account slot, or refuse with 429 (re-minting an existing id never needs one)."""
+    if not _new_account_ip_rate.allow(f"new-account:{client_ip(request)}") or not _new_account_global_rate.allow(
+        "new-account"
+    ):
+        raise HTTPException(status_code=429, detail="Too many new players right now; try again later")
 
 
 def _get_or_create_rating(db: Session, user_id: int) -> DuelRating:
@@ -136,6 +151,7 @@ def mint_dev_token(
     sub = f"duel-dev-{body.user_key.lower()}"
     user = db.scalar(select(User).where(User.email == email))
     if user is None:
+        _allow_new_account(request)
         user = User(email=email, name=body.user_key, google_sub=sub)
         db.add(user)
         db.flush()
@@ -159,6 +175,7 @@ def mint_guest_token(
     sub = f"duel-guest-{body.guest_id.lower()}"
     user = db.scalar(select(User).where(User.email == email))
     if user is None:
+        _allow_new_account(request)
         user = User(email=email, name=f"Guest {body.guest_id[:8]}", google_sub=sub)
         db.add(user)
         try:
@@ -630,7 +647,7 @@ def create_card_report(
     authorization: Annotated[str | None, Header()] = None,
 ) -> CardReportOut:
     """Record a tester's report that a card does not play as printed."""
-    if not _report_rate.allow(f"card-report:{client_ip(request)}"):
+    if not _report_rate.allow(f"card-report:{client_ip(request)}") or not _report_global_rate.allow("card-report"):
         raise HTTPException(status_code=429, detail="Too many reports; try again later")
     user = _reporter(db, settings, session_user, authorization)
     row = CardReport(

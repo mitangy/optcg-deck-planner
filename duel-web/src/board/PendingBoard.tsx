@@ -1,4 +1,6 @@
 import type { CardView } from "../net/protocol";
+import { FriendInvites } from "../friends/FriendsPanel";
+import type { FriendInvite } from "../friends/friendsApi";
 import { useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { useDuelSettings } from "../settings";
@@ -21,6 +23,12 @@ export type BoardWaiting = {
   oppLeaderId?: string | null;
   /** Private room: show its invite card once the room exists. */
   invite?: { roomId: string | null; autoCopy: boolean } | null;
+  /** Invites friends sent you while you wait; Join leaves this room for theirs. */
+  friendInvites?: {
+    invites: FriendInvite[];
+    onJoin: (invite: FriendInvite) => void;
+    onDismissed: () => void;
+  } | null;
 };
 
 type Props = {
@@ -116,9 +124,22 @@ export function PendingBoard({ waiting, errorBanner, leaveLabel, onLeave, onClea
               data={emptySide("pending-you-leader", waiting.youLeaderId)}
             />
           </div>
-          {invite ? (
+          {invite || waiting.friendInvites ? (
             <div className="pending-invite">
-              <RoomInvite roomId={invite.roomId} autoCopy={invite.autoCopy} />
+              <div className="pending-invite-stack">
+                {waiting.friendInvites ? (
+                  <div className="pending-invite-incoming">
+                    <FriendInvites
+                      invites={waiting.friendInvites.invites}
+                      busy={false}
+                      onJoin={waiting.friendInvites.onJoin}
+                      onDismissed={waiting.friendInvites.onDismissed}
+                      hint="Leaves your room and joins theirs"
+                    />
+                  </div>
+                ) : null}
+                {invite ? <RoomInvite roomId={invite.roomId} autoCopy={invite.autoCopy} /> : null}
+              </div>
             </div>
           ) : null}
         </div>

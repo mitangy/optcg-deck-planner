@@ -35,6 +35,7 @@ import {
   requireGameToken,
 } from "../env.js";
 import { sanitizeDisplayName, verifyGameToken } from "../gameToken.js";
+import { checkMatchmakeToken, claimCreatorRoom, gameSeed, releaseCreatorRoom } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
 import {
   PROTOCOL_VERSION,
@@ -96,6 +97,8 @@ const MAX_SPECTATORS = 8;
 const CHAT_RATE_LIMIT = 5;
 const CHAT_RATE_WINDOW_MS = 5000;
 const CHAT_HISTORY_LIMIT = 50;
+/** Any message type, per client: more than this in one second drops the client (intents alone allow 20). */
+const MAX_MESSAGES_PER_SECOND = 40;
 /** Turn-start snapshots kept for undo (unranked rooms only). */
 const UNDO_HISTORY_LIMIT = 20;
 
@@ -110,7 +113,16 @@ type TurnSnapshot = {
 
 export class DuelRoom extends Room implements PresenceSource {
   maxClients = 2 + MAX_SPECTATORS;
+  maxMessagesPerSecond = MAX_MESSAGES_PER_SECOND;
   state = new DuelPublicState();
+
+  /** Matchmake-time token check (see checkMatchmakeToken); the instance onAuth then seats the client. */
+  static async onAuth(_token: string, options: unknown): Promise<unknown> {
+    return checkMatchmakeToken(options);
+  }
+
+  /** Account that created this room, counted against its open-room cap until dispose. */
+  private creatorUid: number | null = null;
 
   private match: MatchState | null = null;
   private rng: Rng | null = null;
@@ -176,6 +188,10 @@ export class DuelRoom extends Room implements PresenceSource {
     this.seatReservationTimeout = getSeatReservationSeconds();
 
     const parsed = parseCreateOptions(options);
+    this.creatorUid = claimCreatorRoom(options);
+    // Rooms are joined by id only (create, invites, the ranked matchmaker), so a
+    // stranger's id-less matchmake join can never land in, or fill, someone's room.
+    void this.setPrivate(true);
     this.seed = parsed.seed;
     this.autoSkipMulligan = parsed.autoSkipMulligan;
     this.createPlayers = parsed.players;
@@ -266,6 +282,8 @@ export class DuelRoom extends Room implements PresenceSource {
   }
 
   async onDispose() {
+    releaseCreatorRoom(this.creatorUid);
+    this.creatorUid = null;
     presence.unregister(this);
     this.clearTimerLoop();
     this.log("info", "room_disposed", { matchId: this.matchId });
@@ -1083,7 +1101,7 @@ export class DuelRoom extends Room implements PresenceSource {
           return;
         }
         const firstSeat: Seat = action === "first" ? seat : ((1 - seat) as Seat);
-        this.seed = (Date.now() + this.gameNumber * 7919) % 1_000_000_000;
+        this.seed = gameSeed();
         this.log("info", "rematch_start", { matchId: this.matchId, game: this.gameNumber + 1, firstSeat });
         this.startMatch(firstSeat);
         return;

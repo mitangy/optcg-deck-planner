@@ -1,10 +1,25 @@
 from __future__ import annotations
 
+import sys
+
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, User
+from app.rate_limit import RateLimiter
 from tests.db_support import make_test_engine
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits() -> None:
+    # Rate limiters live at module level, so calls from earlier tests in the same
+    # process count against later ones (mutmut runs the whole suite twice in one
+    # process, and the second pass hit 429s on /duel/dev-token).
+    for name, module in list(sys.modules.items()):
+        if name == "app" or name.startswith("app."):
+            for value in list(vars(module).values()):
+                if isinstance(value, RateLimiter):
+                    value._hits.clear()
 
 
 @pytest.fixture(scope="module")
@@ -15,6 +30,14 @@ def vcr_config() -> dict:
         "filter_query_parameters": ["api_key", "apikey", "access_token", "token"],
         "decode_compressed_response": True,
     }
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    # Limiters are module globals; one test's requests must not spend another's budget.
+    RateLimiter.reset_all()
+    yield
+    RateLimiter.reset_all()
 
 
 @pytest.fixture()

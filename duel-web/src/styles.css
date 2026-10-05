@@ -2227,6 +2227,9 @@ img.zone-pile-face {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* A click here dropped a text caret in the rotated ornament: a slanted cursor between the mats. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .midline-ornament {
