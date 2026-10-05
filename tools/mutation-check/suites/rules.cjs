@@ -339,6 +339,10 @@ module.exports = {
     // match replays
     { id: "replay-divergence-ignored", file: "packages/rules/src/matchReplay.ts", from: "    if (!result.ok) {\n      throw new Error(", to: "    if (!result.ok) {\n      return;\n      throw new Error(", kills: ["stops with the intent's index when a recorded move is no longer legal"] },
     { id: "describe-hidden-card-unknown", file: "packages/rules/src/describeEvents.ts", from: "  return id === \"HIDDEN\" ? \"a hidden card\" : getCardDef(id).name;", to: "  return getCardDef(id).name;", kills: ["narrates cards a seat can't see as hidden"] },
+    // Imu start-of-game Stage: the player picks between different eligible Stages (#284)
+    { id: "start-stage-auto-picked", file: "packages/rules/src/engine/intents.ts", from: "if (eligible.length === 1) { playStartStage(", to: "if (eligible.length >= 1) { playStartStage(", kills: ["Imu player chooses which Stage to play at the start of the game"] },
+    { id: "start-stage-mulligan-not-blocked", file: "packages/rules/src/engine/intents.ts", from: "    if (state.pendingChoices.length > 0) return err(\"PENDING\", \"Choose your starting Stage first\");\n", to: "", kills: ["Imu player chooses which Stage to play at the start of the game"] },
+    { id: "start-stage-prompt-per-copy", file: "packages/rules/src/engine/intents.ts", from: "const eligible = [...new Set(player.deck.filter(", to: "const eligible = [...(player.deck.filter(", kills: ["Imu plays the only eligible Stage without a prompt, even with several copies"] },
     // spectators of unranked rooms see both hands (#250)
     {"id": "spectator-hands-never-revealed", "file": "packages/rules/src/engine/views.ts", "from": "    ...(opts.revealHands ? { revealedHands:", "to": "    ...(false ? { revealedHands:", "kills": ["spectators see both hands only when revealHands is set (#250)"]},
     {"id": "spectator-hands-always-revealed", "file": "packages/rules/src/engine/views.ts", "from": "    ...(opts.revealHands ? { revealedHands:", "to": "    ...(true ? { revealedHands:", "kills": ["spectators see both hands only when revealHands is set (#250)"]},
