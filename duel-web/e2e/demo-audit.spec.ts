@@ -798,7 +798,7 @@ test("Opponent hand, top right pins the hand top right on desktop and phones (#2
 });
 
 // Face-up Life (Shiryu OP16-108 and friends) shows its art on both mats; portrait phones list the opponent's on the count chip.
-test("face-up Life cards show face up on both mats (#326)", async ({ page }) => {
+test("face-up Life cards show face up on both mats (#327)", async ({ page }) => {
   await page.goto("/demo?faceup=1");
   await page.locator(".board-root").waitFor();
   await expect(page.locator(".side-you .zone-pile-life .zone-pile-face.is-face-up")).toHaveCount(1);
