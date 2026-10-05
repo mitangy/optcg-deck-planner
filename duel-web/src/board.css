@@ -474,6 +474,14 @@
   background-repeat: no-repeat;
 }
 
+.arena .side-field .zone-pile-life .zone-pile-face.is-face-up {
+  border-color: rgb(var(--chrome-bright-rgb) / 0.8);
+}
+
+.arena .side-field .zone-pile-life .zone-pile-face.is-face-up::before {
+  background-image: var(--life-face-art), linear-gradient(145deg, #243447, #15202c);
+}
+
 .arena .side-field .zone-pile-life .zone-pile-face:first-child {
   margin-top: 0;
 }

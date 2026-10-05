@@ -289,10 +289,10 @@ export function SideField({
             count={data.lifeCount}
             variant="life"
             expectedCount={leaderLife ?? undefined}
+            faceUp={faceUpLife}
+            ownerSeat={ownerSeat}
+            onOpen={faceUpLife.length ? () => setLifeOpen(true) : undefined}
           />
-          {(data.faceUpLife ?? []).map((card) => (
-            <CardTile key={`life-${card.index}-${card.defId}`} defId={card.defId} compact />
-          ))}
         </div>}
 
         <div
@@ -523,7 +523,7 @@ export function SideField({
 
       {lifeOpen ? (
         <TrashViewer
-          title="Opponent face-up Life"
+          title={side === "you" ? "Your face-up Life" : "Opponent face-up Life"}
           cards={faceUpLife.map((c) => c.defId)}
           note="face up"
           emptyText="No face-up Life cards."

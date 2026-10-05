@@ -480,7 +480,8 @@ function intParam(params: URLSearchParams, key: string): number | null {
 
 /**
  * Pile / cost-area overrides for layout QA, e.g. `/demo?don=10&rested=10&dondeck=0`
- * or `/demo?deck=0&trash=0&life=0`; `hand=N` sets the size of your hand. Applied to both seats so each mat is checked.
+ * or `/demo?deck=0&trash=0&life=0`; `hand=N` sets the size of your hand; `faceup=N` turns the top N Life cards face up.
+ * Applied to both seats so each mat is checked.
  */
 export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): PlayerView {
   const don = intParam(params, "don");
@@ -490,7 +491,8 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
   const trash = intParam(params, "trash");
   const life = intParam(params, "life");
   const hand = intParam(params, "hand");
-  if ([don, rested, donDeck, deck, trash, life, hand].every((v) => v == null)) return base;
+  const faceUp = intParam(params, "faceup");
+  if ([don, rested, donDeck, deck, trash, life, hand, faceUp].every((v) => v == null)) return base;
 
   const touchDon = don != null || rested != null;
   const total = don ?? base.you.costArea.length;
@@ -501,6 +503,10 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
     : base.you.costArea;
   const trashFor = (cards: string[]) =>
     trash == null ? cards : Array.from({ length: trash }, (_, i) => cards[i % cards.length] ?? "ST01-003");
+  const faceUpFor = (lifeCount: number, current?: Array<{ index: number; defId: string }>) =>
+    faceUp == null
+      ? current
+      : Array.from({ length: Math.min(faceUp, lifeCount) }, (_, i) => ({ index: i, defId: ["OP16-108", "OP09-082", "ST01-003"][i % 3]! }));
 
   return {
     ...base,
@@ -511,6 +517,7 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
       donDeckCount: donDeck ?? base.you.donDeckCount,
       deckCount: deck ?? base.you.deckCount,
       lifeCount: life ?? base.you.lifeCount,
+      faceUpLife: faceUpFor(life ?? base.you.lifeCount, base.you.faceUpLife),
       // `?hand=19`: a big hand (the fan must stay on screen), cycling the sample cards.
       hand:
         hand == null
@@ -528,6 +535,7 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
       donDeckCount: donDeck ?? base.opponent.donDeckCount,
       deckCount: deck ?? base.opponent.deckCount,
       lifeCount: life ?? base.opponent.lifeCount,
+      faceUpLife: faceUpFor(life ?? base.opponent.lifeCount, base.opponent.faceUpLife),
       trash: trashFor(base.opponent.trash),
     },
   };

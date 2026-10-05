@@ -281,6 +281,7 @@ module.exports = {
     scnManual("chambres-no-return", 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "to_hand", target: exactly(1, myChar(), { bind: "_ret" }) },', 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "rest", target: exactly(1, myChar(), { bind: "_ret" }) },', ["EB01-020 returns a red Character"]),
     scnManual("loguetown-no-hand-cost", 'costs: [{ k: "hand_to_deck_bottom", count: 1 }, { k: "self_to_deck_bottom" }], effect: draw(2) }]),', 'costs: [{ k: "self_to_deck_bottom" }], effect: draw(2) }]),', ["EB01-030 places itself", "EB01-030 cannot activate with an empty hand"]),
     scnManual("loguetown-draw", 'costs: [{ k: "hand_to_deck_bottom", count: 1 }, { k: "self_to_deck_bottom" }], effect: draw(2) }]),', 'costs: [{ k: "hand_to_deck_bottom", count: 1 }, { k: "self_to_deck_bottom" }], effect: draw(1) }]),', ["EB01-030 places itself"]),
+    scnManual("eb02-030-one-battle", 'effect: { do: "grant", ability: "m1", duration: "turn" } },', 'effect: { do: "grant", ability: "m1", duration: "battle" } },', ["EB02-030 keeps protecting Characters in a later battle that turn"]),
     scnManual("sunny-moves-all", 'to: exactly(1, myChar({ traits: ["Straw Hat Crew"] })), count: 1 } }]),', 'to: exactly(1, myChar({ traits: ["Straw Hat Crew"] })), count: 2 } }]),', ["EB02-009 moves a given DON!!"]),
     // [DON!! xN] [On K.O.] / self_ko gates read the DON!! attached before the K.O. returned them
     { id: "ko-gate-after-don-returned", edits: [
@@ -355,6 +356,10 @@ module.exports = {
     // "Your opponent chooses one" options are reworded for the opponent who picks (#305)
     { id: "opp-mode-labels-controller-view", file: "packages/rules/src/engine/runtime.ts", from: "label: chooser === frame.seat ? label : forOpponent(label)", to: "label", kills: ["OP17-049 Charlotte Linlin words the opponent's choose-one options from the opponent's side (#305)"] },
     { id: "opp-mode-sentences-unflipped", file: "packages/rules/src/engine/perspective.ts", from: "    const flipped = flipSentence(end ? trimmed.slice(0, -1) : trimmed);", to: "    const flipped = end ? trimmed.slice(0, -1) : trimmed;", kills: ["OP17-049 Charlotte Linlin words the opponent's choose-one options from the opponent's side (#305)"] },
+    // OP09-093 Teach: the Character's negation lasts as long as its "cannot attack"; the Leader's only this turn (#333)
+    { id: "teach-char-negate-this-turn", json: ABILITIES, patch: (a) => { a["OP09-093"].abilities[1].effect.steps[1].steps[0].duration = "turn"; }, kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
+    { id: "teach-leader-negate-next-turn", json: ABILITIES, patch: (a) => { a["OP09-093"].abilities[1].effect.steps[0].then.duration = "until_end_of_opponent_next_turn"; }, kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
+    { id: "teach-char-negate-never-expires", file: "packages/rules/src/engine/runtime.ts", from: "{ type: \"negate\" }, expiryFor(state, frame.seat, effect.duration));", to: "{ type: \"negate\" }, expiryFor(state, frame.seat, \"permanent\"));", kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
     // select prompts: a purpose that already ends in a period ("K.O.") does not get a second one (#281)
     {"id": "p2-select-prompt-double-period", "file": "packages/rules/src/engine/runtime.ts", "from": "to ${instr.purpose}${instr.purpose.endsWith(\".\") ? \"\" : \".\"}`;", "to": "to ${instr.purpose}.`;", "kills": ["a K.O. pick prompt ends in one period, not \"K.O..\" (#281)"]},
   ],

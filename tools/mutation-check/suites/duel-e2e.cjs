@@ -166,5 +166,8 @@ module.exports = {
       "prompt-drag.spec.ts > a dragged prompt stays on screen (#324) [phone-375]",
     ] },
     { id: "e2e-prompt-drag-no-reset", args: "prompt-drag --project=desktop-1280 -g double", file: "duel-web/src/board/promptDrag.ts", from: "!target.closest(\"button\")) write({ x: 0, y: 0 });", to: "!target.closest(\"button\")) return;", kills: ["prompt-drag.spec.ts > double-clicking a moved prompt's header puts it back (#324) [desktop-1280]"] },
+    // Face-up Life reaches both mats (#327)
+    { id: "e2e-your-face-up-life-not-passed", args: "demo-audit --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/DuelBoard.tsx", from: "                faceUpLife: you.faceUpLife,\n", to: "", kills: ["demo-audit.spec.ts > face-up Life cards show face up on both mats (#327) [desktop-1280]"] },
+    { id: "e2e-opp-face-up-life-portrait-only", args: "demo-audit --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/DuelBoard.tsx", from: "                faceUpLife: opp.faceUpLife,", to: "                faceUpLife: portraitMat ? opp.faceUpLife : undefined,", kills: ["demo-audit.spec.ts > face-up Life cards show face up on both mats (#327) [desktop-1280]"] },
   ],
 };

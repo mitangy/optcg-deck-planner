@@ -18,6 +18,7 @@ vi.mock("@colyseus/sdk", () => ({
 }));
 
 import { DuelClient } from "./duelClient";
+import { PROTOCOL_VERSION } from "./protocol";
 
 type Listener = (...args: unknown[]) => void;
 
@@ -161,5 +162,82 @@ describe("a connect superseded by a newer one (#313)", () => {
     expect(older.leave).toHaveBeenCalled();
     expect(newer.leave).not.toHaveBeenCalled();
     expect(client.roomId).toBe("newer");
+  });
+});
+
+describe("DuelClient turn guard", () => {
+  type Handler = (raw: unknown) => void;
+  function wired() {
+    const client = new DuelClient();
+    const onStaleIllegalIntent = vi.fn();
+    client.setHandlers({ onStaleIllegalIntent });
+    const room = Object.assign(fakeRoom({ answersPing: true }), { send: vi.fn() });
+    attach(client, room);
+    const handler = (name: string) =>
+      room.onMessage.mock.calls.find((c) => c[0] === name)![1] as Handler;
+    const view = (turnNumber: number, activeSeat: 0 | 1) =>
+      handler("view")({
+        protocolVersion: PROTOCOL_VERSION,
+        view: { seat: 0, activeSeat, turnNumber, phase: "main", opponent: { handCount: 5 }, pendingChoices: [], legalIntents: [] },
+      });
+    const error = (code: string, message: string) =>
+      handler("error")({ protocolVersion: PROTOCOL_VERSION, code, message });
+    const sent = () => room.send.mock.calls.map((c) => (c[1] as { intent: { type: string } }).intent.type);
+    return { client, room, view, error, sent, onStaleIllegalIntent };
+  }
+
+  it("drops a second End turn or a card action sent before the turn's result arrives (#328)", () => {
+    const t = wired();
+    t.view(3, 0);
+    t.client.sendIntent({ type: "end_turn" });
+    t.client.sendIntent({ type: "end_turn" });
+    t.client.sendIntent({ type: "play_card", handIndex: 0 });
+    expect(t.sent()).toEqual(["end_turn"]);
+    // Opponent's turn, then yours again: actions go through.
+    t.view(4, 1);
+    t.view(5, 0);
+    t.client.sendIntent({ type: "play_card", handIndex: 0 });
+    expect(t.sent()).toEqual(["end_turn", "play_card"]);
+  });
+
+  it("still answers an end-of-turn prompt after End turn (#328)", () => {
+    const t = wired();
+    t.view(3, 0);
+    t.client.sendIntent({ type: "end_turn" });
+    t.view(3, 0);
+    t.client.sendIntent({ type: "resolve_pending_choice", accept: true });
+    expect(t.sent()).toEqual(["end_turn", "resolve_pending_choice"]);
+  });
+
+  it("lets you act again when the server rejects the End turn (#328)", () => {
+    const t = wired();
+    t.view(3, 0);
+    t.client.sendIntent({ type: "end_turn" });
+    t.error("illegal_intent", "Resolve the pending effect first");
+    t.view(3, 0);
+    t.client.sendIntent({ type: "end_turn" });
+    expect(t.sent()).toEqual(["end_turn", "end_turn"]);
+  });
+
+  it("lets you act again after the socket reconnects (#328)", async () => {
+    const t = wired();
+    t.view(3, 0);
+    t.client.sendIntent({ type: "end_turn" });
+    t.room.emit("reconnect");
+    await Promise.resolve();
+    t.client.sendIntent({ type: "end_turn" });
+    expect(t.sent()).toEqual(["end_turn", "end_turn"]);
+  });
+
+  it("reports a rejected action stale once the turn changes, not before (#328)", () => {
+    const t = wired();
+    t.view(4, 1);
+    t.error("illegal_intent", "Not your turn");
+    t.view(4, 1);
+    expect(t.onStaleIllegalIntent).not.toHaveBeenCalled();
+    t.view(5, 0);
+    expect(t.onStaleIllegalIntent).toHaveBeenCalledTimes(1);
+    t.view(5, 0);
+    expect(t.onStaleIllegalIntent).toHaveBeenCalledTimes(1);
   });
 });

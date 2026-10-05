@@ -221,6 +221,31 @@ describe("granted replacement (EB02-030)", () => {
     expect(h.state.players[1].characters.length).toBe(1);
     expect(h.state.players[1].hand.length).toBe(0);
   });
+
+  it("EB02-030 keeps protecting Characters in a later battle that turn (#330)", () => {
+    const h = new Harness();
+    const [first, second, third] = h.field(1, FILLER, FILLER, FILLER);
+    for (const c of [first!, second!, third!]) c.rested = true;
+    h.hand(1, "EB02-030", FILLER, FILLER);
+    const [attacker] = h.field(0, FILLER);
+    h.don(0, 4);
+    h.attach(0, h.state.players[0].leader, 2);
+    h.attach(0, attacker!, 2);
+    h.attack(h.state.players[0].leader, first!);
+    h.act(1, { type: "pass_block" });
+    h.act(1, { type: "counter_event", handIndex: 0 });
+    h.act(1, { type: "pass_counter" });
+    h.accept(1);
+    h.pick(h.state.players[1].hand[0]!.id);
+    expect(h.state.players[1].characters.length).toBe(3);
+    // Second battle in the same turn: the Counter still applies.
+    h.attack(attacker!, second!);
+    h.passBattle();
+    expect(h.choice?.seat).toBe(1);
+    h.accept(1);
+    expect(h.state.players[1].characters.length).toBe(3);
+    expect(h.state.players[1].hand.length).toBe(0);
+  });
 });
 
 describe("+cost statics feed cost conditions (OP17-119 Loki)", () => {
