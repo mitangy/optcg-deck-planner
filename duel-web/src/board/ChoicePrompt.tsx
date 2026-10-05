@@ -10,6 +10,7 @@ import { promptBody } from "./promptText";
 import { boardPickSpots, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo, type BoardPick, type BoardSpot } from "./fieldTargets";
 import { FieldTargetBar } from "./FieldTargetBar";
 import { useDuelSettings } from "../settings";
+import { useConfirmKeys } from "./useBoardHotkeys";
 
 /** True while the pop-up is tucked away (see `HideablePrompt`). */
 const PromptHiddenContext = createContext(false);
@@ -652,6 +653,10 @@ function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view"
   const liveCards = useContext(LiveCardsContext);
   const cards = useMemo(() => boardCards(liveCards), [liveCards]);
   const spots = request.type === "select" ? boardPickSpots(request.options, cards, mySeat) : null;
+  const hidden = useContext(PromptHiddenContext);
+  useConfirmKeys(request.type === "confirm" && !hidden, choice.optional, (accept) =>
+    onSend({ type: "resolve_pending_choice", accept }),
+  );
   if (request.type === "select" && spots) {
     return <FieldSelectBar request={request} choice={choice} spots={spots} onSend={onSend} />;
   }
@@ -666,11 +671,11 @@ function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view"
       </div>
       {request.type === "confirm" ? (
         <div className="ability-prompt-actions">
-          <button type="button" className="btn btn-primary" onClick={() => onSend({ type: "resolve_pending_choice", accept: true })}>
+          <button type="button" className="btn btn-primary" aria-keyshortcuts="Y Space" onClick={() => onSend({ type: "resolve_pending_choice", accept: true })}>
             {choice.kind === "life_trigger" ? "Activate Trigger" : "Yes"}
           </button>
           {choice.optional ? (
-            <button type="button" className="btn btn-secondary" onClick={() => onSend({ type: "resolve_pending_choice", accept: false })}>
+            <button type="button" className="btn btn-secondary" aria-keyshortcuts="N" onClick={() => onSend({ type: "resolve_pending_choice", accept: false })}>
               {choice.kind === "life_trigger" ? "Add to hand" : "No"}
             </button>
           ) : null}

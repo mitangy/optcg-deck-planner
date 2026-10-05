@@ -1,0 +1,65 @@
+/**
+ * Centred prompts drag by their header (#324): they move with the pointer,
+ * stay on screen, keep working where they land, and a double-click puts them back.
+ */
+import { test, expect } from "./fixtures";
+import type { Page } from "@playwright/test";
+
+const PROMPT = ".prompt-hide-wrap .ability-prompt";
+const touch = () => test.info().project.name === "phone-375";
+
+async function open(page: Page) {
+  await page.goto("/demo?prompt=confirm");
+  await expect(page.locator(".choice-confirm")).toBeVisible();
+  return (await page.locator(PROMPT).boundingBox())!;
+}
+
+/** Drag the header by (dx, dy): mouse on desktop, a finger on phones. */
+async function dragHeader(page: Page, dx: number, dy: number) {
+  const h = (await page.locator(`${PROMPT} > h3`).boundingBox())!;
+  const start = { x: h.x + 40, y: h.y + h.height / 2 };
+  const end = { x: start.x + dx, y: start.y + dy };
+  if (touch()) {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [start] });
+    for (let i = 1; i <= 8; i += 1) {
+      const p = { x: start.x + (dx * i) / 8, y: start.y + (dy * i) / 8 };
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [p] });
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    return;
+  }
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 8 });
+  await page.mouse.up();
+}
+
+test("dragging a prompt's header moves it, and its buttons still answer (#324)", async ({ page }) => {
+  const before = await open(page);
+  await dragHeader(page, -40, -200);
+  const after = (await page.locator(PROMPT).boundingBox())!;
+  expect(after.y).toBeCloseTo(before.y - 200, 0);
+  if (!touch()) expect(after.x).toBeCloseTo(before.x - 40, 0);
+  await page.locator(".choice-confirm").getByRole("button", { name: "Yes" }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents))
+    .toEqual([{ type: "resolve_pending_choice", accept: true }]);
+});
+
+test("a dragged prompt stays on screen (#324)", async ({ page }) => {
+  await open(page);
+  await dragHeader(page, -2000, -2000);
+  const box = (await page.locator(PROMPT).boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(7.5);
+  expect(box.y).toBeGreaterThanOrEqual(7.5);
+});
+
+test("double-clicking a moved prompt's header puts it back (#324)", async ({ page }) => {
+  test.skip(touch(), "double-click is a mouse gesture");
+  const before = await open(page);
+  await dragHeader(page, 0, -200);
+  await page.locator(`${PROMPT} > h3`).dblclick({ position: { x: 40, y: 10 } });
+  const after = (await page.locator(PROMPT).boundingBox())!;
+  expect(after.y).toBeCloseTo(before.y, 0);
+});

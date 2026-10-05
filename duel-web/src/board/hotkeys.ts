@@ -117,3 +117,28 @@ export function stepHandSelection(order: number[], current: number | null, dir: 
   if (at < 0) return order[0]!;
   return order[(at + dir + order.length) % order.length]!;
 }
+
+export type ConfirmKeyContext = {
+  /** Focus is in a text field (chat). */
+  typing: boolean;
+  /** Same as HotkeyContext.focus: a keyboard-focused button keeps Space for itself. */
+  focus: "none" | "card" | "control";
+  /** A sheet or card inspect is open over the prompt. */
+  modalOpen: boolean;
+  /** The prompt has a No (optional effect, or Trigger vs Add to hand). */
+  optional: boolean;
+};
+
+/**
+ * Yes/No prompt keys: Y or Space answers Yes, N answers No. Null leaves the key
+ * alone. A held key never answers (it would also answer the next prompt).
+ */
+export function confirmKeyAnswer(e: HotkeyInput, ctx: ConfirmKeyContext): boolean | null {
+  if (ctx.typing || ctx.modalOpen) return null;
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return null;
+  if (e.key === " " || e.code === "Space") return ctx.focus === "control" ? null : true;
+  const letter = e.key.toLowerCase();
+  if (letter === "y") return true;
+  if (letter === "n") return ctx.optional ? false : null;
+  return null;
+}

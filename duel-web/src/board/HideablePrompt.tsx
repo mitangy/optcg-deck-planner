@@ -3,6 +3,7 @@ import { lookupCard } from "../cards/atlas";
 import type { PendingChoiceView } from "../net/protocol";
 import { peekPillLeft } from "./peekPill";
 import { usePromptDodge } from "./usePromptDodge";
+import { usePromptDrag } from "./promptDrag";
 import { DESKTOP_BOARD_QUERY, useMediaQuery } from "./useMediaQuery";
 import "./float.css";
 
@@ -14,7 +15,8 @@ export function promptSourceName(choice: PendingChoiceView): string {
 /**
  * Wraps a choice pop-up so its Hide button can tuck it away: the pop-up stays
  * mounted (picks so far are kept) and one pill brings it back. `dodge` (wide
- * boards, mid-battle) keeps the pop-up off the card being attacked.
+ * boards, mid-battle) keeps the pop-up off the card being attacked. The
+ * header drags the pop-up anywhere on screen (see usePromptDrag).
  */
 export function HideablePrompt({
   name,
@@ -31,6 +33,7 @@ export function HideablePrompt({
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   usePromptDodge(wrapRef, dodge, dodge != null && !hidden);
+  usePromptDrag(wrapRef);
   return (
     <>
       <div ref={wrapRef} hidden={hidden} className="prompt-hide-wrap">
