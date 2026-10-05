@@ -1,6 +1,7 @@
 /** Duel-web ↔ FastAPI friends list, presence status, and private-room invites. */
 import { getApiBaseUrl } from "../config";
 import { ApiError } from "../net/api";
+import type { MatchLaunch } from "../state/DuelSession";
 
 export type FriendStatus = "offline" | "online" | "waiting" | "in_game" | "spectating";
 
@@ -88,10 +89,29 @@ export function dismissInvite(inviteId: number): Promise<unknown> {
 /** Which actions a friend row offers. */
 export function friendActions(friend: Friend): { invite: boolean; spectate: boolean } {
   return {
-    // Only someone free and in the lobby will see the invite and can take a seat.
-    invite: friend.status === "online",
+    // Someone free: in the lobby, or alone in their own private room, where the
+    // waiting board shows incoming invites too.
+    invite: friend.status === "online" || friend.status === "waiting",
     spectate: friend.room_id !== null && (friend.status === "in_game" || friend.status === "spectating"),
   };
+}
+
+/** Their live invite to you: inviting them back takes that seat instead of opening a second room. */
+export function inviteFrom(friend: Friend, invites: FriendInvite[]): FriendInvite | null {
+  return invites.find((i) => i.from_user_id === friend.user_id) ?? null;
+}
+
+/**
+ * The waiting board polls friends only while you sit alone in your own private
+ * room (signed in): otherwise an invite sent to you there would never show.
+ */
+export function pollsInvitesWhileWaiting(s: {
+  launch: MatchLaunch | null;
+  role: "player" | "spectator";
+  view: unknown;
+  matchId: string | null;
+}): boolean {
+  return Boolean(s.launch?.invite && s.launch.friends) && s.role === "player" && !s.view && s.matchId !== null;
 }
 
 export function statusLabel(friend: Friend): string {

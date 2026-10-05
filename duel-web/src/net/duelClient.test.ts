@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const sdkReconnect = vi.fn((_token: string) => new Promise<never>(() => {}));
+const sdkCreate = vi.fn((_name: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
 vi.mock("@colyseus/sdk", () => ({
   Client: class {
     reconnect(token: string) {
       return sdkReconnect(token);
+    }
+    create(name: string, opts: unknown) {
+      return sdkCreate(name, opts);
     }
   },
 }));
@@ -110,5 +114,30 @@ describe("DuelClient background reconnect", () => {
     const second = client.reconnect({ serverUrl: "http://gs", reconnectionToken: "r:tok" });
     expect(second).toBe(first);
     expect(sdkReconnect).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a connect superseded by a newer one (#PRNUM)", () => {
+  it("leaves the room it opened instead of keeping the seat", async () => {
+    const older = fakeRoom({ answersPing: true });
+    older.roomId = "older";
+    const newer = fakeRoom({ answersPing: true });
+    newer.roomId = "newer";
+    let openOlder: (room: unknown) => void = () => {};
+    sdkCreate
+      .mockImplementationOnce(() => new Promise((resolve) => (openOlder = resolve)))
+      .mockImplementationOnce(async () => newer);
+
+    const client = new DuelClient();
+    const first = client.connect({ preferredSeat: 0 });
+    await vi.waitFor(() => expect(sdkCreate).toHaveBeenCalledTimes(1));
+    await client.connect({ preferredSeat: 0 });
+    // The older create answers last, as when two Invite / Join taps race.
+    openOlder(older);
+    await expect(first).rejects.toThrow();
+
+    expect(older.leave).toHaveBeenCalled();
+    expect(newer.leave).not.toHaveBeenCalled();
+    expect(client.roomId).toBe("newer");
   });
 });
