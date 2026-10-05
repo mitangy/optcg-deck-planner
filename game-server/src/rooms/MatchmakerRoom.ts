@@ -7,6 +7,7 @@ import {
   requireGameToken,
 } from "../env.js";
 import { verifyGameToken } from "../gameToken.js";
+import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
 import { PROTOCOL_VERSION, RANKED_MATCH_SECONDS, parseJoinOptions } from "../protocol.js";
 
 type Queued = {
@@ -38,7 +39,14 @@ export class MatchmakerRoom extends Room {
 
   onAuth(_client: Client, options: unknown) {
     // Validate early; return identity for onJoin.
-    return this.resolveIdentity(options);
+    try {
+      return this.resolveIdentity(options);
+    } catch (e) {
+      this.log("warn", "queue_rejected", {
+        message: e instanceof Error ? e.message : String(e),
+      });
+      throw e;
+    }
   }
 
   onJoin(client: Client, options: unknown) {
@@ -72,6 +80,13 @@ export class MatchmakerRoom extends Room {
     displayId: string;
   } {
     const join = parseJoinOptions(options);
+    // Check the deck before queueing: a deck the ranked room would turn away
+    // gets paired, never joins, and strands its opponent.
+    if (join.deck) {
+      assertKnownDeck(join.deck);
+      const problem = rankedDeckProblem(join.deck);
+      if (problem) throw new Error(problem);
+    }
     const requiredSecret = getDevJoinSecret();
     if (requiredSecret && join.secret !== requiredSecret) {
       throw new Error("unauthorized");
