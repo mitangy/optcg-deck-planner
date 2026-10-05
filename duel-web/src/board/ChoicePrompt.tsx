@@ -6,6 +6,7 @@ import { DON_CARD_ART } from "./donArt";
 import { arrangementAnswer, arrangementRows, groupAnswer, initialArrangement, mergeArrangement, moveToRow, nudge, setSide, withoutIds, type Arrangement } from "./deckOrder";
 import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "./liveTargets";
 import { promptSourceName, PromptHideButton } from "./HideablePrompt";
+import { promptBody } from "./promptText";
 import { boardPickSpots, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo, type BoardPick, type BoardSpot } from "./fieldTargets";
 import { FieldTargetBar } from "./FieldTargetBar";
 import { useDuelSettings } from "../settings";
@@ -135,6 +136,14 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge
  * scoped style rule keyed on the tiles' `data-instance-id`.
  */
 export function BoardHighlight({ ids, kind, hand = false }: { ids: string[]; kind: "hover" | "candidate"; hand?: boolean }) {
+  const first = ids[0];
+  const scrollsHand = hand && kind === "candidate";
+  // A scrolling hand strip may have the choosable cards off-screen: bring the first into view.
+  useEffect(() => {
+    if (!scrollsHand || !first) return;
+    const el = document.querySelector<HTMLElement>(`${HAND_ROWS} > .card-tile[data-motion-id="${first.replace(/"/g, "")}"]`);
+    el?.scrollIntoView?.({ block: "nearest", inline: "center" });
+  }, [scrollsHand, first]);
   if (!ids.length) return null;
   const esc = (id: string) => (typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, ""));
   const selector = ids.map((id) => (hand ? `${HAND_TILE}[data-motion-id="${esc(id)}"]` : `.side-field .card-tile[data-instance-id="${esc(id)}"]`)).join(", ");
@@ -142,7 +151,9 @@ export function BoardHighlight({ ids, kind, hand = false }: { ids: string[]; kin
     kind === "hover"
       ? `${selector} { outline: 3px solid var(--chrome-bright); outline-offset: 2px; box-shadow: 0 0 18px rgba(240, 220, 168, 0.8); z-index: 4; }`
       : `${selector} { outline: 2px dashed rgba(240, 220, 168, 0.75); outline-offset: 2px; cursor: pointer; }`;
-  return <style>{rule}</style>;
+  // Hand picks: a crowded hand hides a dashed line, so dim every card that can't be chosen.
+  const dim = hand && kind === "candidate" ? ` ${HAND_ROWS} > .card-tile:not(${selector}) { opacity: 0.4; filter: saturate(0.5); }` : "";
+  return <style>{rule + dim}</style>;
 }
 
 /**
@@ -374,6 +385,7 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
 
 /** Your hand's card tiles: only hand cards carry a motion id (the hand card's instance id). */
 const HAND_TILE = ".card-tile[data-motion-id]";
+const HAND_ROWS = ":is(.hand-fan-cards, .hand-row-inner, .hand-dock-cards, .rail-hand-cards)";
 
 /** The board spot under a click: a field card tile, a hand card or a cost-area DON!! chip. */
 function spotAtClick(target: Element | null, spots: ReadonlySet<BoardSpot>): { spot: BoardSpot; chipId?: string } | null {
@@ -479,7 +491,7 @@ function FieldSelectBar({ request, choice, spots, onSend }: {
       <DonHighlight spots={[]} chipIds={pickedChips} kind="hover" />
       <FieldTargetBar
         title={promptSourceName(choice)}
-        text={choice.prompt}
+        text={promptBody(promptSourceName(choice), choice.prompt)}
         caption={pickCaption(request.min, request.max, selected.length)}
         label={choice.prompt}
         handPick={handIds(all).length > 0}
@@ -629,7 +641,7 @@ function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view"
       <SourceHeader choice={choice} />
       <div className="choice-intro">
         {showSource ? <CardTile defId={choice.cardDefId} compact inspectGestures viewingSeat={mySeat} /> : null}
-        <p>{choice.prompt}</p>
+        <p>{promptBody(promptSourceName(choice), choice.prompt)}</p>
       </div>
       {request.type === "confirm" ? (
         <div className="ability-prompt-actions">

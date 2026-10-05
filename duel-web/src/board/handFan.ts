@@ -27,6 +27,26 @@ export function fanPose(i: number, n: number): FanPose {
   return { rot, drop };
 }
 
+/** Share of a card's width that each card in a crowded fan keeps showing, at least. */
+export const FAN_MIN_STEP = 0.22;
+
+/**
+ * Width of the box a fan of `count` cards of width `cardW` takes: each card
+ * after the first adds `spread` of a card width (0.5 tucked, 0.8 raised), so
+ * a big hand grows past the board. It is capped at `maxW` (the mat), which
+ * overlaps the cards more instead. A hand too big even for that stops
+ * compressing at `FAN_MIN_STEP` (each card still shows its cost and power)
+ * and runs a little wide rather than stacking up unreadable. `maxW` null is
+ * no cap (the mat could not be measured).
+ */
+export function fanSpan(count: number, cardW: number, spread: number, maxW: number | null): number {
+  const n = Math.max(count, 1);
+  const natural = cardW * (spread * (n - 1) + 1);
+  if (maxW == null) return natural;
+  const floor = cardW * (FAN_MIN_STEP * (n - 1) + 1);
+  return Math.min(natural, Math.max(maxW, floor));
+}
+
 /** Where the desktop hand (fan or corner dock) sits. */
 export type HandDrawer = "open" | "tucked" | "hidden";
 

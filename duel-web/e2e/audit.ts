@@ -47,7 +47,8 @@ const DEFAULT_STACKS = [
 const DEFAULT_OFFSCREEN_OK = [".hand-fan-cards"];
 
 /** Containers that scroll sideways on purpose. */
-const DEFAULT_HSCROLL_OK: string[] = [];
+/** `.hand-row`: a portrait hand of more than 8 cards scrolls as a strip (#271). */
+const DEFAULT_HSCROLL_OK: string[] = [".hand-row"];
 
 /** Layers that intentionally sit over the board (a covered board under them is expected). */
 const DEFAULT_OVERLAYS = [
@@ -288,7 +289,16 @@ function runAudit(
 
         // Covered: sample each text line's centre (wrapped inline text has gaps
         // in its bounding box), or the centre and four inset points of a control.
-        const lines = textBox ? ownTextLines(el).filter((r) => r.right > box.left && r.left < box.right && r.bottom > box.top && r.top < box.bottom) : [];
+        // A line half scrolled out of its scroll box is sampled on the part still in view.
+        const lines = textBox
+          ? ownTextLines(el)
+              .filter((r) => r.right > box.left && r.left < box.right && r.bottom > box.top && r.top < box.bottom)
+              .map((r) => {
+                const l = Math.max(r.left, box.left);
+                const t = Math.max(r.top, box.top);
+                return new DOMRect(l, t, Math.min(r.right, box.right) - l, Math.min(r.bottom, box.bottom) - t);
+              })
+          : [];
         const pts: Array<[number, number]> = lines.length
           ? lines.slice(0, 5).flatMap((r) => [
               [r.left + r.width / 2, r.top + r.height / 2] as [number, number],

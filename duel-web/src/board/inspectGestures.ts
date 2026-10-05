@@ -155,6 +155,11 @@ export function createClickDeferController(opts: ClickDeferControllerOptions) {
   };
 }
 
+/** "I" on a focused card opens inspect: the chip is not a Tab stop, so the keyboard needs its own way in. */
+export function isInspectKey(e: { key: string; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }): boolean {
+  return (e.key === "i" || e.key === "I") && !e.ctrlKey && !e.metaKey && !e.altKey;
+}
+
 /** Mouse-like desktops: hover plus a fine pointer. */
 export const FINE_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
 

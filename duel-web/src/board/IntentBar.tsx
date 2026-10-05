@@ -34,6 +34,8 @@ type Props = {
    * numbers of the bar's buttons past the card's; `active` says a popover is up.
    */
   onCard?: { count: number; active: boolean };
+  /** Full-wording copies of the card popover's DON!! chips ("Give 2 DON!! (+2000)"). */
+  quickActions?: { id: string; label: string; onPress: () => void }[];
   /**
    * Desktop: the primary lives in the floating board dock, not in this rail
    * (one End turn button, not two). Keep / Mulligan stay together here.
@@ -72,6 +74,7 @@ export function IntentBar({
   counterLabel,
   emptyHint,
   onCard,
+  quickActions = [],
   hidePrimary = false,
   waiting = null,
   idle = null,
@@ -88,7 +91,7 @@ export function IntentBar({
   const mulliganPhase = view?.phase === "mulligan";
   const nothingSelected = handIndex == null && boardId == null;
 
-  if (shown.length === 0 && !primary && waiting) {
+  if (shown.length === 0 && quickActions.length === 0 && !primary && waiting) {
     return (
       <div className="intent-bar intent-bar-waiting">
         <WaitingIndicator waiting={waiting} />
@@ -96,7 +99,7 @@ export function IntentBar({
     );
   }
 
-  if (shown.length === 0 && !primary) {
+  if (shown.length === 0 && quickActions.length === 0 && !primary) {
     return (
       <div className="intent-bar">
         <p className="intent-empty">
@@ -120,7 +123,7 @@ export function IntentBar({
       <h2>{mulliganPhase ? "Mulligan" : "Actions"}</h2>
       <div className="intent-layout">
         <div className="intent-row">
-          {shown.length === 0 && !defend ? (
+          {shown.length === 0 && quickActions.length === 0 && !defend ? (
             <p className="intent-empty">
               {emptyHint ??
                 (onCard?.active
@@ -130,6 +133,11 @@ export function IntentBar({
                     : "No actions for this card")}
             </p>
           ) : null}
+          {quickActions.map((q) => (
+            <button key={q.id} type="button" className="intent-btn" disabled={disabled} onClick={q.onPress}>
+              {q.label}
+            </button>
+          ))}
           {shown.map((intent, idx) => (
             <button
               key={`${intent.type}-${idx}`}

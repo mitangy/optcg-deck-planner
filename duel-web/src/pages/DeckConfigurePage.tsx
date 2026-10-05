@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { Navigate, useLocation, useParams } from "react-router-dom";
+import { lookupCard } from "../cards/atlas";
+import { BackLink } from "./BackLink";
 import { DeckEditor } from "../board/DeckEditor";
 import { DeckImportPanel } from "../board/DeckImportPanel";
 import { MAX_MAIN_DECK_SIZE } from "../decks/editDeck";
@@ -113,45 +115,43 @@ export function DeckConfigurePage() {
     <div className="app-shell">
       <div className="deck-config deck-config-wide">
         <header className="deck-config-header">
-          <Link to="/decks" className="btn btn-secondary deck-config-back">
-            ← Decks
-          </Link>
+          <BackLink to="/decks" label="Decks" ariaLabel="Back to decks" />
           <div className="deck-config-heading">
             <h1 className="deck-config-title">{deck.name}</h1>
             <p className="meta">
-              Leader {deck.leaderId} · {deck.cards.length}/{MAX_MAIN_DECK_SIZE} main
+              Leader {lookupCard(deck.leaderId).name} · {deck.cards.length}/{MAX_MAIN_DECK_SIZE} main
             </p>
           </div>
+          {signedIn !== false || deck.plannerDeckId ? (
+            <div className="deck-planner-actions deck-header-actions">
+              {deck.plannerDeckId ? (
+                <>
+                  <span className="deck-planner-badge">From planner</span>
+                  {signedIn ? (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={onRefreshFromPlanner}
+                      disabled={plannerBusy}
+                    >
+                      {plannerBusy ? "Refreshing…" : "Refresh from planner"}
+                    </button>
+                  ) : null}
+                </>
+              ) : signedIn ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={onSaveToPlanner}
+                  disabled={plannerBusy}
+                >
+                  {plannerBusy ? "Saving…" : "Save to planner"}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </header>
 
-        {signedIn !== false || deck.plannerDeckId ? (
-          <div className="deck-planner-actions">
-            {deck.plannerDeckId ? (
-              <>
-                <span className="deck-planner-badge">From planner</span>
-                {signedIn ? (
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={onRefreshFromPlanner}
-                    disabled={plannerBusy}
-                  >
-                    {plannerBusy ? "Refreshing…" : "Refresh from planner"}
-                  </button>
-                ) : null}
-              </>
-            ) : signedIn ? (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onSaveToPlanner}
-                disabled={plannerBusy}
-              >
-                {plannerBusy ? "Saving…" : "Save to planner"}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
         {plannerErr ? <p className="error-text deck-config-notice">{plannerErr}</p> : null}
         {notice ? <p className="meta deck-config-notice">{notice}</p> : null}
 

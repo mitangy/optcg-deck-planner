@@ -5,6 +5,7 @@ import type { Intent, PendingChoiceView, Seat } from "../net/protocol";
 import type { Box } from "./battleArc";
 import { CardTile } from "./CardTile";
 import { confirmQuestion } from "./handPrompt";
+import { heldCardSpot } from "./heldCardSpot";
 
 const EDGE = 8;
 
@@ -42,9 +43,16 @@ export function HandConfirmPrompt({
   const half = width / 2;
   const cx = anchor.left + anchor.width / 2;
   const left = Math.min(Math.max(cx, EDGE + half), Math.max(EDGE + half, vw - EDGE - half));
+  // The hand's header row (Hand / Sort / Hide) stays uncovered: see heldCardSpot.
+  const headerEl = [...document.querySelectorAll<HTMLElement>(".hand-rail-head, .hand-dock-head, .hand-fan-head")].find(
+    (el) => el.offsetWidth > 0,
+  );
+  const spot = heldCardSpot(anchor, headerEl ? headerEl.getBoundingClientRect() : null);
   const style: CSSProperties = {
     left,
-    top: anchor.top + anchor.height,
+    top: spot.bottom,
+    ["--hold-gap" as string]: `${spot.gap}px`,
+    ["--card-lift" as string]: `${spot.lift}px`,
     // The card's centre stays over its old hand slot even when the bubble is clamped.
     ["--card-shift" as string]: `${cx - left}px`,
   };
