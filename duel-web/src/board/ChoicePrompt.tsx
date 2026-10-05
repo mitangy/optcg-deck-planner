@@ -387,7 +387,7 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
         </div>
       </div>
       <div className="ability-prompt-actions">
-        <button type="button" className="btn btn-primary" disabled={!valid} onClick={() => answer(selected)}>
+        <button type="button" className="btn btn-primary" data-confirm-key aria-keyshortcuts="Y Space" disabled={!valid} onClick={() => answer(selected)}>
           {selected.length === 0
             ? request.min > 0
               ? `Choose ${request.min}`
@@ -519,7 +519,7 @@ function FieldSelectBar({ request, choice, spots, onSend }: {
         handPick={handIds(all).length > 0}
       >
         {oneTap ? null : (
-          <button type="button" className="btn btn-primary" disabled={!valid} onClick={() => answer(selected)}>
+          <button type="button" className="btn btn-primary" data-confirm-key aria-keyshortcuts="Y Space" disabled={!valid} onClick={() => answer(selected)}>
             {selected.length === 0 && request.min === 0 ? (handIds(all).length ? "None" : "Choose none") : "Confirm"}
           </button>
         )}
@@ -600,6 +600,8 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
         <button
           type="button"
           className="btn btn-primary"
+          data-confirm-key
+          aria-keyshortcuts="Y Space"
           disabled={selected.length < request.minSelect}
           onClick={() => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: selected, ...(request.rest === "top_or_bottom" ? groupAnswer(remaining, side) : { orderedOptionIds: remaining }) })}
         >
@@ -625,7 +627,7 @@ function OrderBody({ request, onSend }: { request: Extract<ChoiceRequestView, { 
         label={request.allowTopOrBottom ? "Put each card on top or bottom: drag to reorder" : "Drag to reorder"}
       />
       <div className="ability-prompt-actions">
-        <button type="button" className="btn btn-primary" onClick={() => onSend({ type: "resolve_pending_choice", accept: true, ...(request.allowTopOrBottom ? arrangementAnswer(arrangement) : { orderedOptionIds: arrangement.top }) })}>
+        <button type="button" className="btn btn-primary" data-confirm-key aria-keyshortcuts="Y Space" onClick={() => onSend({ type: "resolve_pending_choice", accept: true, ...(request.allowTopOrBottom ? arrangementAnswer(arrangement) : { orderedOptionIds: arrangement.top }) })}>
           Confirm order
         </button>
       </div>

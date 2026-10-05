@@ -113,7 +113,7 @@ import { endTurnWarning, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
 import { HotkeyHelpSheet } from "./HotkeyHelp";
 import { actionKeyTags, stepHandSelection } from "./hotkeys";
-import { useBoardHotkeys } from "./useBoardHotkeys";
+import { useBoardHotkeys, useConfirmButtonKey } from "./useBoardHotkeys";
 import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
 import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
 import { useGameSfx } from "./sfx";
@@ -781,6 +781,7 @@ export function DuelBoard({
     for (const intent of toSend) onSendIntent(intent);
   }
 
+  useConfirmButtonKey();
   useBoardHotkeys({
     spectating,
     over,
