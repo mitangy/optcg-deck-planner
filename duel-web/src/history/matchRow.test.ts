@@ -37,6 +37,11 @@ describe("match history rows", () => {
     expect([row.yourLeader, row.opponentLeader]).toEqual(["Roronoa Zoro", "Monkey.D.Luffy"]);
   });
 
+  it("carries your Leader's card id so the row can show its art (#282)", () => {
+    expect(matchRow(entry({}), cardName, now).yourLeaderId).toBe("OP01-001");
+    expect(matchRow(entry({ your_leader_id: null }), cardName, now).yourLeaderId).toBeNull();
+  });
+
   it("shows the Bounty change with its sign, and none for unranked games (#244)", () => {
     expect(matchRow(entry({ rating_before: 1000, rating_after: 1016 }), cardName, now).bountyDelta).toBe("+16");
     expect(matchRow(entry({ rating_before: 1000, rating_after: 988 }), cardName, now).bountyDelta).toBe("−12");

@@ -452,7 +452,7 @@ function execSelect(sim: Sim, frame: ResolutionFrame, instr: Extract<Instr, { op
   });
   const hidden = list.some((l) => l.zone === "hand" || l.zone === "deck" || l.zone === "life");
   const limit = min === max ? `${max}` : min === 0 ? `up to ${max}` : `${min}–${max}`;
-  const prompt = `${promptPrefix(frame)} — choose ${limit} card${max === 1 ? "" : "s"} to ${instr.purpose}.`;
+  const prompt = `${promptPrefix(frame)} — choose ${limit} card${max === 1 ? "" : "s"} to ${instr.purpose}${instr.purpose.endsWith(".") ? "" : "."}`;
   pushChoice(sim, frame, {
     seat: chooser, kind: "effect", optional: false, prompt, request: { type: "select", min, max, options, ...(instr.distinctNames ? { distinctNames: true as const } : {}) }, bindings,
     ...(hidden ? { privateToSeat: chooser, optionCount: options.length } : {}),

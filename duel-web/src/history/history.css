@@ -42,6 +42,48 @@
   color: var(--chrome-bright);
 }
 
+/* Leader art, 5:7 like the card. */
+.history-leader-art {
+  width: 2.6rem;
+  aspect-ratio: 5 / 7;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.history-leader-art-empty {
+  display: block;
+  border: 1px dashed var(--line);
+  background: rgba(0, 0, 0, 0.18);
+  box-shadow: none;
+}
+
+/* Record and Bounty above the list. */
+.history-summary {
+  display: flex;
+  gap: 2rem;
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--arena-panel);
+}
+
+.history-summary dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.history-summary dd {
+  margin: 0.1rem 0 0;
+  color: var(--chrome-bright);
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .history-main {
   min-width: 0;
 }
@@ -208,7 +250,7 @@
 }
 
 .history-row-link {
-  grid-template-columns: 3.4rem minmax(0, 1fr) auto auto;
+  grid-template-columns: 3.4rem 2.6rem minmax(0, 1fr) auto auto;
   color: inherit;
   text-decoration: none;
   min-height: 44px;
@@ -216,7 +258,7 @@
 }
 
 .history-row-link .history-chevron {
-  grid-column: 4;
+  grid-column: 5;
   color: var(--muted);
   font-size: 1.3rem;
   line-height: 1;
@@ -298,4 +340,17 @@
 
 .match-log-lines .log-icon {
   font-size: 0.8rem;
+}
+
+/* Phones: a slimmer art column and tighter gaps so the names keep their room. */
+@media (max-width: 480px) {
+  .history-row-link {
+    grid-template-columns: 2.6rem 2rem minmax(0, 1fr) auto auto;
+    gap: 0.5rem;
+    padding-inline: 0.65rem;
+  }
+
+  .history-row-link .history-leader-art {
+    width: 2rem;
+  }
 }

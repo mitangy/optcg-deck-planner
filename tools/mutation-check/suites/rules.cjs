@@ -347,5 +347,7 @@ module.exports = {
     { id: "select-distinct-names-unchecked", file: "packages/rules/src/engine/runtime.ts", from: "        if (new Set(names).size !== names.length) return \"Choose cards with different names\";\n", to: "", kills: ["OP13-082 rejects two copies of the same card and plays different names (#298)"] },
     { id: "play-stale-zone-index", file: "packages/rules/src/engine/runtime.ts", from: "        const loc = locate(state, target.id);\n        if (!loc || isOnField(loc)) continue;", to: "        const loc = target;\n        if (!loc || isOnField(loc)) continue;", kills: ["OP13-082 rejects two copies of the same card and plays different names (#298)"] },
     { id: "to-life-stale-zone-index", file: "packages/rules/src/engine/runtime.ts", from: "        const loc = locate(state, target.id);\n        if (!loc || loc.zone === \"leader\" || loc.zone === \"life\") continue;", to: "        const loc = target;\n        if (!loc || loc.zone === \"leader\" || loc.zone === \"life\") continue;", kills: ["ST13-003 adds the two picked trash cards to Life, not a shifted neighbour (#298)"] },
+    // select prompts: a purpose that already ends in a period ("K.O.") does not get a second one (#281)
+    {"id": "p2-select-prompt-double-period", "file": "packages/rules/src/engine/runtime.ts", "from": "to ${instr.purpose}${instr.purpose.endsWith(\".\") ? \"\" : \".\"}`;", "to": "to ${instr.purpose}.`;", "kills": ["a K.O. pick prompt ends in one period, not \"K.O..\" (#281)"]},
   ],
 };

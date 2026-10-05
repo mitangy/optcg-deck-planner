@@ -426,10 +426,26 @@ const TEST_OP16_LIST = `1xOP16-080
 2xOP16-116
 4xOP16-119`;
 
-/** Insert a seed deck only if missing — never clobber Configure edits. */
-function ensureSeedDeck(id: string, name: string, list: string): SavedDeck {
-  const existing = listSavedDecks().find((d) => d.id === id);
-  if (existing) return existing;
+/** The seed decks were first called "Test …"; a copy still under the old name takes the new one. */
+export function seedDeckName(current: string, legacy: string, next: string): string {
+  return current === legacy ? next : current;
+}
+
+/**
+ * Insert a seed deck only if missing — never clobber Configure edits. A copy
+ * still under its old name is renamed in place (same id, so saved selections
+ * keep pointing at it); a name the player chose is left alone.
+ */
+function ensureSeedDeck(id: string, name: string, list: string, legacyName: string): SavedDeck {
+  const all = readAll();
+  const existing = all.find((d) => d.id === id);
+  if (existing) {
+    const renamed = seedDeckName(existing.name, legacyName, name);
+    if (renamed === existing.name) return existing;
+    existing.name = renamed;
+    writeAll(all);
+    return existing;
+  }
   const v = validateImportedList(list);
   if (!v.ok || !v.leaderId) {
     throw new Error(`Seed deck ${id} invalid: ${v.errors.join("; ")}`);
@@ -444,11 +460,12 @@ function ensureSeedDeck(id: string, name: string, list: string): SavedDeck {
 
 /** Seed the two constructed test decks once (insert-if-absent). */
 export function ensureTestDecks(): SavedDeck[] {
-  const a = ensureSeedDeck("test-op17-red", "Test OP17 red", TEST_OP17_LIST);
+  const a = ensureSeedDeck("test-op17-red", "Starter: OP17 Red", TEST_OP17_LIST, "Test OP17 red");
   const b = ensureSeedDeck(
     "test-op16-black",
-    "Test OP16 Teach (black/yellow)",
+    "Starter: OP16 Teach",
     TEST_OP16_LIST,
+    "Test OP16 Teach (black/yellow)",
   );
   return [a, b];
 }

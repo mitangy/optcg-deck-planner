@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { CHAT_MAX_LENGTH, type ChatLine, type Seat } from "../net/protocol";
 import { unreadChatCount } from "./chatUnread";
+import { playerLabel } from "./playerNames";
 
 type Props = {
   lines: readonly ChatLine[];
@@ -12,7 +13,7 @@ type Props = {
 };
 
 function speaker(seat: Seat, mySeat: Seat | null): string {
-  if (mySeat == null) return `Seat ${seat}`;
+  if (mySeat == null) return playerLabel(seat);
   return seat === mySeat ? "You" : "Opponent";
 }
 
