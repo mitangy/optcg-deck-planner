@@ -32,6 +32,14 @@ def vcr_config() -> dict:
     }
 
 
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    # Limiters are module globals; one test's requests must not spend another's budget.
+    RateLimiter.reset_all()
+    yield
+    RateLimiter.reset_all()
+
+
 @pytest.fixture()
 def db() -> Session:
     engine = make_test_engine()

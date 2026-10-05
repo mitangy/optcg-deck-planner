@@ -5,6 +5,8 @@ const queue = "game-server/src/rooms/MatchmakerRoom.ts";
 const cors = "game-server/src/cors.ts";
 const presence = "game-server/src/presence.ts";
 const appConfig = "game-server/src/app.config.ts";
+const guard = "game-server/src/matchmakeGuard.ts";
+const env = "game-server/src/env.ts";
 module.exports = {
   cwd: "game-server",
   runner: "mocha",
@@ -44,7 +46,12 @@ module.exports = {
     { id: "join-unknown-card-deck-accepted", file: room, from: "    if (role === \"player\" && join.deck) assertKnownDeck(join.deck);\n", to: "", kills: ["rejects a deck with unknown cards at join"] },
     { id: "spectator-gets-player-view", file: room, from: "    const view = this.spectatorView(this.match, cameraSeat);\n    const welcome", to: "    const view = { ...getPlayerView(this.match, cameraSeat), spectator: true };\n    const welcome", kills: ["allows a spectator with public view"] },
     { id: "queue-same-seat", file: queue, from: "            roomId: room.roomId,\n            seat: 1,", to: "            roomId: room.roomId,\n            seat: 0,", kills: ["ranked_queue pairs two clients"] },
-    { id: "queue-pairs-same-user", file: queue, from: "        const partnerIdx = this.queue.findIndex((q) => q.userId !== a.userId);", to: "        const partnerIdx = 0;", kills: ["ranked_queue skips same-user pair"] },
+    // One entry per account and never pairing an account with itself are two layers of one rule.
+    { id: "queue-pairs-same-user", edits: [
+      { file: queue, from: "        const partnerIdx = this.queue.findIndex((q) => q.userId !== a.userId);", to: "        const partnerIdx = 0;" },
+      { file: queue, from: "    for (const old of this.queue.filter((q) => q.userId === identity.userId)) {", to: "    for (const old of [] as Queued[]) {" },
+    ], kills: ["ranked_queue keeps one place per account"] },
+    { id: "queue-keeps-duplicate-entries", file: queue, from: "    for (const old of this.queue.filter((q) => q.userId === identity.userId)) {", to: "    for (const old of [] as Queued[]) {", kills: ["ranked_queue keeps one place per account"] },
     { id: "cosmetics-not-relayed", file: room, from: "    this.broadcast(\"cosmetics\", payload);", to: "    client.send(\"cosmetics\", payload);", kills: ["relays cosmetics artPrefs between seats"] },
     { id: "skin-not-relayed", file: room, from: "    this.broadcast(\"skin\", payload);", to: "    client.send(\"skin\", payload);", kills: ["relays a seat's playmat / card back skin"] },
     { id: "skin-any-mime", file: proto, from: "^data:image\\/(?:jpeg|webp|png);base64,", to: "^data:[a-z]+\\/[a-z]+;base64,", kills: ["relays a seat's playmat / card back skin"] },
@@ -81,5 +88,14 @@ module.exports = {
     { id: "ranked-queue-skips-deck-check", file: queue, from: "    if (join.deck) {\n      assertKnownDeck(join.deck);\n      const problem = rankedDeckProblem(join.deck);\n      if (problem) throw new Error(problem);\n    }\n", to: "", kills: ["ranked_queue turns away a deck ranked can't play before pairing it (#302)"] },
     { id: "ranked-queue-rejects-every-deck", file: queue, from: "      if (problem) throw new Error(problem);", to: "      throw new Error(problem ?? \"no deck\");", kills: ["ranked_queue turns away a deck ranked can't play before pairing it (#302)"] },
     { id: "ranked-no-show-never-expires", file: room, from: "      this.clock.setTimeout(() => this.expireNoShow(), getRankedNoShowSeconds() * 1000);\n", to: "", kills: ["a paired ranked room sends the waiting player back when the opponent never joins (#302)"] },
+    // matchmake guards (security review)
+    { id: "matchmake-no-token-check", file: guard, from: "  if (!token || !verifyGameToken(token)) {\n    throw Object.assign(new Error(\"gameToken required\"), { code: \"unauthorized\" as const });\n  }\n  return true;", to: "  return true;", kills: ["refuses to create a room without a game token"] },
+    { id: "duel-room-public", file: room, from: "    void this.setPrivate(true);\n", to: "", kills: ["duel rooms can only be joined by id"] },
+    { id: "creator-room-cap-off", file: guard, from: "  if (live >= MAX_ROOMS_PER_CREATOR) {", to: "  if (false) {", kills: ["caps how many open rooms one account can create"] },
+    { id: "room-message-flood-allowed", file: room, from: "  maxMessagesPerSecond = MAX_MESSAGES_PER_SECOND;\n", to: "", kills: ["drops a client that floods the room with messages"] },
+    { id: "seed-client-chosen", file: guard, from: "  if (clientSeed !== undefined && !requireGameToken()) return clientSeed;", to: "  if (clientSeed !== undefined) return clientSeed;", kills: ["ignores a client-chosen seed when tokens are required"] },
+    { id: "seed-from-clock", file: guard, from: "  return randomInt(0, 2 ** 32);", to: "  return Date.now() % 1_000_000_000;", kills: ["does not derive the seed from the clock"] },
+    { id: "prod-dev-secret-allowed", file: env, from: "  if (secret === DEV_GAME_TOKEN_SECRET) {\n    throw new Error(\"GAME_TOKEN_SECRET must be set in production\");\n  }", to: "", kills: ["refuses to start in production with the dev game token secret"] },
+    { id: "prod-token-optional", file: env, from: "  if ((env.REQUIRE_GAME_TOKEN ?? \"\").toLowerCase() !== \"true\") {\n    throw new Error(\"REQUIRE_GAME_TOKEN must be true in production\");\n  }", to: "", kills: ["refuses to start in production without REQUIRE_GAME_TOKEN"] },
   ],
 };

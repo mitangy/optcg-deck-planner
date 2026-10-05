@@ -11,7 +11,7 @@ import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -34,6 +34,10 @@ KINDS = ("playmat", "cardBack")
 # WebP); these leave headroom without letting one row grow unbounded.
 MAX_BYTES = {"playmat": 4 * 1024 * 1024, "cardBack": 1024 * 1024}
 MAX_PER_KIND = 12
+# All accounts' images together. Images live in the Postgres database, whose
+# plan has a hard storage cap; past this budget uploads stop instead of the
+# whole database filling up (any Google account can sign in and upload).
+MAX_TOTAL_COSMETIC_BYTES = 256 * 1024 * 1024
 MAX_SETTINGS_CHARS = 4096
 # Per-device connection fields never leave the browser (the join secret is a secret).
 DEVICE_ONLY_KEYS = frozenset({"serverUrl", "joinSecret", "useDevKey", "devUserKey"})
@@ -166,6 +170,9 @@ async def upload_cosmetic(
     mime = _sniff_mime(data)
     if mime is None:
         raise HTTPException(status_code=415, detail="Upload a JPEG, PNG or WebP image")
+    stored = db.scalar(select(func.coalesce(func.sum(DuelCosmetic.size), 0))) or 0
+    if stored + len(data) > MAX_TOTAL_COSMETIC_BYTES:
+        raise HTTPException(status_code=507, detail="Image uploads are full right now; try again later")
 
     row = DuelCosmetic(user_id=user.id, kind=kind, mime=mime, data=data, size=len(data))
     db.add(row)

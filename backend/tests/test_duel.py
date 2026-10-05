@@ -354,3 +354,53 @@ def test_my_matches_needs_sign_in(client):
     """Match history needs a signed-in player (#244)."""
     c, _ = client
     assert c.get("/duel/matches/me").status_code == 401
+
+
+def test_new_guest_accounts_are_capped_per_client_ip_318(client, monkeypatch: pytest.MonkeyPatch):
+    from app.rate_limit import RateLimiter
+    from app.routers import duel as duel_router
+
+    c, SessionLocal = client
+    monkeypatch.setattr(duel_router, "_new_account_ip_rate", RateLimiter(max_calls=2, period_s=3600))
+    ip = {"X-Forwarded-For": "203.0.113.7"}
+    first = c.post("/duel/guest-token", json={"guest_id": "freshguest0001"}, headers=ip)
+    assert first.status_code == 200, first.text
+    assert c.post("/duel/guest-token", json={"guest_id": "freshguest0002"}, headers=ip).status_code == 200
+    # A third brand-new id from the same client creates no account.
+    assert c.post("/duel/guest-token", json={"guest_id": "freshguest0003"}, headers=ip).status_code == 429
+    # Re-minting an existing guest needs no new-account slot.
+    again = c.post("/duel/guest-token", json={"guest_id": "freshguest0001"}, headers=ip)
+    assert again.status_code == 200
+    assert again.json()["user_id"] == first.json()["user_id"]
+    # Another client still gets in.
+    assert c.post("/duel/guest-token", json={"guest_id": "freshguest0004"}, headers={"X-Forwarded-For": "198.51.100.9"}).status_code == 200
+    with SessionLocal() as db:
+        assert db.query(User).filter(User.email.like("guest-freshguest%")).count() == 3
+
+
+def test_new_accounts_are_capped_in_total_across_ips_318(client, monkeypatch: pytest.MonkeyPatch):
+    from app.rate_limit import RateLimiter
+    from app.routers import duel as duel_router
+
+    c, _ = client
+    monkeypatch.setattr(duel_router, "_new_account_global_rate", RateLimiter(max_calls=2, period_s=3600))
+    codes = [
+        c.post(
+            "/duel/guest-token",
+            json={"guest_id": f"spoofedguest{i:04d}"},
+            headers={"X-Forwarded-For": f"192.0.2.{i}"},
+        ).status_code
+        for i in range(3)
+    ]
+    assert codes == [200, 200, 429]
+
+
+def test_dev_token_new_accounts_share_the_cap_318(client, monkeypatch: pytest.MonkeyPatch):
+    from app.rate_limit import RateLimiter
+    from app.routers import duel as duel_router
+
+    c, _ = client
+    monkeypatch.setattr(duel_router, "_new_account_ip_rate", RateLimiter(max_calls=1, period_s=3600))
+    assert c.post("/duel/dev-token", json={"user_key": "capped-one"}).status_code == 200
+    assert c.post("/duel/dev-token", json={"user_key": "capped-two"}).status_code == 429
+    assert c.post("/duel/dev-token", json={"user_key": "capped-one"}).status_code == 200

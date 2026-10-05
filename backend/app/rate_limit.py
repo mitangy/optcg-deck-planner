@@ -4,21 +4,38 @@ from __future__ import annotations
 
 import threading
 import time
+import weakref
 from collections import defaultdict, deque
 
 
 class RateLimiter:
+    _all: "weakref.WeakSet[RateLimiter]" = weakref.WeakSet()
+
     def __init__(self, max_calls: int, period_s: float) -> None:
         self.max_calls = max_calls
         self.period_s = period_s
         self._hits: dict[str, deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
+        self._last_sweep = time.monotonic()
+        RateLimiter._all.add(self)
+
+    @classmethod
+    def reset_all(cls) -> None:
+        """Forget every limiter's history (tests start each case with fresh budgets)."""
+        for limiter in list(cls._all):
+            with limiter._lock:
+                limiter._hits.clear()
 
     def allow(self, key: str) -> bool:
         now = time.monotonic()
         with self._lock:
-            q = self._hits[key]
             cutoff = now - self.period_s
+            if now - self._last_sweep >= self.period_s:
+                # Keys are client-chosen (IPs, ids), so drop idle ones or the map grows forever.
+                self._last_sweep = now
+                for stale in [k for k, hits in self._hits.items() if not hits or hits[-1] <= cutoff]:
+                    del self._hits[stale]
+            q = self._hits[key]
             while q and q[0] <= cutoff:
                 q.popleft()
             if len(q) >= self.max_calls:

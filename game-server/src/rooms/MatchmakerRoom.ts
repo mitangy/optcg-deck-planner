@@ -7,6 +7,7 @@ import {
   requireGameToken,
 } from "../env.js";
 import { verifyGameToken } from "../gameToken.js";
+import { checkMatchmakeToken } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
 import { PROTOCOL_VERSION, RANKED_MATCH_SECONDS, parseJoinOptions } from "../protocol.js";
 
@@ -24,7 +25,13 @@ type Queued = {
  */
 export class MatchmakerRoom extends Room {
   maxClients = 64;
+  maxMessagesPerSecond = 10;
   private queue: Queued[] = [];
+
+  /** Matchmake-time token check (see checkMatchmakeToken); the instance onAuth then reads the identity. */
+  static async onAuth(_token: string, options: unknown): Promise<unknown> {
+    return checkMatchmakeToken(options);
+  }
   private pairing = false;
 
   onCreate() {
@@ -52,6 +59,13 @@ export class MatchmakerRoom extends Room {
   onJoin(client: Client, options: unknown) {
     const identity = this.resolveIdentity(options);
     this.removeFromQueue(client.sessionId);
+    // One place in the queue per account: an older entry (another tab, a stale
+    // socket) is dropped, so one token can't fill the queue with ghosts that pair
+    // real players into no-show rooms.
+    for (const old of this.queue.filter((q) => q.userId === identity.userId)) {
+      this.removeFromQueue(old.sessionId);
+      old.client.leave();
+    }
     this.queue.push({
       sessionId: client.sessionId,
       client,

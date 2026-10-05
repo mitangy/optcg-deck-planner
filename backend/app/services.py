@@ -391,8 +391,19 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
     return out
 
 
+# A legal deck has at most 51 distinct cards; these leave room for want-lists
+# while stopping one account from writing unbounded rows.
+MAX_DECK_DISTINCT_CARDS = 250
+MAX_DECKS_PER_USER = 300
+
+
 def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     parsed = parse_decklist(decklist)
+    if len(parsed) > MAX_DECK_DISTINCT_CARDS:
+        raise ValueError(f"A deck can list at most {MAX_DECK_DISTINCT_CARDS} different cards")
+    deck_count = db.scalar(select(func.count(Deck.id)).where(Deck.user_id == user.id)) or 0
+    if deck_count >= MAX_DECKS_PER_USER:
+        raise ValueError(f"You can keep at most {MAX_DECKS_PER_USER} decks; delete one first")
     catalog = _catalog_map(db, {c.card_id for c in parsed})
     leader_id = find_leader_id(parsed, catalog)
 

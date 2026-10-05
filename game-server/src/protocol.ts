@@ -3,6 +3,7 @@
  * Intents / views come from @optcg/rules; this module only validates envelopes.
  */
 import type { GameEvent, Intent, Seat } from "@optcg/rules";
+import { gameSeed } from "./matchmakeGuard.js";
 
 export const PROTOCOL_VERSION = 5 as const;
 
@@ -236,10 +237,9 @@ export function parseCreateOptions(raw: unknown): {
       code: "bad_protocol" as const,
     });
   }
-  const seed =
-    typeof o.seed === "number" && Number.isFinite(o.seed)
-      ? Math.floor(o.seed)
-      : Date.now() % 1_000_000_000;
+  const seed = gameSeed(
+    typeof o.seed === "number" && Number.isFinite(o.seed) ? Math.floor(o.seed) : undefined,
+  );
   const autoSkipMulligan = o.autoSkipMulligan !== false;
   // A browser can create a public `duel` room directly. DuelRoom decides
   // whether this request is actually ranked after verifying its attestation.

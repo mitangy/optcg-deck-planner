@@ -6,6 +6,8 @@ module.exports = {
   cwd: "packages/deck-analytics",
   runner: "vitest",
   mutations: [
+    // drawOdds table bound (security review)
+    { id: "odds-table-unbounded", file: odds, from: "  if (!(n <= MAX_ODDS_DECK)) return NaN;\n", to: "", kills: ["gives no odds for a deck too large to tabulate"] },
     // deckStats (Stats panel)
     { id: "stats-curve-cap-off-by-one", file: stats, from: "Math.min(Math.max(card.cost ?? 0, 0), COST_CURVE_MAX)", to: "Math.min(Math.max(card.cost ?? 0, 0), COST_CURVE_MAX - 1)", kills: ["folds cost 10 and above into the last bucket"] },
     { id: "stats-curve-all-character", file: stats, from: "bucket[card.t] += copies;", to: "bucket.character += copies;", kills: ["stacks the cost curve by type"] },

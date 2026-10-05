@@ -49,6 +49,11 @@ def _parse_sale(row: dict[str, Any]) -> RecentSale | None:
     )
 
 
+def is_cached(product_id: int) -> bool:
+    cached = _CACHE.get(product_id)
+    return cached is not None and time.time() - cached[0] < CACHE_TTL_S
+
+
 def fetch_recent_sales(product_id: int, limit: int = 3) -> list[RecentSale]:
     """Return up to `limit` most recent marketplace sales for a TCGPlayer product."""
     if product_id <= 0:
@@ -61,7 +66,7 @@ def fetch_recent_sales(product_id: int, limit: int = 3) -> list[RecentSale]:
         return cached[1][:limit]
 
     url = TCGPLAYER_SALES_URL.format(product_id=product_id)
-    with httpx.Client(timeout=20.0) as client:
+    with httpx.Client(timeout=10.0) as client:
         resp = client.post(
             url,
             headers=_HEADERS,
