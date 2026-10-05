@@ -45,6 +45,17 @@ for (const screen of ["?full", "?statuses", "?attack"]) {
   });
 }
 
+// Searchers always float their cards; an old saved "Floating cards" off no longer brings the pop-up back.
+test("a searcher floats its cards even with Floating cards saved off (#288)", async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ floatingCards: false })),
+  );
+  await page.goto("/demo?prompt=look");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".float-layer .float-card").first()).toBeVisible();
+  await expect(page.locator(".choice-prompt")).toHaveCount(0);
+});
+
 // A clicked hand card, Sort or Hand button keeps focus; the fan must still tuck
 // once the pointer leaves it, or it sits on your DON!! row (flat board).
 test("the centre hand fan tucks away after a click once the pointer leaves", async ({ page }) => {
@@ -65,6 +76,28 @@ test("the centre hand fan tucks away after a click once the pointer leaves", asy
   await page.locator(".hand-fan-head .hand-rail-btn").click(); // Sort keeps focus too
   await page.mouse.move(640, 120);
   await expect.poll(donCovered, { timeout: 3000 }).toBe(false);
+});
+
+// A clicked Hand button keeps focus, and the next key press (S here) makes it
+// :focus-visible, which held the fan up after "Let the hand tuck away".
+test("the hand fan tucks away after Let the hand tuck away and a key press (#291)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true })),
+  );
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const toggle = page.locator(".hand-fan-toggle");
+  await expect(toggle).toHaveAttribute("title", "Let the hand tuck away");
+  await toggle.click();
+  await page.mouse.move(640, 120);
+  await page.keyboard.press("s");
+  const fanUp = () =>
+    page.evaluate(() => {
+      const r = document.querySelector(".side-you .don-strip")!.getBoundingClientRect();
+      return !!document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest(".hand-fan");
+    });
+  await expect.poll(fanUp, { timeout: 3000 }).toBe(false);
 });
 
 // Clicking an empty card slot or a pile must not drop a blinking text caret on the mat.

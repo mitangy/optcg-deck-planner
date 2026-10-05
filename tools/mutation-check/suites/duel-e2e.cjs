@@ -26,6 +26,11 @@ module.exports = {
     { id: "e2e-preview-effect-hanging-spaces", args: "playthrough --project=desktop-1280", file: "duel-web/src/board.css", from: "  color: var(--ink);\n  white-space: pre-line;\n}", to: "  color: var(--ink);\n  white-space: pre-wrap;\n}", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [desktop-1280]"] },
 
     // DON!! −N picked off the board (#258)
+    // Both layers: the board reads the old setting again, and loading settings keeps it.
+    { id: "e2e-searcher-float-setting-back", args: "demo-audit --project=desktop-1280 -g Floating", edits: [
+      { file: "duel-web/src/board/DuelBoard.tsx", from: "      ) : floatingPrompts &&\n", to: "      ) : floatingPrompts &&\n        (prefs as { floatingCards?: boolean }).floatingCards !== false &&\n" },
+      { file: "duel-web/src/settings.ts", from: "    floatingCards: _floatingCards,\n", to: "" },
+    ], kills: ["demo-audit.spec.ts > a searcher floats its cards even with Floating cards saved off (#288) [desktop-1280]"] },
     { id: "e2e-don-chip-clicks-ignored", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/ChoicePrompt.tsx", from: "  const chip = target?.closest?.<HTMLElement>(\".don-strip .don-chip-btn[data-don-id]\");", to: "  const chip = null as HTMLElement | null;", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [desktop-1280]"] },
     { id: "e2e-don-chip-disabled", args: "demo-audit --project=phone-375", file: "duel-web/src/board/DonStrip.tsx", from: "      tabIndex={canDrag ? undefined : -1}\n", to: "      disabled={!canDrag}\n", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [phone-375]"] },
 
@@ -52,6 +57,8 @@ module.exports = {
     { id: "e2e-rotate-hint-over-field", args: "demo-audit --project=phone-375", file: "duel-web/src/board.css", from: ".arena .midline .rotate-hint {\n  position: relative;\n  height: 100%;", to: ".arena .midline .rotate-hint {\n  position: fixed;\n  bottom: calc(232px + var(--safe-b));\n  height: 54px;", kills: ["demo-audit.spec.ts > /demo?full passes the UI audit [phone-375]"] },
     // A clicked hand card keeps focus; with :focus-within the centre fan stayed up over the DON!! row.
     { id: "e2e-hand-fan-sticks-after-click", args: "demo-audit --project=desktop-1280 -g tucks", file: "duel-web/src/board.css", from: ".hand-fan.is-open,\n.hand-fan:has(:focus-visible) {", to: ".hand-fan.is-open,\n.hand-fan:focus-within {", kills: ["demo-audit.spec.ts > the centre hand fan tucks away after a click once the pointer leaves [desktop-1280]"] },
+    // "Let the hand tuck away" + a key press: the mouse-clicked Hand button turned :focus-visible and held the fan up (#291)
+    { id: "e2e-hand-fan-up-after-key-press", args: "demo-audit --project=desktop-1280 -g \"after Let the hand\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    if (active instanceof HTMLElement && e.currentTarget.contains(active)) active.blur();", to: "", kills: ["demo-audit.spec.ts > the hand fan tucks away after Let the hand tuck away and a key press (#291) [desktop-1280]"] },
     // Tilted board: the inner box is pulled up by its extra height so the tilt folds it back into view.
     { id: "e2e-tilted-board-hangs-off-bottom", args: "demo-audit --project=desktop-1280 -g tilted", file: "duel-web/src/board.css", from: "  margin-top: calc(100cqh * (1 - var(--tilt-grow)) - var(--tilt-lift));\n", to: "", kills: ["demo-audit.spec.ts > /demo?full with the tilted board passes the UI audit [desktop-1280]"] },
 
