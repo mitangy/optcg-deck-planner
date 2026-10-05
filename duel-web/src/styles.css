@@ -91,10 +91,10 @@ body,
 }
 
 html {
-  /* Text grows with the window (16px on phones, ~18px at 1440, 20px on big
-     monitors) times the Text size setting (--text-scale, set from settings). */
+  /* Text grows with the window (16px on phones, ~18px at 1440, 20px at 1920,
+     22px at 2560) times the Text size setting (--text-scale, set from settings). */
   --text-scale: 1;
-  font-size: calc(clamp(16px, 12.8px + 0.36vw, 20px) * var(--root-scale));
+  font-size: calc(clamp(16px, 12.8px + 0.36vw, 22px) * var(--root-scale));
   /* Phones are tight: the setting counts for only 60% of its step there, and
      card badges (which use the full --text-scale) carry the rest. */
   --root-scale: var(--text-scale);
@@ -256,6 +256,18 @@ button {
   cursor: pointer;
   opacity: 0.55;
   transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+/* Desktop with a mouse: mid-left, since the corners belong to the power /
+   DON!! stack (top right) and the status icons (bottom right). Touch hides the
+   chip (see the pointer: coarse rule): long-press inspects and a tap must select. */
+@media (min-width: 900px) and (min-height: 500px) and (hover: hover) and (pointer: fine) {
+  .card-inspect-chip {
+    top: 50%;
+    right: auto;
+    left: 3px;
+    transform: translateY(-50%);
+  }
 }
 
 .card-tile:hover .card-inspect-chip,
@@ -483,12 +495,6 @@ button {
   min-height: 40px;
 }
 
-.card-inspect-close-bottom {
-  align-self: stretch;
-  min-height: 44px;
-  margin-top: 0.25rem;
-}
-
 @media (min-width: 641px) {
   .card-inspect-backdrop {
     align-items: center;
@@ -652,6 +658,9 @@ button {
 }
 
 .deck-config {
+  /* A column-flex child with auto margins shrinks to its content, so the page
+     would change width (and jump) as search results and art load; fill instead. */
+  width: 100%;
   max-width: 920px;
   margin: 0 auto;
   padding: max(1.25rem, var(--safe-t)) max(1.25rem, var(--safe-r))
@@ -800,9 +809,18 @@ button {
 }
 
 .deck-list-edit,
-.deck-list-delete {
+.deck-list-delete,
+.deck-list-builtin {
   flex: 0 0 auto;
   align-self: center;
+  min-width: 5.25rem;
+  text-align: center;
+}
+
+/* Keeps a built-in deck's row the same height as one with a Delete button. */
+.deck-list-builtin {
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 .deck-planner-section {
@@ -846,6 +864,12 @@ button {
   border-radius: 999px;
   color: var(--muted);
   vertical-align: middle;
+}
+
+/* In the page header, the planner actions sit at the end of the row beside the title. */
+.deck-header-actions {
+  margin-left: auto;
+  min-height: 0;
 }
 
 .deck-planner-actions {
@@ -1964,6 +1988,19 @@ button.zone-pile {
   }
 }
 
+/* Desktop: the cards are at least board size (68 / 89 / 109 / 150 px wide at
+   1280 / 1440 / 1920 / 2560), not the 64px phone thumbnails in a wide box. */
+@media (min-width: 900px) and (min-height: 500px) {
+  .trash-viewer-grid {
+    gap: 0.75rem;
+  }
+
+  .trash-viewer-grid .card-tile.compact {
+    width: clamp(96px, 7.5vw, 160px);
+    height: calc(clamp(96px, 7.5vw, 160px) * 1.4);
+  }
+}
+
 .zone-pile-meta {
   text-align: center;
   line-height: 1.15;
@@ -2373,12 +2410,31 @@ img.zone-pile-face {
 .card-fallback {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.15rem;
   padding: 0.25rem;
   color: #fff;
   font-size: 0.65rem;
   font-weight: 700;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* No art to tell cards apart by: the name leads, wrapped, and the id sits small under it. */
+.card-fallback-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.15;
+}
+
+.card-fallback-id {
+  font-size: 0.5rem;
+  font-weight: 600;
+  opacity: 0.75;
 }
 
 .power-badge,
@@ -2538,6 +2594,73 @@ img.zone-pile-face {
   color: var(--ink);
   font-size: 0.95rem;
   margin-bottom: 0.35rem;
+}
+/* Turn count and rating change; the rating joins when the saved match lands. */
+.modal-card .match-result-facts {
+  color: var(--muted);
+  font-size: 0.82rem;
+  min-height: 1.2em;
+}
+.match-result-rating {
+  color: var(--ink);
+  font-weight: 700;
+}
+.match-result-log {
+  align-self: center;
+  color: var(--chrome);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+[data-mode="light"] .match-result-log {
+  color: var(--chrome-bright);
+}
+.match-result-board {
+  align-self: stretch;
+}
+
+/* "View board": the result steps aside to a slim pill under the top bar. */
+.match-result-pill {
+  position: fixed;
+  top: 3.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 38;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.35rem 0.5rem 0.35rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgb(var(--deep-rgb) / 0.94);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+/* Desktop: bottom of the right rail, so the board itself stays fully in view. */
+.match-result-pill.match-result-pill-rail {
+  top: auto;
+  bottom: 1rem;
+  left: auto;
+  right: calc(1rem + var(--safe-r, 0px));
+  transform: none;
+}
+.match-result-pill.match-result-loss span {
+  color: var(--crimson-bright);
+}
+.match-result-pill.match-result-win span {
+  color: var(--chrome-bright);
+}
+.match-result-pill span {
+  white-space: nowrap;
+}
+.match-result-pill .btn {
+  min-height: 2rem;
+  padding: 0.2rem 0.8rem;
+  white-space: nowrap;
 }
 
 .loading,
@@ -2936,11 +3059,9 @@ img.zone-pile-face {
   cursor: pointer;
   overflow-wrap: anywhere;
 }
-@media (pointer: coarse) {
-  /* Taller tap target without changing line layout. */
-  .log-card {
-    padding-block: 0.2rem;
-  }
+/* Taller click / tap target without changing line layout (vertical padding on an inline button adds no height to the line). */
+.log-card {
+  padding-block: 0.2rem;
 }
 .log-card:hover,
 .log-card:focus-visible {
@@ -3358,15 +3479,12 @@ img.zone-pile-face {
   color: var(--chrome-bright);
 }
 
-.intent-btn-keep {
-  background: linear-gradient(180deg, #3f7a54, var(--ok)) !important;
-}
-
+/* Keep is the main choice (theme button); Mulligan is the quieter outline. */
 .intent-btn-mulligan {
-  background: linear-gradient(180deg, #8a6238, #c48a4a) !important;
-  border-color: #e0b07055 !important;
+  background: transparent !important;
+  color: var(--chrome-bright) !important;
+  border-color: var(--chrome) !important;
 }
-
 
 /* Discoverability: board cards with contextual actions available */
 .card-tile.has-actions {
@@ -4705,4 +4823,142 @@ details.deck-config-section.deck-collapsible {
    carries the count there, so skip the peeking cards. */
 .choice-option .don-under {
   display: none;
+}
+
+/* Touch: long-press already inspects; the nested chip steals taps on small cards. */
+@media (pointer: coarse) {
+  .card-inspect-chip {
+    display: none;
+  }
+}
+
+/* Deck editor on phones: compact rows (thumbnail, name, − n +) and a sticky count bar,
+   instead of half-width tiles with a Remove button and an Artwork select each. */
+.deck-count-bar {
+  display: none;
+}
+
+@media (max-width: 599px) {
+  .deck-count-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--arena-panel);
+    font-size: 0.9rem;
+  }
+
+  .deck-count-bar .btn {
+    min-height: 40px;
+  }
+
+  .deck-stack-grid,
+  .deck-editor-leader .deck-stack-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.4rem;
+  }
+
+  .deck-stack {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 0.6rem;
+    padding: 0.3rem 0.5rem 0.3rem 0.3rem;
+  }
+
+  .deck-stack-art-btn {
+    width: 48px;
+  }
+
+  .deck-stack-badge {
+    right: 2px;
+    bottom: 2px;
+    min-width: 0;
+    padding: 0 0.3rem;
+    font-size: 0.65rem;
+  }
+
+  .deck-stack-meta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.15rem 0.5rem;
+  }
+
+  .deck-stack-meta .deck-stack-name-btn {
+    min-height: 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .deck-stack-meta .deck-stack-id + .deck-stack-id,
+  .deck-stack-art-label,
+  .deck-stack-meta > .meta,
+  .deck-stack .deck-stack-remove {
+    display: none;
+  }
+
+  /* A long deck name takes two lines at most. */
+  .deck-config-title {
+    font-size: 1.25rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+
+  .deck-stack-edit {
+    margin-top: 0;
+    flex-wrap: nowrap;
+  }
+
+  .deck-stack-qty {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .deck-edit-error {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Settings: jump links so a long page is not a scroll hunt. */
+.settings-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem;
+}
+
+.settings-jump a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.panel[id] {
+  scroll-margin-top: 0.75rem;
+}
+
+/* A card name and the punctuation after it ("'s", ".") never wrap apart. */
+.log-glued {
+  white-space: nowrap;
+}
+.log-glued .log-card {
+  white-space: normal;
 }

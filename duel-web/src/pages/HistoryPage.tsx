@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
+import { resolveCardImageUrl } from "../decks/artPrefs";
+import { historySummary } from "../history/historySummary";
 import { fetchMatchHistory, type MatchHistoryEntry } from "../history/historyApi";
 import { matchRow } from "../history/matchRow";
+import { useClickCopy } from "../board/clickCopy";
 import { ApiError, googleLoginUrl } from "../net/api";
+import { BackLink } from "./BackLink";
 import "../history/history.css";
 
 type State =
@@ -14,8 +18,20 @@ type State =
 
 const cardName = (id: string) => lookupCard(id).name || id;
 
+/** Your Leader's art on a history row; a plain block when the art is missing or fails. */
+function LeaderArt({ defId }: { defId: string | null }) {
+  const src = defId ? resolveCardImageUrl(defId, { size: "thumb" }) : null;
+  const [failed, setFailed] = useState<string | null>(null);
+  return src && src !== failed ? (
+    <img className="history-leader-art" src={src} alt="" loading="lazy" onError={() => setFailed(src)} />
+  ) : (
+    <span className="history-leader-art history-leader-art-empty" aria-hidden />
+  );
+}
+
 export function HistoryPage() {
   const [state, setState] = useState<State>({ status: "loading" });
+  const copy = useClickCopy();
 
   useEffect(() => {
     let live = true;
@@ -31,6 +47,7 @@ export function HistoryPage() {
     };
   }, []);
 
+  const summary = useMemo(() => (state.status === "ready" ? historySummary(state.matches) : null), [state]);
   const rows = useMemo(
     () => (state.status === "ready" ? state.matches.map((m) => matchRow(m, cardName)) : []),
     [state],
@@ -40,9 +57,7 @@ export function HistoryPage() {
     <div className="app-shell">
       <div className="page page-narrow">
         <header className="page-header">
-          <Link to="/" className="btn btn-ghost btn-sm page-back" aria-label="Back to home">
-            ← Home
-          </Link>
+          <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <h1 className="page-title">Match history</h1>
         </header>
 
@@ -64,6 +79,23 @@ export function HistoryPage() {
           </section>
         ) : null}
 
+        {summary ? (
+          <dl className="history-summary" aria-label="Your record">
+            <div>
+              <dt>Record</dt>
+              <dd>
+                {summary.wins}-{summary.losses}
+              </dd>
+            </div>
+            {summary.rating != null ? (
+              <div>
+                <dt>Bounty</dt>
+                <dd>{summary.rating}</dd>
+              </div>
+            ) : null}
+          </dl>
+        ) : null}
+
         {rows.length > 0 ? (
           <ol className="history-list">
             {rows.map((r) => (
@@ -74,6 +106,7 @@ export function HistoryPage() {
                   data-outcome={r.outcome === "Won" ? "won" : "lost"}
                 >
                   <span className="history-outcome">{r.outcome}</span>
+                  <LeaderArt defId={r.yourLeaderId} />
                   <div className="history-main">
                     <p className="history-leaders">
                       <span>{r.yourLeader}</span>
@@ -94,7 +127,7 @@ export function HistoryPage() {
 
         {state.status === "ready" ? (
           <p className="field-hint history-hint">
-            Tap a game to read it turn by turn. Want a coach's take? Add your Log Pose link from{" "}
+            {copy("Tap a game to read it turn by turn.")} Want a coach's take? Add your Log Pose link from{" "}
             <Link to="/settings">Settings</Link> to Claude and ask it to review a game.
           </p>
         ) : null}

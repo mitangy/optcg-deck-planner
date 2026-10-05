@@ -1,5 +1,6 @@
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import { DON_CARD_ART } from "./donArt";
+import { useClickCopy } from "./clickCopy";
 import { usePointerDrag } from "./usePointerDrag";
 
 type DonToken = { id: string; rested: boolean };
@@ -45,6 +46,7 @@ function DonChip({
   onDonDragCancel?: () => void;
   onToggleSelect?: (donId: string) => void;
 }) {
+  const copy = useClickCopy();
   const { bind, dragging } = usePointerDrag({
     enabled: canDrag,
     payload: token.id,
@@ -58,7 +60,7 @@ function DonChip({
   }${dragging || isDragging ? " don-dragging" : ""}${isSelected ? " don-selected" : ""}`;
 
   const label = canDrag
-    ? "Tap to select (tap again to add more), then tap a Leader or Character — or drag onto one"
+    ? copy("Tap to select (tap again to add more), then tap a Leader or Character — or drag onto one")
     : token.rested
       ? "Rested DON!!"
       : "Active DON!!";

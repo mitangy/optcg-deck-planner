@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { artAfterError } from "./cardImage";
+import { artAfterError, isPlaceholderArt } from "./cardImage";
 
 /**
  * Card art with the same fallbacks as board tiles: the local mirror when the
@@ -24,6 +24,12 @@ export function CardArt({
       src={current}
       alt=""
       className={className}
+      onLoad={(e) => {
+        if (!src || current !== src) return;
+        if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) {
+          setFailed({ for: src, next: artAfterError(src, defId) });
+        }
+      }}
       onError={() => {
         if (!src) return;
         setFailed({ for: src, next: current === src ? artAfterError(src, defId) : null });
