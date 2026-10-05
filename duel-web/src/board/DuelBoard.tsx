@@ -16,6 +16,7 @@ import type {
 import { BattleLogPanel } from "./BattleLogPanel";
 import { CardPreviewPanel } from "./CardPreviewPanel";
 import { RecentPlaysStrip } from "./RecentPlaysStrip";
+import { MatchViewerSeatContext } from "./artOwnership";
 import { ChatPanel } from "./ChatPanel";
 import type { BattleLogEntry } from "./battleLog";
 import { AttackWarning, type AttackWarn } from "./AttackWarning";
@@ -1418,6 +1419,7 @@ export function DuelBoard({
   );
 
   return (
+    <MatchViewerSeatContext.Provider value={spectating ? null : boardSeat}>
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
@@ -2268,5 +2270,6 @@ export function DuelBoard({
         </div>
       ) : null}
     </div>
+    </MatchViewerSeatContext.Provider>
   );
 }

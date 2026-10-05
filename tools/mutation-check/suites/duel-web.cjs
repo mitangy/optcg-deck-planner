@@ -764,5 +764,8 @@ module.exports = {
     { id: "drag-arrow-no-snap", file: `${src}/board/dragArrow.ts`, from: "  const targetBox = hoverId ? findBox(hoverId) : null;", to: "  const targetBox: Box | null = null;", kills: ["snaps onto a legal target under the pointer (#270)"] },
     { id: "drag-arrow-only-on-targets", file: `${src}/board/dragArrow.ts`, from: "  if (inside) return null;\n", to: "  return null;\n", kills: ["is drawn to the pointer as soon as the drag leaves the attacker (#270)"] },
     { id: "drag-arrow-on-attacker", file: `${src}/board/dragArrow.ts`, from: "  if (inside) return null;\n", to: "", kills: ["draws nothing while the pointer is still on the attacker (#270)"] },
+    // only a card's owner may change its alt art (#287)
+    { id: "art-edit-viewer-falls-back-to-owner", file: `${src}/board/artOwnership.ts`, from: "  const viewer = opts.matchSeat !== undefined ? opts.matchSeat : opts.viewingSeat;", to: "  const viewer = opts.viewingSeat ?? opts.ownerSeat;", kills: ["an opponent's card opened with no viewing seat (Recent plays, preview) offers no art change (#287)", "in a match the match seat decides, not a viewing seat the opener filled with the owner (#287)", "spectators can't change art on either player's cards (#287)"] },
+    { id: "art-edit-any-owner", file: `${src}/board/artOwnership.ts`, from: "  if (opts.ownerSeat != null && opts.ownerSeat !== viewer) return null;\n", to: "", kills: ["an opponent's card opened with no viewing seat (Recent plays, preview) offers no art change (#287)", "in a match the match seat decides, not a viewing seat the opener filled with the owner (#287)"] },
   ],
 };
