@@ -1156,7 +1156,6 @@ export function DuelBoard({
           playCost={c.playCost}
           showCounter
           selected={handFilter === idx}
-          classNameExtra={unaffordable ? "hand-unaffordable" : undefined}
           onClick={() => selectHandCard(idx)}
           instantClick
           dragEnabled={boardDrag || reorderable}
@@ -1176,7 +1175,7 @@ export function DuelBoard({
           }}
           ownerSeat={boardSeat}
           viewingSeat={viewingSeat}
-          classNameExtra={marker?.id === c.id ? marker.cls : undefined}
+          classNameExtra={[unaffordable ? "hand-unaffordable" : "", marker?.id === c.id ? marker.cls : ""].filter(Boolean).join(" ") || undefined}
           style={pose(pos, order.length)}
         />
       );
