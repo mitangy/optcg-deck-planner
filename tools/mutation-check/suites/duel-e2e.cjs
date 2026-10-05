@@ -161,7 +161,11 @@ module.exports = {
       "prompt-drag.spec.ts > dragging a prompt's header moves it, and its buttons still answer (#324) [phone-375]",
     ] },
     { id: "e2e-prompt-drag-offset-unused", args: "prompt-drag --project=desktop-1280 -g \"moves it\"", file: "duel-web/src/board/float.css", from: "  translate: var(--prompt-dx, 0px) var(--prompt-dy, 0px);\n", to: "", kills: ["prompt-drag.spec.ts > dragging a prompt's header moves it, and its buttons still answer (#324) [desktop-1280]"] },
-    { id: "e2e-prompt-drag-off-screen", args: "prompt-drag -g \"on screen\"", file: "duel-web/src/board/promptDrag.ts", from: "        write(clampPromptOffset(base, { x: from.x + ev.clientX - start.x, y: from.y + ev.clientY - start.y }, view()));", to: "        write({ x: from.x + ev.clientX - start.x, y: from.y + ev.clientY - start.y });", kills: [
+    // Both layers: the drag itself clamps, and the re-clamp after any change (#335) would too.
+    { id: "e2e-prompt-drag-off-screen", args: "prompt-drag -g \"a dragged prompt stays on screen\"", edits: [
+      { file: "duel-web/src/board/promptDrag.ts", from: "        write(clampPromptOffset(base, { x: from.x + ev.clientX - start.x, y: from.y + ev.clientY - start.y }, view()));", to: "        write({ x: from.x + ev.clientX - start.x, y: from.y + ev.clientY - start.y });" },
+      { file: "duel-web/src/board/promptDrag.ts", from: "      if (next.x !== offset.x || next.y !== offset.y) write(next);\n", to: "" },
+    ], kills: [
       "prompt-drag.spec.ts > a dragged prompt stays on screen (#324) [desktop-1280]",
       "prompt-drag.spec.ts > a dragged prompt stays on screen (#324) [phone-375]",
     ] },
@@ -169,5 +173,10 @@ module.exports = {
     // Face-up Life reaches both mats (#327)
     { id: "e2e-your-face-up-life-not-passed", args: "demo-audit --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/DuelBoard.tsx", from: "                faceUpLife: you.faceUpLife,\n", to: "", kills: ["demo-audit.spec.ts > face-up Life cards show face up on both mats (#327) [desktop-1280]"] },
     { id: "e2e-opp-face-up-life-portrait-only", args: "demo-audit --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/DuelBoard.tsx", from: "                faceUpLife: opp.faceUpLife,", to: "                faceUpLife: portraitMat ? opp.faceUpLife : undefined,", kills: ["demo-audit.spec.ts > face-up Life cards show face up on both mats (#327) [desktop-1280]"] },
+    // a prompt dragged mid-battle flipped ends with the drag applied, off screen (#335)
+    { id: "e2e-prompt-drag-battle-off-screen", args: "prompt-drag --project=desktop-1280 -g \"#335\"", edits: [
+      { file: "duel-web/src/board/usePromptDodge.ts", from: "      const placedByPlayer = wrap.dataset.dragged != null;\n", to: "      const placedByPlayer = false;\n" },
+      { file: "duel-web/src/board/promptDrag.ts", from: "      if (next.x !== offset.x || next.y !== offset.y) write(next);\n", to: "" },
+    ], kills: ["prompt-drag.spec.ts > a prompt dragged during a battle stays on screen where it was dropped (#335) [desktop-1280]"] },
   ],
 };
