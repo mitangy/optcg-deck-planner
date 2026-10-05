@@ -56,6 +56,31 @@ const TOGGLES: Toggle[] = [
     hint: "Skips the second tap: tapping a Counter card plays it, tapping a Blocker blocks, tapping a Leader or Character gives it the selected DON!!, and picking the only target of an effect resolves it.",
   },
   {
+    key: "dimUnplayable",
+    label: "Gray out unplayable cards",
+    hint: "In your main phase, fades hand cards that cost more than your active DON!! and have no other play. Turn it off to keep every card at full colour.",
+  },
+  {
+    key: "handCounters",
+    label: "Counter values on hand cards",
+    hint: "Shows each hand card's Counter (+1000, +2000) as a badge on the card.",
+  },
+  {
+    key: "cantAttackWarning",
+    label: "Can't attack warning",
+    hint: "When you try to attack with a card that can't (summoning sick, rested, already attacked), it flashes red, shakes and says why.",
+  },
+  {
+    key: "battleArrow",
+    label: "Battle arrow",
+    hint: "Draws the cannon-shot arc from the attacking card to its target during a battle.",
+  },
+  {
+    key: "shortcutTags",
+    label: "Shortcut key tags",
+    hint: "Shows the key for each action (Space, A, E, P, D, 1 to 9) on its button. The keys still work with the tags off.",
+  },
+  {
     key: "oppHandTopRight",
     label: "Opponent hand, top right",
     hint: "Puts the opponent's hand count and card backs at the right of their half instead of the left. Landscape phones: a row of backs at the top of the right column instead of just the count.",

@@ -908,5 +908,8 @@ module.exports = {
     { id: "held-bubble-not-lifted", file: `${src}/board/heldCardSpot.ts`, from: "gap: header.bottom - header.top + BUBBLE_GAP, lift: 0", to: "gap: BUBBLE_GAP, lift: 0", kills: ["keeps the card below the header and lifts the bubble over it, so Sort / Hide stay clear (#282)"] },
     { id: "held-card-no-lift-clear", file: `${src}/board/heldCardSpot.ts`, from: "{ bottom: anchor.top + anchor.height, gap: BUBBLE_GAP, lift: -CARD_LIFT }", to: "{ bottom: anchor.top + anchor.height, gap: BUBBLE_GAP, lift: 0 }", kills: ["holds the card 12px up from its slot when the hand header is clear of it (#282)"] },
     { id: "queue-close-ignored", file: `${src}/net/duelClient.ts`, from: "          reject(new Error(\"Lost the ranked queue. Queue again.\"));\n", to: "", kills: ["stops searching when the queue room closes before a match (#302)"] },
+    // Gray out unplayable cards setting (#301)
+    { id: "dim-unplayable-ignores-setting", file: `${src}/board/handAffordance.ts`, from: "  if (!c.dimSetting) return false;\n", to: "", kills: ["keeps the same card at full colour with the setting off (#301)"] },
+    { id: "dim-unplayable-never", file: `${src}/board/handAffordance.ts`, from: "  return c.mainPhase && !c.picking", to: "  return false && c.mainPhase && !c.picking", kills: ["grays out a cost-5 card with 2 active DON!! while the setting is on (#301)"] },
   ],
 };

@@ -81,6 +81,16 @@ export type DuelSettings = {
    * or picks a single target, instead of selecting it and then confirming.
    */
   oneTapActions: boolean;
+  /** Fade hand cards you can't play this main phase (no legal play, not enough active DON!!). */
+  dimUnplayable: boolean;
+  /** Desktop: the key tabs ("Space", A/E/P/D, 1-9) on the action buttons. */
+  shortcutTags: boolean;
+  /** The +1000 / +2000 Counter badge on your hand cards. */
+  handCounters: boolean;
+  /** Red outline, shake and note when you try to attack with a card that can't. */
+  cantAttackWarning: boolean;
+  /** The "cannon shot" arc from the attacker to its target during a battle. */
+  battleArrow: boolean;
   /**
    * Desktop: the opponent's hand pinned above the playmat ("left", "centre" or
    * "right") instead of in its side panel; "" keeps it in the panel. Phones
@@ -127,6 +137,11 @@ const DEFAULTS: DuelSettings = {
   panelLayout: "",
   layoutGrips: true,
   oneTapActions: false,
+  dimUnplayable: true,
+  shortcutTags: true,
+  handCounters: true,
+  cantAttackWarning: true,
+  battleArrow: true,
   oppHandSpot: "",
   textSize: "medium",
   tiltedBoard: false,

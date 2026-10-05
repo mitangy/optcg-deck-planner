@@ -86,6 +86,7 @@ test("the hand fan tucks away after Let the hand tuck away and a key press (#291
   await page.addInitScript(() =>
     localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true, handLayout: "fan" })),
   );
+  await preferFan(page);
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
   const toggle = page.locator(".hand-fan-toggle");

@@ -13,6 +13,11 @@ export type ToggleKey =
   | "keepHandOpen"
   | "layoutGrips"
   | "oneTapActions"
+  | "dimUnplayable"
+  | "shortcutTags"
+  | "handCounters"
+  | "cantAttackWarning"
+  | "battleArrow"
   | "oppHandTopRight"
   | "tiltedBoard"
   | "turnSplash"
@@ -35,6 +40,8 @@ export function toggleShown(key: ToggleKey, d: FieldDevice): boolean {
   if (key === "layoutGrips") return d.desktop;
   // The tucked-away fan / corner dock only exists on desktop windows.
   if (key === "keepHandOpen") return d.desktop;
+  // Key tabs are only drawn with a mouse and keyboard.
+  if (key === "shortcutTags") return d.finePointer;
   // Desktop picks the spot in the Opponent hand position list instead.
   if (key === "oppHandTopRight") return !d.desktop;
   return true;

@@ -4540,6 +4540,12 @@ body.is-panel-drag * {
   }
 }
 
+/* Shortcut key tags off (Gameplay setting): no "Space" tab on the primary. */
+.arena.arena-wide:not(.arena-lp) .board-col .intent-primary.no-key-tag::after,
+.primary-dock.has-primary.no-key-tag::after {
+  content: none;
+}
+
 /* Waiting for the opponent: same slot and size as the primary button. Fixed
    dark colours: it sits on the (always dark) playmat in light mode too. */
 .waiting-opp {

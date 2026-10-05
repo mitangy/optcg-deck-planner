@@ -127,7 +127,7 @@ import {
   syncOrientationLock,
 } from "./orientation";
 import { RotateHint } from "./RotateHint";
-import { donShortfall, needsDonHint } from "./handAffordance";
+import { handCardOutOfReach, needsDonHint } from "./handAffordance";
 import { phaseLabel } from "./phaseLabel";
 import { playerLabel, seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
@@ -1198,7 +1198,7 @@ export function DuelBoard({
           key={c.id}
           motionId={c.id}
           defId={c.defId}
-          showCounter
+          showCounter={prefs.handCounters}
           inspectOnClick
           ownerSeat={boardSeat}
           style={pose(i, nearHand.length)}
@@ -1228,7 +1228,14 @@ export function DuelBoard({
       const boardDrag = playable || counterable;
       const cost = c.playCost ?? lookupCard(c.defId).cost;
       // Main phase, no legal play for it, and not enough active DON!!: show it as out of reach.
-      const unaffordable = yourTurn && view?.phase === "main" && !handPick && !playable && donShortfall(cost, you.activeDonCount) > 0;
+      const unaffordable = handCardOutOfReach({
+        dimSetting: prefs.dimUnplayable,
+        mainPhase: yourTurn && view?.phase === "main",
+        picking: !!handPick,
+        playable,
+        cost,
+        activeDon: you.activeDonCount,
+      });
       const payload: DragPayload = counterable
         ? { type: "counter", handIndex: idx }
         : { type: "play_card", handIndex: idx };
@@ -1238,7 +1245,7 @@ export function DuelBoard({
           motionId={c.id}
           defId={c.defId}
           playCost={c.playCost}
-          showCounter
+          showCounter={prefs.handCounters}
           selected={handFilter === idx}
           onClick={() => selectHandCard(idx)}
           instantClick
@@ -1385,7 +1392,7 @@ export function DuelBoard({
     text: cardActionText(intent, view),
     keyNum: cardTags[i]!.num,
     keyLetter: cardTags[i]!.letter,
-    keyTag: cardTags[i]!.tag,
+    keyTag: prefs.shortcutTags ? cardTags[i]!.tag : "",
     onPress: () => {
       if (isReplacePlay(intent)) {
         openReplace(intent.handIndex as number);
@@ -2422,7 +2429,7 @@ export function DuelBoard({
 
       {/* Fixed overlays (portals) — never participate in board layout. */}
       <TurnSplash message={splash} />
-      <AttackWarning warn={attackWarn} />
+      <AttackWarning warn={prefs.cantAttackWarning ? attackWarn : null} />
       <RevealOverlay
         reveal={reveals.current}
         waiting={reveals.waiting}
@@ -2430,7 +2437,7 @@ export function DuelBoard({
         onDismiss={reveals.dismiss}
       />
       <AttackIndicator
-        view={over ? null : view}
+        view={over || !prefs.battleArrow ? null : view}
         dimmed={promptOpenFor(view.pendingChoices?.[0], spectating ? null : mySeat, hiddenChoiceId)}
       />
       <BoardMotion view={view} />
