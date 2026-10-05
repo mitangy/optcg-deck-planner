@@ -355,14 +355,14 @@ describe("different card names", () => {
     return { h, request };
   }
 
-  it("OP13-082 tells the player its picks need different card names (#293)", () => {
+  it("OP13-082 tells the player its picks need different card names (#298)", () => {
     const { h, request } = fiveEldersPick();
     expect(request.type).toBe("select");
     expect(request.distinctNames).toBe(true);
     expect(getPlayerView(h.state, 0).pendingChoices[0]!.request).toMatchObject({ distinctNames: true });
   });
 
-  it("OP13-082 rejects two copies of the same card and plays different names (#293)", () => {
+  it("OP13-082 rejects two copies of the same card and plays different names (#298)", () => {
     const { h, request } = fiveEldersPick();
     const saturns = request.options.filter((o) => o.defId === "OP13-083").map((o) => o.id);
     const warcury = request.options.find((o) => o.defId === "OP13-089")!.id;
@@ -375,7 +375,7 @@ describe("different card names", () => {
 });
 
 describe("moving several cards out of one zone", () => {
-  it("ST13-003 adds the two picked trash cards to Life, not a shifted neighbour (#293)", () => {
+  it("ST13-003 adds the two picked trash cards to Life, not a shifted neighbour (#298)", () => {
     const h = new Harness({ leaders: ["ST13-003", DEFAULT_LEADER_ID] });
     h.life(0);
     h.don(0, 2, 0);

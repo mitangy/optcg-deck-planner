@@ -764,8 +764,8 @@ module.exports = {
     { id: "drag-arrow-no-snap", file: `${src}/board/dragArrow.ts`, from: "  const targetBox = hoverId ? findBox(hoverId) : null;", to: "  const targetBox: Box | null = null;", kills: ["snaps onto a legal target under the pointer (#270)"] },
     { id: "drag-arrow-only-on-targets", file: `${src}/board/dragArrow.ts`, from: "  if (inside) return null;\n", to: "  return null;\n", kills: ["is drawn to the pointer as soon as the drag leaves the attacker (#270)"] },
     { id: "drag-arrow-on-attacker", file: `${src}/board/dragArrow.ts`, from: "  if (inside) return null;\n", to: "", kills: ["draws nothing while the pointer is still on the attacker (#270)"] },
-    // "different card names" picks (#293)
-    { id: "name-taken-never", file: `${src}/board/fieldTargets.ts`, from: "!selected.includes(o.id) && picked.has(nameOf(o) ?? \"\")", to: "false", kills: ["greys out the other copy once one Saturn is picked (#293)"] },
-    { id: "name-rule-always-on", file: `${src}/board/fieldTargets.ts`, from: "  if (!distinctNames) return new Set();\n", to: "", kills: ["leaves every copy pickable when the effect has no name rule (#293)"] },
+    // "different card names" picks (#298)
+    { id: "name-taken-never", file: `${src}/board/fieldTargets.ts`, from: "!selected.includes(o.id) && picked.has(nameOf(o) ?? \"\")", to: "false", kills: ["greys out the other copy once one Saturn is picked (#298)"] },
+    { id: "name-rule-always-on", file: `${src}/board/fieldTargets.ts`, from: "  if (!distinctNames) return new Set();\n", to: "", kills: ["leaves every copy pickable when the effect has no name rule (#298)"] },
   ],
 };

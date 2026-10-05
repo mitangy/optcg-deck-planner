@@ -147,12 +147,12 @@ describe("different card names picks", () => {
   const trash = [opt("o0", { defId: "OP13-083", zone: "trash" }), opt("o1", { defId: "OP13-083", zone: "trash" }), opt("o2", { defId: "OP13-089", zone: "trash" })];
   const nameOf = (o: ChoiceOptionView) => names[o.defId!] ?? null;
 
-  it("greys out the other copy once one Saturn is picked (#293)", () => {
+  it("greys out the other copy once one Saturn is picked (#298)", () => {
     expect([...nameTakenIds(trash, ["o0"], true, nameOf)]).toEqual(["o1"]);
     expect([...nameTakenIds(trash, ["o0", "o2"], true, nameOf)]).toEqual(["o1"]);
   });
 
-  it("leaves every copy pickable when the effect has no name rule (#293)", () => {
+  it("leaves every copy pickable when the effect has no name rule (#298)", () => {
     expect(nameTakenIds(trash, ["o0"], undefined, nameOf).size).toBe(0);
   });
 });
