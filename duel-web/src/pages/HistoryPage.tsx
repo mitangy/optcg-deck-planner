@@ -4,7 +4,7 @@ import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { historySummary } from "../history/historySummary";
 import { fetchMatchHistory, type MatchHistoryEntry } from "../history/historyApi";
-import { matchRow } from "../history/matchRow";
+import { matchRow, outcomeKey } from "../history/matchRow";
 import { useClickCopy } from "../board/clickCopy";
 import { ApiError, googleLoginUrl } from "../net/api";
 import { BackLink } from "./BackLink";
@@ -103,7 +103,7 @@ export function HistoryPage() {
                 <Link
                   to={`/history/${encodeURIComponent(r.id)}`}
                   className="history-row history-row-link"
-                  data-outcome={r.outcome === "Won" ? "won" : "lost"}
+                  data-outcome={outcomeKey(r.outcome)}
                 >
                   <span className="history-outcome">{r.outcome}</span>
                   <LeaderArt defId={r.yourLeaderId} />

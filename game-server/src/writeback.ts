@@ -17,6 +17,12 @@ export type MatchResultPayload = {
   /** What each seat saw, turn by turn; the backend serves each player only their own. */
   seat_logs?: [SeatLog, SeatLog];
 };
+/** A game with no result yet: its log so far. The backend keeps only the latest per match. */
+export type MatchProgressPayload = Pick<
+  MatchResultPayload,
+  "seat0_user_id" | "seat1_user_id" | "ranked" | "seat0_leader_id" | "seat1_leader_id" | "turns" | "replay" | "seat_logs"
+>;
+
 export interface OutboxDatabase {
   query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
 }
@@ -139,4 +145,45 @@ export async function stopMatchResultOutbox(): Promise<void> {
 export async function postMatchResult(payload: MatchResultPayload): Promise<void> {
   if (!outbox) throw new Error("Match result outbox is not configured");
   await outbox.enqueue(payload);
+}
+
+/**
+ * Sends a game's progress snapshots one at a time, newest wins: a snapshot that
+ * arrives while one is in flight replaces any still waiting. A failed send is
+ * dropped, since the next turn's snapshot carries everything it had.
+ */
+export class LatestOnlySender<T> {
+  private next: T | null = null;
+  private sending: Promise<void> | null = null;
+  constructor(private send: (payload: T) => Promise<void>, private onError: (error: unknown) => void = () => {}) {}
+
+  push(payload: T): Promise<void> {
+    this.next = payload;
+    if (!this.sending) this.sending = this.pump().finally(() => { this.sending = null; });
+    return this.sending;
+  }
+
+  private async pump(): Promise<void> {
+    while (this.next !== null) {
+      const payload = this.next;
+      this.next = null;
+      try {
+        await this.send(payload);
+      } catch (error) {
+        this.onError(error);
+      }
+    }
+  }
+}
+
+/** Save an unfinished game's log so far. Best effort: the next snapshot retries. */
+export async function postMatchProgress(matchId: string, payload: MatchProgressPayload): Promise<void> {
+  const res = await fetch(`${getApiBaseUrl()}/duel/matches/${encodeURIComponent(matchId)}/progress`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "X-Duel-Ingest-Token": getDuelIngestSecret() },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(10000),
+  });
+  await res.body?.cancel();
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }

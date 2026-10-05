@@ -6,7 +6,7 @@ import { TONE_ICON } from "../board/BattleLogPanel";
 import type { LogSegment } from "../board/battleLog";
 import { fetchMatchDetail, type MatchDetail } from "../history/historyApi";
 import { matchLogTurns } from "../history/matchLog";
-import { matchRow } from "../history/matchRow";
+import { matchRow, outcomeKey } from "../history/matchRow";
 import { useClickCopy } from "../board/clickCopy";
 import { ApiError, googleLoginUrl } from "../net/api";
 import { BackLink } from "./BackLink";
@@ -87,7 +87,7 @@ export function MatchLogPage() {
         ) : null}
 
         {row ? (
-          <section className="history-row match-summary" data-outcome={row.outcome === "Won" ? "won" : "lost"}>
+          <section className="history-row match-summary" data-outcome={outcomeKey(row.outcome)}>
             <span className="history-outcome">{row.outcome}</span>
             <div className="history-main">
               <p className="history-leaders">
@@ -108,9 +108,15 @@ export function MatchLogPage() {
         {detail && !log ? (
           <section className="panel">
             <p className="panel-copy">
-              No turn log was kept for this game. Games you finish from now on keep one.
+              No turn log was kept for this game.
             </p>
           </section>
+        ) : null}
+
+        {detail && detail.match.finished === false ? (
+          <p className="field-hint history-hint" role="status">
+            This game never finished (it was cut off or abandoned), so the log runs up to the last saved turn.
+          </p>
         ) : null}
 
         {log ? (

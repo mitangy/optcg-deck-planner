@@ -495,6 +495,19 @@ class DuelMatchIngest(BaseModel):
     seat_logs: list[dict] | None = Field(default=None, min_length=2, max_length=2)
 
 
+class DuelMatchProgressIngest(BaseModel):
+    """A game still being played (or cut short): its log so far. Replaced every turn."""
+
+    seat0_user_id: int
+    seat1_user_id: int
+    ranked: bool = False
+    seat0_leader_id: str | None = Field(default=None, max_length=32)
+    seat1_leader_id: str | None = Field(default=None, max_length=32)
+    turns: int | None = Field(default=None, ge=0, le=10_000)
+    replay: dict | None = None
+    seat_logs: list[dict] | None = Field(default=None, min_length=2, max_length=2)
+
+
 class DuelMatchHistoryEntry(BaseModel):
     match_id: str
     created_at: str | None
@@ -510,6 +523,8 @@ class DuelMatchHistoryEntry(BaseModel):
     rating_after: int
     has_replay: bool
     has_log: bool = False
+    # False for a game that never sent a result (its log runs to the last saved turn).
+    finished: bool = True
 
 
 class DuelMatchHistoryOut(BaseModel):

@@ -301,6 +301,7 @@ def test_my_matches_lists_only_my_games_from_my_seat(client):
         "rating_after": 0,
         "has_replay": True,
         "has_log": False,
+        "finished": True,
     }
     assert g1["rating_after"] > g1["rating_before"]
     assert (g2["your_seat"], g2["won"], g2["your_leader_id"], g2["opponent_leader_id"], g2["has_replay"]) == (
@@ -354,3 +355,74 @@ def test_my_matches_needs_sign_in(client):
     """Match history needs a signed-in player (#244)."""
     c, _ = client
     assert c.get("/duel/matches/me").status_code == 401
+
+
+def _progress(c, match_id: str, seat0: int, seat1: int, token: str = "test-ingest", **extra):
+    return c.put(
+        f"/duel/matches/{match_id}/progress",
+        json={"seat0_user_id": seat0, "seat1_user_id": seat1, **extra},
+        headers={"X-Duel-Ingest-Token": token},
+    )
+
+
+def test_unfinished_game_shows_its_log_so_far_from_my_seat(client):
+    """A game cut short keeps its latest per-turn log, listed as unfinished, my seat only (#316)."""
+    c, _ = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()
+    early = [{"seat": 0, "turns": [{"turn": 1}]}, {"seat": 1, "turns": [{"turn": 1}]}]
+    later = [{"seat": 0, "turns": [{"turn": 1}, {"turn": 2}]}, {"seat": 1, "turns": [{"turn": 1}, {"turn": 2}, {"turn": 3}]}]
+    assert _progress(c, "cut", a["user_id"], me["id"], seat_logs=early, turns=1).status_code == 204
+    assert _progress(c, "cut", a["user_id"], me["id"], seat_logs=later, turns=3, seat1_leader_id="OP05-060").status_code == 204
+    assert _progress(c, "theirs", a["user_id"], b["user_id"], seat_logs=later).status_code == 204
+
+    listed = c.get("/duel/matches/me").json()["matches"]
+    assert [(m["match_id"], m["finished"], m["has_log"], m["turns"]) for m in listed] == [("cut", False, True, 3)]
+    r = c.get("/duel/matches/me/cut")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["log"] == later[1]
+    assert (body["match"]["your_seat"], body["match"]["your_leader_id"], body["match"]["finished"]) == (1, "OP05-060", False)
+    assert c.get("/duel/matches/me/theirs").status_code == 404
+
+
+def test_result_replaces_the_unfinished_log_and_late_progress_is_ignored(client):
+    """Once the result lands the game is listed once, finished, and a late snapshot can't reopen it (#316)."""
+    c, _ = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    partial = [{"seat": 0, "turns": [{"turn": 1}]}, {"seat": 1, "turns": [{"turn": 1}]}]
+    final = [{"seat": 0, "turns": [{"turn": 1}, {"turn": 2}]}, {"seat": 1, "turns": [{"turn": 1}, {"turn": 2}]}]
+    _progress(c, "g", me["id"], a["user_id"], seat_logs=partial)
+    _ingest(c, "g", me["id"], a["user_id"], 0, seat_logs=final)
+    assert _progress(c, "g", me["id"], a["user_id"], seat_logs=partial).status_code == 204
+
+    listed = c.get("/duel/matches/me").json()["matches"]
+    assert [(m["match_id"], m["finished"]) for m in listed] == [("g", True)]
+    assert c.get("/duel/matches/me/g").json()["log"] == final[0]
+
+
+def test_progress_needs_the_ingest_secret(client):
+    """Only the game server can save a game's progress (#316)."""
+    c, _ = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    assert _progress(c, "x", me["id"], a["user_id"], token="wrong").status_code == 401
+    assert c.get("/duel/matches/me").json()["matches"] == []
+
+
+def test_oversized_progress_log_is_dropped(client, monkeypatch: pytest.MonkeyPatch):
+    """An unfinished game's oversized log is dropped like a finished one's (#316)."""
+    from app.routers import duel as duel_router
+
+    c, _ = client
+    monkeypatch.setattr(duel_router, "MAX_REPLAY_BYTES", 200)
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    big = {"seat": 0, "turns": ["x" * 300]}
+    small = {"seat": 1, "turns": []}
+    _progress(c, "big", me["id"], a["user_id"], seat_logs=[big, small])
+    _progress(c, "small", a["user_id"], me["id"], seat_logs=[big, small])
+    assert c.get("/duel/matches/me/big").json()["log"] is None
+    assert c.get("/duel/matches/me/small").json()["log"] == small

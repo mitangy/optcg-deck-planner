@@ -423,6 +423,32 @@ class DuelMatchSeatLog(Base):
     log: Mapped[str] = mapped_column(Text)
 
 
+class DuelMatchProgress(Base):
+    """The latest turn-by-turn snapshot of a duel that has no result yet.
+
+    The game server sends one at the start of every turn and when a room closes
+    without a result, so a game cut short (server restart, both players gone)
+    still has its log up to that point. Deleted once the real result arrives.
+    """
+
+    __tablename__ = "duel_match_progress"
+
+    match_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    seat0_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    seat1_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    ranked: Mapped[bool] = mapped_column(Boolean, default=False)
+    seat0_leader_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    seat1_leader_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    turns: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Same shapes as DuelMatchLog.replay and DuelMatchSeatLog.log; null when over the size cap.
+    replay: Mapped[str | None] = mapped_column(Text, nullable=True)
+    seat0_log: Mapped[str | None] = mapped_column(Text, nullable=True)
+    seat1_log: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class DuelMatchLog(Base):
     """Full replay of one duel: seed, decks and every accepted intent, as JSON text.
 

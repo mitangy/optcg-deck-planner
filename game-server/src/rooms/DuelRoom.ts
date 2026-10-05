@@ -61,7 +61,13 @@ import {
   type UndoStateMessage,
   type WelcomeMessage,
 } from "../protocol.js";
-import { postMatchResult, type MatchResultPayload } from "../writeback.js";
+import {
+  LatestOnlySender,
+  postMatchProgress,
+  postMatchResult,
+  type MatchProgressPayload,
+  type MatchResultPayload,
+} from "../writeback.js";
 import { presence, type PresenceEntry, type PresenceSource } from "../presence.js";
 import { DuelPublicState } from "./schema/DuelPublicState.js";
 
@@ -158,6 +164,12 @@ export class DuelRoom extends Room implements PresenceSource {
   private actedSinceSnapshot = false;
   private undoRequest: { from: Seat; toTurn: number } | null = null;
   private lastUndoStateKey = "";
+  /** Turn of the last progress snapshot, so the log is saved once per turn. */
+  private progressTurn: number | null = null;
+  private progress = new LatestOnlySender<{ matchId: string; payload: MatchProgressPayload }>(
+    ({ matchId, payload }) => this.persistMatchProgress(matchId, payload),
+    () => this.log("warn", "match_progress_failed", { matchId: this.matchId }),
+  );
 
   onCreate(options: unknown) {
     // Free-tier cold starts need >15s between matchmake HTTP and WS consume.
@@ -253,10 +265,14 @@ export class DuelRoom extends Room implements PresenceSource {
     });
   }
 
-  onDispose() {
+  async onDispose() {
     presence.unregister(this);
     this.clearTimerLoop();
     this.log("info", "room_disposed", { matchId: this.matchId });
+    // A game closing without a result keeps its log up to the last action.
+    if (this.matchStarted && !this.matchOverSent && !this.resultPending) {
+      await this.saveProgress();
+    }
   }
 
   async onBeforeShutdown() {
@@ -986,6 +1002,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.resultPending = null;
     this.endReason = null;
     this.replay = null;
+    this.progressTurn = null;
     this.turnSnapshots = [];
     this.actedSinceSnapshot = false;
     this.undoRequest = null;
@@ -1081,6 +1098,10 @@ export class DuelRoom extends Room implements PresenceSource {
    * open undo request, since it named a turn relative to the old state.
    */
   private recordTurnSnapshot() {
+    if (this.match && this.match.winner === null && this.match.turnNumber !== this.progressTurn) {
+      this.progressTurn = this.match.turnNumber;
+      void this.saveProgress();
+    }
     if (this.ranked || !this.match || !this.rng) return;
     const m = this.match;
     const top = this.turnSnapshots.at(-1);
@@ -1560,28 +1581,27 @@ export class DuelRoom extends Room implements PresenceSource {
     });
   }
 
-  private async writebackResult(winner: Seat, reason: string) {
+  /** The two account ids a result or progress snapshot is saved under, or why it isn't saved. */
+  protected ingestSeats(): [number, number] | { skip: string } {
     const s0 = this.matchUserIds?.[0];
     const s1 = this.matchUserIds?.[1];
-    if (s0 == null || s1 == null) {
-      this.log("warn", "match_ingest_skip", {
-        matchId: this.matchId,
-        reason: "missing_user_ids",
-      });
-      return;
-    }
+    if (s0 == null || s1 == null) return { skip: "missing_user_ids" };
     // Skip ingest for synthetic legacy negative ids unless both are real (>0).
-    if (s0 <= 0 || s1 <= 0) {
-      this.log("info", "match_ingest_skip", {
+    if (s0 <= 0 || s1 <= 0) return { skip: "legacy_dev_users" };
+    if (!getMatchOutboxDatabaseUrl() && process.env.NODE_ENV !== "production") return { skip: "local_outbox_disabled" };
+    return [s0, s1];
+  }
+
+  private async writebackResult(winner: Seat, reason: string) {
+    const seats = this.ingestSeats();
+    if (!Array.isArray(seats)) {
+      this.log(seats.skip === "legacy_dev_users" ? "info" : "warn", "match_ingest_skip", {
         matchId: this.matchId,
-        reason: "legacy_dev_users",
+        reason: seats.skip,
       });
       return;
     }
-    if (!getMatchOutboxDatabaseUrl() && process.env.NODE_ENV !== "production") {
-      this.log("warn", "match_ingest_skip", { matchId: this.matchId, reason: "local_outbox_disabled" });
-      return;
-    }
+    const [s0, s1] = seats;
     const payload = this.resultPayload(s0, s1, winner, reason);
     // Keep the immutable payload and room alive across transient database outages.
     // A process crash before the first commit remains outside this outbox guarantee.
@@ -1596,20 +1616,46 @@ export class DuelRoom extends Room implements PresenceSource {
     }
   }
 
-  private resultPayload(s0: number, s1: number, winner: Seat, reason: string): MatchResultPayload {
+  /** Rematches share the room: key each game's result separately. */
+  private gameKey(): string {
+    return this.gameNumber > 1 ? `${this.matchId}-r${this.gameNumber - 1}` : this.matchId;
+  }
+
+  /**
+   * Save the game's log so far (both seats' logs and the replay), so a game that
+   * never reaches a result (server restart, both players gone) still has one.
+   * Sent at the start of every turn and when the room closes without a result.
+   */
+  private saveProgress(): Promise<void> {
+    const seats = this.ingestSeats();
+    if (!Array.isArray(seats) || !this.replay) return Promise.resolve();
+    return this.progress.push({ matchId: this.gameKey(), payload: this.progressPayload(seats[0], seats[1]) });
+  }
+
+  private progressPayload(s0: number, s1: number): MatchProgressPayload {
     return {
-      // Rematches share the room: key each game's result separately.
-      match_id: this.gameNumber > 1 ? `${this.matchId}-r${this.gameNumber - 1}` : this.matchId,
       seat0_user_id: s0,
       seat1_user_id: s1,
-      winner_seat: winner,
-      reason,
       ranked: this.ranked,
       seat0_leader_id: this.replay?.players[0].leaderId,
       seat1_leader_id: this.replay?.players[1].leaderId,
       turns: this.match?.turnNumber,
-      replay: this.replay ? { ...this.replay, intents: [...this.replay.intents], end: { winner, reason } } : undefined,
+      replay: this.replay ? { ...this.replay, intents: [...this.replay.intents] } : undefined,
       seat_logs: this.seatLogs(),
+    };
+  }
+
+  protected persistMatchProgress(matchId: string, payload: MatchProgressPayload): Promise<void> {
+    return postMatchProgress(matchId, payload);
+  }
+
+  private resultPayload(s0: number, s1: number, winner: Seat, reason: string): MatchResultPayload {
+    return {
+      ...this.progressPayload(s0, s1),
+      match_id: this.gameKey(),
+      winner_seat: winner,
+      reason,
+      replay: this.replay ? { ...this.replay, intents: [...this.replay.intents], end: { winner, reason } } : undefined,
     };
   }
 

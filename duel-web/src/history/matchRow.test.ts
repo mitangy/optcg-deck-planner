@@ -48,6 +48,11 @@ describe("match history rows", () => {
     expect(matchRow(entry({ ranked: false, rating_after: 1000 }), cardName, now).bountyDelta).toBeNull();
   });
 
+  it("shows a game that never finished as cut off, with no Bounty change (#316)", () => {
+    const row = matchRow(entry({ finished: false, won: false, reason: "unfinished", rating_before: 0, rating_after: 0 }), cardName, now);
+    expect([row.outcome, row.how, row.bountyDelta]).toEqual(["Cut off", "Game didn't finish", null]);
+  });
+
   it("dates recent games relative to now (#244)", () => {
     expect(matchRow(entry({ created_at: "2026-10-02T11:15:00Z" }), cardName, now).when).toBe("45m ago");
     expect(matchRow(entry({ created_at: "2026-10-02T09:00:00Z" }), cardName, now).when).toBe("3h ago");
