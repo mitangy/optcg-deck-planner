@@ -493,7 +493,7 @@ test("the opponent hand pins to the top of the mat, stays after a reload, and dr
 
 // Block step: dragging a Counter onto the defender passes the block and plays
 // that Counter in one gesture (desktop: from the hand, phone: from the tray).
-test("dragging a Counter onto the defender in the block step skips the block and counters (#NNN)", async ({ page }) => {
+test("dragging a Counter onto the defender in the block step skips the block and counters (#300)", async ({ page }) => {
   await page.goto("/demo?counter=block");
   await page.locator(".board-root").waitFor();
   const phone = test.info().project.name === "phone-375";

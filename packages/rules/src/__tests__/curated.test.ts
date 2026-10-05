@@ -84,7 +84,7 @@ describe("OP16-118 Portgas.D.Ace", () => {
     expect(h.view(1).you.hand.map((c) => c.counter)).toEqual([2000, 2000]);
   });
 
-  it("shows the live hand Counter in the block step too, for skip-block counter drags (#NNN)", () => {
+  it("shows the live hand Counter in the block step too, for skip-block counter drags (#300)", () => {
     const h = new Harness();
     h.field(1, "OP16-118");
     h.hand(1, "OP16-005");

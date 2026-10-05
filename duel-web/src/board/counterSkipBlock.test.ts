@@ -12,7 +12,7 @@ const blockStep: Intent[] = [
   { type: "declare_block", blockerId: "y-c1" },
 ];
 
-describe("skip the block by dragging a Counter (#NNN)", () => {
+describe("skip the block by dragging a Counter (#300)", () => {
   it("drops a Counter on the defender in the block step as a pass_block", () => {
     const sent = resolveDropIntents(
       { type: "counter", handIndex: 0 },
