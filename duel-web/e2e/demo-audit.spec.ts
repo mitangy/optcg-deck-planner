@@ -530,6 +530,80 @@ test("the opponent hand pins to the top of the mat, stays after a reload, and dr
   expect(duel.errors).toEqual([]);
 });
 
+// Hand sort off: a hand card dropped back on the hand moves there instead of
+// being played; dropped on the board it is still played.
+for (const handLayout of ["fan", "grid"]) {
+  test(`${handLayout} hand cards drag to a new spot in the hand when Sort is off, and still play on the board (#294)`, async ({ page }) => {
+    await page.addInitScript(
+      (layout) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ handLayout: layout })),
+      handLayout,
+    );
+    await page.goto("/demo");
+    await page.locator(".board-root").waitFor();
+    const cards = page.locator(
+      ".hand-fan-cards > .card-tile, .hand-row-inner > .card-tile, .rail-hand-cards > .card-tile, .hand-dock-cards > .card-tile",
+    );
+    const order = () => cards.evaluateAll((els) => els.map((e) => e.getAttribute("data-motion-id")));
+    const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
+    const touch = test.info().project.name === "phone-375";
+    type Box = { x: number; y: number; width: number; height: number };
+    // Drag hand card `from` to a point worked out once the hand is raised under the pointer.
+    const drag = async (from: number, to: (box: (i: number) => Promise<Box>) => Promise<{ x: number; y: number }>) => {
+      const box = async (i: number) => (await cards.nth(i).boundingBox())!;
+      let b = await box(from);
+      if (!touch) {
+        await page.mouse.move(b.x + b.width / 2, b.y + 12);
+        await page.waitForTimeout(450);
+        b = await box(from);
+      }
+      const start = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      const end = await to(box);
+      if (touch) {
+        // Lift the card a little first: a sideways pan scrolls the hand row.
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [start] });
+        for (const p of [{ x: start.x, y: start.y - 16 }, { x: end.x, y: start.y - 16 }, end]) {
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [p] });
+          await page.waitForTimeout(30);
+        }
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        return;
+      }
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(start.x, start.y - 14, { steps: 4 });
+      await page.mouse.move(end.x, end.y, { steps: 10 });
+      await page.mouse.up();
+    };
+    const before = await order();
+    expect(before.length).toBeGreaterThan(3);
+    const [h1, h2, h3, h4, ...rest] = before;
+
+    // Hand card 0 is playable: dropped on the right half of the third card it moves past it, unplayed.
+    await drag(0, async (box) => {
+      const third = await box(2);
+      return { x: third.x + third.width * 0.85, y: third.y + third.height / 2 };
+    });
+    await expect.poll(order).toEqual([h2, h3, h1, h4, ...rest]);
+    expect(await sent()).toEqual([]);
+
+    // A card with nothing to play moves too: the fourth card goes first.
+    await drag(3, async (box) => {
+      const first = await box(0);
+      return { x: first.x + 6, y: first.y + first.height / 2 };
+    });
+    await expect.poll(order).toEqual([h4, h2, h3, h1, ...rest]);
+    expect(await sent()).toEqual([]);
+
+    // Dropped on the board, a playable card is still played.
+    await drag(3, async () => {
+      const field = (await page.locator('.side-you [data-dnd-drop="play_field"]').first().boundingBox())!;
+      return { x: field.x + field.width / 2, y: field.y + field.height / 2 };
+    });
+    await expect.poll(sent).toEqual([{ type: "play_card", handIndex: 0 }]);
+  });
+}
+
 // The trash browser shows readable cards, not the tiny board tile (#287).
 test("trash viewer cards are big enough to read (#287)", async ({ page, duel }, info) => {
   await page.goto("/demo");

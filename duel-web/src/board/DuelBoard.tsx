@@ -96,6 +96,8 @@ import { splitPrimaryIntent } from "./primaryIntent";
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
+import { moveToSlot, reconcileHandOrder } from "./handOrder";
+import { useHandReorder } from "./useHandReorder";
 import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { sideSkins } from "./seatSkins";
@@ -339,6 +341,14 @@ export function DuelBoard({
     if (dragPayload || !lp) setLpPanel(null);
   }, [dragPayload, lp]);
   const [handSorted, setHandSorted] = useState(prefs.sortHandByCost);
+  /** Your own hand order (instance ids) from dragging cards around while unsorted. */
+  const [handOrderIds, setHandOrderIds] = useState<readonly string[]>([]);
+  /** The hand's display order right now, for a reorder dropped mid-render. */
+  const handShownIdsRef = useRef<readonly string[]>([]);
+  const onHandReorder = useCallback((cardId: string, slot: number) => {
+    setHandOrderIds(moveToSlot(handShownIdsRef.current, cardId, slot));
+  }, []);
+  const handReorder = useHandReorder(onHandReorder);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const fullscreenOffered = useMemo(() => canOfferFullscreen(readInstallEnv()), []);
@@ -799,9 +809,20 @@ export function DuelBoard({
   }, [view, intents]);
 
   const handDisplayIndices = useMemo(() => {
-    if (!view || spectating || !handSorted) return null;
-    return sortHandIndices(view.you.hand, (defId) => lookupCard(defId).cost);
-  }, [view, spectating, handSorted]);
+    if (!view || spectating) return null;
+    const hand = view.you.hand;
+    if (handSorted) return sortHandIndices(hand, (defId) => lookupCard(defId).cost);
+    const at = new Map(hand.map((c, i) => [c.id, i]));
+    return reconcileHandOrder(
+      handOrderIds,
+      hand.map((c) => c.id),
+    ).map((id) => at.get(id)!);
+  }, [view, spectating, handSorted, handOrderIds]);
+  handShownIdsRef.current = (handDisplayIndices ?? []).map((i) => view?.you.hand[i]?.id ?? "");
+  // Over the hand, a dragged hand card is being reordered: the hand stays up
+  // instead of tucking away for a drop on the board.
+  const reorderInHand = handReorder.reorder?.inZone === true;
+  const handTucked = dragPayload != null && !reorderInHand;
 
   // Attack drag: your Leader / Characters with a legal declare_attack.
   const draggableAttackerIds = useMemo(() => {
@@ -994,8 +1015,10 @@ export function DuelBoard({
     return ends ? { defenderId: ends.targetId, attackerId: ends.attackerId } : null;
   })();
 
-  const ghostPayload: GhostPayload | null =
-    dragPayload?.type === "give_don"
+  const ghostPayload: GhostPayload | null = reorderInHand
+    ? // Over the hand, the card stays in the hand and a marker shows where it lands.
+      null
+    : dragPayload?.type === "give_don"
       ? { type: "give_don", count: dragPayload.donIds.length }
       : (dragPayload?.type === "play_card" || dragPayload?.type === "counter") &&
           you.hand[dragPayload.handIndex]
@@ -1082,6 +1105,17 @@ export function DuelBoard({
   const undoPendingTheirs =
     undoState?.pending != null && !undo?.autoAccept && undoState.pending.from !== boardSeat;
 
+  /** Card showing where a hand card dragged over the hand would land, if it moves. */
+  function reorderMarker(ids: readonly string[]): { id: string; cls: string } | null {
+    const r = handReorder.reorder;
+    if (!r || r.slot == null) return null;
+    const others = ids.filter((id) => id !== r.cardId);
+    if (others.length === 0 || ids.indexOf(r.cardId) === r.slot) return null;
+    return r.slot < others.length
+      ? { id: others[r.slot]!, cls: "hand-drop-before" }
+      : { id: others[others.length - 1]!, cls: "hand-drop-after" };
+  }
+
   /** `fanned`: each card gets its tilt and arc drop (see handFan.ts). */
   function renderHandCards(fanned = false) {
     const pose = (i: number, n: number): CSSProperties | undefined => {
@@ -1112,10 +1146,14 @@ export function DuelBoard({
       ));
     }
     const order = handDisplayIndices ?? you.hand.map((_, i) => i);
+    // Unsorted, any hand card can be dragged to a new spot in the hand.
+    const reorderable = !handSorted;
+    const marker = reorderMarker(order.map((i) => you.hand[i]!.id));
     return order.map((idx, pos) => {
       const c = you.hand[idx]!;
       const playable = dndEnabled && canDragHandCard(intents, idx);
       const counterable = !playable && counterDragEnabled && canDragCounter(intents, idx);
+      const boardDrag = playable || counterable;
       const cost = c.playCost ?? lookupCard(c.defId).cost;
       // Main phase, no legal play for it, and not enough active DON!!: show it as out of reach.
       const unaffordable = yourTurn && view?.phase === "main" && !handPick && !playable && donShortfall(cost, you.activeDonCount) > 0;
@@ -1130,16 +1168,26 @@ export function DuelBoard({
           playCost={c.playCost}
           showCounter
           selected={handFilter === idx}
-          classNameExtra={unaffordable ? "hand-unaffordable" : undefined}
           onClick={() => selectHandCard(idx)}
           instantClick
-          dragEnabled={playable || counterable}
+          dragEnabled={boardDrag || reorderable}
           dragPayload={payload}
-          onDragStart={() => setDragPayload(payload)}
-          onDragEnd={(x, y) => commitDrop(payload, x, y)}
-          onDragCancel={() => setDragPayload(null)}
+          onDragStart={() => {
+            if (reorderable) handReorder.begin(c.id);
+            if (boardDrag) setDragPayload(payload);
+          }}
+          onDragEnd={(x, y) => {
+            // Dropped back on the hand: a new spot in the hand, never a play.
+            if (reorderable && handReorder.end(x, y)) setDragPayload(null);
+            else if (boardDrag) commitDrop(payload, x, y);
+          }}
+          onDragCancel={() => {
+            handReorder.cancel();
+            setDragPayload(null);
+          }}
           ownerSeat={boardSeat}
           viewingSeat={viewingSeat}
+          classNameExtra={[unaffordable ? "hand-unaffordable" : "", marker?.id === c.id ? marker.cls : ""].filter(Boolean).join(" ") || undefined}
           style={pose(pos, order.length)}
         />
       );
@@ -1384,7 +1432,7 @@ export function DuelBoard({
     actions: intentPanel,
     hand: railHand ? (
       <section
-        className={`rail-hand${dragPayload ? " is-dragging" : ""}`}
+        className={`rail-hand${handTucked ? " is-dragging" : ""}`}
         aria-label={`Your hand: ${handCount} cards`}
       >
         <div className="rail-hand-head">
@@ -2073,7 +2121,7 @@ export function DuelBoard({
               : fanMove.livePos || !fanDocked(shownFanPos)
                 ? "hand-fan-free hand-fan-float"
                 : "hand-fan-free hand-fan-docked"
-          }${fanMove.livePos ? " is-moving" : ""}${drawerClass}${dragPayload ? " is-dragging" : ""}`}
+          }${fanMove.livePos ? " is-moving" : ""}${drawerClass}${handTucked ? " is-dragging" : ""}`}
           style={
             {
               "--n": Math.max(handCount, 1),
@@ -2142,7 +2190,7 @@ export function DuelBoard({
         </div>
       ) : wide && !railHand ? (
         <div
-          className={`hand-dock${drawerClass}${dragPayload ? " is-dragging" : ""}`}
+          className={`hand-dock${drawerClass}${handTucked ? " is-dragging" : ""}`}
           style={
             {
               "--n": Math.max(handCount, 1),

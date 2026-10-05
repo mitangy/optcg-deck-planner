@@ -809,3 +809,22 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
     animation: none;
   }
 }
+
+/* —— Reordering the hand: a bar on the edge where the dragged card lands —— */
+
+.card-tile.hand-drop-before,
+.card-tile.hand-drop-after {
+  z-index: 4;
+}
+
+.card-tile.hand-drop-before {
+  box-shadow:
+    -7px 0 0 -1px #ffd54f,
+    -7px 0 14px 0 rgb(255 213 79 / 0.65);
+}
+
+.card-tile.hand-drop-after {
+  box-shadow:
+    7px 0 0 -1px #ffd54f,
+    7px 0 14px 0 rgb(255 213 79 / 0.65);
+}
