@@ -30,7 +30,7 @@ import { devKeyAllowed, loadSettings } from "../settings";
 import { LaunchCancelledError, useDuelSession, type MatchLaunch } from "../state/DuelSession";
 import { needsUsername } from "../auth/username";
 import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel";
-import { dismissInvite, inviteFriend, type Friend, type FriendInvite } from "../friends/friendsApi";
+import { dismissInvite, inviteFriend, inviteFrom, type Friend, type FriendInvite } from "../friends/friendsApi";
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
 import { UpdateNotice, VersionStatus } from "../VersionStatus";
 
@@ -327,11 +327,23 @@ export function LobbyPage() {
 
   /** Invite: open a fresh private room with the selected deck, then invite the friend to it. */
   function inviteToPrivateRoom(friend: Friend) {
+    // They invited you first (both tapped Invite at once): take that seat, or
+    // each of you would sit alone in your own room.
+    const theirs = inviteFrom(friend, friends.state?.invites ?? []);
+    if (theirs) {
+      joinInvite(theirs);
+      return;
+    }
     if (!selectedDeck) {
       setFriendError("Select a deck first.");
       return;
     }
-    const launch = { status: `Inviting ${friend.username}…`, leaderId: selectedDeck.leaderId, invite: true };
+    const launch = {
+      status: `Inviting ${friend.username}…`,
+      leaderId: selectedDeck.leaderId,
+      invite: true,
+      friends: friendsEnabled,
+    };
     runFriendAction(launch, async (gen) => {
       const opts = await authOpts();
       const wire = deckToWire(await freshDeck(selectedDeck));
@@ -437,6 +449,21 @@ export function LobbyPage() {
     () => decks.find((d) => d.id === selectedId) ?? null,
     [decks, selectedId],
   );
+
+  /**
+   * Join tapped on the waiting board: that room is already left; take the seat
+   * once sign-in (for the game token) and the deck are known.
+   */
+  const handoffInvite = useRef((location.state as { joinInvite?: FriendInvite } | null)?.joinInvite ?? null);
+  useEffect(() => {
+    const invite = handoffInvite.current;
+    if (!invite || !friendsEnabled || !selectedDeck) return;
+    handoffInvite.current = null;
+    // Back from the match must not land here and join again.
+    navigate("/", { replace: true, state: null });
+    joinInvite(invite);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [friendsEnabled, selectedDeck]);
 
   function chooseDeck(id: string) {
     setSelectedId(id);
@@ -545,6 +572,7 @@ export function LobbyPage() {
                   : "Joining room…",
           leaderId: mode === "spectate" ? null : picked.leaderId,
           invite: create,
+          friends: friendsEnabled,
         },
         async (gen) => {
           const opts = await authOpts();

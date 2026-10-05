@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
 import type { BoardWaiting } from "../board/PendingBoard";
 import { BountyAmount } from "../Bounty";
+import { useFriends } from "../friends/FriendsPanel";
+import { pollsInvitesWhileWaiting, type FriendInvite } from "../friends/friendsApi";
 import { fetchMatchDetail } from "../history/historyApi";
 import { useDuelSession } from "../state/DuelSession";
 
@@ -58,6 +60,16 @@ export function DuelPage() {
     }
   }, [connected, view, canReconnect, matchId, resuming, launching, errorBanner, clearError, navigate]);
 
+  // Alone in your own room: a friend's invite must still reach you here.
+  const friends = useFriends(pollsInvitesWhileWaiting({ launch, role, view, matchId }));
+  function joinFriendRoom(invite: FriendInvite) {
+    // Leave this room first; the lobby takes the seat in theirs (it has the
+    // deck and sign-in) and must not bounce back here with no note.
+    leftRef.current = true;
+    void leave();
+    navigate("/", { replace: true, state: { joinInvite: invite } });
+  }
+
   // Until the first view arrives the board is already up, empty, saying what it waits on.
   const waiting: BoardWaiting | undefined = view
     ? undefined
@@ -72,6 +84,9 @@ export function DuelPage() {
               launch?.invite !== false && role === "player"
                 ? { roomId: matchId, autoCopy: seat === 0 }
                 : null,
+            friendInvites: friends.state?.invites.length
+              ? { invites: friends.state.invites, onJoin: joinFriendRoom, onDismissed: () => void friends.refresh() }
+              : null,
           };
   return (
     <div className="duel-root">
