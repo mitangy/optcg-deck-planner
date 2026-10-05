@@ -340,7 +340,16 @@ module.exports = {
     { id: "hand-label-uses-id", file: `${src}/net/protocol.ts`, from: "  return n && n !== defId ? n : defId;", to: "  return defId;", kills: ["labels intents with atlas names", "labels resolve_pending_choice with the front choice's card name"] },
     { id: "board-name-unresolved", file: `${src}/net/protocol.ts`, from: "  if (!view || instanceId == null) return shortId(instanceId);", to: "  return shortId(instanceId);", kills: ["labels intents with atlas names"] },
     { id: "decline-labelled-accept", file: `${src}/net/protocol.ts`, from: "      if (!intent.accept) return `Decline — ${who}`;", to: "", kills: ["labels resolve_pending_choice with the front choice's card name"] },
-    { id: "friend-invite-busy-friend", file: `${src}/friends/friendsApi.ts`, from: "    invite: friend.status === \"online\",", to: "    invite: friend.status !== \"offline\",", kills: ["offers Invite only to an online friend"] },
+    { id: "friend-invite-busy-friend", file: `${src}/friends/friendsApi.ts`, from: "    invite: friend.status === \"online\" || friend.status === \"waiting\",", to: "    invite: friend.status !== \"offline\",", kills: ["offers Invite only to an online friend"] },
+    // invites reach you while you wait in your own room (#313)
+    { id: "friend-invite-not-waiting-friend", file: `${src}/friends/friendsApi.ts`, from: "    invite: friend.status === \"online\" || friend.status === \"waiting\",", to: "    invite: friend.status === \"online\",", kills: ["offers Invite to a friend waiting in their own private room (#313)"] },
+    { id: "invite-from-any-friend", file: `${src}/friends/friendsApi.ts`, from: "  return invites.find((i) => i.from_user_id === friend.user_id) ?? null;", to: "  return invites[0] ?? null;", kills: ["finds their invite so Invite takes that seat instead of opening a second room"] },
+    { id: "waiting-invites-never-polled", file: `${src}/friends/friendsApi.ts`, from: "  return Boolean(s.launch?.invite && s.launch.friends) && s.role === \"player\" && !s.view && s.matchId !== null;", to: "  return false;", kills: ["polls for invites while you sit alone in your own private room"] },
+    { id: "waiting-invites-polled-in-game", file: `${src}/friends/friendsApi.ts`, from: " && !s.view && s.matchId !== null;", to: " && s.matchId !== null;", kills: ["stops once the match starts"] },
+    { id: "waiting-invites-any-launch", edits: [
+      { file: `${src}/friends/friendsApi.ts`, from: "Boolean(s.launch?.invite && s.launch.friends) && s.role === \"player\"", to: "Boolean(s.launch) && true" },
+    ], kills: ["never polls for a guest, a ranked queue, or a spectator"] },
+    { id: "superseded-connect-keeps-seat", file: `${src}/net/duelClient.ts`, from: "        if (seq !== this.connectSeq) {", to: "        if (false) {", kills: ["leaves the room it opened instead of keeping the seat"] },
     { id: "friend-watch-without-room", file: `${src}/friends/friendsApi.ts`, from: "    spectate: friend.room_id !== null && (", to: "    spectate: (", kills: ["never offers Watch without a room"] },
     { id: "friend-watch-in-game-missing", file: `${src}/friends/friendsApi.ts`, from: "(friend.status === \"in_game\" || friend.status === \"spectating\")", to: "(friend.status === \"spectating\")", kills: ["offers Watch for a friend in a game"] },
     // gameplay settings

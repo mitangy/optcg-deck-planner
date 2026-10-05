@@ -4410,8 +4410,37 @@ body.is-panel-drag * {
   pointer-events: none;
 }
 
-.arena-pending .pending-invite .room-invite {
+/* Incoming friend invites ride above the room card, so the card never moves
+   when one arrives or is dismissed. */
+.arena-pending .pending-invite-stack {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: min(460px, 100%);
+  min-width: 0;
+}
+
+.arena-pending .pending-invite-incoming {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 0.6rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.arena-pending .pending-invite-stack:not(:has(.room-invite)) .pending-invite-incoming {
+  position: static;
+}
+
+.arena-pending .pending-invite .room-invite,
+.arena-pending .pending-invite .notice {
   pointer-events: auto;
+}
+
+.arena-pending .pending-invite .notice {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 .arena-pending .arena-left,
