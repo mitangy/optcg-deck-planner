@@ -362,5 +362,9 @@ module.exports = {
     { id: "sales-upstream-uncapped", file: api, from: "    if not is_cached(product_id) and not _sales_upstream_limiter.allow(\"sales-upstream\"):", to: "    if False:", kills: ["test_sales_proxy_caps_uncached_upstream_calls_in_total"] },
     { id: "deck-distinct-uncapped", file: services, from: "    if len(parsed) > MAX_DECK_DISTINCT_CARDS:", to: "    if False:", kills: ["test_deck_with_too_many_different_cards_is_refused"] },
     { id: "deck-count-uncapped", file: services, from: "    if deck_count >= MAX_DECKS_PER_USER:", to: "    if False:", kills: ["test_deck_count_per_account_is_capped"] },
+    { id: "client-ip-trusts-any-forwarded-for", file: rateLimit, from: "    return hmac.compare_digest(sent.encode(), secret.encode())", to: "    return True", kills: ["test_forwarded_for_is_ignored_without_the_proxy_secret"] },
+    { id: "client-ip-ignores-proxy-secret", file: rateLimit, from: "    return hmac.compare_digest(sent.encode(), secret.encode())", to: "    return False", kills: ["test_forwarded_for_is_trusted_with_the_proxy_secret"] },
+    { id: "client-ip-untrusted-before-configured", file: rateLimit, from: "        return True  # Not configured yet: keep trusting X-Forwarded-For as before.", to: "        return False", kills: ["test_forwarded_for_is_trusted_until_a_proxy_secret_is_configured"] },
+    { id: "client-ip-skips-cloudflare", file: rateLimit, from: "    for header in (\"cf-connecting-ip\", \"true-client-ip\"):", to: "    for header in ():", kills: ["test_forwarded_for_is_ignored_without_the_proxy_secret"] },
   ],
 };

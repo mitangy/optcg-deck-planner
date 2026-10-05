@@ -3,14 +3,30 @@
   "installCommand": "npm install --prefix frontend",
   "buildCommand": "npm run build --prefix frontend",
   "outputDirectory": "frontend/dist",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://optcg-api-nutb.onrender.com/$1"
+      "src": "/api/(.*)",
+      "dest": "https://optcg-api-nutb.onrender.com/$1",
+      "transforms": [
+        {
+          "type": "request.headers",
+          "op": "set",
+          "target": {
+            "key": "x-optcg-proxy-secret"
+          },
+          "args": "$PROXY_SHARED_SECRET",
+          "env": [
+            "PROXY_SHARED_SECRET"
+          ]
+        }
+      ]
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
