@@ -29,6 +29,7 @@ import {
 } from "./cardListControls";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
+import { invalidateOwnedViews } from "./ownedCollection";
 import { ReceiptImportPanel, type ReceiptApplyDraft } from "./ReceiptImport";
 import { blankMassEntryUrl } from "./tcgplayerMassEntry";
 import {
@@ -770,8 +771,8 @@ export function GroupBuyDetailPage() {
     onSuccess: async (d, draft) => {
       qc.setQueryData(["group-buy", groupId], d);
       await qc.invalidateQueries({ queryKey: ["group-buys"] });
-      await qc.invalidateQueries({ queryKey: ["shopping"] });
-      await qc.invalidateQueries({ queryKey: ["deck"] });
+      // Mark purchased / Undo change Owned on the server.
+      invalidateOwnedViews(qc);
       setReceiptDraft(null);
       setReceiptResetKey((k) => k + 1);
       setMsg(
@@ -788,8 +789,8 @@ export function GroupBuyDetailPage() {
     onSuccess: async (d) => {
       qc.setQueryData(["group-buy", groupId], d);
       await qc.invalidateQueries({ queryKey: ["group-buys"] });
-      await qc.invalidateQueries({ queryKey: ["shopping"] });
-      await qc.invalidateQueries({ queryKey: ["deck"] });
+      // Mark purchased / Undo change Owned on the server.
+      invalidateOwnedViews(qc);
       setReceiptDraft(null);
       setReceiptResetKey((k) => k + 1);
       setMsg(

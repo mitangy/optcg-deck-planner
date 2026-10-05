@@ -1,3 +1,4 @@
+import type { QueryClient } from "@tanstack/react-query";
 import type { OwnedCard, OwnedCollectionResponse } from "./api";
 
 export type CollectionTotals = {
@@ -46,4 +47,14 @@ export function patchOwnedCollection(
     total_value: totals.value,
     unpriced_cards: totals.unpriced,
   };
+}
+
+/**
+ * Refetch every view that shows Owned counts (shopping list, deck pages, the
+ * Collection). Call after any server-side change to Owned.
+ */
+export function invalidateOwnedViews(qc: QueryClient) {
+  void qc.invalidateQueries({ queryKey: ["shopping"] });
+  void qc.invalidateQueries({ queryKey: ["deck"] });
+  void qc.invalidateQueries({ queryKey: ["owned"] });
 }
