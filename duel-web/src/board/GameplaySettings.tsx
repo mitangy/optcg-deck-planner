@@ -28,6 +28,7 @@ import {
 } from "./useMediaQuery";
 
 type Toggle = {
+  /** Boolean settings, plus the phone switch for oppHandSpot "right". */
   key: ToggleKey;
   label: string;
   hint: string;
@@ -81,8 +82,8 @@ const TOGGLES: Toggle[] = [
   },
   {
     key: "oppHandTopRight",
-    label: "Opponent hand fan, top right",
-    hint: "Shows the opponent's hand as a fan of card backs with the count in the top-right corner, mirroring your own hand. Portrait phones: a compact row at the right of the opponent's half.",
+    label: "Opponent hand, top right",
+    hint: "Puts the opponent's hand count and card backs at the right of their half instead of the left. Landscape phones: a row of backs at the top of the right column instead of just the count.",
   },
   {
     key: "tiltedBoard",
@@ -328,8 +329,14 @@ export function GameplaySettingsFields() {
             <label className="switch">
               <input
                 type="checkbox"
-                checked={settings[t.key]}
+                checked={
+                  t.key === "oppHandTopRight" ? settings.oppHandSpot === "right" : settings[t.key]
+                }
                 onChange={(e) => {
+                  if (t.key === "oppHandTopRight") {
+                    updateSettings({ oppHandSpot: e.target.checked ? "right" : "" });
+                    return;
+                  }
                   updateSettings({ [t.key]: e.target.checked });
                   // Preview (and unlock audio on mobile with this tap).
                   if (t.key === "turnSound" && e.target.checked) playTurnChime();

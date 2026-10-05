@@ -1,10 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const sdkReconnect = vi.fn((_token: string) => new Promise<never>(() => {}));
+const sdkJoinOrCreate = vi.fn((_name: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
+const sdkCreate = vi.fn((_name: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
 vi.mock("@colyseus/sdk", () => ({
   Client: class {
     reconnect(token: string) {
       return sdkReconnect(token);
+    }
+    joinOrCreate(name: string, opts: unknown) {
+      return sdkJoinOrCreate(name, opts);
+    }
+    create(name: string, opts: unknown) {
+      return sdkCreate(name, opts);
     }
   },
 }));
@@ -110,5 +118,48 @@ describe("DuelClient background reconnect", () => {
     const second = client.reconnect({ serverUrl: "http://gs", reconnectionToken: "r:tok" });
     expect(second).toBe(first);
     expect(sdkReconnect).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DuelClient ranked queue", () => {
+  it("stops searching when the queue room closes before a match (#302)", async () => {
+    vi.useFakeTimers();
+    const queueRoom = fakeRoom({ answersPing: true });
+    sdkJoinOrCreate.mockResolvedValueOnce(queueRoom);
+    const client = new DuelClient();
+    const queued = client.queueRanked({ serverUrl: "ws://test", devUserId: "a" });
+    queued.catch(() => {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sdkJoinOrCreate).toHaveBeenCalledWith("ranked_queue", expect.anything());
+    // e.g. the game server restarted for a deploy while we were in the queue.
+    queueRoom.emit("leave", 1006);
+    // Without the fix only the 2 minute queue timeout would end the wait.
+    await vi.advanceTimersByTimeAsync(120_000);
+    await expect(queued).rejects.toThrow(/Lost the ranked queue/);
+  });
+});
+
+describe("a connect superseded by a newer one (#313)", () => {
+  it("leaves the room it opened instead of keeping the seat", async () => {
+    const older = fakeRoom({ answersPing: true });
+    older.roomId = "older";
+    const newer = fakeRoom({ answersPing: true });
+    newer.roomId = "newer";
+    let openOlder: (room: unknown) => void = () => {};
+    sdkCreate
+      .mockImplementationOnce(() => new Promise((resolve) => (openOlder = resolve)))
+      .mockImplementationOnce(async () => newer);
+
+    const client = new DuelClient();
+    const first = client.connect({ preferredSeat: 0 });
+    await vi.waitFor(() => expect(sdkCreate).toHaveBeenCalledTimes(1));
+    await client.connect({ preferredSeat: 0 });
+    // The older create answers last, as when two Invite / Join taps race.
+    openOlder(older);
+    await expect(first).rejects.toThrow();
+
+    expect(older.leave).toHaveBeenCalled();
+    expect(newer.leave).not.toHaveBeenCalled();
+    expect(client.roomId).toBe("newer");
   });
 });

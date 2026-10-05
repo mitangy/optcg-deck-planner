@@ -36,7 +36,10 @@ module.exports = {
     { id: "mulligan-always-skipped", file: room, from: "    if (this.autoSkipMulligan) {", to: "    if (true) {", kills: ["mulligan phase keeps both seats"] },
     { id: "intent-trusts-active-seat", file: room, from: "    const result = applyIntent(before, intent, { seat, rng: this.rng });\n    if (!result.ok) {\n      this.log(\"info\", \"illegal_intent\"", to: "    const result = applyIntent(before, intent, { seat: before.activeSeat, rng: this.rng });\n    if (!result.ok) {\n      this.log(\"info\", \"illegal_intent\"", kills: ["illegal intent errors without advancing"] },
     { id: "match-over-not-sent", file: room, from: "    this.onMatchAdvanced();\n    this.maybeSendMatchOver();\n  }\n\n  /** Clear everything", to: "    this.onMatchAdvanced();\n  }\n\n  /** Clear everything", kills: ["legal play reaches match_over"] },
-    { id: "third-player-kept", file: room, from: "      this.sendError(client, \"room_full\", \"No free seat\");\n      client.leave();", to: "      this.sendError(client, \"room_full\", \"No free seat\");", kills: ["rejects a third player"] },
+    { id: "third-player-kept", edits: [
+      { file: room, from: "      this.rejectJoin(client, \"room_full\", \"Match already in progress\");\n      return;", to: "      this.sendError(client, \"room_full\", \"Match already in progress\");" },
+      { file: room, from: "      this.rejectJoin(client, \"room_full\", \"No free seat\");", to: "      this.sendError(client, \"room_full\", \"No free seat\");" },
+    ], kills: ["rejects a third player"] },
     { id: "join-deck-ignored", file: room, from: "    if (identity.deck) {\n      this.seatDecks[seat] = identity.deck;\n    }", to: "", kills: ["uses join-time seat decks for leaders"] },
     { id: "join-unknown-card-deck-accepted", file: room, from: "    if (role === \"player\" && join.deck) assertKnownDeck(join.deck);\n", to: "", kills: ["rejects a deck with unknown cards at join"] },
     { id: "spectator-gets-player-view", file: room, from: "    const view = this.spectatorView(this.match, cameraSeat);\n    const welcome", to: "    const view = { ...getPlayerView(this.match, cameraSeat), spectator: true };\n    const welcome", kills: ["allows a spectator with public view"] },
@@ -74,5 +77,9 @@ module.exports = {
     // spectators see both hands in unranked rooms only (#250)
     {"id": "spectator-hands-in-ranked", "file": "game-server/src/rooms/DuelRoom.ts", "from": "{ revealHands: !this.ranked }", "to": "{ revealHands: true }", "kills": ["spectators of a ranked room see no hands (#250)"]},
     {"id": "spectator-hands-never-sent", "file": "game-server/src/rooms/DuelRoom.ts", "from": "{ revealHands: !this.ranked }", "to": "{ revealHands: false }", "kills": ["spectators of an unranked room see both players' hands (#250)"]},
+    // a paired player who can't join must not strand the other (#302)
+    { id: "ranked-queue-skips-deck-check", file: queue, from: "    if (join.deck) {\n      assertKnownDeck(join.deck);\n      const problem = rankedDeckProblem(join.deck);\n      if (problem) throw new Error(problem);\n    }\n", to: "", kills: ["ranked_queue turns away a deck ranked can't play before pairing it (#302)"] },
+    { id: "ranked-queue-rejects-every-deck", file: queue, from: "      if (problem) throw new Error(problem);", to: "      throw new Error(problem ?? \"no deck\");", kills: ["ranked_queue turns away a deck ranked can't play before pairing it (#302)"] },
+    { id: "ranked-no-show-never-expires", file: room, from: "      this.clock.setTimeout(() => this.expireNoShow(), getRankedNoShowSeconds() * 1000);\n", to: "", kills: ["a paired ranked room sends the waiting player back when the opponent never joins (#302)"] },
   ],
 };

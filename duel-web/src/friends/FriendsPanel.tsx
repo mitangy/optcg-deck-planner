@@ -4,6 +4,7 @@ import {
   dismissInvite,
   fetchFriends,
   friendActions,
+  inviteFrom,
   removeFriend,
   sendFriendRequest,
   statusLabel,
@@ -67,11 +68,14 @@ export function FriendInvites({
   busy,
   onJoin,
   onDismissed,
+  hint = "Private room · your selected deck",
 }: {
   invites: FriendInvite[];
   busy: boolean;
   onJoin: (invite: FriendInvite) => void;
   onDismissed: () => void;
+  /** Second line under "<name> invited you". */
+  hint?: string;
 }) {
   if (invites.length === 0) return null;
   return (
@@ -80,7 +84,7 @@ export function FriendInvites({
         <section key={inv.id} className="notice notice-gold" aria-label="Game invite">
           <div className="notice-body">
             <strong>{inv.from_username} invited you</strong>
-            <span>Private room · your selected deck</span>
+            <span>{hint}</span>
           </div>
           <div className="notice-actions">
             <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => onJoin(inv)}>
@@ -103,12 +107,15 @@ export function FriendInvites({
 
 function FriendRow({
   friend,
+  invitedYou,
   busy,
   onInvite,
   onSpectate,
   onRemove,
 }: {
   friend: Friend;
+  /** They already invited you: the button takes that seat instead of opening a room. */
+  invitedYou: boolean;
   busy: boolean;
   onInvite: (f: Friend) => void;
   onSpectate: (f: Friend) => void;
@@ -125,7 +132,7 @@ function FriendRow({
       <span className="friend-actions">
         {actions.invite ? (
           <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => onInvite(friend)}>
-            Invite
+            {invitedYou ? "Join" : "Invite"}
           </button>
         ) : null}
         {actions.spectate ? (
@@ -298,6 +305,7 @@ export function FriendsPanel({
             <FriendRow
               key={f.user_id}
               friend={f}
+              invitedYou={inviteFrom(f, state?.invites ?? []) !== null}
               busy={disabled}
               onInvite={onInvite}
               onSpectate={onSpectate}

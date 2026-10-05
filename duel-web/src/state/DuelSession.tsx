@@ -78,6 +78,8 @@ export type MatchLaunch = {
   leaderId: string | null;
   /** Private room: show the invite card until the opponent joins. */
   invite: boolean;
+  /** Signed in with friends: the waiting board also shows invites sent to you. */
+  friends?: boolean;
 };
 
 type DuelSession = {
@@ -269,6 +271,13 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         },
         onError: (err) => {
           if (isSeatReservationExpiredError(err.message)) return;
+          if (err.code === "opponent_no_show") {
+            // Ranked opponent never arrived and the room closed: back to the
+            // lobby with the reason instead of "Waiting for opponent…" forever.
+            resetMatch();
+            setErrorBanner(err.message);
+            return;
+          }
           setErrorBanner(`${err.code}: ${err.message}`);
         },
         onMatchOver: (msg) => {

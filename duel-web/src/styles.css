@@ -2009,8 +2009,7 @@ button.zone-pile {
   }
 }
 
-/* Desktop: a little more room between the readable cards (their width comes
-   from the grid above, 140px and up). */
+/* Desktop: a little more air between the readable grid cards above (#287). */
 @media (min-width: 900px) and (min-height: 500px) {
   .trash-viewer-grid {
     gap: 0.75rem;
@@ -2228,6 +2227,9 @@ img.zone-pile-face {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* A click here dropped a text caret in the rotated ornament: a slanted cursor between the mats. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .midline-ornament {

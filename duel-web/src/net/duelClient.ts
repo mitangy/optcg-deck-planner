@@ -93,6 +93,8 @@ export class DuelClient {
   private queueAbort: ((err: Error) => void) | null = null;
   private handlers: DuelClientHandlers = {};
   private reconnectionToken: string | null = null;
+  /** Bumped by each connect: an older one that finishes later must not take the client. */
+  private connectSeq = 0;
   private pendingReconnect: Promise<{ matchId: string; seat: Seat }> | null = null;
 
   setHandlers(h: DuelClientHandlers) {
@@ -108,6 +110,7 @@ export class DuelClient {
   }
 
   async connect(params: ConnectParams): Promise<{ matchId: string; seat: Seat }> {
+    const seq = ++this.connectSeq;
     const url = params.serverUrl ?? getGameServerUrl();
     const attempts = 3;
     let lastErr: unknown;
@@ -137,6 +140,12 @@ export class DuelClient {
           room = await this.client.create("duel", { ...create, ...join });
         }
 
+        if (seq !== this.connectSeq) {
+          // A newer connect owns the client now. Give this seat back, or the
+          // room stays open with us seated in it (and shows us "waiting").
+          void room.leave(true).catch(() => undefined);
+          throw new Error("Superseded by a newer match request");
+        }
         this.room = room;
         this.captureReconnectionToken(room);
         this.wireDuel(room);
@@ -197,6 +206,12 @@ export class DuelClient {
         queueRoom.onError((code, message) => {
           clearTimeout(timer);
           reject(new Error(message || `queue error ${code}`));
+        });
+        // The queue closed under us (server restart, dropped socket): nobody
+        // can pair with us any more, so stop "searching" now.
+        queueRoom.onLeave(() => {
+          clearTimeout(timer);
+          reject(new Error("Lost the ranked queue. Queue again."));
         });
       },
     );

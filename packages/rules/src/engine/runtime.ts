@@ -10,6 +10,7 @@ import type { Ability, Effect, GameEventKind, LookPick, Placement, ReplacementEv
 import type { Rng } from "../rng.js";
 import type { BindingValue, CardInstance, ChoiceOption, ChoiceRequest, GameEvent, InstanceId, MatchState, PendingChoice, QueuedTrigger, ResolutionFrame, Seat, TurnLog } from "../types.js";
 import { addModifier, expiryFor } from "./modifiers.js";
+import { forOpponent } from "./perspective.js";
 import {
   basePowerOf, canPayCosts, canPayCost, candidates, protectedFromSource, costOf, ctxFor, evalCond, evalValue, filterMatches, hasRestriction, isNegated, playerRestricted, powerOf, selectorMatches, type EvalCtx,
 } from "./queries.js";
@@ -409,7 +410,8 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
     }
     case "mode": {
       const chooser = instr.chooser === "you" ? frame.seat : otherSeat(frame.seat);
-      const options: ChoiceOption[] = instr.labels.map((label, index) => ({ id: `m${index}`, label, eligible: !instr.costOptions || (instr.costOptions[index] ?? []).every((c) => canPayCost(state, ctx, c)) }));
+      // Labels are written from the controller's view; reword them when the opponent chooses.
+      const options: ChoiceOption[] = instr.labels.map((label, index) => ({ id: `m${index}`, label: chooser === frame.seat ? label : forOpponent(label), eligible: !instr.costOptions || (instr.costOptions[index] ?? []).every((c) => canPayCost(state, ctx, c)) }));
       pushChoice(sim, frame, { seat: chooser, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — ${instr.prompt ?? "choose one"}.`, request: { type: "mode", options }, bindings: { __bind: instr.bind } });
       return "wait";
     }
