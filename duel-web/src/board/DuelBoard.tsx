@@ -1281,7 +1281,12 @@ export function DuelBoard({
       />
     ),
     oppHand: oppHandOnMat ? null : (
-      <OppHandFan count={opp.handCount} cardBackUrl={oppCardBackUrl} cards={farHand} ownerSeat={oppSeat} />
+      <OppHandFan
+        count={opp.handCount}
+        cardBackUrl={oppCardBackUrl}
+        cards={farHand}
+        ownerSeat={oppSeat}
+      />
     ),
     turn: (
       <TurnStatusPanel
