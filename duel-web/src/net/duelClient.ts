@@ -47,6 +47,8 @@ export type DuelClientHandlers = {
   onView?: (view: PlayerView) => void;
   onEvents?: (events: unknown[]) => void;
   onError?: (err: ErrorMessage) => void;
+  /** The turn moved on since the last rejected action, so its error is old news. */
+  onStaleIllegalIntent?: () => void;
   onMatchOver?: (msg: MatchOverMessage) => void;
   onCosmetics?: (msg: CosmeticsMessage) => void;
   onSkin?: (msg: SkinMessage) => void;
@@ -96,6 +98,12 @@ export class DuelClient {
   /** Bumped by each connect: an older one that finishes later must not take the client. */
   private connectSeq = 0;
   private pendingReconnect: Promise<{ matchId: string; seat: Seat }> | null = null;
+  /** Latest view from the server: the turn the player's clicks were made in. */
+  private lastView: PlayerView | null = null;
+  /** Turn an End turn went out on; until its result arrives, Main actions would land in the opponent's turn. */
+  private endTurnSentOn: number | null = null;
+  /** Turn of the last rejected action, while its error is still on screen. */
+  private illegalIntentOn: number | null = null;
 
   setHandlers(h: DuelClientHandlers) {
     this.handlers = h;
@@ -317,6 +325,10 @@ export class DuelClient {
 
   sendIntent(intent: Intent) {
     if (!this.room) throw new Error("Not connected");
+    // A second End turn (double click, click + Space) or a card action right
+    // after End turn reaches the server in the opponent's turn: "Not your turn".
+    if (lateForTurn(intent, this.endTurnSentOn, this.lastView)) return;
+    if (intent.type === "end_turn" && this.lastView) this.endTurnSentOn = this.lastView.turnNumber;
     this.room.send("intent", { protocolVersion: PROTOCOL_VERSION, intent });
   }
 
@@ -466,6 +478,15 @@ export class DuelClient {
     });
   }
 
+  private noteView(view: PlayerView) {
+    this.lastView = view;
+    if (view.turnNumber !== this.endTurnSentOn) this.endTurnSentOn = null;
+    if (this.illegalIntentOn !== null && view.turnNumber !== this.illegalIntentOn) {
+      this.illegalIntentOn = null;
+      this.handlers.onStaleIllegalIntent?.();
+    }
+  }
+
   private wireDuel(room: Room) {
     noteReportRoom(room.roomId);
     room.onMessage("welcome", (raw: unknown) => {
@@ -478,6 +499,8 @@ export class DuelClient {
           role: msg.role ?? (msg.view.spectator ? "spectator" : "player"),
           players: msg.players,
         });
+        this.endTurnSentOn = null;
+        this.noteView(msg.view);
         this.handlers.onView?.(msg.view);
       } catch (e) {
         this.handlers.onError?.({
@@ -491,6 +514,7 @@ export class DuelClient {
     room.onMessage("view", (raw: unknown) => {
       try {
         const msg = parseView(raw);
+        this.noteView(msg.view);
         this.handlers.onView?.(msg.view);
       } catch (e) {
         this.handlers.onError?.({
@@ -509,7 +533,13 @@ export class DuelClient {
 
     room.onMessage("error", (raw: unknown) => {
       try {
-        this.handlers.onError?.(parseError(raw));
+        const err = parseError(raw);
+        if (err.code === "illegal_intent") {
+          // A rejected End turn leaves the turn open: let the player act again.
+          this.endTurnSentOn = null;
+          this.illegalIntentOn = this.lastView?.turnNumber ?? null;
+        }
+        this.handlers.onError?.(err);
       } catch {
         this.handlers.onError?.({
           protocolVersion: PROTOCOL_VERSION,
@@ -613,6 +643,8 @@ export class DuelClient {
     });
 
     room.onReconnect(() => {
+      // An End turn lost with the old socket must not lock the turn.
+      if (this.room === room) this.endTurnSentOn = null;
       // The server issues a fresh token on every reclaim and the old one is
       // dead, but the SDK fires onReconnect before it stores the new token.
       queueMicrotask(() => {
@@ -629,4 +661,12 @@ export class DuelClient {
       this.room = null;
     });
   }
+}
+
+/** Prompts can still be answered after End turn (end-of-turn effects); everything else waits for the next turn. */
+const AFTER_END_TURN = new Set<Intent["type"]>(["resolve_pending_choice", "order_pending_effects"]);
+
+/** An action sent after End turn, while the view still shows the turn that was ended. */
+export function lateForTurn(intent: Intent, endTurnSentOn: number | null, view: PlayerView | null): boolean {
+  return endTurnSentOn !== null && view?.turnNumber === endTurnSentOn && !AFTER_END_TURN.has(intent.type);
 }

@@ -5,6 +5,13 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // turn guard: no actions after End turn until its result arrives (#328)
+    { id: "turn-guard-off", file: `${src}/net/duelClient.ts`, from: "    if (lateForTurn(intent, this.endTurnSentOn, this.lastView)) return;\n", to: "", kills: ["drops a second End turn or a card action sent before the turn's result arrives (#328)"] },
+    { id: "turn-guard-blocks-prompts", file: `${src}/net/duelClient.ts`, from: " && !AFTER_END_TURN.has(intent.type);", to: ";", kills: ["still answers an end-of-turn prompt after End turn (#328)"] },
+    { id: "turn-guard-rejection-keeps-lock", file: `${src}/net/duelClient.ts`, from: "          // A rejected End turn leaves the turn open: let the player act again.\n          this.endTurnSentOn = null;\n", to: "", kills: ["lets you act again when the server rejects the End turn (#328)"] },
+    { id: "turn-guard-reconnect-keeps-lock", file: `${src}/net/duelClient.ts`, from: "      // An End turn lost with the old socket must not lock the turn.\n      if (this.room === room) this.endTurnSentOn = null;\n", to: "", kills: ["lets you act again after the socket reconnects (#328)"] },
+    { id: "stale-illegal-intent-never", file: `${src}/net/duelClient.ts`, from: "      this.handlers.onStaleIllegalIntent?.();\n", to: "", kills: ["reports a rejected action stale once the turn changes, not before (#328)"] },
+    { id: "stale-illegal-intent-same-turn", file: `${src}/net/duelClient.ts`, from: "if (this.illegalIntentOn !== null && view.turnNumber !== this.illegalIntentOn) {", to: "if (this.illegalIntentOn !== null) {", kills: ["reports a rejected action stale once the turn changes, not before (#328)"] },
     // text size setting
     { id: "text-size-xlarge-not-larger", file: `${src}/textSize.ts`, from: "  xlarge: 1.25,", to: "  xlarge: 1,", kills: ["scales text down for Small and up for Extra large, and Medium clears it (#247)"] },
     { id: "text-size-medium-leaves-scale", file: `${src}/textSize.ts`, from: "  if (scale === 1) root.style.removeProperty(\"--text-scale\");\n  else root.style.setProperty", to: "  root.style.setProperty", kills: ["scales text down for Small and up for Extra large, and Medium clears it (#247)"] },
