@@ -4,6 +4,7 @@ import { ConfirmButton } from "./ConfirmButton";
 import { useClickCopy } from "./clickCopy";
 import { dockAnchor, sameAnchor, stripReserve, type DockAnchor } from "./dockAnchor";
 import type { WaitingOnOpponent } from "./waitingOnOpponent";
+import { useDuelSettings } from "../settings";
 
 export function intentBtnClass(intent: Intent): string {
   if (intent.type === "end_turn") return "intent-btn intent-btn-end";
@@ -159,10 +160,11 @@ type DockProps = Omit<ButtonProps, "primary"> & {
 export function PrimaryDock({ primary, waiting, ...button }: DockProps) {
   const show = primary != null || waiting != null;
   const anchor = useDockAnchor(show);
+  const showKeyTags = useDuelSettings().shortcutTags;
   if (!show || !anchor) return null;
   return (
     <div
-      className={`primary-dock${primary ? " has-primary" : ""}`}
+      className={`primary-dock${primary ? " has-primary" : ""}${showKeyTags ? "" : " no-key-tag"}`}
       style={{ left: anchor.x, top: anchor.y }}
     >
       {primary ? (

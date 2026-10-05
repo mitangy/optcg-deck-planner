@@ -14,6 +14,10 @@ export type ToggleKey =
   | "layoutGrips"
   | "oneTapActions"
   | "dimUnplayable"
+  | "shortcutTags"
+  | "handCounters"
+  | "cantAttackWarning"
+  | "battleArrow"
   | "oppHandTopRight"
   | "tiltedBoard"
   | "turnSplash"
@@ -36,6 +40,8 @@ export function toggleShown(key: ToggleKey, d: FieldDevice): boolean {
   if (key === "layoutGrips") return d.desktop;
   // The tucked-away fan / corner dock only exists on desktop windows.
   if (key === "keepHandOpen") return d.desktop;
+  // Key tabs are only drawn with a mouse and keyboard.
+  if (key === "shortcutTags") return d.finePointer;
   return true;
 }
 

@@ -83,6 +83,14 @@ export type DuelSettings = {
   oneTapActions: boolean;
   /** Fade hand cards you can't play this main phase (no legal play, not enough active DON!!). */
   dimUnplayable: boolean;
+  /** Desktop: the key tabs ("Space", A/E/P/D, 1-9) on the action buttons. */
+  shortcutTags: boolean;
+  /** The +1000 / +2000 Counter badge on your hand cards. */
+  handCounters: boolean;
+  /** Red outline, shake and note when you try to attack with a card that can't. */
+  cantAttackWarning: boolean;
+  /** The "cannon shot" arc from the attacker to its target during a battle. */
+  battleArrow: boolean;
   /** Show the opponent's hand as a fan of card backs in the top-right corner of the board. */
   oppHandTopRight: boolean;
   /**
@@ -130,6 +138,10 @@ const DEFAULTS: DuelSettings = {
   layoutGrips: true,
   oneTapActions: false,
   dimUnplayable: true,
+  shortcutTags: true,
+  handCounters: true,
+  cantAttackWarning: true,
+  battleArrow: true,
   oppHandTopRight: false,
   oppHandSpot: "",
   textSize: "medium",

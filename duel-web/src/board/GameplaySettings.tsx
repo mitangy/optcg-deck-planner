@@ -60,6 +60,26 @@ const TOGGLES: Toggle[] = [
     hint: "In your main phase, fades hand cards that cost more than your active DON!! and have no other play. Turn it off to keep every card at full colour.",
   },
   {
+    key: "handCounters",
+    label: "Counter values on hand cards",
+    hint: "Shows each hand card's Counter (+1000, +2000) as a badge on the card.",
+  },
+  {
+    key: "cantAttackWarning",
+    label: "Can't attack warning",
+    hint: "When you try to attack with a card that can't (summoning sick, rested, already attacked), it flashes red, shakes and says why.",
+  },
+  {
+    key: "battleArrow",
+    label: "Battle arrow",
+    hint: "Draws the cannon-shot arc from the attacking card to its target during a battle.",
+  },
+  {
+    key: "shortcutTags",
+    label: "Shortcut key tags",
+    hint: "Shows the key for each action (Space, A, E, P, D, 1 to 9) on its button. The keys still work with the tags off.",
+  },
+  {
     key: "oppHandTopRight",
     label: "Opponent hand fan, top right",
     hint: "Shows the opponent's hand as a fan of card backs with the count in the top-right corner, mirroring your own hand. Portrait phones: a compact row at the right of the opponent's half.",

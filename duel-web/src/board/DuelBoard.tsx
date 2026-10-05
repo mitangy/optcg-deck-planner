@@ -1178,7 +1178,7 @@ export function DuelBoard({
           key={c.id}
           motionId={c.id}
           defId={c.defId}
-          showCounter
+          showCounter={prefs.handCounters}
           inspectOnClick
           ownerSeat={boardSeat}
           style={pose(i, nearHand.length)}
@@ -1225,7 +1225,7 @@ export function DuelBoard({
           motionId={c.id}
           defId={c.defId}
           playCost={c.playCost}
-          showCounter
+          showCounter={prefs.handCounters}
           selected={handFilter === idx}
           onClick={() => selectHandCard(idx)}
           instantClick
@@ -1372,7 +1372,7 @@ export function DuelBoard({
     text: cardActionText(intent, view),
     keyNum: cardTags[i]!.num,
     keyLetter: cardTags[i]!.letter,
-    keyTag: cardTags[i]!.tag,
+    keyTag: prefs.shortcutTags ? cardTags[i]!.tag : "",
     onPress: () => {
       if (isReplacePlay(intent)) {
         openReplace(intent.handIndex as number);
@@ -2411,7 +2411,7 @@ export function DuelBoard({
 
       {/* Fixed overlays (portals) — never participate in board layout. */}
       <TurnSplash message={splash} />
-      <AttackWarning warn={attackWarn} />
+      <AttackWarning warn={prefs.cantAttackWarning ? attackWarn : null} />
       <RevealOverlay
         reveal={reveals.current}
         waiting={reveals.waiting}
@@ -2419,7 +2419,7 @@ export function DuelBoard({
         onDismiss={reveals.dismiss}
       />
       <AttackIndicator
-        view={over ? null : view}
+        view={over || !prefs.battleArrow ? null : view}
         dimmed={promptOpenFor(view.pendingChoices?.[0], spectating ? null : mySeat, hiddenChoiceId)}
       />
       <BoardMotion view={view} />
