@@ -82,6 +82,10 @@ export function ChoicePrompt({ choice, mySeat, onSend }: Props) {
   const [restOnTop, setRestOnTop] = useState(true);
   const title = choice.cardDefId && choice.cardDefId !== "HIDDEN" ? lookupCard(choice.cardDefId).name : "Effect";
   const maxPick = request.type === "select" ? request.max : request.type === "look" ? request.maxSelect : 0;
+  // "With different card names": a card whose name is already picked can't be added.
+  const nameOf = (o: ChoiceOptionView) => (o.defId && o.defId !== "HIDDEN" ? lookupCard(o.defId).name : null);
+  const pickedNames = new Set(options.filter((o) => selected.includes(o.id)).map(nameOf));
+  const nameTaken = (o: ChoiceOptionView) => request.type === "select" && !!request.distinctNames && !selected.includes(o.id) && nameOf(o) != null && pickedNames.has(nameOf(o));
   const toggle = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : maxPick === 1 ? [id] : cur.length >= maxPick ? cur : [...cur, id]));
   const send = (intent: Intent) => onSend(intent);
 
@@ -117,7 +121,7 @@ export function ChoicePrompt({ choice, mySeat, onSend }: Props) {
           </Text>
           <View style={styles.row}>
             {request.options.map((option) => (
-              <OptionTile key={option.id} option={option} mySeat={mySeat} selected={selected.includes(option.id)} disabled={!option.eligible} onToggle={() => toggle(option.id)} />
+              <OptionTile key={option.id} option={option} mySeat={mySeat} selected={selected.includes(option.id)} disabled={!option.eligible || nameTaken(option)} onToggle={() => toggle(option.id)} />
             ))}
           </View>
           <Pressable
