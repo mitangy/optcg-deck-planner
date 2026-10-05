@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
 import type {
   ChatLine,
   Intent,
@@ -635,6 +635,17 @@ export function DuelBoard({
   function toggleHandHidden() {
     setHandHidden((v) => !v);
     setHandFilter(null);
+  }
+
+  /**
+   * A mouse click leaves focus on the hand's card or button, and the next key
+   * press (S, Space, …) makes it :focus-visible, which holds the hand up after
+   * "Let the hand tuck away". Keyboard clicks (detail 0) keep their focus.
+   */
+  function dropHandClickFocus(e: ReactMouseEvent<HTMLElement>) {
+    if (e.detail === 0) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && e.currentTarget.contains(active)) active.blur();
   }
 
   /** Under the handle: Hide / Show, only with Keep hand open (H does the same). */
@@ -1990,6 +2001,7 @@ export function DuelBoard({
             } as CSSProperties
           }
           aria-label={`Your hand: ${handCount} cards`}
+          onClick={dropHandClickFocus}
         >
           <div className="hand-fan-head">
             {prefs.layoutGrips ? (
@@ -2058,6 +2070,7 @@ export function DuelBoard({
             } as CSSProperties
           }
           aria-label={`Your hand: ${handCount} cards`}
+          onClick={dropHandClickFocus}
         >
           <div className="hand-dock-head">
             <button

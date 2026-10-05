@@ -65,6 +65,28 @@ test("the centre hand fan tucks away after a click once the pointer leaves", asy
   await expect.poll(donCovered, { timeout: 3000 }).toBe(false);
 });
 
+// A clicked Hand button keeps focus, and the next key press (S here) makes it
+// :focus-visible, which held the fan up after "Let the hand tuck away".
+test("the hand fan tucks away after Let the hand tuck away and a key press (#291)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true })),
+  );
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const toggle = page.locator(".hand-fan-toggle");
+  await expect(toggle).toHaveAttribute("title", "Let the hand tuck away");
+  await toggle.click();
+  await page.mouse.move(640, 120);
+  await page.keyboard.press("s");
+  const fanUp = () =>
+    page.evaluate(() => {
+      const r = document.querySelector(".side-you .don-strip")!.getBoundingClientRect();
+      return !!document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest(".hand-fan");
+    });
+  await expect.poll(fanUp, { timeout: 3000 }).toBe(false);
+});
+
 // Clicking an empty card slot or a pile must not drop a blinking text caret on the mat.
 test("clicking board slots leaves no text caret on the mat (#246)", async ({ page }) => {
   await page.goto("/demo");
