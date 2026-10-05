@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadSettings, mergeRemoteSettings, syncedSettings } from "./settings";
+import { loadSettings, mergeRemoteSettings, resolveHandLayout, syncedSettings } from "./settings";
 
 function stubStored(value: unknown) {
   vi.stubGlobal("localStorage", { getItem: () => JSON.stringify(value) });
@@ -20,25 +20,22 @@ describe("loadSettings", () => {
   it("falls back per field when a stored value is invalid", () => {
     stubStored({ endTurnConfirm: "sometimes", turnSplash: "no", responseStops: "smart" });
     const s = loadSettings();
-    expect(s.endTurnConfirm).toBe("always");
+    expect(s.endTurnConfirm).toBe("actions");
     expect(s.turnSplash).toBe(true);
     expect(s.responseStops).toBe("smart");
   });
 });
 
-describe("floating cards", () => {
+describe("end-turn confirm default", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("floats cards for players whose saved settings predate the option", () => {
-    stubStored({ endTurnConfirm: "never" });
-    expect(loadSettings().floatingCards).toBe(true);
-  });
-
-  it("keeps the pop-up box for a player who turned floating cards off", () => {
-    stubStored({ floatingCards: false });
-    expect(loadSettings().floatingCards).toBe(false);
+  it("asks only while DON!! or attackers are left for players who never chose, and keeps a saved Always ask (#282)", () => {
+    stubStored({});
+    expect(loadSettings().endTurnConfirm).toBe("actions");
+    stubStored({ endTurnConfirm: "always" });
+    expect(loadSettings().endTurnConfirm).toBe("always");
   });
 });
 
@@ -75,6 +72,20 @@ describe("response stops migration", () => {
   it("turns the old switch off, or missing, into always", () => {
     stubStored({ autoPassDefense: false });
     expect(loadSettings().responseStops).toBe("always");
+    stubStored({});
+    expect(loadSettings().responseStops).toBe("always");
+  });
+
+  it("defaults to auto on a phone-sized touch screen and always elsewhere (#276)", () => {
+    const phone = (matches: boolean) =>
+      vi.stubGlobal("matchMedia", (q: string) => ({ matches: matches && q.includes("pointer: coarse") }));
+    phone(true);
+    stubStored({});
+    expect(loadSettings().responseStops).toBe("auto");
+    // A stored choice still wins over the device default.
+    stubStored({ responseStops: "always" });
+    expect(loadSettings().responseStops).toBe("always");
+    phone(false);
     stubStored({});
     expect(loadSettings().responseStops).toBe("always");
   });
@@ -126,9 +137,18 @@ describe("hand layout", () => {
     expect(loadSettings().handLayout).toBe("fan");
   });
 
-  it("replaces an unknown stored hand layout with the fan", () => {
+  it("starts on automatic for a player who never chose, and for an unknown stored value (#281)", () => {
+    stubStored({});
+    expect(loadSettings().handLayout).toBe("auto");
     stubStored({ handLayout: "dock" });
-    expect(loadSettings().handLayout).toBe("fan");
+    expect(loadSettings().handLayout).toBe("auto");
+  });
+
+  it("automatic is the Grid only on a tall desktop window; a saved choice always wins (#281)", () => {
+    expect(resolveHandLayout("auto", true)).toBe("grid");
+    expect(resolveHandLayout("auto", false)).toBe("fan");
+    expect(resolveHandLayout("fan", true)).toBe("fan");
+    expect(resolveHandLayout("grid", false)).toBe("grid");
   });
 
   it("turns the old centre and right fans into the one fan, the right one kept at the bottom right (#261)", () => {
@@ -184,6 +204,22 @@ describe("account settings", () => {
     expect(merged.turnSound).toBe(true);
     expect(merged.useDevKey).toBe(true);
     expect(merged.devUserKey).toBe("mine");
+  });
+
+  it("keeps the old right and centre fans from the account over this device's fan spot (#261)", () => {
+    stubStored({ handLayout: "fan", handFanPos: "0.2,0.5" });
+    expect(mergeRemoteSettings(loadSettings(), { handLayout: "fanRight" })).toMatchObject({
+      handLayout: "fan",
+      handFanPos: "0.88,1",
+    });
+    expect(mergeRemoteSettings(loadSettings(), { handLayout: "fanCenter" })).toMatchObject({
+      handLayout: "fan",
+      handFanPos: "",
+    });
+    // A spot the account saved since then still wins.
+    expect(
+      mergeRemoteSettings(loadSettings(), { handLayout: "fanRight", handFanPos: "0.4,1" }).handFanPos,
+    ).toBe("0.4,1");
   });
 });
 

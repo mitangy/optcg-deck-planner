@@ -3,7 +3,7 @@
  * match over, …) at each project's screen size. The fixtures cover prompt
  * states a random playthrough rarely reaches.
  */
-import { test, expect, formatIssues } from "./fixtures";
+import { test, expect, formatIssues, preferFan } from "./fixtures";
 import { isKnown } from "./known-issues";
 
 const SCREENS = [
@@ -13,6 +13,7 @@ const SCREENS = [
   "?statuses",
   "?over",
   "?undo=ask",
+  "?counter=block",
   ...["don", "don2", "look", "satori", "rest", "select", "restgrid", "selectgrid", "confirm", "hand", "order", "effects", "mode"].map((p) => `?prompt=${p}`),
   // Searches and effect ordering float by default; `?box` keeps the old pop-up.
   ...["look", "satori", "effects"].map((p) => `?box&prompt=${p}`),
@@ -35,6 +36,7 @@ for (const screen of ["?full", "?statuses", "?attack"]) {
     await page.addInitScript(() =>
       localStorage.setItem("optcg-duel:settings", JSON.stringify({ tiltedBoard: true })),
     );
+    await preferFan(page);
     await page.goto(`/demo${screen}`);
     await page.locator(".board-root").waitFor();
     const issues = (await duel.audit()).filter((i) => !isKnown(i));
@@ -44,10 +46,22 @@ for (const screen of ["?full", "?statuses", "?attack"]) {
   });
 }
 
+// Searchers always float their cards; an old saved "Floating cards" off no longer brings the pop-up back.
+test("a searcher floats its cards even with Floating cards saved off (#288)", async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ floatingCards: false })),
+  );
+  await page.goto("/demo?prompt=look");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".float-layer .float-card").first()).toBeVisible();
+  await expect(page.locator(".choice-prompt")).toHaveCount(0);
+});
+
 // A clicked hand card, Sort or Hand button keeps focus; the fan must still tuck
 // once the pointer leaves it, or it sits on your DON!! row (flat board).
 test("the centre hand fan tucks away after a click once the pointer leaves", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await preferFan(page);
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
   const donCovered = () =>
@@ -63,6 +77,28 @@ test("the centre hand fan tucks away after a click once the pointer leaves", asy
   await page.locator(".hand-fan-head .hand-rail-btn").click(); // Sort keeps focus too
   await page.mouse.move(640, 120);
   await expect.poll(donCovered, { timeout: 3000 }).toBe(false);
+});
+
+// A clicked Hand button keeps focus, and the next key press (S here) makes it
+// :focus-visible, which held the fan up after "Let the hand tuck away".
+test("the hand fan tucks away after Let the hand tuck away and a key press (#291)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true })),
+  );
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const toggle = page.locator(".hand-fan-toggle");
+  await expect(toggle).toHaveAttribute("title", "Let the hand tuck away");
+  await toggle.click();
+  await page.mouse.move(640, 120);
+  await page.keyboard.press("s");
+  const fanUp = () =>
+    page.evaluate(() => {
+      const r = document.querySelector(".side-you .don-strip")!.getBoundingClientRect();
+      return !!document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest(".hand-fan");
+    });
+  await expect.poll(fanUp, { timeout: 3000 }).toBe(false);
 });
 
 // Clicking an empty card slot or a pile must not drop a blinking text caret on the mat.
@@ -101,6 +137,7 @@ test("H hides and shows the hand with Keep hand open (#259)", async ({ page }) =
   await page.addInitScript(() =>
     localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true })),
   );
+  await preferFan(page);
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
   await page.mouse.move(640, 120);
@@ -193,6 +230,7 @@ test("the Grid hand drags into the left column, stays after a reload, and Reset 
 // every grip but keeps the layout.
 test("the fanned hand drags to the middle of the screen and floats there after a reload, and Drag handles off hides the grips (#261)", async ({ page, duel }, info) => {
   test.skip(info.project.name !== "desktop-1280", "the fan moves on desktop only");
+  await preferFan(page);
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
   const fan = page.locator(".hand-fan");
@@ -274,7 +312,7 @@ test("Tab visits the field cards, the hand, then the other controls and comes ba
         const el = document.activeElement as HTMLElement | null;
         if (!el) return "none";
         if (el.closest(".side-field")) return "field";
-        if (el.closest(".hand-fan-cards, .hand-row-inner")) return "hand";
+        if (el.closest(".hand-fan-cards, .hand-row-inner, .rail-hand-cards")) return "hand";
         return `other:${el.getAttribute("aria-label") ?? el.textContent?.trim().slice(0, 20)}`;
       }),
     );
@@ -282,7 +320,7 @@ test("Tab visits the field cards, the hand, then the other controls and comes ba
   const firstHand = seen.indexOf("hand");
   expect(seen[0]).toBe("field");
   expect(firstHand).toBeGreaterThan(0);
-  expect(seen.slice(0, firstHand).every((s) => s === "field")).toBe(true);
+  expect(seen.slice(0, firstHand).every((s) => s === "field"), seen.join(", ")).toBe(true);
   const others = seen.filter((s) => s.startsWith("other:"));
   expect(others.some((s) => /concede/i.test(s)), seen.join(", ")).toBe(true);
   // After the other controls, Tab comes back round to the cards.
@@ -376,6 +414,9 @@ const LIGHT_TEXT: Record<string, string[]> = {
     ".card-preview-traits",
     ".battle-log-turn-title",
     ".turn-order-badge:not(.first)",
+    ".recent-play-you .recent-play-who",
+    ".recent-play-opp .recent-play-who",
+    ".log-phase .log-text",
   ],
   "/": [".home-kicker"],
   "/settings": [".panel-title"],
@@ -490,6 +531,165 @@ test("the opponent hand pins to the top of the mat, stays after a reload, and dr
   expect(duel.errors).toEqual([]);
 });
 
+// Block step: dragging a Counter onto the defender passes the block and plays
+// that Counter in one gesture (desktop: from the hand, phone: from the tray).
+test("dragging a Counter onto the defender in the block step skips the block and counters (#300)", async ({ page }) => {
+  await page.goto("/demo?counter=block");
+  await page.locator(".board-root").waitFor();
+  const phone = test.info().project.name === "phone-375";
+  const source = phone
+    ? page.locator('.defend-chip-early[data-hand-card-id="y-h1"]')
+    : page.locator(":is(.hand-fan-cards, .rail-hand-cards, .hand-dock-cards, .hand-row-inner) > .card-tile").first();
+  const leader = page.locator('.side-you .card-tile[data-instance-id="y-leader"]').first();
+  await expect(source).toBeVisible();
+  // Let the turn splash clear: it sits over the Leader.
+  await page.waitForTimeout(2500);
+  const to = (await leader.boundingBox())!;
+  // The desktop fan overlaps and peeks up from the bottom edge: grab a point
+  // where the dragged card itself is on top.
+  const [sx, sy] = await source.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    for (let y = r.top + 6; y < Math.min(r.bottom, innerHeight); y += 4) {
+      for (let x = r.left + 4; x < r.right; x += 4) {
+        if (document.elementFromPoint(x, y)?.closest(".card-tile, .defend-chip") === el) return [x, y];
+      }
+    }
+    return [r.left + r.width / 2, r.top + r.height / 2];
+  });
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  // Small first steps on the card, or the drag never arms.
+  for (let i = 1; i <= 4; i += 1) await page.mouse.move(sx, sy + i * 3);
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await expect
+    .poll(() => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents))
+    .toEqual([{ type: "pass_block" }, { type: "counter_from_hand", handIndex: 0 }]);
+});
+
+// Hand sort off: a hand card dropped back on the hand moves there instead of
+// being played; dropped on the board it is still played.
+for (const handLayout of ["fan", "grid"]) {
+  test(`${handLayout} hand cards drag to a new spot in the hand when Sort is off, and still play on the board (#294)`, async ({ page }) => {
+    await page.addInitScript(
+      (layout) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ handLayout: layout })),
+      handLayout,
+    );
+    await page.goto("/demo");
+    await page.locator(".board-root").waitFor();
+    const cards = page.locator(
+      ".hand-fan-cards > .card-tile, .hand-row-inner > .card-tile, .rail-hand-cards > .card-tile, .hand-dock-cards > .card-tile",
+    );
+    const order = () => cards.evaluateAll((els) => els.map((e) => e.getAttribute("data-motion-id")));
+    const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
+    const touch = test.info().project.name === "phone-375";
+    type Box = { x: number; y: number; width: number; height: number };
+    // Drag hand card `from` to a point worked out once the hand is raised under the pointer.
+    const drag = async (from: number, to: (box: (i: number) => Promise<Box>) => Promise<{ x: number; y: number }>) => {
+      const box = async (i: number) => (await cards.nth(i).boundingBox())!;
+      let b = await box(from);
+      if (!touch) {
+        await page.mouse.move(b.x + b.width / 2, b.y + 12);
+        await page.waitForTimeout(450);
+        b = await box(from);
+      }
+      const start = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      const end = await to(box);
+      if (touch) {
+        // Lift the card a little first: a sideways pan scrolls the hand row.
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [start] });
+        for (const p of [{ x: start.x, y: start.y - 16 }, { x: end.x, y: start.y - 16 }, end]) {
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [p] });
+          await page.waitForTimeout(30);
+        }
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        return;
+      }
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(start.x, start.y - 14, { steps: 4 });
+      await page.mouse.move(end.x, end.y, { steps: 10 });
+      await page.mouse.up();
+    };
+    const before = await order();
+    expect(before.length).toBeGreaterThan(3);
+    const [h1, h2, h3, h4, ...rest] = before;
+
+    // Hand card 0 is playable: dropped on the right half of the third card it moves past it, unplayed.
+    await drag(0, async (box) => {
+      const third = await box(2);
+      return { x: third.x + third.width * 0.85, y: third.y + third.height / 2 };
+    });
+    await expect.poll(order).toEqual([h2, h3, h1, h4, ...rest]);
+    expect(await sent()).toEqual([]);
+
+    // A card with nothing to play moves too: the fourth card goes first.
+    await drag(3, async (box) => {
+      const first = await box(0);
+      return { x: first.x + 6, y: first.y + first.height / 2 };
+    });
+    await expect.poll(order).toEqual([h4, h2, h3, h1, ...rest]);
+    expect(await sent()).toEqual([]);
+
+    // Dropped on the board, a playable card is still played.
+    await drag(3, async () => {
+      const field = (await page.locator('.side-you [data-dnd-drop="play_field"]').first().boundingBox())!;
+      return { x: field.x + field.width / 2, y: field.y + field.height / 2 };
+    });
+    await expect.poll(sent).toEqual([{ type: "play_card", handIndex: 0 }]);
+  });
+}
+
+// The trash browser shows readable cards, not the tiny board tile (#287).
+test("trash viewer cards are big enough to read (#287)", async ({ page, duel }, info) => {
+  await page.goto("/demo");
+  await page.locator(".board-root").waitFor();
+  await page.locator(".side-you .zone-trash .zone-pile").click();
+  const tile = page.locator(".trash-viewer-grid .card-tile").first();
+  await tile.waitFor();
+  const box = (await tile.boundingBox())!;
+  const phone = info.project.name === "phone-375";
+  expect(box.width).toBeGreaterThanOrEqual(phone ? 90 : 140);
+  const issues = (await duel.audit()).filter((i) => !isKnown(i));
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+// Only a card's owner may change its alt art: the opponent's Guard Point from
+// Recent plays has no Artwork row, your own Guard Point in your trash does (#287).
+test("an opponent's card opened from Recent plays offers no art change (#287)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "Recent plays is a desktop side panel");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await page.locator(".recent-play-opp", { hasText: "Guard Point" }).first().click({ button: "right" });
+  await expect(page.locator(".card-inspect-name")).toHaveText("Guard Point");
+  await expect(page.locator(".card-inspect-alts")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  await page.locator(".side-you .zone-trash .zone-pile").click();
+  await page.locator(".trash-viewer-grid .card-tile", { hasText: "Guard Point" }).click();
+  await expect(page.locator(".card-inspect-name")).toHaveText("Guard Point");
+  await expect(page.locator(".card-inspect-alts")).toHaveCount(1);
+});
+
+// Right-click the trash for the top card's details; a left click still opens the whole trash (#287).
+test("right-clicking the trash shows the top card, left click opens the trash (#287)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "right-click is a mouse gesture");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const pile = page.locator(".side-you .zone-trash .zone-pile");
+  await pile.click({ button: "right" });
+  await expect(page.locator(".card-inspect-name")).toBeVisible();
+  const name = await page.locator(".card-inspect-name").innerText();
+  await expect(page.locator(".trash-viewer")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".card-inspect")).toHaveCount(0);
+
+  await pile.click();
+  await expect(page.locator(".trash-viewer-grid .card-tile").first()).toContainText(name);
+  await expect(page.locator(".card-inspect")).toHaveCount(0);
+});
+
 // "Opponent hand, top right" used to only restyle the side panel's fan on
 // desktop. It is now the top-right spot: pinned on the mat on desktop, the
 // right of the opponent's half on phones, where the switch still lives (#297).
@@ -516,9 +716,9 @@ test("Opponent hand, top right pins the hand top right on desktop and phones (#2
   await page.goto("/settings");
   const toggle = page.getByLabel("Opponent hand, top right");
   if (desktop) {
-    // Desktop picks the spot from the Opponent hand list instead.
+    // Desktop picks the spot from the Opponent hand position list instead.
     await expect(toggle).toHaveCount(0);
-    await expect(page.getByLabel("Opponent hand", { exact: true })).toHaveValue("right");
+    await expect(page.getByLabel("Opponent hand position")).toHaveValue("right");
     return;
   }
   await expect(toggle).toBeChecked();

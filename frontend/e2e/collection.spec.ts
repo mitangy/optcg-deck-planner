@@ -76,3 +76,53 @@ test("a scanned or looked-up card can be added from the scanner (#268)", async (
   await dialog.getByRole("button", { name: "Close scanner" }).click();
   await expect(page.locator(row("EB01-009"))).toBeVisible();
 });
+
+test("Collection picks up copies a group buy's Mark purchased adds and Undo takes back (#268)", async ({ page, planner }) => {
+  // Stay in the SPA (no reload) so the Collection list cached on open is what comes back.
+  const nav = page.getByRole("navigation", { name: "Primary" });
+  const totals = page.getByRole("list", { name: "Collection totals" });
+  const toGroupBuy = async () => {
+    await nav.getByRole("link", { name: "Group buys" }).click();
+    await page.getByRole("link", { name: /Kid & Killer split/ }).click();
+    await expect(page.getByRole("heading", { name: "Kid & Killer split", level: 1 })).toBeVisible();
+  };
+  const toCollection = async () => {
+    await nav.getByRole("link", { name: "Collection" }).click();
+    await expect(page.getByRole("heading", { name: "Collection", level: 1 })).toBeVisible();
+  };
+  page.on("dialog", (d) => void d.accept());
+  await expect(totals).toContainText("$5.80");
+
+  await toGroupBuy();
+  await page.getByRole("button", { name: "Mark purchased (4)" }).click();
+  await expect.poll(() => planner.owned.get("EB01-003")).toBe(4);
+  await expect(page.getByRole("button", { name: "Undo Mark purchased" })).toBeVisible();
+  await toCollection();
+  // Kid & Killer (4 × $6.80) is now owned, so it is listed and in the total, not offered as "Add".
+  await expect(page.locator(row("EB01-003"))).toBeVisible();
+  await expect(totals).toContainText("$33.00");
+
+  await toGroupBuy();
+  await page.getByRole("button", { name: "Undo Mark purchased" }).click();
+  await expect.poll(() => planner.owned.get("EB01-003")).toBe(0);
+  await expect(page.getByRole("button", { name: "Mark purchased (4)" })).toBeVisible();
+  await toCollection();
+  await expect(page.locator(row("EB01-003"))).toHaveCount(0);
+  await expect(totals).toContainText("$5.80");
+});
+
+test("Collection picks up a card marked Buying in person on the shopping list (#268)", async ({ page, planner }) => {
+  // Stay in the SPA (no reload) so the Collection list cached on open is what comes back.
+  const nav = page.getByRole("navigation", { name: "Primary" });
+  const totals = page.getByRole("list", { name: "Collection totals" });
+  await expect(totals).toContainText("$5.80");
+  await nav.getByRole("link", { name: "Shopping" }).click();
+  // A checkbox in the desktop table; the whole card is the toggle in the phone list (Space toggles either).
+  const select = { name: "Select EB01-003", exact: true };
+  await page.getByRole("checkbox", select).or(page.getByRole("button", select)).filter({ visible: true }).press("Space");
+  await page.getByRole("button", { name: "Buying in person" }).click();
+  await expect.poll(() => planner.owned.get("EB01-003")).toBe(4);
+  await nav.getByRole("link", { name: "Collection" }).click();
+  await expect(page.locator(row("EB01-003"))).toBeVisible();
+  await expect(totals).toContainText("$33.00");
+});

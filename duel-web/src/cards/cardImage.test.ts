@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { artAfterError, cardImageUrl, isTcgplayerCdnUrl } from "./cardImage";
+import { artAfterError, cardImageUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "./cardImage";
 import { lookupCard } from "./atlas";
 
 describe("cardImageUrl", () => {
@@ -34,5 +34,19 @@ describe("artAfterError", () => {
     const local = artAfterError(cdn, "op01-001");
     expect(local).toBe("/cards/OP01-001.png");
     expect(artAfterError(local!, "op01-001")).toBeNull();
+  });
+});
+
+describe("TCGplayer placeholder art (#276)", () => {
+  const cdn = "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg";
+
+  it("a landscape picture from the CDN is the Image Coming Soon placeholder (#276)", () => {
+    expect(isPlaceholderArt(cdn, 400, 285)).toBe(true);
+    expect(isPlaceholderArt(cdn, 285, 400)).toBe(false);
+  });
+
+  it("only judges CDN pictures that have loaded (#276)", () => {
+    expect(isPlaceholderArt("/cards/ST01-001.png", 400, 285)).toBe(false);
+    expect(isPlaceholderArt(cdn, 0, 0)).toBe(false);
   });
 });

@@ -68,7 +68,8 @@ export function getPlayerView(state: MatchState, seat: Seat) {
   const you = state.players[seat];
   const oppSeat = otherSeat(seat);
   const opp = state.players[oppSeat];
-  const defending = state.phase === "counter" && state.battle != null && otherSeat(state.battle.attackerSeat) === seat;
+  // Block step too: dragging a Counter onto the defender there skips the block (duel-web).
+  const defending = (state.phase === "block" || state.phase === "counter") && state.battle != null && otherSeat(state.battle.attackerSeat) === seat;
   return {
     seat,
     you: {

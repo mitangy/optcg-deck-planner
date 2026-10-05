@@ -452,9 +452,9 @@ function execSelect(sim: Sim, frame: ResolutionFrame, instr: Extract<Instr, { op
   });
   const hidden = list.some((l) => l.zone === "hand" || l.zone === "deck" || l.zone === "life");
   const limit = min === max ? `${max}` : min === 0 ? `up to ${max}` : `${min}–${max}`;
-  const prompt = `${promptPrefix(frame)} — choose ${limit} card${max === 1 ? "" : "s"} to ${instr.purpose}.`;
+  const prompt = `${promptPrefix(frame)} — choose ${limit} card${max === 1 ? "" : "s"} to ${instr.purpose}${instr.purpose.endsWith(".") ? "" : "."}`;
   pushChoice(sim, frame, {
-    seat: chooser, kind: "effect", optional: false, prompt, request: { type: "select", min, max, options }, bindings,
+    seat: chooser, kind: "effect", optional: false, prompt, request: { type: "select", min, max, options, ...(instr.distinctNames ? { distinctNames: true as const } : {}) }, bindings,
     ...(hidden ? { privateToSeat: chooser, optionCount: options.length } : {}),
   });
   frame.bindings._selectMeta = JSON.stringify({ totalCostAtMost: instr.totalCostAtMost ?? null, totalPowerAtMost: instr.totalPowerAtMost ?? null, distinctNames: instr.distinctNames ?? false });
@@ -719,8 +719,10 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       }
       const lifePosition: "top" | "bottom" = effect.position === "top_or_bottom" ? (frame.bindings._end === 0 ? "top" : "bottom") : effect.position;
       delete frame.bindings._end;
-      for (const loc of targetsOf(effect.target)) {
-        if (loc.zone === "leader" || loc.zone === "life") continue;
+      for (const target of targetsOf(effect.target)) {
+        // Re-locate: an earlier move shifted the indexes of the zone it left.
+        const loc = locate(state, target.id);
+        if (!loc || loc.zone === "leader" || loc.zone === "life") continue;
         const entry = takeCard(state, loc);
         putCard(state, loc.seat, "life", entry, { position: lifePosition, faceUp: effect.faceUp });
         if (loc.zone === "character") dispatchEvent(state, "character_left_field", { seat: loc.seat, card: entry, byEffectOf: frame.seat });
@@ -730,8 +732,10 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
     }
     case "play": {
       frame.bindings._affected = [];
-      for (const loc of targetsOf(effect.target)) {
-        if (isOnField(loc)) continue;
+      for (const target of targetsOf(effect.target)) {
+        // Re-locate: an earlier play shifted the indexes of the zone it left.
+        const loc = locate(state, target.id);
+        if (!loc || isOnField(loc)) continue;
         const def = getCardDef(loc.defId);
         if (def.type !== "character" && def.type !== "stage") continue;
         if (def.type === "character" && playerRestricted(state, loc.seat, "cannot_play_characters", loc)) continue;

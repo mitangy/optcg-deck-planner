@@ -7,6 +7,21 @@ export function toggleSelection(selected: readonly string[], id: string, max: nu
   return selected.length >= max ? [...selected] : [...selected, id];
 }
 
+/**
+ * "With different card names": unpicked options sharing a name with a picked
+ * one can't be added. Picked options stay toggleable so they can be dropped.
+ */
+export function nameTakenIds(
+  options: readonly ChoiceOptionView[],
+  selected: readonly string[],
+  distinctNames: boolean | undefined,
+  nameOf: (option: ChoiceOptionView) => string | null,
+): Set<string> {
+  if (!distinctNames) return new Set();
+  const picked = new Set(options.filter((o) => selected.includes(o.id)).map(nameOf).filter((n): n is string => n != null));
+  return new Set(options.filter((o) => !selected.includes(o.id) && picked.has(nameOf(o) ?? "")).map((o) => o.id));
+}
+
 /** One-tap: exactly one pick is wanted, so choosing it answers at once. */
 export function resolvesOnPick(oneTap: boolean, min: number, max: number): boolean {
   return oneTap && min === 1 && max === 1;
@@ -96,7 +111,9 @@ export type BoardPick = { selected: string[]; chips: Record<string, string> };
  * A tap on a board spot (on a cost-area chip when `chipId` is given). Tapping
  * a picked chip or card drops it; otherwise the next unpicked option there is
  * added (a single pick swaps). A card with several DON!! under it counts up
- * one per tap, and once all are picked the next tap drops them.
+ * one per tap; a tap on it drops all its picks once none there is left
+ * unpicked or the limit is reached (with one pick allowed, the second tap),
+ * so the card can always be un-picked.
  */
 export function tapBoardSpot(
   pick: BoardPick,
@@ -111,7 +128,9 @@ export function tapBoardSpot(
     if (held) return dropPicks(pick, [held]);
   }
   const free = here.find((id) => !pick.selected.includes(id));
-  if (!free) return chipId != null ? pick : dropPicks(pick, here);
+  const heldHere = here.filter((id) => pick.selected.includes(id));
+  if (chipId == null && heldHere.length && (!free || pick.selected.length >= max)) return dropPicks(pick, heldHere);
+  if (!free) return pick;
   const chips = chipId != null ? { [free]: chipId } : {};
   if (max === 1) return { selected: [free], chips };
   if (pick.selected.length >= max) return pick;

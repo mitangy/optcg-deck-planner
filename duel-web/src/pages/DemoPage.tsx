@@ -3,6 +3,7 @@ import type { CardView, ChatLine, PlayerView, RematchState, UndoState } from "..
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
 import { motionDemoSteps } from "./motionDemo";
+import type { MatchHistoryEntry } from "../history/historyApi";
 
 const DEMO_INSTANCES: InstanceIndex = new Map([
   ["y-leader", { defId: "ST01-001", seat: 0 }],
@@ -42,6 +43,25 @@ export const DEMO_BATTLE_LOG: BattleLogEntry[] = [
     { youSeat: 0, turnNumber: 3, instances: DEMO_INSTANCES },
   ),
 ];
+
+/** `?over`: a saved ranked match with a log, as the match-over card finds it (`&guest` leaves it out). */
+const loadDemoRecord = (matchId: string): Promise<MatchHistoryEntry> =>
+  Promise.resolve({
+    match_id: matchId,
+    created_at: null,
+    ranked: true,
+    your_seat: 0,
+    won: false,
+    reason: "leader_battle_at_zero_life",
+    turns: 9,
+    your_leader_id: "ST01-001",
+    opponent_leader_id: "ST01-001",
+    opponent_name: "Opponent",
+    rating_before: 1028,
+    rating_after: 1012,
+    has_replay: false,
+    has_log: true,
+  });
 
 /** Static playmat preview for layout QA (`/demo`). Not a live match. */
 export const DEMO_VIEW: PlayerView = {
@@ -460,7 +480,7 @@ function intParam(params: URLSearchParams, key: string): number | null {
 
 /**
  * Pile / cost-area overrides for layout QA, e.g. `/demo?don=10&rested=10&dondeck=0`
- * or `/demo?deck=0&trash=0&life=0`. Applied to both seats so each mat is checked.
+ * or `/demo?deck=0&trash=0&life=0`; `hand=N` sets the size of your hand. Applied to both seats so each mat is checked.
  */
 export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): PlayerView {
   const don = intParam(params, "don");
@@ -469,7 +489,8 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
   const deck = intParam(params, "deck");
   const trash = intParam(params, "trash");
   const life = intParam(params, "life");
-  if ([don, rested, donDeck, deck, trash, life].every((v) => v == null)) return base;
+  const hand = intParam(params, "hand");
+  if ([don, rested, donDeck, deck, trash, life, hand].every((v) => v == null)) return base;
 
   const touchDon = don != null || rested != null;
   const total = don ?? base.you.costArea.length;
@@ -490,6 +511,14 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
       donDeckCount: donDeck ?? base.you.donDeckCount,
       deckCount: deck ?? base.you.deckCount,
       lifeCount: life ?? base.you.lifeCount,
+      // `?hand=19`: a big hand (the fan must stay on screen), cycling the sample cards.
+      hand:
+        hand == null
+          ? base.you.hand
+          : Array.from({ length: hand }, (_, i) => ({
+              ...base.you.hand[i % base.you.hand.length]!,
+              id: `y-h${i + 1}`,
+            })),
       trash: trashFor(base.you.trash),
     },
     opponent: {
@@ -626,24 +655,32 @@ function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
   }
   if (params.has("counter")) {
     // `?counter=short`: a 9000-power attacker, so counters are still needed (no "Resolve" yet).
-    const opponent =
-      params.get("counter") === "short"
-        ? {
-            ...base.opponent,
-            characters: base.opponent.characters.map((c) =>
-              c.id === "o-c1" ? { ...c, power: 9000 } : c,
-            ),
-          }
-        : base.opponent;
+    // `?counter=newgate`: long names on both sides (Edward.Newgate -> Marshall.D.Teach),
+    // to check the battle strip against the dock.
+    const mode = params.get("counter");
+    const attacker =
+      mode === "short"
+        ? { power: 9000 }
+        : mode === "newgate"
+          ? { defId: "OP12-002", power: 5000 }
+          : null;
+    const opponent = attacker
+      ? {
+          ...base.opponent,
+          characters: base.opponent.characters.map((c) => (c.id === "o-c1" ? { ...c, ...attacker } : c)),
+        }
+      : base.opponent;
     // `?counter=haki`: the [Counter] event is Color of the Supreme King Haki,
     // whose "rest 1 DON!!?" Yes/No shows above the hand once it is played.
     const you =
-      params.get("counter") === "haki"
+      mode === "haki"
         ? {
             ...base.you,
             hand: base.you.hand.map((c) => (c.id === "y-h6" ? { ...c, defId: "OP12-018" } : c)),
           }
-        : base.you;
+        : mode === "newgate"
+          ? { ...base.you, leader: { ...base.you.leader, defId: "OP09-081", power: 5000 } }
+          : base.you;
     return {
       ...base,
       you,
@@ -667,6 +704,18 @@ function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
     };
   }
   return base;
+}
+
+/**
+ * `?counter=block`: the same attack one step earlier, in the block step (Nico
+ * Robin can block), to drag a Counter onto the Leader and skip the block.
+ */
+function withBlockStep(base: PlayerView): PlayerView {
+  return {
+    ...base,
+    phase: "block",
+    legalIntents: [{ type: "pass_block" }, { type: "declare_block", blockerId: "y-c3" }],
+  };
 }
 
 /** `?counter=haki` after the Haki is played: out of the hand, asking its optional DON!! rest. */
@@ -740,13 +789,13 @@ function withWaiting(base: PlayerView, kind: string | null): PlayerView {
  * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
  * undo (`?undo=ask` shows an incoming request), `?waiting` the invite screen,
  * `?oppturn` the opponent's turn, `?clock` per-player clocks, `?away` a
- * disconnected opponent, `?over` the match-over screen with a rematch vote
+ * disconnected opponent, `?over` the match-over screen (`&guest`: no saved match) with a rematch vote
  * (`&rematch=ask|wait|choose|left`), `?full` a full board, `?rest=N` / `?restlead` /
  * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
  * icons (see withManyStatuses), `?motion` a button that steps
  * through every card animation, `?box` the old pop-up instead of floating-card
- * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=haki`: the Haki's Yes/No above the hand) drag QA (see
- * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts: see applyDemoZoneParams.
+ * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=newgate`: long names on both sides; `=haki`: the Haki's Yes/No above the hand; `=block`: the block step, to skip it with a Counter drag) drag QA (see
+ * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts and `?hand=N` hand size: see applyDemoZoneParams.
  */
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
@@ -795,7 +844,14 @@ export function DemoPage() {
     : withTurn;
   // `?counter=haki`: after the event is played it waits on its optional DON!! rest.
   const [haki, setHaki] = useState<"hand" | "asking" | "done">("hand");
-  const shown: PlayerView = haki === "hand" ? view : withHakiResolving(view, haki === "asking");
+  // `?counter=block`: the block step until No block (or a Counter drag) passes it.
+  const [blockPassed, setBlockPassed] = useState(false);
+  const shown: PlayerView =
+    haki !== "hand"
+      ? withHakiResolving(view, haki === "asking")
+      : params.get("counter") === "block" && !blockPassed
+        ? withBlockStep(view)
+        : view;
   // `?motion`: one state per click; Replay remounts the board to replay the deal.
   const motionSteps = useMemo(() => (params.has("motion") ? motionDemoSteps(view) : null), []);
   const [motionStep, setMotionStep] = useState(0);
@@ -856,6 +912,7 @@ export function DemoPage() {
         matchId="demo-playmat"
         errorBanner={null}
         matchOver={params.has("over") ? { winner: 1, reason: "leader_battle_at_zero_life" } : null}
+        loadMatchRecord={params.has("over") && !params.has("guest") ? loadDemoRecord : undefined}
         rematch={
           params.has("over")
             ? {
@@ -927,6 +984,9 @@ export function DemoPage() {
         onSendIntent={(intent) => {
           const w = window as { __demoIntents?: unknown[] };
           (w.__demoIntents ??= []).push(intent);
+          if (params.get("counter") === "block" && intent.type === "pass_block") {
+            setBlockPassed(true);
+          }
           if (params.get("counter") === "haki") {
             if (intent.type === "counter_event") setHaki("asking");
             if (intent.type === "resolve_pending_choice") setHaki("done");

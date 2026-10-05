@@ -16,6 +16,7 @@ import {
   resolveAbilitySupport,
 } from "../cards/abilitySupport";
 import {
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -27,6 +28,7 @@ import type { PreviewLive } from "./cardPreview";
 import { LiveCardStatus } from "./LiveCardStatus";
 import { CardReportForm } from "./CardReportForm";
 import { counterValueFor, formatCounter } from "../cards/counterValue";
+import { artEditSeat, MatchViewerSeatContext } from "./artOwnership";
 
 type Props = {
   defId: string;
@@ -61,6 +63,7 @@ export function CardInspect({
   live,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
+  const matchSeat = useContext(MatchViewerSeatContext);
   const artTick = useSyncExternalStore(
     subscribeArtPrefs,
     getArtPrefsTick,
@@ -101,12 +104,10 @@ export function CardInspect({
   if (!open) return null;
 
   const alts = entry.altArts ?? [];
-  const prefSeat = viewingSeat ?? ownerSeat;
   // Deck-configure inspect can edit deck-scoped art without seats.
-  // In-match: only allow editing artwork for cards you own (or unscoped).
-  const canEditArt = deck
-    ? true
-    : prefSeat != null && (ownerSeat == null || ownerSeat === prefSeat);
+  // In-match: only the card's owner may change its artwork.
+  const prefSeat = artEditSeat({ ownerSeat, viewingSeat, matchSeat });
+  const canEditArt = deck ? true : prefSeat != null;
 
   function applyAlt(altId: string | null) {
     if (!canEditArt) return;
@@ -237,13 +238,6 @@ export function CardInspect({
               </div>
             ) : null}
             <CardReportForm key={defId} cardId={entry.id} />
-            <button
-              type="button"
-              className="btn btn-secondary card-inspect-close-bottom"
-              onClick={onClose}
-            >
-              Close
-            </button>
           </div>
         </div>
       </div>

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { BackLink } from "./BackLink";
+import { isIncompleteDeck } from "../decks/deckStatus";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import {
@@ -221,7 +223,14 @@ function DeckRow({
           </span>
         )}
         <div className="deck-list-meta">
-          <div className="deck-list-name">{deck.name}</div>
+          <div className="deck-list-name">
+            {deck.name}
+            {isIncompleteDeck(deck) ? (
+              <span className="deck-incomplete-badge" title={`${deck.cards.length} of 50 main-deck cards`}>
+                Incomplete
+              </span>
+            ) : null}
+          </div>
           <div className="deck-list-sub">
             {leader.name} ({deck.leaderId}) · {deck.cards.length} main
           </div>
@@ -231,7 +240,11 @@ function DeckRow({
         <button type="button" className="btn btn-danger deck-list-delete" onClick={onDelete}>
           Delete
         </button>
-      ) : null}
+      ) : (
+        <span className="deck-list-builtin" title="Built-in test deck">
+          Built-in
+        </span>
+      )}
     </SwipeRow>
   );
 }
@@ -240,6 +253,7 @@ export function DeckListPage() {
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
   const [planner, setPlanner] = useState<PlannerState>({ status: "loading" });
+  const [plannerTry, setPlannerTry] = useState(0);
   const [importing, setImporting] = useState(false);
   const [importErr, setImportErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -372,7 +386,7 @@ export function DeckListPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [plannerTry]);
 
   const decks = useMemo(() => {
     void tick;
@@ -424,9 +438,7 @@ export function DeckListPage() {
     <div className={`app-shell${drag ? " is-deck-dragging" : ""}`}>
       <div className="deck-config deck-config-wide deck-list-page">
         <header className="deck-config-header">
-          <Link to="/" className="btn btn-secondary deck-config-back">
-            ← Home
-          </Link>
+          <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <div className="deck-config-heading">
             <h1 className="deck-config-title">Decks</h1>
             <p className="meta">Choose a deck to edit, or create a new one.</p>
@@ -501,7 +513,19 @@ export function DeckListPage() {
                 .
               </p>
             ) : planner.status === "error" ? (
-              <p className="error-text deck-planner-status">{planner.message}</p>
+              <p className="error-text deck-planner-status" title={planner.message}>
+                Couldn&apos;t load your planner decks.{" "}
+                <button
+                  type="button"
+                  className="linkish"
+                  onClick={() => {
+                    setPlanner({ status: "loading" });
+                    setPlannerTry((n) => n + 1);
+                  }}
+                >
+                  Try again
+                </button>
+              </p>
             ) : planner.decks.length === 0 ? (
               <p className="meta deck-planner-status">No planner decks yet.</p>
             ) : (

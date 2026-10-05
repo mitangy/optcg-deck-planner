@@ -6,7 +6,8 @@ import { DON_CARD_ART } from "./donArt";
 import { arrangementAnswer, arrangementRows, groupAnswer, initialArrangement, mergeArrangement, moveToRow, nudge, setSide, withoutIds, type Arrangement } from "./deckOrder";
 import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "./liveTargets";
 import { promptSourceName, PromptHideButton } from "./HideablePrompt";
-import { boardPickSpots, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo, type BoardPick, type BoardSpot } from "./fieldTargets";
+import { promptBody } from "./promptText";
+import { boardPickSpots, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo, type BoardPick, type BoardSpot } from "./fieldTargets";
 import { FieldTargetBar } from "./FieldTargetBar";
 import { useDuelSettings } from "../settings";
 
@@ -42,8 +43,13 @@ function optionName(option: ChoiceOptionView): string {
   return lookupCard(option.defId).name;
 }
 
+/** Card name of a visible card option (null for DON!!, labels and hidden cards). */
+function cardName(option: ChoiceOptionView): string | null {
+  return option.defId && option.defId !== "HIDDEN" ? lookupCard(option.defId).name : null;
+}
+
 /** Card art tile (or labeled chip) for one choice option. */
-export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge, lookOnly = false }: {
+export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge, lookOnly = false, disabledNote = "not eligible" }: {
   option: ChoiceOptionView;
   mySeat: Seat;
   selected: boolean;
@@ -52,6 +58,8 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge
   badge?: string;
   /** Pure look (nothing can be taken): don't label cards "not eligible". */
   lookOnly?: boolean;
+  /** Why a disabled card can't be picked. */
+  disabledNote?: string;
 }) {
   const owner = option.ownerSeat == null ? null : option.ownerSeat === mySeat ? "Yours" : "Opponent";
   const zone = option.zone ? ZONE_LABEL[option.zone] ?? option.zone : null;
@@ -118,7 +126,7 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge
       <span className="choice-option-caption">
         {badge ? <span className="choice-badge">{badge}</span> : null}
         {[owner, where].filter(Boolean).join(" · ")}
-        {disabled && !lookOnly ? " · not eligible" : ""}
+        {disabled && !lookOnly ? ` · ${disabledNote}` : ""}
       </span>
       {readiness ? (
         <span className={`choice-readiness choice-readiness-${readiness.toLowerCase().replace(/\s+/g, "-")}`}>
@@ -135,6 +143,14 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge
  * scoped style rule keyed on the tiles' `data-instance-id`.
  */
 export function BoardHighlight({ ids, kind, hand = false }: { ids: string[]; kind: "hover" | "candidate"; hand?: boolean }) {
+  const first = ids[0];
+  const scrollsHand = hand && kind === "candidate";
+  // A scrolling hand strip may have the choosable cards off-screen: bring the first into view.
+  useEffect(() => {
+    if (!scrollsHand || !first) return;
+    const el = document.querySelector<HTMLElement>(`${HAND_ROWS} > .card-tile[data-motion-id="${first.replace(/"/g, "")}"]`);
+    el?.scrollIntoView?.({ block: "nearest", inline: "center" });
+  }, [scrollsHand, first]);
   if (!ids.length) return null;
   const esc = (id: string) => (typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, ""));
   const selector = ids.map((id) => (hand ? `${HAND_TILE}[data-motion-id="${esc(id)}"]` : `.side-field .card-tile[data-instance-id="${esc(id)}"]`)).join(", ");
@@ -142,7 +158,9 @@ export function BoardHighlight({ ids, kind, hand = false }: { ids: string[]; kin
     kind === "hover"
       ? `${selector} { outline: 3px solid var(--chrome-bright); outline-offset: 2px; box-shadow: 0 0 18px rgba(240, 220, 168, 0.8); z-index: 4; }`
       : `${selector} { outline: 2px dashed rgba(240, 220, 168, 0.75); outline-offset: 2px; cursor: pointer; }`;
-  return <style>{rule}</style>;
+  // Hand picks: a crowded hand hides a dashed line, so dim every card that can't be chosen.
+  const dim = hand && kind === "candidate" ? ` ${HAND_ROWS} > .card-tile:not(${selector}) { opacity: 0.4; filter: saturate(0.5); }` : "";
+  return <style>{rule + dim}</style>;
 }
 
 /**
@@ -327,19 +345,22 @@ function useSelectPicks(request: Extract<ChoiceRequestView, { type: "select" }>,
   const [selected, setSelected] = useState<string[]>([]);
   const answer = (ids: string[]) => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
   // One-tap: with exactly one pick wanted, picking it is the answer.
+  // "With different card names": a card whose name is already picked can't be added.
+  const taken = nameTakenIds(request.options, selected, request.distinctNames, cardName);
   const toggle = (id: string) => {
+    if (taken.has(id)) return;
     if (resolvesOnPick(oneTap, request.min, request.max)) return answer([id]);
     setSelected((cur) => toggleSelection(cur, id, request.max));
   };
   const valid = selected.length >= request.min && selected.length <= request.max;
-  const boardIds = request.options.filter((o) => o.eligible && o.instanceId).map((o) => o.instanceId!);
+  const boardIds = request.options.filter((o) => o.eligible && o.instanceId && !taken.has(o.id)).map((o) => o.instanceId!);
   const selectedBoardIds = request.options.filter((o) => o.instanceId && selected.includes(o.id)).map((o) => o.instanceId!);
   useBoardTargetClicks(request.options, toggle);
-  return { selected, toggle, valid, boardIds, selectedBoardIds, answer };
+  return { selected, taken, toggle, valid, boardIds, selectedBoardIds, answer };
 }
 
 function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<ChoiceRequestView, { type: "select" }>; choice: PendingChoiceView; mySeat: Seat; onSend: (i: Intent) => void }) {
-  const { selected, toggle, valid, boardIds, selectedBoardIds, answer } = useSelectPicks(request, onSend);
+  const { selected, taken, toggle, valid, boardIds, selectedBoardIds, answer } = useSelectPicks(request, onSend);
   const range = request.min === request.max ? `${request.max}` : request.min === 0 ? `up to ${request.max}` : `${request.min}–${request.max}`;
   return (
     <>
@@ -352,7 +373,15 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
         </div>
         <div className="choice-grid">
           {request.options.map((option) => (
-            <OptionTile key={option.id} option={option} mySeat={mySeat} selected={selected.includes(option.id)} disabled={!option.eligible} onToggle={() => toggle(option.id)} />
+            <OptionTile
+              key={option.id}
+              option={option}
+              mySeat={mySeat}
+              selected={selected.includes(option.id)}
+              disabled={!option.eligible || taken.has(option.id)}
+              disabledNote={option.eligible ? "same name picked" : undefined}
+              onToggle={() => toggle(option.id)}
+            />
           ))}
         </div>
       </div>
@@ -374,6 +403,7 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
 
 /** Your hand's card tiles: only hand cards carry a motion id (the hand card's instance id). */
 const HAND_TILE = ".card-tile[data-motion-id]";
+const HAND_ROWS = ":is(.hand-fan-cards, .hand-row-inner, .hand-dock-cards, .rail-hand-cards)";
 
 /** The board spot under a click: a field card tile, a hand card or a cost-area DON!! chip. */
 function spotAtClick(target: Element | null, spots: ReadonlySet<BoardSpot>): { spot: BoardSpot; chipId?: string } | null {
@@ -455,16 +485,19 @@ function FieldSelectBar({ request, choice, spots, onSend }: {
   const [pick, setPick] = useState<BoardPick>({ selected: [], chips: {} });
   const answer = (ids: string[]) => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
   const oneTap = resolvesOnPick(oneTapSetting, request.min, request.max);
-  useBoardSpotClicks(spots, (spot, chipId) => {
-    const next = tapBoardSpot(pick, spots, spot, request.max, chipId);
+  // "With different card names": cards whose name is already picked drop out of the targets.
+  const taken = nameTakenIds(request.options, pick.selected, request.distinctNames, cardName);
+  const open = taken.size ? new Map([...spots].filter(([id]) => !taken.has(id))) : spots;
+  useBoardSpotClicks(open, (spot, chipId) => {
+    const next = tapBoardSpot(pick, open, spot, request.max, chipId);
     // One-tap: with exactly one pick wanted, picking it is the answer.
     if (oneTap && next.selected.length === 1 && !pick.selected.includes(next.selected[0]!)) return answer(next.selected);
     setPick(next);
   });
   const { selected } = pick;
   const valid = selected.length >= request.min && selected.length <= request.max;
-  const all = [...spots.values()];
-  const picked = selected.map((id) => spots.get(id)).filter((s): s is BoardSpot => !!s);
+  const all = [...open.values()];
+  const picked = selected.map((id) => open.get(id)).filter((s): s is BoardSpot => !!s);
   const cardIds = (list: BoardSpot[]) => [...new Set(list.filter((s) => s.startsWith("card:") || s.startsWith("host:")).map((s) => s.slice(s.indexOf(":") + 1)))];
   const handIds = (list: BoardSpot[]) => list.filter((s) => s.startsWith("hand:")).map((s) => s.slice("hand:".length));
   const donSpots = [...new Set(all.filter((s) => s.startsWith("don:")))];
@@ -479,7 +512,7 @@ function FieldSelectBar({ request, choice, spots, onSend }: {
       <DonHighlight spots={[]} chipIds={pickedChips} kind="hover" />
       <FieldTargetBar
         title={promptSourceName(choice)}
-        text={choice.prompt}
+        text={promptBody(promptSourceName(choice), choice.prompt)}
         caption={pickCaption(request.min, request.max, selected.length)}
         label={choice.prompt}
         handPick={handIds(all).length > 0}
@@ -629,7 +662,7 @@ function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view"
       <SourceHeader choice={choice} />
       <div className="choice-intro">
         {showSource ? <CardTile defId={choice.cardDefId} compact inspectGestures viewingSeat={mySeat} /> : null}
-        <p>{choice.prompt}</p>
+        <p>{promptBody(promptSourceName(choice), choice.prompt)}</p>
       </div>
       {request.type === "confirm" ? (
         <div className="ability-prompt-actions">

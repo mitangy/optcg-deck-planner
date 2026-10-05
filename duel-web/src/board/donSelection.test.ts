@@ -9,6 +9,7 @@ import {
   nextDonSelection,
   pruneDonSelection,
   quickAttachCounts,
+  quickAttachLabel,
   resolveAttachIntents,
 } from "./donSelection";
 
@@ -127,5 +128,16 @@ describe("quickAttachCounts", () => {
   it("only adds All when it means more than +2", () => {
     expect(quickAttachCounts(2)).toEqual([1, 2]);
     expect(quickAttachCounts(5)).toEqual([1, 2, 5]);
+  });
+});
+
+describe("quickAttachLabel", () => {
+  it("spells out the DON!! given and the power it adds, with 'all' only on the All chip (#282)", () => {
+    const counts = quickAttachCounts(5);
+    expect(quickAttachLabel(1, counts)).toBe("Give 1 DON!! (+1000)");
+    expect(quickAttachLabel(2, counts)).toBe("Give 2 DON!! (+2000)");
+    expect(quickAttachLabel(5, counts)).toBe("Give all 5 DON!! (+5000)");
+    // With only two DON!! the +2 chip is the whole stack but is not labelled All.
+    expect(quickAttachLabel(2, quickAttachCounts(2))).toBe("Give 2 DON!! (+2000)");
   });
 });

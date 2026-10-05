@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Seat } from "../decks/seatArtPrefs";
 import type { BattleLogEntry, LogSegment, LogTone } from "./battleLog";
-import { groupBattleLogByTurn } from "./battleLog";
+import { glueSegments, groupBattleLogByTurn } from "./battleLog";
 import { CardInspect } from "./CardInspect";
 import { inspectOnContextMenu } from "./inspectGestures";
 import { setPreviewCard } from "./cardPreview";
@@ -120,16 +120,19 @@ export function BattleLogPanel({
                           {icon ?? ""}
                         </span>
                         <span className="log-text">
-                          {(line.segments ?? [{ kind: "text" as const, text: line.text }]).map((seg, i) =>
-                            seg.kind === "card" ? (
-                              <CardName
-                                key={i}
-                                seg={seg}
-                                onInspect={(s) => setInspect({ defId: s.defId, ownerSeat: s.ownerSeat })}
-                              />
-                            ) : (
-                              <span key={i}>{seg.text}</span>
-                            ),
+                          {glueSegments(line.segments ?? [{ kind: "text" as const, text: line.text }]).map(
+                            ({ seg, glued }, i) =>
+                              seg.kind === "card" ? (
+                                <span key={i} className="log-glued">
+                                  <CardName
+                                    seg={seg}
+                                    onInspect={(s) => setInspect({ defId: s.defId, ownerSeat: s.ownerSeat })}
+                                  />
+                                  {glued}
+                                </span>
+                              ) : (
+                                <span key={i}>{seg.text}</span>
+                              ),
                           )}
                         </span>
                       </li>

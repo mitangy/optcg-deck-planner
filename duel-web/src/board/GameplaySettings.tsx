@@ -6,29 +6,30 @@ import {
   useDuelSettings,
   type AnimationSpeed,
   type EndTurnConfirm,
-  type HandLayout,
+  type HandLayoutPref,
   type ResponseStops,
   type ScreenOrientationPref,
   type TextSize,
 } from "../settings";
 import { useLockNote } from "./orientation";
 import { playTurnChime } from "./turnAlert";
-import { DESKTOP_BOARD_QUERY, TILT_BOARD_QUERY, useMediaQuery } from "./useMediaQuery";
+import {
+  showOrientation,
+  toggleShown,
+  turnAlertCopy,
+  type FieldDevice,
+  type ToggleKey,
+} from "./gameplayFields";
+import {
+  DESKTOP_BOARD_QUERY,
+  FINE_POINTER_QUERY,
+  TILT_BOARD_QUERY,
+  useMediaQuery,
+} from "./useMediaQuery";
 
 type Toggle = {
   /** Boolean settings, plus the phone switch for oppHandSpot "right". */
-  key:
-    | "sortHandByCost"
-    | "keepHandOpen"
-    | "layoutGrips"
-    | "oneTapActions"
-    | "oppHandTopRight"
-    | "tiltedBoard"
-    | "floatingCards"
-    | "turnSplash"
-    | "reduceMotion"
-    | "turnAlert"
-    | "turnSound";
+  key: ToggleKey;
   label: string;
   hint: string;
 };
@@ -62,12 +63,7 @@ const TOGGLES: Toggle[] = [
   {
     key: "tiltedBoard",
     label: "Tilted board",
-    hint: "Desktop and landscape tablets: the board leans away from you like a real table, so the opponent's side is a little smaller and further back.",
-  },
-  {
-    key: "floatingCards",
-    label: "Floating cards",
-    hint: "Searches and ordering effects lay their cards out over the board: tap to take, drag to reorder. Off shows them in a pop-up box instead.",
+    hint: "Desktop and landscape tablets: the board leans away from you like a real table, so your cards come out bigger and the opponent's side is a little smaller and further back.",
   },
   {
     key: "turnSplash",
@@ -109,7 +105,8 @@ const ORIENTATION_OPTIONS: { value: ScreenOrientationPref; label: string }[] = [
   { value: "landscape", label: "Landscape" },
 ];
 
-const HAND_LAYOUT_OPTIONS: { value: HandLayout; label: string }[] = [
+const HAND_LAYOUT_OPTIONS: { value: HandLayoutPref; label: string }[] = [
+  { value: "auto", label: "Automatic" },
   { value: "fan", label: "Fan" },
   { value: "grid", label: "Grid" },
 ];
@@ -135,6 +132,9 @@ export function GameplaySettingsFields() {
   const tiltFits = useMediaQuery(TILT_BOARD_QUERY);
   // Phones keep their fixed layout, so only desktop windows offer the panel reset.
   const desktop = useMediaQuery(DESKTOP_BOARD_QUERY);
+  // Orientation lock and vibration are for phones and tablets, not a mouse and keyboard.
+  const finePointer = useMediaQuery(FINE_POINTER_QUERY);
+  const device: FieldDevice = { desktop, tiltFits, finePointer };
   return (
     <div className="gameplay-settings">
       <div className="field">
@@ -173,6 +173,7 @@ export function GameplaySettingsFields() {
           Counter events always stop you. Your opponent may notice a quick pass.
         </p>
       </div>
+      {showOrientation(device) ? (
       <div className="field">
         <label htmlFor="screen-orientation">Screen orientation</label>
         <select
@@ -199,12 +200,13 @@ export function GameplaySettingsFields() {
           </p>
         ) : null}
       </div>
+      ) : null}
       <div className="field">
         <label htmlFor="hand-layout">Hand</label>
         <select
           id="hand-layout"
           value={settings.handLayout}
-          onChange={(e) => updateSettings({ handLayout: e.target.value as HandLayout })}
+          onChange={(e) => updateSettings({ handLayout: e.target.value as HandLayoutPref })}
         >
           {HAND_LAYOUT_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -213,10 +215,9 @@ export function GameplaySettingsFields() {
           ))}
         </select>
         <p className="field-hint">
-          Desktop: the fan peeks off the bottom of the board and rises when you point at it; drag
-          its grip to put it anywhere on the screen (on the bottom edge it still tucks away). Grid
-          keeps the hand open as a side panel you can move to either column. Phones: the fan
-          overlaps the hand strip so every card fits without scrolling.
+          {desktop
+            ? "Automatic is the Grid on a desktop window at least 680 px tall (it never covers your DON!! row) and the fan elsewhere. The fan peeks off the bottom of the board and rises when you point at it; drag its grip to put it anywhere on the screen (on the bottom edge it still tucks away). Grid keeps the hand open as a side panel you can move to either column."
+            : "Fan overlaps the hand so every card fits; Grid shows them side by side and scrolls."}
         </p>
       </div>
       {desktop ? (
@@ -243,7 +244,7 @@ export function GameplaySettingsFields() {
       ) : null}
       {desktop ? (
         <div className="field">
-          <label htmlFor="opp-hand-spot">Opponent hand</label>
+          <label htmlFor="opp-hand-spot">Opponent hand position</label>
           <select
             id="opp-hand-spot"
             value={settings.oppHandSpot}
@@ -254,6 +255,10 @@ export function GameplaySettingsFields() {
             <option value="centre">Top centre of the mat</option>
             <option value="right">Top right of the mat</option>
           </select>
+          <p className="field-hint">
+            Where the opponent&apos;s hand sits on a desktop window: in the right-hand panel, or
+            pinned above their half of the playmat.
+          </p>
         </div>
       ) : null}
       <div className="field">
@@ -292,35 +297,32 @@ export function GameplaySettingsFields() {
           keeps its short fade instead of Normal or Fast.
         </p>
       </div>
-      {TOGGLES.filter(
-        (t) =>
-          (t.key !== "tiltedBoard" || tiltFits) &&
-          (t.key !== "layoutGrips" || desktop) &&
-          // Desktop picks the spot in the Opponent hand list above.
-          (t.key !== "oppHandTopRight" || !desktop),
-      ).map((t) => (
-        <div className="gameplay-toggle" key={t.key}>
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={
-                t.key === "oppHandTopRight" ? settings.oppHandSpot === "right" : settings[t.key]
-              }
-              onChange={(e) => {
-                if (t.key === "oppHandTopRight") {
-                  updateSettings({ oppHandSpot: e.target.checked ? "right" : "" });
-                  return;
+      {TOGGLES.filter((t) => toggleShown(t.key, device)).map((toggle) => {
+        const t = toggle.key === "turnAlert" ? { ...toggle, ...turnAlertCopy(device, toggle) } : toggle;
+        return (
+          <div className="gameplay-toggle" key={t.key}>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={
+                  t.key === "oppHandTopRight" ? settings.oppHandSpot === "right" : settings[t.key]
                 }
-                updateSettings({ [t.key]: e.target.checked });
-                // Preview (and unlock audio on mobile with this tap).
-                if (t.key === "turnSound" && e.target.checked) playTurnChime();
-              }}
-            />
-            <span>{t.label}</span>
-          </label>
-          <p className="field-hint">{t.hint}</p>
-        </div>
-      ))}
+                onChange={(e) => {
+                  if (t.key === "oppHandTopRight") {
+                    updateSettings({ oppHandSpot: e.target.checked ? "right" : "" });
+                    return;
+                  }
+                  updateSettings({ [t.key]: e.target.checked });
+                  // Preview (and unlock audio on mobile with this tap).
+                  if (t.key === "turnSound" && e.target.checked) playTurnChime();
+                }}
+              />
+              <span>{t.label}</span>
+            </label>
+            <p className="field-hint">{t.hint}</p>
+          </div>
+        );
+      })}
     </div>
   );
 }

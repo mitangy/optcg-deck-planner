@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
+import { isPlaceholderArt, isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import type { DefendModel } from "./defendModel";
@@ -23,6 +23,12 @@ function Thumb({ defId, ownerSeat }: { defId: string; ownerSeat: Seat }) {
           draggable={false}
           // Same fallback as CardTile: CDN art first, then the local mirror.
           onError={() => (!local && isTcgplayerCdnUrl(primary) ? setLocal(true) : setFailed(true))}
+          onLoad={(e) => {
+            if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) {
+              if (!local) setLocal(true);
+              else setFailed(true);
+            }
+          }}
         />
       ) : (
         <span className="defend-chip-fallback">{defId}</span>
@@ -85,13 +91,17 @@ function power(n: number | null): string {
 
 type Props = {
   model: DefendModel;
+  /** `rail`: desktop right column, chips wrap so every value shows (no sideways scroll). */
+  layout?: "tray" | "rail";
   ownerSeat: Seat;
   /** Remaining response clock, 0-1, or null when the room has none. */
   clock: number | null;
   onToggleBlocker: (id: string) => void;
   onToggleCounter: (id: string) => void;
   onCounterEvent: (index: number) => void;
-  /** Drag-to-counter from the chips (counter step only). */
+  /** Block step: tap a Counter chip to skip the block and counter with it. */
+  onSkipBlockCounter?: (id: string) => void;
+  /** Drag-to-counter from the chips (counter step, and block step to skip the block). */
   counterDrag?: CounterDragHandlers;
 };
 
@@ -103,11 +113,13 @@ type Props = {
  */
 export function DefendTray({
   model,
+  layout = "tray",
   ownerSeat,
   clock,
   onToggleBlocker,
   onToggleCounter,
   onCounterEvent,
+  onSkipBlockCounter,
   counterDrag,
 }: Props) {
   const m = model;
@@ -128,7 +140,7 @@ export function DefendTray({
 
   return (
     <section
-      className={`defend-tray defend-${m.phase}`}
+      className={`defend-tray defend-${m.phase}${layout === "rail" ? " defend-rail" : ""}`}
       aria-label={m.phase === "block" ? "Block or take the attack" : "Counter or take the hit"}
     >
       {clock != null ? (
@@ -152,25 +164,48 @@ export function DefendTray({
       </p>
       <div className="defend-chips">
         {m.phase === "block" ? (
-          m.blockers.length === 0 ? (
+          m.blockers.length === 0 && m.earlyCounters.length === 0 ? (
             <p className="defend-none">No Blocker available</p>
           ) : (
-            m.blockers.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                className={`defend-chip${m.stagedBlockerId === b.id ? " staged" : ""}`}
-                aria-pressed={m.stagedBlockerId === b.id}
-                aria-label={`Block with ${b.name}, power ${power(b.power)}`}
-                onClick={() => onToggleBlocker(b.id)}
-              >
-                <Thumb defId={b.defId} ownerSeat={ownerSeat} />
-                <span className="defend-chip-text">
-                  <span className="defend-chip-main">{power(b.power)}</span>
-                  <span className="defend-chip-sub">{b.name}</span>
+            <>
+              {m.blockers.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  className={`defend-chip${m.stagedBlockerId === b.id ? " staged" : ""}`}
+                  aria-pressed={m.stagedBlockerId === b.id}
+                  aria-label={`Block with ${b.name}, power ${power(b.power)}`}
+                  onClick={() => onToggleBlocker(b.id)}
+                >
+                  <Thumb defId={b.defId} ownerSeat={ownerSeat} />
+                  <span className="defend-chip-text">
+                    <span className="defend-chip-main">{power(b.power)}</span>
+                    <span className="defend-chip-sub">{b.name}</span>
+                  </span>
+                </button>
+              ))}
+              {m.earlyCounters.length > 0 ? (
+                <span className="defend-chips-sep" aria-hidden>
+                  {m.blockers.length > 0 ? "or" : "No Blocker"}
                 </span>
-              </button>
-            ))
+              ) : null}
+              {m.earlyCounters.map((c) => (
+                <CounterChipButton
+                  key={c.id}
+                  cardId={c.id}
+                  className="defend-chip defend-chip-early"
+                  label={`No block, counter with ${c.name}, ${c.label}`}
+                  onClick={() => onSkipBlockCounter?.(c.id)}
+                  drag={counterDrag}
+                >
+                  <Thumb defId={c.defId} ownerSeat={ownerSeat} />
+                  <span className="defend-chip-text">
+                    <span className="defend-chip-main">{c.label}</span>
+                    <span className="defend-chip-sub">{c.name}</span>
+                  </span>
+                </CounterChipButton>
+              ))}
+            </>
           )
         ) : (
           <>

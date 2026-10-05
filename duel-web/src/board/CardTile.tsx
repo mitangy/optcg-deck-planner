@@ -9,7 +9,7 @@ import {
   type PointerEvent,
 } from "react";
 import { resolveCardImageUrl } from "../decks/artPrefs";
-import { isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
+import { isPlaceholderArt, isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
 import {
   getArtPrefsTick,
   subscribeArtPrefs,
@@ -24,6 +24,7 @@ import {
   createClickDeferController,
   createLongPressController,
   inspectOnContextMenu,
+  isInspectKey,
 } from "./inspectGestures";
 import { usePointerDrag } from "./usePointerDrag";
 import { StatusRow } from "./StatusIcon";
@@ -321,11 +322,16 @@ export function CardTile({
           src={imageUrl}
           alt={entry.name}
           onError={handleImgError}
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            if (isPlaceholderArt(imageUrl, img.naturalWidth, img.naturalHeight)) handleImgError();
+          }}
           draggable={false}
         />
       ) : (
         <div className="card-fallback" style={{ backgroundColor: chip }}>
-          {entry.id}
+          <span className="card-fallback-name">{entry.name}</span>
+          <span className="card-fallback-id">{entry.id}</span>
         </div>
       )}
       {/* Badges live in an overlay that counter-rotates on rested (sideways)
@@ -396,7 +402,9 @@ export function CardTile({
       <div className="card-caption">
         <div className="name">{entry.name}</div>
         <div
-          className={`meta${!(cb && cb.delta !== 0) && playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}`}
+          className={`meta${!(cb && cb.delta !== 0) && playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}${
+            (cb && cb.delta !== 0) || (playCost != null && playCost !== entry.cost) ? " meta-changed" : ""
+          }`}
           title={
             cb && cb.delta !== 0
               ? `Cost ${cb.current} (printed ${cb.base}, ${formatPowerDelta(cb.delta)})`
@@ -420,20 +428,15 @@ export function CardTile({
         </div>
       </div>
       {showInspectChip ? (
-        // Quiet keyboard-accessible control — prefer double-click / long-press.
+        // Mouse / touch shortcut; keyboard players press I on the focused card
+        // instead, so the chip stays out of the Tab order (~30 stops a board).
         <span
           role="button"
-          tabIndex={0}
+          tabIndex={-1}
           className="card-inspect-chip"
-          title="Inspect card (or double-click / long-press)"
+          title="Inspect card (or double-click / right-click / long-press)"
           aria-label={`Inspect ${entry.name}`}
           onClick={openInspectFromChip}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              openInspectFromChip(e as unknown as MouseEvent);
-            }
-          }}
         >
           i
         </span>
@@ -467,6 +470,12 @@ export function CardTile({
           className={className}
           onClick={handleClick}
           onClickCapture={dragBind.onClickCapture}
+          onKeyDown={(e) => {
+            if (canInspect && e.target === e.currentTarget && isInspectKey(e)) {
+              e.preventDefault();
+              setInspectOpen(true);
+            }
+          }}
           draggable={false}
           style={style ? { ...style, ...dragBind.style } : dragBind.style}
           {...dropProps}
@@ -484,7 +493,7 @@ export function CardTile({
         open={inspectOpen}
         onClose={() => setInspectOpen(false)}
         ownerSeat={ownerSeat}
-        viewingSeat={viewingSeat ?? ownerSeat}
+        viewingSeat={viewingSeat}
         live={live}
       />
     </>
