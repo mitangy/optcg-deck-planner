@@ -202,7 +202,8 @@ export type DeckPlacement = "deck_bottom" | "deck_top" | "trash" | "top_or_botto
 /** Mirrors @optcg/rules ChoiceRequest. */
 export type ChoiceRequestView =
   | { type: "confirm" }
-  | { type: "select"; min: number; max: number; options: ChoiceOptionView[] }
+  /** `distinctNames`: no two picks may share a card name. */
+  | { type: "select"; min: number; max: number; options: ChoiceOptionView[]; distinctNames?: true }
   | { type: "mode"; options: ChoiceOptionView[] }
   | { type: "order"; options: ChoiceOptionView[]; destination: string; allowTopOrBottom?: boolean }
   | {
@@ -500,7 +501,7 @@ function handName(view: PlayerView | undefined, handIndex: unknown): string {
 export function intentLabel(intent: Intent, view?: PlayerView): string {
   switch (intent.type) {
     case "mulligan":
-      return intent.doMulligan ? "Mulligan (shuffle & redraw 5)" : "Keep opening hand";
+      return intent.doMulligan ? "Mulligan (redraw 5)" : "Keep opening hand";
     case "play_card":
       // Full board: one legal play per Character that could be trashed, so
       // name the one this button replaces.

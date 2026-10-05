@@ -26,6 +26,13 @@
   right: var(--rail-w);
 }
 
+/* The scrim covers the board column, not the top bar: the bar stays whole and
+   undimmed (logo, status, Leave) instead of dimmed across its middle only. */
+.arena:has(.float-scrim) .hud-bar {
+  position: relative;
+  z-index: 47;
+}
+
 .float-scrim {
   position: absolute;
   inset: 0;
@@ -310,6 +317,11 @@
   font-weight: 700;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
   cursor: pointer;
+}
+
+/* Desktop: slimmer, to sit inside the top bar. */
+.arena.arena-wide:not(.arena-lp) .float-return {
+  padding-block: 0.4rem;
 }
 
 /* Phones (portrait): two rows of three read better than five tiny cards. */

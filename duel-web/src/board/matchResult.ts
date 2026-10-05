@@ -7,6 +7,8 @@
  * else is humanized so a new server reason never shows up as a raw enum.
  */
 
+import { playerLabel } from "./playerNames";
+
 type Who = { subj: string; poss: string; obj: string };
 
 const YOU: Who = { subj: "You", poss: "Your", obj: "you" };
@@ -14,7 +16,7 @@ const OPP: Who = { subj: "Your opponent", poss: "Your opponent's", obj: "your op
 
 function seatWho(seat: number | null): Who {
   if (seat == null) return { subj: "A player", poss: "A player's", obj: "a player" };
-  const name = `Seat ${seat}`;
+  const name = playerLabel(seat);
   return { subj: name, poss: `${name}'s`, obj: name };
 }
 

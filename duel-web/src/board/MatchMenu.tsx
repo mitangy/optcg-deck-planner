@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { ConfirmButton } from "./ConfirmButton";
+import { useClickCopy } from "./clickCopy";
 import { useCopyFlash } from "./RoomShare";
 import type { MatchMenuItemId } from "./matchMenuItems";
 
 type Props = {
   items: MatchMenuItemId[];
-  info: { matchup: string | null; seat: string; order: string };
+  info: { matchup: string | null; seat: string | null; order: string };
   roomId: string | null;
   isFullscreen: boolean;
   leaveLabel?: string;
@@ -36,6 +37,7 @@ export function MatchMenu({
   onLeave,
   placement = "top",
 }: Props) {
+  const tapCopy = useClickCopy();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -93,7 +95,7 @@ export function MatchMenu({
             <div className="match-menu-info">
               {info.matchup ? <strong>{info.matchup}</strong> : null}
               <span>
-                {info.seat} · {info.order}
+                {info.seat ? `${info.seat} · ` : ""}{info.order}
               </span>
             </div>
             {items.map((id) => {
@@ -168,7 +170,7 @@ export function MatchMenu({
                       key={id}
                       className="match-menu-item match-menu-danger"
                       label="Concede"
-                      confirmLabel="Tap again to concede"
+                      confirmLabel={tapCopy("Tap again to concede")}
                       reserveWidth
                       title="Forfeit this match"
                       onConfirm={choose(onConcede)}

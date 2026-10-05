@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
+import { isIncompleteDeck } from "../decks/deckStatus";
 import { getApiBaseUrl, getGameServerUrl, getPlannerUrl } from "../config";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { refreshLinkedDeck } from "../decks/planner";
@@ -17,6 +18,7 @@ import {
 } from "../decks/storage";
 import {
   fetchAuthMe,
+  googleLoginUrl,
   mintDevGameToken,
   mintGuestGameToken,
   mintSessionGameToken,
@@ -88,7 +90,15 @@ const MODE_CARDS: Array<{
 ];
 
 function deckLabel(d: SavedDeck): string {
-  return `${d.name} — ${lookupCard(d.leaderId).name} (${d.cards.length})`;
+  return `${d.name} — ${lookupCard(d.leaderId).name} (${d.cards.length}${isIncompleteDeck(d) ? "/50" : ""})`;
+}
+
+function IncompleteBadge({ deck }: { deck: SavedDeck }) {
+  return isIncompleteDeck(deck) ? (
+    <span className="deck-incomplete-badge" title={`${deck.cards.length} of 50 main-deck cards`}>
+      Incomplete
+    </span>
+  ) : null;
 }
 
 function DeckPicker({
@@ -107,7 +117,9 @@ function DeckPicker({
   const deck = decks.find((d) => d.id === value) ?? null;
   return (
     <div className="field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>
+        {label} {deck ? <IncompleteBadge deck={deck} /> : null}
+      </label>
       <div className="deck-picker">
         {deck ? (
           <LeaderThumb key={deck.id} deck={deck} className="deck-picker-art" />
@@ -179,7 +191,9 @@ function DeckSwitcher({
         <span className="home-deck-text">
           <span className="home-deck-label">Sailing with</span>
           <span className="home-deck-name">{selectedDeck.name}</span>
-          <span className="home-deck-leader">{lookupCard(selectedDeck.leaderId).name}</span>
+          <span className="home-deck-leader">
+            {lookupCard(selectedDeck.leaderId).name} <IncompleteBadge deck={selectedDeck} />
+          </span>
         </span>
         <span className="home-deck-chevron" aria-hidden>
           ▾
@@ -207,7 +221,7 @@ function DeckSwitcher({
                     <span className="deck-menu-text">
                       <span className="deck-menu-name">{d.name}</span>
                       <span className="deck-menu-sub">
-                        {lookupCard(d.leaderId).name} · {d.cards.length} cards
+                        {lookupCard(d.leaderId).name} · {d.cards.length} cards <IncompleteBadge deck={d} />
                       </span>
                     </span>
                     <span className="deck-menu-check" aria-hidden>
@@ -597,8 +611,15 @@ export function LobbyPage() {
     <div className="app-shell home-shell">
       <header className="topbar">
         <div className="topbar-inner">
-          <span className="topbar-mark" aria-hidden />
+          <Link to="/" className="topbar-mark" aria-label="OPTCG Duel home">
+            OPTCG Duel
+          </Link>
           <div className="topbar-right">
+            {authMode === "guest" ? (
+              <a className="btn btn-primary btn-sm" href={googleLoginUrl()}>
+                Sign in
+              </a>
+            ) : null}
             <Link to="/settings" className="account-chip" title="Account settings">
               <span className="account-dot" data-mode={authMode} aria-hidden />
               <span className="account-name">{accountName}</span>
@@ -622,6 +643,7 @@ export function LobbyPage() {
                   d="M8 2h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm0 2v14h11V4H8Zm2 3h7v2h-7V7Zm0 4h7v2h-7v-2ZM3 6h1v16h13v1a1 1 0 0 1-1 1H4a2 2 0 0 1-2-2V7a1 1 0 0 1 1-1Z"
                 />
               </svg>
+              <span className="icon-btn-label">Planner</span>
             </a>
             <Link to="/history" className="icon-btn" aria-label="Match history" title="Match history">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
@@ -630,6 +652,7 @@ export function LobbyPage() {
                   d="M13 3a9 9 0 0 0-9 9H1l3.9 3.9.07.14L9 12H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3Zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12Z"
                 />
               </svg>
+              <span className="icon-btn-label">History</span>
             </Link>
             <Link to="/settings" className="icon-btn" aria-label="Settings" title="Settings">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
@@ -638,6 +661,7 @@ export function LobbyPage() {
                   d="M19.14 12.94a7.6 7.6 0 0 0 .06-.94 7.6 7.6 0 0 0-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58a7.6 7.6 0 0 0 0 1.88L2.83 14.16a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"
                 />
               </svg>
+              <span className="icon-btn-label">Settings</span>
             </Link>
           </div>
         </div>
@@ -653,29 +677,6 @@ export function LobbyPage() {
         </div>
 
         <UpdateNotice />
-
-        {showIosHint ? (
-          <section className="notice" aria-label="Install on your iPhone">
-            <div className="notice-body">
-              <strong>Install on your iPhone</strong>
-              <span>
-                Tap Share, then Add to Home Screen. It opens full screen with no browser bars.
-              </span>
-            </div>
-            <div className="notice-actions">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  dismissIosHint(readInstallEnv());
-                  setShowIosHint(false);
-                }}
-              >
-                Dismiss
-              </button>
-            </div>
-          </section>
-        ) : null}
 
         {pendingResume ? (
           <section className="notice notice-gold" aria-label="Resume match">
@@ -749,6 +750,25 @@ export function LobbyPage() {
             Play
           </button>
         </div>
+
+        {showIosHint ? (
+          <div className="install-hint" role="note" aria-label="Install on your iPhone">
+            <span>
+              <strong>Install:</strong> tap Share, then Add to Home Screen.
+            </span>
+            <button
+              type="button"
+              className="install-hint-close"
+              aria-label="Dismiss install tip"
+              onClick={() => {
+                dismissIosHint(readInstallEnv());
+                setShowIosHint(false);
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
 
         {selectedDeck ? (
           <DeckSwitcher decks={decks} selectedDeck={selectedDeck} onChoose={chooseDeck} />

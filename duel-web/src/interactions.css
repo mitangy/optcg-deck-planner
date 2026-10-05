@@ -14,14 +14,34 @@
   height: 100%;
   overflow: visible;
   pointer-events: none;
-  /* Above cards/midline (≤12), below HUD (40), prompts (25+) and modals. */
-  z-index: 14;
+  /* Drawn inside the board, so it sorts with the board's own layers: above
+     cards, the midline, the hand fan (16) and the dock (17); below the top bar
+     (40), prompts (45+) and modals. */
+  z-index: 18;
+  transition: opacity 0.15s ease;
+}
+
+/* One of your prompts is open: the arrow stays readable but out of the way. */
+.attack-overlay.attack-dim {
+  opacity: 0.35;
 }
 
 /* Aiming an attack by drag: the arrow follows the pointer over docks and
    panels (nothing else is open mid-drag), still under the drag ghost (60). */
 .attack-overlay.attack-aim {
   z-index: 55;
+}
+
+/* An open menu, landscape panel or (phones) the floating battle log covers the board, and
+   the arrow would paint over its text: hide it until they close. */
+body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  body:has(.arena .battle-log:not(.collapsed)) .attack-overlay:not(.attack-aim) {
+    display: none;
+  }
 }
 
 .attack-overlay.attack-incoming {
@@ -396,7 +416,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--hold-gap, 8px);
   width: max-content;
   max-width: min(300px, calc(100vw - 16px));
   transform: translate(-50%, -100%);
@@ -447,7 +467,7 @@
 
 .hand-confirm-card {
   /* Held up from the hand slot it was played from. */
-  transform: translate(var(--card-shift, 0px), -12px);
+  transform: translate(var(--card-shift, 0px), var(--card-lift, -12px));
   border-radius: 8px;
   box-shadow:
     0 0 0 2px var(--chrome-bright),
@@ -788,4 +808,23 @@
   .reveal-card {
     animation: none;
   }
+}
+
+/* —— Reordering the hand: a bar on the edge where the dragged card lands —— */
+
+.card-tile.hand-drop-before,
+.card-tile.hand-drop-after {
+  z-index: 4;
+}
+
+.card-tile.hand-drop-before {
+  box-shadow:
+    -7px 0 0 -1px #ffd54f,
+    -7px 0 14px 0 rgb(255 213 79 / 0.65);
+}
+
+.card-tile.hand-drop-after {
+  box-shadow:
+    7px 0 0 -1px #ffd54f,
+    7px 0 14px 0 rgb(255 213 79 / 0.65);
 }

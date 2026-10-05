@@ -7,6 +7,21 @@ export function toggleSelection(selected: readonly string[], id: string, max: nu
   return selected.length >= max ? [...selected] : [...selected, id];
 }
 
+/**
+ * "With different card names": unpicked options sharing a name with a picked
+ * one can't be added. Picked options stay toggleable so they can be dropped.
+ */
+export function nameTakenIds(
+  options: readonly ChoiceOptionView[],
+  selected: readonly string[],
+  distinctNames: boolean | undefined,
+  nameOf: (option: ChoiceOptionView) => string | null,
+): Set<string> {
+  if (!distinctNames) return new Set();
+  const picked = new Set(options.filter((o) => selected.includes(o.id)).map(nameOf).filter((n): n is string => n != null));
+  return new Set(options.filter((o) => !selected.includes(o.id) && picked.has(nameOf(o) ?? "")).map((o) => o.id));
+}
+
 /** One-tap: exactly one pick is wanted, so choosing it answers at once. */
 export function resolvesOnPick(oneTap: boolean, min: number, max: number): boolean {
   return oneTap && min === 1 && max === 1;

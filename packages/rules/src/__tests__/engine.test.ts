@@ -23,6 +23,39 @@ function act(state: MatchState, seat: Seat, intent: Intent, rng: ReturnType<type
   return r.state;
 }
 
+describe("Imu start-of-game Stage", () => {
+  const IMU = "OP13-079";
+  const MARY_GEOISE = "OP05-097";
+  const EMPTY_THRONE = "OP13-099";
+  const imuMatch = (stages: string[]) => createMatch({ seed: 7, firstSeat: 0, players: [{ leaderId: IMU, deck: [...buildTestDeck(20), ...stages] }, { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }] });
+
+  for (const pick of [MARY_GEOISE, EMPTY_THRONE]) {
+    it(`Imu player chooses which Stage to play at the start of the game: ${pick} (#284)`, () => {
+      const rng = createSeededRng(7);
+      let state = imuMatch([MARY_GEOISE, MARY_GEOISE, EMPTY_THRONE, EMPTY_THRONE]);
+      const choice = state.pendingChoices[0]!;
+      expect(choice.seat).toBe(0);
+      expect(choice.request?.type === "select" && choice.request.options.map((o) => o.defId).sort()).toEqual([MARY_GEOISE, EMPTY_THRONE].sort());
+      expect(state.players[0].stage).toBeNull();
+      expect(applyIntent(state, { type: "mulligan", doMulligan: false }, { seat: 1, rng }).ok).toBe(false);
+      const option = choice.request?.type === "select" ? choice.request.options.find((o) => o.defId === pick)! : null;
+      state = act(state, 0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [option!.id] }, rng);
+      expect(state.players[0].stage?.defId).toBe(pick);
+      expect(state.players[0].hand).toHaveLength(5);
+      expect([...state.players[0].deck, ...state.players[0].hand.map((c) => c.defId)].filter((id) => id === pick)).toHaveLength(1);
+      state = skipMulligans(state, rng);
+      expect(state.phase).toBe("main");
+    });
+  }
+
+  it("Imu plays the only eligible Stage without a prompt, even with several copies (#284)", () => {
+    const state = imuMatch([EMPTY_THRONE, EMPTY_THRONE, EMPTY_THRONE]);
+    expect(state.pendingChoices).toHaveLength(0);
+    expect(state.players[0].stage?.defId).toBe(EMPTY_THRONE);
+    expect(state.players[0].hand).toHaveLength(5);
+  });
+});
+
 describe("match setup and mulligan", () => {
   it("sets Life from the Leader after mulligans and is deterministic per seed", () => {
     const a = fresh(42).state;
@@ -339,5 +372,53 @@ describe("Double Attack", () => {
     h.attack(p028!, "leader").passBattle();
     expect(h.state.winner).toBe(0);
     expect(h.state.winReason).toBe("leader_battle_at_zero_life");
+  });
+});
+
+describe("different card names", () => {
+  // OP13-082 Five Elders: play up to 5 {Five Elders} Characters with 5000 power and different card names from your trash.
+  function fiveEldersPick() {
+    const h = new Harness({ leaders: ["OP13-079", DEFAULT_LEADER_ID] });
+    h.don(0, 3, 0);
+    h.hand(0, FILLER);
+    const [elders] = h.field(0, "OP13-082");
+    h.trash(0, "OP13-083", "OP13-083", "OP13-089");
+    h.act(0, { type: "activate_ability", sourceId: elders!.id, abilityId: "op13-082#m0" });
+    const request = h.choice!.request as Extract<NonNullable<typeof h.choice>["request"], { type: "select" }>;
+    return { h, request };
+  }
+
+  it("OP13-082 tells the player its picks need different card names (#298)", () => {
+    const { h, request } = fiveEldersPick();
+    expect(request.type).toBe("select");
+    expect(request.distinctNames).toBe(true);
+    expect(getPlayerView(h.state, 0).pendingChoices[0]!.request).toMatchObject({ distinctNames: true });
+  });
+
+  it("OP13-082 rejects two copies of the same card and plays different names (#298)", () => {
+    const { h, request } = fiveEldersPick();
+    const saturns = request.options.filter((o) => o.defId === "OP13-083").map((o) => o.id);
+    const warcury = request.options.find((o) => o.defId === "OP13-089")!.id;
+    const dup = h.try(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: saturns });
+    expect(dup.ok).toBe(false);
+    expect(dup.error?.message).toBe("Choose cards with different names");
+    h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [saturns[0]!, warcury] });
+    expect(h.state.players[0].characters.map((c) => c.defId).sort()).toEqual(["OP13-083", "OP13-089"]);
+  });
+});
+
+describe("moving several cards out of one zone", () => {
+  it("ST13-003 adds the two picked trash cards to Life, not a shifted neighbour (#298)", () => {
+    const h = new Harness({ leaders: ["ST13-003", DEFAULT_LEADER_ID] });
+    h.life(0);
+    h.don(0, 2, 0);
+    h.attach(0, h.state.players[0].leader, 2);
+    h.hand(0, FILLER);
+    h.trash(0, "EB01-018", "EB01-032", "OP01-065");
+    h.act(0, { type: "activate_ability", sourceId: h.state.players[0].leader.id, abilityId: "st13-003#0" });
+    if (h.choice?.request?.type === "confirm") h.accept();
+    h.pick("EB01-018", "OP01-065");
+    expect([...h.state.players[0].life].sort()).toEqual(["EB01-018", "OP01-065"]);
+    expect(h.state.players[0].trash).toContain("EB01-032");
   });
 });
