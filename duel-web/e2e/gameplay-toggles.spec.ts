@@ -13,9 +13,18 @@ async function openDemo(page: Page, query: string, settings: Record<string, unkn
   await page.locator(".board-root").waitFor();
 }
 
-/** Mouse-drag your summoning-sick Character a little: an attack attempt it can't make. */
+/**
+ * An attack your summoning-sick Character can't make: a short mouse drag on
+ * desktop, tap it then tap the opposing Leader on a phone.
+ */
 async function tryAttackWithSickCharacter(page: Page) {
-  const box = (await page.locator('.side-you [data-instance-id="y-c1"]').boundingBox())!;
+  const sick = page.locator('.side-you [data-instance-id="y-c1"]');
+  if (test.info().project.name === "phone-375") {
+    await sick.tap();
+    await page.locator('.side-opp [data-instance-id="o-leader"]').tap();
+    return;
+  }
+  const box = (await sick.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2, box.y - 60, { steps: 6 });
@@ -46,14 +55,12 @@ test("Battle arrow off draws no attack arc during a battle (#301)", async ({ pag
 });
 
 test("a sick Character's attack attempt flashes the can't-attack warning by default (#301)", async ({ page }) => {
-  test.skip(test.info().project.name !== "desktop-1280", "mouse drag");
   await openDemo(page, "?cantattack", {});
   await tryAttackWithSickCharacter(page);
   await expect(page.locator(".attack-warning")).toBeVisible();
 });
 
 test("Can't attack warning off: a sick Character's attack attempt shows no warning (#301)", async ({ page }) => {
-  test.skip(test.info().project.name !== "desktop-1280", "mouse drag");
   await openDemo(page, "?cantattack", { cantAttackWarning: false });
   await tryAttackWithSickCharacter(page);
   // The warning shows within a frame and clears itself after ~2.4s, so check
