@@ -264,6 +264,12 @@ export function HotseatPage() {
           if (!alive()) return;
           bump((n) => n + 1);
         },
+        onStaleIllegalIntent: () => {
+          if (!bag.error?.startsWith("illegal_intent:")) return;
+          bag.error = null;
+          if (!alive()) return;
+          bump((n) => n + 1);
+        },
         onUndoState: (state) => {
           bag.undo = state;
           // Both seats are this player: the other seat's client accepts at once.

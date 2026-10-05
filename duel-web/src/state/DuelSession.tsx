@@ -280,6 +280,10 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           }
           setErrorBanner(`${err.code}: ${err.message}`);
         },
+        onStaleIllegalIntent: () => {
+          // A late action's "Not your turn" must not linger into your next turn.
+          setErrorBanner((b) => (b?.startsWith("illegal_intent:") ? null : b));
+        },
         onMatchOver: (msg) => {
           setMatchOver(msg.result);
           setCanReconnect(false);
