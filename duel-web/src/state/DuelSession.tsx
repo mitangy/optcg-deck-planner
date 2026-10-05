@@ -78,6 +78,8 @@ export type MatchLaunch = {
   leaderId: string | null;
   /** Private room: show the invite card until the opponent joins. */
   invite: boolean;
+  /** Signed in with friends: the waiting board also shows invites sent to you. */
+  friends?: boolean;
 };
 
 type DuelSession = {

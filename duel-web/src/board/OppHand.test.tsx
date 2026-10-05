@@ -21,7 +21,7 @@ describe("opponent hand count", () => {
   });
 
   it("shows the full hand size beside the capped top-right fan (#256)", () => {
-    const html = renderToStaticMarkup(<OppHandCorner count={13} cardBackUrl={null} variant="fan" />);
+    const html = renderToStaticMarkup(<OppHandCorner count={13} cardBackUrl={null} variant="mat" />);
     expect(countBadge(html)).toBe("13");
     expect(html.match(/opp-corner-card"/g)).toHaveLength(10);
   });
