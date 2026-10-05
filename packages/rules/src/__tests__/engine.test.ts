@@ -341,3 +341,51 @@ describe("Double Attack", () => {
     expect(h.state.winReason).toBe("leader_battle_at_zero_life");
   });
 });
+
+describe("different card names", () => {
+  // OP13-082 Five Elders: play up to 5 {Five Elders} Characters with 5000 power and different card names from your trash.
+  function fiveEldersPick() {
+    const h = new Harness({ leaders: ["OP13-079", DEFAULT_LEADER_ID] });
+    h.don(0, 3, 0);
+    h.hand(0, FILLER);
+    const [elders] = h.field(0, "OP13-082");
+    h.trash(0, "OP13-083", "OP13-083", "OP13-089");
+    h.act(0, { type: "activate_ability", sourceId: elders!.id, abilityId: "op13-082#m0" });
+    const request = h.choice!.request as Extract<NonNullable<typeof h.choice>["request"], { type: "select" }>;
+    return { h, request };
+  }
+
+  it("OP13-082 tells the player its picks need different card names (#293)", () => {
+    const { h, request } = fiveEldersPick();
+    expect(request.type).toBe("select");
+    expect(request.distinctNames).toBe(true);
+    expect(getPlayerView(h.state, 0).pendingChoices[0]!.request).toMatchObject({ distinctNames: true });
+  });
+
+  it("OP13-082 rejects two copies of the same card and plays different names (#293)", () => {
+    const { h, request } = fiveEldersPick();
+    const saturns = request.options.filter((o) => o.defId === "OP13-083").map((o) => o.id);
+    const warcury = request.options.find((o) => o.defId === "OP13-089")!.id;
+    const dup = h.try(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: saturns });
+    expect(dup.ok).toBe(false);
+    expect(dup.error?.message).toBe("Choose cards with different names");
+    h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [saturns[0]!, warcury] });
+    expect(h.state.players[0].characters.map((c) => c.defId).sort()).toEqual(["OP13-083", "OP13-089"]);
+  });
+});
+
+describe("moving several cards out of one zone", () => {
+  it("ST13-003 adds the two picked trash cards to Life, not a shifted neighbour (#293)", () => {
+    const h = new Harness({ leaders: ["ST13-003", DEFAULT_LEADER_ID] });
+    h.life(0);
+    h.don(0, 2, 0);
+    h.attach(0, h.state.players[0].leader, 2);
+    h.hand(0, FILLER);
+    h.trash(0, "EB01-018", "EB01-032", "OP01-065");
+    h.act(0, { type: "activate_ability", sourceId: h.state.players[0].leader.id, abilityId: "st13-003#0" });
+    if (h.choice?.request?.type === "confirm") h.accept();
+    h.pick("EB01-018", "OP01-065");
+    expect([...h.state.players[0].life].sort()).toEqual(["EB01-018", "OP01-065"]);
+    expect(h.state.players[0].trash).toContain("EB01-032");
+  });
+});

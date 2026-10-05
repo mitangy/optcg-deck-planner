@@ -147,8 +147,11 @@ export interface ChoiceOption {
 export type ChoiceRequest =
   /** Yes / no. `accept: false` declines. */
   | { type: "confirm" }
-  /** Pick between `min` and `max` eligible options. */
-  | { type: "select"; min: number; max: number; options: ChoiceOption[] }
+  /**
+   * Pick between `min` and `max` eligible options. `distinctNames`: no two
+   * picks may share a card name ("with different card names").
+   */
+  | { type: "select"; min: number; max: number; options: ChoiceOption[]; distinctNames?: true }
   /** Pick exactly one labeled mode. */
   | { type: "mode"; options: ChoiceOption[] }
   /** Order every option (first = placed first / top-most). */

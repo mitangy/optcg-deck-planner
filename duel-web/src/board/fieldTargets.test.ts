@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChoiceOptionView, PendingChoiceView } from "../net/protocol";
-import { boardPickSpots, isHandPick, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo } from "./fieldTargets";
+import { boardPickSpots, isHandPick, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo } from "./fieldTargets";
 
 const board = new Map<string, BoardCardInfo>([
   ["c1", { seat: 0, name: "Karoo" }],
@@ -138,5 +138,21 @@ describe("hand choices", () => {
     expect(onBoard([hand("h1", { instanceId: undefined })])).toBe(false);
     expect(isHandPick(select([hand("h1"), opt("c1")]), 0)).toBe(false);
     expect(isHandPick(select([hand("h1")], 1), 0)).toBe(false);
+  });
+});
+
+describe("different card names picks", () => {
+  // OP13-082 Five Elders: two St. Jaygarcia Saturn and a St. Topman Warcury in the trash.
+  const names: Record<string, string> = { "OP13-083": "St. Jaygarcia Saturn", "OP13-089": "St. Topman Warcury" };
+  const trash = [opt("o0", { defId: "OP13-083", zone: "trash" }), opt("o1", { defId: "OP13-083", zone: "trash" }), opt("o2", { defId: "OP13-089", zone: "trash" })];
+  const nameOf = (o: ChoiceOptionView) => names[o.defId!] ?? null;
+
+  it("greys out the other copy once one Saturn is picked (#293)", () => {
+    expect([...nameTakenIds(trash, ["o0"], true, nameOf)]).toEqual(["o1"]);
+    expect([...nameTakenIds(trash, ["o0", "o2"], true, nameOf)]).toEqual(["o1"]);
+  });
+
+  it("leaves every copy pickable when the effect has no name rule (#293)", () => {
+    expect(nameTakenIds(trash, ["o0"], undefined, nameOf).size).toBe(0);
   });
 });
