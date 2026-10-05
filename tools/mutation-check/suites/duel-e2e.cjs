@@ -34,6 +34,14 @@ module.exports = {
     { id: "e2e-don-chip-clicks-ignored", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/ChoicePrompt.tsx", from: "  const chip = target?.closest?.<HTMLElement>(\".don-strip .don-chip-btn[data-don-id]\");", to: "  const chip = null as HTMLElement | null;", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [desktop-1280]"] },
     { id: "e2e-don-chip-disabled", args: "demo-audit --project=phone-375", file: "duel-web/src/board/DonStrip.tsx", from: "      tabIndex={canDrag ? undefined : -1}\n", to: "      disabled={!canDrag}\n", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [phone-375]"] },
 
+    // Desktop review P2 (#281): the Grid hand is now the default on tall desktop windows
+    { id: "e2e-tab-skips-grid-hand", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/useBoardHotkeys.ts", from: ", .board-root .rail-hand-cards button.card-tile\",", to: "\",", kills: ["demo-audit.spec.ts > Tab visits the field cards, the hand, then the other controls and comes back (#262) [desktop-1280]"] },
+    { id: "e2e-deck-editor-shrinks-to-content", args: "demo-audit --project=desktop-1280", file: "duel-web/src/styles.css", from: "  width: 100%;\n  max-width: 920px;\n  margin: 0 auto;", to: "  max-width: 920px;\n  margin: 0 auto;", kills: ["demo-audit.spec.ts > deck editor keeps − count + on one row (#262) [desktop-1280]"] },
+
+    // Desktop review P3 (#282): desktop-only affordances must not reach phones
+    { id: "e2e-inspect-chip-mid-card-on-touch", args: "demo-audit playthrough --project=phone-375", file: "duel-web/src/styles.css", from: "@media (min-width: 900px) and (min-height: 500px) and (hover: hover) and (pointer: fine) {\n  .card-inspect-chip {", to: "@media all {\n  .card-inspect-chip {", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [phone-375]"] },
+    { id: "e2e-phone-pass-label-long", args: "playthrough --project=phone-375", file: "duel-web/src/board/DuelBoard.tsx", from: "        → P{hotseatPass.otherSeat + 1}\n", to: "        Switch to {playerLabel(hotseatPass.otherSeat)}\n", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [phone-375]"] },
+
     // UI audit
     // #190's deck-order fix has three layers (shrinkable column, wrapping row, clamped name); undo all of them.
     { id: "e2e-deck-order-prompt-widens", args: "demo-audit --project=phone-375", edits: [

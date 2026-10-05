@@ -168,7 +168,7 @@ function StackCard({
             </select>
           </label>
         ) : (
-          <p className="meta">No alt arts in atlas</p>
+          <p className="meta">Standard artwork only</p>
         )}
       </div>
     </article>
@@ -538,6 +538,22 @@ export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged, sideTop }: P
       </aside>
 
       <div className="deck-editor-main">
+        {/* Phones: the count and Add cards stay in reach while the list scrolls. */}
+        <div className="deck-count-bar">
+          <span>
+            <strong>{currentDeck.cards.length}</strong>/{MAX_MAIN_DECK_SIZE} cards
+          </span>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              setAddOpen(true);
+              document.querySelector(".deck-add-cards")?.scrollIntoView({ block: "start" });
+            }}
+          >
+            Add cards
+          </button>
+        </div>
         <section className="deck-config-section deck-editor-leader">
           <h2 className="lobby-section-title">Leader</h2>
           <div className="deck-stack-grid">

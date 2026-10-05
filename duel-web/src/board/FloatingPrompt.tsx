@@ -2,9 +2,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { lookupCard } from "../cards/atlas";
 import type { ChoiceRequestView, Intent, PendingChoiceView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
+import { useClickCopy } from "./clickCopy";
 import { floatLookAnswer, moveId, nearestSlot, tapInOrder } from "./floatOrder";
 import "./float.css";
-import { promptSourceName } from "./HideablePrompt";
+import { BackPill, promptSourceName } from "./HideablePrompt";
 
 /**
  * Floating-card prompts (always on in matches; `/demo?box` shows the pop-up fallback): instead of a pop-up panel,
@@ -144,13 +145,7 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
 }) {
   const name = choice.kind === "order_effects" ? "Order effects" : sourceName(choice);
   if (peek) {
-    return (
-      <div className="float-layer float-layer-peek">
-        <button type="button" className="float-return" onClick={() => onPeek(false)}>
-          Back to {name} · {count} card{count === 1 ? "" : "s"}
-        </button>
-      </div>
-    );
+    return <BackPill label={`Back to ${name} · ${count} card${count === 1 ? "" : "s"}`} onShow={() => onPeek(false)} />;
   }
   return (
     <div className="float-layer" role="dialog" aria-label={choice.prompt} style={{ "--n": count } as CSSProperties}>
@@ -196,6 +191,7 @@ function FloatLook({ choice, request, mySeat, onSend }: {
   mySeat: Seat;
   onSend: (i: Intent) => void;
 }) {
+  const copy = useClickCopy();
   const byId = useMemo(() => new Map(request.options.map((o) => [o.id, o])), [request.options]);
   const [row, setRow] = useState<string[]>(() => request.options.map((o) => o.id));
   const [picked, setPicked] = useState<string[]>([]);
@@ -226,7 +222,7 @@ function FloatLook({ choice, request, mySeat, onSend }: {
       axis={axis}
       note={
         <>
-          {picked.length ? <span>Taking {picked.map(name).join(", ")}. </span> : request.maxSelect > 0 ? <span>Tap a highlighted card to take it. </span> : null}
+          {picked.length ? <span>Taking {picked.map(name).join(", ")}. </span> : request.maxSelect > 0 ? <span>{copy("Tap a highlighted card to take it.")} </span> : null}
           {needsOrder && remaining.length > 1 ? <span>Drag to reorder what goes back.</span> : !needsOrder ? <span>{request.restLabel}</span> : null}
         </>
       }
@@ -288,6 +284,7 @@ function FloatLook({ choice, request, mySeat, onSend }: {
 
 /** Several effects at once: tap them in the order to resolve, or drag left → right. */
 function FloatEffectOrder({ choice, mySeat, onSend }: { choice: PendingChoiceView; mySeat: Seat; onSend: (i: Intent) => void }) {
+  const copy = useClickCopy();
   const effects = choice.unorderedChoices ?? [];
   const byId = useMemo(() => new Map(effects.map((c) => [c.id, c])), [effects]);
   const [order, setOrder] = useState<string[]>(() => effects.map((c) => c.id));
@@ -309,7 +306,7 @@ function FloatEffectOrder({ choice, mySeat, onSend }: { choice: PendingChoiceVie
       peek={peek}
       onPeek={setPeek}
       axis={["Resolves first", "Resolves last"]}
-      note={<span>Tap the cards in the order to resolve them, or drag them left to right.</span>}
+      note={<span>{copy("Tap the cards in the order to resolve them, or drag them left to right.")}</span>}
       actions={
         <>
           {tapped.length ? (

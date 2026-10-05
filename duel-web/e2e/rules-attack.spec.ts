@@ -22,7 +22,7 @@ async function endTurn(page: Page) {
   const end = page.locator(".intent-btn-primary", { hasText: /End turn/ });
   await end.click();
   // With the confirm-end-turn setting on, the same button asks for a second tap.
-  const again = page.locator(".intent-btn-primary", { hasText: /Tap again|End turn\?/ });
+  const again = page.locator(".intent-btn-primary", { hasText: /(Tap|Click) again|End turn\?/ });
   if (await again.isVisible().catch(() => false)) await again.click();
 }
 

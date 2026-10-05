@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { BackLink } from "./BackLink";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { UsernameSettings } from "../auth/UsernameSettings";
 import {
@@ -99,19 +100,25 @@ export function SettingsPage() {
 
   return (
     <div className="app-shell">
-      <div className="page page-narrow">
+      <div className="page page-narrow page-settings">
         <header className="page-header">
-          <Link
-            to="/"
-            className="btn btn-ghost btn-sm page-back"
-            aria-label="Back to home"
-          >
-            ← Home
-          </Link>
+          <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <h1 className="page-title">Settings</h1>
         </header>
 
-        <section className="panel">
+        <nav className="settings-jump" aria-label="Jump to a section">
+          <a href="#account">Account</a>
+          <a href="#theme">Theme</a>
+          <a href="#gameplay">Gameplay</a>
+          <a href="#deck-editor">Deck editor</a>
+          <a href="#playmat">Playmat</a>
+          <a href="#card-back">Card back</a>
+        </nav>
+
+        {/* Phones: one column in this order. 1024px and up: Gameplay on the right, the rest on the left. */}
+        <div className="settings-cols">
+        <div className="settings-a">
+        <section className="panel" id="account">
           <h2 className="panel-title">Account</h2>
           {authUser ? (
             <>
@@ -182,9 +189,7 @@ export function SettingsPage() {
           ) : null}
         </section>
 
-        {authUser ? <AnalystLinkPanel /> : null}
-
-        <section className="panel">
+        <section className="panel" id="theme">
           <h2 className="panel-title" id="theme-title">Theme</h2>
           <div className="segmented segmented-3" role="radiogroup" aria-label="Mode">
             {MODE_OPTIONS.map((o) => (
@@ -231,7 +236,9 @@ export function SettingsPage() {
           </p>
         </section>
 
-        <section className="panel">
+        </div>
+        <div className="settings-b">
+        <section className="panel" id="gameplay">
           <h2 className="panel-title">Gameplay</h2>
           <p className="field-hint">
             Also under ⚙ during a match.{" "}
@@ -242,7 +249,9 @@ export function SettingsPage() {
           <GameplaySettingsFields />
         </section>
 
-        <section className="panel">
+        </div>
+        <div className="settings-c">
+        <section className="panel" id="deck-editor">
           <h2 className="panel-title">Deck editor</h2>
           <div className="gameplay-toggle">
             <label className="switch">
@@ -260,7 +269,7 @@ export function SettingsPage() {
           </div>
         </section>
 
-        <section className="panel">
+        <section className="panel" id="playmat">
           <h2 className="panel-title">Playmat</h2>
           <div
             className={`playmat-preview${playmatUrl ? " has-art" : ""}`}
@@ -352,7 +361,7 @@ export function SettingsPage() {
           {matError ? <p className="error-text">{matError}</p> : null}
         </section>
 
-        <section className="panel">
+        <section className="panel" id="card-back">
           <h2 className="panel-title">Card back</h2>
           <div className="card-back-settings">
             <div
@@ -414,7 +423,9 @@ export function SettingsPage() {
           <CosmeticHistory kind="cardBack" />
         </section>
 
-        <section className="panel panel-quiet">
+        {authUser ? <AnalystLinkPanel /> : null}
+
+        <section className="panel panel-quiet" id="about">
           <h2 className="panel-title">About</h2>
           <p className="panel-copy">
             Private prototype. Rules engine and card effects are a work in
@@ -422,6 +433,8 @@ export function SettingsPage() {
           </p>
           <VersionStatus actions />
         </section>
+        </div>
+        </div>
       </div>
       {editing ? (
         <ImageEditor

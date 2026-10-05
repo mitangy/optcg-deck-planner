@@ -3,7 +3,7 @@
  * match over, …) at each project's screen size. The fixtures cover prompt
  * states a random playthrough rarely reaches.
  */
-import { test, expect, formatIssues } from "./fixtures";
+import { test, expect, formatIssues, preferFan } from "./fixtures";
 import { isKnown } from "./known-issues";
 
 const SCREENS = [
@@ -35,6 +35,7 @@ for (const screen of ["?full", "?statuses", "?attack"]) {
     await page.addInitScript(() =>
       localStorage.setItem("optcg-duel:settings", JSON.stringify({ tiltedBoard: true })),
     );
+    await preferFan(page);
     await page.goto(`/demo${screen}`);
     await page.locator(".board-root").waitFor();
     const issues = (await duel.audit()).filter((i) => !isKnown(i));
@@ -59,6 +60,7 @@ test("a searcher floats its cards even with Floating cards saved off (#288)", as
 // once the pointer leaves it, or it sits on your DON!! row (flat board).
 test("the centre hand fan tucks away after a click once the pointer leaves", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await preferFan(page);
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
   const donCovered = () =>
@@ -112,6 +114,7 @@ test("H hides and shows the hand with Keep hand open (#259)", async ({ page }) =
   await page.addInitScript(() =>
     localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true })),
   );
+  await preferFan(page);
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
   await page.mouse.move(640, 120);
@@ -204,6 +207,7 @@ test("the Grid hand drags into the left column, stays after a reload, and Reset 
 // every grip but keeps the layout.
 test("the fanned hand drags to the middle of the screen and floats there after a reload, and Drag handles off hides the grips (#261)", async ({ page, duel }, info) => {
   test.skip(info.project.name !== "desktop-1280", "the fan moves on desktop only");
+  await preferFan(page);
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
   const fan = page.locator(".hand-fan");
@@ -285,7 +289,7 @@ test("Tab visits the field cards, the hand, then the other controls and comes ba
         const el = document.activeElement as HTMLElement | null;
         if (!el) return "none";
         if (el.closest(".side-field")) return "field";
-        if (el.closest(".hand-fan-cards, .hand-row-inner")) return "hand";
+        if (el.closest(".hand-fan-cards, .hand-row-inner, .rail-hand-cards")) return "hand";
         return `other:${el.getAttribute("aria-label") ?? el.textContent?.trim().slice(0, 20)}`;
       }),
     );
@@ -293,7 +297,7 @@ test("Tab visits the field cards, the hand, then the other controls and comes ba
   const firstHand = seen.indexOf("hand");
   expect(seen[0]).toBe("field");
   expect(firstHand).toBeGreaterThan(0);
-  expect(seen.slice(0, firstHand).every((s) => s === "field")).toBe(true);
+  expect(seen.slice(0, firstHand).every((s) => s === "field"), seen.join(", ")).toBe(true);
   const others = seen.filter((s) => s.startsWith("other:"));
   expect(others.some((s) => /concede/i.test(s)), seen.join(", ")).toBe(true);
   // After the other controls, Tab comes back round to the cards.
@@ -387,6 +391,9 @@ const LIGHT_TEXT: Record<string, string[]> = {
     ".card-preview-traits",
     ".battle-log-turn-title",
     ".turn-order-badge:not(.first)",
+    ".recent-play-you .recent-play-who",
+    ".recent-play-opp .recent-play-who",
+    ".log-phase .log-text",
   ],
   "/": [".home-kicker"],
   "/settings": [".panel-title"],

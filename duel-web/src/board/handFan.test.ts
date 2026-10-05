@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FAN_MAX_SPREAD_DEG, FAN_STEP_DEG, fanPose, handDrawer } from "./handFan";
+import { FAN_MAX_SPREAD_DEG, FAN_MIN_STEP, FAN_STEP_DEG, fanPose, fanSpan, handDrawer } from "./handFan";
 
 describe("fanPose", () => {
   it("leans the outer cards of a full hand no further apart than the max spread", () => {
@@ -35,5 +35,26 @@ describe("handDrawer", () => {
   it("shows a hidden or tucked hand while an effect picks cards from it (#263)", () => {
     expect(handDrawer({ ...rest, hidden: true, picking: true })).toBe("open");
     expect(handDrawer({ ...rest, picking: true })).toBe("open");
+  });
+});
+
+describe("fanSpan", () => {
+  it("squeezes a big hand to the mat's width instead of running off the screen (#281)", () => {
+    // 19 cards of 100px raised would be 1540px wide; the mat is 700px.
+    expect(fanSpan(19, 100, 0.8, 700)).toBe(700);
+  });
+
+  it("leaves a small hand at its natural width (#281)", () => {
+    // 4 cards, each after the first adds 0.8 of a card: 340px, well inside 700px.
+    expect(fanSpan(4, 100, 0.8, 700)).toBeCloseTo(340);
+  });
+
+  it("stops overlapping at the minimum step when even the mat is too small (#281)", () => {
+    // The mat allows 300px, but 19 cards need 100 * (0.22 * 18 + 1) to stay readable.
+    expect(fanSpan(19, 100, 0.8, 300)).toBeCloseTo(100 * (FAN_MIN_STEP * 18 + 1));
+  });
+
+  it("is uncapped when the mat could not be measured (#281)", () => {
+    expect(fanSpan(19, 100, 0.8, null)).toBeCloseTo(100 * (0.8 * 18 + 1));
   });
 });

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { lookupCard } from "../cards/atlas";
 import type { ChoiceOptionView, Intent, PlayerView, Seat } from "../net/protocol";
 import { BoardHighlight, useBoardTargetClicks } from "./ChoicePrompt";
+import { useClickCopy } from "./clickCopy";
 import { matchPlayCardTrash, playCardTrashTargetIds } from "./dragIntents";
 import { FieldTargetBar } from "./FieldTargetBar";
 import { resolvesOnPick, toggleSelection } from "./fieldTargets";
@@ -24,6 +25,7 @@ type Props = {
  */
 export function ReplacePrompt({ view, intents, handIndex, mySeat, onSend, onCancel }: Props) {
   const oneTap = useDuelSettings().oneTapActions;
+  const copy = useClickCopy();
   const [selected, setSelected] = useState<string | null>(null);
   const card = view.you.hand[handIndex];
   const targetIds = playCardTrashTargetIds(intents, handIndex);
@@ -52,7 +54,7 @@ export function ReplacePrompt({ view, intents, handIndex, mySeat, onSend, onCanc
       <BoardHighlight ids={selected ? [selected] : []} kind="hover" />
       <FieldTargetBar
         title="Your board is full"
-        text={`Tap one of your Characters to trash so ${name} can take its place.`}
+        text={copy(`Tap one of your Characters to trash so ${name} can take its place.`)}
         caption="Choose 1"
         label="Choose a Character to replace"
       >

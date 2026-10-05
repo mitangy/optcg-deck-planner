@@ -30,6 +30,13 @@ export type AnimationSpeed = "normal" | "fast" | "off";
  */
 export type HandLayout = "fan" | "grid";
 
+/**
+ * The saved hand layout setting. `auto` (the default, for players who never
+ * picked one) is the Grid on tall desktop windows, where the right rail has
+ * room for it and the fan would cover the DON!! row, and the fan elsewhere.
+ */
+export type HandLayoutPref = "auto" | HandLayout;
+
 /** Text size across the app, on top of the automatic scaling with the window. */
 export type TextSize = "small" | "medium" | "large" | "xlarge";
 
@@ -55,8 +62,8 @@ export type DuelSettings = {
   screenOrientation: ScreenOrientationPref;
   /** Start every match with the hand sorted by cost. */
   sortHandByCost: boolean;
-  /** Fanned hand or the flat grid. */
-  handLayout: HandLayout;
+  /** Fanned hand, the flat grid, or automatic (see `HandLayoutPref`). */
+  handLayout: HandLayoutPref;
   /** Desktop: where the fanned hand sits ("x,y" share of the window); "" = bottom centre. */
   handFanPos: string;
   /** Desktop: the fanned hand (or corner dock) stays raised instead of tucking away. */
@@ -110,11 +117,11 @@ const DEFAULTS: DuelSettings = {
   playmatOpacity: 1,
   theme: DEFAULT_THEME,
   colorMode: "dark",
-  endTurnConfirm: "always",
+  endTurnConfirm: "actions",
   responseStops: "always",
   screenOrientation: "auto",
   sortHandByCost: false,
-  handLayout: "fan",
+  handLayout: "auto",
   handFanPos: "",
   keepHandOpen: false,
   panelLayout: "",
@@ -136,7 +143,13 @@ const END_TURN_CONFIRM: readonly EndTurnConfirm[] = ["always", "actions", "never
 const RESPONSE_STOPS: readonly ResponseStops[] = ["always", "auto", "smart"];
 const SCREEN_ORIENTATIONS: readonly ScreenOrientationPref[] = ["auto", "portrait", "landscape"];
 const ANIMATION_SPEEDS: readonly AnimationSpeed[] = ["normal", "fast", "off"];
-const HAND_LAYOUTS: readonly HandLayout[] = ["fan", "grid"];
+export const HAND_LAYOUTS: readonly HandLayoutPref[] = ["auto", "fan", "grid"];
+
+/** The layout to draw: `auto` is the Grid only on a tall desktop window (see `HandLayoutPref`). */
+export function resolveHandLayout(pref: HandLayoutPref, tallDesktop: boolean): HandLayout {
+  if (pref === "auto") return tallDesktop ? "grid" : "fan";
+  return pref;
+}
 /**
  * Builds before #261 had two fans ("fanCenter", "fanRight"); both become the
  * one fan (unknown layout), the right one kept at the bottom right.
@@ -166,6 +179,7 @@ function sanitize(
   const next = { ...DEFAULTS, ...rest };
   if (!END_TURN_CONFIRM.includes(next.endTurnConfirm)) next.endTurnConfirm = DEFAULTS.endTurnConfirm;
   // Older builds stored a boolean auto-pass: true is today's `auto`, anything else `always`.
+  if (rest.responseStops === undefined) next.responseStops = deviceDefaults().responseStops;
   if (rest.responseStops === undefined && autoPassDefense === true) next.responseStops = "auto";
   if (!RESPONSE_STOPS.includes(next.responseStops)) next.responseStops = DEFAULTS.responseStops;
   if (!SCREEN_ORIENTATIONS.includes(next.screenOrientation)) {
@@ -174,6 +188,8 @@ function sanitize(
   if (!ANIMATION_SPEEDS.includes(next.animationSpeed)) next.animationSpeed = DEFAULTS.animationSpeed;
   const storedLayout = next.handLayout as string;
   if (storedLayout === "fanRight" && rest.handFanPos === undefined) next.handFanPos = LEGACY_RIGHT_FAN_POS;
+  // Those two were chosen fans: they stay fans, not the automatic layout.
+  if (storedLayout === "fanRight" || storedLayout === "fanCenter") next.handLayout = "fan";
   if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;
   if (!TEXT_SIZES.includes(next.textSize)) next.textSize = DEFAULTS.textSize;
   if (!OPP_HAND_SPOTS.includes(next.oppHandSpot)) next.oppHandSpot = DEFAULTS.oppHandSpot;
@@ -221,14 +237,28 @@ export function onLocalSettingsChange(listener: (s: DuelSettings) => void): () =
 
 const localListeners = new Set<(s: DuelSettings) => void>();
 
+/** A phone-sized touch screen (a landscape phone is under 900px wide too). */
+export function isPhoneScreen(): boolean {
+  try {
+    return typeof matchMedia === "function" && matchMedia("(pointer: coarse) and (max-width: 900px)").matches;
+  } catch {
+    return false;
+  }
+}
+
+/** Defaults that depend on the device: phones skip the block step when there is no blocker. */
+function deviceDefaults(): DuelSettings {
+  return { ...DEFAULTS, responseStops: isPhoneScreen() ? "auto" : DEFAULTS.responseStops };
+}
+
 export function loadSettings(): DuelSettings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULTS };
+    if (!raw) return deviceDefaults();
     const parsed = JSON.parse(raw) as Partial<DuelSettings>;
     return sanitize(parsed && typeof parsed === "object" ? parsed : {});
   } catch {
-    return { ...DEFAULTS };
+    return deviceDefaults();
   }
 }
 

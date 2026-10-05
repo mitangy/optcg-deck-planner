@@ -62,3 +62,6 @@ export const RAIL_HAND_QUERY = "(min-height: 680px)";
  * small tablets keep the single column.
  */
 export const DESKTOP_DECKS_QUERY = "(min-width: 1024px)";
+
+/** A mouse or trackpad is the main pointer (a desktop or laptop), so phone-only settings stay hidden. */
+export const FINE_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
