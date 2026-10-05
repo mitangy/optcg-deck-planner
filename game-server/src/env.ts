@@ -35,18 +35,15 @@ export function getGameTokenSecret(): string {
 }
 
 /**
- * Refuse to start a production server that anyone could join as anyone: with
- * the public dev secret, tokens for any account can be signed offline, and
- * without REQUIRE_GAME_TOKEN a bare devUserId is accepted.
+ * Refuse to start a production server whose game tokens anyone could sign
+ * offline with the public dev secret. Bare devUserId joins are handled by
+ * requireGameToken, which is always on in production.
  */
 export function assertProductionAuthConfig(env: NodeJS.ProcessEnv = process.env): void {
   if (env.NODE_ENV !== "production") return;
   const secret = env.GAME_TOKEN_SECRET?.trim() || env.SESSION_SECRET?.trim() || DEV_GAME_TOKEN_SECRET;
   if (secret === DEV_GAME_TOKEN_SECRET) {
     throw new Error("GAME_TOKEN_SECRET must be set in production");
-  }
-  if ((env.REQUIRE_GAME_TOKEN ?? "").toLowerCase() !== "true") {
-    throw new Error("REQUIRE_GAME_TOKEN must be true in production");
   }
 }
 
@@ -67,9 +64,13 @@ export function isRankedMatchCreateAttested(value: unknown): boolean {
   return supplied.length === expected.length && timingSafeEqual(supplied, expected);
 }
 
-/** When true, join requires a valid gameToken (devUserId-only rejected). */
-export function requireGameToken(): boolean {
-  return (process.env.REQUIRE_GAME_TOKEN ?? "").toLowerCase() === "true";
+/**
+ * When true, join requires a valid gameToken (devUserId-only rejected).
+ * Always on in production; REQUIRE_GAME_TOKEN only turns it on elsewhere.
+ */
+export function requireGameToken(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (env.NODE_ENV === "production") return true;
+  return (env.REQUIRE_GAME_TOKEN ?? "").toLowerCase() === "true";
 }
 
 export function getApiBaseUrl(): string {

@@ -100,6 +100,7 @@ module.exports = {
     { id: "seed-client-chosen", file: guard, from: "  if (clientSeed !== undefined && !requireGameToken()) return clientSeed;", to: "  if (clientSeed !== undefined) return clientSeed;", kills: ["ignores a client-chosen seed when tokens are required"] },
     { id: "seed-from-clock", file: guard, from: "  return randomInt(0, 2 ** 32);", to: "  return Date.now() % 1_000_000_000;", kills: ["does not derive the seed from the clock"] },
     { id: "prod-dev-secret-allowed", file: env, from: "  if (secret === DEV_GAME_TOKEN_SECRET) {\n    throw new Error(\"GAME_TOKEN_SECRET must be set in production\");\n  }", to: "", kills: ["refuses to start in production with the dev game token secret"] },
-    { id: "prod-token-optional", file: env, from: "  if ((env.REQUIRE_GAME_TOKEN ?? \"\").toLowerCase() !== \"true\") {\n    throw new Error(\"REQUIRE_GAME_TOKEN must be true in production\");\n  }", to: "", kills: ["refuses to start in production without REQUIRE_GAME_TOKEN"] },
+    { id: "prod-token-optional", file: env, from: "  if (env.NODE_ENV === \"production\") return true;\n", to: "", kills: ["starts in production without REQUIRE_GAME_TOKEN and still requires tokens"] },
+    { id: "prod-start-needs-token-flag", file: env, from: "    throw new Error(\"GAME_TOKEN_SECRET must be set in production\");\n  }\n}", to: "    throw new Error(\"GAME_TOKEN_SECRET must be set in production\");\n  }\n  if ((env.REQUIRE_GAME_TOKEN ?? \"\").toLowerCase() !== \"true\") throw new Error(\"REQUIRE_GAME_TOKEN must be true in production\");\n}", kills: ["starts in production without REQUIRE_GAME_TOKEN and still requires tokens"] },
   ],
 };
