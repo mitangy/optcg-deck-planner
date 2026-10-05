@@ -31,7 +31,7 @@ describe("friendActions", () => {
     expect(friendActions(friend({ status: "spectating", room_id: "r1" })).invite).toBe(false);
   });
 
-  it("offers Invite to a friend waiting in their own private room (#PRNUM)", () => {
+  it("offers Invite to a friend waiting in their own private room (#313)", () => {
     expect(friendActions(friend({ status: "waiting" })).invite).toBe(true);
   });
 
@@ -40,7 +40,7 @@ describe("friendActions", () => {
   });
 });
 
-describe("inviting a friend who already invited you (#PRNUM)", () => {
+describe("inviting a friend who already invited you (#313)", () => {
   it("finds their invite so Invite takes that seat instead of opening a second room", () => {
     const theirs = invite({ id: 9, from_user_id: 1 });
     const someoneElse = invite({ id: 8, from_user_id: 2, from_username: "Nami" });
@@ -49,7 +49,7 @@ describe("inviting a friend who already invited you (#PRNUM)", () => {
   });
 });
 
-describe("invites while you wait in your own room (#PRNUM)", () => {
+describe("invites while you wait in your own room (#313)", () => {
   const ownRoom: MatchLaunch = { status: "Opening your room…", leaderId: "ST01-001", invite: true, friends: true };
   const waiting = { launch: ownRoom, role: "player" as const, view: null, matchId: "room-you" };
 

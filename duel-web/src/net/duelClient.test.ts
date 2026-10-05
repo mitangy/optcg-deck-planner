@@ -117,7 +117,7 @@ describe("DuelClient background reconnect", () => {
   });
 });
 
-describe("a connect superseded by a newer one (#PRNUM)", () => {
+describe("a connect superseded by a newer one (#313)", () => {
   it("leaves the room it opened instead of keeping the seat", async () => {
     const older = fakeRoom({ answersPing: true });
     older.roomId = "older";
