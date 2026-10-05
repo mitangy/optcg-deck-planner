@@ -281,6 +281,7 @@ module.exports = {
     scnManual("chambres-no-return", 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "to_hand", target: exactly(1, myChar(), { bind: "_ret" }) },', 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "rest", target: exactly(1, myChar(), { bind: "_ret" }) },', ["EB01-020 returns a red Character"]),
     scnManual("loguetown-no-hand-cost", 'costs: [{ k: "hand_to_deck_bottom", count: 1 }, { k: "self_to_deck_bottom" }], effect: draw(2) }]),', 'costs: [{ k: "self_to_deck_bottom" }], effect: draw(2) }]),', ["EB01-030 places itself", "EB01-030 cannot activate with an empty hand"]),
     scnManual("loguetown-draw", 'costs: [{ k: "hand_to_deck_bottom", count: 1 }, { k: "self_to_deck_bottom" }], effect: draw(2) }]),', 'costs: [{ k: "hand_to_deck_bottom", count: 1 }, { k: "self_to_deck_bottom" }], effect: draw(1) }]),', ["EB01-030 places itself"]),
+    scnManual("eb02-030-one-battle", 'effect: { do: "grant", ability: "m1", duration: "turn" } },', 'effect: { do: "grant", ability: "m1", duration: "battle" } },', ["EB02-030 keeps protecting Characters in a later battle that turn"]),
     scnManual("sunny-moves-all", 'to: exactly(1, myChar({ traits: ["Straw Hat Crew"] })), count: 1 } }]),', 'to: exactly(1, myChar({ traits: ["Straw Hat Crew"] })), count: 2 } }]),', ["EB02-009 moves a given DON!!"]),
     // [DON!! xN] [On K.O.] / self_ko gates read the DON!! attached before the K.O. returned them
     { id: "ko-gate-after-don-returned", edits: [
