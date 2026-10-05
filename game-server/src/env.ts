@@ -86,6 +86,12 @@ export function getSeatReservationSeconds(): number {
   return Number.isFinite(n) && n > 0 ? n : 90;
 }
 
+/** Seconds a paired ranked room waits for both players before giving up. */
+export function getRankedNoShowSeconds(): number {
+  const n = Number(process.env.RANKED_NO_SHOW_SECONDS ?? "45");
+  return Number.isFinite(n) && n > 0 ? n : 45;
+}
+
 /** Comma-separated browser origins allowed for CORS (duel-web / Expo web). */
 export function getCorsOrigins(): string[] {
   const raw =
