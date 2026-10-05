@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { BackLink } from "./BackLink";
 import { DeckImportPanel } from "../board/DeckImportPanel";
 import { createDeckFromInput, setSelectedDeckId } from "../decks/storage";
 
@@ -32,9 +33,7 @@ export function NewDeckPage() {
     <div className="app-shell">
       <div className="deck-config">
         <header className="deck-config-header">
-          <Link to="/decks" className="btn btn-secondary deck-config-back">
-            ← Decks
-          </Link>
+          <BackLink to="/decks" label="Decks" ariaLabel="Back to decks" />
           <div className="deck-config-heading">
             <h1 className="deck-config-title">New deck</h1>
             <p className="meta">
@@ -45,15 +44,17 @@ export function NewDeckPage() {
         </header>
 
         <form className="deck-new-form" onSubmit={onCreate}>
-          <label htmlFor="new-deck-name">Deck name</label>
-          <input
-            id="new-deck-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="My red ST01"
-            required
-            autoFocus
-          />
+          <div className="field">
+            <label htmlFor="new-deck-name">Deck name</label>
+            <input
+              id="new-deck-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="My red ST01"
+              required
+              autoFocus
+            />
+          </div>
 
           <DeckImportPanel
             heading="Import deck list (optional)"

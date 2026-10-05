@@ -86,12 +86,15 @@ def wilson(wins: int, games: int, z: float = 1.96) -> tuple[float, float] | None
 
 
 def _record(games: int, wins: int) -> dict:
+    """A win record; under MIN_GAMES only the game count, so no single game's result shows."""
+    if games < MIN_GAMES:
+        return {"games": games, "wins": None, "win_rate": None, "interval": None, "too_few_games": True}
     return {
         "games": games,
         "wins": wins,
-        "win_rate": round(wins / games, 3) if games else None,
+        "win_rate": round(wins / games, 3),
         "interval": wilson(wins, games),
-        "too_few_games": games < MIN_GAMES,
+        "too_few_games": False,
     }
 
 
@@ -99,7 +102,8 @@ def _pairs(db: Session, days: int, ranked_only: bool, leader: str | None) -> lis
     """(side, opponent side) for every shared match in the window; with a leader, only its sides."""
     since = datetime.now(timezone.utc) - timedelta(days=days)
     opted_out = set(db.scalars(select(AnalystPrefs.user_id).where(AnalystPrefs.share_matches.is_(False))).all())
-    q = select(DuelMatchSeat).where(DuelMatchSeat.created_at >= since)
+    # Date by the match: backfilled seat rows were stamped when the backfill ran.
+    q = select(DuelMatchSeat).join(DuelMatch, DuelMatch.match_id == DuelMatchSeat.match_id).where(DuelMatch.created_at >= since)
     if ranked_only:
         q = q.where(DuelMatchSeat.ranked.is_(True))
     by_match: dict[str, list[DuelMatchSeat]] = defaultdict(list)
@@ -124,7 +128,7 @@ def _split(pairs: list[tuple[DuelMatchSeat, DuelMatchSeat]]) -> dict:
         **_record(len(pairs), sum(s.won for s, _ in pairs)),
         "going_first": _record(len(first), sum(s.won for s in first)),
         "going_second": _record(len(second), sum(s.won for s in second)),
-        "average_turns": round(sum(turns) / len(turns), 1) if turns else None,
+        "average_turns": round(sum(turns) / len(turns), 1) if turns and len(pairs) >= MIN_GAMES else None,
     }
 
 

@@ -98,6 +98,7 @@ type RoomInternals = {
   match: MatchState;
   replay: MatchReplay | null;
   expireTurnClock(): void;
+  matchEndsAt: number | null;
   resultPayload(s0: number, s1: number, winner: 0 | 1, reason: string): MatchResultPayload;
 };
 const internals = (room: DuelRoom) => room as unknown as RoomInternals;
@@ -1079,6 +1080,88 @@ describe("DuelRoom", () => {
     // Each seat gets its own log of the same game, numbered like the room's turns.
     assert.deepEqual(payload.seat_logs!.map((l) => l.seat), [0, 1]);
     assert.equal(payload.seat_logs![0].turns.at(-1)!.turn, match.turnNumber);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("ranked clock: a seat that never answers its mulligan loses on time, not the first player (#248)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 42,
+      autoSkipMulligan: false,
+      timer: { matchSeconds: 900 },
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    assert.equal(bags[0].welcome!.phase, "mulligan");
+
+    // The active seat keeps; the other seat stalls on its mulligan.
+    const active = internals(room).match.activeSeat;
+    const clients = [c0, c1] as const;
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "mulligan", doMulligan: false } });
+    await waitUntil(() => internals(room).match.players[active].mulliganDone, 5000);
+
+    internals(room).matchEndsAt = Date.now() - 1;
+    await waitUntil(() => bags[0].over != null, 5000);
+    assert.deepEqual(bags[0].over!.result, { winner: active, reason: "match_timeout" });
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("ranked clock: a defender sitting on the block step loses on time, not the attacker (#248)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 42,
+      autoSkipMulligan: true,
+      timer: { matchSeconds: 900 },
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    const clients = [c0, c1] as const;
+
+    // Pass turns (answering any prompt) until the active seat can attack, then attack the leader.
+    for (let i = 0; i < 40; i++) {
+      const m = internals(room).match;
+      if (m.phase === "block" || m.phase === "counter") break;
+      const seat = ([0, 1] as const).find((s) => bags[s].views.at(-1)!.legalIntents.length > 0);
+      assert.ok(seat !== undefined, "someone can act");
+      const legal = bags[seat].views.at(-1)!.legalIntents;
+      const pick =
+        legal.find((x) => x.type === "declare_attack" && (x.target as { kind: string }).kind === "leader") ??
+        legal.find((x) => x.type === "end_turn") ??
+        legal[0]!;
+      const seen: [number, number] = [bags[0].views.length, bags[1].views.length];
+      clients[seat].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: pick });
+      await waitUntil(() => bags[0].views.length > seen[0] && bags[1].views.length > seen[1], 5000);
+    }
+    const m = internals(room).match;
+    assert.equal(m.phase, "block");
+    assert.equal(m.pendingChoices.length, 0);
+    const attacker = m.activeSeat;
+    assert.equal(m.battle!.attackerSeat, attacker);
+
+    // The defender never passes the block step.
+    internals(room).matchEndsAt = Date.now() - 1;
+    await waitUntil(() => bags[0].over != null, 5000);
+    assert.deepEqual(bags[0].over!.result, { winner: attacker, reason: "match_timeout" });
 
     await c0.leave(true);
     await c1.leave(true);

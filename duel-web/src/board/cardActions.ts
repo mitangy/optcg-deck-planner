@@ -113,10 +113,14 @@ export function blockIntentFor(intents: readonly Intent[], blockerId: string): I
  * `tray` is the phone tray, whose staged counters turn it into "Confirm counter".
  */
 export function counterPrimaryLabel(
-  model: Pick<DefendModel, "remaining" | "stagedIds">,
+  model: Pick<DefendModel, "remaining" | "stagedIds"> & { stagedUnknown?: boolean },
   tray: boolean,
 ): string {
-  if (tray && model.stagedIds.length > 0) return "Confirm counter";
+  if (tray && model.stagedIds.length > 0) {
+    // Staged but still short: confirming spends the cards and the hit lands anyway.
+    const short = model.remaining != null && model.remaining > 0 && !model.stagedUnknown;
+    return short ? "Counter anyway (still lose)" : "Confirm counter";
+  }
   if (model.remaining === 0) return "Resolve";
   return tray ? "Take hit" : "Pass counter";
 }

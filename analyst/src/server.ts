@@ -313,7 +313,7 @@ function registerStats(server: McpServer, api: PlannerApi) {
       description:
         "Win rates from games recorded on optcgduel.app (aggregates only, no player names or deck lists). No leader: every leader's games, play share and win rate. " +
         "leader: its overall record, its record against each opponent leader, and win rates with and without each card it plays. leader + opponent: that matchup. " +
-        "Every rate has games, wins, a 95% interval, going first and second splits, and too_few_games when there are under 5 games.",
+        "Every rate has games, wins, a 95% interval and going first and second splits. Under 5 games a record is marked too_few_games and gives only its game count (wins, rates, intervals and average turns are null).",
       inputSchema: {
         leader: z.string().max(20).optional().describe("Leader card number"),
         opponent: z.string().max(20).optional().describe("Opponent's leader card number (needs leader)"),

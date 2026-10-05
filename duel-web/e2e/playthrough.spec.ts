@@ -71,8 +71,8 @@ async function candidates(page: Page): Promise<Candidate[]> {
       // Favour moves that advance the game; card taps only reveal a card's actions.
       let weight = el.classList.contains("card-tile") ? 1 : 4;
       if (/^Attack/.test(label)) weight = 12;
-      else if (/^(Play|Give DON|Activate|\+\d|All \()/.test(label)) weight = 8;
-      else if (/Tap again/.test(label)) weight = 60;
+      else if (/^(Play|Give( all)? (DON|\d)|Activate|\+\d|All \()/.test(label)) weight = 8;
+      else if (/(Tap|Click) again/.test(label)) weight = 60;
       else if (/End turn/.test(label)) weight = 3;
       else if (/^Cancel/.test(label)) weight = 0.3;
       const at = clickPoint(el, r);

@@ -16,6 +16,20 @@ export const GAME_SERVER = "http://127.0.0.1:2567";
 
 export type DeckList = { leaderId: string; cards: string[] };
 
+/**
+ * A 1280x720 window gets the Grid hand by default (the "auto" hand layout, any
+ * desktop window at least 680 px tall). Tests about the fanned hand call this
+ * after their own settings init scripts: it adds `handLayout: "fan"` to the
+ * stored settings unless a test already chose a layout.
+ */
+export async function preferFan(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const key = "optcg-duel:settings";
+    const stored = JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, unknown>;
+    if (stored.handLayout === undefined) localStorage.setItem(key, JSON.stringify({ ...stored, handLayout: "fan" }));
+  });
+}
+
 /** 50-card mono-red list of plain Characters: games are decided by attacks, not effects. */
 export const RED_VANILLA: DeckList = {
   leaderId: "ST01-001",

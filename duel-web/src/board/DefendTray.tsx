@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
+import { isPlaceholderArt, isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import type { DefendModel } from "./defendModel";
@@ -23,6 +23,12 @@ function Thumb({ defId, ownerSeat }: { defId: string; ownerSeat: Seat }) {
           draggable={false}
           // Same fallback as CardTile: CDN art first, then the local mirror.
           onError={() => (!local && isTcgplayerCdnUrl(primary) ? setLocal(true) : setFailed(true))}
+          onLoad={(e) => {
+            if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) {
+              if (!local) setLocal(true);
+              else setFailed(true);
+            }
+          }}
         />
       ) : (
         <span className="defend-chip-fallback">{defId}</span>
@@ -85,6 +91,8 @@ function power(n: number | null): string {
 
 type Props = {
   model: DefendModel;
+  /** `rail`: desktop right column, chips wrap so every value shows (no sideways scroll). */
+  layout?: "tray" | "rail";
   ownerSeat: Seat;
   /** Remaining response clock, 0-1, or null when the room has none. */
   clock: number | null;
@@ -105,6 +113,7 @@ type Props = {
  */
 export function DefendTray({
   model,
+  layout = "tray",
   ownerSeat,
   clock,
   onToggleBlocker,
@@ -131,7 +140,7 @@ export function DefendTray({
 
   return (
     <section
-      className={`defend-tray defend-${m.phase}`}
+      className={`defend-tray defend-${m.phase}${layout === "rail" ? " defend-rail" : ""}`}
       aria-label={m.phase === "block" ? "Block or take the attack" : "Counter or take the hit"}
     >
       {clock != null ? (

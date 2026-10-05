@@ -1,0 +1,51 @@
+/** Which Gameplay rows a device is shown (the Settings page and the in-match sheet). */
+export type FieldDevice = {
+  /** Desktop window: side panels can be moved. */
+  desktop: boolean;
+  /** Window that can show the tilted board. */
+  tiltFits: boolean;
+  /** A mouse or trackpad is the main pointer: not a phone or tablet. */
+  finePointer: boolean;
+};
+
+export type ToggleKey =
+  | "sortHandByCost"
+  | "keepHandOpen"
+  | "layoutGrips"
+  | "oneTapActions"
+  | "oppHandTopRight"
+  | "tiltedBoard"
+  | "turnSplash"
+  | "reduceMotion"
+  | "turnAlert"
+  | "turnSound";
+
+/** The Screen orientation lock only does anything on a phone or tablet. */
+export function showOrientation(d: FieldDevice): boolean {
+  return !d.finePointer;
+}
+
+/**
+ * Whether a switch is listed. Tilted board needs a window that can show it,
+ * Drag handles a desktop window. Vibration is phone-only: on a desktop the
+ * same switch only marks the browser tab, which the page words as a Tab alert.
+ */
+export function toggleShown(key: ToggleKey, d: FieldDevice): boolean {
+  if (key === "tiltedBoard") return d.tiltFits;
+  if (key === "layoutGrips") return d.desktop;
+  // The tucked-away fan / corner dock only exists on desktop windows.
+  if (key === "keepHandOpen") return d.desktop;
+  return true;
+}
+
+/** Label and hint of the turn-alert switch: Vibration on a phone, Tab alert with a mouse. */
+export function turnAlertCopy(
+  d: FieldDevice,
+  phone: { label: string; hint: string },
+): { label: string; hint: string } {
+  if (!d.finePointer) return phone;
+  return {
+    label: "Tab alert",
+    hint: "Marks the browser tab when the game needs you while you're in another tab.",
+  };
+}
