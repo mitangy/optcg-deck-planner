@@ -4,7 +4,7 @@ import hmac
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,9 +12,9 @@ from app.auth import get_current_user
 from app.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.models import CatalogMeta, User
+from app.models import CatalogMeta, CatalogPrinting, User
 from app.rate_limit import RateLimiter, client_ip
-from app.recent_sales import fetch_recent_sales
+from app.recent_sales import fetch_recent_sales, is_cached
 from app.schemas import (
     UserOut,
     UserPreferencesUpdate,
@@ -57,6 +57,9 @@ router = APIRouter(tags=["api"])
 
 # Public TCGPlayer proxy — keep abuse cost bounded per client IP.
 _sales_rate_limiter = RateLimiter(max_calls=30, period_s=60)
+# Uncached lookups each hold a worker thread on a TCGPlayer call; cap them in
+# total, since the per-IP key above can be spoofed.
+_sales_upstream_limiter = RateLimiter(max_calls=60, period_s=60)
 
 
 def _require_catalog_token(x_catalog_token: str | None, settings: Settings) -> None:
@@ -724,11 +727,18 @@ def catalog_card_printings(
 @router.get("/catalog/sales/{product_id}", response_model=RecentSalesResponse)
 def catalog_recent_sales(
     request: Request,
-    product_id: int,
+    product_id: Annotated[int, Path(ge=1, le=2_147_483_647)],
+    db: Annotated[Session, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=10)] = 3,
 ):
     """Public proxy for TCGPlayer latest sales (cached). Used by price expand UI."""
     if not _sales_rate_limiter.allow(client_ip(request)):
+        raise HTTPException(status_code=429, detail="Too many sales requests")
+    # Only products in our catalog: arbitrary ids would each cost an upstream call
+    # and a cache entry that is never reused.
+    if db.scalar(select(CatalogPrinting.id).where(CatalogPrinting.product_id == product_id).limit(1)) is None:
+        raise HTTPException(status_code=404, detail="Unknown product")
+    if not is_cached(product_id) and not _sales_upstream_limiter.allow("sales-upstream"):
         raise HTTPException(status_code=429, detail="Too many sales requests")
     try:
         sales = fetch_recent_sales(product_id, limit=limit)

@@ -13,6 +13,9 @@ const friends = "backend/app/routers/friends.py";
 const prefs = "backend/app/routers/duel_prefs.py";
 const analyst = "backend/app/routers/analyst.py";
 const stats = "backend/app/analyst_stats.py";
+const bodyLimit = "backend/app/body_limit.py";
+const rateLimit = "backend/app/rate_limit.py";
+const api = "backend/app/routers/api.py";
 
 module.exports = {
   cwd: "backend",
@@ -22,7 +25,8 @@ module.exports = {
     { id: "card-report-game-token-ignored", file: duel, from: "    payload = verify_game_token(token.strip(), settings)\n    if payload is None:\n        return None\n    return db.get(User, payload[\"uid\"])", to: "    return None", kills: ["test_game_token_holder_is_recorded_as_reporter"] },
     { id: "card-report-session-ignored", file: duel, from: "    if session_user is not None:\n        return session_user\n", to: "", kills: ["test_session_user_takes_precedence_over_game_token"] },
     { id: "card-report-description-unstripped", file: "backend/app/schemas.py", from: "    model_config = ConfigDict(str_strip_whitespace=True)\n\n    card_id", to: "    card_id", kills: ["test_padded_short_description_is_rejected"] },
-    { id: "card-report-unlimited", file: duel, from: "    if not _report_rate.allow(f\"card-report:{client_ip(request)}\"):", to: "    if False:", kills: ["test_reports_are_rate_limited_per_client"] },
+    { id: "card-report-unlimited", file: duel, from: "    if not _report_rate.allow(f\"card-report:{client_ip(request)}\") or not _report_global_rate.allow(\"card-report\"):", to: "    if not _report_global_rate.allow(\"card-report\"):", kills: ["test_reports_are_rate_limited_per_client"] },
+    { id: "card-report-no-global-cap", file: duel, from: "    if not _report_rate.allow(f\"card-report:{client_ip(request)}\") or not _report_global_rate.allow(\"card-report\"):", to: "    if not _report_rate.allow(f\"card-report:{client_ip(request)}\"):", kills: ["test_reports_are_capped_in_total_across_clients"] },
     { id: "card-report-list-unguarded", file: duel, from: "    Pass ``status=all`` to include fixed and won't-fix reports.\n    \"\"\"\n    _require_catalog_token(x_catalog_token, settings)\n", to: "    Pass ``status=all`` to include fixed and won't-fix reports.\n    \"\"\"\n", kills: ["test_listing_reports_requires_admin_token"] },
     { id: "card-report-patch-unguarded", file: duel, from: "    \"\"\"Mark a report open, fixed or won't-fix (admin catalog token).\"\"\"\n    _require_catalog_token(x_catalog_token, settings)\n", to: "    \"\"\"Mark a report open, fixed or won't-fix (admin catalog token).\"\"\"\n", kills: ["test_fixed_reports_leave_the_default_open_list"] },
     { id: "card-report-status-filter-dropped", file: duel, from: "        query = query.where(CardReport.status == status)", to: "        pass", kills: ["test_fixed_reports_leave_the_default_open_list"] },
@@ -338,5 +342,18 @@ module.exports = {
     { id: "owned-unpriced-not-counted", file: services, from: "        if value is None:\n            unpriced += 1\n        else:", to: "        if value is None:\n            pass\n        else:", kills: ["test_collection_value_is_copies_times_market_price_268"] },
     { id: "owned-zero-qty-listed", file: services, from: "    owned = {card_id: qty for card_id, qty in _owned_map(db, user.id).items() if qty > 0}", to: "    owned = dict(_owned_map(db, user.id))", kills: ["test_collection_skips_zero_owned_and_lists_decks_268"] },
     { id: "owned-used-in-dropped", file: services, from: "                used_in=used_in.get(card_id, []),\n            )\n        )\n    return OwnedCollectionResponse(", to: "                used_in=[],\n            )\n        )\n    return OwnedCollectionResponse(", kills: ["test_collection_skips_zero_owned_and_lists_decks_268"] },
+    // abuse limits (security review)
+    { id: "new-account-no-ip-cap", file: duel, from: "    if not _new_account_ip_rate.allow(f\"new-account:{client_ip(request)}\") or not _new_account_global_rate.allow(\n        \"new-account\"\n    ):", to: "    if not _new_account_global_rate.allow(\"new-account\"):", kills: ["test_new_guest_accounts_are_capped_per_client_ip", "test_dev_token_new_accounts_share_the_cap"] },
+    { id: "new-account-no-global-cap", file: duel, from: "    if not _new_account_ip_rate.allow(f\"new-account:{client_ip(request)}\") or not _new_account_global_rate.allow(\n        \"new-account\"\n    ):", to: "    if not _new_account_ip_rate.allow(f\"new-account:{client_ip(request)}\"):", kills: ["test_new_accounts_are_capped_in_total_across_ips"] },
+    { id: "guest-mint-skips-new-account-cap", file: duel, from: "        _allow_new_account(request)\n        user = User(email=email, name=f\"Guest {body.guest_id[:8]}\", google_sub=sub)", to: "        user = User(email=email, name=f\"Guest {body.guest_id[:8]}\", google_sub=sub)", kills: ["test_new_guest_accounts_are_capped_per_client_ip", "test_new_accounts_are_capped_in_total_across_ips"] },
+    { id: "dev-mint-skips-new-account-cap", file: duel, from: "        _allow_new_account(request)\n        user = User(email=email, name=body.user_key, google_sub=sub)", to: "        user = User(email=email, name=body.user_key, google_sub=sub)", kills: ["test_dev_token_new_accounts_share_the_cap"] },
+    { id: "cosmetics-no-total-budget", file: prefs, from: "    if stored + len(data) > MAX_TOTAL_COSMETIC_BYTES:", to: "    if False:", kills: ["test_uploads_stop_once_all_accounts_fill_the_image_budget"] },
+    { id: "body-limit-ignores-content-length", file: bodyLimit, from: "                if declared > limit:", to: "                if False:", kills: ["test_declared_oversized_body_is_refused_before_any_route_runs"] },
+    { id: "body-limit-ignores-streamed-bytes", file: bodyLimit, from: "                if received > limit:\n                    raise BodyTooLarge", to: "                pass", kills: ["test_streamed_oversized_body_without_length_is_cut_off"] },
+    { id: "rate-limiter-keeps-idle-keys", file: rateLimit, from: "                for stale in [k for k, hits in self._hits.items() if not hits or hits[-1] <= cutoff]:\n                    del self._hits[stale]", to: "                pass", kills: ["test_rate_limiter_forgets_idle_keys"] },
+    { id: "sales-any-product", file: api, from: "    if db.scalar(select(CatalogPrinting.id).where(CatalogPrinting.product_id == product_id).limit(1)) is None:", to: "    if False:", kills: ["test_sales_proxy_refuses_products_outside_the_catalog"] },
+    { id: "sales-upstream-uncapped", file: api, from: "    if not is_cached(product_id) and not _sales_upstream_limiter.allow(\"sales-upstream\"):", to: "    if False:", kills: ["test_sales_proxy_caps_uncached_upstream_calls_in_total"] },
+    { id: "deck-distinct-uncapped", file: services, from: "    if len(parsed) > MAX_DECK_DISTINCT_CARDS:", to: "    if False:", kills: ["test_deck_with_too_many_different_cards_is_refused"] },
+    { id: "deck-count-uncapped", file: services, from: "    if deck_count >= MAX_DECKS_PER_USER:", to: "    if False:", kills: ["test_deck_count_per_account_is_capped"] },
   ],
 };

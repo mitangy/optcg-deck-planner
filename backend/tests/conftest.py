@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, User
+from app.rate_limit import RateLimiter
 from tests.db_support import make_test_engine
 
 
@@ -15,6 +16,14 @@ def vcr_config() -> dict:
         "filter_query_parameters": ["api_key", "apikey", "access_token", "token"],
         "decode_compressed_response": True,
     }
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    # Limiters are module globals; one test's requests must not spend another's budget.
+    RateLimiter.reset_all()
+    yield
+    RateLimiter.reset_all()
 
 
 @pytest.fixture()

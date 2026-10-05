@@ -112,3 +112,15 @@ def test_fixed_reports_leave_the_default_open_list(client):
         for row in c.get("/duel/card-reports?status=all", headers=ADMIN).json()
     ]
     assert sorted(all_ids) == ["OP01-060", "ST01-005"]
+
+
+def test_reports_are_capped_in_total_across_clients_SEC(client, monkeypatch: pytest.MonkeyPatch):
+    from app.rate_limit import RateLimiter
+
+    c, _ = client
+    monkeypatch.setattr(duel, "_report_global_rate", RateLimiter(max_calls=2, period_s=3600))
+    codes = [
+        c.post("/duel/card-reports", json=REPORT, headers={"X-Forwarded-For": f"192.0.2.{i}"}).status_code
+        for i in range(3)
+    ]
+    assert codes == [201, 201, 429]
