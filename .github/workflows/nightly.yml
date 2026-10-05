@@ -13,6 +13,9 @@ on:
       seed:
         description: "First fuzz seed (default: derived from today's UTC date)"
         default: ""
+      stryker_shard:
+        description: "Stryker shard 0-4 (default: rotates by day of year)"
+        default: ""
 
 permissions:
   contents: read
@@ -53,8 +56,11 @@ jobs:
   stryker-rules:
     # Report-only breadth mutation run over the rules engine. Survivors never
     # fail the job (thresholds.break is null); only a tool error does.
+    # All ~9,800 mutants take ~14h at concurrency 2, so each night tests one of
+    # five shards (each ~1-2h), rotating by day of year: the whole engine every
+    # five nights. Each shard keeps its own incremental file.
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -63,24 +69,42 @@ jobs:
           cache: "npm"
           cache-dependency-path: package-lock.json
       - run: npm ci
+      - name: Pick tonight's shard
+        id: shard
+        env:
+          SHARD_INPUT: ${{ inputs.stryker_shard }}
+        run: |
+          SHARDS=(
+            "src/engine/runtime.ts"
+            "src/engine/queries.ts"
+            "src/engine/intents.ts,src/engine/views.ts,src/engine/modifiers.ts"
+            "src/effects/validate.ts,src/effects/compile.ts"
+            "src/engine/procedure.ts,src/engine/state.ts"
+          )
+          SHARD="${SHARD_INPUT:-$(( 10#$(date -u +%j) % ${#SHARDS[@]} ))}"
+          echo "Stryker shard ${SHARD}: ${SHARDS[$SHARD]}"
+          echo "index=${SHARD}" >> "$GITHUB_OUTPUT"
+          echo "mutate=${SHARDS[$SHARD]}" >> "$GITHUB_OUTPUT"
       - name: Restore Stryker incremental file
         uses: actions/cache@v4
         with:
           path: packages/rules/reports/stryker-incremental.json
-          key: stryker-rules-${{ runner.os }}-${{ github.run_id }}
+          key: stryker-rules-${{ runner.os }}-shard${{ steps.shard.outputs.index }}-${{ github.run_id }}
           restore-keys: |
-            stryker-rules-${{ runner.os }}-
+            stryker-rules-${{ runner.os }}-shard${{ steps.shard.outputs.index }}-
       - name: Stryker
-        run: npm run mutation:stryker -w @optcg/rules
+        run: npm run mutation:stryker -w @optcg/rules -- --mutate "${{ steps.shard.outputs.mutate }}"
       - name: Survivors summary
         if: ${{ !cancelled() }}
+        env:
+          MUTATE: ${{ steps.shard.outputs.mutate }}
         run: |
           node -e '
             const fs = require("fs");
             const f = "packages/rules/reports/mutation/mutation.json";
             if (!fs.existsSync(f)) { console.log("No Stryker report produced."); process.exit(0); }
             const rep = JSON.parse(fs.readFileSync(f, "utf8"));
-            const out = ["## Stryker survivors (packages/rules)", "", "| File | Killed | Survived | No coverage |", "|---|---|---|---|"];
+            const out = [`## Stryker survivors (packages/rules, shard: ${process.env.MUTATE})`, "", "| File | Killed | Survived | No coverage |", "|---|---|---|---|"];
             const worst = [];
             for (const [file, d] of Object.entries(rep.files)) {
               const c = { Killed: 0, Timeout: 0, Survived: 0, NoCoverage: 0 };
