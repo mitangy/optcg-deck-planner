@@ -520,3 +520,21 @@ test("an opponent's card opened from Recent plays offers no art change (#287)", 
   await expect(page.locator(".card-inspect-name")).toHaveText("Guard Point");
   await expect(page.locator(".card-inspect-alts")).toHaveCount(1);
 });
+
+// Right-click the trash for the top card's details; a left click still opens the whole trash (#287).
+test("right-clicking the trash shows the top card, left click opens the trash (#287)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "right-click is a mouse gesture");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const pile = page.locator(".side-you .zone-trash .zone-pile");
+  await pile.click({ button: "right" });
+  await expect(page.locator(".card-inspect-name")).toBeVisible();
+  const name = await page.locator(".card-inspect-name").innerText();
+  await expect(page.locator(".trash-viewer")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".card-inspect")).toHaveCount(0);
+
+  await pile.click();
+  await expect(page.locator(".trash-viewer-grid .card-tile").first()).toContainText(name);
+  await expect(page.locator(".card-inspect")).toHaveCount(0);
+});

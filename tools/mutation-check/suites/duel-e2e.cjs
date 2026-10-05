@@ -93,5 +93,7 @@ module.exports = {
     { id: "e2e-trash-viewer-tiny-cards-phone", args: "demo-audit --project=phone-375 -g \"trash viewer\"", file: "duel-web/src/styles.css", from: ".trash-viewer-grid .card-tile.compact {\n  width: 100%;", to: ".trash-viewer-grid .card-tile.compact-off {\n  width: 100%;", kills: ["demo-audit.spec.ts > trash viewer cards are big enough to read (#287) [phone-375]"] },
     // only a card's owner may change its alt art: the original fallback to the owner's seat (#287)
     { id: "e2e-opp-recent-play-art-editable", args: "demo-audit --project=desktop-1280 -g \"Recent plays offers\"", file: "duel-web/src/board/artOwnership.ts", from: "  const viewer = opts.matchSeat !== undefined ? opts.matchSeat : opts.viewingSeat;", to: "  const viewer = opts.viewingSeat ?? opts.ownerSeat;", kills: ["demo-audit.spec.ts > an opponent's card opened from Recent plays offers no art change (#287) [desktop-1280]"] },
+    // right-click the trash pile for the top card's details (#287)
+    { id: "e2e-trash-right-click-ignored", args: "demo-audit --project=desktop-1280 -g \"right-clicking the trash\"", file: "duel-web/src/board/ZonePile.tsx", from: "        onContextMenu={onInspectTop ? (e) => inspectOnContextMenu(e, onInspectTop) : undefined}\n", to: "", kills: ["demo-audit.spec.ts > right-clicking the trash shows the top card, left click opens the trash (#287) [desktop-1280]"] },
   ],
 };

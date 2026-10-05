@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from "react";
 import { cardBackCssValue } from "../cardBack";
 import { lookupCard } from "../cards/atlas";
 import type { CardView, Seat } from "../net/protocol";
+import { CardInspect } from "./CardInspect";
 import { CardTile } from "./CardTile";
 import { DonStrip } from "./DonStrip";
 import { TrashViewer, trashNewestFirst } from "./TrashViewer";
@@ -205,6 +206,7 @@ export function SideField({
   const mirrored = side === "opp";
   const interactive = side === "you" && drag;
   const [trashOpen, setTrashOpen] = useState(false);
+  const [trashTopInspect, setTrashTopInspect] = useState(false);
   const [lifeOpen, setLifeOpen] = useState(false);
   const counts = countRow && side === "opp";
   const faceUpLife = data.faceUpLife ?? [];
@@ -513,6 +515,7 @@ export function SideField({
               topDefId={trashTop}
               ownerSeat={ownerSeat}
               onOpen={() => setTrashOpen(true)}
+              onInspectTop={trashTop ? () => setTrashTopInspect(true) : undefined}
             />
           </div>
         )}
@@ -525,6 +528,15 @@ export function SideField({
           note="face up"
           emptyText="No face-up Life cards."
           onClose={() => setLifeOpen(false)}
+          ownerSeat={ownerSeat}
+          viewingSeat={viewingSeat}
+        />
+      ) : null}
+      {trashTopInspect && trashTop ? (
+        <CardInspect
+          defId={trashTop}
+          open
+          onClose={() => setTrashTopInspect(false)}
           ownerSeat={ownerSeat}
           viewingSeat={viewingSeat}
         />
