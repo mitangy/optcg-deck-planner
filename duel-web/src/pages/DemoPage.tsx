@@ -669,6 +669,18 @@ function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
   return base;
 }
 
+/**
+ * `?counter=block`: the same attack one step earlier, in the block step (Nico
+ * Robin can block), to drag a Counter onto the Leader and skip the block.
+ */
+function withBlockStep(base: PlayerView): PlayerView {
+  return {
+    ...base,
+    phase: "block",
+    legalIntents: [{ type: "pass_block" }, { type: "declare_block", blockerId: "y-c3" }],
+  };
+}
+
 /** `?counter=haki` after the Haki is played: out of the hand, asking its optional DON!! rest. */
 function withHakiResolving(base: PlayerView, asking: boolean): PlayerView {
   const you = { ...base.you, hand: base.you.hand.filter((c) => c.id !== "y-h6") };
@@ -745,7 +757,7 @@ function withWaiting(base: PlayerView, kind: string | null): PlayerView {
  * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
  * icons (see withManyStatuses), `?motion` a button that steps
  * through every card animation, `?box` the old pop-up instead of floating-card
- * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=haki`: the Haki's Yes/No above the hand) drag QA (see
+ * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=haki`: the Haki's Yes/No above the hand; `=block`: the block step, to skip it with a Counter drag) drag QA (see
  * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {
@@ -795,7 +807,14 @@ export function DemoPage() {
     : withTurn;
   // `?counter=haki`: after the event is played it waits on its optional DON!! rest.
   const [haki, setHaki] = useState<"hand" | "asking" | "done">("hand");
-  const shown: PlayerView = haki === "hand" ? view : withHakiResolving(view, haki === "asking");
+  // `?counter=block`: the block step until No block (or a Counter drag) passes it.
+  const [blockPassed, setBlockPassed] = useState(false);
+  const shown: PlayerView =
+    haki !== "hand"
+      ? withHakiResolving(view, haki === "asking")
+      : params.get("counter") === "block" && !blockPassed
+        ? withBlockStep(view)
+        : view;
   // `?motion`: one state per click; Replay remounts the board to replay the deal.
   const motionSteps = useMemo(() => (params.has("motion") ? motionDemoSteps(view) : null), []);
   const [motionStep, setMotionStep] = useState(0);
@@ -927,6 +946,9 @@ export function DemoPage() {
         onSendIntent={(intent) => {
           const w = window as { __demoIntents?: unknown[] };
           (w.__demoIntents ??= []).push(intent);
+          if (params.get("counter") === "block" && intent.type === "pass_block") {
+            setBlockPassed(true);
+          }
           if (params.get("counter") === "haki") {
             if (intent.type === "counter_event") setHaki("asking");
             if (intent.type === "resolve_pending_choice") setHaki("done");

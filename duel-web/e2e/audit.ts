@@ -47,7 +47,10 @@ const DEFAULT_STACKS = [
 const DEFAULT_OFFSCREEN_OK = [".hand-fan-cards"];
 
 /** Containers that scroll sideways on purpose. */
-const DEFAULT_HSCROLL_OK: string[] = [];
+const DEFAULT_HSCROLL_OK: string[] = [
+  // Phone defend tray: Blockers / Counter chips are a sideways-swiping strip by design.
+  ".defend-chips",
+];
 
 /** Layers that intentionally sit over the board (a covered board under them is expected). */
 const DEFAULT_OVERLAYS = [

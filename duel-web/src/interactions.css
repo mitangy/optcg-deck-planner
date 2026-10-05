@@ -789,3 +789,25 @@
     animation: none;
   }
 }
+
+/* —— Block step: Counter chips beside the Blockers skip the block —— */
+
+.defend-chips-sep {
+  flex: none;
+  align-self: center;
+  padding: 0 2px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.defend-chip.defend-chip-early {
+  border-style: dashed;
+}
+
+.arena.arena-lp .defend-chips-sep {
+  grid-column: 1 / -1;
+  justify-self: start;
+}

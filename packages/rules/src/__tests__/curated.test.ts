@@ -83,6 +83,15 @@ describe("OP16-118 Portgas.D.Ace", () => {
     h.act(1, { type: "pass_block" });
     expect(h.view(1).you.hand.map((c) => c.counter)).toEqual([2000, 2000]);
   });
+
+  it("shows the live hand Counter in the block step too, for skip-block counter drags (#NNN)", () => {
+    const h = new Harness();
+    h.field(1, "OP16-118");
+    h.hand(1, "OP16-005");
+    h.attack(h.state.players[0].leader, "leader");
+    expect(h.state.phase).toBe("block");
+    expect(h.view(1).you.hand.map((c) => c.counter)).toEqual([2000]);
+  });
 });
 
 describe("OP17-005 Edward.Newgate", () => {
