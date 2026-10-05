@@ -493,7 +493,7 @@ test("the opponent hand pins to the top of the mat, stays after a reload, and dr
 // Hand sort off: a hand card dropped back on the hand moves there instead of
 // being played; dropped on the board it is still played.
 for (const handLayout of ["fan", "grid"]) {
-  test(`${handLayout} hand cards drag to a new spot in the hand when Sort is off, and still play on the board (#PR)`, async ({ page }) => {
+  test(`${handLayout} hand cards drag to a new spot in the hand when Sort is off, and still play on the board (#294)`, async ({ page }) => {
     await page.addInitScript(
       (layout) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ handLayout: layout })),
       handLayout,

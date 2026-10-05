@@ -764,5 +764,11 @@ module.exports = {
     { id: "drag-arrow-no-snap", file: `${src}/board/dragArrow.ts`, from: "  const targetBox = hoverId ? findBox(hoverId) : null;", to: "  const targetBox: Box | null = null;", kills: ["snaps onto a legal target under the pointer (#270)"] },
     { id: "drag-arrow-only-on-targets", file: `${src}/board/dragArrow.ts`, from: "  if (inside) return null;\n", to: "  return null;\n", kills: ["is drawn to the pointer as soon as the drag leaves the attacker (#270)"] },
     { id: "drag-arrow-on-attacker", file: `${src}/board/dragArrow.ts`, from: "  if (inside) return null;\n", to: "", kills: ["draws nothing while the pointer is still on the attacker (#270)"] },
+    // hand reorder when Sort is off (#294)
+    { id: "hand-order-new-first", file: `${src}/board/handOrder.ts`, from: "  return [...kept, ...handIds.filter((id) => !seen.has(id))];", to: "  return [...handIds.filter((id) => !seen.has(id)), ...kept];", kills: ["keeps a dragged order across hand updates, drops cards that left and adds new cards at the end (#294)"] },
+    { id: "hand-order-keeps-gone", file: `${src}/board/handOrder.ts`, from: "  const kept = saved.filter((id) => inHand.has(id));", to: "  const kept = saved.filter(() => true);", kills: ["keeps a dragged order across hand updates, drops cards that left and adds new cards at the end (#294)"] },
+    { id: "hand-order-slot-off-by-one", file: `${src}/board/handOrder.ts`, from: "  const at = Math.max(0, Math.min(slot, others.length));", to: "  const at = Math.max(0, Math.min(slot + 1, others.length));", kills: ["moves the dragged card to the slot it was dropped in (#294)"] },
+    { id: "hand-drop-one-row", file: `${src}/board/handOrder.ts`, from: "    if (row && Math.abs(cy - row.cy) < (r.bottom - r.top) / 2) {", to: "    if (row) {", kills: ["finds the drop slot in a wrapping grid hand by row, then x (#294)"] },
+    { id: "hand-drop-rows-too-strict", file: `${src}/board/handOrder.ts`, from: "    if (row && Math.abs(cy - row.cy) < (r.bottom - r.top) / 2) {", to: "    if (row && Math.abs(cy - row.cy) < 1) {", kills: ["finds the drop slot in a fanned hand from the pointer's x, though the arc moves card heights (#294)"] },
   ],
 };
