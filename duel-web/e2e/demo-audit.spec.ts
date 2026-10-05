@@ -84,7 +84,7 @@ test("the centre hand fan tucks away after a click once the pointer leaves", asy
 test("the hand fan tucks away after Let the hand tuck away and a key press (#291)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
   await page.addInitScript(() =>
-    localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true })),
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true, handLayout: "fan" })),
   );
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
