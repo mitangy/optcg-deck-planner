@@ -493,7 +493,7 @@ export function CardTile({
         open={inspectOpen}
         onClose={() => setInspectOpen(false)}
         ownerSeat={ownerSeat}
-        viewingSeat={viewingSeat ?? ownerSeat}
+        viewingSeat={viewingSeat}
         live={live}
       />
     </>

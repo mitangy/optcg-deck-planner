@@ -529,3 +529,52 @@ test("the opponent hand pins to the top of the mat, stays after a reload, and dr
   await expect.poll(inColumn).toBe(1);
   expect(duel.errors).toEqual([]);
 });
+
+// The trash browser shows readable cards, not the tiny board tile (#287).
+test("trash viewer cards are big enough to read (#287)", async ({ page, duel }, info) => {
+  await page.goto("/demo");
+  await page.locator(".board-root").waitFor();
+  await page.locator(".side-you .zone-trash .zone-pile").click();
+  const tile = page.locator(".trash-viewer-grid .card-tile").first();
+  await tile.waitFor();
+  const box = (await tile.boundingBox())!;
+  const phone = info.project.name === "phone-375";
+  expect(box.width).toBeGreaterThanOrEqual(phone ? 90 : 140);
+  const issues = (await duel.audit()).filter((i) => !isKnown(i));
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+// Only a card's owner may change its alt art: the opponent's Guard Point from
+// Recent plays has no Artwork row, your own Guard Point in your trash does (#287).
+test("an opponent's card opened from Recent plays offers no art change (#287)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "Recent plays is a desktop side panel");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await page.locator(".recent-play-opp", { hasText: "Guard Point" }).first().click({ button: "right" });
+  await expect(page.locator(".card-inspect-name")).toHaveText("Guard Point");
+  await expect(page.locator(".card-inspect-alts")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  await page.locator(".side-you .zone-trash .zone-pile").click();
+  await page.locator(".trash-viewer-grid .card-tile", { hasText: "Guard Point" }).click();
+  await expect(page.locator(".card-inspect-name")).toHaveText("Guard Point");
+  await expect(page.locator(".card-inspect-alts")).toHaveCount(1);
+});
+
+// Right-click the trash for the top card's details; a left click still opens the whole trash (#287).
+test("right-clicking the trash shows the top card, left click opens the trash (#287)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "right-click is a mouse gesture");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const pile = page.locator(".side-you .zone-trash .zone-pile");
+  await pile.click({ button: "right" });
+  await expect(page.locator(".card-inspect-name")).toBeVisible();
+  const name = await page.locator(".card-inspect-name").innerText();
+  await expect(page.locator(".trash-viewer")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".card-inspect")).toHaveCount(0);
+
+  await pile.click();
+  await expect(page.locator(".trash-viewer-grid .card-tile").first()).toContainText(name);
+  await expect(page.locator(".card-inspect")).toHaveCount(0);
+});
