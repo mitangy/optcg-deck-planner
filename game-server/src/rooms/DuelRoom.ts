@@ -6,7 +6,6 @@ import {
   createSeededRng,
   DEFAULT_LEADER_ID,
   deserializeMatch,
-  ensureDefsForPlayers,
   getPlayerView,
   getSpectatorView,
   projectGameEvents,
@@ -17,7 +16,6 @@ import {
   seatLog,
   serializeMatch,
   skipMulligans,
-  unsupportedCardsForDeck,
   type GameEvent,
   type Intent,
   type MatchReplay,
@@ -31,11 +29,13 @@ import {
   isRankedMatchCreateAttested,
   getLogLevel,
   getMatchOutboxDatabaseUrl,
+  getRankedNoShowSeconds,
   getReconnectGraceSeconds,
   getSeatReservationSeconds,
   requireGameToken,
 } from "../env.js";
 import { sanitizeDisplayName, verifyGameToken } from "../gameToken.js";
+import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
 import {
   PROTOCOL_VERSION,
   parseChatMessage,
@@ -172,14 +172,8 @@ export class DuelRoom extends Room implements PresenceSource {
     }
     if (parsed.ranked && parsed.players) {
       for (const deck of parsed.players) {
-        const issues = unsupportedCardsForDeck(deck);
-        if (issues.length > 0) {
-          throw new Error(
-            `Ranked deck contains unsupported cards: ${issues
-              .map((issue) => `${issue.cardId} (${issue.support})`)
-              .join(", ")}`,
-          );
-        }
+        const problem = rankedDeckProblem(deck);
+        if (problem) throw new Error(problem);
       }
     }
     if (parsed.players) {
@@ -196,6 +190,11 @@ export class DuelRoom extends Room implements PresenceSource {
     this.matchSeconds = parsed.timer.matchSeconds;
     this.seatSeconds = parsed.timer.seatSeconds;
     this.presetSeatUserIds = parsed.seatUserIds;
+    if (this.presetSeatUserIds) {
+      // A paired ranked room: if one player never makes it in (deck turned
+      // away, closed the tab), don't leave the other on "Waiting" forever.
+      this.clock.setTimeout(() => this.expireNoShow(), getRankedNoShowSeconds() * 1000);
+    }
     this.matchId = this.roomId;
     this.state.matchId = this.matchId;
     this.state.seatsFilled = 0;
@@ -266,8 +265,36 @@ export class DuelRoom extends Room implements PresenceSource {
     super.onBeforeShutdown();
   }
 
-  onAuth(_client: Client, options: unknown) {
-    return this.resolveIdentity(options);
+  onAuth(client: Client, options: unknown) {
+    try {
+      return this.resolveIdentity(options);
+    } catch (e) {
+      const err = e as Error & { code?: ErrorCode };
+      this.log("warn", "join_rejected", {
+        matchId: this.matchId,
+        sessionId: client.sessionId,
+        code: err.code ?? "bad_protocol",
+        message: err.message,
+      });
+      throw e;
+    }
+  }
+
+  /** Ranked: the paired opponent never claimed their seat, so close the room. */
+  private expireNoShow() {
+    if (this.matchStarted) return;
+    this.log("warn", "opponent_no_show", {
+      matchId: this.matchId,
+      seats: [this.seats[0]?.userId ?? null, this.seats[1]?.userId ?? null],
+    });
+    for (const client of this.clients) {
+      this.sendError(
+        client,
+        "opponent_no_show",
+        "Your opponent didn't join the match. Queue again to find a new one.",
+      );
+    }
+    void this.disconnect();
   }
 
   onJoin(client: Client, options: unknown) {
@@ -283,8 +310,7 @@ export class DuelRoom extends Room implements PresenceSource {
       identity = this.resolveIdentity(options);
     } catch (e) {
       const err = e as Error & { code?: ErrorCode };
-      this.sendError(client, err.code ?? "bad_protocol", err.message);
-      client.leave();
+      this.rejectJoin(client, err.code ?? "bad_protocol", err.message);
       return;
     }
 
@@ -293,8 +319,7 @@ export class DuelRoom extends Room implements PresenceSource {
       reservedSeat = this.reservedSeatFor(identity);
     } catch (e) {
       const err = e as Error & { code?: ErrorCode };
-      this.sendError(client, err.code ?? "unauthorized", err.message);
-      client.leave();
+      this.rejectJoin(client, err.code ?? "unauthorized", err.message);
       return;
     }
 
@@ -307,8 +332,7 @@ export class DuelRoom extends Room implements PresenceSource {
         slot.userId !== identity.userId ||
         (reservedSeat !== null && reservedSeat !== existingSeat)
       ) {
-        this.sendError(client, "unauthorized", "Identity does not own this seat");
-        client.leave();
+        this.rejectJoin(client, "unauthorized", "Identity does not own this seat");
         return;
       }
       this.log("info", "player_reconnected", {
@@ -322,8 +346,7 @@ export class DuelRoom extends Room implements PresenceSource {
 
     if (identity.role === "spectator") {
       if (this.spectators.length >= MAX_SPECTATORS) {
-        this.sendError(client, "room_full", "Spectator cap reached");
-        client.leave();
+        this.rejectJoin(client, "room_full", "Spectator cap reached");
         return;
       }
       const cameraSeat: Seat =
@@ -357,29 +380,20 @@ export class DuelRoom extends Room implements PresenceSource {
     // Otherwise anyone with the room id could take over after a Leave, read
     // the leaver's hand and cancel the forfeit.
     if (this.matchStarted) {
-      this.sendError(client, "room_full", "Match already in progress");
-      client.leave();
+      this.rejectJoin(client, "room_full", "Match already in progress");
       return;
     }
 
     if (this.ranked && identity.deck) {
-      const issues = unsupportedCardsForDeck(identity.deck);
-      if (issues.length > 0) {
-        this.sendError(
-          client,
-          "unsupported_deck",
-          `Ranked deck contains unsupported cards: ${issues
-            .map((issue) => `${issue.cardId} (${issue.support})`)
-            .join(", ")}`,
-        );
-        client.leave();
+      const problem = rankedDeckProblem(identity.deck);
+      if (problem) {
+        this.rejectJoin(client, "unsupported_deck", problem);
         return;
       }
     }
 
     if (reservedSeat !== null && this.seats[reservedSeat]) {
-      this.sendError(client, "room_full", "Reserved seat is already occupied");
-      client.leave();
+      this.rejectJoin(client, "room_full", "Reserved seat is already occupied");
       return;
     }
     const seat =
@@ -401,8 +415,7 @@ export class DuelRoom extends Room implements PresenceSource {
       };
     }
     if (seat === null) {
-      this.sendError(client, "room_full", "No free seat");
-      client.leave();
+      this.rejectJoin(client, "room_full", "No free seat");
       return;
     }
 
@@ -1745,6 +1758,13 @@ export class DuelRoom extends Room implements PresenceSource {
     return [info(0), info(1)];
   }
 
+  /** Turn a join away, with a log line so a stranded opponent can be traced. */
+  private rejectJoin(client: Client, code: ErrorCode | string, message: string) {
+    this.log("warn", "join_rejected", { matchId: this.matchId, sessionId: client.sessionId, code, message });
+    this.sendError(client, code, message);
+    client.leave();
+  }
+
   private sendError(client: Client, code: ErrorCode | string, message: string) {
     client.send("error", {
       protocolVersion: PROTOCOL_VERSION,
@@ -1773,17 +1793,6 @@ export class DuelRoom extends Room implements PresenceSource {
 }
 
 /** Same check createMatch applies (unknown ids / non-Leader leaders), surfaced at join. */
-function assertKnownDeck(deck: PlayerDeckWire): void {
-  try {
-    ensureDefsForPlayers([deck]);
-  } catch (e) {
-    throw Object.assign(
-      new Error(`Deck rejected: ${e instanceof Error ? e.message : String(e)}`),
-      { code: "bad_protocol" as const },
-    );
-  }
-}
-
 function hashToNegativeId(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
