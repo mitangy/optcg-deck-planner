@@ -198,6 +198,12 @@ export class DuelClient {
           clearTimeout(timer);
           reject(new Error(message || `queue error ${code}`));
         });
+        // The queue closed under us (server restart, dropped socket): nobody
+        // can pair with us any more, so stop "searching" now.
+        queueRoom.onLeave(() => {
+          clearTimeout(timer);
+          reject(new Error("Lost the ranked queue. Queue again."));
+        });
       },
     );
 

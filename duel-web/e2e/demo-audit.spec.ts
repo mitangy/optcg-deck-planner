@@ -165,6 +165,21 @@ test("clicking board slots leaves no text caret on the mat (#246)", async ({ pag
   }
 });
 
+// The idle midline ornament is a 45°-rotated span, so a caret dropped in it drew as a slanted text cursor.
+test("clicking the midline between the mats leaves no text caret (#314)", async ({ page }) => {
+  await page.goto("/demo?cantattack");
+  await page.locator(".midline-ornament").waitFor();
+  const box = (await page.locator(".midline").first().boundingBox())!;
+  for (const fx of [0.5, 0.2]) {
+    await page.mouse.click(box.x + box.width * fx, box.y + box.height / 2);
+    const selection = await page.evaluate(() => {
+      const s = getSelection();
+      return { type: s?.type, inMidline: !!s?.anchorNode?.parentElement?.closest(".midline") };
+    });
+    expect({ fx, ...selection }).not.toMatchObject({ type: "Caret", inMidline: true });
+  }
+});
+
 // DON!! −N used to open a grid of DON!! cards: pick them off the board instead.
 test("DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258)", async ({ page }) => {
   await page.goto("/demo?prompt=don2");
@@ -738,4 +753,44 @@ test("right-clicking the trash shows the top card, left click opens the trash (#
   await pile.click();
   await expect(page.locator(".trash-viewer-grid .card-tile").first()).toContainText(name);
   await expect(page.locator(".card-inspect")).toHaveCount(0);
+});
+
+// "Opponent hand, top right" used to only restyle the side panel's fan on
+// desktop. It is now the top-right spot: pinned on the mat on desktop, the
+// right of the opponent's half on phones, where the switch still lives (#297).
+test("Opponent hand, top right pins the hand top right on desktop and phones (#297)", async ({ page, duel }, info) => {
+  const desktop = info.project.name === "desktop-1280";
+  // A setting saved by an older build.
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("optcg-duel:settings")) {
+      localStorage.setItem("optcg-duel:settings", JSON.stringify({ oppHandTopRight: true }));
+    }
+  });
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  if (desktop) {
+    await expect(page.locator(".opp-hand-mat-right .opp-hand-corner")).toBeVisible();
+    await expect(page.locator('[data-panel-col] > [data-panel="oppHand"]')).toHaveCount(0);
+  } else {
+    await expect(page.locator(".opp-hand-hint-right .opp-hand-corner")).toBeVisible();
+  }
+  const issues = (await duel.audit()).filter((i) => !isKnown(i));
+  if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
+  expect(issues, formatIssues(issues)).toEqual([]);
+
+  await page.goto("/settings");
+  const toggle = page.getByLabel("Opponent hand, top right");
+  if (desktop) {
+    // Desktop picks the spot from the Opponent hand position list instead.
+    await expect(toggle).toHaveCount(0);
+    await expect(page.getByLabel("Opponent hand position")).toHaveValue("right");
+    return;
+  }
+  await expect(toggle).toBeChecked();
+  await toggle.uncheck();
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".opp-hand-hint-right")).toHaveCount(0);
+  await expect(page.locator(".opp-hand-hint")).toBeVisible();
+  expect(duel.errors).toEqual([]);
 });

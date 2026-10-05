@@ -1111,6 +1111,8 @@ export function DuelBoard({
   const farHand = spectating ? view.revealedHands?.[oppSeat] : undefined;
   /** Desktop: the opponent hand pinned above the playmat instead of its side panel. */
   const oppHandOnMat = wide && !lp && !farHand && prefs.oppHandSpot ? prefs.oppHandSpot : null;
+  /** Phones: "Opponent hand, top right" moves its row to the right of the opponent's half. */
+  const oppHandRight = prefs.oppHandSpot === "right" && !farHand;
   const viewingSeat: Seat | undefined = spectating ? undefined : boardSeat;
   // Older servers omit firstSeat; they always started seat 0.
   const firstSeat: Seat = view.firstSeat ?? 0;
@@ -1478,16 +1480,14 @@ export function DuelBoard({
         alwaysOpen
       />
     ),
-    oppHand: oppHandOnMat ? null : prefs.oppHandTopRight && !farHand ? (
-        <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="fan" />
-      ) : (
-        <OppHandFan
-          count={opp.handCount}
-          cardBackUrl={oppCardBackUrl}
-          cards={farHand}
-          ownerSeat={oppSeat}
-        />
-      ),
+    oppHand: oppHandOnMat ? null : (
+      <OppHandFan
+        count={opp.handCount}
+        cardBackUrl={oppCardBackUrl}
+        cards={farHand}
+        ownerSeat={oppSeat}
+      />
+    ),
     turn: (
       <TurnStatusPanel
         view={view}
@@ -1923,7 +1923,7 @@ export function DuelBoard({
                   <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="mat" />
                 </SidePanel>
               </div>
-            ) : prefs.oppHandTopRight && !farHand ? (
+            ) : oppHandRight ? (
               <div className="opp-hand-hint opp-hand-hint-right">
                 <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" />
               </div>
@@ -2077,7 +2077,7 @@ export function DuelBoard({
             {hotseatPass || (undo && undoState?.enabled && !spectating && !over) ? (
               <div className="lp-actions">{hudUndoPass}</div>
             ) : null}
-            {prefs.oppHandTopRight && !farHand ? (
+            {oppHandRight ? (
               <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" />
             ) : (
               <OppHandFan

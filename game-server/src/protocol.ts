@@ -58,7 +58,10 @@ export type ErrorCode =
   | "bad_protocol"
   | "rate_limited"
   | "unauthorized"
-  | "room_full";
+  | "room_full"
+  | "unsupported_deck"
+  /** Ranked: the paired opponent never joined the match room. */
+  | "opponent_no_show";
 
 /** Public per-seat player info (additive; older clients ignore it). */
 export type SeatPlayerInfo = {

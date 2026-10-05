@@ -94,6 +94,8 @@ module.exports = {
     { id: "float-tap-cannot-clear", file: `${src}/board/floatOrder.ts`, from: "  if (tapped.includes(id)) return { order: [...order], tapped: tapped.filter((x) => x !== id) };\n", to: "", kills: ["tapping a numbered card again clears its number and leaves the row"] },
     { id: "float-slot-ignores-rows", file: `${src}/board/floatOrder.ts`, from: "    const d = (c.x - x) ** 2 + (c.y - y) ** 2;", to: "    const d = (c.x - x) ** 2;", kills: ["drops on the nearest slot, including the next row on phones"] },
     { id: "float-slot-farthest", file: `${src}/board/floatOrder.ts`, from: "    if (d < bestD) {", to: "    if (d > bestD || bestD === Infinity) {", kills: ["drops on the nearest slot, including the next row on phones"] },
+    { id: "opp-hand-top-right-not-migrated", file: `${src}/settings.ts`, from: "  if (oppHandTopRight === true && !next.oppHandSpot) next.oppHandSpot = \"right\";\n", to: "", kills: ["turns the old Opponent hand, top right switch into the hand pinned top right (#297)"] },
+    { id: "opp-hand-top-right-beats-picked-spot", file: `${src}/settings.ts`, from: "if (oppHandTopRight === true && !next.oppHandSpot)", to: "if (oppHandTopRight === true)", kills: ["turns the old Opponent hand, top right switch into the hand pinned top right (#297)"] },
     { id: "prompt-hide-sticks-to-next-choice", file: `${src}/board/promptHide.ts`, from: "  return hiddenChoiceId === frontChoiceId;", to: "  return hiddenChoiceId != null;", kills: ["shows the next choice even though the last one was hidden"] },
     { id: "prompt-hide-never-hides", file: `${src}/board/promptHide.ts`, from: "  return hiddenChoiceId === frontChoiceId;", to: "  return false;", kills: ["keeps the pop-up hidden for the choice it was hidden on"] },
     // board helpers
@@ -896,5 +898,6 @@ module.exports = {
     { id: "held-card-not-moved-down", file: `${src}/board/heldCardSpot.ts`, from: "  const top = Math.max(anchor.top, header.bottom);", to: "  const top = anchor.top;", kills: ["keeps the card below the header and lifts the bubble over it, so Sort / Hide stay clear (#282)"] },
     { id: "held-bubble-not-lifted", file: `${src}/board/heldCardSpot.ts`, from: "gap: header.bottom - header.top + BUBBLE_GAP, lift: 0", to: "gap: BUBBLE_GAP, lift: 0", kills: ["keeps the card below the header and lifts the bubble over it, so Sort / Hide stay clear (#282)"] },
     { id: "held-card-no-lift-clear", file: `${src}/board/heldCardSpot.ts`, from: "{ bottom: anchor.top + anchor.height, gap: BUBBLE_GAP, lift: -CARD_LIFT }", to: "{ bottom: anchor.top + anchor.height, gap: BUBBLE_GAP, lift: 0 }", kills: ["holds the card 12px up from its slot when the hand header is clear of it (#282)"] },
+    { id: "queue-close-ignored", file: `${src}/net/duelClient.ts`, from: "          reject(new Error(\"Lost the ranked queue. Queue again.\"));\n", to: "", kills: ["stops searching when the queue room closes before a match (#302)"] },
   ],
 };

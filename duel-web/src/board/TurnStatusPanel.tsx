@@ -289,11 +289,11 @@ export function OppHandHint({
 }
 
 /**
- * Opponent's hand as a fan of backs in the top-right corner (the "Opponent
- * hand, top right" setting): bigger cards on the same arc as your own hand,
- * hanging from the top edge, with the count beside them. Narrow layouts get
- * `row`: a right-aligned overlapping strip in the opponent hint row. `mat`:
- * the same fan pinned above the playmat (desktop "oppHandSpot").
+ * Opponent's hand pinned to a spot (the `oppHandSpot` setting). `mat`
+ * (desktop): bigger backs on the same arc as your own hand, hanging from the
+ * top of the playmat, with the count beside them. `row` (phones, "Opponent
+ * hand, top right"): a right-aligned overlapping strip in the opponent hint
+ * row, or at the top of the landscape rail.
  */
 export function OppHandCorner({
   count,
@@ -302,7 +302,7 @@ export function OppHandCorner({
 }: {
   count: number;
   cardBackUrl: string | null;
-  variant: "fan" | "row" | "mat";
+  variant: "row" | "mat";
 }) {
   const shown = Math.min(count, variant === "row" ? 8 : 10);
   return (
