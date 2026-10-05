@@ -14,7 +14,8 @@ const REASONS: Record<string, string> = {
 
 export type MatchRow = {
   id: string;
-  outcome: "Won" | "Lost";
+  /** "Cut off": the game never sent a result (server restart, both players gone). */
+  outcome: "Won" | "Lost" | "Cut off";
   /** Who the reason applies to, e.g. "Opponent conceded". */
   how: string;
   yourLeader: string;
@@ -28,6 +29,11 @@ export type MatchRow = {
   when: string | null;
 };
 
+/** The row's `data-outcome`, which colours its edge. */
+export function outcomeKey(outcome: MatchRow["outcome"]): "won" | "lost" | "unfinished" {
+  return outcome === "Won" ? "won" : outcome === "Lost" ? "lost" : "unfinished";
+}
+
 export function matchRow(
   m: MatchHistoryEntry,
   cardName: (id: string) => string,
@@ -38,16 +44,17 @@ export function matchRow(
   const loserReasons = new Set(["concede", "timeout", "match_timeout", "abandoned", "disconnect", "deck_out", "leader_battle_at_zero_life"]);
   const how = loserReasons.has(m.reason) ? `${m.won ? "Opponent" : "You"} ${reason}` : capitalize(reason);
   const delta = m.rating_after - m.rating_before;
+  const unfinished = m.finished === false;
   return {
     id: m.match_id,
-    outcome: m.won ? "Won" : "Lost",
-    how,
+    outcome: unfinished ? "Cut off" : m.won ? "Won" : "Lost",
+    how: unfinished ? "Game didn't finish" : how,
     yourLeader: m.your_leader_id ? cardName(m.your_leader_id) : "Unknown leader",
     yourLeaderId: m.your_leader_id,
     opponentLeader: m.opponent_leader_id ? cardName(m.opponent_leader_id) : "Unknown leader",
     opponent: m.opponent_name,
     turns: m.turns != null ? `${m.turns} turns` : null,
-    bountyDelta: m.ranked ? (delta >= 0 ? `+${delta}` : `−${Math.abs(delta)}`) : null,
+    bountyDelta: m.ranked && !unfinished ? (delta >= 0 ? `+${delta}` : `−${Math.abs(delta)}`) : null,
     when: m.created_at ? relativeTime(new Date(m.created_at), now) : null,
   };
 }

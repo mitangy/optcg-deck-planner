@@ -17,6 +17,8 @@ export type MatchHistoryEntry = {
   rating_after: number;
   has_replay: boolean;
   has_log?: boolean;
+  /** False for a game that never sent a result; its log runs to the last saved turn. */
+  finished?: boolean;
 };
 
 /** One seat's log of a finished game (`SeatLog` in @optcg/rules); events are already projected for that seat. */

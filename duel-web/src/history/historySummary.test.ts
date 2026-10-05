@@ -25,6 +25,15 @@ describe("historySummary", () => {
     expect(s).toMatchObject({ wins: 2, losses: 2 });
   });
 
+  it("leaves unfinished games out of the record and the Bounty (#316)", () => {
+    const s = historySummary([
+      entry({ created_at: "2026-10-01T10:00:00Z", won: false, rating_after: 990 }),
+      entry({ created_at: "2026-10-02T10:00:00Z", finished: false, won: false, rating_after: 0 }),
+    ]);
+    expect(s).toEqual({ wins: 0, losses: 1, rating: 990 });
+    expect(historySummary([entry({ finished: false, won: false })])).toBeNull();
+  });
+
   it("takes the Bounty from the newest ranked game whatever order the list is in (#282)", () => {
     const s = historySummary([
       entry({ created_at: "2026-10-01T10:00:00Z", rating_after: 1000 }),

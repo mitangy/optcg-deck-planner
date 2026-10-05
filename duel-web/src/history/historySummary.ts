@@ -9,9 +9,11 @@ export type HistorySummary = {
 
 /** Win-loss record over the games listed, and the Bounty from the newest ranked one. */
 export function historySummary(matches: readonly MatchHistoryEntry[]): HistorySummary | null {
-  if (matches.length === 0) return null;
-  const wins = matches.filter((m) => m.won).length;
+  // A game that never finished is neither a win nor a loss.
+  const finished = matches.filter((m) => m.finished !== false);
+  if (finished.length === 0) return null;
+  const wins = finished.filter((m) => m.won).length;
   const time = (m: MatchHistoryEntry) => (m.created_at ? Date.parse(m.created_at) : 0) || 0;
-  const newestRanked = matches.filter((m) => m.ranked).sort((a, b) => time(b) - time(a))[0];
-  return { wins, losses: matches.length - wins, rating: newestRanked ? newestRanked.rating_after : null };
+  const newestRanked = finished.filter((m) => m.ranked).sort((a, b) => time(b) - time(a))[0];
+  return { wins, losses: finished.length - wins, rating: newestRanked ? newestRanked.rating_after : null };
 }

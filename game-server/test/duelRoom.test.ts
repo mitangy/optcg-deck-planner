@@ -13,7 +13,7 @@ import { MAX_ROOMS_PER_CREATOR } from "../src/matchmakeGuard.js";
 import { matchMaker } from "colyseus";
 import { createHmac } from "node:crypto";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
-import type { MatchResultPayload } from "../src/writeback.js";
+import type { MatchProgressPayload, MatchResultPayload } from "../src/writeback.js";
 import { replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
 
 type PlayerView = {
@@ -1095,6 +1095,59 @@ describe("DuelRoom", () => {
 
     await c0.leave(true);
     await c1.leave(true);
+  });
+
+  it("an unfinished game's log is saved at the start of every turn and when the room closes (#316)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 61,
+      autoSkipMulligan: true,
+    });
+    const sent: { matchId: string; payload: MatchProgressPayload }[] = [];
+    // Real accounts, with the API calls captured instead of sent.
+    Object.assign(room, {
+      ingestSeats: () => [101, 102],
+      persistMatchProgress: async (matchId: string, payload: MatchProgressPayload) => {
+        sent.push({ matchId, payload });
+      },
+      persistMatchResult: async () => {},
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    await playSome([c0, c1], bags, 12);
+    // Act once more without ending the turn, so the closing snapshot has something new.
+    const actor = ([0, 1] as const).find((s) => bags[s].views.at(-1)!.legalIntents.some((x) => x.type !== "end_turn"))!;
+    const move = bags[actor].views.at(-1)!.legalIntents.find((x) => x.type !== "end_turn")!;
+    const before = internals(room).replay!.intents.length;
+    (actor === 0 ? c0 : c1).send("intent", { protocolVersion: PROTOCOL_VERSION, intent: move });
+    await waitUntil(() => internals(room).replay!.intents.length > before, 5000);
+    const { match, replay } = internals(room);
+    assert.ok(match.turnNumber > 2, "several turns were played");
+
+    // One snapshot per turn, each with both seats' logs up to that turn.
+    const turns = sent.map((s) => s.payload.turns);
+    assert.deepEqual(turns, [...new Set(turns)].sort((a, b) => a! - b!));
+    assert.equal(turns.at(-1), match.turnNumber);
+    const last = sent.at(-1)!.payload;
+    assert.equal(last.seat0_user_id, 101);
+    assert.deepEqual(last.seat_logs!.map((l) => l.seat), [0, 1]);
+    assert.equal(last.seat_logs![1].turns.at(-1)!.turn, match.turnNumber);
+    assert.equal(sent.at(-1)!.matchId, room.roomId);
+
+    // Both players leave mid-turn: no result, but the log keeps every action.
+    const intents = replay!.intents.length;
+    assert.ok(last.replay!.intents.length < intents, "this turn has actions the turn-start snapshot lacks");
+    await c0.leave(true);
+    await c1.leave(true);
+    await waitUntil(() => sent.at(-1)!.payload.replay!.intents.length === intents, 5000);
   });
 
   it("the result sent to the backend carries leaders, turns, the replay, each seat's log and how it ended (#244, #252)", async () => {

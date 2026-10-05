@@ -34,6 +34,17 @@
   border-left-color: var(--danger);
 }
 
+.history-row[data-outcome="unfinished"] {
+  border-left-color: var(--line);
+  border-left-style: dashed;
+}
+
+/* "Cut off" wraps onto two short lines so it fits the WON / LOST column. */
+.history-row[data-outcome="unfinished"] .history-outcome {
+  line-height: 1.15;
+  color: var(--muted, var(--chrome-bright));
+}
+
 .history-outcome {
   font-weight: 700;
   font-size: 0.85rem;
