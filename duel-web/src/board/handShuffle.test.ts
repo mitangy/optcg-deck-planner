@@ -7,7 +7,7 @@ function row(ids: readonly string[]): Map<string, Pt> {
 }
 
 describe("handShuffleSteps", () => {
-  it("lands a dropped card from the drop point and ripples the cards it pushed, nearest first (#335)", () => {
+  it("lands a dropped card from the drop point and ripples the cards it pushed, nearest first (#338)", () => {
     // a b c d e → drag a onto the spot after c: b c a d e.
     const before = row(["a", "b", "c", "d", "e"]);
     before.set("a", { x: 260, y: -40 }); // the drop point
@@ -23,14 +23,14 @@ describe("handShuffleSteps", () => {
     expect(by.get("c")).toMatchObject({ dx: 100, dy: 0, landing: false, delay: 0 });
   });
 
-  it("lands a dropped card even when it ends up where it started (#335)", () => {
+  it("lands a dropped card even when it ends up where it started (#338)", () => {
     const order = ["a", "b", "c"];
     const steps = handShuffleSteps("drop", row(order), row(order), order, { cardHeight: 140, landedId: "b" });
     expect(steps.map((s) => s.id)).toEqual(["b"]);
     expect(steps[0]!.landing).toBe(true);
   });
 
-  it("riffles sorted cards along an arc, one after another in the new order (#335)", () => {
+  it("riffles sorted cards along an arc, one after another in the new order (#338)", () => {
     // c a b → sorted a b c.
     const order = ["a", "b", "c"];
     const steps = handShuffleSteps("sort", row(["c", "a", "b"]), row(order), order, { cardHeight: 100 });
@@ -50,7 +50,7 @@ describe("handShuffleSteps", () => {
     expect(steps.every((s) => !s.landing)).toBe(true);
   });
 
-  it("keeps a big hand's riffle short (#335)", () => {
+  it("keeps a big hand's riffle short (#338)", () => {
     const ids = Array.from({ length: 20 }, (_, i) => `c${i}`);
     const order = [...ids].reverse();
     const steps = handShuffleSteps("sort", row(ids), row(order), order, { cardHeight: 100 });

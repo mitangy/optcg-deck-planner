@@ -653,7 +653,7 @@ for (const handLayout of ["fan", "grid"]) {
     type Box = { x: number; y: number; width: number; height: number };
     // Drag hand card `from` to a point worked out once the hand is raised under the pointer.
     const drag = async (from: number, to: (box: (i: number) => Promise<Box>) => Promise<{ x: number; y: number }>) => {
-      // The last drop's slide (#335) must settle before the cards are measured.
+      // The last drop's slide (#338) must settle before the cards are measured.
       await page.waitForFunction(() =>
         document.getAnimations().every((a) => a.constructor !== Animation || a.playState !== "running"),
       );

@@ -1,5 +1,5 @@
 /**
- * Rearranging your hand animates (#335): Sort riffles the cards into their
+ * Rearranging your hand animates (#338): Sort riffles the cards into their
  * new order, and a card dropped on a new spot lands with a settle while the
  * cards it pushed slide over. "Card animations: Off" keeps the hand still.
  */
@@ -70,7 +70,7 @@ async function clickSort(page: Page) {
 
 function handTests(where: string, landscape = false) {
   for (const handLayout of ["fan", "grid"]) {
-    test(`${handLayout} hand${where}: Sort riffles the cards into their new order (#335)`, async ({
+    test(`${handLayout} hand${where}: Sort riffles the cards into their new order (#338)`, async ({
       page,
     }) => {
       if (landscape) {
@@ -92,7 +92,7 @@ function handTests(where: string, landscape = false) {
       expect(new Set(riffled)).toEqual(new Set(moved));
     });
 
-    test(`${handLayout} hand${where}: a card dropped on a new spot lands and the others slide over (#335)`, async ({
+    test(`${handLayout} hand${where}: a card dropped on a new spot lands and the others slide over (#338)`, async ({
       page,
     }) => {
       if (landscape) {
@@ -163,7 +163,7 @@ handTests("", false);
 // Landscape phones keep the hand in the corner dock.
 handTests(" on a landscape phone", true);
 
-test("Card animations Off keeps the hand still when sorting (#335)", async ({
+test("Card animations Off keeps the hand still when sorting (#338)", async ({
   page,
 }) => {
   await recordHandAnims(page, { animationSpeed: "off" });
