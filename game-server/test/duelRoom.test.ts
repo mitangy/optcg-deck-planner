@@ -518,7 +518,7 @@ describe("DuelRoom", () => {
     await c2.leave(true);
   });
 
-  it("ranked_queue keeps one place per account, dropping the older entry (#SEC)", async () => {
+  it("ranked_queue keeps one place per account, dropping the older entry (#318)", async () => {
     const dupA = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("same-user"));
     let aLeft = false;
     dupA.onLeave(() => {
@@ -1221,7 +1221,7 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("refuses to create a room without a game token when tokens are required (#SEC)", async () => {
+  it("refuses to create a room without a game token when tokens are required (#318)", async () => {
     // The matchmake HTTP call itself (what the SDK sends before opening the socket) must fail:
     // a room created here would hold seat reservations even though the socket join is refused later.
     const http = { token: "", headers: new Headers(), ip: "127.0.0.1" } as unknown as Parameters<typeof matchMaker.create>[2];
@@ -1232,7 +1232,7 @@ describe("DuelRoom", () => {
     assert.equal((await matchMaker.query({ name: "duel" })).length, 0);
   });
 
-  it("duel rooms can only be joined by id, never by an id-less matchmake join (#SEC)", async () => {
+  it("duel rooms can only be joined by id, never by an id-less matchmake join (#318)", async () => {
     const host = await colyseus.sdk.create("duel", { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(501) });
     await assert.rejects(() => colyseus.sdk.join("duel", { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(502) }));
     const guest = await colyseus.sdk.joinById(host.roomId, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(502) });
@@ -1241,7 +1241,7 @@ describe("DuelRoom", () => {
     await host.leave(true);
   });
 
-  it("caps how many open rooms one account can create (#SEC)", async () => {
+  it("caps how many open rooms one account can create (#318)", async () => {
     const opts = { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(601) };
     const rooms = await withTokensRequired(async () => {
       const made = [];
@@ -1255,7 +1255,7 @@ describe("DuelRoom", () => {
     for (const r of rooms) await r.leave(true);
   });
 
-  it("drops a client that floods the room with messages (#SEC)", async () => {
+  it("drops a client that floods the room with messages (#318)", async () => {
     const room = await colyseus.sdk.create("duel", { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(701) });
     let pongs = 0;
     room.onMessage("pong", () => {

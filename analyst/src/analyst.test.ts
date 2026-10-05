@@ -35,7 +35,7 @@ describe("deck lists", () => {
     expect(deck.cards).toEqual([{ id: "OP01-016", copies: 4 }]);
   });
 
-  it("leaves out a line with a huge copy count instead of sizing the deck by it (#SEC)", () => {
+  it("leaves out a line with a huge copy count instead of sizing the deck by it (#318)", () => {
     const deck = parseDeckText(catalog, "1xOP01-001\n999999999xOP01-006\n4xOP01-016");
     expect(deck.cards).toEqual([{ id: "OP01-016", copies: 4 }]);
     expect(deck.warnings.join(" ")).toContain("OP01-006");

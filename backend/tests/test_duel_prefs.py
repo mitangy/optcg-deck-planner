@@ -147,7 +147,7 @@ def test_deleting_the_active_image_falls_back_to_default(client):
 
 
 
-def test_uploads_stop_once_all_accounts_fill_the_image_budget_SEC(client, monkeypatch: pytest.MonkeyPatch):
+def test_uploads_stop_once_all_accounts_fill_the_image_budget_318(client, monkeypatch: pytest.MonkeyPatch):
     c, SessionLocal = client
     a, b = _user(SessionLocal, "budget-a"), _user(SessionLocal, "budget-b")
     monkeypatch.setattr(duel_prefs, "MAX_TOTAL_COSMETIC_BYTES", len(JPEG) + len(PNG) - 1)

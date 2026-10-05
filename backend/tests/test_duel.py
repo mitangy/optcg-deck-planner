@@ -356,7 +356,7 @@ def test_my_matches_needs_sign_in(client):
     assert c.get("/duel/matches/me").status_code == 401
 
 
-def test_new_guest_accounts_are_capped_per_client_ip_SEC(client, monkeypatch: pytest.MonkeyPatch):
+def test_new_guest_accounts_are_capped_per_client_ip_318(client, monkeypatch: pytest.MonkeyPatch):
     from app.rate_limit import RateLimiter
     from app.routers import duel as duel_router
 
@@ -378,7 +378,7 @@ def test_new_guest_accounts_are_capped_per_client_ip_SEC(client, monkeypatch: py
         assert db.query(User).filter(User.email.like("guest-freshguest%")).count() == 3
 
 
-def test_new_accounts_are_capped_in_total_across_ips_SEC(client, monkeypatch: pytest.MonkeyPatch):
+def test_new_accounts_are_capped_in_total_across_ips_318(client, monkeypatch: pytest.MonkeyPatch):
     from app.rate_limit import RateLimiter
     from app.routers import duel as duel_router
 
@@ -395,7 +395,7 @@ def test_new_accounts_are_capped_in_total_across_ips_SEC(client, monkeypatch: py
     assert codes == [200, 200, 429]
 
 
-def test_dev_token_new_accounts_share_the_cap_SEC(client, monkeypatch: pytest.MonkeyPatch):
+def test_dev_token_new_accounts_share_the_cap_318(client, monkeypatch: pytest.MonkeyPatch):
     from app.rate_limit import RateLimiter
     from app.routers import duel as duel_router
 

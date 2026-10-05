@@ -24,7 +24,7 @@ describe("hypergeomAtLeast", () => {
     expect(pct(hypergeomAtLeast(50, 4, 5, 1))).toBe(35.3);
     expect(pct(hypergeomAtLeast(50, 4, 7, 1))).toBe(46.4);
   });
-  it("gives no odds for a deck too large to tabulate instead of growing the table (#SEC)", () => {
+  it("gives no odds for a deck too large to tabulate instead of growing the table (#318)", () => {
     expect(hypergeomAtLeast(MAX_ODDS_DECK + 1, 4, 5, 1)).toBeNaN();
     expect(hypergeomAtLeast(MAX_ODDS_DECK, 4, 5, 1)).toBeGreaterThan(0);
   });

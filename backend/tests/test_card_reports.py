@@ -114,7 +114,7 @@ def test_fixed_reports_leave_the_default_open_list(client):
     assert sorted(all_ids) == ["OP01-060", "ST01-005"]
 
 
-def test_reports_are_capped_in_total_across_clients_SEC(client, monkeypatch: pytest.MonkeyPatch):
+def test_reports_are_capped_in_total_across_clients_318(client, monkeypatch: pytest.MonkeyPatch):
     from app.rate_limit import RateLimiter
 
     c, _ = client
