@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   acceptFriendRequest,
   dismissInvite,
@@ -12,6 +11,7 @@ import {
   type FriendInvite,
   type FriendsState,
 } from "./friendsApi";
+import { googleLoginUrl } from "../net/api";
 import "./friends.css";
 
 const POLL_MS = 10_000;
@@ -176,10 +176,10 @@ export function FriendsPanel({
         <div className="friends-head">
           <h2 className="friends-title">Friends</h2>
         </div>
-        <p className="friends-empty">Sign in to add friends, invite them, and watch their games.</p>
-        <Link to="/settings" className="btn btn-secondary btn-sm">
-          Sign in
-        </Link>
+        <p className="friends-empty">Sign in with Google to add friends, invite them, and watch their games.</p>
+        <a className="btn btn-secondary btn-sm friends-signin" href={googleLoginUrl()}>
+          Sign in with Google
+        </a>
       </section>
     );
   }

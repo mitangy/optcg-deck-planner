@@ -342,5 +342,7 @@ module.exports = {
     // spectators of unranked rooms see both hands (#250)
     {"id": "spectator-hands-never-revealed", "file": "packages/rules/src/engine/views.ts", "from": "    ...(opts.revealHands ? { revealedHands:", "to": "    ...(false ? { revealedHands:", "kills": ["spectators see both hands only when revealHands is set (#250)"]},
     {"id": "spectator-hands-always-revealed", "file": "packages/rules/src/engine/views.ts", "from": "    ...(opts.revealHands ? { revealedHands:", "to": "    ...(true ? { revealedHands:", "kills": ["spectators see both hands only when revealHands is set (#250)"]},
+    // select prompts: a purpose that already ends in a period ("K.O.") does not get a second one (#281)
+    {"id": "p2-select-prompt-double-period", "file": "packages/rules/src/engine/runtime.ts", "from": "to ${instr.purpose}${instr.purpose.endsWith(\".\") ? \"\" : \".\"}`;", "to": "to ${instr.purpose}.`;", "kills": ["a K.O. pick prompt ends in one period, not \"K.O..\" (#281)"]},
   ],
 };

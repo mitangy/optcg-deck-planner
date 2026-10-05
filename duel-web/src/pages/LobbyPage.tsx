@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
+import { isIncompleteDeck } from "../decks/deckStatus";
 import { getApiBaseUrl, getGameServerUrl, getPlannerUrl } from "../config";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { refreshLinkedDeck } from "../decks/planner";
@@ -17,6 +18,7 @@ import {
 } from "../decks/storage";
 import {
   fetchAuthMe,
+  googleLoginUrl,
   mintDevGameToken,
   mintGuestGameToken,
   mintSessionGameToken,
@@ -88,7 +90,15 @@ const MODE_CARDS: Array<{
 ];
 
 function deckLabel(d: SavedDeck): string {
-  return `${d.name} — ${lookupCard(d.leaderId).name} (${d.cards.length})`;
+  return `${d.name} — ${lookupCard(d.leaderId).name} (${d.cards.length}${isIncompleteDeck(d) ? "/50" : ""})`;
+}
+
+function IncompleteBadge({ deck }: { deck: SavedDeck }) {
+  return isIncompleteDeck(deck) ? (
+    <span className="deck-incomplete-badge" title={`${deck.cards.length} of 50 main-deck cards`}>
+      Incomplete
+    </span>
+  ) : null;
 }
 
 function DeckPicker({
@@ -107,7 +117,9 @@ function DeckPicker({
   const deck = decks.find((d) => d.id === value) ?? null;
   return (
     <div className="field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>
+        {label} {deck ? <IncompleteBadge deck={deck} /> : null}
+      </label>
       <div className="deck-picker">
         {deck ? (
           <LeaderThumb key={deck.id} deck={deck} className="deck-picker-art" />
@@ -179,7 +191,9 @@ function DeckSwitcher({
         <span className="home-deck-text">
           <span className="home-deck-label">Sailing with</span>
           <span className="home-deck-name">{selectedDeck.name}</span>
-          <span className="home-deck-leader">{lookupCard(selectedDeck.leaderId).name}</span>
+          <span className="home-deck-leader">
+            {lookupCard(selectedDeck.leaderId).name} <IncompleteBadge deck={selectedDeck} />
+          </span>
         </span>
         <span className="home-deck-chevron" aria-hidden>
           ▾
@@ -207,7 +221,7 @@ function DeckSwitcher({
                     <span className="deck-menu-text">
                       <span className="deck-menu-name">{d.name}</span>
                       <span className="deck-menu-sub">
-                        {lookupCard(d.leaderId).name} · {d.cards.length} cards
+                        {lookupCard(d.leaderId).name} · {d.cards.length} cards <IncompleteBadge deck={d} />
                       </span>
                     </span>
                     <span className="deck-menu-check" aria-hidden>
@@ -601,6 +615,11 @@ export function LobbyPage() {
             OPTCG Duel
           </Link>
           <div className="topbar-right">
+            {authMode === "guest" ? (
+              <a className="btn btn-primary btn-sm" href={googleLoginUrl()}>
+                Sign in
+              </a>
+            ) : null}
             <Link to="/settings" className="account-chip" title="Account settings">
               <span className="account-dot" data-mode={authMode} aria-hidden />
               <span className="account-name">{accountName}</span>

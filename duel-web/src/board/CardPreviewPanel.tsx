@@ -1,10 +1,11 @@
-import { useState, type MouseEvent } from "react";
+import { useRef, useState, type MouseEvent } from "react";
 import { lookupCard } from "../cards/atlas";
 import { isPlaceholderArt } from "../cards/cardImage";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { usePreviewCard } from "./cardPreview";
 import { CardInspect } from "./CardInspect";
 import { inspectOnContextMenu } from "./inspectGestures";
+import { useMoreBelow } from "./scrollCue";
 import { LiveCardStatus } from "./LiveCardStatus";
 import { counterValueFor, formatCounter } from "../cards/counterValue";
 
@@ -13,6 +14,8 @@ export function CardPreviewPanel() {
   const preview = usePreviewCard();
   const [failed, setFailed] = useState<string | null>(null);
   const [inspectOpen, setInspectOpen] = useState(false);
+  const metaRef = useRef<HTMLDivElement | null>(null);
+  const scrollCue = useMoreBelow(metaRef, [preview?.defId, preview?.caption, preview?.live]);
 
   if (!preview) {
     return (
@@ -61,7 +64,11 @@ export function CardPreviewPanel() {
           {entry.id}
         </div>
       )}
-      <div className="card-preview-meta">
+      <div
+        className={`card-preview-meta${scrollCue.more ? " has-more" : ""}`}
+        ref={metaRef}
+        onScroll={scrollCue.onScroll}
+      >
         {preview.caption ? <p className="card-preview-caption">{preview.caption}</p> : null}
         <h2 className="card-preview-name">{entry.name}</h2>
         <p className="card-preview-stats">{stats.join(" · ")}</p>

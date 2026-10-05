@@ -168,7 +168,7 @@ function StackCard({
             </select>
           </label>
         ) : (
-          <p className="meta">No alt arts in atlas</p>
+          <p className="meta">Standard artwork only</p>
         )}
       </div>
     </article>

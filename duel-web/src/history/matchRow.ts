@@ -18,6 +18,8 @@ export type MatchRow = {
   /** Who the reason applies to, e.g. "Opponent conceded". */
   how: string;
   yourLeader: string;
+  /** Card id of your Leader, for its art on the row. */
+  yourLeaderId: string | null;
   opponentLeader: string;
   opponent: string;
   turns: string | null;
@@ -41,6 +43,7 @@ export function matchRow(
     outcome: m.won ? "Won" : "Lost",
     how,
     yourLeader: m.your_leader_id ? cardName(m.your_leader_id) : "Unknown leader",
+    yourLeaderId: m.your_leader_id,
     opponentLeader: m.opponent_leader_id ? cardName(m.opponent_leader_id) : "Unknown leader",
     opponent: m.opponent_name,
     turns: m.turns != null ? `${m.turns} turns` : null,

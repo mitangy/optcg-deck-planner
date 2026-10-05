@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { BackLink } from "./BackLink";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { UsernameSettings } from "../auth/UsernameSettings";
 import {
@@ -99,15 +100,9 @@ export function SettingsPage() {
 
   return (
     <div className="app-shell">
-      <div className="page page-narrow">
+      <div className="page page-narrow page-settings">
         <header className="page-header">
-          <Link
-            to="/"
-            className="btn btn-ghost btn-sm page-back"
-            aria-label="Back to home"
-          >
-            ← Home
-          </Link>
+          <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <h1 className="page-title">Settings</h1>
         </header>
 
@@ -120,6 +115,9 @@ export function SettingsPage() {
           <a href="#card-back">Card back</a>
         </nav>
 
+        {/* Phones: one column in this order. 1024px and up: Gameplay on the right, the rest on the left. */}
+        <div className="settings-cols">
+        <div className="settings-a">
         <section className="panel" id="account">
           <h2 className="panel-title">Account</h2>
           {authUser ? (
@@ -238,6 +236,8 @@ export function SettingsPage() {
           </p>
         </section>
 
+        </div>
+        <div className="settings-b">
         <section className="panel" id="gameplay">
           <h2 className="panel-title">Gameplay</h2>
           <p className="field-hint">
@@ -249,6 +249,8 @@ export function SettingsPage() {
           <GameplaySettingsFields />
         </section>
 
+        </div>
+        <div className="settings-c">
         <section className="panel" id="deck-editor">
           <h2 className="panel-title">Deck editor</h2>
           <div className="gameplay-toggle">
@@ -431,6 +433,8 @@ export function SettingsPage() {
           </p>
           <VersionStatus actions />
         </section>
+        </div>
+        </div>
       </div>
       {editing ? (
         <ImageEditor

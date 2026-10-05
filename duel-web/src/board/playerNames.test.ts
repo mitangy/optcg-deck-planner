@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SeatPlayers } from "../net/protocol";
 import { parseWelcome, PROTOCOL_VERSION } from "../net/protocol";
-import { seatLabel, seatName, winnerHeadline } from "./playerNames";
+import { playerLabel, seatLabel, seatName, winnerHeadline } from "./playerNames";
 
 const players: SeatPlayers = [{ name: "Luffy" }, { name: "Kaido" }];
 
@@ -19,6 +19,13 @@ describe("player names", () => {
     expect(winnerHeadline(null, 1, 0, false)).toBe("You lose");
     expect(winnerHeadline(players, 1, 0, true)).toBe("Kaido wins");
     expect(winnerHeadline(null, 0, null, true)).toBe("Player 1 wins");
+  });
+});
+
+describe("pass-and-play labels", () => {
+  it("numbers the players from 1 although seats count from 0 (#282)", () => {
+    expect(playerLabel(0)).toBe("Player 1");
+    expect(playerLabel(1)).toBe("Player 2");
   });
 });
 

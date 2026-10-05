@@ -160,6 +160,19 @@ describe("event triggers", () => {
     expect(h.state.players[1].characters.some((c) => c.id === small!.id)).toBe(false);
   });
 
+  it("a K.O. pick prompt ends in one period, not \"K.O..\" (#281)", () => {
+    const h = new Harness();
+    h.field(0, "OP06-076");
+    h.field(1, FILLER);
+    h.hand(0, "OP15-076");
+    h.don(0, 3);
+    h.play(0, "OP15-076");
+    h.accept(0);
+    h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"] });
+    h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [] });
+    expect(h.choice?.prompt).toMatch(/ to K\.O\.$/);
+  });
+
   it("OP04-086 draws after its battle K.O. with DON!! x1", () => {
     const h = new Harness();
     const [chinjao] = h.field(0, "OP04-086");

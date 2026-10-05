@@ -3,7 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
 import type { BoardWaiting } from "../board/PendingBoard";
 import { BountyAmount } from "../Bounty";
+import { fetchMatchDetail } from "../history/historyApi";
 import { useDuelSession } from "../state/DuelSession";
+
+/** The saved match, for the rating change and match log link on the match-over card. */
+const loadMatchRecord = (matchId: string) => fetchMatchDetail(matchId).then((d) => d.match);
 
 export function DuelPage() {
   const navigate = useNavigate();
@@ -107,6 +111,7 @@ export function DuelPage() {
         undo={role === "player" ? { state: undo, onAction: sendUndo } : undefined}
         onSendIntent={sendIntent}
         rematch={role === "player" ? { state: rematch, onAction: sendRematch } : undefined}
+        loadMatchRecord={role === "player" ? loadMatchRecord : undefined}
         seatSkins={seatSkins}
         opponentAwayUntil={seat === 0 || seat === 1 ? awayUntil[seat === 0 ? 1 : 0] : null}
         waiting={waiting}

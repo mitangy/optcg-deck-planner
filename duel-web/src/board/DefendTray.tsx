@@ -91,6 +91,8 @@ function power(n: number | null): string {
 
 type Props = {
   model: DefendModel;
+  /** `rail`: desktop right column, chips wrap so every value shows (no sideways scroll). */
+  layout?: "tray" | "rail";
   ownerSeat: Seat;
   /** Remaining response clock, 0-1, or null when the room has none. */
   clock: number | null;
@@ -109,6 +111,7 @@ type Props = {
  */
 export function DefendTray({
   model,
+  layout = "tray",
   ownerSeat,
   clock,
   onToggleBlocker,
@@ -134,7 +137,7 @@ export function DefendTray({
 
   return (
     <section
-      className={`defend-tray defend-${m.phase}`}
+      className={`defend-tray defend-${m.phase}${layout === "rail" ? " defend-rail" : ""}`}
       aria-label={m.phase === "block" ? "Block or take the attack" : "Counter or take the hit"}
     >
       {clock != null ? (

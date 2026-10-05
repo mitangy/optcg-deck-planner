@@ -4,6 +4,7 @@ import { cardBackCssValue } from "../cardBack";
 import { fanPose } from "./handFan";
 import { playerLabel, seatName } from "./playerNames";
 import { CardTile } from "./CardTile";
+import { respondSubline } from "./promptLine";
 
 /** Formatted per-player (chess) clocks; `running` is whose is ticking. */
 export type SeatClocks = {
@@ -140,7 +141,7 @@ export function TurnStatusPanel({
   } else if (mustRespond) {
     tone = "respond";
     title = "Your response";
-    sub = `${oppName} is attacking — block or counter`;
+    sub = respondSubline({ oppName, phase: view.phase, mySeat: boardSeat, choice: view.pendingChoices?.[0] });
   } else if (youActive) {
     tone = "mine";
     title = "Your turn";

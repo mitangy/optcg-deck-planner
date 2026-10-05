@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  glueSegments,
   groupBattleLogByTurn,
   indexViewInstances,
   narrateEvents,
@@ -248,5 +249,44 @@ describe("rewindBattleLog", () => {
     expect(out).toHaveLength(3);
     expect(out[2]!.turn).toBe(2);
     expect(out[2]!.text).toContain("Opponent undid the turn");
+  });
+});
+
+describe("log noise and wrapping", () => {
+  it("drops Phase lines and zero-count DON!! events but keeps the Main phase rule and real DON!! (#281)", () => {
+    const lines = narrateEvents(
+      [
+        { type: "phase_changed", phase: "refresh", activeSeat: 0 },
+        { type: "phase_changed", phase: "draw", activeSeat: 0 },
+        { type: "don_placed", seat: 0, count: 0 },
+        { type: "don_placed", seat: 0, count: 2 },
+        { type: "phase_changed", phase: "main", activeSeat: 0 },
+      ],
+      { youSeat: 0, turnNumber: 3 },
+    ).map((e) => e.text);
+    expect(lines).toEqual(["You place 2 DON!!", "—— Main phase · You ——"]);
+  });
+
+  it("keeps the 's after a card name on the name's line, and leaves spaced text free to wrap (#281)", () => {
+    const [entry] = narrateEvents(
+      [{ type: "pending_choice_resolved", seat: 0, kind: "effect", accepted: false, cardDefId: "ST01-003" }],
+      { youSeat: 0, turnNumber: 3 },
+    );
+    const parts = glueSegments(entry!.segments);
+    const cardPart = parts.find((p) => p.seg.kind === "card")!;
+    expect(cardPart.glued).toBe("'s");
+    expect(parts[parts.length - 1]).toEqual({ seg: { kind: "text", text: " effect" }, glued: "" });
+    expect(entry!.text).not.toMatch(/ 's/);
+  });
+
+  it("does not glue a card name to text that starts with a space (#281)", () => {
+    const parts = glueSegments([
+      { kind: "card", defId: "ST01-003", name: "Nami" },
+      { kind: "text", text: " to hand" },
+    ]);
+    expect(parts).toEqual([
+      { seg: { kind: "card", defId: "ST01-003", name: "Nami" }, glued: "" },
+      { seg: { kind: "text", text: " to hand" }, glued: "" },
+    ]);
   });
 });
