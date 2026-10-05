@@ -23,7 +23,6 @@ type Toggle = {
     | "oneTapActions"
     | "oppHandTopRight"
     | "tiltedBoard"
-    | "floatingCards"
     | "turnSplash"
     | "reduceMotion"
     | "turnAlert"
@@ -62,11 +61,6 @@ const TOGGLES: Toggle[] = [
     key: "tiltedBoard",
     label: "Tilted board",
     hint: "Desktop and landscape tablets: the board leans away from you like a real table, so the opponent's side is a little smaller and further back.",
-  },
-  {
-    key: "floatingCards",
-    label: "Floating cards",
-    hint: "Searches and ordering effects lay their cards out over the board: tap to take, drag to reorder. Off shows them in a pop-up box instead.",
   },
   {
     key: "turnSplash",

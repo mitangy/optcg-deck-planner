@@ -93,8 +93,6 @@ module.exports = {
     { id: "float-tap-cannot-clear", file: `${src}/board/floatOrder.ts`, from: "  if (tapped.includes(id)) return { order: [...order], tapped: tapped.filter((x) => x !== id) };\n", to: "", kills: ["tapping a numbered card again clears its number and leaves the row"] },
     { id: "float-slot-ignores-rows", file: `${src}/board/floatOrder.ts`, from: "    const d = (c.x - x) ** 2 + (c.y - y) ** 2;", to: "    const d = (c.x - x) ** 2;", kills: ["drops on the nearest slot, including the next row on phones"] },
     { id: "float-slot-farthest", file: `${src}/board/floatOrder.ts`, from: "    if (d < bestD) {", to: "    if (d > bestD || bestD === Infinity) {", kills: ["drops on the nearest slot, including the next row on phones"] },
-    { id: "floating-cards-off-by-default", file: `${src}/settings.ts`, from: "  floatingCards: true,", to: "  floatingCards: false,", kills: ["floats cards for players whose saved settings predate the option"] },
-    { id: "floating-cards-cannot-turn-off", file: `${src}/settings.ts`, from: "  const next = { ...DEFAULTS, ...rest };", to: "  const next = { ...DEFAULTS, ...rest, floatingCards: true };", kills: ["keeps the pop-up box for a player who turned floating cards off"] },
     { id: "prompt-hide-sticks-to-next-choice", file: `${src}/board/promptHide.ts`, from: "  return hiddenChoiceId === frontChoiceId;", to: "  return hiddenChoiceId != null;", kills: ["shows the next choice even though the last one was hidden"] },
     { id: "prompt-hide-never-hides", file: `${src}/board/promptHide.ts`, from: "  return hiddenChoiceId === frontChoiceId;", to: "  return false;", kills: ["keeps the pop-up hidden for the choice it was hidden on"] },
     // board helpers

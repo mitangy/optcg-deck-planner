@@ -26,6 +26,11 @@ module.exports = {
     { id: "e2e-preview-effect-hanging-spaces", args: "playthrough --project=desktop-1280", file: "duel-web/src/board.css", from: "  color: var(--ink);\n  white-space: pre-line;\n}", to: "  color: var(--ink);\n  white-space: pre-wrap;\n}", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [desktop-1280]"] },
 
     // DON!! −N picked off the board (#258)
+    // Both layers: the board reads the old setting again, and loading settings keeps it.
+    { id: "e2e-searcher-float-setting-back", args: "demo-audit --project=desktop-1280 -g Floating", edits: [
+      { file: "duel-web/src/board/DuelBoard.tsx", from: "      ) : floatingPrompts &&\n", to: "      ) : floatingPrompts &&\n        (prefs as { floatingCards?: boolean }).floatingCards !== false &&\n" },
+      { file: "duel-web/src/settings.ts", from: "    floatingCards: _floatingCards,\n", to: "" },
+    ], kills: ["demo-audit.spec.ts > a searcher floats its cards even with Floating cards saved off (#288) [desktop-1280]"] },
     { id: "e2e-don-chip-clicks-ignored", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/ChoicePrompt.tsx", from: "  const chip = target?.closest?.<HTMLElement>(\".don-strip .don-chip-btn[data-don-id]\");", to: "  const chip = null as HTMLElement | null;", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [desktop-1280]"] },
     { id: "e2e-don-chip-disabled", args: "demo-audit --project=phone-375", file: "duel-web/src/board/DonStrip.tsx", from: "      tabIndex={canDrag ? undefined : -1}\n", to: "      disabled={!canDrag}\n", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [phone-375]"] },
 
