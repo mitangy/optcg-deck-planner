@@ -1,5 +1,6 @@
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
+import { inspectOnContextMenu } from "./inspectGestures";
 
 /** Life/deck pile count label — never secret (life used to show "??"). */
 export function zonePileCountLabel(count: number, expectedCount?: number): string {
@@ -34,6 +35,8 @@ type Props = {
   ownerSeat?: Seat;
   /** Opens zone browser when set (typically trash). */
   onOpen?: () => void;
+  /** Right-click (mouse) opens the top card's details instead of the browser menu. */
+  onInspectTop?: () => void;
 };
 
 export function ZonePile({
@@ -44,6 +47,7 @@ export function ZonePile({
   topDefId,
   ownerSeat,
   onOpen,
+  onInspectTop,
 }: Props) {
   const openable = Boolean(onOpen);
   const countLabel = zonePileCountLabel(count, expectedCount);
@@ -97,6 +101,7 @@ export function ZonePile({
         title={`View ${label} (${count})`}
         aria-label={`View ${label}, ${count} cards`}
         onClick={onOpen}
+        onContextMenu={onInspectTop ? (e) => inspectOnContextMenu(e, onInspectTop) : undefined}
       >
         {body}
       </button>

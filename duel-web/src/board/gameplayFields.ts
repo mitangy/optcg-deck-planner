@@ -15,7 +15,6 @@ export type ToggleKey =
   | "oneTapActions"
   | "oppHandTopRight"
   | "tiltedBoard"
-  | "floatingCards"
   | "turnSplash"
   | "reduceMotion"
   | "turnAlert"

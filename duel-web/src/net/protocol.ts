@@ -202,7 +202,8 @@ export type DeckPlacement = "deck_bottom" | "deck_top" | "trash" | "top_or_botto
 /** Mirrors @optcg/rules ChoiceRequest. */
 export type ChoiceRequestView =
   | { type: "confirm" }
-  | { type: "select"; min: number; max: number; options: ChoiceOptionView[] }
+  /** `distinctNames`: no two picks may share a card name. */
+  | { type: "select"; min: number; max: number; options: ChoiceOptionView[]; distinctNames?: true }
   | { type: "mode"; options: ChoiceOptionView[] }
   | { type: "order"; options: ChoiceOptionView[]; destination: string; allowTopOrBottom?: boolean }
   | {

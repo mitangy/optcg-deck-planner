@@ -45,6 +45,17 @@ for (const screen of ["?full", "?statuses", "?attack"]) {
   });
 }
 
+// Searchers always float their cards; an old saved "Floating cards" off no longer brings the pop-up back.
+test("a searcher floats its cards even with Floating cards saved off (#288)", async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ floatingCards: false })),
+  );
+  await page.goto("/demo?prompt=look");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".float-layer .float-card").first()).toBeVisible();
+  await expect(page.locator(".choice-prompt")).toHaveCount(0);
+});
+
 // A clicked hand card, Sort or Hand button keeps focus; the fan must still tuck
 // once the pointer leaves it, or it sits on your DON!! row (flat board).
 test("the centre hand fan tucks away after a click once the pointer leaves", async ({ page }) => {
@@ -65,6 +76,28 @@ test("the centre hand fan tucks away after a click once the pointer leaves", asy
   await page.locator(".hand-fan-head .hand-rail-btn").click(); // Sort keeps focus too
   await page.mouse.move(640, 120);
   await expect.poll(donCovered, { timeout: 3000 }).toBe(false);
+});
+
+// A clicked Hand button keeps focus, and the next key press (S here) makes it
+// :focus-visible, which held the fan up after "Let the hand tuck away".
+test("the hand fan tucks away after Let the hand tuck away and a key press (#291)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true })),
+  );
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const toggle = page.locator(".hand-fan-toggle");
+  await expect(toggle).toHaveAttribute("title", "Let the hand tuck away");
+  await toggle.click();
+  await page.mouse.move(640, 120);
+  await page.keyboard.press("s");
+  const fanUp = () =>
+    page.evaluate(() => {
+      const r = document.querySelector(".side-you .don-strip")!.getBoundingClientRect();
+      return !!document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest(".hand-fan");
+    });
+  await expect.poll(fanUp, { timeout: 3000 }).toBe(false);
 });
 
 // Clicking an empty card slot or a pile must not drop a blinking text caret on the mat.
@@ -570,3 +603,52 @@ for (const handLayout of ["fan", "grid"]) {
     await expect.poll(sent).toEqual([{ type: "play_card", handIndex: 0 }]);
   });
 }
+
+// The trash browser shows readable cards, not the tiny board tile (#287).
+test("trash viewer cards are big enough to read (#287)", async ({ page, duel }, info) => {
+  await page.goto("/demo");
+  await page.locator(".board-root").waitFor();
+  await page.locator(".side-you .zone-trash .zone-pile").click();
+  const tile = page.locator(".trash-viewer-grid .card-tile").first();
+  await tile.waitFor();
+  const box = (await tile.boundingBox())!;
+  const phone = info.project.name === "phone-375";
+  expect(box.width).toBeGreaterThanOrEqual(phone ? 90 : 140);
+  const issues = (await duel.audit()).filter((i) => !isKnown(i));
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+// Only a card's owner may change its alt art: the opponent's Guard Point from
+// Recent plays has no Artwork row, your own Guard Point in your trash does (#287).
+test("an opponent's card opened from Recent plays offers no art change (#287)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "Recent plays is a desktop side panel");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await page.locator(".recent-play-opp", { hasText: "Guard Point" }).first().click({ button: "right" });
+  await expect(page.locator(".card-inspect-name")).toHaveText("Guard Point");
+  await expect(page.locator(".card-inspect-alts")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  await page.locator(".side-you .zone-trash .zone-pile").click();
+  await page.locator(".trash-viewer-grid .card-tile", { hasText: "Guard Point" }).click();
+  await expect(page.locator(".card-inspect-name")).toHaveText("Guard Point");
+  await expect(page.locator(".card-inspect-alts")).toHaveCount(1);
+});
+
+// Right-click the trash for the top card's details; a left click still opens the whole trash (#287).
+test("right-clicking the trash shows the top card, left click opens the trash (#287)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "right-click is a mouse gesture");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const pile = page.locator(".side-you .zone-trash .zone-pile");
+  await pile.click({ button: "right" });
+  await expect(page.locator(".card-inspect-name")).toBeVisible();
+  const name = await page.locator(".card-inspect-name").innerText();
+  await expect(page.locator(".trash-viewer")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".card-inspect")).toHaveCount(0);
+
+  await pile.click();
+  await expect(page.locator(".trash-viewer-grid .card-tile").first()).toContainText(name);
+  await expect(page.locator(".card-inspect")).toHaveCount(0);
+});

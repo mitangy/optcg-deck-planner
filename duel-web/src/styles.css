@@ -1926,7 +1926,7 @@ button.zone-pile {
   padding: 0.85rem 1rem 1rem;
   max-width: 920px;
   width: 100%;
-  max-height: min(82dvh, 640px);
+  max-height: min(88dvh, 860px);
   min-height: min(42dvh, 320px);
   overflow: hidden;
   cursor: default;
@@ -1973,18 +1973,39 @@ button.zone-pile {
 }
 
 .trash-viewer-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
+  /* Readable cards: ~3 across on a phone, 5-6 on desktop (not the tiny board tile). */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--trash-card-min), 100%), 1fr));
+  --trash-card-min: 140px;
+  gap: 0.6rem;
   overflow: auto;
   min-height: 0;
   padding: 0.15rem 0.1rem 0.5rem;
-  align-content: flex-start;
+  align-content: start;
+}
+
+.trash-viewer-grid .card-tile.compact {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  aspect-ratio: 63 / 88;
+  justify-self: center;
+}
+
+/* Big enough to read the printed power, which the small corner badge would only half cover. */
+@media (min-width: 721px) {
+  .trash-viewer-grid .power-badge:not(.counter-badge) {
+    display: none;
+  }
 }
 
 @media (max-width: 720px) {
   .trash-viewer {
     max-height: min(92dvh, 900px);
+  }
+
+  .trash-viewer-grid {
+    --trash-card-min: 92px;
   }
 }
 

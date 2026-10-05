@@ -3,7 +3,7 @@ import { abilitiesFor, REGISTRY_HASH } from "../cards/abilities.js";
 import { ensureDefsForPlayers, getCardDef, normalizeCardDefId } from "../cards/definitions.js";
 import { createSeededRng, type Rng } from "../rng.js";
 import { MATCH_STATE_VERSION, RULES_PROTOCOL_VERSION, RULES_VERSION } from "../state/snapshot.js";
-import type { ApplyContext, ApplyResult, AttackTarget, CardInstance, CreateMatchConfig, Intent, MatchState, PlayerDeckConfig, PlayerState, Seat } from "../types.js";
+import type { ApplyContext, ApplyResult, AttackTarget, CardInstance, CreateMatchConfig, Intent, MatchState, PendingChoice, PlayerDeckConfig, PlayerState, Seat } from "../types.js";
 import { addModifier } from "./modifiers.js";
 import { beginTurn, applyTriggerOrder, declareAttack, declareBlock, endTurn, resolveLifeTrigger, settle } from "./procedure.js";
 import { attackTargetAllowed, cannotAttackMatching, canPayCosts, costOf, counterOf, ctxFor, filterMatches, hasKeyword, hasRestriction, isNegated, playCostOf, playerRestricted, powerOf, restrictionValue } from "./queries.js";
@@ -20,7 +20,7 @@ function donDeckSize(leaderId: string): number {
   return 10;
 }
 
-function buildPlayer(state: MatchState, cfg: PlayerDeckConfig, rng: Rng): PlayerState {
+function buildPlayer(state: MatchState, seat: Seat, cfg: PlayerDeckConfig, rng: Rng): PlayerState {
   const leaderDef = getCardDef(cfg.leaderId);
   if (leaderDef.type !== "leader" || leaderDef.life == null) throw new Error(`Invalid leader ${cfg.leaderId}`);
   const player: PlayerState = {
@@ -45,16 +45,52 @@ function buildPlayer(state: MatchState, cfg: PlayerDeckConfig, rng: Rng): Player
   player.deck = shuffled.map((c) => c.defId);
   player.zoneInstanceIds.deck = shuffled.map((c) => c.id);
   // "At the start of the game, play up to 1 {Trait} type Stage card from your deck."
+  // One eligible Stage plays itself; two or more different ones ask the player
+  // (the opening hand is drawn once they choose).
   for (const ability of abilitiesFor(leaderDef.id)) for (const st of ability.statics ?? []) {
     if (st.s !== "deck_rule" || !st.rule.startsWith("start_stage:") || player.stage) continue;
     const trait = st.rule.slice("start_stage:".length);
-    const idx = player.deck.findIndex((id) => { const def = getCardDef(id); return def.type === "stage" && (def.traits ?? []).includes(trait); });
-    if (idx < 0) continue;
-    player.stage = makeCard(player.deck.splice(idx, 1)[0]!, player.zoneInstanceIds.deck.splice(idx, 1)[0]!);
+    const eligible = [...new Set(player.deck.filter((id) => { const def = getCardDef(id); return def.type === "stage" && (def.traits ?? []).includes(trait); }))];
+    if (eligible.length === 0) continue;
+    if (eligible.length === 1) { playStartStage(player, eligible[0]!); continue; }
+    const bindings: Record<string, string> = { __startStage: "1" };
+    const options = eligible.map((defId, i) => { bindings[`stage${i}`] = defId; return { id: `stage${i}`, defId, zone: "deck" as const, ownerSeat: seat, eligible: true }; });
+    state.pendingChoices.push({
+      id: alloc(state, "choice"), seat, kind: "effect", cardDefId: leaderDef.id, optional: false,
+      prompt: `Choose a {${trait}} type Stage card to play from your deck at the start of the game.`,
+      request: { type: "select", min: 1, max: 1, options }, privateToSeat: seat, bindings,
+    });
+    return player;
   }
-  for (let i = 0; i < 5 && player.deck.length; i += 1) player.hand.push(makeCard(player.deck.shift()!, player.zoneInstanceIds.deck.shift()!));
+  drawOpeningHand(player);
   return player;
 }
+
+function playStartStage(player: PlayerState, defId: string): void {
+  const idx = player.deck.indexOf(defId);
+  player.stage = makeCard(player.deck.splice(idx, 1)[0]!, player.zoneInstanceIds.deck.splice(idx, 1)[0]!);
+}
+
+function drawOpeningHand(player: PlayerState): void {
+  for (let i = 0; i < 5 && player.deck.length; i += 1) player.hand.push(makeCard(player.deck.shift()!, player.zoneInstanceIds.deck.shift()!));
+}
+
+/** Answer to the start-of-game Stage prompt: play it, shuffle the deck, then draw the opening hand. */
+function resolveStartStage(sim: Sim, choice: PendingChoice, selectedOptionIds: string[]): ApplyError {
+  const request = choice.request;
+  if (request?.type !== "select") return err("INVALID_CHOICE", "Choice has no options");
+  if (selectedOptionIds.length !== 1 || !request.options.some((o) => o.id === selectedOptionIds[0])) return err("INVALID_CHOICE", "Choose exactly 1 Stage card");
+  const p = sim.state.players[choice.seat];
+  playStartStage(p, choice.bindings![selectedOptionIds[0]!]!);
+  const shuffled = sim.rng.shuffle(p.deck.map((defId, i) => ({ defId, id: p.zoneInstanceIds.deck[i]! })));
+  p.deck = shuffled.map((c) => c.defId);
+  p.zoneInstanceIds.deck = shuffled.map((c) => c.id);
+  drawOpeningHand(p);
+  sim.state.pendingChoices = sim.state.pendingChoices.filter((c) => c.id !== choice.id);
+  sim.events.push({ type: "pending_choice_resolved", seat: choice.seat, kind: choice.kind, cardDefId: choice.cardDefId, accepted: true, privateToSeat: choice.seat });
+  return null;
+}
+
 
 export function createMatch(config: CreateMatchConfig): MatchState {
   const players = config.players.map((p) => ({ leaderId: normalizeCardDefId(p.leaderId), deck: p.deck.map((id) => normalizeCardDefId(id)) })) as CreateMatchConfig["players"];
@@ -86,7 +122,7 @@ export function createMatch(config: CreateMatchConfig): MatchState {
     triggerBatch: 0,
     lastEvents: [],
   };
-  state.players = [buildPlayer(state, players[0], rng), buildPlayer(state, players[1], rng)];
+  state.players = [buildPlayer(state, 0, players[0], rng), buildPlayer(state, 1, players[1], rng)];
   state.rng = rng.snapshot();
   return state;
 }
@@ -196,6 +232,7 @@ function applyInner(sim: Sim, intent: Intent, seat: Seat): ApplyError {
   if (intent.type === "mulligan") {
     if (state.phase !== "mulligan") return err("WRONG_PHASE", "Mulligan is only allowed before the first turn");
     if (p.mulliganDone) return err("ALREADY", "Mulligan already chosen");
+    if (state.pendingChoices.length > 0) return err("PENDING", "Choose your starting Stage first");
     if (intent.doMulligan) {
       const cards = [...p.hand.map((c) => ({ defId: c.defId, id: c.id })), ...p.deck.map((defId, i) => ({ defId, id: p.zoneInstanceIds.deck[i]! }))];
       const shuffled = sim.rng.shuffle(cards);
@@ -226,6 +263,7 @@ function applyInner(sim: Sim, intent: Intent, seat: Seat): ApplyError {
       return e ? err("INVALID_ORDER", e) : null;
     }
     if (front.kind === "order_effects") return err("WRONG_CHOICE", "Use order_pending_effects");
+    if (front.bindings?.__startStage) return resolveStartStage(sim, front, intent.selectedOptionIds ?? []);
     if (front.kind === "life_trigger") { const e = resolveLifeTrigger(sim, front, intent.accept); return e ? err("INVALID_CHOICE", e) : null; }
     const e = resolveEffectChoice(sim, front, { accept: intent.accept, ...(intent.selectedOptionIds ? { selectedOptionIds: intent.selectedOptionIds } : {}), ...(intent.orderedOptionIds ? { orderedOptionIds: intent.orderedOptionIds } : {}), ...(intent.topOptionIds ? { topOptionIds: intent.topOptionIds } : {}) });
     return e ? err("INVALID_CHOICE", e) : null;
@@ -370,7 +408,7 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
   const out: Intent[] = [];
   if (state.phase === "game_over" || state.winner !== null) return out;
   const p = state.players[seat];
-  if (state.phase === "mulligan") {
+  if (state.phase === "mulligan" && state.pendingChoices.length === 0) {
     if (!p.mulliganDone) out.push({ type: "mulligan", doMulligan: false }, { type: "mulligan", doMulligan: true });
     return out;
   }
@@ -423,6 +461,13 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
 
 export function skipMulligans(state: MatchState, rng: Rng): MatchState {
   let s = state;
+  // Start-of-game Stage prompts take the first option.
+  while (s.phase === "mulligan" && s.pendingChoices[0]) {
+    const front = s.pendingChoices[0];
+    const r = applyIntent(s, { type: "resolve_pending_choice", ...defaultAnswer(front), accept: true }, { seat: front.seat, rng });
+    if (!r.ok) throw new Error(r.error?.message ?? "start-of-game choice failed");
+    s = r.state;
+  }
   for (const seat of [0, 1] as Seat[]) {
     const r = applyIntent(s, { type: "mulligan", doMulligan: false }, { seat, rng });
     if (!r.ok) throw new Error(r.error?.message ?? "mulligan failed");
