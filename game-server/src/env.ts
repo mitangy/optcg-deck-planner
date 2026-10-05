@@ -23,13 +23,31 @@ export function getLogLevel(): "debug" | "info" | "warn" {
   return "info";
 }
 
+const DEV_GAME_TOKEN_SECRET = "dev-change-me-in-production";
+
 /** Shared with FastAPI GAME_TOKEN_SECRET / SESSION_SECRET. */
 export function getGameTokenSecret(): string {
   return (
     process.env.GAME_TOKEN_SECRET?.trim() ||
     process.env.SESSION_SECRET?.trim() ||
-    "dev-change-me-in-production"
+    DEV_GAME_TOKEN_SECRET
   );
+}
+
+/**
+ * Refuse to start a production server that anyone could join as anyone: with
+ * the public dev secret, tokens for any account can be signed offline, and
+ * without REQUIRE_GAME_TOKEN a bare devUserId is accepted.
+ */
+export function assertProductionAuthConfig(env: NodeJS.ProcessEnv = process.env): void {
+  if (env.NODE_ENV !== "production") return;
+  const secret = env.GAME_TOKEN_SECRET?.trim() || env.SESSION_SECRET?.trim() || DEV_GAME_TOKEN_SECRET;
+  if (secret === DEV_GAME_TOKEN_SECRET) {
+    throw new Error("GAME_TOKEN_SECRET must be set in production");
+  }
+  if ((env.REQUIRE_GAME_TOKEN ?? "").toLowerCase() !== "true") {
+    throw new Error("REQUIRE_GAME_TOKEN must be true in production");
+  }
 }
 
 /**
