@@ -94,6 +94,16 @@ export function quickAttachCounts(available: number): number[] {
 }
 
 /**
+ * Full wording of one quick attach amount, e.g. "Give 2 DON!! (+2000)" or
+ * "Give all 5 DON!! (+5000)". Each DON!! is +1000 power for the turn. `counts`
+ * is the row from `quickAttachCounts`; its last entry past +2 is the All chip.
+ */
+export function quickAttachLabel(count: number, counts: readonly number[]): string {
+  const all = count > 2 && count === counts[counts.length - 1];
+  return `Give ${all ? "all " : ""}${count} DON!! (+${count * 1000})`;
+}
+
+/**
  * The give_don intents for "give this card N DON!!": one per distinct DON!!
  * that is legal for this card (never more than are available), sent in order
  * like the click-to-attach confirm.

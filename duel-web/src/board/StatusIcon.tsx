@@ -60,7 +60,10 @@ function useStatusTip(labels: string[]) {
     ref: (el: HTMLElement | null) => {
       anchorRef.current = el;
     },
-    tabIndex: 0,
+    // Focusable by tap (the touch tooltip) but not by Tab: a board of status
+    // badges was ~30 extra stops. Screen readers get the aria-label, and card
+    // inspect lists every status.
+    tabIndex: -1,
     onMouseEnter: show,
     onMouseLeave: hide,
     onFocus: show,

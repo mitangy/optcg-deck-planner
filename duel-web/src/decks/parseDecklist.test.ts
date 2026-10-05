@@ -102,6 +102,22 @@ describe("ensureTestDecks", () => {
     expect(teach?.leaderId).toBe("OP16-080");
   });
 
+  it("renames a seed deck still under its old Test name to the Starter name, keeping its id (#282)", () => {
+    stubLocalStorage();
+    const first = ensureTestDecks().find((d) => d.id === "test-op16-black")!;
+    saveDeck({ id: first.id, name: "Test OP16 Teach (black/yellow)", leaderId: first.leaderId, cards: first.cards });
+    const again = ensureTestDecks().find((d) => d.id === "test-op16-black");
+    expect(again?.name).toBe("Starter: OP16 Teach");
+    expect(again?.cards).toEqual(first.cards);
+  });
+
+  it("keeps a name the player gave a seed deck, old or new (#282)", () => {
+    stubLocalStorage();
+    const first = ensureTestDecks().find((d) => d.id === "test-op17-red")!;
+    saveDeck({ id: first.id, name: "My red", leaderId: first.leaderId, cards: first.cards });
+    expect(ensureTestDecks().find((d) => d.id === "test-op17-red")?.name).toBe("My red");
+  });
+
   it("does not overwrite Configure edits on re-seed", () => {
     stubLocalStorage();
     const first = ensureTestDecks().find((d) => d.id === "test-op16-black");

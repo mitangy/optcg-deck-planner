@@ -2,8 +2,9 @@ import type { CSSProperties } from "react";
 import type { PlayerView, Seat, SeatPlayers } from "../net/protocol";
 import { cardBackCssValue } from "../cardBack";
 import { fanPose } from "./handFan";
-import { seatName } from "./playerNames";
+import { playerLabel, seatName } from "./playerNames";
 import { CardTile } from "./CardTile";
+import { respondSubline } from "./promptLine";
 
 /** Formatted per-player (chess) clocks; `running` is whose is ticking. */
 export type SeatClocks = {
@@ -113,9 +114,9 @@ export function TurnStatusPanel({
     !spectating && !youActive && !over && !mulligan && view.legalIntents.length > 0;
 
   const youName = spectating
-    ? seatName(players, boardSeat) ?? `Seat ${boardSeat}`
+    ? seatName(players, boardSeat) ?? playerLabel(boardSeat)
     : seatName(players, boardSeat) ?? "You";
-  const oppName = seatName(players, oppSeat) ?? (spectating ? `Seat ${oppSeat}` : "Opponent");
+  const oppName = seatName(players, oppSeat) ?? (spectating ? playerLabel(oppSeat) : "Opponent");
   const activeName = youActive ? youName : oppName;
 
   let tone: "mine" | "theirs" | "respond" | "neutral";
@@ -140,7 +141,7 @@ export function TurnStatusPanel({
   } else if (mustRespond) {
     tone = "respond";
     title = "Your response";
-    sub = `${oppName} is attacking — block or counter`;
+    sub = respondSubline({ oppName, phase: view.phase, mySeat: boardSeat, choice: view.pendingChoices?.[0] });
   } else if (youActive) {
     tone = "mine";
     title = "Your turn";

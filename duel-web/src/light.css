@@ -98,3 +98,17 @@
 [data-mode="light"] .turn-order-badge:not(.first) {
   color: color-mix(in srgb, rgb(var(--sea-bright-rgb)) 70%, var(--ink));
 }
+
+/* Recent plays seat colours and the log's Main phase rule: the bright dark-mode
+hues measured 2.0:1 / 2.5:1 / 3.7:1 on the light panels. Darkened in the same hue. */
+[data-mode="light"] .recent-play-you .recent-play-who {
+  color: #245173;
+}
+
+[data-mode="light"] .recent-play-opp .recent-play-who {
+  color: #80362f;
+}
+
+[data-mode="light"] .log-phase {
+  color: var(--chrome-bright);
+}

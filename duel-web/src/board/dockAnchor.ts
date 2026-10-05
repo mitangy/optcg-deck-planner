@@ -22,6 +22,16 @@ export function dockAnchor(
   return { x: right - margin, y: midline.top + midline.height / 2 };
 }
 
+/**
+ * How much of the midline strip's right side the dock covers: from the dock's
+ * left edge (its right edge is the anchor, `dockWidth` wide) to the strip's
+ * right edge, plus a gap. The strip can run past the mat the dock hugs, so
+ * this is more than the dock's own width on a flat board at small sizes.
+ */
+export function stripReserve(midline: Rect, anchorX: number, dockWidth: number, gap = 12): number {
+  return midline.left + midline.width - (anchorX - dockWidth) + gap;
+}
+
 export function sameAnchor(a: DockAnchor | null, b: DockAnchor | null): boolean {
   if (!a || !b) return a === b;
   return Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5;
