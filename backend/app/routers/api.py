@@ -41,6 +41,7 @@ from app.schemas import (
     GroupBuyReceiptMatchReport,
     GroupBuyReceiptMatchRequest,
     GroupBuySummary,
+    OwnedCollectionResponse,
     OwnedUpdate,
     PrintingView,
     PublicShoppingResponse,
@@ -270,6 +271,15 @@ def patch_preferences(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.get("/owned", response_model=OwnedCollectionResponse)
+def get_owned(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Cards the user owns, with estimated market value."""
+    return services.owned_collection(db, user)
 
 
 @router.put("/owned/{card_id}")

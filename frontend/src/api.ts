@@ -199,6 +199,33 @@ export type ShoppingResponse = {
   unique_cards: number;
 };
 
+export type OwnedCard = {
+  card_id: string;
+  name: string;
+  rarity: string;
+  color: string;
+  card_type: string;
+  cost: number | string | null;
+  owned: number;
+  market_price: number | null;
+  low_price: number | null;
+  /** owned × market_price of the standard printing; null when unpriced. */
+  value: number | null;
+  image_url: string;
+  tcgplayer_url: string;
+  product_id?: number | null;
+  used_in: string[];
+};
+
+export type OwnedCollectionResponse = {
+  items: OwnedCard[];
+  unique_cards: number;
+  total_copies: number;
+  total_value: number;
+  /** Owned cards with no market price (not in total_value). */
+  unpriced_cards: number;
+};
+
 export type ShareInfo = {
   token: string;
   kind: string;
@@ -429,6 +456,7 @@ export const api = {
     const qs = params.toString();
     return request<ShoppingResponse>(`/shopping${qs ? `?${qs}` : ""}`);
   },
+  ownedCollection: () => request<OwnedCollectionResponse>("/owned"),
   setOwned: (cardId: string, qty: number) =>
     request<{ card_id: string; qty: number }>(`/owned/${encodeURIComponent(cardId)}`, {
       method: "PUT",

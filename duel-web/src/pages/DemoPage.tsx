@@ -635,8 +635,18 @@ function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
             ),
           }
         : base.opponent;
+    // `?counter=haki`: the [Counter] event is Color of the Supreme King Haki,
+    // whose "rest 1 DON!!?" Yes/No shows above the hand once it is played.
+    const you =
+      params.get("counter") === "haki"
+        ? {
+            ...base.you,
+            hand: base.you.hand.map((c) => (c.id === "y-h6" ? { ...c, defId: "OP12-018" } : c)),
+          }
+        : base.you;
     return {
       ...base,
+      you,
       opponent,
       activeSeat: 1,
       phase: "counter",
@@ -657,6 +667,33 @@ function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
     };
   }
   return base;
+}
+
+/** `?counter=haki` after the Haki is played: out of the hand, asking its optional DON!! rest. */
+function withHakiResolving(base: PlayerView, asking: boolean): PlayerView {
+  const you = { ...base.you, hand: base.you.hand.filter((c) => c.id !== "y-h6") };
+  if (!asking) return { ...base, you, legalIntents: [{ type: "pass_counter" }] };
+  return {
+    ...base,
+    you: { ...you, resolving: [{ id: "y-h6", defId: "OP12-018" }] },
+    pendingChoices: [
+      {
+        id: "demo-haki",
+        seat: 0,
+        kind: "effect",
+        cardDefId: "OP12-018",
+        sourceInstanceId: "y-h6",
+        optional: true,
+        prompt:
+          "Color of the Supreme King Haki — rest 1 of your DON!! cards, and if you do, give your opponent's Leader and all of their Characters -1000 power during this turn? [Counter] Up to 1 of your Characters or [Silvers Rayleigh] gains +2000 power during this battle. Then, you may rest 1 of your DON!! cards. If you do, give your opponent's Leader and all of their Characters \u22121000 power during this turn.",
+        request: { type: "confirm" },
+      },
+    ],
+    legalIntents: [
+      { type: "resolve_pending_choice", accept: true },
+      { type: "resolve_pending_choice", accept: false },
+    ],
+  };
 }
 
 /**
@@ -708,7 +745,7 @@ function withWaiting(base: PlayerView, kind: string | null): PlayerView {
  * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
  * icons (see withManyStatuses), `?motion` a button that steps
  * through every card animation, `?box` the old pop-up instead of floating-card
- * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed) drag QA (see
+ * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=haki`: the Haki's Yes/No above the hand) drag QA (see
  * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts: see applyDemoZoneParams.
  */
 export function DemoPage() {
@@ -756,6 +793,9 @@ export function DemoPage() {
         ],
       }
     : withTurn;
+  // `?counter=haki`: after the event is played it waits on its optional DON!! rest.
+  const [haki, setHaki] = useState<"hand" | "asking" | "done">("hand");
+  const shown: PlayerView = haki === "hand" ? view : withHakiResolving(view, haki === "asking");
   // `?motion`: one state per click; Replay remounts the board to replay the deal.
   const motionSteps = useMemo(() => (params.has("motion") ? motionDemoSteps(view) : null), []);
   const [motionStep, setMotionStep] = useState(0);
@@ -811,7 +851,7 @@ export function DemoPage() {
       ) : null}
       <DuelBoard
         key={motionRun}
-        view={params.has("waiting") ? null : (motionSteps?.[motionStep]?.view ?? view)}
+        view={params.has("waiting") ? null : (motionSteps?.[motionStep]?.view ?? shown)}
         seat={0}
         matchId="demo-playmat"
         errorBanner={null}
@@ -887,6 +927,10 @@ export function DemoPage() {
         onSendIntent={(intent) => {
           const w = window as { __demoIntents?: unknown[] };
           (w.__demoIntents ??= []).push(intent);
+          if (params.get("counter") === "haki") {
+            if (intent.type === "counter_event") setHaki("asking");
+            if (intent.type === "resolve_pending_choice") setHaki("done");
+          }
         }}
         onLeave={() => {
           window.location.href = "/";

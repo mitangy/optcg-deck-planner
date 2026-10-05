@@ -36,6 +36,8 @@ from app.schemas import (
     DeckDetail,
     DeckSummary,
     LeaderNeed,
+    OwnedCardItem,
+    OwnedCollectionResponse,
     PrintingView,
     PublicShoppingResponse,
     ShareInfo,
@@ -1127,6 +1129,66 @@ def shopping_list(
         cards_still_needed=cards_still,
         remaining_market=round(remaining, 2),
         unique_cards=len(items),
+    )
+
+
+def owned_collection(db: Session, user: User) -> OwnedCollectionResponse:
+    """Every card the user owns (qty > 0) with its estimated market value.
+
+    Owned is tracked per card number, not per printing, so value uses the
+    standard printing's market price (the same price the shopping list shows).
+    """
+    owned = {card_id: qty for card_id, qty in _owned_map(db, user.id).items() if qty > 0}
+    catalog = _catalog_map(db, set(owned))
+    product_ids = _primary_product_ids(db, set(owned))
+    decks = db.scalars(
+        select(Deck)
+        .where(Deck.user_id == user.id)
+        .options(selectinload(Deck.cards))
+        .order_by(Deck.sort_order, Deck.id)
+    ).all()
+    used_in: dict[str, list[str]] = defaultdict(list)
+    for deck in decks:
+        for card in deck.cards:
+            if card.card_id in owned and deck.name not in used_in[card.card_id]:
+                used_in[card.card_id].append(deck.name)
+
+    items: list[OwnedCardItem] = []
+    total_value = 0.0
+    unpriced = 0
+    for card_id in sorted(owned):
+        qty = owned[card_id]
+        cat = catalog.get(card_id)
+        market = cat.market_price if cat else None
+        value = round(qty * market, 2) if market is not None else None
+        if value is None:
+            unpriced += 1
+        else:
+            total_value += value
+        items.append(
+            OwnedCardItem(
+                card_id=card_id,
+                name=cat.name if cat else "(not in catalog)",
+                rarity=cat.rarity if cat else "",
+                color=cat.color if cat else "",
+                card_type=cat.card_type if cat else "",
+                cost=parse_cost(cat.cost) if cat else None,
+                owned=qty,
+                market_price=market,
+                low_price=cat.low_price if cat else None,
+                value=value,
+                image_url=cat.image_url if cat else "",
+                tcgplayer_url=cat.tcgplayer_url if cat else "",
+                product_id=product_ids.get(card_id),
+                used_in=used_in.get(card_id, []),
+            )
+        )
+    return OwnedCollectionResponse(
+        items=items,
+        unique_cards=len(items),
+        total_copies=sum(i.owned for i in items),
+        total_value=round(total_value, 2),
+        unpriced_cards=unpriced,
     )
 
 

@@ -105,8 +105,8 @@ export function ensureCardDef(id: CardDefId, opts: { asLeader?: boolean } = {}):
 
 /**
  * Validate every leader + main-deck id before a match is created. All catalog cards
- * are already defined, so this never mutates the catalog; unknown ids and
- * non-Leader leaders are rejected.
+ * are already defined, so this never mutates the catalog; unknown ids,
+ * non-Leader leaders and Leaders in the main deck are rejected.
  */
 export function ensureDefsForPlayers(players: ReadonlyArray<{ leaderId: CardDefId; deck: readonly CardDefId[] }>): void {
   for (const p of players) {
@@ -114,7 +114,9 @@ export function ensureDefsForPlayers(players: ReadonlyArray<{ leaderId: CardDefI
     if (byId.get(leaderId)?.type !== "leader") throw new Error(`Unknown or invalid leader: ${leaderId}`);
     for (const raw of p.deck) {
       const id = normalizeCardDefId(raw);
-      if (!byId.has(id)) throw new Error(`Unknown card def: ${id}`);
+      const def = byId.get(id);
+      if (!def) throw new Error(`Unknown card def: ${id}`);
+      if (def.type === "leader") throw new Error(`Leader ${id} cannot be used in the main deck`);
     }
   }
 }

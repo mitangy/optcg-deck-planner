@@ -38,7 +38,7 @@ import {
   resolveDropIntents,
   type DragPayload,
 } from "./dragIntents";
-import { AttackIndicator } from "./AttackIndicator";
+import { AttackIndicator, DragAttackArrow } from "./AttackIndicator";
 import { BoardMotion } from "./BoardMotion";
 import { describeBattle } from "./battleBanner";
 import { battleEndpoints } from "./battleArc";
@@ -71,6 +71,8 @@ import {
   type PendingAttach,
 } from "./donSelection";
 import { ChoicePrompt } from "./ChoicePrompt";
+import { HandConfirmPrompt } from "./HandConfirmPrompt";
+import { handConfirmAnchor, handUseFromIntent, measureHandCard, type HandUse } from "./handPrompt";
 import { isHandPick } from "./fieldTargets";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { canFloat, FloatingPrompt } from "./FloatingPrompt";
@@ -240,7 +242,7 @@ export function DuelBoard({
   leaveLabel = "Leave",
   floatingPrompts = true,
   waiting,
-  onSendIntent,
+  onSendIntent: sendIntent,
   onLeave,
   onClearError,
 }: Props) {
@@ -249,6 +251,14 @@ export function DuelBoard({
   /** Id of the choice whose pop-up the player tucked away to look at the hand/board. */
   const [hiddenChoiceId, setHiddenChoiceId] = useState<string | null>(null);
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
+  /** Card last used from the hand and where it sat, for a Yes/No it asks next. */
+  const [handUse, setHandUse] = useState<HandUse | null>(null);
+  function onSendIntent(intent: Intent) {
+    if (view && typeof intent.handIndex === "number") {
+      setHandUse(handUseFromIntent(intent, view.you.hand, measureHandCard));
+    }
+    sendIntent(intent);
+  }
   const [logCollapsed, setLogCollapsed] = useState(true);
   const [handCollapsed, setHandCollapsed] = useState(false);
   /** Wide layout: hand dock pinned open (click / tap on its handle). */
@@ -925,6 +935,10 @@ export function DuelBoard({
 
   const you = view.you;
   const opp = view.opponent;
+  // A Yes/No from the card just used from the hand sits on that card, not in a pop-up.
+  const handConfirm = spectating
+    ? null
+    : handConfirmAnchor(view.pendingChoices?.[0], mySeat, handUse, you);
 
   const ghostPayload: GhostPayload | null =
     dragPayload?.type === "give_don"
@@ -936,16 +950,8 @@ export function DuelBoard({
             defId: you.hand[dragPayload.handIndex]!.defId,
             ownerSeat: mySeat ?? view.seat,
           }
-        : dragPayload?.type === "attack"
-          ? (() => {
-              const card = [you.leader, ...you.characters].find(
-                (c) => c.id === dragPayload.attackerId,
-              );
-              return card
-                ? { type: "attack" as const, defId: card.defId, ownerSeat: mySeat ?? view.seat }
-                : null;
-            })()
-          : null;
+        : // An attack drag shows the aim arrow instead of a carried card.
+          null;
 
   const pendingAttachName = (() => {
     if (!pendingAttach) return "";
@@ -2106,6 +2112,18 @@ export function DuelBoard({
             onSendIntent(intent);
           }}
         />
+      ) : handConfirm && mySeat != null && view.pendingChoices?.[0] ? (
+        <HandConfirmPrompt
+          key={view.pendingChoices[0].id}
+          choice={view.pendingChoices[0]}
+          anchor={handConfirm}
+          mySeat={mySeat}
+          onSend={(intent) => {
+            setHandFilter(null);
+            setSelectedBoardId(null);
+            onSendIntent(intent);
+          }}
+        />
       ) : floatingPrompts &&
         prefs.floatingCards &&
         !spectating &&
@@ -2201,6 +2219,7 @@ export function DuelBoard({
       <AttackIndicator view={over ? null : view} />
       <BoardMotion view={view} />
       <DragGhost payload={ghostPayload} />
+      <DragAttackArrow attackerId={dragPayload?.type === "attack" ? dragPayload.attackerId : null} />
       {popoverOpen && anchorCard ? (
         <CardActionPopover
           anchorId={anchorCard.id}

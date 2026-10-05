@@ -154,7 +154,39 @@ export const test = base.extend<{ planner: Planner }>({
       if (path === `/decks/${DECK_ID}`) return json(deckDetail());
       if (path === "/shopping") return json(shopping());
       if (path === "/share/shopping") return json(null);
-      if (path === "/catalog/cards") return json([]);
+      if (path === "/owned" && method === "GET") {
+        const items = CARDS.filter((c) => (owned.get(c.card_id) ?? 0) > 0).map((c) => {
+          const v = cardView(c);
+          return { ...v, value: Math.round(v.owned * v.market_price * 100) / 100, used_in: ["Oden Red/Green"] };
+        });
+        return json({
+          items,
+          unique_cards: items.length,
+          total_copies: items.reduce((s, i) => s + i.owned, 0),
+          total_value: Math.round(items.reduce((s, i) => s + i.value, 0) * 100) / 100,
+          unpriced_cards: 0,
+        });
+      }
+      if (path === "/catalog/cards") {
+        // Name / ID search over the fixture cards (the deck editor and Collection "Add cards" use it).
+        const q = (new URL(req.url()).searchParams.get("q") ?? "").toLowerCase();
+        if (!q) return json([]);
+        return json(
+          CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q)).map((c) => ({
+            card_id: c.card_id,
+            name: c.name,
+            rarity: c.rarity,
+            color: c.color,
+            card_type: c.card_type,
+            cost: c.cost,
+            market_price: c.market_price,
+            low_price: c.low_price,
+            image_url: img(c.product_id),
+            tcgplayer_url: "",
+            group_name: "Extra Booster: Memorial Collection",
+          })),
+        );
+      }
       if ((m = path.match(/^\/owned\/(.+)$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!);
         const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
