@@ -155,5 +155,16 @@ module.exports = {
       "confirm-keys.spec.ts > Y answers Yes on the Yes/No shown on a hand card (#324) [desktop-1280]",
       "confirm-keys.spec.ts > N answers No on the Yes/No shown on a hand card (#324) [desktop-1280]",
     ] },
+    // dragging a centred prompt by its header (#324)
+    { id: "e2e-prompt-drag-unhooked", args: "prompt-drag -g \"moves it\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "  usePromptDrag(wrapRef);\n", to: "", kills: [
+      "prompt-drag.spec.ts > dragging a prompt's header moves it, and its buttons still answer (#324) [desktop-1280]",
+      "prompt-drag.spec.ts > dragging a prompt's header moves it, and its buttons still answer (#324) [phone-375]",
+    ] },
+    { id: "e2e-prompt-drag-offset-unused", args: "prompt-drag --project=desktop-1280 -g \"moves it\"", file: "duel-web/src/board/float.css", from: "  translate: var(--prompt-dx, 0px) var(--prompt-dy, 0px);\n", to: "", kills: ["prompt-drag.spec.ts > dragging a prompt's header moves it, and its buttons still answer (#324) [desktop-1280]"] },
+    { id: "e2e-prompt-drag-off-screen", args: "prompt-drag -g \"on screen\"", file: "duel-web/src/board/promptDrag.ts", from: "        write(clampPromptOffset(base, { x: from.x + ev.clientX - start.x, y: from.y + ev.clientY - start.y }, view()));", to: "        write({ x: from.x + ev.clientX - start.x, y: from.y + ev.clientY - start.y });", kills: [
+      "prompt-drag.spec.ts > a dragged prompt stays on screen (#324) [desktop-1280]",
+      "prompt-drag.spec.ts > a dragged prompt stays on screen (#324) [phone-375]",
+    ] },
+    { id: "e2e-prompt-drag-no-reset", args: "prompt-drag --project=desktop-1280 -g double", file: "duel-web/src/board/promptDrag.ts", from: "!target.closest(\"button\")) write({ x: 0, y: 0 });", to: "!target.closest(\"button\")) return;", kills: ["prompt-drag.spec.ts > double-clicking a moved prompt's header puts it back (#324) [desktop-1280]"] },
   ],
 };
