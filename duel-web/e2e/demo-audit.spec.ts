@@ -115,6 +115,21 @@ test("clicking board slots leaves no text caret on the mat (#246)", async ({ pag
   }
 });
 
+// The idle midline ornament is a 45°-rotated span, so a caret dropped in it drew as a slanted text cursor.
+test("clicking the midline between the mats leaves no text caret (#314)", async ({ page }) => {
+  await page.goto("/demo?cantattack");
+  await page.locator(".midline-ornament").waitFor();
+  const box = (await page.locator(".midline").first().boundingBox())!;
+  for (const fx of [0.5, 0.2]) {
+    await page.mouse.click(box.x + box.width * fx, box.y + box.height / 2);
+    const selection = await page.evaluate(() => {
+      const s = getSelection();
+      return { type: s?.type, inMidline: !!s?.anchorNode?.parentElement?.closest(".midline") };
+    });
+    expect({ fx, ...selection }).not.toMatchObject({ type: "Caret", inMidline: true });
+  }
+});
+
 // DON!! −N used to open a grid of DON!! cards: pick them off the board instead.
 test("DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258)", async ({ page }) => {
   await page.goto("/demo?prompt=don2");
