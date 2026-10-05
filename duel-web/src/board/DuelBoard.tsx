@@ -316,6 +316,16 @@ export function DuelBoard({
     },
   );
   const shownFanPos = fanMove.livePos ?? fanPos;
+  /** Off the bottom edge: fully shown unless tucked to its handle ("Let the hand tuck away"). */
+  const fanFloating = fanHand && shownFanPos != null && (fanMove.livePos != null || !fanDocked(shownFanPos));
+  const [floatTucked, setFloatTucked] = useState(false);
+  /**
+   * Just tucked by its own button or H: the pointer is usually still on the
+   * hand, so hover must not raise it again until the pointer has left it.
+   */
+  const [tuckUnderPointer, setTuckUnderPointer] = useState(false);
+  /** Raised by the player (pin), as the hand button shows it. */
+  const handUp = fanFloating ? !floatTucked : handPinned;
   /** Default spot: the board keeps a strip free under it for the tucked cards. */
   const fanCenter = fanHand && shownFanPos == null;
   /** Desktop / landscape tablet: the board leans back in perspective, seen from your seat. */
@@ -733,6 +743,16 @@ export function DuelBoard({
     if (active instanceof HTMLElement && e.currentTarget.contains(active)) active.blur();
   }
 
+  /** The hand button and H: keep the hand up, or let it tuck away. */
+  function toggleHandUp() {
+    if (fanFloating) setFloatTucked(handUp);
+    else setHandPinned(!handUp);
+    if (handUp) {
+      setHandFilter(null);
+      setTuckUnderPointer(true);
+    }
+  }
+
   /** Under the handle: Hide / Show, only with Keep hand open (H does the same). */
   const hideHandBtn = prefs.keepHandOpen ? (
     <button
@@ -785,10 +805,7 @@ export function DuelBoard({
       // Picking a hand card from the keyboard brings a hidden hand back.
       setHandHidden(false);
     },
-    onToggleHand: () => {
-      setHandPinned((v) => !v);
-      if (handPinned) setHandFilter(null);
-    },
+    onToggleHand: toggleHandUp,
     onHideHand: toggleHandHidden,
     onSortHand: () => setHandSorted((v) => !v),
     onHelp: () => setHelpOpen(true),
@@ -1115,14 +1132,15 @@ export function DuelBoard({
   // Hearthstone-style dock: peeks until hovered; stays open while you pick
   // your opening hand or have a hand card selected.
   const drawer = handDrawer({
-    pinned: handPinned,
+    pinned: handUp,
     hidden: handHidden,
     mulligan: decidingMulligan,
     selected: handFilter != null,
     picking: handPick,
   });
   const handOpen = drawer === "open";
-  const drawerClass = drawer === "open" ? " is-open" : drawer === "hidden" ? " is-hidden" : "";
+  const drawerClass =
+    drawer === "open" ? " is-open" : drawer === "hidden" ? " is-hidden" : tuckUnderPointer ? " is-tucking" : "";
 
   const splash: SplashMessage | null = over || !prefs.turnSplash
     ? null
@@ -2171,7 +2189,7 @@ export function DuelBoard({
           className={`hand-fan ${
             shownFanPos == null
               ? "hand-fan-center"
-              : fanMove.livePos || !fanDocked(shownFanPos)
+              : fanFloating
                 ? "hand-fan-free hand-fan-float"
                 : "hand-fan-free hand-fan-docked"
           }${fanMove.livePos ? " is-moving" : ""}${drawerClass}${handTucked ? " is-dragging" : ""}`}
@@ -2183,6 +2201,7 @@ export function DuelBoard({
           }
           aria-label={`Your hand: ${handCount} cards`}
           onClick={dropHandClickFocus}
+          onPointerLeave={() => setTuckUnderPointer(false)}
         >
           <div className="hand-fan-head">
             {prefs.layoutGrips ? (
@@ -2203,7 +2222,7 @@ export function DuelBoard({
               title={
                 handHidden
                   ? "Show your hand (H)"
-                  : handPinned
+                  : handUp
                     ? prefs.keepHandOpen
                       ? "Let the hand tuck away"
                       : "Let the hand tuck away (H)"
@@ -2215,8 +2234,7 @@ export function DuelBoard({
                   setHandPinned(true);
                   return;
                 }
-                setHandPinned((v) => !v);
-                if (handPinned) setHandFilter(null);
+                toggleHandUp();
               }}
             >
               <span className="hand-fan-title">{spectating ? "Seat hand" : "Hand"}</span>
@@ -2252,21 +2270,21 @@ export function DuelBoard({
           }
           aria-label={`Your hand: ${handCount} cards`}
           onClick={dropHandClickFocus}
+          onPointerLeave={() => setTuckUnderPointer(false)}
         >
           <div className="hand-dock-head">
             <button
               type="button"
               className="hand-dock-toggle"
               aria-expanded={handOpen}
-              title={handHidden ? "Show your hand (H)" : handPinned ? "Let the hand tuck away" : "Keep the hand open"}
+              title={handHidden ? "Show your hand (H)" : handUp ? "Let the hand tuck away" : "Keep the hand open"}
               onClick={() => {
                 if (handHidden) {
                   setHandHidden(false);
                   setHandPinned(true);
                   return;
                 }
-                setHandPinned((v) => !v);
-                if (handPinned) setHandFilter(null);
+                toggleHandUp();
               }}
             >
               <span>{spectating ? "Seat hand" : "Hand"}</span>

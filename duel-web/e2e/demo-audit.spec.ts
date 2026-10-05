@@ -101,6 +101,56 @@ test("the hand fan tucks away after Let the hand tuck away and a key press (#291
   await expect.poll(fanUp, { timeout: 3000 }).toBe(false);
 });
 
+// The pointer is still on the Hand button after the click, so hover held the
+// fan up and "Let the hand tuck away" looked like it did nothing (#307).
+test("Let the hand tuck away lowers the fan at once, under the pointer (#307)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: true })),
+  );
+  await preferFan(page);
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const fan = page.locator(".hand-fan");
+  const lift = () => fan.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
+  await expect.poll(lift, { timeout: 3000 }).toBeLessThan(0); // raised
+  await page.locator(".hand-fan-toggle").click();
+  // The pointer has not moved off the button.
+  await expect.poll(lift, { timeout: 3000 }).toBeGreaterThan(20);
+  await expect(page.locator(".hand-fan-toggle")).toHaveAttribute("title", "Keep the hand up (H)");
+});
+
+// A floating fan was always fully shown, so its tuck button did nothing (#307).
+test("a floating hand fan tucks to its handle and shows its cards on hover (#307)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "optcg-duel:settings",
+      JSON.stringify({ keepHandOpen: true, handLayout: "fan", handFanPos: "0.5,0.6" }),
+    ),
+  );
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".hand-fan")).toHaveClass(/hand-fan-float/);
+  const cards = page.locator(".hand-fan-cards");
+  const cardsShown = () => cards.evaluate((el) => getComputedStyle(el).visibility !== "hidden");
+  await expect.poll(cardsShown).toBe(true);
+
+  const toggle = page.locator(".hand-fan-toggle");
+  await expect(toggle).toHaveAttribute("title", "Let the hand tuck away");
+  await toggle.click();
+  await expect.poll(cardsShown, { timeout: 3000 }).toBe(false);
+  await page.mouse.move(640, 120);
+  await toggle.hover();
+  await expect.poll(cardsShown, { timeout: 3000 }).toBe(true);
+  await page.mouse.move(640, 120);
+  await expect.poll(cardsShown, { timeout: 3000 }).toBe(false);
+
+  await toggle.click(); // Keep the hand up
+  await page.mouse.move(640, 120);
+  await expect.poll(cardsShown, { timeout: 3000 }).toBe(true);
+});
+
 // Clicking an empty card slot or a pile must not drop a blinking text caret on the mat.
 test("clicking board slots leaves no text caret on the mat (#246)", async ({ page }) => {
   await page.goto("/demo");

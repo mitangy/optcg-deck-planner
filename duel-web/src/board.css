@@ -1524,6 +1524,15 @@ body.is-panel-drag * {
   transform: translateY(calc(var(--dock-card-h) * 0.58 + 0.6rem));
 }
 
+/* Just tucked by its own button or H, pointer still on it: stay tucked until
+   the pointer leaves once, or the click looks like it did nothing. */
+@media (hover: hover) {
+  .hand-dock.is-tucking:hover:not(:has(:focus-visible)) {
+    width: var(--rail-w);
+    transform: translateY(calc(var(--dock-card-h) * 0.58 + 0.6rem));
+  }
+}
+
 /* Hidden (Keep hand open + H / Hide): only the handle shows (after the
    hover / focus-visible rules, so they don't raise it). */
 .hand-dock.is-hidden {
@@ -1908,6 +1917,37 @@ body.is-panel-drag * {
 .hand-fan-grip:focus-visible {
   outline: none;
   box-shadow: var(--focus);
+}
+
+/* Just tucked by its own button or H, pointer still on it: stay tucked until
+   the pointer leaves once, or the click looks like it did nothing. */
+@media (hover: hover) {
+  .hand-fan.is-tucking:hover:not(:has(:focus-visible)) {
+    transform: translateY(calc(var(--fan-ch) * (1 - var(--fan-peek))));
+  }
+
+  .hand-fan-center.is-tucking:hover:not(:has(:focus-visible)) .hand-fan-cards {
+    width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
+  }
+
+  .hand-fan.hand-fan-docked.is-tucking:hover:not(:has(:focus-visible)) {
+    --fan-w: calc(var(--fan-cw) * (0.5 * var(--n) + 1.2));
+  }
+}
+
+/* Floating and tucked ("Let the hand tuck away"): only the handle row shows,
+   and the cards come back while you hover it. The short delay lets the
+   pointer cross from the handle to the cards. */
+.hand-fan.hand-fan-float:not(.is-open, .is-hidden, .is-moving, :has(:focus-visible)) .hand-fan-cards {
+  visibility: hidden;
+  transition: visibility 0s linear 160ms;
+}
+
+@media (hover: hover) {
+  .hand-fan.hand-fan-float:not(.is-tucking, .is-hidden):hover .hand-fan-cards {
+    visibility: visible;
+    transition-delay: 0s;
+  }
 }
 
 /* Hidden (Keep hand open + H / Hide): only the handle row stays, at the
