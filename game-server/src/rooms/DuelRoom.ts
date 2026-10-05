@@ -1398,7 +1398,12 @@ export class DuelRoom extends Room implements PresenceSource {
 
   private expireMatchClock() {
     if (!this.match || this.match.winner !== null) return;
-    const loser = this.match.activeSeat;
+    // The seat the game is waiting on loses: a pending choice's owner, the defender in a
+    // block/counter step, or a seat that has not answered its mulligan. If neither seat has
+    // answered its mulligan, the first player loses as before.
+    const m = this.match;
+    const bothMulliganing = m.phase === "mulligan" && !m.players[0].mulliganDone && !m.players[1].mulliganDone;
+    const loser = bothMulliganing ? m.activeSeat : (this.actingSeatForTimer() ?? m.activeSeat);
     const winner = (1 - loser) as Seat;
     this.endReason = "match_timeout";
     this.match = {

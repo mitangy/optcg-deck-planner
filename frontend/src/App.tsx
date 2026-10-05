@@ -47,7 +47,7 @@ import {
   type SortKey,
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
-import { collectionTotals, patchOwnedCollection } from "./ownedCollection";
+import { collectionTotals, invalidateOwnedViews, patchOwnedCollection } from "./ownedCollection";
 import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { deckDelta, type DeckStatsCard } from "@optcg/deck-analytics";
 import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
@@ -258,12 +258,6 @@ function DeckExportPanel({
 
 function useMe() {
   return useQuery({ queryKey: ["me"], queryFn: api.me });
-}
-
-function invalidateOwnedViews(qc: ReturnType<typeof useQueryClient>) {
-  void qc.invalidateQueries({ queryKey: ["shopping"] });
-  void qc.invalidateQueries({ queryKey: ["deck"] });
-  void qc.invalidateQueries({ queryKey: ["owned"] });
 }
 
 function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
@@ -1314,7 +1308,7 @@ function ShoppingPage() {
       return { ok, failed, copies };
     },
     onSuccess: ({ ok, failed, copies }) => {
-      void qc.invalidateQueries({ queryKey: ["shopping"] });
+      invalidateOwnedViews(qc);
       if (failed.length) {
         setExportMsg(
           `Marked ${ok} card${ok === 1 ? "" : "s"} bought in person (${copies} copies). Failed: ${failed.join(", ")}`,

@@ -94,6 +94,22 @@ describe("tapping board spots", () => {
     expect(tapBoardSpot(full, spots, "host:L1", 1).selected).not.toContain("c1");
     expect(tapBoardSpot({ selected: ["c1", "h1"], chips: {} }, spots, "don:you:rested", 2, "x").selected).toEqual(["c1", "h1"]);
   });
+
+  it("tapping a card again takes back its DON!! pick when one pick is allowed (#258)", () => {
+    const one = tapBoardSpot(empty, spots, "host:L1", 1);
+    expect(one.selected).toEqual(["h1"]);
+    expect(tapBoardSpot(one, spots, "host:L1", 1)).toEqual(empty);
+  });
+
+  it("tapping a card at the maximum takes back its DON!! picks so others can be chosen (#258)", () => {
+    const three = new Map([...spots, ["h3", "host:L1"]]);
+    const one = tapBoardSpot(empty, three, "host:L1", 2);
+    const two = tapBoardSpot(one, three, "host:L1", 2);
+    expect(two.selected).toEqual(["h1", "h2"]);
+    const back = tapBoardSpot(two, three, "host:L1", 2);
+    expect(back).toEqual(empty);
+    expect(tapBoardSpot(back, three, "don:you:active", 2, "chipA")).toEqual({ selected: ["a1"], chips: { a1: "chipA" } });
+  });
 });
 
 describe("pick helpers", () => {

@@ -195,6 +195,22 @@ describe("account settings", () => {
     expect(merged.useDevKey).toBe(true);
     expect(merged.devUserKey).toBe("mine");
   });
+
+  it("keeps the old right and centre fans from the account over this device's fan spot (#261)", () => {
+    stubStored({ handLayout: "fan", handFanPos: "0.2,0.5" });
+    expect(mergeRemoteSettings(loadSettings(), { handLayout: "fanRight" })).toMatchObject({
+      handLayout: "fan",
+      handFanPos: "0.88,1",
+    });
+    expect(mergeRemoteSettings(loadSettings(), { handLayout: "fanCenter" })).toMatchObject({
+      handLayout: "fan",
+      handFanPos: "",
+    });
+    // A spot the account saved since then still wins.
+    expect(
+      mergeRemoteSettings(loadSettings(), { handLayout: "fanRight", handFanPos: "0.4,1" }).handFanPos,
+    ).toBe("0.4,1");
+  });
 });
 
 describe("hand, one-tap and text size settings", () => {

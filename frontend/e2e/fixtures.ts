@@ -33,6 +33,7 @@ const SHARE = fixture<unknown>("share.json");
 
 export const SHARE_TOKEN = "tok-oden-1";
 export const DECK_ID = 1;
+export const GROUP_BUY_ID = 7;
 /** Fixed wall clock so dates in recent sales and anything time-derived never drift. */
 export const FIXED_NOW = new Date("2026-01-15T12:00:00Z");
 
@@ -119,6 +120,66 @@ export const test = base.extend<{ planner: Planner }>({
       };
     };
 
+    let groupBuyPurchased = false;
+    const groupBuy = () => {
+      const kid = cardView(CARDS.find((c) => c.card_id === "EB01-003")!);
+      const qty = groupBuyPurchased ? 0 : 4;
+      const remaining = Math.round(qty * kid.market_price * 100) / 100;
+      return {
+        id: GROUP_BUY_ID,
+        title: "Kid & Killer split",
+        status: groupBuyPurchased ? "completed" : "ordered",
+        invite_token: "gb-invite",
+        invite_path: "/group-buy/join/gb-invite",
+        host_user_id: 1,
+        host_name: "Nami",
+        member_count: 1,
+        is_host: true,
+        is_public: false,
+        public_path: null,
+        unique_cards: 1,
+        cards_still_needed: qty,
+        remaining_market: remaining,
+        created_at: "2026-01-10T12:00:00Z",
+        members: [
+          { user_id: 1, display_name: "Nami", role: "host", deck_ids: null, cards_still_needed: qty, remaining_market: remaining, card_cost: 27.2, shipping_share: 0, tax_share: 0, total_owed: 27.2 },
+        ],
+        lines: [
+          {
+            card_id: kid.card_id,
+            name: kid.name,
+            color: kid.color,
+            rarity: kid.rarity,
+            card_type: kid.card_type,
+            cost: String(kid.cost),
+            total_qty: qty,
+            market_price: kid.market_price,
+            remaining_cost: remaining,
+            product_id: kid.product_id,
+            tcgplayer_url: kid.tcgplayer_url,
+            image_url: kid.image_url,
+            members: [{ user_id: 1, display_name: "Nami", qty }],
+            alt_arts: [],
+            my_qty: qty,
+            my_suggested_qty: qty,
+            my_is_custom: false,
+          },
+        ],
+        locked_at: "2026-01-11T12:00:00Z",
+        ordered_at: "2026-01-12T12:00:00Z",
+        external_order_id: "",
+        order_notes: "",
+        shipping_cost: 0,
+        shipping_split: "equal",
+        tax_cost: 0,
+        cards_subtotal: 27.2,
+        grand_total: 27.2,
+        receipt_text: "4\tOne Piece Card Game - Memorial Collection - Kid & Killer - Near Mint",
+        has_receipt: true,
+        can_undo_purchase: groupBuyPurchased,
+      };
+    };
+
     // Nothing leaves the machine: the art CDN gets a placeholder, everything else off-box is refused.
     await page.route((url) => url.hostname !== "127.0.0.1", (route) => route.abort());
     await page.route("https://tcgplayer-cdn.tcgplayer.com/**", (route) =>
@@ -192,6 +253,28 @@ export const test = base.extend<{ planner: Planner }>({
         const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
         owned.set(cardId, qty);
         return json({ card_id: cardId, qty });
+      }
+      // One ordered group buy for 4 × Kid & Killer. Mark purchased adds the receipt copies to Owned; Undo takes them back.
+      if (path === "/group-buys") return json([groupBuy()]);
+      if (path === `/group-buys/${GROUP_BUY_ID}`) return json(groupBuy());
+      if (path === `/group-buys/${GROUP_BUY_ID}/receipt/match` && method === "POST") {
+        return json({
+          lines: [{ card_id: "EB01-003", name: "Kid & Killer", group_name: "Extra Booster: Memorial Collection", needed_qty: 4, receipt_qty: 4, status: "exact", confidence: "high", product_id: 102, staged_qty: 4, descriptions: [] }],
+          unmatched: [],
+          summary: { exact: 1, receipt_copies: 4, needed_copies: 4 },
+          can_apply_full: true,
+          can_apply_partial: true,
+        });
+      }
+      if (path === `/group-buys/${GROUP_BUY_ID}/receipt/apply` && method === "POST") {
+        owned.set("EB01-003", (owned.get("EB01-003") ?? 0) + 4);
+        groupBuyPurchased = true;
+        return json(groupBuy());
+      }
+      if (path === `/group-buys/${GROUP_BUY_ID}/receipt/undo` && method === "POST") {
+        owned.set("EB01-003", Math.max(0, (owned.get("EB01-003") ?? 0) - 4));
+        groupBuyPurchased = false;
+        return json(groupBuy());
       }
       if (path.startsWith("/catalog/sales/")) return json({ product_id: Number(path.split("/").pop()), sales: SALES });
       if (path === `/public/share/${SHARE_TOKEN}`) return json(SHARE);

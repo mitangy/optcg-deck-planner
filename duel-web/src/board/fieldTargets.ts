@@ -111,7 +111,9 @@ export type BoardPick = { selected: string[]; chips: Record<string, string> };
  * A tap on a board spot (on a cost-area chip when `chipId` is given). Tapping
  * a picked chip or card drops it; otherwise the next unpicked option there is
  * added (a single pick swaps). A card with several DON!! under it counts up
- * one per tap, and once all are picked the next tap drops them.
+ * one per tap; a tap on it drops all its picks once none there is left
+ * unpicked or the limit is reached (with one pick allowed, the second tap),
+ * so the card can always be un-picked.
  */
 export function tapBoardSpot(
   pick: BoardPick,
@@ -126,7 +128,9 @@ export function tapBoardSpot(
     if (held) return dropPicks(pick, [held]);
   }
   const free = here.find((id) => !pick.selected.includes(id));
-  if (!free) return chipId != null ? pick : dropPicks(pick, here);
+  const heldHere = here.filter((id) => pick.selected.includes(id));
+  if (chipId == null && heldHere.length && (!free || pick.selected.length >= max)) return dropPicks(pick, heldHere);
+  if (!free) return pick;
   const chips = chipId != null ? { [free]: chipId } : {};
   if (max === 1) return { selected: [free], chips };
   if (pick.selected.length >= max) return pick;
