@@ -45,6 +45,17 @@ for (const screen of ["?full", "?statuses", "?attack"]) {
   });
 }
 
+// Searchers always float their cards; an old saved "Floating cards" off no longer brings the pop-up back.
+test("a searcher floats its cards even with Floating cards saved off (#288)", async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ floatingCards: false })),
+  );
+  await page.goto("/demo?prompt=look");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".float-layer .float-card").first()).toBeVisible();
+  await expect(page.locator(".choice-prompt")).toHaveCount(0);
+});
+
 // A clicked hand card, Sort or Hand button keeps focus; the fan must still tuck
 // once the pointer leaves it, or it sits on your DON!! row (flat board).
 test("the centre hand fan tucks away after a click once the pointer leaves", async ({ page }) => {

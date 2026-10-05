@@ -65,11 +65,6 @@ const TOGGLES: Toggle[] = [
     hint: "Desktop and landscape tablets: the board leans away from you like a real table, so your cards come out bigger and the opponent's side is a little smaller and further back.",
   },
   {
-    key: "floatingCards",
-    label: "Floating cards",
-    hint: "Searches and ordering effects lay their cards out over the board: tap to take, drag to reorder. Off shows them in a pop-up box instead.",
-  },
-  {
     key: "turnSplash",
     label: "Turn banner",
     hint: "Shows “Your turn” / “Opponent's turn” over the board.",
