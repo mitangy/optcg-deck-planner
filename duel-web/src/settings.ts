@@ -74,11 +74,11 @@ export type DuelSettings = {
    * or picks a single target, instead of selecting it and then confirming.
    */
   oneTapActions: boolean;
-  /** Show the opponent's hand as a fan of card backs in the top-right corner of the board. */
-  oppHandTopRight: boolean;
   /**
    * Desktop: the opponent's hand pinned above the playmat ("left", "centre" or
-   * "right") instead of in its side panel; "" keeps it in the panel.
+   * "right") instead of in its side panel; "" keeps it in the panel. Phones
+   * only tell "right" apart (the "Opponent hand, top right" switch): its row
+   * moves to the right of the opponent's half.
    */
   oppHandSpot: OppHandSpot;
   /** Text size (power numbers, card text, buttons), scaled further by the window size. */
@@ -122,7 +122,6 @@ const DEFAULTS: DuelSettings = {
   panelLayout: "",
   layoutGrips: true,
   oneTapActions: false,
-  oppHandTopRight: false,
   oppHandSpot: "",
   textSize: "medium",
   tiltedBoard: false,
@@ -152,6 +151,7 @@ const CHANGE_EVENT = "optcg-duel:settings-change";
 function sanitize(
   parsed: Partial<DuelSettings> & {
     autoPassDefense?: unknown;
+    oppHandTopRight?: unknown;
     serverUrl?: unknown;
     joinSecret?: unknown;
   },
@@ -159,6 +159,7 @@ function sanitize(
   // serverUrl / joinSecret were dropped with the Connection panel; the build sets both.
   const {
     autoPassDefense,
+    oppHandTopRight,
     serverUrl: _serverUrl,
     joinSecret: _joinSecret,
     ...rest
@@ -177,6 +178,9 @@ function sanitize(
   if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;
   if (!TEXT_SIZES.includes(next.textSize)) next.textSize = DEFAULTS.textSize;
   if (!OPP_HAND_SPOTS.includes(next.oppHandSpot)) next.oppHandSpot = DEFAULTS.oppHandSpot;
+  // Builds before #295 had a separate "Opponent hand, top right" switch; on is
+  // the hand pinned top right, unless a spot was picked since.
+  if (oppHandTopRight === true && !next.oppHandSpot) next.oppHandSpot = "right";
   // A theme removed in a later build (or synced from a newer one) falls back to the default.
   if (!THEME_IDS.includes(next.theme)) next.theme = DEFAULTS.theme;
   if (!COLOR_MODES.includes(next.colorMode)) next.colorMode = DEFAULTS.colorMode;

@@ -489,3 +489,43 @@ test("the opponent hand pins to the top of the mat, stays after a reload, and dr
   await expect.poll(inColumn).toBe(1);
   expect(duel.errors).toEqual([]);
 });
+
+// "Opponent hand, top right" used to only restyle the side panel's fan on
+// desktop. It is now the top-right spot: pinned on the mat on desktop, the
+// right of the opponent's half on phones, where the switch still lives (#PRNUM).
+test("Opponent hand, top right pins the hand top right on desktop and phones (#PRNUM)", async ({ page, duel }, info) => {
+  const desktop = info.project.name === "desktop-1280";
+  // A setting saved by an older build.
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("optcg-duel:settings")) {
+      localStorage.setItem("optcg-duel:settings", JSON.stringify({ oppHandTopRight: true }));
+    }
+  });
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  if (desktop) {
+    await expect(page.locator(".opp-hand-mat-right .opp-hand-corner")).toBeVisible();
+    await expect(page.locator('[data-panel-col] > [data-panel="oppHand"]')).toHaveCount(0);
+  } else {
+    await expect(page.locator(".opp-hand-hint-right .opp-hand-corner")).toBeVisible();
+  }
+  const issues = (await duel.audit()).filter((i) => !isKnown(i));
+  if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
+  expect(issues, formatIssues(issues)).toEqual([]);
+
+  await page.goto("/settings");
+  const toggle = page.getByLabel("Opponent hand, top right");
+  if (desktop) {
+    // Desktop picks the spot from the Opponent hand list instead.
+    await expect(toggle).toHaveCount(0);
+    await expect(page.getByLabel("Opponent hand", { exact: true })).toHaveValue("right");
+    return;
+  }
+  await expect(toggle).toBeChecked();
+  await toggle.uncheck();
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".opp-hand-hint-right")).toHaveCount(0);
+  await expect(page.locator(".opp-hand-hint")).toBeVisible();
+  expect(duel.errors).toEqual([]);
+});
