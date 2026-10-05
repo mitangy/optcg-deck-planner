@@ -49,13 +49,13 @@ describe("describeMatchResult", () => {
     );
   });
 
-  it("names seats for spectators and hotseat", () => {
+  it("names seats for spectators and hotseat as Player 1 and Player 2 (#276)", () => {
     expect(describeMatchResult({ winner: 1, reason: "deck_out", youSeat: null }).text).toBe(
-      "Seat 1 wins — Seat 0's deck ran out of cards",
+      "Player 2 wins — Player 1's deck ran out of cards",
     );
     const hot = describeMatchResult({ winner: 0, reason: "concede", youSeat: 1, neutral: true });
     expect(hot.outcome).toBe("neutral");
-    expect(hot.text).toBe("Seat 0 wins — Seat 1 conceded");
+    expect(hot.text).toBe("Player 1 wins — Player 2 conceded");
   });
 
   it("never shows raw reason strings", () => {

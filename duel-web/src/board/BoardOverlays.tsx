@@ -5,7 +5,7 @@ import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import { boxCenter } from "./battleArc";
 import { DON_CARD_ART } from "./donArt";
-import { attachLabel, type PendingAttach } from "./donSelection";
+import { attachLabel, quickAttachLabel, type PendingAttach } from "./donSelection";
 import { popoverPlacement, type CardActionText } from "./cardActions";
 import { useTrackedBoxes } from "./useTrackedBoxes";
 
@@ -143,7 +143,8 @@ export function CardActionPopover({
               key={n}
               type="button"
               className="don-quick-btn"
-              aria-label={`Give ${n} DON!! to ${cardName}`}
+              aria-label={`${quickAttachLabel(n, donCounts)} to ${cardName}`}
+              title={quickAttachLabel(n, donCounts)}
               onClick={() => onDon(n)}
             >
               {i === donCounts.length - 1 && n > 2 ? `All (${n})` : `+${n}`}

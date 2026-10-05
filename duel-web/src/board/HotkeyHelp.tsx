@@ -12,6 +12,9 @@ const KEYS: { keys: string; text: string }[] = [
   { keys: "D", text: "Attach DON!! to the selected card (when offered)." },
   { keys: "← →", text: "Select the previous or next hand card." },
   { keys: "Esc", text: "Cancel a DON!! selection, then deselect the card; also closes a panel." },
+  { keys: "Tab", text: "Move through the cards and buttons; Shift+Tab goes back. Enter selects the focused card." },
+  { keys: "I", text: "Inspect the focused card (same as double-click, long-press or right-click)." },
+  { keys: "Right-click", text: "Inspect a card with the mouse." },
   { keys: "?", text: "This list." },
 ];
 

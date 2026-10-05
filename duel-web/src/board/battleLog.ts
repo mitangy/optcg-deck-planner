@@ -1,5 +1,6 @@
 import { lookupCard } from "../cards/atlas";
 import { endReasonLabel } from "./matchResult";
+import { playerLabel } from "./playerNames";
 
 /**
  * Visual weight of a log line. `routine` lines (phases, DON!!, draws, buffs)
@@ -94,7 +95,7 @@ function seatLabel(seat: unknown, youSeat: number | null): string {
   if (youSeat === 0 || youSeat === 1) {
     return seat === youSeat ? "You" : "Opponent";
   }
-  return `Seat ${seat}`;
+  return playerLabel(seat);
 }
 
 function possessive(seat: unknown, youSeat: number | null): string {
@@ -125,6 +126,33 @@ function toSegments(parts: Part[]): LogSegment[] {
     const prev = out[out.length - 1];
     if (seg.kind === "text" && prev?.kind === "text") prev.text += seg.text;
     else out.push(seg.kind === "text" ? { ...seg } : seg);
+  }
+  return out;
+}
+
+/** A log segment plus the punctuation that must stay on the same line (cards only). */
+export type GluedSegment = { seg: LogSegment; glued: string };
+
+/**
+ * A card name carries the text right after it up to the next space ("'s", ".",
+ * ")"). The name is a button, an atomic inline box, so without this a narrow
+ * column can wrap right after it and strand "'s effect" on the next line,
+ * which reads as a stray space ("Edward.Newgate 's effect").
+ */
+export function glueSegments(segments: readonly LogSegment[]): GluedSegment[] {
+  const out: GluedSegment[] = [];
+  for (let i = 0; i < segments.length; i += 1) {
+    const seg = segments[i]!;
+    const next = segments[i + 1];
+    if (seg.kind === "card" && next?.kind === "text") {
+      const glued = /^\S+/.exec(next.text)?.[0] ?? "";
+      out.push({ seg, glued });
+      const rest = next.text.slice(glued.length);
+      if (rest) out.push({ seg: { kind: "text", text: rest }, glued: "" });
+      i += 1;
+    } else {
+      out.push({ seg, glued: "" });
+    }
   }
   return out;
 }
@@ -216,12 +244,17 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
         `${act(e.seat, youSeat, e.didMulligan ? "mulligan" : "keep", e.didMulligan ? "mulligans" : "keeps")} opening hand`,
       );
     case "phase_changed":
+      // Only the Main phase rule is news: the turn header already names the rest.
       if (e.phase === "main") return line("phase", false, `—— Main phase · ${seatLabel(e.activeSeat, youSeat)} ——`);
-      return line("routine", false, `Phase → ${String(e.phase)}`);
+      return null;
     case "drew":
       return line("routine", false, `${act(e.seat, youSeat, "draw", "draws")} ${Number(e.count) || 1}`);
-    case "don_placed":
-      return line("routine", false, `${act(e.seat, youSeat, "place", "places")} ${Number(e.count) || 0} DON!!`);
+    case "don_placed": {
+      const count = Number(e.count) || 0;
+      // "You place 0 DON!!" (an empty DON!! deck) is noise.
+      if (count <= 0) return null;
+      return line("routine", false, `${act(e.seat, youSeat, "place", "places")} ${count} DON!!`);
+    }
     case "card_played": {
       const paid = typeof e.costPaid === "number" ? ` (rests ${e.costPaid} DON!!)` : "";
       return line("play", false, `${act(e.seat, youSeat, "play", "plays")} `, card(e.defId, e.seat), paid);
@@ -424,7 +457,7 @@ export function rewindBattleLog(
   by: 0 | 1,
   youSeat: number | null,
 ): BattleLogEntry[] {
-  const who = youSeat == null ? `Seat ${by}` : by === youSeat ? "You" : "Opponent";
+  const who = youSeat == null ? playerLabel(by) : by === youSeat ? "You" : "Opponent";
   const text = `${who} undid the turn — rewound to the start of turn ${toTurn}.`;
   return [
     ...entries.filter((e) => e.turn <= toTurn),

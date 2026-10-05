@@ -30,9 +30,12 @@ function usePrefersReducedMotion(): boolean {
  * gold when you're the one attacking). A faint dashed line shows the original
  * target when a Blocker redirected the attack.
  *
- * Fixed-position SVG portal over the viewport — never participates in layout.
+ * Fixed-position SVG over the viewport — never participates in layout. It is
+ * drawn inside the board (not portaled to <body>) so it shares the board's
+ * stacking context: prompts (z-index 45+) paint above it, cards and the dock
+ * below. `dimmed` fades it while one of your prompts is open.
  */
-export function AttackIndicator({ view }: { view: PlayerView | null }) {
+export function AttackIndicator({ view, dimmed = false }: { view: PlayerView | null; dimmed?: boolean }) {
   const ends = battleEndpoints(view);
   const systemReduced = usePrefersReducedMotion();
   const reduced = useDuelSettings().reduceMotion || systemReduced;
@@ -55,7 +58,7 @@ export function AttackIndicator({ view }: { view: PlayerView | null }) {
 
   const overlay = (
     <svg
-      className={`attack-overlay attack-${tone}${reduced ? " reduced" : ""}`}
+      className={`attack-overlay attack-${tone}${reduced ? " reduced" : ""}${dimmed ? " attack-dim" : ""}`}
       aria-hidden
       focusable="false"
     >
@@ -145,7 +148,7 @@ export function AttackIndicator({ view }: { view: PlayerView | null }) {
     </svg>
   );
 
-  return createPortal(overlay, document.body);
+  return overlay;
 }
 
 function reticleRadius(box: Box): number {

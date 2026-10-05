@@ -238,13 +238,6 @@ export function CardInspect({
               </div>
             ) : null}
             <CardReportForm key={defId} cardId={entry.id} />
-            <button
-              type="button"
-              className="btn btn-secondary card-inspect-close-bottom"
-              onClick={onClose}
-            >
-              Close
-            </button>
           </div>
         </div>
       </div>
