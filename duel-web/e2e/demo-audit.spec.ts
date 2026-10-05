@@ -13,6 +13,7 @@ const SCREENS = [
   "?statuses",
   "?over",
   "?undo=ask",
+  "?faceup=2",
   "?counter=block",
   ...["don", "don2", "look", "satori", "rest", "select", "restgrid", "selectgrid", "confirm", "hand", "order", "effects", "mode"].map((p) => `?prompt=${p}`),
   // Searches and effect ordering float by default; `?box` keeps the old pop-up.
@@ -794,4 +795,14 @@ test("Opponent hand, top right pins the hand top right on desktop and phones (#2
   await expect(page.locator(".opp-hand-hint-right")).toHaveCount(0);
   await expect(page.locator(".opp-hand-hint")).toBeVisible();
   expect(duel.errors).toEqual([]);
+});
+
+// Face-up Life (Shiryu OP16-108 and friends) shows its art on both mats; portrait phones list the opponent's on the count chip.
+test("face-up Life cards show face up on both mats (#327)", async ({ page }) => {
+  await page.goto("/demo?faceup=1");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".side-you .zone-pile-life .zone-pile-face.is-face-up")).toHaveCount(1);
+  const oppPile = page.locator(".side-opp .zone-pile-life .zone-pile-face.is-face-up");
+  const oppChip = page.locator(".side-opp .count-chip-extra", { hasText: "1\u2191" });
+  await expect(oppPile.or(oppChip)).toHaveCount(1);
 });

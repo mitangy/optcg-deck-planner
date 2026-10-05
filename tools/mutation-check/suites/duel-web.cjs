@@ -920,5 +920,10 @@ module.exports = {
     // Gray out unplayable cards setting (#301)
     { id: "dim-unplayable-ignores-setting", file: `${src}/board/handAffordance.ts`, from: "  if (!c.dimSetting) return false;\n", to: "", kills: ["keeps the same card at full colour with the setting off (#301)"] },
     { id: "dim-unplayable-never", file: `${src}/board/handAffordance.ts`, from: "  return c.mainPhase && !c.picking", to: "  return false && c.mainPhase && !c.picking", kills: ["grays out a cost-5 card with 2 active DON!! while the setting is on (#301)"] },
+    // Face-up Life drawn in the Life fan (#327)
+    { id: "life-pile-ignores-face-up", file: `${src}/board/ZonePile.tsx`, from: "{lifePileFaces(count, faceUp).map(", to: "{lifePileFaces(count).map(", kills: ["shows your face-up Life card's art in your Life pile (#327)"] },
+    { id: "side-field-life-drops-face-up", file: `${src}/board/SideField.tsx`, from: "            faceUp={faceUpLife}\n", to: "", kills: ["shows your face-up Life card's art in your Life pile (#327)"] },
+    { id: "life-faces-top-at-back", file: `${src}/board/ZonePile.tsx`, from: "byIndex.get(n - 1 - i)", to: "byIndex.get(i)", kills: ["draws the top Life card face up at the front of the fan (#327)"] },
+    { id: "life-faces-deep-face-up-hidden", file: `${src}/board/ZonePile.tsx`, from: "Math.max(lifePileFaceCount(count), deepest)", to: "lifePileFaceCount(count)", kills: ["stretches a capped fan so a deep face-up Life card still shows (#327)"] },
   ],
 };

@@ -1820,6 +1820,12 @@ html:has(.duel-root) body {
   background-repeat: no-repeat;
 }
 
+/* A face-up Life card shows its art in the fan instead of the card back. */
+.zone-pile-life .zone-pile-face.is-face-up {
+  background-image: var(--life-face-art), linear-gradient(145deg, #243447, #15202c);
+  border-color: rgb(var(--chrome-bright-rgb, 255 255 255) / 0.75);
+}
+
 .zone-pile-don .zone-pile-face,
 .zone-pile-don .zone-pile-face.top {
   background-color: #e9ece8;
