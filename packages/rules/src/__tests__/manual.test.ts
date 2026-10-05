@@ -222,7 +222,7 @@ describe("granted replacement (EB02-030)", () => {
     expect(h.state.players[1].hand.length).toBe(0);
   });
 
-  it("EB02-030 keeps protecting Characters in a later battle that turn (#PRNUM)", () => {
+  it("EB02-030 keeps protecting Characters in a later battle that turn (#330)", () => {
     const h = new Harness();
     const [first, second, third] = h.field(1, FILLER, FILLER, FILLER);
     for (const c of [first!, second!, third!]) c.rested = true;
