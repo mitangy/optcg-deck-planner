@@ -896,5 +896,6 @@ module.exports = {
     { id: "held-card-not-moved-down", file: `${src}/board/heldCardSpot.ts`, from: "  const top = Math.max(anchor.top, header.bottom);", to: "  const top = anchor.top;", kills: ["keeps the card below the header and lifts the bubble over it, so Sort / Hide stay clear (#282)"] },
     { id: "held-bubble-not-lifted", file: `${src}/board/heldCardSpot.ts`, from: "gap: header.bottom - header.top + BUBBLE_GAP, lift: 0", to: "gap: BUBBLE_GAP, lift: 0", kills: ["keeps the card below the header and lifts the bubble over it, so Sort / Hide stay clear (#282)"] },
     { id: "held-card-no-lift-clear", file: `${src}/board/heldCardSpot.ts`, from: "{ bottom: anchor.top + anchor.height, gap: BUBBLE_GAP, lift: -CARD_LIFT }", to: "{ bottom: anchor.top + anchor.height, gap: BUBBLE_GAP, lift: 0 }", kills: ["holds the card 12px up from its slot when the hand header is clear of it (#282)"] },
+    { id: "queue-close-ignored", file: `${src}/net/duelClient.ts`, from: "          reject(new Error(\"Lost the ranked queue. Queue again.\"));\n", to: "", kills: ["stops searching when the queue room closes before a match (#302)"] },
   ],
 };

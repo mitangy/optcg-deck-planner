@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const sdkReconnect = vi.fn((_token: string) => new Promise<never>(() => {}));
+const sdkJoinOrCreate = vi.fn((_name: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
 vi.mock("@colyseus/sdk", () => ({
   Client: class {
     reconnect(token: string) {
       return sdkReconnect(token);
+    }
+    joinOrCreate(name: string, opts: unknown) {
+      return sdkJoinOrCreate(name, opts);
     }
   },
 }));
@@ -110,5 +114,23 @@ describe("DuelClient background reconnect", () => {
     const second = client.reconnect({ serverUrl: "http://gs", reconnectionToken: "r:tok" });
     expect(second).toBe(first);
     expect(sdkReconnect).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DuelClient ranked queue", () => {
+  it("stops searching when the queue room closes before a match (#302)", async () => {
+    vi.useFakeTimers();
+    const queueRoom = fakeRoom({ answersPing: true });
+    sdkJoinOrCreate.mockResolvedValueOnce(queueRoom);
+    const client = new DuelClient();
+    const queued = client.queueRanked({ serverUrl: "ws://test", devUserId: "a" });
+    queued.catch(() => {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sdkJoinOrCreate).toHaveBeenCalledWith("ranked_queue", expect.anything());
+    // e.g. the game server restarted for a deploy while we were in the queue.
+    queueRoom.emit("leave", 1006);
+    // Without the fix only the 2 minute queue timeout would end the wait.
+    await vi.advanceTimersByTimeAsync(120_000);
+    await expect(queued).rejects.toThrow(/Lost the ranked queue/);
   });
 });

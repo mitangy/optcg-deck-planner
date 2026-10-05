@@ -536,6 +536,50 @@ describe("DuelRoom", () => {
     await other.leave(true);
   });
 
+  it("ranked_queue turns away a deck ranked can't play before pairing it (#302)", async () => {
+    // P-064 has no verified card data, so a ranked room would refuse it at join.
+    const unverified = { leaderId: "OP01-001", deck: ["P-064"] };
+    await assert.rejects(
+      () => colyseus.sdk.joinOrCreate("ranked_queue", { ...joinOpts("queue-bad"), deck: unverified }),
+      /unsupported cards: P-064/,
+    );
+    const ok = await colyseus.sdk.joinOrCreate("ranked_queue", {
+      ...joinOpts("queue-good"),
+      deck: { leaderId: "OP01-001", deck: ["ST01-003"] },
+    });
+    await ok.leave(true);
+  });
+
+  it("a paired ranked room sends the waiting player back when the opponent never joins (#302)", async () => {
+    const prev = process.env.RANKED_NO_SHOW_SECONDS;
+    process.env.RANKED_NO_SHOW_SECONDS = "0.3";
+    let room: DuelRoom;
+    try {
+      room = await colyseus.createRoom<DuelRoom>("duel", {
+        protocolVersion: PROTOCOL_VERSION,
+        ranked: true,
+        rankedAttestation: getRankedMatchCreateSecret(),
+        seatUserIds: [41, 42],
+      });
+    } finally {
+      if (prev === undefined) delete process.env.RANKED_NO_SHOW_SECONDS;
+      else process.env.RANKED_NO_SHOW_SECONDS = prev;
+    }
+    const bag: SeatBag = { views: [], errors: [] };
+    const c1 = await colyseus.connectTo(room, {
+      protocolVersion: PROTOCOL_VERSION,
+      gameToken: gameToken(42),
+      preferredSeat: 1,
+    });
+    attach(c1, bag);
+    let left = false;
+    c1.onLeave(() => {
+      left = true;
+    });
+    await waitUntil(() => left, 5000);
+    assert.deepEqual(bag.errors.map((e) => e.code), ["opponent_no_show"]);
+  });
+
   it("relays cosmetics artPrefs between seats", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,

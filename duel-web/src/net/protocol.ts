@@ -52,6 +52,8 @@ export type ErrorCode =
   | "rate_limited"
   | "unauthorized"
   | "room_full"
+  | "unsupported_deck"
+  | "opponent_no_show"
   | string;
 
 /** Public per-seat player info from the game-server (never contains emails). */
