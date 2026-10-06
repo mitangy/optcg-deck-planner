@@ -14,7 +14,7 @@ async function open(w, h, settings, path = "/demo") {
 }
 
 async function hoverLongest(page, known) {
-  if (known) { await page.locator(`[data-instance-id="${known}"]`).first().hover(); await page.waitForTimeout(300); return known; }
+  if (known) { await page.locator(`[data-instance-id="${known}"]`).first().hover(); await page.waitForTimeout(1500); return known; }
   const ids = [];
   let best = null, bestLen = -1;
   for (const id of ids) {
