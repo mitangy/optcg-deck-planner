@@ -1728,7 +1728,7 @@ export function DuelBoard({
       data-phase={view.phase}
       data-turn={view.turnNumber}
       data-seat={boardSeat}
-      style={wide && !lp ? panelResize.arenaStyle : undefined}
+      style={wide && !lp ? panelResize.arenaStyle(shownPanels) : undefined}
     >
       {lp ? null : compactHud ? (
         <header className="hud-bar hud-compact">

@@ -24,6 +24,34 @@ export const COLUMN_MAX_PX = 560;
 export const COLUMN_MAX_VW = 34;
 /** A panel never drags smaller than this (4.5rem), or its own CSS minimum when larger. */
 export const PANEL_MIN_PX = 72;
+/**
+ * The least height each panel keeps, whatever its saved share. Preview and Turn
+ * hold content that cannot scroll away, so they get more than the generic floor;
+ * the content-sized panels (below) also never drop under their natural height.
+ */
+export const PANEL_MIN_HEIGHT_PX: Record<PanelId, number> = {
+  preview: 140,
+  recent: PANEL_MIN_PX,
+  log: 96,
+  oppHand: PANEL_MIN_PX,
+  turn: PANEL_MIN_PX,
+  actions: PANEL_MIN_PX,
+  hand: PANEL_MIN_PX,
+  chat: PANEL_MIN_PX,
+};
+/** Panels that size to their content (never shrink below it). */
+export const CONTENT_SIZED_PANELS: readonly PanelId[] = ["turn", "oppHand"];
+/** The narrowest each panel reads at: the Turn panel's four stat columns need the most. */
+export const PANEL_MIN_WIDTH_PX: Record<PanelId, number> = {
+  preview: 200,
+  recent: 200,
+  log: 200,
+  oppHand: 200,
+  turn: 250,
+  actions: 200,
+  hand: 200,
+  chat: 200,
+};
 export const SHARE_MIN = 0.05;
 export const SHARE_MAX = 0.95;
 /** Arrow-key steps: px for a column, a share of the column for a divider. */
@@ -37,8 +65,26 @@ export function columnMaxPx(vw: number): number {
   return Math.max(COLUMN_MIN_PX, Math.min(COLUMN_MAX_PX, (vw * COLUMN_MAX_VW) / 100));
 }
 
-export function clampColumnWidth(px: number, vw: number): number {
-  return Math.round(Math.min(columnMaxPx(vw), Math.max(COLUMN_MIN_PX, px)));
+/** The narrowest a column drags to: the widest minimum among the panels now in it. */
+export function columnMinPx(ids: readonly PanelId[]): number {
+  return Math.min(COLUMN_MAX_PX, Math.max(COLUMN_MIN_PX, ...ids.map((id) => PANEL_MIN_WIDTH_PX[id])));
+}
+
+export function clampColumnWidth(px: number, vw: number, min: number = COLUMN_MIN_PX): number {
+  const lo = Math.max(COLUMN_MIN_PX, min);
+  return Math.round(Math.min(Math.max(lo, columnMaxPx(vw)), Math.max(lo, px)));
+}
+
+/**
+ * The least height a panel may take in a split: its floor, its CSS minimum and,
+ * for a content-sized panel, the height its content needs (`natural`).
+ */
+export function panelMinHeight(id: PanelId, cssMin: number, natural: number): number {
+  return Math.max(
+    PANEL_MIN_HEIGHT_PX[id],
+    Number.isFinite(cssMin) ? cssMin : 0,
+    CONTENT_SIZED_PANELS.includes(id) ? Math.ceil(natural) : 0,
+  );
 }
 
 export function clampShare(share: number): number {
@@ -106,8 +152,8 @@ export function splitHeights(
 }
 
 /** Keyboard step for a column handle: `grow` widens the column. */
-export function nudgeColumnWidth(width: number, grow: boolean, vw: number): number {
-  return clampColumnWidth(width + (grow ? COLUMN_STEP_PX : -COLUMN_STEP_PX), vw);
+export function nudgeColumnWidth(width: number, grow: boolean, vw: number, min: number = COLUMN_MIN_PX): number {
+  return clampColumnWidth(width + (grow ? COLUMN_STEP_PX : -COLUMN_STEP_PX), vw, min);
 }
 
 export function setWidth(sizes: PanelSizes, column: PanelColumn, px: number | null): PanelSizes {

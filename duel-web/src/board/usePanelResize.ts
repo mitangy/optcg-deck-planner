@@ -4,10 +4,11 @@ import {
   COLUMN_MAX_PX,
   COLUMN_MAX_VW,
   COLUMN_MIN_PX,
-  PANEL_MIN_PX,
   PANEL_STEP_SHARE,
   clampColumnWidth,
   columnMaxPx,
+  columnMinPx,
+  panelMinHeight,
   nudgeColumnWidth,
   samePanelSizes,
   setShares,
@@ -17,7 +18,7 @@ import {
 } from "./panelSizes";
 
 type Active =
-  | { kind: "column"; column: PanelColumn; startX: number; startW: number }
+  | { kind: "column"; column: PanelColumn; startX: number; startW: number; min: number }
   | {
       kind: "split";
       a: PanelId;
@@ -30,11 +31,30 @@ type Active =
       colH: number;
     };
 
-/** A panel's CSS minimum height in px (percentages against the column), at least the floor. */
+/**
+ * The height a panel's content needs, measured with its sizing styles lifted for
+ * a moment (restored before anything paints).
+ */
+function naturalHeightOf(el: HTMLElement): number {
+  const saved = el.style.cssText;
+  el.style.cssText = `${saved};flex:0 0 auto;height:auto;min-height:0;max-height:none`;
+  const h = el.offsetHeight;
+  el.style.cssText = saved;
+  return h;
+}
+
+/** A panel's smallest height in px: its floor, its CSS minimum (percentages against the column), its content. */
 function minHeightOf(el: HTMLElement, colH: number): number {
   const raw = getComputedStyle(el).minHeight;
-  const px = raw.endsWith("%") ? (parseFloat(raw) / 100) * colH : parseFloat(raw);
-  return Math.max(PANEL_MIN_PX, Number.isFinite(px) ? px : 0);
+  const css = raw.endsWith("%") ? (parseFloat(raw) / 100) * colH : parseFloat(raw);
+  const id = el.dataset.panel as PanelId;
+  return panelMinHeight(id, css, naturalHeightOf(el));
+}
+
+/** The narrowest a column goes: the widest minimum among the panels now in it. */
+function columnMinOf(col: HTMLElement | null): number {
+  const ids = col ? [...col.querySelectorAll<HTMLElement>(":scope > [data-panel]")].map((e) => e.dataset.panel as PanelId) : [];
+  return columnMinPx(ids);
 }
 
 function contentHeight(col: HTMLElement): number {
@@ -96,7 +116,7 @@ export function usePanelResize(
       const base = latest.current.sizes;
       if (act.kind === "column") {
         const dx = e.clientX - act.startX;
-        const px = clampColumnWidth(act.startW + (act.column === "left" ? dx : -dx), window.innerWidth);
+        const px = clampColumnWidth(act.startW + (act.column === "left" ? dx : -dx), window.innerWidth, act.min);
         apply(setWidth(base, act.column, px));
       } else {
         const [a, b] = splitHeights(act.hA, act.hB, e.clientY - act.startY, act.minA, act.minB);
@@ -192,7 +212,7 @@ export function usePanelResize(
         const el = root && columnEl(root, column);
         if (!el) return;
         e.preventDefault();
-        begin({ kind: "column", column, startX: e.clientX, startW: el.getBoundingClientRect().width });
+        begin({ kind: "column", column, startX: e.clientX, startW: el.getBoundingClientRect().width, min: columnMinOf(el) });
       },
       onDoubleClick: () => {
         commit(setWidth(latest.current.sizes, column, null));
@@ -208,7 +228,7 @@ export function usePanelResize(
         // The left column grows to the right, the right one to the left.
         const grow = e.key === (column === "left" ? "ArrowRight" : "ArrowLeft");
         const w = latest.current.sizes.widths[column] ?? el.getBoundingClientRect().width;
-        commit(setWidth(latest.current.sizes, column, nudgeColumnWidth(w, grow, window.innerWidth)));
+        commit(setWidth(latest.current.sizes, column, nudgeColumnWidth(w, grow, window.innerWidth, columnMinOf(el))));
         remeasureSoon(key, column);
       },
     };
@@ -255,12 +275,12 @@ export function usePanelResize(
   };
 
   /** Inline overrides for the board root: the column widths, clamped by CSS for a smaller window. */
-  const arenaStyle: CSSProperties | undefined =
+  const arenaStyle = (columns: Record<PanelColumn, readonly PanelId[]>): CSSProperties | undefined =>
     shown.widths.left == null && shown.widths.right == null
       ? undefined
       : ({
-          ...(shown.widths.left != null ? { "--left-w": clampCss(shown.widths.left) } : null),
-          ...(shown.widths.right != null ? { "--rail-w": clampCss(shown.widths.right) } : null),
+          ...(shown.widths.left != null ? { "--left-w": clampCss(shown.widths.left, columnMinPx(columns.left)) } : null),
+          ...(shown.widths.right != null ? { "--rail-w": clampCss(shown.widths.right, columnMinPx(columns.right)) } : null),
         } as CSSProperties);
 
   /**
@@ -283,6 +303,6 @@ export function usePanelResize(
   };
 }
 
-function clampCss(px: number): string {
-  return `clamp(${COLUMN_MIN_PX}px, ${px}px, min(${COLUMN_MAX_PX}px, ${COLUMN_MAX_VW}vw))`;
+function clampCss(px: number, min: number): string {
+  return `clamp(${min}px, ${px}px, max(${min}px, min(${COLUMN_MAX_PX}px, ${COLUMN_MAX_VW}vw)))`;
 }
