@@ -74,6 +74,12 @@ export type DuelSettings = {
    * See board/panelLayout.ts.
    */
   panelLayout: string;
+  /**
+   * Desktop: column widths and panel heights dragged out by the panel edges,
+   * e.g. "L=260;R=340;preview=0.45"; "" keeps every default.
+   * See board/panelSizes.ts.
+   */
+  panelSizes: string;
   /** Desktop: show the grips that drag side panels and the fanned hand around. */
   layoutGrips: boolean;
   /**
@@ -137,6 +143,7 @@ const DEFAULTS: DuelSettings = {
   handFanPos: "",
   keepHandOpen: false,
   panelLayout: "",
+  panelSizes: "",
   layoutGrips: true,
   oneTapActions: false,
   dimUnplayable: true,

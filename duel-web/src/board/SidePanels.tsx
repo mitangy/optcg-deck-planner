@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   PANEL_LABELS,
@@ -15,6 +15,7 @@ import {
   type PanelLayout,
   type PanelRect,
 } from "./panelLayout";
+import type { usePanelResize } from "./usePanelResize";
 
 type DragState = {
   id: PanelId;
@@ -196,16 +197,23 @@ export function SidePanel({
   id,
   dragging,
   grip,
+  divider,
+  style,
   children,
 }: {
   id: PanelId;
   dragging: boolean;
   /** Null when Drag handles is off: the panel keeps its place, without a grip. */
   grip: ReturnType<ReturnType<typeof usePanelDrag>["gripProps"]> | null;
+  /** The resize divider on this panel's top edge (null on the first panel, or Drag handles off). */
+  divider?: ReturnType<ReturnType<typeof usePanelResize>["dividerProps"]> | null;
+  /** Inline height from a saved size (see usePanelResize.panelStyle). */
+  style?: CSSProperties;
   children: ReactNode;
 }) {
   return (
-    <div className={`board-panel${dragging ? " is-panel-dragging" : ""}`} data-panel={id}>
+    <div className={`board-panel${dragging ? " is-panel-dragging" : ""}`} data-panel={id} style={style}>
+      {divider ? <div className="panel-divider" {...divider} /> : null}
       {grip ? (
         <button
           type="button"
