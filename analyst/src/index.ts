@@ -5,13 +5,16 @@
  */
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { Request, Response } from "express";
+import Anthropic from "@anthropic-ai/sdk";
+import type { z } from "zod";
+import type { NextFunction, Request, Response } from "express";
 import { keyMatches } from "./auth";
 import { loadCatalog } from "./catalog";
 import { tokenIsValid, type PlannerApi } from "./matches";
 import { OfficialLibrary } from "./official/library";
 import { loadPlaybook } from "./playbook";
 import { createServer, type Knowledge, type PersonalContext } from "./server";
+import { admit, anthropicModel, originAllowed, chatBody, ChatHttpError, reviewBody, runChat, runReview, type ChatDeps, type SseEvent } from "./chat";
 
 const catalog = loadCatalog();
 const connectorKey = process.env.ANALYST_CONNECTOR_KEY ?? "";
@@ -92,6 +95,75 @@ for (const path of [connectorKey ? "/mcp/:key" : "/mcp", "/mcp/u/:token"]) {
   app.get(path, notAllowed);
   app.delete(path, notAllowed);
 }
+
+// In-app chat panel and post-game analysis (duel app and deck planner), streamed as server-sent events.
+const anthropicKey = process.env.ANTHROPIC_API_KEY ?? "";
+const chatDeps: ChatDeps | null =
+  anthropicKey && plannerApi.serviceSecret
+    ? { api: plannerApi, catalog, knowledge, callModel: anthropicModel(new Anthropic({ apiKey: anthropicKey }) as never) }
+    : null;
+const chatOrigins = (process.env.ANALYST_CHAT_ORIGINS ?? "https://optcgduel.app,https://optcg-deck-planner.app")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+function chatCors(req: Request, res: Response, next: NextFunction) {
+  const origin = req.headers.origin;
+  if (originAllowed(chatOrigins, origin)) {
+    res.set("Access-Control-Allow-Origin", origin!);
+    res.set("Vary", "Origin");
+    res.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.set("Access-Control-Max-Age", "600");
+  }
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+  next();
+}
+
+type Run<T> = (deps: ChatDeps, token: string, body: T, emit: (e: SseEvent) => void, signal: AbortSignal) => Promise<void>;
+
+function sse<T>(kind: "chat" | "review", schema: z.ZodType<T>, run: Run<T>) {
+  return async (req: Request, res: Response) => {
+    if (!chatDeps) {
+      res.status(503).json({ error: "Log Pose chat isn't set up on this server.", code: "server" });
+      return;
+    }
+    const body = schema.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: "That request didn't look right.", code: "bad_request" });
+      return;
+    }
+    const bearer = /^Bearer (.+)$/.exec(req.headers.authorization ?? "")?.[1] ?? null;
+    const abort = new AbortController();
+    res.on("close", () => abort.abort());
+    let streaming = false;
+    try {
+      const token = await admit(plannerApi, bearer);
+      res.status(200).set({ "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" });
+      res.flushHeaders();
+      streaming = true;
+      const emit = (e: SseEvent) => {
+        if (!res.writableEnded) res.write(`event: ${e.event}\ndata: ${JSON.stringify(e.data)}\n\n`);
+      };
+      await run(chatDeps, token, body.data, emit, abort.signal);
+    } catch (err) {
+      const httpErr = err instanceof ChatHttpError ? err : null;
+      if (!httpErr) console.error(JSON.stringify({ event: `${kind}_error`, message: err instanceof Error ? err.message : String(err) }));
+      const message = httpErr?.message ?? (err instanceof Error && err.message.startsWith("Log Pose") ? err.message : "Log Pose hit a problem. Try again.");
+      if (!streaming) res.status(httpErr?.status ?? 500).json({ error: message, code: httpErr?.code ?? "server" });
+      else if (!res.writableEnded) res.write(`event: error\ndata: ${JSON.stringify({ message, code: httpErr?.code ?? "server" })}\n\n`);
+    } finally {
+      if (streaming && !res.writableEnded) res.end();
+    }
+  };
+}
+
+app.use(["/chat", "/review-match"], chatCors);
+app.post("/chat", sse("chat", chatBody, runChat));
+app.post("/review-match", sse("review", reviewBody, runReview));
 
 app.listen(port, () => {
   console.log(JSON.stringify({ event: "listening", port, cards: catalog.cards.size, keyed: Boolean(connectorKey) }));

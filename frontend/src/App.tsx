@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   api,
   CatalogCardResult,
@@ -28,6 +28,8 @@ import {
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { submitFeedback } from "./feedback";
+import { LogPoseProvider, useLogPosePage } from "@optcg/analyst-client";
+import { DECK_STARTERS, defaultLogPosePage, plannerDeckContext, showsLogPose } from "./logPose";
 import { LegalPage } from "./LegalPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
@@ -3351,6 +3353,11 @@ function DeckDetailPage() {
     onError: (e: Error) => setShareMsg(e.message),
   });
 
+  const logPoseDeck = useMemo(() => (data ? plannerDeckContext(data) : null), [data]);
+  useLogPosePage(
+    logPoseDeck ? { page: "deck", label: logPoseDeck.name || "This deck", deck: logPoseDeck, starters: DECK_STARTERS } : null,
+  );
+
   const optcgSimExport = useMemo(() => {
     if (!data) return null;
     return buildOptcgSimExport(data.cards, { leaderCardId: data.leader_card_id });
@@ -4137,9 +4144,13 @@ function PublicSharePage() {
 }
 
 export default function App() {
+  const { pathname } = useLocation();
+  const logPosePage = useMemo(() => defaultLogPosePage(pathname), [pathname]);
+  // Shares RequireAuth's cached /auth/me query; signing in or out asks for the chat session again.
+  const { data: me } = useMe();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   return (
-    <>
+    <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />
@@ -4215,6 +4226,6 @@ export default function App() {
           onClose={() => setFeedbackOpen(false)}
         />
       ) : null}
-    </>
+    </LogPoseProvider>
   );
 }

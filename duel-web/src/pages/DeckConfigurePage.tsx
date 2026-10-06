@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useParams } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { BackLink } from "./BackLink";
+import { useLogPosePage } from "@optcg/analyst-client";
+import { DECK_EDITOR_STARTERS, deckContext } from "../logPose";
 import { DeckEditor } from "../board/DeckEditor";
 import { DeckImportPanel } from "../board/DeckImportPanel";
 import { MAX_MAIN_DECK_SIZE } from "../decks/editDeck";
@@ -51,6 +53,10 @@ export function DeckConfigurePage() {
       cancelled = true;
     };
   }, []);
+
+  useLogPosePage(
+    deck ? { page: "deck-editor", label: deck.name || "This deck", deck: deckContext(deck), starters: DECK_EDITOR_STARTERS } : null,
+  );
 
   if (!deckId || !deck) {
     return <Navigate to="/decks" replace />;

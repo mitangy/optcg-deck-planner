@@ -796,3 +796,80 @@ class DuelCosmeticsOut(BaseModel):
 class DuelCosmeticActiveIn(BaseModel):
     kind: str
     id: int | None = None
+
+
+class AnalystChatSession(BaseModel):
+    enabled: bool
+    # A short-lived token for the analyst's /chat and /review-match (Authorization: Bearer).
+    token: str | None = None
+    expires_at: str | None = None  # ISO 8601, UTC
+    chat_url: str | None = None
+
+
+class AnalystChatBudget(BaseModel):
+    spent_today_usd: float
+    daily_cap_usd: float
+    spent_month_usd: float
+    monthly_cap_usd: float
+    allowed: bool
+
+
+class AnalystUsageIn(BaseModel):
+    kind: Literal["chat", "review"]
+    model: str = Field(default="", max_length=64)
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    cache_read_tokens: int = Field(default=0, ge=0)
+    cache_write_tokens: int = Field(default=0, ge=0)
+    cost_usd: float = Field(ge=0)
+
+
+class AnalystThreadIn(BaseModel):
+    title: str = Field(default="", max_length=120)
+
+
+class AnalystThreadSummary(BaseModel):
+    id: int
+    title: str
+    updated_at: str | None
+
+
+class AnalystThreadsOut(BaseModel):
+    threads: list[AnalystThreadSummary]
+
+
+class AnalystStoredMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    # Claude API content: a string or a list of content blocks.
+    content: str | list[dict]
+
+
+class AnalystThreadContent(BaseModel):
+    id: int
+    title: str
+    messages: list[AnalystStoredMessage]
+
+
+class AnalystAppendIn(BaseModel):
+    messages: list[AnalystStoredMessage] = Field(min_length=1, max_length=40)
+
+
+class AnalystDisplayMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    text: str
+
+
+class AnalystThreadView(BaseModel):
+    id: int
+    title: str
+    messages: list[AnalystDisplayMessage]
+
+
+class AnalystReviewIn(BaseModel):
+    text: str = Field(min_length=1, max_length=20000)
+
+
+class AnalystReviewOut(BaseModel):
+    match_id: str
+    text: str
+    created_at: str | None

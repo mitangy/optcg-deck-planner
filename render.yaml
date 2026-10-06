@@ -44,6 +44,13 @@ services:
       # Public URL of optcg-analyst, for personal connector links made in duel-web Settings.
       - key: ANALYST_PUBLIC_URL
         sync: false
+      # Comma-separated emails that get the in-app Log Pose panel (empty: nobody), and its spend caps in USD.
+      - key: ANALYST_CHAT_EMAILS
+        sync: false
+      - key: ANALYST_CHAT_DAILY_USD
+        value: "3"
+      - key: ANALYST_CHAT_MONTHLY_USD
+        value: "50"
       - key: DATABASE_URL
         sync: false
       - key: SESSION_SECRET
@@ -130,6 +137,7 @@ services:
     name: optcg-analyst
     runtime: node
     # Free instances sleep when idle; the first tool call after a nap waits for a cold start.
+    # The in-app chat panel feels much better on starter (no cold start); switch when it launches.
     plan: free
     autoDeploy: true
     healthCheckPath: /health
@@ -154,3 +162,6 @@ services:
         generateValue: true
       - key: PLANNER_API_URL
         value: https://optcg-deck-planner.app/api
+      # Claude API key for the in-app chat panel and post-game reviews; without it /chat answers 503.
+      - key: ANTHROPIC_API_KEY
+        sync: false
