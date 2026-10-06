@@ -166,5 +166,5 @@ app.post("/chat", sse("chat", chatBody, runChat));
 app.post("/review-match", sse("review", reviewBody, runReview));
 
 app.listen(port, () => {
-  console.log(JSON.stringify({ event: "listening", port, cards: catalog.cards.size, keyed: Boolean(connectorKey) }));
+  console.log(JSON.stringify({ event: "listening", port, cards: catalog.cards.size, keyed: Boolean(connectorKey), chat: Boolean(chatDeps) }));
 });
