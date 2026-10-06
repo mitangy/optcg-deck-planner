@@ -102,6 +102,7 @@ import { sortHandIndices } from "./handSort";
 import { moveToSlot, reconcileHandOrder } from "./handOrder";
 import { useHandReorder } from "./useHandReorder";
 import { useHandShuffle } from "./useHandShuffle";
+import { useHandLift } from "./useHandLift";
 import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { sideSkins } from "./seatSkins";
@@ -372,6 +373,9 @@ export function DuelBoard({
     [captureHandShuffle],
   );
   const handReorder = useHandReorder(onHandReorder);
+  /** Hand card (instance id) being dragged: it lifts out of the hand and follows the pointer. */
+  const [liftedHandId, setLiftedHandId] = useState<string | null>(null);
+  useHandLift(liftedHandId);
   function toggleHandSort() {
     captureHandShuffle("sort");
     setHandSorted((v) => !v);
@@ -1111,8 +1115,9 @@ export function DuelBoard({
     return ends ? { defenderId: ends.targetId, attackerId: ends.attackerId } : null;
   })();
 
-  const ghostPayload: GhostPayload | null = reorderInHand
-    ? // Over the hand, the card stays in the hand and a marker shows where it lands.
+  const ghostPayload: GhostPayload | null =
+    reorderInHand || liftedHandId != null
+    ? // A hand card is carried by its own lifted copy (useHandLift).
       null
     : dragPayload?.type === "give_don"
       ? { type: "give_don", count: dragPayload.donIds.length }
@@ -1282,21 +1287,24 @@ export function DuelBoard({
           dragEnabled={boardDrag || reorderable}
           dragPayload={payload}
           onDragStart={() => {
+            setLiftedHandId(c.id);
             if (reorderable) handReorder.begin(c.id);
             if (boardDrag) setDragPayload(payload);
           }}
           onDragEnd={(x, y) => {
+            setLiftedHandId(null);
             // Dropped back on the hand: a new spot in the hand, never a play.
             if (reorderable && handReorder.end(x, y)) setDragPayload(null);
             else if (boardDrag) commitDrop(payload, x, y);
           }}
           onDragCancel={() => {
+            setLiftedHandId(null);
             handReorder.cancel();
             setDragPayload(null);
           }}
           ownerSeat={boardSeat}
           viewingSeat={viewingSeat}
-          classNameExtra={[unaffordable ? "hand-unaffordable" : "", marker?.id === c.id ? marker.cls : ""].filter(Boolean).join(" ") || undefined}
+          classNameExtra={[unaffordable ? "hand-unaffordable" : "", marker?.id === c.id ? marker.cls : "", liftedHandId === c.id ? "card-lifted" : ""].filter(Boolean).join(" ") || undefined}
           style={pose(pos, order.length)}
         />
       );

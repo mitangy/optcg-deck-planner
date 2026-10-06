@@ -961,6 +961,11 @@ module.exports = {
     { id: "spotlight-fade-travels", file: `${src}/board/cardSpotlight.ts`, from: "      travel: false,", to: "      travel: true,", kills: ["Animations Off shows no spotlight; reduced motion fades without travel (#339)"] },
     { id: "spotlight-fast-ignored", file: `${src}/board/cardSpotlight.ts`, from: "  const s = plan.scale;", to: "  const s = 1;", kills: ["Fast halves the timings and a waiting batch halves the hold (#339)"] },
     { id: "spotlight-no-catch-up", file: `${src}/board/cardSpotlight.ts`, from: "const catchUp = waiting > 0 ? 0.5 : 1;", to: "const catchUp = 1;", kills: ["Fast halves the timings and a waiting batch halves the hold (#339)"] },
+    // dragged hand card lifts out of the hand (#364)
+    { id: "hand-lift-never-shrinks", file: `${src}/board/handLift.ts`, from: "  if (overHand || cardWidth <= 0) return LIFT_SCALE;", to: "  return LIFT_SCALE;", kills: ["holds a lifted card a little bigger over the hand and shrinks it to carry size away from it (#364)"] },
+    { id: "hand-lift-carry-grows-small", file: `${src}/board/handLift.ts`, from: "  return Math.min(LIFT_SCALE, CARRY_WIDTH_PX / cardWidth);", to: "  return CARRY_WIDTH_PX / cardWidth;", kills: ["never grows a small card past its picked-up size when it leaves the hand (#364)"] },
+    { id: "hand-lift-tilt-uncapped", file: `${src}/board/handLift.ts`, from: "  return Math.max(-MAX_TILT_DEG, Math.min(MAX_TILT_DEG, deg));", to: "  return deg;", kills: ["leans the card the way it moves, upright when still, and caps the lean (#364)"] },
+    { id: "hand-lift-tilt-backwards", file: `${src}/board/handLift.ts`, from: "  const deg = vx * TILT_PER_SPEED;", to: "  const deg = -vx * TILT_PER_SPEED;", kills: ["leans the card the way it moves, upright when still, and caps the lean (#364)"] },
     // DON!! total includes attached DON!! (#345)
     { id: "don-total-ignores-attached", file: `${src}/board/donTotals.ts`, from: "  return costAreaCount + attachedDonTotal(side);", to: "  return costAreaCount;", kills: ["counts DON!! attached to the Leader and Characters in the DON!! total (#345)"] },
     { id: "don-attached-skips-characters", file: `${src}/board/donTotals.ts`, from: "  for (const c of side.characters) total += c.attachedDonCount ?? 0;\n", to: "", kills: ["counts DON!! attached to the Leader and Characters in the DON!! total (#345)"] },
