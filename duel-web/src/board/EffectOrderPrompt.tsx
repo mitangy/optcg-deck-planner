@@ -88,7 +88,7 @@ export function EffectOrderPrompt({ choice, onSend, onHide }: Props) {
         </ol>
       </div>
       <div className="ability-prompt-actions">
-        <button type="button" className="btn btn-primary" onClick={confirm}>
+        <button type="button" className="btn btn-primary" data-confirm-key aria-keyshortcuts="Y Space" onClick={confirm}>
           Confirm order
         </button>
       </div>

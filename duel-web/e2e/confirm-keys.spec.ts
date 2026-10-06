@@ -77,3 +77,42 @@ test("N answers No on the Yes/No shown on a hand card (#324)", async ({ page }) 
     .poll(async () => (await sent(page)).filter((i) => (i as { type: string }).type === "resolve_pending_choice"))
     .toEqual([{ type: "resolve_pending_choice", accept: false }]);
 });
+
+async function openPrompt(page: Page, prompt: string) {
+  await page.goto(`/demo?prompt=${prompt}`);
+  await expect(page.locator("button[data-confirm-key]").first()).toBeVisible();
+}
+
+test("Space presses Confirm on a card search (#337)", async ({ page }) => {
+  await openPrompt(page, "look");
+  await page.keyboard.press("Space");
+  await expect
+    .poll(() => sent(page))
+    .toEqual([{ type: "resolve_pending_choice", accept: true, selectedOptionIds: [], orderedOptionIds: ["o0", "o1", "o2", "o3", "o4"] }]);
+});
+
+test("Y presses Confirm order on a deck order prompt (#337)", async ({ page }) => {
+  await openPrompt(page, "order");
+  await page.keyboard.press("y");
+  await expect
+    .poll(() => sent(page))
+    .toEqual([{ type: "resolve_pending_choice", accept: true, orderedOptionIds: ["o0", "o1"], topOptionIds: ["o0", "o1"] }]);
+});
+
+test("Y presses the effect order prompt's Resolve button (#337)", async ({ page }) => {
+  await openPrompt(page, "effects");
+  await page.keyboard.press("y");
+  await expect.poll(() => sent(page)).toEqual([{ type: "order_pending_effects", orderedIds: ["e0", "e1", "e2"] }]);
+});
+
+test("Space presses Choose none on a choose-target prompt (#337)", async ({ page }) => {
+  await openPrompt(page, "select");
+  await page.keyboard.press("Space");
+  await expect.poll(() => sent(page)).toEqual([{ type: "resolve_pending_choice", accept: true, selectedOptionIds: [] }]);
+});
+
+test("Y presses None on a pick-from-hand prompt (#337)", async ({ page }) => {
+  await openPrompt(page, "hand");
+  await page.keyboard.press("y");
+  await expect.poll(() => sent(page)).toEqual([{ type: "resolve_pending_choice", accept: true, selectedOptionIds: [] }]);
+});

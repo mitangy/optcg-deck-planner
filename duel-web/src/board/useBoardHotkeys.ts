@@ -220,3 +220,53 @@ export function useConfirmKeys(enabled: boolean, optional: boolean, answer: (acc
     };
   }, [enabled]);
 }
+
+/** The Confirm / Done button of an open pick prompt (search, targets, order). */
+const CONFIRM_BUTTON = "button[data-confirm-key]";
+
+function shownConfirmButton(): HTMLButtonElement | null {
+  return (
+    [...document.querySelectorAll<HTMLButtonElement>(CONFIRM_BUTTON)].find(
+      (b) => b.getClientRects().length > 0 && !b.closest("[hidden]"),
+    ) ?? null
+  );
+}
+
+/**
+ * Y or Space presses the Confirm button of an open pick prompt, like Yes on a
+ * Yes/No prompt (useConfirmKeys). A disabled Confirm still takes the key, so it
+ * never falls through to End turn. Capture phase, ahead of the board's Space.
+ */
+export function useConfirmButtonKey() {
+  useEffect(() => {
+    let swallowKeyup = false;
+    function onKeyDown(e: KeyboardEvent) {
+      const button = shownConfirmButton();
+      if (!button) return;
+      const active = document.activeElement;
+      const press = confirmKeyAnswer(e, {
+        typing: isTyping(active),
+        focus: focusKind(active),
+        modalOpen: document.querySelector(MODAL_SELECTOR) != null,
+        optional: false,
+      });
+      if (press !== true) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === " " || e.code === "Space") swallowKeyup = true;
+      if (!button.disabled) button.click();
+    }
+    function onKeyUp(e: KeyboardEvent) {
+      if (!swallowKeyup || (e.key !== " " && e.code !== "Space")) return;
+      swallowKeyup = false;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("keyup", onKeyUp, true);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("keyup", onKeyUp, true);
+    };
+  }, []);
+}

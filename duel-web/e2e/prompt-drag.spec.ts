@@ -63,3 +63,30 @@ test("double-clicking a moved prompt's header puts it back (#324)", async ({ pag
   const after = (await page.locator(PROMPT).boundingBox())!;
   expect(after.y).toBeCloseTo(before.y, 0);
 });
+
+/** The prompt's box lies fully inside the viewport. */
+async function onScreen(page: Page) {
+  const box = (await page.locator(PROMPT).boundingBox())!;
+  const vp = page.viewportSize()!;
+  return box.x >= -1 && box.y >= -1 && box.x + box.width <= vp.width + 1 && box.y + box.height <= vp.height + 1;
+}
+
+test("a prompt dragged during a battle stays on screen where it was dropped (#335)", async ({ page }) => {
+  test.skip(touch(), "the prompt only dodges the attacked card on the wide desktop board");
+  // Your Leader is under attack, so the prompt opens at the top of the board.
+  await page.goto("/demo?prompt=confirm&attacked");
+  await expect(page.locator(".choice-confirm")).toBeVisible();
+  // Down and to the right, clear of your Leader: the dodge used to flip it to
+  // the bottom spot with the drag still applied, off the bottom of the screen.
+  await dragHeader(page, 300, 380);
+  await page.waitForTimeout(200);
+  const dropped = (await page.locator(PROMPT).boundingBox())!;
+  expect(await onScreen(page)).toBe(true);
+  // A second drag still finds the header where it was left.
+  await dragHeader(page, -60, -40);
+  await page.waitForTimeout(200);
+  const after = (await page.locator(PROMPT).boundingBox())!;
+  expect(after.x).toBeCloseTo(dropped.x - 60, 0);
+  expect(after.y).toBeCloseTo(dropped.y - 40, 0);
+  expect(await onScreen(page)).toBe(true);
+});

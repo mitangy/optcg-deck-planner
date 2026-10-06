@@ -38,7 +38,11 @@ export function usePromptDodge(
       const el = wrap.querySelector<HTMLElement>(".ability-prompt");
       const mat = document.querySelector<HTMLElement>(".arena .playmat");
       const defender = findInstanceBox(defenderId);
-      if (el && mat && defender && el.offsetHeight > 0) {
+      // A prompt the player dragged stays where they put it (usePromptDrag):
+      // flipping it to the other end with the drag offset applied could throw
+      // it off screen (#335).
+      const placedByPlayer = wrap.dataset.dragged != null;
+      if (el && mat && defender && el.offsetHeight > 0 && !placedByPlayer) {
         const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
         const rect = el.getBoundingClientRect();
         const height = el.offsetHeight;

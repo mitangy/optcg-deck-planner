@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 
 const KEYS: { keys: string; text: string }[] = [
   { keys: "Space", text: "Main action (End turn, Pass, Keep hand). Press twice when End turn asks to confirm." },
-  { keys: "Y / N", text: "Answer Yes or No on a Yes/No prompt (Y = Activate Trigger, N = Add to hand). Space also answers Yes." },
+  { keys: "Y / N", text: "Answer Yes or No on a Yes/No prompt (Y = Activate Trigger, N = Add to hand). Space also answers Yes, and Y or Space presses Confirm when picking cards." },
   { keys: "H", text: "Show or tuck the hand drawer (when the hand is not in the side rail). With Keep hand open on, hide the hand completely or bring it back." },
   { keys: "S", text: "Sort the hand by cost." },
   { keys: "1–9", text: "Press the Nth action button shown for the selected card." },
