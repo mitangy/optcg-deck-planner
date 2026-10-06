@@ -963,5 +963,11 @@ module.exports = {
     { id: "spotlight-fade-travels", file: `${src}/board/cardSpotlight.ts`, from: "      travel: false,", to: "      travel: true,", kills: ["Animations Off shows no spotlight; reduced motion fades without travel (#339)"] },
     { id: "spotlight-fast-ignored", file: `${src}/board/cardSpotlight.ts`, from: "  const s = plan.scale;", to: "  const s = 1;", kills: ["Fast halves the timings and a waiting batch halves the hold (#339)"] },
     { id: "spotlight-no-catch-up", file: `${src}/board/cardSpotlight.ts`, from: "const catchUp = waiting > 0 ? 0.5 : 1;", to: "const catchUp = 1;", kills: ["Fast halves the timings and a waiting batch halves the hold (#339)"] },
+    // spectator hand fans (#346)
+    { id: "spectator-fans-hidden-hands-fan", file: `${src}/board/handLayout.ts`, from: "  if (!revealed) return null;\n", to: "", kills: ["revealed hands fan on every layout, hidden hands never do (#346)"] },
+    { id: "spectator-fans-wide-as-portrait", file: `${src}/board/handLayout.ts`, from: "  if (!wide) return \"portrait\";\n", to: "  if (!wide) return \"desktop\";\n", kills: ["revealed hands fan on every layout, hidden hands never do (#346)"] },
+    { id: "spectator-fans-lp-as-desktop", file: `${src}/board/handLayout.ts`, from: "  return landscapePhone ? \"landscape\" : \"desktop\";", to: "  return \"desktop\";", kills: ["revealed hands fan on every layout, hidden hands never do (#346)"] },
+    { id: "spectator-far-strip-off-by-one", file: `${src}/board/handLayout.ts`, from: "count <= PHONE_FAN_MAX ? \"fan\"", to: "count < PHONE_FAN_MAX ? \"fan\"", kills: ["the far strip on a portrait phone fans up to 8 cards and scrolls a bigger hand (#346)"] },
+    { id: "spectator-far-strip-always-fans", file: `${src}/board/handLayout.ts`, from: "count <= PHONE_FAN_MAX ? \"fan\"", to: "true ? \"fan\"", kills: ["the far strip on a portrait phone fans up to 8 cards and scrolls a bigger hand (#346)"] },
   ],
 };

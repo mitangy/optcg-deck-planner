@@ -3595,6 +3595,8 @@ body.is-panel-drag * {
     font-size: 0.8rem;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
+    /* A narrower mat (a spectator's far strip takes height) must not wrap "0 / 5". */
+    white-space: nowrap;
   }
 
   .arena .side-counts .count-chip.openable {
@@ -4829,4 +4831,218 @@ body.is-panel-drag * {
     white-space: normal;
     overflow-wrap: anywhere;
   }
+}
+
+/* —— Spectators of unranked rooms: both hands fanned (#346) ——
+
+   The near hand is the usual fan (centre spot, raised, no handle controls) or,
+   on portrait phones, the usual overlapped strip. The far hand is its mirror
+   (.spec-far): hanging from the top of the board on desktop, in the row above
+   the top mat on portrait phones, and the top of the right column on landscape
+   phones. Both strips are reserved space, so no fan covers a mat. Cards stay
+   upright; the arc and tilt are mirrored (middle card lowest, outer cards lean
+   out and sit higher). */
+
+/* Desktop: two fans must leave the mats room, so they run a little smaller. */
+.arena.arena-spec-top.arena-wide {
+  --fan-cw: clamp(54px, min(4.7vw, 8.8vh), 112px);
+  --fan-ch: calc(var(--fan-cw) * 1.4);
+  --spec-reserve: calc(var(--fan-ch) * 1.06 + 0.5rem);
+}
+
+.arena.arena-spec-top.arena-wide .playmat {
+  /* The far fan's row, where the opponent-hand hint row used to be. */
+  --hint-h: var(--spec-reserve);
+}
+
+.arena.arena-spec-top.arena-wide.arena-fan-center .playmat {
+  padding-bottom: calc(var(--spec-reserve) + var(--safe-b) + 4px);
+}
+
+/* Smaller mats: "DON!! DECK 10" is wider than its column, so it ran off the
+   mat's edge (and was clipped). Tighter type keeps it inside. */
+.arena.arena-spec-top.arena-wide .side-field .zone-don-deck .zone-pile-meta {
+  gap: 0.2em;
+}
+
+.arena.arena-spec-top.arena-wide .side-field .zone-don-deck .zone-pile-label {
+  font-size: 0.5rem;
+  letter-spacing: 0;
+}
+
+.arena.arena-spec-top.arena-wide .side-field .zone-don-deck .zone-pile-count {
+  font-size: 0.75rem;
+}
+
+/* The near fan is a label, not a control: no hover or focus ring. */
+.hand-fan .hand-fan-label {
+  cursor: default;
+}
+
+/* Portrait phones: a strip above the top mat, smaller than the near one. */
+@media (max-width: 899px) and (orientation: portrait) {
+  .arena.arena-spec-top:not(.arena-wide) {
+    --fan-cw: clamp(48px, 14vw, 72px);
+    --fan-ch: calc(var(--fan-cw) * 1.4);
+  }
+
+  .arena.arena-spec-top:not(.arena-wide) .playmat {
+    /* Under the Chat button and Battle log pill, which float over the top of the board. */
+    --spec-pills: 2.4rem;
+    --hint-h: calc(var(--fan-ch) * 1.1 + 4px + var(--spec-pills));
+  }
+}
+
+.arena .spec-far {
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  height: var(--hint-h);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.arena .spec-far-cards {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  box-sizing: border-box;
+  height: var(--fan-ch);
+  /* Room for the leaning outer cards, and for the label beside the cards. */
+  width: min(calc(100% - 2 * 8.6rem), calc(var(--fan-cw) * (var(--spec-spread) * (var(--n) - 1) + 1)));
+  margin-top: calc(var(--hint-h) - var(--fan-ch));
+  --fan-gap: 0.5rem;
+}
+
+.arena .spec-far-cards > * {
+  flex: 0 0 auto;
+  width: var(--fan-cw);
+  height: var(--fan-ch);
+  margin-block: 0;
+  transform-origin: 50% 0;
+  transform: translateY(calc(var(--drop, 0) * var(--fan-ch) * -1)) rotate(calc(var(--rot, 0deg) * -1));
+  transition: transform 140ms ease;
+  box-shadow: 4px 0 10px rgba(0, 0, 0, 0.35);
+}
+
+.arena .spec-far-cards > * + * {
+  margin-left: min(var(--fan-gap), calc((100% - var(--n) * var(--fan-cw)) / (var(--n) - 1)));
+}
+
+/* Lift toward the board without straightening, so the card keeps the pointer. */
+.arena .spec-far-cards > .card-tile:hover,
+.arena .spec-far-cards > .card-tile:focus-visible {
+  z-index: 2;
+  transform: translateY(calc(var(--drop, 0) * var(--fan-ch) * -1 + 12px)) rotate(calc(var(--rot, 0deg) * -1));
+}
+
+.arena .spec-far-label {
+  position: absolute;
+  left: 0.5rem;
+  top: calc(var(--hint-h) - var(--fan-ch));
+  max-width: 8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.75rem;
+  padding: 0 0.6rem;
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgb(var(--deep-rgb) / 0.92);
+  color: var(--chrome-bright);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arena .spec-far-label b {
+  font-weight: 800;
+}
+
+/* Portrait phones: full-width overlapped strip, like the near one. */
+.arena .spec-far-portrait .spec-far-cards {
+  width: 100%;
+  padding-inline: calc(var(--fan-cw) * 0.3);
+  --fan-gap: 0.4rem;
+}
+
+/* The label sits between the Chat button and the Battle log pill. */
+.arena .spec-far-portrait .spec-far-label {
+  left: 50%;
+  top: 0.35rem;
+  transform: translateX(-50%);
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.62rem;
+  max-width: 40%;
+}
+
+.arena .spec-far-portrait .spec-far-cards.spec-far-scroll {
+  justify-content: flex-start;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  gap: 0.3rem;
+}
+
+.arena .spec-far-portrait .spec-far-cards.spec-far-scroll > * {
+  transform: none;
+  margin-left: 0;
+}
+
+/* Landscape phones: two small fans in the right column, the far one on top.
+   The mats are height-bound there and leave side margins, so the column
+   widens to give the overlapped cards room to show their cost and power. */
+.arena.arena-lp.arena-spec-lp {
+  --rail-w: clamp(200px, 30vw, 260px);
+}
+
+.arena .spec-far-landscape {
+  --fan-cw: clamp(40px, 13vh, 52px);
+  --fan-ch: calc(var(--fan-cw) * 1.4);
+  --hint-h: auto;
+  height: auto;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0.2rem 0 calc(var(--fan-ch) * 0.1);
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent);
+}
+
+.arena .spec-far-landscape .spec-far-label {
+  position: static;
+  max-width: none;
+  min-height: 0;
+  padding: 0 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.arena .spec-far-landscape .spec-far-cards {
+  width: 100%;
+  margin-top: calc(var(--fan-ch) * 0.1);
+  padding-inline: calc(var(--fan-cw) * 0.3);
+  --fan-gap: 0.25rem;
+}
+
+.arena.arena-spec-lp .rail-hand-fan .hand-row-inner.hand-fan-cards {
+  --fan-cw: clamp(40px, 13vh, 52px);
+  --fan-ch: calc(var(--fan-cw) * 1.4);
+  --fan-gap: 0.25rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding-inline: calc(var(--fan-cw) * 0.3);
 }

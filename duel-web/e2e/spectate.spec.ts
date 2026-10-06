@@ -5,8 +5,8 @@
 import { test, expect, mintGameToken, FAKE_API } from "./fixtures";
 
 const NEAR_HAND = ":is(.rail-hand-cards, .hand-row-inner, .hand-fan-cards, .hand-dock-cards) .card-tile";
-// Narrow layouts show the strip above the mat, wide ones the rail fan; only one is visible.
-const FAR_HAND = ":is(.opp-fan-face, .opp-hand-face) >> visible=true";
+// A spectator's far hand is a fan along the top of the board (#346); only the old strip / rail fan remain for hidden hands.
+const FAR_HAND = ":is(.spec-far-cards .card-tile, .opp-fan-face, .opp-hand-face) >> visible=true";
 
 test("a spectator of an unranked room sees both hands face up (#250)", async ({ page, duel, browser }, info) => {
   const created = page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { usesPhoneFan, usesRailHand } from "./handLayout";
+import { spectatorFans, spectatorFarStrip, usesPhoneFan, usesRailHand } from "./handLayout";
 
 describe("hand layout (#271)", () => {
   it("portrait phones fan up to 8 cards and scroll a bigger hand (#271)", () => {
@@ -21,5 +21,20 @@ describe("hand layout (#271)", () => {
     expect(usesRailHand(true, false, true, true)).toBe(false);
     expect(usesRailHand(true, false, false, false)).toBe(false);
     expect(usesRailHand(false, false, true, false)).toBe(false);
+  });
+});
+
+describe("spectator hand fans (#346)", () => {
+  it("revealed hands fan on every layout, hidden hands never do (#346)", () => {
+    expect(spectatorFans(true, true, false)).toBe("desktop");
+    expect(spectatorFans(true, false, false)).toBe("portrait");
+    expect(spectatorFans(true, true, true)).toBe("landscape");
+    expect(spectatorFans(false, true, false)).toBeNull();
+    expect(spectatorFans(false, false, false)).toBeNull();
+  });
+
+  it("the far strip on a portrait phone fans up to 8 cards and scrolls a bigger hand (#346)", () => {
+    expect(spectatorFarStrip(8)).toBe("fan");
+    expect(spectatorFarStrip(9)).toBe("scroll");
   });
 });
