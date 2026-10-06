@@ -1665,7 +1665,7 @@ export function DuelBoard({
         dragPayload ? " is-dnd" : ""
       }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : ""}${
         tilted ? " arena-tilt" : ""
-      }`}
+      }${prefs.donUpright ? " don-upright" : ""}`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
       data-phase={view.phase}
       data-turn={view.turnNumber}

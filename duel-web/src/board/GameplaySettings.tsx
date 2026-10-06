@@ -76,6 +76,11 @@ const TOGGLES: Toggle[] = [
     hint: "Draws the cannon-shot arc from the attacking card to its target during a battle.",
   },
   {
+    key: "donUpright",
+    label: "Upright DON!! on rested cards",
+    hint: "DON!! given to a Leader or Character stays upright under it when the card rests, instead of turning sideways with it.",
+  },
+  {
     key: "shortcutTags",
     label: "Shortcut key tags",
     hint: "Shows the key for each action (Space, A, E, P, D, 1 to 9) on its button. The keys still work with the tags off.",
