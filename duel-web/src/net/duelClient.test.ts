@@ -3,8 +3,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const sdkReconnect = vi.fn((_token: string) => new Promise<never>(() => {}));
 const sdkJoinOrCreate = vi.fn((_name: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
 const sdkCreate = vi.fn((_name: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
+/** URL each SDK Client was built with (which game server it dials). */
+const sdkClientUrls: string[] = [];
 vi.mock("@colyseus/sdk", () => ({
   Client: class {
+    constructor(url: string) {
+      sdkClientUrls.push(url);
+    }
     reconnect(token: string) {
       return sdkReconnect(token);
     }
@@ -18,6 +23,7 @@ vi.mock("@colyseus/sdk", () => ({
 }));
 
 import { DuelClient } from "./duelClient";
+import { rememberAssignedGameServer } from "./gameServer";
 import { PROTOCOL_VERSION } from "./protocol";
 
 type Listener = (...args: unknown[]) => void;
@@ -162,6 +168,29 @@ describe("a connect superseded by a newer one (#313)", () => {
     expect(older.leave).toHaveBeenCalled();
     expect(newer.leave).not.toHaveBeenCalled();
     expect(client.roomId).toBe("newer");
+  });
+});
+
+describe("game server pools", () => {
+  it("reconnects to the game server the match was created on, not a newer token's pool (#389)", async () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+    sdkCreate.mockImplementationOnce(async () => fakeRoom({ answersPing: true }));
+    const client = new DuelClient();
+    await client.connect({ serverUrl: "https://pool-a.example", preferredSeat: 0 });
+    expect(client.serverUrl).toBe("https://pool-a.example");
+
+    // A token minted later (another tab, a rematch lobby) is assigned pool B.
+    rememberAssignedGameServer({ game_server_url: "https://pool-b.example" });
+    sdkClientUrls.length = 0;
+    void client.reconnect();
+    await vi.waitFor(() => expect(sdkReconnect).toHaveBeenCalled());
+    expect(sdkClientUrls).toEqual(["https://pool-a.example"]);
+    vi.unstubAllGlobals();
   });
 });
 

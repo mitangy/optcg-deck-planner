@@ -18,6 +18,7 @@ import {
 } from "../decks/seatArtPrefs";
 import { awaitDuelServicesReady, hotseatGuestId, mintGuestGameToken } from "../net/api";
 import { DuelClient } from "../net/duelClient";
+import { gameServerUrlFor, rememberedGameServerUrl } from "../net/gameServer";
 import {
   clearMatchResume,
   isResumeWithinGrace,
@@ -181,7 +182,8 @@ export function HotseatPage() {
     if (!t0 || !t1 || !room) return;
     saveMatchResume({
       mode: "hotseat",
-      serverUrl: rewriteLoopbackToPageHost(nav.serverUrl),
+      // The server seat 0 created / rejoined the match on, so a reload goes back to that pool.
+      serverUrl: rewriteLoopbackToPageHost(b0?.client.serverUrl ?? nav.serverUrl),
       roomId: room,
       secret: nav.secret,
       userKey: nav.userKey,
@@ -500,7 +502,7 @@ export function HotseatPage() {
         // Wake API + game-server here (visible Starting UI) instead of blocking
         // the lobby with grayed buttons for up to 20s.
         setBootPhase("Waking API & game server…");
-        await awaitDuelServicesReady(getApiBaseUrl(), gsUrl, 25000);
+        await awaitDuelServicesReady(getApiBaseUrl(), rememberedGameServerUrl() ?? gsUrl, 25000);
         if (!alive()) return;
 
         async function auth(suffix: "a" | "b", seatIndex: 0 | 1) {
@@ -524,7 +526,7 @@ export function HotseatPage() {
           // Retries + 20s/attempt absorb free-tier API cold starts.
           const minted = await mintGuestGameToken(hotseatGuestId(nav!.userKey, suffix));
           return {
-            serverUrl: gsUrl,
+            serverUrl: gameServerUrlFor(minted, gsUrl),
             gameToken: minted.token,
             secret: nav!.secret,
           };
@@ -593,6 +595,8 @@ export function HotseatPage() {
         await withTimeout(
           c1.connect({
             ...auth1,
+            // The room lives where seat 0 created it, whatever pool seat 1's token names.
+            serverUrl: c0.serverUrl ?? auth1.serverUrl,
             roomId: info.matchId,
             preferredSeat: 1,
             deck: enemyWire,

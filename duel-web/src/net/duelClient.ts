@@ -96,6 +96,8 @@ export class DuelClient {
   private queueAbort: ((err: Error) => void) | null = null;
   private handlers: DuelClientHandlers = {};
   private reconnectionToken: string | null = null;
+  /** Game server the current match was created / joined on; reconnects go back there. */
+  private matchServerUrl: string | null = null;
   /** Bumped by each connect: an older one that finishes later must not take the client. */
   private connectSeq = 0;
   private pendingReconnect: Promise<{ matchId: string; seat: Seat }> | null = null;
@@ -118,6 +120,11 @@ export class DuelClient {
     return this.reconnectionToken;
   }
 
+  /** Game server of the current match (null before the first connect). */
+  get serverUrl(): string | null {
+    return this.matchServerUrl;
+  }
+
   async connect(params: ConnectParams): Promise<{ matchId: string; seat: Seat }> {
     const seq = ++this.connectSeq;
     const url = params.serverUrl ?? getGameServerUrl();
@@ -131,6 +138,7 @@ export class DuelClient {
       try {
         await this.disconnect();
         this.client = new Client(url);
+        this.matchServerUrl = url;
 
         const join = this.buildJoin(params);
         const create: DuelCreateOptions = {
@@ -182,6 +190,7 @@ export class DuelClient {
     await this.disconnect();
     const url = params.serverUrl ?? getGameServerUrl();
     this.client = new Client(url);
+    this.matchServerUrl = url;
     const join = this.buildJoin(params);
 
     const queueRoom = await this.client.joinOrCreate("ranked_queue", join);
@@ -289,7 +298,8 @@ export class DuelClient {
   }): Promise<{ matchId: string; seat: Seat }> {
     const token = opts?.reconnectionToken ?? this.reconnectionToken;
     if (!token) throw new Error("No reconnection token");
-    const url = opts?.serverUrl ?? getGameServerUrl();
+    // Back to the server the match lives on, never whichever pool a newer token names.
+    const url = opts?.serverUrl ?? this.matchServerUrl ?? getGameServerUrl();
     const attempts = opts?.attempts ?? 5;
     let lastErr: unknown;
     for (let i = 0; i < attempts; i++) {
@@ -299,6 +309,7 @@ export class DuelClient {
       try {
         this.abandonRoom();
         this.client = new Client(url);
+        this.matchServerUrl = url;
         this.reconnectionToken = token;
         const room = await this.client.reconnect(token);
         this.room = room;

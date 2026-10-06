@@ -446,7 +446,7 @@ module.exports = {
     { id: "crop-pan-unclamped", file: `${src}/cosmetics/cropTransform.ts`, from: "panX: Math.min(maxX, Math.max(-maxX, panX)),", to: "panX,", kills: ["clamps panning so no empty frame edge shows"] },
     { id: "crop-pan-no-slack-at-cover", file: `${src}/cosmetics/cropTransform.ts`, from: "const maxY = Math.max(0, (r.h * s - frameH) / 2);", to: "const maxY = Math.abs((r.h * s - frameH) / 2) + 1;", kills: ["allows no pan on an axis the image only just covers"] },
     { id: "skin-accepts-any-mime", file: `${src}/net/protocol.ts`, from: "^data:image\\/(?:jpeg|webp|png);base64,", to: "^data:[a-z]+\\/[a-z]+;base64,", kills: ["drops anything that is not a small image data URL"] },
-    { id: "skin-no-size-cap", file: `${src}/net/protocol.ts`, from: "raw.length <= maxChars && ", to: "", kills: ["drops anything that is not a small image data URL"] },
+    { id: "skin-no-size-cap", file: `${src}/net/protocol.ts`, from: " || raw.length > maxChars) return null;", to: ") return null;", kills: ["drops anything that is not a small image data URL"] },
     { id: "skin-wrong-seat", file: `${src}/net/protocol.ts`, from: "    seat: o.seat,\n    skin: {", to: "    seat: 0,\n    skin: {", kills: ["keeps image data URLs and the seat"] },
     // card motion cues (BoardMotion)
     { id: "motion-life-cards-read-as-draws", file: `${src}/board/motionCues.ts`, from: "  const fromLife = Math.min(arrivals, lifeDrop);", to: "  const fromLife = 0;", kills: ["sends a new hand card from life"] },
@@ -1091,5 +1091,23 @@ module.exports = {
     { id: "don-piles-strip-no-gaps", file: "duel-web/src/board/DonStrip.tsx", from: "    \"--don-gaps\": Math.max(groups.length - 1, 0),\n", to: "    \"--don-gaps\": 0,\n", kills: ["renders one .don-pile group per pile on your side with the gaps in the rail style (#381)"] },
     { id: "don-piles-strip-always-wraps", file: "duel-web/src/board/DonStrip.tsx", from: "if (groups.length <= 1) return items.map(renderChip);", to: "if (groups.length < 1) return items.map(renderChip);", kills: ["lays out a single pile as a plain rail with no wrapper (#381)"] },
     { id: "don-piles-opp-gets-piles", file: "duel-web/src/board/DonStrip.tsx", from: "const piled = Boolean(tokens && onDonPileMove);", to: "const piled = Boolean(onDonPileMove);", kills: ["opponent DON!! never form piles (#381)"] },
+    // Game server pools and account-upload skins (#389)
+    { id: "gs-token-url-ignored", file: `${src}/net/gameServer.ts`, from: "  return assignedUrl(token) ?? fallback;", to: "  return fallback;", kills: ["connects to the token's game_server_url instead of the build-time server, and falls back without one (#389)"] },
+    { id: "gs-reconnect-forgets-match-server", file: `${src}/net/duelClient.ts`, from: "const url = opts?.serverUrl ?? this.matchServerUrl ?? getGameServerUrl();", to: "const url = opts?.serverUrl ?? getGameServerUrl();", kills: ["reconnects to the game server the match was created on, not a newer token's pool (#389)"] },
+    { id: "gs-reconnect-prefers-newest-pool", edits: [
+      { file: `${src}/net/duelClient.ts`, from: "const url = opts?.serverUrl ?? this.matchServerUrl ?? getGameServerUrl();", to: "const url = rememberedGameServerUrl() ?? opts?.serverUrl ?? this.matchServerUrl ?? getGameServerUrl();" },
+      { file: `${src}/net/duelClient.ts`, from: "import { isSeatReservationExpiredError } from \"./matchResume\";", to: "import { isSeatReservationExpiredError } from \"./matchResume\";\nimport { rememberedGameServerUrl } from \"./gameServer\";" },
+    ], kills: ["reconnects to the game server the match was created on, not a newer token's pool (#389)", "a resumed match reconnects to the server it was created on, even when a newer token names another pool (#389)"] },
+    { id: "gs-resume-saves-newest-pool", edits: [
+      { file: `${src}/state/DuelSession.tsx`, from: "      const url = serverUrlRef.current ?? client.serverUrl;", to: "      const url = rememberedGameServerUrl() ?? serverUrlRef.current ?? client.serverUrl;" },
+      { file: `${src}/state/DuelSession.tsx`, from: "import { buildSharedSkin, isSkinPathRejected } from \"../skinShare\";", to: "import { buildSharedSkin, isSkinPathRejected } from \"../skinShare\";\nimport { rememberedGameServerUrl } from \"../net/gameServer\";" },
+    ], kills: ["a resumed match reconnects to the server it was created on, even when a newer token names another pool (#389)"] },
+    { id: "gs-resume-dials-newest-pool", edits: [
+      { file: `${src}/state/DuelSession.tsx`, from: "          const info = await client.reconnect({\n            serverUrl: blob.serverUrl,", to: "          const info = await client.reconnect({\n            serverUrl: rememberedGameServerUrl() ?? blob.serverUrl," },
+      { file: `${src}/state/DuelSession.tsx`, from: "import { buildSharedSkin, isSkinPathRejected } from \"../skinShare\";", to: "import { buildSharedSkin, isSkinPathRejected } from \"../skinShare\";\nimport { rememberedGameServerUrl } from \"../net/gameServer\";" },
+    ], kills: ["a resumed match reconnects to the server it was created on, even when a newer token names another pool (#389)"] },
+    { id: "skin-public-path-ignored", file: `${src}/skinShare.ts`, from: "    const path = allowPaths ? sources.publicPath(kind) : null;", to: "    const path = null as string | null;", kills: ["sends an account upload's public_path instead of a data URL, and a data URL for art without one (#389)"] },
+    { id: "skin-path-unresolved", file: `${src}/net/protocol.ts`, from: "  if (SKIN_PUBLIC_PATH.test(raw)) return `${getApiBaseUrl()}${raw}`;", to: "  if (SKIN_PUBLIC_PATH.test(raw)) return raw;", kills: ["resolves a received cosmetics path against the API base and keeps data URLs as they are (#389)"] },
+    { id: "skin-path-any-cosmetics-url", file: `${src}/net/protocol.ts`, from: "  if (SKIN_PUBLIC_PATH.test(raw)) return", to: "  if (raw.startsWith(\"/duel/cosmetics/\")) return", kills: ["drops a cosmetics path that is not a signed public upload path (#389)"] },
   ],
 };
