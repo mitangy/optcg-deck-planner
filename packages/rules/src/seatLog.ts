@@ -15,6 +15,10 @@ export interface SeatLogTurn {
   turn: number;
   activeSeat: Seat;
   events: GameEvent[];
+  /** Your hand at the start of this turn, after the draw step. Absent in logs stored before this was recorded. */
+  hand?: CardDefId[];
+  /** How many cards the opponent held then (never which ones). */
+  opponentHandCount?: number;
 }
 
 export interface SeatLog {
@@ -27,6 +31,11 @@ export interface SeatLog {
   boardCards: [InstanceId, CardDefId, Seat][];
   /** Set when the engine could no longer replay the game; the log stops there. */
   diverged?: string;
+}
+
+function recordHand(turn: SeatLogTurn, state: MatchState, seat: Seat) {
+  turn.hand = state.players[seat].hand.map((c) => c.defId);
+  turn.opponentHandCount = state.players[(1 - seat) as Seat].hand.length;
 }
 
 function indexBoard(state: MatchState, into: Map<InstanceId, [InstanceId, CardDefId, Seat]>) {
@@ -45,18 +54,23 @@ export function seatLog(replay: MatchReplay, seat: Seat): SeatLog {
   let openingHand = opening.phase === "mulligan" ? null : opening.players[seat].hand.map((c) => c.defId);
   let current: SeatLogTurn = { turn: opening.turnNumber, activeSeat: opening.activeSeat, events: [] };
   const turns: SeatLogTurn[] = [current];
+  if (opening.phase !== "mulligan" && current.turn > 0) recordHand(current, opening, seat);
   let diverged: string | undefined;
   try {
     replayMatch(replay, (step) => {
+      let started: SeatLogTurn | null = null;
       for (const event of projectGameEvents(step.events, seat)) {
         // The engine starts every turn (extra turns included) with a refresh phase and counts it.
         if (event.type === "phase_changed" && event.phase === "refresh") {
           current = { turn: current.turn + 1, activeSeat: event.activeSeat, events: [] };
           turns.push(current);
+          started = current;
         }
         current.events.push(event);
       }
       indexBoard(step.state, board);
+      // The step that opens a turn ends in its main phase, with the draw already done.
+      if (started) recordHand(started, step.state, seat);
       if (openingHand === null && step.state.phase !== "mulligan") {
         openingHand = step.state.players[seat].hand.map((c) => c.defId);
       }

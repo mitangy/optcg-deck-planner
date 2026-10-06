@@ -26,7 +26,7 @@ export type SeatLogJson = {
   schema: number;
   seat: 0 | 1;
   openingHand: string[];
-  turns: { turn: number; activeSeat: 0 | 1; events: unknown[] }[];
+  turns: { turn: number; activeSeat: 0 | 1; events: unknown[]; hand?: string[]; opponentHandCount?: number }[];
   boardCards: [string, string, 0 | 1][];
   diverged?: string;
 };

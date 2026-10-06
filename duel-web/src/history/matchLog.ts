@@ -8,6 +8,9 @@ export type MatchLogTurn = {
   label: string;
   yours: boolean;
   entries: BattleLogEntry[];
+  /** Your hand at the start of the turn (after the draw), when the log recorded it. */
+  hand?: string[];
+  opponentHandCount?: number;
 };
 
 export function matchLogTurns(log: SeatLogJson): MatchLogTurn[] {
@@ -24,6 +27,8 @@ export function matchLogTurns(log: SeatLogJson): MatchLogTurn[] {
       label: t.turn === 0 ? "Before the game" : yours ? "Your turn" : "Opponent's turn",
       yours: t.turn !== 0 && yours,
       entries,
+      ...(t.hand ? { hand: t.hand } : {}),
+      ...(t.opponentHandCount != null ? { opponentHandCount: t.opponentHandCount } : {}),
     });
   }
   return turns;

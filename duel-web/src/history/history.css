@@ -334,6 +334,44 @@
   font-size: 0.88rem;
 }
 
+/* Hand at the start of a turn: secondary to the event lines below it. */
+.match-log-turn-hand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px dashed var(--line);
+  font-size: 0.78rem;
+  color: var(--muted, var(--chrome));
+}
+
+.match-log-turn-hand-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.5rem;
+  min-width: 0;
+}
+
+.match-log-turn-hand-label {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.match-log-turn-hand-cards {
+  flex: 1 1 12rem;
+  min-width: 0;
+  gap: 0.2rem 0.7rem;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.match-log-turn-opp {
+  opacity: 0.85;
+}
+
 /* Bigger than the in-game sidebar: this is a page you read. */
 .match-log-lines {
   font-size: 0.86rem;
