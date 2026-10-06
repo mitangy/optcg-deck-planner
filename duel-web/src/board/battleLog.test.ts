@@ -234,7 +234,7 @@ describe("narrateEvents emphasis + card segments", () => {
     expect(own!.text).toBe("You take 1 damage (Karoo)");
   });
 
-  it("narrates a declined Life check as adding it to hand, never as declining a Trigger (#352)", () => {
+  it("narrates nothing for a declined Life check, never a declined Trigger (#352)", () => {
     const resolved = (seat: number) =>
       narrate(
         [
@@ -244,8 +244,8 @@ describe("narrateEvents emphasis + card segments", () => {
         ],
         0,
       ).map((e) => e.text);
-    expect(resolved(1)).toEqual(["Opponent adds the Life card to hand"]);
-    expect(resolved(0)).toEqual(["You add the Life card to hand"]);
+    expect(resolved(1)).toEqual([]);
+    expect(resolved(0)).toEqual([]);
     expect(narrate([{ type: "trigger_resolved", seat: 1, accepted: true }], 0).map((e) => e.text)).toEqual(["Opponent activates the Trigger"]);
   });
 });

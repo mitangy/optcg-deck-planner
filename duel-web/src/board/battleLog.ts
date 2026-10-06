@@ -395,7 +395,7 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
       return line("trigger", true, `${possessive(e.seat, youSeat)} Life card has a Trigger (`, card(e.defId, e.seat, "hidden"), ")");
     case "trigger_resolved":
       if (e.accepted) return line("trigger", true, `${act(e.seat, youSeat, "activate", "activates")} the Trigger`);
-      return line("trigger", false, `${act(e.seat, youSeat, "add", "adds")} the Life card to hand`);
+      return null; // the card_moved line ("adds a Life card to hand") follows; never say a Trigger was declined (#352)
     case "card_revealed":
       return line("reveal", true, `${act(e.seat, youSeat, "reveal", "reveals")} `, card(e.defId, e.seat));
     case "card_moved":
