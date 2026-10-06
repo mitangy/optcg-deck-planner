@@ -197,8 +197,10 @@ def list_threads(
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
 ) -> AnalystThreadsOut:
+    """The signed-in player's threads, newest first. A thread whose first answer never finished isn't listed."""
+    answered = select(AnalystMessage.id).where(AnalystMessage.thread_id == AnalystThread.id).exists()
     rows = db.scalars(
-        select(AnalystThread).where(AnalystThread.user_id == user.id).order_by(AnalystThread.updated_at.desc(), AnalystThread.id.desc()).limit(50)
+        select(AnalystThread).where(AnalystThread.user_id == user.id, answered).order_by(AnalystThread.updated_at.desc(), AnalystThread.id.desc()).limit(50)
     ).all()
     return AnalystThreadsOut(
         threads=[AnalystThreadSummary(id=r.id, title=r.title, updated_at=r.updated_at.isoformat() if r.updated_at else None) for r in rows]

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.config import get_settings
-from app.models import AnalystThread, AnalystUsage, User
+from app.models import AnalystMessage, AnalystThread, AnalystUsage, User
 from app.routers.analyst import mint_chat_token
 from tests.test_analyst import analyst  # noqa: F401  (fixture)
 from tests.test_analyst_stats import LUCCI, NAMI_CARD, SERVICE, VIVI_CARD, ZORO, _users, _zoro_vs_lucci
@@ -139,6 +139,7 @@ def test_threads_store_messages_as_sent_and_show_only_the_conversation(chat):
         {"role": "user", "text": "How is my Zoro?"},
         {"role": "assistant", "text": "Let me look.\n\nIt's legal."},
     ]
+    c.post("/analyst/chat/threads", json={"title": "never answered"}, headers=h)
     assert [t["id"] for t in c.get("/analyst/chat/threads").json()["threads"]] == [tid]
 
 
@@ -152,6 +153,8 @@ def test_a_thread_belongs_to_its_player(chat):
         db.add(row)
         db.commit()
         tid = row.id
+        db.add(AnalystMessage(thread_id=tid, role="user", content='"hi"'))
+        db.commit()
     finally:
         db.close()
     h = _as(body["token"])
