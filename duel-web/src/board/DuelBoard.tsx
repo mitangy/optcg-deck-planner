@@ -79,7 +79,8 @@ import { ChoicePrompt } from "./ChoicePrompt";
 import { HandConfirmPrompt } from "./HandConfirmPrompt";
 import { handConfirmAnchor, handUseFromIntent, measureHandCard, type HandUse } from "./handPrompt";
 import { isHandPick } from "./fieldTargets";
-import { usesPhoneFan, usesRailHand } from "./handLayout";
+import { SPECTATOR_FAN_SPREAD, spectatorFans, usesPhoneFan, usesRailHand } from "./handLayout";
+import { SpectatorFarHand } from "./SpectatorFarHand";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { canFloat, FloatingPrompt } from "./FloatingPrompt";
 import { IntentBar } from "./IntentBar";
@@ -309,8 +310,13 @@ export function DuelBoard({
   const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
   /** "auto" (never chosen) is the Grid on a tall desktop window and the fan elsewhere. */
   const handLayout = resolveHandLayout(prefs.handLayout, wide && !lp && railHandTall);
+  /**
+   * Spectators of unranked rooms see both hands face up, always fanned: their
+   * Hand setting (saved, untouched) only matters for hands they have to play.
+   */
+  const specFans = spectatorFans(Boolean((spectator || view?.spectator) && view?.revealedHands), wide, lp);
   /** Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). */
-  const fanHand = wide && !lp && handLayout !== "grid";
+  const fanHand = wide && !lp && (specFans != null || handLayout !== "grid");
   /** Desktop fan: where the player dragged it (null = bottom centre of the board). */
   const fanPos = useMemo(() => parseFanPos(prefs.handFanPos), [prefs.handFanPos]);
   const fanRef = useRef<HTMLDivElement | null>(null);
@@ -323,7 +329,8 @@ export function DuelBoard({
       return r ? r.left + r.width / 2 : window.innerWidth / 2;
     },
   );
-  const shownFanPos = fanMove.livePos ?? fanPos;
+  // Spectators have no hand to rearrange: the fan stays at the bottom centre.
+  const shownFanPos = specFans ? null : (fanMove.livePos ?? fanPos);
   /** Off the bottom edge: fully shown unless tucked to its handle ("Let the hand tuck away"). */
   const fanFloating = fanHand && shownFanPos != null && (fanMove.livePos != null || !fanDocked(shownFanPos));
   const [floatTucked, setFloatTucked] = useState(false);
@@ -342,7 +349,13 @@ export function DuelBoard({
   // Landscape phones keep the hand in the right column (a scrolling grid), never over the field.
   const railHand = usesRailHand(wide, lp, railHandTall, fanHand);
   /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling. */
-  const phoneFan = usesPhoneFan(wide, handLayout, view?.you.hand.length ?? 0);
+  const phoneFan = usesPhoneFan(
+    wide,
+    specFans ? "fan" : handLayout,
+    specFans && view?.revealedHands
+      ? (view.revealedHands[seat ?? view.seat]?.length ?? 0)
+      : (view?.you.hand.length ?? 0),
+  );
   /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
   const panelLayout = useMemo(() => parsePanelLayout(prefs.panelLayout), [prefs.panelLayout]);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
@@ -1094,6 +1107,7 @@ export function DuelBoard({
     view ? (spectating ? (view.you.handCount ?? 0) : view.you.hand.length) : 0,
     fanHand && view != null,
     shownFanPos == null ? "centre" : fanMove.livePos || !fanDocked(shownFanPos) ? "float" : "docked",
+    specFans ? { openSpread: SPECTATOR_FAN_SPREAD, capSelector: ".arena .playmat" } : undefined,
   );
 
   if (!view) {
@@ -1178,8 +1192,8 @@ export function DuelBoard({
   // Hearthstone-style dock: peeks until hovered; stays open while you pick
   // your opening hand or have a hand card selected.
   const drawer = handDrawer({
-    pinned: handUp,
-    hidden: handHidden,
+    pinned: handUp || specFans != null,
+    hidden: handHidden && specFans == null,
     mulligan: decidingMulligan,
     selected: handFilter != null,
     picking: handPick,
@@ -1537,7 +1551,7 @@ export function DuelBoard({
         alwaysOpen
       />
     ),
-    oppHand: oppHandOnMat ? null : (
+    oppHand: oppHandOnMat || specFans === "desktop" ? null : (
       <OppHandFan
         count={opp.handCount}
         cardBackUrl={oppCardBackUrl}
@@ -1558,7 +1572,19 @@ export function DuelBoard({
       />
     ),
     actions: intentPanel,
-    hand: railHand ? (
+    hand: railHand && specFans === "landscape" && nearHand ? (
+      <section className="rail-hand rail-hand-fan" aria-label={`${seatLabel(players, boardSeat)} hand: ${handCount} cards`}>
+        <div className="rail-hand-head">
+          <span className="rail-hand-title">{seatLabel(players, boardSeat)} hand</span>
+          <span className="hand-rail-count">{handCount}</span>
+        </div>
+        <div className="hand-row hand-row-fan" ref={handRowRef}>
+          <div className="hand-row-inner hand-fan-cards" style={{ "--n": Math.max(handCount, 1) } as CSSProperties}>
+            {renderHandCards(true)}
+          </div>
+        </div>
+      </section>
+    ) : railHand ? (
       <section
         className={`rail-hand${handTucked ? " is-dragging" : ""}`}
         aria-label={`Your hand: ${handCount} cards`}
@@ -1694,6 +1720,8 @@ export function DuelBoard({
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
       }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : ""}${
+        specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
+      }${
         tilted ? " arena-tilt" : ""
       }${prefs.donUpright ? " don-upright" : ""}`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
@@ -1986,7 +2014,14 @@ export function DuelBoard({
 
         <div className="playmat" data-mat-drop={wide && !lp ? "" : undefined}>
           <div className="playmat-inner">
-            {oppHandOnMat ? (
+            {farHand && (specFans === "desktop" || specFans === "portrait") ? (
+              <SpectatorFarHand
+                cards={farHand}
+                ownerSeat={oppSeat}
+                mode={specFans}
+                label={`${seatLabel(players, oppSeat)} hand`}
+              />
+            ) : oppHandOnMat ? (
               <div className={`opp-hand-mat opp-hand-mat-${oppHandOnMat}`}>
                 <SidePanel
                   id="oppHand"
@@ -2154,7 +2189,14 @@ export function DuelBoard({
             {hotseatPass || (undo && undoState?.enabled && !spectating && !over) ? (
               <div className="lp-actions">{hudUndoPass}</div>
             ) : null}
-            {oppHandRight ? (
+            {farHand && specFans === "landscape" ? (
+              <SpectatorFarHand
+                cards={farHand}
+                ownerSeat={oppSeat}
+                mode="landscape"
+                label={`${seatLabel(players, oppSeat)} hand`}
+              />
+            ) : oppHandRight ? (
               <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" />
             ) : (
               <OppHandFan
@@ -2274,7 +2316,13 @@ export function DuelBoard({
           onPointerLeave={() => setTuckUnderPointer(false)}
         >
           <div className="hand-fan-head">
-            {prefs.layoutGrips ? (
+            {specFans ? (
+              <span className="hand-fan-toggle hand-fan-label">
+                <span className="hand-fan-title">{seatLabel(players, boardSeat)} hand</span>
+                <span className="hand-rail-count">{handCount}</span>
+              </span>
+            ) : null}
+            {specFans ? null : prefs.layoutGrips ? (
               <button
                 type="button"
                 className="hand-fan-grip"
@@ -2285,38 +2333,40 @@ export function DuelBoard({
                 <span aria-hidden />
               </button>
             ) : null}
-            <button
-              type="button"
-              className="hand-fan-toggle"
-              aria-expanded={handOpen}
-              title={
-                handHidden
-                  ? "Show your hand (H)"
-                  : handUp
-                    ? prefs.keepHandOpen
-                      ? "Let the hand tuck away"
-                      : "Let the hand tuck away (H)"
-                    : "Keep the hand up (H)"
-              }
-              onClick={() => {
-                if (handHidden) {
-                  setHandHidden(false);
-                  setHandPinned(true);
-                  return;
+            {specFans ? null : (
+              <button
+                type="button"
+                className="hand-fan-toggle"
+                aria-expanded={handOpen}
+                title={
+                  handHidden
+                    ? "Show your hand (H)"
+                    : handUp
+                      ? prefs.keepHandOpen
+                        ? "Let the hand tuck away"
+                        : "Let the hand tuck away (H)"
+                      : "Keep the hand up (H)"
                 }
-                toggleHandUp();
-              }}
-            >
-              <span className="hand-fan-title">{spectating ? "Seat hand" : "Hand"}</span>
-              <span className="hand-rail-count">{handCount}</span>
-              <span className="hand-dock-caret" aria-hidden>
-                {handOpen ? "▾" : "▴"}
-              </span>
-            </button>
+                onClick={() => {
+                  if (handHidden) {
+                    setHandHidden(false);
+                    setHandPinned(true);
+                    return;
+                  }
+                  toggleHandUp();
+                }}
+              >
+                <span className="hand-fan-title">{spectating ? "Seat hand" : "Hand"}</span>
+                <span className="hand-rail-count">{handCount}</span>
+                <span className="hand-dock-caret" aria-hidden>
+                  {handOpen ? "▾" : "▴"}
+                </span>
+              </button>
+            )}
             {!spectating ? (
               sortHandBtn
             ) : null}
-            {hideHandBtn}
+            {specFans ? null : hideHandBtn}
           </div>
           <div className="hand-fan-cards" ref={handRowRef} inert={handHidden || undefined}>
             {renderHandCards(true)}

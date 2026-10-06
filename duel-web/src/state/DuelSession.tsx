@@ -70,6 +70,8 @@ type ConnectOpts = {
   };
 };
 
+export const SPECTATOR_CAP_MESSAGE = "This match already has the most spectators.";
+
 /** A match request: the board opens at once and shows this while it resolves. */
 export type MatchLaunch = {
   /** Board status while connecting ("Searching for an opponent…"). */
@@ -169,6 +171,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [matchId, setMatchId] = useState<string | null>(null);
   const [seat, setSeat] = useState<Seat | null>(null);
   const [role, setRole] = useState<"player" | "spectator">("player");
+  const connectRoleRef = useRef<"player" | "spectator">("player");
   const [view, setView] = useState<PlayerView | null>(null);
   const [players, setPlayers] = useState<SeatPlayers | null>(null);
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
@@ -271,6 +274,14 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         },
         onError: (err) => {
           if (isSeatReservationExpiredError(err.message)) return;
+          // A spectator who arrives before the first deal is not in trouble:
+          // the board already says "Waiting for the match to start…".
+          if (err.code === "match_not_ready" && !viewRef.current) return;
+          if (err.code === "room_full" && connectRoleRef.current === "spectator") {
+            resetMatch();
+            setErrorBanner(SPECTATOR_CAP_MESSAGE);
+            return;
+          }
           if (err.code === "opponent_no_show") {
             // Ranked opponent never arrived and the room closed: back to the
             // lobby with the reason instead of "Waiting for opponent…" forever.
@@ -427,6 +438,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setQueueing(false);
         setResuming(false);
         setRole(opts.role ?? "player");
+        connectRoleRef.current = opts.role ?? "player";
         if (opts.serverUrl) {
           serverUrlRef.current = opts.serverUrl;
           setLastServerUrl(opts.serverUrl);
