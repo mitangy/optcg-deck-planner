@@ -1375,17 +1375,32 @@ export class DuelRoom extends Room implements PresenceSource {
     this.clockSince = now;
   }
 
-  /** Point the chess clock at whoever must act now (none during mulligan / after the end). */
+  /**
+   * Point the chess clock at whoever must act now (none after the end). During the mulligan it
+   * runs for the seat that still has to answer: the first player decides first, then the other.
+   */
   private updateSeatClock() {
     if (this.seatSeconds == null || !this.match) return;
     const now = Date.now();
     this.chargeSeatClock(now);
-    const next =
-      this.match.winner !== null || this.match.phase === "mulligan" ? null : this.actingSeatForTimer();
+    const next = this.match.winner !== null ? null : this.seatForClock();
     if (next !== this.clockSeat) {
       this.clockSeat = next;
       this.clockSince = now;
     }
+  }
+
+  private seatForClock(): Seat | null {
+    const m = this.match;
+    if (!m) return null;
+    if (m.phase === "mulligan") {
+      const first = m.activeSeat;
+      const second = (1 - first) as Seat;
+      if (!m.players[first].mulliganDone) return first;
+      if (!m.players[second].mulliganDone) return second;
+      return null;
+    }
+    return this.actingSeatForTimer();
   }
 
   private stopSeatClock() {
