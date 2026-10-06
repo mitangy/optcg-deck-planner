@@ -1349,6 +1349,20 @@ describe("DuelRoom", () => {
     for (const r of rooms) await r.leave(true);
   });
 
+  it("a rejected room create doesn't use up one of the account's room slots (#318)", async () => {
+    const badDeck = { leaderId: "ZZ99-001", deck: Array.from({ length: 50 }, () => "ST01-003") };
+    const opts = { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(611) };
+    const room = await withTokensRequired(async () => {
+      for (let i = 0; i < MAX_ROOMS_PER_CREATOR; i++) {
+        // Each create is turned away by onCreate ("Deck rejected: Unknown or invalid leader").
+        await assert.rejects(() => colyseus.sdk.create("duel", { ...opts, players: [badDeck, badDeck] }));
+      }
+      assert.equal((await matchMaker.query({ name: "duel" })).length, 0);
+      return colyseus.sdk.create("duel", opts);
+    });
+    await room.leave(true);
+  });
+
   it("drops a client that floods the room with messages (#318)", async () => {
     const room = await colyseus.sdk.create("duel", { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(701) });
     let pongs = 0;
