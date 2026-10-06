@@ -121,6 +121,7 @@ export function DuelPage() {
         timer={timer}
         spectator={role === "spectator" || Boolean(view?.spectator)}
         battleLog={battleLog}
+        vsHuman
         chat={{ lines: chat, onSend: sendChat }}
         onConcede={connected && role === "player" ? () => concede() : undefined}
         undo={role === "player" ? { state: undo, onAction: sendUndo } : undefined}

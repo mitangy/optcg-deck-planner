@@ -24,6 +24,12 @@ export interface MatchReplay {
   /** Every non-Banish Life hit opened a private Life check (#352). Absent on older recordings: legacy flow. */
   lifeCheckEveryHit?: boolean;
   intents: { seat: Seat; intent: Intent }[];
+  /**
+   * The room re-seeded the shuffle rng (an agreed undo must not repeat the old
+   * draws). Before applying intent `atIntent` the rng restarts from `seed`.
+   * Absent on older recordings: one seed for the whole game.
+   */
+  reseeds?: { atIntent: number; seed: number }[];
   /** How the game ended, including ends outside the engine (concede, timeout, leaving). */
   end?: { winner: Seat; reason: string };
 }
@@ -48,7 +54,13 @@ export function replayMatch(replay: MatchReplay, onStep?: (step: ReplayStep) => 
     ],
   });
   if (replay.skipMulligans) state = skipMulligans(state, rng);
+  const reseedAt = (i: number) => {
+    for (const r of replay.reseeds ?? []) {
+      if (r.atIntent === i) state = { ...state, rng: { seed: r.seed >>> 0, cursor: 0 } };
+    }
+  };
   replay.intents.forEach(({ seat, intent }, i) => {
+    reseedAt(i);
     const result = applyIntent(state, intent, { seat, rng });
     if (!result.ok) {
       throw new Error(`Replay diverged at intent ${i} (${intent.type}): ${result.error?.message ?? "illegal"}`);
@@ -56,5 +68,7 @@ export function replayMatch(replay: MatchReplay, onStep?: (step: ReplayStep) => 
     state = result.state;
     onStep?.({ seat, intent, events: result.events, state });
   });
+  // An undo with no move since still left the live state on its fresh seed.
+  reseedAt(replay.intents.length);
   return state;
 }

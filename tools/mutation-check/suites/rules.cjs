@@ -310,6 +310,11 @@ module.exports = {
     { id: "seatlog-opp-count-own-hand", file: "packages/rules/src/seatLog.ts", from: "  turn.opponentHandCount = other.hand.length;", to: "  turn.opponentHandCount = state.players[seat].hand.length;", kills: ["seat log records your hand at the start of each turn (#350)"] },
     { id: "seatlog-hand-before-draw", file: "packages/rules/src/seatLog.ts", from: "      if (started) recordHand(started, step.state, seat, reveal);\n", to: "", kills: ["seat log records your hand at the start of each turn (#350)", "seat log hand includes the card drawn that turn (#350)"] },
     // Golden replays (packages/rules/replays): each mutation changes the narration of the replays that exercise it
+    // Layered: the mid-game switch and the trailing one at the end of the log.
+    { id: "replay-ignores-reseeds", edits: [
+      { file: "packages/rules/src/matchReplay.ts", from: "      if (r.atIntent === i) state = { ...state, rng: { seed: r.seed >>> 0, cursor: 0 } };", to: "" },
+    ], kills: ["switches the rng at a recorded reseed so an undone game replays (#369)"] },
+    { id: "replay-drops-trailing-reseed", file: "packages/rules/src/matchReplay.ts", from: "  reseedAt(replay.intents.length);\n", to: "", kills: ["switches the rng at a recorded reseed so an undone game replays (#369)"] },
     { id: "replay-tie-battle", file: "packages/rules/src/engine/procedure.ts", from: "const won = atk >= def;", to: "const won = atk > def;", kills: ["replays green-mirror", "replays blue-blockers", "replays red-blue-yellow-block", "replays yellow-green-blue-triggers", "replays purple-red-full-game"] },
     { id: "replay-life-trigger-skipped", file: "packages/rules/src/engine/procedure.ts", from: "if (!trigger && !state.lifeCheckEveryHit) return false;", to: "return false;", kills: ["replays green-mirror", "replays purple-blue", "replays yellow-blue-purple-triggers", "replays yellow-green-blue-triggers"] },
     { id: "replay-don-power-halved", file: "packages/rules/src/engine/queries.ts", from: "if (state.activeSeat === seat) p += card.attachedDonIds.length * 1000;", to: "if (state.activeSeat === seat) p += card.attachedDonIds.length * 500;", kills: ["replays red-blue-yellow-block", "replays yellow-red-black", "replays purple-red-full-game"] },

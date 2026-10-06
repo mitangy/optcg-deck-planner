@@ -33,6 +33,20 @@ describe("match replays", () => {
     expect(() => replayMatch(bad)).toThrow(/Replay diverged at intent 1 \(end_turn\)/);
   });
 
+  it("switches the rng at a recorded reseed so an undone game replays (#369)", () => {
+    const first = replayMatch(base).activeSeat;
+    const intents: MatchReplay["intents"] = [
+      { seat: first, intent: { type: "end_turn" } },
+      { seat: (1 - first) as 0 | 1, intent: { type: "end_turn" } },
+    ];
+    const plain = replayMatch({ ...base, intents });
+    const reseeded = replayMatch({ ...base, intents, reseeds: [{ atIntent: 1, seed: 123456 }] });
+    expect(plain.rng.seed).toBe(base.seed);
+    expect(reseeded.rng.seed).toBe(123456);
+    // An undo with no move after it leaves the live state on the new seed too.
+    expect(replayMatch({ ...base, intents, reseeds: [{ atIntent: 2, seed: 123456 }] }).rng.seed).toBe(123456);
+  });
+
   it("narrates cards a seat can't see as hidden instead of failing (#244)", () => {
     let lines: string[] = [];
     expect(() => {

@@ -592,7 +592,8 @@ describe("DuelRoom", () => {
     assert.deepEqual(bag.errors.map((e) => e.code), ["opponent_no_show"]);
   });
 
-  it("relays cosmetics artPrefs between seats", async () => {
+  it("relays cosmetics only for cards already public to the other seat and spectators (#369)", async () => {
+    type Cos = { seat: number; artPrefs: Record<string, string> };
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 7,
@@ -619,18 +620,37 @@ describe("DuelRoom", () => {
     await syncSeat(c0, bags[0]);
     await syncSeat(c1, bags[1]);
 
+    // A leader is public from the start; the other card sits unseen in seat 0's deck or hand.
+    const hidden = "ST01-006";
+    assert.ok(!internals(room).match.players[0].trash.includes(hidden));
     c0.send("cosmetics", {
       protocolVersion: PROTOCOL_VERSION,
-      artPrefs: { "ST01-006": "p1" },
+      artPrefs: { "ST01-001": "leaderAlt", [hidden]: "p1" },
     });
+    await waitUntil(() => cosmetics[0].some((m) => m.seat === 0) && cosmetics[1].some((m) => m.seat === 0), 5000);
+    assert.deepEqual(cosmetics[0].find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt", [hidden]: "p1" });
+    assert.deepEqual(cosmetics[1].find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt" });
 
-    await waitUntil(
-      () => cosmetics[0].some((m) => m.seat === 0 && m.artPrefs["ST01-006"] === "p1")
-        && cosmetics[1].some((m) => m.seat === 0 && m.artPrefs["ST01-006"] === "p1"),
-      5000,
-    );
+    // A spectator joining later gets the same filtered map.
+    const specCos: Cos[] = [];
+    const spec = await colyseus.connectTo(room, {
+      protocolVersion: PROTOCOL_VERSION,
+      devUserId: "watcher",
+      role: "spectator",
+      preferredSeat: 0,
+    });
+    spec.onMessage("cosmetics", (msg: Cos) => specCos.push(msg));
+    spec.onMessage("error", () => {});
+    spec.send("sync", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => specCos.some((m) => m.seat === 0), 5000);
+    assert.deepEqual(specCos.find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt" });
 
-    assert.equal(cosmetics[1].find((m) => m.seat === 0)!.artPrefs["ST01-006"], "p1");
+    // Once the card is played face-up, everyone gets the entry.
+    (room as unknown as { broadcastViews(e: unknown[]): void }).broadcastViews([
+      { type: "card_played", seat: 0, defId: hidden, instanceId: "x", costPaid: 0 },
+    ]);
+    await waitUntil(() => cosmetics[1].some((m) => m.seat === 0 && m.artPrefs[hidden] === "p1"), 5000);
+    await waitUntil(() => specCos.some((m) => m.seat === 0 && m.artPrefs[hidden] === "p1"), 5000);
 
     await c0.leave(true);
     await c1.leave(true);
@@ -1093,6 +1113,53 @@ describe("DuelRoom", () => {
     await waitUntil(() => applied.length === 1, 5000);
 
     assert.ok(internals(room).replay!.intents.length < atTurnStart + 1);
+    assertReplayRebuilds(room);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("an accepted undo re-seeds the rng instead of restoring it, and the replay still rebuilds (#369)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 53,
+      autoSkipMulligan: true,
+    });
+    Object.assign(room, { freshSeed: () => 777_001 });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const applied: unknown[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("undo_applied", (msg: unknown) => applied.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    const active = bags[0].views.at(-1)!.activeSeat;
+    const clients: [ClientRoom, ClientRoom] = [c0, c1];
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).match.activeSeat !== active, 5000);
+    const atTurnStart = internals(room).replay!.intents.length;
+    const next = (1 - active) as 0 | 1;
+    await waitUntil(() => bags[next].views.at(-1)!.activeSeat === next, 5000);
+    clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).replay!.intents.length > atTurnStart, 5000);
+    clients[active].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await new Promise((r) => setTimeout(r, 50));
+    clients[next].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
+    await waitUntil(() => applied.length === 1, 5000);
+
+    assert.deepEqual(internals(room).match.rng, { seed: 777_001, cursor: 0 });
+    assert.deepEqual(internals(room).replay!.reseeds, [{ atIntent: atTurnStart, seed: 777_001 }]);
+    // The game goes on from the new seed and the recording still rebuilds it.
+    const moved = internals(room).replay!.intents.length;
+    clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).replay!.intents.length > moved, 5000);
+    assert.equal(internals(room).match.rng.seed, 777_001);
     assertReplayRebuilds(room);
 
     await c0.leave(true);
