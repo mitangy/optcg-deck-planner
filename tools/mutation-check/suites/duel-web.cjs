@@ -646,6 +646,7 @@ module.exports = {
     { id: "matchlog-turns-from-seat-0", file: "duel-web/src/history/matchLog.ts", from: "    const yours = t.activeSeat === log.seat;", to: "    const yours = t.activeSeat === 0;", kills: ["labels each turn from your seat (#252)"] },
     { id: "matchlog-board-cards-ignored", file: "duel-web/src/history/matchLog.ts", from: "new Map(log.boardCards.map(([id, defId, seat]) => [id, { defId, seat }]))", to: "new Map()", kills: ["names the attacking card from the cards that were on the board (#252)"] },
     { id: "matchlog-hand-dropped", file: "duel-web/src/history/matchLog.ts", from: "      ...(t.hand ? { hand: t.hand } : {}),\n", to: "", kills: ["passes each turn's hand and the opponent's hand size through (#350)"] },
+    { id: "matchlog-opp-hand-list-dropped", file: "duel-web/src/history/matchLog.ts", from: "      ...(t.opponentHand ? { opponentHand: t.opponentHand } : {}),\n", to: "", kills: ["passes the opponent's revealed hand through when the log has it (#359)"] },
     { id: "matchlog-opp-hand-dropped", file: "duel-web/src/history/matchLog.ts", from: "      ...(t.opponentHandCount != null ? { opponentHandCount: t.opponentHandCount } : {}),\n", to: "", kills: ["passes each turn's hand and the opponent's hand size through (#350)"] },
     // Log Pose lessons + stats opt-out (#246)
     { id: "lesson-rows-no-status-order", file: "duel-web/src/history/lessonRow.ts", from: "    .sort((a, b) => ORDER[a.l.status] - ORDER[b.l.status] || a.i - b.i)\n", to: "", kills: ["puts drafts first and keeps newest first within each status"] },

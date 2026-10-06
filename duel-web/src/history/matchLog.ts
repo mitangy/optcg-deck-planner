@@ -11,6 +11,8 @@ export type MatchLogTurn = {
   /** Your hand at the start of the turn (after the draw), when the log recorded it. */
   hand?: string[];
   opponentHandCount?: number;
+  /** The opponent's actual hand then, once the game could no longer be played. */
+  opponentHand?: string[];
 };
 
 export function matchLogTurns(log: SeatLogJson): MatchLogTurn[] {
@@ -29,6 +31,7 @@ export function matchLogTurns(log: SeatLogJson): MatchLogTurn[] {
       entries,
       ...(t.hand ? { hand: t.hand } : {}),
       ...(t.opponentHandCount != null ? { opponentHandCount: t.opponentHandCount } : {}),
+      ...(t.opponentHand ? { opponentHand: t.opponentHand } : {}),
     });
   }
   return turns;
