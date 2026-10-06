@@ -258,8 +258,8 @@ export function GameplaySettingsFields() {
               type="button"
               className="btn btn-secondary"
               aria-describedby="side-panels-label"
-              disabled={!settings.panelLayout && !settings.handFanPos && !settings.oppHandSpot}
-              onClick={() => updateSettings({ panelLayout: "", handFanPos: "", oppHandSpot: "" })}
+              disabled={!settings.panelLayout && !settings.panelSizes && !settings.handFanPos && !settings.oppHandSpot}
+              onClick={() => updateSettings({ panelLayout: "", panelSizes: "", handFanPos: "", oppHandSpot: "" })}
             >
               Reset layout
             </button>
@@ -268,7 +268,9 @@ export function GameplaySettingsFields() {
             With Drag handles on, drag the grip at the top of any side panel (card preview, battle
             log, actions, Grid hand, chat ...) to snap it into the left or right column, and the
             fanned hand&apos;s grip to move it anywhere. Drop the opponent hand on the top of the
-            playmat to pin it there. Reset puts every panel and both hands back.
+            playmat to pin it there. Drag the inner edge of a column, or the line between two panels, to
+            resize them (double-click an edge to reset it). Reset puts every panel, size and both
+            hands back.
           </p>
         </div>
       ) : null}
