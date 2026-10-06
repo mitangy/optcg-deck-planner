@@ -180,8 +180,9 @@ describe("event triggers", () => {
     const [victim] = h.field(1, FILLER);
     victim!.rested = true;
     h.attack(chinjao!, victim!).passBattle();
-    // Drew two, then had to trash two (forced with an otherwise empty hand).
+    // Drew two, then had to trash two (forced with an otherwise empty hand, but still asked: #369).
     expect(h.state.lastEvents.some((e) => e.type === "drew" && e.count === 2)).toBe(true);
+    h.forced();
     expect(h.state.players[0].trash.length).toBe(2);
   });
 

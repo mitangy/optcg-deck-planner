@@ -32,7 +32,7 @@ Seat 1 leader: Trafalgar Law (ST10-001)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #6 seat 0 give_don {"donId":"don_3","targetId":"card_35"}
+> #6 seat 0 give_don {"donId":"don_3","targetId":"card_56"}
   Seat 0 attaches DON!! to Gina → 1000 power
 
 > #7 seat 0 give_don {"donId":"don_4","targetId":"leader_1"}
@@ -56,48 +56,52 @@ Seat 1 leader: Trafalgar Law (ST10-001)
 > #11 seat 1 play_card {"handIndex":1}
   Seat 1 plays Little Sadi (rests 3 DON!!)
   Seat 1 activates Little Sadi's ability
+  Seat 1 may resolve Little Sadi's effect (Little Sadi — no card to play. Confirm to continue.)
 
-> #12 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+> #12 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
+  Seat 1 accepts Little Sadi's effect
+
+> #13 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (6000 vs 5000)
   Seat 0 activates Donquixote Doflamingo's ability
   Seat 0 may resolve Donquixote Doflamingo's effect (Donquixote Doflamingo — pay the cost to activate: [On Your Opponent's Attack] [Once Per Turn] DON!! -1: Select your Leader or 1 of your {Donquixote Pirates} type Characters. Change the attack target to the selected card.)
 
-> #13 seat 0 resolve_pending_choice {"accept":true}
+> #14 seat 0 resolve_pending_choice {"accept":true}
   Seat 0 accepts Donquixote Doflamingo's effect
   Seat 0 may resolve Donquixote Doflamingo's effect (Donquixote Doflamingo — choose 1 card to return to your DON!! deck (cost).)
 
-> #14 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o2"]}
+> #15 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o2"]}
   Seat 0 accepts Donquixote Doflamingo's effect
 
-> #15 seat 0 pass_block
+> #16 seat 0 pass_block
 
-> #16 seat 0 pass_counter
+> #17 seat 0 pass_counter
   Battle hits (6000 vs 5000)
   Seat 0 takes Life (Go All the Way to the Top!!)
   Seat 0 may resolve Go All the Way to the Top!!'s life trigger (Go All the Way to the Top!! has no [Trigger]. Add it to your hand.)
 
-> #17 seat 0 resolve_pending_choice {"accept":false}
+> #18 seat 0 resolve_pending_choice {"accept":false}
   Seat 0 adds the Life card to hand
   Seat 0 moves Go All the Way to the Top!! from life to hand
 
-> #18 seat 1 activate_ability {"sourceId":"leader_62","abilityId":"st10-001#0"}
+> #19 seat 1 activate_ability {"sourceId":"leader_62","abilityId":"st10-001#0"}
   Seat 1 activates Trafalgar Law's ability
   Seat 1 may resolve Trafalgar Law's effect (Trafalgar Law — choose 3 cards to return to your DON!! deck (cost).)
 
-> #19 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":["o3","o1","o0"]}
+> #20 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":["o3","o1","o0"]}
   Seat 1 accepts Trafalgar Law's effect
   Seat 1 may resolve Trafalgar Law's effect (Trafalgar Law — choose up to 1 card to place at the bottom of the deck.)
 
-> #20 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0"]}
+> #21 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0"]}
   Seat 1 accepts Trafalgar Law's effect
   Seat 0 moves Gina from character to deck
   Seat 1 may resolve Trafalgar Law's effect (Trafalgar Law — choose up to 1 card to play.)
 
-> #21 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":["o1"]}
+> #22 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":["o1"]}
   Seat 1 accepts Trafalgar Law's effect
   Seat 1 plays Brook (rests 0 DON!!)
 
-> #22 seat 1 end_turn
+> #23 seat 1 end_turn
   Phase → end (active seat 1)
   Phase → refresh (active seat 0)
   Seat 0 draws 1
@@ -106,18 +110,18 @@ Seat 1 leader: Trafalgar Law (ST10-001)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #23 seat 0 play_card {"handIndex":5}
+> #24 seat 0 play_card {"handIndex":5}
   Seat 0 plays Go All the Way to the Top!! (rests 1 DON!!)
   Seat 0 activates Go All the Way to the Top!!'s ability
   Seat 0 may resolve Go All the Way to the Top!!'s effect (Go All the Way to the Top!! — pay the cost to activate: [Main] You may rest 3 of your DON!! cards: If you have any DON!! cards given, KO up to 1 of your opponent's Characters with 4000 base power or less and up to 1 of your opponent's Characters with 3000 base power or less.)
 
-> #24 seat 0 resolve_pending_choice {"accept":false}
+> #25 seat 0 resolve_pending_choice {"accept":false}
   Seat 0 declines Go All the Way to the Top!!'s effect
 
-> #25 seat 0 give_don {"donId":"don_5","targetId":"leader_1"}
+> #26 seat 0 give_don {"donId":"don_5","targetId":"leader_1"}
   Seat 0 attaches DON!! to Donquixote Doflamingo → 6000 power
 
-> #26 seat 0 end_turn
+> #27 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1
@@ -126,80 +130,80 @@ Seat 1 leader: Trafalgar Law (ST10-001)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #27 seat 1 play_card {"handIndex":5}
+> #28 seat 1 play_card {"handIndex":5}
   Seat 1 plays Color of Observation Haki (rests 0 DON!!)
   Seat 1 activates Color of Observation Haki's ability
 
-> #28 seat 1 give_don {"donId":"don_68","targetId":"card_74"}
+> #29 seat 1 give_don {"donId":"don_68","targetId":"card_86"}
   Seat 1 attaches DON!! to Brook → 6000 power
 
-> #29 seat 1 declare_attack {"attackerId":"card_74","target":{"kind":"leader"}}
+> #30 seat 1 declare_attack {"attackerId":"card_86","target":{"kind":"leader"}}
   Seat 1 attacks Leader (6000 vs 5000)
   Seat 1 activates Brook's ability
   Seat 0 activates Donquixote Doflamingo's ability
   Seat 0 may resolve Donquixote Doflamingo's effect (Donquixote Doflamingo — pay the cost to activate: [On Your Opponent's Attack] [Once Per Turn] DON!! -1: Select your Leader or 1 of your {Donquixote Pirates} type Characters. Change the attack target to the selected card.)
 
-> #30 seat 0 resolve_pending_choice {"accept":true}
+> #31 seat 0 resolve_pending_choice {"accept":true}
   Seat 0 accepts Donquixote Doflamingo's effect
   Seat 0 may resolve Donquixote Doflamingo's effect (Donquixote Doflamingo — choose 1 card to return to your DON!! deck (cost).)
 
-> #31 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0"]}
+> #32 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0"]}
   Seat 0 accepts Donquixote Doflamingo's effect
 
-> #32 seat 0 pass_block
+> #33 seat 0 pass_block
 
-> #33 seat 0 pass_counter
+> #34 seat 0 pass_counter
   Battle hits (6000 vs 5000)
   Seat 0 takes Life (Nez-Palm Cannon)
   Seat 0 may resolve Nez-Palm Cannon's life trigger (Nez-Palm Cannon — activate this card's [Trigger]? [Trigger] Add up to 1 DON!! card from your DON!! deck and set it as active.)
 
-> #34 seat 0 resolve_pending_choice {"accept":true}
+> #35 seat 0 resolve_pending_choice {"accept":true}
   Seat 0 Trigger accepted
   Seat 0 reveals Nez-Palm Cannon
   Seat 0 activates Nez-Palm Cannon's ability
   Seat 0 places 1 DON!!
 
-> #35 seat 1 give_don {"donId":"don_66","targetId":"leader_62"}
+> #36 seat 1 give_don {"donId":"don_66","targetId":"leader_62"}
   Seat 1 attaches DON!! to Trafalgar Law → 6000 power
 
-> #36 seat 1 play_card {"handIndex":2}
+> #37 seat 1 play_card {"handIndex":2}
   Seat 1 plays Vergo (rests 1 DON!!)
   Seat 1 activates Vergo's ability
   Seat 1 may resolve Vergo's effect (Vergo — look at the top 5 cards, choose up to 1, then place the rest at the bottom of the deck in any order.)
 
-> #37 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[],"orderedOptionIds":["o3","o4","o0","o2","o1"]}
+> #38 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[],"orderedOptionIds":["o3","o4","o0","o2","o1"]}
   Seat 1 accepts Vergo's effect
 
-> #38 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+> #39 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (6000 vs 5000)
 
-> #39 seat 0 pass_block
+> #40 seat 0 pass_block
 
-> #40 seat 0 pass_counter
+> #41 seat 0 pass_counter
   Battle hits (6000 vs 5000)
   Seat 0 takes Life (Queen)
   Seat 0 may resolve Queen's life trigger (Queen has no [Trigger]. Add it to your hand.)
 
-> #41 seat 0 resolve_pending_choice {"accept":false}
+> #42 seat 0 resolve_pending_choice {"accept":false}
   Seat 0 adds the Life card to hand
   Seat 0 moves Queen from life to hand
 
-> #42 seat 1 activate_ability {"sourceId":"leader_62","abilityId":"st10-001#0"}
+> #43 seat 1 activate_ability {"sourceId":"leader_62","abilityId":"st10-001#0"}
   Seat 1 activates Trafalgar Law's ability
   Seat 1 may resolve Trafalgar Law's effect (Trafalgar Law — choose up to 1 card to play.)
 
-> #43 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
+> #44 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
   Seat 1 accepts Trafalgar Law's effect
 
-> #44 seat 1 declare_attack {"attackerId":"card_79","target":{"kind":"leader"}}
+> #45 seat 1 declare_attack {"attackerId":"card_75","target":{"kind":"leader"}}
   Seat 1 attacks Leader (3000 vs 5000)
 
-> #45 seat 0 pass_block
+> #46 seat 0 pass_block
 
-> #46 seat 0 pass_counter
+> #47 seat 0 pass_counter
   Battle fails (3000 vs 5000)
 
-> #47 seat 1 end_turn
+> #48 seat 1 end_turn
   Phase → end (active seat 1)
   Phase → refresh (active seat 0)
   Seat 0 draws 1
@@ -208,45 +212,45 @@ Seat 1 leader: Trafalgar Law (ST10-001)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #48 seat 0 give_don {"donId":"don_4","targetId":"leader_1"}
+> #49 seat 0 give_don {"donId":"don_4","targetId":"leader_1"}
   Seat 0 attaches DON!! to Donquixote Doflamingo → 6000 power
 
-> #49 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
+> #50 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
   Seat 0 attaches DON!! to Donquixote Doflamingo → 7000 power
 
-> #50 seat 0 give_don {"donId":"don_7","targetId":"leader_1"}
+> #51 seat 0 give_don {"donId":"don_7","targetId":"leader_1"}
   Seat 0 attaches DON!! to Donquixote Doflamingo → 8000 power
 
-> #51 seat 0 give_don {"donId":"don_5","targetId":"leader_1"}
+> #52 seat 0 give_don {"donId":"don_5","targetId":"leader_1"}
   Seat 0 attaches DON!! to Donquixote Doflamingo → 9000 power
 
-> #52 seat 0 play_card {"handIndex":7}
+> #53 seat 0 play_card {"handIndex":7}
   Seat 0 plays Killer (rests 1 DON!!)
   Seat 0 activates Killer's ability
   Seat 0 may resolve Killer's effect (Killer — look at the top 5 cards, choose up to 1, then place the rest at the bottom of the deck in any order.)
 
-> #53 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":[],"orderedOptionIds":["o0","o3","o2","o1","o4"]}
+> #54 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":[],"orderedOptionIds":["o0","o3","o2","o1","o4"]}
   Seat 0 accepts Killer's effect
 
-> #54 seat 0 give_don {"donId":"don_9","targetId":"leader_1"}
+> #55 seat 0 give_don {"donId":"don_9","targetId":"leader_1"}
   Seat 0 attaches DON!! to Donquixote Doflamingo → 10000 power
 
-> #55 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"character","instanceId":"card_74"}}
+> #56 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"character","instanceId":"card_86"}}
   Seat 0 attacks a Character (10000 vs 5000)
 
-> #56 seat 1 pass_block
-
-> #57 seat 1 counter_from_hand {"handIndex":2}
-  Seat 1 counters with Douglas Bullet (+1000)
+> #57 seat 1 pass_block
 
 > #58 seat 1 counter_from_hand {"handIndex":2}
+  Seat 1 counters with Douglas Bullet (+1000)
+
+> #59 seat 1 counter_from_hand {"handIndex":2}
   Seat 1 counters with Scarlet (+1000)
 
-> #59 seat 1 pass_counter
+> #60 seat 1 pass_counter
   Battle hits (10000 vs 7000)
   Seat 1's Brook is K.O.'d
 
-> #60 seat 0 end_turn
+> #61 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1
@@ -255,29 +259,29 @@ Seat 1 leader: Trafalgar Law (ST10-001)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #61 seat 1 give_don {"donId":"don_69","targetId":"card_94"}
+> #62 seat 1 give_don {"donId":"don_69","targetId":"card_120"}
   Seat 1 attaches DON!! to Vergo → 3000 power
 
-> #62 seat 1 give_don {"donId":"don_70","targetId":"card_79"}
+> #63 seat 1 give_don {"donId":"don_70","targetId":"card_75"}
   Seat 1 attaches DON!! to Little Sadi → 4000 power
 
-> #63 seat 1 declare_attack {"attackerId":"card_94","target":{"kind":"leader"}}
+> #64 seat 1 declare_attack {"attackerId":"card_120","target":{"kind":"leader"}}
   Seat 1 attacks Leader (3000 vs 5000)
   Seat 0 activates Donquixote Doflamingo's ability
   Seat 0 may resolve Donquixote Doflamingo's effect (Donquixote Doflamingo — pay the cost to activate: [On Your Opponent's Attack] [Once Per Turn] DON!! -1: Select your Leader or 1 of your {Donquixote Pirates} type Characters. Change the attack target to the selected card.)
 
-> #64 seat 0 resolve_pending_choice {"accept":false}
+> #65 seat 0 resolve_pending_choice {"accept":false}
   Seat 0 declines Donquixote Doflamingo's effect
 
-> #65 seat 0 pass_block
+> #66 seat 0 pass_block
 
-> #66 seat 0 counter_from_hand {"handIndex":6}
+> #67 seat 0 counter_from_hand {"handIndex":6}
   Seat 0 counters with Queen (+1000)
 
-> #67 seat 0 pass_counter
+> #68 seat 0 pass_counter
   Battle fails (3000 vs 6000)
 
-> #68 seat 1 end_turn
+> #69 seat 1 end_turn
   Phase → end (active seat 1)
   Phase → refresh (active seat 0)
   Seat 0 draws 1
@@ -286,64 +290,64 @@ Seat 1 leader: Trafalgar Law (ST10-001)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #69 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
+> #70 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
   Seat 0 attaches DON!! to Donquixote Doflamingo → 6000 power
 
-> #70 seat 0 give_don {"donId":"don_8","targetId":"card_29"}
+> #71 seat 0 give_don {"donId":"don_8","targetId":"card_52"}
   Seat 0 attaches DON!! to Killer → 3000 power
 
-> #71 seat 0 play_card {"handIndex":6}
+> #72 seat 0 play_card {"handIndex":6}
   Seat 0 plays Charlotte Mont-d'or (rests 3 DON!!)
 
-> #72 seat 0 give_don {"donId":"don_11","targetId":"card_29"}
+> #73 seat 0 give_don {"donId":"don_11","targetId":"card_52"}
   Seat 0 attaches DON!! to Killer → 4000 power
 
-> #73 seat 0 give_don {"donId":"don_10","targetId":"card_43"}
+> #74 seat 0 give_don {"donId":"don_10","targetId":"card_61"}
   Seat 0 attaches DON!! to Charlotte Mont-d'or → 5000 power
 
-> #74 seat 0 give_don {"donId":"don_9","targetId":"card_43"}
+> #75 seat 0 give_don {"donId":"don_9","targetId":"card_61"}
   Seat 0 attaches DON!! to Charlotte Mont-d'or → 6000 power
 
-> #75 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
+> #76 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
   Seat 0 attacks Leader (6000 vs 5000)
 
-> #76 seat 1 pass_block
+> #77 seat 1 pass_block
 
-> #77 seat 1 pass_counter
+> #78 seat 1 pass_counter
   Battle hits (6000 vs 5000)
   Seat 1 takes Life (Haruta)
   Seat 1 may resolve Haruta's life trigger (Haruta has no [Trigger]. Add it to your hand.)
 
-> #78 seat 1 resolve_pending_choice {"accept":false}
+> #79 seat 1 resolve_pending_choice {"accept":false}
   Seat 1 adds the Life card to hand
   Seat 1 moves Haruta from life to hand
 
-> #79 seat 0 declare_attack {"attackerId":"card_29","target":{"kind":"leader"}}
+> #80 seat 0 declare_attack {"attackerId":"card_52","target":{"kind":"leader"}}
   Seat 0 attacks Leader (4000 vs 5000)
 
-> #80 seat 1 pass_block
+> #81 seat 1 pass_block
 
-> #81 seat 1 counter_from_hand {"handIndex":3}
+> #82 seat 1 counter_from_hand {"handIndex":3}
   Seat 1 counters with Haruta (+1000)
 
-> #82 seat 1 pass_counter
+> #83 seat 1 pass_counter
   Battle fails (4000 vs 6000)
 
-> #83 seat 0 activate_ability {"sourceId":"card_43","abilityId":"op11-072#0"}
+> #84 seat 0 activate_ability {"sourceId":"card_61","abilityId":"op11-072#0"}
   Seat 0 activates Charlotte Mont-d'or's ability
   Seat 0 may resolve Charlotte Mont-d'or's effect (Charlotte Mont-d'or — choose 1 card to return to your DON!! deck (cost).)
 
-> #84 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o4"]}
+> #85 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o4"]}
   Seat 0 accepts Charlotte Mont-d'or's effect
   Seat 1 may resolve Charlotte Mont-d'or's effect (Charlotte Mont-d'or — choose 2 cards to place at the bottom of the deck.)
 
-> #85 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":["o1","o4"]}
+> #86 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":["o1","o4"]}
   Seat 1 accepts Charlotte Mont-d'or's effect
   Seat 1 moves Douglas Bullet from trash to deck
   Seat 1 moves Haruta from trash to deck
   Seat 0 moves Charlotte Katakuri from life to hand
 
-> #86 seat 0 end_turn
+> #87 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1
@@ -352,60 +356,60 @@ Seat 1 leader: Trafalgar Law (ST10-001)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #87 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+> #88 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (5000 vs 5000)
   Seat 0 activates Donquixote Doflamingo's ability
   Seat 0 may resolve Donquixote Doflamingo's effect (Donquixote Doflamingo — pay the cost to activate: [On Your Opponent's Attack] [Once Per Turn] DON!! -1: Select your Leader or 1 of your {Donquixote Pirates} type Characters. Change the attack target to the selected card.)
 
-> #88 seat 0 resolve_pending_choice {"accept":true}
+> #89 seat 0 resolve_pending_choice {"accept":true}
   Seat 0 accepts Donquixote Doflamingo's effect
   Seat 0 may resolve Donquixote Doflamingo's effect (Donquixote Doflamingo — choose 1 card to return to your DON!! deck (cost).)
 
-> #89 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o6"]}
+> #90 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o6"]}
   Seat 0 accepts Donquixote Doflamingo's effect
 
-> #90 seat 0 pass_block
+> #91 seat 0 pass_block
 
-> #91 seat 0 counter_from_hand {"handIndex":6}
+> #92 seat 0 counter_from_hand {"handIndex":6}
   Seat 0 counters with Charlotte Katakuri (+1000)
 
-> #92 seat 0 pass_counter
+> #93 seat 0 pass_counter
   Battle fails (5000 vs 6000)
 
-> #93 seat 1 play_card {"handIndex":2}
+> #94 seat 1 play_card {"handIndex":2}
   Seat 1 plays Munch-Munch Mutation (rests 3 DON!!)
   Seat 1 activates Munch-Munch Mutation's ability
   Seat 1 may resolve Munch-Munch Mutation's effect (Munch-Munch Mutation — choose up to 1 card to -3000 power.)
 
-> #94 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
+> #95 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
   Seat 1 accepts Munch-Munch Mutation's effect
   Seat 1 may resolve Munch-Munch Mutation's effect (Munch-Munch Mutation — choose up to 1 card to +3000 power.)
 
-> #95 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
+> #96 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
   Seat 1 accepts Munch-Munch Mutation's effect
 
-> #96 seat 1 give_don {"donId":"don_72","targetId":"card_79"}
+> #97 seat 1 give_don {"donId":"don_72","targetId":"card_75"}
   Seat 1 attaches DON!! to Little Sadi → 4000 power
 
-> #97 seat 1 declare_attack {"attackerId":"card_79","target":{"kind":"character","instanceId":"card_43"}}
+> #98 seat 1 declare_attack {"attackerId":"card_75","target":{"kind":"character","instanceId":"card_61"}}
   Seat 1 attacks a Character (4000 vs 4000)
 
-> #98 seat 0 pass_block
+> #99 seat 0 pass_block
 
-> #99 seat 0 pass_counter
+> #100 seat 0 pass_counter
   Battle hits (4000 vs 4000)
   Seat 0's Charlotte Mont-d'or is K.O.'d
 
-> #100 seat 1 declare_attack {"attackerId":"card_94","target":{"kind":"character","instanceId":"card_29"}}
+> #101 seat 1 declare_attack {"attackerId":"card_120","target":{"kind":"character","instanceId":"card_52"}}
   Seat 1 attacks a Character (2000 vs 2000)
 
-> #101 seat 0 pass_block
+> #102 seat 0 pass_block
 
-> #102 seat 0 pass_counter
+> #103 seat 0 pass_counter
   Battle hits (2000 vs 2000)
   Seat 0's Killer is K.O.'d
 
-> #103 seat 1 end_turn
+> #104 seat 1 end_turn
   Phase → end (active seat 1)
   Phase → refresh (active seat 0)
   Seat 0 draws 1
@@ -414,19 +418,19 @@ Seat 1 leader: Trafalgar Law (ST10-001)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #104 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"character","instanceId":"card_79"}}
+> #105 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"character","instanceId":"card_75"}}
   Seat 0 attacks a Character (5000 vs 3000)
 
-> #105 seat 1 pass_block
+> #106 seat 1 pass_block
 
-> #106 seat 1 counter_from_hand {"handIndex":2}
+> #107 seat 1 counter_from_hand {"handIndex":2}
   Seat 1 counters with Monet (+1000)
 
-> #107 seat 1 pass_counter
+> #108 seat 1 pass_counter
   Battle hits (5000 vs 4000)
   Seat 1's Little Sadi is K.O.'d
 
-> #108 seat 0 end_turn
+> #109 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1
@@ -435,7 +439,7 @@ Seat 1 leader: Trafalgar Law (ST10-001)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #109 seat 1 end_turn
+> #110 seat 1 end_turn
   Phase → end (active seat 1)
   Phase → refresh (active seat 0)
   Seat 0 draws 1
@@ -444,66 +448,74 @@ Seat 1 leader: Trafalgar Law (ST10-001)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #110 seat 0 give_don {"donId":"don_9","targetId":"leader_1"}
+> #111 seat 0 give_don {"donId":"don_9","targetId":"leader_1"}
   Seat 0 attaches DON!! to Donquixote Doflamingo → 6000 power
 
-> #111 seat 0 play_card {"handIndex":2}
+> #112 seat 0 play_card {"handIndex":2}
   Seat 0 plays Monkey.D.Luffy (rests 6 DON!!)
   Seat 0 activates Monkey.D.Luffy's ability
   Seat 0 may resolve Monkey.D.Luffy's effect (Monkey.D.Luffy — pay the cost to activate: [On Play] DON!! -1 You may trash 1 Character card with a cost of 5 from your hand: This Character gains [Rush] during this turn.)
 
-> #112 seat 0 resolve_pending_choice {"accept":true}
+> #113 seat 0 resolve_pending_choice {"accept":true}
   Seat 0 accepts Monkey.D.Luffy's effect
   Seat 0 may resolve Monkey.D.Luffy's effect (Monkey.D.Luffy — choose 1 card to return to your DON!! deck (cost).)
 
-> #113 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0"]}
+> #114 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0"]}
+  Seat 0 accepts Monkey.D.Luffy's effect
+  Seat 0 may resolve Monkey.D.Luffy's effect (Monkey.D.Luffy — choose 1 card to trash (cost).)
+
+> #115 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0"]}
   Seat 0 accepts Monkey.D.Luffy's effect
   Seat 0 moves Rob Lucci from hand to trash
 
-> #114 seat 0 declare_attack {"attackerId":"card_24","target":{"kind":"leader"}}
+> #116 seat 0 declare_attack {"attackerId":"card_32","target":{"kind":"leader"}}
   Seat 0 attacks Leader (7000 vs 5000)
 
-> #115 seat 1 pass_block
+> #117 seat 1 pass_block
 
-> #116 seat 1 pass_counter
+> #118 seat 1 pass_counter
   Battle hits (7000 vs 5000)
   Seat 1 takes Life (Schneider)
   Seat 1 may resolve Schneider's life trigger (Schneider has no [Trigger]. Add it to your hand.)
 
-> #117 seat 1 resolve_pending_choice {"accept":false}
+> #119 seat 1 resolve_pending_choice {"accept":false}
   Seat 1 adds the Life card to hand
   Seat 1 moves Schneider from life to hand
 
-> #118 seat 0 play_card {"handIndex":4}
+> #120 seat 0 play_card {"handIndex":4}
   Seat 0 plays Daifugo (rests 3 DON!!)
   Seat 0 activates Daifugo's ability
   Seat 0 may resolve Daifugo's effect (Daifugo — pay the cost to activate: [On Play] DON!! -2: Play up to 1 {SMILE} type Character card other than [Daifugo] with a cost of 3 or less from your hand.)
 
-> #119 seat 0 resolve_pending_choice {"accept":true}
+> #121 seat 0 resolve_pending_choice {"accept":true}
   Seat 0 accepts Daifugo's effect
   Seat 0 may resolve Daifugo's effect (Daifugo — choose 2 cards to return to your DON!! deck (cost).)
 
-> #120 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0","o1"]}
+> #122 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0","o1"]}
+  Seat 0 accepts Daifugo's effect
+  Seat 0 may resolve Daifugo's effect (Daifugo — no card to play. Confirm to continue.)
+
+> #123 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
   Seat 0 accepts Daifugo's effect
 
-> #121 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
+> #124 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
   Seat 0 attacks Leader (6000 vs 5000)
 
-> #122 seat 1 pass_block
+> #125 seat 1 pass_block
 
-> #123 seat 1 counter_from_hand {"handIndex":3}
+> #126 seat 1 counter_from_hand {"handIndex":3}
   Seat 1 counters with Schneider (+1000)
 
-> #124 seat 1 pass_counter
+> #127 seat 1 pass_counter
   Battle hits (6000 vs 6000)
   Seat 1 takes Life (Drunken Dragon Bagua)
   Seat 1 may resolve Drunken Dragon Bagua's life trigger (Drunken Dragon Bagua has no [Trigger]. Add it to your hand.)
 
-> #125 seat 1 resolve_pending_choice {"accept":false}
+> #128 seat 1 resolve_pending_choice {"accept":false}
   Seat 1 adds the Life card to hand
   Seat 1 moves Drunken Dragon Bagua from life to hand
 
-> #126 seat 0 end_turn
+> #129 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1
@@ -512,55 +524,55 @@ Seat 1 leader: Trafalgar Law (ST10-001)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #127 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+> #130 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (5000 vs 5000)
   Seat 0 activates Donquixote Doflamingo's ability
   Seat 0 may resolve Donquixote Doflamingo's effect (Donquixote Doflamingo — pay the cost to activate: [On Your Opponent's Attack] [Once Per Turn] DON!! -1: Select your Leader or 1 of your {Donquixote Pirates} type Characters. Change the attack target to the selected card.)
 
-> #128 seat 0 resolve_pending_choice {"accept":false}
+> #131 seat 0 resolve_pending_choice {"accept":false}
   Seat 0 declines Donquixote Doflamingo's effect
 
-> #129 seat 0 pass_block
+> #132 seat 0 pass_block
 
-> #130 seat 0 pass_counter
+> #133 seat 0 pass_counter
   Battle hits (5000 vs 5000)
   Seat 0 takes Life (Hone-Kichi)
   Seat 0 may resolve Hone-Kichi's life trigger (Hone-Kichi has no [Trigger]. Add it to your hand.)
 
-> #131 seat 0 resolve_pending_choice {"accept":false}
+> #134 seat 0 resolve_pending_choice {"accept":false}
   Seat 0 adds the Life card to hand
   Seat 0 moves Hone-Kichi from life to hand
 
-> #132 seat 1 give_don {"donId":"don_65","targetId":"card_94"}
+> #135 seat 1 give_don {"donId":"don_65","targetId":"card_120"}
   Seat 1 attaches DON!! to Vergo → 3000 power
 
-> #133 seat 1 give_don {"donId":"don_67","targetId":"card_94"}
+> #136 seat 1 give_don {"donId":"don_67","targetId":"card_120"}
   Seat 1 attaches DON!! to Vergo → 4000 power
 
-> #134 seat 1 give_don {"donId":"don_71","targetId":"card_94"}
+> #137 seat 1 give_don {"donId":"don_71","targetId":"card_120"}
   Seat 1 attaches DON!! to Vergo → 5000 power
 
-> #135 seat 1 give_don {"donId":"don_72","targetId":"leader_62"}
+> #138 seat 1 give_don {"donId":"don_72","targetId":"leader_62"}
   Seat 1 attaches DON!! to Trafalgar Law → 6000 power
 
-> #136 seat 1 give_don {"donId":"don_63","targetId":"card_94"}
+> #139 seat 1 give_don {"donId":"don_63","targetId":"card_120"}
   Seat 1 attaches DON!! to Vergo → 6000 power
 
-> #137 seat 1 declare_attack {"attackerId":"card_94","target":{"kind":"character","instanceId":"card_24"}}
+> #140 seat 1 declare_attack {"attackerId":"card_120","target":{"kind":"character","instanceId":"card_32"}}
   Seat 1 attacks a Character (6000 vs 7000)
   Seat 0 activates Donquixote Doflamingo's ability
   Seat 0 may resolve Donquixote Doflamingo's effect (Donquixote Doflamingo — pay the cost to activate: [On Your Opponent's Attack] [Once Per Turn] DON!! -1: Select your Leader or 1 of your {Donquixote Pirates} type Characters. Change the attack target to the selected card.)
 
-> #138 seat 0 resolve_pending_choice {"accept":true}
+> #141 seat 0 resolve_pending_choice {"accept":true}
   Seat 0 accepts Donquixote Doflamingo's effect
   Seat 0 may resolve Donquixote Doflamingo's effect (Donquixote Doflamingo — choose 1 card to return to your DON!! deck (cost).)
 
-> #139 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0"]}
+> #142 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0"]}
   Seat 0 accepts Donquixote Doflamingo's effect
 
-> #140 seat 0 pass_block
+> #143 seat 0 pass_block
 
-> #141 seat 0 pass_counter
+> #144 seat 0 pass_counter
   Battle hits (6000 vs 5000)
   ★ Seat 1 wins (leader_battle_at_zero_life)
 

@@ -12,7 +12,7 @@ import type { BindingValue, CardInstance, ChoiceOption, ChoiceRequest, GameEvent
 import { addModifier, expiryFor } from "./modifiers.js";
 import { forOpponent } from "./perspective.js";
 import {
-  basePowerOf, canPayCosts, canPayCost, candidates, protectedFromSource, costOf, ctxFor, evalCond, evalValue, filterMatches, hasRestriction, isNegated, playerRestricted, powerOf, selectorMatches, type EvalCtx,
+  basePowerOf, canPayCosts, canPayCost, costDependsOnHiddenInfo, selectorReadsHiddenZone, candidates, protectedFromSource, costOf, ctxFor, evalCond, evalValue, filterMatches, hasRestriction, isNegated, playerRestricted, powerOf, selectorMatches, type EvalCtx,
 } from "./queries.js";
 import {
   activeDon, alloc, attachDon, drawCards, fieldCards, isOnField, locate, otherSeat, placeDonFromDeck, putCard, putOnField, returnDonById, returnDonToDeck, takeCard, type Located,
@@ -402,10 +402,17 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
     case "jumpIfFalse": { const v = frame.bindings[instr.name]; if (!v || (Array.isArray(v) && v.length === 0)) { frame.operationIndex = instr.to; return "jumped"; } return "next"; }
     case "jumpIfModeNot": if (frame.bindings[instr.name] !== instr.index) { frame.operationIndex = instr.to; return "jumped"; } return "next";
     case "confirm": {
-      if (instr.costs && !canPayCosts(state, ctx, instr.costs)) { frame.bindings[instr.bind] = false; frame.bindings.__declined = true; return "next"; }
+      // Costs that depend on hidden cards (#369) are always asked: skipping the prompt would tell the opponent the
+      // player cannot pay. An unpayable one is marked privately so only declining is legal.
+      let unpayable = false;
+      if (instr.costs && !canPayCosts(state, ctx, instr.costs)) {
+        const hiddenCosts = state.privateChoicesV2 && instr.chooser !== "opponent" ? instr.costs.filter(costDependsOnHiddenInfo) : [];
+        if (hiddenCosts.length === 0 || !instr.costs.every((c) => hiddenCosts.includes(c) || canPayCost(state, ctx, c))) { frame.bindings[instr.bind] = false; frame.bindings.__declined = true; return "next"; }
+        unpayable = true;
+      }
       const ability = abilityById(frame.abilityId)?.ability;
       const detail = frame.program === "replacement" ? `use ${nameOf(frame.sourceDefId)}'s effect instead?` : instr.costs && (instr.prompt === "pay the cost" || instr.prompt === "use this effect") ? `pay the cost to activate: ${ability?.text ?? ""}` : `${instr.prompt}? ${ability?.text ?? ""}`;
-      pushChoice(sim, frame, { seat: instr.chooser === "opponent" ? otherSeat(frame.seat) : frame.seat, kind: "effect", optional: true, prompt: `${promptPrefix(frame)} — ${detail}`.trim(), request: { type: "confirm" }, bindings: { __bind: instr.bind } });
+      pushChoice(sim, frame, { seat: instr.chooser === "opponent" ? otherSeat(frame.seat) : frame.seat, kind: "effect", optional: true, prompt: `${promptPrefix(frame)} — ${detail}`.trim(), request: { type: "confirm" }, bindings: { __bind: instr.bind }, ...(unpayable ? { unpayable: true } : {}) });
       return "wait";
     }
     case "mode": {
@@ -436,13 +443,16 @@ function execSelect(sim: Sim, frame: ResolutionFrame, instr: Extract<Instr, { op
   const valueCount = instr.countValue != null ? Math.max(0, evalValue(state, ctx, instr.countValue)) : null;
   const max = Math.min(valueCount ?? instr.max, list.length);
   const min = Math.min(valueCount ?? instr.min, max);
-  if (max === 0) { frame.bindings[instr.bind] = []; return "next"; }
+  // A select from a hidden zone is always asked (#369): skipping an empty one, or auto-binding a forced one, would
+  // show the opponent how many cards (or whether any) matched.
+  const askHidden = state.privateChoicesV2 === true && !instr.random && selectorReadsHiddenZone(instr.selector);
+  if (max === 0 && !(askHidden && (valueCount ?? instr.max) > 0)) { frame.bindings[instr.bind] = []; return "next"; }
   if (instr.random) {
     frame.bindings[instr.bind] = sim.rng.shuffle(list.map((l) => l.id)).slice(0, max);
     return "next";
   }
   // Forced: every candidate must be chosen and no constraint could reject it.
-  if (min === list.length && instr.totalCostAtMost == null && instr.totalPowerAtMost == null) {
+  if (!askHidden && min === list.length && instr.totalCostAtMost == null && instr.totalPowerAtMost == null) {
     frame.bindings[instr.bind] = list.map((l) => l.id);
     return "next";
   }
@@ -452,9 +462,11 @@ function execSelect(sim: Sim, frame: ResolutionFrame, instr: Extract<Instr, { op
     bindings[id] = loc.id;
     return optionFor(state, loc, id, chooser);
   });
-  const hidden = list.some((l) => l.zone === "hand" || l.zone === "deck" || l.zone === "life");
+  const hidden = askHidden || list.some((l) => l.zone === "hand" || l.zone === "deck" || l.zone === "life");
   const limit = min === max ? `${max}` : min === 0 ? `up to ${max}` : `${min}–${max}`;
-  const prompt = `${promptPrefix(frame)} — choose ${limit} card${max === 1 ? "" : "s"} to ${instr.purpose}${instr.purpose.endsWith(".") ? "" : "."}`;
+  const prompt = max === 0
+    ? `${promptPrefix(frame)} — no card to ${instr.purpose}${instr.purpose.endsWith(".") ? "" : "."} Confirm to continue.`
+    : `${promptPrefix(frame)} — choose ${limit} card${max === 1 ? "" : "s"} to ${instr.purpose}${instr.purpose.endsWith(".") ? "" : "."}`;
   pushChoice(sim, frame, {
     seat: chooser, kind: "effect", optional: false, prompt, request: { type: "select", min, max, options, ...(instr.distinctNames ? { distinctNames: true as const } : {}) }, bindings,
     ...(hidden ? { privateToSeat: chooser, optionCount: options.length } : {}),
@@ -1046,6 +1058,7 @@ export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: Cho
   switch (request.type) {
     case "confirm": {
       if (!answer.accept && !choice.optional) return "This choice cannot be declined";
+      if (answer.accept && choice.unpayable) return "You cannot pay this cost";
       apply = () => { frame.bindings[b.__bind!] = answer.accept; if (!answer.accept && choice.seat === frame.seat) frame.bindings.__declined = true; frame.operationIndex += 1; };
       break;
     }

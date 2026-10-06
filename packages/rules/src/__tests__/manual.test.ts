@@ -217,7 +217,7 @@ describe("granted replacement (EB02-030)", () => {
     h.act(1, { type: "pass_counter" });
     expect(h.choice?.seat).toBe(1);
     // One card left in hand, so the replacement's trash is forced once accepted.
-    h.accept(1);
+    h.accept(1).forced();
     expect(h.state.players[1].characters.length).toBe(1);
     expect(h.state.players[1].hand.length).toBe(0);
   });
@@ -242,7 +242,7 @@ describe("granted replacement (EB02-030)", () => {
     h.attack(attacker!, second!);
     h.passBattle();
     expect(h.choice?.seat).toBe(1);
-    h.accept(1);
+    h.accept(1).forced();
     expect(h.state.players[1].characters.length).toBe(3);
     expect(h.state.players[1].hand.length).toBe(0);
   });

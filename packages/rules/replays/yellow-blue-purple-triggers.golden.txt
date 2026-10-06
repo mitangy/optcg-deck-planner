@@ -45,7 +45,7 @@ Seat 1 leader: Hannyabal (EB01-021)
 > #7 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
   Seat 0 attacks Leader (5000 vs 5000)
 
-> #8 seat 1 declare_block {"blockerId":"card_118"}
+> #8 seat 1 declare_block {"blockerId":"card_85"}
   Seat 1 blocks
 
 > #9 seat 1 counter_from_hand {"handIndex":4}
@@ -61,16 +61,16 @@ Seat 1 leader: Hannyabal (EB01-021)
   Battle hits (5000 vs 4000)
   Seat 1's Trafalgar Law is K.O.'d
 
-> #13 seat 0 give_don {"donId":"don_3","targetId":"card_52"}
+> #13 seat 0 give_don {"donId":"don_3","targetId":"card_21"}
   Seat 0 attaches DON!! to Charlotte Anana → 4000 power
 
-> #14 seat 0 give_don {"donId":"don_2","targetId":"card_52"}
+> #14 seat 0 give_don {"donId":"don_2","targetId":"card_21"}
   Seat 0 attaches DON!! to Charlotte Anana → 5000 power
 
-> #15 seat 0 give_don {"donId":"don_4","targetId":"card_52"}
+> #15 seat 0 give_don {"donId":"don_4","targetId":"card_21"}
   Seat 0 attaches DON!! to Charlotte Anana → 6000 power
 
-> #16 seat 0 declare_attack {"attackerId":"card_52","target":{"kind":"leader"}}
+> #16 seat 0 declare_attack {"attackerId":"card_21","target":{"kind":"leader"}}
   Seat 0 attacks Leader (6000 vs 5000)
 
 > #17 seat 1 pass_block
@@ -84,7 +84,7 @@ Seat 1 leader: Hannyabal (EB01-021)
   Seat 1 adds the Life card to hand
   Seat 1 moves Miss Buckingham Stussy from life to hand
 
-> #20 seat 0 give_don {"donId":"don_5","targetId":"card_52"}
+> #20 seat 0 give_don {"donId":"don_5","targetId":"card_21"}
   Seat 0 attaches DON!! to Charlotte Anana → 7000 power
 
 > #21 seat 0 end_turn
@@ -99,7 +99,7 @@ Seat 1 leader: Hannyabal (EB01-021)
 > #22 seat 1 give_don {"donId":"don_65","targetId":"leader_62"}
   Seat 1 attaches DON!! to Hannyabal → 6000 power
 
-> #23 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"character","instanceId":"card_52"}}
+> #23 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"character","instanceId":"card_21"}}
   Seat 1 attacks a Character (6000 vs 3000)
 
 > #24 seat 0 pass_block
@@ -124,7 +124,7 @@ Seat 1 leader: Hannyabal (EB01-021)
   Seat 1 activates Marguerite's ability
   Seat 1 draws 1
 
-> #31 seat 1 give_don {"donId":"don_67","targetId":"card_93"}
+> #31 seat 1 give_don {"donId":"don_67","targetId":"card_73"}
   Seat 1 attaches DON!! to Marguerite → 3000 power
 
 > #32 seat 1 end_turn
@@ -140,7 +140,7 @@ Seat 1 leader: Hannyabal (EB01-021)
 > #33 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
   Seat 0 attacks Leader (5000 vs 5000)
 
-> #34 seat 1 declare_block {"blockerId":"card_93"}
+> #34 seat 1 declare_block {"blockerId":"card_73"}
   Seat 1 blocks
 
 > #35 seat 1 pass_counter

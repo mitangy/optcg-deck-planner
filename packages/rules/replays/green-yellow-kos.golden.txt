@@ -31,28 +31,32 @@ Seat 1 leader: Charlotte Linlin (OP17-099)
 > #5 seat 1 play_card {"handIndex":3}
   Seat 1 plays Nico Olvia (rests 1 DON!!)
   Seat 1 activates Nico Olvia's ability
+  Seat 1 may resolve Nico Olvia's effect (Nico Olvia — pay the cost to activate: [On Play] You may trash 1 card with a Trigger from your hand: If your Leader is [Nico Robin], draw 2 cards.)
 
-> #6 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+> #6 seat 1 resolve_pending_choice {"accept":false}
+  Seat 1 declines Nico Olvia's effect
+
+> #7 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (5000 vs 5000)
   Seat 1 activates Charlotte Linlin's ability
   Seat 1 may resolve Charlotte Linlin's effect (Charlotte Linlin — pay the cost to activate: [When Attacking] You may trash 1 card from your hand: Your opponent chooses one: • Trash 1 card from your hand. Then, add up to 1 card from the top of your deck to the top of your Life cards. • Trash 1 card from your opponent's hand.)
 
-> #7 seat 1 resolve_pending_choice {"accept":false}
+> #8 seat 1 resolve_pending_choice {"accept":false}
   Seat 1 declines Charlotte Linlin's effect
   Seat 0 activates Jewelry Bonney's ability
 
-> #8 seat 0 pass_block
+> #9 seat 0 pass_block
 
-> #9 seat 0 counter_from_hand {"handIndex":3}
+> #10 seat 0 counter_from_hand {"handIndex":3}
   Seat 0 counters with Shinobu (+1000)
 
-> #10 seat 0 pass_counter
+> #11 seat 0 pass_counter
   Battle fails (5000 vs 6000)
 
-> #11 seat 1 play_card {"handIndex":4}
+> #12 seat 1 play_card {"handIndex":4}
   Seat 1 plays Sentomaru (rests 2 DON!!)
 
-> #12 seat 1 end_turn
+> #13 seat 1 end_turn
   Phase → end (active seat 1)
   Phase → refresh (active seat 0)
   Seat 0 draws 1
@@ -61,41 +65,41 @@ Seat 1 leader: Charlotte Linlin (OP17-099)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #13 seat 0 give_don {"donId":"don_4","targetId":"card_29"}
+> #14 seat 0 give_don {"donId":"don_4","targetId":"card_61"}
   Seat 0 attaches DON!! to Kin'emon → 2000 power
 
-> #14 seat 0 play_card {"handIndex":3}
+> #15 seat 0 play_card {"handIndex":3}
   Seat 0 plays Buggy (rests 2 DON!!)
 
-> #15 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
+> #16 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
   Seat 0 attacks Leader (5000 vs 5000)
 
-> #16 seat 1 declare_block {"blockerId":"card_75"}
+> #17 seat 1 declare_block {"blockerId":"card_120"}
   Seat 1 blocks
   Seat 1 activates Sentomaru's ability
 
-> #17 seat 1 counter_from_hand {"handIndex":3}
+> #18 seat 1 counter_from_hand {"handIndex":3}
   Seat 1 counters with Charlotte Opera (+1000)
 
-> #18 seat 1 counter_from_hand {"handIndex":2}
+> #19 seat 1 counter_from_hand {"handIndex":2}
   Seat 1 counters with Charlotte Amande (+2000)
 
-> #19 seat 1 pass_counter
+> #20 seat 1 pass_counter
   Battle hits (5000 vs 4000)
   Seat 1's Sentomaru is K.O.'d
 
-> #20 seat 0 give_don {"donId":"don_5","targetId":"leader_1"}
+> #21 seat 0 give_don {"donId":"don_5","targetId":"leader_1"}
   Seat 0 attaches DON!! to Jewelry Bonney → 6000 power
 
-> #21 seat 0 declare_attack {"attackerId":"card_29","target":{"kind":"leader"}}
+> #22 seat 0 declare_attack {"attackerId":"card_61","target":{"kind":"leader"}}
   Seat 0 attacks Leader (2000 vs 5000)
 
-> #22 seat 1 pass_block
+> #23 seat 1 pass_block
 
-> #23 seat 1 pass_counter
+> #24 seat 1 pass_counter
   Battle fails (2000 vs 5000)
 
-> #24 seat 0 end_turn
+> #25 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1
@@ -104,52 +108,52 @@ Seat 1 leader: Charlotte Linlin (OP17-099)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #25 seat 1 give_don {"donId":"don_66","targetId":"card_77"}
+> #26 seat 1 give_don {"donId":"don_66","targetId":"card_93"}
   Seat 1 attaches DON!! to Nico Olvia → 1000 power
 
-> #26 seat 1 give_don {"donId":"don_67","targetId":"card_77"}
+> #27 seat 1 give_don {"donId":"don_67","targetId":"card_93"}
   Seat 1 attaches DON!! to Nico Olvia → 2000 power
 
-> #27 seat 1 play_card {"handIndex":1}
+> #28 seat 1 play_card {"handIndex":1}
   Seat 1 plays Fukaboshi (rests 3 DON!!)
   Seat 1 activates Fukaboshi's ability
   Seat 1 may resolve Fukaboshi's effect (Fukaboshi — pay the cost to activate: [On Play] You may add 1 card from the top or bottom of your Life cards to your hand: KO up to 1 of your opponent's Characters with a cost of 1 or less.)
 
-> #28 seat 1 resolve_pending_choice {"accept":false}
+> #29 seat 1 resolve_pending_choice {"accept":false}
   Seat 1 declines Fukaboshi's effect
 
-> #29 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"character","instanceId":"card_29"}}
+> #30 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"character","instanceId":"card_61"}}
   Seat 1 attacks a Character (5000 vs 1000)
   Seat 1 activates Charlotte Linlin's ability
   Seat 1 may resolve Charlotte Linlin's effect (Charlotte Linlin — pay the cost to activate: [When Attacking] You may trash 1 card from your hand: Your opponent chooses one: • Trash 1 card from your hand. Then, add up to 1 card from the top of your deck to the top of your Life cards. • Trash 1 card from your opponent's hand.)
 
-> #30 seat 1 resolve_pending_choice {"accept":false}
+> #31 seat 1 resolve_pending_choice {"accept":false}
   Seat 1 declines Charlotte Linlin's effect
   Seat 0 activates Jewelry Bonney's ability
 
-> #31 seat 0 declare_block {"blockerId":"card_60"}
+> #32 seat 0 declare_block {"blockerId":"card_17"}
   Seat 0 blocks
 
-> #32 seat 0 counter_from_hand {"handIndex":1}
+> #33 seat 0 counter_from_hand {"handIndex":1}
   Seat 0 counters with Inuarashi (+1000)
 
-> #33 seat 0 counter_from_hand {"handIndex":0}
+> #34 seat 0 counter_from_hand {"handIndex":0}
   Seat 0 counters with Lim (+1000)
 
-> #34 seat 0 pass_counter
+> #35 seat 0 pass_counter
   Battle hits (5000 vs 3000)
   Seat 0's Buggy is K.O.'d
 
-> #35 seat 1 declare_attack {"attackerId":"card_77","target":{"kind":"leader"}}
+> #36 seat 1 declare_attack {"attackerId":"card_93","target":{"kind":"leader"}}
   Seat 1 attacks Leader (2000 vs 5000)
   Seat 0 activates Jewelry Bonney's ability
 
-> #36 seat 0 pass_block
+> #37 seat 0 pass_block
 
-> #37 seat 0 pass_counter
+> #38 seat 0 pass_counter
   Battle fails (2000 vs 5000)
 
-> #38 seat 1 end_turn
+> #39 seat 1 end_turn
   Phase → end (active seat 1)
   Phase → refresh (active seat 0)
   Seat 0 draws 1
@@ -158,28 +162,28 @@ Seat 1 leader: Charlotte Linlin (OP17-099)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #39 seat 0 give_don {"donId":"don_3","targetId":"card_29"}
+> #40 seat 0 give_don {"donId":"don_3","targetId":"card_61"}
   Seat 0 attaches DON!! to Kin'emon → 2000 power
 
-> #40 seat 0 give_don {"donId":"don_5","targetId":"card_29"}
+> #41 seat 0 give_don {"donId":"don_5","targetId":"card_61"}
   Seat 0 attaches DON!! to Kin'emon → 3000 power
 
-> #41 seat 0 play_card {"handIndex":1}
+> #42 seat 0 play_card {"handIndex":1}
   Seat 0 plays Monkey.D.Luffy (rests 3 DON!!)
 
-> #42 seat 0 declare_attack {"attackerId":"card_29","target":{"kind":"character","instanceId":"card_77"}}
+> #43 seat 0 declare_attack {"attackerId":"card_61","target":{"kind":"character","instanceId":"card_93"}}
   Seat 0 attacks a Character (3000 vs 0)
 
-> #43 seat 1 pass_block
+> #44 seat 1 pass_block
 
-> #44 seat 1 counter_from_hand {"handIndex":1}
+> #45 seat 1 counter_from_hand {"handIndex":1}
   Seat 1 counters with Shirley (+1000)
 
-> #45 seat 1 pass_counter
+> #46 seat 1 pass_counter
   Battle hits (3000 vs 1000)
   Seat 1's Nico Olvia is K.O.'d
 
-> #46 seat 0 end_turn
+> #47 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1

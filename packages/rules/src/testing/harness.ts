@@ -164,6 +164,20 @@ export class Harness {
     return this.act(choice.seat, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
   }
 
+  /**
+   * Answer every front select that holds no decision: each candidate must be chosen (or none exist).
+   * Selects from a hand/deck/Life are always asked (#369) even then, so a test that only cares about the
+   * outcome calls this after accepting a cost. A prompt with a real choice is left for the test to answer.
+   */
+  forced(): this {
+    for (;;) {
+      const choice = this.choice;
+      const r = choice?.request;
+      if (!choice || r?.type !== "select" || r.options.length !== r.min || choice.bindings?.__startStage) return this;
+      this.act(choice.seat, { type: "resolve_pending_choice", accept: true, selectedOptionIds: r.options.map((o) => o.id) });
+    }
+  }
+
   find(seat: Seat, defId: string): CardInstance | undefined {
     const p = this.state.players[seat];
     return [p.leader, ...p.characters, ...(p.stage ? [p.stage] : [])].find((c) => c.defId === defId);

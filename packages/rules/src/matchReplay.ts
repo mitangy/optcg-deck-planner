@@ -24,6 +24,8 @@ export interface MatchReplay {
   players: [{ leaderId: string; deck: string[] }, { leaderId: string; deck: string[] }];
   /** Every non-Banish Life hit opened a private Life check (#352). Absent on older recordings: legacy flow. */
   lifeCheckEveryHit?: boolean;
+  /** Private choices, hidden-zone selects and permuted deck ids (#369). Absent on older recordings: legacy flow. */
+  privateChoicesV2?: boolean;
   intents: { seat: Seat; intent: Intent }[];
   /**
    * The room re-seeded the shuffle rng (an agreed undo must not repeat the old
@@ -49,6 +51,7 @@ export function replayMatch(replay: MatchReplay, onStep?: (step: ReplayStep) => 
     seed: replay.seed,
     firstSeat: replay.firstSeat,
     lifeCheckEveryHit: replay.lifeCheckEveryHit ?? false,
+    privateChoicesV2: replay.privateChoicesV2 ?? false,
     players: [
       { leaderId: replay.players[0].leaderId, deck: [...replay.players[0].deck] },
       { leaderId: replay.players[1].leaderId, deck: [...replay.players[1].deck] },
