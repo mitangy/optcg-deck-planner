@@ -5,6 +5,7 @@ import { fanPose } from "./handFan";
 import { playerLabel, seatName } from "./playerNames";
 import { CardTile } from "./CardTile";
 import { respondSubline } from "./promptLine";
+import { donTotal } from "./donTotals";
 
 /** Formatted per-player (chess) clocks; `running` is whose is ticking. */
 export type SeatClocks = {
@@ -202,7 +203,7 @@ export function TurnStatusPanel({
               hand: opp.handCount,
               deck: opp.deckCount,
               donActive: opp.activeDonCount,
-              donTotal: opp.costAreaCount,
+              donTotal: donTotal(opp.costAreaCount, opp),
             }}
           />
           <PlayerRow
@@ -218,7 +219,7 @@ export function TurnStatusPanel({
               hand: spectating ? (you.handCount ?? 0) : you.hand.length,
               deck: you.deckCount,
               donActive: you.activeDonCount,
-              donTotal: you.costArea.length,
+              donTotal: donTotal(you.costArea.length, you),
             }}
           />
         </>

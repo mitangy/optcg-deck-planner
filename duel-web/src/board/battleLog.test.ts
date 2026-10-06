@@ -82,20 +82,13 @@ describe("narrateEvents", () => {
           cardDefId: "ST01-005",
           accepted: true,
         },
-        {
-          type: "pending_choice_resolved",
-          seat: 1,
-          kind: "life_trigger",
-          cardDefId: "ST01-003",
-          accepted: false,
-        },
       ],
       { youSeat: 0, turnNumber: 3 },
     ).map((e) => e.text);
 
     expect(lines[0]).toMatch(/You may resolve Jinbe's on play/i);
     expect(lines[1]).toMatch(/You accept Jinbe's on play/i);
-    expect(lines[2]).toMatch(/Opponent declines Karoo's life trigger/i);
+    expect(lines).toHaveLength(2);
   });
 
   it("groups by turn", () => {
@@ -132,7 +125,7 @@ describe("narrateEvents emphasis + card segments", () => {
     expect([ko!.tone, ko!.important]).toEqual(["ko", true]);
     expect(ko!.text).toMatch(/^Opponent's .+ is K\.O\.'d$/);
     expect([life!.tone, life!.important]).toEqual(["damage", true]);
-    expect(life!.text).toBe("Opponent takes 1 damage (Life → hand)");
+    expect(life!.text).toBe("Opponent takes 1 damage");
   });
 
   it("emits card segments with defId + owner seat for inspect", () => {
@@ -226,10 +219,34 @@ describe("narrateEvents emphasis + card segments", () => {
     expect(won!.tone).toBe("win");
   });
 
-  it("does not leak hidden trigger cards", () => {
-    const [avail] = narrate([{ type: "trigger_available", seat: 1, defId: "HIDDEN" }], 0);
-    expect(avail!.segments.every((s) => s.kind === "text")).toBe(true);
-    expect(avail!.text).not.toContain("HIDDEN");
+  it("does not tell the opponent a Life card has a Trigger (#352)", () => {
+    // Old stored logs carry trigger_available (projected to HIDDEN for the opponent).
+    expect(narrate([{ type: "trigger_available", seat: 1, defId: "HIDDEN" }], 0)).toEqual([]);
+    const [own] = narrate([{ type: "trigger_available", seat: 0, defId: "ST01-003" }], 0);
+    expect(own!.text).toContain("Trigger");
+  });
+
+  it("narrates every hidden Life hit the same way, trigger or not (#352)", () => {
+    const hit = (toHand: boolean) => narrate([{ type: "life_taken", seat: 1, defId: "HIDDEN", toHand }], 0).map((e) => e.text);
+    expect(hit(false)).toEqual(["Opponent takes 1 damage"]);
+    expect(hit(true)).toEqual(hit(false));
+    const [own] = narrate([{ type: "life_taken", seat: 0, defId: "ST01-003", toHand: false }], 0);
+    expect(own!.text).toBe("You take 1 damage (Karoo)");
+  });
+
+  it("narrates nothing for a declined Life check, never a declined Trigger (#352)", () => {
+    const resolved = (seat: number) =>
+      narrate(
+        [
+          { type: "pending_choice_added", seat, kind: "life_trigger", cardDefId: "HIDDEN", optional: true, prompt: "x" },
+          { type: "pending_choice_resolved", seat, kind: "life_trigger", cardDefId: "HIDDEN", accepted: false },
+          { type: "trigger_resolved", seat, accepted: false },
+        ],
+        0,
+      ).map((e) => e.text);
+    expect(resolved(1)).toEqual([]);
+    expect(resolved(0)).toEqual([]);
+    expect(narrate([{ type: "trigger_resolved", seat: 1, accepted: true }], 0).map((e) => e.text)).toEqual(["Opponent activates the Trigger"]);
   });
 });
 

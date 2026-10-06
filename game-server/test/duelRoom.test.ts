@@ -113,6 +113,8 @@ type RoomInternals = {
   replay: MatchReplay | null;
   expireTurnClock(): void;
   matchEndsAt: number | null;
+  clockSeat: 0 | 1 | null;
+  seatRemainingMs: [number, number];
   resultPayload(s0: number, s1: number, winner: 0 | 1, reason: string): MatchResultPayload;
 };
 const internals = (room: DuelRoom) => room as unknown as RoomInternals;
@@ -1150,6 +1152,56 @@ describe("DuelRoom", () => {
     await waitUntil(() => sent.at(-1)!.payload.replay!.intents.length === intents, 5000);
   });
 
+  it("a live game's progress snapshots hide the opponent's hand; the result and a cut-off log show it (#359)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 67,
+      autoSkipMulligan: true,
+    });
+    const sent: MatchProgressPayload[] = [];
+    Object.assign(room, {
+      ingestSeats: () => [101, 102],
+      persistMatchProgress: async (_matchId: string, payload: MatchProgressPayload) => {
+        sent.push(payload);
+      },
+      persistMatchResult: async () => {},
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    await playSome([c0, c1], bags, 6);
+    assert.ok(sent.length > 0, "turn snapshots were sent");
+    for (const payload of sent) {
+      const text = JSON.stringify(payload.seat_logs);
+      assert.ok(!text.includes('"opponentHand"'), "no opponent hand in a live snapshot");
+      assert.ok(!text.includes('"opponentOpeningHand"'));
+    }
+
+    // The hand count stays in a live snapshot, so the page can still show it.
+    assert.ok(sent.at(-1)!.seat_logs![0].turns.some((t) => t.opponentHandCount != null));
+
+    const result = internals(room).resultPayload(11, 12, 0, "concede");
+    for (const log of result.seat_logs!) {
+      assert.ok(log.opponentOpeningHand!.length > 0);
+      assert.ok(log.turns.some((t) => t.opponentHand && t.opponentHand.length > 0));
+    }
+
+    // Both players leave: the room closes without a result and its last snapshot reveals the hands.
+    const live = sent.length;
+    await c0.leave(true);
+    await c1.leave(true);
+    await waitUntil(() => sent.length > live, 5000);
+    const closing = sent.at(-1)!.seat_logs!;
+    assert.ok(closing.every((l) => l.opponentOpeningHand && l.turns.some((t) => t.opponentHand)));
+  });
+
   it("the result sent to the backend carries leaders, turns, the replay, each seat's log and how it ended (#244, #252)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -1192,7 +1244,7 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("ranked clock: a seat that never answers its mulligan loses on time, not the first player (#248)", async () => {
+  it("match clock: a seat that never answers its mulligan loses on time, not the first player (#248)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 42,
@@ -1225,7 +1277,46 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("ranked clock: a defender sitting on the block step loses on time, not the attacker (#248)", async () => {
+  it("per-player clock: a seat that stalls its mulligan runs its own bank down and loses on time (#349)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 42,
+      autoSkipMulligan: false,
+      timer: { seatSeconds: 900 },
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    assert.equal(bags[0].welcome!.phase, "mulligan");
+
+    // Nobody has answered: the clock runs for the first player.
+    const active = internals(room).match.activeSeat as 0 | 1;
+    const other = (1 - active) as 0 | 1;
+    assert.equal(internals(room).clockSeat, active);
+
+    // The active seat keeps; the clock moves to the seat that has yet to answer.
+    const clients = [c0, c1] as const;
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "mulligan", doMulligan: false } });
+    await waitUntil(() => internals(room).match.players[active].mulliganDone, 5000);
+    assert.equal(internals(room).clockSeat, other);
+
+    // The staller's bank empties while the answered seat's bank is untouched.
+    internals(room).seatRemainingMs[other] = 1;
+    await waitUntil(() => bags[0].over != null, 5000);
+    assert.deepEqual(bags[0].over!.result, { winner: active, reason: "timeout" });
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("match clock: a defender sitting on the block step loses on time, not the attacker (#248)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 42,
@@ -1306,6 +1397,20 @@ describe("DuelRoom", () => {
       return made;
     });
     for (const r of rooms) await r.leave(true);
+  });
+
+  it("a rejected room create doesn't use up one of the account's room slots (#318)", async () => {
+    const badDeck = { leaderId: "ZZ99-001", deck: Array.from({ length: 50 }, () => "ST01-003") };
+    const opts = { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(611) };
+    const room = await withTokensRequired(async () => {
+      for (let i = 0; i < MAX_ROOMS_PER_CREATOR; i++) {
+        // Each create is turned away by onCreate ("Deck rejected: Unknown or invalid leader").
+        await assert.rejects(() => colyseus.sdk.create("duel", { ...opts, players: [badDeck, badDeck] }));
+      }
+      assert.equal((await matchMaker.query({ name: "duel" })).length, 0);
+      return colyseus.sdk.create("duel", opts);
+    });
+    await room.leave(true);
   });
 
   it("drops a client that floods the room with messages (#318)", async () => {

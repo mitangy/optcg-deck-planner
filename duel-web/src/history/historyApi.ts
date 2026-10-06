@@ -26,7 +26,9 @@ export type SeatLogJson = {
   schema: number;
   seat: 0 | 1;
   openingHand: string[];
-  turns: { turn: number; activeSeat: 0 | 1; events: unknown[] }[];
+  /** The opponent's hand after mulligans; only in logs of games that can no longer be played. */
+  opponentOpeningHand?: string[];
+  turns: { turn: number; activeSeat: 0 | 1; events: unknown[]; hand?: string[]; opponentHandCount?: number; opponentHand?: string[] }[];
   boardCards: [string, string, 0 | 1][];
   diverged?: string;
 };

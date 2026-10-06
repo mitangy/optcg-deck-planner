@@ -1,0 +1,271 @@
+/**
+ * Spectate links (#346): `/watch/<room id>` opens straight into spectating, and
+ * a bad or finished room says so back in the lobby.
+ */
+import type { BrowserContext, Page } from "@playwright/test";
+import { test, expect, mintGameToken, FAKE_API } from "./fixtures";
+
+const NEAR_HAND = ":is(.rail-hand-cards, .hand-row-inner, .hand-fan-cards, .hand-dock-cards) .card-tile";
+const FAR_HAND = ":is(.spec-far-cards .card-tile, .opp-fan-face, .opp-hand-face) >> visible=true";
+const ENDED_MESSAGE = "That match has ended or the spectate link is wrong.";
+
+async function newWatcher(browser: import("@playwright/test").Browser, use: object): Promise<{ ctx: BrowserContext; page: Page }> {
+  const ctx = await browser.newContext({ ...use, permissions: ["clipboard-read", "clipboard-write"] });
+  const page = await ctx.newPage();
+  await page.route(`${FAKE_API}/**`, (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/health") return route.fulfill({ json: { ok: true } });
+    if (path === "/duel/guest-token") {
+      return route.fulfill({
+        json: { token: mintGameToken(99, "watcher"), expires_at: 0, user_id: 99, email: "watcher@e2e.test", rating: 1000, games_played: 0 },
+      });
+    }
+    return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
+  });
+  return { ctx, page };
+}
+
+async function practiceRoomId(page: Page, duel: { startPractice(o: { seed: number }): Promise<void> }): Promise<string> {
+  const created = page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
+  await duel.startPractice({ seed: 7 });
+  const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
+  const roomId = body.room?.roomId ?? body.roomId;
+  expect(roomId).toBeTruthy();
+  return roomId!;
+}
+
+test("opening /watch/<room id> goes straight to the board with both hands, and Back skips the link (#346)", async ({ page, duel, browser }, info) => {
+  const roomId = await practiceRoomId(page, duel);
+  const { ctx, page: spec } = await newWatcher(browser, info.project.use);
+  await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
+
+  await expect(spec.locator(NEAR_HAND)).toHaveCount(5, { timeout: 30_000 });
+  await expect(spec.locator(FAR_HAND)).toHaveCount(5);
+  await expect(spec).toHaveURL(/\/duel$/);
+  // The link entry was replaced: about:blank + the board, so Back can't re-join through it.
+  expect(await spec.evaluate(() => history.length)).toBe(2);
+  await spec.screenshot({ path: info.outputPath("watch-link-board.png") });
+  await ctx.close();
+  expect(duel.errors).toEqual([]);
+});
+
+test("/watch/<room id>?seat=2 puts the spectator's camera on player 2 (#346)", async ({ page, duel, browser }, info) => {
+  const roomId = await practiceRoomId(page, duel);
+  const { ctx, page: spec } = await newWatcher(browser, info.project.use);
+  await spec.goto(`/watch/${encodeURIComponent(roomId)}?seat=2`);
+  await expect(spec.locator(".board-root")).toHaveAttribute("data-seat", "1", { timeout: 30_000 });
+  await ctx.close();
+});
+
+test("a room that does not exist lands in the lobby with a clear message (#346)", async ({ page, browser }, info) => {
+  const { ctx, page: spec } = await newWatcher(browser, info.project.use);
+  await spec.goto("/watch/nosuchroom");
+  await expect(spec.getByText(ENDED_MESSAGE)).toBeVisible({ timeout: 30_000 });
+  await expect(spec).toHaveURL(/\/$/);
+  await spec.screenshot({ path: info.outputPath("watch-link-ended.png") });
+  await ctx.close();
+  void page;
+});
+
+test("a spectator who arrives before the match starts sees waiting, not an error (#346)", async ({ page, browser }, info) => {
+  const created = page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
+  await page.route(`${FAKE_API}/**`, (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/health") return route.fulfill({ json: { ok: true } });
+    if (path === "/duel/guest-token") {
+      return route.fulfill({
+        json: { token: mintGameToken(1, "host"), expires_at: 0, user_id: 1, email: "host@e2e.test", rating: 1000, games_played: 0 },
+      });
+    }
+    return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await page.getByRole("button", { name: /^Private room/ }).click();
+  await page.getByRole("button", { name: "Create room" }).click();
+  const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
+  const roomId = (body.room?.roomId ?? body.roomId)!;
+  await expect(page.locator(".room-invite-id")).toHaveText(roomId);
+  await page.screenshot({ path: info.outputPath("waiting-room-invite.png") });
+
+  const { ctx, page: spec } = await newWatcher(browser, info.project.use);
+  await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
+  await expect(spec.getByText("Waiting for the match to start…").first()).toBeVisible({ timeout: 30_000 });
+  // The server's "match_not_ready" is not a problem to report.
+  await spec.waitForTimeout(800);
+  await expect(spec.locator(".error-banner")).toHaveCount(0);
+  await expect(spec).toHaveURL(/\/duel$/);
+  await ctx.close();
+});
+
+test("a spectator copies a link from the HUD or the menu that opens the same match (#346)", async ({ page, duel, browser }, info) => {
+  // A practice match is hotseat for its player (no room to share); the watcher is an online seat.
+  const roomId = await practiceRoomId(page, duel);
+  const { ctx, page: spec } = await newWatcher(browser, info.project.use);
+  await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
+  await expect(spec.locator(NEAR_HAND)).toHaveCount(5, { timeout: 30_000 });
+  const expected = `${new URL(spec.url()).origin}/watch/${encodeURIComponent(roomId)}`;
+  const phone = (info.project.use.viewport?.width ?? 1280) < 720;
+  if (phone) {
+    await spec.getByRole("button", { name: "Match menu" }).click();
+    await spec.screenshot({ path: info.outputPath("match-menu.png") });
+    await spec.getByRole("menuitem", { name: "Copy spectate link" }).click();
+    await expect(spec.getByRole("menuitem", { name: "Copied" })).toBeVisible();
+  } else {
+    const btn = spec.getByRole("button", { name: "Copy spectate link" });
+    const before = (await btn.boundingBox())!;
+    const chip = (await spec.locator(".room-chip").boundingBox())!;
+    await spec.screenshot({ path: info.outputPath("hud-watch-link.png") });
+    await btn.click();
+    await expect(btn).toHaveText("Copied");
+    // The label flips without resizing the button or the chip beside the other controls.
+    expect(await btn.boundingBox()).toEqual(before);
+    expect(await spec.locator(".room-chip").boundingBox()).toEqual(chip);
+  }
+  expect(await spec.evaluate(() => navigator.clipboard.readText())).toBe(expected);
+  await ctx.close();
+});
+
+type Box = { x: number; y: number; width: number; height: number };
+
+async function boxes(page: Page, selector: string): Promise<Box[]> {
+  const out: Box[] = [];
+  for (const el of await page.locator(selector).all()) out.push((await el.boundingBox())!);
+  return out;
+}
+
+const bottomOf = (bs: Box[]) => Math.max(...bs.map((b) => b.y + b.height));
+const topOf = (bs: Box[]) => Math.min(...bs.map((b) => b.y));
+const intersects = (a: Box, b: Box) =>
+  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+/** Every box lies inside the window (nothing clipped off an edge). */
+function expectOnScreen(bs: Box[], width: number, height: number) {
+  for (const b of bs) {
+    expect(b.x).toBeGreaterThanOrEqual(0);
+    expect(b.y).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width).toBeLessThanOrEqual(width);
+    expect(b.y + b.height).toBeLessThanOrEqual(height);
+  }
+}
+
+test("a desktop spectator sees both hands as fans, near at the bottom and far along the top, whatever the Hand setting (#346)", async ({ page, duel, browser }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "desktop layout");
+  const roomId = await practiceRoomId(page, duel);
+  // No fixture override here: the watcher's Hand setting is the default "auto" (the Grid on a 720px window).
+  const { ctx, page: spec } = await newWatcher(browser, info.project.use);
+  await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
+  await expect(spec.locator(".hand-fan-cards .card-tile")).toHaveCount(5, { timeout: 30_000 });
+  await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
+  // The Grid hand and the small rail fan are gone: the fans are the only hands.
+  await expect(spec.locator(".rail-hand, .opp-hand-fan, .opp-hand-hint:visible")).toHaveCount(0);
+
+  const vp = spec.viewportSize()!;
+  const near = await boxes(spec, ".hand-fan-cards .card-tile");
+  const far = await boxes(spec, ".spec-far-cards .card-tile");
+  const oppMat = (await spec.locator(".side-field.side-opp").boundingBox())!;
+  const youMat = (await spec.locator(".side-field.side-you").boundingBox())!;
+  // Far fan: hangs above the opponent's mat, centred over the board column, wholly on screen.
+  expect(bottomOf(far)).toBeLessThanOrEqual(oppMat.y);
+  const board = (await spec.locator(".playmat").boundingBox())!;
+  // ...and the row reserved for it is tall enough that no card is clipped off the top of the board.
+  expect(topOf(far)).toBeGreaterThanOrEqual(board.y);
+  const farMid = (Math.min(...far.map((b) => b.x)) + Math.max(...far.map((b) => b.x + b.width))) / 2;
+  expect(Math.abs(farMid - (board.x + board.width / 2))).toBeLessThan(12);
+  // Near fan: raised below your mat, fully visible (not tucked behind the window edge).
+  expect(topOf(near)).toBeGreaterThanOrEqual(youMat.y + youMat.height);
+  expectOnScreen(near, vp.width, vp.height);
+  // The far cards are about as big as the near ones.
+  expect(Math.abs(near[0]!.width - far[0]!.width)).toBeLessThan(near[0]!.width * 0.3);
+  // Mirrored arc: the outer cards of the near fan sit lower than its middle card, those of the far fan higher, and the far cards stay upright.
+  expect(near[2]!.y + near[2]!.height).toBeLessThan(near[0]!.y + near[0]!.height);
+  expect(far[2]!.y).toBeGreaterThan(far[0]!.y + far[0]!.height * 0.06);
+  const tilts = await spec.locator(".spec-far-cards .card-tile").evaluateAll((els) =>
+    els.map((el) => {
+      const m = new DOMMatrix(getComputedStyle(el).transform);
+      return Math.abs((Math.atan2(m.b, m.a) * 180) / Math.PI);
+    }),
+  );
+  for (const deg of tilts) expect(deg).toBeLessThan(45);
+  // Reading a far card: pointing at it shows it in the preview column.
+  const mid = far[2]!;
+  await spec.mouse.move(mid.x + mid.width / 2, mid.y + mid.height / 2);
+  await expect(spec.locator(".card-preview:not(.card-preview-empty) .card-preview-name")).toBeVisible();
+  await spec.mouse.move(vp.width / 2, vp.height / 2);
+  await spec.screenshot({ path: info.outputPath("fans-desktop.png") });
+  await ctx.close();
+  expect(duel.errors).toEqual([]);
+});
+
+test("a portrait phone spectator sees an overlapped fan strip for each hand (#346)", async ({ page, duel, browser }, info) => {
+  test.skip(info.project.name !== "phone-375", "portrait phone layout");
+  const roomId = await practiceRoomId(page, duel);
+  const { ctx, page: spec } = await newWatcher(browser, info.project.use);
+  await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
+  await expect(spec.locator(".hand-row-fan .card-tile")).toHaveCount(5, { timeout: 30_000 });
+  await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
+  const far = await boxes(spec, ".spec-far-cards .card-tile");
+  const oppMat = (await spec.locator(".side-field.side-opp").boundingBox())!;
+  // The strip sits above the top mat and clear of the Chat button and Battle log pill that float over the top of the board.
+  expect(bottomOf(far)).toBeLessThanOrEqual(oppMat.y);
+  expect(topOf(far)).toBeGreaterThanOrEqual((await spec.locator(".playmat").boundingBox())!.y);
+  for (const pill of [spec.getByRole("button", { name: "Chat" }), spec.locator(".battle-log")]) {
+    const pb = (await pill.first().boundingBox())!;
+    for (const card of far) expect(intersects(card, pb)).toBe(false);
+  }
+  await spec.screenshot({ path: info.outputPath("fans-phone.png") });
+  await ctx.close();
+  expect(duel.errors).toEqual([]);
+});
+
+test.describe("landscape phone", () => {
+  test.use({ viewport: { width: 812, height: 375 }, hasTouch: true });
+
+  test("the waiting room card with the spectate link fits a landscape phone (#346)", async ({ page }, info) => {
+    test.skip(info.project.name !== "phone-375", "one landscape run is enough");
+    await page.route(`${FAKE_API}/**`, (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === "/health") return route.fulfill({ json: { ok: true } });
+      if (path === "/duel/guest-token") {
+        return route.fulfill({
+          json: { token: mintGameToken(1, "host"), expires_at: 0, user_id: 1, email: "host@e2e.test", rating: 1000, games_played: 0 },
+        });
+      }
+      return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Play", exact: true }).click();
+    await page.getByRole("button", { name: /^Private room/ }).click();
+    await page.getByRole("button", { name: "Create room" }).click();
+    await expect(page.locator(".room-invite-id")).toBeVisible({ timeout: 30_000 });
+    // The waiting board used to drop its mat (and the card on it) into the 44px icon-rail column.
+    const card = (await page.locator(".room-invite").boundingBox())!;
+    expect(card.x).toBeGreaterThanOrEqual(0);
+    expect(card.width).toBeGreaterThan(300);
+    expect(card.x + card.width).toBeLessThanOrEqual(812);
+    expect(card.y + card.height).toBeLessThanOrEqual(375);
+    await expect(page.getByRole("button", { name: "Copy spectate link" })).toBeInViewport({ ratio: 1 });
+    await page.screenshot({ path: info.outputPath("waiting-room-landscape.png") });
+  });
+
+  test("a landscape phone spectator sees both hands as small fans in the right column, clear of the mats (#346)", async ({ page, duel, browser }, info) => {
+    test.skip(info.project.name !== "phone-375", "one landscape run is enough");
+    const roomId = await practiceRoomId(page, duel);
+    // The watcher is its own context: give it this describe's landscape window, not the project's.
+    const { ctx, page: spec } = await newWatcher(browser, { ...info.project.use, viewport: { width: 812, height: 375 } });
+    await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
+    await expect(spec.locator(".rail-hand-fan .card-tile")).toHaveCount(5, { timeout: 30_000 });
+    await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
+    const near = await boxes(spec, ".rail-hand-fan .card-tile");
+    const far = await boxes(spec, ".spec-far-cards .card-tile");
+    expectOnScreen([...near, ...far], 812, 375);
+    // The far fan is above the near one, and neither touches a mat.
+    expect(bottomOf(far)).toBeLessThanOrEqual(topOf(near));
+    for (const mat of await boxes(spec, ".side-field")) {
+      for (const card of [...near, ...far]) expect(intersects(card, mat)).toBe(false);
+    }
+    await spec.screenshot({ path: info.outputPath("fans-landscape.png") });
+    await ctx.close();
+    expect(duel.errors).toEqual([]);
+  });
+});

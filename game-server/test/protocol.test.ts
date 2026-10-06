@@ -77,12 +77,12 @@ describe("protocol parsers", () => {
     assert.equal(parseCreateOptions({ ranked: true }).ranked, true);
   });
 
-  it("ranked games get one 15 minute clock for the whole game and no turn timer (#248)", () => {
+  it("ranked games get a 15 minute clock per player, no shared match clock and no turn timer (#248, #349)", () => {
     const asked = { turnSeconds: 30, matchSeconds: 60, seatSeconds: 120 };
     assert.deepEqual(parseCreateOptions({ ranked: true, timer: asked }).timer, {
       turnSeconds: null,
-      matchSeconds: 15 * 60,
-      seatSeconds: null,
+      matchSeconds: null,
+      seatSeconds: 900,
     });
     assert.deepEqual(parseCreateOptions({ ranked: false, timer: asked }).timer, {
       turnSeconds: 30,

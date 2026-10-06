@@ -19,6 +19,7 @@ export type ToggleKey =
   | "cantAttackWarning"
   | "battleArrow"
   | "previewBigCard"
+  | "donUpright"
   | "oppHandTopRight"
   | "tiltedBoard"
   | "turnSplash"

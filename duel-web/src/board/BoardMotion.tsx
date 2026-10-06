@@ -475,7 +475,7 @@ function handZone(): HTMLElement | null {
 }
 
 function oppHand(): HTMLElement | null {
-  return firstVisible([".opp-hand-fan-cards", ".opp-hand-backs", ".opp-hand-hint"]);
+  return firstVisible([".spec-far-cards", ".opp-hand-fan-cards", ".opp-hand-backs", ".opp-hand-hint"]);
 }
 
 /** The DON!! that just arrived: active chips come first, so they end the active run. */

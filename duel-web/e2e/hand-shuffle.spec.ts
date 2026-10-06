@@ -155,6 +155,70 @@ function handTests(where: string, landscape = false) {
         new Set([h2, h3]),
       );
     });
+
+    test(`${handLayout} hand${where}: a dragged card lifts out of the hand and follows the pointer (#364)`, async ({
+      page,
+    }) => {
+      if (landscape) {
+        test.skip(test.info().project.name !== "phone-375", "phones only");
+        await page.setViewportSize({ width: 812, height: 375 });
+      }
+      await recordHandAnims(page, { handLayout });
+      await openDemo(page);
+      const cards = page.locator(CARDS);
+      const touch = test.info().project.name === "phone-375";
+      let b = (await cards.nth(0).boundingBox())!;
+      if (!touch) {
+        await page.mouse.move(b.x + b.width / 2, b.y + 12);
+        await page.waitForTimeout(450);
+        b = (await cards.nth(0).boundingBox())!;
+      }
+      const cardWidth = await cards.nth(0).evaluate((el) => (el as HTMLElement).offsetWidth);
+      const start = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      const third = (await cards.nth(2).boundingBox())!;
+      const overHand = { x: third.x + third.width / 2, y: third.y + third.height / 2 };
+      const field = (await page.locator('.side-you [data-dnd-drop="play_field"]').first().boundingBox())!;
+      const overBoard = { x: field.x + field.width / 2, y: field.y + field.height / 2 };
+      const cdp = touch ? await page.context().newCDPSession(page) : null;
+      const move = async (p: { x: number; y: number }) => {
+        if (cdp) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [p] });
+        else await page.mouse.move(p.x, p.y, { steps: 8 });
+        await page.waitForTimeout(120);
+      };
+      if (cdp) await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [start] });
+      else {
+        await page.mouse.move(start.x, start.y);
+        await page.mouse.down();
+      }
+      // Lift the card a little first, across the row's scroll.
+      await move(landscape ? { x: start.x - 16, y: start.y } : { x: start.x, y: start.y - 16 });
+      await move(overHand);
+
+      // Over the hand: the card rides under the pointer at full size and its slot is empty.
+      const lift = page.locator(".hand-lift");
+      await expect(lift).toHaveCount(1);
+      const held = (await lift.boundingBox())!;
+      expect(Math.abs(held.x + held.width / 2 - overHand.x)).toBeLessThan(held.width);
+      expect(Math.abs(held.y + held.height / 2 - overHand.y)).toBeLessThan(held.height);
+      expect(held.width).toBeGreaterThan(cardWidth * 1.04);
+      expect(await cards.nth(0).evaluate((el) => getComputedStyle(el).opacity)).toBe("0");
+
+      // Over the board it shrinks so the board stays visible, and still follows.
+      await move(overBoard);
+      await page.waitForTimeout(200);
+      const carried = (await lift.boundingBox())!;
+      // Carried size is a 64px card; phone hand cards are close to that already.
+      expect(carried.width).toBeLessThan(held.width);
+      expect(carried.width).toBeLessThan(66);
+      expect(Math.abs(carried.y + carried.height / 2 - overBoard.y)).toBeLessThan(carried.height);
+
+      // Back over the hand and let go: the copy is gone and the card is back in the hand.
+      await move(overHand);
+      if (cdp) await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      else await page.mouse.up();
+      await expect(lift).toHaveCount(0);
+      await expect.poll(() => cards.evaluateAll((els) => els.map((e) => getComputedStyle(e).opacity))).not.toContain("0");
+    });
   }
 }
 

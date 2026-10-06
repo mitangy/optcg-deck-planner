@@ -25,6 +25,12 @@ describe("match menu items", () => {
     expect(matchMenuItems(live)).toContain("copy-room");
   });
 
+  it("offers Copy spectate link to online players and spectators, not hotseat (#346)", () => {
+    expect(matchMenuItems(live)).toContain("copy-spectate");
+    expect(matchMenuItems({ ...live, spectating: true, canConcede: false })).toContain("copy-spectate");
+    expect(matchMenuItems({ ...live, hotseat: true })).not.toContain("copy-spectate");
+  });
+
   it("offers Full screen only when the browser offers it", () => {
     expect(matchMenuItems({ ...live, fullscreenOffered: true })).toContain("fullscreen");
     expect(matchMenuItems(live)).not.toContain("fullscreen");

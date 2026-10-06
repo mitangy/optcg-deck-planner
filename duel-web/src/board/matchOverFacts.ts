@@ -28,3 +28,35 @@ export function matchOverFacts(turnNumber: number, record: MatchHistoryEntry | n
 
 /** Seconds to wait before each try at fetching the saved match; the server saves it a moment after the game. */
 export const RECORD_RETRY_DELAYS_S = [0, 2, 5, 10, 20];
+
+/**
+ * Fetches the saved match on the RECORD_RETRY_DELAYS_S schedule until a finished
+ * entry lands, then hands it to `onRecord`. A miss (404) or an entry that is not
+ * finished yet (the live game's per-turn save, which has no rating) is retried.
+ * Returns a cancel function.
+ */
+export function pollMatchRecord(
+  matchId: string,
+  load: (matchId: string) => Promise<MatchHistoryEntry>,
+  onRecord: (entry: MatchHistoryEntry) => void,
+): () => void {
+  let live = true;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const attempt = (i: number) => {
+    const retry = () => {
+      if (live && i + 1 < RECORD_RETRY_DELAYS_S.length) attempt(i + 1);
+    };
+    timer = setTimeout(() => {
+      load(matchId).then((entry) => {
+        if (!live) return;
+        if (entry.finished === false) retry();
+        else onRecord(entry);
+      }, retry);
+    }, RECORD_RETRY_DELAYS_S[i]! * 1000);
+  };
+  attempt(0);
+  return () => {
+    live = false;
+    clearTimeout(timer);
+  };
+}

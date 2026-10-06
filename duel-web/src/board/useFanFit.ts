@@ -13,11 +13,18 @@ export function useFanFit(
   active: boolean,
   /** Changes when the fan moves between the centre spot, floating and docked. */
   variant: string,
+  /**
+   * Spectators: both hands are only for reading, so the cards spread out wider
+   * (`openSpread`, share of a card each one adds) and may use the whole board
+   * column (`capSelector`) rather than just your mat.
+   */
+  opts: { openSpread?: number; capSelector?: string } = {},
 ): void {
+  const { openSpread = 0.8, capSelector = ".arena .side-you" } = opts;
   useLayoutEffect(() => {
     const fan = fanRef.current;
     if (!active || !fan) return;
-    const mat = document.querySelector<HTMLElement>(".arena .side-you");
+    const mat = document.querySelector<HTMLElement>(capSelector);
     const clear = () => {
       fan.style.removeProperty("--fan-tuck-w");
       fan.style.removeProperty("--fan-open-w");
@@ -34,7 +41,7 @@ export function useFanFit(
       }
       const cardW = card.offsetWidth;
       fan.style.setProperty("--fan-tuck-w", `${fanSpan(count, cardW, 0.5, maxW)}px`);
-      fan.style.setProperty("--fan-open-w", `${fanSpan(count, cardW, 0.8, maxW)}px`);
+      fan.style.setProperty("--fan-open-w", `${fanSpan(count, cardW, openSpread, maxW)}px`);
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -44,5 +51,5 @@ export function useFanFit(
       ro.disconnect();
       clear();
     };
-  }, [fanRef, count, active, variant]);
+  }, [fanRef, count, active, variant, openSpread, capSelector]);
 }
