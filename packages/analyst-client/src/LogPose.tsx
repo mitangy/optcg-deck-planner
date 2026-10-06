@@ -20,7 +20,9 @@ import {
   type ChatRequest,
   type DeckContext,
 } from "./client";
-import { Markdown } from "./Markdown";
+import { placeAt, type Citation, type PlacedCitation } from "./citations";
+import { ResizeHandles, SheetGrip, useDrawerSize, useSheetHeight } from "./PanelResize";
+import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
 import { createSessionManager, type ChatSession, type SessionManager } from "./session";
 import { readThreadId, writeThreadId } from "./threadStore";
 
@@ -44,6 +46,8 @@ type LogPoseValue = {
   setPage: (owner: object, page: LogPosePage | null) => void;
   openPanel: () => void;
 };
+
+const NO_HOOKS: SourceHooks = {};
 
 const fallbackSession: SessionManager = {
   current: () => null,
@@ -75,7 +79,8 @@ export function useLogPosePage(page: LogPosePage | null) {
   }, [key, owner, setPage]);
 }
 
-export const PHONE_QUERY = "(max-width: 899.98px)";
+/** Desktop and tablets (a fine pointer, or 640px and wider) get the resizable drawer; anything else gets the phone sheet. */
+export const DRAWER_QUERY = "(min-width: 640px), (pointer: fine)";
 
 function useMedia(query: string): boolean {
   const get = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(query).matches;
@@ -91,7 +96,7 @@ function useMedia(query: string): boolean {
   return match;
 }
 
-type Msg = { role: "user" | "assistant"; text: string; stopped?: boolean };
+type Msg = { role: "user" | "assistant"; text: string; citations: PlacedCitation[]; stopped?: boolean };
 
 /** Builds the request context: the page id always; the deck / match only while the chip is kept. */
 export function messageContext(page: LogPosePage | null, dropped: boolean): ChatContext | undefined {
@@ -132,7 +137,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
         if (!t) {
           writeThreadId(null);
           setThreadId(null);
-        } else setMessages((cur) => (cur.length ? cur : t.messages.map((m) => ({ role: m.role, text: m.text }))));
+        } else setMessages((cur) => (cur.length ? cur : t.messages.map((m) => ({ role: m.role, text: m.text, citations: m.citations ?? [] }))));
       })
       .catch(() => setError("Could not load your last chat."))
       .finally(() => setHistory("done"));
@@ -147,7 +152,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
       setBusy(true);
       setStatus("");
       setError(null);
-      setMessages((cur) => [...cur, { role: "user", text: message }, { role: "assistant", text: "" }]);
+      setMessages((cur) => [...cur, { role: "user", text: message, citations: [] }, { role: "assistant", text: "", citations: [] }]);
       const patchLast = (fn: (m: Msg) => Msg) =>
         setMessages((cur) => {
           const last = cur[cur.length - 1];
@@ -165,6 +170,8 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
             onThread: keepThread,
             onStatus: setStatus,
             onText: (delta) => patchLast((m) => ({ ...m, text: m.text + delta })),
+            // A citation follows the text streamed so far.
+            onCite: (cites: Citation[]) => patchLast((m) => ({ ...m, citations: [...m.citations, ...placeAt(cites, m.text.length)] })),
             onDone: (d) => {
               if (typeof d.thread_id === "number") keepThread(d.thread_id);
               if (!isOpen()) onUnread();
@@ -218,6 +225,7 @@ export function LogPoseProvider({
   hidden = false,
   defaultPage = null,
   account,
+  sources,
   children,
 }: {
   apiBase: string;
@@ -227,6 +235,8 @@ export function LogPoseProvider({
   defaultPage?: LogPosePage | null;
   /** Who is signed in, when the app knows (e.g. user id): the session is asked again when it changes. */
   account?: string | number | null;
+  /** Links and card data for the sources Log Pose cites (all optional). */
+  sources?: SourceHooks;
   children: ReactNode;
 }) {
   const [session, setSession] = useState<ChatSession | null>(null);
@@ -271,9 +281,11 @@ export function LogPoseProvider({
   const show = enabled === true && !hidden;
   return (
     <LogPoseContext.Provider value={value}>
-      {children}
-      {show && !open ? <LogPoseCompass working={chat.busy} unread={unread} onClick={openPanel} /> : null}
-      {show && open ? <LogPosePanel page={page ?? defaultPage} chat={chat} onClose={closePanel} /> : null}
+      <SourceHooksContext.Provider value={sources ?? NO_HOOKS}>
+        {children}
+        {show && !open ? <LogPoseCompass working={chat.busy} unread={unread} onClick={openPanel} /> : null}
+        {show && open ? <LogPosePanel page={page ?? defaultPage} chat={chat} onClose={closePanel} /> : null}
+      </SourceHooksContext.Provider>
     </LogPoseContext.Provider>
   );
 }
@@ -315,13 +327,15 @@ function CompassIcon() {
 type Chat = ReturnType<typeof useChat>;
 
 function LogPosePanel({ page, chat, onClose }: { page: LogPosePage | null; chat: Chat; onClose: () => void }) {
-  const phone = useMedia(PHONE_QUERY);
+  const phone = !useMedia(DRAWER_QUERY);
   const [draft, setDraft] = useState("");
   const [dropped, setDropped] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const stick = useRef(true);
+  const drawer = useDrawerSize();
+  const sheet = useSheetHeight(panelRef, phone);
   const { loadHistory } = chat;
 
   // A different page brings its chip back.
@@ -428,8 +442,10 @@ function LogPosePanel({ page, chat, onClose }: { page: LogPosePage | null; chat:
       aria-modal={phone ? "true" : undefined}
       aria-labelledby="lp-title"
       data-phone={phone ? "true" : undefined}
+      data-sized={!phone && drawer.size ? "true" : undefined}
+      style={!phone && drawer.size ? { width: drawer.size.w, height: drawer.size.h } : undefined}
     >
-      <div className="lp-grip" aria-hidden="true" />
+      {phone ? <SheetGrip {...sheet} /> : <ResizeHandles drawer={drawer} panelRef={panelRef} />}
       <header className="lp-head">
         <span className="lp-head-icon" aria-hidden="true">
           <CompassIcon />
@@ -470,7 +486,7 @@ function LogPosePanel({ page, chat, onClose }: { page: LogPosePage | null; chat:
             </div>
           ) : (
             <div key={i} className="lp-msg lp-msg-assistant">
-              {m.text ? <Markdown text={m.text} /> : null}
+              {m.text ? <CitedAnswer text={m.text} citations={m.citations} done={!(chat.busy && i === chat.messages.length - 1)} /> : null}
               {m.stopped ? <p className="lp-stopped">Stopped.</p> : null}
             </div>
           ),

@@ -3,7 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { SiteFooter } from "@optcg/site-legal";
 import { LogPoseProvider } from "@optcg/analyst-client";
 import { getApiBaseUrl } from "./config";
-import { defaultLogPosePage, showsLogPose } from "./logPose";
+import { defaultLogPosePage, showsLogPose, SOURCE_HOOKS } from "./logPose";
 import { AuthCompletePage } from "./pages/AuthCompletePage";
 import { DeckConfigurePage } from "./pages/DeckConfigurePage";
 import { DeckListPage } from "./pages/DeckListPage";
@@ -42,7 +42,7 @@ export function App() {
   const logPosePage = useMemo(() => defaultLogPosePage(pathname), [pathname]);
 
   return (
-    <LogPoseProvider apiBase={getApiBaseUrl()} hidden={!showsLogPose(pathname)} defaultPage={logPosePage}>
+    <LogPoseProvider apiBase={getApiBaseUrl()} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} sources={SOURCE_HOOKS}>
       <Routes>
         <Route path="/" element={<LobbyPage />} />
         <Route path="/watch/:roomId" element={<LobbyPage />} />

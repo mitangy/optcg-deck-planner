@@ -1,5 +1,6 @@
 /** Where duel-web shows the Log Pose chat, and what each page tells it. */
-import type { DeckContext, LogPosePage } from "@optcg/analyst-client";
+import type { DeckContext, LogPosePage, ParsedSource, SourceHooks } from "@optcg/analyst-client";
+import { lookupCard } from "./cards/atlas";
 
 /**
  * Routes that hide the compass and panel: anything that renders a board (online, hotseat,
@@ -46,3 +47,18 @@ export function reviewMode(enabled: boolean | null, finished: boolean | undefine
   if (finished === false) return "cut-off";
   return "auto";
 }
+
+/** Where a cited source opens in the duel app: the log of one of your own games (at the turn cited). Archive games and everything else have no page here. */
+export function sourceHref(source: ParsedSource): string | null {
+  if (source.kind !== "match" || !source.id) return null;
+  return `/history/${encodeURIComponent(source.id)}${source.turn ? `#turn-${source.turn}` : ""}`;
+}
+
+/** What the panel shows for cited sources: links to your match logs and card names and pictures from the atlas. */
+export const SOURCE_HOOKS: SourceHooks = {
+  href: sourceHref,
+  card: (id) => {
+    const card = lookupCard(id);
+    return { name: card.name, imageUrl: card.imageUrl };
+  },
+};

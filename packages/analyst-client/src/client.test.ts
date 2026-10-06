@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnalystError, BUDGET_MESSAGE, GENERIC_ERROR, errorText, streamAnalyst } from "./client";
+import { AnalystError, BUDGET_MESSAGE, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, streamAnalyst } from "./client";
 import { createSessionManager, needsRefresh } from "./session";
 
 const NOW = Date.parse("2026-10-06T12:00:00Z");
@@ -115,5 +115,44 @@ describe("analyst stream requests (#377)", () => {
       f.impl,
     );
     expect(seen).toEqual(["thread:7", "status:Looking", "text:A", "done:7"]);
+  });
+});
+
+describe("cite events and saved citations (#390)", () => {
+  it("hands the citations of a cite event to the panel and ignores malformed ones (#390)", async () => {
+    const f = fakeFetch([15 * 60_000], () =>
+      sse(
+        [
+          'event: text\ndata: {"delta":"Zoro costs 3."}\n\n',
+          'event: cite\ndata: {"citations":[{"source":"card:OP01-001","title":"Zoro","cited_text":"cost 3"},{"title":"no source"},"junk",{"source":"rule:1-1"}]}\n\n',
+          'event: cite\ndata: {"citations":[]}\n\n',
+          'event: cite\ndata: {"citations":"nope"}\n\n',
+        ].join(""),
+      ),
+    );
+    const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+    const seen: unknown[] = [];
+    await streamAnalyst(mgr, "/chat", { message: "hi" }, { onCite: (c) => seen.push(c) }, undefined, f.impl);
+    expect(seen).toEqual([
+      [
+        { source: "card:OP01-001", title: "Zoro", cited_text: "cost 3" },
+        { source: "rule:1-1", title: "", cited_text: "" },
+      ],
+    ]);
+  });
+
+  it("reads a saved thread's and review's citations with their offsets, and none from an older answer (#390)", async () => {
+    const answers: Record<string, unknown> = {
+      "/analyst/chat/threads/4": { id: 4, title: "t", messages: [{ role: "user", text: "hi" }, { role: "assistant", text: "Zoro costs 3.", citations: [{ at: 13, source: "card:OP01-001", title: "Zoro", cited_text: "cost 3" }, { at: -5, source: "rule:1-1" }, { at: 3, source: "" }, { at: 4 }] }] },
+      "/analyst/reviews/m1": { match_id: "m1", text: "You lost.", created_at: "x" },
+    };
+    const impl = (async (url: string) => Response.json(answers[new URL(url).pathname])) as unknown as typeof fetch;
+    const thread = await fetchThread("https://api.test", 4, impl);
+    expect(thread!.messages[0]!.citations).toEqual([]);
+    expect(thread!.messages[1]!.citations).toEqual([
+      { at: 13, source: "card:OP01-001", title: "Zoro", cited_text: "cost 3" },
+      { at: 0, source: "rule:1-1", title: "", cited_text: "" },
+    ]);
+    expect((await fetchSavedReview("https://api.test", "m1", impl))!.citations).toEqual([]);
   });
 });

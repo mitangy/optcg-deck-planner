@@ -55,6 +55,12 @@ export function MatchLogPage() {
   }, [matchId]);
 
   const detail = state.status === "ready" ? state.detail : null;
+
+  // A link from a Log Pose source (/history/<id>#turn-3) lands on that turn once the log has loaded.
+  useEffect(() => {
+    if (!detail || !/^#turn-\d+$/.test(window.location.hash)) return;
+    document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: "start" });
+  }, [detail]);
   const row = useMemo(() => (detail ? matchRow(detail.match, cardName) : null), [detail]);
   const turns = useMemo(() => (detail?.log ? matchLogTurns(detail.log) : []), [detail]);
   const log = detail?.log ?? null;
@@ -149,7 +155,7 @@ export function MatchLogPage() {
               </section>
             ) : null}
             {turns.map((t) => (
-              <section key={t.turn} className="match-log-turn" data-yours={t.yours ? "true" : undefined}>
+              <section key={t.turn} id={`turn-${t.turn}`} className="match-log-turn" data-yours={t.yours ? "true" : undefined}>
                 <h2 className="match-log-turn-title">
                   {t.turn > 0 ? <span className="match-log-turn-no">Turn {t.turn}</span> : null}
                   <span>{t.label}</span>

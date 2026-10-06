@@ -1,4 +1,5 @@
 /** Requests to the analyst service (chat and match reviews) and to the API's chat history. */
+import { parseCitations, type Citation, type PlacedCitation } from "./citations";
 import type { SessionManager } from "./session";
 import { SseHttpError, streamSse } from "./sse";
 
@@ -22,6 +23,8 @@ export type StreamHandlers = {
   onThread?: (threadId: number) => void;
   onStatus?: (text: string) => void;
   onText?: (delta: string) => void;
+  /** Sources cited by the text streamed so far: place their markers at its current end. */
+  onCite?: (citations: Citation[]) => void;
   onDone?: (done: DonePayload) => void;
   /** An `error` event inside the stream. */
   onError?: (err: { message: string; code?: ErrorCode }) => void;
@@ -54,7 +57,10 @@ function dispatch(handlers: StreamHandlers, event: string, data: unknown) {
   if (event === "thread" && typeof d.thread_id === "number") handlers.onThread?.(d.thread_id);
   else if (event === "status" && typeof d.text === "string") handlers.onStatus?.(d.text);
   else if (event === "text" && typeof d.delta === "string") handlers.onText?.(d.delta);
-  else if (event === "done") handlers.onDone?.(d as DonePayload);
+  else if (event === "cite") {
+    const citations = parseCitations(d.citations);
+    if (citations.length) handlers.onCite?.(citations);
+  } else if (event === "done") handlers.onDone?.(d as DonePayload);
   else if (event === "error")
     handlers.onError?.({ message: typeof d.message === "string" ? d.message : "", code: d.code as ErrorCode | undefined });
 }
@@ -109,7 +115,7 @@ export async function streamAnalyst(
   }
 }
 
-export type ThreadMessage = { role: "user" | "assistant"; text: string };
+export type ThreadMessage = { role: "user" | "assistant"; text: string; citations?: PlacedCitation[] };
 export type ThreadHistory = { id: number; title: string; messages: ThreadMessage[] };
 
 /** GET {apiBase}/analyst/chat/threads/{id}; null when it is gone (404). */
@@ -117,15 +123,17 @@ export async function fetchThread(apiBase: string, threadId: number, fetchImpl: 
   const res = await fetchImpl(`${apiBase}/analyst/chat/threads/${threadId}`, { credentials: "include" });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Could not load the chat (${res.status})`);
-  return (await res.json()) as ThreadHistory;
+  const body = (await res.json()) as ThreadHistory;
+  return { ...body, messages: body.messages.map((m) => ({ ...m, citations: parseCitations(m.citations, true) })) };
 }
 
-export type SavedReview = { match_id: string; text: string; created_at: string };
+export type SavedReview = { match_id: string; text: string; citations: PlacedCitation[]; created_at: string };
 
 /** GET {apiBase}/analyst/reviews/{matchId}; null when none is saved yet (404). */
 export async function fetchSavedReview(apiBase: string, matchId: string, fetchImpl: typeof fetch = fetch): Promise<SavedReview | null> {
   const res = await fetchImpl(`${apiBase}/analyst/reviews/${encodeURIComponent(matchId)}`, { credentials: "include" });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Could not load the review (${res.status})`);
-  return (await res.json()) as SavedReview;
+  const body = (await res.json()) as SavedReview;
+  return { ...body, citations: parseCitations(body.citations, true) };
 }
