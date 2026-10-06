@@ -394,7 +394,7 @@ test("the fanned hand drags to the middle of the screen and floats there after a
   const grip = (await page.locator(".hand-fan-grip").boundingBox())!;
   await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
   await page.mouse.down();
-  await page.mouse.move(grip.x + 200, 360, { steps: 8 });
+  await page.mouse.move(grip.x + 200, 300, { steps: 8 });
   await page.mouse.up();
   await expect(fan).toHaveClass(/hand-fan-float/);
   const box = (await fan.boundingBox())!;

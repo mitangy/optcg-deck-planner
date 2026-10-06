@@ -34,6 +34,18 @@ module.exports = {
     { id: "e2e-don-chip-clicks-ignored", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/ChoicePrompt.tsx", from: "  const chip = target?.closest?.<HTMLElement>(\".don-strip .don-chip-btn[data-don-id]\");", to: "  const chip = null as HTMLElement | null;", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [desktop-1280]"] },
     { id: "e2e-don-chip-disabled", args: "demo-audit --project=phone-375", file: "duel-web/src/board/DonStrip.tsx", from: "      tabIndex={canDrag ? undefined : -1}\n", to: "      disabled={!canDrag}\n", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [phone-375]"] },
 
+    // Dock sits in the gap between the mats, clear of the diamond (#368). Both layers: the taller strip and the reserve.
+    { id: "e2e-dock-covers-mats-and-diamond", args: "dock-room --project=desktop-1280", edits: [
+      { file: "duel-web/src/board.css", from: "  --midline-h: calc(var(--dock-h) + 0.5rem);\n", to: "" },
+      { file: "duel-web/src/board.css", from: "  padding-right: var(--dock-reserve, 0px);\n", to: "" },
+    ], kills: [
+      "dock-room.spec.ts > the dock sits between the mats and clear of the divider diamond on /demo?turn0 (#368) [desktop-1280]",
+      "dock-room.spec.ts > the dock sits between the mats and clear of the divider diamond on /demo?cantattack (#368) [desktop-1280]",
+    ] },
+    { id: "e2e-dock-diamond-under-button", args: "dock-room --project=desktop-1280", file: "duel-web/src/board.css", from: "  padding-right: var(--dock-reserve, 0px);\n", to: "", kills: [
+      "dock-room.spec.ts > the dock sits between the mats and clear of the divider diamond on /demo?turn0 (#368) [desktop-1280]",
+    ] },
+
     // Desktop review P2 (#281): the Grid hand is now the default on tall desktop windows
     { id: "e2e-tab-skips-grid-hand", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/useBoardHotkeys.ts", from: ", .board-root .rail-hand-cards button.card-tile\",", to: "\",", kills: ["demo-audit.spec.ts > Tab visits the field cards, the hand, then the other controls and comes back (#262) [desktop-1280]"] },
     { id: "e2e-deck-editor-shrinks-to-content", args: "demo-audit --project=desktop-1280", file: "duel-web/src/styles.css", from: "  width: 100%;\n  max-width: 920px;\n  margin: 0 auto;", to: "  max-width: 920px;\n  margin: 0 auto;", kills: ["demo-audit.spec.ts > deck editor keeps − count + on one row (#262) [desktop-1280]"] },

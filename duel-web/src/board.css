@@ -4653,6 +4653,25 @@ body.is-panel-drag * {
   pointer-events: none;
 }
 
+/* Dock height: the strip below makes room for it, the dock itself is this tall. */
+.arena {
+  --dock-h: 2.75rem;
+}
+
+/* Desktop with the dock (DuelBoard adds .arena-docked, fixed for the whole game
+   so the dock appearing never moves the mats): the midline strip is tall enough
+   for the dock to sit in the gap between the mats. Phones never get the class. */
+.arena.arena-docked .playmat {
+  --midline-h: calc(var(--dock-h) + 0.5rem);
+}
+
+/* The divider line and diamond end before the dock (--dock-reserve, measured by
+   PrimaryDock) and centre in what is left. */
+.arena.arena-docked .midline {
+  box-sizing: border-box;
+  padding-right: var(--dock-reserve, 0px);
+}
+
 /* —— Primary action dock (desktop) ——
    End turn / Pass block / Pass counter float at the right end of the board's
    midline instead of the side rail. Fixed, anchored by getBoundingClientRect
@@ -4661,7 +4680,6 @@ body.is-panel-drag * {
    inside it and "Waiting for opponent" takes the same slot. */
 .primary-dock {
   --dock-w: 13rem;
-  --dock-h: 2.75rem;
   position: fixed;
   z-index: 17;
   width: max-content;
