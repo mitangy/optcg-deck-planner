@@ -101,6 +101,7 @@ module.exports = {
     { id: "matchmake-no-token-check", file: guard, from: "  if (!token || !verifyGameToken(token)) {\n    throw Object.assign(new Error(\"gameToken required\"), { code: \"unauthorized\" as const });\n  }\n  return true;", to: "  return true;", kills: ["refuses to create a room without a game token"] },
     { id: "duel-room-public", file: room, from: "    void this.setPrivate(true);\n", to: "", kills: ["duel rooms can only be joined by id"] },
     { id: "creator-room-cap-off", file: guard, from: "  if (live >= MAX_ROOMS_PER_CREATOR) {", to: "  if (false) {", kills: ["caps how many open rooms one account can create"] },
+    { id: "creator-room-kept-on-failed-create", file: room, from: "      releaseCreatorRoom(this.creatorUid);\n      this.creatorUid = null;\n      throw e;", to: "      throw e;", kills: ["a rejected room create doesn't use up one of the account's room slots (#318)"] },
     { id: "room-message-flood-allowed", file: room, from: "  maxMessagesPerSecond = MAX_MESSAGES_PER_SECOND;\n", to: "", kills: ["drops a client that floods the room with messages"] },
     { id: "seed-client-chosen", file: guard, from: "  if (clientSeed !== undefined && !requireGameToken()) return clientSeed;", to: "  if (clientSeed !== undefined) return clientSeed;", kills: ["ignores a client-chosen seed when tokens are required"] },
     { id: "seed-from-clock", file: guard, from: "  return randomInt(0, 2 ** 32);", to: "  return Date.now() % 1_000_000_000;", kills: ["does not derive the seed from the clock"] },

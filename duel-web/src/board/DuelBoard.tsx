@@ -380,7 +380,8 @@ export function DuelBoard({
     },
     [captureHandShuffle],
   );
-  const handReorder = useHandReorder(onHandReorder);
+  // A floating fan steps aside once a dragged card leaves it (board drops under it).
+  const handReorder = useHandReorder(onHandReorder, { oneWayOut: fanFloating });
   /** Hand card (instance id) being dragged: it lifts out of the hand and follows the pointer. */
   const [liftedHandId, setLiftedHandId] = useState<string | null>(null);
   useHandLift(liftedHandId);
@@ -776,7 +777,9 @@ export function DuelBoard({
     else setHandPinned(!handUp);
     if (handUp) {
       setHandFilter(null);
-      setTuckUnderPointer(true);
+      // Only with the pointer on the hand (H works from anywhere): away from
+      // it, the next hover raises the hand again.
+      setTuckUnderPointer(document.querySelector(".hand-fan:hover, .hand-dock:hover") != null);
     }
   }
 
@@ -1381,7 +1384,8 @@ export function DuelBoard({
           const intent = defend.events[i]?.intent;
           if (intent) onSendIntent(intent);
         }}
-        onSkipBlockCounter={(id) => skipBlockToCounter(id, prefs.oneTapActions ? "send" : "stage")}
+        // The rail has no Confirm step (the dock only passes), so it plays the Counter.
+        onSkipBlockCounter={(id) => skipBlockToCounter(id, prefs.oneTapActions || railDefend ? "send" : "stage")}
         counterDrag={
           defend.phase === "counter" || defend.earlyCounters.length > 0
             ? {

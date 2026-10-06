@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { MatchHistoryEntry } from "../history/historyApi";
-import { matchOverFacts, RECORD_RETRY_DELAYS_S } from "./matchOverFacts";
+import { matchOverFacts, pollMatchRecord } from "./matchOverFacts";
 
 /** Loads the saved match for History facts (rating, log); resolves to its entry or throws. */
 export type LoadMatchRecord = (matchId: string) => Promise<MatchHistoryEntry>;
@@ -23,23 +23,7 @@ export function MatchOverFactsList({
 
   useEffect(() => {
     if (!matchId || !loadRecord) return;
-    let live = true;
-    let timer: number | undefined;
-    const attempt = (i: number) => {
-      timer = window.setTimeout(() => {
-        loadRecord(matchId).then(
-          (entry) => live && setRecord(entry),
-          () => {
-            if (live && i + 1 < RECORD_RETRY_DELAYS_S.length) attempt(i + 1);
-          },
-        );
-      }, RECORD_RETRY_DELAYS_S[i]! * 1000);
-    };
-    attempt(0);
-    return () => {
-      live = false;
-      window.clearTimeout(timer);
-    };
+    return pollMatchRecord(matchId, loadRecord, setRecord);
   }, [matchId, loadRecord]);
 
   const facts = matchOverFacts(turnNumber, record);

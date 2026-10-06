@@ -189,6 +189,18 @@ export class DuelRoom extends Room implements PresenceSource {
 
     const parsed = parseCreateOptions(options);
     this.creatorUid = claimCreatorRoom(options);
+    try {
+      this.setUpRoom(options, parsed);
+    } catch (e) {
+      // A room whose onCreate throws is never registered and never disposed,
+      // so onDispose would never give this slot back.
+      releaseCreatorRoom(this.creatorUid);
+      this.creatorUid = null;
+      throw e;
+    }
+  }
+
+  private setUpRoom(options: unknown, parsed: ReturnType<typeof parseCreateOptions>) {
     // Rooms are joined by id only (create, invites, the ranked matchmaker), so a
     // stranger's id-less matchmake join can never land in, or fill, someone's room.
     void this.setPrivate(true);

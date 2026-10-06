@@ -62,3 +62,21 @@ export function handDropSlot(others: readonly SlotRect[], x: number, y: number):
   const before = best.cxs.filter((cx) => cx < x).length;
   return best.start + before;
 }
+
+/**
+ * A hand card's drag, followed move by move: `measured` is the drop slot
+ * under the pointer (null off the hand), `left` whether the card has been
+ * off the hand yet this drag. A floating fan steps aside once the card
+ * leaves it (see-through, the board under it a drop target), so with
+ * `oneWayOut` it never counts as a drop spot again for that drag: a card
+ * brought back over the fan onto a board zone under it is played, not
+ * moved in the hand (#294).
+ */
+export function followHandDrag(
+  left: boolean,
+  measured: number | null,
+  oneWayOut: boolean,
+): { left: boolean; slot: number | null } {
+  const gone = left || measured == null;
+  return { left: gone, slot: oneWayOut && gone ? null : measured };
+}
