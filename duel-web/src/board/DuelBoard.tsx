@@ -1365,7 +1365,8 @@ export function DuelBoard({
           const intent = defend.events[i]?.intent;
           if (intent) onSendIntent(intent);
         }}
-        onSkipBlockCounter={(id) => skipBlockToCounter(id, prefs.oneTapActions ? "send" : "stage")}
+        // The rail has no Confirm step (the dock only passes), so it plays the Counter.
+        onSkipBlockCounter={(id) => skipBlockToCounter(id, prefs.oneTapActions || railDefend ? "send" : "stage")}
         counterDrag={
           defend.phase === "counter" || defend.earlyCounters.length > 0
             ? {

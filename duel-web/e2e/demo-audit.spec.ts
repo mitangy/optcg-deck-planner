@@ -634,6 +634,27 @@ test("dragging a Counter onto the defender in the block step skips the block and
     .toEqual([{ type: "pass_block" }, { type: "counter_from_hand", handIndex: 0 }]);
 });
 
+// Block step: tapping a Counter under "skip block" in the Defend tray, then the
+// primary button, plays that Counter. Desktop's right-rail tray has no Confirm
+// step, so its tap must play the card; a staged one was dropped by "Resolve".
+test("a Counter tapped from the Defend tray in the block step is played, not left staged (#286)", async ({ page }) => {
+  await page.goto("/demo?counter=block");
+  await page.locator(".board-root").waitFor();
+  const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
+  const chip = page.locator('.defend-chip-early[data-hand-card-id="y-h1"]');
+  await expect(chip).toBeVisible();
+  // Let the turn splash clear before tapping.
+  await page.waitForTimeout(2500);
+  await chip.click();
+  // The block step closes; the counter step opens.
+  await expect(page.locator(".defend-chip-early")).toHaveCount(0);
+  await expect.poll(sent).toContainEqual({ type: "pass_block" });
+  await page.locator(".intent-btn-primary:visible").click();
+  await expect
+    .poll(async () => (await sent()).slice(0, 2))
+    .toEqual([{ type: "pass_block" }, { type: "counter_from_hand", handIndex: 0 }]);
+});
+
 // Hand sort off: a hand card dropped back on the hand moves there instead of
 // being played; dropped on the board it is still played.
 for (const handLayout of ["fan", "grid"]) {
