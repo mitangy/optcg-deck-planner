@@ -812,7 +812,21 @@ export function DemoPage() {
     (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW,
     params,
   );
-  const field = withRestedField(params.has("full") ? withFullBoard(base) : base, params);
+  // `?attacked`: an opposing Character is attacking your Leader, so a centred
+  // prompt dodges your Leader (usePromptDodge) while you answer it.
+  const attacked: PlayerView = params.has("attacked")
+    ? {
+        ...base,
+        battle: {
+          attackerSeat: 1,
+          attackerId: "o-c1",
+          target: { kind: "leader" },
+          defenderPowerBonus: 0,
+          attackerPowerBonus: 0,
+        },
+      }
+    : base;
+  const field = withRestedField(params.has("full") ? withFullBoard(attacked) : attacked, params);
   const withStatuses = params.has("statuses") ? withManyStatuses(field) : field;
   const board = withBattleDrag(
     params.has("dons") ? withAttachedDon(withStatuses) : withStatuses,

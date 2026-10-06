@@ -237,6 +237,8 @@ function FloatLook({ choice, request, mySeat, onSend }: {
           <button
             type="button"
             className="btn btn-primary float-confirm"
+            data-confirm-key
+            aria-keyshortcuts="Y Space"
             disabled={picked.length < request.minSelect}
             onClick={() => onSend({ type: "resolve_pending_choice", accept: true, ...floatLookAnswer(request, row, picked, side) })}
           >
@@ -314,7 +316,7 @@ function FloatEffectOrder({ choice, mySeat, onSend }: { choice: PendingChoiceVie
               Reset
             </button>
           ) : null}
-          <button type="button" className="btn btn-primary float-confirm" onClick={() => onSend({ type: "order_pending_effects", orderedIds: order })}>
+          <button type="button" className="btn btn-primary float-confirm" data-confirm-key aria-keyshortcuts="Y Space" onClick={() => onSend({ type: "order_pending_effects", orderedIds: order })}>
             Resolve in this order
           </button>
         </>
