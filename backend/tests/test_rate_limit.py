@@ -18,7 +18,7 @@ def test_rate_limiter_keys_are_independent():
     assert limiter.allow("a") is False
 
 
-def test_named_limiter_budget_is_shared_across_workers_with_redis(fake_redis):
+def test_named_limiter_budget_is_shared_across_workers_with_redis_389(fake_redis):
     # Two workers each build the same module-level limiter; Redis makes them one budget.
     worker_a = RateLimiter(max_calls=2, period_s=60, name="shared-test")
     worker_b = RateLimiter(max_calls=2, period_s=60, name="shared-test")
@@ -31,7 +31,7 @@ def test_named_limiter_budget_is_shared_across_workers_with_redis(fake_redis):
     assert worker_b.allow("other-ip") is True
 
 
-def test_named_limiter_counts_in_process_when_redis_is_down(monkeypatch):
+def test_named_limiter_counts_in_process_when_redis_is_down_389(monkeypatch):
     import redis
     from redis.backoff import NoBackoff
     from redis.retry import Retry

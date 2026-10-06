@@ -157,7 +157,7 @@ def test_uploads_stop_once_all_accounts_fill_the_image_budget_318(client, monkey
     assert _as(c, b).get("/duel/cosmetics").json()["items"] == []
 
 
-def test_signed_public_link_serves_the_image_without_a_session(client):
+def test_signed_public_link_serves_the_image_without_a_session_389(client):
     c, S = client
     luffy = _user(S, "luffy")
     body = _upload(_as(c, luffy), "playmat", JPEG)
@@ -174,7 +174,7 @@ def test_signed_public_link_serves_the_image_without_a_session(client):
     assert c.get(f"/duel/cosmetics/{mat['id']}/image").status_code == 401
 
 
-def test_public_link_needs_its_exact_signature(client):
+def test_public_link_needs_its_exact_signature_389(client):
     c, S = client
     luffy = _user(S, "luffy")
     _as(c, luffy)
@@ -191,7 +191,7 @@ def test_public_link_needs_its_exact_signature(client):
     assert c.get(f"{base}/{sig}").status_code == 200
 
 
-def test_public_links_are_signed_with_the_dedicated_secret(client, monkeypatch: pytest.MonkeyPatch):
+def test_public_links_are_signed_with_the_dedicated_secret_389(client, monkeypatch: pytest.MonkeyPatch):
     c, S = client
     luffy = _user(S, "luffy")
     path = _upload(_as(c, luffy), "playmat", JPEG)["items"][0]["public_path"]
@@ -202,7 +202,7 @@ def test_public_links_are_signed_with_the_dedicated_secret(client, monkeypatch: 
     assert c.get("/duel/cosmetics").json()["items"][0]["public_path"] != path
 
 
-def test_deleted_image_public_link_is_gone(client):
+def test_deleted_image_public_link_is_gone_389(client):
     c, S = client
     luffy = _user(S, "luffy")
     mat = _upload(_as(c, luffy), "playmat", JPEG)["items"][0]

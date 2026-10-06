@@ -428,7 +428,7 @@ def test_oversized_progress_log_is_dropped(client, monkeypatch: pytest.MonkeyPat
     assert c.get("/duel/matches/me/small").json()["log"] == small
 
 
-def test_live_progress_stays_in_redis_and_lists_as_unfinished(client, fake_redis):
+def test_live_progress_stays_in_redis_and_lists_as_unfinished_389(client, fake_redis):
     """With Redis, per-turn snapshots skip Postgres but still read back as the unfinished game."""
     from app.models import DuelMatchProgress
 
@@ -448,7 +448,7 @@ def test_live_progress_stays_in_redis_and_lists_as_unfinished(client, fake_redis
     assert _progress(c, "live", me["id"], a["user_id"]).status_code == 409
 
 
-def test_final_progress_is_durable_in_postgres_with_redis(client, fake_redis):
+def test_final_progress_is_durable_in_postgres_with_redis_389(client, fake_redis):
     """A room closing without a result sends final: true; that snapshot must reach Postgres."""
     from app.models import DuelMatchProgress
 
@@ -468,7 +468,7 @@ def test_final_progress_is_durable_in_postgres_with_redis(client, fake_redis):
     assert c.get("/duel/matches/me/cut").json()["log"] == last[0]
 
 
-def test_result_clears_live_progress_in_redis(client, fake_redis):
+def test_result_clears_live_progress_in_redis_389(client, fake_redis):
     """The result deletes the live snapshot; a late or racing one never lists the game twice."""
     from datetime import datetime, timezone
 
@@ -499,7 +499,7 @@ def test_result_clears_live_progress_in_redis(client, fake_redis):
 ADMIN = {"X-Catalog-Token": "dev-sync-token"}
 
 
-def test_tokens_carry_the_game_server_pool_pointer(client, fake_redis, monkeypatch: pytest.MonkeyPatch):
+def test_tokens_carry_the_game_server_pool_pointer_389(client, fake_redis, monkeypatch: pytest.MonkeyPatch):
     """New games follow the Redis pool pointer, else GAME_SERVER_URL (blue/green without a rebuild)."""
     c, _ = client
     monkeypatch.setenv("GAME_SERVER_URL", "https://gs-blue.example.com")
@@ -519,7 +519,7 @@ def test_tokens_carry_the_game_server_pool_pointer(client, fake_redis, monkeypat
     assert c.post("/duel/dev-token", json={"user_key": "alice"}).json()["game_server_url"] == "https://gs-blue.example.com"
 
 
-def test_game_server_pool_needs_the_admin_token_and_a_safe_url(client, fake_redis):
+def test_game_server_pool_needs_the_admin_token_and_a_safe_url_389(client, fake_redis):
     c, _ = client
     good = {"url": "https://gs-green.example.com"}
     assert c.put("/duel/admin/game-server-pool", json=good).status_code == 401

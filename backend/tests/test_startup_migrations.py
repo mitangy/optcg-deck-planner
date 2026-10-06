@@ -135,7 +135,7 @@ def test_postgres_boolean_columns_are_real_booleans_defaulting_false(legacy_engi
 
 
 @requires_postgres
-def test_startup_waits_for_another_worker_holding_the_startup_lock(legacy_engine):
+def test_startup_waits_for_another_worker_holding_the_startup_lock_389(legacy_engine):
     """Several uvicorn workers start at once; only one may run the migrations at a time."""
     import threading
 

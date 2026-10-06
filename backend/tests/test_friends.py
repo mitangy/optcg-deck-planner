@@ -226,7 +226,7 @@ def test_dismissed_invite_is_gone_but_others_cannot_dismiss(client):
     assert _as(c, zoro).get("/friends").json()["invites"] == []
 
 
-def test_presence_lives_in_redis_when_configured(client, fake_redis):
+def test_presence_lives_in_redis_when_configured_389(client, fake_redis):
     c, S = client
     luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
     _befriend(c, luffy, zoro, "Zoro", "Luffy")
@@ -243,7 +243,7 @@ def test_presence_lives_in_redis_when_configured(client, fake_redis):
     assert (f["status"], f["room_id"]) == ("offline", None)
 
 
-def test_room_that_moved_process_stays_listed_in_redis(client, fake_redis):
+def test_room_that_moved_process_stays_listed_in_redis_389(client, fake_redis):
     c, S = client
     luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
     _befriend(c, luffy, zoro, "Zoro", "Luffy")
