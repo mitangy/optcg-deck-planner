@@ -1152,6 +1152,56 @@ describe("DuelRoom", () => {
     await waitUntil(() => sent.at(-1)!.payload.replay!.intents.length === intents, 5000);
   });
 
+  it("a live game's progress snapshots hide the opponent's hand; the result and a cut-off log show it (#359)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 67,
+      autoSkipMulligan: true,
+    });
+    const sent: MatchProgressPayload[] = [];
+    Object.assign(room, {
+      ingestSeats: () => [101, 102],
+      persistMatchProgress: async (_matchId: string, payload: MatchProgressPayload) => {
+        sent.push(payload);
+      },
+      persistMatchResult: async () => {},
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    await playSome([c0, c1], bags, 6);
+    assert.ok(sent.length > 0, "turn snapshots were sent");
+    for (const payload of sent) {
+      const text = JSON.stringify(payload.seat_logs);
+      assert.ok(!text.includes('"opponentHand"'), "no opponent hand in a live snapshot");
+      assert.ok(!text.includes('"opponentOpeningHand"'));
+    }
+
+    // The hand count stays in a live snapshot, so the page can still show it.
+    assert.ok(sent.at(-1)!.seat_logs![0].turns.some((t) => t.opponentHandCount != null));
+
+    const result = internals(room).resultPayload(11, 12, 0, "concede");
+    for (const log of result.seat_logs!) {
+      assert.ok(log.opponentOpeningHand!.length > 0);
+      assert.ok(log.turns.some((t) => t.opponentHand && t.opponentHand.length > 0));
+    }
+
+    // Both players leave: the room closes without a result and its last snapshot reveals the hands.
+    const live = sent.length;
+    await c0.leave(true);
+    await c1.leave(true);
+    await waitUntil(() => sent.length > live, 5000);
+    const closing = sent.at(-1)!.seat_logs!;
+    assert.ok(closing.every((l) => l.opponentOpeningHand && l.turns.some((t) => t.opponentHand)));
+  });
+
   it("the result sent to the backend carries leaders, turns, the replay, each seat's log and how it ended (#244, #252)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,

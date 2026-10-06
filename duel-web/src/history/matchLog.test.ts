@@ -56,4 +56,12 @@ describe("match page log", () => {
       [1, undefined, undefined],
     ]);
   });
+
+  it("passes the opponent's revealed hand through when the log has it (#359)", () => {
+    const revealed: SeatLogJson = {
+      ...log,
+      turns: [{ ...log.turns[2]!, hand: ["OP01-001"], opponentHandCount: 2, opponentHand: ["OP05-060", "OP01-016"] }, log.turns[1]!],
+    };
+    expect(matchLogTurns(revealed).map((t) => t.opponentHand)).toEqual([["OP05-060", "OP01-016"], undefined]);
+  });
 });

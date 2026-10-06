@@ -56,6 +56,7 @@ export function MatchLogPage() {
   const turns = useMemo(() => (detail?.log ? matchLogTurns(detail.log) : []), [detail]);
   const log = detail?.log ?? null;
   const seat = log?.seat;
+  const opponentSeat = seat === undefined ? undefined : ((1 - seat) as 0 | 1);
   const wentFirst = log ? log.turns.find((t) => t.turn === 1)?.activeSeat === log.seat : null;
 
   const segment = (seg: LogSegment, i: number) =>
@@ -129,13 +130,23 @@ export function MatchLogPage() {
                 ))}
               </p>
             </section>
+            {log.opponentOpeningHand ? (
+              <section className="match-log-hand" aria-label="Opponent's opening hand">
+                <h2 className="match-log-turn-title">Opponent's opening hand</h2>
+                <p className="match-log-hand-cards">
+                  {log.opponentOpeningHand.map((defId, i) => (
+                    <CardButton key={i} defId={defId} name={cardName(defId)} onInspect={() => setInspect({ defId, ownerSeat: opponentSeat })} />
+                  ))}
+                </p>
+              </section>
+            ) : null}
             {turns.map((t) => (
               <section key={t.turn} className="match-log-turn" data-yours={t.yours ? "true" : undefined}>
                 <h2 className="match-log-turn-title">
                   {t.turn > 0 ? <span className="match-log-turn-no">Turn {t.turn}</span> : null}
                   <span>{t.label}</span>
                 </h2>
-                {t.hand || t.opponentHandCount != null ? (
+                {t.hand || t.opponentHand || t.opponentHandCount != null ? (
                   <div className="match-log-turn-hand">
                     {t.hand ? (
                       t.hand.length ? (
@@ -151,7 +162,20 @@ export function MatchLogPage() {
                         <span className="match-log-turn-hand-label">Your hand: empty</span>
                       )
                     ) : null}
-                    {t.opponentHandCount != null ? (
+                    {t.opponentHand ? (
+                      t.opponentHand.length ? (
+                        <div className="match-log-turn-hand-row">
+                          <span className="match-log-turn-hand-label">Opponent's hand ({t.opponentHand.length})</span>
+                          <p className="match-log-hand-cards match-log-turn-hand-cards">
+                            {t.opponentHand.map((defId, i) => (
+                              <CardButton key={i} defId={defId} name={cardName(defId)} onInspect={() => setInspect({ defId, ownerSeat: opponentSeat })} />
+                            ))}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="match-log-turn-hand-label">Opponent's hand: empty</span>
+                      )
+                    ) : t.opponentHandCount != null ? (
                       <span className="match-log-turn-opp">Opponent: {t.opponentHandCount} {t.opponentHandCount === 1 ? "card" : "cards"}</span>
                     ) : null}
                   </div>
@@ -176,7 +200,7 @@ export function MatchLogPage() {
 
         {log ? (
           <p className="field-hint history-hint">
-            Only what you could see is shown: the opponent's hand and face-down cards stay hidden. For a coach's take,
+            {log.opponentOpeningHand ? "The opponent's hand is shown because the game is over. Their deck and face-down cards stay hidden." : "Only what you could see is shown: the opponent's hand and face-down cards stay hidden."} For a coach's take,
             ask Log Pose in Claude to review this game (link in <Link to="/settings">Settings</Link>).
           </p>
         ) : null}

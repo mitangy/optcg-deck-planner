@@ -162,4 +162,36 @@ describe("match history seat log", () => {
     expect(turn2.hand).toHaveLength(kept[1]!.length + 1);
     expect(turn2.hand).not.toEqual(log.openingHand);
   });
+
+  it("seat log reveals the opponent's hand each turn only when asked (#359)", () => {
+    for (const { replay } of [game, gameWithMulligans()]) {
+      for (const seat of [0, 1] as Seat[]) {
+        const other = (1 - seat) as Seat;
+        const revealed = seatLog(replay, seat, { revealOpponent: true });
+        const theirs = seatLog(replay, other);
+        // Each turn's opponentHand is what the other seat's own log holds as its hand at that turn.
+        const byTurn = new Map(theirs.turns.map((t) => [t.turn, t.hand]));
+        let checked = 0;
+        for (const t of revealed.turns) {
+          if (t.turn === 0) {
+            expect(t.opponentHand).toBeUndefined();
+            continue;
+          }
+          expect(t.opponentHand).toEqual(byTurn.get(t.turn));
+          expect(t.opponentHand).toHaveLength(t.opponentHandCount!);
+          checked++;
+        }
+        expect(checked).toBeGreaterThan(2);
+        expect(revealed.opponentOpeningHand).toEqual(theirs.openingHand);
+        expect(revealed.opponentOpeningHand).not.toEqual(revealed.openingHand);
+
+        // Without the flag nothing about the opponent's cards is in the log, only the count.
+        for (const hidden of [seatLog(replay, seat), seatLog(replay, seat, { revealOpponent: false })]) {
+          expect(JSON.stringify(hidden)).not.toContain('"opponentHand"');
+          expect(JSON.stringify(hidden)).not.toContain('"opponentOpeningHand"');
+          expect(hidden.turns.some((t) => t.opponentHandCount != null)).toBe(true);
+        }
+      }
+    }
+  });
 });
