@@ -197,7 +197,7 @@ describe("optional costs and K.O. (OP02-062 Luffy / OP01-006 Otama)", () => {
     h.don(0, 6);
     h.field(1, FILLER);
     h.play(0, "OP02-062");
-    h.accept(0);
+    h.accept(0).forced();
 
     h.pick(FILLER);
     expect(h.state.players[1].hand.map((c) => c.defId)).toEqual([FILLER]);
@@ -251,7 +251,7 @@ describe("replacement effects (OP16-014 Marco)", () => {
     h.hand(0, "OP02-062", FILLER, FILLER);
     h.don(0, 6);
     h.play(0, "OP02-062");
-    h.accept(0);
+    h.accept(0).forced();
 
     h.pick(FILLER);
     expect(h.choice?.seat).toBe(1);
@@ -271,7 +271,7 @@ describe("On K.O.", () => {
     h.attach(0, h.state.players[0].leader, 4);
     h.attack(h.state.players[0].leader, marco!).passBattle();
     expect(h.choice?.seat).toBe(1);
-    h.accept(1);
+    h.accept(1).forced();
     expect(h.state.players[1].characters.map((c) => c.defId)).toEqual(["OP16-014"]);
     expect(h.state.players[1].trash).toContain("OP01-110");
   });

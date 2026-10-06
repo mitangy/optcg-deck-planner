@@ -27,7 +27,7 @@ describe("Imu start-of-game Stage", () => {
   const IMU = "OP13-079";
   const MARY_GEOISE = "OP05-097";
   const EMPTY_THRONE = "OP13-099";
-  const imuMatch = (stages: string[]) => createMatch({ seed: 7, firstSeat: 0, players: [{ leaderId: IMU, deck: [...buildTestDeck(20), ...stages] }, { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }] });
+  const imuMatch = (stages: string[], privateChoicesV2?: boolean) => createMatch({ seed: 7, firstSeat: 0, ...(privateChoicesV2 === false ? { privateChoicesV2 } : {}), players: [{ leaderId: IMU, deck: [...buildTestDeck(20), ...stages] }, { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }] });
 
   for (const pick of [MARY_GEOISE, EMPTY_THRONE]) {
     it(`Imu player chooses which Stage to play at the start of the game: ${pick} (#284)`, () => {
@@ -48,8 +48,8 @@ describe("Imu start-of-game Stage", () => {
     });
   }
 
-  it("Imu plays the only eligible Stage without a prompt, even with several copies (#284)", () => {
-    const state = imuMatch([EMPTY_THRONE, EMPTY_THRONE, EMPTY_THRONE]);
+  it("Imu plays the only eligible Stage without a prompt, even with several copies, in games before privateChoicesV2 (#284)", () => {
+    const state = imuMatch([EMPTY_THRONE, EMPTY_THRONE, EMPTY_THRONE], false);
     expect(state.pendingChoices).toHaveLength(0);
     expect(state.players[0].stage?.defId).toBe(EMPTY_THRONE);
     expect(state.players[0].hand).toHaveLength(5);
@@ -384,6 +384,7 @@ describe("different card names", () => {
     const [elders] = h.field(0, "OP13-082");
     h.trash(0, "OP13-083", "OP13-083", "OP13-089");
     h.act(0, { type: "activate_ability", sourceId: elders!.id, abilityId: "op13-082#m0" });
+    h.forced();
     const request = h.choice!.request as Extract<NonNullable<typeof h.choice>["request"], { type: "select" }>;
     return { h, request };
   }
@@ -417,6 +418,7 @@ describe("moving several cards out of one zone", () => {
     h.trash(0, "EB01-018", "EB01-032", "OP01-065");
     h.act(0, { type: "activate_ability", sourceId: h.state.players[0].leader.id, abilityId: "st13-003#0" });
     if (h.choice?.request?.type === "confirm") h.accept();
+    h.forced();
     h.pick("EB01-018", "OP01-065");
     expect([...h.state.players[0].life].sort()).toEqual(["EB01-018", "OP01-065"]);
     expect(h.state.players[0].trash).toContain("EB01-032");

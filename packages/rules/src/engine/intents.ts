@@ -41,7 +41,17 @@ function buildPlayer(state: MatchState, seat: Seat, cfg: PlayerDeckConfig, rng: 
     turnsStarted: 0,
   };
   player.donTotal = player.donDeck.length;
-  const shuffled = rng.shuffle(cfg.deck.map((defId) => ({ defId: getCardDef(defId).id, id: alloc(state, "card") })));
+  const dealt = cfg.deck.map((defId) => ({ defId: getCardDef(defId).id, id: alloc(state, "card") }));
+  const shuffled = rng.shuffle(dealt);
+  // Ids allocated in decklist order would leak copy counts, and in draw order would leak the shuffle (#369):
+  // hand them out by an independent permutation.
+  // The permutation comes from its own stream derived from the seed, so the deck order, the draws and every later
+  // roll of the match rng are the same as without the flag.
+  if (state.privateChoicesV2) {
+    const idRng = createSeededRng((state.rng.seed ^ 0x5bd1e995 ^ Math.imul(seat + 1, 0x9e3779b1)) >>> 0);
+    const ids = idRng.shuffle(dealt.map((c) => c.id));
+    shuffled.forEach((c, i) => { c.id = ids[i]!; });
+  }
   player.deck = shuffled.map((c) => c.defId);
   player.zoneInstanceIds.deck = shuffled.map((c) => c.id);
   // "At the start of the game, play up to 1 {Trait} type Stage card from your deck."
@@ -52,7 +62,8 @@ function buildPlayer(state: MatchState, seat: Seat, cfg: PlayerDeckConfig, rng: 
     const trait = st.rule.slice("start_stage:".length);
     const eligible = [...new Set(player.deck.filter((id) => { const def = getCardDef(id); return def.type === "stage" && (def.traits ?? []).includes(trait); }))];
     if (eligible.length === 0) continue;
-    if (eligible.length === 1) { playStartStage(player, eligible[0]!); continue; }
+    // The prompt appears for a single eligible Stage too, so the opponent cannot tell 1 from 2+ (#369).
+    if (eligible.length === 1 && !state.privateChoicesV2) { playStartStage(player, eligible[0]!); continue; }
     const bindings: Record<string, string> = { __startStage: "1" };
     const options = eligible.map((defId, i) => { bindings[`stage${i}`] = defId; return { id: `stage${i}`, defId, zone: "deck" as const, ownerSeat: seat, eligible: true }; });
     state.pendingChoices.push({
@@ -122,6 +133,7 @@ export function createMatch(config: CreateMatchConfig): MatchState {
     triggerBatch: 0,
     lastEvents: [],
     ...(config.lifeCheckEveryHit === false ? {} : { lifeCheckEveryHit: true }),
+    ...(config.privateChoicesV2 === false ? {} : { privateChoicesV2: true }),
   };
   state.players = [buildPlayer(state, 0, players[0], rng), buildPlayer(state, 1, players[1], rng)];
   state.rng = rng.snapshot();
@@ -418,6 +430,7 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
     if (front.seat !== seat) return out;
     if (front.kind === "order_effects") { out.push({ type: "order_pending_effects", orderedIds: (front.unorderedChoices ?? []).map((c) => c.id) }); return out; }
     if (front.kind === "life_trigger") { if (!front.noTrigger) out.push({ type: "resolve_pending_choice", accept: true }); out.push({ type: "resolve_pending_choice", accept: false }); return out; }
+    if (front.unpayable) { out.push({ type: "resolve_pending_choice", accept: false }); return out; }
     const answer = defaultAnswer(front);
     out.push({ type: "resolve_pending_choice", ...answer, accept: front.request?.type === "confirm" ? true : answer.accept });
     if (front.optional) out.push({ type: "resolve_pending_choice", accept: false });
