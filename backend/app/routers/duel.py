@@ -18,6 +18,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app import duel_live, redis_client
 from app.analyst_stats import seats_for
 from app.auth import get_current_user, get_optional_user
 from app.config import Settings, get_settings
@@ -306,6 +307,7 @@ def ingest_match(
     # The finished logs replace the per-turn snapshot.
     db.execute(delete(DuelMatchProgress).where(DuelMatchProgress.match_id == body.match_id))
     db.commit()
+    _forget_live_progress(body.match_id, (body.seat0_user_id, body.seat1_user_id))
     return DuelMatchOut(
         match_id=row.match_id,
         created=True,
@@ -348,26 +350,54 @@ def ingest_match_progress(
     match_id: Annotated[str, Path(min_length=1, max_length=64)],
     x_duel_ingest_token: Annotated[str | None, Header()] = None,
 ) -> None:
-    """Keep the latest log of a game that has no result yet, so a game cut short still has one."""
+    """Keep the latest log of a game that has no result yet, so a game cut short still has one.
+
+    With Redis configured, live snapshots (one per turn) go to Redis only; the
+    ``final`` snapshot a closing room sends is written to Postgres so the log
+    outlives Redis's expiry.
+    """
     _require_ingest_secret(settings, x_duel_ingest_token)
     if not _progress_rate.allow(f"duel-progress:{client_ip(request)}"):
         raise HTTPException(status_code=429, detail="Too many progress updates")
     if body.seat0_user_id == body.seat1_user_id:
         raise HTTPException(status_code=400, detail="Seats must be different users")
+    r = redis_client.get_redis()
+    if r is not None and not body.final:
+        try:
+            _progress_to_redis(r, db, body, match_id)
+            return
+        except redis_client.RedisError:
+            redis_client.report_failure("progress write")
     _lock_match(db, match_id)
-    if db.scalar(select(DuelMatch.id).where(DuelMatch.match_id == match_id)) is not None:
+    if _has_result(db, match_id):
         # The result is in; a snapshot that lost the race must not bring the game back.
         db.rollback()
         return
-    known = set(db.scalars(select(User.id).where(User.id.in_((body.seat0_user_id, body.seat1_user_id)))))
-    if len(known) != 2:
-        raise HTTPException(status_code=400, detail="Unknown user_id")
+    _require_known_seats(db, body)
     row = db.get(DuelMatchProgress, match_id)
     if row is None:
         row = DuelMatchProgress(match_id=match_id, seat0_user_id=body.seat0_user_id, seat1_user_id=body.seat1_user_id)
         db.add(row)
     elif (row.seat0_user_id, row.seat1_user_id) != (body.seat0_user_id, body.seat1_user_id):
         raise HTTPException(status_code=409, detail="Conflicting players for match_id")
+    _fill_progress(row, body, match_id)
+    db.commit()
+    if r is not None:
+        # The durable copy replaces the live one.
+        _forget_live_progress(match_id, (body.seat0_user_id, body.seat1_user_id))
+
+
+def _has_result(db: Session, match_id: str) -> bool:
+    return db.scalar(select(DuelMatch.id).where(DuelMatch.match_id == match_id)) is not None
+
+
+def _require_known_seats(db: Session, body: DuelMatchProgressIngest) -> None:
+    known = set(db.scalars(select(User.id).where(User.id.in_((body.seat0_user_id, body.seat1_user_id)))))
+    if len(known) != 2:
+        raise HTTPException(status_code=400, detail="Unknown user_id")
+
+
+def _fill_progress(row: DuelMatchProgress, body: DuelMatchProgressIngest, match_id: str) -> None:
     seat_logs = body.seat_logs or [None, None]
     row.ranked = body.ranked
     row.seat0_leader_id = body.seat0_leader_id
@@ -377,7 +407,34 @@ def ingest_match_progress(
     row.seat0_log = _capped_json(seat_logs[0], "progress seat 0 log", match_id)
     row.seat1_log = _capped_json(seat_logs[1], "progress seat 1 log", match_id)
     row.updated_at = datetime.now(timezone.utc)
-    db.commit()
+
+
+def _progress_to_redis(r, db: Session, body: DuelMatchProgressIngest, match_id: str) -> None:
+    """A live snapshot to Redis. No match lock: readers drop snapshots of games that have a result."""
+    if _has_result(db, match_id):
+        return
+    _require_known_seats(db, body)
+    db.rollback()  # Done with Postgres; don't hold the read transaction open.
+    existing = duel_live.read_progress(r, match_id)
+    if existing is not None and (existing.seat0_user_id, existing.seat1_user_id) != (
+        body.seat0_user_id,
+        body.seat1_user_id,
+    ):
+        raise HTTPException(status_code=409, detail="Conflicting players for match_id")
+    row = DuelMatchProgress(match_id=match_id, seat0_user_id=body.seat0_user_id, seat1_user_id=body.seat1_user_id)
+    _fill_progress(row, body, match_id)
+    duel_live.write_progress(r, row)
+
+
+def _forget_live_progress(match_id: str, user_ids: tuple[int, int]) -> None:
+    """Best effort: a leftover live copy is filtered out by readers anyway."""
+    r = redis_client.get_redis()
+    if r is None:
+        return
+    try:
+        duel_live.delete_progress(r, match_id, user_ids)
+    except redis_client.RedisError:
+        redis_client.report_failure("progress delete")
 
 
 @router.put("/presence", status_code=204)
@@ -398,13 +455,23 @@ def ingest_presence(
             select(User.id).where(User.id.in_({e.user_id for e in body.entries if e.user_id > 0}))
         )
     )
-    db.execute(delete(DuelPresence).where(DuelPresence.instance_id == body.instance_id))
     seen: set[tuple[int, str]] = set()
+    entries = []
     for e in body.entries:
         key = (e.user_id, e.room_id)
         if e.user_id not in known or key in seen:
             continue
         seen.add(key)
+        entries.append(e)
+    r = redis_client.get_redis()
+    if r is not None:
+        try:
+            duel_live.write_presence_snapshot(r, body.instance_id, entries, now)
+            return
+        except redis_client.RedisError:
+            redis_client.report_failure("presence write")
+    db.execute(delete(DuelPresence).where(DuelPresence.instance_id == body.instance_id))
+    for e in entries:
         # merge: a room that moved between processes keeps one row per (user, room).
         db.merge(
             DuelPresence(
@@ -467,9 +534,37 @@ def match_history(
         .order_by(DuelMatchProgress.updated_at.desc())
         .limit(limit)
     ).all()
-    entries += _unfinished_entries(db, user, unfinished)
+    entries += _unfinished_entries(db, user, _with_live_progress(db, user, list(unfinished), limit))
     entries.sort(key=lambda e: _sort_time(e.created_at), reverse=True)
     return entries[:limit]
+
+
+def _with_live_progress(
+    db: Session, user: User, stored: list[DuelMatchProgress], limit: int
+) -> list[DuelMatchProgress]:
+    """Postgres's unfinished games plus Redis's live ones (newest copy of each), minus finished ones."""
+    r = redis_client.get_redis()
+    if r is None:
+        return stored
+    try:
+        live = duel_live.user_progress(r, user.id, limit)
+    except redis_client.RedisError:
+        redis_client.report_failure("progress read")
+        return stored
+    if not live:
+        return stored
+    newest: dict[str, DuelMatchProgress] = {}
+    for row in [*stored, *live]:
+        seen = newest.get(row.match_id)
+        if seen is None or _utc(row.updated_at) > _utc(seen.updated_at):
+            newest[row.match_id] = row
+    # A live snapshot can land just after the result (no match lock on the Redis path).
+    finished = set(db.scalars(select(DuelMatch.match_id).where(DuelMatch.match_id.in_(list(newest)))))
+    return [row for match_id, row in newest.items() if match_id not in finished]
+
+
+def _utc(when: datetime) -> datetime:
+    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
 
 
 def _sort_time(iso: str | None) -> datetime:
@@ -549,6 +644,22 @@ def _history_entries(db: Session, user: User, rows: list[DuelMatch]) -> list[Due
     return matches
 
 
+def _latest_progress(db: Session, match_id: str) -> DuelMatchProgress | None:
+    """The newest snapshot of an unfinished game: Redis's live copy or Postgres's stored one."""
+    stored = db.get(DuelMatchProgress, match_id)
+    r = redis_client.get_redis()
+    if r is None:
+        return stored
+    try:
+        live = duel_live.read_progress(r, match_id)
+    except redis_client.RedisError:
+        redis_client.report_failure("progress read")
+        return stored
+    if live is None or (stored is not None and _utc(stored.updated_at) >= _utc(live.updated_at)):
+        return stored
+    return live
+
+
 @router.get("/matches/me/{match_id}", response_model=DuelMatchDetailOut)
 def my_match(
     match_id: str,
@@ -558,7 +669,7 @@ def my_match(
     """One of the signed-in player's duels with their own turn-by-turn log (never the opponent's)."""
     row = db.scalar(select(DuelMatch).where(DuelMatch.match_id == match_id))
     if row is None:
-        progress = db.get(DuelMatchProgress, match_id)
+        progress = _latest_progress(db, match_id)
         if progress is None or user.id not in (progress.seat0_user_id, progress.seat1_user_id):
             raise HTTPException(status_code=404, detail="Match not found")
         log_text = progress.seat0_log if progress.seat0_user_id == user.id else progress.seat1_log

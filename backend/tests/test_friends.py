@@ -224,3 +224,32 @@ def test_dismissed_invite_is_gone_but_others_cannot_dismiss(client):
 
     _as(c, zoro).delete(f"/friends/invites/{invite_id}")
     assert _as(c, zoro).get("/friends").json()["invites"] == []
+
+
+def test_presence_lives_in_redis_when_configured(client, fake_redis):
+    c, S = client
+    luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
+    _befriend(c, luffy, zoro, "Zoro", "Luffy")
+
+    assert _snapshot(c, [{"user_id": zoro, "room_id": "room-a", "phase": "playing"}]).status_code == 204
+    with S() as db:
+        assert db.query(DuelPresence).count() == 0
+    f = _as(c, luffy).get("/friends").json()["friends"][0]
+    assert (f["status"], f["room_id"]) == ("in_game", "room-a")
+
+    # The next snapshot no longer lists Zoro: the room closed.
+    _snapshot(c, [])
+    f = _as(c, luffy).get("/friends").json()["friends"][0]
+    assert (f["status"], f["room_id"]) == ("offline", None)
+
+
+def test_room_that_moved_process_stays_listed_in_redis(client, fake_redis):
+    c, S = client
+    luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
+    _befriend(c, luffy, zoro, "Zoro", "Luffy")
+    _snapshot(c, [{"user_id": zoro, "room_id": "room-a"}], instance="gs-1")
+    _snapshot(c, [{"user_id": zoro, "room_id": "room-a"}], instance="gs-2")
+    # The old process's next snapshot drops the room; the new owner still has it.
+    _snapshot(c, [], instance="gs-1")
+    f = _as(c, luffy).get("/friends").json()["friends"][0]
+    assert (f["status"], f["room_id"]) == ("in_game", "room-a")

@@ -21,6 +21,7 @@ const bodyLimit = "backend/app/body_limit.py";
 const rateLimit = "backend/app/rate_limit.py";
 const api = "backend/app/routers/api.py";
 const redisClient = "backend/app/redis_client.py";
+const duelLive = "backend/app/duel_live.py";
 const db = "backend/app/db.py";
 
 module.exports = {
@@ -362,7 +363,7 @@ module.exports = {
     {"id": "progress-opponents-seat-log", "file": "backend/app/routers/duel.py", "from": "        log_text = progress.seat0_log if progress.seat0_user_id == user.id else progress.seat1_log", "to": "        log_text = progress.seat0_log", "kills": ["test_unfinished_game_shows_its_log_so_far_from_my_seat"]},
     {"id": "progress-any-players-game", "file": "backend/app/routers/duel.py", "from": "        if progress is None or user.id not in (progress.seat0_user_id, progress.seat1_user_id):", "to": "        if progress is None:", "kills": ["test_unfinished_game_shows_its_log_so_far_from_my_seat"]},
     {"id": "progress-kept-after-result", "file": "backend/app/routers/duel.py", "from": "    db.execute(delete(DuelMatchProgress).where(DuelMatchProgress.match_id == body.match_id))\n", "to": "", "kills": ["test_result_replaces_the_unfinished_log_and_late_progress_is_ignored"]},
-    {"id": "progress-late-snapshot-reopens", "edits": [{"file": "backend/app/routers/duel.py", "from": "    if db.scalar(select(DuelMatch.id).where(DuelMatch.match_id == match_id)) is not None:", "to": "    if False:"}], "kills": ["test_result_replaces_the_unfinished_log_and_late_progress_is_ignored"]},
+    {"id": "progress-late-snapshot-reopens", "edits": [{"file": "backend/app/routers/duel.py", "from": "    _lock_match(db, match_id)\n    if _has_result(db, match_id):", "to": "    _lock_match(db, match_id)\n    if False:"}], "kills": ["test_result_replaces_the_unfinished_log_and_late_progress_is_ignored"]},
     {"id": "progress-without-secret", "file": "backend/app/routers/duel.py", "from": "    _require_ingest_secret(settings, x_duel_ingest_token)\n    if not _progress_rate", "to": "    if not _progress_rate", "kills": ["test_progress_needs_the_ingest_secret"]},
     {"id": "progress-size-cap-ignored", "file": "backend/app/routers/duel.py", "from": "    if len(value_text) <= MAX_REPLAY_BYTES:", "to": "    if True:", "kills": ["test_oversized_progress_log_is_dropped"]},
     // Log Pose in-app chat, reviews and game corpus
@@ -412,6 +413,20 @@ module.exports = {
     { id: "rate-limit-redis-ignored", file: rateLimit, from: "        r = redis_client.get_redis() if self.name else None", to: "        r = None", kills: ["test_named_limiter_budget_is_shared_across_workers_with_redis"] },
     { id: "rate-limit-redis-refused-call-counted", file: rateLimit, from: "            r.zrem(rkey, member)\n", to: "", kills: ["test_named_limiter_budget_is_shared_across_workers_with_redis"] },
     { id: "rate-limit-redis-down-raises", file: rateLimit, from: "            except redis_client.RedisError:", to: "            except ValueError:", kills: ["test_named_limiter_counts_in_process_when_redis_is_down"] },
+    { id: "presence-redis-write-skipped", file: duel, from: "            duel_live.write_presence_snapshot(r, body.instance_id, entries, now)\n            return\n", to: "            pass\n", kills: ["test_presence_lives_in_redis_when_configured"] },
+    { id: "presence-redis-read-skipped", file: friends, from: "            rows = duel_live.read_presence(r, user_ids)", to: "            pass", kills: ["test_presence_lives_in_redis_when_configured"] },
+    { id: "presence-redis-left-room-kept", file: duelLive, from: "            pipe.hdel(_presence_user_key(int(uid)), room)", to: "            pass", kills: ["test_presence_lives_in_redis_when_configured"] },
+    { id: "presence-redis-moved-room-dropped", file: duelLive, from: "        if raw and json.loads(raw).get(\"instance_id\") == instance_id:", to: "        if raw:", kills: ["test_room_that_moved_process_stays_listed_in_redis"] },
+    { id: "progress-redis-write-skipped", file: duel, from: "    if r is not None and not body.final:", to: "    if False:", kills: ["test_live_progress_stays_in_redis_and_lists_as_unfinished"] },
+    { id: "progress-redis-history-ignored", file: duel, from: "    entries += _unfinished_entries(db, user, _with_live_progress(db, user, list(unfinished), limit))", to: "    entries += _unfinished_entries(db, user, list(unfinished))", kills: ["test_live_progress_stays_in_redis_and_lists_as_unfinished"] },
+    { id: "progress-redis-detail-ignored", file: duel, from: "        progress = _latest_progress(db, match_id)", to: "        progress = db.get(DuelMatchProgress, match_id)", kills: ["test_live_progress_stays_in_redis_and_lists_as_unfinished"] },
+    { id: "progress-redis-conflicting-players", file: duel, from: "    if existing is not None and (existing.seat0_user_id, existing.seat1_user_id) != (", to: "    if False and (existing.seat0_user_id, existing.seat1_user_id) != (", kills: ["test_live_progress_stays_in_redis_and_lists_as_unfinished"] },
+    { id: "progress-redis-no-ttl", file: duelLive, from: "json.dumps(data, separators=(\",\", \":\")), ex=PROGRESS_TTL_S)", to: "json.dumps(data, separators=(\",\", \":\")))", kills: ["test_live_progress_stays_in_redis_and_lists_as_unfinished"] },
+    { id: "progress-final-kept-in-redis", file: duel, from: "    if r is not None and not body.final:", to: "    if r is not None:", kills: ["test_final_progress_is_durable_in_postgres_with_redis"] },
+    { id: "progress-final-leaves-live-copy", file: duel, from: "    db.commit()\n    if r is not None:\n        # The durable copy replaces the live one.\n        _forget_live_progress(match_id, (body.seat0_user_id, body.seat1_user_id))\n", to: "    db.commit()\n", kills: ["test_final_progress_is_durable_in_postgres_with_redis"] },
+    { id: "progress-result-leaves-live-copy", file: duel, from: "    _forget_live_progress(body.match_id, (body.seat0_user_id, body.seat1_user_id))\n", to: "", kills: ["test_result_clears_live_progress_in_redis"] },
+    { id: "progress-redis-late-snapshot-stored", file: duel, from: "    if _has_result(db, match_id):\n        return\n    _require_known_seats(db, body)\n    db.rollback()", to: "    _require_known_seats(db, body)\n    db.rollback()", kills: ["test_result_clears_live_progress_in_redis"] },
+    { id: "progress-redis-finished-listed", file: duel, from: "    return [row for match_id, row in newest.items() if match_id not in finished]", to: "    return list(newest.values())", kills: ["test_result_clears_live_progress_in_redis"] },
     { id: "redis-failure-no-cooldown", file: redisClient, from: "    _down_until = time.monotonic() + FAILURE_COOLDOWN_S", to: "    _down_until = 0.0", kills: ["test_named_limiter_counts_in_process_when_redis_is_down"] },
   ],
 };

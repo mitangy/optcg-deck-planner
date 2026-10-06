@@ -506,6 +506,9 @@ class DuelMatchProgressIngest(BaseModel):
     turns: int | None = Field(default=None, ge=0, le=10_000)
     replay: dict | None = None
     seat_logs: list[dict] | None = Field(default=None, min_length=2, max_length=2)
+    # Sent by the room's dispose path when it closes without a result: this snapshot
+    # is the game's last, so it is written to Postgres even when Redis holds live ones.
+    final: bool = False
 
 
 class DuelMatchHistoryEntry(BaseModel):
