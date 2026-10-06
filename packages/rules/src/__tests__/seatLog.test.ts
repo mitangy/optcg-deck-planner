@@ -41,7 +41,7 @@ function playedGame() {
     }
   }
   if (!taken || !played.length) throw new Error("test game never took a Life card or played a Character");
-  const replay: MatchReplay = { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: true, lifeCheckEveryHit: true, players, intents };
+  const replay: MatchReplay = { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: true, lifeCheckEveryHit: true, privateChoicesV2: true, players, intents };
   return { replay, hands, played, taken };
 }
 
@@ -69,7 +69,7 @@ function gameWithMulligans() {
     if (i === 1) kept = state.players.map((p) => p.hand.map((c) => c.defId));
   }
   expect(state.turnNumber).toBe(3);
-  const replay: MatchReplay = { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: false, lifeCheckEveryHit: true, players, intents };
+  const replay: MatchReplay = { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: false, lifeCheckEveryHit: true, privateChoicesV2: true, players, intents };
   return { replay, dealt, kept };
 }
 
