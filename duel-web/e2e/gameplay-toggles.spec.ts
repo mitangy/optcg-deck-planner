@@ -78,7 +78,7 @@ test("action buttons show their Space and letter key tabs by default (#301)", as
   await openDemo(page, "?attack", {});
   await expect.poll(() => spaceTag(page)).toBe('"Space"');
   await page.locator('.side-you [data-instance-id="y-leader"]').click();
-  await expect(page.locator("[data-key-tag]").first()).toBeAttached();
+  await expect(page.locator(":is(.card-action-btn, .intent-btn)[data-key-tag]").first()).toBeAttached();
 });
 
 test("Shortcut key tags off hides the Space and letter tabs on the action buttons (#301)", async ({ page }) => {
@@ -88,4 +88,33 @@ test("Shortcut key tags off hides the Space and letter tabs on the action button
   await page.locator('.side-you [data-instance-id="y-leader"]').click();
   await expect(page.locator(".card-action-btn, .intent-btn").first()).toBeAttached();
   await expect(page.locator("[data-key-tag]")).toHaveCount(0);
+});
+
+const sortTag = (page: Page) =>
+  page.locator(".hand-sort-btn").first().evaluate((el) => getComputedStyle(el, "::after").content);
+
+test("the hand Sort button shows its S key tab and S sorts the hand (#340)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "key tabs are for mouse and keyboard");
+  await openDemo(page, "", {});
+  await expect.poll(() => sortTag(page)).toBe('"S"');
+  const sort = page.locator(".hand-sort-btn").first();
+  await expect(sort).toHaveAttribute("aria-pressed", "false");
+  await page.mouse.click(5, 5);
+  await page.keyboard.press("s");
+  await expect(sort).toHaveAttribute("aria-pressed", "true");
+});
+
+test("Shortcut key tags off leaves the hand Sort button without its S tab (#340)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "key tabs are for mouse and keyboard");
+  await openDemo(page, "", { shortcutTags: false });
+  await expect(page.locator(".hand-sort-btn").first()).toBeVisible();
+  await expect.poll(() => sortTag(page)).toBe("none");
+});
+
+test("phones show no S key tab on the hand Sort button (#340)", async ({ page }) => {
+  test.skip(test.info().project.name !== "phone-375", "touch layout");
+  await openDemo(page, "", {});
+  const sort = page.locator(".hand-sort-btn:visible").first();
+  await expect(sort).toBeVisible();
+  expect(await sort.evaluate((el) => getComputedStyle(el, "::after").content)).toBe("none");
 });
