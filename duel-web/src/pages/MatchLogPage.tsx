@@ -10,6 +10,9 @@ import { matchRow, outcomeKey } from "../history/matchRow";
 import { useClickCopy } from "../board/clickCopy";
 import { ApiError, googleLoginUrl } from "../net/api";
 import { BackLink } from "./BackLink";
+import { useLogPosePage } from "@optcg/analyst-client";
+import { LogPoseReview } from "../history/LogPoseReview";
+import { MATCH_LOG_STARTERS } from "../logPose";
 import "../history/history.css";
 
 type State =
@@ -58,6 +61,9 @@ export function MatchLogPage() {
   const seat = log?.seat;
   const opponentSeat = seat === undefined ? undefined : ((1 - seat) as 0 | 1);
   const wentFirst = log ? log.turns.find((t) => t.turn === 1)?.activeSeat === log.seat : null;
+  useLogPosePage(
+    row ? { page: "match-log", label: `${row.yourLeader} vs ${row.opponentLeader}`, matchId, starters: MATCH_LOG_STARTERS } : null,
+  );
 
   const segment = (seg: LogSegment, i: number) =>
     seg.kind === "card" ? (
@@ -119,6 +125,8 @@ export function MatchLogPage() {
             This game never finished (it was cut off or abandoned), so the log runs up to the last saved turn.
           </p>
         ) : null}
+
+        {detail ? <LogPoseReview matchId={matchId} finished={detail.match.finished} /> : null}
 
         {log ? (
           <div className="match-log">

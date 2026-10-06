@@ -1,0 +1,708 @@
+/*
+ * Log Pose chat: compass launcher + panel. Every colour and layer comes from a --lp-* custom
+ * property with a neutral default; each app sets them on `.logpose` from its own tokens.
+ *
+ *   --lp-surface        panel background          --lp-surface-2   assistant bubble / chips
+ *   --lp-ink            text                      --lp-muted       secondary text
+ *   --lp-line           borders                   --lp-accent      compass ring, Send button
+ *   --lp-on-accent      text on --lp-accent       --lp-user-bg     user bubble
+ *   --lp-user-ink       user bubble text          --lp-danger      errors
+ *   --lp-needle         compass north needle      --lp-field       textarea background
+ *   --lp-shadow         panel / compass shadow    --lp-focus       focus outline colour
+ *   --lp-font, --lp-font-display                  --lp-radius      bubble radius
+ *   --lp-z-compass      launcher layer            --lp-z-panel     panel layer
+ */
+
+.logpose {
+  --lp-surface-d: var(--lp-surface, #ffffff);
+  --lp-surface-2-d: var(--lp-surface-2, #f2f4f6);
+  --lp-ink-d: var(--lp-ink, #17252e);
+  --lp-muted-d: var(--lp-muted, #5b666c);
+  --lp-line-d: var(--lp-line, #d9dee2);
+  --lp-accent-d: var(--lp-accent, #1d5566);
+  --lp-on-accent-d: var(--lp-on-accent, #ffffff);
+  --lp-user-bg-d: var(--lp-user-bg, var(--lp-accent-d));
+  --lp-user-ink-d: var(--lp-user-ink, var(--lp-on-accent-d));
+  --lp-danger-d: var(--lp-danger, #a8322a);
+  --lp-needle-d: var(--lp-needle, #c4402f);
+  --lp-field-d: var(--lp-field, var(--lp-surface-d));
+  --lp-shadow-d: var(--lp-shadow, 0 2px 6px rgba(0, 0, 0, 0.12), 0 12px 32px rgba(0, 0, 0, 0.18));
+  --lp-focus-d: var(--lp-focus, var(--lp-accent-d));
+  --lp-radius-d: var(--lp-radius, 14px);
+  font-family: var(--lp-font, inherit);
+  color: var(--lp-ink-d);
+  box-sizing: border-box;
+}
+
+.logpose *,
+.logpose *::before,
+.logpose *::after {
+  box-sizing: border-box;
+}
+
+/* ——— Compass launcher ——— */
+
+.lp-compass {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  z-index: var(--lp-z-compass, 40);
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid var(--lp-line-d);
+  border-radius: 50%;
+  background: var(--lp-surface-d);
+  color: var(--lp-accent-d);
+  box-shadow: var(--lp-shadow-d);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lp-compass:hover {
+  transform: translateY(-1px);
+}
+
+.lp-compass:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+  outline-offset: 3px;
+}
+
+.lp-compass-svg {
+  width: 40px;
+  height: 40px;
+  display: block;
+  overflow: visible;
+}
+
+.lp-compass-bezel {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+}
+
+.lp-compass-face {
+  fill: color-mix(in srgb, currentColor 8%, transparent);
+  stroke: none;
+}
+
+.lp-compass-ticks path {
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+
+.lp-needle {
+  transform-box: view-box;
+  transform-origin: 24px 24px;
+}
+
+.lp-needle-n {
+  fill: var(--lp-needle-d);
+}
+
+.lp-needle-s {
+  fill: currentColor;
+  opacity: 0.55;
+}
+
+.lp-compass-pin {
+  fill: var(--lp-surface-d);
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
+.lp-compass[data-working] .lp-needle {
+  animation: lp-needle-swing 1.6s ease-in-out infinite;
+}
+
+@keyframes lp-needle-swing {
+  0% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(-38deg);
+  }
+  45% {
+    transform: rotate(28deg);
+  }
+  65% {
+    transform: rotate(-14deg);
+  }
+  82% {
+    transform: rotate(7deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes lp-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.lp-compass-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--lp-needle-d);
+  border: 2px solid var(--lp-surface-d);
+}
+
+/* ——— Panel: drawer on desktop, full-height sheet on phones ——— */
+
+.lp-panel {
+  position: fixed;
+  z-index: var(--lp-z-panel, 85);
+  display: flex;
+  flex-direction: column;
+  background: var(--lp-surface-d);
+  box-shadow: var(--lp-shadow-d);
+  overflow: hidden;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+@media (min-width: 900px) {
+  .lp-panel {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 420px;
+    height: 100dvh;
+    border-left: 1px solid var(--lp-line-d);
+    padding-right: env(safe-area-inset-right, 0px);
+    animation: lp-drawer-in 0.18s ease-out;
+  }
+}
+
+@keyframes lp-drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 899.98px) {
+  .lp-panel {
+    left: 0;
+    right: 0;
+    top: var(--lp-vv-top, 0px);
+    height: var(--lp-vv-height, 100dvh);
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+    animation: lp-sheet-in 0.2s ease-out;
+    overscroll-behavior: contain;
+  }
+}
+
+@keyframes lp-sheet-in {
+  from {
+    transform: translateY(32px);
+    opacity: 0;
+  }
+}
+
+.lp-grip {
+  display: none;
+}
+
+@media (max-width: 899.98px) {
+  .lp-grip {
+    display: block;
+    flex: none;
+    width: 40px;
+    height: 4px;
+    margin: 8px auto 0;
+    border-radius: 2px;
+    background: var(--lp-line-d);
+  }
+}
+
+.lp-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 8px 10px 8px 16px;
+  border-bottom: 1px solid var(--lp-line-d);
+}
+
+.lp-head-icon {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  color: var(--lp-accent-d);
+}
+
+.lp-head-icon svg {
+  width: 26px;
+  height: 26px;
+  display: block;
+}
+
+.lp-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--lp-font-display, inherit);
+  font-size: 1.15rem;
+  font-weight: 650;
+  line-height: 1.2;
+  color: var(--lp-ink-d);
+}
+
+.lp-btn {
+  font: inherit;
+  font-size: 0.875rem;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--lp-line-d);
+  background: transparent;
+  color: var(--lp-ink-d);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.lp-btn:focus-visible,
+.lp-starter:focus-visible,
+.lp-chip-x:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+  outline-offset: 2px;
+}
+
+.lp-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.lp-btn-quiet:hover {
+  background: var(--lp-surface-2-d);
+}
+
+.lp-btn-icon {
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-color: transparent;
+}
+
+.lp-btn-icon:hover {
+  background: var(--lp-surface-2-d);
+}
+
+.lp-btn-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.lp-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lp-note {
+  margin: 0;
+  color: var(--lp-muted-d);
+  font-size: 0.875rem;
+}
+
+.lp-empty {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lp-empty-lead {
+  margin: 0;
+  color: var(--lp-muted-d);
+}
+
+.lp-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lp-starter {
+  font: inherit;
+  font-size: 0.875rem;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--lp-line-d);
+  background: var(--lp-surface-2-d);
+  color: var(--lp-ink-d);
+  cursor: pointer;
+  text-align: left;
+  max-width: 100%;
+}
+
+.lp-starter:hover:not(:disabled) {
+  border-color: var(--lp-accent-d);
+}
+
+.lp-msg {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lp-msg-user {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: var(--lp-radius-d) var(--lp-radius-d) 4px var(--lp-radius-d);
+  background: var(--lp-user-bg-d);
+  color: var(--lp-user-ink-d);
+}
+
+.lp-msg-user p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.lp-msg-assistant {
+  align-self: stretch;
+  padding: 10px 12px;
+  border-radius: var(--lp-radius-d) var(--lp-radius-d) var(--lp-radius-d) 4px;
+  background: var(--lp-surface-2-d);
+}
+
+.lp-stopped {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-status {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 20px;
+  min-width: 0;
+  font-size: 0.85rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp-status-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lp-accent-d);
+  animation: lp-pulse 1.2s ease-in-out infinite;
+}
+
+.lp-error {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--lp-danger-d) 45%, transparent);
+  background: color-mix(in srgb, var(--lp-danger-d) 10%, transparent);
+  color: var(--lp-danger-d);
+  font-size: 0.875rem;
+}
+
+.lp-foot {
+  flex: none;
+  border-top: 1px solid var(--lp-line-d);
+  padding: 8px 12px max(12px, env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--lp-surface-d);
+}
+
+.lp-context {
+  display: flex;
+  min-width: 0;
+}
+
+.lp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 2px 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--lp-line-d);
+  background: var(--lp-surface-2-d);
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-chip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp-chip-x {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.lp-chip-x:hover {
+  background: var(--lp-line-d);
+}
+
+.lp-chip-x svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.lp-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lp-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  max-height: 160px;
+  resize: none;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--lp-line-d);
+  background: var(--lp-field-d);
+  color: var(--lp-ink-d);
+  /* 16px keeps iOS from zooming the page when the field gets focus. */
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.lp-input:focus {
+  outline: 2px solid var(--lp-focus-d);
+  outline-offset: 0;
+  border-color: transparent;
+}
+
+.lp-input:disabled {
+  opacity: 0.7;
+}
+
+.lp-input::placeholder {
+  color: var(--lp-muted-d);
+}
+
+.lp-btn-send {
+  flex: none;
+  min-height: 44px;
+  min-width: 72px;
+  font-weight: 600;
+  border-color: var(--lp-accent-d);
+  background: var(--lp-accent-d);
+  color: var(--lp-on-accent-d);
+}
+
+.lp-btn-send:disabled {
+  opacity: 0.45;
+}
+
+.lp-btn-stop {
+  background: transparent;
+  color: var(--lp-ink-d);
+  border-color: var(--lp-line-d);
+}
+
+/* ——— Markdown inside answers ——— */
+
+.lp-md {
+  min-width: 0;
+}
+
+.lp-md > :first-child {
+  margin-top: 0;
+}
+
+.lp-md > :last-child {
+  margin-bottom: 0;
+}
+
+.lp-md p,
+.lp-md ul,
+.lp-md ol,
+.lp-md pre,
+.lp-md .lp-md-table {
+  margin: 0 0 0.6em;
+}
+
+.lp-md ul,
+.lp-md ol {
+  padding-left: 1.3em;
+}
+
+.lp-md li + li {
+  margin-top: 0.2em;
+}
+
+.lp-md .lp-md-h {
+  font-weight: 700;
+  margin-top: 0.8em;
+}
+
+.lp-md .lp-md-h1 {
+  font-size: 1.08em;
+}
+
+.lp-md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--lp-ink-d) 8%, transparent);
+}
+
+.lp-md-pre {
+  overflow-x: auto;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--lp-ink-d) 7%, transparent);
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+
+.lp-md-pre code {
+  padding: 0;
+  background: none;
+  white-space: pre;
+}
+
+.lp-md a {
+  color: var(--lp-accent-d);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lp-md hr {
+  border: 0;
+  border-top: 1px solid var(--lp-line-d);
+  margin: 0.8em 0;
+}
+
+.lp-md-table {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--lp-line-d);
+  border-radius: 8px;
+}
+
+.lp-md-table:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+}
+
+.lp-md-table table {
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: 0.86em;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-md-table th,
+.lp-md-table td {
+  padding: 5px 8px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--lp-line-d);
+}
+
+.lp-md-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.lp-md-table th {
+  /* Host apps may style table headers as small caps labels; answers keep plain headers. */
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: inherit;
+  color: inherit;
+  font-weight: 650;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--lp-ink-d) 5%, transparent);
+}
+
+/* ——— Reduced motion: pulse instead of swing, no slide-in ——— */
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-compass[data-working] .lp-needle {
+    animation: none;
+  }
+  .lp-compass[data-working] .lp-compass-svg {
+    animation: lp-pulse 1.4s ease-in-out infinite;
+  }
+  .lp-panel {
+    animation: none;
+  }
+  .lp-compass {
+    transition: none;
+  }
+}
+
+:root[data-motion="reduce"] .lp-compass[data-working] .lp-needle {
+  animation: none;
+}
+
+:root[data-motion="reduce"] .lp-compass[data-working] .lp-compass-svg {
+  animation: lp-pulse 1.4s ease-in-out infinite;
+}
+
+:root[data-motion="reduce"] .lp-panel {
+  animation: none;
+}
