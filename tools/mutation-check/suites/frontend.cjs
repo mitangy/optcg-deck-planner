@@ -91,11 +91,11 @@ module.exports = {
     { id: "collection-patch-value-stale", file: "frontend/src/ownedCollection.ts", from: "    return { ...item, owned: qty, value };", to: "    return { ...item, owned: qty };", kills: ["stepping Owned reprices the card"] },
     { id: "collection-zero-kept-in-totals", file: "frontend/src/ownedCollection.ts", from: "  const totals = collectionTotals(items.filter((i) => i.owned > 0));", to: "  const totals = collectionTotals(items);", kills: ["a card stepped to 0 stays listed but leaves the totals"] },
     { id: "value-sort-uses-price", file: "frontend/src/cardListControls.tsx", from: "  if (key === \"value\") return compareDesc(a.value, b.value);", to: "  if (key === \"value\") return compareDesc(a.market_price, b.market_price);", kills: ["Value sort puts the most valuable holding first"] },
-    // Log Pose chat (#log-pose-chat)
+    // Log Pose chat (#377)
     { id: "logpose-on-share-pages", file: "frontend/src/logPose.ts", from: "const NO_LOG_POSE = [\"/share\", \"/login\"];", to: "const NO_LOG_POSE = [\"/login\"];", kills: ["keeps the compass off public share pages"] },
-    { id: "logpose-off-everywhere", file: "frontend/src/logPose.ts", from: "  return !NO_LOG_POSE.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return !NO_LOG_POSE.some((p) => pathname === p || pathname.startsWith(`${p}/`)) && pathname === \"/\";", kills: ["shows it on the signed-in pages (#log-pose-chat)"] },
-    { id: "logpose-deck-sends-leader", file: "frontend/src/logPose.ts", from: "    if (c.card_id.trim().toUpperCase() === leader) continue;\n", to: "", kills: ["without the leader or DON!! (#log-pose-chat)"] },
-    { id: "logpose-deck-sends-don", file: "frontend/src/logPose.ts", from: "    if ((c.section || \"main\").toLowerCase() !== \"main\" || c.needed <= 0) continue;", to: "    if (c.needed <= 0) continue;", kills: ["without the leader or DON!! (#log-pose-chat)"] },
+    { id: "logpose-off-everywhere", file: "frontend/src/logPose.ts", from: "  return !NO_LOG_POSE.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return !NO_LOG_POSE.some((p) => pathname === p || pathname.startsWith(`${p}/`)) && pathname === \"/\";", kills: ["shows it on the signed-in pages (#377)"] },
+    { id: "logpose-deck-sends-leader", file: "frontend/src/logPose.ts", from: "    if (c.card_id.trim().toUpperCase() === leader) continue;\n", to: "", kills: ["without the leader or DON!! (#377)"] },
+    { id: "logpose-deck-sends-don", file: "frontend/src/logPose.ts", from: "    if ((c.section || \"main\").toLowerCase() !== \"main\" || c.needed <= 0) continue;", to: "    if (c.needed <= 0) continue;", kills: ["without the leader or DON!! (#377)"] },
     { id: "logpose-deck-copies-one", file: "frontend/src/logPose.ts", from: "    copies.set(c.card_id, (copies.get(c.card_id) ?? 0) + c.needed);", to: "    copies.set(c.card_id, 1);", kills: ["sends a deck's main-deck cards with their copies"] },
   ],
 };

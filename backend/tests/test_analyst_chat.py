@@ -1,5 +1,5 @@
 """Log Pose in the app: chat sessions and tokens, spend caps, threads, post-game reviews
-and the anonymized game corpus (#log-pose-chat)."""
+and the anonymized game corpus (#377)."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def _as(token: str) -> dict:
 
 
 def test_the_chat_panel_is_only_on_for_allowlisted_players(analyst, monkeypatch):  # noqa: F811
-    """No token is handed out unless the player's email is on ANALYST_CHAT_EMAILS (#log-pose-chat)."""
+    """No token is handed out unless the player's email is on ANALYST_CHAT_EMAILS (#377)."""
     c, _ = analyst
     monkeypatch.setenv("ANALYST_CHAT_EMAILS", "someone@else.example")
     get_settings.cache_clear()
@@ -51,7 +51,7 @@ def test_the_chat_panel_is_only_on_for_allowlisted_players(analyst, monkeypatch)
 
 
 def test_a_chat_token_must_be_signed_and_unexpired(chat):
-    """Tampered or expired chat tokens are turned away (#log-pose-chat)."""
+    """Tampered or expired chat tokens are turned away (#377)."""
     c, SessionLocal = chat
     me, body = _session(c)
     token = body["token"]
@@ -78,7 +78,7 @@ def _spend(SessionLocal, user_id: int, cost: float, when: datetime | None = None
 
 
 def test_the_daily_cap_counts_only_your_spend_today(chat):
-    """Other players' spend and yesterday's don't use up today's cap; reaching it stops chat (#log-pose-chat)."""
+    """Other players' spend and yesterday's don't use up today's cap; reaching it stops chat (#377)."""
     c, SessionLocal = chat
     me, body = _session(c)
     other = _users(c, "alice")[0]
@@ -93,7 +93,7 @@ def test_the_daily_cap_counts_only_your_spend_today(chat):
 
 
 def test_the_monthly_cap_counts_everyone(chat):
-    """The monthly cap is for all players together (#log-pose-chat)."""
+    """The monthly cap is for all players together (#377)."""
     c, SessionLocal = chat
     _, body = _session(c)
     _spend(SessionLocal, _users(c, "alice")[0], 5.0)
@@ -110,7 +110,7 @@ def test_usage_is_recorded_against_the_player(chat):
 
 
 def test_thread_content_is_only_for_the_analyst_service(chat):
-    """The browser's chat token alone can't read raw thread content (tool results included) (#log-pose-chat)."""
+    """The browser's chat token alone can't read raw thread content (tool results included) (#377)."""
     c, _ = chat
     _, body = _session(c)
     tid = c.post("/analyst/chat/threads", json={"title": "Zoro"}, headers=_as(body["token"])).json()["id"]
@@ -119,7 +119,7 @@ def test_thread_content_is_only_for_the_analyst_service(chat):
 
 
 def test_threads_store_messages_as_sent_and_show_only_the_conversation(chat):
-    """Content round-trips as stored; the panel hides page context and tool turns and joins one answer (#log-pose-chat)."""
+    """Content round-trips as stored; the panel hides page context and tool turns and joins one answer (#377)."""
     c, _ = chat
     _, body = _session(c)
     h = _as(body["token"])
@@ -144,7 +144,7 @@ def test_threads_store_messages_as_sent_and_show_only_the_conversation(chat):
 
 
 def test_a_thread_belongs_to_its_player(chat):
-    """Another player's thread is not found, through the analyst or the app (#log-pose-chat)."""
+    """Another player's thread is not found, through the analyst or the app (#377)."""
     c, SessionLocal = chat
     _, body = _session(c)
     db = SessionLocal()
@@ -166,7 +166,7 @@ def test_a_thread_belongs_to_its_player(chat):
 
 
 def test_reviews_are_saved_only_for_games_you_played(chat):
-    """The analyst can save a post-game analysis only for the player's own games; the app reads it back (#log-pose-chat)."""
+    """The analyst can save a post-game analysis only for the player's own games; the app reads it back (#377)."""
     c, _ = chat
     me, body = _session(c)
     a, b = _users(c, "alice", "bob")
@@ -183,7 +183,7 @@ def test_reviews_are_saved_only_for_games_you_played(chat):
 
 
 def test_the_corpus_is_anonymized_and_puts_the_leader_on_side_a(analyst):
-    """Corpus games carry opaque ids and rating bands, never names or match ids; side A is the asked leader (#log-pose-chat)."""
+    """Corpus games carry opaque ids and rating bands, never names or match ids; side A is the asked leader (#377)."""
     c, _ = analyst
     a, b = _users(c, "alice", "bob")
     _zoro_vs_lucci(c, "g", b, a, [(1, 0)])  # seat 0 Zoro (bob), seat 1 Lucci (alice) wins
@@ -202,7 +202,7 @@ def test_the_corpus_is_anonymized_and_puts_the_leader_on_side_a(analyst):
 
 
 def test_the_corpus_filters_by_card_and_result(analyst):
-    """Card and result filters apply to side A (#log-pose-chat)."""
+    """Card and result filters apply to side A (#377)."""
     c, _ = analyst
     a, b = _users(c, "alice", "bob")
     _zoro_vs_lucci(c, "w", a, b, [(0, 0)], deck0=[NAMI_CARD] * 4)
@@ -214,7 +214,7 @@ def test_the_corpus_filters_by_card_and_result(analyst):
 
 
 def test_opted_out_players_games_leave_the_corpus(analyst):
-    """Turning sharing off removes a player's games from corpus search and replays, even ids found before (#log-pose-chat)."""
+    """Turning sharing off removes a player's games from corpus search and replays, even ids found before (#377)."""
     c, _ = analyst
     me = c.post("/auth/dev-login").json()
     a = _users(c, "alice")[0]

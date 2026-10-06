@@ -88,7 +88,7 @@ function scriptedModel(replies: (ModelReply | Error)[]) {
 const deps = (api: ChatDeps["api"], callModel: CallModel): ChatDeps => ({ api, catalog, knowledge: {}, callModel });
 
 describe("game archive", () => {
-  it("names every hidden card in an archive replay and calls the seats Player A and B (#log-pose-chat)", () => {
+  it("names every hidden card in an archive replay and calls the seats Player A and B (#377)", () => {
     const game = narrateGame(replay);
     const side = taken.seat === 0 ? "A" : "B";
     expect(game.log).toContain(`Player ${side} takes Life (${getCardDef(taken.defId).name})`);
@@ -98,7 +98,7 @@ describe("game archive", () => {
     expect(game.openingHands.A).not.toEqual(game.openingHands.B);
   });
 
-  it("searches the archive with the service secret only, never a player token (#log-pose-chat)", async () => {
+  it("searches the archive with the service secret only, never a player token (#377)", async () => {
     const { calls, api } = planner({
       "GET /analyst/corpus/games": { total: 1, offset: 0, window_days: 30, games: [{ game_id: "g_1", A: { leader: "OP01-001" }, B: { leader: "OP01-060" } }] },
       "GET /analyst/corpus/games/g_1/replay": { game_id: "g_1", date: null, ranked: true, rating_bands: {}, replay },
@@ -118,13 +118,13 @@ describe("game archive", () => {
 });
 
 describe("chat", () => {
-  it("prices calls at the chat model's rates, cache reads and writes included (#log-pose-chat)", () => {
+  it("prices calls at the chat model's rates, cache reads and writes included (#377)", () => {
     expect(costUsd({ input_tokens: 1_000_000, output_tokens: 0 })).toBeCloseTo(4);
     expect(costUsd({ input_tokens: 0, output_tokens: 1_000_000 })).toBeCloseTo(20);
     expect(costUsd({ input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 1_000_000, cache_creation_input_tokens: 1_000_000 })).toBeCloseTo(5.2);
   });
 
-  it("turns away a missing token, an expired session and a spent budget before any model call (#log-pose-chat)", async () => {
+  it("turns away a missing token, an expired session and a spent budget before any model call (#377)", async () => {
     const ok = planner({ "GET /analyst/me": {}, "GET /analyst/chat/budget": BUDGET });
     await expect(admit(ok.api, "chat.1.2.sig")).resolves.toBe("chat.1.2.sig");
     await expect(admit(ok.api, null)).rejects.toMatchObject({ status: 401, code: "auth" });
@@ -137,7 +137,7 @@ describe("chat", () => {
     expect(err).toMatchObject({ status: 429, code: "budget" });
   });
 
-  it("runs the tools the model asks for, streams the answer and saves the whole turn (#log-pose-chat)", async () => {
+  it("runs the tools the model asks for, streams the answer and saves the whole turn (#377)", async () => {
     const { calls, api } = planner({
       "POST /analyst/chat/threads": { id: 9 },
       "POST /analyst/chat/threads/9/messages": null,
@@ -174,7 +174,7 @@ describe("chat", () => {
     expect(events.at(-1)!.data).toMatchObject({ thread_id: 9, spent_today_usd: 0.5, daily_cap_usd: 3 });
   });
 
-  it("resends an existing thread as stored and adds only the new turn (#log-pose-chat)", async () => {
+  it("resends an existing thread as stored and adds only the new turn (#377)", async () => {
     const earlier = [
       { role: "user", content: [{ type: "text", text: "Hi" }] },
       { role: "assistant", content: [{ type: "text", text: "Ahoy." }] },
@@ -194,7 +194,7 @@ describe("chat", () => {
     expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/chat/threads"))).toBe(false);
   });
 
-  it("doesn't save a turn the model never finished, but still counts what it cost (#log-pose-chat)", async () => {
+  it("doesn't save a turn the model never finished, but still counts what it cost (#377)", async () => {
     const { calls, api } = planner({
       "POST /analyst/chat/threads": { id: 9 },
       "POST /analyst/chat/usage": null,
@@ -206,7 +206,7 @@ describe("chat", () => {
     expect(calls.find((c) => c.url.endsWith("/chat/usage"))!.body).toMatchObject({ input_tokens: 1000, output_tokens: 100 });
   });
 
-  it("lets only the apps' own origins call the chat from a browser (#log-pose-chat)", () => {
+  it("lets only the apps' own origins call the chat from a browser (#377)", () => {
     const list = ["https://optcgduel.app"];
     expect(originAllowed(list, "https://optcgduel.app")).toBe(true);
     expect(originAllowed(list, "https://duel-web-git-x.vercel.app")).toBe(true);
@@ -218,7 +218,7 @@ describe("chat", () => {
 });
 
 describe("post-game analysis", () => {
-  it("reviews the game from the player's seat and saves the analysis for next time (#log-pose-chat)", async () => {
+  it("reviews the game from the player's seat and saves the analysis for next time (#377)", async () => {
     const { calls, api } = planner({
       "GET /analyst/matches/m1/replay": { match_id: "m1", your_seat: taken.seat, replay },
       "POST /analyst/chat/usage": null,

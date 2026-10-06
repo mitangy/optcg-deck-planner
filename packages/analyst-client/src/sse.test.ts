@@ -35,18 +35,18 @@ function bodyOf(parts: Uint8Array[]): Response {
   return new Response(stream, { status: 200, headers: { "Content-Type": "text/event-stream" } });
 }
 
-describe("SSE parser (#log-pose-chat)", () => {
-  it("parses the same events wherever the stream is split into two chunks (#log-pose-chat)", () => {
+describe("SSE parser (#377)", () => {
+  it("parses the same events wherever the stream is split into two chunks (#377)", () => {
     for (let cut = 0; cut <= STREAM.length; cut++) {
       expect(parseInChunks([STREAM.slice(0, cut), STREAM.slice(cut)]), `split at ${cut}`).toEqual(EXPECTED);
     }
   });
 
-  it("parses a stream fed one character at a time, including a \\r\\n split between chunks (#log-pose-chat)", () => {
+  it("parses a stream fed one character at a time, including a \\r\\n split between chunks (#377)", () => {
     expect(parseInChunks([...STREAM])).toEqual(EXPECTED);
   });
 
-  it("decodes a UTF-8 character whose bytes are split across network chunks (#log-pose-chat)", async () => {
+  it("decodes a UTF-8 character whose bytes are split across network chunks (#377)", async () => {
     const bytes = new TextEncoder().encode('event: text\ndata: {"delta":"Nami’s Clima-Tact"}\n\n');
     const at = bytes.indexOf(0xe2) + 1; // inside the 3-byte apostrophe
     const events: SseEvent[] = [];

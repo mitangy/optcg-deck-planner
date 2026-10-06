@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { plannerDeckContext, showsLogPose } from "./logPose";
 
-describe("Log Pose in the planner (#log-pose-chat)", () => {
-  it("keeps the compass off public share pages and shows it on the signed-in pages (#log-pose-chat)", () => {
+describe("Log Pose in the planner (#377)", () => {
+  it("keeps the compass off public share pages and shows it on the signed-in pages (#377)", () => {
     expect(showsLogPose("/share/abc123")).toBe(false);
     for (const path of ["/", "/decks", "/decks/7", "/collection", "/group-buys", "/import"]) expect(showsLogPose(path), path).toBe(true);
   });
 
-  it("sends a deck's main-deck cards with their copies, without the leader or DON!! (#log-pose-chat)", () => {
+  it("sends a deck's main-deck cards with their copies, without the leader or DON!! (#377)", () => {
     const ctx = plannerDeckContext({
       name: "Purple Enel",
       leader_card_id: "OP05-098",

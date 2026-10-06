@@ -25,13 +25,13 @@ function fakeFetch(expiries: number[], chat: (auth: string) => Response) {
 
 const sse = (body: string) => new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } });
 
-describe("chat session token (#log-pose-chat)", () => {
-  it("refreshes a token with less than 2 minutes left and keeps one with more (#log-pose-chat)", () => {
+describe("chat session token (#377)", () => {
+  it("refreshes a token with less than 2 minutes left and keeps one with more (#377)", () => {
     expect(needsRefresh(iso(119_000), NOW)).toBe(true);
     expect(needsRefresh(iso(121_000), NOW)).toBe(false);
   });
 
-  it("mints a new token before a request when the current one is about to expire (#log-pose-chat)", async () => {
+  it("mints a new token before a request when the current one is about to expire (#377)", async () => {
     const f = fakeFetch([60_000, 15 * 60_000], () => sse(""));
     const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
     await mgr.refresh();
@@ -41,8 +41,8 @@ describe("chat session token (#log-pose-chat)", () => {
   });
 });
 
-describe("analyst stream requests (#log-pose-chat)", () => {
-  it("refreshes the session and retries once when the analyst answers 401 (#log-pose-chat)", async () => {
+describe("analyst stream requests (#377)", () => {
+  it("refreshes the session and retries once when the analyst answers 401 (#377)", async () => {
     const f = fakeFetch([15 * 60_000], (auth) =>
       auth === "Bearer tok0" ? new Response("", { status: 401 }) : sse('event: text\ndata: {"delta":"ok"}\n\n'),
     );
@@ -55,14 +55,14 @@ describe("analyst stream requests (#log-pose-chat)", () => {
     expect(chats[1]!.init.credentials).toBe("omit");
   });
 
-  it("gives up with an auth error after a second 401 instead of looping (#log-pose-chat)", async () => {
+  it("gives up with an auth error after a second 401 instead of looping (#377)", async () => {
     const f = fakeFetch([15 * 60_000], () => new Response("", { status: 401 }));
     const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
     await expect(streamAnalyst(mgr, "/chat", { message: "hi" }, {}, undefined, f.impl)).rejects.toMatchObject({ code: "auth" });
     expect(f.calls.filter((c) => c.url === "https://lp.test/chat")).toHaveLength(2);
   });
 
-  it("turns a 429 into the daily-limit message (#log-pose-chat)", async () => {
+  it("turns a 429 into the daily-limit message (#377)", async () => {
     const f = fakeFetch([15 * 60_000], () => new Response("", { status: 429 }));
     const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
     const err = await streamAnalyst(mgr, "/chat", { message: "hi" }, {}, undefined, f.impl).catch((e: unknown) => e);
@@ -70,7 +70,7 @@ describe("analyst stream requests (#log-pose-chat)", () => {
     expect(errorText(err as AnalystError)).toBe(BUDGET_MESSAGE);
   });
 
-  it("shows the daily-limit message for an in-stream budget error (#log-pose-chat)", async () => {
+  it("shows the daily-limit message for an in-stream budget error (#377)", async () => {
     const f = fakeFetch([15 * 60_000], () => sse('event: error\ndata: {"message":"cap hit","code":"budget"}\n\n'));
     const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
     const shown: string[] = [];
@@ -78,7 +78,7 @@ describe("analyst stream requests (#log-pose-chat)", () => {
     expect(shown).toEqual([BUDGET_MESSAGE]);
   });
 
-  it("hands thread, status, text and done events to their handlers in order (#log-pose-chat)", async () => {
+  it("hands thread, status, text and done events to their handlers in order (#377)", async () => {
     const f = fakeFetch([15 * 60_000], () =>
       sse(
         'event: thread\ndata: {"thread_id":7}\n\nevent: status\ndata: {"text":"Looking"}\n\n' +
