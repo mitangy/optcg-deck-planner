@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
+import { movePile, type DonPiles } from "./donPiles";
 import type {
   ChatLine,
   Intent,
@@ -456,6 +457,8 @@ export function DuelBoard({
     request.catch(() => {});
   }
   const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
+  // Separate DON!! piles in your cost area (#381): visual only, reset each turn.
+  const [donPiles, setDonPiles] = useState<DonPiles>({});
   /** Click-to-attach: DON!! selected + target tapped, awaiting confirm. */
   const [pendingAttach, setPendingAttach] = useState<PendingAttach | null>(null);
   /** Hand card (instance id) waiting on "which Character do you replace?". */
@@ -765,6 +768,20 @@ export function DuelBoard({
     return ends?.incoming ? ends.targetId : null;
   }, [counterDragEnabled, view]);
   const costArea = view?.you.costArea ?? [];
+
+  const turnNumber = view?.turnNumber;
+  useEffect(() => {
+    setDonPiles({});
+  }, [turnNumber]);
+
+  function moveDonToPile(donId: string) {
+    const present = costArea.map((t) => t.id);
+    // A chip in the multi-select set moves with the rest of it.
+    const ids = selectedDonIds.has(donId)
+      ? [donId, ...Array.from(selectedDonIds).filter((id) => id !== donId)]
+      : [donId];
+    setDonPiles((prev) => movePile(prev, ids, present));
+  }
 
   const draggableDonIds = useMemo(() => {
     if (!dndEnabled) return EMPTY_IDS;
@@ -2179,6 +2196,11 @@ export function DuelBoard({
                 costArea: you.costArea,
                 activeDonCount: you.activeDonCount,
               }}
+              donPile={
+                spectating
+                  ? undefined
+                  : { piles: donPiles, onMove: moveDonToPile }
+              }
               select={
                 spectating
                   ? undefined
