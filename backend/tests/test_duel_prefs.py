@@ -155,3 +155,56 @@ def test_uploads_stop_once_all_accounts_fill_the_image_budget_318(client, monkey
     res = _as(c, b).post("/duel/cosmetics/cardBack", content=PNG)
     assert res.status_code == 507
     assert _as(c, b).get("/duel/cosmetics").json()["items"] == []
+
+
+def test_signed_public_link_serves_the_image_without_a_session(client):
+    c, S = client
+    luffy = _user(S, "luffy")
+    body = _upload(_as(c, luffy), "playmat", JPEG)
+    mat = body["items"][0]
+    c.cookies.clear()
+
+    res = c.get(mat["public_path"])
+    assert res.status_code == 200
+    assert res.content == JPEG
+    assert res.headers["content-type"] == "image/jpeg"
+    assert res.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert res.headers["x-content-type-options"] == "nosniff"
+    # The owner-only route still needs the session.
+    assert c.get(f"/duel/cosmetics/{mat['id']}/image").status_code == 401
+
+
+def test_public_link_needs_its_exact_signature(client):
+    c, S = client
+    luffy = _user(S, "luffy")
+    _as(c, luffy)
+    first = _upload(c, "playmat", JPEG)["items"][0]
+    second = _upload(c, "cardBack", PNG)["items"][0]
+    c.cookies.clear()
+    base, sig = first["public_path"].rsplit("/", 1)
+    assert base == f"/duel/cosmetics/{first['id']}/public"
+    assert len(sig) >= 22
+    flipped = sig[:-1] + ("A" if sig[-1] != "A" else "B")
+    other_sig = second["public_path"].rsplit("/", 1)[1]
+    for bad in (flipped, sig[:22], other_sig, "x"):
+        assert c.get(f"{base}/{bad}").status_code == 404, bad
+    assert c.get(f"{base}/{sig}").status_code == 200
+
+
+def test_public_links_are_signed_with_the_dedicated_secret(client, monkeypatch: pytest.MonkeyPatch):
+    c, S = client
+    luffy = _user(S, "luffy")
+    path = _upload(_as(c, luffy), "playmat", JPEG)["items"][0]["public_path"]
+    # Rotating COSMETIC_URL_SECRET (not SESSION_SECRET) retires every old link.
+    monkeypatch.setenv("COSMETIC_URL_SECRET", "rotated-cosmetic-secret")
+    get_settings.cache_clear()
+    assert c.get(path).status_code == 404
+    assert c.get("/duel/cosmetics").json()["items"][0]["public_path"] != path
+
+
+def test_deleted_image_public_link_is_gone(client):
+    c, S = client
+    luffy = _user(S, "luffy")
+    mat = _upload(_as(c, luffy), "playmat", JPEG)["items"][0]
+    assert c.delete(f"/duel/cosmetics/{mat['id']}").status_code == 200
+    assert c.get(mat["public_path"]).status_code == 404

@@ -7,6 +7,9 @@ can switch back to an older image; guests keep using browser storage only.
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
 from typing import Annotated
 
@@ -15,6 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
+from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import DuelCosmetic, DuelUserSettings, User
 from app.rate_limit import RateLimiter
@@ -41,6 +45,9 @@ MAX_TOTAL_COSMETIC_BYTES = 256 * 1024 * 1024
 MAX_SETTINGS_CHARS = 4096
 # Per-device connection fields never leave the browser (the join secret is a secret).
 DEVICE_ONLY_KEYS = frozenset({"serverUrl", "joinSecret", "useDevKey", "devUserKey"})
+
+# Length of a public link's signature (urlsafe base64 of HMAC-SHA256): 192 bits.
+PUBLIC_SIG_CHARS = 32
 
 _upload_rate = RateLimiter(max_calls=20, period_s=60, name="duel_prefs_upload_rate")
 
@@ -123,10 +130,15 @@ def _cosmetics_out(db: Session, user_id: int) -> DuelCosmeticsOut:
         .order_by(DuelCosmetic.created_at.desc(), DuelCosmetic.id.desc())
     ).all()
     prefs = db.get(DuelUserSettings, user_id)
+    settings = get_settings()
     return DuelCosmeticsOut(
         items=[
             DuelCosmeticOut(
-                id=r.id, kind=r.kind, size=r.size, created_at=r.created_at.isoformat()
+                id=r.id,
+                kind=r.kind,
+                size=r.size,
+                created_at=r.created_at.isoformat(),
+                public_path=public_path(r.id, settings),
             )
             for r in rows
         ],
@@ -225,6 +237,47 @@ def delete_cosmetic(
     db.delete(row)
     db.commit()
     return _cosmetics_out(db, user.id)
+
+
+def public_sig(cosmetic_id: int, settings: Settings) -> str:
+    """Unguessable token that makes one image public: HMAC-SHA256 of ``cosmetic:{id}``, 192 bits."""
+    secret = (settings.cosmetic_url_secret or settings.session_secret).encode()
+    digest = hmac.new(secret, f"cosmetic:{cosmetic_id}".encode(), hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(digest).decode().rstrip("=")[:PUBLIC_SIG_CHARS]
+
+
+def public_path(cosmetic_id: int, settings: Settings) -> str:
+    """Link (relative to the API base) anyone holding it can load without a session."""
+    return f"/duel/cosmetics/{cosmetic_id}/public/{public_sig(cosmetic_id, settings)}"
+
+
+@router.get("/cosmetics/{cosmetic_id}/public/{sig}")
+def public_cosmetic_image(
+    cosmetic_id: int,
+    sig: str,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> Response:
+    """An image by its signed link, for opponents and the game server (no session needed).
+
+    Only links this API handed to the owner work: the id alone, or a wrong
+    signature, is a 404 (the same answer as a deleted image).
+    """
+    if not hmac.compare_digest(sig.encode(), public_sig(cosmetic_id, settings).encode()):
+        raise HTTPException(status_code=404, detail="Image not found")
+    row = db.get(DuelCosmetic, cosmetic_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return Response(
+        content=row.data,
+        media_type=row.mime,
+        headers={
+            # Ids are never reused for different bytes, so the link is immutable.
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+            "Cross-Origin-Resource-Policy": "cross-origin",
+        },
+    )
 
 
 @router.get("/cosmetics/{cosmetic_id}/image")
