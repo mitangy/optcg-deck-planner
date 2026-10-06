@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnalystError, BUDGET_MESSAGE, errorText, streamAnalyst } from "./client";
+import { AnalystError, BUDGET_MESSAGE, GENERIC_ERROR, errorText, streamAnalyst } from "./client";
 import { createSessionManager, needsRefresh } from "./session";
 
 const NOW = Date.parse("2026-10-06T12:00:00Z");
@@ -68,6 +68,20 @@ describe("analyst stream requests (#377)", () => {
     const err = await streamAnalyst(mgr, "/chat", { message: "hi" }, {}, undefined, f.impl).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(AnalystError);
     expect(errorText(err as AnalystError)).toBe(BUDGET_MESSAGE);
+  });
+
+  it("shows the analyst's own reason when it refuses before streaming (#387)", async () => {
+    const refuse = (body: string) => () => new Response(body, { status: 503, headers: { "Content-Type": "application/json" } });
+    for (const [body, shown] of [
+      ['{"error":"Log Pose chat isn\'t set up on this server.","code":"server"}', "Log Pose chat isn't set up on this server."],
+      ["<html>Bad gateway</html>", GENERIC_ERROR],
+    ] as const) {
+      const f = fakeFetch([15 * 60_000], refuse(body));
+      const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+      const err = await streamAnalyst(mgr, "/chat", { message: "hi" }, {}, undefined, f.impl).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(AnalystError);
+      expect(errorText(err as AnalystError)).toBe(shown);
+    }
   });
 
   it("shows the daily-limit message for an in-stream budget error (#377)", async () => {

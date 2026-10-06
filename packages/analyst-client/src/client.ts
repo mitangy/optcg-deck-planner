@@ -59,6 +59,16 @@ function dispatch(handlers: StreamHandlers, event: string, data: unknown) {
     handlers.onError?.({ message: typeof d.message === "string" ? d.message : "", code: d.code as ErrorCode | undefined });
 }
 
+/** The analyst's own reason from a JSON refusal ({"error": "..."}), when there is one. */
+function refusalReason(body: string): string | null {
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown };
+    return typeof parsed.error === "string" && parsed.error.trim() ? parsed.error.trim().slice(0, 300) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * POSTs `body` to {chat_url}{path} with the session token and streams the answer into
  * `handlers`. A 401 before the stream starts refreshes the session and retries once;
@@ -94,7 +104,7 @@ export async function streamAnalyst(
       if (e.status === 401 && attempt === 0) continue;
       if (e.status === 401) throw new AnalystError("auth", AUTH_ERROR);
       if (e.status === 429) throw new AnalystError("budget", BUDGET_MESSAGE);
-      throw new AnalystError("server", GENERIC_ERROR);
+      throw new AnalystError("server", refusalReason(e.body) ?? GENERIC_ERROR);
     }
   }
 }
