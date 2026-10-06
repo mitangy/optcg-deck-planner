@@ -943,6 +943,7 @@
 }
 
 .lp-src-line {
+  margin: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -966,6 +967,7 @@
 
 .lp-src-title {
   min-width: 0;
+  margin: 0;
   font-weight: 600;
 }
 

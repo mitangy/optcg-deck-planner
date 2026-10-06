@@ -178,7 +178,7 @@ describe("tool answers as citable sources (#390)", () => {
     expect(groupTurns(GAME.log).map((t) => [t.turn, t.lines.length])).toEqual([[1, 1], [2, 2], [3, 1]]);
     const mine = adapt("review_match", GAME);
     expect(sources(mine)).toEqual(["match:m1", "match:m1#t1", "match:m1#t2", "match:m1#t3"]);
-    expect(results(mine)[2]!.title).toBe("Your game, turn 2 (opponent's turn)");
+    expect(results(mine)[2]!.title).toBe("Roronoa Zoro vs Rob Lucci, turn 2 (opponent's turn)");
     expect(texts(results(mine)[2]!)).toEqual(["Opponent attacks your Leader", "Your Life card is taken"]);
     expect(texts(results(mine)[0]!).join(" ")).toContain("Result: you lost (life).");
 
@@ -196,7 +196,7 @@ describe("tool answers as citable sources (#390)", () => {
       notes: [],
     });
     expect(sources(archive)).toEqual(["game:g_9", "game:g_9#t1"]);
-    expect(results(archive)[1]!.title).toBe("Archive game, turn 1 (Player A's turn)");
+    expect(results(archive)[1]!.title).toBe("Zoro vs Lucci, turn 1 (Player A's turn)");
   });
 
   it("lists archive search hits as game:<id> sources with both sides (#390)", () => {

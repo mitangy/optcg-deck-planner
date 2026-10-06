@@ -66,7 +66,7 @@ function SourceBody({ parsed, title, quote, showCard }: { parsed: ParsedSource; 
   return (
     <>
       <div className="lp-src-head">
-        {card?.imageUrl ? <img className="lp-src-img" src={card.imageUrl} alt="" loading="lazy" decoding="async" /> : null}
+        {card?.imageUrl ? <img className="lp-src-img" src={card.imageUrl} alt="" loading="lazy" decoding="async" onError={(e) => (e.currentTarget.style.display = "none")} /> : null}
         <div className="lp-src-main">
           <p className="lp-src-line">
             <span className="lp-badge">{kindLabel(parsed)}</span>

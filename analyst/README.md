@@ -51,8 +51,10 @@ The comprehensive rules, FAQ PDFs, errata page and ban list are read live from t
 The duel app and the deck planner show a Log Pose compass in the corner for players on `ANALYST_CHAT_EMAILS` (on `optcg-api`). It opens a chat panel, and opening a game in duel-web match history writes a post-game analysis once and keeps it.
 
 1. The app asks `POST /analyst/chat/session` (signed-in cookie) for a 30-minute chat token, signed with `ANALYST_SERVICE_SECRET`.
-2. It streams `POST /chat` or `POST /review-match` on this server with `Authorization: Bearer <token>`. Answers come back as server-sent events: `thread`, `status`, `text`, `done`, `error`.
+2. It streams `POST /chat` or `POST /review-match` on this server with `Authorization: Bearer <token>`. Answers come back as server-sent events: `thread`, `status`, `text`, `cite`, `done`, `error`.
 3. This server checks the token and the spend caps with the API, runs the Claude API (`ANALYST_CHAT_MODEL`, default `claude-opus-5-5`) with the same tools as a personal link, and saves the thread, the cost and any review through the API.
+
+Sources: fact-bearing tool results (cards, rules and rulings, win rates, playbook, your lessons and games, deck checks, draw odds) go to the model as Claude API `search_result` blocks (`src/sources.ts`), so its sentences carry citations. A `cite` event carries the citations (`source`, `title`, `cited_text`) of the text streamed so far; the panel puts a numbered marker after that text. Source ids: `card:<id>`, `rule:<section>`, `ruling:<card>#<n>`, `stats:<leader>[~<opponent>|#<card>]`, `playbook:<leader>[~<opponent>]`, `lesson:<id>`, `match:<match_id>[#t<turn>]`, `game:<game_id>[#t<turn>]`, `deck:<hash>`, `odds:<shape>`. The stored thread keeps the model's content, citations included; reviews store their citations with their text.
 
 Spend is capped per player per day (`ANALYST_CHAT_DAILY_USD`, default 3) and for everyone per month (`ANALYST_CHAT_MONTHLY_USD`, default 50); past a cap, `/chat` answers 429. Browsers may call it from `ANALYST_CHAT_ORIGINS` (default the two production sites), `*.vercel.app` previews and localhost.
 

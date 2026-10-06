@@ -108,12 +108,12 @@ function rulesAdapter(v: Rec): ToolContent[] {
   const out: ToolContent[] = [];
   for (const s of v.sections ?? []) {
     out.push(
-      searchResult(`rule:${s.id}`, `Rules §${s.id}${s.path ? ` ${s.path}` : ""}`, [`${s.id} ${s.text}`, ...(s.children ?? []).map((c: Rec) => `${c.id} ${c.text}`)]) as SearchResultBlock,
+      searchResult(`rule:${s.id}`, s.path || String(s.text).slice(0, 80), [`${s.id} ${s.text}`, ...(s.children ?? []).map((c: Rec) => `${c.id} ${c.text}`)]) as SearchResultBlock,
     );
   }
   for (const q of v.generalQa ?? []) {
     out.push(
-      searchResult(`ruling:general#${shortHash(String(q.question))}`, `Official rules Q&A${q.category ? `: ${q.category}` : ""}`, [
+      searchResult(`ruling:general#${shortHash(String(q.question))}`, `Rules Q&A${q.category ? `: ${q.category}` : ""}`, [
         `Q: ${q.question}`,
         ...splitFacts(String(q.answer)).map((a, i) => (i === 0 ? `A: ${a}` : a)),
       ]) as SearchResultBlock,
@@ -135,12 +135,12 @@ function cardRulingsAdapter(v: Rec): ToolContent[] {
       out.push(searchResult(`ruling:${c.id}#e${k + 1}`, `Errata: ${who}`, [`Errata dated ${e.date} for ${who}.`, `Before: ${e.before}`, `After: ${e.after}`])),
     );
     (c.rulings ?? []).forEach((r: Rec, n: number) =>
-      out.push(searchResult(`ruling:${c.id}#${n + 1}`, `Official ruling: ${who}`, [`Q: ${r.question}`, ...splitFacts(String(r.answer)).map((a, i) => (i === 0 ? `A: ${a}` : a))])),
+      out.push(searchResult(`ruling:${c.id}#${n + 1}`, who, [`Q: ${r.question}`, ...splitFacts(String(r.answer)).map((a, i) => (i === 0 ? `A: ${a}` : a))])),
     );
     if (c.moreRulings) text.push(`${c.moreRulings} more rulings exist for ${c.id}; ask again for specific wording.`);
     (c.mentionedIn ?? []).forEach((r: Rec, k: number) =>
       out.push(
-        searchResult(`ruling:${c.id}#m${k + 1}`, `Official ruling on ${r.cardName ?? r.cardId} mentioning ${c.id}`, [
+        searchResult(`ruling:${c.id}#m${k + 1}`, `${r.cardName ?? r.cardId} (mentions ${c.id})`, [
           `Q: ${r.question}`,
           ...splitFacts(String(r.answer)).map((a, i) => (i === 0 ? `A: ${a}` : a)),
         ]),
@@ -176,10 +176,10 @@ function statsAdapter(v: Rec): ToolContent[] {
   const out: (SearchResultBlock | null)[] = [];
   if (v.leaders) {
     for (const l of v.leaders as Rec[]) {
-      out.push(searchResult(`stats:${l.leader}`, `Win rate: ${name(l.leader, l.leader_name)}`, [typeof l.share === "number" && `Play share: ${pct(l.share)} of recorded games.`, ...splitFactsFor(l), w]));
+      out.push(searchResult(`stats:${l.leader}`, `${name(l.leader, l.leader_name)}`, [typeof l.share === "number" && `Play share: ${pct(l.share)} of recorded games.`, ...splitFactsFor(l), w]));
     }
   } else if (v.opponent) {
-    const title = `Win rate: ${name(v.leader, v.leader_name)} vs ${name(v.opponent, v.opponent_name)}`;
+    const title = `${name(v.leader, v.leader_name)} vs ${name(v.opponent, v.opponent_name)}`;
     out.push(
       searchResult(`stats:${v.leader}~${v.opponent}`, title, [
         v.mirror ? `Mirror match: ${v.games} games; every game is a win and a loss for the same leader, so there is no win rate.` : null,
@@ -188,14 +188,14 @@ function statsAdapter(v: Rec): ToolContent[] {
       ]),
     );
   } else if (v.leader) {
-    out.push(searchResult(`stats:${v.leader}`, `Win rate: ${name(v.leader, v.leader_name)}`, [...splitFactsFor(v.overall ?? {}), w]));
+    out.push(searchResult(`stats:${v.leader}`, `${name(v.leader, v.leader_name)}, all opponents`, [...splitFactsFor(v.overall ?? {}), w]));
     for (const o of (v.opponents ?? []) as Rec[]) {
-      out.push(searchResult(`stats:${v.leader}~${o.opponent}`, `Win rate: ${name(v.leader, v.leader_name)} vs ${name(o.opponent, o.opponent_name)}`, [...splitFactsFor(o), w]));
+      out.push(searchResult(`stats:${v.leader}~${o.opponent}`, `${name(v.leader, v.leader_name)} vs ${name(o.opponent, o.opponent_name)}`, [...splitFactsFor(o), w]));
     }
     for (const c of (v.cards ?? []) as Rec[]) {
       const label = c.id_name ? `${c.id_name} (${c.id})` : c.id;
       out.push(
-        searchResult(`stats:${v.leader}#${c.id}`, `Win rate of ${name(v.leader, v.leader_name)} with and without ${label}`, [
+        searchResult(`stats:${v.leader}#${c.id}`, `${name(v.leader, v.leader_name)} with and without ${label}`, [
           recordSentence(`With ${label}`, c.with),
           recordSentence(`Without ${label}`, c.without),
           w,
@@ -253,7 +253,7 @@ function playbookIndexAdapter(v: Rec): ToolContent[] {
 function lessonsAdapter(v: Rec): ToolContent[] {
   const lessons: Rec[] = v.lessons ?? [];
   const out = lessons.map((l) =>
-    searchResult(`lesson:${l.id}`, `Your lesson (${l.status})`, [
+    searchResult(`lesson:${l.id}`, `${String(l.text).slice(0, 70)} (${l.status})`, [
       ...splitFacts(String(l.text)),
       (l.leader_id || l.opponent_id) && `Applies to: ${l.leader_id ?? "any leader"}${l.opponent_id ? ` against ${l.opponent_id}` : ""}.`,
       joined(l.cards) && `Cards: ${joined(l.cards)}.`,
@@ -287,7 +287,7 @@ const listCards = (cards: unknown) => (Array.isArray(cards) ? cards.map((c) => c
 /** A narrated game as search results: one overview and one per turn, `<prefix>:<id>` and `<prefix>:<id>#t<n>`. */
 export function gameResults(prefix: "match" | "game", id: string, game: Rec): SearchResultBlock[] {
   const mine = prefix === "match";
-  const who = mine ? "Your game" : "Archive game";
+  const versus = mine ? `${game.yourLeader} vs ${game.opponentLeader}` : `${game.leaders?.A} vs ${game.leaders?.B}`;
   const overview: Fact[] = mine
     ? [
         `Your leader ${game.yourLeader} against ${game.opponentLeader}; you went ${game.wentFirst ? "first" : "second"}.`,
@@ -301,10 +301,10 @@ export function gameResults(prefix: "match" | "game", id: string, game: Rec): Se
         game.result && `Result: Player ${game.result.winner} won (${game.result.reason}).`,
         game.finalState && `Final state, turn ${game.finalState.turn}: Player A life ${game.finalState.A?.life}, board ${listCards(game.finalState.A?.board) || "empty"}; Player B life ${game.finalState.B?.life}, board ${listCards(game.finalState.B?.board) || "empty"}.`,
       ];
-  const title = mine ? `${who}: ${game.yourLeader} vs ${game.opponentLeader}` : `${who}: ${game.leaders?.A} vs ${game.leaders?.B}`;
+  const title = versus;
   const out = [searchResult(`${prefix}:${id}`, title, overview)];
   for (const t of groupTurns(Array.isArray(game.log) ? game.log : [])) {
-    out.push(searchResult(`${prefix}:${id}#t${t.turn}`, t.turn ? `${who}, turn ${t.turn} (${t.who})` : `${who}, ${t.who}`, t.lines));
+    out.push(searchResult(`${prefix}:${id}#t${t.turn}`, t.turn ? `${versus}, turn ${t.turn} (${t.who})` : `${versus}, ${t.who}`, t.lines));
   }
   return out.filter((b): b is SearchResultBlock => b !== null);
 }
@@ -329,7 +329,7 @@ function searchMatchesAdapter(v: Rec): ToolContent[] {
   const side = (s: Rec, label: string) =>
     `Side ${label}: ${s.leader_name ?? s.leader} (${s.leader}), ${s.won ? "won" : "lost"}${s.went_first === true ? ", went first" : s.went_first === false ? ", went second" : ""}${s.rating_band ? `, rating ${s.rating_band}` : ""}.`;
   const out = ((v.games ?? []) as Rec[]).map((g) =>
-    searchResult(`game:${g.game_id}`, `Archive game ${g.date ?? ""}: ${g.A?.leader_name ?? g.A?.leader} vs ${g.B?.leader_name ?? g.B?.leader}`, [
+    searchResult(`game:${g.game_id}`, `${g.A?.leader_name ?? g.A?.leader} vs ${g.B?.leader_name ?? g.B?.leader}${g.date ? ` (${g.date})` : ""}`, [
       side(g.A, "A"),
       side(g.B, "B"),
       `${g.ranked ? "Ranked" : "Casual"} game${g.turns ? `, ${g.turns} turns` : ""}${g.date ? `, played ${g.date}` : ""}.`,
@@ -371,7 +371,7 @@ function analyzeDeckAdapter(v: Rec): ToolContent[] {
     ...(v.notImplemented ?? []).map((c: Rec) => `${c.name} (${c.id}) is ${c.support} in the duel engine.`),
   ];
   const id = deckSourceId(d.leader?.id, d.cards ?? []);
-  const result = searchResult(id, `Deck check: ${d.name || d.leader?.name || "deck"}`, facts);
+  const result = searchResult(id, d.name || d.leader?.name || "Deck", facts);
   return result ? [result, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])] : [];
 }
 
@@ -383,7 +383,7 @@ function oddsAdapter(v: Rec): ToolContent[] {
     `Deck of ${v.deckSize} cards with ${v.hits} hits, ${order}${v.mulligan ? ", mulligan a hand with no hit" : ", no mulligan"}: chance of at least ${v.atLeast} by each turn.`,
     ...v.byTurn.map((t: Rec) => `By turn ${t.turn}: ${t.percent}% to have seen at least ${v.atLeast} (${order}).`),
   ];
-  const result = searchResult(`odds:${shape}`, `Draw odds: ${v.hits} hits in ${v.deckSize} cards, at least ${v.atLeast}, ${order}`, facts);
+  const result = searchResult(`odds:${shape}`, `${v.hits} hits in ${v.deckSize} cards, at least ${v.atLeast}, ${order}`, facts);
   return result ? [result, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])] : [];
 }
 
