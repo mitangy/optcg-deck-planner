@@ -229,7 +229,7 @@ module.exports = {
     { id: "e2e-pending-lp-mat-in-rail", args: "spectate-link --project=phone-375 -g \"landscape phone\"", edits: [
       { file: "duel-web/src/board/PendingBoard.tsx", from: "{wide ? <aside className=\"arena-left\" aria-hidden /> : null}", to: "{wide && !lp ? <aside className=\"arena-left\" aria-hidden /> : null}" },
       { file: "duel-web/src/board/PendingBoard.tsx", from: "{wide ? <div className=\"arena-rail\" aria-hidden /> : null}", to: "{wide && !lp ? <div className=\"arena-rail\" aria-hidden /> : null}" },
-    ], kills: ["spectate-link.spec.ts > landscape phone > the waiting room card with the spectate link fits a landscape phone (#346) [phone-375]"] },
+    ], kills: ["spectate-link.spec.ts > the waiting room card with the spectate link fits a landscape phone (#346) [phone-375]"] },
     // spectator hand fans (#346)
     {"id": "e2e-spectator-fans-follow-hand-setting", "args": "spectate-link --project=desktop-1280 -g \"desktop spectator\"", "file": "duel-web/src/board/DuelBoard.tsx", "from": "  const fanHand = wide && !lp && (specFans != null || handLayout !== \"grid\");", "to": "  const fanHand = wide && !lp && handLayout !== \"grid\";", "kills": ["spectate-link.spec.ts > a desktop spectator sees both hands as fans, near at the bottom and far along the top, whatever the Hand setting (#346) [desktop-1280]"]},
     {"id": "e2e-spectator-near-fan-tucks", "args": "spectate-link --project=desktop-1280 -g \"desktop spectator\"", "file": "duel-web/src/board/DuelBoard.tsx", "from": "    pinned: handUp || specFans != null,", "to": "    pinned: handUp,", "kills": ["spectate-link.spec.ts > a desktop spectator sees both hands as fans, near at the bottom and far along the top, whatever the Hand setting (#346) [desktop-1280]"]},
