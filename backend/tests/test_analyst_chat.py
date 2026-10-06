@@ -136,11 +136,50 @@ def test_threads_store_messages_as_sent_and_show_only_the_conversation(chat):
 
     view = c.get(f"/analyst/chat/threads/{tid}").json()
     assert view["messages"] == [
-        {"role": "user", "text": "How is my Zoro?"},
-        {"role": "assistant", "text": "Let me look.\n\nIt's legal."},
+        {"role": "user", "text": "How is my Zoro?", "citations": []},
+        {"role": "assistant", "text": "Let me look.\n\nIt's legal.", "citations": []},
     ]
     c.post("/analyst/chat/threads", json={"title": "never answered"}, headers=h)
     assert [t["id"] for t in c.get("/analyst/chat/threads").json()["threads"]] == [tid]
+
+
+def _loc(source, quote, title="T"):
+    return {"type": "search_result_location", "source": source, "title": title, "cited_text": quote, "search_result_index": 0, "start_block_index": 0, "end_block_index": 1}
+
+
+def test_the_thread_view_places_each_citation_after_the_text_it_cites(chat):
+    """An answer's citations come back with their UTF-16 offsets in the joined text; tool turns stay hidden (#390)."""
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Zoro"}, headers=h).json()["id"]
+    results = [{"type": "search_result", "source": "card:OP01-001", "title": "Zoro", "content": [{"type": "text", "text": "cost 3"}], "citations": {"enabled": True}}]
+    messages = [
+        {"role": "user", "content": [{"type": "text", "text": "How is my Zoro?"}]},
+        {"role": "assistant", "content": [{"type": "text", "text": "Looking."}, {"type": "tool_use", "id": "t1", "name": "get_cards", "input": {}}]},
+        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": results}]},
+        {
+            "role": "assistant",
+            "content": [
+                {"type": "text", "text": "Zoro \U0001F5E1 costs 3.", "citations": [_loc("card:OP01-001", "cost 3", "Zoro"), _loc("card:OP01-001", "cost 3"), {"type": "page_location", "source": "doc:1", "cited_text": "n"}]},
+                {"type": "text", "text": " I'd keep him."},
+                {"type": "text", "text": " Blockers rest.", "citations": [_loc("rule:6-5-3", "r" * 2000, "Rules")]},
+            ],
+        },
+    ]
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
+    view = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
+    assert [m["role"] for m in view] == ["user", "assistant"]
+    answer = view[1]
+    assert answer["text"] == "Looking.\n\nZoro \U0001F5E1 costs 3. I'd keep him. Blockers rest."
+    units = lambda s: len(s.encode("utf-16-le")) // 2  # noqa: E731
+    first = units("Looking.\n\nZoro \U0001F5E1 costs 3.")
+    assert first == len("Looking.\n\nZoro  costs 3.") + 2  # the dagger is two UTF-16 units
+    assert [(x["at"], x["source"]) for x in answer["citations"]] == [(first, "card:OP01-001"), (units(answer["text"]), "rule:6-5-3")]
+    assert answer["citations"][0] == {"at": first, "source": "card:OP01-001", "title": "Zoro", "cited_text": "cost 3"}
+    assert len(answer["citations"][1]["cited_text"]) == 800
+    # The stored message keeps the citations as sent.
+    assert c.get(f"/analyst/chat/threads/{tid}/content", headers=h).json()["messages"] == messages
 
 
 def test_a_thread_belongs_to_its_player(chat):
@@ -180,6 +219,26 @@ def test_reviews_are_saved_only_for_games_you_played(chat):
     assert c.get("/analyst/reviews/mine").json()["text"] == "You lost on turn 6."
     c.put("/analyst/reviews/mine", json={"text": "Again."}, headers=h)
     assert c.get("/analyst/reviews/mine").json()["text"] == "Again."
+
+
+def test_a_review_keeps_the_sources_it_cites(chat):
+    """The saved analysis comes back with its citations; one beyond the text is dropped; saving again replaces them (#390)."""
+    c, _ = chat
+    me, body = _session(c)
+    a, _b = _users(c, "alice", "bob")
+    _ingest(c, "mine", a, me["id"], 1)
+    h = _as(body["token"])
+    cites = [
+        {"at": 19, "source": "match:mine#t3", "title": "Your game, turn 3", "cited_text": "Your Life card is taken"},
+        {"at": 400, "source": "match:mine#t4", "title": "Too far", "cited_text": "x"},
+    ]
+    r = c.put("/analyst/reviews/mine", json={"text": "You lost on turn 3.", "citations": cites}, headers=h)
+    assert r.status_code == 200, r.text
+    saved = c.get("/analyst/reviews/mine").json()
+    assert saved["citations"] == [cites[0]]
+    assert r.json()["citations"] == [cites[0]]
+    c.put("/analyst/reviews/mine", json={"text": "Again."}, headers=h)
+    assert c.get("/analyst/reviews/mine").json()["citations"] == []
 
 
 def test_the_corpus_is_anonymized_and_puts_the_leader_on_side_a(analyst):
