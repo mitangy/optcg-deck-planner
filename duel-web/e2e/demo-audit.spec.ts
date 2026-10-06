@@ -371,7 +371,7 @@ test("the right rail and the preview divider drag to resize, stay after a reload
 });
 
 // Dragging a divider or a column edge to its end must not squash a panel under its content:
-// Turn and clocks painted its Life / Hand / Deck / DON!! rows over Actions (#370).
+// Turn and clocks painted its Life / Hand / Deck / DON!! rows over the panel below it (#370).
 test("Turn and clocks keeps its content height and its column its width when dragged to the end (#370)", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1280", "side panels resize on desktop only");
   await page.goto("/demo?full");
@@ -394,7 +394,7 @@ test("Turn and clocks keeps its content height and its column its width when dra
     }));
   const natural = (await turn()).content;
 
-  await drag('[role="separator"][aria-label="Resize Turn and clocks and Actions"]', 0, -900, 12);
+  await drag('[role="separator"][aria-label^="Resize Turn and clocks and "]', 0, -900, 12);
   await page.waitForTimeout(300);
   const squeezed = await turn();
   expect(squeezed.h).toBeGreaterThanOrEqual(natural - 1);
