@@ -319,6 +319,68 @@ test("the Grid hand drags into the left column, stays after a reload, and Reset 
   expect(duel.errors).toEqual([]);
 });
 
+// Side panels resize: the rail's inner edge sets its width, the divider between two
+// panels moves height from one to the other; both are saved and Reset layout clears them.
+test("the right rail and the preview divider drag to resize, stay after a reload, and Reset layout restores them (#347)", async ({ page, duel }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "side panels resize on desktop only");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const width = async () => (await page.locator('[data-panel-col="right"]').boundingBox())!.width;
+  const height = async (id: string) => (await page.locator(`[data-panel="${id}"]`).boundingBox())!.height;
+  const drag = async (selector: string, dx: number, dy: number, offsetX = 0) => {
+    const box = (await page.locator(selector).boundingBox())!;
+    const x = box.x + (offsetX || box.width / 2);
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + dx, y + dy, { steps: 8 });
+    await page.mouse.up();
+  };
+  const divider = '[role="separator"][aria-label="Resize Card preview and Recent plays"]';
+
+  const w0 = await width();
+  const preview0 = await height("preview");
+  const recent0 = await height("recent");
+  await drag(".col-resize-right", -80, 0);
+  await expect.poll(width).toBeGreaterThan(w0 + 70);
+  // The left column keeps its width; the board gave the room.
+  await drag(divider, 0, -40, 12);
+  await expect.poll(() => height("preview")).toBeLessThan(preview0 - 30);
+  // Height moved to the panel below; the pair's total did not change.
+  expect((await height("preview")) + (await height("recent"))).toBeCloseTo(preview0 + recent0, 0);
+  const w1 = await width();
+  const preview1 = await height("preview");
+
+  // A hovered handle shows its line; the audit checks the board at rest.
+  await page.mouse.move(640, 20);
+  const issues = (await duel.audit()).filter((i) => !isKnown(i));
+  if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
+  expect(issues, formatIssues(issues)).toEqual([]);
+
+  await page.reload();
+  await page.locator(".board-root").waitFor();
+  expect(Math.abs((await width()) - w1)).toBeLessThan(2);
+  expect(Math.abs((await height("preview")) - preview1)).toBeLessThan(2);
+
+  await page.getByRole("button", { name: "Gameplay settings" }).click();
+  await page.getByRole("button", { name: "Reset layout" }).click();
+  await page.keyboard.press("Escape");
+  await expect.poll(width).toBeCloseTo(w0, 0);
+  await expect.poll(() => height("preview")).toBeCloseTo(preview0, 0);
+  expect(duel.errors).toEqual([]);
+});
+
+// Phones and landscape phones have no side columns to resize.
+test("phones show no panel resize handles (#347)", async ({ page }, info) => {
+  test.skip(info.project.name !== "phone-375", "the phone project only");
+  for (const size of [{ width: 375, height: 812 }, { width: 812, height: 375 }]) {
+    await page.setViewportSize(size);
+    await page.goto("/demo?full");
+    await page.locator(".board-root").waitFor();
+    await expect(page.locator('[role="separator"]')).toHaveCount(0);
+  }
+});
+
 // One fan, moved by its grip anywhere on the screen; Drag handles off hides
 // every grip but keeps the layout.
 test("the fanned hand drags to the middle of the screen and floats there after a reload, and Drag handles off hides the grips (#261)", async ({ page, duel }, info) => {

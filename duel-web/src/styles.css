@@ -4813,6 +4813,19 @@ details.deck-config-section.deck-collapsible {
   transform: rotate(180deg);
 }
 
+/* "Upright DON!! on rested cards": a rested tile is turned +90deg and scaled
+   (--rest-k = 1/1.4), so its local box is W x 1.4W. Counter-rotating the DON!!
+   container by -90deg and scaling by 0.714 gives an on-screen portrait box as
+   tall as the card is wide on screen. Local -y is the screen's right end, so
+   translateY(-24.5%) of 1.4W (= 0.343W) lines its top up with the tile's top. */
+.don-upright .card-tile.rested .don-under {
+  transform: translateY(-24.5%) rotate(-90deg) scale(0.714);
+}
+
+.don-upright .side-opp .card-tile.rested .don-under {
+  transform: translateY(24.5%) rotate(90deg) scale(0.714);
+}
+
 .don-under-layer {
   position: absolute;
   inset: 0;
@@ -4840,6 +4853,10 @@ details.deck-config-section.deck-collapsible {
 @media (max-width: 899px) and (orientation: portrait) {
   .side-opp .don-under {
     transform: none;
+  }
+
+  .don-upright .side-opp .card-tile.rested .don-under {
+    transform: translateY(-24.5%) rotate(-90deg) scale(0.714);
   }
 }
 
