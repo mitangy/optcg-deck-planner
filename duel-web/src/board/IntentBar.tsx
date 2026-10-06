@@ -1,8 +1,10 @@
+import { useContext } from "react";
 import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
 import { splitCardActions } from "./cardActions";
 import { isReplacePlay } from "./dragIntents";
 import { actionKeyTags } from "./hotkeys";
 import { filterIntentsForSelection } from "./intentFilter";
+import { PromptSlotContext } from "./promptSlot";
 import { splitPrimaryIntent } from "./primaryIntent";
 import { PrimaryActionButton, WaitingIndicator, intentBtnClass } from "./PrimaryDock";
 import type { WaitingOnOpponent } from "./waitingOnOpponent";
@@ -93,6 +95,7 @@ export function IntentBar({
   const showKeyTags = useDuelSettings().shortcutTags;
   const mulliganPhase = view?.phase === "mulligan";
   const nothingSelected = handIndex == null && boardId == null;
+  const setPromptSlot = useContext(PromptSlotContext).setSlot;
 
   if (shown.length === 0 && quickActions.length === 0 && !primary && waiting) {
     return (
@@ -113,6 +116,8 @@ export function IntentBar({
             hasIntents: intents.length > 0,
           })}
         </p>
+        {/* A hand pick's Confirm / None land here on phones, where End turn sits. */}
+        {idle === "prompt" ? <div className="intent-prompt-slot" ref={setPromptSlot} /> : null}
       </div>
     );
   }

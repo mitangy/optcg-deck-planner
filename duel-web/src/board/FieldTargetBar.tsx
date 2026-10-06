@@ -1,4 +1,7 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useContext, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { PromptSlotContext } from "./promptSlot";
+import { useMediaQuery, WIDE_BOARD_QUERY } from "./useMediaQuery";
 import "./fieldBar.css";
 
 /**
@@ -35,9 +38,12 @@ function useMidlineAnchor(): CSSProperties | undefined {
 /**
  * Slim instruction bar for picking cards straight off the board: what to pick
  * and how many, plus the buttons. Desktop: one line in the gap between the
- * mats. Phones: docked over the hand, which can't be played mid-pick, or at
- * the top when the picks are in the hand (`handPick`). Fixed position and
- * size, so opening it or ticking a card moves nothing.
+ * mats. Phones: docked over the hand, which can't be played mid-pick. When
+ * the picks are in the hand (`handPick`), portrait phones show the words at
+ * the top and the buttons bottom right in End turn's slot (PromptSlotContext),
+ * so the hand stays tappable; landscape phones keep the bar at the bottom of
+ * the board, clear of the hand rail. Fixed position and size, so opening it
+ * or ticking a card moves nothing.
  */
 export function FieldTargetBar({ title, text, caption, label, handPick = false, children }: {
   title: string;
@@ -48,8 +54,13 @@ export function FieldTargetBar({ title, text, caption, label, handPick = false, 
   children: ReactNode;
 }) {
   const mid = useMidlineAnchor();
+  const wide = useMediaQuery(WIDE_BOARD_QUERY);
+  const { slot } = useContext(PromptSlotContext);
+  // Portrait phones: the hand fills the bottom, so the words go up top.
+  const top = handPick && !mid && !wide;
+  const actions = <span className="field-bar-actions">{children}</span>;
   return (
-    <div className={`field-bar${mid ? " field-bar-mid" : handPick ? " field-bar-top" : ""}`} style={mid} role="group" aria-label={label}>
+    <div className={`field-bar${mid ? " field-bar-mid" : top ? " field-bar-top" : ""}`} style={mid} role="group" aria-label={label}>
       <div className="field-bar-text">
         {/* Effect prompts often already start with the card's name. */}
         {text.startsWith(title) ? null : <strong className="field-bar-title">{title}</strong>}
@@ -57,7 +68,7 @@ export function FieldTargetBar({ title, text, caption, label, handPick = false, 
       </div>
       <div className="field-bar-side">
         <span className="field-bar-count" aria-live="polite">{caption}</span>
-        <span className="field-bar-actions">{children}</span>
+        {top && slot ? createPortal(actions, slot) : actions}
       </div>
     </div>
   );

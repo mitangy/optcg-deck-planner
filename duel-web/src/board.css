@@ -2025,6 +2025,19 @@ body.is-panel-drag * {
   max-height: calc(100dvh - 6.5rem);
 }
 
+/* Phones: a long pop-up scrolls, but its Confirm / Decline row stays pinned to
+   the bottom edge so it is always in reach (the padding is folded into it). */
+@media (max-width: 640px), (orientation: landscape) and (max-height: 499px) {
+  .arena .ability-prompt .ability-prompt-actions {
+    position: sticky;
+    z-index: 1;
+    bottom: -0.75rem;
+    margin: 0.55rem -0.85rem -0.75rem;
+    padding: 0.45rem 0.85rem 0.75rem;
+    background: rgb(var(--deep-rgb));
+  }
+}
+
 /* —— Landscape phones: slimmer columns, compact game state —— */
 
 @media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {

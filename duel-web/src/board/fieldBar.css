@@ -152,3 +152,27 @@
   bottom: auto;
   top: calc(0.4rem + var(--safe-t));
 }
+
+/* Portrait phones, picks in the hand: the buttons sit bottom right in the
+   action footer, where End turn usually is (PromptSlotContext), at its size. */
+.intent-bar:has(.intent-prompt-slot:not(:empty)) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.intent-bar:has(.intent-prompt-slot:not(:empty)) .intent-empty {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.intent-prompt-slot:not(:empty) {
+  flex: 0 0 auto;
+  max-width: 60%;
+}
+.intent-prompt-slot .field-bar-actions {
+  justify-content: flex-end;
+}
+.intent-prompt-slot .field-bar-actions .btn {
+  min-height: 48px;
+  min-width: 6.5rem;
+  font-size: 0.95rem;
+}
