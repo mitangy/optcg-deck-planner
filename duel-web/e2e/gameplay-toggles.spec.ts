@@ -118,3 +118,15 @@ test("phones show no S key tab on the hand Sort button (#340)", async ({ page })
   await expect(sort).toBeVisible();
   expect(await sort.evaluate((el) => getComputedStyle(el, "::after").content)).toBe("none");
 });
+
+test("an unplayable hand card is grayed out at full opacity (#356)", async ({ page }) => {
+  await openDemo(page, "?unaffordable", {});
+  const card = page.locator(`${HAND_CARD}.hand-unaffordable`).first();
+  await expect(card).toBeAttached();
+  const style = await card.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { opacity: s.opacity, filter: s.filter };
+  });
+  expect(style.opacity).toBe("1");
+  expect(style.filter).toContain("grayscale");
+});

@@ -67,6 +67,9 @@ test("an unblocked Leader attack moves one Life card to the defender's hand", as
     await page.locator(".intent-btn-primary", { hasText: name }).click();
   }
 
+  // Every hit is a private Life check (#352): add the card to hand ("No Trigger", or "Add to hand" if it has a Trigger).
+  await page.getByRole("button", { name: /^(No Trigger|Add to hand)$/ }).click();
+
   // Back with the attacker: the defender lost one Life and drew it into hand.
   await expect(root).toHaveAttribute("data-seat", "0");
   await expect.poll(async () => (await stats(page, "opp")).life).toBe(before.life - 1);

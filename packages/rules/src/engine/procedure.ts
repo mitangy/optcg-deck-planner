@@ -299,15 +299,7 @@ function advanceStep(sim: Sim): void {
         dispatchEvent(state, "life_removed", { seat: defSeat, card: entry });
         return;
       }
-      const trigger = abilitiesFor(lifeDef).find((a) => a.trigger === "trigger");
-      if (trigger) {
-        const choice: PendingChoice = { id: alloc(state, "choice"), seat: defSeat, kind: "life_trigger", cardDefId: lifeDef, sourceInstanceId: lifeId, optional: true, prompt: `${getCardDef(lifeDef).name} — activate this card's [Trigger]? ${trigger.text}`, request: { type: "confirm" }, privateToSeat: defSeat, hideCardDefFromOthers: true, bindings: { lifeId, abilityId: trigger.id } };
-        state.pendingChoices.push(choice);
-        sim.events.push({ type: "life_taken", seat: defSeat, defId: lifeDef, toHand: false });
-        sim.events.push({ type: "trigger_available", seat: defSeat, defId: lifeDef });
-        sim.events.push({ type: "pending_choice_added", seat: defSeat, kind: "life_trigger", cardDefId: lifeDef, optional: true, prompt: choice.prompt, privateToSeat: defSeat, hideCardDefFromOthers: true });
-        return;
-      }
+      if (openLifeCheck(sim, defSeat, lifeId, lifeDef, true)) return;
       takeLifeToHand(sim, defSeat, false, true);
       sim.events.push({ type: "life_taken", seat: defSeat, defId: lifeDef, toHand: true });
       return;
@@ -369,14 +361,7 @@ function advanceStep(sim: Sim): void {
       const lifeId = d.zoneInstanceIds.life[0]!;
       const lifeDef = d.life[0]!;
       dispatchEvent(state, "leader_damaged", { seat: step.seat });
-      const trigger = abilitiesFor(lifeDef).find((a) => a.trigger === "trigger");
-      if (trigger) {
-        const choice: PendingChoice = { id: alloc(state, "choice"), seat: step.seat, kind: "life_trigger", cardDefId: lifeDef, sourceInstanceId: lifeId, optional: true, prompt: `${getCardDef(lifeDef).name} — activate this card's [Trigger]? ${trigger.text}`, request: { type: "confirm" }, privateToSeat: step.seat, hideCardDefFromOthers: true, bindings: { lifeId, abilityId: trigger.id } };
-        state.pendingChoices.push(choice);
-        sim.events.push({ type: "life_taken", seat: step.seat, defId: lifeDef, toHand: false });
-        sim.events.push({ type: "pending_choice_added", seat: step.seat, kind: "life_trigger", cardDefId: lifeDef, optional: true, prompt: choice.prompt, privateToSeat: step.seat, hideCardDefFromOthers: true });
-        return;
-      }
+      if (openLifeCheck(sim, step.seat, lifeId, lifeDef, false)) return;
       takeLifeToHand(sim, step.seat, false, true);
       sim.events.push({ type: "life_taken", seat: step.seat, defId: lifeDef, toHand: true });
       return;
@@ -397,12 +382,36 @@ function advanceStep(sim: Sim): void {
   }
 }
 
+/**
+ * The defender privately checks the Life card taken as damage (rules 7-1-4-1-1-2, 10-1-5-1) and may
+ * reveal it to activate its [Trigger]. Every non-Banish hit opens the same `life_trigger` choice so the
+ * opponent cannot tell whether the card had a [Trigger] (it is `noTrigger` only for its owner).
+ * Games started before `lifeCheckEveryHit` keep the legacy flow: only [Trigger] cards pause.
+ * Returns true when a choice was opened.
+ */
+function openLifeCheck(sim: Sim, seat: Seat, lifeId: string, lifeDef: string, battle: boolean): boolean {
+  const { state } = sim;
+  const trigger = abilitiesFor(lifeDef).find((a) => a.trigger === "trigger");
+  if (!trigger && !state.lifeCheckEveryHit) return false;
+  const name = getCardDef(lifeDef).name;
+  const choice: PendingChoice = trigger
+    ? { id: alloc(state, "choice"), seat, kind: "life_trigger", cardDefId: lifeDef, sourceInstanceId: lifeId, optional: true, prompt: `${name} — activate this card's [Trigger]? ${trigger.text}`, request: { type: "confirm" }, privateToSeat: seat, hideCardDefFromOthers: true, bindings: { lifeId, abilityId: trigger.id } }
+    : { id: alloc(state, "choice"), seat, kind: "life_trigger", cardDefId: lifeDef, sourceInstanceId: lifeId, optional: true, prompt: `${name} has no [Trigger]. Add it to your hand.`, request: { type: "confirm" }, privateToSeat: seat, hideCardDefFromOthers: true, noTrigger: true, bindings: { lifeId } };
+  state.pendingChoices.push(choice);
+  sim.events.push({ type: "life_taken", seat, defId: lifeDef, toHand: false });
+  // Legacy flow only: with the uniform check this event would tell the opponent the card has a [Trigger].
+  if (trigger && battle && !state.lifeCheckEveryHit) sim.events.push({ type: "trigger_available", seat, defId: lifeDef });
+  sim.events.push({ type: "pending_choice_added", seat, kind: "life_trigger", cardDefId: lifeDef, optional: true, prompt: choice.prompt, privateToSeat: seat, hideCardDefFromOthers: true });
+  return true;
+}
+
 /** Resolve the front Life Trigger prompt. */
 export function resolveLifeTrigger(sim: Sim, choice: PendingChoice, accept: boolean): string | null {
   const { state } = sim;
   const seat = choice.seat;
   const lifeId = choice.bindings?.lifeId;
   const abilityId = choice.bindings?.abilityId;
+  if (accept && choice.noTrigger) return "This Life card has no [Trigger]";
   const loc = lifeId ? locate(state, lifeId) : null;
   state.pendingChoices = state.pendingChoices.filter((c) => c.id !== choice.id);
   sim.events.push({ type: "pending_choice_resolved", seat, kind: "life_trigger", cardDefId: choice.cardDefId, accepted: accept, privateToSeat: seat, hideCardDefFromOthers: true });

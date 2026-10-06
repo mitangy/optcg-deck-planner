@@ -6,6 +6,7 @@
  */
 import { applyIntent, createMatch, skipMulligans } from "./engine.js";
 import { createSeededRng } from "./rng.js";
+import { reseedMatch } from "./reseed.js";
 import type { GameEvent, Intent, MatchState, Seat } from "./types.js";
 
 export const MATCH_REPLAY_SCHEMA = 1;
@@ -21,7 +22,17 @@ export interface MatchReplay {
   skipMulligans: boolean;
   /** Decks in the order they were dealt from (order feeds the shuffle). */
   players: [{ leaderId: string; deck: string[] }, { leaderId: string; deck: string[] }];
+  /** Every non-Banish Life hit opened a private Life check (#352). Absent on older recordings: legacy flow. */
+  lifeCheckEveryHit?: boolean;
+  /** Private choices, hidden-zone selects and permuted deck ids (#369). Absent on older recordings: legacy flow. */
+  privateChoicesV2?: boolean;
   intents: { seat: Seat; intent: Intent }[];
+  /**
+   * The room re-seeded the shuffle rng (an agreed undo must not repeat the old
+   * draws). Before applying intent `atIntent` the rng restarts from `seed`, and with `shuffleDecks` both decks are reshuffled with it.
+   * Absent on older recordings: one seed for the whole game.
+   */
+  reseeds?: { atIntent: number; seed: number; shuffleDecks?: boolean }[];
   /** How the game ended, including ends outside the engine (concede, timeout, leaving). */
   end?: { winner: Seat; reason: string };
 }
@@ -39,13 +50,21 @@ export function replayMatch(replay: MatchReplay, onStep?: (step: ReplayStep) => 
   let state = createMatch({
     seed: replay.seed,
     firstSeat: replay.firstSeat,
+    lifeCheckEveryHit: replay.lifeCheckEveryHit ?? false,
+    privateChoicesV2: replay.privateChoicesV2 ?? false,
     players: [
       { leaderId: replay.players[0].leaderId, deck: [...replay.players[0].deck] },
       { leaderId: replay.players[1].leaderId, deck: [...replay.players[1].deck] },
     ],
   });
   if (replay.skipMulligans) state = skipMulligans(state, rng);
+  const reseedAt = (i: number) => {
+    for (const r of replay.reseeds ?? []) {
+      if (r.atIntent === i) state = reseedMatch(state, r.seed, r.shuffleDecks === true);
+    }
+  };
   replay.intents.forEach(({ seat, intent }, i) => {
+    reseedAt(i);
     const result = applyIntent(state, intent, { seat, rng });
     if (!result.ok) {
       throw new Error(`Replay diverged at intent ${i} (${intent.type}): ${result.error?.message ?? "illegal"}`);
@@ -53,5 +72,7 @@ export function replayMatch(replay: MatchReplay, onStep?: (step: ReplayStep) => 
     state = result.state;
     onStep?.({ seat, intent, events: result.events, state });
   });
+  // An undo with no move since still left the live state on its fresh seed.
+  reseedAt(replay.intents.length);
   return state;
 }

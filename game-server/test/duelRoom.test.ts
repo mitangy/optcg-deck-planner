@@ -113,6 +113,8 @@ type RoomInternals = {
   replay: MatchReplay | null;
   expireTurnClock(): void;
   matchEndsAt: number | null;
+  clockSeat: 0 | 1 | null;
+  seatRemainingMs: [number, number];
   resultPayload(s0: number, s1: number, winner: 0 | 1, reason: string): MatchResultPayload;
 };
 const internals = (room: DuelRoom) => room as unknown as RoomInternals;
@@ -666,7 +668,8 @@ describe("DuelRoom", () => {
     assert.deepEqual(bag.errors.map((e) => e.code), ["opponent_no_show"]);
   });
 
-  it("relays cosmetics artPrefs between seats", async () => {
+  it("relays cosmetics only for cards already public to the other seat and spectators (#369)", async () => {
+    type Cos = { seat: number; artPrefs: Record<string, string> };
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 7,
@@ -693,18 +696,37 @@ describe("DuelRoom", () => {
     await syncSeat(c0, bags[0]);
     await syncSeat(c1, bags[1]);
 
+    // A leader is public from the start; the other card sits unseen in seat 0's deck or hand.
+    const hidden = "ST01-006";
+    assert.ok(!internals(room).match.players[0].trash.includes(hidden));
     c0.send("cosmetics", {
       protocolVersion: PROTOCOL_VERSION,
-      artPrefs: { "ST01-006": "p1" },
+      artPrefs: { "ST01-001": "leaderAlt", [hidden]: "p1" },
     });
+    await waitUntil(() => cosmetics[0].some((m) => m.seat === 0) && cosmetics[1].some((m) => m.seat === 0), 5000);
+    assert.deepEqual(cosmetics[0].find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt", [hidden]: "p1" });
+    assert.deepEqual(cosmetics[1].find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt" });
 
-    await waitUntil(
-      () => cosmetics[0].some((m) => m.seat === 0 && m.artPrefs["ST01-006"] === "p1")
-        && cosmetics[1].some((m) => m.seat === 0 && m.artPrefs["ST01-006"] === "p1"),
-      5000,
-    );
+    // A spectator joining later gets the same filtered map.
+    const specCos: Cos[] = [];
+    const spec = await colyseus.connectTo(room, {
+      protocolVersion: PROTOCOL_VERSION,
+      devUserId: "watcher",
+      role: "spectator",
+      preferredSeat: 0,
+    });
+    spec.onMessage("cosmetics", (msg: Cos) => specCos.push(msg));
+    spec.onMessage("error", () => {});
+    spec.send("sync", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => specCos.some((m) => m.seat === 0), 5000);
+    assert.deepEqual(specCos.find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt" });
 
-    assert.equal(cosmetics[1].find((m) => m.seat === 0)!.artPrefs["ST01-006"], "p1");
+    // Once the card is played face-up, everyone gets the entry.
+    (room as unknown as { broadcastViews(e: unknown[]): void }).broadcastViews([
+      { type: "card_played", seat: 0, defId: hidden, instanceId: "x", costPaid: 0 },
+    ]);
+    await waitUntil(() => cosmetics[1].some((m) => m.seat === 0 && m.artPrefs[hidden] === "p1"), 5000);
+    await waitUntil(() => specCos.some((m) => m.seat === 0 && m.artPrefs[hidden] === "p1"), 5000);
 
     await c0.leave(true);
     await c1.leave(true);
@@ -1173,6 +1195,63 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+  it("an accepted undo re-seeds the rng instead of restoring it, and the replay still rebuilds (#369)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 53,
+      autoSkipMulligan: true,
+    });
+    Object.assign(room, { freshSeed: () => 777_001 });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const applied: unknown[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("undo_applied", (msg: unknown) => applied.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    const active = bags[0].views.at(-1)!.activeSeat;
+    const clients: [ClientRoom, ClientRoom] = [c0, c1];
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).match.activeSeat !== active, 5000);
+    const atTurnStart = internals(room).replay!.intents.length;
+    const next = (1 - active) as 0 | 1;
+    await waitUntil(() => bags[next].views.at(-1)!.activeSeat === next, 5000);
+    clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).replay!.intents.length > atTurnStart, 5000);
+    clients[active].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await new Promise((r) => setTimeout(r, 50));
+    clients[next].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
+    await waitUntil(() => applied.length === 1, 5000);
+
+    assert.equal(internals(room).match.rng.seed, 777_001);
+    assert.deepEqual(internals(room).replay!.reseeds, [{ atIntent: atTurnStart, seed: 777_001, shuffleDecks: true }]);
+    // Both players saw their next draws, so the decks are reshuffled: same cards, new order.
+    const snapped = JSON.parse((room as unknown as { turnSnapshots: { match: string }[] }).turnSnapshots.at(-1)!.match) as MatchState;
+    for (const seat of [0, 1] as const) {
+      const now = internals(room).match.players[seat];
+      const was = snapped.players[seat];
+      assert.deepEqual([...now.zoneInstanceIds.deck].sort(), [...was.zoneInstanceIds.deck].sort());
+      assert.notDeepEqual(now.zoneInstanceIds.deck, was.zoneInstanceIds.deck);
+      assert.deepEqual(now.life, was.life);
+      assert.equal(now.deck.length, now.zoneInstanceIds.deck.length);
+    }
+    // The game goes on from the new seed and the recording still rebuilds it.
+    const moved = internals(room).replay!.intents.length;
+    clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).replay!.intents.length > moved, 5000);
+    assert.equal(internals(room).match.rng.seed, 777_001);
+    assertReplayRebuilds(room);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
   it("an unfinished game's log is saved at the start of every turn and when the room closes (#316)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -1226,6 +1305,56 @@ describe("DuelRoom", () => {
     await waitUntil(() => sent.at(-1)!.payload.replay!.intents.length === intents, 5000);
   });
 
+  it("a live game's progress snapshots hide the opponent's hand; the result and a cut-off log show it (#359)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 67,
+      autoSkipMulligan: true,
+    });
+    const sent: MatchProgressPayload[] = [];
+    Object.assign(room, {
+      ingestSeats: () => [101, 102],
+      persistMatchProgress: async (_matchId: string, payload: MatchProgressPayload) => {
+        sent.push(payload);
+      },
+      persistMatchResult: async () => {},
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    await playSome([c0, c1], bags, 6);
+    assert.ok(sent.length > 0, "turn snapshots were sent");
+    for (const payload of sent) {
+      const text = JSON.stringify(payload.seat_logs);
+      assert.ok(!text.includes('"opponentHand"'), "no opponent hand in a live snapshot");
+      assert.ok(!text.includes('"opponentOpeningHand"'));
+    }
+
+    // The hand count stays in a live snapshot, so the page can still show it.
+    assert.ok(sent.at(-1)!.seat_logs![0].turns.some((t) => t.opponentHandCount != null));
+
+    const result = internals(room).resultPayload(11, 12, 0, "concede");
+    for (const log of result.seat_logs!) {
+      assert.ok(log.opponentOpeningHand!.length > 0);
+      assert.ok(log.turns.some((t) => t.opponentHand && t.opponentHand.length > 0));
+    }
+
+    // Both players leave: the room closes without a result and its last snapshot reveals the hands.
+    const live = sent.length;
+    await c0.leave(true);
+    await c1.leave(true);
+    await waitUntil(() => sent.length > live, 5000);
+    const closing = sent.at(-1)!.seat_logs!;
+    assert.ok(closing.every((l) => l.opponentOpeningHand && l.turns.some((t) => t.opponentHand)));
+  });
+
   it("the result sent to the backend carries leaders, turns, the replay, each seat's log and how it ended (#244, #252)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -1268,7 +1397,7 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("ranked clock: a seat that never answers its mulligan loses on time, not the first player (#248)", async () => {
+  it("match clock: a seat that never answers its mulligan loses on time, not the first player (#248)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 42,
@@ -1301,7 +1430,46 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("ranked clock: a defender sitting on the block step loses on time, not the attacker (#248)", async () => {
+  it("per-player clock: a seat that stalls its mulligan runs its own bank down and loses on time (#349)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 42,
+      autoSkipMulligan: false,
+      timer: { seatSeconds: 900 },
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    assert.equal(bags[0].welcome!.phase, "mulligan");
+
+    // Nobody has answered: the clock runs for the first player.
+    const active = internals(room).match.activeSeat as 0 | 1;
+    const other = (1 - active) as 0 | 1;
+    assert.equal(internals(room).clockSeat, active);
+
+    // The active seat keeps; the clock moves to the seat that has yet to answer.
+    const clients = [c0, c1] as const;
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "mulligan", doMulligan: false } });
+    await waitUntil(() => internals(room).match.players[active].mulliganDone, 5000);
+    assert.equal(internals(room).clockSeat, other);
+
+    // The staller's bank empties while the answered seat's bank is untouched.
+    internals(room).seatRemainingMs[other] = 1;
+    await waitUntil(() => bags[0].over != null, 5000);
+    assert.deepEqual(bags[0].over!.result, { winner: active, reason: "timeout" });
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("match clock: a defender sitting on the block step loses on time, not the attacker (#248)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 42,
@@ -1382,6 +1550,20 @@ describe("DuelRoom", () => {
       return made;
     });
     for (const r of rooms) await r.leave(true);
+  });
+
+  it("a rejected room create doesn't use up one of the account's room slots (#318)", async () => {
+    const badDeck = { leaderId: "ZZ99-001", deck: Array.from({ length: 50 }, () => "ST01-003") };
+    const opts = { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(611) };
+    const room = await withTokensRequired(async () => {
+      for (let i = 0; i < MAX_ROOMS_PER_CREATOR; i++) {
+        // Each create is turned away by onCreate ("Deck rejected: Unknown or invalid leader").
+        await assert.rejects(() => colyseus.sdk.create("duel", { ...opts, players: [badDeck, badDeck] }));
+      }
+      assert.equal((await matchMaker.query({ name: "duel" })).length, 0);
+      return colyseus.sdk.create("duel", opts);
+    });
+    await room.leave(true);
   });
 
   it("drops a client that floods the room with messages (#318)", async () => {

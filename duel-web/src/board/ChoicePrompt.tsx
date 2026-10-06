@@ -363,13 +363,15 @@ function useSelectPicks(request: Extract<ChoiceRequestView, { type: "select" }>,
 function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<ChoiceRequestView, { type: "select" }>; choice: PendingChoiceView; mySeat: Seat; onSend: (i: Intent) => void }) {
   const { selected, taken, toggle, valid, boardIds, selectedBoardIds, answer } = useSelectPicks(request, onSend);
   const range = request.min === request.max ? `${request.max}` : request.min === 0 ? `up to ${request.max}` : `${request.min}–${request.max}`;
+  // A hidden-zone pick with no candidate is still asked, so the opponent cannot tell it was empty (#369).
+  const none = request.options.length === 0;
   return (
     <>
       <BoardHighlight ids={boardIds} kind="candidate" />
       <BoardHighlight ids={selectedBoardIds} kind="hover" />
       <div className="ability-prompt-section">
         <div className="ability-prompt-label">
-          Choose {range} · selected {selected.length}
+          {none ? "No card to choose" : <>Choose {range} · selected {selected.length}</>}
           {boardIds.length ? " · or pick it on the board" : ""}
         </div>
         <div className="choice-grid">
@@ -388,7 +390,9 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
       </div>
       <div className="ability-prompt-actions">
         <button type="button" className="btn btn-primary" data-confirm-key aria-keyshortcuts="Y Space" disabled={!valid} onClick={() => answer(selected)}>
-          {selected.length === 0
+          {none
+            ? "Continue"
+            : selected.length === 0
             ? request.min > 0
               ? `Choose ${request.min}`
               : "Choose none"
@@ -650,15 +654,24 @@ export function ChoicePrompt({ choice, mySeat, onSend, view, onHide, hidden = fa
   );
 }
 
+/**
+ * Answer to a Yes/No prompt. A Life card without [Trigger] has one answer (add it to hand), so Y, Space
+ * and N all decline; accept:true would be rejected by the engine (#352).
+ */
+export function confirmIntent(choice: Pick<PendingChoiceView, "kind" | "noTrigger" | "unpayable">, accept: boolean): Intent {
+  // A cost the player cannot pay is still asked so the opponent learns nothing; the only legal answer is to decline (#369).
+  return { type: "resolve_pending_choice", accept: (choice.kind === "life_trigger" && choice.noTrigger) || choice.unpayable ? false : accept };
+}
+
 function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view" | "hidden">) {
   const request: ChoiceRequestView = choice.request ?? { type: "confirm" };
   const liveCards = useContext(LiveCardsContext);
   const cards = useMemo(() => boardCards(liveCards), [liveCards]);
   const spots = request.type === "select" ? boardPickSpots(request.options, cards, mySeat) : null;
   const hidden = useContext(PromptHiddenContext);
-  useConfirmKeys(request.type === "confirm" && !hidden, choice.optional, (accept) =>
-    onSend({ type: "resolve_pending_choice", accept }),
-  );
+  const noTrigger = choice.kind === "life_trigger" && choice.noTrigger === true;
+  const cannotPay = choice.unpayable === true;
+  useConfirmKeys(request.type === "confirm" && !hidden, choice.optional, (accept) => onSend(confirmIntent(choice, accept)));
   if (request.type === "select" && spots) {
     return <FieldSelectBar request={request} choice={choice} spots={spots} onSend={onSend} />;
   }
@@ -671,7 +684,13 @@ function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view"
         {showSource ? <CardTile defId={choice.cardDefId} compact inspectGestures viewingSeat={mySeat} /> : null}
         <p>{promptBody(promptSourceName(choice), choice.prompt)}</p>
       </div>
-      {request.type === "confirm" ? (
+      {request.type === "confirm" && (noTrigger || cannotPay) ? (
+        <div className="ability-prompt-actions">
+          <button type="button" className="btn btn-primary" aria-keyshortcuts="Y Space N" onClick={() => onSend({ type: "resolve_pending_choice", accept: false })}>
+            {noTrigger ? "No Trigger" : "Can't pay"}
+          </button>
+        </div>
+      ) : request.type === "confirm" ? (
         <div className="ability-prompt-actions">
           <button type="button" className="btn btn-primary" aria-keyshortcuts="Y Space" onClick={() => onSend({ type: "resolve_pending_choice", accept: true })}>
             {choice.kind === "life_trigger" ? "Activate Trigger" : "Yes"}

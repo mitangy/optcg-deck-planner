@@ -43,13 +43,13 @@ Seat 1 leader: Monkey.D.Luffy (OP16-022)
 > #7 seat 1 play_card {"handIndex":3}
   Seat 1 plays Ms. All Sunday (rests 3 DON!!)
 
-> #8 seat 1 give_don {"donId":"don_66","targetId":"card_81"}
+> #8 seat 1 give_don {"donId":"don_66","targetId":"card_103"}
   Seat 1 attaches DON!! to Ms. All Sunday → 2000 power
 
 > #9 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (5000 vs 5000)
 
-> #10 seat 0 declare_block {"blockerId":"card_22"}
+> #10 seat 0 declare_block {"blockerId":"card_19"}
   Seat 0 blocks
 
 > #11 seat 0 pass_counter
@@ -77,11 +77,15 @@ Seat 1 leader: Monkey.D.Luffy (OP16-022)
 > #15 seat 0 play_card {"handIndex":3}
   Seat 0 plays Atmos (rests 4 DON!!)
   Seat 0 activates Atmos's ability
+  Seat 0 may resolve Atmos's effect (Atmos — pay the cost to activate: [On Play] You may reveal 2 cards with a type including "Whitebeard Pirates" from your hand: If your Leader's type includes "Whitebeard Pirates", return up to 1 of your opponent's Characters with a cost of 4 or less to the owner's hand.)
 
-> #16 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
+> #16 seat 0 resolve_pending_choice {"accept":false}
+  Seat 0 declines Atmos's effect
+
+> #17 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
   Seat 0 attaches DON!! to Boa Hancock → 6000 power
 
-> #17 seat 0 end_turn
+> #18 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1
@@ -90,54 +94,58 @@ Seat 1 leader: Monkey.D.Luffy (OP16-022)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #18 seat 1 give_don {"donId":"don_65","targetId":"card_81"}
+> #19 seat 1 give_don {"donId":"don_65","targetId":"card_103"}
   Seat 1 attaches DON!! to Ms. All Sunday → 2000 power
 
-> #19 seat 1 declare_attack {"attackerId":"card_81","target":{"kind":"leader"}}
+> #20 seat 1 declare_attack {"attackerId":"card_103","target":{"kind":"leader"}}
   Seat 1 attacks Leader (2000 vs 5000)
 
-> #20 seat 0 pass_block
-
-> #21 seat 0 counter_from_hand {"handIndex":1}
-  Seat 0 counters with Hamlet (+1000)
+> #21 seat 0 pass_block
 
 > #22 seat 0 counter_from_hand {"handIndex":1}
+  Seat 0 counters with Hamlet (+1000)
+
+> #23 seat 0 counter_from_hand {"handIndex":1}
   Seat 0 counters with Nami (+1000)
 
-> #23 seat 0 pass_counter
+> #24 seat 0 pass_counter
   Battle fails (2000 vs 7000)
 
-> #24 seat 1 give_don {"donId":"don_68","targetId":"leader_62"}
+> #25 seat 1 give_don {"donId":"don_68","targetId":"leader_62"}
   Seat 1 attaches DON!! to Monkey.D.Luffy → 6000 power
 
-> #25 seat 1 give_don {"donId":"don_66","targetId":"leader_62"}
+> #26 seat 1 give_don {"donId":"don_66","targetId":"leader_62"}
   Seat 1 attaches DON!! to Monkey.D.Luffy → 7000 power
 
-> #26 seat 1 give_don {"donId":"don_67","targetId":"leader_62"}
+> #27 seat 1 give_don {"donId":"don_67","targetId":"leader_62"}
   Seat 1 attaches DON!! to Monkey.D.Luffy → 8000 power
 
-> #27 seat 1 play_card {"handIndex":1}
+> #28 seat 1 play_card {"handIndex":1}
   Seat 1 plays Gloriosa (Grandma Nyon) (rests 1 DON!!)
   Seat 1 activates Gloriosa (Grandma Nyon)'s ability
   Seat 1 may resolve Gloriosa (Grandma Nyon)'s effect (Gloriosa (Grandma Nyon) — look at the top 5 cards, choose up to 1, then place the rest at the bottom of the deck in any order.)
 
-> #28 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[],"orderedOptionIds":["o1","o0","o3","o2","o4"]}
+> #29 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[],"orderedOptionIds":["o1","o0","o3","o2","o4"]}
   Seat 1 accepts Gloriosa (Grandma Nyon)'s effect
 
-> #29 seat 1 give_don {"donId":"don_64","targetId":"leader_62"}
+> #30 seat 1 give_don {"donId":"don_64","targetId":"leader_62"}
   Seat 1 attaches DON!! to Monkey.D.Luffy → 9000 power
 
-> #30 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+> #31 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (9000 vs 5000)
 
-> #31 seat 0 pass_block
+> #32 seat 0 pass_block
 
-> #32 seat 0 pass_counter
+> #33 seat 0 pass_counter
   Battle hits (9000 vs 5000)
-  Seat 0 moves Kuzan from life to hand
-  Seat 0 takes Life (Kuzan → hand)
+  Seat 0 takes Life (Kuzan)
+  Seat 0 may resolve Kuzan's life trigger (Kuzan has no [Trigger]. Add it to your hand.)
 
-> #33 seat 1 end_turn
+> #34 seat 0 resolve_pending_choice {"accept":false}
+  Seat 0 adds the Life card to hand
+  Seat 0 moves Kuzan from life to hand
+
+> #35 seat 1 end_turn
   Phase → end (active seat 1)
   Phase → refresh (active seat 0)
   Seat 0 draws 1
@@ -146,7 +154,7 @@ Seat 1 leader: Monkey.D.Luffy (OP16-022)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #34 seat 0 end_turn
+> #36 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1
@@ -155,23 +163,23 @@ Seat 1 leader: Monkey.D.Luffy (OP16-022)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #35 seat 1 give_don {"donId":"don_69","targetId":"leader_62"}
+> #37 seat 1 give_don {"donId":"don_69","targetId":"leader_62"}
   Seat 1 attaches DON!! to Monkey.D.Luffy → 6000 power
 
-> #36 seat 1 give_don {"donId":"don_65","targetId":"card_81"}
+> #38 seat 1 give_don {"donId":"don_65","targetId":"card_103"}
   Seat 1 attaches DON!! to Ms. All Sunday → 2000 power
 
-> #37 seat 1 play_card {"handIndex":0}
+> #39 seat 1 play_card {"handIndex":0}
   Seat 1 plays Roronoa Zoro (rests 1 DON!!)
   Seat 1 activates Roronoa Zoro's ability
 
-> #38 seat 1 give_don {"donId":"don_64","targetId":"card_81"}
+> #40 seat 1 give_don {"donId":"don_64","targetId":"card_103"}
   Seat 1 attaches DON!! to Ms. All Sunday → 3000 power
 
-> #39 seat 1 give_don {"donId":"don_68","targetId":"leader_62"}
+> #41 seat 1 give_don {"donId":"don_68","targetId":"leader_62"}
   Seat 1 attaches DON!! to Monkey.D.Luffy → 7000 power
 
-> #40 seat 1 give_don {"donId":"don_67","targetId":"card_122"}
+> #42 seat 1 give_don {"donId":"don_67","targetId":"card_114"}
   Seat 1 attaches DON!! to Roronoa Zoro → 3000 power
 
 == final state ==

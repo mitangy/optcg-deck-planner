@@ -9,7 +9,7 @@ import {
 import { verifyGameToken } from "../gameToken.js";
 import { checkMatchmakeToken } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
-import { PROTOCOL_VERSION, RANKED_MATCH_SECONDS, parseJoinOptions } from "../protocol.js";
+import { PROTOCOL_VERSION, RANKED_SEAT_SECONDS, parseJoinOptions } from "../protocol.js";
 
 type Queued = {
   sessionId: string;
@@ -143,8 +143,8 @@ export class MatchmakerRoom extends Room {
             ranked: true,
             rankedAttestation: getRankedMatchCreateSecret(),
             seatUserIds: [a.userId, b.userId],
-            // Ranked always enforces a 15 minute match clock (also forced in parseCreateOptions).
-            timer: { matchSeconds: RANKED_MATCH_SECONDS },
+            // Ranked always enforces a 15 minute chess clock per player (also forced in parseCreateOptions).
+            timer: { seatSeconds: RANKED_SEAT_SECONDS },
           });
           a.client.send("matched", {
             protocolVersion: PROTOCOL_VERSION,

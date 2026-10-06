@@ -1,8 +1,9 @@
 import type { DuelSettings } from "../settings";
 
-/** Everything "Reset layout" puts back: side panels, the player's fan, the pinned opponent hand and both spectator fans. */
+/** Everything "Reset layout" puts back: side panels and their sizes, the player's fan, the pinned opponent hand and both spectator fans. */
 export const LAYOUT_RESET = {
   panelLayout: "",
+  panelSizes: "",
   handFanPos: "",
   oppHandSpot: "",
   spectatorNearFanPos: "",

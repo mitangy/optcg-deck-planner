@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Intent } from "../net/protocol";
-import { endTurnLeftovers, endTurnWarning, forcedDefensePass, responseStopPass } from "./gameplayPrefs";
+import {
+  autoPassDelayMs,
+  endTurnLeftovers,
+  endTurnWarning,
+  forcedDefensePass,
+  responseStopPass,
+  scheduleAutoPass,
+} from "./gameplayPrefs";
 
 const endOnly: Intent[] = [{ type: "end_turn" }];
 const attack = (attackerId: string, kind = "leader"): Intent => ({
@@ -129,5 +136,47 @@ describe("responseStopPass", () => {
     const block: Intent[] = [{ type: "pass_block" }, { type: "declare_block", blockerId: "c1" }];
     expect(responseStopPass("smart", block, outlook(9000))).toBeNull();
     expect(responseStopPass("smart", [{ type: "pass_block" }])).toEqual({ type: "pass_block" });
+  });
+});
+
+describe("automatic pass delay (#369)", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("against a person spans 1.5 s to 3.5 s uniformly, whatever the draw", () => {
+    expect(autoPassDelayMs(true, () => 0)).toBe(1500);
+    expect(autoPassDelayMs(true, () => 0.5)).toBe(2500);
+    expect(autoPassDelayMs(true, () => 0.999999)).toBe(3500);
+  });
+
+  it("keeps the short beat in hotseat and practice", () => {
+    expect(autoPassDelayMs(false, () => 0.9)).toBe(450);
+  });
+
+  it("does not pass before the human-length wait, and passes once it is over", () => {
+    vi.useFakeTimers();
+    const fire = vi.fn();
+    scheduleAutoPass(fire, true, () => 0);
+    vi.advanceTimersByTime(1499);
+    expect(fire).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(fire).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes after 450 ms offline", () => {
+    vi.useFakeTimers();
+    const fire = vi.fn();
+    scheduleAutoPass(fire, false);
+    vi.advanceTimersByTime(450);
+    expect(fire).toHaveBeenCalledTimes(1);
+  });
+
+  it("is cancelled when the player answers first", () => {
+    vi.useFakeTimers();
+    const fire = vi.fn();
+    const cancel = scheduleAutoPass(fire, true, () => 0);
+    vi.advanceTimersByTime(1000);
+    cancel();
+    vi.advanceTimersByTime(5000);
+    expect(fire).not.toHaveBeenCalled();
   });
 });

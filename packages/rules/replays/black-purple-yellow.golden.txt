@@ -74,7 +74,7 @@ Seat 1 leader: Crocodile (OP04-058)
 > #17 seat 1 pass_counter
   Battle fails (5000 vs 9000)
 
-> #18 seat 0 give_don {"donId":"don_5","targetId":"card_31"}
+> #18 seat 0 give_don {"donId":"don_5","targetId":"card_34"}
   Seat 0 attaches DON!! to Baskerville → 4000 power
 
 > #19 seat 0 end_turn
@@ -86,10 +86,10 @@ Seat 1 leader: Crocodile (OP04-058)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #20 seat 1 give_don {"donId":"don_66","targetId":"card_88"}
+> #20 seat 1 give_don {"donId":"don_66","targetId":"card_106"}
   Seat 1 attaches DON!! to Tenguyama Hitetsu → 3000 power
 
-> #21 seat 1 declare_attack {"attackerId":"card_88","target":{"kind":"leader"}}
+> #21 seat 1 declare_attack {"attackerId":"card_106","target":{"kind":"leader"}}
   Seat 1 attacks Leader (3000 vs 5000)
 
 > #22 seat 0 pass_block
@@ -124,13 +124,13 @@ Seat 1 leader: Crocodile (OP04-058)
   Seat 0 moves Rebecca from deck to trash
   Seat 0 moves Black Maria from deck to trash
 
-> #30 seat 0 give_don {"donId":"don_5","targetId":"card_18"}
+> #30 seat 0 give_don {"donId":"don_5","targetId":"card_52"}
   Seat 0 attaches DON!! to Kaku → 5000 power
 
-> #31 seat 0 give_don {"donId":"don_7","targetId":"card_18"}
+> #31 seat 0 give_don {"donId":"don_7","targetId":"card_52"}
   Seat 0 attaches DON!! to Kaku → 6000 power
 
-> #32 seat 0 declare_attack {"attackerId":"card_31","target":{"kind":"character","instanceId":"card_88"}}
+> #32 seat 0 declare_attack {"attackerId":"card_34","target":{"kind":"character","instanceId":"card_106"}}
   Seat 0 attacks a Character (3000 vs 2000)
 
 > #33 seat 1 pass_block
@@ -149,13 +149,11 @@ Seat 1 leader: Crocodile (OP04-058)
 
 > #38 seat 1 pass_counter
   Battle hits (6000 vs 5000)
-  Seat 1 takes Life (Miss Doublefinger(Zala), Trigger pending)
-  Seat 1 Trigger available (Miss Doublefinger(Zala))
+  Seat 1 takes Life (Miss Doublefinger(Zala))
   Seat 1 may resolve Miss Doublefinger(Zala)'s life trigger (Miss Doublefinger(Zala) — activate this card's [Trigger]? [Trigger] DON!! -1: Play this card.)
 
 > #39 seat 1 resolve_pending_choice {"accept":false}
-  Seat 1 declines Miss Doublefinger(Zala)'s life trigger
-  Seat 1 Trigger declined
+  Seat 1 adds the Life card to hand
   Seat 1 moves Miss Doublefinger(Zala) from life to hand
 
 > #40 seat 0 end_turn
@@ -170,7 +168,7 @@ Seat 1 leader: Crocodile (OP04-058)
 > #41 seat 1 play_card {"handIndex":3}
   Seat 1 plays Miss.MerryChristmas(Drophy) (rests 4 DON!!)
 
-> #42 seat 1 give_don {"donId":"don_69","targetId":"card_82"}
+> #42 seat 1 give_don {"donId":"don_69","targetId":"card_91"}
   Seat 1 attaches DON!! to Miss.MerryChristmas(Drophy) → 5000 power
 
 > #43 seat 1 play_card {"handIndex":1}
@@ -187,7 +185,7 @@ Seat 1 leader: Crocodile (OP04-058)
 > #47 seat 0 pass_counter
   Battle fails (5000 vs 7000)
 
-> #48 seat 1 activate_ability {"sourceId":"card_77","abilityId":"eb05-057#m0"}
+> #48 seat 1 activate_ability {"sourceId":"card_101","abilityId":"eb05-057#m0"}
   Seat 1 activates Nojiko's ability
   Seat 1 attaches DON!! to Crocodile → 6000 power
 

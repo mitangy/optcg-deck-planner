@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { LAYOUT_RESET, layoutMoved } from "./layoutReset";
 
-const DEFAULT = { panelLayout: "", handFanPos: "", oppHandSpot: "", spectatorNearFanPos: "", spectatorFarFanPos: "" };
-const PIECES = ["panelLayout", "handFanPos", "oppHandSpot", "spectatorNearFanPos", "spectatorFarFanPos"] as const;
+const DEFAULT = { panelLayout: "", panelSizes: "", handFanPos: "", oppHandSpot: "", spectatorNearFanPos: "", spectatorFarFanPos: "" };
+const PIECES = ["panelLayout", "panelSizes", "handFanPos", "oppHandSpot", "spectatorNearFanPos", "spectatorFarFanPos"] as const;
 
 describe("Reset layout", () => {
   it("is offered, and puts back, each moved piece of the layout including both spectator fans (#346)", () => {

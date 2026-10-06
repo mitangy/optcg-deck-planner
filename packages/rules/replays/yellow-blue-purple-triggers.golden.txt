@@ -45,7 +45,7 @@ Seat 1 leader: Hannyabal (EB01-021)
 > #7 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
   Seat 0 attacks Leader (5000 vs 5000)
 
-> #8 seat 1 declare_block {"blockerId":"card_118"}
+> #8 seat 1 declare_block {"blockerId":"card_85"}
   Seat 1 blocks
 
 > #9 seat 1 counter_from_hand {"handIndex":4}
@@ -61,29 +61,33 @@ Seat 1 leader: Hannyabal (EB01-021)
   Battle hits (5000 vs 4000)
   Seat 1's Trafalgar Law is K.O.'d
 
-> #13 seat 0 give_don {"donId":"don_3","targetId":"card_52"}
+> #13 seat 0 give_don {"donId":"don_3","targetId":"card_21"}
   Seat 0 attaches DON!! to Charlotte Anana → 4000 power
 
-> #14 seat 0 give_don {"donId":"don_2","targetId":"card_52"}
+> #14 seat 0 give_don {"donId":"don_2","targetId":"card_21"}
   Seat 0 attaches DON!! to Charlotte Anana → 5000 power
 
-> #15 seat 0 give_don {"donId":"don_4","targetId":"card_52"}
+> #15 seat 0 give_don {"donId":"don_4","targetId":"card_21"}
   Seat 0 attaches DON!! to Charlotte Anana → 6000 power
 
-> #16 seat 0 declare_attack {"attackerId":"card_52","target":{"kind":"leader"}}
+> #16 seat 0 declare_attack {"attackerId":"card_21","target":{"kind":"leader"}}
   Seat 0 attacks Leader (6000 vs 5000)
 
 > #17 seat 1 pass_block
 
 > #18 seat 1 pass_counter
   Battle hits (6000 vs 5000)
-  Seat 1 moves Miss Buckingham Stussy from life to hand
-  Seat 1 takes Life (Miss Buckingham Stussy → hand)
+  Seat 1 takes Life (Miss Buckingham Stussy)
+  Seat 1 may resolve Miss Buckingham Stussy's life trigger (Miss Buckingham Stussy has no [Trigger]. Add it to your hand.)
 
-> #19 seat 0 give_don {"donId":"don_5","targetId":"card_52"}
+> #19 seat 1 resolve_pending_choice {"accept":false}
+  Seat 1 adds the Life card to hand
+  Seat 1 moves Miss Buckingham Stussy from life to hand
+
+> #20 seat 0 give_don {"donId":"don_5","targetId":"card_21"}
   Seat 0 attaches DON!! to Charlotte Anana → 7000 power
 
-> #20 seat 0 end_turn
+> #21 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1
@@ -92,38 +96,38 @@ Seat 1 leader: Hannyabal (EB01-021)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #21 seat 1 give_don {"donId":"don_65","targetId":"leader_62"}
+> #22 seat 1 give_don {"donId":"don_65","targetId":"leader_62"}
   Seat 1 attaches DON!! to Hannyabal → 6000 power
 
-> #22 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"character","instanceId":"card_52"}}
+> #23 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"character","instanceId":"card_21"}}
   Seat 1 attacks a Character (6000 vs 3000)
 
-> #23 seat 0 pass_block
+> #24 seat 0 pass_block
 
-> #24 seat 0 counter_from_hand {"handIndex":0}
+> #25 seat 0 counter_from_hand {"handIndex":0}
   Seat 0 counters with Shakuyaku (+2000)
 
-> #25 seat 0 counter_from_hand {"handIndex":4}
+> #26 seat 0 counter_from_hand {"handIndex":4}
   Seat 0 counters with Fugetsu Omusubi (+1000)
 
-> #26 seat 0 counter_from_hand {"handIndex":2}
+> #27 seat 0 counter_from_hand {"handIndex":2}
   Seat 0 counters with Heat & Wire (+1000)
 
-> #27 seat 0 counter_from_hand {"handIndex":1}
+> #28 seat 0 counter_from_hand {"handIndex":1}
   Seat 0 counters with Kaido (+1000)
 
-> #28 seat 0 pass_counter
+> #29 seat 0 pass_counter
   Battle fails (6000 vs 8000)
 
-> #29 seat 1 play_card {"handIndex":1}
+> #30 seat 1 play_card {"handIndex":1}
   Seat 1 plays Marguerite (rests 3 DON!!)
   Seat 1 activates Marguerite's ability
   Seat 1 draws 1
 
-> #30 seat 1 give_don {"donId":"don_67","targetId":"card_93"}
+> #31 seat 1 give_don {"donId":"don_67","targetId":"card_73"}
   Seat 1 attaches DON!! to Marguerite → 3000 power
 
-> #31 seat 1 end_turn
+> #32 seat 1 end_turn
   Phase → end (active seat 1)
   Seat 1 activates Hannyabal's ability
   Phase → refresh (active seat 0)
@@ -133,23 +137,23 @@ Seat 1 leader: Hannyabal (EB01-021)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #32 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
+> #33 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
   Seat 0 attacks Leader (5000 vs 5000)
 
-> #33 seat 1 declare_block {"blockerId":"card_93"}
+> #34 seat 1 declare_block {"blockerId":"card_73"}
   Seat 1 blocks
 
-> #34 seat 1 pass_counter
+> #35 seat 1 pass_counter
   Battle hits (5000 vs 2000)
   Seat 1's Marguerite is K.O.'d
 
-> #35 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
+> #36 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
   Seat 0 attaches DON!! to Charlotte Katakuri → 6000 power
 
-> #36 seat 0 give_don {"donId":"don_7","targetId":"leader_1"}
+> #37 seat 0 give_don {"donId":"don_7","targetId":"leader_1"}
   Seat 0 attaches DON!! to Charlotte Katakuri → 7000 power
 
-> #37 seat 0 end_turn
+> #38 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1
@@ -158,41 +162,39 @@ Seat 1 leader: Hannyabal (EB01-021)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #38 seat 1 give_don {"donId":"don_66","targetId":"leader_62"}
+> #39 seat 1 give_don {"donId":"don_66","targetId":"leader_62"}
   Seat 1 attaches DON!! to Hannyabal → 6000 power
 
-> #39 seat 1 give_don {"donId":"don_65","targetId":"leader_62"}
+> #40 seat 1 give_don {"donId":"don_65","targetId":"leader_62"}
   Seat 1 attaches DON!! to Hannyabal → 7000 power
 
-> #40 seat 1 give_don {"donId":"don_67","targetId":"leader_62"}
+> #41 seat 1 give_don {"donId":"don_67","targetId":"leader_62"}
   Seat 1 attaches DON!! to Hannyabal → 8000 power
 
-> #41 seat 1 play_card {"handIndex":4}
+> #42 seat 1 play_card {"handIndex":4}
   Seat 1 plays Emptee Bluffs Island (rests 1 DON!!)
 
-> #42 seat 1 give_don {"donId":"don_68","targetId":"leader_62"}
+> #43 seat 1 give_don {"donId":"don_68","targetId":"leader_62"}
   Seat 1 attaches DON!! to Hannyabal → 9000 power
 
-> #43 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+> #44 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (9000 vs 5000)
 
-> #44 seat 0 pass_block
+> #45 seat 0 pass_block
 
-> #45 seat 0 pass_counter
+> #46 seat 0 pass_counter
   Battle hits (9000 vs 5000)
-  Seat 0 takes Life (Black Rope Dragon Twister, Trigger pending)
-  Seat 0 Trigger available (Black Rope Dragon Twister)
+  Seat 0 takes Life (Black Rope Dragon Twister)
   Seat 0 may resolve Black Rope Dragon Twister's life trigger (Black Rope Dragon Twister — activate this card's [Trigger]? [Trigger] Draw 2 cards and trash 1 card from your hand.)
 
-> #46 seat 0 resolve_pending_choice {"accept":true}
-  Seat 0 accepts Black Rope Dragon Twister's life trigger
+> #47 seat 0 resolve_pending_choice {"accept":true}
   Seat 0 Trigger accepted
   Seat 0 reveals Black Rope Dragon Twister
   Seat 0 activates Black Rope Dragon Twister's ability
   Seat 0 draws 2
   Seat 0 may resolve Black Rope Dragon Twister's effect (Black Rope Dragon Twister — choose 1 card to trash from hand.)
 
-> #47 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o1"]}
+> #48 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o1"]}
   Seat 0 accepts Black Rope Dragon Twister's effect
   Seat 0 moves Kouzuki Momonosuke from hand to trash
 

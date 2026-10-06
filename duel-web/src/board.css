@@ -719,14 +719,94 @@
   pointer-events: none;
 }
 
-/* Art is height-capped so the text below keeps real space. */
-.board-col .card-preview-img,
-.board-col .card-preview-placeholder {
+/* Small card + text (#348): a small card beside the name and stat badges, the
+   ability text below. The art is height-capped so the text keeps real space. */
+.board-col .card-preview-compact .card-preview-img,
+.board-col .card-preview-compact .card-preview-placeholder {
+  width: auto;
+  max-width: 45%;
+  flex: 0 0 auto;
+  height: min(10.5dvh, calc((var(--left-w) - 1.6rem) * 0.9));
+}
+
+/* Empty state keeps the original size, so it never shifts with the setting. */
+.board-col .card-preview-empty .card-preview-placeholder {
   width: auto;
   max-width: 100%;
   flex: 0 0 auto;
   height: min(17dvh, calc((var(--left-w) - 1.6rem) * 1.4));
   align-self: center;
+}
+
+.board-col .card-preview-head .card-preview-name {
+  font-size: 1.1rem;
+  overflow-wrap: anywhere;
+}
+
+.board-col .card-preview-head {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.board-col .card-preview-headtext {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* Big card (#348): only the art, as large as the block allows. The stage is the
+   flex share the text block had, so the panels below never move. */
+.board-col .card-preview-stage {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+}
+
+.board-col .card-preview-big .card-preview-img,
+.board-col .card-preview-big .card-preview-placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+  background: transparent;
+  box-shadow: none;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.45));
+}
+
+.board-col .card-preview-big .card-preview-placeholder {
+  filter: none;
+}
+
+.board-col .card-preview-caption-big {
+  position: absolute;
+  top: 0.25rem;
+  left: 0.25rem;
+  right: 0.25rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  background: rgb(var(--deep-rgb) / 0.82);
+  text-align: center;
+  pointer-events: none;
+}
+
+.board-col .card-preview-live-big {
+  position: absolute;
+  left: 0.25rem;
+  right: 0.25rem;
+  bottom: 0.25rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  background: rgb(var(--deep-rgb) / 0.85);
+  font-size: 0.78rem;
+  pointer-events: none;
 }
 
 /* Fit, never crop: the "Image Coming Soon" placeholder is not card-shaped. */
@@ -797,9 +877,13 @@
     flex-grow: 2;
   }
 
-  .board-col .card-preview-img,
-  .board-col .card-preview-placeholder {
+  .board-col .card-preview-empty .card-preview-placeholder {
     height: min(12dvh, calc((var(--left-w) - 1.6rem) * 1.4));
+  }
+
+  .board-col .card-preview-compact .card-preview-img,
+  .board-col .card-preview-compact .card-preview-placeholder {
+    height: min(8.5dvh, calc((var(--left-w) - 1.6rem) * 0.9));
   }
 }
 
@@ -812,9 +896,13 @@
     padding-top: 0.5rem;
   }
 
-  .board-col .card-preview-img,
-  .board-col .card-preview-placeholder {
+  .board-col .card-preview-empty .card-preview-placeholder {
     height: min(9dvh, calc((var(--left-w) - 1.6rem) * 1.4));
+  }
+
+  .board-col .card-preview-compact .card-preview-img,
+  .board-col .card-preview-compact .card-preview-placeholder {
+    height: min(7dvh, calc((var(--left-w) - 1.6rem) * 0.9));
   }
 
   .board-col .card-preview-meta {
@@ -822,12 +910,12 @@
   }
 
   .board-col .card-preview-caption,
-  .board-col .card-preview-stats,
   .board-col .card-preview-traits {
     font-size: 0.75rem;
   }
 
-  .board-col .card-preview-name {
+  .board-col .card-preview-name,
+  .board-col .card-preview-head .card-preview-name {
     font-size: 1.05rem;
   }
 
@@ -1055,16 +1143,29 @@
   min-width: 0;
 }
 
-.arena.arena-wide .board-panel > :not(.panel-grip) {
+.arena.arena-wide .board-panel > :not(.panel-grip, .panel-divider) {
   flex: 1 1 auto;
   min-height: 0;
+}
+
+/* Minimum heights (kept in step with PANEL_MIN_HEIGHT_PX in panelSizes.ts), so a
+   saved share on a short window never squashes a panel into its neighbour. The
+   content-sized panels never go under what their content needs. */
+.arena.arena-wide .board-panel[data-panel="turn"],
+.arena.arena-wide .board-panel[data-panel="oppHand"] {
+  min-height: min-content;
+}
+
+.arena.arena-wide .board-panel[data-panel="recent"],
+.arena.arena-wide .board-panel[data-panel="actions"] {
+  min-height: 4.5rem;
 }
 
 /* Fixed share, so a long ability never moves the panels below it. It only
    gives way (down to a third) when the Grid hand shares its column. */
 .arena.arena-wide .board-panel[data-panel="preview"] {
   flex: 0 1 var(--preview-h, 52%);
-  min-height: 33%;
+  min-height: max(33%, 140px);
 }
 
 .arena.arena-wide .board-panel[data-panel="log"],
@@ -1158,8 +1259,90 @@ body.is-panel-drag .panel-grip {
   }
 }
 
-.board-panel.is-panel-dragging > :not(.panel-grip) {
+.board-panel.is-panel-dragging > :not(.panel-grip, .panel-divider) {
   opacity: 0.35;
+}
+
+/* Resize handles: the inner edge of each column sets its width, a divider on
+   a panel's top edge moves height between it and the panel above. Absolutely
+   placed and invisible until hover / focus, so showing one never moves
+   anything. The divider sits under the centre grip (z-index) so moving a
+   panel still works; the column handle sits above both at the very edge. */
+.arena.arena-wide .board-col[data-panel-col] {
+  position: relative;
+}
+
+.arena.arena-wide .col-resize,
+.arena.arena-wide .panel-divider {
+  position: absolute;
+  touch-action: none;
+  /* The line is the content box inside the padding that widens the hit area. */
+  background: var(--chrome-bright);
+  background-clip: content-box;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.arena.arena-wide .col-resize {
+  top: 0;
+  bottom: 0;
+  z-index: 40;
+  width: 9px;
+  cursor: col-resize;
+}
+
+.arena.arena-wide .col-resize-left {
+  right: 0;
+}
+
+.arena.arena-wide .col-resize-right {
+  left: 0;
+}
+
+.arena.arena-wide .panel-divider {
+  top: -4px;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  height: 9px;
+  cursor: row-resize;
+}
+
+.arena.arena-wide .col-resize:hover,
+.arena.arena-wide .col-resize:focus-visible,
+.arena.arena-wide .panel-divider:hover,
+.arena.arena-wide .panel-divider:focus-visible,
+body.is-panel-resize-col .col-resize,
+body.is-panel-resize-row .panel-divider {
+  opacity: 0.75;
+}
+
+.arena.arena-wide .col-resize {
+  padding: 0 3px;
+}
+
+.arena.arena-wide .panel-divider {
+  padding: 3px 0;
+}
+
+.arena.arena-wide .col-resize:focus-visible,
+.arena.arena-wide .panel-divider:focus-visible {
+  outline: none;
+}
+
+body.is-panel-resize,
+body.is-panel-resize * {
+  user-select: none;
+}
+
+body.is-panel-resize-col,
+body.is-panel-resize-col * {
+  cursor: col-resize !important;
+}
+
+body.is-panel-resize-row,
+body.is-panel-resize-row * {
+  cursor: row-resize !important;
 }
 
 body.is-panel-drag,
@@ -1456,7 +1639,8 @@ body.is-panel-drag * {
 
 .turn-player-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Never narrower than the label, so HAND and DECK cannot run together. */
+  grid-template-columns: repeat(4, minmax(min-content, 1fr));
   gap: 0.25rem;
   margin: 0.35rem 0 0;
 }
@@ -2122,7 +2306,6 @@ body.is-panel-drag * {
   color: var(--chrome-bright);
 }
 
-.card-preview-stats,
 .card-preview-traits {
   margin: 0;
   font-size: 0.9rem;
@@ -4804,8 +4987,8 @@ body.is-panel-drag * {
 
 /* A hand card that costs more than your active DON!!. */
 .arena .card-tile.hand-unaffordable:not(.selected) {
-  opacity: 0.55;
-  filter: saturate(0.6);
+  opacity: 1;
+  filter: grayscale(1);
 }
 
 /* Phone boards: names and power at 10px or more (they were 7 to 8px), and the printed
@@ -4832,6 +5015,97 @@ body.is-panel-drag * {
     overflow-wrap: anywhere;
   }
 }
+
+/* —— Card preview: stat badges and keyword chips (#348) —— */
+
+.board-col .preview-badges {
+  flex: 0 0 auto;
+}
+
+.preview-badges {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.preview-badges li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 1.35rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgb(var(--deep-rgb) / 0.6);
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.preview-badges .pb-cost {
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  color: #fff;
+  font-size: 0.95rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.preview-badges .pb-pip {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  display: inline-block;
+}
+
+.preview-badges .pb-counter {
+  background: #c8372d;
+  border-color: #c8372d;
+  color: #fff;
+}
+
+.preview-badges .pb-power {
+  font-variant-numeric: tabular-nums;
+}
+
+.preview-badges .pb-power::before {
+  content: "PWR";
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.kw-chip {
+  display: inline-block;
+  padding: 0 0.35em;
+  margin: 0 0.1em;
+  border-radius: 0.35em;
+  font-size: 0.86em;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #fff;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.kw-timing { background: #2670b8; }
+.kw-counter { background: #c8372d; }
+.kw-trigger { background: #e0b81c; color: #1b1b1b; }
+.kw-once { background: #d94f93; }
+.kw-keyword { background: #d9772b; }
+.kw-don { background: #26262b; border: 1px solid rgba(255, 255, 255, 0.5); }
 
 /* —— Spectators of unranked rooms: both hands fanned (#346) ——
 

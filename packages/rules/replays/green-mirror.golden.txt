@@ -38,7 +38,7 @@ Seat 1 leader: Roronoa Zoro (OP12-020)
 > #6 seat 1 play_card {"handIndex":5}
   Seat 1 plays Usopp (rests 3 DON!!)
 
-> #7 seat 1 declare_attack {"attackerId":"card_104","target":{"kind":"leader"}}
+> #7 seat 1 declare_attack {"attackerId":"card_98","target":{"kind":"leader"}}
   Seat 1 attacks Leader (2000 vs 5000)
 
 > #8 seat 0 pass_block
@@ -62,13 +62,11 @@ Seat 1 leader: Roronoa Zoro (OP12-020)
 
 > #15 seat 0 pass_counter
   Battle hits (5000 vs 5000)
-  Seat 0 takes Life (Hatchan, Trigger pending)
-  Seat 0 Trigger available (Hatchan)
+  Seat 0 takes Life (Hatchan)
   Seat 0 may resolve Hatchan's life trigger (Hatchan — activate this card's [Trigger]? [Trigger] If your Leader has the {East Blue} type, play this card.)
 
 > #16 seat 0 resolve_pending_choice {"accept":false}
-  Seat 0 declines Hatchan's life trigger
-  Seat 0 Trigger declined
+  Seat 0 adds the Life card to hand
   Seat 0 moves Hatchan from life to hand
 
 > #17 seat 1 end_turn
@@ -80,7 +78,7 @@ Seat 1 leader: Roronoa Zoro (OP12-020)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #18 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"character","instanceId":"card_104"}}
+> #18 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"character","instanceId":"card_98"}}
   Seat 0 attacks a Character (5000 vs 2000)
 
 > #19 seat 1 pass_block
@@ -113,13 +111,13 @@ Seat 1 leader: Roronoa Zoro (OP12-020)
   Seat 1 plays Dracule Mihawk (rests 3 DON!!)
   Seat 1 activates Dracule Mihawk's ability
 
-> #27 seat 1 give_don {"donId":"don_66","targetId":"card_118"}
+> #27 seat 1 give_don {"donId":"don_66","targetId":"card_96"}
   Seat 1 attaches DON!! to Dracule Mihawk → 5000 power
 
-> #28 seat 1 declare_attack {"attackerId":"card_79","target":{"kind":"leader"}}
+> #28 seat 1 declare_attack {"attackerId":"card_95","target":{"kind":"leader"}}
   Seat 1 attacks Leader (5000 vs 5000)
 
-> #29 seat 0 declare_block {"blockerId":"card_42"}
+> #29 seat 0 declare_block {"blockerId":"card_25"}
   Seat 0 blocks
   Seat 0 activates Helmeppo's ability
   Seat 0 may resolve Helmeppo's effect (Helmeppo — choose up to 1 card to rest.)
@@ -133,10 +131,10 @@ Seat 1 leader: Roronoa Zoro (OP12-020)
 > #32 seat 0 pass_counter
   Battle fails (5000 vs 6000)
 
-> #33 seat 1 give_don {"donId":"don_67","targetId":"card_104"}
+> #33 seat 1 give_don {"donId":"don_67","targetId":"card_98"}
   Seat 1 attaches DON!! to Perona → 3000 power
 
-> #34 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"character","instanceId":"card_42"}}
+> #34 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"character","instanceId":"card_25"}}
   Seat 1 attacks a Character (5000 vs 5000)
 
 > #35 seat 0 pass_block
@@ -145,7 +143,7 @@ Seat 1 leader: Roronoa Zoro (OP12-020)
   Battle hits (5000 vs 5000)
   Seat 0's Helmeppo is K.O.'d
 
-> #37 seat 1 declare_attack {"attackerId":"card_104","target":{"kind":"leader"}}
+> #37 seat 1 declare_attack {"attackerId":"card_98","target":{"kind":"leader"}}
   Seat 1 attacks Leader (3000 vs 5000)
 
 > #38 seat 0 pass_block
@@ -168,7 +166,7 @@ Seat 1 leader: Roronoa Zoro (OP12-020)
 > #42 seat 0 play_card {"handIndex":2}
   Seat 0 plays Giovanni (rests 2 DON!!)
 
-> #43 seat 0 give_don {"donId":"don_5","targetId":"card_34"}
+> #43 seat 0 give_don {"donId":"don_5","targetId":"card_48"}
   Seat 0 attaches DON!! to Giovanni → 4000 power
 
 > #44 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
@@ -177,7 +175,7 @@ Seat 1 leader: Roronoa Zoro (OP12-020)
 > #45 seat 0 give_don {"donId":"don_4","targetId":"leader_1"}
   Seat 0 attaches DON!! to Roronoa Zoro → 7000 power
 
-> #46 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"character","instanceId":"card_79"}}
+> #46 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"character","instanceId":"card_95"}}
   Seat 0 attacks a Character (7000 vs 5000)
 
 > #47 seat 1 pass_block

@@ -15,7 +15,7 @@ import {
 import { describe, expect, it } from "vitest";
 import { draftLesson, matchupStats, myLessons, narrateReplay, reviewMatch, tokenIsValid } from "./matches";
 
-/** Play legal moves until a Life card goes to a hand. */
+/** Play legal moves until a Life card is taken as damage. */
 function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, { type: "life_taken" }> } {
   const players: MatchReplay["players"] = [
     { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
@@ -38,10 +38,10 @@ function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, {
     expect(result.ok).toBe(true);
     state = result.state;
     intents.push({ seat, intent });
-    const taken = result.events.find((e): e is Extract<GameEvent, { type: "life_taken" }> => e.type === "life_taken" && e.toHand);
+    const taken = result.events.find((e): e is Extract<GameEvent, { type: "life_taken" }> => e.type === "life_taken");
     if (taken) {
       return {
-        replay: { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: true, players, intents, end: { winner: (1 - taken.seat) as Seat, reason: "concede" } },
+        replay: { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: true, lifeCheckEveryHit: true, privateChoicesV2: true, players, intents, end: { winner: (1 - taken.seat) as Seat, reason: "concede" } },
         taken,
       };
     }
@@ -74,7 +74,7 @@ function gameWithMulligans(seed: number, redraw: [boolean, boolean]) {
     if (i === 1) kept = state.players.map((p) => p.hand.map((c) => getCardDef(c.defId).name));
   }
   expect(state.turnNumber).toBe(3);
-  const played: MatchReplay = { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: false, players, intents };
+  const played: MatchReplay = { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: false, lifeCheckEveryHit: true, privateChoicesV2: true, players, intents };
   return { replay: played, dealt, kept };
 }
 const lifeCard = getCardDef(taken.defId).name;
@@ -83,8 +83,8 @@ describe("match review", () => {
   it("names a taken Life card only for the player who took it (#244)", () => {
     const owner = narrateReplay(replay, taken.seat);
     const other = narrateReplay(replay, (1 - taken.seat) as Seat);
-    expect(owner.log).toContain(`Seat ${taken.seat} (you) takes Life (${lifeCard} → hand)`);
-    expect(other.log).toContain(`Seat ${taken.seat} (opponent) takes Life (a hidden card → hand)`);
+    expect(owner.log).toContain(`Seat ${taken.seat} (you) takes Life (${lifeCard})`);
+    expect(other.log).toContain(`Seat ${taken.seat} (opponent) takes Life`);
   });
 
   it("tells the game from the reviewing player's seat (#244)", () => {

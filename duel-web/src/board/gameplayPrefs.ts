@@ -87,3 +87,29 @@ export function responseStopPass(
   }
   return total < outlook.gap ? pass : null;
 }
+
+/** Beat before an automatic pass in hotseat / practice, so the attack registers. */
+export const AUTO_PASS_BEAT_MS = 450;
+/** Online vs a person: an automatic pass waits as long as someone deciding would. */
+export const AUTO_PASS_HUMAN_MIN_MS = 1500;
+export const AUTO_PASS_HUMAN_MAX_MS = 3500;
+
+/**
+ * How long to wait before sending an automatic block / counter pass. Against a
+ * person the wait is uniform in [1.5 s, 3.5 s] whatever made the pass automatic,
+ * so a fast pass never tells the attacker you held no usable Counter (#369).
+ */
+export function autoPassDelayMs(vsHuman: boolean, random: () => number = Math.random): number {
+  if (!vsHuman) return AUTO_PASS_BEAT_MS;
+  return Math.round(AUTO_PASS_HUMAN_MIN_MS + random() * (AUTO_PASS_HUMAN_MAX_MS - AUTO_PASS_HUMAN_MIN_MS));
+}
+
+/** Send `fire` after the auto-pass delay. Returns a cancel (the player acted first, the step moved on). */
+export function scheduleAutoPass(
+  fire: () => void,
+  vsHuman: boolean,
+  random: () => number = Math.random,
+): () => void {
+  const id = setTimeout(fire, autoPassDelayMs(vsHuman, random));
+  return () => clearTimeout(id);
+}

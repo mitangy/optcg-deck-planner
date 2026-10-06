@@ -9,6 +9,7 @@ import {
   getPlayerView,
   getSpectatorView,
   projectGameEvents,
+  reseedMatch,
   listLegalIntents,
   MATCH_REPLAY_SCHEMA,
   REGISTRY_HASH,
@@ -35,6 +36,7 @@ import {
   requireGameToken,
 } from "../env.js";
 import { sanitizeDisplayName, verifyGameToken } from "../gameToken.js";
+import { collectPublicDefIds, visibleArtPrefs } from "../publicArt.js";
 import { checkMatchmakeToken, claimCreatorRoom, gameSeed, releaseCreatorRoom } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
 import {
@@ -141,6 +143,13 @@ export class DuelRoom extends Room implements PresenceSource {
   private spectators: SpectatorSlot[] = [];
   /** Per-seat alt-art prefs (cosmetics only; not rules state). */
   private seatArtPrefs: [ArtPrefsMap, ArtPrefsMap] = [{}, {}];
+  /**
+   * Card defIds each seat has shown face-up this game. Only prefs for these
+   * go to the other seat and spectators; the rest would name the decklist (#369).
+   */
+  private publicArtDefs: [Set<string>, Set<string>] = [new Set(), new Set()];
+  /** What non-owners last received per seat (JSON), so only a change is pushed. */
+  private sentPublicArt: [string, string] = ["{}", "{}"];
   /** Per-seat custom playmat / card back (cosmetics only). */
   private seatSkins: [SeatSkin | null, SeatSkin | null] = [null, null];
   /**
@@ -196,6 +205,18 @@ export class DuelRoom extends Room implements PresenceSource {
 
     const parsed = parseCreateOptions(options);
     this.creatorUid = claimCreatorRoom(options);
+    try {
+      this.setUpRoom(options, parsed);
+    } catch (e) {
+      // A room whose onCreate throws is never registered and never disposed,
+      // so onDispose would never give this slot back.
+      releaseCreatorRoom(this.creatorUid);
+      this.creatorUid = null;
+      throw e;
+    }
+  }
+
+  private setUpRoom(options: unknown, parsed: ReturnType<typeof parseCreateOptions>) {
     // Rooms are joined by id only (create, invites, the ranked matchmaker), so a
     // stranger's id-less matchmake join can never land in, or fill, someone's room.
     void this.setPrivate(true);
@@ -300,7 +321,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.log("info", "room_disposed", { matchId: this.matchId });
     // A game closing without a result keeps its log up to the last action.
     if (this.matchStarted && !this.matchOverSent && !this.resultPending) {
-      await this.saveProgress();
+      await this.saveProgress(true);
     }
   }
 
@@ -755,6 +776,9 @@ export class DuelRoom extends Room implements PresenceSource {
       seed: this.seed,
       firstSeat,
       skipMulligans: this.autoSkipMulligan,
+      // createMatch's default: every non-Banish Life hit opens a private Life check (#352).
+      lifeCheckEveryHit: true,
+      privateChoicesV2: true,
       players: [
         { leaderId: leaderA, deck: [...deckA] },
         { leaderId: leaderB, deck: [...deckB] },
@@ -769,6 +793,10 @@ export class DuelRoom extends Room implements PresenceSource {
     this.seatNames = [this.seats[0]!.displayName, this.seats[1]!.displayName];
     this.syncPublicState();
     this.log("info", "match_start", { matchId: this.matchId, seed: this.seed });
+    for (const seat of [0, 1] as Seat[]) {
+      collectPublicDefIds(match, seat, [], this.publicArtDefs[seat]);
+      this.sentPublicArt[seat] = JSON.stringify(visibleArtPrefs(this.seatArtPrefs[seat], this.publicArtDefs[seat]));
+    }
 
     for (const slot of this.seats) {
       if (!slot) continue;
@@ -861,13 +889,34 @@ export class DuelRoom extends Room implements PresenceSource {
       return;
     }
     this.seatArtPrefs[seat] = artPrefs;
-    const payload: CosmeticsMessage = {
-      protocolVersion: PROTOCOL_VERSION,
-      seat,
-      artPrefs,
-    };
-    // Relay to everyone (including sender) so reconnecting clients stay aligned.
-    this.broadcast("cosmetics", payload);
+    // The sender gets its full map back; everyone else only the cards already public.
+    this.broadcastSeatCosmetics(seat);
+  }
+
+  /** One seat's prefs as `client` may see them: whole for the owner, public cards only for anyone else. */
+  private artPrefsFor(client: Client, seat: Seat): ArtPrefsMap {
+    const prefs = this.seatArtPrefs[seat];
+    return this.seatForClient(client) === seat ? prefs : visibleArtPrefs(prefs, this.publicArtDefs[seat]);
+  }
+
+  /** Push a seat's prefs to every client, each filtered for what it may see. */
+  private broadcastSeatCosmetics(seat: Seat, onlyNonOwners = false) {
+    this.sentPublicArt[seat] = JSON.stringify(visibleArtPrefs(this.seatArtPrefs[seat], this.publicArtDefs[seat]));
+    for (const c of this.clients) {
+      if (onlyNonOwners && this.seatForClient(c) === seat) continue;
+      const payload: CosmeticsMessage = { protocolVersion: PROTOCOL_VERSION, seat, artPrefs: this.artPrefsFor(c, seat) };
+      c.send("cosmetics", payload);
+    }
+  }
+
+  /** Fold what the table just saw into the public set, and tell non-owners about newly public prefs. */
+  private updatePublicArt(events: GameEvent[]) {
+    if (!this.match) return;
+    for (const seat of [0, 1] as Seat[]) {
+      collectPublicDefIds(this.match, seat, events, this.publicArtDefs[seat]);
+      const key = JSON.stringify(visibleArtPrefs(this.seatArtPrefs[seat], this.publicArtDefs[seat]));
+      if (key !== this.sentPublicArt[seat]) this.broadcastSeatCosmetics(seat, true);
+    }
   }
 
   private handleSkin(client: Client, message: unknown) {
@@ -954,8 +1003,8 @@ export class DuelRoom extends Room implements PresenceSource {
   /** Push stored seat cosmetics to one client (join / sync). */
   private sendStoredCosmetics(client: Client) {
     for (const seat of [0, 1] as Seat[]) {
-      const artPrefs = this.seatArtPrefs[seat];
-      if (!artPrefs || Object.keys(artPrefs).length === 0) continue;
+      const artPrefs = this.artPrefsFor(client, seat);
+      if (Object.keys(artPrefs).length === 0) continue;
       const payload: CosmeticsMessage = {
         protocolVersion: PROTOCOL_VERSION,
         seat,
@@ -1077,6 +1126,8 @@ export class DuelRoom extends Room implements PresenceSource {
     this.rematchRequested = [false, false];
     this.rematchDeclinedBy = null;
     this.seatHandOrder = [[], []];
+    this.publicArtDefs = [new Set(), new Set()];
+    this.sentPublicArt = ["{}", "{}"];
   }
 
   private rematchState(): RematchStateMessage {
@@ -1295,6 +1346,11 @@ export class DuelRoom extends Room implements PresenceSource {
     }
   }
 
+  /** Entropy for an undo re-seed. A method so tests can pin it. */
+  private freshSeed(): number {
+    return gameSeed();
+  }
+
   private applyUndo(by: Seat) {
     const idx = this.undoTargetIndex();
     if (idx === null) {
@@ -1304,9 +1360,21 @@ export class DuelRoom extends Room implements PresenceSource {
     }
     const snap = this.turnSnapshots[idx]!;
     this.match = deserializeMatch(snap.match);
-    this.rng = createSeededRng(snap.rng);
     this.turnSnapshots = this.turnSnapshots.slice(0, idx + 1);
     this.replay?.intents.splice(snap.intentCount);
+    // Restoring the old rng would repeat the same draws and shuffles, so both
+    // players could read the upcoming deck order off the rewound turn (#369).
+    // Re-seed from fresh entropy instead, and record it so the replay still
+    // rebuilds the game. The engine draws from match.rng, not the room's.
+    const reseed = this.freshSeed();
+    // Both players saw their next draws, so the decks are reshuffled too.
+    this.match = reseedMatch(this.match, reseed, true);
+    this.rng = createSeededRng(reseed);
+    if (this.replay) {
+      const kept = (this.replay.reseeds ?? []).filter((r) => r.atIntent < snap.intentCount);
+      kept.push({ atIntent: snap.intentCount, seed: reseed >>> 0, shuffleDecks: true });
+      this.replay.reseeds = kept;
+    }
     this.actedSinceSnapshot = false;
     this.undoRequest = null;
     this.log("info", "undo_applied", { matchId: this.matchId, by, toTurn: snap.turnNumber });
@@ -1329,6 +1397,7 @@ export class DuelRoom extends Room implements PresenceSource {
 
   private broadcastViews(events: GameEvent[]) {
     if (!this.match) return;
+    this.updatePublicArt(events);
     for (const slot of this.seats) {
       if (!slot) continue;
       const client = this.clients.find((c) => c.sessionId === slot.sessionId);
@@ -1421,17 +1490,32 @@ export class DuelRoom extends Room implements PresenceSource {
     this.clockSince = now;
   }
 
-  /** Point the chess clock at whoever must act now (none during mulligan / after the end). */
+  /**
+   * Point the chess clock at whoever must act now (none after the end). During the mulligan it
+   * runs for the seat that still has to answer: the first player decides first, then the other.
+   */
   private updateSeatClock() {
     if (this.seatSeconds == null || !this.match) return;
     const now = Date.now();
     this.chargeSeatClock(now);
-    const next =
-      this.match.winner !== null || this.match.phase === "mulligan" ? null : this.actingSeatForTimer();
+    const next = this.match.winner !== null ? null : this.seatForClock();
     if (next !== this.clockSeat) {
       this.clockSeat = next;
       this.clockSince = now;
     }
+  }
+
+  private seatForClock(): Seat | null {
+    const m = this.match;
+    if (!m) return null;
+    if (m.phase === "mulligan") {
+      const first = m.activeSeat;
+      const second = (1 - first) as Seat;
+      if (!m.players[first].mulliganDone) return first;
+      if (!m.players[second].mulliganDone) return second;
+      return null;
+    }
+    return this.actingSeatForTimer();
   }
 
   private stopSeatClock() {
@@ -1689,14 +1773,16 @@ export class DuelRoom extends Room implements PresenceSource {
    * Save the game's log so far (both seats' logs and the replay), so a game that
    * never reaches a result (server restart, both players gone) still has one.
    * Sent at the start of every turn and when the room closes without a result.
+   * `reveal` adds the opponent's hands to each log; only a game that can no
+   * longer be played (the room closing) gets them.
    */
-  private saveProgress(): Promise<void> {
+  private saveProgress(reveal = false): Promise<void> {
     const seats = this.ingestSeats();
     if (!Array.isArray(seats) || !this.replay) return Promise.resolve();
-    return this.progress.push({ matchId: this.gameKey(), payload: this.progressPayload(seats[0], seats[1]) });
+    return this.progress.push({ matchId: this.gameKey(), payload: this.progressPayload(seats[0], seats[1], reveal) });
   }
 
-  private progressPayload(s0: number, s1: number): MatchProgressPayload {
+  private progressPayload(s0: number, s1: number, reveal: boolean): MatchProgressPayload {
     return {
       seat0_user_id: s0,
       seat1_user_id: s1,
@@ -1705,7 +1791,7 @@ export class DuelRoom extends Room implements PresenceSource {
       seat1_leader_id: this.replay?.players[1].leaderId,
       turns: this.match?.turnNumber,
       replay: this.replay ? { ...this.replay, intents: [...this.replay.intents] } : undefined,
-      seat_logs: this.seatLogs(),
+      seat_logs: this.seatLogs(reveal),
     };
   }
 
@@ -1715,7 +1801,7 @@ export class DuelRoom extends Room implements PresenceSource {
 
   private resultPayload(s0: number, s1: number, winner: Seat, reason: string): MatchResultPayload {
     return {
-      ...this.progressPayload(s0, s1),
+      ...this.progressPayload(s0, s1, true),
       match_id: this.gameKey(),
       winner_seat: winner,
       reason,
@@ -1723,11 +1809,14 @@ export class DuelRoom extends Room implements PresenceSource {
     };
   }
 
-  /** Each player's turn-by-turn log for their match history, with the opponent's hidden cards hidden. */
-  private seatLogs(): MatchResultPayload["seat_logs"] {
+  /**
+   * Each player's turn-by-turn log for their match history. The opponent's hidden
+   * cards stay hidden unless `reveal` (the game is over or cut off).
+   */
+  private seatLogs(reveal: boolean): MatchResultPayload["seat_logs"] {
     if (!this.replay) return undefined;
     try {
-      return [seatLog(this.replay, 0), seatLog(this.replay, 1)];
+      return [seatLog(this.replay, 0, { revealOpponent: reveal }), seatLog(this.replay, 1, { revealOpponent: reveal })];
     } catch {
       this.log("warn", "seat_log_failed", { matchId: this.matchId });
       return undefined;

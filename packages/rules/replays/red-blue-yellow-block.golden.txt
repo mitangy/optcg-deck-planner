@@ -37,7 +37,7 @@ Seat 1 leader: Boa Hancock (OP14-041)
   Seat 0 accepts Portgas.D.Ace's effect
   Seat 0 gives Portgas.D.Ace +0 power this battle
 
-> #7 seat 1 declare_block {"blockerId":"card_80"}
+> #7 seat 1 declare_block {"blockerId":"card_110"}
   Seat 1 blocks
 
 > #8 seat 1 counter_from_hand {"handIndex":1}
@@ -101,34 +101,36 @@ Seat 1 leader: Boa Hancock (OP14-041)
 
 > #22 seat 0 resolve_pending_choice {"accept":true}
   Seat 0 accepts Jinbe's effect
+  Seat 0 may resolve Jinbe's effect (Jinbe — choose 2 cards to reveal (cost).)
+
+> #23 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0","o1"]}
+  Seat 0 accepts Jinbe's effect
   Seat 0 reveals But Ace Here Said You Deserved It!!
   Seat 0 reveals Gum-Gum Dawn Whip
   Seat 0 gives Jinbe +1000 power this other
 
-> #23 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
+> #24 seat 0 give_don {"donId":"don_6","targetId":"leader_1"}
   Seat 0 attaches DON!! to Portgas.D.Ace → 6000 power
 
-> #24 seat 0 declare_attack {"attackerId":"card_42","target":{"kind":"leader"}}
+> #25 seat 0 declare_attack {"attackerId":"card_44","target":{"kind":"leader"}}
   Seat 0 attacks Leader (5000 vs 5000)
 
-> #25 seat 1 pass_block
+> #26 seat 1 pass_block
 
-> #26 seat 1 pass_counter
+> #27 seat 1 pass_counter
   Battle hits (5000 vs 5000)
-  Seat 1 takes Life (ROOM, Trigger pending)
-  Seat 1 Trigger available (ROOM)
+  Seat 1 takes Life (ROOM)
   Seat 1 may resolve ROOM's life trigger (ROOM — activate this card's [Trigger]? [Trigger] Draw 1 card.)
 
-> #27 seat 1 resolve_pending_choice {"accept":false}
-  Seat 1 declines ROOM's life trigger
-  Seat 1 Trigger declined
+> #28 seat 1 resolve_pending_choice {"accept":false}
+  Seat 1 adds the Life card to hand
   Seat 1 moves ROOM from life to hand
 
-> #28 seat 0 play_card {"handIndex":3}
+> #29 seat 0 play_card {"handIndex":3}
   Seat 0 plays But Ace Here Said You Deserved It!! (rests 1 DON!!)
   Seat 0 activates But Ace Here Said You Deserved It!!'s ability
 
-> #29 seat 0 end_turn
+> #30 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1
@@ -137,43 +139,43 @@ Seat 1 leader: Boa Hancock (OP14-041)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #30 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
+> #31 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (5000 vs 5000)
   Seat 0 activates Portgas.D.Ace's ability
   Seat 0 may resolve Portgas.D.Ace's effect (Portgas.D.Ace — choose up to 1 card to select.)
 
-> #31 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0"]}
+> #32 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0"]}
   Seat 0 accepts Portgas.D.Ace's effect
   Seat 0 moves Gum-Gum Dawn Whip from hand to trash
   Seat 0 gives Portgas.D.Ace +1000 power this battle
 
-> #32 seat 0 pass_block
+> #33 seat 0 pass_block
 
-> #33 seat 0 counter_from_hand {"handIndex":2}
+> #34 seat 0 counter_from_hand {"handIndex":2}
   Seat 0 counters with Usopp (+2000)
 
-> #34 seat 0 counter_from_hand {"handIndex":1}
+> #35 seat 0 counter_from_hand {"handIndex":1}
   Seat 0 counters with LittleOars Jr. (+1000)
 
-> #35 seat 0 counter_from_hand {"handIndex":1}
+> #36 seat 0 counter_from_hand {"handIndex":1}
   Seat 0 counters with Marco (+1000)
 
-> #36 seat 0 counter_from_hand {"handIndex":0}
+> #37 seat 0 counter_from_hand {"handIndex":0}
   Seat 0 counters with Portgas.D.Ace (+1000)
 
-> #37 seat 0 pass_counter
+> #38 seat 0 pass_counter
   Battle fails (5000 vs 11000)
 
-> #38 seat 1 give_don {"donId":"don_66","targetId":"leader_62"}
+> #39 seat 1 give_don {"donId":"don_66","targetId":"leader_62"}
   Seat 1 attaches DON!! to Boa Hancock → 6000 power
 
-> #39 seat 1 give_don {"donId":"don_67","targetId":"leader_62"}
+> #40 seat 1 give_don {"donId":"don_67","targetId":"leader_62"}
   Seat 1 attaches DON!! to Boa Hancock → 7000 power
 
-> #40 seat 1 play_card {"handIndex":3}
+> #41 seat 1 play_card {"handIndex":3}
   Seat 1 plays Morley (rests 4 DON!!)
 
-> #41 seat 1 end_turn
+> #42 seat 1 end_turn
   Phase → end (active seat 1)
   Phase → refresh (active seat 0)
   Seat 0 draws 1

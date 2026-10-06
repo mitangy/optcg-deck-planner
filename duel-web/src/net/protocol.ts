@@ -30,7 +30,7 @@ export type DuelCreateOptions = {
   protocolVersion?: ProtocolVersion;
   seed?: number;
   autoSkipMulligan?: boolean;
-  /** False for private / hotseat; ranked queue sets true (forces a 15 minute match clock). */
+  /** False for private / hotseat; ranked queue sets true (forces a 15 minute chess clock per player). */
   ranked?: boolean;
   players?: [PlayerDeckWire, PlayerDeckWire];
   timer?: {
@@ -231,6 +231,10 @@ export type PendingChoiceView = {
   request?: ChoiceRequestView;
   privateToSeat?: Seat;
   hideCardDefFromOthers?: boolean;
+  /** life_trigger, owner only: the Life card has no [Trigger], so only declining (add to hand) is legal. */
+  noTrigger?: boolean;
+  /** Optional-cost confirm, owner only: the cost depends on hidden cards and cannot be paid, so only declining is legal (#369). */
+  unpayable?: boolean;
   optionCount?: number;
   /** order_effects: the simultaneous abilities to permute via order_pending_effects. */
   unorderedChoices?: PendingChoiceView[];

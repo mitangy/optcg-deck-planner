@@ -164,6 +164,20 @@ export class Harness {
     return this.act(choice.seat, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
   }
 
+  /**
+   * Answer every front select that holds no decision: each candidate must be chosen (or none exist).
+   * Selects from a hand/deck/Life are always asked (#369) even then, so a test that only cares about the
+   * outcome calls this after accepting a cost. A prompt with a real choice is left for the test to answer.
+   */
+  forced(): this {
+    for (;;) {
+      const choice = this.choice;
+      const r = choice?.request;
+      if (!choice || r?.type !== "select" || r.options.length !== r.min || choice.bindings?.__startStage) return this;
+      this.act(choice.seat, { type: "resolve_pending_choice", accept: true, selectedOptionIds: r.options.map((o) => o.id) });
+    }
+  }
+
   find(seat: Seat, defId: string): CardInstance | undefined {
     const p = this.state.players[seat];
     return [p.leader, ...p.characters, ...(p.stage ? [p.stage] : [])].find((c) => c.defId === defId);
@@ -173,11 +187,21 @@ export class Harness {
     return this.act(this.state.activeSeat, { type: "declare_attack", attackerId: attacker.id, target: target === "leader" ? { kind: "leader" } : { kind: "character", instanceId: target.id } });
   }
 
-  /** Defender passes block and counter, resolving the battle. */
-  passBattle(): this {
+  /**
+   * Defender passes block and counter, resolving the battle. A Life card without [Trigger] opens a
+   * `noTrigger` check (#352); it is declined (card to hand) unless `resolveLifeChecks: false`.
+   * A [Trigger] card's check is left pending for the test to answer.
+   */
+  passBattle(opts: { resolveLifeChecks?: boolean } = {}): this {
     const def = (this.state.battle!.attackerSeat === 0 ? 1 : 0) as Seat;
     if (this.state.phase === "block") this.act(def, { type: "pass_block" });
     if (this.state.phase === "counter") this.act(def, { type: "pass_counter" });
+    return opts.resolveLifeChecks === false ? this : this.resolveLifeChecks();
+  }
+
+  /** Decline every front `noTrigger` Life check (the card goes to hand). Leaves [Trigger] checks and other choices alone. */
+  resolveLifeChecks(): this {
+    while (this.choice?.kind === "life_trigger" && this.choice.noTrigger) this.decline();
     return this;
   }
 }

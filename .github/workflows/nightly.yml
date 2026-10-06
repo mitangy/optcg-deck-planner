@@ -77,7 +77,7 @@ jobs:
           SHARDS=(
             "src/engine/runtime.ts"
             "src/engine/queries.ts"
-            "src/engine/intents.ts,src/engine/views.ts,src/engine/modifiers.ts"
+            "src/engine/intents.ts,src/engine/views.ts,src/engine/modifiers.ts,src/engine/perspective.ts"
             "src/effects/validate.ts,src/effects/compile.ts"
             "src/engine/procedure.ts,src/engine/state.ts"
           )

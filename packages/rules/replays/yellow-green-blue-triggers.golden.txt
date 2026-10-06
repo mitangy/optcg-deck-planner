@@ -51,7 +51,7 @@ Seat 1 leader: Sanji (OP02-026)
 > #12 seat 0 play_card {"handIndex":0}
   Seat 0 plays Sentomaru (rests 2 DON!!)
 
-> #13 seat 0 give_don {"donId":"don_4","targetId":"card_13"}
+> #13 seat 0 give_don {"donId":"don_4","targetId":"card_48"}
   Seat 0 attaches DON!! to Sentomaru → 2000 power
 
 > #14 seat 0 end_turn
@@ -73,7 +73,7 @@ Seat 1 leader: Sanji (OP02-026)
 > #17 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (6000 vs 5000)
 
-> #18 seat 0 declare_block {"blockerId":"card_13"}
+> #18 seat 0 declare_block {"blockerId":"card_48"}
   Seat 0 blocks
   Seat 0 activates Sentomaru's ability
 
@@ -132,13 +132,11 @@ Seat 1 leader: Sanji (OP02-026)
 
 > #33 seat 1 pass_counter
   Battle hits (8000 vs 5000)
-  Seat 1 takes Life (Paradise Totsuka, Trigger pending)
-  Seat 1 Trigger available (Paradise Totsuka)
+  Seat 1 takes Life (Paradise Totsuka)
   Seat 1 may resolve Paradise Totsuka's life trigger (Paradise Totsuka — activate this card's [Trigger]? [Trigger] KO up to 1 of your opponent's rested Characters with a cost of 3 or less.)
 
 > #34 seat 1 resolve_pending_choice {"accept":false}
-  Seat 1 declines Paradise Totsuka's life trigger
-  Seat 1 Trigger declined
+  Seat 1 adds the Life card to hand
   Seat 1 moves Paradise Totsuka from life to hand
 
 > #35 seat 0 end_turn
@@ -169,12 +167,10 @@ Seat 1 leader: Sanji (OP02-026)
 
 > #42 seat 0 pass_counter
   Battle hits (7000 vs 7000)
-  Seat 0 takes Life (Boa Hancock, Trigger pending)
-  Seat 0 Trigger available (Boa Hancock)
+  Seat 0 takes Life (Boa Hancock)
   Seat 0 may resolve Boa Hancock's life trigger (Boa Hancock — activate this card's [Trigger]? [Trigger] KO up to 1 of your opponent's Characters with a cost of 4 or less.)
 
 > #43 seat 0 resolve_pending_choice {"accept":true}
-  Seat 0 accepts Boa Hancock's life trigger
   Seat 0 Trigger accepted
   Seat 0 reveals Boa Hancock
   Seat 0 activates Boa Hancock's ability

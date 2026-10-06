@@ -11,6 +11,8 @@ type Props = {
   /** Aggregate counts when only public info (opponent). */
   activeCount?: number;
   totalCount?: number;
+  /** Denominator for the "active/total" label when it differs from the chip count (attached DON!! included). */
+  labelTotal?: number;
   side: "you" | "opp";
   /** DON!! ids that have a legal give_don intent. */
   draggableDonIds?: ReadonlySet<string>;
@@ -95,6 +97,7 @@ export function DonStrip({
   tokens,
   activeCount,
   totalCount,
+  labelTotal,
   side,
   draggableDonIds,
   draggingDonIds,
@@ -135,8 +138,8 @@ export function DonStrip({
         <span>DON!!</span>
         <span className="don-strip-nums">
           {tokens
-            ? `${tokens.filter((t) => !t.rested).length}/${tokens.length}`
-            : `${activeCount ?? 0}/${totalCount ?? 0}`}
+            ? `${tokens.filter((t) => !t.rested).length}/${labelTotal ?? tokens.length}`
+            : `${activeCount ?? 0}/${labelTotal ?? totalCount ?? 0}`}
         </span>
       </div>
       {selectedDonIds && selectedDonIds.size > 0 ? (
