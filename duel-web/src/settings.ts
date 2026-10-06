@@ -108,6 +108,8 @@ export type DuelSettings = {
   reduceMotion: boolean;
   /** Speed of card motion (draw, play, KO, DON!! ...). */
   animationSpeed: AnimationSpeed;
+  /** Show each played or trashed card big over its owner's half for a moment. */
+  cardSpotlight: boolean;
   /** Vibrate (where supported) and flag the browser tab when the game needs you. */
   turnAlert: boolean;
   /** Short chime when the game needs you. */
@@ -148,6 +150,7 @@ const DEFAULTS: DuelSettings = {
   turnSplash: true,
   reduceMotion: false,
   animationSpeed: "normal",
+  cardSpotlight: true,
   turnAlert: true,
   turnSound: false,
   deckStats: true,

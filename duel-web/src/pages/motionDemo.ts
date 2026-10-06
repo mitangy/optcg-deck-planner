@@ -1,11 +1,13 @@
 /**
  * `/demo?motion` script: a sequence of board states that walks through every
  * card animation (shuffle and deal, mulligan, draw, play, DON!!, power, counter,
- * KO, life) one click at a time, for layout QA and preview links.
+ * KO, life) one click at a time, for layout QA and preview links. A step's
+ * `events` are the game events the server would send with it (narrated into
+ * the battle log, which drives the card spotlight).
  */
 import type { PlayerView } from "../net/protocol";
 
-export type MotionDemoStep = { label: string; view: PlayerView };
+export type MotionDemoStep = { label: string; view: PlayerView; events?: unknown[] };
 
 type You = PlayerView["you"];
 type Opp = PlayerView["opponent"];
@@ -22,9 +24,14 @@ export function motionDemoSteps(base: PlayerView): MotionDemoStep[] {
   };
   steps.push({ label: "Shuffle and deal", view: cur });
 
-  const push = (label: string, you: (y: You) => You, opp: (o: Opp) => Opp = (o) => o) => {
+  const push = (
+    label: string,
+    you: (y: You) => You,
+    opp: (o: Opp) => Opp = (o) => o,
+    events?: unknown[],
+  ) => {
     cur = { ...cur, you: you(cur.you), opponent: opp(cur.opponent) };
-    steps.push({ label, view: cur });
+    steps.push({ label, view: cur, ...(events ? { events } : {}) });
   };
 
   push(
@@ -47,25 +54,33 @@ export function motionDemoSteps(base: PlayerView): MotionDemoStep[] {
     costArea: [{ id: "demo-don-1", rested: false }, { id: "demo-don-2", rested: false }, ...y.costArea],
     activeDonCount: y.activeDonCount + 2,
   }));
-  push("Play", (y) => {
-    const card = y.hand.find((c) => c.id === "demo-draw")!;
-    return {
-      ...y,
-      hand: y.hand.filter((c) => c !== card),
-      characters: [
-        ...y.characters,
-        { id: card.id, defId: card.defId, power: 5000, printedPower: 5000, summoningSick: true, statusLabels: [] },
-      ],
-    };
-  });
+  push(
+    "Play",
+    (y) => {
+      const card = y.hand.find((c) => c.id === "demo-draw")!;
+      return {
+        ...y,
+        hand: y.hand.filter((c) => c !== card),
+        characters: [
+          ...y.characters,
+          { id: card.id, defId: card.defId, power: 5000, printedPower: 5000, summoningSick: true, statusLabels: [] },
+        ],
+      };
+    },
+    (o) => o,
+    [{ type: "card_played", seat: 0, defId: "ST01-004", instanceId: "demo-draw", costPaid: 2 }],
+  );
   push("Power up", (y) => ({
     ...y,
     characters: y.characters.map((c, i) => (i === 0 ? { ...c, power: (c.power ?? 0) + 2000 } : c)),
   }));
-  push("Counter from hand", (y) => {
-    const card = y.hand.find((c) => c.defId === "ST01-014") ?? y.hand[0]!;
-    return { ...y, hand: y.hand.filter((c) => c !== card), trash: [...y.trash, card.defId] };
-  });
+  const counter = cur.you.hand.find((c) => c.defId === "ST01-014") ?? cur.you.hand[0]!;
+  push(
+    "Counter from hand",
+    (y) => ({ ...y, hand: y.hand.filter((c) => c.id !== counter.id), trash: [...y.trash, counter.defId] }),
+    (o) => o,
+    [{ type: "counter_applied", seat: 0, defId: counter.defId, bonus: 2000 }],
+  );
   push(
     "Opponent draws",
     (y) => y,
@@ -82,14 +97,23 @@ export function motionDemoSteps(base: PlayerView): MotionDemoStep[] {
         { id: "demo-opp-play", defId: "ST01-006", power: 1000, printedPower: 1000, statusLabels: [] },
       ],
     }),
+    [{ type: "card_played", seat: 1, defId: "ST01-006", instanceId: "demo-opp-play", costPaid: 1 }],
   );
   push(
     "KO",
     (y) => y,
-    (o) => {
-      const ko = o.characters[0]!;
-      return { ...o, characters: o.characters.slice(1), trash: [...o.trash, ko.defId] };
-    },
+    (o) => ({ ...o, characters: o.characters.slice(1), trash: [...o.trash, o.characters[0]!.defId] }),
+    [{ type: "character_ko", seat: 1, defId: cur.opponent.characters[0]!.defId }],
+  );
+  push(
+    "Opponent trashes from deck",
+    (y) => y,
+    (o) => ({ ...o, deckCount: o.deckCount - 3, trash: [...o.trash, "ST01-009", "ST01-003", "ST01-005"] }),
+    [
+      { type: "card_moved", seat: 1, defId: "ST01-009", from: "deck", to: "trash" },
+      { type: "card_moved", seat: 1, defId: "ST01-003", from: "deck", to: "trash" },
+      { type: "card_moved", seat: 1, defId: "ST01-005", from: "deck", to: "trash" },
+    ],
   );
   push(
     "Opponent takes a life",

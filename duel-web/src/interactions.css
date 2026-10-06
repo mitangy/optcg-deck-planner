@@ -810,6 +810,77 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   }
 }
 
+/* Card spotlight (board/CardSpotlight.tsx): a played or trashed card shown
+   big over its owner's half, then dropped into its spot. Click-through, just
+   above the card motion layer and below prompts, the HUD and modals. */
+.card-spotlight-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  pointer-events: none;
+  overflow: hidden;
+}
+.card-spotlight-group {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  /* One card: up to 200px wide; several share the window width. */
+  --spot-w: min(200px, 34vw, 30dvh, calc((92vw - (var(--spot-n, 1) - 1) * 8px) / var(--spot-n, 1)));
+}
+.card-spotlight-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: var(--spot-w);
+  will-change: translate, scale, opacity;
+}
+.card-spotlight-art {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 600 / 838;
+  padding: 8px;
+  border-radius: 8px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6), 0 0 0 2px var(--chrome-bright, #f0dca8);
+  background: #0e1620;
+  color: var(--chrome-bright, #f0dca8);
+  font-size: 0.8rem;
+  text-align: center;
+}
+.card-spotlight-art img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.card-spotlight-label,
+.card-spotlight-more {
+  max-width: 100%;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(8, 14, 20, 0.92);
+  border: 1px solid var(--chrome, #d2a54d);
+  color: #f1e9d6;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.card-spotlight-more {
+  align-self: center;
+  flex: none;
+}
+
 /* —— Block step: Counter chips beside the Blockers skip the block —— */
 
 .defend-chips-sep {

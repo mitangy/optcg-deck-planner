@@ -23,6 +23,7 @@ import { AttackWarning, type AttackWarn } from "./AttackWarning";
 import { cantAttackReason } from "./attackBlock";
 import { useAttackAttempt } from "./useAttackAttempt";
 import { RevealOverlay, useOpponentReveals } from "./RevealOverlay";
+import { CardSpotlightLayer, useCardSpotlights } from "./CardSpotlight";
 import { describeMatchResult } from "./matchResult";
 import { CardTile } from "./CardTile";
 import {
@@ -607,6 +608,7 @@ export function DuelBoard({
   useIncomingAttackCue(attackKey, { sound: prefs.turnSound });
   // Same master Sounds toggle: a tick per opponent card use, a thud per Life lost.
   const reveals = useOpponentReveals(battleLog, previewOppSeat, !spectating && !over);
+  const spotlights = useCardSpotlights(battleLog, prefs.cardSpotlight && !over);
   useSoundCues(view, battleLog, previewOppSeat, {
     enabled: alertsOn,
     sound: prefs.turnSound,
@@ -2442,6 +2444,12 @@ export function DuelBoard({
         dimmed={promptOpenFor(view.pendingChoices?.[0], spectating ? null : mySeat, hiddenChoiceId)}
       />
       <BoardMotion view={view} />
+      <CardSpotlightLayer
+        batch={spotlights.current}
+        waiting={spotlights.waiting}
+        oppSeat={previewOppSeat}
+        onDone={spotlights.done}
+      />
       <DragGhost payload={ghostPayload} />
       <DragAttackArrow attackerId={dragPayload?.type === "attack" ? dragPayload.attackerId : null} />
       {popoverOpen && anchorCard ? (
