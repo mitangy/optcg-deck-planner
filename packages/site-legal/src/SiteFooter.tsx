@@ -6,11 +6,20 @@ export type FooterLinkProps = { to: string; className?: string; children: ReactN
 const ORDER: LegalKind[] = ["terms", "privacy", "cookies"];
 
 /**
- * Page-end footer: legal links plus the fan-project blurb. In flow at the end
+ * Page-end footer: legal links (and optional feedback button) plus the fan-project blurb. In flow at the end
  * of the page (never fixed), so it never covers controls. `Link` is the app's
  * router link so the legal pages open without a reload.
  */
-export function SiteFooter({ Link, className }: { Link: ComponentType<FooterLinkProps>; className?: string }) {
+export function SiteFooter({
+  Link,
+  className,
+  onFeedback,
+}: {
+  Link: ComponentType<FooterLinkProps>;
+  className?: string;
+  /** When set, a "Send feedback" button follows the legal links. */
+  onFeedback?: () => void;
+}) {
   return (
     <footer className={`site-footer${className ? ` ${className}` : ""}`}>
       <div className="site-footer-inner">
@@ -20,6 +29,11 @@ export function SiteFooter({ Link, className }: { Link: ComponentType<FooterLink
               {LEGAL_TITLES[kind]}
             </Link>
           ))}
+          {onFeedback ? (
+            <button type="button" className="site-footer-link site-footer-feedback" onClick={onFeedback}>
+              Send feedback
+            </button>
+          ) : null}
         </nav>
         <p className="site-footer-disclaimer">{FAN_DISCLAIMER}</p>
         <p className="site-footer-notice">{OWNERSHIP_NOTICE}</p>

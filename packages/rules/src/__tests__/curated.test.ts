@@ -20,18 +20,22 @@ describe("OP16-080 Marshall.D.Teach (Leader)", () => {
     h.hand(1, "ST01-014");
     h.attack(h.state.players[0].leader, "leader");
     expect(h.choice?.seat).toBe(1);
-    h.accept(1);
+    h.accept(1).forced();
     h.pick(bb!.id);
     expect(h.state.battle?.target).toEqual({ kind: "character", instanceId: bb!.id });
     expect(h.state.players[1].trash).toContain("ST01-014");
   });
 
-  it("offers nothing without a [Trigger] card in hand", () => {
+  it("without a [Trigger] card in hand the cost prompt is still asked, but only declining is legal (#369)", () => {
     const h = new Harness({ leaders: ["ST01-001", "OP16-080"] });
     h.hand(1, FILLER);
     h.attack(h.state.players[0].leader, "leader");
-    expect(h.choice).toBeUndefined();
+    expect(h.choice).toMatchObject({ seat: 1, unpayable: true });
+    expect(h.legal(1)).toEqual([{ type: "resolve_pending_choice", accept: false }]);
+    expect(h.try(1, { type: "resolve_pending_choice", accept: true }).ok).toBe(false);
+    h.decline(1);
     expect(h.state.phase).toBe("block");
+    expect(h.state.battle?.target).toEqual({ kind: "leader" });
   });
 });
 
@@ -165,7 +169,7 @@ describe("OP17-001 Edward.Newgate (Leader)", () => {
     const h = new Harness({ leaders: ["ST01-001", "OP17-001"] });
     h.hand(1, FILLER);
     h.attack(h.state.players[0].leader, "leader");
-    h.accept(1);
+    h.accept(1).forced();
     h.pick(h.state.players[1].leader.defId);
     expect(h.view(1).you.leader.power).toBe(9000);
     h.passBattle();
@@ -219,7 +223,7 @@ describe("OP17-040 (Once Per Turn \"you may\" on leader attacked)", () => {
     expect(used()).toBeUndefined();
     h.attack(attacker!, "leader");
     expect(h.choice?.cardDefId).toBe("OP17-040");
-    h.accept(1);
+    h.accept(1).forced();
     h.pick(FILLER);
     expect(h.view(1).you.leader.power).toBe(8000);
     expect(used()).toBe(h.state.turnNumber);
@@ -232,7 +236,7 @@ describe("OP17-039 Rocks.D.Xebec (Leader)", () => {
     h.hand(0, FILLER);
     h.deckTop(0, "OP17-040");
     h.attack(h.state.players[0].leader, "leader");
-    h.accept(0);
+    h.accept(0).forced();
     expect(h.state.players[0].hand.length).toBe(2);
   });
 
@@ -241,7 +245,7 @@ describe("OP17-039 Rocks.D.Xebec (Leader)", () => {
     h.hand(0, FILLER);
     h.deckTop(0, FILLER);
     h.attack(h.state.players[0].leader, "leader");
-    h.accept(0);
+    h.accept(0).forced();
     expect(h.state.players[0].hand.length).toBe(0);
   });
 });

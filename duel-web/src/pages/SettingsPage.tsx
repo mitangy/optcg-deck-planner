@@ -29,6 +29,7 @@ import {
 import { useDuelSession } from "../state/DuelSession";
 import { THEMES, type ColorMode } from "../theme";
 import { VersionStatus } from "../VersionStatus";
+import { openFeedback } from "../feedbackDialog";
 import { AnalystLinkPanel } from "../history/AnalystLinkPanel";
 import "../history/history.css";
 
@@ -432,6 +433,11 @@ export function SettingsPage() {
             progress.
           </p>
           <VersionStatus actions />
+          <div className="about-feedback">
+            <button type="button" className="btn btn-ghost btn-sm about-feedback-btn" onClick={() => openFeedback("Send feedback")}>
+              Send feedback
+            </button>
+          </div>
         </section>
         </div>
         </div>

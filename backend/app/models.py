@@ -628,6 +628,33 @@ class CardReport(Base):
     )
 
 
+class Feedback(Base):
+    """A "Report a problem" / "Send feedback" message from the planner or duel-web."""
+
+    __tablename__ = "feedback"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # bug | idea | other
+    kind: Mapped[str] = mapped_column(String(16))
+    message: Mapped[str] = mapped_column(Text)
+    # duel | planner
+    app: Mapped[str] = mapped_column(String(16))
+    # Path only (no query string), e.g. /demo.
+    page: Mapped[str] = mapped_column(String(200), default="")
+    client_build: Mapped[str] = mapped_column(String(40), default="")
+    viewport: Mapped[str] = mapped_column(String(32), default="")
+    user_agent: Mapped[str] = mapped_column(String(300), default="")
+    room_id: Mapped[str] = mapped_column(String(64), default="")
+    # Null for anonymous senders (no session cookie and no game token).
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class DuelUserSettings(Base):
     """A signed-in player's duel-web settings, shared by every device they use.
 

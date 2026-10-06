@@ -56,6 +56,27 @@ export function fanPosForDrop(
   };
 }
 
+/**
+ * The spot to save for a spectator's far fan (the one hanging from the top of
+ * the board), dropped with its centre at `centreX` and its bottom edge at
+ * `bottom`, `height` tall. Its default spot is the strip along the top of the
+ * board (`matTop`, centred on `defaultCentreX`): dropped with its top edge and
+ * centre near it, it goes back there; anywhere else it stays where it was
+ * dropped (it never snaps to the bottom edge, which would hide the board).
+ */
+export function farFanPosForDrop(
+  centreX: number,
+  bottom: number,
+  height: number,
+  vp: Viewport,
+  matTop: number,
+  defaultCentreX: number,
+): FanPos | null {
+  const top = bottom - height;
+  if (Math.abs(centreX - defaultCentreX) <= FAN_SNAP_PX && Math.abs(top - matTop) <= FAN_SNAP_PX) return null;
+  return { x: clamp01(centreX / vp.width), y: clamp01(bottom / vp.height) };
+}
+
 /** Arrow keys on the grip: a small step, leaving the bottom edge on Up. */
 export function nudgeFanPos(
   pos: FanPos,

@@ -38,6 +38,7 @@ export function DuelPage() {
     timer,
     chat,
     sendChat,
+    sendHandOrder,
     undo,
     sendUndo,
     awayUntil,
@@ -121,8 +122,10 @@ export function DuelPage() {
         timer={timer}
         spectator={role === "spectator" || Boolean(view?.spectator)}
         battleLog={battleLog}
+        vsHuman
         chat={{ lines: chat, onSend: sendChat }}
         onConcede={connected && role === "player" ? () => concede() : undefined}
+        onHandOrder={connected && role === "player" ? sendHandOrder : undefined}
         undo={role === "player" ? { state: undo, onAction: sendUndo } : undefined}
         onSendIntent={sendIntent}
         rematch={role === "player" ? { state: rematch, onAction: sendRematch } : undefined}

@@ -370,6 +370,44 @@ test("the right rail and the preview divider drag to resize, stay after a reload
   expect(duel.errors).toEqual([]);
 });
 
+// Dragging a divider or a column edge to its end must not squash a panel under its content:
+// Turn and clocks painted its Life / Hand / Deck / DON!! rows over Actions (#370).
+test("Turn and clocks keeps its content height and its column its width when dragged to the end (#370)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "side panels resize on desktop only");
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const drag = async (selector: string, dx: number, dy: number, offsetX = 0) => {
+    const box = (await page.locator(selector).boundingBox())!;
+    const x = box.x + (offsetX || box.width / 2);
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + dx, y + dy, { steps: 8 });
+    await page.mouse.up();
+  };
+  const turn = () =>
+    page.$eval('[data-panel="turn"]', (el) => ({
+      h: el.getBoundingClientRect().height,
+      content: el.scrollHeight,
+      w: el.getBoundingClientRect().width,
+      contentW: el.scrollWidth,
+    }));
+  const natural = (await turn()).content;
+
+  await drag('[role="separator"][aria-label="Resize Turn and clocks and Actions"]', 0, -900, 12);
+  await page.waitForTimeout(300);
+  const squeezed = await turn();
+  expect(squeezed.h).toBeGreaterThanOrEqual(natural - 1);
+  expect(squeezed.content).toBeLessThanOrEqual(Math.ceil(squeezed.h));
+
+  // The column edge dragged as far as it goes keeps the Turn panel's stats readable.
+  await drag(".col-resize-right", 900, 0);
+  const w = (await page.locator('[data-panel-col="right"]').boundingBox())!.width;
+  expect(w).toBeGreaterThanOrEqual(250);
+  const narrow = await turn();
+  expect(narrow.contentW).toBeLessThanOrEqual(Math.ceil(narrow.w));
+});
+
 // Phones and landscape phones have no side columns to resize.
 test("phones show no panel resize handles (#347)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "the phone project only");

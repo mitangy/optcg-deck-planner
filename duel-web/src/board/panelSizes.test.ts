@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   clampColumnWidth,
+  columnMinPx,
+  panelMinHeight,
   nudgeColumnWidth,
   parsePanelSizes,
   serializePanelSizes,
@@ -57,5 +59,28 @@ describe("panel sizes (#347)", () => {
 
   it("moves nothing when the two minimums do not fit (#347)", () => {
     expect(splitHeights(100, 100, 30, 150, 72)).toEqual([100, 100]);
+  });
+
+  it("a column is never narrower than the widest panel in it (#370)", () => {
+    expect(columnMinPx(["preview", "recent", "log"])).toBe(200);
+    expect(columnMinPx(["oppHand", "turn", "hand"])).toBe(250);
+    expect(columnMinPx([])).toBe(180);
+    expect(clampColumnWidth(100, 1440, 250)).toBe(250);
+    expect(clampColumnWidth(300, 1440, 250)).toBe(300);
+    expect(nudgeColumnWidth(260, false, 1440, 250)).toBe(250);
+  });
+
+  it("a content-sized panel keeps its natural height in a split, the others only their floor (#370)", () => {
+    expect(panelMinHeight("turn", 0, 250)).toBe(250);
+    expect(panelMinHeight("turn", 0, 40)).toBe(72);
+    expect(panelMinHeight("log", 0, 500)).toBe(96);
+    expect(panelMinHeight("preview", 0, 0)).toBe(140);
+    expect(panelMinHeight("log", 200, 0)).toBe(200);
+    const minTurn = panelMinHeight("turn", 0, 250);
+    // Dragging the Turn / Actions divider fully up: Turn is above, Actions below.
+    expect(splitHeights(300, 200, -900, minTurn, 72)).toEqual([250, 250]);
+    expect(splitHeights(300, 200, -900, 72, 72)).toEqual([72, 428]);
+    // Dragging the divider above Turn fully down: Turn is below.
+    expect(splitHeights(300, 300, 900, 72, minTurn)).toEqual([350, 250]);
   });
 });

@@ -1148,11 +1148,24 @@
   min-height: 0;
 }
 
+/* Minimum heights (kept in step with PANEL_MIN_HEIGHT_PX in panelSizes.ts), so a
+   saved share on a short window never squashes a panel into its neighbour. The
+   content-sized panels never go under what their content needs. */
+.arena.arena-wide .board-panel[data-panel="turn"],
+.arena.arena-wide .board-panel[data-panel="oppHand"] {
+  min-height: min-content;
+}
+
+.arena.arena-wide .board-panel[data-panel="recent"],
+.arena.arena-wide .board-panel[data-panel="actions"] {
+  min-height: 4.5rem;
+}
+
 /* Fixed share, so a long ability never moves the panels below it. It only
    gives way (down to a third) when the Grid hand shares its column. */
 .arena.arena-wide .board-panel[data-panel="preview"] {
   flex: 0 1 var(--preview-h, 52%);
-  min-height: 33%;
+  min-height: max(33%, 140px);
 }
 
 .arena.arena-wide .board-panel[data-panel="log"],
@@ -1617,7 +1630,8 @@ body.is-panel-drag * {
 
 .turn-player-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Never narrower than the label, so HAND and DECK cannot run together. */
+  grid-template-columns: repeat(4, minmax(min-content, 1fr));
   gap: 0.25rem;
   margin: 0.35rem 0 0;
 }
@@ -5194,9 +5208,127 @@ body.is-panel-drag * {
   font-size: 0.75rem;
 }
 
-/* The near fan is a label, not a control: no hover or focus ring. */
-.hand-fan .hand-fan-label {
-  cursor: default;
+/* The hand label (HandLabel.tsx): one pill for the near and the far fan in every
+   layout, so font, padding and colours match. Only its spot differs, by layout:
+   desktop pins both to the board column's top-left corner of their fan (the
+   same x), portrait phones centre both, landscape phones left-align both. */
+.hand-label-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.hand-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  min-height: 1.75rem;
+  padding: 0 0.6rem;
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgb(var(--deep-rgb) / 0.92);
+  color: var(--chrome-bright);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hand-label-name {
+  min-width: 0;
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hand-label-count {
+  flex: 0 0 auto;
+  font-weight: 800;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Desktop, default spots: the label hangs in the top-left corner of the board
+   column (the playmat's 8px padding + 0.5rem), in the near fan's box and in
+   the far fan's strip alike. */
+.hand-fan-center.hand-fan-spec .hand-fan-head {
+  position: absolute;
+  /* The whole box, not the grid's first column inside its padding. */
+  grid-column: auto;
+  grid-row: auto;
+  left: calc(8px + 0.5rem);
+  top: 0;
+}
+
+.hand-fan-spec .hand-fan-head {
+  pointer-events: auto;
+}
+
+/* Moved fans: the label sits above the cards, over their left edge. */
+.hand-fan-free.hand-fan-spec .hand-fan-head {
+  align-self: flex-start;
+}
+
+.arena .spec-far .hand-label-head {
+  position: absolute;
+  z-index: 4;
+  left: 0.5rem;
+  top: calc(var(--hint-h) - var(--fan-ch));
+}
+
+/* Grip beside it: the cards keep clear of the label and grip on both sides. */
+.arena .spec-far {
+  --spec-head-room: 9rem;
+}
+
+.arena .spec-far.has-grip {
+  --spec-head-room: 11.4rem;
+}
+
+/* A moved far fan: the board gets its strip back, and the fan floats over it,
+   fully shown, with the label above the cards (like a moved near fan). */
+.arena.arena-spec-top.arena-wide.arena-spec-far-free .playmat {
+  --hint-h: 0px;
+}
+
+.arena .spec-far.spec-far-float {
+  --fan-w: calc(var(--fan-cw) * (var(--spec-spread) * (var(--n) - 1) + 1) + var(--fan-cw) * 0.7);
+  position: fixed;
+  z-index: 16;
+  left: clamp(0px, calc(var(--fan-x) * 100vw - var(--fan-w) / 2), calc(100vw - var(--fan-w)));
+  bottom: clamp(
+    0px,
+    calc((1 - var(--fan-y)) * 100dvh),
+    calc(100dvh - var(--fan-ch) * 1.15 - 2.4rem - 3.75rem)
+  );
+  width: var(--fan-w);
+  max-width: 100vw;
+  height: auto;
+  box-sizing: border-box;
+  padding-inline: calc(var(--fan-cw) * 0.35);
+  padding-bottom: calc(var(--fan-ch) * 0.1);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.arena .spec-far.spec-far-float .hand-label-head {
+  position: static;
+}
+
+.arena .spec-far.spec-far-float .spec-far-cards {
+  width: 100%;
+  /* Room for the outer cards, which sit higher than the middle one. */
+  margin-top: calc(var(--fan-ch) * 0.11);
+}
+
+.arena .spec-far.is-moving {
+  z-index: 92;
 }
 
 /* Portrait phones: a strip above the top mat, smaller than the near one. */
@@ -5232,7 +5364,7 @@ body.is-panel-drag * {
   box-sizing: border-box;
   height: var(--fan-ch);
   /* Room for the leaning outer cards, and for the label beside the cards. */
-  width: min(calc(100% - 2 * 8.6rem), calc(var(--fan-cw) * (var(--spec-spread) * (var(--n) - 1) + 1)));
+  width: min(calc(100% - 2 * var(--spec-head-room)), calc(var(--fan-cw) * (var(--spec-spread) * (var(--n) - 1) + 1)));
   margin-top: calc(var(--hint-h) - var(--fan-ch));
   --fan-gap: 0.5rem;
 }
@@ -5259,34 +5391,6 @@ body.is-panel-drag * {
   transform: translateY(calc(var(--drop, 0) * var(--fan-ch) * -1 + 12px)) rotate(calc(var(--rot, 0deg) * -1));
 }
 
-.arena .spec-far-label {
-  position: absolute;
-  left: 0.5rem;
-  top: calc(var(--hint-h) - var(--fan-ch));
-  max-width: 8rem;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-height: 1.75rem;
-  padding: 0 0.6rem;
-  box-sizing: border-box;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  background: rgb(var(--deep-rgb) / 0.92);
-  color: var(--chrome-bright);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.arena .spec-far-label b {
-  font-weight: 800;
-}
-
 /* Portrait phones: full-width overlapped strip, like the near one. */
 .arena .spec-far-portrait .spec-far-cards {
   width: 100%;
@@ -5294,18 +5398,24 @@ body.is-panel-drag * {
   --fan-gap: 0.4rem;
 }
 
-/* The label sits between the Chat button and the Battle log pill. */
-.arena .spec-far-portrait .spec-far-label {
+/* Portrait phones: both labels are centred over their strip. The far one sits
+   between the Chat button and the Battle log pill. */
+.arena .spec-far-portrait .hand-label-head {
   left: 50%;
   top: 0.35rem;
   transform: translateX(-50%);
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font-size: 0.62rem;
   max-width: 40%;
+}
+
+.arena .spec-far-portrait .hand-label,
+.arena .hand-rail-head-spec .hand-label {
+  min-height: 1.5rem;
+  padding: 0 0.55rem;
+  font-size: 0.66rem;
+}
+
+.arena .hand-rail-head-spec {
+  justify-content: center;
 }
 
 .arena .spec-far-portrait .spec-far-cards.spec-far-scroll {
@@ -5340,15 +5450,21 @@ body.is-panel-drag * {
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent);
 }
 
-.arena .spec-far-landscape .spec-far-label {
+/* Landscape phones: both labels sit at the left of the column. */
+.arena .spec-far-landscape .hand-label-head {
   position: static;
-  max-width: none;
-  min-height: 0;
   padding: 0 0.5rem;
-  border: 0;
-  background: none;
-  color: var(--muted);
+}
+
+.arena .spec-far-landscape .hand-label,
+.arena .rail-hand-fan > .hand-label-head .hand-label {
+  min-height: 1.3rem;
+  padding: 0 0.5rem;
   font-size: 0.62rem;
+}
+
+.arena .rail-hand-fan > .hand-label-head {
+  padding: 0.2rem 0.5rem 0;
 }
 
 .arena .spec-far-landscape .spec-far-cards {

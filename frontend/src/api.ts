@@ -20,6 +20,11 @@ const API_URL =
       : "http://localhost:8000"
     : "/api");
 
+/** Where the API lives for this page (same-origin /api in production). */
+export function getApiBaseUrl(): string {
+  return API_URL;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: HeadersInit = {
     ...(init?.headers || {}),

@@ -462,10 +462,19 @@ describe("DuelRoom", () => {
     spec.onMessage("welcome", (msg: SpecWelcome) => {
       welcome = msg;
     });
-    spec.onMessage("error", () => {});
+    const specViews: SpecWelcome["view"][] = [];
+    const specErrors: { code: string; message: string }[] = [];
+    spec.onMessage("view", (msg: { view: SpecWelcome["view"] }) => {
+      specViews.push(msg.view);
+    });
+    spec.onMessage("error", (msg: { code: string; message: string }) => {
+      specErrors.push(msg);
+    });
     spec.send("sync", { protocolVersion: PROTOCOL_VERSION });
-    await waitUntil(() => welcome != null, 8000);
-    return { welcome: welcome!, bags };
+    await waitUntil(() => welcome != null && specViews.length > 0, 8000);
+    // Views from here on are updates, not the join's own.
+    specViews.length = 0;
+    return { welcome: welcome!, bags, room, c0, c1, spec, specViews, specErrors };
   }
 
   it("allows a spectator with public view and empty hands", async () => {
@@ -489,6 +498,73 @@ describe("DuelRoom", () => {
     const { welcome } = await watchRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() });
     assert.equal(welcome.view.revealedHands, undefined);
     assert.deepEqual(welcome.view.you.hand, []);
+  });
+
+  const handIds = (hand: { id: string }[] | undefined) => (hand ?? []).map((c) => c.id);
+
+  it("a player's hand_order reorders the hands spectators see, and the other player is unaffected (#346)", async () => {
+    const { welcome, bags, c0, specViews } = await watchRoom({});
+    const engine = handIds(welcome.view.revealedHands?.[0]);
+    const mine = bags[0].welcome!.you.hand.map((c) => c.id);
+    assert.deepEqual(engine, mine);
+    const reversed = [...engine].reverse();
+    const seatOneBefore = handIds(welcome.view.revealedHands?.[1]);
+    const opponentViews = bags[1].views.length;
+    c0.send("hand_order", { ids: reversed });
+    await waitUntil(() => handIds(specViews.at(-1)?.revealedHands?.[0]).join() === reversed.join(), 5000);
+    // The other hand is untouched, and a new spectator joining later sees the order too.
+    assert.deepEqual(handIds(specViews.at(-1)?.revealedHands?.[1]), seatOneBefore);
+    // Nothing about it reaches the other player.
+    await new Promise((r) => setTimeout(r, 200));
+    assert.equal(bags[1].views.length, opponentViews);
+    assert.deepEqual(bags[1].views.at(-1)!.you.hand.map((c) => c.id), seatOneBefore);
+  });
+
+  it("hand_order ids not in the sender's hand are ignored, and cards left out keep engine order at the end (#346)", async () => {
+    const { welcome, bags, c0, c1, specViews } = await watchRoom({});
+    const engine = handIds(welcome.view.revealedHands?.[0]);
+    const theirs = handIds(welcome.view.revealedHands?.[1]);
+    // Seat 0 names one of seat 1's cards and an invented id, plus only two of its own cards.
+    c0.send("hand_order", { ids: [theirs[0]!, "no-such-card", engine[3]!, engine[1]!] });
+    await waitUntil(() => specViews.length > 0, 5000);
+    const shown = handIds(specViews.at(-1)!.revealedHands?.[0]);
+    assert.deepEqual(shown, [engine[3], engine[1], engine[0], engine[2], engine[4]]);
+    assert.deepEqual(handIds(specViews.at(-1)!.revealedHands?.[1]), theirs);
+    assert.deepEqual(bags[0].errors, []);
+    void c1;
+  });
+
+  it("a spectator cannot send hand_order, and a malformed one is a protocol error (#346)", async () => {
+    const { welcome, bags, c0, spec, specViews, specErrors } = await watchRoom({});
+    const engine = handIds(welcome.view.revealedHands?.[0]);
+    spec.send("hand_order", { ids: [...engine].reverse() });
+    await waitUntil(() => specErrors.length > 0, 5000);
+    assert.equal(specErrors[0]!.code, "unauthorized");
+    assert.equal(specViews.length, 0, "no new view for a rejected order");
+    c0.send("hand_order", { ids: "nope" });
+    c0.send("hand_order", { ids: Array.from({ length: 101 }, (_, i) => `c${i}`) });
+    c0.send("hand_order", { ids: ["x".repeat(65)] });
+    await waitUntil(() => bags[0].errors.length >= 3, 5000);
+    assert.deepEqual(bags[0].errors.map((e) => e.code), ["bad_protocol", "bad_protocol", "bad_protocol"]);
+    assert.equal(specViews.length, 0);
+  });
+
+  it("an unchanged hand_order does not resend the spectator view (#346)", async () => {
+    const { welcome, c0, specViews } = await watchRoom({});
+    const reversed = handIds(welcome.view.revealedHands?.[0]).reverse();
+    c0.send("hand_order", { ids: reversed });
+    await waitUntil(() => specViews.length === 1, 5000);
+    c0.send("hand_order", { ids: reversed });
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(specViews.length, 1);
+  });
+
+  it("a ranked room keeps hands hidden whatever hand_order says (#346)", async () => {
+    const { welcome, bags, c0, specViews } = await watchRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() });
+    c0.send("hand_order", { ids: bags[0].welcome!.you.hand.map((c) => c.id).reverse() });
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(specViews.length, 0);
+    assert.equal(welcome.view.revealedHands, undefined);
   });
 
   it("ranked_queue pairs two clients into a duel room id", async () => {
@@ -592,7 +668,8 @@ describe("DuelRoom", () => {
     assert.deepEqual(bag.errors.map((e) => e.code), ["opponent_no_show"]);
   });
 
-  it("relays cosmetics artPrefs between seats", async () => {
+  it("relays cosmetics only for cards already public to the other seat and spectators (#369)", async () => {
+    type Cos = { seat: number; artPrefs: Record<string, string> };
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 7,
@@ -619,18 +696,37 @@ describe("DuelRoom", () => {
     await syncSeat(c0, bags[0]);
     await syncSeat(c1, bags[1]);
 
+    // A leader is public from the start; the other card sits unseen in seat 0's deck or hand.
+    const hidden = "ST01-006";
+    assert.ok(!internals(room).match.players[0].trash.includes(hidden));
     c0.send("cosmetics", {
       protocolVersion: PROTOCOL_VERSION,
-      artPrefs: { "ST01-006": "p1" },
+      artPrefs: { "ST01-001": "leaderAlt", [hidden]: "p1" },
     });
+    await waitUntil(() => cosmetics[0].some((m) => m.seat === 0) && cosmetics[1].some((m) => m.seat === 0), 5000);
+    assert.deepEqual(cosmetics[0].find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt", [hidden]: "p1" });
+    assert.deepEqual(cosmetics[1].find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt" });
 
-    await waitUntil(
-      () => cosmetics[0].some((m) => m.seat === 0 && m.artPrefs["ST01-006"] === "p1")
-        && cosmetics[1].some((m) => m.seat === 0 && m.artPrefs["ST01-006"] === "p1"),
-      5000,
-    );
+    // A spectator joining later gets the same filtered map.
+    const specCos: Cos[] = [];
+    const spec = await colyseus.connectTo(room, {
+      protocolVersion: PROTOCOL_VERSION,
+      devUserId: "watcher",
+      role: "spectator",
+      preferredSeat: 0,
+    });
+    spec.onMessage("cosmetics", (msg: Cos) => specCos.push(msg));
+    spec.onMessage("error", () => {});
+    spec.send("sync", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => specCos.some((m) => m.seat === 0), 5000);
+    assert.deepEqual(specCos.find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt" });
 
-    assert.equal(cosmetics[1].find((m) => m.seat === 0)!.artPrefs["ST01-006"], "p1");
+    // Once the card is played face-up, everyone gets the entry.
+    (room as unknown as { broadcastViews(e: unknown[]): void }).broadcastViews([
+      { type: "card_played", seat: 0, defId: hidden, instanceId: "x", costPaid: 0 },
+    ]);
+    await waitUntil(() => cosmetics[1].some((m) => m.seat === 0 && m.artPrefs[hidden] === "p1"), 5000);
+    await waitUntil(() => specCos.some((m) => m.seat === 0 && m.artPrefs[hidden] === "p1"), 5000);
 
     await c0.leave(true);
     await c1.leave(true);
@@ -1093,6 +1189,63 @@ describe("DuelRoom", () => {
     await waitUntil(() => applied.length === 1, 5000);
 
     assert.ok(internals(room).replay!.intents.length < atTurnStart + 1);
+    assertReplayRebuilds(room);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("an accepted undo re-seeds the rng instead of restoring it, and the replay still rebuilds (#369)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 53,
+      autoSkipMulligan: true,
+    });
+    Object.assign(room, { freshSeed: () => 777_001 });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const applied: unknown[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("undo_applied", (msg: unknown) => applied.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    const active = bags[0].views.at(-1)!.activeSeat;
+    const clients: [ClientRoom, ClientRoom] = [c0, c1];
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).match.activeSeat !== active, 5000);
+    const atTurnStart = internals(room).replay!.intents.length;
+    const next = (1 - active) as 0 | 1;
+    await waitUntil(() => bags[next].views.at(-1)!.activeSeat === next, 5000);
+    clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).replay!.intents.length > atTurnStart, 5000);
+    clients[active].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await new Promise((r) => setTimeout(r, 50));
+    clients[next].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
+    await waitUntil(() => applied.length === 1, 5000);
+
+    assert.equal(internals(room).match.rng.seed, 777_001);
+    assert.deepEqual(internals(room).replay!.reseeds, [{ atIntent: atTurnStart, seed: 777_001, shuffleDecks: true }]);
+    // Both players saw their next draws, so the decks are reshuffled: same cards, new order.
+    const snapped = JSON.parse((room as unknown as { turnSnapshots: { match: string }[] }).turnSnapshots.at(-1)!.match) as MatchState;
+    for (const seat of [0, 1] as const) {
+      const now = internals(room).match.players[seat];
+      const was = snapped.players[seat];
+      assert.deepEqual([...now.zoneInstanceIds.deck].sort(), [...was.zoneInstanceIds.deck].sort());
+      assert.notDeepEqual(now.zoneInstanceIds.deck, was.zoneInstanceIds.deck);
+      assert.deepEqual(now.life, was.life);
+      assert.equal(now.deck.length, now.zoneInstanceIds.deck.length);
+    }
+    // The game goes on from the new seed and the recording still rebuilds it.
+    const moved = internals(room).replay!.intents.length;
+    clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).replay!.intents.length > moved, 5000);
+    assert.equal(internals(room).match.rng.seed, 777_001);
     assertReplayRebuilds(room);
 
     await c0.leave(true);
