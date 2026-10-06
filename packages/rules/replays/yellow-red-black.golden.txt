@@ -40,7 +40,7 @@ Seat 1 leader: Koby (OP11-001)
 > #8 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
   Seat 0 attacks Leader (7000 vs 5000)
   Seat 0 activates Kalgara's ability
-  Seat 0 may resolve Kalgara's effect (Kalgara — no card to play. Confirm to continue.)
+  Seat 0 may resolve Kalgara's effect (Kalgara — No card to play. Confirm to continue.)
 
 > #9 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
   Seat 0 accepts Kalgara's effect
@@ -186,7 +186,7 @@ Seat 1 leader: Koby (OP11-001)
 > #47 seat 0 declare_attack {"attackerId":"leader_1","target":{"kind":"leader"}}
   Seat 0 attacks Leader (6000 vs 5000)
   Seat 0 activates Kalgara's ability
-  Seat 0 may resolve Kalgara's effect (Kalgara — no card to play. Confirm to continue.)
+  Seat 0 may resolve Kalgara's effect (Kalgara — No card to play. Confirm to continue.)
 
 > #48 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
   Seat 0 accepts Kalgara's effect

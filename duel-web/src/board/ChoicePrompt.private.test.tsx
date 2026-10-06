@@ -23,7 +23,7 @@ const emptyPick: PendingChoiceView = {
   kind: "effect",
   cardDefId: "ST01-003",
   optional: false,
-  prompt: "Karoo — no card to play. Confirm to continue.",
+  prompt: "Karoo — No card to play. Confirm to continue.",
   request: { type: "select", min: 0, max: 0, options: [] },
   privateToSeat: 0,
 };

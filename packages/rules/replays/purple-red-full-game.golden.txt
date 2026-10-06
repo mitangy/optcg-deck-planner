@@ -56,7 +56,7 @@ Seat 1 leader: Trafalgar Law (ST10-001)
 > #11 seat 1 play_card {"handIndex":1}
   Seat 1 plays Little Sadi (rests 3 DON!!)
   Seat 1 activates Little Sadi's ability
-  Seat 1 may resolve Little Sadi's effect (Little Sadi — no card to play. Confirm to continue.)
+  Seat 1 may resolve Little Sadi's effect (Little Sadi — No card to play. Confirm to continue.)
 
 > #12 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
   Seat 1 accepts Little Sadi's effect
@@ -493,7 +493,7 @@ Seat 1 leader: Trafalgar Law (ST10-001)
 
 > #122 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0","o1"]}
   Seat 0 accepts Daifugo's effect
-  Seat 0 may resolve Daifugo's effect (Daifugo — no card to play. Confirm to continue.)
+  Seat 0 may resolve Daifugo's effect (Daifugo — No card to play. Confirm to continue.)
 
 > #123 seat 0 resolve_pending_choice {"accept":true,"selectedOptionIds":[]}
   Seat 0 accepts Daifugo's effect
