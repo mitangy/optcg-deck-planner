@@ -91,6 +91,8 @@ export type DuelSettings = {
   cantAttackWarning: boolean;
   /** The "cannon shot" arc from the attacker to its target during a battle. */
   battleArrow: boolean;
+  /** Desktop card preview: only the card, as big as fits (on), or a smaller card with its stat icons and text (off). */
+  previewBigCard: boolean;
   /**
    * Desktop: the opponent's hand pinned above the playmat ("left", "centre" or
    * "right") instead of in its side panel; "" keeps it in the panel. Phones
@@ -144,6 +146,7 @@ const DEFAULTS: DuelSettings = {
   handCounters: true,
   cantAttackWarning: true,
   battleArrow: true,
+  previewBigCard: false,
   oppHandSpot: "",
   textSize: "medium",
   tiltedBoard: false,

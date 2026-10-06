@@ -18,6 +18,7 @@ export type ToggleKey =
   | "handCounters"
   | "cantAttackWarning"
   | "battleArrow"
+  | "previewBigCard"
   | "oppHandTopRight"
   | "tiltedBoard"
   | "turnSplash"
@@ -38,6 +39,8 @@ export function showOrientation(d: FieldDevice): boolean {
 export function toggleShown(key: ToggleKey, d: FieldDevice): boolean {
   if (key === "tiltedBoard") return d.tiltFits;
   if (key === "layoutGrips") return d.desktop;
+  // The card preview panel is the desktop side column; phones don't show it.
+  if (key === "previewBigCard") return d.desktop;
   // The tucked-away fan / corner dock only exists on desktop windows.
   if (key === "keepHandOpen") return d.desktop;
   // Key tabs are only drawn with a mouse and keyboard.

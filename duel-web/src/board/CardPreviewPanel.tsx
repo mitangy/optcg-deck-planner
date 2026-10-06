@@ -7,11 +7,31 @@ import { CardInspect } from "./CardInspect";
 import { inspectOnContextMenu } from "./inspectGestures";
 import { useMoreBelow } from "./scrollCue";
 import { LiveCardStatus } from "./LiveCardStatus";
-import { counterValueFor, formatCounter } from "../cards/counterValue";
+import { useDuelSettings } from "../settings";
+import { parsePreviewText } from "./previewText";
+import { PreviewBadges } from "./PreviewBadges";
+
+/** Effect text with its [On Play] / [Counter] / [DON!! x1] tags drawn as chips. */
+function EffectText({ text }: { text: string }) {
+  return (
+    <>
+      {parsePreviewText(text).map((seg, i) =>
+        seg.type === "chip" ? (
+          <span key={i} className={`kw-chip kw-${seg.kind}`}>
+            {seg.text}
+          </span>
+        ) : (
+          <span key={i}>{seg.text}</span>
+        ),
+      )}
+    </>
+  );
+}
 
 /** Large art + ability text for the last hovered card (wide layouts only). */
 export function CardPreviewPanel() {
   const preview = usePreviewCard();
+  const big = useDuelSettings().previewBigCard;
   const [failed, setFailed] = useState<string | null>(null);
   const [inspectOpen, setInspectOpen] = useState(false);
   const metaRef = useRef<HTMLDivElement | null>(null);
@@ -32,61 +52,75 @@ export function CardPreviewPanel() {
     ownerSeat: preview.ownerSeat,
     size: "large",
   });
+  const art =
+    src && src !== failed ? (
+      <img
+        className="card-preview-img"
+        src={src}
+        alt={entry.name}
+        onError={() => setFailed(src)}
+        onLoad={(e) => {
+          if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) setFailed(src);
+        }}
+        onContextMenu={openInspect}
+      />
+    ) : (
+      <div className="card-preview-placeholder" onContextMenu={openInspect}>
+        {entry.id}
+      </div>
+    );
   const effect = entry.effectText?.trim() ?? "";
-  const cv = counterValueFor(entry);
-  const stats = [
-    entry.type ? entry.type[0]!.toUpperCase() + entry.type.slice(1) : null,
-    `Cost ${entry.cost}`,
-    entry.power != null ? `${entry.power} power` : null,
-    cv && !cv.effectOnly ? `${formatCounter(cv)} counter` : null,
-    entry.life != null ? `${entry.life} life` : null,
-  ].filter(Boolean);
-
   return (
     <aside
-      className="card-preview"
+      className={`card-preview ${big ? "card-preview-big" : "card-preview-compact"}`}
       aria-label="Card preview"
       aria-live="polite"
     >
-      {src && src !== failed ? (
-        <img
-          className="card-preview-img"
-          src={src}
-          alt={entry.name}
-          onError={() => setFailed(src)}
-          onLoad={(e) => {
-            if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) setFailed(src);
-          }}
-          onContextMenu={openInspect}
-        />
-      ) : (
-        <div className="card-preview-placeholder" onContextMenu={openInspect}>
-          {entry.id}
+      {big ? (
+        <div className="card-preview-stage">
+          {art}
+          {preview.caption ? <p className="card-preview-caption card-preview-caption-big">{preview.caption}</p> : null}
+          {preview.live ? (
+            <LiveCardStatus
+              live={preview.live}
+              atlasPower={entry.power}
+              atlasCost={entry.cost}
+              className="card-preview-live card-preview-live-big"
+            />
+          ) : null}
         </div>
+      ) : (
+        <>
+          <div className="card-preview-head">
+            {art}
+            <div className="card-preview-headtext">
+              {preview.caption ? <p className="card-preview-caption">{preview.caption}</p> : null}
+              <h2 className="card-preview-name">{entry.name}</h2>
+              {entry.traits?.length ? (
+                <p className="card-preview-traits">{entry.traits.join(" / ")}</p>
+              ) : null}
+            </div>
+          </div>
+          <PreviewBadges entry={entry} />
+          <div
+            className={`card-preview-meta${scrollCue.more ? " has-more" : ""}`}
+            ref={metaRef}
+            onScroll={scrollCue.onScroll}
+          >
+            {preview.live ? (
+              <LiveCardStatus
+                live={preview.live}
+                atlasPower={entry.power}
+                atlasCost={entry.cost}
+                className="card-preview-live"
+              />
+            ) : null}
+            <p className="card-preview-effect">
+              {effect && effect !== "—" && effect !== "-" ? <EffectText text={effect} /> : "No printed ability."}
+            </p>
+          </div>
+        </>
       )}
-      <div
-        className={`card-preview-meta${scrollCue.more ? " has-more" : ""}`}
-        ref={metaRef}
-        onScroll={scrollCue.onScroll}
-      >
-        {preview.caption ? <p className="card-preview-caption">{preview.caption}</p> : null}
-        <h2 className="card-preview-name">{entry.name}</h2>
-        <p className="card-preview-stats">{stats.join(" · ")}</p>
-        {preview.live ? (
-          <LiveCardStatus
-            live={preview.live}
-            atlasPower={entry.power}
-            atlasCost={entry.cost}
-            className="card-preview-live"
-          />
-        ) : null}
-        {entry.traits?.length ? (
-          <p className="card-preview-traits">{entry.traits.join(" / ")}</p>
-        ) : null}
-        <p className="card-preview-effect">
-          {effect && effect !== "—" && effect !== "-" ? effect : "No printed ability."}
-        </p>
-      </div>
       <CardInspect
         defId={preview.defId}
         open={inspectOpen}
