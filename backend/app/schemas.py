@@ -854,9 +854,19 @@ class AnalystAppendIn(BaseModel):
     messages: list[AnalystStoredMessage] = Field(min_length=1, max_length=40)
 
 
+class AnalystCitation(BaseModel):
+    """A source cited in an answer: `at` is the UTF-16 offset in the answer's text the citation follows."""
+
+    at: int = Field(ge=0)
+    source: str = Field(min_length=1, max_length=200)
+    title: str = Field(default="", max_length=200)
+    cited_text: str = Field(default="", max_length=1000)
+
+
 class AnalystDisplayMessage(BaseModel):
     role: Literal["user", "assistant"]
     text: str
+    citations: list[AnalystCitation] = Field(default_factory=list)
 
 
 class AnalystThreadView(BaseModel):
@@ -867,9 +877,11 @@ class AnalystThreadView(BaseModel):
 
 class AnalystReviewIn(BaseModel):
     text: str = Field(min_length=1, max_length=20000)
+    citations: list[AnalystCitation] = Field(default_factory=list, max_length=200)
 
 
 class AnalystReviewOut(BaseModel):
     match_id: str
     text: str
+    citations: list[AnalystCitation] = Field(default_factory=list)
     created_at: str | None

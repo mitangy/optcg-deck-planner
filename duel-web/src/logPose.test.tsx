@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Markdown, messageContext } from "@optcg/analyst-client";
-import { deckContext, reviewMode, showsLogPose } from "./logPose";
+import { CitedAnswer, Markdown, messageContext, parseSource, type PlacedCitation } from "@optcg/analyst-client";
+import { deckContext, reviewMode, showsLogPose, sourceHref } from "./logPose";
 
 describe("Log Pose compass placement (#377)", () => {
   it("stays off every route that renders a board (#377)", () => {
@@ -69,5 +69,62 @@ describe("Log Pose markdown rendering (#377)", () => {
     expect(html).toContain("<ul><li>Draw</li><li>Attack</li></ul>");
     expect(html).toContain("<th>Leader</th><th>WR</th>");
     expect(html).toContain("<td>Enel</td><td>54%</td>");
+  });
+});
+
+const cite = (at: number, source: string, cited_text: string, title: string): PlacedCitation => ({ at, source, title, cited_text });
+const TEXT = "Zoro costs 3. Blockers rest. He wins by trading.";
+const CITES = [
+  cite(13, "card:OP01-001", "cost 3", "Zoro (OP01-001)"),
+  cite(28, "rule:6-5-3", "Blocker rests", "Rules §6-5-3 Blocker"),
+  cite(28, "card:OP01-001", "power 5000", "Zoro (OP01-001)"),
+];
+
+describe("sources in a Log Pose answer (#390)", () => {
+  it("puts a numbered marker right after each cited sentence, one number per source (#390)", () => {
+    const html = renderToStaticMarkup(<CitedAnswer text={TEXT} citations={CITES} />);
+    const markers = [...html.matchAll(/<button type="button" class="lp-cite"[^>]*aria-label="Source (\d+): ([^"]*)"[^>]*>(\d+)<\/button>/g)].map((m) => [m[1], m[2], m[3]]);
+    expect(markers).toEqual([
+      ["1", "Zoro (OP01-001)", "1"],
+      ["2", "Rules §6-5-3 Blocker", "2"],
+      ["1", "Zoro (OP01-001)", "1"],
+    ]);
+    expect(html).toContain("Zoro costs 3.<button");
+    expect(html).toContain("Blockers rest.<button");
+    expect(html).toMatch(/Blockers rest\.<button[^>]*>2<\/button><button[^>]*>1<\/button> He wins/);
+  });
+
+  it("lists each cited source once under the answer, with its kind (#390)", () => {
+    const html = renderToStaticMarkup(<CitedAnswer text={TEXT} citations={CITES} />);
+    expect(html).toContain("Sources (2)");
+    expect(html.match(/<li class="lp-src"/g)).toHaveLength(2);
+    expect(html).toContain(">Card</span>");
+    expect(html).toContain(">Rules §6-5-3</span>");
+  });
+
+  it("says an answer that cites nothing is Log Pose's own judgement, but not while it is still streaming or empty (#390)", () => {
+    expect(renderToStaticMarkup(<CitedAnswer text="I'd cut the 1-drops." citations={[]} />)).toContain("own judgement");
+    expect(renderToStaticMarkup(<CitedAnswer text="I'd cut the 1-drops." citations={[]} done={false} />)).not.toContain("own judgement");
+    expect(renderToStaticMarkup(<CitedAnswer text="   " citations={[]} />)).not.toContain("own judgement");
+    expect(renderToStaticMarkup(<CitedAnswer text={TEXT} citations={CITES} />)).not.toContain("own judgement");
+  });
+
+  it("shows source titles and answer text as text, and can't be made to draw a marker by the text itself (#390)", () => {
+    const evil = [cite(5, "card:X", "<script>bad()</script>", '<img src=x onerror="alert(1)">')];
+    const html = renderToStaticMarkup(<CitedAnswer text={"Hello \uE0007\uE001 <b>there</b>"} citations={evil} />);
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain("<b>");
+    expect(html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
+    expect(html.match(/class="lp-cite"/g)).toHaveLength(1);
+    expect(html).not.toMatch(/\uE000|\uE001/);
+  });
+
+  it("links only your own match logs, to the turn that was cited (#390)", () => {
+    expect(sourceHref(parseSource("match:abc#t3"))).toBe("/history/abc#turn-3");
+    expect(sourceHref(parseSource("match:abc"))).toBe("/history/abc");
+    expect(sourceHref(parseSource("match:a%b/c#t2"))).toBe("/history/a%25b%2Fc#turn-2");
+    expect(sourceHref(parseSource("game:g_9#t3"))).toBeNull();
+    expect(sourceHref(parseSource("card:OP01-001"))).toBeNull();
   });
 });

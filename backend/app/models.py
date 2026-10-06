@@ -604,6 +604,8 @@ class AnalystMatchReview(Base):
         ForeignKey("duel_matches.match_id", ondelete="CASCADE"), primary_key=True
     )
     text: Mapped[str] = mapped_column(Text)
+    # JSON list of the citations placed in the text (offset, source id, title, quote); NULL on reviews written before sources.
+    citations: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

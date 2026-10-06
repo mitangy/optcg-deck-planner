@@ -155,6 +155,18 @@ def _ensure_duel_match_replay_columns() -> None:
             conn.execute(text(f"ALTER TABLE duel_matches ADD COLUMN {name} {typ}"))
 
 
+def _ensure_analyst_review_citations() -> None:
+    """Add analyst_match_reviews.citations (the sources a post-game analysis cites) on existing DBs."""
+    inspector = inspect(engine)
+    if "analyst_match_reviews" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("analyst_match_reviews")}
+    if "citations" in existing:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE analyst_match_reviews ADD COLUMN citations TEXT"))
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_group_buy_columns()
@@ -163,6 +175,7 @@ def init_db() -> None:
     _ensure_user_sum_across_leaders()
     _ensure_user_username()
     _ensure_duel_match_replay_columns()
+    _ensure_analyst_review_citations()
 
 
 def get_db() -> Generator[Session, None, None]:

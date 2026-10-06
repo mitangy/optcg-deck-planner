@@ -24,6 +24,7 @@ from app.schemas import (
     CARD_ID_PATTERN,
     AnalystAppendIn,
     AnalystChatBudget,
+    AnalystCitation,
     AnalystChatSession,
     AnalystDisplayMessage,
     AnalystReviewIn,
@@ -166,29 +167,69 @@ def append_messages(
     db.commit()
 
 
-def _display_text(role: str, content: str | list[dict]) -> str:
-    """What the panel shows for a stored message: its text, without tool calls, tool results or page context."""
+MAX_CITED_TEXT = 800
+
+
+def _utf16_len(text: str) -> int:
+    """Length in UTF-16 code units, the offsets the browser counts text in."""
+    return len(text.encode("utf-16-le")) // 2
+
+
+def _block_citations(block: dict) -> list[dict]:
+    """The search-result citations on one text block (other kinds aren't ours), without repeats."""
+    seen: set[tuple[str, str]] = set()
+    out: list[dict] = []
+    for raw in block.get("citations") or []:
+        if not isinstance(raw, dict) or raw.get("type") != "search_result_location":
+            continue
+        source, quote = raw.get("source"), raw.get("cited_text") or ""
+        if not isinstance(source, str) or not source or not isinstance(quote, str) or (source, quote) in seen:
+            continue
+        seen.add((source, quote))
+        title = raw.get("title")
+        out.append(
+            {
+                "source": source[:200],
+                "title": title[:200] if isinstance(title, str) else "",
+                "cited_text": quote if len(quote) <= MAX_CITED_TEXT else quote[: MAX_CITED_TEXT - 1] + "\u2026",
+            }
+        )
+    return out
+
+
+def _display_text(role: str, content: str | list[dict]) -> tuple[str, list[AnalystCitation]]:
+    """What the panel shows for a stored message: its text blocks run together (as they stream), without tool calls,
+    tool results or page context, and the citations at the end of the blocks they belong to."""
     if isinstance(content, str):
-        return "" if content.startswith(CONTEXT_PREFIX) else content
-    texts = [
-        b.get("text", "")
-        for b in content
-        if b.get("type") == "text" and not (role == "user" and b.get("text", "").startswith(CONTEXT_PREFIX))
-    ]
-    return "\n\n".join(t for t in texts if t.strip())
+        return ("" if content.startswith(CONTEXT_PREFIX) else content), []
+    text = ""
+    cites: list[AnalystCitation] = []
+    for b in content:
+        if b.get("type") != "text":
+            continue
+        piece = b.get("text", "")
+        if role == "user" and piece.startswith(CONTEXT_PREFIX):
+            continue
+        text += piece
+        if role == "assistant":
+            at = _utf16_len(text)
+            cites += [AnalystCitation(at=at, **c) for c in _block_citations(b)]
+    return text, cites
 
 
 def thread_view(messages: list[tuple[str, str | list[dict]]]) -> list[AnalystDisplayMessage]:
     """Stored messages as chat bubbles: tool-result-only turns drop out and one answer's pieces join up."""
     out: list[AnalystDisplayMessage] = []
     for role, content in messages:
-        text = _display_text(role, content)
-        if not text:
+        text, cites = _display_text(role, content)
+        if not text.strip():
             continue
         if out and out[-1].role == role == "assistant":
+            base = _utf16_len(out[-1].text) + 2
             out[-1].text += "\n\n" + text
+            out[-1].citations += [c.model_copy(update={"at": c.at + base}) for c in cites]
         else:
-            out.append(AnalystDisplayMessage(role=role, text=text))
+            out.append(AnalystDisplayMessage(role=role, text=text, citations=cites))
     return out
 
 
@@ -221,7 +262,16 @@ def view_thread(
 
 
 def _review_out(row: AnalystMatchReview) -> AnalystReviewOut:
-    return AnalystReviewOut(match_id=row.match_id, text=row.text, created_at=row.created_at.isoformat() if row.created_at else None)
+    try:
+        citations = [AnalystCitation(**c) for c in json.loads(row.citations or "[]")]
+    except (ValueError, TypeError):
+        citations = []
+    return AnalystReviewOut(
+        match_id=row.match_id,
+        text=row.text,
+        citations=citations,
+        created_at=row.created_at.isoformat() if row.created_at else None,
+    )
 
 
 @router.get("/reviews/{match_id}", response_model=AnalystReviewOut)
@@ -253,12 +303,16 @@ def put_review(
     )
     if played is None:
         raise HTTPException(status_code=404, detail="Match not found")
+    # A citation can only follow text that is there.
+    limit = _utf16_len(body.text)
+    citations = json.dumps([c.model_dump() for c in body.citations if c.at <= limit])
     row = db.get(AnalystMatchReview, (user.id, match_id))
     if row is None:
-        row = AnalystMatchReview(user_id=user.id, match_id=match_id, text=body.text)
+        row = AnalystMatchReview(user_id=user.id, match_id=match_id, text=body.text, citations=citations)
         db.add(row)
     else:
         row.text = body.text
+        row.citations = citations
         row.created_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(row)

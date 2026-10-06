@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnalystError, errorText, fetchSavedReview, Markdown, streamAnalyst, useLogPose } from "@optcg/analyst-client";
+import { AnalystError, CitedAnswer, errorText, fetchSavedReview, streamAnalyst, useLogPose, placeAt, type PlacedCitation } from "@optcg/analyst-client";
 import { reviewMode } from "../logPose";
 
 type ReviewState =
   | { kind: "loading" }
-  | { kind: "streaming"; text: string; status: string }
-  | { kind: "ready"; text: string }
-  | { kind: "error"; text: string; message: string };
+  | { kind: "streaming"; text: string; citations: PlacedCitation[]; status: string }
+  | { kind: "ready"; text: string; citations: PlacedCitation[] }
+  | { kind: "error"; text: string; citations: PlacedCitation[]; message: string };
 
 /**
  * "Log Pose analysis" above the turn log: the saved post-game review, generated (and streamed
@@ -25,8 +25,9 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
       const ctrl = new AbortController();
       abort.current = ctrl;
       setCollapsed(false);
-      setState({ kind: "streaming", text: "", status: "" });
+      setState({ kind: "streaming", text: "", citations: [], status: "" });
       let text = "";
+      let citations: PlacedCitation[] = [];
       let failure: string | null = null;
       try {
         await streamAnalyst(
@@ -38,6 +39,11 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
             onText: (delta) => {
               text += delta;
               setState((s) => (s.kind === "streaming" ? { ...s, text } : s));
+            },
+            // A citation follows the text streamed so far.
+            onCite: (cites) => {
+              citations = [...citations, ...placeAt(cites, text.length)];
+              setState((s) => (s.kind === "streaming" ? { ...s, citations } : s));
             },
             onError: (e) => {
               failure = errorText(e);
@@ -51,7 +57,7 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
       }
       if (abort.current !== ctrl) return;
       abort.current = null;
-      setState(failure || !text.trim() ? { kind: "error", text, message: failure ?? "Log Pose didn't write a review this time." } : { kind: "ready", text });
+      setState(failure || !text.trim() ? { kind: "error", text, citations, message: failure ?? "Log Pose didn't write a review this time." } : { kind: "ready", text, citations });
     },
     [matchId, session],
   );
@@ -63,10 +69,10 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
     fetchSavedReview(apiBase, matchId)
       .then((saved) => {
         if (!live) return;
-        if (saved?.text) setState({ kind: "ready", text: saved.text });
+        if (saved?.text) setState({ kind: "ready", text: saved.text, citations: saved.citations });
         else void generate(false);
       })
-      .catch(() => live && setState({ kind: "error", text: "", message: "Could not load the saved review." }));
+      .catch(() => live && setState({ kind: "error", text: "", citations: [], message: "Could not load the saved review." }));
     return () => {
       live = false;
       abort.current?.abort();
@@ -85,6 +91,7 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
 
   const busy = state.kind === "loading" || state.kind === "streaming";
   const text = state.kind === "loading" ? "" : state.text;
+  const citations = state.kind === "loading" ? [] : state.citations;
   return (
     <section className="panel lp-review logpose" aria-labelledby="lp-review-title" aria-busy={busy}>
       <div className="lp-review-head">
@@ -118,7 +125,7 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
             </span>
           </p>
         ) : null}
-        {text ? <Markdown text={text} /> : null}
+        {text ? <CitedAnswer text={text} citations={citations} done={state.kind !== "streaming"} /> : null}
         {state.kind === "error" ? (
           <p className="panel-copy lp-review-error" role="alert">
             {state.message}
