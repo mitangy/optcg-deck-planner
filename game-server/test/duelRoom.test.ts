@@ -596,7 +596,7 @@ describe("DuelRoom", () => {
     await c2.leave(true);
   });
 
-  it("ranked_queue keeps everyone in one queue past 64 players, so no one waits in a queue nobody else is in (#scale)", async () => {
+  it("ranked_queue keeps everyone in one queue past 64 players, so no one waits in a queue nobody else is in (#389)", async () => {
     const joined: ClientRoom[] = [];
     for (let i = 0; i < 66; i++) {
       const c = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts(`crowd-${i}`));
@@ -1367,7 +1367,7 @@ describe("DuelRoom", () => {
     assert.ok(closing.every((l) => l.opponentOpeningHand && l.turns.some((t) => t.opponentHand)));
   });
 
-  it("only a closing room's last log is marked final, so live turns can stay out of Postgres (#scale)", async () => {
+  it("only a closing room's last log is marked final, so live turns can stay out of Postgres (#389)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 71,

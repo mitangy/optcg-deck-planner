@@ -65,7 +65,7 @@ describe("PresenceReporter heartbeat", () => {
     return { bodies, send };
   }
 
-  it("stops re-sending an empty snapshot once the API has it, so its database can sleep (#scale)", async () => {
+  it("stops re-sending an empty snapshot once the API has it, so its database can sleep (#389)", async () => {
     const { bodies, send } = counting();
     const reporter = new PresenceReporter(send, "gs-idle", 10, 15);
     reporter.start();
@@ -74,7 +74,7 @@ describe("PresenceReporter heartbeat", () => {
     assert.equal(bodies.length, 1);
   });
 
-  it("keeps re-sending while someone is in a room, even after an idle spell (#scale)", async () => {
+  it("keeps re-sending while someone is in a room, even after an idle spell (#389)", async () => {
     const { bodies, send } = counting();
     const reporter = new PresenceReporter(send, "gs-busy", 10, 15);
     const entries: PresenceEntry[] = [];

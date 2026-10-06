@@ -9,7 +9,7 @@ import { wsCompression } from "../src/cluster.js";
 import { PROTOCOL_VERSION } from "../src/protocol.js";
 
 describe("game socket compression", () => {
-  it("negotiates permessage-deflate with clients that offer it (#scale)", async () => {
+  it("negotiates permessage-deflate with clients that offer it (#389)", async () => {
     const wss = new WebSocketServer({ port: 0, perMessageDeflate: wsCompression({}) });
     await once(wss, "listening");
     const ws = new WebSocket(`ws://127.0.0.1:${(wss.address() as AddressInfo).port}`, { perMessageDeflate: true });
@@ -76,7 +76,7 @@ describe("game-server pool on Redis", function () {
       room.send("sync", { protocolVersion: PROTOCOL_VERSION });
     });
 
-  it("a game created on one process can be joined through another (#scale)", async () => {
+  it("a game created on one process can be joined through another (#389)", async () => {
     const a = new Client(`http://127.0.0.1:${ports[0]}`);
     const b = new Client(`http://127.0.0.1:${ports[1]}`);
     const host = await a.create("duel", join("pool-host", { preferredSeat: 0, autoSkipMulligan: true }));
@@ -88,7 +88,7 @@ describe("game-server pool on Redis", function () {
     assert.deepEqual([w0.seat, w1.seat], [0, 1]);
   });
 
-  it("players queued on different processes are paired with each other (#scale)", async () => {
+  it("players queued on different processes are paired with each other (#389)", async () => {
     const queued = (c: Client, id: string) =>
       c.joinOrCreate("ranked_queue", join(id)).then((room) => {
         rooms.push(room);

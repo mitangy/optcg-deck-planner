@@ -46,7 +46,7 @@ describe("MatchResultOutbox wake-ups", () => {
     return { db, outbox };
   }
 
-  it("reports nothing due once every result is delivered, so an idle server never queries (#scale)", async () => {
+  it("reports nothing due once every result is delivered, so an idle server never queries (#389)", async () => {
     const { db, outbox } = await freshOutbox(ok);
     assert.equal(await outbox.nextDueInMs(), null);
     await outbox.enqueue(payload("m1"));
@@ -56,7 +56,7 @@ describe("MatchResultOutbox wake-ups", () => {
     await db.close();
   });
 
-  it("reports when a failed delivery's retry falls due (#scale)", async () => {
+  it("reports when a failed delivery's retry falls due (#389)", async () => {
     const { db, outbox } = await freshOutbox(down);
     await outbox.enqueue(payload("m1"));
     await outbox.drain();
@@ -79,7 +79,7 @@ describe("OutboxScheduler", () => {
     };
   }
 
-  it("sets no timer when nothing is waiting, so the database can sleep (#scale)", async () => {
+  it("sets no timer when nothing is waiting, so the database can sleep (#389)", async () => {
     const { outbox, calls } = fakeOutbox(null);
     const timers: number[] = [];
     const scheduler = new OutboxScheduler(outbox as never, (_fn, ms) => { timers.push(ms); return 0 as never; }, () => {});
@@ -88,7 +88,7 @@ describe("OutboxScheduler", () => {
     assert.deepEqual(timers, []);
   });
 
-  it("wakes up when a retry falls due (#scale)", async () => {
+  it("wakes up when a retry falls due (#389)", async () => {
     const { outbox } = fakeOutbox(5000);
     const timers: number[] = [];
     const scheduler = new OutboxScheduler(outbox as never, (_fn, ms) => { timers.push(ms); return 0 as never; }, () => {});
@@ -96,7 +96,7 @@ describe("OutboxScheduler", () => {
     assert.deepEqual(timers, [5000]);
   });
 
-  it("delivers a queued result right away instead of waiting for a poll (#scale)", async () => {
+  it("delivers a queued result right away instead of waiting for a poll (#389)", async () => {
     const { outbox, calls } = fakeOutbox(null);
     const scheduler = new OutboxScheduler(outbox as never, () => 0 as never, () => {});
     await scheduler.enqueue({ match_id: "m9" } as never);
