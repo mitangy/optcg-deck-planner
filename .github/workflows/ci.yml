@@ -46,6 +46,8 @@ jobs:
       - run: npm test
       # Fixed-seed fuzz games; a failure prints the seed and intent index to replay.
       - run: npm run fuzz:smoke -w @optcg/rules
+      # Views (getPlayerView per seat after every move) must stay well ahead of the uncached path, timed in one process.
+      - run: npm run bench:views -w @optcg/rules -- --gate
       # Every mutation anchor must still match exactly once (no tests run).
       - run: node tools/mutation-check/run.cjs --check-anchors
 
