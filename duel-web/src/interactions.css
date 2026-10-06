@@ -948,3 +948,42 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
     7px 0 0 -1px #ffd54f,
     7px 0 14px 0 rgb(255 213 79 / 0.65);
 }
+
+/* —— A dragged hand card lifts out of the hand and rides under the pointer (#357) —— */
+.hand-lift-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.hand-lift-layer > .card-tile.hand-lift {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: 0;
+  opacity: 1;
+  cursor: grabbing;
+  transform-origin: 50% 50%;
+  box-shadow:
+    0 18px 36px rgba(0, 0, 0, 0.55),
+    0 0 0 2px rgb(var(--chrome-bright-rgb) / 0.55);
+  transition: scale 140ms ease-out;
+  will-change: translate, rotate, scale;
+}
+
+/* Its slot in the hand stays open while it is out. */
+.card-tile.card-lifted,
+.card-tile.card-lifted.card-dragging {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hand-lift-layer > .card-tile.hand-lift {
+    transition: none;
+  }
+}
+:root[data-motion="reduce"] .hand-lift-layer > .card-tile.hand-lift {
+  transition: none;
+}
