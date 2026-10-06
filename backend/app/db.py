@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
+from contextlib import contextmanager
 
 from sqlalchemy import Engine, create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
@@ -153,6 +154,33 @@ def _ensure_duel_match_replay_columns() -> None:
     with engine.begin() as conn:
         for name, typ in additions:
             conn.execute(text(f"ALTER TABLE duel_matches ADD COLUMN {name} {typ}"))
+
+
+# pg_advisory_lock key for startup work (schema creation, migrations, backfills).
+STARTUP_LOCK_KEY = 0x6F707463675F7374  # "optcg_st"
+
+
+@contextmanager
+def startup_lock(bind: Engine | None = None) -> Iterator[None]:
+    """Run startup work in one worker at a time.
+
+    With several uvicorn workers (or instances) on Postgres, every worker runs
+    the lifespan at once; concurrent CREATE TABLE / ALTER TABLE race and fail.
+    The others wait here and then find nothing left to do. SQLite (local, one
+    process) needs no lock.
+    """
+    bind = bind or engine
+    if bind.dialect.name != "postgresql":
+        yield
+        return
+    with bind.connect() as conn:
+        conn.execute(text("SELECT pg_advisory_lock(:key)"), {"key": STARTUP_LOCK_KEY})
+        conn.commit()
+        try:
+            yield
+        finally:
+            conn.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": STARTUP_LOCK_KEY})
+            conn.commit()
 
 
 def init_db() -> None:
