@@ -156,3 +156,202 @@
 .site-footer-centered .site-footer-links {
   justify-content: center;
 }
+
+/* "Send feedback" in the footer: a button that looks like the links beside it. */
+.site-footer button.site-footer-link {
+  appearance: none;
+  background: none;
+  border: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* —— Feedback dialog ——
+   Fixed overlay in a portal: nothing behind it moves. Each app maps the --fb-*
+   tokens to its own palette (see its styles.css); the fallbacks fit any theme. */
+
+.feedback-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px))
+    max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  background: rgb(0 0 0 / 0.6);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.feedback-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 460px;
+  min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem 1.1rem 1.1rem;
+  border: 1px solid var(--fb-line, rgb(128 128 128 / 0.4));
+  border-radius: 16px;
+  background: var(--fb-bg, Canvas);
+  color: var(--fb-ink, CanvasText);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.45);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.feedback-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.2rem;
+  line-height: 1.25;
+}
+
+.feedback-kinds {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.3rem;
+  margin-bottom: 0.7rem;
+  padding: 0.25rem;
+  border: 1px solid var(--fb-line, rgb(128 128 128 / 0.4));
+  border-radius: 12px;
+  background: var(--fb-field-bg, transparent);
+}
+
+.feedback-kind {
+  min-width: 0;
+  min-height: 40px;
+  padding: 0.35rem 0.5rem;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.feedback-kind[aria-checked="true"] {
+  background: var(--fb-accent, #1d5566);
+  color: var(--fb-on-accent, #fff);
+}
+
+.feedback-text {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 7.5rem;
+  max-height: 40dvh;
+  resize: vertical;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--fb-line, rgb(128 128 128 / 0.4));
+  border-radius: 10px;
+  background: var(--fb-field-bg, transparent);
+  color: inherit;
+  /* 16px: iOS Safari zooms the page when a smaller field is focused. */
+  font: inherit;
+  font-size: max(16px, 1em);
+}
+
+.feedback-text::placeholder {
+  color: color-mix(in srgb, currentColor 55%, transparent);
+}
+
+.feedback-text:focus-visible,
+.feedback-kind:focus-visible,
+.feedback-btn:focus-visible {
+  outline: 2px solid var(--fb-accent, #1d5566);
+  outline-offset: 2px;
+}
+
+/* Reserves its line so an error never resizes the card or moves the buttons. */
+.feedback-error {
+  min-height: 1.4em;
+  margin: 0.35rem 0 0.4rem;
+  color: var(--fb-danger, #b2372f);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.feedback-thanks {
+  margin: 0 0 1rem;
+}
+
+.feedback-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.feedback-btn {
+  box-sizing: border-box;
+  /* Wide enough for "Sending…" so the label swap never changes the width. */
+  min-width: 6.5rem;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--fb-line, rgb(128 128 128 / 0.5));
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.feedback-btn-primary {
+  border-color: transparent;
+  background: var(--fb-accent, #1d5566);
+  color: var(--fb-on-accent, #fff);
+}
+
+.feedback-btn:disabled,
+.feedback-kind:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 600px) {
+  /* Bottom sheet on phones. */
+  .feedback-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .feedback-card {
+    max-width: none;
+    max-height: 92dvh;
+    border-width: 1px 0 0;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: max(1.1rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(1.1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1.1rem, env(safe-area-inset-right, 0px));
+  }
+
+  .feedback-actions .feedback-btn {
+    flex: 1 1 0;
+  }
+
+  /* Room for a wrapped error line. */
+  .feedback-error {
+    min-height: 2.8em;
+  }
+}
+
+/* Short landscape phones: keep the card inside the viewport height. */
+@media (max-height: 480px) {
+  .feedback-card {
+    max-height: 100dvh;
+  }
+
+  .feedback-text {
+    min-height: 4rem;
+  }
+
+  .feedback-error {
+    min-height: 1.4em;
+  }
+}

@@ -35,6 +35,7 @@ from app.models import (
     User,
 )
 from app.rate_limit import RateLimiter, client_ip
+from app.reporter import identify_reporter
 from app.usernames import duel_display_name
 from app.routers.api import _require_catalog_token
 from app.schemas import (
@@ -600,28 +601,6 @@ def leaderboard(
     return DuelLeaderboardOut(entries=entries)
 
 
-def _reporter(
-    db: Session,
-    settings: Settings,
-    session_user: User | None,
-    authorization: str | None,
-) -> User | None:
-    """Session user, else the holder of a valid game token, else anonymous.
-
-    Guests never get a session cookie, but every tester in a match holds a game
-    token, so accepting it ties most reports to a player.
-    """
-    if session_user is not None:
-        return session_user
-    scheme, _, token = (authorization or "").partition(" ")
-    if scheme.lower() != "bearer" or not token:
-        return None
-    payload = verify_game_token(token.strip(), settings)
-    if payload is None:
-        return None
-    return db.get(User, payload["uid"])
-
-
 def _report_out(row: CardReport, user: User | None) -> CardReportOut:
     return CardReportOut(
         id=row.id,
@@ -649,7 +628,7 @@ def create_card_report(
     """Record a tester's report that a card does not play as printed."""
     if not _report_rate.allow(f"card-report:{client_ip(request)}") or not _report_global_rate.allow("card-report"):
         raise HTTPException(status_code=429, detail="Too many reports; try again later")
-    user = _reporter(db, settings, session_user, authorization)
+    user = identify_reporter(db, settings, session_user, authorization)
     row = CardReport(
         card_id=body.card_id.upper(),
         description=body.description,

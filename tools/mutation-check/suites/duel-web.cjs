@@ -60,7 +60,7 @@ module.exports = {
     { id: "card-report-untrimmed", file: "duel-web/src/cards/cardReport.ts", from: "  const len = description.trim().length;", to: "  const len = description.length;", kills: ["refuses a padded description that is too short"] },
     { id: "card-report-sends-invalid", file: "duel-web/src/cards/cardReport.ts", from: "  if (invalid) throw new Error(invalid);\n", to: "", kills: ["refuses a padded description that is too short"] },
     { id: "card-report-anonymous", file: "duel-web/src/cards/cardReport.ts", from: "  if (matchContext.gameToken) headers.Authorization = `Bearer ${matchContext.gameToken}`;\n", to: "", kills: ["identifies the reporter with the match game token"] },
-    { id: "card-report-stale-room", file: "duel-web/src/net/duelClient.ts", from: "    this.client = null;\n    noteReportRoom(undefined);\n", to: "    this.client = null;\n", kills: ["stops tagging reports with a room after leaving the match"] },
+    { id: "card-report-stale-room", file: "duel-web/src/net/duelClient.ts", from: "    this.client = null;\n    noteMatchRoom(undefined);\n", to: "    this.client = null;\n", kills: ["stops tagging reports with a room after leaving the match"] },
     { id: "narration-uses-ids", file: "duel-web/src/board/battleLog.ts", from: "name: lookupCard(id).name, ownerSeat", to: "name: id, ownerSeat", kills: ["describes pending-choice ability prompts"] },
     { id: "unverified-note-missing", file: "duel-web/src/cards/abilitySupport.ts", from: "  if (support === \"unverified\") {\n    return \"Card data has not been verified for duel play yet.\";\n  }", to: "", kills: ["exposes inspect note only for unsupported/partial"] },
     { id: "jinbe-renamed-back", json: "duel-web/src/assets/cardAtlas.json", patch: (atlas) => { atlas["ST01-005"].name = "Usopp"; }, kills: ["resolves ST01-005 to TCGPlayer CDN"] },
@@ -1016,5 +1016,16 @@ module.exports = {
     { id: "turn-status-you-don-cost-area-only", file: `${src}/board/TurnStatusPanel.tsx`, from: "donTotal: donTotal(you.costArea.length, you),", to: "donTotal: you.costArea.length,", kills: ["counts attached DON!! in both players' totals (#345)"] },
     // match-over card waits for the finished result, not the live game's per-turn save (#319)
     { id: "match-over-accepts-unfinished", file: `${src}/board/matchOverFacts.ts`, from: "        if (entry.finished === false) retry();\n        else onRecord(entry);\n", to: "        onRecord(entry);\n", kills: ["keeps retrying past the live game's unfinished save and shows the finished Bounty (#319)"] },
+    // feedback (#371)
+    { id: "feedback-length-untrimmed", file: "packages/site-legal/src/feedback.ts", from: "  const len = message.trim().length;", to: "  const len = message.length;", kills: ["treats a padded short message as too short, like the API (#371)"] },
+    { id: "feedback-message-sent-untrimmed", file: "packages/site-legal/src/feedback.ts", from: "    message: message.trim(),", to: "    message,", kills: ["trims the message and rounds the viewport"] },
+    { id: "feedback-viewport-unrounded", file: "packages/site-legal/src/feedback.ts", from: "`${Math.round(env.innerWidth)}x${Math.round(env.innerHeight)}`", to: "`${env.innerWidth}x${env.innerHeight}`", kills: ["trims the message and rounds the viewport"] },
+    { id: "feedback-share-token-kept", file: "packages/site-legal/src/feedback.ts", from: "  return pathname.replace(", to: "  return pathname || (", kills: ["keeps share and group-buy tokens out of the stored page (#371)"] },
+    { id: "feedback-user-agent-uncut", file: "packages/site-legal/src/feedback.ts", from: "    user_agent: env.userAgent.slice(0, MAX_USER_AGENT),", to: "    user_agent: env.userAgent,", kills: ["cuts the user agent to the API's 300 characters (#371)"] },
+    { id: "feedback-rate-limit-generic", file: "packages/site-legal/src/feedback.ts", from: "  if (status === 429) return", to: "  if (status === -1) return", kills: ["explains a rate limit, and other failures with their status"] },
+    { id: "feedback-anonymous-in-match", file: "duel-web/src/feedback.ts", from: "  if (gameToken) headers.Authorization = `Bearer ${gameToken}`;\n", to: "", kills: ["identifies the sender with the match game token and tags the room"] },
+    { id: "feedback-room-dropped", file: "duel-web/src/feedback.ts", from: "room_id: roomId }", to: "room_id: undefined }", kills: ["identifies the sender with the match game token and tags the room"] },
+    { id: "match-menu-no-report", file: "duel-web/src/board/matchMenuItems.ts", from: "  items.push(\"report\");\n", to: "", kills: ["offers Report a problem in every match, right after Reload and before Concede (#371)"] },
+    { id: "match-menu-report-after-concede", file: "duel-web/src/board/matchMenuItems.ts", from: "  items.push(\"report\");\n  if (o.canConcede && !o.spectating && !o.over) items.push(\"concede\");\n", to: "  if (o.canConcede && !o.spectating && !o.over) items.push(\"concede\");\n  items.push(\"report\");\n", kills: ["offers Report a problem in every match, right after Reload and before Concede (#371)"] },
   ],
 };

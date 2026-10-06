@@ -604,6 +604,10 @@ button {
   opacity: 0.8;
 }
 
+.about-feedback {
+  margin-top: 0.6rem;
+}
+
 .home-version .version-status {
   justify-content: center;
 }
@@ -5002,4 +5006,9 @@ details.deck-config-section.deck-collapsible {
 }
 .log-glued .log-card {
   white-space: normal;
+}
+
+/* Lines up with the version text above instead of inset by the button's padding. */
+.about-feedback-btn {
+  margin-left: -0.8rem;
 }
