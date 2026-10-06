@@ -920,6 +920,37 @@ test("trash viewer cards are big enough to read (#287)", async ({ page, duel }, 
   expect(issues, formatIssues(issues)).toEqual([]);
 });
 
+// "By card" folds duplicate trash cards into one tile with a ×N badge (#380).
+test("trash viewer By card groups duplicates under a count badge (#380)", async ({ page, duel }) => {
+  await page.addInitScript(() => localStorage.removeItem("duel.trashSort"));
+  // 8 trash cards cycling through 3 distinct ones.
+  await page.goto("/demo?trash=8");
+  await page.locator(".board-root").waitFor();
+  await page.locator(".side-you .zone-trash .zone-pile").click();
+  const tiles = page.locator(".trash-viewer-grid .card-tile");
+  await expect(tiles).toHaveCount(8);
+  await expect(page.locator(".trash-viewer-count")).toHaveCount(0);
+  const done = page.locator(".trash-viewer-done");
+  const before = (await done.boundingBox())!;
+
+  await page.getByRole("button", { name: "By card" }).click();
+  await expect(tiles).toHaveCount(3);
+  await expect(page.locator(".trash-viewer-count").first()).toHaveText("×3");
+  await expect(page.locator(".trash-viewer-sub")).toHaveText("8 cards · 3 different");
+  const after = (await done.boundingBox())!;
+  expect(after.x).toBe(before.x);
+  expect(after.y).toBe(before.y);
+  const issues = (await duel.audit()).filter((i) => !isKnown(i));
+  expect(issues, formatIssues(issues)).toEqual([]);
+
+  // The choice sticks the next time a trash is opened.
+  await page.keyboard.press("Escape");
+  await page.locator(".side-you .zone-trash .zone-pile").click();
+  await expect(tiles).toHaveCount(3);
+  await page.getByRole("button", { name: "Newest" }).click();
+  await expect(tiles).toHaveCount(8);
+});
+
 // Only a card's owner may change its alt art: the opponent's Guard Point from
 // Recent plays has no Artwork row, your own Guard Point in your trash does (#287).
 test("an opponent's card opened from Recent plays offers no art change (#287)", async ({ page }) => {

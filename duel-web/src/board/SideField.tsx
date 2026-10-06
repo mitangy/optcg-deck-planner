@@ -547,6 +547,7 @@ export function SideField({
         <TrashViewer
           title={trashTitle}
           cards={trashNewestFirst(data.trash)}
+          sortable
           onClose={() => setTrashOpen(false)}
           ownerSeat={ownerSeat}
           viewingSeat={viewingSeat}
