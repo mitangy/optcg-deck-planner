@@ -416,12 +416,12 @@ module.exports = {
     {"id": "pc369-replay-flag-ignored", "file": "packages/rules/src/matchReplay.ts", "from": "privateChoicesV2: replay.privateChoicesV2 ?? false,", "to": "privateChoicesV2: false,", "kills": ["replayMatch replays an old recording (no flag) with legacy ids and a new one with permuted ids (#369)"]},
     {"id": "pc369-start-stage-single-auto-played", "file": "packages/rules/src/engine/intents.ts", "from": "if (eligible.length === 1 && !state.privateChoicesV2) { playStartStage(", "to": "if (eligible.length === 1) { playStartStage(", "kills": ["a single eligible Stage is asked too, and looks the same to the opponent as two (#369)", "answering the single-Stage prompt plays that Stage and draws the opening hand (#369)"]},
     {"id": "pc369-start-stage-legacy-prompts", "file": "packages/rules/src/engine/intents.ts", "from": "if (eligible.length === 1 && !state.privateChoicesV2) { playStartStage(", "to": "if (false) { playStartStage(", "kills": ["without privateChoicesV2 the only eligible Stage is played without a prompt (#369)"]},
-    // View query cache (#scale): entries carried over from the previous state's views.
+    // View query cache (#389): entries carried over from the previous state's views.
     { id: "view-cache-reused-across-states", edits: [
       { file: "packages/rules/src/engine/queries.ts", from: "let queryCache: QueryCache | null = null;", to: "let queryCache: QueryCache | null = null;\nlet staleCache: QueryCache | undefined;" },
       { file: "packages/rules/src/engine/queries.ts", from: "  queryCache = { state, activeStatics: null, negated: new Map(), staticsFor: new Map(), cardModifiers: null, located: new Map() };", to: "  queryCache = staleCache ??= { state, activeStatics: null, negated: new Map(), staticsFor: new Map(), cardModifiers: null, located: new Map() };\n  queryCache.state = state;" },
-    ], kills: ["player and spectator views are byte-identical with and without the query cache over real-deck games (#scale)"] },
+    ], kills: ["player and spectator views are byte-identical with and without the query cache over real-deck games (#389)"] },
     // The cache outlives the view call, so a state changed in place keeps its old results.
-    { id: "view-cache-outlives-call", file: "packages/rules/src/engine/queries.ts", from: "    queryCache = outer;", to: "", kills: ["a view built after the state is changed in place shows the change (#scale)"] },
+    { id: "view-cache-outlives-call", file: "packages/rules/src/engine/queries.ts", from: "    queryCache = outer;", to: "", kills: ["a view built after the state is changed in place shows the change (#389)"] },
   ],
 };

@@ -12,7 +12,7 @@ function allViews(state: MatchState): string {
 describe("view query cache", () => {
   afterEach(() => setQueryCacheEnabled(true));
 
-  it("player and spectator views are byte-identical with and without the query cache over real-deck games (#scale)", () => {
+  it("player and spectator views are byte-identical with and without the query cache over real-deck games (#389)", () => {
     let steps = 0;
     for (const seed of [1, 2, 3, 4, 5, 6]) {
       for (const { state } of benchGame(seed, 150)) {
@@ -27,7 +27,7 @@ describe("view query cache", () => {
     expect(steps).toBeGreaterThan(500);
   }, 60_000);
 
-  it("a view built after the state is changed in place shows the change (#scale)", () => {
+  it("a view built after the state is changed in place shows the change (#389)", () => {
     let state: MatchState | undefined;
     for (const step of benchGame(2, 40)) state = step.state;
     const before = getPlayerView(state!, 0);
