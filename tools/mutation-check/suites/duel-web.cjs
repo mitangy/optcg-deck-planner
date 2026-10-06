@@ -645,6 +645,8 @@ module.exports = {
     // match page log
     { id: "matchlog-turns-from-seat-0", file: "duel-web/src/history/matchLog.ts", from: "    const yours = t.activeSeat === log.seat;", to: "    const yours = t.activeSeat === 0;", kills: ["labels each turn from your seat (#252)"] },
     { id: "matchlog-board-cards-ignored", file: "duel-web/src/history/matchLog.ts", from: "new Map(log.boardCards.map(([id, defId, seat]) => [id, { defId, seat }]))", to: "new Map()", kills: ["names the attacking card from the cards that were on the board (#252)"] },
+    { id: "matchlog-hand-dropped", file: "duel-web/src/history/matchLog.ts", from: "      ...(t.hand ? { hand: t.hand } : {}),\n", to: "", kills: ["passes each turn's hand and the opponent's hand size through (#350)"] },
+    { id: "matchlog-opp-hand-dropped", file: "duel-web/src/history/matchLog.ts", from: "      ...(t.opponentHandCount != null ? { opponentHandCount: t.opponentHandCount } : {}),\n", to: "", kills: ["passes each turn's hand and the opponent's hand size through (#350)"] },
     // Log Pose lessons + stats opt-out (#246)
     { id: "lesson-rows-no-status-order", file: "duel-web/src/history/lessonRow.ts", from: "    .sort((a, b) => ORDER[a.l.status] - ORDER[b.l.status] || a.i - b.i)\n", to: "", kills: ["puts drafts first and keeps newest first within each status"] },
     { id: "lesson-rows-oldest-first", file: "duel-web/src/history/lessonRow.ts", from: "ORDER[a.l.status] - ORDER[b.l.status] || a.i - b.i", to: "ORDER[a.l.status] - ORDER[b.l.status] || b.i - a.i", kills: ["puts drafts first and keeps newest first within each status"] },
@@ -964,5 +966,12 @@ module.exports = {
     { id: "hand-lift-carry-grows-small", file: `${src}/board/handLift.ts`, from: "  return Math.min(LIFT_SCALE, CARRY_WIDTH_PX / cardWidth);", to: "  return CARRY_WIDTH_PX / cardWidth;", kills: ["never grows a small card past its picked-up size when it leaves the hand (#364)"] },
     { id: "hand-lift-tilt-uncapped", file: `${src}/board/handLift.ts`, from: "  return Math.max(-MAX_TILT_DEG, Math.min(MAX_TILT_DEG, deg));", to: "  return deg;", kills: ["leans the card the way it moves, upright when still, and caps the lean (#364)"] },
     { id: "hand-lift-tilt-backwards", file: `${src}/board/handLift.ts`, from: "  const deg = vx * TILT_PER_SPEED;", to: "  const deg = -vx * TILT_PER_SPEED;", kills: ["leans the card the way it moves, upright when still, and caps the lean (#364)"] },
+    // DON!! total includes attached DON!! (#345)
+    { id: "don-total-ignores-attached", file: `${src}/board/donTotals.ts`, from: "  return costAreaCount + attachedDonTotal(side);", to: "  return costAreaCount;", kills: ["counts DON!! attached to the Leader and Characters in the DON!! total (#345)"] },
+    { id: "don-attached-skips-characters", file: `${src}/board/donTotals.ts`, from: "  for (const c of side.characters) total += c.attachedDonCount ?? 0;\n", to: "", kills: ["counts DON!! attached to the Leader and Characters in the DON!! total (#345)"] },
+    { id: "don-strip-label-ignores-label-total", file: `${src}/board/DonStrip.tsx`, from: "`${activeCount ?? 0}/${labelTotal ?? totalCount ?? 0}`", to: "`${activeCount ?? 0}/${totalCount ?? 0}`", kills: ["shows labelTotal as the denominator without changing the chip count (#345)"] },
+    { id: "side-field-drops-label-total", file: `${src}/board/SideField.tsx`, from: "            labelTotal={donTotal(data.costAreaCount ?? data.costArea?.length ?? 0, data)}\n", to: "", kills: ["shows 8/10 on your side when 2 of 10 DON!! are attached (#345)"] },
+    { id: "turn-status-opp-don-cost-area-only", file: `${src}/board/TurnStatusPanel.tsx`, from: "donTotal: donTotal(opp.costAreaCount, opp),", to: "donTotal: opp.costAreaCount,", kills: ["counts attached DON!! in both players' totals (#345)"] },
+    { id: "turn-status-you-don-cost-area-only", file: `${src}/board/TurnStatusPanel.tsx`, from: "donTotal: donTotal(you.costArea.length, you),", to: "donTotal: you.costArea.length,", kills: ["counts attached DON!! in both players' totals (#345)"] },
   ],
 };

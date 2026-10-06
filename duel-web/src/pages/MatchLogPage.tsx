@@ -135,6 +135,27 @@ export function MatchLogPage() {
                   {t.turn > 0 ? <span className="match-log-turn-no">Turn {t.turn}</span> : null}
                   <span>{t.label}</span>
                 </h2>
+                {t.hand || t.opponentHandCount != null ? (
+                  <div className="match-log-turn-hand">
+                    {t.hand ? (
+                      t.hand.length ? (
+                        <div className="match-log-turn-hand-row">
+                          <span className="match-log-turn-hand-label">Your hand ({t.hand.length})</span>
+                          <p className="match-log-hand-cards match-log-turn-hand-cards">
+                            {t.hand.map((defId, i) => (
+                              <CardButton key={i} defId={defId} name={cardName(defId)} onInspect={() => setInspect({ defId, ownerSeat: seat })} />
+                            ))}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="match-log-turn-hand-label">Your hand: empty</span>
+                      )
+                    ) : null}
+                    {t.opponentHandCount != null ? (
+                      <span className="match-log-turn-opp">Opponent: {t.opponentHandCount} {t.opponentHandCount === 1 ? "card" : "cards"}</span>
+                    ) : null}
+                  </div>
+                ) : null}
                 <ul className="battle-log-lines match-log-lines">
                   {t.entries.map((line) => (
                     <li key={line.id} className={`log-line log-${line.tone}${line.important ? " log-important" : ""}`}>

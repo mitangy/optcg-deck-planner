@@ -30,7 +30,7 @@ export type DuelCreateOptions = {
   protocolVersion?: ProtocolVersion;
   seed?: number;
   autoSkipMulligan?: boolean;
-  /** False for private / hotseat; ranked queue sets true (forces a 15 minute match clock). */
+  /** False for private / hotseat; ranked queue sets true (forces a 15 minute chess clock per player). */
   ranked?: boolean;
   players?: [PlayerDeckWire, PlayerDeckWire];
   timer?: {

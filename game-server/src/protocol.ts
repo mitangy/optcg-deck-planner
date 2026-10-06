@@ -7,8 +7,8 @@ import { gameSeed } from "./matchmakeGuard.js";
 
 export const PROTOCOL_VERSION = 5 as const;
 
-/** Ranked games share one 15 minute clock for the whole game. */
-export const RANKED_MATCH_SECONDS = 15 * 60;
+/** Ranked games give each player a 15 minute chess clock (30 minutes total). */
+export const RANKED_SEAT_SECONDS = 15 * 60;
 
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
 
@@ -39,7 +39,7 @@ export type DuelCreateOptions = {
   autoSkipMulligan?: boolean;
   players?: [PlayerDeckWire, PlayerDeckWire];
   /**
-   * Optional clocks. Ranked queue always forces a 15 minute match clock and no turn clock.
+   * Optional clocks. Ranked queue always forces a 15 minute chess clock per player (seatSeconds), no match clock and no turn clock.
    * Omit / 0 = disabled for that clock.
    */
   timer?: {
@@ -292,11 +292,11 @@ export function parseCreateOptions(raw: unknown): {
   if (turnSeconds === 0) turnSeconds = null;
   if (matchSeconds === 0) matchSeconds = null;
   if (seatSeconds === 0) seatSeconds = null;
-  // Ranked always enforces one 15 minute clock for the whole game, with no per-turn limit.
+  // Ranked always enforces a 15 minute chess clock per player: no shared match clock, no per-turn limit.
   if (ranked) {
     turnSeconds = null;
-    matchSeconds = RANKED_MATCH_SECONDS;
-    seatSeconds = null;
+    matchSeconds = null;
+    seatSeconds = RANKED_SEAT_SECONDS;
   }
   return {
     protocolVersion: PROTOCOL_VERSION,
