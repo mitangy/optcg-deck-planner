@@ -40,6 +40,7 @@ import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
 import {
   PROTOCOL_VERSION,
   parseChatMessage,
+  parseHandOrderMessage,
   parseCosmeticsMessage,
   parseSkinMessage,
   parseCreateOptions,
@@ -69,6 +70,7 @@ import {
   type MatchProgressPayload,
   type MatchResultPayload,
 } from "../writeback.js";
+import { applyHandOrder, idsInHand } from "../handOrder.js";
 import { presence, type PresenceEntry, type PresenceSource } from "../presence.js";
 import { DuelPublicState } from "./schema/DuelPublicState.js";
 
@@ -141,6 +143,11 @@ export class DuelRoom extends Room implements PresenceSource {
   private seatArtPrefs: [ArtPrefsMap, ArtPrefsMap] = [{}, {}];
   /** Per-seat custom playmat / card back (cosmetics only). */
   private seatSkins: [SeatSkin | null, SeatSkin | null] = [null, null];
+  /**
+   * Each player's own hand order (instance ids), shown to spectators of unranked
+   * rooms. Never sent to a player: neither seat learns anything it can't see.
+   */
+  private seatHandOrder: [string[], string[]] = [[], []];
   private intentTimestamps = new Map<string, number[]>();
   /** Recent chat lines, replayed on join / sync. Not persisted. */
   private chatLog: ChatMessage[] = [];
@@ -260,6 +267,10 @@ export class DuelRoom extends Room implements PresenceSource {
 
     this.onMessage("chat", (client, message) => {
       this.handleChat(client, message);
+    });
+
+    this.onMessage("hand_order", (client, message) => {
+      this.handleHandOrder(client, message);
     });
 
     this.onMessage("undo", (client, message) => {
@@ -797,6 +808,40 @@ export class DuelRoom extends Room implements PresenceSource {
     this.maybeSendMatchOver();
   }
 
+  private handleHandOrder(client: Client, message: unknown) {
+    if (this.spectatorForClient(client)) {
+      this.sendError(client, "unauthorized", "Spectators cannot set a hand order");
+      return;
+    }
+    const seat = this.seatForClient(client);
+    if (seat === null) {
+      this.sendError(client, "unauthorized", "Not seated");
+      return;
+    }
+    let ids: string[];
+    try {
+      ids = parseHandOrderMessage(message);
+    } catch (e) {
+      const err = e as Error & { code?: ErrorCode };
+      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      return;
+    }
+    // Ranked rooms never show hands to spectators, so there is nothing to keep.
+    if (this.ranked || !this.match) return;
+    const next = idsInHand(this.match.players[seat].hand, ids);
+    const prev = this.seatHandOrder[seat];
+    if (next.length === prev.length && next.every((id, i) => id === prev[i])) return;
+    this.seatHandOrder[seat] = next;
+    for (const spec of this.spectators) {
+      const specClient = this.clients.find((c) => c.sessionId === spec.sessionId);
+      if (!specClient) continue;
+      specClient.send("view", {
+        protocolVersion: PROTOCOL_VERSION,
+        view: this.spectatorView(this.match, spec.cameraSeat),
+      });
+    }
+  }
+
   private handleCosmetics(client: Client, message: unknown) {
     if (this.spectatorForClient(client)) {
       this.sendError(client, "unauthorized", "Spectators cannot set cosmetics");
@@ -1031,6 +1076,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.clockSeat = null;
     this.rematchRequested = [false, false];
     this.rematchDeclinedBy = null;
+    this.seatHandOrder = [[], []];
   }
 
   private rematchState(): RematchStateMessage {
@@ -1779,7 +1825,14 @@ export class DuelRoom extends Room implements PresenceSource {
    * spectator can't relay them to a player.
    */
   private spectatorView(match: MatchState, cameraSeat: Seat) {
-    return getSpectatorView(match, cameraSeat, { revealHands: !this.ranked });
+    const view = getSpectatorView(match, cameraSeat, { revealHands: !this.ranked });
+    if (!view.revealedHands) return view;
+    // Each hand in the order its player arranged it (see seatHandOrder).
+    const [h0, h1] = view.revealedHands;
+    return {
+      ...view,
+      revealedHands: [applyHandOrder(h0, this.seatHandOrder[0]), applyHandOrder(h1, this.seatHandOrder[1])] as typeof view.revealedHands,
+    };
   }
 
   private sendSpectatorSync(client: Client, cameraSeat: Seat) {

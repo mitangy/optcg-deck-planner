@@ -605,6 +605,12 @@ export type UndoState = {
   pending: { from: Seat; toTurn: number } | null;
 };
 
+/** Client to room: your hand's order (card instance ids, left to right) for spectators' fans. */
+export type HandOrderMessage = {
+  protocolVersion: ProtocolVersion;
+  ids: string[];
+};
+
 export type UndoAction = "request" | "accept" | "decline" | "cancel";
 
 export function parseUndoState(raw: unknown): UndoState {

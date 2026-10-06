@@ -36,8 +36,14 @@ export function useFanFit(
       if (fan.classList.contains("hand-fan-center")) {
         // The handle sits beside the cards inside the same column.
         const head = fan.querySelector<HTMLElement>(".hand-fan-head");
-        const gap = parseFloat(getComputedStyle(fan).columnGap) || 0;
-        maxW -= (head?.offsetWidth ?? 0) + gap;
+        if (head && getComputedStyle(head).position === "absolute") {
+          // Spectators: the label hangs in the column's top corner, so the cards
+          // keep clear of it on both sides and stay centred.
+          maxW -= 2 * (head.offsetWidth + 16);
+        } else {
+          const gap = parseFloat(getComputedStyle(fan).columnGap) || 0;
+          maxW -= (head?.offsetWidth ?? 0) + gap;
+        }
       }
       const cardW = card.offsetWidth;
       fan.style.setProperty("--fan-tuck-w", `${fanSpan(count, cardW, 0.5, maxW)}px`);

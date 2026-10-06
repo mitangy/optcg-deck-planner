@@ -7,6 +7,7 @@ const presence = "game-server/src/presence.ts";
 const appConfig = "game-server/src/app.config.ts";
 const guard = "game-server/src/matchmakeGuard.ts";
 const env = "game-server/src/env.ts";
+const handOrder = "game-server/src/handOrder.ts";
 module.exports = {
   cwd: "game-server",
   runner: "mocha",
@@ -92,6 +93,20 @@ module.exports = {
     {"id": "progress-not-saved-on-close", "file": "game-server/src/rooms/DuelRoom.ts", "from": "      await this.saveProgress();\n", "to": "", "kills": ["an unfinished game's log is saved at the start of every turn and when the room closes (#316)"]},
     {"id": "progress-sends-oldest-waiting", "file": "game-server/src/writeback.ts", "from": "    this.next = payload;\n", "to": "    this.next ??= payload;\n", "kills": ["sends one at a time and skips to the newest snapshot (#316)"]},
     {"id": "progress-failure-stops-sender", "file": "game-server/src/writeback.ts", "from": "      try {\n        await this.send(payload);\n      } catch (error) {\n        this.onError(error);\n      }\n", "to": "      await this.send(payload);\n", "kills": ["a failed send doesn't stop the next snapshot (#316)"]},
+    // hand_order: spectators see each hand in its player's own order (#346)
+    { id: "hand-order-not-applied", file: room, from: "applyHandOrder(h0, this.seatHandOrder[0]), applyHandOrder(h1, this.seatHandOrder[1])", to: "h0, h1", kills: ["a player's hand_order reorders the hands spectators see", "hand_order ids not in the sender's hand are ignored"] },
+    { id: "hand-order-reaches-opponent", file: room, from: "      specClient.send(\"view\", {", to: "      this.broadcast(\"view\", {", kills: ["a player's hand_order reorders the hands spectators see"] },
+    { id: "hand-order-spectator-allowed", edits: [
+      { file: room, from: "    if (this.spectatorForClient(client)) {\n      this.sendError(client, \"unauthorized\", \"Spectators cannot set a hand order\");\n      return;\n    }\n    const seat = this.seatForClient(client);\n    if (seat === null) {\n      this.sendError(client, \"unauthorized\", \"Not seated\");\n      return;\n    }\n    let ids: string[];", to: "    const seat = this.seatForClient(client) ?? 0;\n    let ids: string[];" },
+    ], kills: ['a spectator cannot send hand_order'] },
+    { id: "hand-order-foreign-ids-kept", edits: [
+      { file: handOrder, from: "    if (!held.has(id) || seen.has(id)) continue;", to: "    if (seen.has(id)) continue;" },
+      { file: handOrder, from: "    const card = byId.get(id);\n    if (!card) continue;", to: "    const card = byId.get(id) ?? ({ id } as T);" },
+    ], kills: ["hand_order ids not in the sender's hand are ignored"] },
+    { id: "hand-order-too-many-ids", file: proto, from: "    ids.length > HAND_ORDER_MAX_IDS ||\n", to: "", kills: ['a spectator cannot send hand_order'] },
+    { id: "hand-order-long-ids", file: proto, from: "typeof id !== \"string\" || id.length > HAND_ORDER_MAX_ID_LENGTH", to: "typeof id !== \"string\"", kills: ['a spectator cannot send hand_order'] },
+    { id: "hand-order-resends-unchanged", file: room, from: "    if (next.length === prev.length && next.every((id, i) => id === prev[i])) return;\n", to: "", kills: ['an unchanged hand_order does not resend'] },
+    { id: "hand-order-kept-in-ranked", file: room, from: "    if (this.ranked || !this.match) return;", to: "    if (!this.match) return;", kills: ['a ranked room keeps hands hidden whatever hand_order says'] },
     // matchmake guards (security review)
     { id: "matchmake-no-token-check", file: guard, from: "  if (!token || !verifyGameToken(token)) {\n    throw Object.assign(new Error(\"gameToken required\"), { code: \"unauthorized\" as const });\n  }\n  return true;", to: "  return true;", kills: ["refuses to create a room without a game token"] },
     { id: "duel-room-public", file: room, from: "    void this.setPrivate(true);\n", to: "", kills: ["duel rooms can only be joined by id"] },

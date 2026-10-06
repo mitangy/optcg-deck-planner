@@ -27,6 +27,7 @@ import {
   type Seat,
   type SeatPlayers,
   type TimerMessage,
+  type HandOrderMessage,
   type RematchAction,
   type RematchState,
   type UndoAction,
@@ -360,6 +361,12 @@ export class DuelClient {
   sendChat(text: string) {
     if (!this.room) throw new Error("Not connected");
     this.room.send("chat", { protocolVersion: PROTOCOL_VERSION, text });
+  }
+
+  /** Tell the room this seat's hand order, so spectators' fans match it (ignored in ranked rooms). */
+  sendHandOrder(ids: string[]) {
+    if (!this.room) return;
+    this.room.send("hand_order", { protocolVersion: PROTOCOL_VERSION, ids } satisfies HandOrderMessage);
   }
 
   sendRematch(action: RematchAction) {

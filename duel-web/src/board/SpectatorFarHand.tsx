@@ -1,7 +1,9 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode, Ref } from "react";
 import type { Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
 import { fanPose } from "./handFan";
+import { HandLabel } from "./HandLabel";
+import type { FanPos } from "./handFanPos";
 import { SPECTATOR_FAN_SPREAD, spectatorFarStrip, type SpectatorFans } from "./handLayout";
 
 type HandCard = { id: string; defId: string };
@@ -17,29 +19,46 @@ export function SpectatorFarHand({
   cards,
   ownerSeat,
   mode,
-  label,
+  name,
   motionIds = false,
+  grip,
+  pos = null,
+  moving = false,
+  rootRef,
 }: {
   cards: readonly HandCard[];
   ownerSeat: Seat;
   mode: SpectatorFans;
-  /** "Player 2 hand" */
-  label: string;
+  /** "Player 2": the label reads "Player 2 hand" */
+  name: string;
   /** Tag the tiles for the draw / play animations (they find hand cards by id). */
   motionIds?: boolean;
+  /** Desktop: the drag handle, left of the label. */
+  grip?: ReactNode;
+  /** Desktop: where it was dragged (floats there, fully shown); null = hanging from the top of the board. */
+  pos?: FanPos | null;
+  /** Being dragged right now. */
+  moving?: boolean;
+  rootRef?: Ref<HTMLElement>;
 }) {
   const n = cards.length;
   // A hand too big to read overlapped scrolls in a row on a portrait phone.
   const scroll = mode === "portrait" && spectatorFarStrip(n) === "scroll";
   return (
-    <section className={`spec-far spec-far-${mode}`} aria-label={`${label}: ${n} cards`}>
-      <span className="spec-far-label">
-        {label} <b>{n}</b>
-      </span>
-      <div
-        className={`spec-far-cards${scroll ? " spec-far-scroll" : ""}`}
-        style={{ "--n": Math.max(n, 1), "--spec-spread": SPECTATOR_FAN_SPREAD } as CSSProperties}
-      >
+    <section
+      ref={rootRef}
+      className={`spec-far spec-far-${mode}${pos ? " spec-far-float" : ""}${moving ? " is-moving" : ""}${grip ? " has-grip" : ""}`}
+      style={
+        {
+          "--n": Math.max(n, 1),
+          "--spec-spread": SPECTATOR_FAN_SPREAD,
+          ...(pos ? { "--fan-x": pos.x, "--fan-y": pos.y } : null),
+        } as CSSProperties
+      }
+      aria-label={`${name} hand: ${n} cards`}
+    >
+      <HandLabel name={name} count={n} grip={grip} />
+      <div className={`spec-far-cards${scroll ? " spec-far-scroll" : ""}`}>
         {cards.map((c, i) => {
           const p = fanPose(i, n);
           return (

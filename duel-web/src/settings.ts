@@ -66,6 +66,13 @@ export type DuelSettings = {
   handLayout: HandLayoutPref;
   /** Desktop: where the fanned hand sits ("x,y" share of the window); "" = bottom centre. */
   handFanPos: string;
+  /**
+   * Desktop spectators of unranked rooms: where each of the two hand fans sits
+   * ("x,y" like `handFanPos`; "" = its default spot, along the bottom / top of
+   * the board). The near fan is the one under the board, the far one above it.
+   */
+  spectatorNearFanPos: string;
+  spectatorFarFanPos: string;
   /** Desktop: the fanned hand (or corner dock) stays raised instead of tucking away. */
   keepHandOpen: boolean;
   /**
@@ -135,6 +142,8 @@ const DEFAULTS: DuelSettings = {
   sortHandByCost: false,
   handLayout: "auto",
   handFanPos: "",
+  spectatorNearFanPos: "",
+  spectatorFarFanPos: "",
   keepHandOpen: false,
   panelLayout: "",
   layoutGrips: true,
