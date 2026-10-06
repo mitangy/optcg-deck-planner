@@ -15,6 +15,7 @@ type Props = {
   onToggleFullscreen: () => void;
   /** Defaults to a full page reload; the saved match resumes on boot. */
   onReload?: () => void;
+  onReport: () => void;
   onConcede: () => void;
   onLeave: () => void;
   /** "left": opens beside the landscape icon rail instead of under the top bar. */
@@ -34,6 +35,7 @@ export function MatchMenu({
   onSettings,
   onToggleFullscreen,
   onReload = () => window.location.reload(),
+  onReport,
   onConcede,
   onLeave,
   placement = "top",
@@ -185,6 +187,20 @@ export function MatchMenu({
                       onClick={choose(onReload)}
                     >
                       Reload game
+                    </button>
+                  );
+                case "report":
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      role="menuitem"
+                      data-menu-item
+                      className="match-menu-item"
+                      title="Tell us what went wrong, without leaving the match"
+                      onClick={choose(onReport)}
+                    >
+                      Report a problem
                     </button>
                   );
                 case "concede":

@@ -97,5 +97,8 @@ module.exports = {
     { id: "logpose-deck-sends-leader", file: "frontend/src/logPose.ts", from: "    if (c.card_id.trim().toUpperCase() === leader) continue;\n", to: "", kills: ["without the leader or DON!! (#377)"] },
     { id: "logpose-deck-sends-don", file: "frontend/src/logPose.ts", from: "    if ((c.section || \"main\").toLowerCase() !== \"main\" || c.needed <= 0) continue;", to: "    if (c.needed <= 0) continue;", kills: ["without the leader or DON!! (#377)"] },
     { id: "logpose-deck-copies-one", file: "frontend/src/logPose.ts", from: "    copies.set(c.card_id, (copies.get(c.card_id) ?? 0) + c.needed);", to: "    copies.set(c.card_id, 1);", kills: ["sends a deck's main-deck cards with their copies"] },
+    // feedback (#371)
+    { id: "planner-feedback-posts-as-duel", file: "frontend/src/feedback.ts", from: "app: \"planner\"", to: "app: \"duel\"", kills: ["posts as the planner with cookies and no room"] },
+    { id: "planner-feedback-no-cookies", file: "frontend/src/feedback.ts", from: "      credentials: \"include\",\n", to: "", kills: ["posts as the planner with cookies and no room"] },
   ],
 };

@@ -5569,3 +5569,14 @@ tr.row-flash > td {
 .collection-add .deck-editor-result-actions {
   margin-left: auto;
 }
+
+/* Shared feedback dialog (packages/site-legal): map its tokens to the planner palette. */
+.feedback-backdrop {
+  --fb-bg: var(--card);
+  --fb-ink: var(--ink);
+  --fb-line: var(--line-strong);
+  --fb-field-bg: var(--field-bg);
+  --fb-accent: var(--primary-bg, var(--accent));
+  --fb-on-accent: var(--primary-ink);
+  --fb-danger: var(--danger);
+}

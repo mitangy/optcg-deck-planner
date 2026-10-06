@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fanDocked, fanPosForDrop, nudgeFanPos, parseFanPos, serializeFanPos } from "./handFanPos";
+import { fanDocked, fanPosForDrop, farFanPosForDrop, nudgeFanPos, parseFanPos, serializeFanPos } from "./handFanPos";
 
 const VP = { width: 1000, height: 800 };
 /** Default spot: centre of the board column. */
@@ -43,5 +43,24 @@ describe("nudgeFanPos", () => {
     expect(nudgeFanPos({ x: 0.5, y: 0.5 }, "up")).toEqual({ x: 0.5, y: 0.47 });
     expect(nudgeFanPos({ x: 0.5, y: 0.96 }, "down").y).toBe(1);
     expect(nudgeFanPos({ x: 0.5, y: 1 }, "up").y).toBeCloseTo(0.97);
+  });
+});
+
+describe("farFanPosForDrop", () => {
+  // A 100px-tall far fan; the board's top edge is at y = 90 and its middle at x = 500.
+  const drop = (centreX: number, bottom: number) => farFanPosForDrop(centreX, bottom, 100, VP, 90, DEFAULT_X);
+
+  it("goes back to the strip along the top when dropped with its top edge and centre near it (#346)", () => {
+    expect(drop(520, 200)).toBeNull();
+  });
+
+  it("stays where it was dropped anywhere else, and never snaps to the bottom edge (#346)", () => {
+    // Centre far from the board's middle.
+    expect(drop(900, 200)).toEqual({ x: 0.9, y: 0.25 });
+    // Centred but lower down the board.
+    expect(drop(500, 400)).toEqual({ x: 0.5, y: 0.5 });
+    // Right above the bottom edge: still a floating spot, not docked.
+    const low = drop(900, 790)!;
+    expect(fanDocked(low)).toBe(false);
   });
 });

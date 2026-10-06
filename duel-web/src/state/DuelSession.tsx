@@ -117,6 +117,8 @@ type DuelSession = {
   /** Match chat (online matches only; cleared when a new match starts). */
   chat: ChatLine[];
   sendChat: (text: string) => void;
+  /** Players: tell the room the order of your hand (spectators' fans follow it). */
+  sendHandOrder: (ids: string[]) => void;
   /** Undo availability (private rooms); null until the server reports it. */
   undo: UndoState | null;
   /** Per seat: epoch ms until which a dropped player may reconnect (else null). */
@@ -404,6 +406,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setErrorBanner(e instanceof Error ? e.message : "Chat failed");
         }
       },
+      sendHandOrder: (ids) => client.sendHandOrder(ids),
       undo,
       awayUntil,
       seatSkins,

@@ -41,7 +41,7 @@ function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, {
     const taken = result.events.find((e): e is Extract<GameEvent, { type: "life_taken" }> => e.type === "life_taken");
     if (taken) {
       return {
-        replay: { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: true, lifeCheckEveryHit: true, players, intents, end: { winner: (1 - taken.seat) as Seat, reason: "concede" } },
+        replay: { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: true, lifeCheckEveryHit: true, privateChoicesV2: true, players, intents, end: { winner: (1 - taken.seat) as Seat, reason: "concede" } },
         taken,
       };
     }
@@ -74,7 +74,7 @@ function gameWithMulligans(seed: number, redraw: [boolean, boolean]) {
     if (i === 1) kept = state.players.map((p) => p.hand.map((c) => getCardDef(c.defId).name));
   }
   expect(state.turnNumber).toBe(3);
-  const played: MatchReplay = { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: false, lifeCheckEveryHit: true, players, intents };
+  const played: MatchReplay = { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: false, lifeCheckEveryHit: true, privateChoicesV2: true, players, intents };
   return { replay: played, dealt, kept };
 }
 const lifeCard = getCardDef(taken.defId).name;

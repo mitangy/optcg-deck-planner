@@ -27,6 +27,7 @@ import {
   type Seat,
   type SeatPlayers,
   type TimerMessage,
+  type HandOrderMessage,
   type RematchAction,
   type RematchState,
   type UndoAction,
@@ -34,7 +35,7 @@ import {
 } from "./protocol";
 import { Client, type Room } from "@colyseus/sdk";
 import { isSeatReservationExpiredError } from "./matchResume";
-import { noteReportGameToken, noteReportRoom } from "../cards/cardReport";
+import { noteMatchGameToken, noteMatchRoom } from "../matchContext";
 
 export type DuelClientHandlers = {
   onWelcome?: (info: {
@@ -362,6 +363,12 @@ export class DuelClient {
     this.room.send("chat", { protocolVersion: PROTOCOL_VERSION, text });
   }
 
+  /** Tell the room this seat's hand order, so spectators' fans match it (ignored in ranked rooms). */
+  sendHandOrder(ids: string[]) {
+    if (!this.room) return;
+    this.room.send("hand_order", { protocolVersion: PROTOCOL_VERSION, ids } satisfies HandOrderMessage);
+  }
+
   sendRematch(action: RematchAction) {
     if (!this.room) throw new Error("Not connected");
     this.room.send("rematch", { protocolVersion: PROTOCOL_VERSION, action });
@@ -425,7 +432,7 @@ export class DuelClient {
     const room = this.room;
     this.room = null;
     this.client = null;
-    noteReportRoom(undefined);
+    noteMatchRoom(undefined);
     if (consented) this.reconnectionToken = null;
     await this.cancelQueue();
     if (room) {
@@ -438,7 +445,7 @@ export class DuelClient {
   }
 
   private buildJoin(params: ConnectParams): DuelJoinOptions {
-    noteReportGameToken(params.gameToken);
+    noteMatchGameToken(params.gameToken);
     return {
       protocolVersion: PROTOCOL_VERSION,
       devUserId: params.devUserId?.trim() || undefined,
@@ -488,7 +495,7 @@ export class DuelClient {
   }
 
   private wireDuel(room: Room) {
-    noteReportRoom(room.roomId);
+    noteMatchRoom(room.roomId);
     room.onMessage("welcome", (raw: unknown) => {
       try {
         const msg = parseWelcome(raw);

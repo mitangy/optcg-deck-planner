@@ -51,7 +51,7 @@ Seat 1 leader: Sanji (OP02-026)
 > #12 seat 0 play_card {"handIndex":0}
   Seat 0 plays Sentomaru (rests 2 DON!!)
 
-> #13 seat 0 give_don {"donId":"don_4","targetId":"card_13"}
+> #13 seat 0 give_don {"donId":"don_4","targetId":"card_48"}
   Seat 0 attaches DON!! to Sentomaru → 2000 power
 
 > #14 seat 0 end_turn
@@ -73,7 +73,7 @@ Seat 1 leader: Sanji (OP02-026)
 > #17 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (6000 vs 5000)
 
-> #18 seat 0 declare_block {"blockerId":"card_13"}
+> #18 seat 0 declare_block {"blockerId":"card_48"}
   Seat 0 blocks
   Seat 0 activates Sentomaru's ability
 

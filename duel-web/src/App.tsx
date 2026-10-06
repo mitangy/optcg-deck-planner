@@ -18,6 +18,8 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { MatchLogPage } from "./pages/MatchLogPage";
 import { UsernameSetupPage } from "./pages/UsernameSetupPage";
 import { useDuelSettings } from "./settings";
+import { FeedbackHost } from "./FeedbackHost";
+import { openFeedback } from "./feedbackDialog";
 import { showsSiteFooter } from "./siteFooter";
 import { applyTextSize } from "./textSize";
 import { applyTheme, LIGHT_QUERY } from "./theme";
@@ -61,7 +63,8 @@ export function App() {
         <Route path="/cookies" element={<LegalPage kind="cookies" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {showsSiteFooter(pathname) && <SiteFooter Link={Link} className="site-footer-centered" />}
+      {showsSiteFooter(pathname) && <SiteFooter Link={Link} className="site-footer-centered" onFeedback={() => openFeedback("Send feedback")} />}
+      <FeedbackHost />
     </LogPoseProvider>
   );
 }

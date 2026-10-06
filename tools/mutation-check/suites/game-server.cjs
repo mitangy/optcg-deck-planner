@@ -7,6 +7,7 @@ const presence = "game-server/src/presence.ts";
 const appConfig = "game-server/src/app.config.ts";
 const guard = "game-server/src/matchmakeGuard.ts";
 const env = "game-server/src/env.ts";
+const handOrder = "game-server/src/handOrder.ts";
 module.exports = {
   cwd: "game-server",
   runner: "mocha",
@@ -54,7 +55,20 @@ module.exports = {
       { file: queue, from: "    for (const old of this.queue.filter((q) => q.userId === identity.userId)) {", to: "    for (const old of [] as Queued[]) {" },
     ], kills: ["ranked_queue keeps one place per account"] },
     { id: "queue-keeps-duplicate-entries", file: queue, from: "    for (const old of this.queue.filter((q) => q.userId === identity.userId)) {", to: "    for (const old of [] as Queued[]) {", kills: ["ranked_queue keeps one place per account"] },
-    { id: "cosmetics-not-relayed", file: room, from: "    this.broadcast(\"cosmetics\", payload);", to: "    client.send(\"cosmetics\", payload);", kills: ["relays cosmetics artPrefs between seats"] },
+    { id: "cosmetics-not-relayed", file: room, from: "      c.send(\"cosmetics\", payload);\n    }\n  }\n\n  /** Fold", to: "      if (this.seatForClient(c) === seat) c.send(\"cosmetics\", payload);\n    }\n  }\n\n  /** Fold", kills: ["relays cosmetics only for cards already public to the other seat and spectators (#369)"] },
+    // Two layers: the live relay and the replay to joiners both filter through artPrefsFor.
+    { id: "cosmetics-leak-decklist", file: room, from: "    return this.seatForClient(client) === seat ? prefs : visibleArtPrefs(prefs, this.publicArtDefs[seat]);", to: "    return prefs;", kills: ["relays cosmetics only for cards already public to the other seat and spectators (#369)"] },
+    { id: "cosmetics-public-never-pushed", file: room, from: "      if (key !== this.sentPublicArt[seat]) this.broadcastSeatCosmetics(seat, true);", to: "", kills: ["relays cosmetics only for cards already public to the other seat and spectators (#369)"] },
+    { id: "public-art-counts-hand", file: "game-server/src/publicArt.ts", from: "  for (const c of p.resolving) into.add(c.defId);", to: "  for (const c of p.resolving) into.add(c.defId);\n  for (const c of p.hand) into.add(c.defId);", kills: ["counts the Leader and face-up cards, never hand, deck or face-down Life (#369)"] },
+    { id: "public-art-counts-face-down-life", file: "game-server/src/publicArt.ts", from: "    if (p.faceUpLife[i]) into.add(defId);", to: "    into.add(defId);", kills: ["counts the Leader and face-up cards, never hand, deck or face-down Life (#369)"] },
+    { id: "public-art-ignores-event-owner", file: "game-server/src/publicArt.ts", from: "        if (e.seat === seat) into.add(e.defId);", to: "        into.add(e.defId);", kills: ["keeps a card public after it leaves the table, but only for its own seat (#369)"] },
+    { id: "public-art-ignores-hidden-moves", file: "game-server/src/publicArt.ts", from: "        if (e.seat === seat && !e.hidden) into.add(e.defId);", to: "        if (e.seat === seat) into.add(e.defId);", kills: ["keeps a card public after it leaves the table, but only for its own seat (#369)"] },
+    { id: "public-art-filter-keeps-all", file: "game-server/src/publicArt.ts", from: "    if (publicDefIds.has(defId)) out[defId] = altId;", to: "    out[defId] = altId;", kills: ["filters a pref map down to public cards (#369)"] },
+    // Undo must not hand both players the old shuffle order again.
+    { id: "undo-restores-old-rng", file: room, from: "    const reseed = this.freshSeed();", to: "    const reseed = snap.rng.seed;", kills: ["an accepted undo re-seeds the rng instead of restoring it, and the replay still rebuilds (#369)"] },
+    { id: "undo-reseed-not-recorded", file: room, from: "      kept.push({ atIntent: snap.intentCount, seed: reseed >>> 0, shuffleDecks: true });", to: "", kills: ["an accepted undo re-seeds the rng instead of restoring it, and the replay still rebuilds (#369)"] },
+    { id: "undo-decks-not-reshuffled", file: room, from: "    this.match = reseedMatch(this.match, reseed, true);", to: "    this.match = reseedMatch(this.match, reseed, false);", kills: ["an accepted undo re-seeds the rng instead of restoring it, and the replay still rebuilds (#369)"] },
+    { id: "undo-reshuffle-not-recorded", file: room, from: "seed: reseed >>> 0, shuffleDecks: true }", to: "seed: reseed >>> 0 }", kills: ["an accepted undo re-seeds the rng instead of restoring it, and the replay still rebuilds (#369)"] },
     { id: "skin-not-relayed", file: room, from: "    this.broadcast(\"skin\", payload);", to: "    client.send(\"skin\", payload);", kills: ["relays a seat's playmat / card back skin"] },
     { id: "skin-any-mime", file: proto, from: "^data:image\\/(?:jpeg|webp|png);base64,", to: "^data:[a-z]+\\/[a-z]+;base64,", kills: ["relays a seat's playmat / card back skin"] },
     { id: "skin-ws-default-max-payload", file: appConfig, from: "  transport: new WebSocketTransport({ maxPayload: WS_MAX_PAYLOAD_BYTES }),\n", to: "", kills: ["relays a cap-sized playmat and card back in one skin message"] },
@@ -97,6 +111,20 @@ module.exports = {
     {"id": "progress-not-saved-on-close", "file": "game-server/src/rooms/DuelRoom.ts", "from": "      await this.saveProgress(true);\n", "to": "", "kills": ["an unfinished game's log is saved at the start of every turn and when the room closes (#316)"]},
     {"id": "progress-sends-oldest-waiting", "file": "game-server/src/writeback.ts", "from": "    this.next = payload;\n", "to": "    this.next ??= payload;\n", "kills": ["sends one at a time and skips to the newest snapshot (#316)"]},
     {"id": "progress-failure-stops-sender", "file": "game-server/src/writeback.ts", "from": "      try {\n        await this.send(payload);\n      } catch (error) {\n        this.onError(error);\n      }\n", "to": "      await this.send(payload);\n", "kills": ["a failed send doesn't stop the next snapshot (#316)"]},
+    // hand_order: spectators see each hand in its player's own order (#346)
+    { id: "hand-order-not-applied", file: room, from: "applyHandOrder(h0, this.seatHandOrder[0]), applyHandOrder(h1, this.seatHandOrder[1])", to: "h0, h1", kills: ["a player's hand_order reorders the hands spectators see", "hand_order ids not in the sender's hand are ignored"] },
+    { id: "hand-order-reaches-opponent", file: room, from: "      specClient.send(\"view\", {", to: "      this.broadcast(\"view\", {", kills: ["a player's hand_order reorders the hands spectators see"] },
+    { id: "hand-order-spectator-allowed", edits: [
+      { file: room, from: "    if (this.spectatorForClient(client)) {\n      this.sendError(client, \"unauthorized\", \"Spectators cannot set a hand order\");\n      return;\n    }\n    const seat = this.seatForClient(client);\n    if (seat === null) {\n      this.sendError(client, \"unauthorized\", \"Not seated\");\n      return;\n    }\n    let ids: string[];", to: "    const seat = this.seatForClient(client) ?? 0;\n    let ids: string[];" },
+    ], kills: ['a spectator cannot send hand_order'] },
+    { id: "hand-order-foreign-ids-kept", edits: [
+      { file: handOrder, from: "    if (!held.has(id) || seen.has(id)) continue;", to: "    if (seen.has(id)) continue;" },
+      { file: handOrder, from: "    const card = byId.get(id);\n    if (!card) continue;", to: "    const card = byId.get(id) ?? ({ id } as T);" },
+    ], kills: ["hand_order ids not in the sender's hand are ignored"] },
+    { id: "hand-order-too-many-ids", file: proto, from: "    ids.length > HAND_ORDER_MAX_IDS ||\n", to: "", kills: ['a spectator cannot send hand_order'] },
+    { id: "hand-order-long-ids", file: proto, from: "typeof id !== \"string\" || id.length > HAND_ORDER_MAX_ID_LENGTH", to: "typeof id !== \"string\"", kills: ['a spectator cannot send hand_order'] },
+    { id: "hand-order-resends-unchanged", file: room, from: "    if (next.length === prev.length && next.every((id, i) => id === prev[i])) return;\n", to: "", kills: ['an unchanged hand_order does not resend'] },
+    { id: "hand-order-kept-in-ranked", file: room, from: "    if (this.ranked || !this.match) return;", to: "    if (!this.match) return;", kills: ['a ranked room keeps hands hidden whatever hand_order says'] },
     // matchmake guards (security review)
     { id: "matchmake-no-token-check", file: guard, from: "  if (!token || !verifyGameToken(token)) {\n    throw Object.assign(new Error(\"gameToken required\"), { code: \"unauthorized\" as const });\n  }\n  return true;", to: "  return true;", kills: ["refuses to create a room without a game token"] },
     { id: "duel-room-public", file: room, from: "    void this.setPrivate(true);\n", to: "", kills: ["duel rooms can only be joined by id"] },

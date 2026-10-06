@@ -5,6 +5,8 @@ const sync = "backend/app/catalog_sync.py";
 const domain = "backend/app/domain.py";
 const services = "backend/app/services.py";
 const duel = "backend/app/routers/duel.py";
+const reporter = "backend/app/reporter.py";
+const feedback = "backend/app/routers/feedback.py";
 const receipt = "backend/app/tcgplayer_receipt.py";
 const gb = "backend/app/group_buy.py";
 const merge = "backend/app/group_buy_merge.py";
@@ -24,8 +26,8 @@ module.exports = {
   runner: "pytest",
   mutations: [
     // duel card reports
-    { id: "card-report-game-token-ignored", file: duel, from: "    payload = verify_game_token(token.strip(), settings)\n    if payload is None:\n        return None\n    return db.get(User, payload[\"uid\"])", to: "    return None", kills: ["test_game_token_holder_is_recorded_as_reporter"] },
-    { id: "card-report-session-ignored", file: duel, from: "    if session_user is not None:\n        return session_user\n", to: "", kills: ["test_session_user_takes_precedence_over_game_token"] },
+    { id: "card-report-game-token-ignored", file: reporter, from: "    payload = verify_game_token(token.strip(), settings)\n    if payload is None:\n        return None\n    return db.get(User, payload[\"uid\"])", to: "    return None", kills: ["test_game_token_holder_is_recorded_as_reporter", "test_game_token_holder_is_recorded_as_sender_371"] },
+    { id: "card-report-session-ignored", file: reporter, from: "    if session_user is not None:\n        return session_user\n", to: "", kills: ["test_session_user_takes_precedence_over_game_token", "test_session_user_takes_precedence_over_game_token_371"] },
     { id: "card-report-description-unstripped", file: "backend/app/schemas.py", from: "    model_config = ConfigDict(str_strip_whitespace=True)\n\n    card_id", to: "    card_id", kills: ["test_padded_short_description_is_rejected"] },
     { id: "card-report-unlimited", file: duel, from: "    if not _report_rate.allow(f\"card-report:{client_ip(request)}\") or not _report_global_rate.allow(\"card-report\"):", to: "    if not _report_global_rate.allow(\"card-report\"):", kills: ["test_reports_are_rate_limited_per_client"] },
     { id: "card-report-no-global-cap", file: duel, from: "    if not _report_rate.allow(f\"card-report:{client_ip(request)}\") or not _report_global_rate.allow(\"card-report\"):", to: "    if not _report_rate.allow(f\"card-report:{client_ip(request)}\"):", kills: ["test_reports_are_capped_in_total_across_clients"] },
@@ -33,6 +35,16 @@ module.exports = {
     { id: "card-report-patch-unguarded", file: duel, from: "    \"\"\"Mark a report open, fixed or won't-fix (admin catalog token).\"\"\"\n    _require_catalog_token(x_catalog_token, settings)\n", to: "    \"\"\"Mark a report open, fixed or won't-fix (admin catalog token).\"\"\"\n", kills: ["test_fixed_reports_leave_the_default_open_list"] },
     { id: "card-report-status-filter-dropped", file: duel, from: "        query = query.where(CardReport.status == status)", to: "        pass", kills: ["test_fixed_reports_leave_the_default_open_list"] },
     { id: "card-report-status-not-saved", file: duel, from: "    row.status = body.status\n", to: "", kills: ["test_fixed_reports_leave_the_default_open_list"] },
+    // feedback (#371)
+    { id: "feedback-message-unstripped", file: "backend/app/schemas.py", from: "    model_config = ConfigDict(str_strip_whitespace=True)\n\n    kind:", to: "    kind:", kills: ["test_padded_short_message_is_rejected_371"] },
+    { id: "feedback-kind-unchecked", file: "backend/app/schemas.py", from: "    kind: Literal[\"bug\", \"idea\", \"other\"]", to: "    kind: str", kills: ["test_unknown_kind_is_rejected_371"] },
+    { id: "feedback-unlimited", file: feedback, from: "    if not _feedback_rate.allow(f\"feedback:{client_ip(request)}\") or not _feedback_global_rate.allow(\"feedback\"):", to: "    if not _feedback_global_rate.allow(\"feedback\"):", kills: ["test_feedback_is_rate_limited_per_client_371"] },
+    { id: "feedback-no-global-cap", file: feedback, from: "    if not _feedback_rate.allow(f\"feedback:{client_ip(request)}\") or not _feedback_global_rate.allow(\"feedback\"):", to: "    if not _feedback_rate.allow(f\"feedback:{client_ip(request)}\"):", kills: ["test_feedback_is_capped_in_total_across_clients_371"] },
+    { id: "feedback-sender-dropped", file: feedback, from: "        user_id=user.id if user is not None else None,\n    )\n    db.add(row)", to: "        user_id=None,\n    )\n    db.add(row)", kills: ["test_game_token_holder_is_recorded_as_sender_371"] },
+    { id: "feedback-list-unguarded", file: feedback, from: "    Pass ``status=all`` to include fixed and won't-fix items.\n    \"\"\"\n    _require_catalog_token(x_catalog_token, settings)\n", to: "    Pass ``status=all`` to include fixed and won't-fix items.\n    \"\"\"\n", kills: ["test_listing_feedback_requires_admin_token_371"] },
+    { id: "feedback-patch-unguarded", file: feedback, from: "    \"\"\"Mark feedback open, fixed or won't-fix (admin catalog token).\"\"\"\n    _require_catalog_token(x_catalog_token, settings)\n", to: "    \"\"\"Mark feedback open, fixed or won't-fix (admin catalog token).\"\"\"\n", kills: ["test_fixed_feedback_leaves_the_default_open_list_371"] },
+    { id: "feedback-status-filter-dropped", file: feedback, from: "        query = query.where(Feedback.status == status)", to: "        pass", kills: ["test_fixed_feedback_leaves_the_default_open_list_371"] },
+    { id: "feedback-status-not-saved", file: feedback, from: "    row.status = body.status\n", to: "", kills: ["test_fixed_feedback_leaves_the_default_open_list_371"] },
     { id: "postgres-url-default-driver", file: config, from: "                return \"postgresql+psycopg2://\" + url[len(prefix) :]", to: "                return \"postgresql://\" + url[len(prefix) :]", kills: ["test_postgres_urls_use_the_installed_psycopg2_driver[postgres:", "test_postgres_urls_use_the_installed_psycopg2_driver[postgresql:"] },
 
     // rate limiting

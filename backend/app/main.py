@@ -7,7 +7,7 @@ from app.body_limit import BodySizeLimitMiddleware
 from app.config import get_settings
 from app.cors import TieredCORSMiddleware
 from app.db import init_db
-from app.routers import analyst, analyst_chat, api, auth, duel, duel_prefs, friends
+from app.routers import analyst, analyst_chat, api, auth, duel, duel_prefs, feedback, friends
 
 settings = get_settings()
 
@@ -77,6 +77,7 @@ app.include_router(api.router)
 app.include_router(duel.router)
 app.include_router(friends.router)
 app.include_router(duel_prefs.router)
+app.include_router(feedback.router)
 app.include_router(analyst.router)
 app.include_router(analyst_chat.router)
 

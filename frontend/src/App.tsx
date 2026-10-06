@@ -26,7 +26,8 @@ import {
   optcgSimFilename,
 } from "./optcgsimExport";
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
-import { SiteFooter } from "@optcg/site-legal";
+import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
+import { submitFeedback } from "./feedback";
 import { LogPoseProvider, useLogPosePage } from "@optcg/analyst-client";
 import { DECK_STARTERS, defaultLogPosePage, plannerDeckContext, showsLogPose } from "./logPose";
 import { LegalPage } from "./LegalPage";
@@ -4147,6 +4148,7 @@ export default function App() {
   const logPosePage = useMemo(() => defaultLogPosePage(pathname), [pathname]);
   // Shares RequireAuth's cached /auth/me query; signing in or out asks for the chat session again.
   const { data: me } = useMe();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   return (
     <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null}>
       <Routes>
@@ -4216,7 +4218,14 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <SiteFooter Link={Link} />
+      <SiteFooter Link={Link} onFeedback={() => setFeedbackOpen(true)} />
+      {feedbackOpen ? (
+        <FeedbackDialog
+          title="Send feedback"
+          submit={(payload) => submitFeedback(payload)}
+          onClose={() => setFeedbackOpen(false)}
+        />
+      ) : null}
     </LogPoseProvider>
   );
 }
