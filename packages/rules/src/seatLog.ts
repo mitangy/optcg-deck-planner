@@ -35,7 +35,7 @@ export interface SeatLog {
 
 function recordHand(turn: SeatLogTurn, state: MatchState, seat: Seat) {
   turn.hand = state.players[seat].hand.map((c) => c.defId);
-  turn.opponentHandCount = state.players[1 - seat].hand.length;
+  turn.opponentHandCount = state.players[(1 - seat) as Seat].hand.length;
 }
 
 function indexBoard(state: MatchState, into: Map<InstanceId, [InstanceId, CardDefId, Seat]>) {
