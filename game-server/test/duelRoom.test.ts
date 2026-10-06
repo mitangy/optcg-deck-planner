@@ -113,6 +113,8 @@ type RoomInternals = {
   replay: MatchReplay | null;
   expireTurnClock(): void;
   matchEndsAt: number | null;
+  clockSeat: 0 | 1 | null;
+  seatRemainingMs: [number, number];
   resultPayload(s0: number, s1: number, winner: 0 | 1, reason: string): MatchResultPayload;
 };
 const internals = (room: DuelRoom) => room as unknown as RoomInternals;
@@ -1192,7 +1194,7 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("ranked clock: a seat that never answers its mulligan loses on time, not the first player (#248)", async () => {
+  it("match clock: a seat that never answers its mulligan loses on time, not the first player (#248)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 42,
@@ -1225,7 +1227,46 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("ranked clock: a defender sitting on the block step loses on time, not the attacker (#248)", async () => {
+  it("per-player clock: a seat that stalls its mulligan runs its own bank down and loses on time (#349)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 42,
+      autoSkipMulligan: false,
+      timer: { seatSeconds: 900 },
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    assert.equal(bags[0].welcome!.phase, "mulligan");
+
+    // Nobody has answered: the clock runs for the first player.
+    const active = internals(room).match.activeSeat as 0 | 1;
+    const other = (1 - active) as 0 | 1;
+    assert.equal(internals(room).clockSeat, active);
+
+    // The active seat keeps; the clock moves to the seat that has yet to answer.
+    const clients = [c0, c1] as const;
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "mulligan", doMulligan: false } });
+    await waitUntil(() => internals(room).match.players[active].mulliganDone, 5000);
+    assert.equal(internals(room).clockSeat, other);
+
+    // The staller's bank empties while the answered seat's bank is untouched.
+    internals(room).seatRemainingMs[other] = 1;
+    await waitUntil(() => bags[0].over != null, 5000);
+    assert.deepEqual(bags[0].over!.result, { winner: active, reason: "timeout" });
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("match clock: a defender sitting on the block step loses on time, not the attacker (#248)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 42,
