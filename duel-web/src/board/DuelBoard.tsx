@@ -99,6 +99,7 @@ import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
 import { moveToSlot, reconcileHandOrder } from "./handOrder";
 import { useHandReorder } from "./useHandReorder";
+import { useHandShuffle } from "./useHandShuffle";
 import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { sideSkins } from "./seatSkins";
@@ -358,10 +359,19 @@ export function DuelBoard({
   const [handOrderIds, setHandOrderIds] = useState<readonly string[]>([]);
   /** The hand's display order right now, for a reorder dropped mid-render. */
   const handShownIdsRef = useRef<readonly string[]>([]);
-  const onHandReorder = useCallback((cardId: string, slot: number) => {
-    setHandOrderIds(moveToSlot(handShownIdsRef.current, cardId, slot));
-  }, []);
+  const captureHandShuffle = useHandShuffle(handShownIdsRef, { sound: prefs.turnSound });
+  const onHandReorder = useCallback(
+    (cardId: string, slot: number, x: number, y: number) => {
+      captureHandShuffle("drop", { cardId, x, y });
+      setHandOrderIds(moveToSlot(handShownIdsRef.current, cardId, slot));
+    },
+    [captureHandShuffle],
+  );
   const handReorder = useHandReorder(onHandReorder);
+  function toggleHandSort() {
+    captureHandShuffle("sort");
+    setHandSorted((v) => !v);
+  }
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const fullscreenOffered = useMemo(() => canOfferFullscreen(readInstallEnv()), []);
@@ -1522,7 +1532,7 @@ export function DuelBoard({
               type="button"
               className={`hand-rail-btn${handSorted ? " active" : ""}`}
               aria-pressed={handSorted}
-              onClick={() => setHandSorted((v) => !v)}
+              onClick={toggleHandSort}
             >
               Sort
             </button>
@@ -2127,7 +2137,7 @@ export function DuelBoard({
                         type="button"
                         className={`hand-rail-btn${handSorted ? " active" : ""}`}
                         aria-pressed={handSorted}
-                        onClick={() => setHandSorted((v) => !v)}
+                        onClick={toggleHandSort}
                       >
                         Sort
                       </button>
@@ -2257,7 +2267,7 @@ export function DuelBoard({
                 type="button"
                 className={`hand-rail-btn${handSorted ? " active" : ""}`}
                 aria-pressed={handSorted}
-                onClick={() => setHandSorted((v) => !v)}
+                onClick={toggleHandSort}
               >
                 Sort
               </button>
@@ -2307,7 +2317,7 @@ export function DuelBoard({
                 type="button"
                 className={`hand-rail-btn${handSorted ? " active" : ""}`}
                 aria-pressed={handSorted}
-                onClick={() => setHandSorted((v) => !v)}
+                onClick={toggleHandSort}
               >
                 Sort
               </button>
