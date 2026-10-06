@@ -47,6 +47,25 @@ describe("match replays", () => {
     expect(replayMatch({ ...base, intents, reseeds: [{ atIntent: 2, seed: 123456 }] }).rng.seed).toBe(123456);
   });
 
+  it("reshuffles both decks at a reseed marked shuffleDecks, leaving Life alone (#369)", () => {
+    const plain = replayMatch(base);
+    const shuffled = replayMatch({ ...base, reseeds: [{ atIntent: 0, seed: 99, shuffleDecks: true }] });
+    for (const seat of [0, 1] as const) {
+      const a = plain.players[seat];
+      const b = shuffled.players[seat];
+      expect([...b.zoneInstanceIds.deck].sort()).toEqual([...a.zoneInstanceIds.deck].sort());
+      expect(b.zoneInstanceIds.deck).not.toEqual(a.zoneInstanceIds.deck);
+      // defIds stay paired with their instance ids.
+      const defOf = (p: typeof a, id: string) => p.deck[p.zoneInstanceIds.deck.indexOf(id)];
+      for (const id of a.zoneInstanceIds.deck) expect(defOf(b, id)).toBe(defOf(a, id));
+      expect(b.life).toEqual(a.life);
+      expect(b.zoneInstanceIds.life).toEqual(a.zoneInstanceIds.life);
+    }
+    // Without the flag only the rng moves.
+    const unflagged = replayMatch({ ...base, reseeds: [{ atIntent: 0, seed: 99 }] });
+    expect(unflagged.players[0].zoneInstanceIds.deck).toEqual(plain.players[0].zoneInstanceIds.deck);
+  });
+
   it("narrates cards a seat can't see as hidden instead of failing (#244)", () => {
     let lines: string[] = [];
     expect(() => {

@@ -6,6 +6,7 @@
  */
 import { applyIntent, createMatch, skipMulligans } from "./engine.js";
 import { createSeededRng } from "./rng.js";
+import { reseedMatch } from "./reseed.js";
 import type { GameEvent, Intent, MatchState, Seat } from "./types.js";
 
 export const MATCH_REPLAY_SCHEMA = 1;
@@ -26,10 +27,10 @@ export interface MatchReplay {
   intents: { seat: Seat; intent: Intent }[];
   /**
    * The room re-seeded the shuffle rng (an agreed undo must not repeat the old
-   * draws). Before applying intent `atIntent` the rng restarts from `seed`.
+   * draws). Before applying intent `atIntent` the rng restarts from `seed`, and with `shuffleDecks` both decks are reshuffled with it.
    * Absent on older recordings: one seed for the whole game.
    */
-  reseeds?: { atIntent: number; seed: number }[];
+  reseeds?: { atIntent: number; seed: number; shuffleDecks?: boolean }[];
   /** How the game ended, including ends outside the engine (concede, timeout, leaving). */
   end?: { winner: Seat; reason: string };
 }
@@ -56,7 +57,7 @@ export function replayMatch(replay: MatchReplay, onStep?: (step: ReplayStep) => 
   if (replay.skipMulligans) state = skipMulligans(state, rng);
   const reseedAt = (i: number) => {
     for (const r of replay.reseeds ?? []) {
-      if (r.atIntent === i) state = { ...state, rng: { seed: r.seed >>> 0, cursor: 0 } };
+      if (r.atIntent === i) state = reseedMatch(state, r.seed, r.shuffleDecks === true);
     }
   };
   replay.intents.forEach(({ seat, intent }, i) => {

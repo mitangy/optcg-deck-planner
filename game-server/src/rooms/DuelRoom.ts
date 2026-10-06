@@ -9,6 +9,7 @@ import {
   getPlayerView,
   getSpectatorView,
   projectGameEvents,
+  reseedMatch,
   listLegalIntents,
   MATCH_REPLAY_SCHEMA,
   REGISTRY_HASH,
@@ -1319,11 +1320,12 @@ export class DuelRoom extends Room implements PresenceSource {
     // Re-seed from fresh entropy instead, and record it so the replay still
     // rebuilds the game. The engine draws from match.rng, not the room's.
     const reseed = this.freshSeed();
-    this.match = { ...this.match, rng: { seed: reseed >>> 0, cursor: 0 } };
+    // Both players saw their next draws, so the decks are reshuffled too.
+    this.match = reseedMatch(this.match, reseed, true);
     this.rng = createSeededRng(reseed);
     if (this.replay) {
       const kept = (this.replay.reseeds ?? []).filter((r) => r.atIntent < snap.intentCount);
-      kept.push({ atIntent: snap.intentCount, seed: reseed >>> 0 });
+      kept.push({ atIntent: snap.intentCount, seed: reseed >>> 0, shuffleDecks: true });
       this.replay.reseeds = kept;
     }
     this.actedSinceSnapshot = false;
