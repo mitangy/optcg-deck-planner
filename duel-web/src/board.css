@@ -1148,11 +1148,24 @@
   min-height: 0;
 }
 
+/* Minimum heights (kept in step with PANEL_MIN_HEIGHT_PX in panelSizes.ts), so a
+   saved share on a short window never squashes a panel into its neighbour. The
+   content-sized panels never go under what their content needs. */
+.arena.arena-wide .board-panel[data-panel="turn"],
+.arena.arena-wide .board-panel[data-panel="oppHand"] {
+  min-height: min-content;
+}
+
+.arena.arena-wide .board-panel[data-panel="recent"],
+.arena.arena-wide .board-panel[data-panel="actions"] {
+  min-height: 4.5rem;
+}
+
 /* Fixed share, so a long ability never moves the panels below it. It only
    gives way (down to a third) when the Grid hand shares its column. */
 .arena.arena-wide .board-panel[data-panel="preview"] {
   flex: 0 1 var(--preview-h, 52%);
-  min-height: 33%;
+  min-height: max(33%, 140px);
 }
 
 .arena.arena-wide .board-panel[data-panel="log"],
@@ -1626,7 +1639,8 @@ body.is-panel-drag * {
 
 .turn-player-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Never narrower than the label, so HAND and DECK cannot run together. */
+  grid-template-columns: repeat(4, minmax(min-content, 1fr));
   gap: 0.25rem;
   margin: 0.35rem 0 0;
 }

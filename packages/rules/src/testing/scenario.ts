@@ -121,6 +121,13 @@ function locate(h: Harness, w: Where): CardInstance {
 }
 
 function runStep(h: Harness, step: Step): void {
+  runStepOnly(h, step);
+  // Hidden-zone selects are always asked (#369), even when every candidate must be chosen; rows only
+  // script real decisions, so answer a prompt that holds none.
+  h.forced();
+}
+
+function runStepOnly(h: Harness, step: Step): void {
   const active = h.state.activeSeat;
   if ("play" in step) {
     const seat = step.seat ?? active;

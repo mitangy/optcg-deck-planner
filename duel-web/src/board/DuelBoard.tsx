@@ -116,7 +116,7 @@ import { fanDocked, parseFanPos, serializeFanPos } from "./handFanPos";
 import { MatchOverFactsList, type LoadMatchRecord } from "./MatchOverFacts";
 import { useFanFit } from "./useFanFit";
 import { useFanMove } from "./useFanMove";
-import { endTurnWarning, responseStopPass } from "./gameplayPrefs";
+import { endTurnWarning, responseStopPass, scheduleAutoPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
 import { HotkeyHelpSheet } from "./HotkeyHelp";
 import { actionKeyTags, stepHandSelection } from "./hotkeys";
@@ -168,6 +168,8 @@ type Props = {
   battleLog?: BattleLogEntry[];
   /** Hotseat: compact pass-device control in the HUD (replaces the old top banner). */
   hotseatPass?: { otherSeat: Seat; onPass: () => void };
+  /** The opponent is a person on another device (online play): automatic passes wait like a person would. */
+  vsHuman?: boolean;
   /** Online match chat. Omit (e.g. practice) to hide the chat panel. */
   chat?: { lines: readonly ChatLine[]; onSend: (text: string) => void };
   /** Online players: concede sits next to Leave in the HUD. */
@@ -257,6 +259,7 @@ export function DuelBoard({
   spectator = false,
   battleLog = [],
   hotseatPass,
+  vsHuman = false,
   chat,
   onConcede,
   undo,
@@ -584,15 +587,16 @@ export function DuelBoard({
   const autoPassSent = useRef<string | null>(null);
   useEffect(() => {
     if (!autoPassKey || autoPassSent.current === autoPassKey) return;
-    // Short beat so the attack registers before the step moves on.
-    const id = window.setTimeout(() => {
+    // A beat so the attack registers; against a person a human-length wait, so
+    // an instant pass does not reveal there was no usable Counter (#369). You can
+    // still answer by hand meanwhile: acting changes the key and cancels this.
+    return scheduleAutoPass(() => {
       const { intent, send } = autoPassRef.current;
       if (!intent) return;
       autoPassSent.current = autoPassKey;
       send(intent);
-    }, 450);
-    return () => window.clearTimeout(id);
-  }, [autoPassKey]);
+    }, vsHuman);
+  }, [autoPassKey, vsHuman]);
 
   // Defend tray: while you answer an attack, the block / counter choices live
   // in one tray (portrait: in place of the hand, landscape phone: right column).
@@ -1731,7 +1735,7 @@ export function DuelBoard({
       data-phase={view.phase}
       data-turn={view.turnNumber}
       data-seat={boardSeat}
-      style={wide && !lp ? panelResize.arenaStyle : undefined}
+      style={wide && !lp ? panelResize.arenaStyle(shownPanels) : undefined}
     >
       {lp ? null : compactHud ? (
         <header className="hud-bar hud-compact">

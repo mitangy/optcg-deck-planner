@@ -244,7 +244,7 @@ function withExtraOption(view: PlayerView): PlayerView {
 }
 
 /**
- * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|hand|order|mode|effects|don|don2`).
+ * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|unpayable|empty|hand|order|mode|effects|don|don2`).
  * Searches and effect ordering float over the board; add `&box` to see the old pop-up.
  */
 export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
@@ -412,6 +412,28 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     optional: true,
     prompt: "Monkey.D.Luffy — pay the cost to activate: [On Play] You may trash 2 cards from your hand: Return up to 1 Character with a cost of 4 or less to the owner's hand.",
     request: { type: "confirm" },
+  }),
+  // The same cost prompt when the hand can't pay it: asked anyway so the opponent can't tell (#369).
+  unpayable: demoChoice({
+    id: "demo-unpayable",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "OP02-062",
+    optional: true,
+    unpayable: true,
+    prompt: "Monkey.D.Luffy — pay the cost to activate: [On Play] You may trash 2 cards from your hand: Return up to 1 Character with a cost of 4 or less to the owner's hand.",
+    request: { type: "confirm" },
+  }),
+  // A private hand pick with nothing that matches still asks (#369).
+  empty: demoChoice({
+    id: "demo-empty",
+    seat: 0,
+    kind: "effect",
+    cardDefId: "EB01-020",
+    optional: true,
+    privateToSeat: 0,
+    prompt: "Chambres — No card to add to your hand. Confirm to continue.",
+    request: { type: "select", min: 0, max: 0, options: [] },
   }),
   // Lucy's [On Your Opponent's Attack]: Event / Stage cards are tapped in the hand.
   hand: demoChoice({

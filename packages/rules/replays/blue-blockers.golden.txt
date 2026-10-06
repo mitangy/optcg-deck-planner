@@ -42,7 +42,7 @@ Seat 1 leader: Arlong (OP03-022)
 > #8 seat 0 resolve_pending_choice {"accept":false}
   Seat 0 declines Rocks.D.Xebec's effect
 
-> #9 seat 1 declare_block {"blockerId":"card_73"}
+> #9 seat 1 declare_block {"blockerId":"card_103"}
   Seat 1 blocks
 
 > #10 seat 1 counter_from_hand {"handIndex":4}
@@ -80,7 +80,7 @@ Seat 1 leader: Arlong (OP03-022)
 > #18 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (5000 vs 5000)
 
-> #19 seat 0 declare_block {"blockerId":"card_26"}
+> #19 seat 0 declare_block {"blockerId":"card_61"}
   Seat 0 blocks
 
 > #20 seat 0 counter_from_hand {"handIndex":0}
@@ -98,7 +98,7 @@ Seat 1 leader: Arlong (OP03-022)
 > #24 seat 0 pass_counter
   Battle fails (5000 vs 9000)
 
-> #25 seat 1 declare_attack {"attackerId":"card_73","target":{"kind":"character","instanceId":"card_26"}}
+> #25 seat 1 declare_attack {"attackerId":"card_103","target":{"kind":"character","instanceId":"card_61"}}
   Seat 1 attacks a Character (2000 vs 4000)
 
 > #26 seat 0 pass_block
@@ -118,7 +118,7 @@ Seat 1 leader: Arlong (OP03-022)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #30 seat 0 give_don {"donId":"don_4","targetId":"card_26"}
+> #30 seat 0 give_don {"donId":"don_4","targetId":"card_61"}
   Seat 0 attaches DON!! to Borsalino → 5000 power
 
 > #31 seat 0 end_turn
@@ -130,16 +130,16 @@ Seat 1 leader: Arlong (OP03-022)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #32 seat 1 give_don {"donId":"don_67","targetId":"card_73"}
+> #32 seat 1 give_don {"donId":"don_67","targetId":"card_103"}
   Seat 1 attaches DON!! to Blueno → 3000 power
 
-> #33 seat 1 give_don {"donId":"don_64","targetId":"card_73"}
+> #33 seat 1 give_don {"donId":"don_64","targetId":"card_103"}
   Seat 1 attaches DON!! to Blueno → 4000 power
 
 > #34 seat 1 declare_attack {"attackerId":"leader_62","target":{"kind":"leader"}}
   Seat 1 attacks Leader (5000 vs 5000)
 
-> #35 seat 0 declare_block {"blockerId":"card_26"}
+> #35 seat 0 declare_block {"blockerId":"card_61"}
   Seat 0 blocks
 
 > #36 seat 0 counter_from_hand {"handIndex":0}
@@ -155,10 +155,10 @@ Seat 1 leader: Arlong (OP03-022)
 > #39 seat 1 give_don {"donId":"don_68","targetId":"leader_62"}
   Seat 1 attaches DON!! to Arlong → 7000 power
 
-> #40 seat 1 give_don {"donId":"don_65","targetId":"card_73"}
+> #40 seat 1 give_don {"donId":"don_65","targetId":"card_103"}
   Seat 1 attaches DON!! to Blueno → 5000 power
 
-> #41 seat 1 give_don {"donId":"don_63","targetId":"card_73"}
+> #41 seat 1 give_don {"donId":"don_63","targetId":"card_103"}
   Seat 1 attaches DON!! to Blueno → 6000 power
 
 > #42 seat 1 end_turn

@@ -192,6 +192,8 @@ export interface PendingChoice {
   hideCardDefFromOthers?: boolean;
   /** life_trigger: the checked Life card has no [Trigger], so only declining (add to hand) is legal. Owner-only: stripped from every other view. */
   noTrigger?: boolean;
+  /** Optional-cost confirm: the cost depends on hidden cards and cannot be paid, so only declining is legal. Owner-only: stripped from every other view (#369). */
+  unpayable?: boolean;
   /** Public count retained when private options are redacted. */
   optionCount?: number;
   /** order_effects: the simultaneous abilities to permute. */
@@ -293,6 +295,12 @@ export interface MatchState {
   lastEvents: GameEvent[];
   /** Every non-Banish Life hit opens a private Life check (#352). Absent/false: legacy flow where only [Trigger] cards pause. */
   lifeCheckEveryHit?: boolean;
+  /**
+   * Private choices that hide hand/deck/Life contents from the opponent (#369): optional-cost confirms and hidden-zone
+   * selects are always asked (never skipped or auto-bound), the start-of-game Stage prompt appears for a single eligible
+   * Stage too, and deck instance ids are a random permutation (no decklist or draw order). Absent/false: legacy flow.
+   */
+  privateChoicesV2?: boolean;
 }
 
 export type BindingValue = string | string[] | number | boolean | null;
@@ -402,6 +410,8 @@ export interface CreateMatchConfig {
   players: [PlayerDeckConfig, PlayerDeckConfig];
   /** Default true. false keeps the legacy flow (non-[Trigger] Life damage goes to hand without a check), for replaying old games. */
   lifeCheckEveryHit?: boolean;
+  /** Default true. false keeps the legacy private-choice flow (#369), for replaying old games. */
+  privateChoicesV2?: boolean;
 }
 
 export interface TurnLog {
