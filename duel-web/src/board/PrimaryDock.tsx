@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { actionKeyTags } from "./hotkeys";
 import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
 import { ConfirmButton } from "./ConfirmButton";
 import { useClickCopy } from "./clickCopy";
@@ -149,28 +150,55 @@ function useDockAnchor(enabled: boolean): DockAnchor | null {
 
 type DockProps = Omit<ButtonProps, "primary"> & {
   primary: Intent | null;
+  /** Other phase-wide actions (Mulligan, Resolve trigger), beside the primary. */
+  extras?: Intent[];
+  /** Hotkey numbers of the extras start here (the selected card's own actions come first). */
+  keyOffset?: number;
   waiting: WaitingOnOpponent | null;
 };
 
 /**
  * Desktop: the primary action (or the wait for the opponent) floats at the
- * right end of the board's midline instead of sitting in the side rail. Fixed
- * position, so showing, hiding or relabelling it never moves anything.
+ * right end of the board's midline instead of sitting in the side rail, with
+ * any other phase-wide action (the mulligan's redraw, a trigger to resolve)
+ * on its left so the primary never moves. Fixed position, so showing, hiding
+ * or relabelling it never moves anything on the board.
  */
-export function PrimaryDock({ primary, waiting, ...button }: DockProps) {
-  const show = primary != null || waiting != null;
+export function PrimaryDock({ primary, extras = [], keyOffset = 0, waiting, ...button }: DockProps) {
+  const show = primary != null || extras.length > 0 || waiting != null;
   const anchor = useDockAnchor(show);
   const showKeyTags = useDuelSettings().shortcutTags;
   if (!show || !anchor) return null;
+  const tags = actionKeyTags(extras, keyOffset);
   return (
     <div
-      className={`primary-dock${primary ? " has-primary" : ""}${showKeyTags ? "" : " no-key-tag"}`}
+      className={`primary-dock${primary ? " has-primary" : ""}${extras.length > 0 ? " has-extras" : ""}${
+        showKeyTags ? "" : " no-key-tag"
+      }`}
       style={{ left: anchor.x, top: anchor.y }}
     >
+      {extras.map((intent, i) => (
+        <button
+          key={`${intent.type}-${i}`}
+          type="button"
+          className={`${intentBtnClass(intent)} dock-extra`}
+          disabled={button.disabled}
+          data-key-num={tags[i]!.num ?? undefined}
+          data-key-letter={tags[i]!.letter ?? undefined}
+          data-key-tag={(showKeyTags && tags[i]!.tag) || undefined}
+          onClick={() => button.onSend(intent)}
+        >
+          {intentLabel(intent, button.view)}
+        </button>
+      ))}
       {primary ? (
-        <PrimaryActionButton primary={primary} {...button} />
-      ) : waiting ? (
-        <WaitingIndicator waiting={waiting} />
+        <div className="primary-dock-main">
+          <PrimaryActionButton primary={primary} {...button} />
+        </div>
+      ) : waiting && extras.length === 0 ? (
+        <div className="primary-dock-main">
+          <WaitingIndicator waiting={waiting} />
+        </div>
       ) : null}
     </div>
   );

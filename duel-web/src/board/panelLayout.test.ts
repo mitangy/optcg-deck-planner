@@ -13,17 +13,22 @@ import {
 
 describe("parsePanelLayout", () => {
   it("reads a saved layout with the hand in the left column (#261)", () => {
-    expect(parsePanelLayout("preview,hand,recent,log|oppHand,turn,actions,chat")).toEqual({
+    expect(parsePanelLayout("preview,hand,recent,log|oppHand,turn,chat")).toEqual({
       left: ["preview", "hand", "recent", "log"],
-      right: ["oppHand", "turn", "actions", "chat"],
+      right: ["oppHand", "turn", "chat"],
     });
   });
 
   it("drops unknown and repeated panels and puts missing ones back in their default column (#261)", () => {
     expect(parsePanelLayout("hand,bogus,hand,chat|log")).toEqual({
       left: ["hand", "chat", "preview", "recent"],
-      right: ["log", "oppHand", "turn", "actions"],
+      right: ["log", "oppHand", "turn"],
     });
+  });
+
+  it("drops the retired Actions panel from an older saved layout (#368)", () => {
+    expect(parsePanelLayout("preview,recent,log|oppHand,turn,actions,hand,chat")).toEqual(DEFAULT_PANEL_LAYOUT);
+    expect(parsePanelLayout("actions,preview|log").left).not.toContain("actions");
   });
 });
 
@@ -41,11 +46,11 @@ describe("movePanel", () => {
   it("moves a panel into the other column before a given panel, or to its end (#261)", () => {
     expect(movePanel(DEFAULT_PANEL_LAYOUT, "hand", "left", "recent")).toEqual({
       left: ["preview", "hand", "recent", "log"],
-      right: ["oppHand", "turn", "actions", "chat"],
+      right: ["oppHand", "turn", "chat"],
     });
     expect(movePanel(DEFAULT_PANEL_LAYOUT, "preview", "right", null)).toEqual({
       left: ["recent", "log"],
-      right: ["oppHand", "turn", "actions", "hand", "chat", "preview"],
+      right: ["oppHand", "turn", "hand", "chat", "preview"],
     });
   });
 
@@ -64,7 +69,7 @@ const PANELS: PanelRect[] = [
   { id: "recent", column: "left", top: 400, bottom: 550 },
   { id: "log", column: "left", top: 550, bottom: 900 },
   { id: "turn", column: "right", top: 0, bottom: 200 },
-  { id: "actions", column: "right", top: 200, bottom: 300 },
+  { id: "chat", column: "right", top: 200, bottom: 300 },
   { id: "hand", column: "right", top: 300, bottom: 900 },
 ];
 
@@ -82,22 +87,21 @@ describe("panelDropAt", () => {
   });
 
   it("ignores the dragged panel itself when finding the slot (#261)", () => {
-    // Above actions' own middle while dragging actions: the slot is before hand.
-    expect(panelDropAt(COLS, PANELS, "actions", 1100, 240)).toEqual({ column: "right", beforeId: "hand" });
+    // Above chat's own middle while dragging chat: the slot is before hand.
+    expect(panelDropAt(COLS, PANELS, "chat", 1100, 240)).toEqual({ column: "right", beforeId: "hand" });
   });
 });
 
 describe("nudgePanel", () => {
-  const visible = new Set<PanelId>(["preview", "recent", "log", "oppHand", "turn", "actions", "chat"]);
+  const visible = new Set<PanelId>(["preview", "recent", "log", "oppHand", "turn", "chat"]);
 
   it("moves past a hidden panel in one step, which keeps its place (#261)", () => {
-    // The Grid hand is off screen (fan hand): Down on actions swaps it with chat.
-    expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "actions", "down", visible).right).toEqual([
+    // The Grid hand is off screen (fan hand): Down on turn swaps it with chat.
+    expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "turn", "down", visible).right).toEqual([
       "oppHand",
-      "turn",
       "hand",
       "chat",
-      "actions",
+      "turn",
     ]);
     expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "recent", "up", visible).left).toEqual([
       "recent",
@@ -109,7 +113,7 @@ describe("nudgePanel", () => {
   it("sends a panel to the end of the other column with Left / Right (#261)", () => {
     expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "chat", "left", visible)).toEqual({
       left: ["preview", "recent", "log", "chat"],
-      right: ["oppHand", "turn", "actions", "hand"],
+      right: ["oppHand", "turn", "hand"],
     });
     expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "chat", "right", visible)).toBe(DEFAULT_PANEL_LAYOUT);
   });

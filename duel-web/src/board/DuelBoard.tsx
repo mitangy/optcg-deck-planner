@@ -98,7 +98,7 @@ import {
   filterIntentsForSelection,
   hasBoardActions,
 } from "./intentFilter";
-import { splitPrimaryIntent } from "./primaryIntent";
+import { dockIntents, splitPrimaryIntent } from "./primaryIntent";
 import { SideField } from "./SideField";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
@@ -1523,10 +1523,10 @@ export function DuelBoard({
     },
   }));
 
-  // Desktop: the primary action floats at the board's midline instead of the rail.
-  // Mulligan keeps Keep / Mulligan together in the rail.
+  // Desktop: the primary action (and any other phase-wide one: Keep / Mulligan,
+  // Resolve trigger) floats at the board's midline; there is no Actions panel.
+  // Phones keep the bottom IntentBar.
   const docked = wide && !lp && !spectating && !over;
-  const dockedPrimary = docked && !mulliganPhase;
   const oppWait =
     spectating || over || hotseatPass ? null : waitingOnOpponent(view, mySeat);
   const sendPrimary = (intent: Intent) => {
@@ -1534,17 +1534,18 @@ export function DuelBoard({
     setSelectedBoardId(null);
     onSendIntent(intent);
   };
+  const dock = dockIntents(barIntents, { defending: defendPrimary != null });
   const selectedHandCard = handFilter != null ? you.hand[handFilter] : undefined;
   const affordHint =
     selectedHandCard && yourTurn && view.phase === "main" && cardIntents.length === 0
       ? needsDonHint(selectedHandCard.playCost ?? lookupCard(selectedHandCard.defId).cost, you.activeDonCount) ?? undefined
       : undefined;
+  // Desktop has no Actions panel: only the defend tray stays in the rail.
   const intentPanel = railDefend && defendTray ? (
     defendTray
-  ) : !spectating ? (
+  ) : wide && !lp ? null : !spectating ? (
     <IntentBar
-      hidePrimary={dockedPrimary}
-      waiting={docked ? null : oppWait}
+      waiting={oppWait}
       idle={oppWait ? "opponent" : view.pendingChoices?.[0]?.seat === mySeat ? "prompt" : null}
       intents={barIntents}
       view={view}
@@ -1558,15 +1559,6 @@ export function DuelBoard({
       counterLabel={counterLabel}
       onCard={{ count: cardIntents.length, active: popoverOpen }}
       emptyHint={affordHint}
-      quickActions={
-        popoverOpen && handFilter == null
-          ? quickCounts.map((n) => ({
-              id: `don-${n}`,
-              label: quickAttachLabel(n, quickCounts),
-              onPress: () => quickAttach(n),
-            }))
-          : []
-      }
     />
   ) : (
     <div className="intent-bar">
@@ -1626,7 +1618,6 @@ export function DuelBoard({
         seatClocks={seatClocks}
       />
     ),
-    actions: intentPanel,
     hand: railHand && specFans === "landscape" && nearHand ? (
       <section className="rail-hand rail-hand-fan" aria-label={`${seatLabel(players, boardSeat)} hand: ${handCount} cards`}>
         <HandLabel name={seatLabel(players, boardSeat)} count={handCount} />
@@ -1663,9 +1654,21 @@ export function DuelBoard({
   function renderColumnPanels(column: PanelColumn) {
     const ids = shownPanels[column];
     const sized = ids.some((id) => panelResize.shown.heights[id] != null);
-    return ids.map((id, i) =>
+    const panels = ids.map((id, i) =>
       renderSidePanel(id, i > 0 ? ids[i - 1]! : null, i === ids.length - 1, sized),
     );
+    // Answering an attack: the defend tray rides under Turn and clocks (not movable).
+    if (column === "right" && railDefend && defendTray) {
+      const at = ids.indexOf("turn") + 1;
+      panels.splice(
+        at,
+        0,
+        <div key="defend" className="board-panel" data-panel="defend">
+          {defendTray}
+        </div>,
+      );
+    }
+    return panels;
   }
   function renderSidePanel(id: PanelId, above: PanelId | null, last: boolean, columnSized: boolean) {
     const el = sidePanels[id];
@@ -1773,7 +1776,7 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
       }${
         tilted ? " arena-tilt" : ""
@@ -2597,7 +2600,9 @@ export function DuelBoard({
 
       {docked ? (
         <PrimaryDock
-          primary={dockedPrimary ? splitPrimaryIntent(barIntents).primary : null}
+          primary={dock.primary}
+          extras={dock.extras}
+          keyOffset={cardIntents.length}
           waiting={oppWait}
           view={view}
           disabled={over}

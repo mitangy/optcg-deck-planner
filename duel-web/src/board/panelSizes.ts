@@ -35,7 +35,6 @@ export const PANEL_MIN_HEIGHT_PX: Record<PanelId, number> = {
   log: 96,
   oppHand: PANEL_MIN_PX,
   turn: PANEL_MIN_PX,
-  actions: PANEL_MIN_PX,
   hand: PANEL_MIN_PX,
   chat: PANEL_MIN_PX,
 };
@@ -48,7 +47,6 @@ export const PANEL_MIN_WIDTH_PX: Record<PanelId, number> = {
   log: 200,
   oppHand: 200,
   turn: 250,
-  actions: 200,
   hand: 200,
   chat: 200,
 };

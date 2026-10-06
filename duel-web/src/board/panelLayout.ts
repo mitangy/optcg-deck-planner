@@ -11,7 +11,6 @@ export type PanelId =
   | "log"
   | "oppHand"
   | "turn"
-  | "actions"
   | "hand"
   | "chat";
 
@@ -25,14 +24,13 @@ export const PANEL_LABELS: Record<PanelId, string> = {
   log: "Battle log",
   oppHand: "Opponent hand",
   turn: "Turn and clocks",
-  actions: "Actions",
   hand: "Hand (Grid)",
   chat: "Chat",
 };
 
 export const DEFAULT_PANEL_LAYOUT: PanelLayout = {
   left: ["preview", "recent", "log"],
-  right: ["oppHand", "turn", "actions", "hand", "chat"],
+  right: ["oppHand", "turn", "hand", "chat"],
 };
 
 const PANEL_IDS = [...DEFAULT_PANEL_LAYOUT.left, ...DEFAULT_PANEL_LAYOUT.right];

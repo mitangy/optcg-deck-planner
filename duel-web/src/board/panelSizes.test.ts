@@ -63,7 +63,7 @@ describe("panel sizes (#347)", () => {
 
   it("a column is never narrower than the widest panel in it (#370)", () => {
     expect(columnMinPx(["preview", "recent", "log"])).toBe(200);
-    expect(columnMinPx(["oppHand", "turn", "actions"])).toBe(250);
+    expect(columnMinPx(["oppHand", "turn", "hand"])).toBe(250);
     expect(columnMinPx([])).toBe(180);
     expect(clampColumnWidth(100, 1440, 250)).toBe(250);
     expect(clampColumnWidth(300, 1440, 250)).toBe(300);
