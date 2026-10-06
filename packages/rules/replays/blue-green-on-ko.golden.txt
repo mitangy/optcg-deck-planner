@@ -134,10 +134,14 @@ Seat 1 leader: Monkey.D.Luffy (OP16-022)
 
 > #32 seat 0 pass_counter
   Battle hits (9000 vs 5000)
-  Seat 0 moves Kuzan from life to hand
-  Seat 0 takes Life (Kuzan → hand)
+  Seat 0 takes Life (Kuzan)
+  Seat 0 may resolve Kuzan's life trigger (Kuzan has no [Trigger]. Add it to your hand.)
 
-> #33 seat 1 end_turn
+> #33 seat 0 resolve_pending_choice {"accept":false}
+  Seat 0 adds the Life card to hand
+  Seat 0 moves Kuzan from life to hand
+
+> #34 seat 1 end_turn
   Phase → end (active seat 1)
   Phase → refresh (active seat 0)
   Seat 0 draws 1
@@ -146,7 +150,7 @@ Seat 1 leader: Monkey.D.Luffy (OP16-022)
   Phase → don (active seat 0)
   Phase → main (active seat 0)
 
-> #34 seat 0 end_turn
+> #35 seat 0 end_turn
   Phase → end (active seat 0)
   Phase → refresh (active seat 1)
   Seat 1 draws 1
@@ -155,23 +159,23 @@ Seat 1 leader: Monkey.D.Luffy (OP16-022)
   Phase → don (active seat 1)
   Phase → main (active seat 1)
 
-> #35 seat 1 give_don {"donId":"don_69","targetId":"leader_62"}
+> #36 seat 1 give_don {"donId":"don_69","targetId":"leader_62"}
   Seat 1 attaches DON!! to Monkey.D.Luffy → 6000 power
 
-> #36 seat 1 give_don {"donId":"don_65","targetId":"card_81"}
+> #37 seat 1 give_don {"donId":"don_65","targetId":"card_81"}
   Seat 1 attaches DON!! to Ms. All Sunday → 2000 power
 
-> #37 seat 1 play_card {"handIndex":0}
+> #38 seat 1 play_card {"handIndex":0}
   Seat 1 plays Roronoa Zoro (rests 1 DON!!)
   Seat 1 activates Roronoa Zoro's ability
 
-> #38 seat 1 give_don {"donId":"don_64","targetId":"card_81"}
+> #39 seat 1 give_don {"donId":"don_64","targetId":"card_81"}
   Seat 1 attaches DON!! to Ms. All Sunday → 3000 power
 
-> #39 seat 1 give_don {"donId":"don_68","targetId":"leader_62"}
+> #40 seat 1 give_don {"donId":"don_68","targetId":"leader_62"}
   Seat 1 attaches DON!! to Monkey.D.Luffy → 7000 power
 
-> #40 seat 1 give_don {"donId":"don_67","targetId":"card_122"}
+> #41 seat 1 give_don {"donId":"don_67","targetId":"card_122"}
   Seat 1 attaches DON!! to Roronoa Zoro → 3000 power
 
 == final state ==

@@ -74,6 +74,12 @@ export type DuelSettings = {
    * See board/panelLayout.ts.
    */
   panelLayout: string;
+  /**
+   * Desktop: column widths and panel heights dragged out by the panel edges,
+   * e.g. "L=260;R=340;preview=0.45"; "" keeps every default.
+   * See board/panelSizes.ts.
+   */
+  panelSizes: string;
   /** Desktop: show the grips that drag side panels and the fanned hand around. */
   layoutGrips: boolean;
   /**
@@ -91,6 +97,8 @@ export type DuelSettings = {
   cantAttackWarning: boolean;
   /** The "cannon shot" arc from the attacker to its target during a battle. */
   battleArrow: boolean;
+  /** DON!! given to a rested Leader or Character stays upright under it instead of turning sideways with it. */
+  donUpright: boolean;
   /**
    * Desktop: the opponent's hand pinned above the playmat ("left", "centre" or
    * "right") instead of in its side panel; "" keeps it in the panel. Phones
@@ -137,6 +145,7 @@ const DEFAULTS: DuelSettings = {
   handFanPos: "",
   keepHandOpen: false,
   panelLayout: "",
+  panelSizes: "",
   layoutGrips: true,
   oneTapActions: false,
   dimUnplayable: true,
@@ -144,6 +153,7 @@ const DEFAULTS: DuelSettings = {
   handCounters: true,
   cantAttackWarning: true,
   battleArrow: true,
+  donUpright: false,
   oppHandSpot: "",
   textSize: "medium",
   tiltedBoard: false,

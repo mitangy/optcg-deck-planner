@@ -69,12 +69,10 @@ Seat 1 leader: Buggy (OP16-041)
 
 > #18 seat 0 pass_counter
   Battle hits (6000 vs 5000)
-  Seat 0 takes Life (Scarlet, Trigger pending)
-  Seat 0 Trigger available (Scarlet)
+  Seat 0 takes Life (Scarlet)
   Seat 0 may resolve Scarlet's life trigger (Scarlet — activate this card's [Trigger]? [Trigger] Play this card.)
 
 > #19 seat 0 resolve_pending_choice {"accept":true}
-  Seat 0 accepts Scarlet's life trigger
   Seat 0 Trigger accepted
   Seat 0 reveals Scarlet
   Seat 0 activates Scarlet's ability

@@ -115,13 +115,11 @@ Seat 1 leader: Boa Hancock (OP14-041)
 
 > #26 seat 1 pass_counter
   Battle hits (5000 vs 5000)
-  Seat 1 takes Life (ROOM, Trigger pending)
-  Seat 1 Trigger available (ROOM)
+  Seat 1 takes Life (ROOM)
   Seat 1 may resolve ROOM's life trigger (ROOM — activate this card's [Trigger]? [Trigger] Draw 1 card.)
 
 > #27 seat 1 resolve_pending_choice {"accept":false}
-  Seat 1 declines ROOM's life trigger
-  Seat 1 Trigger declined
+  Seat 1 adds the Life card to hand
   Seat 1 moves ROOM from life to hand
 
 > #28 seat 0 play_card {"handIndex":3}

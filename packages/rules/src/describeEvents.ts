@@ -75,21 +75,15 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
         lines.push(`Seat ${e.seat}'s ${nameOf(e.defId)} is K.O.'d`);
         break;
       case "life_taken":
-        lines.push(
-          `Seat ${e.seat} takes Life (${nameOf(e.defId)}${
-            e.toHand ? " → hand" : ", Trigger pending"
-          })`,
-        );
+        // Never say whether the card went to hand or has a [Trigger]: the opponent must not learn that (#352).
+        lines.push(e.defId === "HIDDEN" ? `Seat ${e.seat} takes Life` : `Seat ${e.seat} takes Life (${nameOf(e.defId)})`);
         break;
       case "trigger_available":
-        lines.push(
-          `Seat ${e.seat} Trigger available (${nameOf(e.defId)})`,
-        );
+        // Legacy logs only; hidden from the opponent so the seat that is not checking learns nothing.
+        if (e.defId !== "HIDDEN") lines.push(`Seat ${e.seat} Trigger available (${nameOf(e.defId)})`);
         break;
       case "trigger_resolved":
-        lines.push(
-          `Seat ${e.seat} Trigger ${e.accepted ? "accepted" : "declined"}`,
-        );
+        lines.push(e.accepted ? `Seat ${e.seat} Trigger accepted` : `Seat ${e.seat} adds the Life card to hand`);
         break;
       case "card_revealed":
         lines.push(
@@ -116,6 +110,7 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
         );
         break;
       case "pending_choice_resolved":
+        if (e.kind === "life_trigger") break; // narrated by trigger_resolved
         lines.push(
           `Seat ${e.seat} ${e.accepted ? "accepts" : "declines"} ${nameOf(e.cardDefId)}'s ${e.kind.replace(/_/g, " ")}`,
         );

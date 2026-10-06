@@ -173,11 +173,21 @@ export class Harness {
     return this.act(this.state.activeSeat, { type: "declare_attack", attackerId: attacker.id, target: target === "leader" ? { kind: "leader" } : { kind: "character", instanceId: target.id } });
   }
 
-  /** Defender passes block and counter, resolving the battle. */
-  passBattle(): this {
+  /**
+   * Defender passes block and counter, resolving the battle. A Life card without [Trigger] opens a
+   * `noTrigger` check (#352); it is declined (card to hand) unless `resolveLifeChecks: false`.
+   * A [Trigger] card's check is left pending for the test to answer.
+   */
+  passBattle(opts: { resolveLifeChecks?: boolean } = {}): this {
     const def = (this.state.battle!.attackerSeat === 0 ? 1 : 0) as Seat;
     if (this.state.phase === "block") this.act(def, { type: "pass_block" });
     if (this.state.phase === "counter") this.act(def, { type: "pass_counter" });
+    return opts.resolveLifeChecks === false ? this : this.resolveLifeChecks();
+  }
+
+  /** Decline every front `noTrigger` Life check (the card goes to hand). Leaves [Trigger] checks and other choices alone. */
+  resolveLifeChecks(): this {
+    while (this.choice?.kind === "life_trigger" && this.choice.noTrigger) this.decline();
     return this;
   }
 }

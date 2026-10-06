@@ -38,6 +38,6 @@ describe("match replays", () => {
     expect(() => {
       lines = describeEvents([{ type: "life_taken", seat: 1, defId: "HIDDEN", toHand: true }]);
     }).not.toThrow();
-    expect(lines).toEqual(["Seat 1 takes Life (a hidden card → hand)"]);
+    expect(lines).toEqual(["Seat 1 takes Life"]);
   });
 });

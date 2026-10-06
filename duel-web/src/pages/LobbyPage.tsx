@@ -40,7 +40,7 @@ export const SPECTATE_GONE_MESSAGE = "That match has ended or the spectate link 
 /** Which play mode the user is configuring inside the Play sheet. */
 type PlayMode = "hotseat" | "create" | "join" | "queue" | "spectate";
 
-/** Private-room timer presets (ranked always forces a 15 minute match clock). */
+/** Private-room timer presets (ranked always forces a 15 minute chess clock per player). */
 type TimerPreset = "off" | "turn_30" | "seat_15m" | "turn_30_seat_15m";
 
 function timerFromPreset(preset: TimerPreset): {
@@ -75,7 +75,7 @@ const MODE_CARDS: Array<{
   {
     mode: "queue",
     title: "Ranked",
-    blurb: "Match a random opponent. 15 minute game clock.",
+    blurb: "Match a random opponent. 15 minutes per player.",
     glyph: "⚓︎",
   },
   {
@@ -793,7 +793,7 @@ export function LobbyPage() {
           <section className="notice" aria-live="polite">
             <div className="notice-body">
               <strong>Searching for an opponent…</strong>
-              <span>Ranked queue · 15 minute game clock</span>
+              <span>Ranked queue · 15 minutes per player</span>
             </div>
             <div className="notice-actions">
               <button
@@ -1004,7 +1004,7 @@ export function LobbyPage() {
 
                 {mode === "queue" ? (
                   <p className="field-hint">
-                    Ranked games use a 15 minute clock for the whole game. Your Bounty updates after the match.
+                    Ranked games give each player 15 minutes on a chess clock. Your Bounty updates after the match.
                   </p>
                 ) : null}
 
