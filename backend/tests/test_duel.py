@@ -496,6 +496,50 @@ def test_result_clears_live_progress_in_redis(client, fake_redis):
     assert [(m["match_id"], m["finished"]) for m in listed] == [("g", True)]
 
 
+ADMIN = {"X-Catalog-Token": "dev-sync-token"}
+
+
+def test_tokens_carry_the_game_server_pool_pointer(client, fake_redis, monkeypatch: pytest.MonkeyPatch):
+    """New games follow the Redis pool pointer, else GAME_SERVER_URL (blue/green without a rebuild)."""
+    c, _ = client
+    monkeypatch.setenv("GAME_SERVER_URL", "https://gs-blue.example.com")
+    get_settings.cache_clear()
+    assert c.post("/duel/dev-token", json={"user_key": "alice"}).json()["game_server_url"] == "https://gs-blue.example.com"
+
+    r = c.put("/duel/admin/game-server-pool", json={"url": "https://gs-green.example.com/"}, headers=ADMIN)
+    assert r.status_code == 200, r.text
+    assert r.json() == {"pool_url": "https://gs-green.example.com", "game_server_url": "https://gs-green.example.com"}
+    assert c.post("/duel/dev-token", json={"user_key": "alice"}).json()["game_server_url"] == "https://gs-green.example.com"
+    guest = c.post("/duel/guest-token", json={"guest_id": "poolguest0001"}).json()
+    assert guest["game_server_url"] == "https://gs-green.example.com"
+    assert c.get("/duel/admin/game-server-pool", headers=ADMIN).json()["pool_url"] == "https://gs-green.example.com"
+
+    # Clearing the pointer falls back to the environment.
+    assert c.put("/duel/admin/game-server-pool", json={"url": None}, headers=ADMIN).json()["pool_url"] is None
+    assert c.post("/duel/dev-token", json={"user_key": "alice"}).json()["game_server_url"] == "https://gs-blue.example.com"
+
+
+def test_game_server_pool_needs_the_admin_token_and_a_safe_url(client, fake_redis):
+    c, _ = client
+    good = {"url": "https://gs-green.example.com"}
+    assert c.put("/duel/admin/game-server-pool", json=good).status_code == 401
+    assert c.put("/duel/admin/game-server-pool", json=good, headers={"X-Catalog-Token": "guess"}).status_code == 401
+    assert c.get("/duel/admin/game-server-pool").status_code == 401
+    assert not fake_redis.exists("duel:gs:current")
+    for bad in (
+        "http://gs.example.com",
+        "javascript:alert(1)",
+        "https://user:pw@gs.example.com",
+        "https://gs.example.com/?next=evil",
+        "https://gs.example.com:99999",
+        "wss://gs.example.com",
+    ):
+        assert c.put("/duel/admin/game-server-pool", json={"url": bad}, headers=ADMIN).status_code == 422, bad
+    assert not fake_redis.exists("duel:gs:current")
+    local = c.put("/duel/admin/game-server-pool", json={"url": "http://localhost:2567"}, headers=ADMIN)
+    assert local.json()["pool_url"] == "http://localhost:2567"
+
+
 def test_new_guest_accounts_are_capped_per_client_ip_318(client, monkeypatch: pytest.MonkeyPatch):
     from app.rate_limit import RateLimiter
     from app.routers import duel as duel_router

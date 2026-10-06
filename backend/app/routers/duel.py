@@ -10,6 +10,7 @@ import re
 import time
 from datetime import datetime, timezone
 from typing import Annotated
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request
 from sqlalchemy import delete, or_, select, text
@@ -56,6 +57,8 @@ from app.schemas import (
     DuelPresenceSnapshot,
     DuelRatingOut,
     DuelTokenOut,
+    GameServerPoolIn,
+    GameServerPoolOut,
 )
 
 router = APIRouter(prefix="/duel", tags=["duel"])
@@ -119,7 +122,82 @@ def _token_out(db: Session, user: User, settings: Settings) -> DuelTokenOut:
         display_name=display_name,
         rating=rating.rating,
         games_played=rating.games_played,
+        game_server_url=game_server_url(settings),
     )
+
+
+# Redis key holding the game-server pool new games go to (blue/green switch).
+GAME_SERVER_POOL_KEY = "duel:gs:current"
+_LOCAL_HOSTS = {"localhost", "127.0.0.1"}
+
+
+def game_server_url(settings: Settings) -> str | None:
+    """The pool pointer in Redis, else GAME_SERVER_URL, else None (clients use their build default)."""
+    r = redis_client.get_redis()
+    if r is not None:
+        try:
+            pointer = r.get(GAME_SERVER_POOL_KEY)
+        except redis_client.RedisError:
+            redis_client.report_failure("game-server pool read")
+            pointer = None
+        if pointer:
+            return pointer
+    return settings.game_server_url.strip() or None
+
+
+def _valid_pool_url(raw: str) -> str:
+    url = raw.strip().rstrip("/")
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname
+        _ = parts.port  # raises ValueError on a malformed port
+    except ValueError:
+        host = None
+    if (
+        not host
+        or parts.username is not None
+        or parts.password is not None
+        or parts.query
+        or parts.fragment
+        or not (parts.scheme == "https" or (parts.scheme == "http" and host in _LOCAL_HOSTS))
+    ):
+        raise HTTPException(status_code=422, detail="url must be https:// (or http://localhost for dev)")
+    return url
+
+
+@router.get("/admin/game-server-pool", response_model=GameServerPoolOut)
+def get_game_server_pool(
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_catalog_token: Annotated[str | None, Header()] = None,
+) -> GameServerPoolOut:
+    """Where new games go (admin catalog token)."""
+    _require_catalog_token(x_catalog_token, settings)
+    r = redis_client.get_redis()
+    pool = r.get(GAME_SERVER_POOL_KEY) if r is not None else None
+    return GameServerPoolOut(pool_url=pool or None, game_server_url=game_server_url(settings))
+
+
+@router.put("/admin/game-server-pool", response_model=GameServerPoolOut)
+def set_game_server_pool(
+    body: GameServerPoolIn,
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_catalog_token: Annotated[str | None, Header()] = None,
+) -> GameServerPoolOut:
+    """Point new games at another game-server pool, or clear the pointer (admin catalog token).
+
+    Games already running stay where they are; only tokens minted afterwards carry the new URL.
+    """
+    _require_catalog_token(x_catalog_token, settings)
+    r = redis_client.get_redis()
+    if r is None:
+        raise HTTPException(status_code=503, detail="REDIS_URL is not configured")
+    if body.url is None or not body.url.strip():
+        r.delete(GAME_SERVER_POOL_KEY)
+        pool = None
+    else:
+        pool = _valid_pool_url(body.url)
+        r.set(GAME_SERVER_POOL_KEY, pool)
+    return GameServerPoolOut(pool_url=pool, game_server_url=game_server_url(settings))
 
 
 @router.post("/token", response_model=DuelTokenOut)
