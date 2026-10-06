@@ -112,3 +112,22 @@ hues measured 2.0:1 / 2.5:1 / 3.7:1 on the light panels. Darkened in the same hu
 [data-mode="light"] .log-phase {
   color: var(--chrome-bright);
 }
+
+/* Card preview stat badges and chips (#348) on light panels. */
+[data-mode="light"] .preview-badges li {
+  background: rgb(255 255 255 / 0.6);
+}
+[data-mode="light"] .preview-badges .pb-cost,
+[data-mode="light"] .preview-badges .pb-counter {
+  color: #fff;
+}
+[data-mode="light"] .preview-badges .pb-counter {
+  background: #c8372d;
+}
+[data-mode="light"] .preview-badges .pb-power::before {
+  color: color-mix(in srgb, var(--ink) 65%, transparent);
+}
+[data-mode="light"] .board-col .card-preview-caption-big,
+[data-mode="light"] .board-col .card-preview-live-big {
+  background: rgb(255 255 255 / 0.88);
+}

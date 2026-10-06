@@ -76,6 +76,11 @@ const TOGGLES: Toggle[] = [
     hint: "Draws the cannon-shot arc from the attacking card to its target during a battle.",
   },
   {
+    key: "previewBigCard",
+    label: "Big card preview",
+    hint: "Desktop: the card preview on the left shows just the card, as big as it fits. Off shows a smaller card with its cost, colour, power and Counter icons and its text below.",
+  },
+  {
     key: "donUpright",
     label: "Upright DON!! on rested cards",
     hint: "DON!! given to a Leader or Character stays upright under it when the card rests, instead of turning sideways with it.",
