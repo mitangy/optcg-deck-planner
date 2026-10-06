@@ -90,3 +90,26 @@ test("holding a DON!! with a finger moves it to another pile and ignores the rel
   await page.waitForTimeout(600);
   await expect(page.locator(".side-you .don-pile")).toHaveCount(2);
 });
+
+test("separate DON!! piles never overlap each other, with clear space between them (#381)", async ({ page }) => {
+  for (const rested of [0, 10]) {
+    await page.goto(`/demo?don=10&rested=${rested}`);
+    await page.locator(".board-root").waitFor();
+    await moveChip(page, 0);
+    await moveChip(page, 0);
+    await moveChip(page, 9);
+    await expect(page.locator(".side-you .don-pile")).toHaveCount(3);
+    const { gaps, chipW } = await page.locator(".side-you .don-strip-rail").evaluate((rail) => {
+      const piles = Array.from(rail.querySelectorAll(".don-pile")).map((pile) => {
+        const rects = Array.from(pile.querySelectorAll(".don-chip")).map((c) => c.getBoundingClientRect());
+        return { left: Math.min(...rects.map((r) => r.left)), right: Math.max(...rects.map((r) => r.right)) };
+      });
+      const chip = rail.querySelector<HTMLElement>(".don-chip")!;
+      return {
+        gaps: piles.slice(1).map((p, i) => p.left - piles[i]!.right),
+        chipW: chip.offsetWidth,
+      };
+    });
+    for (const gap of gaps) expect(gap, `rested=${rested}`).toBeGreaterThanOrEqual(chipW * 0.4);
+  }
+});

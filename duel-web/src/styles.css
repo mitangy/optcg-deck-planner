@@ -4035,6 +4035,8 @@ img.zone-pile-face {
 }
 
 .don-strip-rail {
+  /* Clear space between separate DON!! piles (#381); never overlapped. */
+  --don-pile-gap: calc(var(--don-w) * 0.5);
   container-type: inline-size;
   flex-wrap: nowrap;
   gap: 0;
@@ -4062,7 +4064,7 @@ img.zone-pile-face {
 .don-chip-btn + .don-chip-btn {
   margin-left: min(
     calc(
-      (100cqw - var(--don-units, 1) * var(--don-w) - var(--don-gaps, 0) * var(--don-w) * 0.35) /
+      (100cqw - var(--don-units, 1) * var(--don-w) - var(--don-gaps, 0) * var(--don-pile-gap)) /
         max(var(--don-count, 1) - var(--don-piles, 1), 1)
     ),
     6px
@@ -4079,7 +4081,7 @@ img.zone-pile-face {
 }
 
 .don-pile + .don-pile {
-  margin-left: calc(var(--don-w) * 0.35);
+  margin-left: var(--don-pile-gap);
 }
 
 .don-chip-btn {
