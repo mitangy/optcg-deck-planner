@@ -462,10 +462,19 @@ describe("DuelRoom", () => {
     spec.onMessage("welcome", (msg: SpecWelcome) => {
       welcome = msg;
     });
-    spec.onMessage("error", () => {});
+    const specViews: SpecWelcome["view"][] = [];
+    const specErrors: { code: string; message: string }[] = [];
+    spec.onMessage("view", (msg: { view: SpecWelcome["view"] }) => {
+      specViews.push(msg.view);
+    });
+    spec.onMessage("error", (msg: { code: string; message: string }) => {
+      specErrors.push(msg);
+    });
     spec.send("sync", { protocolVersion: PROTOCOL_VERSION });
-    await waitUntil(() => welcome != null, 8000);
-    return { welcome: welcome!, bags };
+    await waitUntil(() => welcome != null && specViews.length > 0, 8000);
+    // Views from here on are updates, not the join's own.
+    specViews.length = 0;
+    return { welcome: welcome!, bags, room, c0, c1, spec, specViews, specErrors };
   }
 
   it("allows a spectator with public view and empty hands", async () => {
@@ -489,6 +498,73 @@ describe("DuelRoom", () => {
     const { welcome } = await watchRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() });
     assert.equal(welcome.view.revealedHands, undefined);
     assert.deepEqual(welcome.view.you.hand, []);
+  });
+
+  const handIds = (hand: { id: string }[] | undefined) => (hand ?? []).map((c) => c.id);
+
+  it("a player's hand_order reorders the hands spectators see, and the other player is unaffected (#346)", async () => {
+    const { welcome, bags, c0, specViews } = await watchRoom({});
+    const engine = handIds(welcome.view.revealedHands?.[0]);
+    const mine = bags[0].welcome!.you.hand.map((c) => c.id);
+    assert.deepEqual(engine, mine);
+    const reversed = [...engine].reverse();
+    const seatOneBefore = handIds(welcome.view.revealedHands?.[1]);
+    const opponentViews = bags[1].views.length;
+    c0.send("hand_order", { ids: reversed });
+    await waitUntil(() => handIds(specViews.at(-1)?.revealedHands?.[0]).join() === reversed.join(), 5000);
+    // The other hand is untouched, and a new spectator joining later sees the order too.
+    assert.deepEqual(handIds(specViews.at(-1)?.revealedHands?.[1]), seatOneBefore);
+    // Nothing about it reaches the other player.
+    await new Promise((r) => setTimeout(r, 200));
+    assert.equal(bags[1].views.length, opponentViews);
+    assert.deepEqual(bags[1].views.at(-1)!.you.hand.map((c) => c.id), seatOneBefore);
+  });
+
+  it("hand_order ids not in the sender's hand are ignored, and cards left out keep engine order at the end (#346)", async () => {
+    const { welcome, bags, c0, c1, specViews } = await watchRoom({});
+    const engine = handIds(welcome.view.revealedHands?.[0]);
+    const theirs = handIds(welcome.view.revealedHands?.[1]);
+    // Seat 0 names one of seat 1's cards and an invented id, plus only two of its own cards.
+    c0.send("hand_order", { ids: [theirs[0]!, "no-such-card", engine[3]!, engine[1]!] });
+    await waitUntil(() => specViews.length > 0, 5000);
+    const shown = handIds(specViews.at(-1)!.revealedHands?.[0]);
+    assert.deepEqual(shown, [engine[3], engine[1], engine[0], engine[2], engine[4]]);
+    assert.deepEqual(handIds(specViews.at(-1)!.revealedHands?.[1]), theirs);
+    assert.deepEqual(bags[0].errors, []);
+    void c1;
+  });
+
+  it("a spectator cannot send hand_order, and a malformed one is a protocol error (#346)", async () => {
+    const { welcome, bags, c0, spec, specViews, specErrors } = await watchRoom({});
+    const engine = handIds(welcome.view.revealedHands?.[0]);
+    spec.send("hand_order", { ids: [...engine].reverse() });
+    await waitUntil(() => specErrors.length > 0, 5000);
+    assert.equal(specErrors[0]!.code, "unauthorized");
+    assert.equal(specViews.length, 0, "no new view for a rejected order");
+    c0.send("hand_order", { ids: "nope" });
+    c0.send("hand_order", { ids: Array.from({ length: 101 }, (_, i) => `c${i}`) });
+    c0.send("hand_order", { ids: ["x".repeat(65)] });
+    await waitUntil(() => bags[0].errors.length >= 3, 5000);
+    assert.deepEqual(bags[0].errors.map((e) => e.code), ["bad_protocol", "bad_protocol", "bad_protocol"]);
+    assert.equal(specViews.length, 0);
+  });
+
+  it("an unchanged hand_order does not resend the spectator view (#346)", async () => {
+    const { welcome, c0, specViews } = await watchRoom({});
+    const reversed = handIds(welcome.view.revealedHands?.[0]).reverse();
+    c0.send("hand_order", { ids: reversed });
+    await waitUntil(() => specViews.length === 1, 5000);
+    c0.send("hand_order", { ids: reversed });
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(specViews.length, 1);
+  });
+
+  it("a ranked room keeps hands hidden whatever hand_order says (#346)", async () => {
+    const { welcome, bags, c0, specViews } = await watchRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() });
+    c0.send("hand_order", { ids: bags[0].welcome!.you.hand.map((c) => c.id).reverse() });
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(specViews.length, 0);
+    assert.equal(welcome.view.revealedHands, undefined);
   });
 
   it("ranked_queue pairs two clients into a duel room id", async () => {

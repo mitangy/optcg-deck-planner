@@ -448,6 +448,36 @@ export function parseChatMessage(raw: unknown): string {
   return text;
 }
 
+/** Most cards a hand_order message may list (a hand never holds more). */
+export const HAND_ORDER_MAX_IDS = 100;
+/** Longest card instance id a hand_order message may carry. */
+export const HAND_ORDER_MAX_ID_LENGTH = 64;
+
+/**
+ * A player's own left-to-right hand order (card instance ids), sent whenever
+ * they sort or drag cards around. Unranked rooms show it to spectators so their
+ * fans match; it is never relayed to the other player.
+ */
+export type HandOrderMessage = {
+  protocolVersion?: ProtocolVersion;
+  ids: string[];
+};
+
+/** Validates an inbound hand_order body and returns the ids. */
+export function parseHandOrderMessage(raw: unknown): string[] {
+  const ids = raw && typeof raw === "object" ? (raw as Record<string, unknown>).ids : undefined;
+  if (
+    !Array.isArray(ids) ||
+    ids.length > HAND_ORDER_MAX_IDS ||
+    ids.some((id) => typeof id !== "string" || id.length > HAND_ORDER_MAX_ID_LENGTH)
+  ) {
+    throw Object.assign(new Error("hand_order needs an ids array of short strings"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  return ids as string[];
+}
+
 /**
  * Turn undo (unranked rooms only). A seat requests a rewind to the start of a
  * turn; the other seat accepts or declines. Practice clients auto-accept.

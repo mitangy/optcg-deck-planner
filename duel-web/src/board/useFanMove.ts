@@ -20,12 +20,14 @@ export function useFanMove(
   pos: FanPos | null,
   onChange: (next: FanPos | null) => void,
   defaultCentreX: () => number,
+  /** Where a drop lands (viewport px: centre x, bottom, the fan's height); the player's fan snaps to the bottom edge by default. */
+  dropTo?: (centreX: number, bottom: number, height: number, vp: { width: number; height: number }) => FanPos | null,
 ) {
   const [move, setMove] = useState<Move | null>(null);
   const moveRef = useRef<Move | null>(null);
   moveRef.current = move;
-  const latest = useRef({ onChange, defaultCentreX });
-  latest.current = { onChange, defaultCentreX };
+  const latest = useRef({ onChange, defaultCentreX, dropTo });
+  latest.current = { onChange, defaultCentreX, dropTo };
 
   const moving = move != null;
   useEffect(() => {
@@ -41,8 +43,12 @@ export function useFanMove(
       const p = at(e);
       const { width, height } = vp();
       setMove(null);
-      latest.current.onChange(
-        fanPosForDrop(p.x * width, p.y * height, vp(), latest.current.defaultCentreX()),
+      const { dropTo: drop, defaultCentreX: centre, onChange: save } = latest.current;
+      const h = fanRef.current?.getBoundingClientRect().height ?? 0;
+      save(
+        drop
+          ? drop(p.x * width, p.y * height, h, vp())
+          : fanPosForDrop(p.x * width, p.y * height, vp(), centre()),
       );
     };
     const onCancel = () => setMove(null);
@@ -64,7 +70,7 @@ export function useFanMove(
       window.removeEventListener("keydown", onKey, true);
       document.body.classList.remove("is-panel-drag");
     };
-  }, [moving]);
+  }, [moving, fanRef]);
 
   const startPos = useCallback((): FanPos | null => {
     const el = fanRef.current;
