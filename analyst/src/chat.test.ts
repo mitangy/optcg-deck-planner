@@ -14,7 +14,7 @@ import {
 } from "@optcg/rules";
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "./catalog";
-import { admit, ChatHttpError, costUsd, originAllowed, runChat, runReview, type CallModel, type ChatDeps, type ModelReply, type SseEvent } from "./chat";
+import { admit, anthropicModel, ChatHttpError, costUsd, flattenCited, originAllowed, runChat, runReview, toCitation, type CallModel, type ChatDeps, type ModelReply, type SseEvent } from "./chat";
 import { narrateGame, replayGame, searchGames } from "./matches";
 
 const catalog = loadCatalog();
@@ -75,11 +75,19 @@ const usage = (input: number, output: number) => ({ input_tokens: input, output_
 /** A model that plays back scripted replies, streaming each reply's text. */
 function scriptedModel(replies: (ModelReply | Error)[]) {
   const seen: Record<string, any>[] = [];
-  const callModel: CallModel = async (params, onText) => {
+  const callModel: CallModel = async (params, onText, _signal, onCite) => {
     seen.push(structuredClone(params));
     const next = replies.shift();
     if (!next || next instanceof Error) throw next ?? new Error("no more replies");
-    for (const b of next.content) if (b.type === "text") onText(String(b.text));
+    // Like the API's stream: a text block's text, then the citations attached to it.
+    for (const b of next.content) {
+      if (b.type !== "text") continue;
+      onText(String(b.text));
+      for (const raw of (b.citations as unknown[] | undefined) ?? []) {
+        const c = toCitation(raw);
+        if (c) onCite?.(c);
+      }
+    }
     return next;
   };
   return { seen, callModel };
@@ -158,7 +166,9 @@ describe("chat", () => {
     // The second call carries the tool's result for the model to read.
     const toolResult = seen[1]!.messages.at(-1).content[0];
     expect(toolResult).toMatchObject({ type: "tool_result", tool_use_id: "t1" });
-    expect(toolResult.content).toContain(getCardDef("OP01-001").name);
+    // Card facts come back as a search result the model can cite.
+    expect(toolResult.content[0]).toMatchObject({ type: "search_result", source: "card:OP01-001", citations: { enabled: true } });
+    expect(JSON.stringify(toolResult.content)).toContain(getCardDef("OP01-001").name);
 
     const saved = calls.find((c) => c.url.endsWith("/threads/9/messages"))!.body as { messages: { role: string; content: any }[] };
     expect(saved.messages.map((m) => m.role)).toEqual(["user", "assistant", "user", "assistant"]);
@@ -228,13 +238,141 @@ describe("post-game analysis", () => {
     const events: SseEvent[] = [];
     await runReview(deps(api, callModel), "chat.tok", { match_id: "m1" }, (e) => events.push(e), new AbortController().signal);
     // The model reads the game from the player's seat: their Life card named, the opponent's hidden.
-    const prompt = seen[0]!.messages[0].content[0].text as string;
+    const blocks = seen[0]!.messages[0].content as { type: string; source?: string; content?: { text: string }[]; citations?: unknown }[];
+    const prompt = blocks.flatMap((b) => b.content ?? []).map((c) => c.text).join("\n");
     expect(prompt).toContain(`Seat ${taken.seat} (you) takes Life (${getCardDef(taken.defId).name})`);
     expect(seen[0]!.tools).toBeUndefined();
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.url).toBe("https://api.test/analyst/reviews/m1");
-    expect(put.body).toEqual({ text: "You lost on turn 3." });
+    expect(put.body).toEqual({ text: "You lost on turn 3.", citations: [] });
     expect(calls.find((c) => c.url.endsWith("/chat/usage"))!.body).toMatchObject({ kind: "review", input_tokens: 5000 });
     expect(events.map((e) => e.event)).toEqual(["status", "text", "done"]);
+  });
+});
+
+const turnText = (t: string, citations?: unknown[]) => ({ type: "text", text: t, ...(citations ? { citations } : {}) });
+const loc = (source: string, cited_text: string, title = "T") => ({ type: "search_result_location", source, title, cited_text, search_result_index: 0, start_block_index: 0, end_block_index: 1 });
+
+describe("sources and citations (#390)", () => {
+  it("keeps only search-result citations and shortens a very long quote (#390)", () => {
+    expect(toCitation(loc("card:OP01-001", "Zoro text", "Zoro"))).toEqual({ source: "card:OP01-001", title: "Zoro", cited_text: "Zoro text" });
+    expect(toCitation({ type: "web_search_result_location", url: "https://x", cited_text: "x" })).toBeNull();
+    expect(toCitation({ type: "page_location", source: "card:OP01-001", cited_text: "x" })).toBeNull();
+    expect(toCitation({ type: "search_result_location", source: "", cited_text: "x" })).toBeNull();
+    expect(toCitation(loc("rule:1-1", "r".repeat(2000)))!.cited_text).toHaveLength(800);
+  });
+
+  it("places each block's citations at the end of that block's text, shifted by the trimmed leading space (#390)", () => {
+    const flat = flattenCited([
+      turnText("  Zoro is 5000 power.", [loc("card:OP01-001", "power 5000"), loc("card:OP01-001", "power 5000"), loc("rule:1-1", "Rule")]),
+      { type: "tool_use", id: "x", name: "y", input: {} },
+      turnText(" My read: he is slow.", [{ type: "web_search_result_location", cited_text: "n" }]),
+      turnText(" Done. ", [loc("match:m1#t2", "Turn 2")]),
+    ]);
+    expect(flat.text).toBe("Zoro is 5000 power. My read: he is slow. Done.");
+    expect(flat.citations).toEqual([
+      { at: 19, source: "card:OP01-001", title: "T", cited_text: "power 5000" },
+      { at: 19, source: "rule:1-1", title: "T", cited_text: "Rule" },
+      { at: 46, source: "match:m1#t2", title: "T", cited_text: "Turn 2" },
+    ]);
+    expect(flat.text.slice(0, 19)).toBe("Zoro is 5000 power.");
+  });
+
+  it("sends a cite event after the cited text and before the next text, batching citations of one block (#390)", async () => {
+    const { api } = planner({
+      "POST /analyst/chat/threads": { id: 9 },
+      "POST /analyst/chat/threads/9/messages": null,
+      "POST /analyst/chat/usage": null,
+      "GET /analyst/chat/budget": BUDGET,
+    });
+    const { callModel } = scriptedModel([
+      {
+        content: [
+          turnText("Zoro costs 3.", [loc("card:OP01-001", "cost 3"), loc("card:OP01-001", "power 5000")]),
+          turnText(" I'd keep him."),
+          turnText(" Rule says so.", [loc("rule:6-5-3", "Blocker")]),
+        ],
+        stop_reason: "end_turn",
+        usage: usage(10, 5),
+      },
+    ]);
+    const events: SseEvent[] = [];
+    await runChat(deps(api, callModel), "chat.tok", { message: "Hi" }, (e) => events.push(e), new AbortController().signal);
+    expect(events.map((e) => e.event)).toEqual(["thread", "text", "cite", "text", "text", "cite", "done"]);
+    expect(events[2]!.data).toEqual({
+      citations: [
+        { source: "card:OP01-001", title: "T", cited_text: "cost 3" },
+        { source: "card:OP01-001", title: "T", cited_text: "power 5000" },
+      ],
+    });
+    expect(events[5]!.data).toEqual({ citations: [{ source: "rule:6-5-3", title: "T", cited_text: "Blocker" }] });
+  });
+
+  it("stores the model's answer with its citations untouched and keeps rounds apart by a blank line like the saved thread (#390)", async () => {
+    const { calls, api } = planner({
+      "POST /analyst/chat/threads": { id: 9 },
+      "POST /analyst/chat/threads/9/messages": null,
+      "POST /analyst/chat/usage": null,
+      "GET /analyst/chat/budget": BUDGET,
+    });
+    const toolUse = { type: "tool_use", id: "t1", name: "get_cards", input: { ids: ["OP01-001"] } };
+    const cited = turnText("Zoro is a leader.", [loc("card:OP01-001", "leader")]);
+    const { callModel } = scriptedModel([
+      { content: [turnText("Checking."), toolUse], stop_reason: "tool_use", usage: usage(10, 5) },
+      { content: [cited], stop_reason: "end_turn", usage: usage(10, 5) },
+    ]);
+    const events: SseEvent[] = [];
+    await runChat(deps(api, callModel), "chat.tok", { message: "Hi" }, (e) => events.push(e), new AbortController().signal);
+    const deltas = events.filter((e) => e.event === "text").map((e) => e.data.delta);
+    expect(deltas).toEqual(["Checking.", "\n\nZoro is a leader."]);
+    const saved = calls.find((c) => c.url.endsWith("/threads/9/messages"))!.body as { messages: { content: any[] }[] };
+    expect(saved.messages[3]!.content).toEqual([cited]);
+  });
+
+  it("sends the game to the review as one search result per turn and saves the review's citations with their offsets (#390)", async () => {
+    const { calls, api } = planner({
+      "GET /analyst/matches/m1/replay": { match_id: "m1", your_seat: taken.seat, replay },
+      "POST /analyst/chat/usage": null,
+      "PUT /analyst/reviews/m1": { match_id: "m1", text: "x", created_at: null },
+    });
+    const { seen, callModel } = scriptedModel([
+      {
+        content: [turnText("You lost on turn 3.", [loc("match:m1#t3", "Seat 1 takes Life")]), turnText(" Next time keep Nami back.")],
+        stop_reason: "end_turn",
+        usage: usage(5000, 400),
+      },
+    ]);
+    const events: SseEvent[] = [];
+    await runReview(deps(api, callModel), "chat.tok", { match_id: "m1" }, (e) => events.push(e), new AbortController().signal);
+    const blocks = seen[0]!.messages[0].content as { type: string; source?: string }[];
+    const sent = blocks.filter((b) => b.type === "search_result").map((b) => b.source);
+    expect(sent[0]).toBe("match:m1");
+    expect(sent.length).toBeGreaterThan(2);
+    for (const src of sent.slice(1)) expect(src).toMatch(/^match:m1#t\d+$/);
+    expect(events.map((e) => e.event)).toEqual(["status", "text", "cite", "text", "done"]);
+    const put = calls.find((c) => c.method === "PUT")!;
+    expect(put.body).toEqual({
+      text: "You lost on turn 3. Next time keep Nami back.",
+      citations: [{ at: 19, source: "match:m1#t3", title: "T", cited_text: "Seat 1 takes Life" }],
+    });
+  });
+
+  it("passes the Claude stream's text and search-result citations on, ignoring other kinds (#390)", async () => {
+    const handlers: Record<string, (...a: any[]) => void> = {};
+    const stream = {
+      on: (event: string, cb: (...a: any[]) => void) => void (handlers[event] = cb),
+      finalMessage: async () => {
+        handlers.text!("Zoro costs 3.");
+        handlers.citation!(loc("card:OP01-001", "cost 3", "Zoro"), []);
+        handlers.citation!({ type: "web_search_result_location", url: "https://x", cited_text: "n" }, []);
+        return { content: [], stop_reason: "end_turn", usage: usage(1, 1) };
+      },
+    };
+    const model = anthropicModel({ beta: { messages: { stream: () => stream } } } as never);
+    const texts: string[] = [];
+    const cites: unknown[] = [];
+    await model({}, (d) => texts.push(d), new AbortController().signal, (c) => cites.push(c));
+    expect(texts).toEqual(["Zoro costs 3."]);
+    expect(cites).toEqual([{ source: "card:OP01-001", title: "Zoro", cited_text: "cost 3" }]);
   });
 });

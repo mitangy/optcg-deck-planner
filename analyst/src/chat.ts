@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { Catalog } from "./catalog";
 import { PlannerApiError, plannerCall, reviewMatch, tokenIsValid, type PlannerApi } from "./matches";
 import { buildTools, instructionsFor, type Knowledge, type ToolDef } from "./server";
+import { adaptToolResult, gameResults } from "./sources";
 
 export const CHAT_MODEL = process.env.ANALYST_CHAT_MODEL || "claude-opus-5-5";
 const MAX_TOOL_ROUNDS = 12;
@@ -36,10 +37,74 @@ type Block = Record<string, unknown> & { type: string };
 export type Message = { role: "user" | "assistant"; content: string | Block[] };
 export type ModelReply = { content: Block[]; stop_reason: string | null; usage: Usage };
 
-/** One streamed model call: text deltas go to onText as they arrive. */
-export type CallModel = (params: Record<string, unknown>, onText: (delta: string) => void, signal: AbortSignal) => Promise<ModelReply>;
+/** A citation of one tool result, as the apps show it: which source, its title and the quoted fact. */
+export type Citation = { source: string; title: string; cited_text: string };
+/** A citation placed in the answer: `at` is the UTF-16 offset in the answer text it follows. */
+export type PlacedCitation = Citation & { at: number };
 
-export type SseEvent = { event: "thread" | "status" | "text" | "done" | "error"; data: Record<string, unknown> };
+/** One streamed model call: text deltas go to onText as they arrive, citations (of the text before them) to onCite. */
+export type CallModel = (
+  params: Record<string, unknown>,
+  onText: (delta: string) => void,
+  signal: AbortSignal,
+  onCite?: (citation: Citation) => void,
+) => Promise<ModelReply>;
+
+export type SseEvent = { event: "thread" | "status" | "text" | "cite" | "done" | "error"; data: Record<string, unknown> };
+
+const MAX_CITED_TEXT = 800;
+
+/** A search-result citation from the API (a streamed delta or a stored block); anything else is not one of ours. */
+export function toCitation(raw: unknown): Citation | null {
+  if (!raw || typeof raw !== "object") return null;
+  const c = raw as Record<string, unknown>;
+  if (c.type !== "search_result_location" || typeof c.source !== "string" || !c.source) return null;
+  const cited = typeof c.cited_text === "string" ? c.cited_text : "";
+  return { source: c.source, title: typeof c.title === "string" ? c.title : "", cited_text: cited.length > MAX_CITED_TEXT ? `${cited.slice(0, MAX_CITED_TEXT - 1)}…` : cited };
+}
+
+/**
+ * The answer's text (its text blocks run together, as streamed) with each cited block's citations placed at
+ * the end of that block, then trimmed with the offsets moved to match.
+ */
+export function flattenCited(content: Block[]): { text: string; citations: PlacedCitation[] } {
+  let text = "";
+  const placed: PlacedCitation[] = [];
+  for (const b of content) {
+    if (b.type !== "text") continue;
+    text += String(b.text);
+    const seen = new Set<string>();
+    for (const raw of Array.isArray(b.citations) ? b.citations : []) {
+      const c = toCitation(raw);
+      const key = c && `${c.source}\n${c.cited_text}`;
+      if (!c || seen.has(key!)) continue;
+      seen.add(key!);
+      placed.push({ at: text.length, ...c });
+    }
+  }
+  const lead = text.length - text.trimStart().length;
+  const trimmed = text.trim();
+  return { text: trimmed, citations: placed.map((c) => ({ ...c, at: Math.min(Math.max(c.at - lead, 0), trimmed.length) })) };
+}
+
+/** Wires a model call's text and citations to SSE events: citations are batched and sent just before the next text (or at the end), so a marker lands right after the text it cites. */
+function streamTo(emit: (e: SseEvent) => void, onDelta?: (delta: string) => void) {
+  let pending: Citation[] = [];
+  const flush = () => {
+    if (!pending.length) return;
+    emit({ event: "cite", data: { citations: pending } });
+    pending = [];
+  };
+  return {
+    onText: (delta: string) => {
+      flush();
+      onDelta?.(delta);
+      emit({ event: "text", data: { delta } });
+    },
+    onCite: (c: Citation) => void pending.push(c),
+    flush,
+  };
+}
 
 export type ChatDeps = { api: PlannerApi; catalog: Catalog; knowledge: Knowledge; callModel: CallModel };
 
@@ -78,7 +143,8 @@ export const reviewBody = z.object({ match_id: z.string().min(1).max(80), regene
 const CHAT_INSTRUCTIONS = `
 
 You're answering in the Log Pose panel inside the player's app, often on a phone. Keep answers short and scannable: a few short paragraphs or a list, markdown allowed, no tables wider than three columns. Look things up with tools rather than asking the player for card text.
-A user message can start with a <context> block saying which page they are on and the deck or game open there. Use it when they say "this deck" or "this game"; don't mention the block itself.`;
+A user message can start with a <context> block saying which page they are on and the deck or game open there. Use it when they say "this deck" or "this game"; don't mention the block itself.
+Tool results arrive as sources the app turns into numbered citations for the player. Ground every factual claim (card text and stats, rules, rulings, win rates, playbook notes, what happened in a game, deck numbers, odds) in a tool result and say it in a sentence you can cite, rather than blending several sources into one sentence. Keep your own judgement (matchup reads, what to cut, how a line plays out) in separate sentences and say it is your judgement or your read; judgement is not cited. Don't write source ids or citation numbers yourself.`;
 
 const REVIEW_INSTRUCTIONS = `
 
@@ -87,7 +153,8 @@ You're writing the post-game analysis shown when the player opens one of their g
 2. Key turns: two to four turns that mattered, what happened, and the better line when there was one.
 3. What the opponent's deck showed: the cards and plan you saw.
 4. One or two concrete things to do differently next time.
-You never saw the opponent's hidden cards; don't state guesses about them as fact. Use only cards named in the log.`;
+You never saw the opponent's hidden cards; don't state guesses about them as fact. Use only cards named in the log.
+Each turn of the game is a source the app turns into numbered citations. Ground what happened in the turns (state it in sentences you can cite, one turn's events at a time) and mark your own advice and reads as your judgement. Don't write source ids or citation numbers yourself.`;
 
 const STATUS: Record<string, string> = {
   search_cards: "Searching cards",
@@ -150,7 +217,10 @@ async function runTool(tools: ToolDef[], block: Block): Promise<Block> {
   if (!parsed.success) return { ...base, is_error: true, content: `Invalid input: ${parsed.error.message}` };
   try {
     const result = await tool.run(parsed.data as Record<string, unknown>);
-    return { ...base, ...(result.isError ? { is_error: true } : {}), content: result.content.map((c) => c.text).join("\n") };
+    const text = result.content.map((c) => c.text).join("\n");
+    // Facts become search results the model can cite; anything we can't adapt goes back as plain text.
+    const sources = result.isError ? null : adaptToolResult(tool.name, text);
+    return { ...base, ...(result.isError ? { is_error: true } : {}), content: sources ?? text };
   } catch (err) {
     return { ...base, is_error: true, content: err instanceof Error ? err.message : String(err) };
   }
@@ -220,8 +290,14 @@ export async function runChat(deps: ChatDeps, token: string, body: z.infer<typeo
   const system = [{ type: "text", text: instructionsFor(true) + CHAT_INSTRUCTIONS, cache_control: { type: "ephemeral" } }];
   let usage: Usage = { input_tokens: 0, output_tokens: 0 };
   let finished = false;
+  // Text from separate rounds is kept apart by a blank line, as the stored thread shows it.
+  let wroteText = false;
   try {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      let breakPending = wroteText;
+      const out = streamTo(emit, () => {
+        wroteText = true;
+      });
       const reply = await deps.callModel(
         {
           model: CHAT_MODEL,
@@ -231,9 +307,14 @@ export async function runChat(deps: ChatDeps, token: string, body: z.infer<typeo
           messages: withCacheBreakpoint([...history, ...turn]),
           output_config: { effort: "medium" },
         },
-        (delta) => emit({ event: "text", data: { delta } }),
+        (delta) => {
+          out.onText(breakPending ? `\n\n${delta}` : delta);
+          breakPending = false;
+        },
         signal,
+        out.onCite,
       );
+      out.flush();
       usage = addUsage(usage, reply.usage);
       turn.push({ role: "assistant", content: reply.content });
       const calls = reply.content.filter((b) => b.type === "tool_use");
@@ -270,44 +351,58 @@ export async function runReview(deps: ChatDeps, token: string, body: z.infer<typ
   }
   emit({ event: "status", data: { text: "Reading the game" } });
   let text = "";
+  const out = streamTo(emit, (delta) => {
+    text += delta;
+  });
   const reply = await deps.callModel(
     {
       model: CHAT_MODEL,
       max_tokens: 6000,
       system: [{ type: "text", text: instructionsFor(true) + REVIEW_INSTRUCTIONS, cache_control: { type: "ephemeral" } }],
-      messages: [{ role: "user", content: [{ type: "text", text: `Here is the game, from my seat:\n${JSON.stringify(game)}` }] }],
+      // One source per turn, so the review can cite the turns it talks about.
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Here is the game, from my seat: an overview, then each turn as its own source." },
+            ...gameResults("match", game.matchId, game),
+            { type: "text", text: [...game.notes, "Write the post-game analysis."].join(" ") },
+          ],
+        },
+      ],
       output_config: { effort: "high" },
     },
-    (delta) => {
-      text += delta;
-      emit({ event: "text", data: { delta } });
-    },
+    out.onText,
     signal,
+    out.onCite,
   );
+  out.flush();
   const cost = costUsd(reply.usage);
   await recordUsage(api, token, "review", reply.usage, cost).catch(() => undefined);
-  const final = reply.content
-    .filter((b) => b.type === "text")
-    .map((b) => String(b.text))
-    .join("\n\n")
-    .trim() || text.trim();
+  const cited = flattenCited(reply.content);
+  const final = cited.text || text.trim();
   if (!final) throw new Error("Log Pose didn't write anything for this game. Try again.");
-  await plannerCall(api, token, `/analyst/reviews/${encodeURIComponent(body.match_id)}`, true, { text: final }, "PUT");
+  const citations = cited.text ? cited.citations : [];
+  await plannerCall(api, token, `/analyst/reviews/${encodeURIComponent(body.match_id)}`, true, { text: final, citations }, "PUT");
   emit({ event: "done", data: { cost_usd: cost, saved: true } });
 }
 
 /** The Claude API behind CallModel: a streamed Messages call. */
 export function anthropicModel(client: { beta: { messages: { stream: (p: never, o: { signal: AbortSignal }) => StreamLike } } }): CallModel {
-  return async (params, onText, signal) => {
+  return async (params, onText, signal, onCite) => {
     const stream = client.beta.messages.stream(params as never, { signal });
     stream.on("text", onText);
+    stream.on("citation", (citation) => {
+      const c = toCitation(citation);
+      if (c) onCite?.(c);
+    });
     const msg = await stream.finalMessage();
     return { content: msg.content as unknown as Block[], stop_reason: msg.stop_reason, usage: msg.usage };
   };
 }
 
 type StreamLike = {
-  on: (event: "text", cb: (delta: string) => void) => unknown;
+  on: ((event: "text", cb: (delta: string) => void) => unknown) & ((event: "citation", cb: (citation: unknown) => void) => unknown);
   finalMessage: () => Promise<{ content: unknown; stop_reason: string | null; usage: Usage }>;
 };
 
