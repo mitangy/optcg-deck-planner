@@ -36,8 +36,8 @@ INVITE_TTL = timedelta(minutes=10)
 INVITE_ROOM_GRACE = timedelta(seconds=30)
 MAX_FRIENDS = 200
 
-_request_rate = RateLimiter(max_calls=20, period_s=60)
-_invite_rate = RateLimiter(max_calls=20, period_s=60)
+_request_rate = RateLimiter(max_calls=20, period_s=60, name="friends_request_rate")
+_invite_rate = RateLimiter(max_calls=20, period_s=60, name="friends_invite_rate")
 
 
 def utcnow() -> datetime:

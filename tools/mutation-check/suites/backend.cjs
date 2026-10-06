@@ -20,6 +20,8 @@ const corpus = "backend/app/analyst_corpus.py";
 const bodyLimit = "backend/app/body_limit.py";
 const rateLimit = "backend/app/rate_limit.py";
 const api = "backend/app/routers/api.py";
+const redisClient = "backend/app/redis_client.py";
+const db = "backend/app/db.py";
 
 module.exports = {
   cwd: "backend",
@@ -406,5 +408,10 @@ module.exports = {
     { id: "client-ip-ignores-proxy-secret", file: rateLimit, from: "    return hmac.compare_digest(sent.encode(), secret.encode())", to: "    return False", kills: ["test_forwarded_for_is_trusted_with_the_proxy_secret"] },
     { id: "client-ip-untrusted-before-configured", file: rateLimit, from: "        return True  # Not configured yet: keep trusting X-Forwarded-For as before.", to: "        return False", kills: ["test_forwarded_for_is_trusted_until_a_proxy_secret_is_configured"] },
     { id: "client-ip-skips-cloudflare", file: rateLimit, from: "    for header in (\"cf-connecting-ip\", \"true-client-ip\"):", to: "    for header in ():", kills: ["test_forwarded_for_is_ignored_without_the_proxy_secret"] },
+    // shared state through Redis (REDIS_URL), for several workers / instances
+    { id: "rate-limit-redis-ignored", file: rateLimit, from: "        r = redis_client.get_redis() if self.name else None", to: "        r = None", kills: ["test_named_limiter_budget_is_shared_across_workers_with_redis"] },
+    { id: "rate-limit-redis-refused-call-counted", file: rateLimit, from: "            r.zrem(rkey, member)\n", to: "", kills: ["test_named_limiter_budget_is_shared_across_workers_with_redis"] },
+    { id: "rate-limit-redis-down-raises", file: rateLimit, from: "            except redis_client.RedisError:", to: "            except ValueError:", kills: ["test_named_limiter_counts_in_process_when_redis_is_down"] },
+    { id: "redis-failure-no-cooldown", file: redisClient, from: "    _down_until = time.monotonic() + FAILURE_COOLDOWN_S", to: "    _down_until = 0.0", kills: ["test_named_limiter_counts_in_process_when_redis_is_down"] },
   ],
 };

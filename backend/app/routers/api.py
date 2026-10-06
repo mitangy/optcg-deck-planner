@@ -56,10 +56,10 @@ from app.services import DeckOversizeError
 router = APIRouter(tags=["api"])
 
 # Public TCGPlayer proxy — keep abuse cost bounded per client IP.
-_sales_rate_limiter = RateLimiter(max_calls=30, period_s=60)
+_sales_rate_limiter = RateLimiter(max_calls=30, period_s=60, name="api_sales_rate_limiter")
 # Uncached lookups each hold a worker thread on a TCGPlayer call; cap them in
 # total, since the per-IP key above can be spoofed.
-_sales_upstream_limiter = RateLimiter(max_calls=60, period_s=60)
+_sales_upstream_limiter = RateLimiter(max_calls=60, period_s=60, name="api_sales_upstream_limiter")
 
 
 def _require_catalog_token(x_catalog_token: str | None, settings: Settings) -> None:

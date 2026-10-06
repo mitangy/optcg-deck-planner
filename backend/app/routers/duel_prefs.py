@@ -42,7 +42,7 @@ MAX_SETTINGS_CHARS = 4096
 # Per-device connection fields never leave the browser (the join secret is a secret).
 DEVICE_ONLY_KEYS = frozenset({"serverUrl", "joinSecret", "useDevKey", "devUserKey"})
 
-_upload_rate = RateLimiter(max_calls=20, period_s=60)
+_upload_rate = RateLimiter(max_calls=20, period_s=60, name="duel_prefs_upload_rate")
 
 
 def _sniff_mime(data: bytes) -> str | None:

@@ -56,6 +56,14 @@ class Settings(BaseSettings):
     # Cookie-free POST /duel/dev-token for duel-web / Expo staging demos.
     # Safe to enable in production staging; does not unlock /auth/dev-login.
     enable_duel_dev_token: bool = False
+    # Optional Redis for state shared by every worker and instance: rate limits,
+    # game-server presence, live-game progress and the game-server pool pointer.
+    # Unset: all of that stays in-process / in Postgres, as before.
+    redis_url: str = ""
+    # Game-server URL handed out with duel tokens when Redis holds no pool pointer.
+    game_server_url: str = ""
+    # Signs public playmat / card back links (falls back to session_secret).
+    cosmetic_url_secret: str = ""
 
     @property
     def analyst_chat_email_set(self) -> set[str]:

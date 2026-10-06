@@ -63,19 +63,19 @@ log = logging.getLogger(__name__)
 # A long game is a few hundred intents (tens of KB). Anything far larger is dropped, not the result.
 MAX_REPLAY_BYTES = 1_000_000
 
-_token_rate = RateLimiter(max_calls=30, period_s=60)
-_ingest_rate = RateLimiter(max_calls=120, period_s=60)
-_presence_rate = RateLimiter(max_calls=120, period_s=60)
+_token_rate = RateLimiter(max_calls=30, period_s=60, name="duel_token_rate")
+_ingest_rate = RateLimiter(max_calls=120, period_s=60, name="duel_ingest_rate")
+_presence_rate = RateLimiter(max_calls=120, period_s=60, name="duel_presence_rate")
 # One snapshot per turn per live game, all from the game server's address.
-_progress_rate = RateLimiter(max_calls=1200, period_s=60)
-_report_rate = RateLimiter(max_calls=10, period_s=600)
+_progress_rate = RateLimiter(max_calls=1200, period_s=60, name="duel_progress_rate")
+_report_rate = RateLimiter(max_calls=10, period_s=600, name="duel_report_rate")
 # Reports are stored forever and the per-IP key can be spoofed (X-Forwarded-For),
 # so cap the total too.
-_report_global_rate = RateLimiter(max_calls=60, period_s=3600)
+_report_global_rate = RateLimiter(max_calls=60, period_s=3600, name="duel_report_global_rate")
 # Guest and dev ids are client-chosen, so a fresh id per request would create a
 # User + DuelRating row every time. New accounts are capped per IP and in total.
-_new_account_ip_rate = RateLimiter(max_calls=20, period_s=3600)
-_new_account_global_rate = RateLimiter(max_calls=600, period_s=3600)
+_new_account_ip_rate = RateLimiter(max_calls=20, period_s=3600, name="duel_new_account_ip_rate")
+_new_account_global_rate = RateLimiter(max_calls=600, period_s=3600, name="duel_new_account_global_rate")
 
 _USER_KEY_RE = re.compile(r"^[a-zA-Z0-9_.:-]{1,64}$")
 _GUEST_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{8,64}$")
