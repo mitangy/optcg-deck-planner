@@ -968,5 +968,7 @@ module.exports = {
     { id: "side-field-drops-label-total", file: `${src}/board/SideField.tsx`, from: "            labelTotal={donTotal(data.costAreaCount ?? data.costArea?.length ?? 0, data)}\n", to: "", kills: ["shows 8/10 on your side when 2 of 10 DON!! are attached (#345)"] },
     { id: "turn-status-opp-don-cost-area-only", file: `${src}/board/TurnStatusPanel.tsx`, from: "donTotal: donTotal(opp.costAreaCount, opp),", to: "donTotal: opp.costAreaCount,", kills: ["counts attached DON!! in both players' totals (#345)"] },
     { id: "turn-status-you-don-cost-area-only", file: `${src}/board/TurnStatusPanel.tsx`, from: "donTotal: donTotal(you.costArea.length, you),", to: "donTotal: you.costArea.length,", kills: ["counts attached DON!! in both players' totals (#345)"] },
+    // match-over card waits for the finished result, not the live game's per-turn save (#319)
+    { id: "match-over-accepts-unfinished", file: `${src}/board/matchOverFacts.ts`, from: "        if (entry.finished === false) retry();\n        else onRecord(entry);\n", to: "        onRecord(entry);\n", kills: ["keeps retrying past the live game's unfinished save and shows the finished Bounty (#319)"] },
   ],
 };
