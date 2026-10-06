@@ -151,6 +151,15 @@ module.exports = {
     { id: "e2e-sort-key-tag-missing", args: "gameplay-toggles --project=desktop-1280 -g \"Sort button shows its S\"", file: "duel-web/src/board/DuelBoard.tsx", from: "      data-key-tag={prefs.shortcutTags ? \"S\" : undefined}\n", to: "", kills: ["gameplay-toggles.spec.ts > the hand Sort button shows its S key tab and S sorts the hand (#340) [desktop-1280]"] },
     { id: "e2e-sort-key-tag-ignores-setting", args: "gameplay-toggles --project=desktop-1280 -g \"without its S tab\"", file: "duel-web/src/board/DuelBoard.tsx", from: "data-key-tag={prefs.shortcutTags ? \"S\" : undefined}", to: "data-key-tag=\"S\"", kills: ["gameplay-toggles.spec.ts > Shortcut key tags off leaves the hand Sort button without its S tab (#340) [desktop-1280]"] },
     { id: "e2e-sort-key-tag-on-phones", args: "gameplay-toggles --project=phone-375 -g \"no S key tab\"", file: "duel-web/src/interactions.css", from: "   the button keeps its size and hit target. */\n@media (hover: hover) and (pointer: fine) {", to: "   the button keeps its size and hit target. */\n@media all {", kills: ["gameplay-toggles.spec.ts > phones show no S key tab on the hand Sort button (#340) [phone-375]"] },
+    // Unplayable hand cards are grayed out at full opacity (#356)
+    { id: "e2e-unaffordable-faded", args: "gameplay-toggles -g \"grayed out at full opacity\"", file: "duel-web/src/board.css", from: "  opacity: 1;\n  filter: grayscale(1);\n", to: "  opacity: 0.55;\n  filter: grayscale(1);\n", kills: [
+      "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [desktop-1280]",
+      "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [phone-375]",
+    ] },
+    { id: "e2e-unaffordable-not-grayscale", args: "gameplay-toggles -g \"grayed out at full opacity\"", file: "duel-web/src/board.css", from: "  opacity: 1;\n  filter: grayscale(1);\n", to: "  opacity: 1;\n  filter: saturate(0.6);\n", kills: [
+      "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [desktop-1280]",
+      "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [phone-375]",
+    ] },
     // "Opponent hand, top right" is the top-right spot (#297)
     { id: "e2e-opp-hand-top-right-not-migrated", args: "demo-audit -g \"Opponent hand, top right\"", file: "duel-web/src/settings.ts", from: "  if (oppHandTopRight === true && !next.oppHandSpot) next.oppHandSpot = \"right\";\n", to: "", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [desktop-1280]", "demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [phone-375]"] },
     { id: "e2e-opp-hand-top-right-switch-on-desktop", args: "demo-audit --project=desktop-1280 -g \"Opponent hand, top right\"", file: "duel-web/src/board/gameplayFields.ts", from: "  if (key === \"oppHandTopRight\") return !d.desktop;\n", to: "", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [desktop-1280]"] },

@@ -4880,8 +4880,8 @@ body.is-panel-drag * {
 
 /* A hand card that costs more than your active DON!!. */
 .arena .card-tile.hand-unaffordable:not(.selected) {
-  opacity: 0.55;
-  filter: saturate(0.6);
+  opacity: 1;
+  filter: grayscale(1);
 }
 
 /* Phone boards: names and power at 10px or more (they were 7 to 8px), and the printed
