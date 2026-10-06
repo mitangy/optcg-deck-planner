@@ -156,7 +156,7 @@ function handTests(where: string, landscape = false) {
       );
     });
 
-    test(`${handLayout} hand${where}: a dragged card lifts out of the hand and follows the pointer (#358)`, async ({
+    test(`${handLayout} hand${where}: a dragged card lifts out of the hand and follows the pointer (#364)`, async ({
       page,
     }) => {
       if (landscape) {
