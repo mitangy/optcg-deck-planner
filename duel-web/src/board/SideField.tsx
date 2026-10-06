@@ -5,6 +5,7 @@ import type { CardView, Seat } from "../net/protocol";
 import { CardInspect } from "./CardInspect";
 import { CardTile } from "./CardTile";
 import { DonStrip } from "./DonStrip";
+import { donTotal } from "./donTotals";
 import { TrashViewer, trashNewestFirst } from "./TrashViewer";
 import { ZonePile, zonePileCountLabel } from "./ZonePile";
 
@@ -495,6 +496,7 @@ export function SideField({
             tokens={data.costArea}
             activeCount={data.activeDonCount}
             totalCount={data.costAreaCount ?? data.costArea?.length ?? 0}
+            labelTotal={donTotal(data.costAreaCount ?? data.costArea?.length ?? 0, data)}
             draggableDonIds={interactive ? drag?.draggableDonIds : undefined}
             draggingDonIds={interactive ? drag?.draggingDonIds : undefined}
             selectedDonIds={interactive ? drag?.selectedDonIds : undefined}

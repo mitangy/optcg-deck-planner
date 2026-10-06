@@ -959,5 +959,12 @@ module.exports = {
     { id: "spotlight-fade-travels", file: `${src}/board/cardSpotlight.ts`, from: "      travel: false,", to: "      travel: true,", kills: ["Animations Off shows no spotlight; reduced motion fades without travel (#339)"] },
     { id: "spotlight-fast-ignored", file: `${src}/board/cardSpotlight.ts`, from: "  const s = plan.scale;", to: "  const s = 1;", kills: ["Fast halves the timings and a waiting batch halves the hold (#339)"] },
     { id: "spotlight-no-catch-up", file: `${src}/board/cardSpotlight.ts`, from: "const catchUp = waiting > 0 ? 0.5 : 1;", to: "const catchUp = 1;", kills: ["Fast halves the timings and a waiting batch halves the hold (#339)"] },
+    // DON!! total includes attached DON!! (#345)
+    { id: "don-total-ignores-attached", file: `${src}/board/donTotals.ts`, from: "  return costAreaCount + attachedDonTotal(side);", to: "  return costAreaCount;", kills: ["counts DON!! attached to the Leader and Characters in the DON!! total (#345)"] },
+    { id: "don-attached-skips-characters", file: `${src}/board/donTotals.ts`, from: "  for (const c of side.characters) total += c.attachedDonCount ?? 0;\n", to: "", kills: ["counts DON!! attached to the Leader and Characters in the DON!! total (#345)"] },
+    { id: "don-strip-label-ignores-label-total", file: `${src}/board/DonStrip.tsx`, from: "`${activeCount ?? 0}/${labelTotal ?? totalCount ?? 0}`", to: "`${activeCount ?? 0}/${totalCount ?? 0}`", kills: ["shows labelTotal as the denominator without changing the chip count (#345)"] },
+    { id: "side-field-drops-label-total", file: `${src}/board/SideField.tsx`, from: "            labelTotal={donTotal(data.costAreaCount ?? data.costArea?.length ?? 0, data)}\n", to: "", kills: ["shows 8/10 on your side when 2 of 10 DON!! are attached (#345)"] },
+    { id: "turn-status-opp-don-cost-area-only", file: `${src}/board/TurnStatusPanel.tsx`, from: "donTotal: donTotal(opp.costAreaCount, opp),", to: "donTotal: opp.costAreaCount,", kills: ["counts attached DON!! in both players' totals (#345)"] },
+    { id: "turn-status-you-don-cost-area-only", file: `${src}/board/TurnStatusPanel.tsx`, from: "donTotal: donTotal(you.costArea.length, you),", to: "donTotal: you.costArea.length,", kills: ["counts attached DON!! in both players' totals (#345)"] },
   ],
 };
