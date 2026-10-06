@@ -17,6 +17,7 @@ import { BattleLogPanel } from "./BattleLogPanel";
 import { CardPreviewPanel } from "./CardPreviewPanel";
 import { RecentPlaysStrip } from "./RecentPlaysStrip";
 import { MatchViewerSeatContext } from "./artOwnership";
+import { PromptSlotContext } from "./promptSlot";
 import { ChatPanel } from "./ChatPanel";
 import type { BattleLogEntry } from "./battleLog";
 import { AttackWarning, type AttackWarn } from "./AttackWarning";
@@ -297,6 +298,8 @@ export function DuelBoard({
   const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_QUERY);
   /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
   const lp = wide && landscapePhone;
+  const [promptSlot, setPromptSlot] = useState<HTMLElement | null>(null);
+  const promptSlotValue = useMemo(() => ({ slot: promptSlot, setSlot: setPromptSlot }), [promptSlot]);
   /** Tall desktop, Grid layout: the hand is an always-open grid side panel (no dock). */
   const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
   /** "auto" (never chosen) is the Grid on a tall desktop window and the fan elsewhere. */
@@ -1628,6 +1631,7 @@ export function DuelBoard({
 
   return (
     <MatchViewerSeatContext.Provider value={spectating ? null : boardSeat}>
+    <PromptSlotContext.Provider value={promptSlotValue}>
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
@@ -2514,6 +2518,7 @@ export function DuelBoard({
         </div>
       ) : null}
     </div>
+    </PromptSlotContext.Provider>
     </MatchViewerSeatContext.Provider>
   );
 }
