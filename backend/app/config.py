@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     # shared secret it sends to read full match replays. Replays stay closed when unset.
     analyst_public_url: str = ""
     analyst_service_secret: str = ""
+    # In-app Log Pose chat: who may use it (comma-separated emails) and its spend caps in USD.
+    # The daily cap is per player; the monthly cap covers everyone. Off when no emails are set.
+    analyst_chat_emails: str = ""
+    analyst_chat_daily_usd: float = 3.0
+    analyst_chat_monthly_usd: float = 50.0
     # Extra CORS origins for Expo / duel-web (comma-separated).
     duel_cors_origins: str = (
         "http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,"
@@ -51,6 +56,10 @@ class Settings(BaseSettings):
     # Cookie-free POST /duel/dev-token for duel-web / Expo staging demos.
     # Safe to enable in production staging; does not unlock /auth/dev-login.
     enable_duel_dev_token: bool = False
+
+    @property
+    def analyst_chat_email_set(self) -> set[str]:
+        return {e.strip().lower() for e in self.analyst_chat_emails.split(",") if e.strip()}
 
     @property
     def allowed_email_set(self) -> set[str]:

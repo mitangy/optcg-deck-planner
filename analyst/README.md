@@ -1,6 +1,6 @@
 # `@optcg/analyst`: Log Pose
 
-Deck analyst tools for Claude, served over MCP. You add this server to the Claude app as a custom connector, and Claude (on your own Claude plan) uses the tools to look up cards and analyze decks. The server runs no model and needs no API key.
+Deck analyst tools for Claude, served over MCP. You add this server to the Claude app as a custom connector, and Claude (on your own Claude plan) uses the tools to look up cards and analyze decks. The same tools also power the Log Pose panel inside the duel app and the deck planner, which calls the Claude API from this server (see [In-app chat](#in-app-chat)).
 
 Design doc: https://claude.ai/artifact/DHEmpEwqp9UD1btA2BN5Rv
 
@@ -19,6 +19,9 @@ Design doc: https://claude.ai/artifact/DHEmpEwqp9UD1btA2BN5Rv
 | `playbook` | Strategy notes from [`playbook/`](playbook/README.md): a leader's game plan, key cards, mulligan, lines and matchups, both sides of a matchup, or notes mentioning a card. |
 | `matchup_stats` | Win rates from recorded duels: a leader's overall record, going first and second, each matchup (mirrors apart), and per-card rates with and without the card. Totals only, with a Wilson interval; buckets under 5 games are held back. Needs `ANALYST_SERVICE_SECRET`. |
 
+| `search_matches` | Searches every recorded duel from players who share their games (not just yours): by leader, opponent, a card in the deck, result, who went first, turns. Games come back anonymized: an opaque game id, sides A and B, rating bands, never names or match ids. Needs `ANALYST_SERVICE_SECRET`. |
+| `replay_match` | Re-runs one of those games with every card named (both hands, Life and deck), sides labeled Player A and Player B. |
+
 A personal link (below) adds five more:
 
 | Tool | What it does |
@@ -31,7 +34,7 @@ A personal link (below) adds five more:
 
 ### Learning loop
 
-Every finished duel is stored per seat (leader, deck, result, who went first, turns), and `matchup_stats` aggregates those rows. Players can leave their games out of everyone's stats with **Count my games in Log Pose stats** in duel-web Settings; it is on by default, and only totals are ever returned.
+Every finished duel is stored per seat (leader, deck, result, who went first, turns), and `matchup_stats` aggregates those rows. Players can leave their games out of everyone's stats with **Use my games in Log Pose stats and game reviews** in duel-web Settings; it is on by default. `matchup_stats` returns only totals; `search_matches` and `replay_match` return single games, anonymized, and drop a player's games (even ids found earlier) as soon as they turn sharing off.
 
 After reviewing your games, Claude can call `draft_lesson`. Drafts appear under **Lessons from your games** in duel-web Settings, where you approve, reject or delete them. Only approved lessons come back from `my_lessons`, and only to you. The shared `playbook/` stays in the repo and changes by pull request.
 
@@ -42,6 +45,18 @@ The server's instructions tell Claude to take card facts and numbers from these 
 The comprehensive rules, FAQ PDFs, errata page and ban list are read live from the official site (`OFFICIAL_SITE_URL`, default `https://en.onepiece-cardgame.com`) when the server starts, kept in memory, and refreshed every 12 hours. None of that text is stored in this repo. If the site can't be reached, the last good copy is used; with no copy at all, the tools say so and Claude answers from card text with that caveat.
 
 `npm run check-official -w @optcg/analyst` reads everything live and prints what parsed (rules version and section count, FAQ files and rulings, ban list, errata count). It exits non-zero if anything failed, which is the first thing to run if Bandai changes a PDF layout.
+
+## In-app chat
+
+The duel app and the deck planner show a Log Pose compass in the corner for players on `ANALYST_CHAT_EMAILS` (on `optcg-api`). It opens a chat panel, and opening a game in duel-web match history writes a post-game analysis once and keeps it.
+
+1. The app asks `POST /analyst/chat/session` (signed-in cookie) for a 30-minute chat token, signed with `ANALYST_SERVICE_SECRET`.
+2. It streams `POST /chat` or `POST /review-match` on this server with `Authorization: Bearer <token>`. Answers come back as server-sent events: `thread`, `status`, `text`, `done`, `error`.
+3. This server checks the token and the spend caps with the API, runs the Claude API (`ANALYST_CHAT_MODEL`, default `claude-opus-5-5`) with the same tools as a personal link, and saves the thread, the cost and any review through the API.
+
+Spend is capped per player per day (`ANALYST_CHAT_DAILY_USD`, default 3) and for everyone per month (`ANALYST_CHAT_MONTHLY_USD`, default 50); past a cap, `/chat` answers 429. Browsers may call it from `ANALYST_CHAT_ORIGINS` (default the two production sites), `*.vercel.app` previews and localhost.
+
+Needs `ANTHROPIC_API_KEY` here, plus `ANALYST_PUBLIC_URL`, `ANALYST_CHAT_EMAILS` and the shared `ANALYST_SERVICE_SECRET` on `optcg-api`. Without the key, `/chat` answers 503 and the connector works as before.
 
 ## Add it to Claude
 

@@ -527,6 +527,88 @@ class AnalystLesson(Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class AnalystCorpusId(Base):
+    """An opaque id for a duel in Log Pose's anonymized game corpus.
+
+    Corpus searches return these instead of match ids, so a game found there can't be
+    matched to anyone's match history.
+    """
+
+    __tablename__ = "analyst_corpus_ids"
+
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("duel_matches.match_id", ondelete="CASCADE"), primary_key=True
+    )
+    game_id: Mapped[str] = mapped_column(String(24), unique=True, index=True)
+
+
+class AnalystThread(Base):
+    """A Log Pose chat thread in the in-app panel."""
+
+    __tablename__ = "analyst_threads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(120), default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AnalystMessage(Base):
+    """One message of a chat thread, as the Claude API saw it (content blocks as JSON).
+
+    Append-only: the analyst resends the thread as stored, so rows are never edited.
+    """
+
+    __tablename__ = "analyst_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    thread_id: Mapped[int] = mapped_column(ForeignKey("analyst_threads.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(16))  # user | assistant
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class AnalystUsage(Base):
+    """What one Log Pose model call cost, for the daily and monthly spend caps."""
+
+    __tablename__ = "analyst_usage"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))  # chat | review
+    model: Mapped[str] = mapped_column(String(64), default="")
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_write_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class AnalystMatchReview(Base):
+    """Log Pose's post-game analysis of one duel for one of its players, kept so it's written once."""
+
+    __tablename__ = "analyst_match_reviews"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("duel_matches.match_id", ondelete="CASCADE"), primary_key=True
+    )
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class AnalystToken(Base):
     """A player's personal Log Pose connector token (stored hashed, one per user)."""
 

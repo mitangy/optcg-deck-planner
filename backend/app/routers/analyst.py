@@ -83,13 +83,56 @@ def revoke_token(
     return Response(status_code=204)
 
 
+CHAT_TOKEN_SECONDS = 30 * 60
+
+
+def _chat_sig(settings: Settings, uid: int, exp: int) -> str:
+    return hmac.new(settings.analyst_service_secret.encode(), f"chat.{uid}.{exp}".encode(), hashlib.sha256).hexdigest()
+
+
+def chat_enabled_for(settings: Settings, user: User) -> bool:
+    """The in-app chat panel is on for allowlisted players once the analyst service is configured."""
+    return bool(
+        settings.analyst_service_secret
+        and settings.analyst_public_url
+        and user.email.strip().lower() in settings.analyst_chat_email_set
+    )
+
+
+def mint_chat_token(settings: Settings, user: User, now: int) -> tuple[str, int]:
+    """A short-lived token the browser hands the analyst's /chat; signed with the service secret."""
+    exp = now + CHAT_TOKEN_SECONDS
+    return f"chat.{user.id}.{exp}.{_chat_sig(settings, user.id, exp)}", exp
+
+
+def _chat_token_user(db: Session, settings: Settings, token: str) -> User | None:
+    parts = token.split(".")
+    if len(parts) != 4 or not settings.analyst_service_secret:
+        return None
+    _, uid, exp, sig = parts
+    if not (uid.isdigit() and exp.isdigit()):
+        return None
+    if not hmac.compare_digest(sig, _chat_sig(settings, int(uid), int(exp))):
+        return None
+    if int(exp) < int(datetime.now(timezone.utc).timestamp()):
+        return None
+    user = db.get(User, int(uid))
+    return user if user is not None and chat_enabled_for(settings, user) else None
+
+
 def analyst_user(
     db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
     x_analyst_token: Annotated[str | None, Header()] = None,
 ) -> User:
-    """The player whose personal connector token is in X-Analyst-Token."""
+    """The player whose personal connector token (or in-app chat token) is in X-Analyst-Token."""
     if not x_analyst_token:
         raise HTTPException(status_code=401, detail="Missing analyst token")
+    if x_analyst_token.startswith("chat."):
+        user = _chat_token_user(db, settings, x_analyst_token)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Expired or invalid chat token")
+        return user
     row = db.scalar(select(AnalystToken).where(AnalystToken.token_hash == _hash(x_analyst_token)))
     user = db.get(User, row.user_id) if row else None
     if user is None:
@@ -97,7 +140,7 @@ def analyst_user(
     return user
 
 
-def _require_service(settings: Settings, given: str | None) -> None:
+def require_service(settings: Settings, given: str | None) -> None:
     expected = settings.analyst_service_secret
     if not expected:
         raise HTTPException(status_code=503, detail="Replays are not enabled")
@@ -130,7 +173,7 @@ def analyst_replay(
 ) -> AnalystReplayOut:
     """The full replay of one of the player's games. Only the analyst service may read it:
     it holds the opponent's hand and deck, and the analyst narrates it from the player's seat."""
-    _require_service(settings, x_analyst_service)
+    require_service(settings, x_analyst_service)
     match = db.scalar(select(DuelMatch).where(DuelMatch.match_id == match_id))
     if match is None or user.id not in (match.seat0_user_id, match.seat1_user_id):
         raise HTTPException(status_code=404, detail="Match not found")
@@ -172,7 +215,7 @@ def analyst_matchup_stats(
     x_analyst_service: Annotated[str | None, Header()] = None,
 ) -> dict:
     """Leader and matchup win rates from recorded duels (aggregates only), for the analyst service."""
-    _require_service(settings, x_analyst_service)
+    require_service(settings, x_analyst_service)
     if opponent and not leader:
         raise HTTPException(status_code=400, detail="Give a leader with the opponent")
     return matchup_stats(db, leader, opponent, days, ranked_only)

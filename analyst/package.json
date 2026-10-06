@@ -15,6 +15,7 @@
     "check-official": "tsx scripts/check-official.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@modelcontextprotocol/sdk": "^1.31.0",
     "@optcg/deck-analytics": "*",
     "@optcg/rules": "*",

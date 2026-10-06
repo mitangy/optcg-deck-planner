@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 /** Shows a "draft under review" banner on every legal page. Turn off once reviewed. */
 export const LEGAL_DRAFT = true;
 
-export const LEGAL_UPDATED = "2 October 2026";
+export const LEGAL_UPDATED = "6 October 2026";
 
 /** Contact for privacy requests. Empty until one is chosen; the pages say so. */
 export const LEGAL_CONTACT_EMAIL = "";
@@ -176,6 +176,13 @@ const privacy: ReactNode = (
         for that match only. It is not saved.
       </li>
       <li>
+        Log Pose, the deck analyst: recorded games (both decks and every move) are used, without
+        names, usernames or exact ratings, for its win rate stats and as example games it can
+        study when answering any player. You can leave your games out under Settings, Log Pose.
+        Questions you ask Log Pose in the app, its answers, and the game reviews it writes for you
+        are saved to your account so you can reread them.
+      </li>
+      <li>
         Card reports you send: the card, your description, where you saw it (match, practice or
         deck), the app version, and your account if you are signed in.
       </li>
@@ -205,6 +212,11 @@ const privacy: ReactNode = (
       </li>
       <li>
         <strong>Render</strong>: hosts our API and the duel game server.
+      </li>
+      <li>
+        <strong>Anthropic</strong>: runs Claude, the model behind Log Pose in the app. What you ask
+        Log Pose, with the deck or game you have open and the game records it looks up, is sent to
+        Anthropic&rsquo;s API to write the answer.
       </li>
       <li>
         <strong>Neon</strong>: hosts the database that stores the data above.

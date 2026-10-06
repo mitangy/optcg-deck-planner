@@ -134,11 +134,11 @@ export function AnalystLinkPanel() {
             disabled={busy || sharing === null}
             onChange={(e) => void toggleSharing(e.target.checked)}
           />
-          <span>Count my games in Log Pose stats</span>
+          <span>Use my games in Log Pose stats and game reviews</span>
         </label>
         <p className="field-hint">
-          Claude only ever sees totals across at least 5 games, never your games one by one. Turn this off and your
-          games are left out of everyone's stats.
+          Log Pose can study games from every player to back up its advice. It sees them without names, ratings or
+          match ids. Turn this off and your games are left out of everyone's stats and reviews.
         </p>
       </div>
       <h3 className="analyst-subtitle">Lessons from your games</h3>

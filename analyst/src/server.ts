@@ -3,12 +3,23 @@
  * The model runs in the Claude app; this server only answers tool calls.
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { analyzeDeck, deckDrawOdds, describeDeck, rawDrawOdds } from "./analysis";
 import type { Catalog, CardRow } from "./catalog";
 import { exportDeck, resolveDeck } from "./decks";
 import { banListView, cardRulings, deckBanCheck, rulesLookup } from "./knowledge";
-import { draftLesson, listMyDecks, listMyMatches, matchupStats, myLessons, reviewMatch, type PlannerApi } from "./matches";
+import {
+  draftLesson,
+  listMyDecks,
+  listMyMatches,
+  matchupStats,
+  myLessons,
+  replayGame,
+  reviewMatch,
+  searchGames,
+  type PlannerApi,
+} from "./matches";
 import type { OfficialLibrary } from "./official/library";
 import { newestFormat, queryPlaybook, type Playbook } from "./playbook";
 import { searchCards } from "./search";
@@ -24,6 +35,7 @@ Ground rules:
 - Deck building basics: 1 leader plus exactly 50 cards, at most 4 copies of a card number, and every card must share a color with the leader. Some leaders add their own deck rules; analyze_deck checks them, and the official ban list (banned cards, restricted cards, banned pairs, and announced changes with their start date).
 - Rules questions: use rules_lookup and cite comprehensive rules section numbers. For how a specific card works or interacts, check card_rulings first: official Q&A answers and errata outrank your own reading of the text. Say when no official ruling covers the case.
 - Strategy: check playbook for the leader (and the matchup) before giving a game plan. Notes say which set they were written for and whether a player has reviewed them; mention it when a note is a draft or older than the current set, and don't present it as settled fact.
+- Real games: search_matches finds games from every player on optcgduel.app who shares their games (anonymized, sides A and B), and replay_match shows one with every card named. Use them to back up matchup advice with how games actually went, and cite game ids.
 - When you suggest changes, list them as +N / -N lines with card numbers so they are easy to apply, and offer export_deck to produce an OPTCGSim list.`;
 
 const PERSONAL_INSTRUCTIONS = `
@@ -70,14 +82,49 @@ export type PersonalContext = { api: PlannerApi; token: string };
 /** Official rules material and the strategy playbook; tools that need them are left out without them. */
 export type Knowledge = { library?: OfficialLibrary; playbook?: Playbook; stats?: PlannerApi };
 
+type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
+
+/** One analyst tool, served over MCP and to the in-app chat alike. */
+export type ToolDef = {
+  name: string;
+  title: string;
+  description: string;
+  inputSchema: z.ZodRawShape;
+  annotations: ToolAnnotations;
+  run: (args: Record<string, unknown>) => Promise<ToolResult>;
+};
+
+type Add = <S extends z.ZodRawShape>(
+  name: string,
+  config: { title: string; description: string; inputSchema: S; annotations: ToolAnnotations },
+  handler: (args: z.infer<z.ZodObject<S>>) => Promise<ToolResult>,
+) => void;
+
+export function instructionsFor(personal: boolean): string {
+  return personal ? INSTRUCTIONS + PERSONAL_INSTRUCTIONS : INSTRUCTIONS;
+}
+
 export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, personal?: PersonalContext, knowledge: Knowledge = {}): McpServer {
-  const server = new McpServer(
-    { name: "log-pose", version: "0.1.0" },
-    { instructions: personal ? INSTRUCTIONS + PERSONAL_INSTRUCTIONS : INSTRUCTIONS },
-  );
+  const server = new McpServer({ name: "log-pose", version: "0.1.0" }, { instructions: instructionsFor(Boolean(personal)) });
+  for (const t of buildTools(catalog, fetchImpl, personal, knowledge)) {
+    server.registerTool(
+      t.name,
+      { title: t.title, description: t.description, inputSchema: t.inputSchema, annotations: t.annotations },
+      (args: Record<string, unknown>) => t.run(args),
+    );
+  }
+  return server;
+}
+
+/** Every tool this caller gets: the card tools always, rules, playbook and stats when configured, and the player's own games with a personal context. */
+export function buildTools(catalog: Catalog, fetchImpl?: typeof fetch, personal?: PersonalContext, knowledge: Knowledge = {}): ToolDef[] {
+  const tools: ToolDef[] = [];
+  const add: Add = (name, config, handler) => {
+    tools.push({ name, ...config, run: handler as ToolDef["run"] });
+  };
   const readOnly = { readOnlyHint: true, openWorldHint: false } as const;
 
-  server.registerTool(
+  add(
     "search_cards",
     {
       title: "Search cards",
@@ -116,7 +163,7 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
     },
   );
 
-  server.registerTool(
+  add(
     "get_cards",
     {
       title: "Get cards",
@@ -152,7 +199,7 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
     },
   );
 
-  server.registerTool(
+  add(
     "analyze_deck",
     {
       title: "Analyze deck",
@@ -175,7 +222,7 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
     },
   );
 
-  server.registerTool(
+  add(
     "draw_odds",
     {
       title: "Draw odds",
@@ -211,7 +258,7 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
     },
   );
 
-  server.registerTool(
+  add(
     "export_deck",
     {
       title: "Export deck",
@@ -229,17 +276,20 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
     },
   );
 
-  if (knowledge.library) registerOfficialTools(server, catalog, knowledge.library);
-  if (knowledge.playbook) registerPlaybook(server, catalog, knowledge.playbook);
-  if (knowledge.stats) registerStats(server, knowledge.stats);
-  if (personal) registerPersonalTools(server, personal);
-  return server;
+  if (knowledge.library) registerOfficialTools(add, catalog, knowledge.library);
+  if (knowledge.playbook) registerPlaybook(add, catalog, knowledge.playbook);
+  if (knowledge.stats) {
+    registerStats(add, knowledge.stats);
+    registerCorpus(add, knowledge.stats);
+  }
+  if (personal) registerPersonalTools(add, personal);
+  return tools;
 }
 
-function registerOfficialTools(server: McpServer, catalog: Catalog, library: OfficialLibrary) {
+function registerOfficialTools(add: Add, catalog: Catalog, library: OfficialLibrary) {
   const official = { readOnlyHint: true, openWorldHint: true } as const;
 
-  server.registerTool(
+  add(
     "rules_lookup",
     {
       title: "Rules lookup",
@@ -259,7 +309,7 @@ function registerOfficialTools(server: McpServer, catalog: Catalog, library: Off
     },
   );
 
-  server.registerTool(
+  add(
     "card_rulings",
     {
       title: "Card rulings",
@@ -272,7 +322,7 @@ function registerOfficialTools(server: McpServer, catalog: Catalog, library: Off
     async ({ ids }) => json(await cardRulings(library, catalog, ids)),
   );
 
-  server.registerTool(
+  add(
     "ban_list",
     {
       title: "Ban list",
@@ -284,9 +334,9 @@ function registerOfficialTools(server: McpServer, catalog: Catalog, library: Off
   );
 }
 
-function registerPlaybook(server: McpServer, catalog: Catalog, playbook: Playbook) {
+function registerPlaybook(add: Add, catalog: Catalog, playbook: Playbook) {
   const currentFormat = newestFormat(catalog.cards.keys());
-  server.registerTool(
+  add(
     "playbook",
     {
       title: "Playbook",
@@ -305,8 +355,8 @@ function registerPlaybook(server: McpServer, catalog: Catalog, playbook: Playboo
   );
 }
 
-function registerStats(server: McpServer, api: PlannerApi) {
-  server.registerTool(
+function registerStats(add: Add, api: PlannerApi) {
+  add(
     "matchup_stats",
     {
       title: "Matchup stats",
@@ -332,10 +382,69 @@ function registerStats(server: McpServer, api: PlannerApi) {
   );
 }
 
-function registerPersonalTools(server: McpServer, { api, token }: PersonalContext) {
+function registerCorpus(add: Add, api: PlannerApi) {
+  const readOnly = { readOnlyHint: true, openWorldHint: false } as const;
+  add(
+    "search_matches",
+    {
+      title: "Search matches",
+      description:
+        "Search every game recorded on optcgduel.app (all players who share their games, not just this one), newest first. Games are anonymized: an opaque game_id, sides A and B, " +
+        "rating bands, never names. With leader, side A is that leader and result, wentFirst and card apply to it; with only opponent, side B is that leader. " +
+        "Without either, card matches either deck. Use it to find example games (wins and losses of a matchup, games where a card was played) to read with replay_match.",
+      inputSchema: {
+        leader: z.string().max(20).optional().describe("Leader card number for side A"),
+        opponent: z.string().max(20).optional().describe("Opponent's leader card number (side B)"),
+        card: z.string().max(20).optional().describe("Only games where side A's deck (or either deck without a leader) has this card"),
+        result: z.enum(["won", "lost"]).optional().describe("Side A won or lost (needs leader or opponent)"),
+        wentFirst: z.boolean().optional().describe("Side A went first"),
+        rankedOnly: z.boolean().optional(),
+        days: z.number().int().min(1).max(365).optional().describe("How far back (default 90)"),
+        minTurns: z.number().int().min(0).max(100).optional(),
+        maxTurns: z.number().int().min(0).max(100).optional(),
+        limit: z.number().int().min(1).max(50).optional().describe("Default 20"),
+        offset: z.number().int().min(0).max(10000).optional(),
+      },
+      annotations: readOnly,
+    },
+    async (args) => {
+      try {
+        return json(await searchGames(api, args));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  add(
+    "replay_match",
+    {
+      title: "Replay match",
+      description:
+        "Replay one game from search_matches (its game_id) turn by turn with every card named, both opening hands and the final board. " +
+        "Sides are Player A and Player B as in the search. Long games are cut at maxLines; use fromTurn/toTurn to read a stretch.",
+      inputSchema: {
+        gameId: z.string().max(40),
+        fromTurn: z.number().int().min(1).max(200).optional(),
+        toTurn: z.number().int().min(1).max(200).optional(),
+        maxLines: z.number().int().min(20).max(1000).optional().describe("Default 400"),
+      },
+      annotations: readOnly,
+    },
+    async ({ gameId, ...opts }) => {
+      try {
+        return json(await replayGame(api, gameId, opts));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+}
+
+function registerPersonalTools(add: Add, { api, token }: PersonalContext) {
   const readOnly = { readOnlyHint: true, openWorldHint: false } as const;
 
-  server.registerTool(
+  add(
     "list_my_decks",
     {
       title: "List my decks",
@@ -352,7 +461,7 @@ function registerPersonalTools(server: McpServer, { api, token }: PersonalContex
     },
   );
 
-  server.registerTool(
+  add(
     "list_my_matches",
     {
       title: "List my matches",
@@ -370,7 +479,7 @@ function registerPersonalTools(server: McpServer, { api, token }: PersonalContex
     },
   );
 
-  server.registerTool(
+  add(
     "review_match",
     {
       title: "Review match",
@@ -396,7 +505,7 @@ function registerPersonalTools(server: McpServer, { api, token }: PersonalContex
 
   const cardId = z.string().regex(/^(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})$/, "a card number like OP01-001");
 
-  server.registerTool(
+  add(
     "draft_lesson",
     {
       title: "Draft lesson",
@@ -421,7 +530,7 @@ function registerPersonalTools(server: McpServer, { api, token }: PersonalContex
     },
   );
 
-  server.registerTool(
+  add(
     "my_lessons",
     {
       title: "My lessons",
