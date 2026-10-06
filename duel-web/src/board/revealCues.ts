@@ -3,16 +3,15 @@ import type { BattleLogEntry } from "./battleLog";
 export type OpponentReveal = { entryId: string; defId: string; turn: number };
 
 /**
- * Opponent reveals among the log entries added since `prevLastId` (the newest
- * entry id seen last time): undefined before the first look (mount: none),
- * null when the log was empty. A previous id that is gone from the log means
- * the log was replaced (resync / undo), which is not news either.
+ * Log entries added since `prevLastId` (the newest entry id seen last time):
+ * undefined before the first look (mount: none), null when the log was
+ * empty. A previous id that is gone from the log means the log was replaced
+ * (resync / undo), which is not news either.
  */
-export function newOpponentReveals(
+export function entriesSince(
   prevLastId: string | null | undefined,
   entries: readonly BattleLogEntry[],
-  oppSeat: 0 | 1,
-): OpponentReveal[] {
+): readonly BattleLogEntry[] {
   if (prevLastId === undefined) return [];
   let from = 0;
   if (prevLastId !== null) {
@@ -20,8 +19,17 @@ export function newOpponentReveals(
     if (at < 0) return [];
     from = at + 1;
   }
+  return entries.slice(from);
+}
+
+/** Opponent reveals among the log entries added since `prevLastId` (see `entriesSince`). */
+export function newOpponentReveals(
+  prevLastId: string | null | undefined,
+  entries: readonly BattleLogEntry[],
+  oppSeat: 0 | 1,
+): OpponentReveal[] {
   const out: OpponentReveal[] = [];
-  for (const e of entries.slice(from)) {
+  for (const e of entriesSince(prevLastId, entries)) {
     if (e.reveal && e.reveal.ownerSeat === oppSeat) {
       out.push({ entryId: e.id, defId: e.reveal.defId, turn: e.turn });
     }

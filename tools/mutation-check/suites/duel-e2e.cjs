@@ -203,5 +203,10 @@ module.exports = {
       { file: "duel-web/src/board/useHandShuffle.ts", from: "      if (!canAnimate() || motionPlan(currentSettings().animationSpeed, false).mode === \"off\") {", to: "      if (!canAnimate()) {" },
       { file: "duel-web/src/board/useHandShuffle.ts", from: "    if (plan.mode === \"off\") return;\n", to: "" },
     ], kills: ["hand-shuffle.spec.ts > Card animations Off keeps the hand still when sorting (#338) [desktop-1280]"] },
+    // card spotlight (#339)
+    { id: "e2e-spotlight-setting-ignored", args: "card-spotlight --project=desktop-1280 -g \"switch off|cards off\"", file: "duel-web/src/board/DuelBoard.tsx", from: "useCardSpotlights(battleLog, prefs.cardSpotlight && !over)", to: "useCardSpotlights(battleLog, !over)", kills: ["card-spotlight.spec.ts > Show played and trashed cards off: a played card shows no spotlight (#339) [desktop-1280]"] },
+    { id: "e2e-spotlight-default-off", args: "card-spotlight --project=desktop-1280 -g \"by default\"", file: "duel-web/src/settings.ts", from: "  cardSpotlight: true,\n", to: "  cardSpotlight: false,\n", kills: ["card-spotlight.spec.ts > the opponent's played card shows big over their half by default (#339) [desktop-1280]"] },
+    { id: "e2e-spotlight-wrong-half", args: "card-spotlight --project=desktop-1280 -g \"by default\"", file: "duel-web/src/board/CardSpotlight.tsx", from: "data-side={g.ownerSeat === oppSeat ? \"opp\" : \"you\"}", to: "data-side={g.ownerSeat === oppSeat ? \"you\" : \"opp\"}", kills: ["card-spotlight.spec.ts > the opponent's played card shows big over their half by default (#339) [desktop-1280]"] },
+    { id: "e2e-spotlight-group-overflows-phone", args: "card-spotlight --project=phone-375 -g \"mill of three\"", file: "duel-web/src/interactions.css", from: ", 30dvh, calc((92vw - (var(--spot-n, 1) - 1) * 8px) / var(--spot-n, 1)));", to: ", 30dvh);", kills: ["card-spotlight.spec.ts > a mill of three shows the trashed cards side by side inside the window (#339) [phone-375]"] },
   ],
 };

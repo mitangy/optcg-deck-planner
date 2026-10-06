@@ -322,6 +322,22 @@ export function GameplaySettingsFields() {
           keeps its short fade instead of Normal or Fast.
         </p>
       </div>
+      <div className="gameplay-toggle">
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={settings.cardSpotlight}
+            disabled={settings.animationSpeed === "off"}
+            onChange={(e) => updateSettings({ cardSpotlight: e.target.checked })}
+          />
+          <span>Show played and trashed cards</span>
+        </label>
+        <p className="field-hint">
+          Each card that is played, used as a Counter, K.O.&apos;d or trashed by an effect (from
+          hand, deck, Life or the field) shows big over its owner&apos;s side for a moment, then
+          drops into its spot. Follows the Animations speed; Off hides it too.
+        </p>
+      </div>
       {TOGGLES.filter((t) => toggleShown(t.key, device)).map((toggle) => {
         const t = toggle.key === "turnAlert" ? { ...toggle, ...turnAlertCopy(device, toggle) } : toggle;
         return (

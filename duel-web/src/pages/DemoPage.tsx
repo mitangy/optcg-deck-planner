@@ -900,6 +900,13 @@ export function DemoPage() {
     }, 1200);
     return () => window.clearTimeout(t);
   }, []);
+  // `?motion` steps carry the events the server would send: narrate them into the log.
+  useEffect(() => {
+    const events = motionSteps?.[motionStep]?.events;
+    if (!events) return;
+    setLog((prev) => [...prev, ...narrateEvents(events, { youSeat: 0, turnNumber: 3, instances: DEMO_INSTANCES })]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [motionStep, motionRun]);
   const [demoClockEnds] = useState(() => Date.now() + 612_000);
   const [rematch, setRematch] = useState<RematchState>(() => {
     const mode = params.get("rematch");
