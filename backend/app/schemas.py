@@ -766,7 +766,7 @@ class AnalystChatSession(BaseModel):
     enabled: bool
     # A short-lived token for the analyst's /chat and /review-match (Authorization: Bearer).
     token: str | None = None
-    expires_at: int | None = None
+    expires_at: str | None = None  # ISO 8601, UTC
     chat_url: str | None = None
 
 

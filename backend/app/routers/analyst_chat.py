@@ -61,7 +61,8 @@ def chat_session(
     if not chat_enabled_for(settings, user):
         return AnalystChatSession(enabled=False)
     token, exp = mint_chat_token(settings, user, int(datetime.now(timezone.utc).timestamp()))
-    return AnalystChatSession(enabled=True, token=token, expires_at=exp, chat_url=settings.analyst_public_url.rstrip("/"))
+    expires_at = datetime.fromtimestamp(exp, timezone.utc).isoformat()
+    return AnalystChatSession(enabled=True, token=token, expires_at=expires_at, chat_url=settings.analyst_public_url.rstrip("/"))
 
 
 def _spent(db: Session, since: datetime, user_id: int | None = None) -> float:
