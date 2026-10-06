@@ -226,5 +226,9 @@ module.exports = {
     { id: "e2e-watch-seat-ignored", args: "spectate-link --project=desktop-1280", file: "duel-web/src/pages/LobbyPage.tsx", from: "searchParams.get(\"seat\") === \"2\" ? 1 : 0", to: "0", kills: ["spectate-link.spec.ts > /watch/<room id>?seat=2 puts the spectator's camera on player 2 (#346) [desktop-1280]"] },
     { id: "e2e-hud-watch-copies-invite", args: "spectate-link --project=desktop-1280", file: "duel-web/src/board/RoomShare.tsx", from: "onClick={() => void copy(spectateUrl(roomId), \"watch\")}\n        aria-label=\"Copy spectate link\"", to: "onClick={() => void copy(roomInviteUrl(roomId), \"watch\")}\n        aria-label=\"Copy spectate link\"", kills: ["spectate-link.spec.ts > a spectator copies a link from the HUD or the menu that opens the same match (#346) [desktop-1280]"] },
     { id: "e2e-hud-watch-label-shifts", args: "spectate-link --project=desktop-1280", file: "duel-web/src/board.css", from: ".room-watch-btn {\n  min-width: 5.4rem;\n}", to: ".room-watch-btn {\n  min-width: 0;\n}", kills: ["spectate-link.spec.ts > a spectator copies a link from the HUD or the menu that opens the same match (#346) [desktop-1280]"] },
+    { id: "e2e-pending-lp-mat-in-rail", args: "spectate-link --project=phone-375 -g \"landscape phone\"", edits: [
+      { file: "duel-web/src/board/PendingBoard.tsx", from: "{wide ? <aside className=\"arena-left\" aria-hidden /> : null}", to: "{wide && !lp ? <aside className=\"arena-left\" aria-hidden /> : null}" },
+      { file: "duel-web/src/board/PendingBoard.tsx", from: "{wide ? <div className=\"arena-rail\" aria-hidden /> : null}", to: "{wide && !lp ? <div className=\"arena-rail\" aria-hidden /> : null}" },
+    ], kills: ["spectate-link.spec.ts > landscape phone > the waiting room card with the spectate link fits a landscape phone (#346) [phone-375]"] },
   ],
 };

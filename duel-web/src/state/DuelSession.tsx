@@ -70,9 +70,9 @@ type ConnectOpts = {
   };
 };
 
-/** A match request: the board opens at once and shows this while it resolves. */
 export const SPECTATOR_CAP_MESSAGE = "This match already has the most spectators.";
 
+/** A match request: the board opens at once and shows this while it resolves. */
 export type MatchLaunch = {
   /** Board status while connecting ("Searching for an opponent…"). */
   status: string;

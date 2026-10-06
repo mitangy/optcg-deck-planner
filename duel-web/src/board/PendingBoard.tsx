@@ -98,7 +98,7 @@ export function PendingBoard({ waiting, errorBanner, leaveLabel, onLeave, onClea
         </button>
       ) : null}
       <div className="arena-body">
-        {wide && !lp ? <aside className="arena-left" aria-hidden /> : null}
+        {wide ? <aside className="arena-left" aria-hidden /> : null}
         <div className="playmat">
           <div className="playmat-inner">
             <SideField
@@ -143,7 +143,7 @@ export function PendingBoard({ waiting, errorBanner, leaveLabel, onLeave, onClea
             </div>
           ) : null}
         </div>
-        {wide && !lp ? <div className="arena-rail" aria-hidden /> : null}
+        {wide ? <div className="arena-rail" aria-hidden /> : null}
       </div>
     </div>
   );

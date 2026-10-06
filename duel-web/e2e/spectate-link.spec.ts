@@ -125,3 +125,34 @@ test("a spectator copies a link from the HUD or the menu that opens the same mat
   expect(await spec.evaluate(() => navigator.clipboard.readText())).toBe(expected);
   await ctx.close();
 });
+
+test.describe("landscape phone", () => {
+  test.use({ viewport: { width: 812, height: 375 }, hasTouch: true });
+
+  test("the waiting room card with the spectate link fits a landscape phone (#346)", async ({ page }, info) => {
+    test.skip(info.project.name !== "phone-375", "one landscape run is enough");
+    await page.route(`${FAKE_API}/**`, (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === "/health") return route.fulfill({ json: { ok: true } });
+      if (path === "/duel/guest-token") {
+        return route.fulfill({
+          json: { token: mintGameToken(1, "host"), expires_at: 0, user_id: 1, email: "host@e2e.test", rating: 1000, games_played: 0 },
+        });
+      }
+      return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Play", exact: true }).click();
+    await page.getByRole("button", { name: /^Private room/ }).click();
+    await page.getByRole("button", { name: "Create room" }).click();
+    await expect(page.locator(".room-invite-id")).toBeVisible({ timeout: 30_000 });
+    // The waiting board used to drop its mat (and the card on it) into the 44px icon-rail column.
+    const card = (await page.locator(".room-invite").boundingBox())!;
+    expect(card.x).toBeGreaterThanOrEqual(0);
+    expect(card.width).toBeGreaterThan(300);
+    expect(card.x + card.width).toBeLessThanOrEqual(812);
+    expect(card.y + card.height).toBeLessThanOrEqual(375);
+    await expect(page.getByRole("button", { name: "Copy spectate link" })).toBeInViewport({ ratio: 1 });
+    await page.screenshot({ path: info.outputPath("waiting-room-landscape.png") });
+  });
+});
