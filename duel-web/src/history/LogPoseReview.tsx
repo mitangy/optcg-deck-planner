@@ -86,19 +86,26 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
   const busy = state.kind === "loading" || state.kind === "streaming";
   const text = state.kind === "loading" ? "" : state.text;
   return (
-    <section className="panel lp-review" aria-labelledby="lp-review-title" aria-busy={busy}>
+    <section className="panel lp-review logpose" aria-labelledby="lp-review-title" aria-busy={busy}>
       <div className="lp-review-head">
         <h2 id="lp-review-title" className="lp-review-title">
           Log Pose analysis
         </h2>
         <div className="lp-review-actions">
-          {state.kind === "ready" ? (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCollapsed((c) => !c)} aria-expanded={!collapsed}>
-              {collapsed ? "Show" : "Hide"}
-            </button>
-          ) : null}
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => void generate(true)} disabled={busy}>
             {state.kind === "error" ? "Try again" : "Regenerate"}
+          </button>
+          {/* Always in the row (invisible until the review is ready) so the header never changes height. */}
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-expanded={!collapsed}
+            style={state.kind === "ready" ? undefined : { visibility: "hidden" }}
+            tabIndex={state.kind === "ready" ? undefined : -1}
+            aria-hidden={state.kind === "ready" ? undefined : true}
+          >
+            {collapsed ? "Show" : "Hide"}
           </button>
         </div>
       </div>

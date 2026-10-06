@@ -668,6 +668,11 @@
 }
 
 .lp-md-table th {
+  /* Host apps may style table headers as small caps labels; answers keep plain headers. */
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: inherit;
+  color: inherit;
   font-weight: 650;
   white-space: nowrap;
   background: color-mix(in srgb, var(--lp-ink-d) 5%, transparent);

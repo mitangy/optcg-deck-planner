@@ -464,7 +464,7 @@ function LogPosePanel({ page, chat, onClose }: { page: LogPosePage | null; chat:
           </div>
         ) : null}
         {chat.messages.map((m, i) =>
-          m.role === "user" ? (
+          m.role === "assistant" && !m.text && !m.stopped ? null : m.role === "user" ? (
             <div key={i} className="lp-msg lp-msg-user">
               <p>{m.text}</p>
             </div>

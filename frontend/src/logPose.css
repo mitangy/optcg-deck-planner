@@ -27,3 +27,10 @@
 .lp-compass.logpose {
   color: var(--accent);
 }
+
+/* Phones: room under the footer's last line so the compass never covers it at the bottom of a page. */
+@media (max-width: 899.98px) {
+  body:has(.lp-compass) .site-footer {
+    padding-bottom: calc(52px + max(16px, env(safe-area-inset-bottom, 0px)));
+  }
+}
