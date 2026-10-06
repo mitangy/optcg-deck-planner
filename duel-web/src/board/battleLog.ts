@@ -43,6 +43,21 @@ export type BattleLogEntry = {
    * reveals and adds to hand): the card to put on screen for the viewer.
    */
   reveal?: { defId: string; ownerSeat: 0 | 1 };
+  /** Set when the line shows a card being played or trashed: the card the spotlight shows. */
+  spotlight?: CardSpotlight;
+};
+
+/**
+ * A played or trashed card for the board spotlight (see cardSpotlight.ts).
+ * `play` ends on the field (`instanceId`, when the card stays there); `trash`
+ * ends in its owner's trash. `label` is the short caption under the card.
+ */
+export type CardSpotlight = {
+  defId: string;
+  ownerSeat: 0 | 1;
+  kind: "play" | "trash";
+  label: string;
+  instanceId?: string;
 };
 
 /** Board instance → card identity, remembered across views (K.O.'d cards too). */
@@ -112,10 +127,24 @@ function act(seat: unknown, youSeat: number | null, youVerb: string, theyVerb: s
   return `${seatLabel(seat, youSeat)} ${isYou(seat, youSeat) ? youVerb : theyVerb}`;
 }
 
-type Line = { tone: LogTone; important?: boolean; parts: Part[] };
+type Line = { tone: LogTone; important?: boolean; parts: Part[]; spot?: CardSpotlight };
 
 function line(tone: LogTone, important: boolean, ...parts: Part[]): Line {
   return { tone, important, parts };
+}
+
+/** The line with a spotlight card, unless the card is hidden from this viewer. */
+function spotted(
+  l: Line,
+  e: LooseEvent,
+  defId: unknown,
+  kind: CardSpotlight["kind"],
+  label: string,
+): Line {
+  const ownerSeat = asSeat(e.seat);
+  if (ownerSeat == null || isHiddenDef(defId)) return l;
+  const instanceId = kind === "play" && typeof e.instanceId === "string" ? e.instanceId : undefined;
+  return { ...l, spot: { defId: defId as string, ownerSeat, kind, label, ...(instanceId ? { instanceId } : {}) } };
 }
 
 function toSegments(parts: Part[]): LogSegment[] {
@@ -218,6 +247,7 @@ export function narrateEvents(
       important: Boolean(l.important),
       segments,
       ...(reveal ? { reveal } : {}),
+      ...(l.spot ? { spotlight: l.spot } : {}),
     });
   }
   return out;
@@ -257,14 +287,33 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
     }
     case "card_played": {
       const paid = typeof e.costPaid === "number" ? ` (rests ${e.costPaid} DON!!)` : "";
-      return line("play", false, `${act(e.seat, youSeat, "play", "plays")} `, card(e.defId, e.seat), paid);
+      const l = line("play", false, `${act(e.seat, youSeat, "play", "plays")} `, card(e.defId, e.seat), paid);
+      return spotted(l, e, e.defId, "play", "Played");
     }
     case "stage_replaced":
-      return line("trash", false, `${act(e.seat, youSeat, "replace", "replaces")} Stage (trashes `, card(e.trashedDefId, e.seat), ")");
+      return spotted(
+        line("trash", false, `${act(e.seat, youSeat, "replace", "replaces")} Stage (trashes `, card(e.trashedDefId, e.seat), ")"),
+        e,
+        e.trashedDefId,
+        "trash",
+        "Trashed",
+      );
     case "stage_trashed":
-      return line("trash", false, `${act(e.seat, youSeat, "trash", "trashes")} Stage `, card(e.defId, e.seat));
+      return spotted(
+        line("trash", false, `${act(e.seat, youSeat, "trash", "trashes")} Stage `, card(e.defId, e.seat)),
+        e,
+        e.defId,
+        "trash",
+        "Trashed",
+      );
     case "character_trashed_for_space":
-      return line("trash", true, `${act(e.seat, youSeat, "trash", "trashes")} `, card(e.defId, e.seat), " for board space");
+      return spotted(
+        line("trash", true, `${act(e.seat, youSeat, "trash", "trashes")} `, card(e.defId, e.seat), " for board space"),
+        e,
+        e.defId,
+        "trash",
+        "Trashed for space",
+      );
     case "don_given": {
       const pow = typeof e.newPower === "number" ? ` → ${e.newPower} power` : "";
       return line("routine", false, `${act(e.seat, youSeat, "attach", "attaches")} DON!! to `, card(e.targetDefId, e.seat), pow);
@@ -303,13 +352,14 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
     }
     case "counter_applied": {
       const bonus = Number(e.bonus) || 0;
-      return line(
+      const l = line(
         "counter",
         true,
         `${act(e.seat, youSeat, "counter", "counters")} with `,
         card(e.defId, e.seat),
         bonus > 0 ? ` (+${bonus})` : " (Event)",
       );
+      return spotted(l, e, e.defId, "trash", bonus > 0 ? `Counter +${bonus}` : "Counter");
     }
     case "battle_resolved": {
       const atk = typeof e.attackerPower === "number" ? e.attackerPower : null;
@@ -318,7 +368,13 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
       return line(e.attackerWon ? "hit" : "miss", false, `Battle ${e.attackerWon ? "hits" : "fails"}${pow}`);
     }
     case "character_ko":
-      return line("ko", true, `${possessive(e.seat, youSeat)} `, card(e.defId, e.seat), " is K.O.'d");
+      return spotted(
+        line("ko", true, `${possessive(e.seat, youSeat)} `, card(e.defId, e.seat), " is K.O.'d"),
+        e,
+        e.defId,
+        "trash",
+        "K.O.'d",
+      );
     case "life_taken": {
       const who = act(e.seat, youSeat, "take", "takes");
       if (isHiddenDef(e.defId)) {
@@ -413,10 +469,19 @@ function narrateMove(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Lin
     if (from === "character" || from === "stage") return line("effect", true, `${possessive(e.seat, youSeat)} `, c, " is returned to hand");
   }
   if (to === "trash") {
-    if (from === "hand") return line("trash", true, `${act(e.seat, youSeat, "trash", "trashes")} `, c, " from hand");
-    if (from === "deck") return line("trash", false, `${act(e.seat, youSeat, "trash", "trashes")} `, c, " from the top of deck");
-    if (from === "life") return line("damage", true, `${possessive(e.seat, youSeat)} Life card `, c, " is trashed");
-    if (from === "character" || from === "stage") return line("trash", true, `${possessive(e.seat, youSeat)} `, c, " is trashed");
+    const trashed = (l: Line, label: string) => spotted(l, e, e.defId, "trash", label);
+    if (from === "hand") {
+      return trashed(line("trash", true, `${act(e.seat, youSeat, "trash", "trashes")} `, c, " from hand"), "Trashed from hand");
+    }
+    if (from === "deck") {
+      return trashed(line("trash", false, `${act(e.seat, youSeat, "trash", "trashes")} `, c, " from the top of deck"), "Trashed from deck");
+    }
+    if (from === "life") {
+      return trashed(line("damage", true, `${possessive(e.seat, youSeat)} Life card `, c, " is trashed"), "Trashed from Life");
+    }
+    if (from === "character" || from === "stage") {
+      return trashed(line("trash", true, `${possessive(e.seat, youSeat)} `, c, " is trashed"), "Trashed");
+    }
   }
   if (to === "deck") {
     const what: Part = hidden ? (from === "hand" ? "a card from hand" : from === "life" ? "a Life card" : "a card") : c;

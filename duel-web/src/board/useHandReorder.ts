@@ -64,7 +64,7 @@ function measureSlot(cardId: string, x: number, y: number): number | null {
  * card's own drag (CardTile) says when it starts and ends; this follows the
  * pointer in between to say whether it is over the hand and where it lands.
  */
-export function useHandReorder(onReorder: (cardId: string, slot: number) => void) {
+export function useHandReorder(onReorder: (cardId: string, slot: number, x: number, y: number) => void) {
   const [state, setState] = useState<HandReorder | null>(null);
   const cardIdRef = useRef<string | null>(null);
 
@@ -103,7 +103,7 @@ export function useHandReorder(onReorder: (cardId: string, slot: number) => void
       if (!cardId) return false;
       const slot = measureSlot(cardId, x, y);
       if (slot == null) return false;
-      onReorder(cardId, slot);
+      onReorder(cardId, slot, x, y);
       return true;
     },
     [onReorder],

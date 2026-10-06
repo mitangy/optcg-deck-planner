@@ -24,6 +24,7 @@ import { AttackWarning, type AttackWarn } from "./AttackWarning";
 import { cantAttackReason } from "./attackBlock";
 import { useAttackAttempt } from "./useAttackAttempt";
 import { RevealOverlay, useOpponentReveals } from "./RevealOverlay";
+import { CardSpotlightLayer, useCardSpotlights } from "./CardSpotlight";
 import { describeMatchResult } from "./matchResult";
 import { CardTile } from "./CardTile";
 import {
@@ -100,6 +101,7 @@ import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
 import { moveToSlot, reconcileHandOrder } from "./handOrder";
 import { useHandReorder } from "./useHandReorder";
+import { useHandShuffle } from "./useHandShuffle";
 import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { sideSkins } from "./seatSkins";
@@ -114,7 +116,7 @@ import { endTurnWarning, responseStopPass } from "./gameplayPrefs";
 import { GameplaySettingsSheet } from "./GameplaySettings";
 import { HotkeyHelpSheet } from "./HotkeyHelp";
 import { actionKeyTags, stepHandSelection } from "./hotkeys";
-import { useBoardHotkeys } from "./useBoardHotkeys";
+import { useBoardHotkeys, useConfirmButtonKey } from "./useBoardHotkeys";
 import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
 import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
 import { useGameSfx } from "./sfx";
@@ -361,10 +363,19 @@ export function DuelBoard({
   const [handOrderIds, setHandOrderIds] = useState<readonly string[]>([]);
   /** The hand's display order right now, for a reorder dropped mid-render. */
   const handShownIdsRef = useRef<readonly string[]>([]);
-  const onHandReorder = useCallback((cardId: string, slot: number) => {
-    setHandOrderIds(moveToSlot(handShownIdsRef.current, cardId, slot));
-  }, []);
+  const captureHandShuffle = useHandShuffle(handShownIdsRef, { sound: prefs.turnSound });
+  const onHandReorder = useCallback(
+    (cardId: string, slot: number, x: number, y: number) => {
+      captureHandShuffle("drop", { cardId, x, y });
+      setHandOrderIds(moveToSlot(handShownIdsRef.current, cardId, slot));
+    },
+    [captureHandShuffle],
+  );
   const handReorder = useHandReorder(onHandReorder);
+  function toggleHandSort() {
+    captureHandShuffle("sort");
+    setHandSorted((v) => !v);
+  }
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const fullscreenOffered = useMemo(() => canOfferFullscreen(readInstallEnv()), []);
@@ -610,6 +621,7 @@ export function DuelBoard({
   useIncomingAttackCue(attackKey, { sound: prefs.turnSound });
   // Same master Sounds toggle: a tick per opponent card use, a thud per Life lost.
   const reveals = useOpponentReveals(battleLog, previewOppSeat, !spectating && !over);
+  const spotlights = useCardSpotlights(battleLog, prefs.cardSpotlight && !over);
   useSoundCues(view, battleLog, previewOppSeat, {
     enabled: alertsOn,
     sound: prefs.turnSound,
@@ -784,6 +796,7 @@ export function DuelBoard({
     for (const intent of toSend) onSendIntent(intent);
   }
 
+  useConfirmButtonKey();
   useBoardHotkeys({
     spectating,
     over,
@@ -1524,7 +1537,7 @@ export function DuelBoard({
               type="button"
               className={`hand-rail-btn${handSorted ? " active" : ""}`}
               aria-pressed={handSorted}
-              onClick={() => setHandSorted((v) => !v)}
+              onClick={toggleHandSort}
             >
               Sort
             </button>
@@ -2130,7 +2143,7 @@ export function DuelBoard({
                         type="button"
                         className={`hand-rail-btn${handSorted ? " active" : ""}`}
                         aria-pressed={handSorted}
-                        onClick={() => setHandSorted((v) => !v)}
+                        onClick={toggleHandSort}
                       >
                         Sort
                       </button>
@@ -2260,7 +2273,7 @@ export function DuelBoard({
                 type="button"
                 className={`hand-rail-btn${handSorted ? " active" : ""}`}
                 aria-pressed={handSorted}
-                onClick={() => setHandSorted((v) => !v)}
+                onClick={toggleHandSort}
               >
                 Sort
               </button>
@@ -2310,7 +2323,7 @@ export function DuelBoard({
                 type="button"
                 className={`hand-rail-btn${handSorted ? " active" : ""}`}
                 aria-pressed={handSorted}
-                onClick={() => setHandSorted((v) => !v)}
+                onClick={toggleHandSort}
               >
                 Sort
               </button>
@@ -2446,6 +2459,12 @@ export function DuelBoard({
         dimmed={promptOpenFor(view.pendingChoices?.[0], spectating ? null : mySeat, hiddenChoiceId)}
       />
       <BoardMotion view={view} />
+      <CardSpotlightLayer
+        batch={spotlights.current}
+        waiting={spotlights.waiting}
+        oppSeat={previewOppSeat}
+        onDone={spotlights.done}
+      />
       <DragGhost payload={ghostPayload} />
       <DragAttackArrow attackerId={dragPayload?.type === "attack" ? dragPayload.attackerId : null} />
       {popoverOpen && anchorCard ? (

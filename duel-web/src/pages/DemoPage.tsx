@@ -812,7 +812,21 @@ export function DemoPage() {
     (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW,
     params,
   );
-  const field = withRestedField(params.has("full") ? withFullBoard(base) : base, params);
+  // `?attacked`: an opposing Character is attacking your Leader, so a centred
+  // prompt dodges your Leader (usePromptDodge) while you answer it.
+  const attacked: PlayerView = params.has("attacked")
+    ? {
+        ...base,
+        battle: {
+          attackerSeat: 1,
+          attackerId: "o-c1",
+          target: { kind: "leader" },
+          defenderPowerBonus: 0,
+          attackerPowerBonus: 0,
+        },
+      }
+    : base;
+  const field = withRestedField(params.has("full") ? withFullBoard(attacked) : attacked, params);
   const withStatuses = params.has("statuses") ? withManyStatuses(field) : field;
   const board = withBattleDrag(
     params.has("dons") ? withAttachedDon(withStatuses) : withStatuses,
@@ -886,6 +900,13 @@ export function DemoPage() {
     }, 1200);
     return () => window.clearTimeout(t);
   }, []);
+  // `?motion` steps carry the events the server would send: narrate them into the log.
+  useEffect(() => {
+    const events = motionSteps?.[motionStep]?.events;
+    if (!events) return;
+    setLog((prev) => [...prev, ...narrateEvents(events, { youSeat: 0, turnNumber: 3, instances: DEMO_INSTANCES })]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [motionStep, motionRun]);
   const [demoClockEnds] = useState(() => Date.now() + 612_000);
   const [rematch, setRematch] = useState<RematchState>(() => {
     const mode = params.get("rematch");

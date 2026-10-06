@@ -36,9 +36,12 @@ export function usePromptDrag(wrapRef: RefObject<HTMLElement | null>) {
       if (o.x === 0 && o.y === 0) {
         wrap.style.removeProperty("--prompt-dx");
         wrap.style.removeProperty("--prompt-dy");
+        delete wrap.dataset.dragged;
       } else {
         wrap.style.setProperty("--prompt-dx", `${o.x}px`);
         wrap.style.setProperty("--prompt-dy", `${o.y}px`);
+        // Tells usePromptDodge the player placed this prompt (#335).
+        wrap.dataset.dragged = "";
       }
     };
     /** The prompt's box without the drag offset. */
@@ -77,18 +80,41 @@ export function usePromptDrag(wrapRef: RefObject<HTMLElement | null>) {
       const target = e.target as Element | null;
       if (target?.closest(GRIP) && !target.closest("button")) write({ x: 0, y: 0 });
     };
-    // A smaller window must not strand a moved prompt off screen.
-    const onResize = () => {
+    // A moved prompt must never end up out of reach (#335): re-clamp it when
+    // the window shrinks, a new or taller prompt opens in the same spot, it is
+    // shown again after Hide, or the battle dodge moves its base spot.
+    const reclamp = () => {
+      if (offset.x === 0 && offset.y === 0) return;
       const prompt = wrap.querySelector<HTMLElement>(".ability-prompt");
-      if (prompt && prompt.offsetHeight > 0) write(clampPromptOffset(baseRect(prompt), offset, view()));
+      if (!prompt || prompt.offsetHeight === 0) return;
+      const next = clampPromptOffset(baseRect(prompt), offset, view());
+      if (next.x !== offset.x || next.y !== offset.y) write(next);
     };
+    let raf = 0;
+    const reclampSoon = () => {
+      window.cancelAnimationFrame(raf);
+      raf = window.requestAnimationFrame(reclamp);
+    };
+    const sizes = new ResizeObserver(reclampSoon);
+    const watchPrompt = () => {
+      sizes.disconnect();
+      const prompt = wrap.querySelector<HTMLElement>(".ability-prompt");
+      if (prompt) sizes.observe(prompt);
+      reclampSoon();
+    };
+    const changes = new MutationObserver(watchPrompt);
+    changes.observe(wrap, { childList: true, attributes: true, attributeFilter: ["hidden", "style"] });
+    watchPrompt();
     wrap.addEventListener("pointerdown", onPointerDown);
     wrap.addEventListener("dblclick", onDoubleClick);
-    window.addEventListener("resize", onResize);
+    window.addEventListener("resize", reclampSoon);
     return () => {
+      window.cancelAnimationFrame(raf);
+      sizes.disconnect();
+      changes.disconnect();
       wrap.removeEventListener("pointerdown", onPointerDown);
       wrap.removeEventListener("dblclick", onDoubleClick);
-      window.removeEventListener("resize", onResize);
+      window.removeEventListener("resize", reclampSoon);
     };
   }, [wrapRef]);
 }

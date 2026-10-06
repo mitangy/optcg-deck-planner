@@ -59,7 +59,7 @@ export function ReplacePrompt({ view, intents, handIndex, mySeat, onSend, onCanc
         label="Choose a Character to replace"
       >
         {resolvesOnPick(oneTap, 1, 1) ? null : (
-          <button type="button" className="btn btn-primary" disabled={!intent} onClick={() => intent && onSend(intent)}>
+          <button type="button" className="btn btn-primary" data-confirm-key aria-keyshortcuts="Y Space" disabled={!intent} onClick={() => intent && onSend(intent)}>
             Trash &amp; play
           </button>
         )}
