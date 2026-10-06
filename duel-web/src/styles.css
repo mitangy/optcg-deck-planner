@@ -4116,6 +4116,8 @@ img.zone-pile-face {
 }
 
 .don-strip-rail {
+  /* Clear space between separate DON!! piles (#381); never overlapped. */
+  --don-pile-gap: calc(var(--don-w) * 0.5);
   container-type: inline-size;
   flex-wrap: nowrap;
   gap: 0;
@@ -4142,9 +4144,25 @@ img.zone-pile-face {
    into the trash pile when the overlap was capped at 60% of a chip. */
 .don-chip-btn + .don-chip-btn {
   margin-left: min(
-    calc((100cqw - var(--don-units, 1) * var(--don-w)) / max(var(--don-count, 1) - 1, 1)),
+    calc(
+      (100cqw - var(--don-units, 1) * var(--don-w) - var(--don-gaps, 0) * var(--don-pile-gap)) /
+        max(var(--don-count, 1) - var(--don-piles, 1), 1)
+    ),
     6px
   );
+}
+
+/* Separate DON!! piles (#381): a fixed gap between piles; the overlap above
+   only applies between chips inside one pile (the first chip of a pile has no
+   chip sibling before it), and the gaps are taken off the room it shares out. */
+.don-pile {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.don-pile + .don-pile {
+  margin-left: var(--don-pile-gap);
 }
 
 .don-chip-btn {
