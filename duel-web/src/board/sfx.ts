@@ -5,10 +5,23 @@ import { motionCues, type MotionCue } from "./motionCues";
 import { audioContext, playNotes, type Note } from "./turnAlert";
 
 /** Game sound effects. The Life-loss, incoming-attack and opponent-tick cues live in turnAlert / soundCues. */
-export type SfxId = "draw" | "play" | "attack" | "block" | "counter" | "ko" | "don" | "trigger" | "win" | "lose";
+export type SfxId =
+  | "draw"
+  | "play"
+  | "attack"
+  | "block"
+  | "counter"
+  | "ko"
+  | "don"
+  | "trigger"
+  | "win"
+  | "lose"
+  /** Your hand: a card dropped on a new spot, and Sort shuffling it. */
+  | "tuck"
+  | "riffle";
 
 /** Loudest first: when one update earns many cues only the top few play. */
-const PRIORITY: readonly SfxId[] = ["win", "lose", "ko", "trigger", "counter", "block", "attack", "play", "don", "draw"];
+const PRIORITY: readonly SfxId[] = ["win", "lose", "ko", "trigger", "counter", "block", "attack", "play", "don", "draw", "riffle", "tuck"];
 /** More than this at once is noise. */
 const MAX_AT_ONCE = 3;
 
@@ -76,7 +89,7 @@ export function resultSfx(
 
 const GLINT = (freq: number, at: number, gain = 0.07): Note => ({ freq, at, len: 0.09, gain, type: "sine" });
 
-const NOTES: Record<Exclude<SfxId, "draw" | "ko">, Note[]> = {
+const NOTES: Record<Exclude<SfxId, "draw" | "ko" | "tuck" | "riffle">, Note[]> = {
   play: [{ freq: 440, at: 0, len: 0.1, gain: 0.1, type: "triangle" }],
   attack: [{ freq: 300, at: 0, len: 0.15, gain: 0.07, type: "sawtooth", to: 620 }],
   block: [
@@ -114,6 +127,12 @@ function noiseBurst(at: number, len: number, gain: number, cutoff: number, kind:
 
 function playOne(id: SfxId, at: number): void {
   if (id === "draw") return noiseBurst(at, 0.09, 0.09, 3200, "bandpass");
+  if (id === "tuck") return noiseBurst(at, 0.05, 0.08, 1400, "lowpass");
+  if (id === "riffle") {
+    // A quick run of card flicks.
+    for (let i = 0; i < 7; i++) noiseBurst(at + i * 0.032, 0.03, 0.05 + i * 0.004, 3800, "bandpass");
+    return;
+  }
   if (id === "ko") {
     noiseBurst(at, 0.18, 0.14, 900, "lowpass");
     playNotes([{ freq: 170, at, len: 0.26, gain: 0.2, type: "sine", to: 60 }]);
