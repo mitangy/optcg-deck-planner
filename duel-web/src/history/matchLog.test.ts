@@ -39,4 +39,29 @@ describe("match page log", () => {
     const attack = matchLogTurns(log).find((t) => t.turn === 3)!.entries[0]!;
     expect(attack.text).toBe(`Opponent's ${lookupCard(zoro).name} attacks your Leader (6000 vs 5000)`);
   });
+
+  it("passes each turn's hand and the opponent's hand size through (#350)", () => {
+    const withHands: SeatLogJson = {
+      ...log,
+      turns: [
+        { ...log.turns[2]!, hand: ["OP01-001", "OP05-060"], opponentHandCount: 5 },
+        { ...log.turns[3]!, hand: [], opponentHandCount: 0 },
+        log.turns[1]!,
+      ],
+    };
+    const turns = matchLogTurns(withHands);
+    expect(turns.map((t) => [t.turn, t.hand, t.opponentHandCount])).toEqual([
+      [2, ["OP01-001", "OP05-060"], 5],
+      [3, [], 0],
+      [1, undefined, undefined],
+    ]);
+  });
+
+  it("passes the opponent's revealed hand through when the log has it (#359)", () => {
+    const revealed: SeatLogJson = {
+      ...log,
+      turns: [{ ...log.turns[2]!, hand: ["OP01-001"], opponentHandCount: 2, opponentHand: ["OP05-060", "OP01-016"] }, log.turns[1]!],
+    };
+    expect(matchLogTurns(revealed).map((t) => t.opponentHand)).toEqual([["OP05-060", "OP01-016"], undefined]);
+  });
 });

@@ -289,7 +289,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.log("info", "room_disposed", { matchId: this.matchId });
     // A game closing without a result keeps its log up to the last action.
     if (this.matchStarted && !this.matchOverSent && !this.resultPending) {
-      await this.saveProgress();
+      await this.saveProgress(true);
     }
   }
 
@@ -1377,17 +1377,32 @@ export class DuelRoom extends Room implements PresenceSource {
     this.clockSince = now;
   }
 
-  /** Point the chess clock at whoever must act now (none during mulligan / after the end). */
+  /**
+   * Point the chess clock at whoever must act now (none after the end). During the mulligan it
+   * runs for the seat that still has to answer: the first player decides first, then the other.
+   */
   private updateSeatClock() {
     if (this.seatSeconds == null || !this.match) return;
     const now = Date.now();
     this.chargeSeatClock(now);
-    const next =
-      this.match.winner !== null || this.match.phase === "mulligan" ? null : this.actingSeatForTimer();
+    const next = this.match.winner !== null ? null : this.seatForClock();
     if (next !== this.clockSeat) {
       this.clockSeat = next;
       this.clockSince = now;
     }
+  }
+
+  private seatForClock(): Seat | null {
+    const m = this.match;
+    if (!m) return null;
+    if (m.phase === "mulligan") {
+      const first = m.activeSeat;
+      const second = (1 - first) as Seat;
+      if (!m.players[first].mulliganDone) return first;
+      if (!m.players[second].mulliganDone) return second;
+      return null;
+    }
+    return this.actingSeatForTimer();
   }
 
   private stopSeatClock() {
@@ -1645,14 +1660,16 @@ export class DuelRoom extends Room implements PresenceSource {
    * Save the game's log so far (both seats' logs and the replay), so a game that
    * never reaches a result (server restart, both players gone) still has one.
    * Sent at the start of every turn and when the room closes without a result.
+   * `reveal` adds the opponent's hands to each log; only a game that can no
+   * longer be played (the room closing) gets them.
    */
-  private saveProgress(): Promise<void> {
+  private saveProgress(reveal = false): Promise<void> {
     const seats = this.ingestSeats();
     if (!Array.isArray(seats) || !this.replay) return Promise.resolve();
-    return this.progress.push({ matchId: this.gameKey(), payload: this.progressPayload(seats[0], seats[1]) });
+    return this.progress.push({ matchId: this.gameKey(), payload: this.progressPayload(seats[0], seats[1], reveal) });
   }
 
-  private progressPayload(s0: number, s1: number): MatchProgressPayload {
+  private progressPayload(s0: number, s1: number, reveal: boolean): MatchProgressPayload {
     return {
       seat0_user_id: s0,
       seat1_user_id: s1,
@@ -1661,7 +1678,7 @@ export class DuelRoom extends Room implements PresenceSource {
       seat1_leader_id: this.replay?.players[1].leaderId,
       turns: this.match?.turnNumber,
       replay: this.replay ? { ...this.replay, intents: [...this.replay.intents] } : undefined,
-      seat_logs: this.seatLogs(),
+      seat_logs: this.seatLogs(reveal),
     };
   }
 
@@ -1671,7 +1688,7 @@ export class DuelRoom extends Room implements PresenceSource {
 
   private resultPayload(s0: number, s1: number, winner: Seat, reason: string): MatchResultPayload {
     return {
-      ...this.progressPayload(s0, s1),
+      ...this.progressPayload(s0, s1, true),
       match_id: this.gameKey(),
       winner_seat: winner,
       reason,
@@ -1679,11 +1696,14 @@ export class DuelRoom extends Room implements PresenceSource {
     };
   }
 
-  /** Each player's turn-by-turn log for their match history, with the opponent's hidden cards hidden. */
-  private seatLogs(): MatchResultPayload["seat_logs"] {
+  /**
+   * Each player's turn-by-turn log for their match history. The opponent's hidden
+   * cards stay hidden unless `reveal` (the game is over or cut off).
+   */
+  private seatLogs(reveal: boolean): MatchResultPayload["seat_logs"] {
     if (!this.replay) return undefined;
     try {
-      return [seatLog(this.replay, 0), seatLog(this.replay, 1)];
+      return [seatLog(this.replay, 0, { revealOpponent: reveal }), seatLog(this.replay, 1, { revealOpponent: reveal })];
     } catch {
       this.log("warn", "seat_log_failed", { matchId: this.matchId });
       return undefined;

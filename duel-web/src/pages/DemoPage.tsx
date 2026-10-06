@@ -791,12 +791,24 @@ function withWaiting(base: PlayerView, kind: string | null): PlayerView {
   };
 }
 
+/** Your side with a single active DON!! (the rest rested). */
+function withOneActiveDon(base: PlayerView): PlayerView {
+  return {
+    ...base,
+    you: {
+      ...base.you,
+      activeDonCount: 1,
+      costArea: base.you.costArea.map((d, i) => ({ ...d, rested: i > 0 })),
+    },
+  };
+}
+
 /**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
  * state (`&first=1` makes the opponent go first), `?practice` hotseat chrome
  * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
  * undo (`?undo=ask` shows an incoming request), `?waiting` the invite screen,
- * `?oppturn` the opponent's turn, `?clock` per-player clocks, `?away` a
+ * `?oppturn` the opponent's turn, `?unaffordable` your main phase with 1 active DON!! (costlier hand cards gray out), `?clock` per-player clocks, `?away` a
  * disconnected opponent, `?over` the match-over screen (`&guest`: no saved match) with a rematch vote
  * (`&rematch=ask|wait|choose|left`), `?full` a full board, `?rest=N` / `?restlead` /
  * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
@@ -834,9 +846,11 @@ export function DemoPage() {
   );
   // `?cantattack`: your main phase where only the Leader may attack, so the
   // summoning-sick / rested Characters show the "can't attack" warning.
-  const mainPhase: PlayerView = params.has("cantattack")
+  // `?unaffordable` is the same with only 1 active DON!!, so the costlier hand
+  // cards are grayed out (#356).
+  const mainPhase: PlayerView = params.has("cantattack") || params.has("unaffordable")
     ? {
-        ...board,
+        ...(params.has("unaffordable") ? withOneActiveDon(board) : board),
         phase: "main",
         battle: null,
         legalIntents: [
