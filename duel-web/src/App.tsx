@@ -39,6 +39,7 @@ export function App() {
     <>
       <Routes>
         <Route path="/" element={<LobbyPage />} />
+        <Route path="/watch/:roomId" element={<LobbyPage />} />
         <Route path="/decks" element={<DeckListPage />} />
         <Route path="/decks/new" element={<NewDeckPage />} />
         <Route path="/decks/:deckId/configure" element={<DeckConfigurePage />} />

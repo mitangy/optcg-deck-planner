@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
@@ -33,6 +33,9 @@ import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel
 import { dismissInvite, inviteFriend, inviteFrom, type Friend, type FriendInvite } from "../friends/friendsApi";
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
 import { UpdateNotice, VersionStatus } from "../VersionStatus";
+
+const SPECTATE_GONE = /not found|locked/i;
+export const SPECTATE_GONE_MESSAGE = "That match has ended or the spectate link is wrong.";
 
 /** Which play mode the user is configuring inside the Play sheet. */
 type PlayMode = "hotseat" | "create" | "join" | "queue" | "spectate";
@@ -268,6 +271,13 @@ export function LobbyPage() {
   const { client, connect, queueRanked, cancelQueue, queueing, setRating, startMatch } =
     useDuelSession();
   const location = useLocation();
+  // `/watch/:roomId` (a shared spectate link) goes straight into that match.
+  const watchRoomId = useParams<{ roomId: string }>().roomId?.trim() || null;
+  const [searchParams] = useSearchParams();
+  const watchSeat = searchParams.get("seat") === "2" ? 1 : 0;
+  /** Sign-in has settled, so a spectate link knows which token to mint. */
+  const [authChecked, setAuthChecked] = useState(false);
+  const watchStarted = useRef(false);
   const [settings] = useState(loadSettings);
   const serverUrl = getGameServerUrl();
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -306,7 +316,11 @@ export function LobbyPage() {
    * Shared by the friend actions: open the board at once, then mint + connect
    * behind it. A failure comes back to the lobby as a note.
    */
-  function runFriendAction(launch: MatchLaunch, fn: (launchGen: number) => Promise<void>) {
+  function runFriendAction(
+    launch: MatchLaunch,
+    fn: (launchGen: number) => Promise<void>,
+    navOpts?: { replace?: boolean },
+  ) {
     if (authMode === "dev" && !settings.devUserKey.trim()) {
       setFriendError("Set a dev user key in Settings first.");
       return;
@@ -314,7 +328,18 @@ export function LobbyPage() {
     setFriendError(null);
     clearMatchResume();
     startMatch(launch, fn);
-    navigate("/duel");
+    navigate("/duel", navOpts);
+  }
+
+  /** Join a room as a spectator; a room that is gone reads as a bad / finished link. */
+  async function connectSpectator(room: string, gen: number, preferredSeat?: 0 | 1) {
+    const opts = await authOpts();
+    try {
+      await connect({ ...opts, roomId: room, role: "spectator", preferredSeat }, gen);
+    } catch (e) {
+      if (e instanceof Error && SPECTATE_GONE.test(e.message)) throw new Error(SPECTATE_GONE_MESSAGE);
+      throw e;
+    }
   }
 
   /** Online matches pull a planner-linked deck fresh first; on any failure the local copy plays. */
@@ -387,10 +412,9 @@ export function LobbyPage() {
   function spectateFriend(friend: Friend) {
     if (!friend.room_id) return;
     const roomId = friend.room_id;
-    runFriendAction({ status: `Connecting to ${friend.username}'s match…`, leaderId: null, invite: false }, async (gen) => {
-      const opts = await authOpts();
-      await connect({ ...opts, roomId, role: "spectator" }, gen);
-    });
+    runFriendAction({ status: `Connecting to ${friend.username}'s match…`, leaderId: null, invite: false }, (gen) =>
+      connectSpectator(roomId, gen),
+    );
   }
 
   function refreshDecks() {
@@ -430,9 +454,11 @@ export function LobbyPage() {
       .then((u) => {
         if (u) setAuthUser(u);
         // Signed in but never picked a username (e.g. closed the tab mid-setup).
-        if (needsUsername(u)) navigate("/welcome/username", { replace: true });
+        // A spectate link works without one.
+        if (needsUsername(u) && !watchRoomId) navigate("/welcome/username", { replace: true });
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => setAuthChecked(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -444,6 +470,19 @@ export function LobbyPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [sheetOpen, busy]);
+
+  // Spectate link: wait for sign-in to settle (account token vs guest token), then
+  // reuse the spectate flow. `replace` so Back doesn't land on the link and re-join.
+  useEffect(() => {
+    if (!watchRoomId || !authChecked || watchStarted.current) return;
+    watchStarted.current = true;
+    runFriendAction(
+      { status: "Connecting to the match…", leaderId: null, invite: false },
+      (gen) => connectSpectator(watchRoomId, gen, watchSeat),
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchRoomId, authChecked]);
 
   const selectedDeck = useMemo(
     () => decks.find((d) => d.id === selectedId) ?? null,
@@ -575,11 +614,11 @@ export function LobbyPage() {
           friends: friendsEnabled,
         },
         async (gen) => {
-          const opts = await authOpts();
           if (mode === "spectate") {
-            await connect({ ...opts, roomId: room, role: "spectator" }, gen);
+            await connectSpectator(room, gen);
             return;
           }
+          const opts = await authOpts();
           const wire = deckToWire(await freshDeck(picked));
           if (mode === "queue") {
             await queueRanked({ ...opts, deck: wire }, gen);
@@ -634,6 +673,15 @@ export function LobbyPage() {
           : mode === "queue"
             ? "Find match"
             : "Watch";
+
+  // A spectate link has no lobby to show: it opens the board as soon as sign-in settles.
+  if (watchRoomId && !watchStarted.current && !friendError) {
+    return (
+      <div className="app-shell home-shell">
+        <p className="muted" role="status" style={{ padding: "2rem 16px" }}>Opening the match…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell home-shell">

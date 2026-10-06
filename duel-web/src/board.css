@@ -2845,6 +2845,10 @@ body.is-panel-drag * {
   cursor: pointer;
 }
 
+.room-watch-btn {
+  min-width: 5.4rem;
+}
+
 .room-copy-btn:hover {
   border-color: var(--chrome);
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ConfirmButton } from "./ConfirmButton";
 import { useClickCopy } from "./clickCopy";
+import { spectateUrl } from "./clipboard";
 import { useCopyFlash } from "./RoomShare";
 import type { MatchMenuItemId } from "./matchMenuItems";
 
@@ -121,6 +122,28 @@ export function MatchMenu({
                         : copied === "failed"
                           ? "Copy failed"
                           : `Copy room ID${roomId ? ` (${roomId})` : ""}`}
+                    </button>
+                  );
+                case "copy-spectate":
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      role="menuitem"
+                      data-menu-item
+                      className="match-menu-item"
+                      disabled={!roomId}
+                      onClick={() => {
+                        if (!roomId) return;
+                        void copy(spectateUrl(roomId), "link");
+                        closeTimer.current = window.setTimeout(() => setOpen(false), 700);
+                      }}
+                    >
+                      {copied === "link"
+                        ? "Copied"
+                        : copied === "failed"
+                          ? "Copy failed"
+                          : "Copy spectate link"}
                     </button>
                   );
                 case "settings":

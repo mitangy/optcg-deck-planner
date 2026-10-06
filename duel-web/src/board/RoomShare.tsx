@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { copyText, roomInviteUrl } from "./clipboard";
+import { copyText, roomInviteUrl, spectateUrl } from "./clipboard";
 
-type Copied = "id" | "link" | "auto" | "failed" | null;
+type Copied = "id" | "link" | "watch" | "auto" | "failed" | null;
 
 export function useCopyFlash() {
   const [copied, setCopied] = useState<Copied>(null);
@@ -37,6 +37,15 @@ export function RoomChip({ roomId }: { roomId: string | null }) {
       >
         {copied === "id" ? "Copied" : copied === "failed" ? "Failed" : "Copy"}
       </button>
+      <button
+        type="button"
+        className="room-copy-btn room-watch-btn"
+        onClick={() => void copy(spectateUrl(roomId), "watch")}
+        aria-label="Copy spectate link"
+        title="Copy a link anyone can open to watch this match"
+      >
+        {copied === "watch" ? "Copied" : copied === "failed" ? "Failed" : "Watch link"}
+      </button>
     </span>
   );
 }
@@ -67,6 +76,8 @@ export function RoomInvite({ roomId, autoCopy }: { roomId: string | null; autoCo
         ? "Room id copied."
         : copied === "link"
           ? "Invite link copied — opening it fills in the room id."
+          : copied === "watch"
+            ? "Spectate link copied — anyone who opens it can watch this match."
           : copied === "failed"
             ? "Couldn't reach the clipboard — select the id and copy it."
             : "Share the room id — the match starts when both seats join.";
@@ -91,6 +102,13 @@ export function RoomInvite({ roomId, autoCopy }: { roomId: string | null; autoCo
           onClick={() => void copy(roomInviteUrl(roomId), "link")}
         >
           {copied === "link" ? "Link copied ✓" : "Copy invite link"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => void copy(spectateUrl(roomId), "watch")}
+        >
+          {copied === "watch" ? "Link copied ✓" : "Copy spectate link"}
         </button>
       </div>
       <p className="room-invite-hint" role="status" aria-live="polite">
