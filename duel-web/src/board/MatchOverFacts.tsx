@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLogPose } from "@optcg/analyst-client";
 import type { MatchHistoryEntry } from "../history/historyApi";
 import { matchOverFacts, pollMatchRecord } from "./matchOverFacts";
 
@@ -26,6 +27,7 @@ export function MatchOverFactsList({
     return pollMatchRecord(matchId, loadRecord, setRecord);
   }, [matchId, loadRecord]);
 
+  const { enabled: logPose } = useLogPose();
   const facts = matchOverFacts(turnNumber, record);
   return (
     <>
@@ -36,6 +38,12 @@ export function MatchOverFactsList({
       {facts.logPath ? (
         <a className="match-result-log" href={facts.logPath} target="_blank" rel="noopener noreferrer">
           View match log
+        </a>
+      ) : null}
+      {facts.logPath && logPose ? (
+        // Same page as the log (its analysis section reviews the game), in a new tab so the rematch offer stays open.
+        <a className="match-result-log match-result-review" href={facts.logPath} target="_blank" rel="noopener noreferrer">
+          Review with Log Pose
         </a>
       ) : null}
     </>

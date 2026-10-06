@@ -1,0 +1,29 @@
+/* Log Pose chat (packages/analyst-client) in the planner's chart-room palette; the tokens
+   flip with light / dark on their own. Layers: compass above the sticky top bar (20) and the
+   Stats pill (30); panel above popovers (80) but below the stats sheet (60 is phone-only and
+   covered by the full-screen sheet anyway), the scan dialog (90), the drop hint (95) and the
+   lightbox (1000). */
+.logpose {
+  --lp-surface: var(--card);
+  --lp-surface-2: var(--card-sunk);
+  --lp-ink: var(--ink);
+  --lp-muted: var(--muted);
+  --lp-line: var(--line);
+  --lp-accent: var(--primary-bg);
+  --lp-on-accent: var(--primary-ink);
+  --lp-user-bg: var(--gold-soft);
+  --lp-user-ink: var(--ink);
+  --lp-needle: var(--danger);
+  --lp-danger: var(--danger);
+  --lp-field: var(--field-bg);
+  --lp-focus: var(--gold);
+  --lp-shadow: var(--shadow-lift);
+  --lp-font: var(--font-body);
+  --lp-font-display: var(--font-display);
+  --lp-z-compass: 40;
+  --lp-z-panel: 85;
+}
+
+.lp-compass.logpose {
+  color: var(--accent);
+}

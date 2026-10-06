@@ -1,6 +1,9 @@
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { SiteFooter } from "@optcg/site-legal";
+import { LogPoseProvider } from "@optcg/analyst-client";
+import { getApiBaseUrl } from "./config";
+import { defaultLogPosePage, showsLogPose } from "./logPose";
 import { AuthCompletePage } from "./pages/AuthCompletePage";
 import { DeckConfigurePage } from "./pages/DeckConfigurePage";
 import { DeckListPage } from "./pages/DeckListPage";
@@ -34,9 +37,10 @@ export function App() {
     if (reduceMotion) document.documentElement.dataset.motion = "reduce";
     else delete document.documentElement.dataset.motion;
   }, [reduceMotion]);
+  const logPosePage = useMemo(() => defaultLogPosePage(pathname), [pathname]);
 
   return (
-    <>
+    <LogPoseProvider apiBase={getApiBaseUrl()} hidden={!showsLogPose(pathname)} defaultPage={logPosePage}>
       <Routes>
         <Route path="/" element={<LobbyPage />} />
         <Route path="/watch/:roomId" element={<LobbyPage />} />
@@ -58,6 +62,6 @@ export function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {showsSiteFooter(pathname) && <SiteFooter Link={Link} className="site-footer-centered" />}
-    </>
+    </LogPoseProvider>
   );
 }

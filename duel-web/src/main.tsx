@@ -16,6 +16,8 @@ import "./interactions.css";
 import "./auth/username.css";
 import "./light.css";
 import "@optcg/site-legal/siteLegal.css";
+import "@optcg/analyst-client/logPose.css";
+import "./logPose.css";
 
 // Signed-in players get their settings and playmat / card back from the account.
 void startAccountSync();

@@ -1,0 +1,130 @@
+/* Log Pose chat (packages/analyst-client) in the crew theme: the palette tokens below follow
+   Settings → Theme and light / dark on their own. Layers: above the top bar (50) and deck menu
+   (60), below sheets (100), card inspect (200) and the reconnect banner. */
+.logpose {
+  --lp-surface: var(--arena-panel);
+  --lp-surface-2: var(--arena-raised);
+  --lp-ink: var(--ink);
+  --lp-muted: var(--muted);
+  --lp-line: var(--line);
+  --lp-accent: var(--chrome);
+  --lp-on-accent: var(--on-chrome);
+  --lp-user-bg: rgb(var(--sea-rgb) / 0.32);
+  --lp-user-ink: var(--ink);
+  --lp-needle: var(--crimson-bright);
+  --lp-danger: var(--crimson-bright);
+  --lp-field: var(--arena-deep);
+  --lp-focus: var(--chrome-bright);
+  --lp-shadow: 0 2px 6px rgb(var(--abyss-rgb) / 0.35), 0 14px 36px rgb(var(--abyss-rgb) / 0.45);
+  --lp-font: var(--font-body);
+  --lp-font-display: var(--font-display);
+  --lp-z-compass: 70;
+  --lp-z-panel: 90;
+}
+
+/* Post-game review on the match log page. */
+.lp-review {
+  margin: 0 0 1rem;
+}
+
+.lp-review-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.lp-review-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--chrome-bright);
+}
+
+.lp-review-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex: none;
+}
+
+.lp-review-body {
+  /* Reserved while the review loads or streams in, so the turn log below doesn't jump. */
+  min-height: 7.5rem;
+  color: var(--ink);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.lp-review-body[data-state="ready"] {
+  min-height: 0;
+}
+
+.lp-review-body .lp-md-table {
+  border-color: var(--line);
+}
+
+.lp-review-body .lp-md a {
+  color: var(--chrome-bright);
+}
+
+.lp-review-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.4rem;
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.lp-review-status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp-review-status .lp-status-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chrome);
+  animation: lp-pulse 1.2s ease-in-out infinite;
+}
+
+.lp-review-collapsed {
+  max-height: 9rem;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
+  mask-image: linear-gradient(180deg, #000 55%, transparent);
+}
+
+.lp-review-error {
+  color: var(--crimson-bright);
+}
+
+.lp-review-note {
+  margin: 0 0 1rem;
+}
+
+[data-mode="light"] .lp-review-title {
+  color: var(--ink);
+}
+
+[data-mode="light"] .lp-review-body .lp-md a {
+  color: var(--sea);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-review-status .lp-status-dot {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .lp-review-status .lp-status-dot {
+  animation: none;
+}
