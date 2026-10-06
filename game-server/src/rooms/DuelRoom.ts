@@ -321,7 +321,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.log("info", "room_disposed", { matchId: this.matchId });
     // A game closing without a result keeps its log up to the last action.
     if (this.matchStarted && !this.matchOverSent && !this.resultPending) {
-      await this.saveProgress(true);
+      await this.saveProgress(true, true);
     }
   }
 
@@ -1776,10 +1776,11 @@ export class DuelRoom extends Room implements PresenceSource {
    * `reveal` adds the opponent's hands to each log; only a game that can no
    * longer be played (the room closing) gets them.
    */
-  private saveProgress(reveal = false): Promise<void> {
+  private saveProgress(reveal = false, final = false): Promise<void> {
     const seats = this.ingestSeats();
     if (!Array.isArray(seats) || !this.replay) return Promise.resolve();
-    return this.progress.push({ matchId: this.gameKey(), payload: this.progressPayload(seats[0], seats[1], reveal) });
+    const payload = this.progressPayload(seats[0], seats[1], reveal);
+    return this.progress.push({ matchId: this.gameKey(), payload: final ? { ...payload, final: true } : payload });
   }
 
   private progressPayload(s0: number, s1: number, reveal: boolean): MatchProgressPayload {

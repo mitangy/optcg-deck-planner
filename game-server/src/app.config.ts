@@ -1,11 +1,13 @@
 import {
   defineServer,
   defineRoom,
+  matchMaker,
   monitor,
   playground,
   WebSocketTransport,
 } from "colyseus";
 import { getDefsHealthSnapshot } from "@optcg/rules";
+import { clusterOptions, wsCompression } from "./cluster.js";
 import { getSeatReservationSeconds } from "./env.js";
 import {
   PROTOCOL_VERSION,
@@ -27,7 +29,8 @@ if (WS_MAX_PAYLOAD_BYTES < SKIN_MAX_PLAYMAT_CHARS + SKIN_MAX_CARD_BACK_CHARS + 4
 }
 
 const server = defineServer({
-  transport: new WebSocketTransport({ maxPayload: WS_MAX_PAYLOAD_BYTES }),
+  transport: new WebSocketTransport({ maxPayload: WS_MAX_PAYLOAD_BYTES, perMessageDeflate: wsCompression() }),
+  ...clusterOptions(),
 
   rooms: {
     duel: defineRoom(DuelRoom),
@@ -47,6 +50,12 @@ const server = defineServer({
         seatReservationSeconds: getSeatReservationSeconds(),
         // Catch stale deploys missing curated stubs (e.g. Teach OP16-080).
         defs: getDefsHealthSnapshot(),
+        // Which build is live (blue/green deploys wait for it), and this
+        // process's load, for scaling the pool.
+        commit: process.env.RENDER_GIT_COMMIT ?? null,
+        processId: matchMaker.processId,
+        roomCount: matchMaker.stats.local.roomCount,
+        ccu: matchMaker.stats.local.ccu,
       });
     });
 

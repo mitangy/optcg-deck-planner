@@ -596,6 +596,18 @@ describe("DuelRoom", () => {
     await c2.leave(true);
   });
 
+  it("ranked_queue keeps everyone in one queue past 64 players, so no one waits in a queue nobody else is in (#scale)", async () => {
+    const joined: ClientRoom[] = [];
+    for (let i = 0; i < 66; i++) {
+      const c = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts(`crowd-${i}`));
+      c.onMessage("queued", () => {});
+      c.onMessage("matched", () => {});
+      joined.push(c);
+    }
+    assert.equal(new Set(joined.map((c) => c.roomId)).size, 1);
+    await Promise.all(joined.map((c) => c.leave(true)));
+  });
+
   it("ranked_queue keeps one place per account, dropping the older entry (#318)", async () => {
     const dupA = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("same-user"));
     let aLeft = false;
@@ -1353,6 +1365,40 @@ describe("DuelRoom", () => {
     await waitUntil(() => sent.length > live, 5000);
     const closing = sent.at(-1)!.seat_logs!;
     assert.ok(closing.every((l) => l.opponentOpeningHand && l.turns.some((t) => t.opponentHand)));
+  });
+
+  it("only a closing room's last log is marked final, so live turns can stay out of Postgres (#scale)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 71,
+      autoSkipMulligan: true,
+    });
+    const sent: MatchProgressPayload[] = [];
+    Object.assign(room, {
+      ingestSeats: () => [101, 102],
+      persistMatchProgress: async (_matchId: string, payload: MatchProgressPayload) => {
+        sent.push(payload);
+      },
+      persistMatchResult: async () => {},
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    await playSome([c0, c1], bags, 6);
+    assert.ok(sent.length > 0, "turn snapshots were sent");
+    assert.ok(sent.every((p) => p.final === undefined), "live snapshots are not final");
+    const live = sent.length;
+    await c0.leave(true);
+    await c1.leave(true);
+    await waitUntil(() => sent.length > live, 5000);
+    assert.equal(sent.at(-1)!.final, true);
   });
 
   it("the result sent to the backend carries leaders, turns, the replay, each seat's log and how it ended (#244, #252)", async () => {
