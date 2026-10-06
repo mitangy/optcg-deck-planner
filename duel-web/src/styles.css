@@ -1976,6 +1976,87 @@ button.zone-pile {
   min-width: 5.5rem;
 }
 
+/* Sortable trash keeps one height so switching modes never moves the toolbar. */
+.trash-viewer.is-sortable {
+  height: min(88dvh, 860px);
+}
+
+/* Newest | By card: constant width so switching never moves the title or Done. */
+.trash-viewer-sort {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 1px solid var(--chrome);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.trash-viewer-sort-btn {
+  min-height: 44px;
+  min-width: 4.4rem;
+  padding: 0 0.7rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trash-viewer-sort-btn + .trash-viewer-sort-btn {
+  border-left: 1px solid var(--chrome);
+}
+
+.trash-viewer-sort-btn[aria-pressed="true"] {
+  background: rgb(var(--chrome-bright-rgb) / 0.18);
+  color: var(--chrome-bright);
+}
+
+/* Narrow phones: title + Done stay on row one, the toggle takes its own row. */
+@media (max-width: 480px) {
+  .trash-viewer-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .trash-viewer-sort {
+    order: 3;
+    flex: 1 0 100%;
+  }
+
+  .trash-viewer-sort-btn {
+    flex: 1;
+  }
+}
+
+/* By-card mode: the tile plus a "×N" copy-count badge in its corner. */
+.trash-viewer-cell {
+  position: relative;
+  width: 100%;
+  max-width: 200px;
+  justify-self: center;
+}
+
+.trash-viewer-cell .card-tile.compact {
+  max-width: none;
+}
+
+.trash-viewer-count {
+  position: absolute;
+  left: 0.3rem;
+  top: 0.3rem;
+  z-index: 3;
+  pointer-events: none;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  background: rgba(10, 14, 20, 0.9);
+  /* Sits on card art, so light text in every theme (light mode's chrome-bright is dark). */
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
 .trash-viewer-empty {
   margin: 0.5rem 0 1rem;
   color: var(--muted);
@@ -4035,6 +4116,8 @@ img.zone-pile-face {
 }
 
 .don-strip-rail {
+  /* Clear space between separate DON!! piles (#381); never overlapped. */
+  --don-pile-gap: calc(var(--don-w) * 0.5);
   container-type: inline-size;
   flex-wrap: nowrap;
   gap: 0;
@@ -4061,9 +4144,25 @@ img.zone-pile-face {
    into the trash pile when the overlap was capped at 60% of a chip. */
 .don-chip-btn + .don-chip-btn {
   margin-left: min(
-    calc((100cqw - var(--don-units, 1) * var(--don-w)) / max(var(--don-count, 1) - 1, 1)),
+    calc(
+      (100cqw - var(--don-units, 1) * var(--don-w) - var(--don-gaps, 0) * var(--don-pile-gap)) /
+        max(var(--don-count, 1) - var(--don-piles, 1), 1)
+    ),
     6px
   );
+}
+
+/* Separate DON!! piles (#381): a fixed gap between piles; the overlap above
+   only applies between chips inside one pile (the first chip of a pile has no
+   chip sibling before it), and the gaps are taken off the room it shares out. */
+.don-pile {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.don-pile + .don-pile {
+  margin-left: var(--don-pile-gap);
 }
 
 .don-chip-btn {

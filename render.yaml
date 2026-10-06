@@ -44,13 +44,10 @@ services:
       # Public URL of optcg-analyst, for personal connector links made in duel-web Settings.
       - key: ANALYST_PUBLIC_URL
         sync: false
-      # Comma-separated emails that get the in-app Log Pose panel (empty: nobody), and its spend caps in USD.
+      # Comma-separated emails that get the in-app Log Pose panel (empty: nobody).
+      # Spend caps default to $3/day per player and $50/month total (backend/app/config.py).
       - key: ANALYST_CHAT_EMAILS
         sync: false
-      - key: ANALYST_CHAT_DAILY_USD
-        value: "3"
-      - key: ANALYST_CHAT_MONTHLY_USD
-        value: "50"
       - key: DATABASE_URL
         sync: false
       - key: SESSION_SECRET
@@ -59,19 +56,17 @@ services:
         value: https://optcg-deck-planner.app
       - key: BACKEND_PUBLIC_URL
         value: https://optcg-deck-planner.app/api
+      # Same value as PROXY_SHARED_SECRET on both Vercel projects; lets client_ip trust X-Forwarded-For from the /api proxy.
+      - key: PROXY_SHARED_SECRET
+        sync: false
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
-        sync: false
-      - key: ALLOWED_EMAILS
         sync: false
       - key: ALLOW_ANY_GOOGLE_USER
         value: "true"
       - key: CATALOG_SYNC_TOKEN
         generateValue: true
-      # Staging duel-web / Expo: cookie-free POST /duel/dev-token (not /auth/dev-login).
-      - key: ENABLE_DUEL_DEV_TOKEN
-        value: "true"
       - key: DUEL_CORS_ORIGINS
         value: https://optcgduel.app,https://optcg-duel-web.vercel.app,https://optcg-duel-web-miko21.vercel.app
       # Vercel branch URLs (optcg-duel-web-git-<branch>-miko21.vercel.app): CORS without credentials (see backend/app/cors.py).
@@ -106,29 +101,17 @@ services:
         value: "22"
       - key: NODE_ENV
         value: production
-      # Reject legacy devUserId-only joins in staging/prod.
-      - key: REQUIRE_GAME_TOKEN
-        value: "true"
       # Public FastAPI base used for match ingest (Render service URL).
       - key: API_BASE_URL
         value: https://optcg-api-nutb.onrender.com
       # Durable game-server outbox. Set this to the same Neon Postgres URL as the API.
       - key: MATCH_OUTBOX_DATABASE_URL
         sync: false
-      # Free-tier cold starts: matchmake HTTP can beat WS consume past Colyseus's 15s default.
-      - key: COLYSEUS_SEAT_RESERVATION_TIME
-        value: "90"
-      # Long enough to answer a text on a phone and come back (mobile browsers
-      # suspend the socket while another app is in front).
-      - key: RECONNECT_GRACE_SECONDS
-        value: "120"
       - key: CORS_ORIGINS
         value: https://optcgduel.app,https://optcg-duel-web.vercel.app,https://optcg-duel-web-miko21.vercel.app
       # Vercel branch URLs (optcg-duel-web-git-<branch>-miko21.vercel.app).
       - key: CORS_ORIGIN_REGEX
         value: 'https://optcg-duel-web-git-[a-z0-9-]+-miko21\.vercel\.app'
-      - key: LOG_LEVEL
-        value: info
 
   # Log Pose: deck analyst tools for Claude, served over MCP (Claude custom connector).
   # Connector URL: https://<this service>.onrender.com/mcp/<ANALYST_CONNECTOR_KEY>,

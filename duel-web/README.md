@@ -50,7 +50,7 @@ Production APIs keep `ENABLE_DEV_LOGIN=false` (startup refuses otherwise). For d
 | Staging target | Notes |
 |----------------|-------|
 | `https://optcg-api-pr-84.onrender.com` | PR preview for this branch — prefer while Step 4.5 is unmerged |
-| `https://optcg-api-nutb.onrender.com` | Production API — needs `ENABLE_DUEL_DEV_TOKEN` **and** the flag shipped on `main` |
+| `https://optcg-api-nutb.onrender.com` | Production API — keeps `/duel/dev-token` off (sign in with Google or a guest account instead) |
 
 If Create duel shows `Token mint failed (404)`, the API is hiding `/duel/dev-token` (flag off or old deploy).
 

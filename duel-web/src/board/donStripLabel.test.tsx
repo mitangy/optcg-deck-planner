@@ -31,3 +31,30 @@ describe("DON!! counter label", () => {
     expect(nums(html)).toBe("8/10");
   });
 });
+
+describe("DON!! piles in the cost area (#381)", () => {
+  const tokens = Array.from({ length: 6 }, (_, i) => ({ id: `d${i + 1}`, rested: i >= 3 }));
+  const piles = (html: string) => (html.match(/class="don-pile"/g) ?? []).length;
+
+  it("renders one .don-pile group per pile on your side with the gaps in the rail style (#381)", () => {
+    const html = renderToStaticMarkup(
+      <DonStrip side="you" tokens={tokens} donPiles={{ d2: 1, d5: 1, d6: 2 }} onDonPileMove={() => {}} />,
+    );
+    expect(piles(html)).toBe(3);
+    expect(html).toContain("--don-gaps:2");
+    expect(html).toContain("--don-piles:3");
+    expect(html).toContain("right-click (long-press on phones) to move to another pile");
+  });
+
+  it("lays out a single pile as a plain rail with no wrapper (#381)", () => {
+    const html = renderToStaticMarkup(<DonStrip side="you" tokens={tokens} donPiles={{}} onDonPileMove={() => {}} />);
+    expect(piles(html)).toBe(0);
+    expect(chips(html)).toBeGreaterThan(0);
+  });
+
+  it("opponent DON!! never form piles (#381)", () => {
+    const html = renderToStaticMarkup(<DonStrip side="opp" activeCount={3} totalCount={6} donPiles={{ d2: 1 }} onDonPileMove={() => {}} />);
+    expect(piles(html)).toBe(0);
+    expect(html).not.toContain("right-click");
+  });
+});

@@ -5,6 +5,7 @@ import type { CardView, Seat } from "../net/protocol";
 import { CardInspect } from "./CardInspect";
 import { CardTile } from "./CardTile";
 import { DonStrip } from "./DonStrip";
+import type { DonPiles } from "./donPiles";
 import { donTotal } from "./donTotals";
 import { TrashViewer, trashNewestFirst } from "./TrashViewer";
 import { ZonePile, zonePileCountLabel } from "./ZonePile";
@@ -79,6 +80,8 @@ type Props = {
   data: SideData;
   compact?: boolean;
   drag?: DragHandlers;
+  /** Your side only: separate DON!! piles (#381). Works on the opponent's turn too. */
+  donPile?: { piles: DonPiles; onMove: (donId: string) => void };
   /** Enables tap-to-select on this side's leader/characters. */
   select?: SelectHandlers;
   /** Enables tap-to-attack on this side's leader/characters (legal targets only). */
@@ -190,6 +193,7 @@ export function SideField({
   data,
   compact,
   drag,
+  donPile,
   select,
   target,
   attackDrag,
@@ -505,6 +509,8 @@ export function SideField({
             onDonDragCancel={interactive ? drag?.onDonDragCancel : undefined}
             onDonToggleSelect={interactive ? drag?.onDonToggleSelect : undefined}
             onClearDonSelection={interactive ? drag?.onClearDonSelection : undefined}
+            donPiles={side === "you" ? donPile?.piles : undefined}
+            onDonPileMove={side === "you" ? donPile?.onMove : undefined}
           />
         </div>
 
@@ -547,6 +553,7 @@ export function SideField({
         <TrashViewer
           title={trashTitle}
           cards={trashNewestFirst(data.trash)}
+          sortable
           onClose={() => setTrashOpen(false)}
           ownerSeat={ownerSeat}
           viewingSeat={viewingSeat}

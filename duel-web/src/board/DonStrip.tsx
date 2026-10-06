@@ -1,6 +1,8 @@
-import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useRef, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { DON_CARD_ART } from "./donArt";
 import { useClickCopy } from "./clickCopy";
+import { groupIntoPiles, type DonPiles } from "./donPiles";
+import { createLongPressController } from "./inspectGestures";
 import { usePointerDrag } from "./usePointerDrag";
 
 type DonToken = { id: string; rested: boolean };
@@ -27,6 +29,10 @@ type Props = {
   onDonToggleSelect?: (donId: string) => void;
   /** Tap the empty cost-area background to clear the multi-select set. */
   onClearDonSelection?: () => void;
+  /** Piles your DON!! sit in (#381); with `onDonPileMove` the rail renders one group per pile. */
+  donPiles?: DonPiles;
+  /** Right-click / long-press a chip: offset it (and the selection it is in) to another pile. */
+  onDonPileMove?: (donId: string) => void;
 };
 
 function DonChip({
@@ -38,6 +44,7 @@ function DonChip({
   onDonDragEnd,
   onDonDragCancel,
   onToggleSelect,
+  onPileMove,
 }: {
   token: DonToken;
   canDrag: boolean;
@@ -47,12 +54,29 @@ function DonChip({
   onDonDragEnd?: (donId: string, clientX: number, clientY: number) => void;
   onDonDragCancel?: () => void;
   onToggleSelect?: (donId: string) => void;
+  onPileMove?: (donId: string) => void;
 }) {
   const copy = useClickCopy();
+  const pileMoveRef = useRef(onPileMove);
+  pileMoveRef.current = onPileMove;
+  const longPressRef = useRef<ReturnType<typeof createLongPressController> | null>(null);
+  if (longPressRef.current == null) {
+    longPressRef.current = createLongPressController({
+      onLongPress: () => pileMoveRef.current?.(token.id),
+    });
+  }
+  useEffect(() => {
+    const lp = longPressRef.current;
+    return () => lp?.dispose();
+  }, []);
   const { bind, dragging } = usePointerDrag({
     enabled: canDrag,
     payload: token.id,
-    onDragStart: onDonDragStart,
+    onDragStart: (id) => {
+      // A drag that has begun is not a long-press.
+      longPressRef.current?.cancel();
+      onDonDragStart?.(id);
+    },
     onDragEnd: onDonDragEnd,
     onDragCancel: onDonDragCancel,
   });
@@ -61,11 +85,56 @@ function DonChip({
     canDrag ? " don-draggable" : ""
   }${dragging || isDragging ? " don-dragging" : ""}${isSelected ? " don-selected" : ""}`;
 
+  const pileHint = onPileMove ? "right-click (long-press on phones) to move to another pile" : "";
   const label = canDrag
-    ? copy("Tap to select (tap again to add more), then tap a Leader or Character — or drag onto one")
-    : token.rested
-      ? "Rested DON!!"
-      : "Active DON!!";
+    ? copy(
+        `Tap to select (tap again to add more), then tap a Leader or Character — or drag onto one${
+          pileHint ? `; ${pileHint}` : ""
+        }`,
+      )
+    : `${token.rested ? "Rested DON!!" : "Active DON!!"}${pileHint ? ` — ${pileHint}` : ""}`;
+
+  // Touch / pen long-press moves the chip; a mouse uses right-click instead.
+  const { onPointerDown: dragDown, onPointerMove: dragMove, onPointerUp: dragUp, onPointerCancel: dragCancel, ...dragRest } =
+    bind as Partial<Record<"onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel", (e: ReactPointerEvent) => void>> &
+      Record<string, unknown>;
+  const lp = longPressRef.current!;
+  const pointerHandlers = {
+    onPointerDown: (e: ReactPointerEvent) => {
+      if (onPileMove && e.pointerType !== "mouse") lp.onPointerDown(e);
+      dragDown?.(e);
+    },
+    onPointerMove: (e: ReactPointerEvent) => {
+      lp.onPointerMove(e);
+      dragMove?.(e);
+    },
+    onPointerUp: (e: ReactPointerEvent) => {
+      lp.onPointerUp(e);
+      dragUp?.(e);
+    },
+    onPointerCancel: (e: ReactPointerEvent) => {
+      lp.onPointerCancel(e);
+      dragCancel?.(e);
+    },
+  };
+
+  function handleClick(e: ReactMouseEvent) {
+    // The long-press already moved the chip: do not also toggle selection.
+    if (lp.consumeActivated()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (canDrag) onToggleSelect?.(token.id);
+  }
+
+  function handleContextMenu(e: ReactMouseEvent) {
+    if (!onPileMove) return;
+    e.preventDefault();
+    // Touch browsers also fire contextmenu after a long-press that already moved it.
+    if (lp.activated) return;
+    onPileMove(token.id);
+  }
 
   // Button host (not bare <img>) so pointer capture / touch drag is reliable.
   return (
@@ -85,8 +154,10 @@ function DonChip({
       data-don-rested={token.rested ? "true" : "false"}
       // Keep HTML5 DnD off; pointer drag owns the gesture.
       draggable={false}
-      onClick={canDrag ? () => onToggleSelect?.(token.id) : undefined}
-      {...bind}
+      onClick={onPileMove || canDrag ? handleClick : undefined}
+      onContextMenu={onPileMove ? handleContextMenu : undefined}
+      {...dragRest}
+      {...pointerHandlers}
     >
       <img src={DON_CARD_ART} alt="" className={className} draggable={false} />
     </button>
@@ -107,6 +178,8 @@ export function DonStrip({
   onDonDragCancel,
   onDonToggleSelect,
   onClearDonSelection,
+  donPiles,
+  onDonPileMove,
 }: Props) {
   const raw: DonToken[] =
     tokens ??
@@ -116,13 +189,18 @@ export function DonStrip({
     }));
   // Active DON!! first, rested after — reads like a real cost area and keeps
   // the rotated (wider) chips together at the end of the rail.
-  const items = [...raw.filter((t) => !t.rested), ...raw.filter((t) => t.rested)];
+  const piled = Boolean(tokens && onDonPileMove);
+  const groups = groupIntoPiles(raw, piled ? (donPiles ?? {}) : {});
+  const items = groups.flat();
   const restedCount = items.length - raw.filter((t) => !t.rested).length;
   // Chips overlap (never shrink) when the rail is too narrow; CSS derives the
   // overlap from the count and total footprint (rested chips are ~1.4 wide).
   const railStyle = {
     "--don-count": items.length,
     "--don-units": items.length - restedCount + restedCount * 1.4,
+    // Chips overlap only within a pile; the gap between piles is fixed.
+    "--don-piles": Math.max(groups.length, 1),
+    "--don-gaps": Math.max(groups.length - 1, 0),
   } as CSSProperties;
 
   function handleRailClick(e: ReactMouseEvent<HTMLDivElement>) {
@@ -130,6 +208,34 @@ export function DonStrip({
     if (!target.closest(".don-chip-btn")) {
       onClearDonSelection?.();
     }
+  }
+
+  function renderChip(t: DonToken) {
+    const canDrag = Boolean(draggableDonIds?.has(t.id));
+    return (
+      <DonChip
+        key={t.id}
+        token={t}
+        canDrag={canDrag}
+        isDragging={Boolean(draggingDonIds?.has(t.id))}
+        isSelected={Boolean(selectedDonIds?.has(t.id))}
+        onDonDragStart={onDonDragStart}
+        onDonDragEnd={onDonDragEnd}
+        onDonDragCancel={onDonDragCancel}
+        onToggleSelect={onDonToggleSelect}
+        onPileMove={piled ? onDonPileMove : undefined}
+      />
+    );
+  }
+
+  function renderGroups() {
+    // One pile lays out exactly as a plain rail; wrappers only appear for 2+.
+    if (groups.length <= 1) return items.map(renderChip);
+    return groups.map((g, i) => (
+      <div key={i} className="don-pile" data-don-pile={i}>
+        {g.map(renderChip)}
+      </div>
+    ));
   }
 
   return (
@@ -152,22 +258,7 @@ export function DonStrip({
         {items.length === 0 ? (
           <span className="don-empty">Empty</span>
         ) : (
-          items.map((t) => {
-            const canDrag = Boolean(draggableDonIds?.has(t.id));
-            return (
-              <DonChip
-                key={t.id}
-                token={t}
-                canDrag={canDrag}
-                isDragging={Boolean(draggingDonIds?.has(t.id))}
-                isSelected={Boolean(selectedDonIds?.has(t.id))}
-                onDonDragStart={onDonDragStart}
-                onDonDragEnd={onDonDragEnd}
-                onDonDragCancel={onDonDragCancel}
-                onToggleSelect={onDonToggleSelect}
-              />
-            );
-          })
+          renderGroups()
         )}
       </div>
     </div>
