@@ -377,16 +377,9 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
       );
     case "life_taken": {
       const who = act(e.seat, youSeat, "take", "takes");
-      if (isHiddenDef(e.defId)) {
-        return line("damage", true, `${who} 1 damage${e.toHand ? " (Life → hand)" : " (Trigger check)"}`);
-      }
-      return line(
-        "damage",
-        true,
-        `${who} 1 damage (`,
-        card(e.defId, e.seat),
-        e.toHand ? " → hand)" : ", Trigger pending)",
-      );
+      // Every hit is a private Life check now: never hint at hand vs [Trigger] to the opponent (#352).
+      if (isHiddenDef(e.defId)) return line("damage", true, `${who} 1 damage`);
+      return line("damage", true, `${who} 1 damage (`, card(e.defId, e.seat), e.toHand ? " → hand)" : ")");
     }
     case "life_added":
       return line(
@@ -397,9 +390,12 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
         ` to Life${e.faceUp ? " face-up" : ""}`,
       );
     case "trigger_available":
+      // Old stored logs only: it told the opponent the Life card had a Trigger (#352).
+      if (e.seat !== youSeat) return null;
       return line("trigger", true, `${possessive(e.seat, youSeat)} Life card has a Trigger (`, card(e.defId, e.seat, "hidden"), ")");
     case "trigger_resolved":
-      return line("trigger", Boolean(e.accepted), `${act(e.seat, youSeat, e.accepted ? "activate" : "decline", e.accepted ? "activates" : "declines")} the Trigger`);
+      if (e.accepted) return line("trigger", true, `${act(e.seat, youSeat, "activate", "activates")} the Trigger`);
+      return line("trigger", false, `${act(e.seat, youSeat, "add", "adds")} the Life card to hand`);
     case "card_revealed":
       return line("reveal", true, `${act(e.seat, youSeat, "reveal", "reveals")} `, card(e.defId, e.seat));
     case "card_moved":
@@ -419,11 +415,14 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
       // Mandatory effect prompts are already narrated by the ability line.
       if (e.kind === "effect" && !e.optional) return null;
       if (e.kind === "order_effects") return null;
+      // Every Life hit opens this check; "life trigger" wording would suggest a [Trigger]. life_taken narrates it (#352).
+      if (e.kind === "life_trigger") return null;
       const kind = typeof e.kind === "string" ? e.kind.replace(/_/g, " ") : "ability";
       return line("routine", false, `${seatLabel(e.seat, youSeat)} may resolve `, card(e.cardDefId, e.seat, "a hidden card"), `'s ${kind}`);
     }
     case "pending_choice_resolved": {
       if (e.kind === "order_effects") return null;
+      if (e.kind === "life_trigger") return null; // trigger_resolved narrates the outcome (#352)
       if (e.kind === "effect") {
         // Picks/looks are implied by the lines that follow; only a skip is news.
         if (e.accepted) return null;

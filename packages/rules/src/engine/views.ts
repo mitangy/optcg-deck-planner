@@ -56,6 +56,8 @@ export function projectPendingChoice(choice: PendingChoice, viewerSeat: Seat | n
       projected.prompt = "Opponent is making a private choice.";
     }
   }
+  // Whether a checked Life card has a [Trigger] is private to its owner (#352).
+  if (projected.privateToSeat !== viewerSeat) delete projected.noTrigger;
   if (projected.hideCardDefFromOthers && projected.privateToSeat !== viewerSeat) {
     projected.cardDefId = "HIDDEN";
     projected.prompt = "Opponent is resolving a private card choice.";

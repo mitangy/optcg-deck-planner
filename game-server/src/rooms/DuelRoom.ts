@@ -744,6 +744,8 @@ export class DuelRoom extends Room implements PresenceSource {
       seed: this.seed,
       firstSeat,
       skipMulligans: this.autoSkipMulligan,
+      // createMatch's default: every non-Banish Life hit opens a private Life check (#352).
+      lifeCheckEveryHit: true,
       players: [
         { leaderId: leaderA, deck: [...deckA] },
         { leaderId: leaderB, deck: [...deckB] },

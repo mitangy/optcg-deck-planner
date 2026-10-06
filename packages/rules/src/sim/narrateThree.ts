@@ -55,17 +55,16 @@ function describeEvents(events: GameEvent[]): string[] {
         lines.push(`  P${e.seat}'s ${getCardDef(e.defId).name} is K.O.'d`);
         break;
       case "life_taken":
-        lines.push(
-          `  P${e.seat} takes Life (${getCardDef(e.defId).name}${e.toHand ? " → hand" : ", Trigger pending"})`,
-        );
+        lines.push(e.defId === "HIDDEN" ? `  P${e.seat} takes Life` : `  P${e.seat} takes Life (${getCardDef(e.defId).name})`);
         break;
       case "trigger_resolved":
-        lines.push(`  P${e.seat} Trigger ${e.accepted ? "accepted" : "declined"}`);
+        lines.push(e.accepted ? `  P${e.seat} Trigger accepted` : `  P${e.seat} adds the Life card to hand`);
         break;
       case "pending_choice_added":
         lines.push(`  P${e.seat} prompted: ${e.prompt}`);
         break;
       case "pending_choice_resolved":
+        if (e.kind === "life_trigger") break; // narrated by trigger_resolved
         lines.push(
           `  P${e.seat} ${e.accepted ? "accepts" : "declines"} ${getCardDef(e.cardDefId).name}'s ${e.kind.replace(/_/g, " ")}`,
         );

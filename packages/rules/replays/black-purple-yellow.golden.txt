@@ -149,13 +149,11 @@ Seat 1 leader: Crocodile (OP04-058)
 
 > #38 seat 1 pass_counter
   Battle hits (6000 vs 5000)
-  Seat 1 takes Life (Miss Doublefinger(Zala), Trigger pending)
-  Seat 1 Trigger available (Miss Doublefinger(Zala))
+  Seat 1 takes Life (Miss Doublefinger(Zala))
   Seat 1 may resolve Miss Doublefinger(Zala)'s life trigger (Miss Doublefinger(Zala) — activate this card's [Trigger]? [Trigger] DON!! -1: Play this card.)
 
 > #39 seat 1 resolve_pending_choice {"accept":false}
-  Seat 1 declines Miss Doublefinger(Zala)'s life trigger
-  Seat 1 Trigger declined
+  Seat 1 adds the Life card to hand
   Seat 1 moves Miss Doublefinger(Zala) from life to hand
 
 > #40 seat 0 end_turn

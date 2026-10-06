@@ -121,6 +121,7 @@ export function createMatch(config: CreateMatchConfig): MatchState {
     nextId: 1,
     triggerBatch: 0,
     lastEvents: [],
+    ...(config.lifeCheckEveryHit === false ? {} : { lifeCheckEveryHit: true }),
   };
   state.players = [buildPlayer(state, 0, players[0], rng), buildPlayer(state, 1, players[1], rng)];
   state.rng = rng.snapshot();
@@ -416,7 +417,7 @@ export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
   if (front) {
     if (front.seat !== seat) return out;
     if (front.kind === "order_effects") { out.push({ type: "order_pending_effects", orderedIds: (front.unorderedChoices ?? []).map((c) => c.id) }); return out; }
-    if (front.kind === "life_trigger") { out.push({ type: "resolve_pending_choice", accept: true }, { type: "resolve_pending_choice", accept: false }); return out; }
+    if (front.kind === "life_trigger") { if (!front.noTrigger) out.push({ type: "resolve_pending_choice", accept: true }); out.push({ type: "resolve_pending_choice", accept: false }); return out; }
     const answer = defaultAnswer(front);
     out.push({ type: "resolve_pending_choice", ...answer, accept: front.request?.type === "confirm" ? true : answer.accept });
     if (front.optional) out.push({ type: "resolve_pending_choice", accept: false });

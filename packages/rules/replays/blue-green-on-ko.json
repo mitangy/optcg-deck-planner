@@ -141,6 +141,7 @@
     { "seat": 1, "intent": {"type":"declare_attack","attackerId":"leader_62","target":{"kind":"leader"}} },
     { "seat": 0, "intent": {"type":"pass_block"} },
     { "seat": 0, "intent": {"type":"pass_counter"} },
+    { "seat": 0, "intent": {"type":"resolve_pending_choice","accept":false} },
     { "seat": 1, "intent": {"type":"end_turn"} },
     { "seat": 0, "intent": {"type":"end_turn"} },
     { "seat": 1, "intent": {"type":"give_don","donId":"don_69","targetId":"leader_62"} },
