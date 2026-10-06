@@ -1167,20 +1167,11 @@
   min-height: min(calc(clamp(60px, 9.4dvh, 150px) * 1.4 + 3.4rem), 50%);
 }
 
-/* Never squeezed by panels moved in beside it: the others give way first. */
-.arena.arena-wide .board-panel[data-panel="actions"] {
-  flex: 0 0 auto;
-  max-height: 34%;
-}
-
-.arena.arena-wide .board-panel > .intent-bar {
-  max-height: none;
-}
-
-/* The defend tray lists every counter card, so it takes the height it needs;
-   on a short window it gives way (the chips scroll) rather than overflow. */
-.arena.arena-wide .board-panel[data-panel="actions"]:has(> .defend-rail) {
-  max-height: none;
+/* The defend tray (answering an attack) is not a movable panel: it sits in the
+   right column under Turn and clocks. It lists every counter card, so it takes
+   the height it needs; on a short window it gives way (the chips scroll)
+   rather than overflow. */
+.arena.arena-wide .board-panel[data-panel="defend"] {
   flex: 0 1 auto;
   min-height: 9rem;
 }
@@ -4673,11 +4664,58 @@ body.is-panel-drag * {
   --dock-h: 2.75rem;
   position: fixed;
   z-index: 17;
-  width: var(--dock-w);
+  width: max-content;
   height: var(--dock-h);
   transform: translate(-100%, -50%);
   display: flex;
+  gap: 0.5rem;
   pointer-events: none;
+}
+
+/* The primary (or the wait) keeps its slot at the right end; extra phase-wide
+   buttons (Mulligan, Resolve trigger) grow the dock to the left of it. */
+.primary-dock-main {
+  display: flex;
+  width: var(--dock-w);
+  min-width: 0;
+}
+
+.primary-dock .intent-btn.dock-extra {
+  flex: 0 0 auto;
+  min-width: 8rem;
+  max-width: 12.5rem;
+  height: 100%;
+  min-height: 0;
+  padding: 0.25rem 1.6rem 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .primary-dock .intent-btn.dock-extra[data-key-tag] {
+    position: relative;
+  }
+
+  .primary-dock .intent-btn.dock-extra[data-key-tag]::after {
+    content: attr(data-key-tag);
+    position: absolute;
+    right: 6px;
+    bottom: 3px;
+    min-width: 1.5em;
+    padding: 0 0.3em;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.58rem;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    pointer-events: none;
+  }
 }
 
 .primary-dock > * {
@@ -4718,8 +4756,12 @@ body.is-panel-drag * {
   overflow-wrap: anywhere;
 }
 
+.primary-dock-main {
+  position: relative;
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .primary-dock.has-primary::after {
+  .primary-dock.has-primary .primary-dock-main::after {
     content: "Space";
     position: absolute;
     right: 6px;
@@ -4738,7 +4780,7 @@ body.is-panel-drag * {
 
 /* Shortcut key tags off (Gameplay setting): no "Space" tab on the primary. */
 .arena.arena-wide:not(.arena-lp) .board-col .intent-primary.no-key-tag::after,
-.primary-dock.has-primary.no-key-tag::after {
+.primary-dock.has-primary.no-key-tag .primary-dock-main::after {
   content: none;
 }
 

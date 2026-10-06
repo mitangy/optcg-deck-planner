@@ -71,7 +71,7 @@ test("Can't attack warning off: a sick Character's attack attempt shows no warni
 });
 
 const spaceTag = (page: Page) =>
-  page.locator(".primary-dock.has-primary").evaluate((el) => getComputedStyle(el, "::after").content);
+  page.locator(".primary-dock.has-primary .primary-dock-main").evaluate((el) => getComputedStyle(el, "::after").content);
 
 test("action buttons show their Space and letter key tabs by default (#301)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "key tabs are for mouse and keyboard");

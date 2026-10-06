@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Intent } from "../net/protocol";
-import { splitPrimaryIntent } from "./primaryIntent";
+import { dockIntents, splitPrimaryIntent } from "./primaryIntent";
 
 const endTurn: Intent = { type: "end_turn" };
 const passCounter: Intent = { type: "pass_counter" };
@@ -43,5 +43,26 @@ describe("splitPrimaryIntent", () => {
     const { primary, rest } = splitPrimaryIntent([play, attack]);
     expect(primary).toBeNull();
     expect(rest).toEqual([play, attack]);
+  });
+});
+
+describe("dockIntents", () => {
+  const trigger: Intent = { type: "resolve_trigger", accept: true };
+
+  it("docks Keep as the primary with the redraw beside it during the mulligan (#368)", () => {
+    expect(dockIntents([redo, keep])).toEqual({ primary: keep, extras: [redo] });
+  });
+
+  it("docks a trigger to resolve next to End turn and leaves card actions on the card (#368)", () => {
+    const d = dockIntents([play, attack, trigger, endTurn]);
+    expect(d.primary).toBe(endTurn);
+    expect(d.extras).toEqual([trigger]);
+  });
+
+  it("leaves the defend tray's own choices out of the dock (#368)", () => {
+    expect(dockIntents([passCounter, trigger], { defending: true })).toEqual({
+      primary: passCounter,
+      extras: [],
+    });
   });
 });

@@ -438,21 +438,6 @@ test("the Battle log drags by its grip into the right column (#261)", async ({ p
   expect(await page.evaluate(() => getSelection()?.toString() ?? "")).toBe("");
 });
 
-// With every panel in one column the Actions panel shrank to its title.
-test("Actions keeps room for its buttons with every panel in the right column (#261)", async ({ page }, info) => {
-  test.skip(info.project.name !== "desktop-1280", "side panels move on desktop only");
-  await page.addInitScript(() =>
-    localStorage.setItem(
-      "optcg-duel:settings",
-      JSON.stringify({ panelLayout: "|oppHand,turn,actions,preview,recent,log,hand,chat" }),
-    ),
-  );
-  await page.goto("/demo?full");
-  await page.locator(".board-root").waitFor();
-  const actions = (await page.locator('[data-panel="actions"]').boundingBox())!;
-  expect(actions.height).toBeGreaterThanOrEqual(80);
-});
-
 // Tab goes through the field cards, then the hand, then out to the other
 // controls and back, instead of looping over the field cards (#262).
 test("Tab visits the field cards, the hand, then the other controls and comes back (#262)", async ({ page }, info) => {
@@ -632,14 +617,39 @@ test("light mode secondary text meets 4.5:1 contrast in every theme (#262)", asy
   expect(low).toEqual([]);
 });
 
-// The desktop action rail says why it is empty instead of "No legal actions"
-// while you answer a prompt or wait on the opponent (#262).
-test("the action rail says to answer the prompt or that it is waiting (#262)", async ({ page }, info) => {
-  test.skip(info.project.name !== "desktop-1280", "the desktop rail");
+// The phone's bottom bar says why it is empty instead of "No legal actions"
+// while you answer a prompt, and shows the wait on the opponent (#262). Desktop has no such
+// bar: the board dock shows the wait (#368).
+test("the action bar says to answer the prompt or shows the wait (#262)", async ({ page }, info) => {
+  test.skip(info.project.name !== "phone-375", "the phone's bottom bar");
   await page.goto("/demo?prompt=select");
   await expect(page.locator(".intent-empty")).toHaveText("Answer the prompt to continue");
   await page.goto("/demo?wait=opponent");
-  await expect(page.locator(".intent-empty")).toHaveText("Waiting for your opponent…");
+  await expect(page.locator(".intent-bar .waiting-opp")).toBeVisible();
+});
+
+// Desktop has no Actions panel: Keep opening hand and Mulligan sit side by side
+// in the board dock at the midline, and the wait for the opponent shows there too (#368).
+test("desktop mulligan puts Keep and Mulligan side by side in the board dock, with no Actions panel (#368)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "desktop board dock");
+  await page.goto("/demo?turn0");
+  await page.locator(".board-root").waitFor();
+  const dock = page.locator(".primary-dock");
+  const keep = dock.getByRole("button", { name: "Keep opening hand" });
+  const redo = dock.getByRole("button", { name: /^Mulligan/ });
+  await expect(keep).toBeVisible();
+  await expect(redo).toBeVisible();
+  const [k, r] = [(await keep.boundingBox())!, (await redo.boundingBox())!];
+  expect(Math.abs(k.y + k.height / 2 - (r.y + r.height / 2))).toBeLessThan(2);
+  expect(r.x + r.width).toBeLessThanOrEqual(k.x + 1);
+  await expect(redo).toHaveAttribute("data-key-num", "1");
+  await expect(page.locator('[data-panel="actions"], .arena-rail .intent-bar')).toHaveCount(0);
+  const board = (await page.locator(".board-root").boundingBox())!;
+  expect(r.x).toBeGreaterThanOrEqual(board.x);
+  expect(k.x + k.width).toBeLessThanOrEqual(board.x + board.width);
+  await page.goto("/demo?wait=opponent");
+  await expect(page.locator(".primary-dock .waiting-opp")).toBeVisible();
+  await expect(page.locator(".intent-empty")).toHaveCount(0);
 });
 
 // The opponent hand pins above the top of the playmat (left, centre or right)

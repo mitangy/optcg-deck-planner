@@ -1,4 +1,6 @@
 import type { Intent } from "../net/protocol";
+import { splitCardActions } from "./cardActions";
+import { filterIntentsForSelection } from "./intentFilter";
 
 /**
  * Lower rank wins. Answering an attack ("take the hit" / no block) comes
@@ -43,4 +45,18 @@ export function splitPrimaryIntent(intents: Intent[]): {
   });
   if (best < 0) return { primary: null, rest: intents };
   return { primary: intents[best], rest: intents.filter((_, i) => i !== best) };
+}
+
+/**
+ * What the desktop board dock shows: the primary, plus every other phase-wide
+ * action (the mulligan's redraw, a trigger to resolve, a second pass) as extra
+ * buttons. The defend tray owns its own choices, so it leaves no extras.
+ */
+export function dockIntents(
+  intents: Intent[],
+  opts: { defending?: boolean } = {},
+): { primary: Intent | null; extras: Intent[] } {
+  const { primary, rest } = splitPrimaryIntent(intents);
+  if (opts.defending) return { primary, extras: [] };
+  return { primary, extras: splitCardActions(filterIntentsForSelection(rest, {})).bar };
 }
