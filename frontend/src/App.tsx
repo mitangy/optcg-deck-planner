@@ -26,7 +26,8 @@ import {
   optcgSimFilename,
 } from "./optcgsimExport";
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
-import { SiteFooter } from "@optcg/site-legal";
+import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
+import { submitFeedback } from "./feedback";
 import { LegalPage } from "./LegalPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
@@ -4136,6 +4137,7 @@ function PublicSharePage() {
 }
 
 export default function App() {
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   return (
     <>
       <Routes>
@@ -4205,7 +4207,14 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <SiteFooter Link={Link} />
+      <SiteFooter Link={Link} onFeedback={() => setFeedbackOpen(true)} />
+      {feedbackOpen ? (
+        <FeedbackDialog
+          title="Send feedback"
+          submit={(payload) => submitFeedback(payload)}
+          onClose={() => setFeedbackOpen(false)}
+        />
+      ) : null}
     </>
   );
 }

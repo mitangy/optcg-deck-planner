@@ -150,6 +150,7 @@ import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY,
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { matchMenuItems } from "./matchMenuItems";
+import { openFeedback } from "../feedbackDialog";
 import { isPromptHidden, promptOpenFor } from "./promptHide";
 import { promptShortLine } from "./promptLine";
 import { HideablePrompt, promptSourceName } from "./HideablePrompt";
@@ -1687,6 +1688,7 @@ export function DuelBoard({
     ) : null}
     </>
   );
+  const reportProblem = () => openFeedback("Report a problem");
   const matchMenuEl = (placement: "top" | "left") => (
     <MatchMenu
       placement={placement}
@@ -1712,6 +1714,7 @@ export function DuelBoard({
       leaveLabel={leaveLabel}
       onSettings={() => setSettingsOpen(true)}
       onToggleFullscreen={toggleFullscreen}
+      onReport={reportProblem}
       onConcede={() => onConcede?.()}
       onLeave={onLeave}
     />
@@ -1931,6 +1934,15 @@ export function DuelBoard({
               onClick={() => setSettingsOpen(true)}
             >
               ⚙
+            </button>
+            <button
+              type="button"
+              className="hud-undo-btn hud-settings-btn"
+              aria-label="Report a problem"
+              title="Report a problem"
+              onClick={reportProblem}
+            >
+              ⚑
             </button>
             <button type="button" className="leave-btn" onClick={onLeave}>
               {leaveLabel}

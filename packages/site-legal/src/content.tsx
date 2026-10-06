@@ -185,6 +185,14 @@ const privacy: ReactNode = (
       </li>
     </ul>
 
+    <h3>Feedback</h3>
+    <p>
+      When you use “Report a problem” or “Send feedback” on either site we store your message and
+      the type you chose, the page you were on (path only), the app version, your screen size, your
+      browser’s user agent, the match room ID if you sent it from a match, and your account if you
+      are signed in.
+    </p>
+
     <h3>Analytics and logs</h3>
     <p>
       We use Vercel Web Analytics and Speed Insights to count page views and measure load speed.

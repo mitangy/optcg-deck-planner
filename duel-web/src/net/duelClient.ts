@@ -34,7 +34,7 @@ import {
 } from "./protocol";
 import { Client, type Room } from "@colyseus/sdk";
 import { isSeatReservationExpiredError } from "./matchResume";
-import { noteReportGameToken, noteReportRoom } from "../cards/cardReport";
+import { noteMatchGameToken, noteMatchRoom } from "../matchContext";
 
 export type DuelClientHandlers = {
   onWelcome?: (info: {
@@ -425,7 +425,7 @@ export class DuelClient {
     const room = this.room;
     this.room = null;
     this.client = null;
-    noteReportRoom(undefined);
+    noteMatchRoom(undefined);
     if (consented) this.reconnectionToken = null;
     await this.cancelQueue();
     if (room) {
@@ -438,7 +438,7 @@ export class DuelClient {
   }
 
   private buildJoin(params: ConnectParams): DuelJoinOptions {
-    noteReportGameToken(params.gameToken);
+    noteMatchGameToken(params.gameToken);
     return {
       protocolVersion: PROTOCOL_VERSION,
       devUserId: params.devUserId?.trim() || undefined,
@@ -488,7 +488,7 @@ export class DuelClient {
   }
 
   private wireDuel(room: Room) {
-    noteReportRoom(room.roomId);
+    noteMatchRoom(room.roomId);
     room.onMessage("welcome", (raw: unknown) => {
       try {
         const msg = parseWelcome(raw);

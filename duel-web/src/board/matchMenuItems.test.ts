@@ -42,6 +42,15 @@ describe("match menu items", () => {
     expect(matchMenuItems({ ...live, spectating: true, over: true })).toContain("reload");
   });
 
+  it("offers Report a problem in every match, right after Reload and before Concede (#371)", () => {
+    for (const o of [live, { ...live, hotseat: true }, { ...live, spectating: true, over: true }]) {
+      const items = matchMenuItems(o);
+      expect(items.indexOf("report")).toBe(items.indexOf("reload") + 1);
+    }
+    const items = matchMenuItems(live);
+    expect(items.indexOf("report")).toBeLessThan(items.indexOf("concede"));
+  });
+
   it("always ends with Leave, after Concede", () => {
     const items = matchMenuItems({ ...live, fullscreenOffered: true });
     expect(items[items.length - 1]).toBe("leave");
