@@ -153,6 +153,32 @@ test("a floating hand fan tucks to its handle and shows its cards on hover (#307
   await expect.poll(cardsShown, { timeout: 3000 }).toBe(true);
 });
 
+// H with the pointer away from the hand: the next hover raises it again. H
+// used to mark the hand as tucked under the pointer, so it stayed down (a
+// floating fan's cards hidden) until the pointer had left it once (#312).
+test("after H tucks a floating hand fan, hovering it raises it again (#312)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "optcg-duel:settings",
+      JSON.stringify({ keepHandOpen: false, handLayout: "fan", handFanPos: "0.5,0.6" }),
+    ),
+  );
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".hand-fan")).toHaveClass(/hand-fan-float/);
+  const cards = page.locator(".hand-fan-cards");
+  const cardsShown = () => cards.evaluate((el) => getComputedStyle(el).visibility !== "hidden");
+  await expect.poll(cardsShown).toBe(true);
+
+  await page.mouse.move(640, 60);
+  await page.keyboard.press("h");
+  await expect(page.locator(".hand-fan-toggle")).toHaveAttribute("title", "Keep the hand up (H)");
+  await expect.poll(cardsShown, { timeout: 3000 }).toBe(false);
+  await page.locator(".hand-fan-toggle").hover();
+  await expect.poll(cardsShown, { timeout: 3000 }).toBe(true);
+});
+
 // Clicking an empty card slot or a pile must not drop a blinking text caret on the mat.
 test("clicking board slots leaves no text caret on the mat (#246)", async ({ page }) => {
   await page.goto("/demo");

@@ -765,7 +765,9 @@ export function DuelBoard({
     else setHandPinned(!handUp);
     if (handUp) {
       setHandFilter(null);
-      setTuckUnderPointer(true);
+      // Only with the pointer on the hand (H works from anywhere): away from
+      // it, the next hover raises the hand again.
+      setTuckUnderPointer(document.querySelector(".hand-fan:hover, .hand-dock:hover") != null);
     }
   }
 
