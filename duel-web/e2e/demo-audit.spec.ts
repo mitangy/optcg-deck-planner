@@ -735,6 +735,41 @@ for (const handLayout of ["fan", "grid"]) {
   });
 }
 
+// A floating fan over your field: a card dragged out of it and back down onto
+// a field zone under it is played. Coming back over the fan used to count as
+// a drop in the hand, so it was moved there instead (#294).
+test("a card dragged out of a floating fan onto the board under it is played, not reordered (#294)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the floating fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ handLayout: "fan", handFanPos: "0.5,0.78" })),
+  );
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".hand-fan")).toHaveClass(/hand-fan-float/);
+  const cards = page.locator(".hand-fan-cards > .card-tile");
+  const order = () => cards.evaluateAll((els) => els.map((e) => e.getAttribute("data-motion-id")));
+  const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
+  const before = await order();
+  const fan = (await page.locator(".hand-fan").boundingBox())!;
+  const field = (await page.locator('.side-you [data-dnd-drop="play_field"]').first().boundingBox())!;
+  const drop = { x: field.x + field.width / 2, y: field.y + field.height / 2 };
+  // The field zone really is under the fan here.
+  expect(drop.y).toBeGreaterThan(fan.y);
+  expect(drop.y).toBeLessThan(fan.y + fan.height);
+
+  const b = (await cards.first().boundingBox())!;
+  const start = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x, start.y - 14, { steps: 4 });
+  // Out above the fan, then down onto the field under it.
+  await page.mouse.move(drop.x, fan.y - 40, { steps: 10 });
+  await page.mouse.move(drop.x, drop.y, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(sent).toEqual([expect.objectContaining({ type: "play_card", handIndex: 0 })]);
+  expect(await order()).toEqual(before);
+});
+
 // The trash browser shows readable cards, not the tiny board tile (#287).
 test("trash viewer cards are big enough to read (#287)", async ({ page, duel }, info) => {
   await page.goto("/demo");

@@ -371,7 +371,8 @@ export function DuelBoard({
     },
     [captureHandShuffle],
   );
-  const handReorder = useHandReorder(onHandReorder);
+  // A floating fan steps aside once a dragged card leaves it (board drops under it).
+  const handReorder = useHandReorder(onHandReorder, { oneWayOut: fanFloating });
   function toggleHandSort() {
     captureHandShuffle("sort");
     setHandSorted((v) => !v);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { handDropSlot, moveToSlot, reconcileHandOrder, type SlotRect } from "./handOrder";
+import { followHandDrag, handDropSlot, moveToSlot, reconcileHandOrder, type SlotRect } from "./handOrder";
 
 const card = (cx: number, cy: number, w = 60, h = 84): SlotRect => ({
   left: cx - w / 2,
@@ -33,5 +33,24 @@ describe("hand reorder", () => {
     expect(handDropSlot(grid, 100, 150)).toBe(4);
     // First row, between its first two cards.
     expect(handDropSlot(grid, 100, 40)).toBe(1);
+  });
+
+  /** Drop slots a drag reports as the pointer passes over these measured slots (null = off the hand). */
+  const walk = (measured: (number | null)[], oneWayOut: boolean) => {
+    let left = false;
+    return measured.map((m) => {
+      const next = followHandDrag(left, m, oneWayOut);
+      left = next.left;
+      return next.slot;
+    });
+  };
+
+  it("a card dragged out of a floating fan and back over it is not reordered, so the board under the fan takes it (#294)", () => {
+    // In the fan (slot 1), out over the board, then back over the fan (slot 2).
+    expect(walk([1, 1, null, 2, 2], true)).toEqual([1, 1, null, null, null]);
+  });
+
+  it("a docked hand still takes a card dragged out and back for a new spot (#294)", () => {
+    expect(walk([1, null, 2], false)).toEqual([1, null, 2]);
   });
 });
