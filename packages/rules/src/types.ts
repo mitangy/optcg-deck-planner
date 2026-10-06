@@ -190,6 +190,8 @@ export interface PendingChoice {
   privateToSeat?: Seat;
   /** Hide the source card identity and prompt from every other viewer. */
   hideCardDefFromOthers?: boolean;
+  /** life_trigger: the checked Life card has no [Trigger], so only declining (add to hand) is legal. Owner-only: stripped from every other view. */
+  noTrigger?: boolean;
   /** Public count retained when private options are redacted. */
   optionCount?: number;
   /** order_effects: the simultaneous abilities to permute. */
@@ -289,6 +291,8 @@ export interface MatchState {
   nextId: number;
   triggerBatch: number;
   lastEvents: GameEvent[];
+  /** Every non-Banish Life hit opens a private Life check (#352). Absent/false: legacy flow where only [Trigger] cards pause. */
+  lifeCheckEveryHit?: boolean;
 }
 
 export type BindingValue = string | string[] | number | boolean | null;
@@ -396,6 +400,8 @@ export interface CreateMatchConfig {
   seed: number;
   firstSeat?: Seat;
   players: [PlayerDeckConfig, PlayerDeckConfig];
+  /** Default true. false keeps the legacy flow (non-[Trigger] Life damage goes to hand without a check), for replaying old games. */
+  lifeCheckEveryHit?: boolean;
 }
 
 export interface TurnLog {

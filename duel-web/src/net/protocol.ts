@@ -231,6 +231,8 @@ export type PendingChoiceView = {
   request?: ChoiceRequestView;
   privateToSeat?: Seat;
   hideCardDefFromOthers?: boolean;
+  /** life_trigger, owner only: the Life card has no [Trigger], so only declining (add to hand) is legal. */
+  noTrigger?: boolean;
   optionCount?: number;
   /** order_effects: the simultaneous abilities to permute via order_pending_effects. */
   unorderedChoices?: PendingChoiceView[];

@@ -62,13 +62,11 @@ Seat 1 leader: Roronoa Zoro (OP12-020)
 
 > #15 seat 0 pass_counter
   Battle hits (5000 vs 5000)
-  Seat 0 takes Life (Hatchan, Trigger pending)
-  Seat 0 Trigger available (Hatchan)
+  Seat 0 takes Life (Hatchan)
   Seat 0 may resolve Hatchan's life trigger (Hatchan — activate this card's [Trigger]? [Trigger] If your Leader has the {East Blue} type, play this card.)
 
 > #16 seat 0 resolve_pending_choice {"accept":false}
-  Seat 0 declines Hatchan's life trigger
-  Seat 0 Trigger declined
+  Seat 0 adds the Life card to hand
   Seat 0 moves Hatchan from life to hand
 
 > #17 seat 1 end_turn

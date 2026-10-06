@@ -21,6 +21,8 @@ export interface MatchReplay {
   skipMulligans: boolean;
   /** Decks in the order they were dealt from (order feeds the shuffle). */
   players: [{ leaderId: string; deck: string[] }, { leaderId: string; deck: string[] }];
+  /** Every non-Banish Life hit opened a private Life check (#352). Absent on older recordings: legacy flow. */
+  lifeCheckEveryHit?: boolean;
   intents: { seat: Seat; intent: Intent }[];
   /** How the game ended, including ends outside the engine (concede, timeout, leaving). */
   end?: { winner: Seat; reason: string };
@@ -39,6 +41,7 @@ export function replayMatch(replay: MatchReplay, onStep?: (step: ReplayStep) => 
   let state = createMatch({
     seed: replay.seed,
     firstSeat: replay.firstSeat,
+    lifeCheckEveryHit: replay.lifeCheckEveryHit ?? false,
     players: [
       { leaderId: replay.players[0].leaderId, deck: [...replay.players[0].deck] },
       { leaderId: replay.players[1].leaderId, deck: [...replay.players[1].deck] },

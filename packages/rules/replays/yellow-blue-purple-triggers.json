@@ -133,6 +133,7 @@
     { "seat": 0, "intent": {"type":"declare_attack","attackerId":"card_52","target":{"kind":"leader"}} },
     { "seat": 1, "intent": {"type":"pass_block"} },
     { "seat": 1, "intent": {"type":"pass_counter"} },
+    { "seat": 1, "intent": {"type":"resolve_pending_choice","accept":false} },
     { "seat": 0, "intent": {"type":"give_don","donId":"don_5","targetId":"card_52"} },
     { "seat": 0, "intent": {"type":"end_turn"} },
     { "seat": 1, "intent": {"type":"give_don","donId":"don_65","targetId":"leader_62"} },
