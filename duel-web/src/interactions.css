@@ -407,6 +407,33 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   }
 }
 
+/* S on the hand's Sort button, same tab as the action keys; click-through so
+   the button keeps its size and hit target. */
+@media (hover: hover) and (pointer: fine) {
+  .hand-sort-btn[data-key-tag] {
+    position: relative;
+  }
+
+  .hand-sort-btn[data-key-tag]::after {
+    content: attr(data-key-tag);
+    position: absolute;
+    top: -7px;
+    right: -6px;
+    min-width: 1.5em;
+    padding: 0 0.3em;
+    border: 1px solid var(--line-strong);
+    border-radius: 5px;
+    background: var(--arena-panel);
+    color: var(--muted, inherit);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.4;
+    text-align: center;
+    pointer-events: none;
+  }
+}
+
 /* —— Yes/No above a card just used from the hand —— */
 
 .hand-confirm {

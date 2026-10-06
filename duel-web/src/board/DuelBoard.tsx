@@ -781,6 +781,20 @@ export function DuelBoard({
     </button>
   ) : null;
 
+  /** Sort by cost on / off; the S tag (desktop key tags) is the same toggle's key. */
+  const sortHandBtn = (
+    <button
+      type="button"
+      className={`hand-rail-btn hand-sort-btn${handSorted ? " active" : ""}`}
+      aria-pressed={handSorted}
+      title="Sort the hand by cost (S)"
+      data-key-tag={prefs.shortcutTags ? "S" : undefined}
+      onClick={toggleHandSort}
+    >
+      Sort
+    </button>
+  );
+
   function clearDonSelection() {
     setSelectedDonIds(new Set());
     setPendingAttach(null);
@@ -1533,14 +1547,7 @@ export function DuelBoard({
           <span className="rail-hand-title">{spectating ? "Seat hand" : "Hand"}</span>
           <span className="hand-rail-count">{handCount}</span>
           {!spectating ? (
-            <button
-              type="button"
-              className={`hand-rail-btn${handSorted ? " active" : ""}`}
-              aria-pressed={handSorted}
-              onClick={toggleHandSort}
-            >
-              Sort
-            </button>
+            sortHandBtn
           ) : null}
         </div>
         <div className="rail-hand-cards" ref={handRowRef}>
@@ -2139,14 +2146,7 @@ export function DuelBoard({
                   <span className="hand-rail-count">{handCount}</span>
                   {!spectating ? (
                     <div className="hand-rail-actions">
-                      <button
-                        type="button"
-                        className={`hand-rail-btn${handSorted ? " active" : ""}`}
-                        aria-pressed={handSorted}
-                        onClick={toggleHandSort}
-                      >
-                        Sort
-                      </button>
+                      {sortHandBtn}
                       <button
                         type="button"
                         className="hand-rail-btn"
@@ -2269,14 +2269,7 @@ export function DuelBoard({
               </span>
             </button>
             {!spectating ? (
-              <button
-                type="button"
-                className={`hand-rail-btn${handSorted ? " active" : ""}`}
-                aria-pressed={handSorted}
-                onClick={toggleHandSort}
-              >
-                Sort
-              </button>
+              sortHandBtn
             ) : null}
             {hideHandBtn}
           </div>
@@ -2319,14 +2312,7 @@ export function DuelBoard({
               </span>
             </button>
             {!spectating ? (
-              <button
-                type="button"
-                className={`hand-rail-btn${handSorted ? " active" : ""}`}
-                aria-pressed={handSorted}
-                onClick={toggleHandSort}
-              >
-                Sort
-              </button>
+              sortHandBtn
             ) : null}
             {hideHandBtn}
           </div>
