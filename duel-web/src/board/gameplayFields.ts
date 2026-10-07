@@ -18,6 +18,7 @@ export type ToggleKey =
   | "handCounters"
   | "cantAttackWarning"
   | "battleArrow"
+  | "attackGlow"
   | "previewBigCard"
   | "donUpright"
   | "oppHandTopRight"

@@ -1023,6 +1023,9 @@ export function DuelBoard({
     return ids;
   }, [dndEnabled, view, intents]);
 
+  // Attack-ready glow (#412): your Leader / Characters with a legal declare_attack.
+  const attackReadyIds = prefs.attackGlow ? draggableAttackerIds : EMPTY_IDS;
+
   // Targets for the attacker being dragged, else for the tapped attacker.
   const attackerId = dragPayload?.type === "attack" ? dragPayload.attackerId : selectedBoardId;
   const attackTargetIds = useMemo(() => {
@@ -2239,6 +2242,7 @@ export function DuelBoard({
                       actionableIds: actionableBoardIds,
                     }
               }
+              attackReadyIds={attackReadyIds}
               attackDrag={
                 draggableAttackerIds.size > 0
                   ? {

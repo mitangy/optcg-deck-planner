@@ -869,7 +869,8 @@ export function DemoPage() {
   // `?cantattack`: your main phase where only the Leader may attack, so the
   // summoning-sick / rested Characters show the "can't attack" warning.
   // `?unaffordable` is the same with only 1 active DON!!, so the costlier hand
-  // cards are grayed out (#356).
+  // cards are grayed out (#356). Add `&attackready` to let y-c3 attack too,
+  // so the attack-ready glow shows on a Character as well (#412).
   const mainPhase: PlayerView = params.has("cantattack") || params.has("unaffordable")
     ? {
         ...(params.has("unaffordable") ? withOneActiveDon(board) : board),
@@ -878,6 +879,9 @@ export function DemoPage() {
         legalIntents: [
           { type: "end_turn" },
           { type: "declare_attack", attackerId: "y-leader", target: { kind: "leader" } },
+          ...(params.has("attackready")
+            ? [{ type: "declare_attack", attackerId: "y-c3", target: { kind: "leader" } }]
+            : []),
           ...board.legalIntents.filter((i) => i.type === "give_don"),
         ],
       }

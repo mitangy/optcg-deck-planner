@@ -88,6 +88,8 @@ type Props = {
   target?: TargetHandlers;
   /** Drag-to-attack from this side's Leader / Characters. */
   attackDrag?: AttackDragHandlers;
+  /** Your Leader / Characters that can attack now: they glow green (#412). */
+  attackReadyIds?: ReadonlySet<string>;
   /** Drop targets for an attack / counter drag on this side. */
   battleDrop?: BattleDropTargets;
   /** Seat that owns cards on this half of the board. */
@@ -197,6 +199,7 @@ export function SideField({
   select,
   target,
   attackDrag,
+  attackReadyIds,
   battleDrop,
   ownerSeat,
   viewingSeat,
@@ -334,6 +337,7 @@ export function SideField({
               const extraClass = [
                 isTargetable ? "attack-target" : "",
                 isActionable && !isSelected ? "has-actions" : "",
+                attackReadyIds?.has(c.id) && !isSelected && !isTargetable ? "attack-ready" : "",
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -405,6 +409,7 @@ export function SideField({
             const extraClass = [
               isTargetable ? "attack-target" : "",
               isActionable && !isSelected ? "has-actions" : "",
+              attackReadyIds?.has(leaderId) && !isSelected && !isTargetable ? "attack-ready" : "",
             ]
               .filter(Boolean)
               .join(" ");
