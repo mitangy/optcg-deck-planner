@@ -32,6 +32,11 @@ describe("source ids and their badges (#390)", () => {
     expect(label("odds:d50h8x1f")).toBe("Odds");
   });
 
+  it("parses sim: sources and labels them Goldfish sim (#402)", () => {
+    expect(parseSource("sim:1a2b3c4d#curve")).toMatchObject({ kind: "sim", id: "1a2b3c4d", part: "curve" });
+    expect(kindLabel(parseSource("sim:1a2b3c4d"))).toBe("Goldfish sim");
+  });
+
   it("reads whether a playbook note was reviewed, and its set, from the title (#390)", () => {
     expect(playbookStatus("Sabo playbook (Draft, OP17, stale)")).toEqual({ status: "Draft", set: "OP17", stale: true });
     expect(playbookStatus("Sabo vs Whitebeard playbook (Reviewed, OP17)")).toEqual({ status: "Reviewed", set: "OP17", stale: false });

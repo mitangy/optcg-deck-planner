@@ -12,6 +12,7 @@ Design doc: https://claude.ai/artifact/DHEmpEwqp9UD1btA2BN5Rv
 | `get_cards` | Full printed text, stats, timings, effect kinds and the parsed ability structure, by card number or exact name. |
 | `analyze_deck` | Loads a pasted list (OPTCGSim `4xOP01-006`, Limitless `4 OP01-006`) or a deck planner share link and returns legality, build hints, curve, counters, roles, opening-hand expectations and searcher odds (from `@optcg/deck-analytics`). |
 | `draw_odds` | Exact odds of seeing at least N hits by each turn, going first or second, with or without a mulligan. |
+| `simulate` | Goldfish games in the duel engine against a dummy that never blocks, counters or attacks: win-by-turn with 95% intervals, DON!! curve, mulligan rate, card timing and an example line. A speed check, not a win rate. Up to about 20 s, one at a time. |
 | `export_deck` | Deck list text for OPTCGSim or Limitless. |
 | `rules_lookup` | Searches the official Comprehensive Rules by words, or reads a numbered section (`7-1`, `10-1-4`) with everything under it, plus matching official general rules Q&A. |
 | `card_rulings` | Official FAQ answers for each card, rulings on other cards that mention it, errata (before and after), and ban status, including announced bans and their start date. |

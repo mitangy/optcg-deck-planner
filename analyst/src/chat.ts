@@ -161,6 +161,7 @@ const STATUS: Record<string, string> = {
   get_cards: "Reading card text",
   analyze_deck: "Analyzing the deck",
   draw_odds: "Working out draw odds",
+  simulate: "Running goldfish games",
   export_deck: "Exporting the list",
   rules_lookup: "Checking the rules",
   card_rulings: "Checking rulings",

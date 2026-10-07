@@ -95,5 +95,7 @@ module.exports = {
     { id: "size-sheet-drag-inverted", file: size, from: "startFrac + (startY - y) / screenH", to: "startFrac + (y - startY) / screenH", kills: ["gets taller as the grab handle is dragged up"] },
     { id: "size-sheet-full-stored", file: size, from: "    if (frac >= 1) globalThis.localStorage?.removeItem(SHEET_KEY);", to: "    if (false) globalThis.localStorage?.removeItem(SHEET_KEY);", kills: ["remembers the phone sheet"] },
     { id: "size-sheet-read-unclamped", file: size, from: "return raw === null || raw === undefined ? 1 : clampSheet(Number(raw));", to: "return raw === null || raw === undefined ? 1 : Number(raw);", kills: ["remembers the phone sheet"] },
+    // goldfish sim sources (#402)
+    { id: "citations-sim-kind-missing", file: cit, from: ", \"lesson\", \"sim\"];", to: ", \"lesson\"];", kills: ["parses sim: sources and labels them Goldfish sim (#402)"] },
   ],
 };

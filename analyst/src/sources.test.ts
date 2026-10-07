@@ -252,6 +252,35 @@ describe("tool answers as citable sources (#390)", () => {
     expect(texts(results(first)[0]!)).toContain("By turn 2: 55.5% to have seen at least 2 (going first).");
   });
 
+  it("makes a goldfish run one sim: source with a sentence per turn and the engine-support warning (#402)", () => {
+    const fixture = {
+      sourceId: "sim:1a2b3c4d",
+      deck: { name: "Red Zoro", leader: { id: "OP01-001", name: "Roronoa Zoro" }, mainDeckCount: 50 },
+      setup: { runs: 100, runsRequested: 100, truncated: false, goingFirst: true, turns: 5, opponent: { life: 4, power: 5000 }, mulligan: "auto", keepCards: [], line: "auto", seed: 1 },
+      lethal: {
+        wins: 37,
+        byTurn: [
+          { turn: 1, wins: 0, percent: 0, interval: [0, 3.7] },
+          { turn: 5, wins: 37, percent: 37, interval: [28.2, 46.8] },
+        ],
+        fastestWinTurn: 4,
+        medianWinTurn: 5,
+      },
+      openingHand: { mulligans: 10, mulliganPercent: 10, keepCardPercent: null },
+      curve: [],
+      cards: [],
+      example: null,
+      support: { complete: false, flagged: [{ id: "OP09-001", name: "Some Leader", support: "partial" }], runsAffected: 23 },
+      errors: { runs: 0, first: null },
+      notes: ["Turn N means your own Nth turn."],
+    };
+    const blocks = adapt("simulate", fixture);
+    expect(sources(blocks)).toEqual(["sim:1a2b3c4d", "sim:1a2b3c4d#curve"]);
+    const facts = texts(results(blocks)[0]!);
+    expect(facts).toContain("Won by your turn 5 in 37 of 100 games (37.0%, 95% interval 28.2% to 46.8%).");
+    expect(facts.some((f) => f.includes("not fully supported") && f.includes("23 of 100 games"))).toBe(true);
+  });
+
   it("splits a long paragraph into sentences and a bullet list into its items (#390)", () => {
     expect(splitFacts("- one\n- two")).toEqual(["one", "two"]);
     const long = `${"Alpha beta gamma. ".repeat(14)}Last one.`;

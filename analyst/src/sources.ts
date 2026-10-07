@@ -6,6 +6,7 @@
  *   card:<id>                      rule:<section>                  ruling:<card>#<n> | ruling:general#<hash>
  *   stats:<leader>[~<opp>|#<card>] playbook:<leader>[~<opp>]       lesson:<id>
  *   match:<match_id>[#t<turn>]     game:<game_id>[#t<turn>]        deck:<hash>        odds:<shape>
+ *   sim:<hash>[#curve|#cards|#line]
  * A tool without an adapter (or an answer that can't be adapted) keeps its plain text.
  */
 
@@ -387,6 +388,76 @@ function oddsAdapter(v: Rec): ToolContent[] {
   return result ? [result, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])] : [];
 }
 
+// ——— goldfish simulation ———
+
+const pct1 = (x: unknown) => (typeof x === "number" ? x.toFixed(1) : "?");
+
+/** The engine-support facts of a simulation, kept next to every speed number in its main source. */
+function simSupportFacts(v: Rec): Fact[] {
+  const s = v.support ?? {};
+  const runs = v.setup?.runs;
+  const flagged: Rec[] = s.flagged ?? [];
+  return [
+    flagged.length
+      ? `Engine support incomplete: ${flagged.map((f) => `${f.name} (${f.id}, ${f.support})`).join(", ")} ${flagged.length === 1 ? "is" : "are"} not fully supported; ${s.runsAffected} of ${runs} games played or used one of them, so treat those games as approximate.`
+      : "Every card in this deck is fully supported by the duel engine.",
+    v.errors?.runs > 0 && `${v.errors.runs} games stopped on an engine error and count as no win.`,
+  ];
+}
+
+function simulateAdapter(v: Rec): ToolContent[] {
+  const st = v.setup;
+  if (typeof v.sourceId !== "string" || !st || !Array.isArray(v.lethal?.byTurn)) return [];
+  const id: string = v.sourceId;
+  const name = v.deck?.name || v.deck?.leader?.name || "Deck";
+  const order = st.goingFirst ? "going first" : "going second";
+  const lethal = v.lethal;
+  const main = searchResult(id, `Goldfish: ${name}, ${order}, dummy at ${st.opponent.life} Life`, [
+    `Setup: ${st.runs} scripted solitaire games of ${name} (${v.deck?.leader?.id}) ${order}, against a dummy at ${st.opponent.life} Life and ${st.opponent.power} power that never blocks, counters or attacks, through your turn ${st.turns}.`,
+    st.truncated && `Stopped after ${st.runs} of ${st.runsRequested} requested games to stay within the time limit.`,
+    ...lethal.byTurn
+      .filter((t: Rec) => t.turn >= 2)
+      .map((t: Rec) => `Won by your turn ${t.turn} in ${t.wins} of ${st.runs} games (${pct1(t.percent)}%, 95% interval ${pct1(t.interval?.[0])}% to ${pct1(t.interval?.[1])}%).`),
+    lethal.wins > 0
+      ? `Fastest win: your turn ${lethal.fastestWinTurn}; median win turn ${lethal.medianWinTurn} among the ${lethal.wins} wins.`
+      : `No win by your turn ${st.turns} in any of ${st.runs} games.`,
+    ...simSupportFacts(v),
+  ]);
+
+  const hand = v.openingHand ?? {};
+  const rule = st.mulligan === "never" ? "never mulligan" : st.keepCards?.length ? `mulligan a hand with none of ${joined(st.keepCards.map((c: Rec) => c.name))}` : "mulligan a hand with no Character costing 3 or less";
+  const curve = searchResult(`${id}#curve`, `Goldfish curve: ${name}`, [
+    `Mulliganed ${pct1(hand.mulliganPercent)}% of opening hands (${rule}).`,
+    typeof hand.keepCardPercent === "number" && `The kept hand held ${joined(st.keepCards?.map((c: Rec) => c.name))} in ${pct1(hand.keepCardPercent)}% of games.`,
+    ...(v.curve ?? [])
+      .filter((c: Rec) => c.runs > 0)
+      .map(
+        (c: Rec) =>
+          `Your turn ${c.turn}: ${c.avgDon} DON!!, all of it spent on plays in ${c.allDonUsedPercent}% of games (average ${c.avgSpent} spent); average ${c.avgCharacters} Characters on board, dummy at ${c.avgOpponentLife} Life.${c.runs < st.runs ? ` (over the ${c.runs} games still going)` : ""}`,
+      ),
+  ]);
+
+  const cards = searchResult(
+    `${id}#cards`,
+    `Goldfish card timing: ${name}`,
+    (v.cards ?? []).map((c: Rec) => `${c.name} (${c.id}) first played by your turn ${c.byTurn.map((t: Rec, i: number) => `${i === 0 ? "" : "turn "}${t.turn} in ${pct1(t.percent)}%`).join(", ")}`),
+  );
+
+  const ex = v.example;
+  const line = ex
+    ? searchResult(`${id}#line`, `Example: fastest win (seed ${ex.seed})`, [
+        ...(ex.turns ?? []).map(
+          (t: Rec) =>
+            `Your turn ${t.turn} (${t.line}): played ${joined(t.played) || "nothing"}; attached ${t.donGiven} DON!!; ${t.attacks} attacks, ${t.hits} hits; dummy at ${t.opponentLife} Life.`,
+        ),
+        `Won on your turn ${ex.winTurn}.`,
+      ])
+    : null;
+
+  const results = [main, curve, cards, line].filter((r): r is SearchResultBlock => r !== null);
+  return [...results, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])];
+}
+
 const ADAPTERS: Record<string, (v: Rec) => ToolContent[]> = {
   search_cards: searchCardsAdapter,
   get_cards: getCardsAdapter,
@@ -400,6 +471,7 @@ const ADAPTERS: Record<string, (v: Rec) => ToolContent[]> = {
   search_matches: searchMatchesAdapter,
   analyze_deck: analyzeDeckAdapter,
   draw_odds: oddsAdapter,
+  simulate: simulateAdapter,
 };
 
 /**
