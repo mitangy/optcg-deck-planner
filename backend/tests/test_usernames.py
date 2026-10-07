@@ -286,7 +286,7 @@ def test_duel_token_and_leaderboard_use_username(client):
     assert mine["username"] == "Usopp"
 
 
-# --- default username at sign-in (#392) ----------------------------------------
+# --- First.L prefill for the username picker (#392) -----------------------------
 
 
 def _sign_in(db, name, *, email="miko@example.com", sub="sub-miko"):
@@ -295,35 +295,30 @@ def _sign_in(db, name, *, email="miko@example.com", sub="sub-miko"):
     return resolve_google_user(db, email=email, sub=sub, name=name)
 
 
+def test_sign_in_leaves_the_username_unset_so_the_picker_is_shown_392(db):
+    assert _sign_in(db, "Miko Tang").username is None
+    assert _sign_in(db, "Miko Tang").username is None
+
+
+def test_suggestion_is_first_name_and_last_initial_392(db):
+    assert suggest_username(db, _sign_in(db, "Miko Tang")) == "Miko.T"
+    zoro = _sign_in(db, "Zoro", email="z@example.com", sub="sub-z")
+    assert suggest_username(db, zoro) == "Zoro"
+
+
+def test_taken_suggestion_gets_digits_appended_392(db):
+    first = _sign_in(db, "Miko Tang")
+    first.username = "Miko.T"
+    db.commit()
+    second = _sign_in(db, "Miko Tran", email="tran@example.com", sub="sub-tran")
+    s = suggest_username(db, second)
+    assert s != "Miko.T" and s.startswith("Miko.T")
+    assert validate_username(s) == s
+
+
+def test_unusable_name_suggests_a_generic_handle_392(db):
+    assert suggest_username(db, _sign_in(db, "管理者")).startswith("Pirate_")
+
+
 def test_username_may_contain_a_dot_between_characters_392():
     assert validate_username("Miko.T") == "Miko.T"
-
-
-def test_first_sign_in_assigns_first_name_and_last_initial_392(db):
-    assert _sign_in(db, "Miko Tang").username == "Miko.T"
-    assert _sign_in(db, "Zoro", email="z@example.com", sub="sub-z").username == "Zoro"
-
-
-def test_later_sign_ins_keep_the_default_username_392(db):
-    user = _sign_in(db, "Miko Tang")
-    again = _sign_in(db, "Miko Smith")
-    assert again.id == user.id and again.username == "Miko.T"
-
-
-def test_a_username_the_player_picked_is_never_replaced_at_sign_in_392(db):
-    user = _sign_in(db, "Miko Tang")
-    user.username = "Chopper"
-    db.commit()
-    assert _sign_in(db, "Miko Tang").username == "Chopper"
-
-
-def test_taken_default_username_gets_digits_appended_392(db):
-    _sign_in(db, "Miko Tang")
-    second = _sign_in(db, "Miko Tran", email="tran@example.com", sub="sub-tran")
-    assert second.username != "Miko.T" and second.username.startswith("Miko.T")
-    assert validate_username(second.username) == second.username
-
-
-def test_unusable_name_falls_back_to_a_generic_username_392(db):
-    user = _sign_in(db, "管理者")
-    assert user.username.startswith("Pirate_")
