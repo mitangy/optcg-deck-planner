@@ -750,6 +750,16 @@
   min-height: 2rem;
 }
 
+/* Tight enough that "Why? Ask Log Pose" and Dismiss share a row in the 320px popover. They split the row;
+   a lone Dismiss keeps the full width. (The planner's .btn.secondary is width: 100% with a top margin.) */
+.dh-pop-actions .btn.secondary {
+  flex: 1 1 auto;
+  width: auto;
+  margin-top: 0;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.9rem;
+}
+
 @media (pointer: coarse) {
   .dh-pop-actions .btn {
     min-height: 2.75rem;
