@@ -6,6 +6,7 @@ export {
   fetchSavedReview,
   fetchThread,
   streamAnalyst,
+  type BriefRequest,
   type ChatContext,
   type DeckContext,
   type DonePayload,
@@ -39,4 +40,5 @@ export { readThreadId, writeThreadId, THREAD_KEY } from "./threadStore";
 export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdown";
 export { Markdown } from "./Markdown";
 export { LogPoseProvider, LogPoseCompass, useLogPose, useLogPosePage, messageContext, type LogPosePage } from "./LogPose";
+export { logPoseChrome, type LogPoseChrome } from "./chrome";
 export { CitedAnswer, type SourceHooks } from "./Sources";

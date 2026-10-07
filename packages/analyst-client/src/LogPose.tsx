@@ -21,6 +21,7 @@ import {
   type DeckContext,
 } from "./client";
 import { placeAt, type Citation, type PlacedCitation } from "./citations";
+import { logPoseChrome } from "./chrome";
 import { ResizeHandles, SheetGrip, useDrawerSize, useSheetHeight } from "./PanelResize";
 import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
 import { createSessionManager, type ChatSession, type SessionManager } from "./session";
@@ -223,6 +224,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
 export function LogPoseProvider({
   apiBase,
   hidden = false,
+  launcher = true,
   defaultPage = null,
   account,
   sources,
@@ -231,6 +233,8 @@ export function LogPoseProvider({
   apiBase: string;
   /** Hide the compass and panel (e.g. on a live match); the chat keeps its state. */
   hidden?: boolean;
+  /** Show the compass (default). Off: the panel still opens (e.g. from a button on the page) but no launcher is drawn. */
+  launcher?: boolean;
   /** Page info for routes whose page component doesn't call useLogPosePage. */
   defaultPage?: LogPosePage | null;
   /** Who is signed in, when the app knows (e.g. user id): the session is asked again when it changes. */
@@ -278,13 +282,18 @@ export function LogPoseProvider({
     [enabled, apiBase, manager, setPage, openPanel],
   );
 
-  const show = enabled === true && !hidden;
+  // A panel left open on a page that hides Log Pose must not come back on the next one.
+  useEffect(() => {
+    if (hidden) setOpen(false);
+  }, [hidden]);
+
+  const chrome = logPoseChrome({ enabled, hidden, launcher, open });
   return (
     <LogPoseContext.Provider value={value}>
       <SourceHooksContext.Provider value={sources ?? NO_HOOKS}>
         {children}
-        {show && !open ? <LogPoseCompass working={chat.busy} unread={unread} onClick={openPanel} /> : null}
-        {show && open ? <LogPosePanel page={page ?? defaultPage} chat={chat} onClose={closePanel} /> : null}
+        {chrome.compass ? <LogPoseCompass working={chat.busy} unread={unread} onClick={openPanel} /> : null}
+        {chrome.panel ? <LogPosePanel page={page ?? defaultPage} chat={chat} onClose={closePanel} /> : null}
       </SourceHooksContext.Provider>
     </LogPoseContext.Provider>
   );

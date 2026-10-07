@@ -9,14 +9,18 @@ export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string 
 
 export type ChatRequest = { thread_id?: number; message: string; context?: ChatContext };
 export type ReviewRequest = { match_id: string; regenerate?: boolean };
+/** A matchup brief: the game server's ticket, and whether to write one when none is saved (false only looks). */
+export type BriefRequest = { ticket: string; generate: boolean };
 
-export type ErrorCode = "budget" | "auth" | "server";
+export type ErrorCode = "budget" | "auth" | "server" | "bad_request";
 export type DonePayload = {
   thread_id?: number;
   cost_usd?: number;
   spent_today_usd?: number;
   daily_cap_usd?: number;
   saved?: boolean;
+  /** A brief served from the saved copy (free). */
+  cached?: boolean;
 };
 
 export type StreamHandlers = {
@@ -82,8 +86,8 @@ function refusalReason(body: string): string | null {
  */
 export async function streamAnalyst(
   session: SessionManager,
-  path: "/chat" | "/review-match",
-  body: ChatRequest | ReviewRequest,
+  path: "/chat" | "/review-match" | "/brief",
+  body: ChatRequest | ReviewRequest | BriefRequest,
   handlers: StreamHandlers,
   signal?: AbortSignal,
   fetchImpl: typeof fetch = fetch,
