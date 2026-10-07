@@ -6,10 +6,22 @@ const md = "packages/analyst-client/src/markdown.ts";
 const cit = "packages/analyst-client/src/citations.ts";
 const size = "packages/analyst-client/src/panelSize.ts";
 const prop = "packages/analyst-client/src/proposals.ts";
+const access = "packages/analyst-client/src/access.ts";
 module.exports = {
   cwd: "packages/analyst-client",
   runner: "vitest",
   mutations: [
+    // Asking for Log Pose (#393)
+    { id: "access-session-unknown-state-accepted", file: session, from: "return value === \"none\" || value === \"pending\" || value === \"denied\" ? value : undefined;", to: "return typeof value === \"string\" ? (value as AccessState) : undefined;", kills: ["reads where a disabled player's request stands and ignores values it doesn't know (#393)"] },
+    { id: "access-session-non-owner-marked-owner", file: session, from: "    if (body.owner === true) {\n      out.owner = true;", to: "    if (true) {\n      out.owner = true;", kills: ["reads owner and the waiting count only for owners (#393)"] },
+    { id: "access-session-pending-count-dropped", file: session, from: "        out.pendingRequests = Math.floor(body.pending_requests);", to: "", kills: ["reads owner and the waiting count only for owners (#393)"] },
+    { id: "access-request-note-untrimmed", file: access, from: "note: note.trim().slice(0, NOTE_MAX)", to: "note", kills: ["sends the trimmed note with the cookie and resolves to pending (#393)"] },
+    { id: "access-request-no-cookie", file: access, from: "{ credentials: \"include\", ...init }", to: "{ ...init }", kills: ["sends the trimmed note with the cookie and resolves to pending (#393)", "lists requests, dropping rows it can't read (#393)"] },
+    { id: "access-error-reason-dropped", file: access, from: "if (typeof body.detail === \"string\" && body.detail.trim())", to: "if (false)", kills: ["rejects with the server's reason, such as the wait before asking again (#393)"] },
+    { id: "access-list-unreadable-rows-kept", file: access, from: " || (status !== \"pending\" && status !== \"approved\" && status !== \"denied\")", to: "", kills: ["lists requests, dropping rows it can't read (#393)"] },
+    { id: "access-decide-wrong-player", file: access, from: "`/requests/${encodeURIComponent(String(userId))}`", to: "`/requests`", kills: ["posts the decision to that player's request (#393)"] },
+    { id: "access-list-not-sorted", file: access, from: "  return [...rows].sort((a, b) => RANK[a.status] - RANK[b.status]);", to: "  return [...rows];", kills: ["keeps pending first, then approved, then denied, newest first within each (#393)"] },
+    { id: "access-list-denied-first", file: access, from: "denied: 2 }", to: "denied: -1 }", kills: ["keeps pending first, then approved, then denied, newest first within each (#393)"] },
     // SSE parser
     { id: "sse-drops-partial-line", file: sse, from: "      buf = buf.slice(start);", to: "      buf = \"\";", kills: ["parses the same events wherever the stream is split", "parses a stream fed one character at a time"] },
     { id: "sse-crlf-not-held", file: sse, from: "        if (c === \"\\r\" && i === buf.length - 1) break;\n", to: "", kills: ["including a \\r\\n split between chunks"] },

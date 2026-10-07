@@ -504,6 +504,30 @@ class AnalystPrefs(Base):
     share_matches: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class AnalystAccess(Base):
+    """A player's request to use the Log Pose chat panel, and the owner's answer.
+
+    Holds no email or name: the owner list shows the player's display name, looked up live.
+    """
+
+    __tablename__ = "analyst_access"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    # "pending" | "approved" | "denied"
+    status: Mapped[str] = mapped_column(String(16), default="pending")
+    note: Mapped[str] = mapped_column(String(500), default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class AnalystLesson(Base):
     """A short strategy lesson Claude drafted through a player's personal link.
 

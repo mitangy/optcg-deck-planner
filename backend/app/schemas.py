@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 
 class UserOut(BaseModel):
@@ -804,6 +804,36 @@ class AnalystChatSession(BaseModel):
     token: str | None = None
     expires_at: str | None = None  # ISO 8601, UTC
     chat_url: str | None = None
+    # Signed-in player who is not enabled but may ask: "none" | "pending" | "denied" (null when requests are closed).
+    access: Literal["none", "pending", "denied"] | None = None
+    # Only when enabled: whether this player can answer requests, and how many are waiting.
+    owner: bool | None = None
+    pending_requests: int | None = None
+
+
+class AnalystAccessRequestIn(BaseModel):
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] = ""
+
+
+class AnalystAccessRequested(BaseModel):
+    access: Literal["pending"]
+
+
+class AnalystAccessDecisionIn(BaseModel):
+    status: Literal["approved", "denied"]
+
+
+class AnalystAccessRow(BaseModel):
+    user_id: int
+    name: str
+    note: str
+    status: Literal["pending", "approved", "denied"]
+    created_at: str | None = None
+    decided_at: str | None = None
+
+
+class AnalystAccessList(BaseModel):
+    requests: list[AnalystAccessRow]
 
 
 class AnalystChatBudget(BaseModel):

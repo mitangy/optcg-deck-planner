@@ -41,7 +41,7 @@ def test_the_chat_panel_is_only_on_for_allowlisted_players(analyst, monkeypatch)
     monkeypatch.setenv("ANALYST_CHAT_EMAILS", "someone@else.example")
     get_settings.cache_clear()
     _, body = _session(c)
-    assert body == {"enabled": False, "token": None, "expires_at": None, "chat_url": None}
+    assert body["enabled"] is False and body["token"] is None and body["chat_url"] is None
 
     monkeypatch.setenv("ANALYST_CHAT_EMAILS", "someone@else.example, DEV@localhost")
     get_settings.cache_clear()
