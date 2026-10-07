@@ -240,7 +240,7 @@ describe("chat", () => {
     expect(err.partialUsage).toMatchObject({ input_tokens: 900, output_tokens: 55 });
   });
 
-  it("lets a user have one chat or review stream at a time, and another once it ends (#377)", async () => {
+  it("lets a user have two chat or review streams at a time, and another once one ends (#377)", async () => {
     const { api } = planner({ "POST /analyst/chat/threads": { id: 9 }, "POST /analyst/chat/usage": null, "POST /analyst/chat/threads/9/messages": null, "GET /analyst/chat/budget": BUDGET });
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
@@ -252,11 +252,12 @@ describe("chat", () => {
     const fast: CallModel = async () => reply;
     const signal = new AbortController().signal;
     const first = runChat(deps(api, slow), "chat.1.2.sig", { message: "Hi" }, () => {}, signal);
+    const second = runChat(deps(api, slow), "chat.1.4.sig3", { message: "Beside it" }, () => {}, signal);
     await expect(runChat(deps(api, slow), "chat.1.3.sig2", { message: "Again" }, () => {}, signal)).rejects.toMatchObject({ status: 429, code: "busy" });
     await expect(runReview(deps(api, slow), "chat.1.3.sig2", { match_id: "m1" }, () => {}, signal)).rejects.toMatchObject({ status: 429, code: "busy" });
     await expect(runChat(deps(api, fast), "chat.2.2.sig", { message: "Hi" }, () => {}, signal)).resolves.toBeUndefined();
     release();
-    await first;
+    await Promise.all([first, second]);
     await expect(runChat(deps(api, fast), "chat.1.3.sig2", { message: "Again" }, () => {}, signal)).resolves.toBeUndefined();
   });
 

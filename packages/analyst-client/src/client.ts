@@ -10,7 +10,7 @@ export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string 
 export type ChatRequest = { thread_id?: number; message: string; context?: ChatContext };
 export type ReviewRequest = { match_id: string; regenerate?: boolean };
 
-export type ErrorCode = "budget" | "auth" | "server";
+export type ErrorCode = "budget" | "busy" | "auth" | "server";
 export type DonePayload = {
   thread_id?: number;
   cost_usd?: number;
@@ -31,6 +31,7 @@ export type StreamHandlers = {
 };
 
 export const BUDGET_MESSAGE = "Daily Log Pose limit reached. It resets tomorrow.";
+export const BUSY_MESSAGE = "Log Pose is still answering your other question. Try again in a moment.";
 export const GENERIC_ERROR = "Log Pose couldn't answer just now. Try again in a moment.";
 export const AUTH_ERROR = "Log Pose needs you to sign in again.";
 
@@ -48,6 +49,7 @@ export class AnalystError extends Error {
 /** The text to show for an error event or AnalystError. */
 export function errorText(err: { message?: string; code?: string }): string {
   if (err.code === "budget") return BUDGET_MESSAGE;
+  if (err.code === "busy") return BUSY_MESSAGE;
   if (err.code === "auth") return AUTH_ERROR;
   return err.message?.trim() || GENERIC_ERROR;
 }

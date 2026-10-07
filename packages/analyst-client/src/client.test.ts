@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnalystError, BUDGET_MESSAGE, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, streamAnalyst } from "./client";
+import { AnalystError, BUDGET_MESSAGE, BUSY_MESSAGE, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, streamAnalyst } from "./client";
 import { createSessionManager, needsRefresh } from "./session";
 
 const NOW = Date.parse("2026-10-06T12:00:00Z");
@@ -90,6 +90,14 @@ describe("analyst stream requests (#377)", () => {
     const shown: string[] = [];
     await streamAnalyst(mgr, "/chat", { message: "hi" }, { onError: (e) => shown.push(errorText(e)) }, undefined, f.impl);
     expect(shown).toEqual([BUDGET_MESSAGE]);
+  });
+
+  it("shows its own message, not the daily-limit one, when another stream is still running (#377)", async () => {
+    const f = fakeFetch([15 * 60_000], () => sse('event: error\ndata: {"message":"still answering","code":"busy"}\n\n'));
+    const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+    const shown: string[] = [];
+    await streamAnalyst(mgr, "/chat", { message: "hi" }, { onError: (e) => shown.push(errorText(e)) }, undefined, f.impl);
+    expect(shown).toEqual([BUSY_MESSAGE]);
   });
 
   it("hands thread, status, text and done events to their handlers in order (#377)", async () => {

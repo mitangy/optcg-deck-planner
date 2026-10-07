@@ -255,15 +255,21 @@ async function recordUsage(api: PlannerApi, token: string, kind: "chat" | "revie
   });
 }
 
-/** Users with a chat or review stream running; each gets one at a time so parallel requests can't all pass the spend-cap check. */
-const streaming = new Set<string>();
+/** Streams running per user. Two are allowed (a review beside the chat panel, or a new review as an aborted one winds down); more would let parallel requests all pass the spend-cap check. */
+const MAX_STREAMS_PER_USER = 2;
+const streaming = new Map<string, number>();
 
-/** Claims the user's one stream (the token's user id; admit has checked its signature). Returns the release. */
+/** Claims one of the user's streams (the token's user id; admit has checked its signature). Returns the release. */
 function claimStream(token: string): () => void {
   const user = token.split(".")[1] ?? token;
-  if (streaming.has(user)) throw new ChatHttpError(429, "Log Pose is still answering your last question. Wait for it to finish.", "busy");
-  streaming.add(user);
-  return () => void streaming.delete(user);
+  const running = streaming.get(user) ?? 0;
+  if (running >= MAX_STREAMS_PER_USER) throw new ChatHttpError(429, "Log Pose is still answering your other questions. Wait for one to finish.", "busy");
+  streaming.set(user, running + 1);
+  return () => {
+    const left = (streaming.get(user) ?? 1) - 1;
+    if (left > 0) streaming.set(user, left);
+    else streaming.delete(user);
+  };
 }
 
 /** The usage a failed model call had already been billed, which the error carries. */
