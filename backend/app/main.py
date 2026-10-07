@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -27,7 +29,16 @@ async def lifespan(_app: FastAPI):
         backfill_seats(db)
     finally:
         db.close()
-    yield
+    from app.tournament_sync import start_background
+
+    sync_task = start_background(settings)
+    try:
+        yield
+    finally:
+        if sync_task is not None:
+            sync_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await sync_task
 
 
 _docs = None if settings.is_production else "/docs"
