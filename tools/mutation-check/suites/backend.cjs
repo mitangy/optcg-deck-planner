@@ -419,5 +419,10 @@ module.exports = {
     { id: "client-ip-ignores-proxy-secret", file: rateLimit, from: "    return hmac.compare_digest(sent.encode(), secret.encode())", to: "    return False", kills: ["test_forwarded_for_is_trusted_with_the_proxy_secret"] },
     { id: "client-ip-untrusted-before-configured", file: rateLimit, from: "        return True  # Not configured yet: keep trusting X-Forwarded-For as before.", to: "        return False", kills: ["test_forwarded_for_is_trusted_until_a_proxy_secret_is_configured"] },
     { id: "client-ip-skips-cloudflare", file: rateLimit, from: "    for header in (\"cf-connecting-ip\", \"true-client-ip\"):", to: "    for header in ():", kills: ["test_forwarded_for_is_ignored_without_the_proxy_secret"] },
+    // deck edit suggestions (#400)
+    { id: "chat-proposal-unchecked", file: chat, from: "    if any(p.id not in made for p in body.proposals):", to: "    if False:", kills: ["test_a_proposal_must_come_from_a_propose_deck_edit_call_in_its_thread"] },
+    { id: "chat-proposal-name-unchecked", file: chat, from: "if isinstance(b, dict) and b.get(\"type\") == \"tool_use\" and b.get(\"name\") == PROPOSE_TOOL and isinstance(b.get(\"id\"), str)", to: "if isinstance(b, dict) and b.get(\"type\") == \"tool_use\" and isinstance(b.get(\"id\"), str)", kills: ["test_a_proposal_must_come_from_a_propose_deck_edit_call_in_its_thread"] },
+    { id: "chat-proposal-not-stored", file: chat, from: "            db.add(AnalystProposal(thread_id=row.id, id=p.id, payload=p.model_dump_json()))", to: "            pass", kills: ["test_the_thread_view_shows_a_deck_edit_under_the_answer_that_made_it"] },
+    { id: "chat-proposal-first-bubble", file: chat, from: "        out[-1].proposals += pending", to: "        next(m for m in out if m.role == \"assistant\").proposals += pending", kills: ["test_the_thread_view_shows_a_deck_edit_under_the_answer_that_made_it"] },
   ],
 };

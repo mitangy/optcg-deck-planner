@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class UserOut(BaseModel):
@@ -863,10 +863,56 @@ class AnalystCitation(BaseModel):
     cited_text: str = Field(default="", max_length=1000)
 
 
+class AnalystDeckEditLine(BaseModel):
+    id: str = Field(pattern=CARD_ID_PATTERN)
+    name: str = Field(max_length=120)
+    before: int = Field(ge=0, le=50)
+    after: int = Field(ge=0, le=50)
+    reason: str = Field(max_length=300)
+
+
+class AnalystDeckEditTarget(BaseModel):
+    ref: str = Field(max_length=80)
+    name: str = Field(max_length=200)
+    leader_id: str | None = None
+
+
+class AnalystDeckEditLegality(BaseModel):
+    legal: bool
+    count: int = Field(ge=0, le=500)
+    problems: list[str] = Field(default_factory=list, max_length=20)
+    upcoming: list[str] = Field(default_factory=list, max_length=20)
+    ban_list_checked: bool
+
+    @field_validator("problems", "upcoming")
+    @classmethod
+    def _short(cls, v: list[str]) -> list[str]:
+        if any(len(x) > 300 for x in v):
+            raise ValueError("too long")
+        return v
+
+
+class AnalystDeckEdit(BaseModel):
+    """A deck change Log Pose suggests for the deck open in an app, shown as an Apply card (#400)."""
+
+    id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    version: Literal[1]
+    target: AnalystDeckEditTarget
+    summary: str = Field(max_length=300)
+    lines: list[AnalystDeckEditLine] = Field(min_length=1, max_length=12)
+    base: list[AnalystDeckCard] = Field(default_factory=list, max_length=80)
+    legality: AnalystDeckEditLegality
+
+
+class AnalystProposalsIn(BaseModel):
+    proposals: list[AnalystDeckEdit] = Field(min_length=1, max_length=4)
+
+
 class AnalystDisplayMessage(BaseModel):
     role: Literal["user", "assistant"]
     text: str
     citations: list[AnalystCitation] = Field(default_factory=list)
+    proposals: list[AnalystDeckEdit] = Field(default_factory=list)
 
 
 class AnalystThreadView(BaseModel):
