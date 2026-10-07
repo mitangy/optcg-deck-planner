@@ -250,18 +250,34 @@ export async function matchupStats(api: PlannerApi, q: StatsQuery) {
   if (q.days) params.set("days", String(q.days));
   if (q.rankedOnly) params.set("ranked_only", "true");
   const stats = await plannerCall<Record<string, unknown>>(api, null, `/analyst/stats/matchups?${params}`, true);
-  // Card names next to every card number, so the model never has to guess one.
-  const named = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(named);
-    if (!value || typeof value !== "object") return value;
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value)) {
-      out[k] = named(v);
-      if ((k === "leader" || k === "opponent" || k === "id") && typeof v === "string") out[`${k}_name`] = cardName(v);
-    }
-    return out;
-  };
-  return named(stats);
+  return withCardNames(stats);
+}
+
+/** Card names next to every card number (leader, opponent and id keys), so the model never has to guess one. Keys in `skip` are left alone. */
+function withCardNames(value: unknown, skip: readonly string[] = []): unknown {
+  if (Array.isArray(value)) return value.map((v) => withCardNames(v, skip));
+  if (!value || typeof value !== "object") return value;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value)) {
+    out[k] = skip.includes(k) ? v : withCardNames(v, skip);
+    if ((k === "leader" || k === "opponent" || k === "id") && typeof v === "string") out[`${k}_name`] = cardName(v);
+  }
+  return out;
+}
+
+export type TournamentQuery = { leader?: string; opponent?: string; days?: number; minPlayers?: number };
+
+/** Leader and matchup results from Limitless TCG tournaments (aggregates and top lists, no player names), named for reading. */
+export async function tournamentStats(api: PlannerApi, q: TournamentQuery) {
+  if (!api.serviceSecret) throw new Error("Tournament stats aren't set up on this server (ANALYST_SERVICE_SECRET is unset).");
+  const params = new URLSearchParams();
+  if (q.leader) params.set("leader", q.leader.trim().toUpperCase());
+  if (q.opponent) params.set("opponent", q.opponent.trim().toUpperCase());
+  if (q.days) params.set("days", String(q.days));
+  if (q.minPlayers) params.set("min_players", String(q.minPlayers));
+  const stats = await plannerCall<Record<string, unknown>>(api, null, `/analyst/tournaments/stats?${params}`, true);
+  // Events have ids of their own (not card numbers).
+  return withCardNames(stats, ["events", "top_placings"]);
 }
 
 export type LessonDraft = { text: string; leader_id?: string; opponent_id?: string; cards?: string[]; match_ids?: string[] };

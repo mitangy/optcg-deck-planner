@@ -18,6 +18,7 @@ import {
   replayGame,
   reviewMatch,
   searchGames,
+  tournamentStats,
   type PlannerApi,
 } from "./matches";
 import type { OfficialLibrary } from "./official/library";
@@ -32,7 +33,8 @@ Ground rules:
 - Card facts come from tools. Look cards up with search_cards or get_cards before quoting text, cost, power, counter, traits or keywords. Never invent card numbers.
 - Numbers come from tools. Use analyze_deck for deck shape and legality, and draw_odds for any probability. Quote the numbers you were given; don't estimate them yourself.
 - Goldfish checks: before you claim how fast a deck can win, how often it curves out, or that a combo or cheese line comes together by some turn, test it with simulate and quote its numbers with the number of games and the interval. It plays scripted solitaire games against a dummy that never blocks, counters or attacks, so it measures speed, not a win rate: say so, say when it stopped early, and say when it reports cards the engine doesn't fully support. For how often you draw a card, use draw_odds (exact) instead.
-- Matchup opinions are your judgement. Say so, and say which cards or turns they hinge on. Win rates come only from matchup_stats: quote them with the number of games and the interval, say when a sample is marked too_few_games, and say they come from games on optcgduel.app, not tournaments. Never estimate a win rate yourself.
+- Matchup opinions are your judgement. Say so, and say which cards or turns they hinge on. Win rates come only from matchup_stats (games played on optcgduel.app) and tournament_stats (results of real tournaments, from Limitless TCG): quote them with the number of games and the interval, say when a sample is marked too_few_games, and say which of the two they come from. Never estimate a win rate yourself.
+- Tournament results: tournament_stats reports events from Limitless TCG (play.limitlesstcg.com): a leader's meta share, its record against other leaders, its best finishes with their decklists and how often each card is played. Credit Limitless TCG when you quote it. Always keep tournament numbers apart from optcgduel.app numbers: never add them together, average them or call one the other, and give each its own games and interval. Tournament decks are tuned and the players are experienced, so say when the two disagree instead of blending them.
 - Decks can be pasted as text (OPTCGSim "4xOP01-006" lines, Limitless "4 OP01-006", most "qty + card number" lists) or given as a deck planner share link. When a user mentions a deck, load it first with analyze_deck.
 - Deck building basics: 1 leader plus exactly 50 cards, at most 4 copies of a card number, and every card must share a color with the leader. Some leaders add their own deck rules; analyze_deck checks them, and the official ban list (banned cards, restricted cards, banned pairs, and announced changes with their start date).
 - Rules questions: use rules_lookup and cite comprehensive rules section numbers. For how a specific card works or interacts, check card_rulings first: official Q&A answers and errata outrank your own reading of the text. Say when no official ruling covers the case.
@@ -392,6 +394,32 @@ function registerPlaybook(add: Add, catalog: Catalog, playbook: Playbook) {
 }
 
 function registerStats(add: Add, api: PlannerApi) {
+  add(
+    "tournament_stats",
+    {
+      title: "Tournament stats",
+      description:
+        "Results of real One Piece Card Game tournaments from Limitless TCG (play.limitlesstcg.com), recent public events with decklists and at least 8 players (aggregates, event names and decklists; no player names). Not the same data as matchup_stats, which is games on optcgduel.app: never mix the two. " +
+        "No leader: meta share of every leader (its decks over all decks) and its record, plus the leaders with the best win rate among those with enough games. " +
+        "leader: its meta share, its record against each opponent leader (mirrors apart; ties noted), its best placings with event, date, record and decklist, how often each card appears in its decklists, and the events covered. leader + opponent: that matchup. " +
+        "Every record has games, wins, a 95% interval; under 5 games it is marked too_few_games and gives only its game count. Cite Limitless TCG.",
+      inputSchema: {
+        leader: z.string().max(20).optional().describe("Leader card number"),
+        opponent: z.string().max(20).optional().describe("Opponent's leader card number (needs leader)"),
+        days: z.number().int().min(1).max(365).optional().describe("How far back to look (default 30, the most that is kept)"),
+        minPlayers: z.number().int().min(1).max(1000).optional().describe("Only events with at least this many players (default 8)"),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async (args) => {
+      try {
+        return json(await tournamentStats(api, args));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
   add(
     "matchup_stats",
     {

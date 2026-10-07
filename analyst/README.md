@@ -19,6 +19,7 @@ Design doc: https://claude.ai/artifact/DHEmpEwqp9UD1btA2BN5Rv
 | `ban_list` | Banned cards, restricted cards and banned pairs in force today, plus announced changes. `analyze_deck` also checks a deck against it. |
 | `playbook` | Strategy notes from [`playbook/`](playbook/README.md): a leader's game plan, key cards, mulligan, lines and matchups, both sides of a matchup, or notes mentioning a card. |
 | `matchup_stats` | Win rates from recorded duels: a leader's overall record, going first and second, each matchup (mirrors apart), and per-card rates with and without the card. Totals only, with a Wilson interval; buckets under 5 games are held back. Needs `ANALYST_SERVICE_SECRET`. |
+| `tournament_stats` | Results of real tournaments from [Limitless TCG](https://play.limitlesstcg.com) (recent public events with decklists and at least 8 players): a leader's meta share, its record against each opponent leader (mirrors apart, ties noted), its best placings with event, record and decklist, and how often each card is played. Kept apart from `matchup_stats`, which is optcgduel.app games. Same Wilson intervals and 5-game minimum. Needs `ANALYST_SERVICE_SECRET`. |
 
 | `search_matches` | Searches every recorded duel from players who share their games (not just yours): by leader, opponent, a card in the deck, result, who went first, turns. Games come back anonymized: an opaque game id, sides A and B, rating bands, never names or match ids. Needs `ANALYST_SERVICE_SECRET`. |
 | `replay_match` | Re-runs one of those games with every card named (both hands, Life and deck), sides labeled Player A and Player B. |
@@ -32,6 +33,10 @@ A personal link (below) adds five more:
 | `review_match` | Re-runs one of your games in the duel engine and returns a turn-by-turn log from your seat, your opening hand, the result and the final board. The opponent's face-down cards stay hidden. |
 | `draft_lesson` | Saves a lesson Claude learned from your games (with the leader, opponent, cards and match ids it came from) as a draft for you to review. |
 | `my_lessons` | Your approved lessons (or drafts), optionally for one leader, so Claude can apply them in later chats. |
+
+### Tournament data
+
+The API pulls events from Limitless TCG's public API in the background (every 6 hours; `TOURNAMENT_SYNC=true|false`, default on in production only; `TOURNAMENT_SYNC_DAYS`, default 30). It keeps each event's leaders, decklists, records and who beat which leader, never player names or handles, and asks Limitless for at most one request every 7 seconds. `GET /analyst/tournaments/sync-status` (analyst service secret) shows what is stored and how the last run went.
 
 ### Learning loop
 
