@@ -93,3 +93,33 @@ node tools/mutation-check/run.cjs analyst
 `PLANNER_API_URL` (default `https://optcg-deck-planner.app/api`) is where share links are read from.
 
 Card data comes from `packages/rules/src/cards/cardData.json`, `packages/rules/src/cards/generated/abilities.json` and `packages/deck-analytics/deckStats.json`, so new cards arrive with the daily card import and a redeploy.
+
+## Evals
+
+`analyst/evals/` is the Log Pose eval set (#403): 50 cases run through the real chat loop (`runChat`) against a fake in-memory planner API.
+
+- **A, rulings (15):** answered from the official FAQ. Gold is looked up from Bandai's FAQ by card id and question hash.
+- **B, engine-verified interactions (12):** gold comes from `@optcg/rules` scenarios.
+- **C, legality and odds (13):** gold is re-derived with the same tools the analyst uses.
+- **D, matchup and build (10):** graded by a rubric judge (Sonnet 5.5).
+- **E01, E02:** tournament stats and goldfish simulation. They run only when those tools exist.
+
+Each answer is graded `{correct, cited, grounded, rubric?}`. Cases whose FAQ answer went `stale` or `gold_drift` are left out of scores.
+
+Commands (run from `analyst/`):
+
+```
+npm run eval:validate                 # free, runs in CI: cases load and the offline gold still holds
+npm run eval -- --model-api scripted  # free dry run: oracle model, fake planner, offline judge
+npm run eval:check-live               # free, nightly: FAQ cases against Bandai's live site
+ANTHROPIC_API_KEY=... npm run eval -- --selftest
+ANTHROPIC_API_KEY=... npm run eval -- --only "A01|B03|C11|C15|D05" --reps 1   # pilot
+ANTHROPIC_API_KEY=... npm run eval    # full: variant baseline, 2 reps, --max-usd 15
+npm run eval:grade -- evals/out/baseline   # fill in human grades, then
+npm run eval -- --write-baseline
+npm run eval:compare -- evals/out/<variant>
+```
+
+`--planner live` needs `PLANNER_API_URL` and `ANALYST_SERVICE_SECRET`. The paid run is manual; run it after a change to the prompt, tools or model, never in CI. Output goes to `evals/out/` (git-ignored).
+
+Bandai's FAQ text never goes in `cases.ts`, `baseline.json` or `human-grades.jsonl`. Cases hold only the card id and a question hash.

@@ -14,6 +14,29 @@ const knowledge = "analyst/src/knowledge.ts";
 const playbook = "analyst/src/playbook.ts";
 const chat = "analyst/src/chat.ts";
 const sources = "analyst/src/sources.ts";
+// Log Pose eval (analyst/evals). Tests are named "eval gold B01 ..." etc., so a mutation's `kills` are fragments of those names.
+const ABILITIES = "packages/rules/src/cards/generated/abilities.json";
+const ev = (f) => `analyst/evals/${f}`;
+const evFaq = ev("faq.ts");
+const evGrounding = ev("grade/grounding.ts");
+const evCitations = ev("grade/citations.ts");
+const evExact = ev("grade/exact.ts");
+const evExtract = ev("grade/extract.ts");
+const evEdits = ev("grade/edits.ts");
+const evOverlap = ev("grade/overlap.ts");
+const evStats = ev("stats.ts");
+const evLoad = ev("load.ts");
+const evPlanner = ev("planner.ts");
+const evRunner = ev("runner.ts");
+const evGrade = ev("grade.ts");
+const evJudge = ev("grade/judge.ts");
+const evSelftest = ev("selftest.ts");
+const drawOdds = "packages/deck-analytics/src/drawOdds.ts";
+const deckHints = "packages/deck-analytics/src/deckHints.ts";
+const deckStats = "packages/deck-analytics/src/deckStats.ts";
+/** Eval group B: alter one card's generated abilities so the engine plays the case's board differently; `kills` are test-name fragments. */
+const evalScn = (id, card, patch, kills) => ({ id: `eval-${id}`, json: ABILITIES, patch: (a) => patch(a[card].abilities), kills });
+
 const sim = "analyst/src/simulate.ts";
 const server = "analyst/src/server.ts";
 module.exports = {
@@ -151,6 +174,117 @@ module.exports = {
     { id: "playbook-stale-never", file: playbook, from: "    stale: Number.isFinite(written) && Number.isFinite(current) && written < current,", to: "    stale: false,", kills: ["flags notes older than the current set"] },
     { id: "playbook-newest-counts-previews", file: playbook, from: "  const newest = Math.max(0, ...[...counts].filter(([, c]) => c >= minCards).map(([n]) => n));", to: "  const newest = Math.max(0, ...[...counts].map(([n]) => n));", kills: ["takes the newest booster with a full card list"] },
     { id: "playbook-matchups-by-heading-text", file: playbook, from: "      if (id) matchups[id] = { heading: subHeading,", to: "      if (id) matchups[subHeading] = { heading: subHeading,", kills: ["reads front matter, sections and matchups"] },
+
+    // ——— Log Pose eval (#403) ———
+    // chat: the served model reaches the eval, which asserts it
+    { id: "eval-chat-model-not-returned", file: chat, from: "usage: msg.usage, model: msg.model };", to: "usage: msg.usage };", kills: ["returns the model that served the call"] },
+
+    // group B: the engine plays each case's board
+    evalScn("b01-kaido-repeatable", "OP01-061", (a) => { a[0].oncePerTurn = false; }, ["eval gold B01"]),
+    evalScn("b02-king-nine-don", "OP01-091", (a) => { a[0].conditions[1].right = 9; }, ["eval gold B02"]),
+    evalScn("b03-smiley-per-card", "OP01-072", (a) => { a[0].statics[0].amount.times = 500; }, ["eval gold B03"]),
+    evalScn("b04-usopp-block-limit", "ST01-002", (a) => { a[0].effect.value = 6000; }, ["eval gold B04"]),
+    evalScn("b05-franky-two-don", "OP01-021", (a) => { a[0].don = 2; }, ["eval gold B05"]),
+    evalScn("b06-moria-hand-size", "OP01-068", (a) => { a[0].conditions[1].right = 6; }, ["eval gold B06"]),
+    evalScn("b07-burgess-protection", "OP09-086", (a) => { a[0].statics[0].restriction = "cannot_be_ko_in_battle"; }, ["eval gold B07"]),
+    evalScn("b08-ivankov-condition", "OP02-049", (a) => { a[0].effect.cond.op = "<="; a[0].effect.cond.right = 1; }, ["eval gold B08"]),
+    evalScn("b09-radical-beam-life", "OP01-029", (a) => { a[0].effect.steps[1].cond.right = 1; }, ["eval gold B09"]),
+    evalScn("b10-rayleigh-ignores-colors", "OP14-108", (a) => { a[0].effect.cond.conds = [a[0].effect.cond.conds[1]]; }, ["eval gold B10"]),
+    evalScn("b11-doc-q-one-target", "OP16-109", (a) => { a[0].effect.then.steps[1].target.max = 1; }, ["eval gold B11"]),
+    evalScn("b12-caribou-filter", "OP01-007", (a) => { a[0].effect.target.selector.filter.power.value = 2000; }, ["eval gold B12"]),
+
+    // group C: the tools compute what the cases expect
+    { id: "eval-c-going-first-draw", file: drawOdds, from: "return OPENING_HAND + (goingFirst ? turn - 1 : turn);", to: "return OPENING_HAND + turn;", kills: ["eval gold C10"] },
+    { id: "eval-c-mulligan-ignored", file: drawOdds, from: "return o.mulligan ? atLeastWithMulligan(o.deckSize, o.hits, seen, o.atLeast) : hypergeomAtLeast(o.deckSize, o.hits, seen, o.atLeast);", to: "return hypergeomAtLeast(o.deckSize, o.hits, seen, o.atLeast);", kills: ["eval gold C12"] },
+    { id: "eval-c-at-least-ignored", file: drawOdds, from: "for (let j = 0; j < k; j++) below += hypergeomPmf(N, K, draws, j);", to: "for (let j = 0; j < 1; j++) below += hypergeomPmf(N, K, draws, j);", kills: ["eval gold C15"] },
+    { id: "eval-c-five-copies-ok", file: deckHints, from: "n > T.maxCopies &&", to: "n > T.maxCopies + 1 &&", kills: ["eval gold C02"] },
+    { id: "eval-c-any-number-ignored", file: deckHints, from: " && !atlas[id]?.rules?.includes(\"any_number\")", to: "", kills: ["eval gold C07"] },
+    { id: "eval-c-count-not-final", file: deckHints, from: "if (count !== T.deckSize && (opts.finished || count > T.deckSize)) {", to: "if (count > T.deckSize) {", kills: ["eval gold C03"] },
+    { id: "eval-c-offcolor-ignored", file: deckStats, from: "if (!card.col.some((c) => leader.col.includes(c))) offColorIds.push(id);", to: "", kills: ["eval gold C04"] },
+    { id: "eval-c-max-cost-ignored", file: deckStats, from: "if (kind === \"max_cost\") return (card.cost ?? 0) > Number(arg);", to: "if (kind === \"max_cost\") return false;", kills: ["eval gold C05"] },
+    { id: "eval-c-event-cost-ignored", file: deckStats, from: "if (kind === \"no_events_cost_ge\") return card.t === \"event\" && (card.cost ?? 0) >= Number(arg);", to: "if (kind === \"no_events_cost_ge\") return false;", kills: ["eval gold C06"] },
+    { id: "eval-c-legal-without-hints", file: analysis, from: "legal: !hints.some((h) => h.tier === \"rule\") && deck.leaderId !== null,", to: "legal: deck.leaderId !== null,", kills: ["eval gold C02", "eval gold C03", "eval gold C04", "eval gold C05", "eval gold C06"] },
+
+    // FAQ references
+    { id: "eval-faq-zero-based", file: evFaq, from: "source: `ruling:${card}#${found.index + 1}`", to: "source: `ruling:${card}#${found.index}`", kills: ["resolves a FAQ reference to the 1-based ruling id"] },
+    { id: "eval-faq-missing-is-no", file: evFaq, from: "const found = pick(rulings, qh);\n  if (typeof found === \"string\") return found;", to: "const found = pick(rulings, qh);\n  if (typeof found === \"string\") return { source: `ruling:${card}#0`, polarity: \"no\" as const };", kills: ["marks a reference whose question is gone as stale"] },
+    { id: "eval-faq-loose-polarity", file: evFaq, from: "/^(Yes|No)\\b/.exec(answer.trim())", to: "/^(Yes|No)/.exec(answer.trim())", kills: ["reads the verdict from the official answer's first word"] },
+
+    // grounded
+    { id: "eval-grounding-skips-percent", file: evGrounding, from: "for (const p of facts.percents) {", to: "for (const p of [] as typeof facts.percents) {", kills: ["flags a percentage no tool returned"] },
+    { id: "eval-grounding-loose-rounding", file: evGrounding, from: "const PERCENT_TOL = 0.05;", to: "const PERCENT_TOL = 0.5;", kills: ["accepts a tool's 78.0% written as 78%"] },
+    { id: "eval-grounding-whole-allowance", file: evGrounding, from: " || (Number.isInteger(c.value) && closePercent(p.value, c.value, WHOLE_TOL))", to: "", kills: ["accepts a tool's 78.0% written as 78%"] },
+    { id: "eval-grounding-skips-cards", file: evGrounding, from: "if (!opts.catalog.cards.has(id) || !haystack.has(id))", to: "if (false)", kills: ["flags a card number the tools never returned"] },
+    { id: "eval-grounding-skips-wins", file: evGrounding, from: "for (const n of facts.wins) if (!known.wins.includes(n)) ungrounded.push(`${n} wins`);", to: "", kills: ["flags a win count the tools never returned"] },
+    { id: "eval-grounding-tools-only", file: evGrounding, from: "const source = [corpus.tools, corpus.user].join(\"\\n\");", to: "const source = corpus.tools;", kills: ["counts the player's own message as a source"] },
+
+    // cited
+    { id: "eval-cites-any-group", file: evCitations, from: "const missing = cites.all.filter((group) => !hit(group));", to: "const missing = cites.all.some(hit) ? [] : cites.all;", kills: ["needs a citation for every required group"] },
+    { id: "eval-cites-substring", file: evCitations, from: "return source === rule;", to: "return source.includes(rule);", kills: ["does not let ruling:OP01-061#12 satisfy ruling:OP01-061#1"] },
+    { id: "eval-cites-no-wildcard", file: evCitations, from: "if (rule.endsWith(\"*\")) return source.startsWith(rule.slice(0, -1));", to: "", kills: ["accepts any alternative within a group, and a * suffix wildcard"] },
+    { id: "eval-cites-ignores-none", file: evCitations, from: "const forbidden = sources.filter((s) => (cites.none ?? []).some((rule) => sourceMatches(rule, s)));", to: "const forbidden: string[] = [];", kills: ["fails an answer that cites a forbidden ruling"] },
+    { id: "eval-cites-n-matches-anything", file: evCitations, from: ".join(\"\\\\d+\")", to: ".join(\".+\")", kills: ["fails an answer that cites a forbidden ruling"] },
+
+    // correct
+    { id: "eval-exact-wide-tolerance", file: evExact, from: "const ODDS_TOL = 0.05;", to: "const ODDS_TOL = 2.5;", kills: ["passes 91.2% and fails 89.2% for C12's gold", "passes a whole 78% when the gold is 78.0 but fails 35% for 35.3"] },
+    { id: "eval-exact-legal-any-verdict", file: evExact, from: "if (said === \"unclear\" || (said === \"legal\") !== gold.legal) return no(", to: "if (false) return no(", kills: ["fails \"legal\" against a not-legal gold"] },
+    { id: "eval-exact-no-card-needed", file: evExact, from: "if ((gold.offending?.length || gold.mention !== undefined) && !named) {", to: "if (false) {", kills: ["fails \"legal\" against a not-legal gold"] },
+    { id: "eval-exact-unclear-passes", file: evExact, from: "const said = v.verdict;", to: "const said = v.verdict === \"unclear\" ? gold.verdict : v.verdict;", kills: ["scores an unclear verdict as wrong"] },
+    { id: "eval-exact-date-skipped", file: evExact, from: "if (gold.dates && !gold.dates.some(", to: "if (false && gold.dates && !gold.dates.some(", kills: ["needs the errata date in the answer"] },
+    { id: "eval-exact-number-skipped", file: evExact, from: "if (gold.number !== undefined && !facts.numbers.includes(gold.number))", to: "if (false)", kills: ["needs the gold number among the answer's numbers"] },
+    { id: "eval-exact-cannot-unchecked", file: evExact, from: "if (!lists(v.cannot, id, catalog) || lists(v.can, id, catalog))", to: "if (false)", kills: ["needs which cards can and cannot"] },
+    { id: "eval-exact-cannot-also-can", file: evExact, from: " || lists(v.can, id, catalog)) return no(", to: ") return no(", kills: ["needs which cards can and cannot"] },
+    { id: "eval-exact-can-unchecked", file: evExact, from: "for (const id of gold.can ?? []) if (!lists(v.can, id, catalog)) return no(", to: "for (const id of gold.can ?? []) if (false) return no(", kills: ["needs which cards can and cannot"] },
+    { id: "eval-exact-no-ruling-claim", file: evExact, from: "if (said !== \"no\" || !v.says_no_official_ruling) return no(", to: "if (said !== \"no\") return no(", kills: ["needs an A15 answer to say no official ruling covers it"] },
+    { id: "eval-extract-card-digits-counted", file: evExtract, from: "const bare = answer.replace(CARD_ID, \" \");", to: "const bare = answer;", kills: ["needs the gold number among the answer's numbers, ignoring the digits in card numbers"] },
+    { id: "eval-extract-card-after-quantity", file: evExtract, from: "/(?<![A-Z0-9])(P-", to: "/\\b(P-", kills: ["counts the player's own message as a source"] },
+    { id: "eval-extract-ignores-minus-lines", file: evExtract, from: "/^\\s*([+-])\\s*(\\d+)\\s*x?\\s*(P-", to: "/^\\s*([+])\\s*(\\d+)\\s*x?\\s*(P-", kills: ["reads +N/-N edit lines with card numbers"] },
+    { id: "eval-extract-no-number-words", file: evExtract, from: "    ...[...bare.toLowerCase().matchAll(/\\b(one|two|three|four|five|six|seven|eight|nine|ten)\\b/g)].map((m) => WORDS[m[1]!]!),\n", to: "", kills: ["reads percentages, game counts, win counts and number words"] },
+
+    // D: edits, rubric and the self-test
+    { id: "eval-edits-ignore-minus", file: evEdits, from: "(e.sign === \"+\" ? e.copies : -e.copies)", to: "(e.sign === \"+\" ? e.copies : 0)", kills: ["applies +N/-N lines and keeps a legal Rayleigh deck legal"] },
+    { id: "eval-edits-skip-analyze", file: evEdits, from: "legal: analysis.legal && problems.length === 0,", to: "legal: true,", kills: ["reports a cost-5 card in a Rayleigh deck as illegal", "fails a D answer whose +N/-N edits break the deck"] },
+    { id: "eval-edits-no-lines-pass", file: evEdits, from: "return { applied: 0, legal: false,", to: "return { applied: 0, legal: true,", kills: ["fails an answer with no +N/-N lines to apply"] },
+    { id: "eval-d-rubric-threshold", file: evGrade, from: "export const RUBRIC_PASS = 0.8;", to: "export const RUBRIC_PASS = 0;", kills: ["calls a D answer correct only at a rubric score of 0.8 or more"] },
+    { id: "eval-d-checks-ignored", file: evGrade, from: "const pass = rubric >= RUBRIC_PASS && problems.length === 0;", to: "const pass = rubric >= RUBRIC_PASS;", kills: ["fails a D answer whose +N/-N edits break the deck", "fails a D answer that invents a win rate"] },
+    { id: "eval-rubric-null-counts", file: evJudge, from: "const applicable = Object.values(rubric).filter((i) => i.pass !== null);", to: "const applicable = Object.values(rubric);", kills: ["scores the rubric as passes over the items that apply"] },
+    { id: "eval-grade-cited-always", file: evGrade, from: "cited: cites.ok ? 1 : 0,", to: "cited: 1,", kills: ["marks an answer that cites nothing as not cited"] },
+    { id: "eval-grade-grounded-always", file: evGrade, from: "grounded: ground.ok ? 1 : 0,", to: "grounded: 1,", kills: ["marks an answer that cites nothing as not cited"] },
+    { id: "eval-grade-default-pass", file: evGrade, from: "correct = { correct: 0, why: \"the answer is empty\" };", to: "correct = { correct: 1, why: \"the answer is empty\" };", kills: ["scores a scripted right answer 1 and an empty answer 0 through runChat"] },
+    { id: "eval-selftest-ignores-pass", file: evSelftest, from: "if (!failed) ok = false;", to: "", kills: ["fails the self-test when a grader passes a known-bad answer"] },
+
+    // overlap: Bandai text stays out of git
+    { id: "eval-overlap-threshold", file: evOverlap, from: "export const OVERLAP_WORDS = 12;", to: "export const OVERLAP_WORDS = 1000;", kills: ["refuses to store an answer that repeats 12 words of official text"] },
+    { id: "eval-overlap-off-by-one", file: evOverlap, from: "return officialOverlap(text, corpus) < n;", to: "return officialOverlap(text, corpus) < n - 1;", kills: ["stores an answer that shares only 11 words"] },
+
+    // stats
+    { id: "eval-stats-flat-reps", file: evStats, from: "byCase.set(r.case, [...(byCase.get(r.case) ?? []), v]);", to: "byCase.set(`${r.case}#${r.rep}`, [v]);", kills: ["averages reps within a case before averaging cases"] },
+    { id: "eval-stats-counts-truncated", file: evStats, from: "const v = r.status === \"ok\" ? r.grade?.[metric] : undefined;", to: "const v = r.grade?.[metric];", kills: ["leaves truncated and error-free-but-unscored rows out of the averages"] },
+    { id: "eval-stats-flip-boundary", file: evStats, from: "Math.abs(v - a.get(id)!) >= by - 1e-9", to: "Math.abs(v - a.get(id)!) > by", kills: ["reports the cases whose mean moved by 0.5 or more"] },
+    { id: "eval-stats-delta-unpaired", file: evStats, from: "const diffs = [...b].filter(([id]) => a.has(id)).map(", to: "const diffs = [...b].map(", kills: ["reports the cases whose mean moved by 0.5 or more"] },
+
+    // loader
+    { id: "eval-load-no-catalog-check", file: evLoad, from: "if (!catalog.cards.has(id)) problems.push(", to: "if (false) problems.push(", kills: ["rejects a case naming a card that isn't in the catalog"] },
+    { id: "eval-load-no-duplicate-check", file: evLoad, from: "if (seen.has(c.id)) problems.push(", to: "if (false) problems.push(", kills: ["rejects two cases with the same id"] },
+    { id: "eval-load-no-count-check", file: evLoad, from: "if ((counts[g] ?? 0) !== n)", to: "if (false)", kills: ["rejects a question list with the wrong number of cases per group"] },
+    { id: "eval-load-no-qh-check", file: evLoad, from: "else if (\"qh\" in c.faq && !/^[0-9a-f]{8}$/.test(c.faq.qh))", to: "else if (false)", kills: ["rejects an A case whose question hash is not 8 hex characters"] },
+
+    // fake planner: eval spend never reaches a player's caps
+    { id: "eval-planner-usage-not-local", file: evPlanner, from: "if (method === \"POST\" && path === \"/analyst/chat/usage\") {", to: "if (false) {", kills: ["keeps chat usage local but forwards stats reads"] },
+    { id: "eval-planner-live-no-forward", file: evPlanner, from: "if (live && forwarded && opts.liveUrl) {", to: "if (false) {", kills: ["keeps chat usage local but forwards stats reads"] },
+    { id: "eval-planner-fixture-ignored", file: evPlanner, from: "if (key in fixtures.responses)", to: "if (false)", kills: ["answers stats from the fixtures when fake"] },
+
+    // harness: failures are classed, not scored
+    { id: "eval-errors-in-results", file: evRunner, from: "else return fault(\"api_error\", msgOf(err));", to: "else graded = { failure: \"too_many_rounds\" };", kills: ["puts a failed model call in errors.jsonl, not in the scores"] },
+    { id: "eval-no-model-assert", file: evRunner, from: "if (reply.model !== opts.model) throw new ModelMismatch(", to: "if (false) throw new ModelMismatch(", kills: ["rejects a reply served by a different model"] },
+    { id: "eval-rounds-as-error", file: evRunner, from: "if (calls.length >= MAX_TOOL_ROUNDS && /too many lookups/.test(msgOf(err))) graded = { failure: \"too_many_rounds\" };", to: "if (false) graded = { failure: \"too_many_rounds\" };", kills: ["scores running out of tool rounds as a graded 0, not an error"] },
+    { id: "eval-refusal-graded-as-answer", file: evRunner, from: "if (!graded && calls.some((k) => k.stop_reason === \"refusal\")) graded = { failure: \"refusal\" };", to: "", kills: ["scores a refusal as a graded 0"] },
+    { id: "eval-no-retry", file: evRunner, from: "const reply = await withRetry(() => base(params, onText, signal, onCite), { signal, baseMs: opts.retryMs, onRetry: () => retries++ });", to: "const reply = await base(params, onText, signal, onCite);", kills: ["retries an overloaded call and counts the retry"] },
+    { id: "eval-retries-not-counted", file: evRunner, from: "onRetry: () => retries++", to: "onRetry: () => undefined", kills: ["retries an overloaded call and counts the retry"] },
+    { id: "eval-skip-gated-tools", file: evRunner, from: "const missing = (c.requiresTools ?? []).filter((t) => !offered.has(t));", to: "const missing: string[] = [];", kills: ["skips a case that needs a tool the chat doesn't offer"] },
+    { id: "eval-max-usd-ignored", file: evRunner, from: "if (spent >= opts.maxUsd) {", to: "if (false) {", kills: ["stops dispatching new cases once the spend cap is reached"] },
+    { id: "eval-resume-repeats", file: evRunner, from: "for (let rep = 0; rep < opts.reps; rep++) if (!done.has(`${c.id}#${rep}`)) work.push({ c, gold, rep });", to: "for (let rep = 0; rep < opts.reps; rep++) work.push({ c, gold, rep });", kills: ["resumes without repeating a case that already has a result"] },
+
     // goldfish simulate (#402)
     { id: "sim-adapter-missing", file: sources, from: "  simulate: simulateAdapter,\n", to: "", kills: ["makes a goldfish run one sim: source with a sentence per turn and the engine-support warning (#402)"] },
     { id: "sim-support-warning-dropped", file: sources, from: "    ...simSupportFacts(v),\n", to: "", kills: ["makes a goldfish run one sim: source with a sentence per turn and the engine-support warning (#402)"] },
