@@ -14,6 +14,7 @@ const knowledge = "analyst/src/knowledge.ts";
 const playbook = "analyst/src/playbook.ts";
 const chat = "analyst/src/chat.ts";
 const sources = "analyst/src/sources.ts";
+const server = "analyst/src/server.ts";
 module.exports = {
   cwd: "analyst",
   runner: "vitest",
@@ -56,11 +57,11 @@ module.exports = {
     { id: "review-unconfigured-still-calls", file: matches, from: "  if (!api.serviceSecret) throw new Error(\"Match review isn't set up on this server (ANALYST_SERVICE_SECRET is unset).\");\n", to: "", kills: ["asks the planner for a replay with the player's token and the service secret"] },
     { id: "token-any-error-means-dead", file: matches, from: "    if (err instanceof PlannerApiError && err.status === 401) return false;", to: "    return false;", kills: ["treats only a 401 as a dead personal link"] },
     // learning loop (#246)
-    { id: "stats-names-dropped", file: matches, from: "      if ((k === \"leader\" || k === \"opponent\" || k === \"id\") && typeof v === \"string\") out[`${k}_name`] = cardName(v);\n", to: "", kills: ["reads matchup stats with the service secret only and names every card"] },
-    { id: "stats-top-level-names-only", file: matches, from: "      out[k] = named(v);", to: "      out[k] = v;", kills: ["reads matchup stats with the service secret only and names every card"] },
+    { id: "stats-names-dropped", file: matches, from: "    if ((k === \"leader\" || k === \"opponent\" || k === \"id\") && typeof v === \"string\") out[`${k}_name`] = cardName(v);\n", to: "", kills: ["reads matchup stats with the service secret only and names every card", "reads tournament stats with the service secret only and names leaders and cards"] },
+    { id: "stats-top-level-names-only", file: matches, from: "    out[k] = skip.includes(k) ? v : withCardNames(v, skip);", to: "    out[k] = v;", kills: ["reads matchup stats with the service secret only and names every card"] },
     { id: "stats-sends-a-token", file: matches, from: "plannerCall<Record<string, unknown>>(api, null, `/analyst/stats/matchups?${params}`, true)", to: "plannerCall<Record<string, unknown>>(api, \"\", `/analyst/stats/matchups?${params}`, true)", kills: ["reads matchup stats with the service secret only and names every card"] },
     { id: "stats-unconfigured-still-calls", file: matches, from: "  if (!api.serviceSecret) throw new Error(\"Match stats aren't set up on this server (ANALYST_SERVICE_SECRET is unset).\");\n", to: "", kills: ["reads matchup stats with the service secret only and names every card"] },
-    { id: "stats-leader-not-normalised", file: matches, from: "  if (q.leader) params.set(\"leader\", q.leader.trim().toUpperCase());", to: "  if (q.leader) params.set(\"leader\", q.leader);", kills: ["reads matchup stats with the service secret only and names every card"] },
+    { id: "stats-leader-not-normalised", file: matches, from: "  if (q.leader) params.set(\"leader\", q.leader.trim().toUpperCase());\n  if (q.opponent) params.set(\"opponent\", q.opponent.trim().toUpperCase());\n  if (q.days) params.set(\"days\", String(q.days));\n  if (q.rankedOnly)", to: "  if (q.leader) params.set(\"leader\", q.leader);\n  if (q.opponent) params.set(\"opponent\", q.opponent.trim().toUpperCase());\n  if (q.days) params.set(\"days\", String(q.days));\n  if (q.rankedOnly)", kills: ["reads matchup stats with the service secret only and names every card"] },
     { id: "stats-ranked-only-dropped", file: matches, from: "  if (q.days) params.set(\"days\", String(q.days));\n  if (q.rankedOnly) params.set(\"ranked_only\", \"true\");\n", to: "  if (q.days) params.set(\"days\", String(q.days));\n", kills: ["reads matchup stats with the service secret only and names every card"] },
     { id: "lesson-sent-as-get", file: matches, from: "    method: method ?? (body === undefined ? \"GET\" : \"POST\"),", to: "    method: method ?? \"GET\",", kills: ["posts a lesson draft as JSON with the player's token"] },
     { id: "lesson-body-dropped", file: matches, from: "  return plannerCall<Record<string, unknown>>(api, token, \"/analyst/lessons\", false, lesson);", to: "  return plannerCall<Record<string, unknown>>(api, token, \"/analyst/lessons\", false, {});", kills: ["posts a lesson draft as JSON with the player's token"] },
@@ -149,5 +150,24 @@ module.exports = {
     { id: "playbook-stale-never", file: playbook, from: "    stale: Number.isFinite(written) && Number.isFinite(current) && written < current,", to: "    stale: false,", kills: ["flags notes older than the current set"] },
     { id: "playbook-newest-counts-previews", file: playbook, from: "  const newest = Math.max(0, ...[...counts].filter(([, c]) => c >= minCards).map(([n]) => n));", to: "  const newest = Math.max(0, ...[...counts].map(([n]) => n));", kills: ["takes the newest booster with a full card list"] },
     { id: "playbook-matchups-by-heading-text", file: playbook, from: "      if (id) matchups[id] = { heading: subHeading,", to: "      if (id) matchups[subHeading] = { heading: subHeading,", kills: ["reads front matter, sections and matchups"] },
+    // tournament stats from Limitless TCG (#397)
+    { id: "tourney-names-event-ids", file: matches, from: "    out[k] = skip.includes(k) ? v : withCardNames(v, skip);", to: "    out[k] = withCardNames(v, skip);", kills: ["reads tournament stats with the service secret only and names leaders and cards"] },
+    { id: "tourney-min-players-param", file: matches, from: "params.set(\"min_players\", String(q.minPlayers))", to: "params.set(\"minPlayers\", String(q.minPlayers))", kills: ["reads tournament stats with the service secret only and names leaders and cards", "offers tournament_stats beside matchup_stats only when the planner API is configured"] },
+    { id: "tourney-tool-reads-duel-stats", file: server, from: "return json(await tournamentStats(api, args));", to: "return json(await matchupStats(api, args));", kills: ["offers tournament_stats beside matchup_stats only when the planner API is configured"] },
+    { id: "tourney-no-adapter", file: sources, from: "  tournament_stats: tournamentAdapter,\n", to: "", kills: ["offers tournament_stats beside matchup_stats only when the planner API is configured"] },
+    { id: "tourney-meta-source", file: sources, from: "searchResult(\"tourney:meta\",", to: "searchResult(\"stats:meta\",", kills: ["ranks the meta overview with its minimum sample and gives each leader a meta share"] },
+    { id: "tourney-overview-leader-source", file: sources, from: "searchResult(`tourney:${l.leader}`,", to: "searchResult(`stats:${l.leader}`,", kills: ["ranks the meta overview with its minimum sample and gives each leader a meta share"] },
+    { id: "tourney-top-win-rate-dropped", file: sources, from: "        ...top.map((l, i) => recordSentence(", to: "        ...[].map((l: Rec, i: number) => recordSentence(", kills: ["ranks the meta overview with its minimum sample and gives each leader a meta share"] },
+    { id: "tourney-opponent-source", file: sources, from: "searchResult(`tourney:${v.leader}~${o.opponent}`,", to: "searchResult(`stats:${v.leader}~${o.opponent}`,", kills: ["puts tournament records under tourney:, apart from the stats: sources"] },
+    { id: "tourney-matchup-source", file: sources, from: "searchResult(`tourney:${v.leader}~${v.opponent}`,", to: "searchResult(`stats:${v.leader}~${v.opponent}`,", kills: ["puts tournament records under tourney:, apart from the stats: sources"] },
+    { id: "tourney-card-source", file: sources, from: "searchResult(`tourney:${v.leader}#${c.id}`,", to: "searchResult(`stats:${v.leader}#${c.id}`,", kills: ["puts tournament records under tourney:, apart from the stats: sources"] },
+    { id: "tourney-ties-dropped", file: sources, from: "typeof r.ties === \"number\" && r.ties > 0 ?", to: "typeof r.ties === \"number\" && r.ties > 99 ?", kills: ["puts tournament records under tourney:, apart from the stats: sources"] },
+    { id: "tourney-mirror-games-dropped", file: sources, from: "v.mirror_games > 0 &&", to: "v.mirror_games > 99 &&", kills: ["puts tournament records under tourney:, apart from the stats: sources"] },
+    { id: "tourney-not-duel-games-unsaid", file: sources, from: "events with at least ${v.min_players} players; not games from optcgduel.app.`;", to: "events with at least ${v.min_players} players.`;", kills: ["puts tournament records under tourney:, apart from the stats: sources"] },
+    { id: "tourney-too-few-decks-unsaid", file: sources, from: "v.too_few_decks && `Only ${v.decklists} decklists, too few to call this a trend.`", to: "false", kills: ["puts tournament records under tourney:, apart from the stats: sources"] },
+    { id: "tourney-event-source", file: sources, from: "searchResult(`event:${id}`,", to: "searchResult(`tourney:${id}`,", kills: ["makes an event: source of each event a leader placed at"] },
+    { id: "tourney-decklist-fewest-first", file: sources, from: ".sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))", to: ".sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))", kills: ["makes an event: source of each event a leader placed at"] },
+    { id: "tourney-ordinal-teens", file: sources, from: "tens >= 11 && tens <= 13 ? \"th\"", to: "false ? \"th\"", kills: ["makes an event: source of each event a leader placed at"] },
+    { id: "tourney-finish-ties-dropped", file: sources, from: "${r.ties ? `-${r.ties}` : \"\"}", to: "", kills: ["makes an event: source of each event a leader placed at"] },
   ],
 };

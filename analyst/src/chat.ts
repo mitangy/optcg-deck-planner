@@ -167,6 +167,7 @@ const STATUS: Record<string, string> = {
   ban_list: "Checking the ban list",
   playbook: "Reading the playbook",
   matchup_stats: "Pulling win rates",
+  tournament_stats: "Pulling tournament results",
   search_matches: "Searching recorded games",
   replay_match: "Replaying a game",
   list_my_decks: "Reading your decks",

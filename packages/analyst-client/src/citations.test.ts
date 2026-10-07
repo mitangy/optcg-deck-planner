@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSources, kindLabel, parseSource, placeAt, placeMarkers, placePopover, playbookStatus, safeLink, splitMarks, statsDetail, type PlacedCitation } from "./citations";
+import { buildSources, eventLink, hasRecord, kindLabel, parseSource, placeAt, placeMarkers, placePopover, playbookStatus, safeLink, splitMarks, statsDetail, type PlacedCitation } from "./citations";
 
 const cite = (at: number, source: string, cited_text = "q", title = "T"): PlacedCitation => ({ at, source, title, cited_text });
 
@@ -30,6 +30,27 @@ describe("source ids and their badges (#390)", () => {
     expect(label("game:g_1")).toBe("Archive game");
     expect(label("deck:0a1b2c3d")).toBe("Deck check");
     expect(label("odds:d50h8x1f")).toBe("Odds");
+  });
+
+  it("reads tournament sources like stats ones: leader~opponent and #card, and an event by its Limitless id, and badges them apart from Win rate (#397)", () => {
+    expect(parseSource("tourney:OP01-001~OP02-001")).toMatchObject({ kind: "tourney", id: "OP01-001", opponent: "OP02-001" });
+    expect(parseSource("tourney:OP01-001#OP01-016")).toMatchObject({ kind: "tourney", id: "OP01-001", part: "OP01-016" });
+    expect(parseSource("event:6abcfe1c783097f8dcb74092")).toMatchObject({ kind: "event", id: "6abcfe1c783097f8dcb74092" });
+    expect(kindLabel(parseSource("tourney:OP01-001"))).toBe("Tournament");
+    expect(kindLabel(parseSource("event:6abc"))).toBe("Tournament event");
+    expect(kindLabel(parseSource("tourney:OP01-001"))).not.toBe(kindLabel(parseSource("stats:OP01-001")));
+  });
+
+  it("shows the win-record line for optcgduel.app win rates and tournament records only (#397)", () => {
+    expect(["stats:OP01-001", "tourney:OP01-001~OP02-001", "tourney:OP01-001#OP01-016"].map((s) => hasRecord(parseSource(s)))).toEqual([true, true, true]);
+    expect(["event:6abc", "card:OP01-006", "playbook:OP01-001"].map((s) => hasRecord(parseSource(s)))).toEqual([false, false, false]);
+  });
+
+  it("links an event to its Limitless TCG page and nothing else, and not for an id that could change the address (#397)", () => {
+    expect(eventLink(parseSource("event:6abcfe1c783097f8dcb74092"))).toBe("https://play.limitlesstcg.com/tournament/6abcfe1c783097f8dcb74092");
+    expect(eventLink(parseSource("tourney:6abcfe1c783097f8dcb74092"))).toBeNull();
+    expect(eventLink(parseSource("event:../../evil?x=1"))).toBeNull();
+    expect(eventLink(parseSource("event:"))).toBeNull();
   });
 
   it("reads whether a playbook note was reviewed, and its set, from the title (#390)", () => {
