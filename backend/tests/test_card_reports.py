@@ -56,7 +56,7 @@ def _user(SessionLocal, email: str, name: str) -> int:
 def test_game_token_holder_is_recorded_as_reporter(client):
     c, SessionLocal = client
     uid = _user(SessionLocal, "guest-abc@localhost", "Guest abc")
-    token = mint_game_token(user_id=uid, email="guest-abc@localhost")["token"]
+    token = mint_game_token(user_id=uid)["token"]
     r = c.post("/duel/card-reports", json=REPORT, headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 201, r.text
     assert r.json()["user_id"] == uid
@@ -66,7 +66,7 @@ def test_session_user_takes_precedence_over_game_token(client):
     c, SessionLocal = client
     session_uid = _user(SessionLocal, "miko@example.com", "Miko")
     token_uid = _user(SessionLocal, "guest-xyz@localhost", "Guest xyz")
-    token = mint_game_token(user_id=token_uid, email="guest-xyz@localhost")["token"]
+    token = mint_game_token(user_id=token_uid)["token"]
     c.cookies.set(SESSION_COOKIE, create_session_token(session_uid))
     r = c.post("/duel/card-reports", json=REPORT, headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 201, r.text

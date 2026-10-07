@@ -1102,5 +1102,8 @@ module.exports = {
     { id: "don-piles-strip-no-gaps", file: "duel-web/src/board/DonStrip.tsx", from: "    \"--don-gaps\": Math.max(groups.length - 1, 0),\n", to: "    \"--don-gaps\": 0,\n", kills: ["renders one .don-pile group per pile on your side with the gaps in the rail style (#381)"] },
     { id: "don-piles-strip-always-wraps", file: "duel-web/src/board/DonStrip.tsx", from: "if (groups.length <= 1) return items.map(renderChip);", to: "if (groups.length < 1) return items.map(renderChip);", kills: ["lays out a single pile as a plain rail with no wrapper (#381)"] },
     { id: "don-piles-opp-gets-piles", file: "duel-web/src/board/DonStrip.tsx", from: "const piled = Boolean(tokens && onDonPileMove);", to: "const piled = Boolean(onDonPileMove);", kills: ["opponent DON!! never form piles (#381)"] },
+    // usernames allow a dot (#392)
+    { id: "username-client-dot-rejected", file: "duel-web/src/auth/username.ts", from: "[A-Za-z0-9_.-]+$/", to: "[A-Za-z0-9_-]+$/", kills: ["accepts valid handles"] },
+    { id: "username-client-dot-anywhere", file: "duel-web/src/auth/username.ts", from: "/^(?!\\.)(?!.*\\.\\.)(?!.*\\.$)[A-Za-z0-9_.-]+$/", to: "/^[A-Za-z0-9_.-]+$/", kills: ["rejects disallowed characters"] },
   ],
 };

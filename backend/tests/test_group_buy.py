@@ -290,7 +290,8 @@ def test_match_persists_receipt_text_for_host(db, two_players):
 
     detail = group_buy.get_group_buy(db, host, created.id)
     assert detail.has_receipt
-    assert detail.receipt_text.strip() == receipt.strip()
+    # Only the card rows are kept (the Qty/Description header carries nothing).
+    assert detail.receipt_text == "\n".join(receipt.split("\n")[1:])
 
     # Survives another get (refresh)
     again = group_buy.get_group_buy(db, friend, created.id)
@@ -552,3 +553,61 @@ def test_public_view_requires_toggle_and_is_read_only(db, two_players):
     with pytest.raises(PermissionError):
         group_buy.public_group_buy_view(db, created.invite_token)
 
+
+
+_ORDER_PAGE_EXTRAS = [
+    "Order Number: 123456-ABCDEF",
+    "Ship To",
+    "Miko Tang",
+    "123 Main Street",
+    "Springfield, MA 01101",
+]
+
+
+def _receipt_with_address() -> str:
+    lines = _receipt_for_pool(("Luffy", 6, "Test Set"), ("Zoro", 5, "Test Set")).split("\n")
+    return "\n".join(_ORDER_PAGE_EXTRAS + lines + ["Subtotal\t$12.00"])
+
+
+def test_saved_receipt_text_drops_the_address_but_still_rematches_392(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Privacy")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
+    group_buy.mark_ordered(db, host, created.id, None)
+
+    receipt = _receipt_with_address()
+    group_buy.save_receipt_text(db, host, created.id, receipt)
+
+    stored = group_buy.get_group_buy(db, host, created.id).receipt_text
+    assert "Main Street" not in stored and "Tang" not in stored and "01101" not in stored
+    assert stored.count("One Piece Card Game") == 2
+    # "Mark purchased" rematches from the stored text exactly as from the full paste.
+    full = group_buy.build_receipt_match_report(db, host, created.id, receipt)
+    again = group_buy.build_receipt_match_report(db, host, created.id, stored)
+    assert again.can_apply_full and again.lines == full.lines
+    assert again.unmatched == []  # the address row no longer shows up as an unmatched line
+
+
+def test_applying_a_receipt_stores_only_its_card_lines_392(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Privacy apply")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
+    group_buy.mark_ordered(db, host, created.id, None)
+
+    done = group_buy.apply_receipt_to_group_buy(
+        db,
+        host,
+        created.id,
+        GroupBuyReceiptApplyRequest(receipt_text=_receipt_with_address(), allow_partial=False),
+    )
+    assert "Main Street" not in done.receipt_text and "Tang" not in done.receipt_text
+    assert done.receipt_text.count("One Piece Card Game") == 2
+
+
+def test_member_display_name_never_falls_back_to_the_email_392(db):
+    nameless = make_user(db, email="private@example.com", name="", sub="sub-private")
+    assert "private" not in group_buy._display_name(nameless)
+    nameless.username = "Pirate_1234"
+    assert group_buy._display_name(nameless) == "Pirate_1234"

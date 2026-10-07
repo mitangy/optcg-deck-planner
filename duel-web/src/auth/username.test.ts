@@ -3,7 +3,7 @@ import { needsUsername, usernameFormatError } from "./username";
 
 describe("usernameFormatError", () => {
   it("accepts valid handles (trimmed)", () => {
-    for (const ok of ["abc", "Straw_Hat-99", "A".repeat(20), "  Zoro  "]) {
+    for (const ok of ["abc", "Straw_Hat-99", "A".repeat(20), "  Zoro  ", "Miko.T"]) {
       expect(usernameFormatError(ok)).toBeNull();
     }
   });
@@ -15,7 +15,7 @@ describe("usernameFormatError", () => {
   });
 
   it("rejects disallowed characters", () => {
-    for (const bad of ["has space", "dot.name", "ñandú", "emoji😀x"]) {
+    for (const bad of ["has space", "ñandú", "emoji😀x", ".Miko", "Miko.", "Mi..ko"]) {
       expect(usernameFormatError(bad)).toMatch(/letters, numbers/);
     }
   });

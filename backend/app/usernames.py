@@ -1,7 +1,8 @@
 """Duel usernames: validation, availability, suggestions, and display names.
 
 Rules (kept in sync with duel-web/src/auth/username.ts):
-- 3–20 characters of ASCII letters, digits, underscore, or hyphen.
+- 3–20 characters of ASCII letters, digits, underscore, hyphen, or dot (a dot may not
+  start or end the name, and two dots may not be adjacent: "Miko.T" yes, ".Miko" no).
 - Unique case-insensitively (``ix_users_username_lower``); the chosen casing is kept.
 - Reserved words (``admin``, ``moderator``, …) and a small profanity list are
   rejected. Checks run on a normalized form (lowercase, ``_``/``-`` removed,
@@ -20,7 +21,7 @@ from app.models import User
 
 USERNAME_MIN_LEN = 3
 USERNAME_MAX_LEN = 20
-USERNAME_RE = re.compile(r"^[A-Za-z0-9_-]{3,20}$")
+USERNAME_RE = re.compile(r"^(?!\.)(?!.*\.\.)(?!.*\.$)[A-Za-z0-9_.-]{3,20}$")
 
 # Exact (normalized) matches that would confuse players or impersonate staff/UI.
 _RESERVED_EXACT = frozenset(
@@ -101,12 +102,12 @@ class UsernameError(ValueError):
 
 def normalize_username(value: str) -> str:
     """Folded form used for reserved/profanity checks (not for uniqueness)."""
-    return value.lower().replace("_", "").replace("-", "").translate(_LEET)
+    return value.lower().replace("_", "").replace("-", "").replace(".", "").translate(_LEET)
 
 
 def _is_blocked(value: str) -> bool:
     norm = normalize_username(value)
-    plain = value.lower().replace("_", "").replace("-", "")
+    plain = value.lower().replace("_", "").replace("-", "").replace(".", "")
     if norm in _RESERVED_EXACT or plain in _RESERVED_EXACT:
         return True
     if any(w in norm or w in plain for w in _RESERVED_SUBSTRINGS):
@@ -124,7 +125,7 @@ def validate_username(raw: str) -> str:
             f"Username must be {USERNAME_MIN_LEN}–{USERNAME_MAX_LEN} characters."
         )
     if not USERNAME_RE.match(value):
-        raise UsernameError("Use only letters, numbers, underscores, and hyphens.")
+        raise UsernameError("Use only letters, numbers, underscores, hyphens, and dots (not at the ends or doubled).")
     if _is_blocked(value):
         raise UsernameError("That username isn't allowed. Please pick another.")
     return value
@@ -137,8 +138,32 @@ def username_taken(db: Session, username: str, *, exclude_user_id: int | None = 
     return db.scalar(stmt.limit(1)) is not None
 
 
+def first_name_last_initial(name: str) -> str | None:
+    """"Miko Tang" -> "Miko.T"; a single word stays as is. None when nothing valid remains."""
+    source = name.split("@", 1)[0] if "@" in name else name
+    words = source.split()
+    if not words:
+        return None
+    first = re.sub(r"[^A-Za-z0-9_-]", "", words[0])[: USERNAME_MAX_LEN - 2].strip("_-")
+    if not first:
+        return None
+    candidate = first
+    if len(words) > 1:
+        initial = re.sub(r"[^A-Za-z0-9]", "", words[-1])[:1].upper()
+        if initial:
+            candidate = f"{first}.{initial}"
+    try:
+        return validate_username(candidate)
+    except UsernameError:
+        return None
+
+
 def _base_from_user(user: User) -> str:
-    source = (user.name or "").strip() or (user.email or "").split("@", 1)[0]
+    name = (user.name or "").strip()
+    named = first_name_last_initial(name) if name else None
+    if named:
+        return named
+    source = name or (user.email or "").split("@", 1)[0]
     cleaned = re.sub(r"\s+", "_", source)
     cleaned = re.sub(r"[^A-Za-z0-9_-]", "", cleaned).strip("_-")
     cleaned = cleaned[:16]
@@ -149,13 +174,14 @@ def _base_from_user(user: User) -> str:
 
 
 def suggest_username(db: Session, user: User) -> str:
-    """An available, valid username derived from the user's name/email."""
+    """An available, valid username: first name + last initial ("Miko.T"), else a generic one."""
     base = _base_from_user(user)
     if not username_taken(db, base, exclude_user_id=user.id) and base != "Pirate":
         return base
-    stem = base[: USERNAME_MAX_LEN - 5]
+    joiner = "" if "." in base else "_"
+    stem = base[: USERNAME_MAX_LEN - 4 - len(joiner)]
     for _ in range(25):
-        candidate = f"{stem}_{secrets.randbelow(10_000):04d}"
+        candidate = f"{stem}{joiner}{secrets.randbelow(10_000):04d}"
         if not username_taken(db, candidate, exclude_user_id=user.id):
             return candidate
     return f"{stem[:10]}_{secrets.token_hex(4)}"

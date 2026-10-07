@@ -9,11 +9,13 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import LoginTicket, User
+from app.usernames import suggest_username
 
 SESSION_COOKIE = "optcg_session"
 OAUTH_NONCE_COOKIE = "optcg_oauth_nonce"
@@ -194,6 +196,14 @@ def resolve_google_user(
         user.google_sub = sub
     db.commit()
     db.refresh(user)
+    if not user.username:
+        # First sign-in (or never picked one): default handle, changeable in the app.
+        user.username = suggest_username(db, user)
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()  # lost a race for that handle; the picker still offers one
+        db.refresh(user)
     return user
 
 
