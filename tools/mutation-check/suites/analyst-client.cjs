@@ -52,7 +52,7 @@ module.exports = {
     // sources, citations and panel size (#390)
     { id: "cit-any-prefix-is-a-kind", file: cit, from: "  if (!KINDS.includes(head)) return", to: "  if (false) return", kills: ["reads the kind, id and part of every source"] },
     { id: "cit-turn-not-read", file: cit, from: "const m = /^t(\\d+)$/.exec(part);", to: "const m = null as RegExpExecArray | null;", kills: ["reads the kind, id and part of every source"] },
-    { id: "cit-opponent-not-split", file: cit, from: "if ((head === \"stats\" || head === \"playbook\") && id.includes(\"~\")) {", to: "if (false) {", kills: ["reads the kind, id and part of every source"] },
+    { id: "cit-opponent-not-split", file: cit, from: "if ((head === \"stats\" || head === \"tourney\" || head === \"playbook\") && id.includes(\"~\")) {", to: "if (false) {", kills: ["reads the kind, id and part of every source"] },
     { id: "cit-label-rules-no-section-sign", file: cit, from: "`Rules \u00a7${p.id}`", to: "`Rules ${p.id}`", kills: ["labels each kind of source"] },
     { id: "cit-label-match-no-turn", file: cit, from: "return p.turn ? `Your match turn ${p.turn}` : \"Your match\";", to: "return \"Your match\";", kills: ["labels each kind of source"] },
     { id: "cit-label-ruling", file: cit, from: "return \"Official ruling\";", to: "return \"Ruling\";", kills: ["labels each kind of source"] },
@@ -116,5 +116,18 @@ module.exports = {
     { id: "ask-respects-dropped-chip", file: ask, from: "...messageContext(page, false), ...extra", to: "...messageContext(page, true), ...extra", kills: ["sends the open deck even after its chip's"] },
     { id: "ask-sends-before-history", file: ask, from: "  if (state.history !== \"done\") return \"wait\";\n", to: "", kills: ["waits for the last chat to load before sending a Why?"] },
     { id: "ask-sends-while-busy", file: ask, from: "state.busy || req.send === false", to: "req.send === false", kills: ["puts a Why? in the composer instead of sending while an answer is streaming"] },
+    // goldfish sim sources (#402)
+    { id: "citations-sim-kind-missing", file: cit, from: ", \"lesson\", \"sim\"];", to: ", \"lesson\"];", kills: ["parses sim: sources and labels them Goldfish sim (#402)"] },
+    // tournament sources (#397)
+    { id: "tourney-opponent-unparsed", file: cit, from: "if ((head === \"stats\" || head === \"tourney\" || head === \"playbook\") && id.includes(\"~\")) {", to: "if ((head === \"stats\" || head === \"playbook\") && id.includes(\"~\")) {", kills: ["reads tournament sources like stats ones: leader~opponent"] },
+    { id: "tourney-kind-unknown", file: cit, from: "[\"card\", \"rule\", \"ruling\", \"stats\", \"tourney\", \"event\",", to: "[\"card\", \"rule\", \"ruling\", \"stats\", \"event\",", kills: ["reads tournament sources like stats ones: leader~opponent", "shows the win-record line for optcgduel.app win rates and tournament records only"] },
+    { id: "event-kind-unknown", file: cit, from: "\"tourney\", \"event\", \"playbook\",", to: "\"tourney\", \"playbook\",", kills: ["reads tournament sources like stats ones: leader~opponent", "links an event to its Limitless TCG page"] },
+    { id: "tourney-badged-as-win-rate", file: cit, from: "    case \"tourney\":\n      return \"Tournament\";", to: "    case \"tourney\":\n      return \"Win rate\";", kills: ["reads tournament sources like stats ones: leader~opponent"] },
+    { id: "event-badge-dropped", file: cit, from: "    case \"event\":\n      return \"Tournament event\";\n", to: "", kills: ["reads tournament sources like stats ones: leader~opponent"] },
+    { id: "tourney-record-line-dropped", file: cit, from: "p.kind === \"stats\" || p.kind === \"tourney\"", to: "p.kind === \"stats\"", kills: ["shows the win-record line for optcgduel.app win rates and tournament records only"] },
+    { id: "record-line-for-every-source", file: cit, from: "p.kind === \"stats\" || p.kind === \"tourney\"", to: "true", kills: ["shows the win-record line for optcgduel.app win rates and tournament records only"] },
+    { id: "event-link-any-kind", file: cit, from: "return p.kind === \"event\" && /^", to: "return /^", kills: ["links an event to its Limitless TCG page"] },
+    { id: "event-link-unchecked-id", file: cit, from: "/^[A-Za-z0-9_-]{1,64}$/.test(p.id)", to: "p.id.length > 0", kills: ["links an event to its Limitless TCG page"] },
+    { id: "event-link-wrong-host", file: cit, from: "https://play.limitlesstcg.com/tournament/", to: "https://play.limitlesstcg.com/tournaments/", kills: ["links an event to its Limitless TCG page"] },
   ],
 };

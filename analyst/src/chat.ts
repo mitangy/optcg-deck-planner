@@ -10,7 +10,7 @@ import { buildTools, instructionsFor, type Knowledge, type ToolDef } from "./ser
 import { adaptToolResult, gameResults } from "./sources";
 
 export const CHAT_MODEL = process.env.ANALYST_CHAT_MODEL || "claude-opus-5-5";
-const MAX_TOOL_ROUNDS = 12;
+export const MAX_TOOL_ROUNDS = 12;
 
 /** Dollars per million tokens for the chat model (input, output, cache reads, cache writes). */
 const PRICE = { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 };
@@ -35,7 +35,8 @@ export function costUsd(u: Usage): number {
 
 type Block = Record<string, unknown> & { type: string };
 export type Message = { role: "user" | "assistant"; content: string | Block[] };
-export type ModelReply = { content: Block[]; stop_reason: string | null; usage: Usage };
+/** `model` is the model that served the call (the eval checks it); optional so scripted replies need not set it. */
+export type ModelReply = { content: Block[]; stop_reason: string | null; usage: Usage; model?: string };
 
 /** A citation of one tool result, as the apps show it: which source, its title and the quoted fact. */
 export type Citation = { source: string; title: string; cited_text: string };
@@ -151,7 +152,7 @@ export const chatBody = z.object({
 
 export const reviewBody = z.object({ match_id: z.string().min(1).max(80), regenerate: z.boolean().optional() });
 
-const CHAT_INSTRUCTIONS = `
+export const CHAT_INSTRUCTIONS = `
 
 You're answering in the Log Pose panel inside the player's app, often on a phone. Keep answers short and scannable: a few short paragraphs or a list, markdown allowed, no tables wider than three columns. Look things up with tools rather than asking the player for card text.
 A user message can start with a <context> block saying which page they are on and the deck or game open there. Use it when they say "this deck" or "this game"; don't mention the block itself. When the context names a build hint, the player tapped Why? on it: check the deck with analyze_deck, explain what triggers the hint here and whether it matters for this leader, and give +N / -N changes if it does. Hints are the app's rules of thumb, not game rules (except tier rule).
@@ -172,12 +173,14 @@ const STATUS: Record<string, string> = {
   get_cards: "Reading card text",
   analyze_deck: "Analyzing the deck",
   draw_odds: "Working out draw odds",
+  simulate: "Running goldfish games",
   export_deck: "Exporting the list",
   rules_lookup: "Checking the rules",
   card_rulings: "Checking rulings",
   ban_list: "Checking the ban list",
   playbook: "Reading the playbook",
   matchup_stats: "Pulling win rates",
+  tournament_stats: "Pulling tournament results",
   search_matches: "Searching recorded games",
   replay_match: "Replaying a game",
   list_my_decks: "Reading your decks",
@@ -414,13 +417,13 @@ export function anthropicModel(client: { beta: { messages: { stream: (p: never, 
       if (c) onCite?.(c);
     });
     const msg = await stream.finalMessage();
-    return { content: msg.content as unknown as Block[], stop_reason: msg.stop_reason, usage: msg.usage };
+    return { content: msg.content as unknown as Block[], stop_reason: msg.stop_reason, usage: msg.usage, model: msg.model };
   };
 }
 
 type StreamLike = {
   on: ((event: "text", cb: (delta: string) => void) => unknown) & ((event: "citation", cb: (citation: unknown) => void) => unknown);
-  finalMessage: () => Promise<{ content: unknown; stop_reason: string | null; usage: Usage }>;
+  finalMessage: () => Promise<{ content: unknown; stop_reason: string | null; usage: Usage; model?: string }>;
 };
 
 /** Browsers may call /chat from the two apps, their Vercel previews and local dev. Auth is the bearer token, not cookies. */

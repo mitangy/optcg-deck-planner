@@ -24,6 +24,8 @@ export {
   placeMarkers,
   placePopover,
   playbookStatus,
+  eventLink,
+  hasRecord,
   safeLink,
   splitMarks,
   statsDetail,
