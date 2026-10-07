@@ -270,7 +270,9 @@ export function LogPoseProvider({
   const openPanel = useCallback(() => {
     setOpen(true);
     setUnread(false);
-  }, []);
+    // Not on yet: ask again, so a player approved while this tab was open lands in the chat.
+    if (!manager.current()?.enabled) void manager.refresh();
+  }, [manager]);
 
   const closePanel = useCallback(() => setOpen(false), []);
 
@@ -460,8 +462,9 @@ function LogPosePanel({
   // Keep the newest text in view while it streams, unless the reader scrolled up.
   useLayoutEffect(() => {
     const el = listRef.current;
-    if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [chat.messages, chat.status, chat.error, chat.busy]);
+    if (el && showChat && stick.current) el.scrollTop = el.scrollHeight;
+    else if (el && !showChat) el.scrollTop = 0;
+  }, [chat.messages, chat.status, chat.error, chat.busy, showChat]);
 
   const onScroll = () => {
     const el = listRef.current;
