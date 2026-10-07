@@ -1469,6 +1469,64 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+  /** Seat 1 brings an Imu leader (mandatory start-of-game Stage prompt); seat 0 is the first player. */
+  async function imuSecondRoom(timer: Record<string, number>) {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 8,
+      autoSkipMulligan: false,
+      timer,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const imuDeck = {
+      leaderId: "OP13-079",
+      deck: ["OP13-099", "ST01-003", "ST01-006", "ST01-008", "ST01-009", "ST01-014"].flatMap((id) => [id, id, id, id]),
+    };
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, { ...joinOpts("bob", 1), deck: imuDeck });
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    const m = internals(room).match;
+    assert.equal(m.phase, "mulligan");
+    assert.equal(m.activeSeat, 0);
+    assert.equal(m.pendingChoices[0]?.seat, 1, "the Imu seat owes the Stage prompt");
+    return { room, c0, c1, bags };
+  }
+
+  it("per-player clock: the Imu seat's open Stage prompt drains its own bank, not the first player's (#353)", async () => {
+    const { room, c0, c1, bags } = await imuSecondRoom({ seatSeconds: 900 });
+    assert.equal(internals(room).clockSeat, 1);
+
+    // Seat 0 cannot mulligan yet, so its bank must hold while seat 1's runs out.
+    internals(room).seatRemainingMs[0] = 1;
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(internals(room).match.winner, null);
+    assert.equal(bags[0].over, undefined);
+
+    internals(room).seatRemainingMs[1] = 1;
+    await waitUntil(() => bags[0].over != null, 5000);
+    assert.deepEqual(bags[0].over!.result, { winner: 0, reason: "timeout" });
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("match clock: expiry while the Imu seat's Stage prompt is open names the prompt owner the loser (#353)", async () => {
+    const { room, c0, c1, bags } = await imuSecondRoom({ matchSeconds: 900 });
+
+    internals(room).matchEndsAt = Date.now() - 1;
+    await waitUntil(() => bags[0].over != null, 5000);
+    assert.deepEqual(bags[0].over!.result, { winner: 0, reason: "match_timeout" });
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
   it("match clock: a defender sitting on the block step loses on time, not the attacker (#248)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,

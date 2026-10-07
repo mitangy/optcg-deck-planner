@@ -1508,6 +1508,9 @@ export class DuelRoom extends Room implements PresenceSource {
   private seatForClock(): Seat | null {
     const m = this.match;
     if (!m) return null;
+    // A pending choice (e.g. an Imu leader's start-of-game Stage prompt) blocks every mulligan,
+    // so its owner is the seat being waited on, whichever seat is first.
+    if (m.pendingChoices[0]) return m.pendingChoices[0].seat;
     if (m.phase === "mulligan") {
       const first = m.activeSeat;
       const second = (1 - first) as Seat;
@@ -1585,7 +1588,9 @@ export class DuelRoom extends Room implements PresenceSource {
     // answered its mulligan, the first player loses as before.
     const m = this.match;
     const bothMulliganing = m.phase === "mulligan" && !m.players[0].mulliganDone && !m.players[1].mulliganDone;
-    const loser = bothMulliganing ? m.activeSeat : (this.actingSeatForTimer() ?? m.activeSeat);
+    const loser = bothMulliganing
+      ? (m.pendingChoices[0]?.seat ?? m.activeSeat)
+      : (this.actingSeatForTimer() ?? m.activeSeat);
     const winner = (1 - loser) as Seat;
     this.endReason = "match_timeout";
     this.match = {
