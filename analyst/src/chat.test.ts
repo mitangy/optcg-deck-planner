@@ -216,6 +216,50 @@ describe("chat", () => {
     expect(calls.find((c) => c.url.endsWith("/chat/usage"))!.body).toMatchObject({ input_tokens: 1000, output_tokens: 100 });
   });
 
+  it("counts the tokens of a chat stream that broke mid-answer (#377)", async () => {
+    const { calls, api } = planner({ "POST /analyst/chat/threads": { id: 9 }, "POST /analyst/chat/usage": null });
+    const dropped = Object.assign(new Error("connection reset"), { partialUsage: usage(700, 40) });
+    const { callModel } = scriptedModel([dropped]);
+    await expect(runChat(deps(api, callModel), "chat.1.2.sig", { message: "Hi" }, () => {}, new AbortController().signal)).rejects.toThrow("connection reset");
+    expect(calls.find((c) => c.url.endsWith("/chat/usage"))!.body).toMatchObject({ kind: "chat", input_tokens: 700, output_tokens: 40 });
+  });
+
+  it("counts the tokens of a Claude stream that was cut off, carrying them on the error (#377)", async () => {
+    const handlers: Record<string, (...a: any[]) => void> = {};
+    const stream = {
+      on: (event: string, cb: (...a: any[]) => void) => void (handlers[event] = cb),
+      finalMessage: async () => {
+        handlers.streamEvent!({ type: "message_start" }, { usage: usage(900, 1) });
+        handlers.streamEvent!({ type: "message_delta" }, { usage: usage(900, 55) });
+        throw new Error("aborted");
+      },
+    };
+    const model = anthropicModel({ beta: { messages: { stream: () => stream } } } as never);
+    const err = await model({}, () => {}, new AbortController().signal).catch((e) => e);
+    expect(err.message).toBe("aborted");
+    expect(err.partialUsage).toMatchObject({ input_tokens: 900, output_tokens: 55 });
+  });
+
+  it("lets a user have one chat or review stream at a time, and another once it ends (#377)", async () => {
+    const { api } = planner({ "POST /analyst/chat/threads": { id: 9 }, "POST /analyst/chat/usage": null, "POST /analyst/chat/threads/9/messages": null, "GET /analyst/chat/budget": BUDGET });
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const reply: ModelReply = { content: [{ type: "text", text: "Done." }], stop_reason: "end_turn", usage: usage(10, 5) };
+    const slow: CallModel = async () => {
+      await gate;
+      return reply;
+    };
+    const fast: CallModel = async () => reply;
+    const signal = new AbortController().signal;
+    const first = runChat(deps(api, slow), "chat.1.2.sig", { message: "Hi" }, () => {}, signal);
+    await expect(runChat(deps(api, slow), "chat.1.3.sig2", { message: "Again" }, () => {}, signal)).rejects.toMatchObject({ status: 429, code: "busy" });
+    await expect(runReview(deps(api, slow), "chat.1.3.sig2", { match_id: "m1" }, () => {}, signal)).rejects.toMatchObject({ status: 429, code: "busy" });
+    await expect(runChat(deps(api, fast), "chat.2.2.sig", { message: "Hi" }, () => {}, signal)).resolves.toBeUndefined();
+    release();
+    await first;
+    await expect(runChat(deps(api, fast), "chat.1.3.sig2", { message: "Again" }, () => {}, signal)).resolves.toBeUndefined();
+  });
+
   it("lets only the apps' own origins call the chat from a browser (#377)", () => {
     const list = ["https://optcgduel.app"];
     expect(originAllowed(list, "https://optcgduel.app")).toBe(true);
@@ -327,6 +371,14 @@ describe("sources and citations (#390)", () => {
     expect(deltas).toEqual(["Checking.", "\n\nZoro is a leader."]);
     const saved = calls.find((c) => c.url.endsWith("/threads/9/messages"))!.body as { messages: { content: any[] }[] };
     expect(saved.messages[3]!.content).toEqual([cited]);
+  });
+
+  it("counts the tokens of a review stream that broke mid-answer (#377)", async () => {
+    const { calls, api } = planner({ "GET /analyst/matches/m1/replay": { match_id: "m1", your_seat: taken.seat, replay }, "POST /analyst/chat/usage": null });
+    const dropped = Object.assign(new Error("connection reset"), { partialUsage: usage(4000, 120) });
+    const { callModel } = scriptedModel([dropped]);
+    await expect(runReview(deps(api, callModel), "chat.tok", { match_id: "m1" }, () => {}, new AbortController().signal)).rejects.toThrow("connection reset");
+    expect(calls.find((c) => c.url.endsWith("/chat/usage"))!.body).toMatchObject({ kind: "review", input_tokens: 4000, output_tokens: 120 });
   });
 
   it("sends the game to the review as one search result per turn and saves the review's citations with their offsets (#390)", async () => {
