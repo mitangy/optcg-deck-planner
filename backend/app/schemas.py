@@ -815,7 +815,7 @@ class AnalystChatBudget(BaseModel):
 
 
 class AnalystUsageIn(BaseModel):
-    kind: Literal["chat", "review"]
+    kind: Literal["chat", "review", "brief"]
     model: str = Field(default="", max_length=64)
     input_tokens: int = Field(default=0, ge=0)
     output_tokens: int = Field(default=0, ge=0)
@@ -878,6 +878,35 @@ class AnalystThreadView(BaseModel):
 class AnalystReviewIn(BaseModel):
     text: str = Field(min_length=1, max_length=20000)
     citations: list[AnalystCitation] = Field(default_factory=list, max_length=200)
+
+
+class AnalystBriefLookupIn(BaseModel):
+    ticket: str = Field(min_length=10, max_length=4000)
+    variant: str = Field(min_length=1, max_length=32)
+
+
+class AnalystBriefIn(AnalystBriefLookupIn):
+    text: str = Field(min_length=1, max_length=8000)
+    citations: list[AnalystCitation] = Field(default_factory=list, max_length=100)
+
+
+class AnalystBriefOut(BaseModel):
+    text: str
+    citations: list[AnalystCitation] = Field(default_factory=list)
+    created_at: str | None
+
+
+class AnalystBriefDeckLine(BaseModel):
+    id: str
+    copies: int
+
+
+class AnalystBriefLookupOut(BaseModel):
+    leader_id: str
+    opponent_id: str
+    deck: list[AnalystBriefDeckLine]
+    key: str
+    brief: AnalystBriefOut | None = None
 
 
 class AnalystReviewOut(BaseModel):

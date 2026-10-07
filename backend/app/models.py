@@ -594,6 +594,24 @@ class AnalystUsage(Base):
     )
 
 
+class AnalystMatchBrief(Base):
+    """Log Pose's matchup brief for a casual or practice game, written once per (variant, leaders, deck) and shared."""
+
+    __tablename__ = "analyst_match_briefs"
+
+    # sha256 of variant|leader|opponent|sorted deck counts (see brief_tickets.brief_key).
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    variant: Mapped[str] = mapped_column(String(32))
+    leader_id: Mapped[str] = mapped_column(String(32))
+    opponent_id: Mapped[str] = mapped_column(String(32))
+    text: Mapped[str] = mapped_column(Text)
+    # JSON list of the citations placed in the text; NULL when there were none.
+    citations: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class AnalystMatchReview(Base):
     """Log Pose's post-game analysis of one duel for one of its players, kept so it's written once."""
 

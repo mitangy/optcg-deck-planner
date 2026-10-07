@@ -419,5 +419,21 @@ module.exports = {
     { id: "client-ip-ignores-proxy-secret", file: rateLimit, from: "    return hmac.compare_digest(sent.encode(), secret.encode())", to: "    return False", kills: ["test_forwarded_for_is_trusted_with_the_proxy_secret"] },
     { id: "client-ip-untrusted-before-configured", file: rateLimit, from: "        return True  # Not configured yet: keep trusting X-Forwarded-For as before.", to: "        return False", kills: ["test_forwarded_for_is_trusted_until_a_proxy_secret_is_configured"] },
     { id: "client-ip-skips-cloudflare", file: rateLimit, from: "    for header in (\"cf-connecting-ip\", \"true-client-ip\"):", to: "    for header in ():", kills: ["test_forwarded_for_is_ignored_without_the_proxy_secret"] },
+    // matchup briefs (#401)
+    { id: "brief-ranked-ticket-accepted", args: "tests/test_analyst_briefs.py", file: "backend/app/brief_tickets.py", from: "    if payload.get(\"ranked\") is not False:\n        return None\n", to: "", kills: ["test_a_ranked_ticket_gets_no_brief"] },
+    // Two layers: the salted key and the purpose check each keep a game token (or anything else) from passing as a ticket.
+    { id: "brief-game-token-accepted", args: "tests/test_analyst_briefs.py", edits: [
+      { file: "backend/app/brief_tickets.py", from: "KEY_SALT = \"match-brief:\"", to: "KEY_SALT = \"\"" },
+      { file: "backend/app/brief_tickets.py", from: "    if payload.get(\"p\") != TICKET_PURPOSE:\n        return None\n", to: "" },
+    ], kills: ["test_a_game_token_is_not_a_brief_ticket"] },
+    { id: "brief-verify-prefix-mb0", args: "tests/test_analyst_briefs.py", file: "backend/app/brief_tickets.py", from: "TICKET_PREFIX = \"mb1\"", to: "TICKET_PREFIX = \"mb0\"", kills: ["test_the_backend_accepts_the_shared_ticket_vector"] },
+    { id: "brief-sig-unchecked", args: "tests/test_analyst_briefs.py", file: "backend/app/brief_tickets.py", from: "        if not hmac.compare_digest(sig.encode(\"ascii\"), sign_body(body, settings).encode(\"ascii\")):\n            return None\n", to: "", kills: ["test_a_tampered_or_expired_ticket_is_refused"] },
+    { id: "brief-exp-unchecked", args: "tests/test_analyst_briefs.py", file: "backend/app/brief_tickets.py", from: "not isinstance(exp, (int, float)) or exp < now:", to: "not isinstance(exp, (int, float)):", kills: ["test_a_tampered_or_expired_ticket_is_refused"] },
+    { id: "brief-key-ignores-deck", args: "tests/test_analyst_briefs.py", file: "backend/app/brief_tickets.py", from: "{claims.opponent}|{deck}\"", to: "{claims.opponent}|\"", kills: ["test_briefs_are_cached_per_leader_pair_deck_and_variant"] },
+    { id: "brief-key-unsorted", args: "tests/test_analyst_briefs.py", file: "backend/app/brief_tickets.py", from: "for card, n in sorted(counts.items()))\n    return hashlib", to: "for card, n in counts.items())\n    return hashlib", kills: ["test_briefs_are_cached_per_leader_pair_deck_and_variant"] },
+    { id: "brief-key-ignores-variant", args: "tests/test_analyst_briefs.py", file: "backend/app/brief_tickets.py", from: "f\"{variant}|{claims.leader}", to: "f\"{claims.leader}", kills: ["test_briefs_are_cached_per_leader_pair_deck_and_variant"] },
+    { id: "brief-ttl-ignored", args: "tests/test_analyst_briefs.py", file: "backend/app/routers/analyst_chat.py", from: "        if made is None or made >= datetime.now(timezone.utc) - BRIEF_TTL:", to: "        if True:", kills: ["test_a_brief_older_than_a_week_is_not_served"] },
+    { id: "brief-lookup-no-service", args: "tests/test_analyst_briefs.py", file: "backend/app/routers/analyst_chat.py", from: "def lookup_brief(\n    body: AnalystBriefLookupIn,\n    _: Service,\n", to: "def lookup_brief(\n    body: AnalystBriefLookupIn,\n", kills: ["test_brief_routes_need_the_service_secret"] },
+    { id: "brief-usage-kind-refused", args: "tests/test_analyst_briefs.py", file: "backend/app/schemas.py", from: "kind: Literal[\"chat\", \"review\", \"brief\"]", to: "kind: Literal[\"chat\", \"review\"]", kills: ["test_brief_spend_counts_toward_the_daily_cap"] },
   ],
 };
