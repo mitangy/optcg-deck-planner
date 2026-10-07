@@ -189,9 +189,9 @@ export const CASES: EvalCase[] = [
   { id: "D09", group: "D", question: "Add 4 more events for removal.", deck: IMU_OK, checks: ["edits_legal"], focus: ["Says only cost-1 events fit this leader, or picks legal ones.", "Lists the changes as +N/-N lines."], cites: deck },
   { id: "D10", group: "D", question: "What's Ace's (OP16-001) win rate against Kaido (OP17-058)?", checks: ["no_invented_rate"], focus: ["Says there are too few games (3).", "Gives any judgement clearly labeled.", "Invents no number."], cites: { all: [["stats:OP16-001~OP17-058"]] } },
 
-  // ——— E: gated on tools that are not on main yet (not counted in the 50) ———
-  { id: "E01", group: "E", question: "How does Sabo (OP13-004) do in recent tournaments, and how does that compare with ladder games?", requiresTools: ["tournament_stats"], focus: ["Keeps tournament results and optcgduel.app games separate.", "Quotes the sample sizes."], cites: { all: [["stats:OP13-004"]] } },
-  { id: "E02", group: "E", question: "How often does this deck have a 2-3-4 curve by turn 4 going first?", deck: ZORO, requiresTools: ["simulate"], focus: ["Says it is a simulation.", "Gives the sample size."], cites: deck },
+  // ——— E: gated on tools the chat may not offer (not counted in the 50) ———
+  { id: "E01", group: "E", question: "How does Sabo (OP13-004) do in recent tournaments, and how does that compare with ladder games?", requiresTools: ["tournament_stats"], focus: ["Keeps tournament results and optcgduel.app games separate.", "Quotes the sample sizes."], cites: { all: [["tourney:OP13-004"], ["stats:OP13-004"]] } },
+  { id: "E02", group: "E", question: "How often does this deck have a 2-3-4 curve by turn 4 going first?", deck: ZORO, requiresTools: ["simulate"], focus: ["Says it is a simulation.", "Gives the sample size."], cites: { all: [["sim:*"]] } },
 ];
 
 /** The text sent as the player's message: the question, then the pasted deck list when the case has one. */

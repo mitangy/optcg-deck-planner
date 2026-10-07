@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { CitedAnswer, Markdown, messageContext, parseSource, type PlacedCitation } from "@optcg/analyst-client";
+import { CitedAnswer, Markdown, messageContext, parseSource, RequestAccessView, type PlacedCitation } from "@optcg/analyst-client";
 import { deckContext, reviewMode, showsLogPose, sourceHref } from "./logPose";
 
 describe("Log Pose compass placement (#377)", () => {
@@ -126,5 +126,29 @@ describe("sources in a Log Pose answer (#390)", () => {
     expect(sourceHref(parseSource("match:a%b/c#t2"))).toBe("/history/a%25b%2Fc#turn-2");
     expect(sourceHref(parseSource("game:g_9#t3"))).toBeNull();
     expect(sourceHref(parseSource("card:OP01-001"))).toBeNull();
+  });
+});
+
+describe("asking for Log Pose: the request view (#393)", () => {
+  const view = (access: "none" | "pending" | "denied") => renderToStaticMarkup(<RequestAccessView apiBase="/api" access={access} onSent={() => {}} />);
+
+  it("offers the form with a 500 character note to someone who hasn't asked (#393)", () => {
+    const html = view("none");
+    expect(html).toContain("Request access to Log Pose");
+    expect(html).toContain('maxLength="500"');
+    expect(html).toContain("Request access</button>");
+  });
+
+  it("shows no form once a request is waiting (#393)", () => {
+    const html = view("pending");
+    expect(html).toContain("Request sent.");
+    expect(html).not.toContain("<textarea");
+    expect(html).not.toContain("<button");
+  });
+
+  it("says the request wasn't approved and offers the form again (#393)", () => {
+    const html = view("denied");
+    expect(html).toContain("approved this time");
+    expect(html).toContain("<textarea");
   });
 });

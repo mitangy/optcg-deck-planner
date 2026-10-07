@@ -5,10 +5,22 @@ const session = "packages/analyst-client/src/session.ts";
 const md = "packages/analyst-client/src/markdown.ts";
 const cit = "packages/analyst-client/src/citations.ts";
 const size = "packages/analyst-client/src/panelSize.ts";
+const access = "packages/analyst-client/src/access.ts";
 module.exports = {
   cwd: "packages/analyst-client",
   runner: "vitest",
   mutations: [
+    // Asking for Log Pose (#393)
+    { id: "access-session-unknown-state-accepted", file: session, from: "return value === \"none\" || value === \"pending\" || value === \"denied\" ? value : undefined;", to: "return typeof value === \"string\" ? (value as AccessState) : undefined;", kills: ["reads where a disabled player's request stands and ignores values it doesn't know (#393)"] },
+    { id: "access-session-non-owner-marked-owner", file: session, from: "    if (body.owner === true) {\n      out.owner = true;", to: "    if (true) {\n      out.owner = true;", kills: ["reads owner and the waiting count only for owners (#393)"] },
+    { id: "access-session-pending-count-dropped", file: session, from: "        out.pendingRequests = Math.floor(body.pending_requests);", to: "", kills: ["reads owner and the waiting count only for owners (#393)"] },
+    { id: "access-request-note-untrimmed", file: access, from: "note: note.trim().slice(0, NOTE_MAX)", to: "note", kills: ["sends the trimmed note with the cookie and resolves to pending (#393)"] },
+    { id: "access-request-no-cookie", file: access, from: "{ credentials: \"include\", ...init }", to: "{ ...init }", kills: ["sends the trimmed note with the cookie and resolves to pending (#393)", "lists requests, dropping rows it can't read (#393)"] },
+    { id: "access-error-reason-dropped", file: access, from: "if (typeof body.detail === \"string\" && body.detail.trim())", to: "if (false)", kills: ["rejects with the server's reason, such as the wait before asking again (#393)"] },
+    { id: "access-list-unreadable-rows-kept", file: access, from: " || (status !== \"pending\" && status !== \"approved\" && status !== \"denied\")", to: "", kills: ["lists requests, dropping rows it can't read (#393)"] },
+    { id: "access-decide-wrong-player", file: access, from: "`/requests/${encodeURIComponent(String(userId))}`", to: "`/requests`", kills: ["posts the decision to that player's request (#393)"] },
+    { id: "access-list-not-sorted", file: access, from: "  return [...rows].sort((a, b) => RANK[a.status] - RANK[b.status]);", to: "  return [...rows];", kills: ["keeps pending first, then approved, then denied, newest first within each (#393)"] },
+    { id: "access-list-denied-first", file: access, from: "denied: 2 }", to: "denied: -1 }", kills: ["keeps pending first, then approved, then denied, newest first within each (#393)"] },
     // SSE parser
     { id: "sse-drops-partial-line", file: sse, from: "      buf = buf.slice(start);", to: "      buf = \"\";", kills: ["parses the same events wherever the stream is split", "parses a stream fed one character at a time"] },
     { id: "sse-crlf-not-held", file: sse, from: "        if (c === \"\\r\" && i === buf.length - 1) break;\n", to: "", kills: ["including a \\r\\n split between chunks"] },
@@ -39,7 +51,7 @@ module.exports = {
     // sources, citations and panel size (#390)
     { id: "cit-any-prefix-is-a-kind", file: cit, from: "  if (!KINDS.includes(head)) return", to: "  if (false) return", kills: ["reads the kind, id and part of every source"] },
     { id: "cit-turn-not-read", file: cit, from: "const m = /^t(\\d+)$/.exec(part);", to: "const m = null as RegExpExecArray | null;", kills: ["reads the kind, id and part of every source"] },
-    { id: "cit-opponent-not-split", file: cit, from: "if ((head === \"stats\" || head === \"playbook\") && id.includes(\"~\")) {", to: "if (false) {", kills: ["reads the kind, id and part of every source"] },
+    { id: "cit-opponent-not-split", file: cit, from: "if ((head === \"stats\" || head === \"tourney\" || head === \"playbook\") && id.includes(\"~\")) {", to: "if (false) {", kills: ["reads the kind, id and part of every source"] },
     { id: "cit-label-rules-no-section-sign", file: cit, from: "`Rules \u00a7${p.id}`", to: "`Rules ${p.id}`", kills: ["labels each kind of source"] },
     { id: "cit-label-match-no-turn", file: cit, from: "return p.turn ? `Your match turn ${p.turn}` : \"Your match\";", to: "return \"Your match\";", kills: ["labels each kind of source"] },
     { id: "cit-label-ruling", file: cit, from: "return \"Official ruling\";", to: "return \"Ruling\";", kills: ["labels each kind of source"] },
@@ -95,5 +107,18 @@ module.exports = {
     { id: "size-sheet-drag-inverted", file: size, from: "startFrac + (startY - y) / screenH", to: "startFrac + (y - startY) / screenH", kills: ["gets taller as the grab handle is dragged up"] },
     { id: "size-sheet-full-stored", file: size, from: "    if (frac >= 1) globalThis.localStorage?.removeItem(SHEET_KEY);", to: "    if (false) globalThis.localStorage?.removeItem(SHEET_KEY);", kills: ["remembers the phone sheet"] },
     { id: "size-sheet-read-unclamped", file: size, from: "return raw === null || raw === undefined ? 1 : clampSheet(Number(raw));", to: "return raw === null || raw === undefined ? 1 : Number(raw);", kills: ["remembers the phone sheet"] },
+    // goldfish sim sources (#402)
+    { id: "citations-sim-kind-missing", file: cit, from: ", \"lesson\", \"sim\"];", to: ", \"lesson\"];", kills: ["parses sim: sources and labels them Goldfish sim (#402)"] },
+    // tournament sources (#397)
+    { id: "tourney-opponent-unparsed", file: cit, from: "if ((head === \"stats\" || head === \"tourney\" || head === \"playbook\") && id.includes(\"~\")) {", to: "if ((head === \"stats\" || head === \"playbook\") && id.includes(\"~\")) {", kills: ["reads tournament sources like stats ones: leader~opponent"] },
+    { id: "tourney-kind-unknown", file: cit, from: "[\"card\", \"rule\", \"ruling\", \"stats\", \"tourney\", \"event\",", to: "[\"card\", \"rule\", \"ruling\", \"stats\", \"event\",", kills: ["reads tournament sources like stats ones: leader~opponent", "shows the win-record line for optcgduel.app win rates and tournament records only"] },
+    { id: "event-kind-unknown", file: cit, from: "\"tourney\", \"event\", \"playbook\",", to: "\"tourney\", \"playbook\",", kills: ["reads tournament sources like stats ones: leader~opponent", "links an event to its Limitless TCG page"] },
+    { id: "tourney-badged-as-win-rate", file: cit, from: "    case \"tourney\":\n      return \"Tournament\";", to: "    case \"tourney\":\n      return \"Win rate\";", kills: ["reads tournament sources like stats ones: leader~opponent"] },
+    { id: "event-badge-dropped", file: cit, from: "    case \"event\":\n      return \"Tournament event\";\n", to: "", kills: ["reads tournament sources like stats ones: leader~opponent"] },
+    { id: "tourney-record-line-dropped", file: cit, from: "p.kind === \"stats\" || p.kind === \"tourney\"", to: "p.kind === \"stats\"", kills: ["shows the win-record line for optcgduel.app win rates and tournament records only"] },
+    { id: "record-line-for-every-source", file: cit, from: "p.kind === \"stats\" || p.kind === \"tourney\"", to: "true", kills: ["shows the win-record line for optcgduel.app win rates and tournament records only"] },
+    { id: "event-link-any-kind", file: cit, from: "return p.kind === \"event\" && /^", to: "return /^", kills: ["links an event to its Limitless TCG page"] },
+    { id: "event-link-unchecked-id", file: cit, from: "/^[A-Za-z0-9_-]{1,64}$/.test(p.id)", to: "p.id.length > 0", kills: ["links an event to its Limitless TCG page"] },
+    { id: "event-link-wrong-host", file: cit, from: "https://play.limitlesstcg.com/tournament/", to: "https://play.limitlesstcg.com/tournaments/", kills: ["links an event to its Limitless TCG page"] },
   ],
 };

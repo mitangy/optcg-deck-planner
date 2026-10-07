@@ -4,6 +4,7 @@
  * Keep one entry per claimed behavior when adding tests (see ../README.md).
  */
 
+const GF = "packages/rules/src/sim/goldfish.ts";
 const ABILITIES = "packages/rules/src/cards/generated/abilities.json";
 const MANUAL = "packages/rules/src/cards/manualAbilities.ts";
 /** Scenario rows (src/__tests__/scenarios): alter one card's generated abilities; `kills` are row-name fragments. */
@@ -416,5 +417,24 @@ module.exports = {
     {"id": "pc369-replay-flag-ignored", "file": "packages/rules/src/matchReplay.ts", "from": "privateChoicesV2: replay.privateChoicesV2 ?? false,", "to": "privateChoicesV2: false,", "kills": ["replayMatch replays an old recording (no flag) with legacy ids and a new one with permuted ids (#369)"]},
     {"id": "pc369-start-stage-single-auto-played", "file": "packages/rules/src/engine/intents.ts", "from": "if (eligible.length === 1 && !state.privateChoicesV2) { playStartStage(", "to": "if (eligible.length === 1) { playStartStage(", "kills": ["a single eligible Stage is asked too, and looks the same to the opponent as two (#369)", "answering the single-Stage prompt plays that Stage and draws the opening hand (#369)"]},
     {"id": "pc369-start-stage-legacy-prompts", "file": "packages/rules/src/engine/intents.ts", "from": "if (eligible.length === 1 && !state.privateChoicesV2) { playStartStage(", "to": "if (false) { playStartStage(", "kills": ["without privateChoicesV2 the only eligible Stage is played without a prompt (#369)"]},
+    // goldfish runs (#402)
+    { id: "goldfish-deploy-greedy", file: GF, from: "export function bestDeploy(cands: DeployCandidate[], don: number): DeployCandidate[] {", to: "export function bestDeploy(cands: DeployCandidate[], don: number): DeployCandidate[] {\n  if (true) { const out = []; let left = don; for (const c of [...cands].sort((a, b) => b.cost - a.cost)) if (c.cost <= left) { out.push(c); left -= c.cost; } return out; }", kills: ["plays the hand that spends the most DON!!, not the single biggest card (#402)"] },
+    { id: "goldfish-deploy-no-count-tiebreak", file: GF, from: "return !b || a.count > b.count || (a.count === b.count && (a.power > b.power || (a.power === b.power && lexLess(a.idx, b.idx))));", to: "return !b || a.power > b.power || (a.power === b.power && lexLess(a.idx, b.idx));", kills: ["prefers two cards to one when they spend the same DON!! (#402)"] },
+    { id: "goldfish-mulligan-cost-off-by-one", file: GF, from: "d.cost <= 3", to: "d.cost < 3", kills: ["auto mulligan keeps a hand with a Character costing 3 or less, and never keeps everything (#402)"] },
+    { id: "goldfish-mulligan-never-ignored", file: GF, from: "  if (rule.mulligan === \"never\") return false;\n", to: "", kills: ["auto mulligan keeps a hand with a Character costing 3 or less, and never keeps everything (#402)"] },
+    { id: "goldfish-mulligan-keepcards-ignored", file: GF, from: "  if (rule.keepCards.length) return !hand.some((id) => rule.keepCards.includes(id));\n", to: "", kills: ["keepCards mulligans every hand without one of them, however cheap (#402)"] },
+    { id: "goldfish-auto-never-aggro", file: GF, from: "return aggro.state.winner === 0 ? aggro : develop;", to: "return develop;", kills: ["auto line goes face first when developing would miss lethal (#402)"] },
+    { id: "goldfish-no-fund", file: GF, from: "for (const a of order) {", to: "for (const a of [] as typeof order) {", kills: ["auto line goes face first when developing would miss lethal (#402)"] },
+    { id: "goldfish-dummy-attacks", file: GF, from: "return legal.find((i) => i.type === \"pass_block\"", to: "return legal.find((i) => i.type === \"declare_attack\") ?? legal.find((i) => i.type === \"pass_block\"", kills: ["the goldfish dummy never attacks or counters (#402)"] },
+    { id: "goldfish-dummy-counters", file: GF, from: "return legal.find((i) => i.type === \"pass_block\"", to: "return legal.find((i) => i.type === \"counter_from_hand\") ?? legal.find((i) => i.type === \"pass_block\"", kills: ["the goldfish dummy never attacks or counters (#402)"] },
+    { id: "goldfish-dummy-life-ignored", file: GF, from: "    setDummyLife(state, setup.opponentLife);\n", to: "", kills: ["the goldfish dummy starts at the asked Life (#402)"] },
+    { id: "goldfish-dummy-power-ignored", file: GF, from: "    addModifier(state, 1, undefined, { kind: \"card\", id: state.players[1].leader.id }, { type: \"base_power\", value: setup.opponentPower }, { kind: \"permanent\" });\n", to: "", kills: ["the goldfish dummy's Leader has the asked power (#402)"] },
+    { id: "goldfish-seed-ignored", file: GF, from: "createMatch({ seed, firstSeat", to: "createMatch({ seed: Math.floor(Math.random() * 1e9), firstSeat", kills: ["the same seed replays the same goldfish run and another seed doesn't (#402)"] },
+    { id: "goldfish-every-run-affected", file: GF, from: "run.touchedFlagged = leaderFlagged || touched;", to: "run.touchedFlagged = flaggedIds.size > 0;", kills: ["counts a game as affected only when it plays a card the engine doesn't fully support (#402)"] },
+    { id: "goldfish-partial-not-flagged", file: GF, from: "new Set<AbilitySupport>([\"partial\", ", to: "new Set<AbilitySupport>([", kills: ["counts a game as affected only when it plays a card the engine doesn't fully support (#402)"] },
+    { id: "goldfish-wald-interval", edits: [
+      { file: GF, from: "const center = (p + z2 / (2 * n)) / (1 + z2 / n);", to: "const center = p;" },
+      { file: GF, from: "const half = (z * Math.sqrt(p * (1 - p) / n + z2 / (4 * n * n))) / (1 + z2 / n);", to: "const half = z * Math.sqrt(p * (1 - p) / n);" },
+    ], kills: ["win-by-turn intervals are 95% Wilson intervals, never zero-width at 0 wins (#402)"] },
   ],
 };

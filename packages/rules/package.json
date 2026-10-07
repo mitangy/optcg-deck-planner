@@ -13,6 +13,7 @@
     "replay:bless": "tsx src/testing/replayCli.ts bless",
     "fuzz:smoke": "tsx src/sim/fuzzSmoke.ts",
     "fuzz": "tsx src/sim/fuzz.ts",
+    "goldfish": "tsx src/sim/goldfish.ts",
     "export-atlas": "tsx src/scripts/exportAtlas.ts",
     "export-planner-stats": "tsx src/scripts/exportPlannerStats.ts",
     "export-protocol-fixtures": "tsx src/scripts/exportProtocolFixtures.ts",

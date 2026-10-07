@@ -94,11 +94,11 @@ describe("eval runner", () => {
 
   it("skips a case that needs a tool the chat doesn't offer, and never calls the model for it (#403)", async () => {
     let calls = 0;
-    const e02 = CASES.find((c) => c.id === "E02")!;
+    const e02 = { ...CASES.find((c) => c.id === "E02")!, requiresTools: ["no_such_tool"] };
     const t = setup(() => () => (calls++, textReply("x", CHAT_MODEL)), [e02]);
     t.opts.groups = ["A", "B", "C", "D", "E"];
     const r = await runEval(t.deps, t.opts);
-    expect(r.rows).toEqual([expect.objectContaining({ case: "E02", status: "skipped", meta: { reason: "needs the simulate tool" } })]);
+    expect(r.rows).toEqual([expect.objectContaining({ case: "E02", status: "skipped", meta: { reason: "needs the no_such_tool tool" } })]);
     expect(calls).toBe(0);
   });
 
