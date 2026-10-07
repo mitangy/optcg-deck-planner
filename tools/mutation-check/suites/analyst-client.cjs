@@ -5,6 +5,7 @@ const session = "packages/analyst-client/src/session.ts";
 const md = "packages/analyst-client/src/markdown.ts";
 const cit = "packages/analyst-client/src/citations.ts";
 const size = "packages/analyst-client/src/panelSize.ts";
+const ask = "packages/analyst-client/src/ask.ts";
 module.exports = {
   cwd: "packages/analyst-client",
   runner: "vitest",
@@ -95,5 +96,13 @@ module.exports = {
     { id: "size-sheet-drag-inverted", file: size, from: "startFrac + (startY - y) / screenH", to: "startFrac + (y - startY) / screenH", kills: ["gets taller as the grab handle is dragged up"] },
     { id: "size-sheet-full-stored", file: size, from: "    if (frac >= 1) globalThis.localStorage?.removeItem(SHEET_KEY);", to: "    if (false) globalThis.localStorage?.removeItem(SHEET_KEY);", kills: ["remembers the phone sheet"] },
     { id: "size-sheet-read-unclamped", file: size, from: "return raw === null || raw === undefined ? 1 : clampSheet(Number(raw));", to: "return raw === null || raw === undefined ? 1 : Number(raw);", kills: ["remembers the phone sheet"] },
+    // asking Log Pose why (#399)
+    { id: "ask-while-session-unknown", file: ask, from: "return enabled === true && !hidden;", to: "return enabled !== false && !hidden;", kills: ["offers Why? only when chat is on and Log Pose shows on this page"] },
+    { id: "ask-on-hidden-pages", file: ask, from: "return enabled === true && !hidden;", to: "return enabled === true;", kills: ["offers Why? only when chat is on and Log Pose shows on this page"] },
+    { id: "hint-ask-drops-detail", file: ask, from: "    detail: h.detail.slice(0, HINT_LIMITS.detail),\n", to: "", kills: ["sends its id, detail and cards"] },
+    { id: "hint-ask-no-trim", file: ask, from: "h.detail.slice(0, HINT_LIMITS.detail)", to: "h.detail", kills: ["trims a long hint to the analyst's limits"] },
+    { id: "ask-respects-dropped-chip", file: ask, from: "...messageContext(page, false), ...extra", to: "...messageContext(page, true), ...extra", kills: ["sends the open deck even after its chip's"] },
+    { id: "ask-sends-before-history", file: ask, from: "  if (state.history !== \"done\") return \"wait\";\n", to: "", kills: ["waits for the last chat to load before sending a Why?"] },
+    { id: "ask-sends-while-busy", file: ask, from: "state.busy || req.send === false", to: "req.send === false", kills: ["puts a Why? in the composer instead of sending while an answer is streaming"] },
   ],
 };

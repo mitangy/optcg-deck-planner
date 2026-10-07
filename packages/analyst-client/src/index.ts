@@ -38,5 +38,6 @@ export { clampSheet, clampSize, dragSheet, dragSize, keySize, readSheet, readSiz
 export { readThreadId, writeThreadId, THREAD_KEY } from "./threadStore";
 export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdown";
 export { Markdown } from "./Markdown";
-export { LogPoseProvider, LogPoseCompass, useLogPose, useLogPosePage, messageContext, type LogPosePage } from "./LogPose";
+export { LogPoseProvider, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, type LogPosePage } from "./LogPose";
+export { askContext, canAsk, hintAsk, HINT_LIMITS, messageContext, requestAction, type HintContext, type LogPoseAsk } from "./ask";
 export { CitedAnswer, type SourceHooks } from "./Sources";
