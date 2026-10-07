@@ -28,4 +28,10 @@ describe("Log Pose in the planner (#377)", () => {
       ],
     });
   });
+
+  it("tells Log Pose which planner deck is open (#399)", () => {
+    const deck = { name: "Purple Enel", leader_card_id: "OP05-098", cards: [{ card_id: "OP05-100", needed: 4, section: "main" }] };
+    expect(plannerDeckContext({ ...deck, id: 7 }).plannerDeckId).toBe(7);
+    expect(plannerDeckContext(deck)).not.toHaveProperty("plannerDeckId");
+  });
 });

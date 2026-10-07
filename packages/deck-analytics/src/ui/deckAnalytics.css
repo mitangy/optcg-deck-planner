@@ -741,7 +741,31 @@
 
 .dh-pop-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.dh-ask {
+  min-height: 2rem;
+}
+
+/* Tight enough that "Why? Ask Log Pose" and Dismiss share a row in the 320px popover. They split the row;
+   a lone Dismiss keeps the full width. The extra specificity beats the hosts' own .btn.secondary rules
+   (the planner's is width: 100% with a top margin). */
+.dh-pop .dh-pop-actions .btn.secondary {
+  flex: 1 1 auto;
+  width: auto;
+  margin-top: 0;
+  padding: 0.5rem 0.55rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .dh-pop .dh-pop-actions .btn.secondary {
+    min-height: 2.75rem;
+  }
 }
 
 .ds-search-help {

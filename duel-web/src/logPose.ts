@@ -25,13 +25,14 @@ export const DECK_EDITOR_STARTERS = ["Review this deck", "How does it do against
 export const MATCH_LOG_STARTERS = ["What decided this game?", "What should I have done differently?"];
 
 /** A saved deck (main deck as one id per copy) as the chat's deck context: one entry per card with its copies. */
-export function deckContext(deck: { name: string; leaderId: string; cards: string[] }): DeckContext {
+export function deckContext(deck: { name: string; leaderId: string; cards: string[]; plannerDeckId?: number }): DeckContext {
   const copies = new Map<string, number>();
   for (const id of deck.cards) copies.set(id, (copies.get(id) ?? 0) + 1);
   return {
     name: deck.name,
     leaderId: deck.leaderId || null,
     cards: [...copies].map(([id, n]) => ({ id, copies: n })),
+    ...(deck.plannerDeckId ? { plannerDeckId: deck.plannerDeckId } : {}),
   };
 }
 

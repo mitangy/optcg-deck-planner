@@ -1,11 +1,12 @@
 /** Requests to the analyst service (chat and match reviews) and to the API's chat history. */
 import { parseCitations, type Citation, type PlacedCitation } from "./citations";
+import type { HintContext } from "./ask";
 import type { SessionManager } from "./session";
 import { SseHttpError, streamSse } from "./sse";
 
-export type DeckContext = { name: string; leaderId: string | null; cards: { id: string; copies: number }[] };
+export type DeckContext = { name: string; leaderId: string | null; cards: { id: string; copies: number }[]; plannerDeckId?: number };
 /** What the page the user is on adds to a message. */
-export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string };
+export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string; hint?: HintContext };
 
 export type ChatRequest = { thread_id?: number; message: string; context?: ChatContext };
 export type ReviewRequest = { match_id: string; regenerate?: boolean };

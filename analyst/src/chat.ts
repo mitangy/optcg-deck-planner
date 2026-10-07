@@ -124,6 +124,16 @@ const deckContext = z.object({
   name: z.string().max(120).optional(),
   leaderId: z.string().max(20).nullable().optional(),
   cards: z.array(z.object({ id: z.string().max(20), copies: z.number().int().min(1).max(50) })).max(80).optional(),
+  plannerDeckId: z.number().int().positive().optional(),
+});
+
+/** The build hint the player tapped "Why?" on. Limits must equal HINT_LIMITS in packages/analyst-client/src/ask.ts. */
+const hintContext = z.object({
+  id: z.string().max(80),
+  tier: z.enum(["rule", "shape", "synergy"]),
+  title: z.string().max(200),
+  detail: z.string().max(600),
+  cardIds: z.array(z.string().max(20)).max(20).optional(),
 });
 
 export const chatBody = z.object({
@@ -134,6 +144,7 @@ export const chatBody = z.object({
       app: z.enum(["duel", "planner"]).optional(),
       page: z.string().max(200).optional(),
       deck: deckContext.optional(),
+      hint: hintContext.optional(),
       matchId: z.string().max(80).optional(),
     })
     .optional(),
@@ -144,7 +155,7 @@ export const reviewBody = z.object({ match_id: z.string().min(1).max(80), regene
 export const CHAT_INSTRUCTIONS = `
 
 You're answering in the Log Pose panel inside the player's app, often on a phone. Keep answers short and scannable: a few short paragraphs or a list, markdown allowed, no tables wider than three columns. Look things up with tools rather than asking the player for card text.
-A user message can start with a <context> block saying which page they are on and the deck or game open there. Use it when they say "this deck" or "this game"; don't mention the block itself.
+A user message can start with a <context> block saying which page they are on and the deck or game open there. Use it when they say "this deck" or "this game"; don't mention the block itself. When the context names a build hint, the player tapped Why? on it: check the deck with analyze_deck, explain what triggers the hint here and whether it matters for this leader, and give +N / -N changes if it does. Hints are the app's rules of thumb, not game rules (except tier rule).
 Tool results arrive as sources the app turns into numbered citations for the player. Ground every factual claim (card text and stats, rules, rulings, win rates, playbook notes, what happened in a game, deck numbers, odds) in a tool result and say it in a sentence you can cite, rather than blending several sources into one sentence. Keep your own judgement (matchup reads, what to cut, how a line plays out) in separate sentences and say it is your judgement or your read; judgement is not cited. Don't write source ids or citation numbers yourself.`;
 
 const REVIEW_INSTRUCTIONS = `
@@ -188,6 +199,12 @@ export function contextBlock(ctx: z.infer<typeof chatBody>["context"]): string |
     const d = ctx.deck;
     const list = [...(d.leaderId ? [`1x${d.leaderId}`] : []), ...(d.cards ?? []).map((c) => `${c.copies}x${c.id}`)];
     lines.push(`open deck: ${d.name ?? "(unnamed)"}${list.length ? `\n${list.join("\n")}` : ""}`);
+  }
+  if (ctx.deck?.plannerDeckId) lines.push(`planner deck id: ${ctx.deck.plannerDeckId}`);
+  if (ctx.hint) {
+    const h = ctx.hint;
+    lines.push(`build hint (${h.tier}, id ${h.id}): ${h.title}`, `hint detail: ${h.detail}`);
+    if (h.cardIds?.length) lines.push(`hint cards: ${h.cardIds.join(", ")}`);
   }
   if (ctx.matchId) lines.push(`open game: match_id ${ctx.matchId}`);
   return lines.length ? `<context>\n${lines.join("\n")}\n</context>` : null;
