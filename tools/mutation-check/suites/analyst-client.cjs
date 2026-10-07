@@ -107,6 +107,8 @@ module.exports = {
     { id: "size-sheet-drag-inverted", file: size, from: "startFrac + (startY - y) / screenH", to: "startFrac + (y - startY) / screenH", kills: ["gets taller as the grab handle is dragged up"] },
     { id: "size-sheet-full-stored", file: size, from: "    if (frac >= 1) globalThis.localStorage?.removeItem(SHEET_KEY);", to: "    if (false) globalThis.localStorage?.removeItem(SHEET_KEY);", kills: ["remembers the phone sheet"] },
     { id: "size-sheet-read-unclamped", file: size, from: "return raw === null || raw === undefined ? 1 : clampSheet(Number(raw));", to: "return raw === null || raw === undefined ? 1 : Number(raw);", kills: ["remembers the phone sheet"] },
+    // goldfish sim sources (#402)
+    { id: "citations-sim-kind-missing", file: cit, from: ", \"lesson\", \"sim\"];", to: ", \"lesson\"];", kills: ["parses sim: sources and labels them Goldfish sim (#402)"] },
     // tournament sources (#397)
     { id: "tourney-opponent-unparsed", file: cit, from: "if ((head === \"stats\" || head === \"tourney\" || head === \"playbook\") && id.includes(\"~\")) {", to: "if ((head === \"stats\" || head === \"playbook\") && id.includes(\"~\")) {", kills: ["reads tournament sources like stats ones: leader~opponent"] },
     { id: "tourney-kind-unknown", file: cit, from: "[\"card\", \"rule\", \"ruling\", \"stats\", \"tourney\", \"event\",", to: "[\"card\", \"rule\", \"ruling\", \"stats\", \"event\",", kills: ["reads tournament sources like stats ones: leader~opponent", "shows the win-record line for optcgduel.app win rates and tournament records only"] },

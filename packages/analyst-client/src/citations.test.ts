@@ -32,6 +32,11 @@ describe("source ids and their badges (#390)", () => {
     expect(label("odds:d50h8x1f")).toBe("Odds");
   });
 
+  it("parses sim: sources and labels them Goldfish sim (#402)", () => {
+    expect(parseSource("sim:1a2b3c4d#curve")).toMatchObject({ kind: "sim", id: "1a2b3c4d", part: "curve" });
+    expect(kindLabel(parseSource("sim:1a2b3c4d"))).toBe("Goldfish sim");
+  });
+
   it("reads tournament sources like stats ones: leader~opponent and #card, and an event by its Limitless id, and badges them apart from Win rate (#397)", () => {
     expect(parseSource("tourney:OP01-001~OP02-001")).toMatchObject({ kind: "tourney", id: "OP01-001", opponent: "OP02-001" });
     expect(parseSource("tourney:OP01-001#OP01-016")).toMatchObject({ kind: "tourney", id: "OP01-001", part: "OP01-016" });

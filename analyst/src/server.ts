@@ -24,6 +24,7 @@ import {
 import type { OfficialLibrary } from "./official/library";
 import { newestFormat, queryPlaybook, type Playbook } from "./playbook";
 import { searchCards } from "./search";
+import { exclusive, simulateDeck } from "./simulate";
 
 export const INSTRUCTIONS = `You are Log Pose, a One Piece Card Game deck analyst for the OPTCG Deck Planner.
 Talk like a veteran player and judge: give game plans, mulligan advice, matchup reasoning, key turns, combo lines and unusual or "cheese" lines when they exist, and say how strong players would pilot the deck.
@@ -31,6 +32,7 @@ Talk like a veteran player and judge: give game plans, mulligan advice, matchup 
 Ground rules:
 - Card facts come from tools. Look cards up with search_cards or get_cards before quoting text, cost, power, counter, traits or keywords. Never invent card numbers.
 - Numbers come from tools. Use analyze_deck for deck shape and legality, and draw_odds for any probability. Quote the numbers you were given; don't estimate them yourself.
+- Goldfish checks: before you claim how fast a deck can win, how often it curves out, or that a combo or cheese line comes together by some turn, test it with simulate and quote its numbers with the number of games and the interval. It plays scripted solitaire games against a dummy that never blocks, counters or attacks, so it measures speed, not a win rate: say so, say when it stopped early, and say when it reports cards the engine doesn't fully support. For how often you draw a card, use draw_odds (exact) instead.
 - Matchup opinions are your judgement. Say so, and say which cards or turns they hinge on. Win rates come only from matchup_stats (games played on optcgduel.app) and tournament_stats (results of real tournaments, from Limitless TCG): quote them with the number of games and the interval, say when a sample is marked too_few_games, and say which of the two they come from. Never estimate a win rate yourself.
 - Tournament results: tournament_stats reports events from Limitless TCG (play.limitlesstcg.com): a leader's meta share, its record against other leaders, its best finishes with their decklists and how often each card is played. Credit Limitless TCG when you quote it. Always keep tournament numbers apart from optcgduel.app numbers: never add them together, average them or call one the other, and give each its own games and interval. Tournament decks are tuned and the players are experienced, so say when the two disagree instead of blending them.
 - Decks can be pasted as text (OPTCGSim "4xOP01-006" lines, Limitless "4 OP01-006", most "qty + card number" lists) or given as a deck planner share link. When a user mentions a deck, load it first with analyze_deck.
@@ -254,6 +256,40 @@ export function buildTools(catalog: Catalog, fetchImpl?: typeof fetch, personal?
         }
         if (deckSize === undefined || hits === undefined) throw new Error("Give a deck, or deckSize and hits.");
         return json({ deckSize, hits, ...rawDrawOdds(deckSize, hits, q) });
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  add(
+    "simulate",
+    {
+      title: "Goldfish simulation",
+      description:
+        "Goldfish a deck: play scripted solitaire games in the duel engine against a dummy that never blocks, counters or attacks. " +
+        "Reports how often the deck wins by each of your turns (95% intervals), how it curves out (DON!! spent, Characters, dummy Life by turn), mulligan rate, " +
+        "when tracked cards get played, and the fastest win turn by turn. Set opponentLife/opponentPower to test lethal claims, e.g. lethal on turn 5 against 4 Life. " +
+        "Same question, same answer. Needs a 50-card deck with a leader; can take up to ~20 s.",
+      inputSchema: {
+        ...deckInput,
+        goingFirst: z.boolean().optional().describe("Default true"),
+        turns: z.number().int().min(1).max(10).optional().describe("Play through your Nth turn (default 6)"),
+        opponentLife: z.number().int().min(0).max(8).optional().describe("The dummy's Life (default 5)"),
+        opponentPower: z.number().int().min(1000).max(15000).multipleOf(1000).optional().describe("The dummy Leader's power (default 5000)"),
+        mulligan: z.enum(["auto", "never"]).optional().describe("auto: mulligan a hand with no Character costing 3 or less (or none of keepCards). Default auto"),
+        keepCards: z.array(z.string().max(20)).max(10).optional().describe("Card numbers worth keeping: mulligan any hand without one of them"),
+        track: z.array(z.string().max(20)).max(10).optional().describe("Card numbers to report 'first played by turn N' for"),
+        line: z.enum(["auto", "develop", "aggro"]).optional().describe("auto tries developing first and goes face when only that wins the turn. aggro: always attack first"),
+        runs: z.number().int().min(10).max(400).optional().describe("Games to play (default 100)"),
+        seed: z.number().int().min(0).max(2147483647).optional().describe("Seed for the first game; leave out to get the same games for the same question"),
+      },
+      annotations: { ...readOnly, openWorldHint: true },
+    },
+    async ({ goingFirst, turns, opponentLife, opponentPower, mulligan, keepCards, track, line, runs, seed, ...deck }) => {
+      try {
+        const q = { goingFirst, turns, opponentLife, opponentPower, mulligan, keepCards, track, line, runs, seed };
+        return json(await exclusive(async () => simulateDeck(catalog, await resolveDeck(catalog, deck, fetchImpl), q)));
       } catch (err) {
         return failure(err);
       }

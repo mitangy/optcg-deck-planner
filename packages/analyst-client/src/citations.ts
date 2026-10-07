@@ -1,7 +1,7 @@
 /**
  * Sources and citations in Log Pose answers. The analyst names each source `kind:id[#part]`
  * (card:OP01-006, rule:6-5-3, ruling:OP14-020#2, stats:<leader>~<opp>, playbook:<leader>[~<opp>],
- * match:<id>#t3, game:<id>#t3, deck:<hash>, odds:<shape>, lesson:<id>, and from Limitless TCG tournaments
+ * match:<id>#t3, game:<id>#t3, deck:<hash>, odds:<shape>, lesson:<id>, sim:<hash>[#curve|#cards|#line], and from Limitless TCG tournaments
  * tourney:<leader>[~<opp>|#<card>] and event:<limitless event id>) and sends each citation
  * with the text offset (UTF-16) it follows. Everything here is pure, so it is tested without React.
  */
@@ -36,7 +36,7 @@ export function safeLink(href: string | null | undefined): string | null {
   return /^(\/(?!\/)|https?:\/\/)/i.test(href) ? href : null;
 }
 
-export type SourceKind = "card" | "rule" | "ruling" | "stats" | "tourney" | "event" | "playbook" | "match" | "game" | "deck" | "odds" | "lesson" | "other";
+export type SourceKind = "card" | "rule" | "ruling" | "stats" | "tourney" | "event" | "playbook" | "match" | "game" | "deck" | "odds" | "lesson" | "sim" | "other";
 
 export type ParsedSource = {
   kind: SourceKind;
@@ -51,7 +51,7 @@ export type ParsedSource = {
   raw: string;
 };
 
-const KINDS: readonly string[] = ["card", "rule", "ruling", "stats", "tourney", "event", "playbook", "match", "game", "deck", "odds", "lesson"];
+const KINDS: readonly string[] = ["card", "rule", "ruling", "stats", "tourney", "event", "playbook", "match", "game", "deck", "odds", "lesson", "sim"];
 
 export function parseSource(source: string): ParsedSource {
   const colon = source.indexOf(":");
@@ -100,6 +100,8 @@ export function kindLabel(p: ParsedSource): string {
       return "Deck check";
     case "odds":
       return "Odds";
+    case "sim":
+      return "Goldfish sim";
     case "lesson":
       return "Your lesson";
     default:

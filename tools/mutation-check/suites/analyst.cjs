@@ -14,6 +14,7 @@ const knowledge = "analyst/src/knowledge.ts";
 const playbook = "analyst/src/playbook.ts";
 const chat = "analyst/src/chat.ts";
 const sources = "analyst/src/sources.ts";
+const sim = "analyst/src/simulate.ts";
 const server = "analyst/src/server.ts";
 module.exports = {
   cwd: "analyst",
@@ -150,6 +151,16 @@ module.exports = {
     { id: "playbook-stale-never", file: playbook, from: "    stale: Number.isFinite(written) && Number.isFinite(current) && written < current,", to: "    stale: false,", kills: ["flags notes older than the current set"] },
     { id: "playbook-newest-counts-previews", file: playbook, from: "  const newest = Math.max(0, ...[...counts].filter(([, c]) => c >= minCards).map(([n]) => n));", to: "  const newest = Math.max(0, ...[...counts].map(([n]) => n));", kills: ["takes the newest booster with a full card list"] },
     { id: "playbook-matchups-by-heading-text", file: playbook, from: "      if (id) matchups[id] = { heading: subHeading,", to: "      if (id) matchups[subHeading] = { heading: subHeading,", kills: ["reads front matter, sections and matchups"] },
+    // goldfish simulate (#402)
+    { id: "sim-adapter-missing", file: sources, from: "  simulate: simulateAdapter,\n", to: "", kills: ["makes a goldfish run one sim: source with a sentence per turn and the engine-support warning (#402)"] },
+    { id: "sim-support-warning-dropped", file: sources, from: "    ...simSupportFacts(v),\n", to: "", kills: ["makes a goldfish run one sim: source with a sentence per turn and the engine-support warning (#402)"] },
+    { id: "sim-id-ignores-life", file: sim, from: "    opponentLife: q.opponentLife,\n    opponentPower: q.opponentPower,\n    mulligan: q.mulligan,\n    keepCards: [...q.keepCards].sort(),", to: "    opponentPower: q.opponentPower,\n    mulligan: q.mulligan,\n    keepCards: [...q.keepCards].sort(),", kills: ["gives the same question the same sim: source, and a new one for another dummy Life or game count (#402)"] },
+    { id: "sim-id-keepcards-order", file: sim, from: "keepCards: [...q.keepCards].sort(),", to: "keepCards: q.keepCards,", kills: ["gives the same question the same sim: source, and a new one for another dummy Life or game count (#402)"] },
+    { id: "sim-id-ignores-runs", file: sim, from: "shortHash(canonical + \"|\" + runsCompleted)", to: "shortHash(canonical)", kills: ["gives the same question the same sim: source, and a new one for another dummy Life or game count (#402)"] },
+    { id: "sim-budget-ignored", file: sim, from: "    if (i > 0 && now() - started > budgetMs) { truncated = true; break; }\n", to: "", kills: ["stops at the time budget and says how many of the requested games it ran (#402)"] },
+    { id: "sim-cache-bypassed", file: sim, from: "const hit = cache.get(key);", to: "const hit = undefined;", kills: ["answers a repeated question from the cache without replaying games (#402)"] },
+    { id: "sim-deck-size-unchecked", file: sim, from: "  if (count !== 50) throw new Error(`simulate needs exactly 50 main-deck cards; this list has ${count}.`);\n", to: "", kills: ["refuses a deck without exactly 50 main-deck cards (#402)"] },
+    { id: "sim-life-not-passed", file: sim, from: "opponentLife: q.opponentLife ?? 5", to: "opponentLife: 5", kills: ["passes the dummy's Life through to the engine: a vanilla deck beats a 0-Life dummy on turn 2 (#402)"] },
     // tournament stats from Limitless TCG (#397)
     { id: "tourney-names-event-ids", file: matches, from: "    out[k] = skip.includes(k) ? v : withCardNames(v, skip);", to: "    out[k] = withCardNames(v, skip);", kills: ["reads tournament stats with the service secret only and names leaders and cards"] },
     { id: "tourney-min-players-param", file: matches, from: "params.set(\"min_players\", String(q.minPlayers))", to: "params.set(\"minPlayers\", String(q.minPlayers))", kills: ["reads tournament stats with the service secret only and names leaders and cards", "offers tournament_stats beside matchup_stats only when the planner API is configured"] },
