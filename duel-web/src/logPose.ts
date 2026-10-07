@@ -24,12 +24,13 @@ export function defaultLogPosePage(pathname: string): LogPosePage {
 export const DECK_EDITOR_STARTERS = ["Review this deck", "How does it do against the top decks?", "What would you cut?"];
 export const MATCH_LOG_STARTERS = ["What decided this game?", "What should I have done differently?"];
 
-/** A saved deck (main deck as one id per copy) as the chat's deck context: one entry per card with its copies. */
-export function deckContext(deck: { name: string; leaderId: string; cards: string[]; plannerDeckId?: number }): DeckContext {
+/** A saved deck (main deck as one id per copy) as the chat's deck context: one entry per card with its copies, and a ref to say which saved deck it is. */
+export function deckContext(deck: { id: string; name: string; leaderId: string; cards: string[]; plannerDeckId?: number }): DeckContext {
   const copies = new Map<string, number>();
   for (const id of deck.cards) copies.set(id, (copies.get(id) ?? 0) + 1);
   return {
     name: deck.name,
+    ref: `duel:${deck.id}`,
     leaderId: deck.leaderId || null,
     cards: [...copies].map(([id, n]) => ({ id, copies: n })),
     ...(deck.plannerDeckId ? { plannerDeckId: deck.plannerDeckId } : {}),
@@ -55,9 +56,15 @@ export function sourceHref(source: ParsedSource): string | null {
   return `/history/${encodeURIComponent(source.id)}${source.turn ? `#turn-${source.turn}` : ""}`;
 }
 
+/** Where an edit for a saved deck can be applied: its deck editor. */
+export function deckHref(ref: string): string | null {
+  return ref.startsWith("duel:") ? `/decks/${encodeURIComponent(ref.slice(5))}/configure` : null;
+}
+
 /** What the panel shows for cited sources: links to your match logs and card names and pictures from the atlas. */
 export const SOURCE_HOOKS: SourceHooks = {
   href: sourceHref,
+  deckHref,
   card: (id) => {
     const card = lookupCard(id);
     return { name: card.name, imageUrl: card.imageUrl };

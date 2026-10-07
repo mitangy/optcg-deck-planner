@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { CitedAnswer, Markdown, messageContext, parseSource, RequestAccessView, type PlacedCitation } from "@optcg/analyst-client";
+import { CitedAnswer, DeckEditCard, Markdown, messageContext, parseProposal, parseSource, RequestAccessView, type DeckEditor, type PlacedCitation } from "@optcg/analyst-client";
 import { HintActions } from "@optcg/deck-analytics/ui";
 import { deckContext, reviewMode, showsLogPose, sourceHref } from "./logPose";
 
@@ -18,9 +18,10 @@ describe("Log Pose compass placement (#377)", () => {
 
 describe("Log Pose page context (#377)", () => {
   it("sends the deck being edited as one entry per card with its copies (#377)", () => {
-    const ctx = deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100", "OP05-100", "OP05-101", "OP05-100"] });
+    const ctx = deckContext({ id: "d-1", name: "Enel", leaderId: "OP05-098", cards: ["OP05-100", "OP05-100", "OP05-101", "OP05-100"] });
     expect(ctx).toEqual({
       name: "Enel",
+      ref: "duel:d-1",
       leaderId: "OP05-098",
       cards: [
         { id: "OP05-100", copies: 3 },
@@ -30,9 +31,37 @@ describe("Log Pose page context (#377)", () => {
   });
 
   it("leaves the deck out of the next message after the chip's × is pressed, keeping the page id (#377)", () => {
-    const page = { page: "deck-editor", label: "Enel", deck: deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"] }) };
+    const page = { page: "deck-editor", label: "Enel", deck: deckContext({ id: "d-1", name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"] }) };
     expect(messageContext(page, false)).toEqual({ page: "deck-editor", deck: page.deck });
     expect(messageContext(page, true)).toEqual({ page: "deck-editor" });
+  });
+});
+
+describe("Log Pose Apply card (#400)", () => {
+  const wire = {
+    id: "t1",
+    version: 1,
+    target: { ref: "duel:d-1", name: "Luffy", leader_id: "ST01-001" },
+    summary: "Trim the slow event",
+    lines: [
+      { id: "ST01-016", name: "Diable Jambe", before: 0, after: 2, reason: "Cheaper trade for the same effect" },
+      { id: "ST01-015", name: "Gum-Gum Jet Pistol", before: 2, after: 0, reason: "Too slow on turn two" },
+    ],
+    base: [{ id: "ST01-015", copies: 2 }],
+    legality: { legal: false, count: 49, problems: ["49 of 50 cards"], upcoming: [], ban_list_checked: true },
+  };
+  const editor: DeckEditor = { ref: "duel:d-1", cards: [{ id: "ST01-015", copies: 2 }], apply: async () => {} };
+
+  it("shows each change with its reason and the legality result (#400)", () => {
+    const html = renderToStaticMarkup(<DeckEditCard proposal={parseProposal(wire)!} editor={editor} />);
+    expect(html).toContain("Suggested edit · Luffy");
+    expect(html).toContain("Cheaper trade for the same effect");
+    expect(html).toContain("Too slow on turn two");
+    expect(html).toContain("Still not legal:");
+    expect(html).toContain("49 of 50 cards");
+    expect(html).toContain(">Apply<");
+    const ok = renderToStaticMarkup(<DeckEditCard proposal={parseProposal({ ...wire, legality: { ...wire.legality, legal: true, count: 50, problems: [] } })!} editor={editor} />);
+    expect(ok).toContain("Legal after this change · 50 cards");
   });
 });
 

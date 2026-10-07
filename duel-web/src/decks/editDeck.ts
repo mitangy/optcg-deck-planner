@@ -79,6 +79,31 @@ export function removeAllCopiesFromDeck(
   };
 }
 
+/** One card's change from Log Pose's Apply card: `before` copies now, `after` copies wanted. */
+export type DeckOp = { id: string; before: number; after: number };
+
+/**
+ * Apply Log Pose's suggested changes as one save (#400). Refuses, and changes nothing, when a card is not at the
+ * count the suggestion was made for (the deck moved since) or when it names a leader.
+ */
+export function applyDeckOps(deckId: string, ops: DeckOp[]): DeckEditResult {
+  const deck = getSavedDeck(deckId);
+  if (!deck) return { ok: false, error: "Deck not found" };
+  for (const op of ops) {
+    if (lookupCard(op.id).type === "leader") return { ok: false, error: "Leaders cannot be added to the main deck" };
+    const now = countInDeck(deck.cards, op.id);
+    if (now !== op.before) {
+      return { ok: false, error: `${op.id} has ${now} ${now === 1 ? "copy" : "copies"} now, not ${op.before}. Nothing was changed.` };
+    }
+  }
+  const next = [...deck.cards];
+  for (const op of ops) {
+    for (let n = op.after - op.before; n > 0; n--) next.push(op.id);
+    for (let n = op.before - op.after; n > 0; n--) next.splice(next.lastIndexOf(op.id), 1);
+  }
+  return { ok: true, deck: persist(deck, next) };
+}
+
 export function countCardInDeck(deck: SavedDeck, defId: string): number {
   return countInDeck(deck.cards, defId);
 }

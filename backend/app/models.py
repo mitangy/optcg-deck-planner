@@ -646,6 +646,22 @@ class AnalystMessage(Base):
     )
 
 
+class AnalystProposal(Base):
+    """A deck edit Log Pose suggested in a thread (an Apply card), kept so the card comes back after a reload (#400).
+
+    `id` is the model's tool_use id; `payload` is the proposal as JSON.
+    """
+
+    __tablename__ = "analyst_proposals"
+
+    thread_id: Mapped[int] = mapped_column(ForeignKey("analyst_threads.id", ondelete="CASCADE"), primary_key=True)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class AnalystUsage(Base):
     """What one Log Pose model call cost, for the daily and monthly spend caps."""
 

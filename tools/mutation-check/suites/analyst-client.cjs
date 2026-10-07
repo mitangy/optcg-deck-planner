@@ -5,6 +5,7 @@ const session = "packages/analyst-client/src/session.ts";
 const md = "packages/analyst-client/src/markdown.ts";
 const cit = "packages/analyst-client/src/citations.ts";
 const size = "packages/analyst-client/src/panelSize.ts";
+const prop = "packages/analyst-client/src/proposals.ts";
 const ask = "packages/analyst-client/src/ask.ts";
 const access = "packages/analyst-client/src/access.ts";
 module.exports = {
@@ -84,7 +85,7 @@ module.exports = {
     { id: "cit-parse-negative-offset", file: cit, from: "Number.isFinite(c.at) && c.at >= 0 ?", to: "Number.isFinite(c.at) ?", kills: ["reads a saved thread's and review's citations"] },
     { id: "client-cite-event-ignored", file: client, from: "  else if (event === \"cite\") {", to: "  else if (event === \"citation\") {", kills: ["hands the citations of a cite event to the panel"] },
     { id: "client-cite-empty-forwarded", file: client, from: "    if (citations.length) handlers.onCite?.(citations);", to: "    handlers.onCite?.(citations);", kills: ["hands the citations of a cite event to the panel"] },
-    { id: "client-thread-citations-dropped", file: client, from: "return { ...body, messages: body.messages.map((m) => ({ ...m, citations: parseCitations(m.citations, true) })) };", to: "return body;", kills: ["reads a saved thread's and review's citations"] },
+    { id: "client-thread-citations-dropped", file: client, from: "      citations: parseCitations(m.citations, true),\n", to: "", kills: ["reads a saved thread's and review's citations"] },
     { id: "client-review-citations-dropped", file: client, from: "return { ...body, citations: parseCitations(body.citations, true) };", to: "return body;", kills: ["reads a saved thread's and review's citations"] },
     { id: "size-minimum-ignored", file: size, from: "Math.min(Math.max(v, min), max);", to: "Math.min(v, max);", kills: ["never goes below 320x360"] },
     { id: "size-maximum-ignored", file: size, from: "Math.min(Math.max(v, min), max);", to: "Math.max(v, min);", kills: ["never goes below 320x360"] },
@@ -108,6 +109,19 @@ module.exports = {
     { id: "size-sheet-drag-inverted", file: size, from: "startFrac + (startY - y) / screenH", to: "startFrac + (y - startY) / screenH", kills: ["gets taller as the grab handle is dragged up"] },
     { id: "size-sheet-full-stored", file: size, from: "    if (frac >= 1) globalThis.localStorage?.removeItem(SHEET_KEY);", to: "    if (false) globalThis.localStorage?.removeItem(SHEET_KEY);", kills: ["remembers the phone sheet"] },
     { id: "size-sheet-read-unclamped", file: size, from: "return raw === null || raw === undefined ? 1 : clampSheet(Number(raw));", to: "return raw === null || raw === undefined ? 1 : Number(raw);", kills: ["remembers the phone sheet"] },
+    // deck edit suggestions (#400)
+    { id: "proposal-parse-keeps-bad-lines", file: prop, from: "if (!lid || before === null || after === null || before === after) continue;", to: "if (!lid || before === null || after === null) continue;", kills: ["reads a proposal and drops malformed lines (#400)"] },
+    { id: "proposal-parse-bad-counts", file: prop, from: "if (!lid || before === null || after === null || before === after) continue;", to: "if (!lid || before === after) continue;", kills: ["reads a proposal and drops malformed lines (#400)"] },
+    { id: "proposal-ready-checks-after", file: prop, from: "const atBefore = changed.length === 0;", to: "const atBefore = p.lines.every((l) => has(l.id) === l.after);", kills: ["is ready when every touched card is at its before count (#400)"] },
+    { id: "proposal-undo-same-ops", file: prop, from: "export const undoOps = (p: DeckEditProposal): DeckEditOp[] => p.lines.map((l) => ({ id: l.id, before: l.after, after: l.before }));", to: "export const undoOps = (p: DeckEditProposal): DeckEditOp[] => applyOps(p);", kills: ["is applied when every touched card is at its after count, and undo swaps them (#400)"] },
+    { id: "proposal-drift-ignored", file: prop, from: "const drifted = [...others].some(", to: "const drifted = false && [...others].some(", kills: ["flags a conflict when a touched card changed, and drift when only others did (#400)"] },
+    { id: "proposal-ref-ignored", file: prop, from: "if (!editor || editor.ref !== p.target.ref)", to: "if (!editor)", kills: ["is for another deck when the open deck's ref differs (#400)"] },
+    { id: "proposal-ids-not-normalized", file: prop, from: "for (const c of cards) m.set(normalizeCardId(c.id), (m.get(normalizeCardId(c.id)) ?? 0) + c.copies);", to: "for (const c of cards) m.set(c.id, (m.get(c.id) ?? 0) + c.copies);", kills: ["counts a card saved with an art suffix as the same card (#400)"] },
+    { id: "proposal-dismissed-over-applied", file: prop, from: "if (gone && (kind === \"ready\" || kind === \"conflict\")) kind = \"dismissed\";", to: "if (gone) kind = \"dismissed\";", kills: ["shows a dismissed edit as dismissed only while it could still be applied (#400)"] },
+    { id: "proposal-dismissed-ignored", file: prop, from: "if (gone && (kind === \"ready\" || kind === \"conflict\")) kind = \"dismissed\";", to: "", kills: ["shows a dismissed edit as dismissed only while it could still be applied (#400)"] },
+    { id: "proposal-empty-answer-ignores-cards", file: prop, from: "!m.text && !m.proposals?.length && !m.stopped", to: "!m.text && !m.stopped", kills: ["keeps an answer that has only a deck edit (#400)"] },
+    { id: "client-proposal-event-dropped", file: client, from: "    const proposal = parseProposal(d);\n    if (proposal) handlers.onProposal?.(proposal);\n", to: "", kills: ["hands a proposal event to onProposal and ignores one with no usable lines (#400)"] },
+    { id: "client-saved-proposals-dropped", file: client, from: "proposals: (Array.isArray(m.proposals) ? m.proposals : []).map(parseProposal).filter((p): p is DeckEditProposal => p !== null),", to: "proposals: [],", kills: ["reads a saved thread's deck edits and drops unusable ones (#400)"] },
     // asking Log Pose why (#399)
     { id: "ask-while-session-unknown", file: ask, from: "return enabled === true && !hidden;", to: "return enabled !== false && !hidden;", kills: ["offers Why? only when chat is on and Log Pose shows on this page"] },
     { id: "ask-on-hidden-pages", file: ask, from: "return enabled === true && !hidden;", to: "return enabled === true;", kills: ["offers Why? only when chat is on and Log Pose shows on this page"] },
