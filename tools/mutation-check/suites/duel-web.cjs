@@ -1060,7 +1060,7 @@ module.exports = {
     { id: "logpose-shown-on-subpaths", file: `${src}/logPose.ts`, from: "  return !NO_LOG_POSE.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return !NO_LOG_POSE.some((p) => pathname === p);", kills: ["stays off every route that renders a board (#377)"] },
     { id: "logpose-hidden-everywhere", file: `${src}/logPose.ts`, from: "  return !NO_LOG_POSE.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return !NO_LOG_POSE.some((p) => pathname === p || pathname.startsWith(`${p}/`)) && pathname.length < 2;", kills: ["shows on the lobby, decks, deck editor, settings, history and legal pages (#377)"] },
     { id: "logpose-deck-copies-one", file: `${src}/logPose.ts`, from: "  for (const id of deck.cards) copies.set(id, (copies.get(id) ?? 0) + 1);", to: "  for (const id of deck.cards) copies.set(id, 1);", kills: ["sends the deck being edited as one entry per card with its copies (#377)"] },
-    { id: "logpose-dropped-chip-still-sent", file: "packages/analyst-client/src/LogPose.tsx", from: "  if (!dropped) {\n    if (page.deck)", to: "  {\n    if (page.deck)", kills: ["leaves the deck out of the next message after the chip's"] },
+    { id: "logpose-dropped-chip-still-sent", file: "packages/analyst-client/src/ask.ts", from: "  if (!dropped) {\n    if (page.deck)", to: "  {\n    if (page.deck)", kills: ["leaves the deck out of the next message after the chip's"] },
     { id: "logpose-reviews-cut-off-games", file: `${src}/logPose.ts`, from: "  if (finished === false) return \"cut-off\";\n", to: "", kills: ["never generates a review for a game that was cut off (#377)"] },
     { id: "logpose-review-while-off", file: `${src}/logPose.ts`, from: "  if (enabled !== true) return \"hidden\";", to: "  if (enabled === false) return \"hidden\";", kills: ["shows nothing while chat is off or unknown (#377)"] },
     { id: "logpose-markdown-injects-html", file: "packages/analyst-client/src/Markdown.tsx", from: "            {splitMarks(n.v).map((part, j) => (typeof part === \"number\" ? <Fragment key={j}>{mark ? mark(part) : null}</Fragment> : part))}", to: "            <span dangerouslySetInnerHTML={{ __html: n.v }} />", kills: ["renders HTML in an answer as text, never as markup (#377)"] },
@@ -1114,5 +1114,8 @@ module.exports = {
     { id: "duel-context-ref-dropped", file: `${src}/logPose.ts`, from: "    ref: `duel:${deck.id}`,\n", to: "", kills: ["sends the deck being edited as one entry per card with its copies (#377)"] },
     { id: "edit-card-reason-hidden", file: "packages/analyst-client/src/DeckEditCard.tsx", from: "{l.reason ? <span className=\"lp-edit-reason\">{l.reason}</span> : null}", to: "", kills: ["shows each change with its reason and the legality result (#400)"] },
     { id: "edit-card-legality-hidden", file: "packages/analyst-client/src/DeckEditCard.tsx", from: "<p className=\"lp-edit-ok\">✓ Legal after this change · {legality.count} cards</p>", to: "<p className=\"lp-edit-ok\">✓</p>", kills: ["shows each change with its reason and the legality result (#400)"] },
+    // Why? on a build hint (#399)
+    { id: "hint-ask-always-shown", file: "packages/deck-analytics/src/ui/DeckHints.tsx", from: "{onAsk ? (", to: "{true ? (", kills: ["shows Why? in a hint's popover only when Log Pose can answer"] },
+    { id: "logpose-duel-deck-no-planner-id", file: "duel-web/src/logPose.ts", from: "    ...(deck.plannerDeckId ? { plannerDeckId: deck.plannerDeckId } : {}),\n", to: "", kills: ["tells Log Pose the planner deck a duel deck is linked to"] },
   ],
 };

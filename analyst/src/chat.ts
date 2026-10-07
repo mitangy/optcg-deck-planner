@@ -11,7 +11,7 @@ import { deckEditTool, PROPOSE_TOOL, type DeckEditProposal } from "./proposals";
 import { adaptToolResult, gameResults } from "./sources";
 
 export const CHAT_MODEL = process.env.ANALYST_CHAT_MODEL || "claude-opus-5-5";
-const MAX_TOOL_ROUNDS = 12;
+export const MAX_TOOL_ROUNDS = 12;
 
 /** Dollars per million tokens for the chat model (input, output, cache reads, cache writes). */
 const PRICE = { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 };
@@ -36,7 +36,8 @@ export function costUsd(u: Usage): number {
 
 type Block = Record<string, unknown> & { type: string };
 export type Message = { role: "user" | "assistant"; content: string | Block[] };
-export type ModelReply = { content: Block[]; stop_reason: string | null; usage: Usage };
+/** `model` is the model that served the call (the eval checks it); optional so scripted replies need not set it. */
+export type ModelReply = { content: Block[]; stop_reason: string | null; usage: Usage; model?: string };
 
 /** A citation of one tool result, as the apps show it: which source, its title and the quoted fact. */
 export type Citation = { source: string; title: string; cited_text: string };
@@ -126,6 +127,16 @@ const deckContext = z.object({
   cards: z.array(z.object({ id: z.string().max(20), copies: z.number().int().min(1).max(50) })).max(80).optional(),
   /** Which saved deck this is ("planner:<id>" or "duel:<id>"), so a suggested edit can say where it applies. The model never sees it. */
   ref: z.string().regex(/^(planner|duel):[A-Za-z0-9-]{1,64}$/).optional(),
+  plannerDeckId: z.number().int().positive().optional(),
+});
+
+/** The build hint the player tapped "Why?" on. Limits must equal HINT_LIMITS in packages/analyst-client/src/ask.ts. */
+const hintContext = z.object({
+  id: z.string().max(80),
+  tier: z.enum(["rule", "shape", "synergy"]),
+  title: z.string().max(200),
+  detail: z.string().max(600),
+  cardIds: z.array(z.string().max(20)).max(20).optional(),
 });
 
 export const chatBody = z.object({
@@ -136,6 +147,7 @@ export const chatBody = z.object({
       app: z.enum(["duel", "planner"]).optional(),
       page: z.string().max(200).optional(),
       deck: deckContext.optional(),
+      hint: hintContext.optional(),
       matchId: z.string().max(80).optional(),
     })
     .optional(),
@@ -143,10 +155,10 @@ export const chatBody = z.object({
 
 export const reviewBody = z.object({ match_id: z.string().min(1).max(80), regenerate: z.boolean().optional() });
 
-const CHAT_INSTRUCTIONS = `
+export const CHAT_INSTRUCTIONS = `
 
 You're answering in the Log Pose panel inside the player's app, often on a phone. Keep answers short and scannable: a few short paragraphs or a list, markdown allowed, no tables wider than three columns. Look things up with tools rather than asking the player for card text.
-A user message can start with a <context> block saying which page they are on and the deck or game open there. Use it when they say "this deck" or "this game"; don't mention the block itself.
+A user message can start with a <context> block saying which page they are on and the deck or game open there. Use it when they say "this deck" or "this game"; don't mention the block itself. When the context names a build hint, the player tapped Why? on it: check the deck with analyze_deck, explain what triggers the hint here and whether it matters for this leader, and give +N / -N changes if it does. Hints are the app's rules of thumb, not game rules (except tier rule).
 Tool results arrive as sources the app turns into numbered citations for the player. Ground every factual claim (card text and stats, rules, rulings, win rates, playbook notes, what happened in a game, deck numbers, odds) in a tool result and say it in a sentence you can cite, rather than blending several sources into one sentence. Keep your own judgement (matchup reads, what to cut, how a line plays out) in separate sentences and say it is your judgement or your read; judgement is not cited. Don't write source ids or citation numbers yourself.
 When the <context> block lists an open deck and you recommend concrete card changes, call propose_deck_edit once with every change and a short reason for each. The app shows them as a card the player can apply. Don't repeat the changes as +N / -N lines; point to the card. If the tool refuses, fix the change and call it again, or explain why. With no open deck, write +N / -N lines. Never say a change was made: only the player applies it.`;
 
@@ -165,12 +177,14 @@ const STATUS: Record<string, string> = {
   get_cards: "Reading card text",
   analyze_deck: "Analyzing the deck",
   draw_odds: "Working out draw odds",
+  simulate: "Running goldfish games",
   export_deck: "Exporting the list",
   rules_lookup: "Checking the rules",
   card_rulings: "Checking rulings",
   ban_list: "Checking the ban list",
   playbook: "Reading the playbook",
   matchup_stats: "Pulling win rates",
+  tournament_stats: "Pulling tournament results",
   search_matches: "Searching recorded games",
   replay_match: "Replaying a game",
   list_my_decks: "Reading your decks",
@@ -190,6 +204,12 @@ export function contextBlock(ctx: z.infer<typeof chatBody>["context"]): string |
     const d = ctx.deck;
     const list = [...(d.leaderId ? [`1x${d.leaderId}`] : []), ...(d.cards ?? []).map((c) => `${c.copies}x${c.id}`)];
     lines.push(`open deck: ${d.name ?? "(unnamed)"}${list.length ? `\n${list.join("\n")}` : ""}`);
+  }
+  if (ctx.deck?.plannerDeckId) lines.push(`planner deck id: ${ctx.deck.plannerDeckId}`);
+  if (ctx.hint) {
+    const h = ctx.hint;
+    lines.push(`build hint (${h.tier}, id ${h.id}): ${h.title}`, `hint detail: ${h.detail}`);
+    if (h.cardIds?.length) lines.push(`hint cards: ${h.cardIds.join(", ")}`);
   }
   if (ctx.matchId) lines.push(`open game: match_id ${ctx.matchId}`);
   return lines.length ? `<context>\n${lines.join("\n")}\n</context>` : null;
@@ -417,13 +437,13 @@ export function anthropicModel(client: { beta: { messages: { stream: (p: never, 
       if (c) onCite?.(c);
     });
     const msg = await stream.finalMessage();
-    return { content: msg.content as unknown as Block[], stop_reason: msg.stop_reason, usage: msg.usage };
+    return { content: msg.content as unknown as Block[], stop_reason: msg.stop_reason, usage: msg.usage, model: msg.model };
   };
 }
 
 type StreamLike = {
   on: ((event: "text", cb: (delta: string) => void) => unknown) & ((event: "citation", cb: (citation: unknown) => void) => unknown);
-  finalMessage: () => Promise<{ content: unknown; stop_reason: string | null; usage: Usage }>;
+  finalMessage: () => Promise<{ content: unknown; stop_reason: string | null; usage: Usage; model?: string }>;
 };
 
 /** Browsers may call /chat from the two apps, their Vercel previews and local dev. Auth is the bearer token, not cookies. */

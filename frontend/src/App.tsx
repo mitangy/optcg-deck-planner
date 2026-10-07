@@ -28,7 +28,7 @@ import {
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { submitFeedback } from "./feedback";
-import { LogPoseProvider, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
+import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
 import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose } from "./logPose";
 import { LegalPage } from "./LegalPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
@@ -52,7 +52,7 @@ import {
 import { BuildTag } from "./BuildTag";
 import { collectionTotals, invalidateOwnedViews, patchOwnedCollection } from "./ownedCollection";
 import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
-import { deckDelta, type DeckStatsCard } from "@optcg/deck-analytics";
+import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analytics";
 import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
 import { CompassIcon } from "./ThemeIcons";
 import { HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
@@ -3512,7 +3512,13 @@ function DeckDetailPage() {
     [progressCards],
   );
   // While editing the 50-card count stays quiet; once the user is done (or just viewing) it is checked.
-  const hints = useDeckHints(deckId, statsCards, data?.leader_card_id ?? null, !editing);
+  const baseHints = useDeckHints(deckId, statsCards, data?.leader_card_id ?? null, !editing);
+  // "Why? Ask Log Pose" on a hint, only while Log Pose can answer here.
+  const askLogPose = useLogPoseAsk();
+  const hints = useMemo(
+    () => (askLogPose ? { ...baseHints, onAsk: (h: DeckHint) => askLogPose(hintAsk(h)) } : baseHints),
+    [baseHints, askLogPose],
+  );
   const filterSummary = useMemo(() => {
     const parts: string[] = [];
     if (onlyNeed) parts.push("Still need");

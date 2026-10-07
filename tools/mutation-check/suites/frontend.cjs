@@ -105,6 +105,8 @@ module.exports = {
     { id: "planner-apply-no-rollback", file: "frontend/src/logPose.ts", from: "      for (const d of done.reverse()) {", to: "      for (const d of [] as DeckEditOp[]) {", kills: ["puts saved lines back when a later save fails (#400)"] },
     { id: "planner-apply-increases-first", file: "frontend/src/logPose.ts", from: "a.after - a.before - (b.after - b.before)", to: "b.after - b.before - (a.after - a.before)", kills: ["saves the decreases first, one card at a time, and returns the last save's result (#400)"] },
     { id: "planner-apply-hides-partial", file: "frontend/src/logPose.ts", from: "restored = false;", to: "", kills: ["says some changes were saved when putting them back fails too (#400)"] },
-    { id: "planner-context-ref-dropped", file: "frontend/src/logPose.ts", from: "    ref: `planner:${deck.id}`,\n", to: "", kills: ["sends a deck's main-deck cards with their copies, without the leader or DON!! (#377)"] },
+    { id: "planner-context-ref-dropped", file: "frontend/src/logPose.ts", from: "    ...(deck.id ? { ref: `planner:${deck.id}` } : {}),\n", to: "", kills: ["sends a deck's main-deck cards with their copies, without the leader or DON!! (#377)"] },
+    // Why? on a build hint (#399)
+    { id: "logpose-deck-no-id", file: "frontend/src/logPose.ts", from: "    ...(deck.id ? { plannerDeckId: deck.id } : {}),\n", to: "", kills: ["tells Log Pose which planner deck is open"] },
   ],
 };

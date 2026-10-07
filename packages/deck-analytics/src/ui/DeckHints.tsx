@@ -10,6 +10,8 @@ export type HintsState = {
   dismissed: DeckHint[];
   dismiss: (id: string) => void;
   restore: (id: string) => void;
+  /** Set by the app when it can answer "Why?" (Log Pose is on here): adds the button to a hint's popover. */
+  onAsk?: (hint: DeckHint) => void;
 };
 
 const storageKey = (deckId: number | string) => `optcg_deck_hints_dismissed_${deckId}`;
@@ -198,19 +200,43 @@ export function DeckHintsTray({ hints }: { hints: HintsState }) {
               {listed.length > MAX_LISTED ? <li className="muted">+{listed.length - MAX_LISTED} more</li> : null}
             </ul>
           ) : null}
-          <div className="dh-pop-actions">
-            {dismissedIds.has(openHint.id) ? (
-              <button type="button" className="btn secondary" onClick={() => hints.restore(openHint.id)}>
-                Restore
-              </button>
-            ) : (
-              <button type="button" className="btn secondary" onClick={() => hints.dismiss(openHint.id)}>
-                Dismiss
-              </button>
-            )}
-          </div>
+          <HintActions
+            dismissed={dismissedIds.has(openHint.id)}
+            onDismiss={() => hints.dismiss(openHint.id)}
+            onRestore={() => hints.restore(openHint.id)}
+            onAsk={
+              hints.onAsk
+                ? () => {
+                    setOpen(null);
+                    hints.onAsk!(openHint);
+                  }
+                : undefined
+            }
+          />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** The popover's action row: "Why? Ask Log Pose" (only when the app can answer it), then Dismiss or Restore. */
+export function HintActions({ dismissed, onDismiss, onRestore, onAsk }: { dismissed: boolean; onDismiss: () => void; onRestore: () => void; onAsk?: () => void }) {
+  return (
+    <div className="dh-pop-actions">
+      {onAsk ? (
+        <button type="button" className="btn secondary dh-ask" onClick={onAsk}>
+          Why? Ask Log Pose
+        </button>
+      ) : null}
+      {dismissed ? (
+        <button type="button" className="btn secondary" onClick={onRestore}>
+          Restore
+        </button>
+      ) : (
+        <button type="button" className="btn secondary" onClick={onDismiss}>
+          Dismiss
+        </button>
+      )}
     </div>
   );
 }

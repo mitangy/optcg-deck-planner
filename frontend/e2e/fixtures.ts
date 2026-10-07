@@ -54,6 +54,10 @@ type Planner = {
   requests: string[];
   /** Page errors and console errors collected so far (network noise excluded). */
   errors: string[];
+  /** Turn Log Pose on for this session (call before `open`): the fake chat session answers enabled. */
+  enableLogPose(): void;
+  /** JSON bodies the page POSTed to the fake analyst's /chat. */
+  chats: { message: string; thread_id?: number; context?: { page?: string; deck?: { leaderId: string | null; plannerDeckId?: number }; hint?: { id: string } } }[];
 };
 
 export const test = base.extend<{ planner: Planner }>({
@@ -182,6 +186,18 @@ export const test = base.extend<{ planner: Planner }>({
 
     // Nothing leaves the machine: the art CDN gets a placeholder, everything else off-box is refused.
     await page.route((url) => url.hostname !== "127.0.0.1", (route) => route.abort());
+    // Log Pose is off by default (the session endpoint answers 404 below); enableLogPose() turns it on.
+    let logPoseOn = false;
+    const chats: Planner["chats"] = [];
+    await page.route("**/fake-analyst/chat", (route) => {
+      chats.push(JSON.parse(route.request().postData() ?? "{}") as Planner["chats"][number]);
+      const sse = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+      return route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: sse("thread", { thread_id: 5 }) + sse("text", { delta: "Because the deck has 15 cards." }) + sse("done", { thread_id: 5 }),
+      });
+    });
     await page.route("https://tcgplayer-cdn.tcgplayer.com/**", (route) =>
       route.fulfill({ contentType: "image/svg+xml", body: PLACEHOLDER_SVG }),
     );
@@ -192,6 +208,9 @@ export const test = base.extend<{ planner: Planner }>({
       requests.push(`${method} ${path}`);
       const json = (body: unknown, status = 200) => route.fulfill({ status, json: body });
       let m: RegExpMatchArray | null;
+      if (path === "/analyst/chat/session" && logPoseOn) {
+        return json({ enabled: true, token: "t", expires_at: "2030-01-01T00:00:00Z", chat_url: "http://127.0.0.1:5180/fake-analyst" });
+      }
       if (path === "/auth/me") return json({ id: 1, email: "nami@e2e.test", name: "Nami", sum_across_leaders: false });
       if (path === "/decks") {
         const d = deckDetail();
@@ -294,6 +313,10 @@ export const test = base.extend<{ planner: Planner }>({
       owned,
       requests,
       errors,
+      chats,
+      enableLogPose() {
+        logPoseOn = true;
+      },
       async open(path) {
         await page.goto(path);
       },

@@ -17,6 +17,9 @@ build/
 htmlcov/
 *.tsbuildinfo
 
+# Log Pose eval output: traces hold official text from tool results
+analyst/evals/out/
+
 # mutation-check crash-recovery journal
 tools/mutation-check/.pending-restore.json
 tools/mutation-check/.run.lock

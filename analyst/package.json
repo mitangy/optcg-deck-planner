@@ -12,7 +12,12 @@
     "dev": "tsx watch src/index.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check-official": "tsx scripts/check-official.ts"
+    "check-official": "tsx scripts/check-official.ts",
+    "eval": "tsx evals/run.ts",
+    "eval:compare": "tsx evals/compare.ts",
+    "eval:check-live": "tsx evals/check-live.ts",
+    "eval:grade": "tsx evals/grade-human.ts",
+    "eval:validate": "tsx evals/validate.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

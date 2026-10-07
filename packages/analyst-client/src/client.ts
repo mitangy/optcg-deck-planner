@@ -1,5 +1,6 @@
 /** Requests to the analyst service (chat and match reviews) and to the API's chat history. */
 import { parseCitations, type Citation, type PlacedCitation } from "./citations";
+import type { HintContext } from "./ask";
 import { parseProposal, type DeckEditProposal } from "./proposals";
 import type { SessionManager } from "./session";
 import { SseHttpError, streamSse } from "./sse";
@@ -10,9 +11,10 @@ export type DeckContext = {
   cards: { id: string; copies: number }[];
   /** Which saved deck this is ("planner:<id>" or "duel:<id>"), so a suggested edit knows where it applies. */
   ref?: string;
+  plannerDeckId?: number;
 };
 /** What the page the user is on adds to a message. */
-export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string };
+export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string; hint?: HintContext };
 
 export type ChatRequest = { thread_id?: number; message: string; context?: ChatContext };
 export type ReviewRequest = { match_id: string; regenerate?: boolean };
