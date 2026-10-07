@@ -16,6 +16,8 @@ const prefs = "backend/app/routers/duel_prefs.py";
 const analyst = "backend/app/routers/analyst.py";
 const stats = "backend/app/analyst_stats.py";
 const chat = "backend/app/routers/analyst_chat.py";
+const access = "backend/app/routers/analyst_access.py";
+const models = "backend/app/models.py";
 const corpus = "backend/app/analyst_corpus.py";
 const bodyLimit = "backend/app/body_limit.py";
 const rateLimit = "backend/app/rate_limit.py";
@@ -364,7 +366,27 @@ module.exports = {
     {"id": "progress-without-secret", "file": "backend/app/routers/duel.py", "from": "    _require_ingest_secret(settings, x_duel_ingest_token)\n    if not _progress_rate", "to": "    if not _progress_rate", "kills": ["test_progress_needs_the_ingest_secret"]},
     {"id": "progress-size-cap-ignored", "file": "backend/app/routers/duel.py", "from": "    if len(value_text) <= MAX_REPLAY_BYTES:", "to": "    if True:", "kills": ["test_oversized_progress_log_is_dropped"]},
     // Log Pose in-app chat, reviews and game corpus
-    { id: "chat-session-no-allowlist", file: analyst, from: "        and user.email.strip().lower() in settings.analyst_chat_email_set\n", to: "", kills: ["test_the_chat_panel_is_only_on_for_allowlisted_players"] },
+    { id: "chat-session-no-allowlist", file: analyst, from: "    return user.email.strip().lower() in settings.analyst_chat_email_set\n", to: "    return True\n", kills: ["test_the_chat_panel_is_only_on_for_allowlisted_players"] },
+    // Log Pose access requests (#393)
+    { id: "access-approved-not-honoured", file: analyst, from: "    return is_chat_owner(settings, user) or access_status(db, user) == \"approved\"", to: "    return is_chat_owner(settings, user)", kills: ["test_an_approved_player_gets_a_working_chat_token_and_denying_ends_it_393"] },
+    { id: "access-pending-counts-as-approved", file: analyst, from: "or access_status(db, user) == \"approved\"", to: "or access_status(db, user) in (\"approved\", \"pending\")", kills: ["test_a_request_is_stored_as_pending_and_the_session_reports_it_393"] },
+    { id: "access-revoked-token-still-works", file: analyst, from: "    return user if user is not None and chat_enabled_for(settings, user, db) else None", to: "    return user", kills: ["test_an_approved_player_gets_a_working_chat_token_and_denying_ends_it_393"] },
+    { id: "access-requests-open-without-owners", file: analyst, from: "    return _service_configured(settings) and bool(settings.analyst_chat_email_set)", to: "    return _service_configured(settings)", kills: ["test_no_request_form_is_offered_when_nobody_can_approve_393"] },
+    { id: "access-denied-status-hidden", file: chat, from: "access=access_status(db, user) or \"none\"", to: "access=\"none\"", kills: ["test_an_approved_player_gets_a_working_chat_token_and_denying_ends_it_393"] },
+    { id: "access-pending-count-all-statuses", file: chat, from: "select(func.count()).select_from(AnalystAccess).where(AnalystAccess.status == \"pending\")", to: "select(func.count()).select_from(AnalystAccess)", kills: ["test_an_approved_player_gets_a_working_chat_token_and_denying_ends_it_393"] },
+    { id: "access-pending-count-for-non-owners", file: chat, from: "        if owner\n        else 0", to: "        if True\n        else 0", kills: ["test_an_approved_player_gets_a_working_chat_token_and_denying_ends_it_393"] },
+    { id: "access-anyone-answers-requests", file: access, from: "    if not is_chat_owner(settings, user):\n        raise HTTPException(status_code=403, detail=\"Only Log Pose owners can answer requests\")", to: "    pass", kills: ["test_only_owners_can_list_or_decide_requests_393"] },
+    { id: "access-requests-unsorted", file: access, from: "    rows.sort(key=lambda r: _ORDER.get(r.status, 3))  # stable: newest stays first within a status\n", to: "", kills: ["test_requests_list_pending_first_then_approved_then_denied_393"] },
+    { id: "access-requests-oldest-first", file: access, from: "order_by(AnalystAccess.created_at.desc(), AnalystAccess.id.desc())", to: "order_by(AnalystAccess.created_at, AnalystAccess.id)", kills: ["test_requests_list_pending_first_then_approved_then_denied_393"] },
+    { id: "access-denied-asks-again-at-once", file: access, from: "        if row.decided_at is not None and now - _aware(row.decided_at) < REREQUEST_AFTER:", to: "        if False:", kills: ["test_a_denied_player_must_wait_a_day_to_ask_again_393"] },
+    { id: "access-wait-never-ends", file: access, from: "REREQUEST_AFTER = timedelta(hours=24)", to: "REREQUEST_AFTER = timedelta(days=3650)", kills: ["test_a_denied_player_must_wait_a_day_to_ask_again_393"] },
+    { id: "access-duplicate-pending-allowed", file: access, from: "    elif row.status == \"pending\":", to: "    elif False:", kills: ["test_a_request_is_stored_as_pending_and_the_session_reports_it_393"] },
+    { id: "access-owner-can-request", file: access, from: "    if is_chat_owner(settings, user) or (row is not None and row.status == \"approved\"):", to: "    if row is not None and row.status == \"approved\":", kills: ["test_owners_and_approved_players_cannot_request_393"] },
+    { id: "access-approved-can-request", file: access, from: "    if is_chat_owner(settings, user) or (row is not None and row.status == \"approved\"):", to: "    if is_chat_owner(settings, user):", kills: ["test_owners_and_approved_players_cannot_request_393"] },
+    { id: "access-request-not-rate-limited", file: access, from: "    if not _request_rate.allow(f\"analyst-access:{client_ip(request)}\") or not _request_global_rate.allow(\"analyst-access\"):", to: "    if False:", kills: ["test_requests_are_rate_limited_per_ip_393"] },
+    { id: "access-note-uncapped", file: "backend/app/schemas.py", from: "class AnalystAccessRequestIn(BaseModel):\n    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]", to: "class AnalystAccessRequestIn(BaseModel):\n    note: Annotated[str, StringConstraints(strip_whitespace=True)]", kills: ["test_a_note_over_500_characters_is_refused_393"] },
+    { id: "access-note-not-stripped", file: "backend/app/schemas.py", from: "StringConstraints(strip_whitespace=True, max_length=500)", to: "StringConstraints(max_length=500)", kills: ["test_a_request_is_stored_as_pending_and_the_session_reports_it_393"] },
+    { id: "access-decide-unknown-creates-row", file: access, from: "    if row is None:\n        raise HTTPException(status_code=404, detail=\"No request from that player\")", to: "    if row is None:\n        row = AnalystAccess(user_id=user_id)\n        db.add(row)", kills: ["test_only_owners_can_list_or_decide_requests_393"] },
     { id: "chat-token-unsigned", file: analyst, from: "    if not hmac.compare_digest(sig, _chat_sig(settings, int(uid), int(exp))):\n        return None\n", to: "", kills: ["test_a_chat_token_must_be_signed_and_unexpired"] },
     { id: "chat-token-never-expires", file: analyst, from: "    if int(exp) < int(datetime.now(timezone.utc).timestamp()):\n        return None\n", to: "", kills: ["test_a_chat_token_must_be_signed_and_unexpired"] },
     { id: "chat-daily-cap-counts-everyone", file: chat, from: "    today = _spent(db, now.replace(hour=0, minute=0, second=0, microsecond=0), user.id)", to: "    today = _spent(db, now.replace(hour=0, minute=0, second=0, microsecond=0))", kills: ["test_the_daily_cap_counts_only_your_spend_today"] },
