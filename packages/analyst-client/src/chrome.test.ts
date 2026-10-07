@@ -16,4 +16,11 @@ describe("Log Pose chrome", () => {
     }
     expect(logPoseChrome({ enabled: true, hidden: true, launcher: true, open: true })).toEqual({ compass: false, panel: false });
   });
+
+  it("a player who can only ask for access still gets the compass and panel, but not while hidden (#393, #401)", () => {
+    const base = { enabled: false, hidden: false, launcher: true, requestable: true };
+    expect(logPoseChrome({ ...base, open: false })).toEqual({ compass: true, panel: false });
+    expect(logPoseChrome({ ...base, open: true })).toEqual({ compass: false, panel: true });
+    expect(logPoseChrome({ ...base, open: true, hidden: true })).toEqual({ compass: false, panel: false });
+  });
 });

@@ -17,7 +17,7 @@ from app.analyst_stats import matchup_stats
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.models import AnalystLesson, AnalystPrefs, AnalystToken, Deck, DuelMatch, DuelMatchLog, User
+from app.models import AnalystAccess, AnalystLesson, AnalystPrefs, AnalystToken, Deck, DuelMatch, DuelMatchLog, User
 from app.routers.duel import match_history
 from app.schemas import (
     CARD_ID_PATTERN,
@@ -90,13 +90,30 @@ def _chat_sig(settings: Settings, uid: int, exp: int) -> str:
     return hmac.new(settings.analyst_service_secret.encode(), f"chat.{uid}.{exp}".encode(), hashlib.sha256).hexdigest()
 
 
-def chat_enabled_for(settings: Settings, user: User) -> bool:
-    """The in-app chat panel is on for allowlisted players once the analyst service is configured."""
-    return bool(
-        settings.analyst_service_secret
-        and settings.analyst_public_url
-        and user.email.strip().lower() in settings.analyst_chat_email_set
-    )
+def is_chat_owner(settings: Settings, user: User) -> bool:
+    """Owners are everyone on ANALYST_CHAT_EMAILS: they always have the chat and answer access requests."""
+    return user.email.strip().lower() in settings.analyst_chat_email_set
+
+
+def _service_configured(settings: Settings) -> bool:
+    return bool(settings.analyst_service_secret and settings.analyst_public_url)
+
+
+def access_status(db: Session, user: User) -> str | None:
+    row = db.scalar(select(AnalystAccess.status).where(AnalystAccess.user_id == user.id))
+    return row
+
+
+def chat_enabled_for(settings: Settings, user: User, db: Session) -> bool:
+    """The in-app chat panel is on for owners, and for players an owner approved, once the analyst service is configured."""
+    if not _service_configured(settings):
+        return False
+    return is_chat_owner(settings, user) or access_status(db, user) == "approved"
+
+
+def requests_open(settings: Settings) -> bool:
+    """Players can ask for access only when the service is on and someone is there to approve."""
+    return _service_configured(settings) and bool(settings.analyst_chat_email_set)
 
 
 def mint_chat_token(settings: Settings, user: User, now: int) -> tuple[str, int]:
@@ -117,7 +134,7 @@ def _chat_token_user(db: Session, settings: Settings, token: str) -> User | None
     if int(exp) < int(datetime.now(timezone.utc).timestamp()):
         return None
     user = db.get(User, int(uid))
-    return user if user is not None and chat_enabled_for(settings, user) else None
+    return user if user is not None and chat_enabled_for(settings, user, db) else None
 
 
 def analyst_user(

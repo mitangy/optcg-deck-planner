@@ -14,7 +14,8 @@ export {
   type SavedReview,
   type StreamHandlers,
 } from "./client";
-export { createSessionManager, fetchChatSession, needsRefresh, REFRESH_MARGIN_MS, type ChatSession, type SessionManager } from "./session";
+export { createSessionManager, fetchChatSession, needsRefresh, parseAccess, REFRESH_MARGIN_MS, type AccessState, type ChatSession, type SessionManager } from "./session";
+export { decideAccess, listAccessRequests, NOTE_MAX, requestAccess, sortRequests, type AccessRequest, type AccessStatus } from "./access";
 export {
   buildSources,
   kindLabel,
@@ -42,3 +43,4 @@ export { Markdown } from "./Markdown";
 export { LogPoseProvider, LogPoseCompass, useLogPose, useLogPosePage, messageContext, type LogPosePage } from "./LogPose";
 export { logPoseChrome, type LogPoseChrome } from "./chrome";
 export { CitedAnswer, type SourceHooks } from "./Sources";
+export { RequestAccessView, RequestsList } from "./AccessViews";
