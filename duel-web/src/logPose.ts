@@ -1,4 +1,5 @@
 /** Where duel-web shows the Log Pose chat, and what each page tells it. */
+import { useSyncExternalStore } from "react";
 import type { DeckContext, LogPosePage, ParsedSource, SourceHooks } from "@optcg/analyst-client";
 import { lookupCard } from "./cards/atlas";
 
@@ -10,6 +11,35 @@ const NO_LOG_POSE = ["/duel", "/hotseat", "/watch", "/demo", "/auth/complete", "
 
 export function showsLogPose(pathname: string): boolean {
   return !NO_LOG_POSE.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+/**
+ * What the app tells the Log Pose provider for a route. A board hides it entirely, except while that board
+ * shows a matchup brief (so "Ask Log Pose" can open the panel); the compass is never drawn on a board.
+ */
+export function logPoseChromeFor(pathname: string, boardBrief: boolean): { hidden: boolean; launcher: boolean } {
+  return { hidden: !showsLogPose(pathname) && !boardBrief, launcher: showsLogPose(pathname) };
+}
+
+let boardBriefUp = false;
+const boardBriefListeners = new Set<() => void>();
+
+/** A board with a matchup brief mounted says so here, so the app can let Log Pose's panel open over it. */
+export function setBoardBrief(on: boolean): void {
+  if (boardBriefUp === on) return;
+  boardBriefUp = on;
+  for (const l of boardBriefListeners) l();
+}
+
+export function useBoardBrief(): boolean {
+  return useSyncExternalStore(
+    (l) => {
+      boardBriefListeners.add(l);
+      return () => boardBriefListeners.delete(l);
+    },
+    () => boardBriefUp,
+    () => false,
+  );
 }
 
 /** Starter prompts and page id for routes whose page doesn't register its own context. */

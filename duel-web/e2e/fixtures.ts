@@ -12,7 +12,8 @@ import { auditPage, formatIssues, issueKey, type AuditIssue } from "./audit";
 
 export const GAME_TOKEN_SECRET = "e2e-secret";
 export const FAKE_API = "http://127.0.0.1:8765";
-export const GAME_SERVER = "http://127.0.0.1:2567";
+/** The local game server; E2E_GAME_SERVER moves it when another run already holds the default port. */
+export const GAME_SERVER = process.env.E2E_GAME_SERVER ?? "http://127.0.0.1:2567";
 
 export type DeckList = { leaderId: string; cards: string[] };
 

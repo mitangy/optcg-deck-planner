@@ -34,6 +34,8 @@ export function DuelPage() {
     leave,
     clearError,
     role,
+    ranked,
+    brief,
     battleLog,
     timer,
     chat,
@@ -121,6 +123,7 @@ export function DuelPage() {
         players={players}
         timer={timer}
         spectator={role === "spectator" || Boolean(view?.spectator)}
+        matchBrief={role === "player" ? { brief, ranked } : undefined}
         battleLog={battleLog}
         vsHuman
         chat={{ lines: chat, onSend: sendChat }}

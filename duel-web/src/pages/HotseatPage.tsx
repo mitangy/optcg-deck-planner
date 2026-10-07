@@ -29,6 +29,7 @@ import {
   type HotseatResumeBlob,
 } from "../net/matchResume";
 import type {
+  BriefTicketWire,
   Intent,
   MatchOverMessage,
   PlayerView,
@@ -64,6 +65,9 @@ type SeatBag = {
   rematch?: RematchState | null;
   /** Board instance ids → cards (lazily created) so log lines name attackers. */
   instances?: InstanceIndex;
+  /** Seat 0's matchup-brief ticket and whether the room is ranked, from its welcome. */
+  brief?: BriefTicketWire | null;
+  ranked?: boolean | null;
 };
 
 function navFromResume(blob: HotseatResumeBlob): HotseatNavState {
@@ -212,7 +216,12 @@ export function HotseatPage() {
 
     function bindBagHandlers(bag: SeatBag) {
       bag.client.setHandlers({
-        onWelcome: ({ matchId: id, view }) => {
+        onWelcome: ({ matchId: id, view, ranked, brief }) => {
+          // The brief is always from seat 0's side (the player's deck against the practice opponent).
+          if (bag.seat === 0) {
+            bag.ranked = typeof ranked === "boolean" ? ranked : null;
+            bag.brief = ranked === false ? (brief ?? null) : null;
+          }
           // Always stash view so StrictMode park/reclaim keeps boards even
           // when this mount was already cancelled.
           const rematchStarted = bag.matchOver != null;
@@ -870,6 +879,7 @@ export function HotseatPage() {
         errorBanner={bag.error}
         matchOver={bag.matchOver}
         battleLog={bag.battleLog}
+        matchBrief={{ brief: bags.current[0]?.brief ?? null, ranked: bags.current[0]?.ranked ?? null }}
         hotseatPass={{ otherSeat: other, onPass: () => passDevice(other) }}
         rematch={{
           state: bag.rematch ?? null,
