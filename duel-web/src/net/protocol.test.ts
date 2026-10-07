@@ -186,3 +186,37 @@ describe("card atlas", () => {
     expect(lookupCard("OP16-080").name).toMatch(/Teach/i);
   });
 });
+
+describe("welcome brief ticket (#401)", () => {
+  const ticket = { ticket: "mb1.body.sig", leaderId: "OP01-001", opponentId: "ST01-001", deck: ["OP01-016", "ST01-006"] };
+  const base = { protocolVersion: PROTOCOL_VERSION, matchId: "m1", seat: 0 as const };
+
+  it("parseWelcome keeps a brief ticket and the ranked flag, drops a malformed ticket and any ticket sent to a spectator (#401)", () => {
+    const ok = parseWelcome({ ...base, view: sampleView(), ranked: false, brief: ticket });
+    expect(ok.ranked).toBe(false);
+    expect(ok.brief).toEqual(ticket);
+
+    // An older server says nothing about ranked.
+    expect(parseWelcome({ ...base, view: sampleView() }).ranked).toBeUndefined();
+    expect(parseWelcome({ ...base, view: sampleView(), ranked: "no" }).ranked).toBeUndefined();
+
+    // Every part must be the right shape.
+    for (const bad of [
+      { ...ticket, ticket: 5 },
+      { ...ticket, leaderId: undefined },
+      { ...ticket, opponentId: null },
+      { ...ticket, deck: "OP01-016" },
+      { ...ticket, deck: ["OP01-016", 7] },
+      "mb1.body.sig",
+    ]) {
+      expect(parseWelcome({ ...base, view: sampleView(), ranked: false, brief: bad }).brief, JSON.stringify(bad)).toBeUndefined();
+    }
+
+    // A spectator never gets one, even if a server sent it.
+    const spec = sampleView();
+    const specView = { ...spec, spectator: true, you: { ...spec.you, hand: [], handCount: 5 } } as unknown as PlayerView;
+    const watched = parseWelcome({ ...base, role: "spectator", view: specView, ranked: false, brief: ticket });
+    expect(watched.brief).toBeUndefined();
+    expect(watched.ranked).toBe(false);
+  });
+});

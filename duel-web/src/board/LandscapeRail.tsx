@@ -1,10 +1,18 @@
 import { useEffect, type ReactNode } from "react";
 
-export type LandscapePanel = "log" | "chat";
+export type LandscapePanel = "log" | "chat" | "brief";
 
-const LABEL: Record<LandscapePanel, string> = { log: "Battle log", chat: "Chat" };
+const LABEL: Record<LandscapePanel, string> = { log: "Battle log", chat: "Chat", brief: "Matchup brief" };
 
 function Icon({ panel }: { panel: LandscapePanel }) {
+  if (panel === "brief") {
+    return (
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
+        <circle cx="10" cy="10" r="7.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M13.2 6.8 11.4 11.4 6.8 13.2 8.6 8.6z" fill="currentColor" />
+      </svg>
+    );
+  }
   return panel === "log" ? (
     <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
       <path d="M4 5h12M4 10h12M4 15h8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -26,6 +34,8 @@ type RailProps = {
   open: LandscapePanel | null;
   onToggle: (panel: LandscapePanel) => void;
   hasChat: boolean;
+  /** A Log Pose matchup brief is available (a third button). */
+  hasBrief?: boolean;
   logCount: number;
   /** The ⋯ match menu button (there is no top bar in landscape). */
   menu: ReactNode;
@@ -35,8 +45,8 @@ type RailProps = {
  * Landscape phones: the left column shrinks to an icon rail so the board gets
  * the width. The log and chat open as overlays (see LandscapeOverlay).
  */
-export function LandscapeRail({ open, onToggle, hasChat, logCount, menu }: RailProps) {
-  const panels: LandscapePanel[] = hasChat ? ["log", "chat"] : ["log"];
+export function LandscapeRail({ open, onToggle, hasChat, hasBrief = false, logCount, menu }: RailProps) {
+  const panels: LandscapePanel[] = [...(hasChat ? (["log", "chat"] as const) : (["log"] as const)), ...(hasBrief ? (["brief"] as const) : [])];
   return (
     <nav className="lp-rail" aria-label="Board panels">
       {menu}
@@ -66,10 +76,13 @@ export function LandscapeRail({ open, onToggle, hasChat, logCount, menu }: RailP
 export function LandscapeOverlay({
   panel,
   onClose,
+  backdrop = true,
   children,
 }: {
   panel: LandscapePanel;
   onClose: () => void;
+  /** Outside taps close the panel (default). Off: the board stays tappable underneath. */
+  backdrop?: boolean;
   children: ReactNode;
 }) {
   useEffect(() => {
@@ -81,7 +94,7 @@ export function LandscapeOverlay({
   }, [onClose]);
   return (
     <>
-      <div className="lp-overlay-backdrop" onPointerDown={onClose} />
+      {backdrop ? <div className="lp-overlay-backdrop" onPointerDown={onClose} /> : null}
       <div className={`lp-overlay lp-overlay-${panel}`} role="region" aria-label={LABEL[panel]}>
         {children}
       </div>

@@ -132,6 +132,12 @@ export type DuelSettings = {
   /** Short chime when the game needs you. */
   turnSound: boolean;
 
+  // —— Log Pose ——
+  /** The Log Pose matchup brief (Brief button and card) before casual and practice games. Never in ranked. */
+  matchBrief: boolean;
+  /** Write the matchup brief by itself when none is saved (uses your Log Pose daily limit). Off: tap Get brief. */
+  matchBriefAuto: boolean;
+
   // —— Deck editor ——
   /** Deck stats, draw odds and build hints (shared with the planner) in the deck editor. */
   deckStats: boolean;
@@ -175,6 +181,8 @@ const DEFAULTS: DuelSettings = {
   cardSpotlight: true,
   turnAlert: true,
   turnSound: false,
+  matchBrief: true,
+  matchBriefAuto: false,
   deckStats: true,
 };
 

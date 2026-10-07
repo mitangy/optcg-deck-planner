@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CitedAnswer, DeckEditCard, Markdown, messageContext, parseProposal, parseSource, RequestAccessView, type DeckEditor, type PlacedCitation } from "@optcg/analyst-client";
 import { HintActions } from "@optcg/deck-analytics/ui";
-import { deckContext, reviewMode, showsLogPose, sourceHref } from "./logPose";
+import { deckContext, logPoseChromeFor, reviewMode, showsLogPose, sourceHref } from "./logPose";
 
 describe("Log Pose compass placement (#377)", () => {
   it("stays off every route that renders a board (#377)", () => {
@@ -173,6 +173,20 @@ describe("sources in a Log Pose answer (#390)", () => {
     expect(sourceHref(parseSource("match:a%b/c#t2"))).toBe("/history/a%25b%2Fc#turn-2");
     expect(sourceHref(parseSource("game:g_9#t3"))).toBeNull();
     expect(sourceHref(parseSource("card:OP01-001"))).toBeNull();
+  });
+});
+
+describe("Log Pose on boards with a matchup brief (#401)", () => {
+  it("Log Pose stays hidden on a board unless a brief is up, and never shows its compass there (#401)", () => {
+    for (const path of ["/duel", "/hotseat", "/demo"]) {
+      expect(logPoseChromeFor(path, false), path).toEqual({ hidden: true, launcher: false });
+      // With a brief up the panel may open (from "Ask Log Pose"), but the compass is not drawn on a board.
+      expect(logPoseChromeFor(path, true), path).toEqual({ hidden: false, launcher: false });
+    }
+    // Everywhere else Log Pose is as before.
+    for (const path of ["/", "/decks", "/history"]) {
+      expect(logPoseChromeFor(path, false), path).toEqual({ hidden: false, launcher: true });
+    }
   });
 });
 

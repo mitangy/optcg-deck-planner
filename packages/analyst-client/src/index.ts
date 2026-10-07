@@ -6,6 +6,7 @@ export {
   fetchSavedReview,
   fetchThread,
   streamAnalyst,
+  type BriefRequest,
   type ChatContext,
   type DeckContext,
   type DonePayload,
@@ -58,5 +59,6 @@ export {
   type ProposalKind,
   type ProposalState,
 } from "./proposals";
+export { logPoseChrome, type LogPoseChrome } from "./chrome";
 export { CitedAnswer, type SourceHooks } from "./Sources";
 export { RequestAccessView, RequestsList } from "./AccessViews";

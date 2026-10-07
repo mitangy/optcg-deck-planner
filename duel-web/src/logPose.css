@@ -135,3 +135,241 @@
     padding-bottom: calc(52px + max(16px, env(safe-area-inset-bottom, 0px)));
   }
 }
+
+/* Matchup brief on the board (casual and practice games). The card is fixed over side panels or the opponent's
+   empty half, never in the board's flow, so opening, streaming or closing it moves nothing. Above the board and
+   its prompts (45-50), below the match menu (60), the Log Pose panel (90) and sheets (100). */
+.match-brief {
+  position: fixed;
+  z-index: 55;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 140px;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: 12px;
+  background: var(--lp-surface);
+  color: var(--lp-ink);
+  box-shadow: var(--lp-shadow);
+  font-family: var(--lp-font);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.match-brief[data-layout="portrait"] {
+  max-height: min(38dvh, 320px);
+}
+
+.match-brief-lp {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0.5rem 0.6rem;
+  color: var(--lp-ink);
+  background: var(--lp-surface);
+  font-family: var(--lp-font);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.mb-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+  min-width: 0;
+  margin-bottom: 0.35rem;
+}
+
+.mb-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mb-title {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--lp-font-display);
+  font-size: 0.95rem;
+  color: var(--chrome-bright);
+}
+
+.mb-sub {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lp-muted);
+  font-size: 0.75rem;
+}
+
+.mb-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--lp-muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mb-close:hover,
+.mb-close:focus-visible {
+  background: var(--lp-surface-2);
+  color: var(--lp-ink);
+}
+
+@media (pointer: coarse) {
+  .mb-close {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.mb-body {
+  flex: 1 1 auto;
+  min-height: 3.5rem;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+}
+
+.mb-status,
+.mb-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.4rem;
+  color: var(--lp-muted);
+}
+
+.mb-status .lp-status-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lp-accent);
+  animation: lp-pulse 1.2s ease-in-out infinite;
+}
+
+.mb-error {
+  margin: 0.4rem 0 0;
+  color: var(--lp-danger);
+}
+
+.mb-foot {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-status .lp-status-dot {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .mb-status .lp-status-dot {
+  animation: none;
+}
+
+/* The Brief button in the top bar: a fixed box, so loading, ready and error never change its size. */
+.hud-brief-btn {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  box-sizing: border-box;
+  height: 36px;
+  min-width: 36px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: 8px;
+  background: transparent;
+  color: var(--chrome-bright);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.hud-brief-btn.hud-brief-text {
+  width: 76px;
+}
+
+.hud-brief-btn.hud-icon-btn {
+  width: 36px;
+  padding: 0;
+}
+
+.hud-brief-btn[aria-expanded="true"] {
+  background: var(--lp-surface-2, rgb(255 255 255 / 0.08));
+}
+
+.hud-brief-btn:focus-visible {
+  outline: 2px solid var(--lp-focus, currentColor);
+  outline-offset: 2px;
+}
+
+.hud-brief-icon {
+  flex: none;
+}
+
+.hud-brief-label {
+  white-space: nowrap;
+}
+
+/* Busy shows only as a dot inside the box. */
+.hud-brief-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--chrome-bright);
+  opacity: 0;
+}
+
+.hud-brief-btn[data-busy="true"] .hud-brief-dot {
+  opacity: 1;
+  animation: lp-pulse 1.2s ease-in-out infinite;
+}
+
+@media (pointer: coarse) {
+  .hud-brief-btn,
+  .hud-brief-btn.hud-icon-btn {
+    height: 44px;
+    min-width: 44px;
+  }
+
+  .hud-brief-btn.hud-icon-btn {
+    width: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-brief-btn[data-busy="true"] .hud-brief-dot {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .hud-brief-btn[data-busy="true"] .hud-brief-dot {
+  animation: none;
+}

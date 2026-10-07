@@ -7,7 +7,8 @@ service, which reads and writes everything here with that token plus the service
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -18,11 +19,26 @@ from app.analyst_corpus import MAX_GAMES, game_replay, search_games
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.models import AnalystAccess, AnalystMatchReview, AnalystMessage, AnalystProposal, AnalystThread, AnalystUsage, DuelMatch, User
+from app.brief_tickets import BriefClaims, brief_key, deck_counts, verify_brief_ticket
+from app.models import (
+    AnalystAccess,
+    AnalystMatchBrief,
+    AnalystMatchReview,
+    AnalystMessage,
+    AnalystProposal,
+    AnalystThread,
+    AnalystUsage,
+    DuelMatch,
+    User,
+)
 from app.routers.analyst import access_status, analyst_user, chat_enabled_for, is_chat_owner, mint_chat_token, require_service, requests_open
 from app.schemas import (
     CARD_ID_PATTERN,
     AnalystAppendIn,
+    AnalystBriefIn,
+    AnalystBriefLookupIn,
+    AnalystBriefLookupOut,
+    AnalystBriefOut,
     AnalystChatBudget,
     AnalystCitation,
     AnalystChatSession,
@@ -408,6 +424,83 @@ def put_review(
     db.commit()
     db.refresh(row)
     return _review_out(row)
+
+
+BRIEF_TTL = timedelta(days=7)
+
+
+def _brief_claims(body: AnalystBriefLookupIn, settings: Settings) -> BriefClaims:
+    """The ticket's claims; a forged, expired, ranked or non-ticket string is a 403."""
+    claims = verify_brief_ticket(body.ticket, settings, int(time.time()))
+    if claims is None:
+        raise HTTPException(status_code=403, detail="Not a valid brief ticket")
+    return claims
+
+
+def _brief_out(row: AnalystMatchBrief) -> AnalystBriefOut:
+    try:
+        citations = [AnalystCitation(**c) for c in json.loads(row.citations or "[]")]
+    except (ValueError, TypeError):
+        citations = []
+    return AnalystBriefOut(
+        text=row.text, citations=citations, created_at=row.created_at.isoformat() if row.created_at else None
+    )
+
+
+@router.post("/briefs/lookup", response_model=AnalystBriefLookupOut)
+def lookup_brief(
+    body: AnalystBriefLookupIn,
+    _: Service,
+    db: Annotated[Session, Depends(get_db)],
+    __: Annotated[User, Depends(analyst_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AnalystBriefLookupOut:
+    """What a matchup brief is about (from a game-server ticket) and the saved brief for it, if it is fresh."""
+    claims = _brief_claims(body, settings)
+    key = brief_key(claims, body.variant)
+    row = db.get(AnalystMatchBrief, key)
+    brief = None
+    if row is not None:
+        made = row.created_at
+        if made is not None and made.tzinfo is None:
+            made = made.replace(tzinfo=timezone.utc)
+        if made is None or made >= datetime.now(timezone.utc) - BRIEF_TTL:
+            brief = _brief_out(row)
+    return AnalystBriefLookupOut(
+        leader_id=claims.leader, opponent_id=claims.opponent, deck=deck_counts(claims), key=key, brief=brief
+    )
+
+
+@router.put("/briefs", status_code=204)
+def put_brief(
+    body: AnalystBriefIn,
+    _: Service,
+    db: Annotated[Session, Depends(get_db)],
+    __: Annotated[User, Depends(analyst_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> None:
+    """The analyst saves a matchup brief for the ticket's leaders and deck (the ticket is checked again)."""
+    claims = _brief_claims(body, settings)
+    key = brief_key(claims, body.variant)
+    # A citation can only follow text that is there.
+    limit = _utf16_len(body.text)
+    citations = json.dumps([c.model_dump() for c in body.citations if c.at <= limit])
+    row = db.get(AnalystMatchBrief, key)
+    if row is None:
+        row = AnalystMatchBrief(
+            key=key,
+            variant=body.variant,
+            leader_id=claims.leader,
+            opponent_id=claims.opponent,
+            text=body.text,
+            citations=citations,
+        )
+        db.add(row)
+    else:
+        row.text = body.text
+        row.citations = citations
+        row.created_at = datetime.now(timezone.utc)
+    db.commit()
 
 
 @router.get("/corpus/games")

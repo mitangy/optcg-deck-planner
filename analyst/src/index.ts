@@ -14,7 +14,7 @@ import { tokenIsValid, type PlannerApi } from "./matches";
 import { OfficialLibrary } from "./official/library";
 import { loadPlaybook } from "./playbook";
 import { createServer, type Knowledge, type PersonalContext } from "./server";
-import { admit, anthropicModel, originAllowed, chatBody, ChatHttpError, reviewBody, runChat, runReview, type ChatDeps, type SseEvent } from "./chat";
+import { admit, admitToken, anthropicModel, originAllowed, briefBody, chatBody, ChatHttpError, reviewBody, runBrief, runChat, runReview, type ChatDeps, type SseEvent } from "./chat";
 
 const catalog = loadCatalog();
 const connectorKey = process.env.ANALYST_CONNECTOR_KEY ?? "";
@@ -125,7 +125,7 @@ function chatCors(req: Request, res: Response, next: NextFunction) {
 
 type Run<T> = (deps: ChatDeps, token: string, body: T, emit: (e: SseEvent) => void, signal: AbortSignal) => Promise<void>;
 
-function sse<T>(kind: "chat" | "review", schema: z.ZodType<T>, run: Run<T>) {
+function sse<T>(kind: "chat" | "review" | "brief", schema: z.ZodType<T>, run: Run<T>, admitWith: typeof admit = admit) {
   return async (req: Request, res: Response) => {
     if (!chatDeps) {
       res.status(503).json({ error: "Log Pose chat isn't set up on this server.", code: "server" });
@@ -141,7 +141,7 @@ function sse<T>(kind: "chat" | "review", schema: z.ZodType<T>, run: Run<T>) {
     res.on("close", () => abort.abort());
     let streaming = false;
     try {
-      const token = await admit(plannerApi, bearer);
+      const token = await admitWith(plannerApi, bearer);
       res.status(200).set({ "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" });
       res.flushHeaders();
       streaming = true;
@@ -161,9 +161,11 @@ function sse<T>(kind: "chat" | "review", schema: z.ZodType<T>, run: Run<T>) {
   };
 }
 
-app.use(["/chat", "/review-match"], chatCors);
+app.use(["/chat", "/review-match", "/brief"], chatCors);
 app.post("/chat", sse("chat", chatBody, runChat));
 app.post("/review-match", sse("review", reviewBody, runReview));
+// A brief checks the token first and the budget only when it has to write one: a saved brief is free.
+app.post("/brief", sse("brief", briefBody, runBrief, admitToken));
 
 app.listen(port, () => {
   console.log(JSON.stringify({ event: "listening", port, cards: catalog.cards.size, keyed: Boolean(connectorKey), chat: Boolean(chatDeps) }));

@@ -70,6 +70,17 @@ export type SeatPlayerInfo = {
   name: string | null;
 };
 
+/** Signed matchup-brief ticket for one player seat of an unranked room. */
+export type BriefTicketWire = {
+  ticket: string;
+  /** The seat's own leader. */
+  leaderId: string;
+  /** The other seat's leader. */
+  opponentId: string;
+  /** The seat's own 50-card deck (no leader). */
+  deck: string[];
+};
+
 export type WelcomeMessage = {
   protocolVersion: ProtocolVersion;
   matchId: string;
@@ -79,6 +90,10 @@ export type WelcomeMessage = {
   view: unknown;
   /** Indexed by seat. */
   players?: [SeatPlayerInfo, SeatPlayerInfo];
+  /** Whether the room is ranked. Absent from older servers. */
+  ranked?: boolean;
+  /** Players of unranked rooms only: the key to a Log Pose matchup brief. */
+  brief?: BriefTicketWire;
 };
 
 export type EventsMessage = {

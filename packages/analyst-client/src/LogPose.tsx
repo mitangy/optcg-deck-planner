@@ -22,6 +22,7 @@ import {
 } from "./client";
 import { askContext, canAsk, messageContext, requestAction, type LogPoseAsk } from "./ask";
 import { placeAt, type Citation, type PlacedCitation } from "./citations";
+import { logPoseChrome } from "./chrome";
 import { DeckEditCard } from "./DeckEditCard";
 import { isEmptyAnswer, type DeckEditor, type DeckEditProposal } from "./proposals";
 import { ResizeHandles, SheetGrip, useDrawerSize, useSheetHeight } from "./PanelResize";
@@ -249,6 +250,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
 export function LogPoseProvider({
   apiBase,
   hidden = false,
+  launcher = true,
   defaultPage = null,
   account,
   sources,
@@ -257,6 +259,8 @@ export function LogPoseProvider({
   apiBase: string;
   /** Hide the compass and panel (e.g. on a live match); the chat keeps its state. */
   hidden?: boolean;
+  /** Show the compass (default). Off: the panel still opens (e.g. from a button on the page) but no launcher is drawn. */
+  launcher?: boolean;
   /** Page info for routes whose page component doesn't call useLogPosePage. */
   defaultPage?: LogPosePage | null;
   /** Who is signed in, when the app knows (e.g. user id): the session is asked again when it changes. */
@@ -332,14 +336,20 @@ export function LogPoseProvider({
     [enabled, apiBase, manager, setPage, setEditor, openPanel, available, openLogPose],
   );
 
+  // A panel left open on a page that hides Log Pose must not come back on the next one.
+  useEffect(() => {
+    if (hidden) setOpen(false);
+  }, [hidden]);
+
   // Signed-in players who can ask for access get the compass too, opening a request form instead of the chat.
   const chatOn = enabled === true;
-  const show = (chatOn || (session !== null && !session.enabled && session.access !== undefined)) && !hidden;
+  const requestable = session !== null && !session.enabled && session.access !== undefined;
+  const chrome = logPoseChrome({ enabled, hidden, launcher, open, requestable });
   return (
     <LogPoseContext.Provider value={value}>
       <SourceHooksContext.Provider value={sources ?? NO_HOOKS}>
         {children}
-        {show && !open ? (
+        {chrome.compass ? (
           <LogPoseCompass
             working={chat.busy}
             unread={unread}
@@ -348,7 +358,7 @@ export function LogPoseProvider({
             onClick={openPanel}
           />
         ) : null}
-        {show && open && session ? (
+        {chrome.panel && session ? (
           <LogPosePanel
             page={page ?? defaultPage}
             editor={editor}
