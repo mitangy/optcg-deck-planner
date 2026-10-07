@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { searchAtlas } from "../cards/searchAtlas";
 import {
   addCardToDeck,
+  applyDeckOps,
   countCardInDeck,
   removeAllCopiesFromDeck,
   removeCardFromDeck,
@@ -73,6 +74,67 @@ describe("editDeck add/remove", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toMatch(/Leaders/);
     deleteDeck(deck.id);
+  });
+});
+
+describe("applying a Log Pose edit (#400)", () => {
+  const make = (cards: string[]) => saveDeck({ id: "apply-deck", name: "Apply", leaderId: "ST01-001", cards });
+  const copies = (id: string) => countCardInDeck(getSavedDeck("apply-deck")!, id);
+
+  it("applies a Log Pose edit as one save with the right copies (#400)", () => {
+    make(["ST01-006", "ST01-006", "ST01-006", "ST01-008", "ST01-009"]);
+    const writes: string[] = [];
+    const set = globalThis.localStorage.setItem.bind(globalThis.localStorage);
+    globalThis.localStorage.setItem = (k, v) => {
+      writes.push(k);
+      set(k, v);
+    };
+    const result = applyDeckOps("apply-deck", [
+      { id: "ST01-006", before: 3, after: 1 },
+      { id: "ST01-010", before: 0, after: 3 },
+      { id: "ST01-009", before: 1, after: 0 },
+    ]);
+    expect(result.ok).toBe(true);
+    expect(copies("ST01-006")).toBe(1);
+    expect(copies("ST01-010")).toBe(3);
+    expect(copies("ST01-009")).toBe(0);
+    expect(copies("ST01-008")).toBe(1);
+    expect(getSavedDeck("apply-deck")!.cards).toHaveLength(5);
+    // One write for the whole edit, so a reload never shows half of it.
+    expect(writes.filter((k) => k === "optcg.duel.savedDecks.v1")).toHaveLength(1);
+    // Undo is the reverse diff.
+    expect(
+      applyDeckOps("apply-deck", [
+        { id: "ST01-006", before: 1, after: 3 },
+        { id: "ST01-010", before: 3, after: 0 },
+        { id: "ST01-009", before: 0, after: 1 },
+      ]).ok,
+    ).toBe(true);
+    expect(copies("ST01-006")).toBe(3);
+    expect(copies("ST01-010")).toBe(0);
+    expect(copies("ST01-009")).toBe(1);
+    deleteDeck("apply-deck");
+  });
+
+  it("refuses a Log Pose edit when a card's count moved (#400)", () => {
+    make(["ST01-006", "ST01-006", "ST01-008"]);
+    const result = applyDeckOps("apply-deck", [
+      { id: "ST01-008", before: 1, after: 0 },
+      { id: "ST01-006", before: 3, after: 1 },
+    ]);
+    expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/ST01-006 has 2 copies now, not 3/) });
+    // Nothing was saved, not even the card that was still right.
+    expect(copies("ST01-008")).toBe(1);
+    expect(copies("ST01-006")).toBe(2);
+    deleteDeck("apply-deck");
+  });
+
+  it("refuses to put a leader in the main deck (#400)", () => {
+    make(["ST01-006"]);
+    const result = applyDeckOps("apply-deck", [{ id: "ST01-001", before: 0, after: 1 }]);
+    expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/Leaders/) });
+    expect(getSavedDeck("apply-deck")!.cards).toEqual(["ST01-006"]);
+    deleteDeck("apply-deck");
   });
 });
 

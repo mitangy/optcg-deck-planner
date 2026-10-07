@@ -495,6 +495,53 @@ class DuelMatchSeat(Base):
     )
 
 
+class Tournament(Base):
+    """A Limitless TCG event whose results feed Log Pose tournament stats. No player data is kept."""
+
+    __tablename__ = "tournaments"
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    name: Mapped[str] = mapped_column(String(300))
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    players: Mapped[int] = mapped_column(Integer)
+    set_label: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    online: Mapped[bool] = mapped_column(Boolean, default=False)
+    platform: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class TournamentDeck(Base):
+    """One entrant's deck at an event: leader, list as {card id: copies}, final record and placing. No names."""
+
+    __tablename__ = "tournament_decks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tournament_id: Mapped[str] = mapped_column(
+        ForeignKey("tournaments.id", ondelete="CASCADE"), index=True
+    )
+    leader_id: Mapped[str] = mapped_column(String(32), index=True)
+    decklist: Mapped[str] = mapped_column(Text, default="{}")
+    wins: Mapped[int] = mapped_column(Integer, default=0)
+    losses: Mapped[int] = mapped_column(Integer, default=0)
+    ties: Mapped[int] = mapped_column(Integer, default=0)
+    placing: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class TournamentGame(Base):
+    """One finished pairing: the two leaders and who won (A, B or tie). Byes and unfinished pairings are not kept."""
+
+    __tablename__ = "tournament_games"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tournament_id: Mapped[str] = mapped_column(
+        ForeignKey("tournaments.id", ondelete="CASCADE"), index=True
+    )
+    round: Mapped[int] = mapped_column(Integer)
+    leader_a: Mapped[str] = mapped_column(String(32), index=True)
+    leader_b: Mapped[str] = mapped_column(String(32), index=True)
+    winner: Mapped[str] = mapped_column(String(3))
+
+
 class AnalystPrefs(Base):
     """Whether a player's games count toward Log Pose stats (on unless they turn it off)."""
 
@@ -594,6 +641,22 @@ class AnalystMessage(Base):
     thread_id: Mapped[int] = mapped_column(ForeignKey("analyst_threads.id", ondelete="CASCADE"), index=True)
     role: Mapped[str] = mapped_column(String(16))  # user | assistant
     content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class AnalystProposal(Base):
+    """A deck edit Log Pose suggested in a thread (an Apply card), kept so the card comes back after a reload (#400).
+
+    `id` is the model's tool_use id; `payload` is the proposal as JSON.
+    """
+
+    __tablename__ = "analyst_proposals"
+
+    thread_id: Mapped[int] = mapped_column(ForeignKey("analyst_threads.id", ondelete="CASCADE"), primary_key=True)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

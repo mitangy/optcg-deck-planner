@@ -355,5 +355,8 @@ module.exports = {
       { file: "duel-web/src/net/protocol.ts", from: "role === \"spectator\" || view.spectator ? undefined : parseBriefTicket(o.brief)", to: "parseBriefTicket(o.brief)" },
       { file: "duel-web/src/state/DuelSession.tsx", from: "setBrief(r === \"player\" ? (b ?? null) : null);", to: "setBrief(b ?? null);" },
     ], kills: ["match-brief.spec.ts > a spectator of a practice room gets no Brief button or card, even with Log Pose on (#401) [desktop-1280]"] },
+
+    // Log Pose Apply card (#400)
+    { id: "e2e-edit-no-refresh", args: "log-pose-apply --project=desktop-1280", file: "duel-web/src/pages/DeckConfigurePage.tsx", from: "              setTick((n) => n + 1);\n            },\n            note:", to: "            },\n            note:", kills: ["log-pose-apply.spec.ts > applies a Log Pose deck edit and undoes it (#400) [desktop-1280]"] },
   ],
 };

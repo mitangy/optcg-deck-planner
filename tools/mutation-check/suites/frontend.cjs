@@ -95,10 +95,18 @@ module.exports = {
     { id: "logpose-on-share-pages", file: "frontend/src/logPose.ts", from: "const NO_LOG_POSE = [\"/share\", \"/login\"];", to: "const NO_LOG_POSE = [\"/login\"];", kills: ["keeps the compass off public share pages"] },
     { id: "logpose-off-everywhere", file: "frontend/src/logPose.ts", from: "  return !NO_LOG_POSE.some((p) => pathname === p || pathname.startsWith(`${p}/`));", to: "  return !NO_LOG_POSE.some((p) => pathname === p || pathname.startsWith(`${p}/`)) && pathname === \"/\";", kills: ["shows it on the signed-in pages (#377)"] },
     { id: "logpose-deck-sends-leader", file: "frontend/src/logPose.ts", from: "    if (c.card_id.trim().toUpperCase() === leader) continue;\n", to: "", kills: ["without the leader or DON!! (#377)"] },
-    { id: "logpose-deck-sends-don", file: "frontend/src/logPose.ts", from: "    if ((c.section || \"main\").toLowerCase() !== \"main\" || c.needed <= 0) continue;", to: "    if (c.needed <= 0) continue;", kills: ["without the leader or DON!! (#377)"] },
+    { id: "logpose-deck-sends-don", file: "frontend/src/logPose.ts", from: "    if ((c.section || \"main\").toLowerCase() === \"don\" || c.needed <= 0) continue;", to: "    if (c.needed <= 0) continue;", kills: ["without the leader or DON!! (#377)"] },
     { id: "logpose-deck-copies-one", file: "frontend/src/logPose.ts", from: "    copies.set(c.card_id, (copies.get(c.card_id) ?? 0) + c.needed);", to: "    copies.set(c.card_id, 1);", kills: ["sends a deck's main-deck cards with their copies"] },
     // feedback (#371)
     { id: "planner-feedback-posts-as-duel", file: "frontend/src/feedback.ts", from: "app: \"planner\"", to: "app: \"duel\"", kills: ["posts as the planner with cookies and no room"] },
     { id: "planner-feedback-no-cookies", file: "frontend/src/feedback.ts", from: "      credentials: \"include\",\n", to: "", kills: ["posts as the planner with cookies and no room"] },
+    // Log Pose Apply card (#400)
+    { id: "planner-context-main-only", file: "frontend/src/logPose.ts", from: "if ((c.section || \"main\").toLowerCase() === \"don\" || c.needed <= 0) continue;", to: "if ((c.section || \"main\").toLowerCase() !== \"main\" || c.needed <= 0) continue;", kills: ["sends a variant deck's additional cards too (#400)"] },
+    { id: "planner-apply-no-rollback", file: "frontend/src/logPose.ts", from: "      for (const d of done.reverse()) {", to: "      for (const d of [] as DeckEditOp[]) {", kills: ["puts saved lines back when a later save fails (#400)"] },
+    { id: "planner-apply-increases-first", file: "frontend/src/logPose.ts", from: "a.after - a.before - (b.after - b.before)", to: "b.after - b.before - (a.after - a.before)", kills: ["saves the decreases first, one card at a time, and returns the last save's result (#400)"] },
+    { id: "planner-apply-hides-partial", file: "frontend/src/logPose.ts", from: "restored = false;", to: "", kills: ["says some changes were saved when putting them back fails too (#400)"] },
+    { id: "planner-context-ref-dropped", file: "frontend/src/logPose.ts", from: "    ...(deck.id ? { ref: `planner:${deck.id}` } : {}),\n", to: "", kills: ["sends a deck's main-deck cards with their copies, without the leader or DON!! (#377)"] },
+    // Why? on a build hint (#399)
+    { id: "logpose-deck-no-id", file: "frontend/src/logPose.ts", from: "    ...(deck.id ? { plannerDeckId: deck.id } : {}),\n", to: "", kills: ["tells Log Pose which planner deck is open"] },
   ],
 };

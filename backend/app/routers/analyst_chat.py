@@ -20,7 +20,17 @@ from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.brief_tickets import BriefClaims, brief_key, deck_counts, verify_brief_ticket
-from app.models import AnalystAccess, AnalystMatchBrief, AnalystMatchReview, AnalystMessage, AnalystThread, AnalystUsage, DuelMatch, User
+from app.models import (
+    AnalystAccess,
+    AnalystMatchBrief,
+    AnalystMatchReview,
+    AnalystMessage,
+    AnalystProposal,
+    AnalystThread,
+    AnalystUsage,
+    DuelMatch,
+    User,
+)
 from app.routers.analyst import access_status, analyst_user, chat_enabled_for, is_chat_owner, mint_chat_token, require_service, requests_open
 from app.schemas import (
     CARD_ID_PATTERN,
@@ -32,7 +42,9 @@ from app.schemas import (
     AnalystChatBudget,
     AnalystCitation,
     AnalystChatSession,
+    AnalystDeckEdit,
     AnalystDisplayMessage,
+    AnalystProposalsIn,
     AnalystReviewIn,
     AnalystReviewOut,
     AnalystStoredMessage,
@@ -191,6 +203,54 @@ def append_messages(
     db.commit()
 
 
+PROPOSE_TOOL = "propose_deck_edit"
+
+
+def _proposal_ids(content: str | list[dict]) -> list[str]:
+    """The ids of the propose_deck_edit calls in one stored message."""
+    if not isinstance(content, list):
+        return []
+    return [
+        b["id"]
+        for b in content
+        if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == PROPOSE_TOOL and isinstance(b.get("id"), str)
+    ]
+
+
+@router.post("/chat/threads/{thread_id}/proposals", status_code=204)
+def save_proposals(
+    thread_id: int,
+    body: AnalystProposalsIn,
+    _: Service,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(analyst_user)],
+) -> None:
+    """The analyst keeps the deck edits it suggested in a turn next to the thread, so their cards come back on reload (#400).
+
+    Each must come from a propose_deck_edit call stored in this thread; repeats are ignored.
+    """
+    row = _own_thread(db, user, thread_id)
+    made = {i for m in _messages(db, row.id) if m.role == "assistant" for i in _proposal_ids(json.loads(m.content))}
+    if any(p.id not in made for p in body.proposals):
+        raise HTTPException(status_code=400, detail="A proposal must come from a propose_deck_edit call in this thread")
+    have = set(db.scalars(select(AnalystProposal.id).where(AnalystProposal.thread_id == row.id)).all())
+    for p in body.proposals:
+        if p.id not in have:
+            have.add(p.id)
+            db.add(AnalystProposal(thread_id=row.id, id=p.id, payload=p.model_dump_json()))
+    db.commit()
+
+
+def _stored_proposals(db: Session, thread_id: int) -> dict[str, AnalystDeckEdit]:
+    out: dict[str, AnalystDeckEdit] = {}
+    for r in db.scalars(select(AnalystProposal).where(AnalystProposal.thread_id == thread_id).order_by(AnalystProposal.created_at)).all():
+        try:
+            out[r.id] = AnalystDeckEdit.model_validate_json(r.payload)
+        except ValueError:
+            continue
+    return out
+
+
 MAX_CITED_TEXT = 800
 
 
@@ -241,19 +301,40 @@ def _display_text(role: str, content: str | list[dict]) -> tuple[str, list[Analy
     return text, cites
 
 
-def thread_view(messages: list[tuple[str, str | list[dict]]]) -> list[AnalystDisplayMessage]:
-    """Stored messages as chat bubbles: tool-result-only turns drop out and one answer's pieces join up."""
+def _attach(out: list[AnalystDisplayMessage], pending: list[AnalystDeckEdit]) -> None:
+    """Put the deck edits of a finished turn under the answer that ended it (an answer of its own when there is none)."""
+    if not pending:
+        return
+    if out and out[-1].role == "assistant":
+        out[-1].proposals += pending
+    else:
+        out.append(AnalystDisplayMessage(role="assistant", text="", proposals=list(pending)))
+    pending.clear()
+
+
+def thread_view(
+    messages: list[tuple[str, str | list[dict]]], proposals: dict[str, AnalystDeckEdit] | None = None
+) -> list[AnalystDisplayMessage]:
+    """Stored messages as chat bubbles: tool-result-only turns drop out and one answer's pieces join up.
+
+    A deck edit goes under the bubble that ends the turn it was suggested in (#400)."""
     out: list[AnalystDisplayMessage] = []
+    pending: list[AnalystDeckEdit] = []
     for role, content in messages:
+        if role == "assistant":
+            pending += [proposals[i] for i in _proposal_ids(content) if proposals and i in proposals]
         text, cites = _display_text(role, content)
         if not text.strip():
             continue
+        if role == "user":
+            _attach(out, pending)
         if out and out[-1].role == role == "assistant":
             base = _utf16_len(out[-1].text) + 2
             out[-1].text += "\n\n" + text
             out[-1].citations += [c.model_copy(update={"at": c.at + base}) for c in cites]
         else:
             out.append(AnalystDisplayMessage(role=role, text=text, citations=cites))
+    _attach(out, pending)
     return out
 
 
@@ -281,7 +362,9 @@ def view_thread(
     """One of the signed-in player's threads as the panel shows it."""
     row = _own_thread(db, user, thread_id)
     return AnalystThreadView(
-        id=row.id, title=row.title, messages=thread_view([(m.role, json.loads(m.content)) for m in _messages(db, row.id)])
+        id=row.id,
+        title=row.title,
+        messages=thread_view([(m.role, json.loads(m.content)) for m in _messages(db, row.id)], _stored_proposals(db, row.id)),
     )
 
 

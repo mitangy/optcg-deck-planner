@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import type { DeckStatsCard } from "@optcg/deck-analytics";
+import { hintAsk, useLogPoseAsk } from "@optcg/analyst-client";
+import type { DeckHint, DeckStatsCard } from "@optcg/deck-analytics";
 import { DeckStatsPanel, useDeckHints } from "@optcg/deck-analytics/ui";
 import "@optcg/deck-analytics/ui/deckAnalytics.css";
 import type { SavedDeck } from "./storage";
@@ -28,7 +29,13 @@ function readOpen(): boolean {
 export function DeckStatsSection({ deck }: { deck: SavedDeck }) {
   const cards = useMemo(() => deckStatsCards(deck.cards), [deck.cards]);
   // The editor is always mid-edit, so the 50-card count stays quiet until the deck goes over.
-  const hints = useDeckHints(deck.id, cards, deck.leaderId, false);
+  const baseHints = useDeckHints(deck.id, cards, deck.leaderId, false);
+  // "Why? Ask Log Pose" on a hint, only while Log Pose can answer here.
+  const askLogPose = useLogPoseAsk();
+  const hints = useMemo(
+    () => (askLogPose ? { ...baseHints, onAsk: (h: DeckHint) => askLogPose(hintAsk(h)) } : baseHints),
+    [baseHints, askLogPose],
+  );
   const [open, setOpen] = useState(readOpen);
   const count = hints.visible.length;
 
