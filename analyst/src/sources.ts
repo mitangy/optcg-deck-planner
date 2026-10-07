@@ -418,11 +418,13 @@ export function adaptToolResult(tool: string, text: string): ToolContent[] | nul
   if (!value || typeof value !== "object") return null;
   try {
     const blocks = adapter(value as Rec);
-    const results = blocks.filter((b) => b.type === "search_result");
+    const results = blocks.filter((b): b is SearchResultBlock => b.type === "search_result");
     if (!results.length) return null;
-    if (results.length <= MAX_RESULTS) return blocks;
-    const keep = new Set(results.slice(0, MAX_RESULTS));
-    return [...blocks.filter((b) => b.type !== "search_result" || keep.has(b)), { type: "text", text: `${results.length - MAX_RESULTS} more results were left out; narrow the question to see them.` }];
+    const notes = blocks.filter((b): b is TextBlock => b.type === "text").map((b) => b.text);
+    if (results.length > MAX_RESULTS) notes.push(`${results.length - MAX_RESULTS} more results were left out; narrow the question to see them.`);
+    // The API refuses a tool result that mixes search results with plain text, so the notes become one source of their own.
+    const note = notes.length ? searchResult(`note:${tool}`, "Lookup notes", notes) : null;
+    return [...results.slice(0, MAX_RESULTS), ...(note ? [note] : [])];
   } catch {
     return null;
   }
