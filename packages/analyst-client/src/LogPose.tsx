@@ -24,6 +24,7 @@ import { askContext, canAsk, messageContext, requestAction, type LogPoseAsk } fr
 import { placeAt, type Citation, type PlacedCitation } from "./citations";
 import { ResizeHandles, SheetGrip, useDrawerSize, useSheetHeight } from "./PanelResize";
 import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
+import { RequestAccessView, RequestsList } from "./AccessViews";
 import { createSessionManager, type ChatSession, type SessionManager } from "./session";
 import { readThreadId, writeThreadId } from "./threadStore";
 
@@ -280,8 +281,13 @@ export function LogPoseProvider({
     },
     [available],
   );
-  const openPanel = useCallback(() => void openLogPose(), [openLogPose]);
   const handled = useCallback(() => setRequest(null), []);
+  const openPanel = useCallback(() => {
+    setOpen(true);
+    setUnread(false);
+    // Not on yet: ask again, so a player approved while this tab was open lands in the chat.
+    if (!manager.current()?.enabled) void manager.refresh();
+  }, [manager]);
 
   const closePanel = useCallback(() => setOpen(false), []);
 
@@ -290,31 +296,83 @@ export function LogPoseProvider({
     [enabled, apiBase, manager, setPage, openPanel, available, openLogPose],
   );
 
-  const show = available;
+  // Signed-in players who can ask for access get the compass too, opening a request form instead of the chat.
+  const chatOn = enabled === true;
+  const show = (chatOn || (session !== null && !session.enabled && session.access !== undefined)) && !hidden;
   return (
     <LogPoseContext.Provider value={value}>
       <SourceHooksContext.Provider value={sources ?? NO_HOOKS}>
         {children}
-        {show && !open ? <LogPoseCompass working={chat.busy} unread={unread} onClick={openPanel} /> : null}
-        {show && open ? <LogPosePanel page={page ?? defaultPage} chat={chat} onClose={closePanel} request={request} onRequestHandled={handled} /> : null}
+        {show && !open ? (
+          <LogPoseCompass
+            working={chat.busy}
+            unread={unread}
+            requests={session?.enabled ? (session.pendingRequests ?? 0) : 0}
+            requestOnly={!chatOn}
+            onClick={openPanel}
+          />
+        ) : null}
+        {show && open && session ? (
+          <LogPosePanel
+            page={page ?? defaultPage}
+            chat={chat}
+            session={session}
+            apiBase={apiBase}
+            refreshSession={() => void manager.refresh()}
+            onClose={closePanel}
+            request={request}
+            onRequestHandled={handled}
+          />
+        ) : null}
       </SourceHooksContext.Provider>
     </LogPoseContext.Provider>
   );
 }
 
 /** The round compass launcher (bottom-right). Its needle swings while Log Pose is working. */
-export function LogPoseCompass({ working, unread, onClick }: { working: boolean; unread: boolean; onClick: () => void }) {
+export function LogPoseCompass({
+  working,
+  unread,
+  requests = 0,
+  requestOnly = false,
+  onClick,
+}: {
+  working: boolean;
+  unread: boolean;
+  /** Access requests waiting for an owner: shown as a count badge (not the unread dot). */
+  requests?: number;
+  /** Chat isn't on for this player: the compass opens the access request. */
+  requestOnly?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       className="logpose lp-compass"
       aria-label="Log Pose"
-      title={working ? "Log Pose is working…" : unread ? "Log Pose has a new answer" : "Ask Log Pose"}
+      title={
+        requestOnly
+          ? "Request access to Log Pose"
+          : working
+            ? "Log Pose is working…"
+            : requests > 0
+              ? `Log Pose: ${requests} access request${requests === 1 ? "" : "s"} waiting`
+              : unread
+                ? "Log Pose has a new answer"
+                : "Ask Log Pose"
+      }
       data-working={working ? "true" : undefined}
       onClick={onClick}
     >
       <CompassIcon />
-      {unread ? <span className="lp-compass-dot" aria-hidden="true" /> : null}
+      {requests > 0 ? (
+        <span className="lp-compass-count" data-testid="lp-compass-count">
+          {requests > 9 ? "9+" : requests}
+          <span className="lp-sr">{" access requests waiting"}</span>
+        </span>
+      ) : unread ? (
+        <span className="lp-compass-dot" aria-hidden="true" />
+      ) : null}
     </button>
   );
 }
@@ -343,16 +401,27 @@ type Request = LogPoseAsk & { nonce: number };
 function LogPosePanel({
   page,
   chat,
+  session,
+  apiBase,
+  refreshSession,
   onClose,
   request,
   onRequestHandled,
 }: {
   page: LogPosePage | null;
   chat: Chat;
+  session: ChatSession;
+  apiBase: string;
+  refreshSession: () => void;
   onClose: () => void;
   request: Request | null;
   onRequestHandled: () => void;
 }) {
+  const chatOn = session.enabled;
+  const owner = session.enabled && session.owner === true;
+  const waiting = session.enabled ? (session.pendingRequests ?? 0) : 0;
+  const [view, setView] = useState<"chat" | "requests">("chat");
+  const showChat = chatOn && view === "chat";
   const phone = !useMedia(DRAWER_QUERY);
   const [draft, setDraft] = useState("");
   /** Context for the next message only: the hint a Why? was about. */
@@ -371,7 +440,9 @@ function LogPosePanel({
   const pageKey = page ? JSON.stringify([page.label, page.deck, page.matchId]) : "";
   useEffect(() => setDropped(false), [pageKey]);
 
-  useEffect(() => loadHistory(), [loadHistory]);
+  useEffect(() => {
+    if (chatOn) loadHistory();
+  }, [chatOn, loadHistory]);
 
   // A Why? from elsewhere in the app: send it once the last chat has loaded, or fill the composer while an answer streams.
   const { send: chatSend, history: chatHistory, busy: chatBusy } = chat;
@@ -382,6 +453,7 @@ function LogPosePanel({
     if (handled.current === request.nonce) return;
     handled.current = request.nonce;
     onRequestHandled();
+    setView("chat");
     setDropped(false);
     if (action === "send") {
       stick.current = true;
@@ -406,8 +478,8 @@ function LogPosePanel({
 
   // Desktop: focus the composer. Phones wait for a tap so the keyboard doesn't jump up.
   useEffect(() => {
-    if (!phone) inputRef.current?.focus({ preventScroll: true });
-  }, [phone]);
+    if (!phone && showChat) inputRef.current?.focus({ preventScroll: true });
+  }, [phone, showChat]);
 
   // Phones: the sheet covers the screen, so the page behind must not scroll; and it follows
   // the visual viewport so the composer stays above the on-screen keyboard.
@@ -438,8 +510,9 @@ function LogPosePanel({
   // Keep the newest text in view while it streams, unless the reader scrolled up.
   useLayoutEffect(() => {
     const el = listRef.current;
-    if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [chat.messages, chat.status, chat.error, chat.busy]);
+    if (el && showChat && stick.current) el.scrollTop = el.scrollHeight;
+    else if (el && !showChat) el.scrollTop = 0;
+  }, [chat.messages, chat.status, chat.error, chat.busy, showChat]);
 
   const onScroll = () => {
     const el = listRef.current;
@@ -499,16 +572,29 @@ function LogPosePanel({
       style={!phone && drawer.size ? { width: drawer.size.w, height: drawer.size.h } : undefined}
     >
       {phone ? <SheetGrip {...sheet} /> : <ResizeHandles drawer={drawer} panelRef={panelRef} />}
-      <header className="lp-head">
+      <header className="lp-head" data-owner={owner ? "true" : undefined}>
         <span className="lp-head-icon" aria-hidden="true">
           <CompassIcon />
         </span>
         <h2 id="lp-title" className="lp-title">
           Log Pose
         </h2>
-        <button type="button" className="lp-btn lp-btn-quiet" onClick={newChat}>
-          New chat
-        </button>
+        {owner && view === "chat" ? (
+          <button type="button" className="lp-btn lp-btn-quiet lp-requests-btn" onClick={() => setView("requests")}>
+            Requests
+            {waiting > 0 ? <span className="lp-count">{waiting > 99 ? "99+" : waiting}</span> : null}
+          </button>
+        ) : null}
+        {view === "requests" ? (
+          <button type="button" className="lp-btn lp-btn-quiet" onClick={() => setView("chat")}>
+            Back to chat
+          </button>
+        ) : null}
+        {showChat ? (
+          <button type="button" className="lp-btn lp-btn-quiet" onClick={newChat}>
+            New chat
+          </button>
+        ) : null}
         <button type="button" className="lp-btn lp-btn-icon" onClick={onClose} aria-label="Close Log Pose" title="Close">
           <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
             <path d="M5 5l10 10M15 5L5 15" />
@@ -517,8 +603,13 @@ function LogPosePanel({
       </header>
 
       <div ref={listRef} className="lp-body" onScroll={onScroll} aria-live="polite" aria-busy={chat.busy}>
-        {chat.history === "loading" ? <p className="lp-note">Loading your last chat…</p> : null}
-        {empty ? (
+        {!chatOn ? (
+          <RequestAccessView apiBase={apiBase} access={session.access ?? "none"} onSent={refreshSession} />
+        ) : view === "requests" ? (
+          <RequestsList apiBase={apiBase} onChanged={refreshSession} />
+        ) : null}
+        {showChat && chat.history === "loading" ? <p className="lp-note">Loading your last chat…</p> : null}
+        {showChat && empty ? (
           <div className="lp-empty">
             <p className="lp-empty-lead">Ask about decks, matchups, rulings or your games.</p>
             {starters.length ? (
@@ -532,7 +623,7 @@ function LogPosePanel({
             ) : null}
           </div>
         ) : null}
-        {chat.messages.map((m, i) =>
+        {(showChat ? chat.messages : []).map((m, i) =>
           m.role === "assistant" && !m.text && !m.stopped ? null : m.role === "user" ? (
             <div key={i} className="lp-msg lp-msg-user">
               <p>{m.text}</p>
@@ -544,19 +635,20 @@ function LogPosePanel({
             </div>
           ),
         )}
-        {chat.busy ? (
+        {showChat && chat.busy ? (
           <p className="lp-status" role="status">
             <span className="lp-status-dot" aria-hidden="true" />
             <span className="lp-status-text">{chat.status || "Thinking…"}</span>
           </p>
         ) : null}
-        {chat.error ? (
+        {showChat && chat.error ? (
           <p className="lp-error" role="alert">
             {chat.error}
           </p>
         ) : null}
       </div>
 
+      {showChat ? (
       <div className="lp-foot">
         {showChip || aboutHint ? (
           <div className="lp-context">
@@ -608,6 +700,7 @@ function LogPosePanel({
           )}
         </form>
       </div>
+      ) : null}
     </div>
   );
 }

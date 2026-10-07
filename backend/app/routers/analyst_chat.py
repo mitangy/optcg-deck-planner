@@ -18,8 +18,8 @@ from app.analyst_corpus import MAX_GAMES, game_replay, search_games
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.models import AnalystMatchReview, AnalystMessage, AnalystThread, AnalystUsage, DuelMatch, User
-from app.routers.analyst import analyst_user, chat_enabled_for, mint_chat_token, require_service
+from app.models import AnalystAccess, AnalystMatchReview, AnalystMessage, AnalystThread, AnalystUsage, DuelMatch, User
+from app.routers.analyst import access_status, analyst_user, chat_enabled_for, is_chat_owner, mint_chat_token, require_service, requests_open
 from app.schemas import (
     CARD_ID_PATTERN,
     AnalystAppendIn,
@@ -55,15 +55,33 @@ Service = Annotated[None, Depends(_service)]
 
 @router.post("/chat/session", response_model=AnalystChatSession)
 def chat_session(
+    db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> AnalystChatSession:
-    """Whether the Log Pose panel is on for this player, and a fresh token for it when it is."""
-    if not chat_enabled_for(settings, user):
-        return AnalystChatSession(enabled=False)
+    """Whether the Log Pose panel is on for this player, and a fresh token for it when it is.
+
+    When it is off but players can ask for it, `access` says where their request stands."""
+    if not chat_enabled_for(settings, user, db):
+        if not requests_open(settings):
+            return AnalystChatSession(enabled=False)
+        return AnalystChatSession(enabled=False, access=access_status(db, user) or "none")
     token, exp = mint_chat_token(settings, user, int(datetime.now(timezone.utc).timestamp()))
     expires_at = datetime.fromtimestamp(exp, timezone.utc).isoformat()
-    return AnalystChatSession(enabled=True, token=token, expires_at=expires_at, chat_url=settings.analyst_public_url.rstrip("/"))
+    owner = is_chat_owner(settings, user)
+    pending = (
+        db.scalar(select(func.count()).select_from(AnalystAccess).where(AnalystAccess.status == "pending")) or 0
+        if owner
+        else 0
+    )
+    return AnalystChatSession(
+        enabled=True,
+        token=token,
+        expires_at=expires_at,
+        chat_url=settings.analyst_public_url.rstrip("/"),
+        owner=owner,
+        pending_requests=pending,
+    )
 
 
 def _spent(db: Session, since: datetime, user_id: int | None = None) -> float:

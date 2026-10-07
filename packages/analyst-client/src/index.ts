@@ -13,7 +13,8 @@ export {
   type SavedReview,
   type StreamHandlers,
 } from "./client";
-export { createSessionManager, fetchChatSession, needsRefresh, REFRESH_MARGIN_MS, type ChatSession, type SessionManager } from "./session";
+export { createSessionManager, fetchChatSession, needsRefresh, parseAccess, REFRESH_MARGIN_MS, type AccessState, type ChatSession, type SessionManager } from "./session";
+export { decideAccess, listAccessRequests, NOTE_MAX, requestAccess, sortRequests, type AccessRequest, type AccessStatus } from "./access";
 export {
   buildSources,
   kindLabel,
@@ -41,3 +42,4 @@ export { Markdown } from "./Markdown";
 export { LogPoseProvider, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, type LogPosePage } from "./LogPose";
 export { askContext, canAsk, hintAsk, HINT_LIMITS, messageContext, requestAction, type HintContext, type LogPoseAsk } from "./ask";
 export { CitedAnswer, type SourceHooks } from "./Sources";
+export { RequestAccessView, RequestsList } from "./AccessViews";
