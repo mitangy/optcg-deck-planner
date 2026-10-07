@@ -5,6 +5,10 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Asking for Log Pose (#393)
+    { id: "access-form-shown-while-pending", file: "packages/analyst-client/src/AccessViews.tsx", from: "  if (sent || access === \"pending\") {", to: "  if (sent) {", kills: ["shows no form once a request is waiting (#393)"] },
+    { id: "access-note-uncapped", file: "packages/analyst-client/src/AccessViews.tsx", from: "        maxLength={NOTE_MAX}\n", to: "", kills: ["offers the form with a 500 character note to someone who hasn't asked (#393)"] },
+    { id: "access-denied-looks-like-first-ask", file: "packages/analyst-client/src/AccessViews.tsx", from: "      {access === \"denied\" ? (\n        <p className=\"lp-access-lead\"", to: "      {false ? (\n        <p className=\"lp-access-lead\"", kills: ["says the request wasn't approved and offers the form again (#393)"] },
     // turn guard: no actions after End turn until its result arrives (#328)
     { id: "turn-guard-off", file: `${src}/net/duelClient.ts`, from: "    if (lateForTurn(intent, this.endTurnSentOn, this.lastView)) return;\n", to: "", kills: ["drops a second End turn or a card action sent before the turn's result arrives (#328)"] },
     { id: "turn-guard-blocks-prompts", file: `${src}/net/duelClient.ts`, from: " && !AFTER_END_TURN.has(intent.type);", to: ";", kills: ["still answers an end-of-turn prompt after End turn (#328)"] },

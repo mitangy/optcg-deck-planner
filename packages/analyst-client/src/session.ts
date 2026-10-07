@@ -1,8 +1,16 @@
 /** The chat session: a short-lived token for the analyst service, minted by the API (cookie auth). */
 
+/** Where a player's request for Log Pose stands (only sent when requests are open for them). */
+export type AccessState = "none" | "pending" | "denied";
+
 export type ChatSession =
-  | { enabled: false }
-  | { enabled: true; token: string; expires_at: string; chat_url: string };
+  | { enabled: false; access?: AccessState }
+  | { enabled: true; token: string; expires_at: string; chat_url: string; owner?: boolean; pendingRequests?: number };
+
+/** The access state from a session body; anything unknown means "can't ask". */
+export function parseAccess(value: unknown): AccessState | undefined {
+  return value === "none" || value === "pending" || value === "denied" ? value : undefined;
+}
 
 /** What a request to the analyst service needs. */
 export type ChatAuth = { token: string; chatUrl: string };
@@ -22,9 +30,27 @@ export async function fetchChatSession(apiBase: string, fetchImpl: typeof fetch 
   try {
     const res = await fetchImpl(`${apiBase}/analyst/chat/session`, { method: "POST", credentials: "include" });
     if (!res.ok) return { enabled: false };
-    const body = (await res.json()) as Partial<{ enabled: boolean; token: string; expires_at: string; chat_url: string }>;
-    if (body.enabled !== true || !body.token || !body.chat_url || !body.expires_at) return { enabled: false };
-    return { enabled: true, token: body.token, expires_at: body.expires_at, chat_url: body.chat_url.replace(/\/+$/, "") };
+    const body = (await res.json()) as Partial<{
+      enabled: boolean;
+      token: string;
+      expires_at: string;
+      chat_url: string;
+      access: unknown;
+      owner: unknown;
+      pending_requests: unknown;
+    }>;
+    if (body.enabled !== true || !body.token || !body.chat_url || !body.expires_at) {
+      const access = parseAccess(body.access);
+      return access ? { enabled: false, access } : { enabled: false };
+    }
+    const out: ChatSession = { enabled: true, token: body.token, expires_at: body.expires_at, chat_url: body.chat_url.replace(/\/+$/, "") };
+    if (body.owner === true) {
+      out.owner = true;
+      if (typeof body.pending_requests === "number" && Number.isFinite(body.pending_requests) && body.pending_requests > 0) {
+        out.pendingRequests = Math.floor(body.pending_requests);
+      }
+    }
+    return out;
   } catch {
     return { enabled: false };
   }
