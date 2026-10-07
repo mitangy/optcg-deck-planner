@@ -6,7 +6,9 @@ import { adaptToolResult, deckSourceId, gameResults, groupTurns, recordSentence,
 const catalog = loadCatalog();
 
 const results = (blocks: ToolContent[] | null) => (blocks ?? []).filter((b): b is SearchResultBlock => b.type === "search_result");
-const sources = (blocks: ToolContent[] | null) => results(blocks).map((b) => b.source);
+const allSources = (blocks: ToolContent[] | null) => results(blocks).map((b) => b.source);
+/** The sources a tool's facts got, leaving out the note: source its loose notes are folded into (#394). */
+const sources = (blocks: ToolContent[] | null) => allSources(blocks).filter((s) => !s.startsWith("note:"));
 const texts = (b: SearchResultBlock) => b.content.map((c) => c.text);
 const adapt = (tool: string, value: unknown) => adaptToolResult(tool, JSON.stringify(value));
 
@@ -81,7 +83,7 @@ describe("tool answers as citable sources (#390)", () => {
     expect(texts(rule!)).toEqual(["6-5-3 Blocker activates when attacked.", "6-5-3-1 Rest this card."]);
     expect(qa!.source).toMatch(/^ruling:general#[0-9a-f]{8}$/);
     expect(texts(qa!)).toEqual(["Q: Can I block twice?", "A: No. Only once per battle. Choose one."]);
-    expect(blocks!.at(-1)).toMatchObject({ type: "text" });
+    expect(blocks!.at(-1)).toMatchObject({ type: "search_result", source: "note:rules_lookup" });
   });
 
   it("numbers a card's official rulings ruling:<card>#<n> and keeps errata and ban status as their own sources (#390)", () => {
@@ -161,11 +163,18 @@ describe("tool answers as citable sources (#390)", () => {
     expect(results(vs)[1]!.title).toBe("Whitebeard vs Sabo playbook (Draft, OP17)");
   });
 
-  it("makes the playbook's general principles a playbook:general source and keeps the leader index as plain text (#390)", () => {
+  it("makes the playbook's general principles a playbook:general source and keeps the leader index as a note (#390)", () => {
     const blocks = adapt("playbook", { currentFormat: "OP17", notes: [{ leader: "OP13-004", name: "Sabo", status: "draft", format: "OP17", stale: false }], general: { Mulligan: "Keep a 2-drop." } });
-    expect(sources(blocks)).toEqual(["playbook:general"]);
-    expect(blocks!.at(-1)).toMatchObject({ type: "text" });
-    expect((blocks!.at(-1) as { text: string }).text).toContain("OP13-004 Sabo (draft, OP17)");
+    expect(allSources(blocks)).toEqual(["playbook:general", "note:playbook"]);
+    expect(texts(results(blocks).at(-1)!).join(" ")).toContain("OP13-004 Sabo (draft, OP17)");
+  });
+
+  it("sends a tool result made only of search results, with its notes as one note: source, since the API refuses a mix (#394)", () => {
+    const blocks = adapt("playbook", { currentFormat: "OP17", notes: [{ leader: "OP13-004", name: "Sabo", status: "draft", format: "OP17", stale: false }], general: { Mulligan: "Keep a 2-drop." } });
+    expect(blocks!.every((b) => b.type === "search_result")).toBe(true);
+    const hits = adapt("search_matches", { total: 40, offset: 0, window_days: 30, games: Array.from({ length: 30 }, (_, i) => ({ game_id: `g_${i}`, turns: 5, A: { leader: "OP01-001", won: true }, B: { leader: "OP02-001", won: false } })) });
+    expect(hits!.every((b) => b.type === "search_result")).toBe(true);
+    expect(allSources(hits).filter((s) => s === "note:search_matches")).toHaveLength(1);
   });
 
   it("gives a saved lesson its own lesson: source (#390)", () => {

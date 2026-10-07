@@ -105,6 +105,8 @@ module.exports = {
     { id: "chat-origin-unanchored", file: chat, from: "/^https:\\/\\/[a-z0-9-]+\\.vercel\\.app$/", to: "/^https:\\/\\/[a-z0-9.-]+/", kills: ["lets only the apps' own origins call the chat"] },
     { id: "review-not-saved", file: chat, from: "  await plannerCall(api, token, `/analyst/reviews/${encodeURIComponent(body.match_id)}`, true, { text: final, citations }, \"PUT\");\n", to: "", kills: ["reviews the game from the player's seat"] },
     { id: "review-usage-kind", file: chat, from: "  await recordUsage(api, token, \"review\", reply.usage, cost)", to: "  await recordUsage(api, token, \"chat\", reply.usage, cost)", kills: ["reviews the game from the player's seat"] },
+    // a tool result is only search results; the API refuses a mix with text (#394)
+    { id: "src-tool-result-mixed", file: sources, from: "    return [...results.slice(0, MAX_RESULTS), ...(note ? [note] : [])];", to: "    return [...results.slice(0, MAX_RESULTS), ...notes.map((text) => ({ type: \"text\" as const, text }))];", kills: ["sends a tool result made only of search results"] },
     // sources and citations (#390)
     { id: "src-card-source-id", file: sources, from: "searchResult(`card:${c.id}`, `${c.name} (${c.id})`, cardFacts(c))", to: "searchResult(`card:${c.name}`, `${c.name} (${c.id})`, cardFacts(c))", kills: ["gives each card its own card: source"] },
     { id: "src-tool-results-plain", file: chat, from: "content: sources ?? text }", to: "content: text }", kills: ["runs the tools the model asks for"] },
