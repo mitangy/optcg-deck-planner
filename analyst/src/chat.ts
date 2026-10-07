@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { Catalog } from "./catalog";
 import { PlannerApiError, plannerCall, reviewMatch, tokenIsValid, type PlannerApi } from "./matches";
 import { buildTools, instructionsFor, type Knowledge, type ToolDef } from "./server";
+import { deckEditTool, PROPOSE_TOOL, type DeckEditProposal } from "./proposals";
 import { adaptToolResult, gameResults } from "./sources";
 
 export const CHAT_MODEL = process.env.ANALYST_CHAT_MODEL || "claude-opus-5-5";
@@ -50,7 +51,7 @@ export type CallModel = (
   onCite?: (citation: Citation) => void,
 ) => Promise<ModelReply>;
 
-export type SseEvent = { event: "thread" | "status" | "text" | "cite" | "done" | "error"; data: Record<string, unknown> };
+export type SseEvent = { event: "thread" | "status" | "text" | "cite" | "proposal" | "done" | "error"; data: Record<string, unknown> };
 
 const MAX_CITED_TEXT = 800;
 
@@ -123,6 +124,8 @@ const deckContext = z.object({
   name: z.string().max(120).optional(),
   leaderId: z.string().max(20).nullable().optional(),
   cards: z.array(z.object({ id: z.string().max(20), copies: z.number().int().min(1).max(50) })).max(80).optional(),
+  /** Which saved deck this is ("planner:<id>" or "duel:<id>"), so a suggested edit can say where it applies. The model never sees it. */
+  ref: z.string().regex(/^(planner|duel):[A-Za-z0-9-]{1,64}$/).optional(),
 });
 
 export const chatBody = z.object({
@@ -144,7 +147,8 @@ const CHAT_INSTRUCTIONS = `
 
 You're answering in the Log Pose panel inside the player's app, often on a phone. Keep answers short and scannable: a few short paragraphs or a list, markdown allowed, no tables wider than three columns. Look things up with tools rather than asking the player for card text.
 A user message can start with a <context> block saying which page they are on and the deck or game open there. Use it when they say "this deck" or "this game"; don't mention the block itself.
-Tool results arrive as sources the app turns into numbered citations for the player. Ground every factual claim (card text and stats, rules, rulings, win rates, playbook notes, what happened in a game, deck numbers, odds) in a tool result and say it in a sentence you can cite, rather than blending several sources into one sentence. Keep your own judgement (matchup reads, what to cut, how a line plays out) in separate sentences and say it is your judgement or your read; judgement is not cited. Don't write source ids or citation numbers yourself.`;
+Tool results arrive as sources the app turns into numbered citations for the player. Ground every factual claim (card text and stats, rules, rulings, win rates, playbook notes, what happened in a game, deck numbers, odds) in a tool result and say it in a sentence you can cite, rather than blending several sources into one sentence. Keep your own judgement (matchup reads, what to cut, how a line plays out) in separate sentences and say it is your judgement or your read; judgement is not cited. Don't write source ids or citation numbers yourself.
+When the <context> block lists an open deck and you recommend concrete card changes, call propose_deck_edit once with every change and a short reason for each. The app shows them as a card the player can apply. Don't repeat the changes as +N / -N lines; point to the card. If the tool refuses, fix the change and call it again, or explain why. With no open deck, write +N / -N lines. Never say a change was made: only the player applies it.`;
 
 const REVIEW_INSTRUCTIONS = `
 
@@ -174,6 +178,7 @@ const STATUS: Record<string, string> = {
   review_match: "Replaying your game",
   draft_lesson: "Saving a lesson draft",
   my_lessons: "Reading your lessons",
+  propose_deck_edit: "Checking the suggested change",
 };
 
 export function contextBlock(ctx: z.infer<typeof chatBody>["context"]): string | null {
@@ -209,7 +214,7 @@ function withCacheBreakpoint(messages: Message[]): Message[] {
   return out;
 }
 
-async function runTool(tools: ToolDef[], block: Block): Promise<Block> {
+async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEditProposal) => void): Promise<Block> {
   const tool = tools.find((t) => t.name === block.name);
   const base = { type: "tool_result", tool_use_id: block.id };
   if (!tool) return { ...base, is_error: true, content: `Unknown tool ${String(block.name)}` };
@@ -218,6 +223,7 @@ async function runTool(tools: ToolDef[], block: Block): Promise<Block> {
   try {
     const result = await tool.run(parsed.data as Record<string, unknown>);
     const text = result.content.map((c) => c.text).join("\n");
+    if (tool.name === PROPOSE_TOOL && !result.isError && onProposal) onProposal({ id: String(block.id), ...(JSON.parse(text) as Omit<DeckEditProposal, "id">) });
     // Facts become search results the model can cite; anything we can't adapt goes back as plain text.
     const sources = result.isError ? null : adaptToolResult(tool.name, text);
     return { ...base, ...(result.isError ? { is_error: true } : {}), content: sources ?? text };
@@ -286,7 +292,13 @@ export async function runChat(deps: ChatDeps, token: string, body: z.infer<typeo
     content: [...(ctx ? [{ type: "text", text: ctx }] : []), { type: "text", text: body.message }],
   };
   const turn: Message[] = [userMessage];
-  const tools = buildTools(deps.catalog, undefined, { api, token }, deps.knowledge);
+  const proposals: DeckEditProposal[] = [];
+  // Always registered, so a propose_deck_edit tool_use kept in the history still matches a tool.
+  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck)];
+  const onProposal = (p: DeckEditProposal) => {
+    proposals.push(p);
+    emit({ event: "proposal", data: p });
+  };
   const system = [{ type: "text", text: instructionsFor(true) + CHAT_INSTRUCTIONS, cache_control: { type: "ephemeral" } }];
   let usage: Usage = { input_tokens: 0, output_tokens: 0 };
   let finished = false;
@@ -323,13 +335,21 @@ export async function runChat(deps: ChatDeps, token: string, body: z.infer<typeo
         break;
       }
       for (const name of new Set(calls.map((c) => String(c.name)))) emit({ event: "status", data: { text: STATUS[name] ?? "Working" } });
-      turn.push({ role: "user", content: await Promise.all(calls.map((c) => runTool(tools, c))) });
+      turn.push({ role: "user", content: await Promise.all(calls.map((c) => runTool(tools, c, onProposal))) });
     }
   } finally {
     const cost = costUsd(usage);
     if (usage.input_tokens || usage.output_tokens) await recordUsage(api, token, "chat", usage, cost).catch(() => undefined);
     // A turn is stored only once the model has answered, so the thread always ends on an assistant message.
-    if (finished) await plannerCall(api, token, `/analyst/chat/threads/${threadId}/messages`, true, { messages: turn });
+    if (finished) {
+      await plannerCall(api, token, `/analyst/chat/threads/${threadId}/messages`, true, { messages: turn });
+      // Kept next to the thread so the card comes back after a reload. A failure here must never lose the turn.
+      if (proposals.length) {
+        await plannerCall(api, token, `/analyst/chat/threads/${threadId}/proposals`, true, { proposals }).catch((err) =>
+          console.error("saving deck edit proposals failed", err instanceof Error ? err.message : err),
+        );
+      }
+    }
   }
   if (!finished) throw new Error("Log Pose used too many lookups on that one. Try asking something narrower.");
   const budget = await plannerCall<Budget>(api, token, "/analyst/chat/budget", true);

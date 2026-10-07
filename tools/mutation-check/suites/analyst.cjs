@@ -14,6 +14,7 @@ const knowledge = "analyst/src/knowledge.ts";
 const playbook = "analyst/src/playbook.ts";
 const chat = "analyst/src/chat.ts";
 const sources = "analyst/src/sources.ts";
+const proposals = "analyst/src/proposals.ts";
 module.exports = {
   cwd: "analyst",
   runner: "vitest",
@@ -94,12 +95,12 @@ module.exports = {
     { id: "chat-cost-cache-reads-at-input-price", file: chat, from: "      (u.cache_read_input_tokens ?? 0) * PRICE.cacheRead +", to: "      (u.cache_read_input_tokens ?? 0) * PRICE.input +", kills: ["prices calls at the chat model's rates"] },
     { id: "chat-budget-unchecked", file: chat, from: "  if (!budget.allowed) throw new ChatHttpError(429,", to: "  if (false) throw new ChatHttpError(429,", kills: ["turns away a missing token, an expired session and a spent budget"] },
     { id: "chat-any-token-shape", file: chat, from: "  if (!token?.startsWith(\"chat.\")) throw", to: "  if (!token) throw", kills: ["turns away a missing token, an expired session and a spent budget"] },
-    { id: "chat-tool-results-not-sent", file: chat, from: "      turn.push({ role: \"user\", content: await Promise.all(calls.map((c) => runTool(tools, c))) });", to: "      turn.push({ role: \"user\", content: [{ type: \"text\", text: \"done\" }] });", kills: ["runs the tools the model asks for"] },
+    { id: "chat-tool-results-not-sent", file: chat, from: "      turn.push({ role: \"user\", content: await Promise.all(calls.map((c) => runTool(tools, c, onProposal))) });", to: "      turn.push({ role: \"user\", content: [{ type: \"text\", text: \"done\" }] });", kills: ["runs the tools the model asks for"] },
     { id: "chat-usage-last-call-only", file: chat, from: "      usage = addUsage(usage, reply.usage);", to: "      usage = reply.usage;", kills: ["runs the tools the model asks for"] },
     { id: "chat-context-dropped", file: chat, from: "    content: [...(ctx ? [{ type: \"text\", text: ctx }] : []), { type: \"text\", text: body.message }],", to: "    content: [{ type: \"text\", text: body.message }],", kills: ["runs the tools the model asks for"] },
     { id: "chat-breakpoint-stored", file: chat, from: "    blocks[blocks.length - 1] = { ...blocks[blocks.length - 1]!, cache_control: { type: \"ephemeral\" } };\n    out[out.length - 1] = { ...last, content: blocks };", to: "    Object.assign(last.content[last.content.length - 1]!, { cache_control: { type: \"ephemeral\" } });", kills: ["runs the tools the model asks for"] },
     { id: "chat-history-not-resent", file: chat, from: "          messages: withCacheBreakpoint([...history, ...turn]),", to: "          messages: withCacheBreakpoint([...turn]),", kills: ["resends an existing thread as stored"] },
-    { id: "chat-saves-unfinished-turn", file: chat, from: "    if (finished) await plannerCall(api, token, `/analyst/chat/threads/${threadId}/messages`", to: "    await plannerCall(api, token, `/analyst/chat/threads/${threadId}/messages`", kills: ["doesn't save a turn the model never finished"] },
+    { id: "chat-saves-unfinished-turn", file: chat, from: "    if (finished) {\n      await plannerCall(api, token, `/analyst/chat/threads/${threadId}/messages`", to: "    {\n      await plannerCall(api, token, `/analyst/chat/threads/${threadId}/messages`", kills: ["doesn't save a turn the model never finished"] },
     { id: "chat-unfinished-cost-dropped", file: chat, from: "    if (usage.input_tokens || usage.output_tokens) await recordUsage(", to: "    if (finished) await recordUsage(", kills: ["doesn't save a turn the model never finished"] },
     { id: "chat-any-origin", file: chat, from: "  return allowed.includes(origin) || /^https:\\/\\/[a-z0-9-]+\\.vercel\\.app$/.test(origin)", to: "  return true || /^https:\\/\\/[a-z0-9-]+\\.vercel\\.app$/.test(origin)", kills: ["lets only the apps' own origins call the chat"] },
     { id: "chat-origin-unanchored", file: chat, from: "/^https:\\/\\/[a-z0-9-]+\\.vercel\\.app$/", to: "/^https:\\/\\/[a-z0-9.-]+/", kills: ["lets only the apps' own origins call the chat"] },
@@ -149,5 +150,23 @@ module.exports = {
     { id: "playbook-stale-never", file: playbook, from: "    stale: Number.isFinite(written) && Number.isFinite(current) && written < current,", to: "    stale: false,", kills: ["flags notes older than the current set"] },
     { id: "playbook-newest-counts-previews", file: playbook, from: "  const newest = Math.max(0, ...[...counts].filter(([, c]) => c >= minCards).map(([n]) => n));", to: "  const newest = Math.max(0, ...[...counts].map(([n]) => n));", kills: ["takes the newest booster with a full card list"] },
     { id: "playbook-matchups-by-heading-text", file: playbook, from: "      if (id) matchups[id] = { heading: subHeading,", to: "      if (id) matchups[subHeading] = { heading: subHeading,", kills: ["reads front matter, sections and matchups"] },
+    // deck edit suggestions (#400)
+    { id: "proposal-delta-sign", file: proposals, from: "const after = before + c.delta;", to: "const after = before - c.delta;", kills: ["turns +2/-2 into before/after lines on the open deck and finds it legal (#400)"] },
+    { id: "proposal-new-problems-ignored", file: proposals, from: "const added = introducedProblems(was.problems, was.count, now.problems, now.count);", to: "const added: string[] = [];", kills: ["refuses a change that puts a 5th copy in the deck (#400)", "refuses an off-color card (#400)", "refuses a banned card with the ban list (#400)", "keeps a 50-card deck at 50 (#400)"] },
+    { id: "proposal-ban-unchecked", file: proposals, from: "const ban = library ? await deckBanCheck(library, deck) : null;", to: "const ban = null as Awaited<ReturnType<typeof deckBanCheck>> | null;", kills: ["refuses a banned card with the ban list (#400)"] },
+    { id: "proposal-count-distance-ignored", file: proposals, from: "  if (Math.abs(afterCount - DECK_SIZE) > Math.abs(beforeCount - DECK_SIZE)) added.push(`${afterCount} of ${DECK_SIZE} cards`);\n", to: "", kills: ["lets an incomplete deck move toward 50 but not away (#400)"] },
+    { id: "proposal-any-problem-blocks", file: proposals, from: "const had = new Set(before.map((p) => p.key));", to: "const had = new Set<string>();", kills: ["still proposes a fix for a deck that was already illegal, listing its old problems (#400)"] },
+    { id: "proposal-remove-clamped", file: proposals, from: "const after = before + c.delta;", to: "const after = Math.max(0, before + c.delta);", kills: ["removes only copies the deck has (#400)"] },
+    { id: "proposal-ref-not-required", file: proposals, from: "if (!deck?.ref || !deck.leaderId) return", to: "if (!deck || !deck.leaderId) return", kills: ["says no deck is open when the context has no deck or no ref (#400)"] },
+    { id: "proposal-leader-allowed", file: proposals, from: "if (card.type === \"leader\") return", to: "if (false) return", kills: ["rejects unknown cards, leaders and a card listed twice (#400)"] },
+    { id: "proposal-unknown-card-allowed", file: proposals, from: "if (!card) return { ok: false, error: `${id} is not a card number", to: "if (false) return { ok: false, error: `${id} is not a card number", kills: ["rejects unknown cards, leaders and a card listed twice (#400)"] },
+    { id: "proposal-repeat-allowed", file: proposals, from: "if (seen.has(id)) return", to: "if (false) return", kills: ["rejects unknown cards, leaders and a card listed twice (#400)"] },
+    { id: "proposal-turn-cap-ignored", file: proposals, from: "if (made >= MAX_PROPOSALS_PER_TURN) return refusal(TOO_MANY_ERROR);", to: "", kills: ["makes at most 4 proposals in one turn (#400)"] },
+    { id: "chat-proposal-not-emitted", file: chat, from: "    emit({ event: \"proposal\", data: p });", to: "", kills: ["streams a deck edit as a proposal event and saves it after the turn (#400)"] },
+    { id: "chat-proposal-not-saved", file: chat, from: "        await plannerCall(api, token, `/analyst/chat/threads/${threadId}/proposals`, true, { proposals }).catch(", to: "        await Promise.resolve(undefined).catch(", kills: ["streams a deck edit as a proposal event and saves it after the turn (#400)"] },
+    { id: "chat-proposal-save-failure-loses-turn", file: chat, from: "{ proposals }).catch((err) =>\n          console.error(\"saving deck edit proposals failed\", err instanceof Error ? err.message : err),\n        );", to: "{ proposals });", kills: ["still finishes the turn when saving the proposal fails (#400)"] },
+    { id: "chat-refused-edit-emitted", file: chat, from: "if (tool.name === PROPOSE_TOOL && !result.isError && onProposal)", to: "if (tool.name === PROPOSE_TOOL && onProposal)", kills: ["gives a refused edit no card and tells the model why (#400)"] },
+    { id: "chat-ref-shown-to-model", file: chat, from: "lines.push(`open deck: ${d.name ?? \"(unnamed)\"}${list.length", to: "lines.push(`open deck: ${d.name ?? \"(unnamed)\"} ${d.ref}${list.length", kills: ["never shows the app's deck ref to the model (#400)"] },
+    { id: "sources-proposal-no-adapter", file: sources, from: "  propose_deck_edit: proposalAdapter,\n", to: "", kills: ["sends a deck edit back to the model as one cited deck source (#400)", "sends the deck edit back to the model as search results only, never mixed with text (#400)"] },
   ],
 };

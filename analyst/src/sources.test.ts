@@ -261,3 +261,33 @@ describe("tool answers as citable sources (#390)", () => {
     expect(splitFacts("Short sentence. Another short one.")).toEqual(["Short sentence. Another short one."]);
   });
 });
+
+describe("suggested deck edits as a source (#400)", () => {
+  const proposal = {
+    version: 1,
+    target: { ref: "duel:d1", name: "Luffy", leader_id: "ST01-001" },
+    summary: "Tune",
+    lines: [
+      { id: "ST01-016", name: "Diable Jambe", before: 0, after: 2, reason: "Cheaper" },
+      { id: "ST01-015", name: "Gum-Gum Jet Pistol", before: 2, after: 0, reason: "Too slow" },
+    ],
+    base: [{ id: "ST01-015", copies: 2 }, { id: "ST01-003", copies: 4 }],
+    legality: { legal: false, count: 49, problems: ["49 of 50 cards"], upcoming: ["ST01-003 is banned. (from 2031-01-01)"], ban_list_checked: true },
+  };
+
+  it("sends a deck edit back to the model as one cited deck source (#400)", () => {
+    const blocks = adapt("propose_deck_edit", proposal);
+    expect(blocks!.every((b) => b.type === "search_result")).toBe(true);
+    const [one] = results(blocks);
+    expect(results(blocks)).toHaveLength(1);
+    expect(one!.source).toBe(deckSourceId("ST01-001", [{ id: "ST01-003", copies: 4 }, { id: "ST01-016", copies: 2 }]));
+    expect(one!.title).toBe("Suggested edit: Luffy");
+    expect(texts(one!)).toEqual([
+      "Shown to the player as an Apply card; nothing has changed yet.",
+      "+2 Diable Jambe (ST01-016): Cheaper",
+      "-2 Gum-Gum Jet Pistol (ST01-015): Too slow",
+      "After the change: 49 cards. Still not legal: 49 of 50 cards.",
+      "Ban list: ST01-003 is banned. (from 2031-01-01)",
+    ]);
+  });
+});

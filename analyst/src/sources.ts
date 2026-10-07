@@ -375,6 +375,28 @@ function analyzeDeckAdapter(v: Rec): ToolContent[] {
   return result ? [result, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])] : [];
 }
 
+/** A suggested deck edit as one source: the app shows it as an Apply card, so the model is told nothing has changed. */
+function proposalAdapter(v: Rec): ToolContent[] {
+  const lines: Rec[] = Array.isArray(v.lines) ? v.lines : [];
+  const legality: Rec = v.legality ?? {};
+  const problems: string[] = Array.isArray(legality.problems) ? legality.problems : [];
+  const after = new Map<string, number>((Array.isArray(v.base) ? v.base : []).map((c: Rec) => [String(c.id), Number(c.copies)]));
+  for (const l of lines) after.set(String(l.id), Number(l.after));
+  const afterCards = [...after].filter(([, n]) => n > 0).map(([id, copies]) => ({ id, copies }));
+  const facts: Fact[] = [
+    "Shown to the player as an Apply card; nothing has changed yet.",
+    ...lines.map((l) => {
+      const delta = Number(l.after) - Number(l.before);
+      return `${delta > 0 ? "+" : "-"}${Math.abs(delta)} ${l.name} (${l.id}): ${l.reason}`;
+    }),
+    legality.legal ? `After the change: ${legality.count} cards, legal.` : `After the change: ${legality.count} cards. Still not legal: ${problems.join("; ")}.`,
+    ...(Array.isArray(legality.upcoming) ? legality.upcoming : []).map((u: string) => `Ban list: ${u}`),
+    legality.ban_list_checked === false && "The ban list couldn't be checked.",
+  ];
+  const result = searchResult(deckSourceId(v.target?.leader_id ?? undefined, afterCards), `Suggested edit: ${v.target?.name ?? "deck"}`, facts);
+  return result ? [result] : [];
+}
+
 function oddsAdapter(v: Rec): ToolContent[] {
   if (!Array.isArray(v.byTurn)) return [];
   const order = v.goingFirst ? "going first" : "going second";
@@ -400,6 +422,7 @@ const ADAPTERS: Record<string, (v: Rec) => ToolContent[]> = {
   search_matches: searchMatchesAdapter,
   analyze_deck: analyzeDeckAdapter,
   draw_odds: oddsAdapter,
+  propose_deck_edit: proposalAdapter,
 };
 
 /**
