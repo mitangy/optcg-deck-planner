@@ -375,4 +375,14 @@ describe("sources and citations (#390)", () => {
     expect(texts).toEqual(["Zoro costs 3."]);
     expect(cites).toEqual([{ source: "card:OP01-001", title: "Zoro", cited_text: "cost 3" }]);
   });
+
+  it("returns the model that served the call, so the eval can check it (#403)", async () => {
+    const stream = {
+      on: () => undefined,
+      finalMessage: async () => ({ content: [], stop_reason: "end_turn", usage: usage(1, 1), model: "claude-served-model" }),
+    };
+    const model = anthropicModel({ beta: { messages: { stream: () => stream } } } as never);
+    const reply = await model({}, () => undefined, new AbortController().signal);
+    expect(reply.model).toBe("claude-served-model");
+  });
 });

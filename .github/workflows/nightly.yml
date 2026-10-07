@@ -184,10 +184,32 @@ jobs:
             backend/mutants/mutmut-stats.json
           if-no-files-found: ignore
 
+  log-pose-eval-live:
+    # Re-checks the Log Pose eval's FAQ cases against Bandai's live FAQ. Free (no model calls).
+    # Exit 1 (a case went stale or its answer changed) is reported in the summary only;
+    # exit 2 (the official site was unreachable twice) fails the job.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Check eval cases against the live FAQ
+        run: |
+          set +e
+          npm run eval:check-live -w @optcg/analyst 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          code=${PIPESTATUS[0]}
+          if [ "$code" = "2" ]; then exit 2; fi
+          exit 0
+
   # --- Add later nightly jobs above this line, and list them in `report.needs`. ---
 
   report:
-    needs: [fuzz, mutation-anchors, stryker-rules, mutmut-backend]
+    needs: [fuzz, mutation-anchors, stryker-rules, mutmut-backend, log-pose-eval-live]
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5

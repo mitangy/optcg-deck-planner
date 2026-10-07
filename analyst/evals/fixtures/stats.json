@@ -1,0 +1,272 @@
+{
+  "synthetic": true,
+  "note": "Invented matchup responses in the backend's shape (backend/app/analyst_stats.py), keyed by leader and opponent. Not real games.",
+  "responses": {
+    "leader=OP13-004&opponent=OP15-058": {
+      "days": 90,
+      "ranked_only": false,
+      "min_games": 5,
+      "source": "optcgduel.app duels",
+      "leader": "OP13-004",
+      "opponent": "OP15-058",
+      "games": 41,
+      "wins": 23,
+      "win_rate": 0.561,
+      "interval": [
+        0.41,
+        0.701
+      ],
+      "too_few_games": false,
+      "going_first": {
+        "games": 21,
+        "wins": 13,
+        "win_rate": 0.619,
+        "interval": [
+          0.409,
+          0.792
+        ],
+        "too_few_games": false
+      },
+      "going_second": {
+        "games": 20,
+        "wins": 10,
+        "win_rate": 0.5,
+        "interval": [
+          0.299,
+          0.701
+        ],
+        "too_few_games": false
+      },
+      "average_turns": 7.2
+    },
+    "leader=OP14-041": {
+      "days": 90,
+      "ranked_only": false,
+      "min_games": 5,
+      "source": "optcgduel.app duels",
+      "leader": "OP14-041",
+      "overall": {
+        "games": 212,
+        "wins": 109,
+        "win_rate": 0.514,
+        "interval": [
+          0.447,
+          0.581
+        ],
+        "too_few_games": false,
+        "going_first": {
+          "games": 106,
+          "wins": 60,
+          "win_rate": 0.566,
+          "interval": [
+            0.471,
+            0.656
+          ],
+          "too_few_games": false
+        },
+        "going_second": {
+          "games": 106,
+          "wins": 49,
+          "win_rate": 0.462,
+          "interval": [
+            0.37,
+            0.557
+          ],
+          "too_few_games": false
+        },
+        "average_turns": 7.4
+      },
+      "opponents": [
+        {
+          "opponent": "OP13-004",
+          "games": 60,
+          "wins": 31,
+          "win_rate": 0.517,
+          "interval": [
+            0.393,
+            0.638
+          ],
+          "too_few_games": false,
+          "going_first": {
+            "games": 30,
+            "wins": 17,
+            "win_rate": 0.567,
+            "interval": [
+              0.392,
+              0.726
+            ],
+            "too_few_games": false
+          },
+          "going_second": {
+            "games": 30,
+            "wins": 14,
+            "win_rate": 0.467,
+            "interval": [
+              0.302,
+              0.639
+            ],
+            "too_few_games": false
+          },
+          "average_turns": 7.4
+        },
+        {
+          "opponent": "OP15-058",
+          "games": 45,
+          "wins": 22,
+          "win_rate": 0.489,
+          "interval": [
+            0.35,
+            0.63
+          ],
+          "too_few_games": false,
+          "going_first": {
+            "games": 23,
+            "wins": 12,
+            "win_rate": 0.522,
+            "interval": [
+              0.33,
+              0.708
+            ],
+            "too_few_games": false
+          },
+          "going_second": {
+            "games": 22,
+            "wins": 10,
+            "win_rate": 0.455,
+            "interval": [
+              0.269,
+              0.653
+            ],
+            "too_few_games": false
+          },
+          "average_turns": 6.8
+        },
+        {
+          "opponent": "OP16-001",
+          "games": 38,
+          "wins": 20,
+          "win_rate": 0.526,
+          "interval": [
+            0.373,
+            0.675
+          ],
+          "too_few_games": false,
+          "going_first": {
+            "games": 19,
+            "wins": 11,
+            "win_rate": 0.579,
+            "interval": [
+              0.363,
+              0.769
+            ],
+            "too_few_games": false
+          },
+          "going_second": {
+            "games": 19,
+            "wins": 9,
+            "win_rate": 0.474,
+            "interval": [
+              0.273,
+              0.683
+            ],
+            "too_few_games": false
+          },
+          "average_turns": 7.1
+        },
+        {
+          "opponent": "OP09-062",
+          "games": 39,
+          "wins": 20,
+          "win_rate": 0.513,
+          "interval": [
+            0.362,
+            0.661
+          ],
+          "too_few_games": false,
+          "going_first": {
+            "games": 20,
+            "wins": 11,
+            "win_rate": 0.55,
+            "interval": [
+              0.342,
+              0.742
+            ],
+            "too_few_games": false
+          },
+          "going_second": {
+            "games": 19,
+            "wins": 9,
+            "win_rate": 0.474,
+            "interval": [
+              0.273,
+              0.683
+            ],
+            "too_few_games": false
+          },
+          "average_turns": 8
+        },
+        {
+          "opponent": "OP17-058",
+          "games": 30,
+          "wins": 16,
+          "win_rate": 0.533,
+          "interval": [
+            0.361,
+            0.698
+          ],
+          "too_few_games": false,
+          "going_first": {
+            "games": 15,
+            "wins": 9,
+            "win_rate": 0.6,
+            "interval": [
+              0.357,
+              0.802
+            ],
+            "too_few_games": false
+          },
+          "going_second": {
+            "games": 15,
+            "wins": 7,
+            "win_rate": 0.467,
+            "interval": [
+              0.248,
+              0.699
+            ],
+            "too_few_games": false
+          },
+          "average_turns": 7.7
+        }
+      ],
+      "cards": []
+    },
+    "leader=OP16-001&opponent=OP17-058": {
+      "days": 90,
+      "ranked_only": false,
+      "min_games": 5,
+      "source": "optcgduel.app duels",
+      "leader": "OP16-001",
+      "opponent": "OP17-058",
+      "games": 3,
+      "wins": null,
+      "win_rate": null,
+      "interval": null,
+      "too_few_games": true,
+      "going_first": {
+        "games": 2,
+        "wins": null,
+        "win_rate": null,
+        "interval": null,
+        "too_few_games": true
+      },
+      "going_second": {
+        "games": 1,
+        "wins": null,
+        "win_rate": null,
+        "interval": null,
+        "too_few_games": true
+      },
+      "average_turns": null
+    }
+  }
+}
