@@ -17,6 +17,7 @@ import {
   touchMatchResume,
 } from "../net/matchResume";
 import type {
+  BriefTicketWire,
   ChatLine,
   Intent,
   MatchOverMessage,
@@ -109,6 +110,10 @@ type DuelSession = {
   view: PlayerView | null;
   /** Seat-indexed display names from the server welcome (usernames when set). */
   players: SeatPlayers | null;
+  /** Whether the room is ranked, from the welcome; null until then or from an older server. */
+  ranked: boolean | null;
+  /** The key to a Log Pose matchup brief (players of unranked rooms only). */
+  brief: BriefTicketWire | null;
   battleLog: BattleLogEntry[];
   clearBattleLog: () => void;
   errorBanner: string | null;
@@ -176,6 +181,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const connectRoleRef = useRef<"player" | "spectator">("player");
   const [view, setView] = useState<PlayerView | null>(null);
   const [players, setPlayers] = useState<SeatPlayers | null>(null);
+  const [ranked, setRanked] = useState<boolean | null>(null);
+  const [brief, setBrief] = useState<BriefTicketWire | null>(null);
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
   const viewRef = useRef<PlayerView | null>(null);
   /** Board instance ids → cards, so log lines can name attackers / blockers. */
@@ -211,8 +218,10 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
 
     function wireHandlers() {
       client.setHandlers({
-        onWelcome: ({ matchId: id, seat: s, view: v, role: r, players: p }) => {
+        onWelcome: ({ matchId: id, seat: s, view: v, role: r, players: p, ranked: rk, brief: b }) => {
           setPlayers(p ?? null);
+          setRanked(typeof rk === "boolean" ? rk : null);
+          setBrief(r === "player" ? (b ?? null) : null);
           seatRef.current = s;
           setMatchId(id);
           setSeat(s);
@@ -373,6 +382,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       setRole("player");
       setView(null);
       setPlayers(null);
+      setRanked(null);
+      setBrief(null);
       setMatchOver(null);
       setTimer(null);
       setChat([]);
@@ -393,6 +404,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       role,
       view,
       players,
+      ranked,
+      brief,
       battleLog,
       clearBattleLog: () => setBattleLog([]),
       errorBanner,
@@ -438,6 +451,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setChat([]);
         setUndo(null);
         setView(null);
+        setRanked(null);
+        setBrief(null);
         setQueueing(false);
         setResuming(false);
         setRole(opts.role ?? "player");
@@ -636,6 +651,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     role,
     view,
     players,
+    ranked,
+    brief,
     battleLog,
     errorBanner,
     matchOver,

@@ -64,6 +64,14 @@ export type SeatPlayerInfo = {
 /** Seat-indexed player names; null entries when unknown (older servers). */
 export type SeatPlayers = [SeatPlayerInfo, SeatPlayerInfo];
 
+/** The game server's signed key to a Log Pose matchup brief: this seat's leader and deck against the other leader. */
+export type BriefTicketWire = {
+  ticket: string;
+  leaderId: string;
+  opponentId: string;
+  deck: string[];
+};
+
 export type WelcomeMessage = {
   protocolVersion: ProtocolVersion;
   matchId: string;
@@ -71,7 +79,20 @@ export type WelcomeMessage = {
   role?: "player" | "spectator";
   view: PlayerView;
   players?: SeatPlayers;
+  /** Whether the room is ranked; absent from an older server. */
+  ranked?: boolean;
+  /** Players of unranked rooms only. */
+  brief?: BriefTicketWire;
 };
+
+/** A brief ticket as sent, or undefined unless every part is the right shape. */
+export function parseBriefTicket(raw: unknown): BriefTicketWire | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.ticket !== "string" || typeof o.leaderId !== "string" || typeof o.opponentId !== "string") return undefined;
+  if (!Array.isArray(o.deck) || !o.deck.every((c) => typeof c === "string")) return undefined;
+  return { ticket: o.ticket, leaderId: o.leaderId, opponentId: o.opponentId, deck: o.deck as string[] };
+}
 
 function parseSeatPlayers(raw: unknown): SeatPlayers | undefined {
   if (!Array.isArray(raw) || raw.length !== 2) return undefined;
@@ -368,6 +389,9 @@ export function parseWelcome(raw: unknown): WelcomeMessage {
     role,
     view,
     players: parseSeatPlayers(o.players),
+    ranked: typeof o.ranked === "boolean" ? o.ranked : undefined,
+    // A spectator is never offered a brief, whatever the server sent.
+    brief: role === "spectator" || view.spectator ? undefined : parseBriefTicket(o.brief),
   };
 }
 

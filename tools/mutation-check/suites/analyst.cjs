@@ -149,5 +149,24 @@ module.exports = {
     { id: "playbook-stale-never", file: playbook, from: "    stale: Number.isFinite(written) && Number.isFinite(current) && written < current,", to: "    stale: false,", kills: ["flags notes older than the current set"] },
     { id: "playbook-newest-counts-previews", file: playbook, from: "  const newest = Math.max(0, ...[...counts].filter(([, c]) => c >= minCards).map(([n]) => n));", to: "  const newest = Math.max(0, ...[...counts].map(([n]) => n));", kills: ["takes the newest booster with a full card list"] },
     { id: "playbook-matchups-by-heading-text", file: playbook, from: "      if (id) matchups[id] = { heading: subHeading,", to: "      if (id) matchups[subHeading] = { heading: subHeading,", kills: ["reads front matter, sections and matchups"] },
+    // matchup briefs (#401)
+    { id: "brief-cache-skipped", file: chat, from: "  if (found.brief) {\n    replayCited(", to: "  if (false && found.brief) {\n    replayCited(", kills: ["serves a cached brief without calling the model, even over the daily cap (#401)"] },
+    { id: "brief-cache-needs-budget", file: chat, from: "  const variant = briefVariant(deps.catalog);\n  let found: BriefLookup;", to: "  const variant = briefVariant(deps.catalog);\n  await checkBudget(api, token);\n  let found: BriefLookup;", kills: ["serves a cached brief without calling the model, even over the daily cap (#401)"] },
+    { id: "brief-replay-cites-at-end", edits: [
+      { file: chat, from: "    if (at > sent) emit({ event: \"text\", data: { delta: text.slice(sent, at) } });\n    sent = Math.max(sent, at);\n", to: "" },
+    ], kills: ["replays a cached brief's citations at the offsets they were saved at (#401)"] },
+    { id: "brief-peek-generates", file: chat, from: "  if (!body.generate) {", to: "  if (false) {", kills: ["a peek with nothing cached calls no model and records no spend (#401)"] },
+    { id: "brief-refusal-ignored", file: chat, from: "      throw new ChatHttpError(400, \"Matchup briefs are only for casual and practice games.\", \"bad_request\");\n    }\n    throw err;\n  }", to: "      found = { leader_id: \"OP01-001\", opponent_id: \"ST01-001\", deck: [], key: \"\", brief: null };\n    } else {\n      throw err;\n    }\n  }", kills: ["a ticket the planner refuses never reaches the model (#401)"] },
+    { id: "brief-no-budget-check", file: chat, from: "  await checkBudget(api, token);\n\n  const tools", to: "\n  const tools", kills: ["an empty budget stops a brief that has to be written, after the lookup (#401)"] },
+    // Layers of one rule (a brief is cached for everyone, so it can't use personal tools): no personal context, the name filter, and the non-personal prompt.
+    { id: "brief-personal-tools", edits: [
+      { file: chat, from: "buildTools(deps.catalog, undefined, undefined, deps.knowledge).filter((t) => BRIEF_TOOLS.includes(t.name))", to: "buildTools(deps.catalog, undefined, { api, token }, deps.knowledge)" },
+    ], kills: ["writes the brief from both leaders and the player's deck with only shared tools, then saves it and records brief spend (#401)"] },
+    { id: "brief-tools-unfiltered", file: chat, from: ".filter((t) => BRIEF_TOOLS.includes(t.name));", to: ";", kills: ["writes the brief from both leaders and the player's deck with only shared tools, then saves it and records brief spend (#401)"] },
+    { id: "brief-personal-prompt", file: chat, from: "instructionsFor(false) + BRIEF_INSTRUCTIONS", to: "instructionsFor(true) + BRIEF_INSTRUCTIONS", kills: ["writes the brief from both leaders and the player's deck with only shared tools, then saves it and records brief spend (#401)"] },
+    { id: "brief-deck-left-out", file: chat, from: "    ...deckLines,\n", to: "", kills: ["writes the brief from both leaders and the player's deck with only shared tools, then saves it and records brief spend (#401)"] },
+    { id: "brief-not-saved", file: chat, from: "  await plannerCall(api, token, \"/analyst/briefs\", true, { ticket: body.ticket, variant, text: cited.text, citations: cited.citations }, \"PUT\");\n", to: "", kills: ["writes the brief from both leaders and the player's deck with only shared tools, then saves it and records brief spend (#401)"] },
+    { id: "brief-usage-as-chat", file: chat, from: "recordUsage(api, token, \"brief\", state.usage", to: "recordUsage(api, token, \"chat\", state.usage", kills: ["writes the brief from both leaders and the player's deck with only shared tools, then saves it and records brief spend (#401)"] },
+    { id: "brief-variant-fixed", file: chat, from: "  return `v1:${newestFormat(catalog.cards.keys())}`;", to: "  return \"v1\";", kills: ["the cache variant follows the newest set (#401)"] },
   ],
 };
