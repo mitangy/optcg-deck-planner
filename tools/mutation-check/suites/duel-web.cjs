@@ -1102,5 +1102,8 @@ module.exports = {
     { id: "don-piles-strip-no-gaps", file: "duel-web/src/board/DonStrip.tsx", from: "    \"--don-gaps\": Math.max(groups.length - 1, 0),\n", to: "    \"--don-gaps\": 0,\n", kills: ["renders one .don-pile group per pile on your side with the gaps in the rail style (#381)"] },
     { id: "don-piles-strip-always-wraps", file: "duel-web/src/board/DonStrip.tsx", from: "if (groups.length <= 1) return items.map(renderChip);", to: "if (groups.length < 1) return items.map(renderChip);", kills: ["lays out a single pile as a plain rail with no wrapper (#381)"] },
     { id: "don-piles-opp-gets-piles", file: "duel-web/src/board/DonStrip.tsx", from: "const piled = Boolean(tokens && onDonPileMove);", to: "const piled = Boolean(onDonPileMove);", kills: ["opponent DON!! never form piles (#381)"] },
+    // Why? on a build hint (#399)
+    { id: "hint-ask-always-shown", file: "packages/deck-analytics/src/ui/DeckHints.tsx", from: "{onAsk ? (", to: "{true ? (", kills: ["shows Why? in a hint's popover only when Log Pose can answer"] },
+    { id: "logpose-duel-deck-no-planner-id", file: "duel-web/src/logPose.ts", from: "    ...(deck.plannerDeckId ? { plannerDeckId: deck.plannerDeckId } : {}),\n", to: "", kills: ["tells Log Pose the planner deck a duel deck is linked to"] },
   ],
 };

@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CitedAnswer, Markdown, messageContext, parseSource, type PlacedCitation } from "@optcg/analyst-client";
+import { HintActions } from "@optcg/deck-analytics/ui";
 import { deckContext, reviewMode, showsLogPose, sourceHref } from "./logPose";
 
 describe("Log Pose compass placement (#377)", () => {
@@ -32,6 +33,23 @@ describe("Log Pose page context (#377)", () => {
     const page = { page: "deck-editor", label: "Enel", deck: deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"] }) };
     expect(messageContext(page, false)).toEqual({ page: "deck-editor", deck: page.deck });
     expect(messageContext(page, true)).toEqual({ page: "deck-editor" });
+  });
+});
+
+describe("Why? on a build hint (#399)", () => {
+  const actions = (onAsk?: () => void) => renderToStaticMarkup(<HintActions dismissed={false} onDismiss={() => {}} onRestore={() => {}} onAsk={onAsk} />);
+
+  it("shows Why? in a hint's popover only when Log Pose can answer (#399)", () => {
+    expect(actions()).not.toContain("Ask Log Pose");
+    expect(actions()).toContain("Dismiss");
+    const withAsk = actions(() => {});
+    expect(withAsk).toContain("Why? Ask Log Pose");
+    expect(withAsk.indexOf("Why? Ask Log Pose")).toBeLessThan(withAsk.indexOf("Dismiss"));
+  });
+
+  it("tells Log Pose the planner deck a duel deck is linked to (#399)", () => {
+    expect(deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"], plannerDeckId: 42 }).plannerDeckId).toBe(42);
+    expect(deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"] })).not.toHaveProperty("plannerDeckId");
   });
 });
 

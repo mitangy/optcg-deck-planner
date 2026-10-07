@@ -16,6 +16,7 @@ export function defaultLogPosePage(pathname: string): LogPosePage {
 }
 
 type DeckCards = {
+  id?: number;
   name: string;
   leader_card_id: string | null;
   cards: { card_id: string; needed: number; section: string }[];
@@ -34,5 +35,6 @@ export function plannerDeckContext(deck: DeckCards): DeckContext {
     name: deck.name,
     leaderId: deck.leader_card_id || null,
     cards: [...copies].map(([id, n]) => ({ id, copies: n })),
+    ...(deck.id ? { plannerDeckId: deck.id } : {}),
   };
 }

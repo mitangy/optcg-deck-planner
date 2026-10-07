@@ -741,7 +741,19 @@
 
 .dh-pop-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.dh-ask {
+  min-height: 2rem;
+}
+
+@media (pointer: coarse) {
+  .dh-pop-actions .btn {
+    min-height: 2.75rem;
+  }
 }
 
 .ds-search-help {
