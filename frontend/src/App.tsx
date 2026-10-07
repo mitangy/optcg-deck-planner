@@ -28,8 +28,8 @@ import {
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { submitFeedback } from "./feedback";
-import { LogPoseProvider, useLogPosePage } from "@optcg/analyst-client";
-import { DECK_STARTERS, defaultLogPosePage, plannerDeckContext, showsLogPose } from "./logPose";
+import { LogPoseProvider, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
+import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose } from "./logPose";
 import { LegalPage } from "./LegalPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
@@ -3394,6 +3394,29 @@ function DeckDetailPage() {
     invalidateAltWantViews(qc);
   };
 
+  // Log Pose's Apply card: what is owned (for the chips) and how this page saves a suggested change.
+  const { data: ownedData } = useQuery({ queryKey: ["owned"], queryFn: api.ownedCollection, staleTime: 300_000 });
+  const logPoseEditor = useMemo<DeckEditor | null>(() => {
+    if (!data || !logPoseDeck) return null;
+    const ownedById = new Map((ownedData?.items ?? []).map((i) => [i.card_id.toUpperCase(), i.owned]));
+    return {
+      ref: `planner:${data.id}`,
+      cards: logPoseDeck.cards,
+      owned: (id) => data.cards.find((c) => c.card_id === id)?.owned ?? ownedById.get(id) ?? (ownedData ? 0 : undefined),
+      apply: async (ops) => {
+        try {
+          const detail = await applyPlannerEdit((cardId, needed) => setDeckCardNeeded(deckId, cardId, needed), ops);
+          if (detail) applyDeckUpdate(detail);
+        } catch (e) {
+          // A rollback may have run: show the deck as the server has it.
+          void qc.invalidateQueries({ queryKey: ["deck", deckId] });
+          throw e;
+        }
+      },
+    };
+  }, [data, logPoseDeck, ownedData, deckId, qc]);
+  useLogPoseDeckEditor(logPoseEditor);
+
   const changeNeeded = async (cardId: string, needed: number) => {
     setNeededErr(null);
     setNeededBusyId(cardId);
@@ -4150,7 +4173,7 @@ export default function App() {
   const { data: me } = useMe();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   return (
-    <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null}>
+    <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={PLANNER_SOURCE_HOOKS}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />

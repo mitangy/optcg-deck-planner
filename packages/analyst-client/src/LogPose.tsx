@@ -21,6 +21,8 @@ import {
   type DeckContext,
 } from "./client";
 import { placeAt, type Citation, type PlacedCitation } from "./citations";
+import { DeckEditCard } from "./DeckEditCard";
+import { isEmptyAnswer, type DeckEditor, type DeckEditProposal } from "./proposals";
 import { ResizeHandles, SheetGrip, useDrawerSize, useSheetHeight } from "./PanelResize";
 import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
 import { createSessionManager, type ChatSession, type SessionManager } from "./session";
@@ -44,6 +46,8 @@ type LogPoseValue = {
   apiBase: string;
   session: SessionManager;
   setPage: (owner: object, page: LogPosePage | null) => void;
+  /** Registers the deck the page has open, so Apply cards for it can save changes. */
+  setEditor: (owner: object, editor: DeckEditor | null) => void;
   openPanel: () => void;
 };
 
@@ -60,6 +64,7 @@ const LogPoseContext = createContext<LogPoseValue>({
   apiBase: "",
   session: fallbackSession,
   setPage: () => {},
+  setEditor: () => {},
   openPanel: () => {},
 });
 
@@ -79,6 +84,23 @@ export function useLogPosePage(page: LogPosePage | null) {
   }, [key, owner, setPage]);
 }
 
+/**
+ * Registers the deck the calling page has open while it is mounted (null for none). Unlike the page context this
+ * is kept as a value, not through JSON, because it carries the app's save function: memoize the editor so it
+ * only changes when the deck does.
+ */
+export function useLogPoseDeckEditor(editor: DeckEditor | null) {
+  const { setEditor } = useContext(LogPoseContext);
+  const owner = useRef({}).current;
+  useEffect(() => {
+    setEditor(owner, editor);
+    return () => setEditor(owner, null);
+  }, [editor, owner, setEditor]);
+}
+
+/** Sent when the player taps Ask again on an edit whose deck changed. */
+const ASK_AGAIN = "My deck changed. Update that suggestion for the deck as it is now.";
+
 /** Desktop and tablets (a fine pointer, or 640px and wider) get the resizable drawer; anything else gets the phone sheet. */
 export const DRAWER_QUERY = "(min-width: 640px), (pointer: fine)";
 
@@ -96,7 +118,7 @@ function useMedia(query: string): boolean {
   return match;
 }
 
-type Msg = { role: "user" | "assistant"; text: string; citations: PlacedCitation[]; stopped?: boolean };
+type Msg = { role: "user" | "assistant"; text: string; citations: PlacedCitation[]; proposals?: DeckEditProposal[]; stopped?: boolean };
 
 /** Builds the request context: the page id always; the deck / match only while the chip is kept. */
 export function messageContext(page: LogPosePage | null, dropped: boolean): ChatContext | undefined {
@@ -137,7 +159,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
         if (!t) {
           writeThreadId(null);
           setThreadId(null);
-        } else setMessages((cur) => (cur.length ? cur : t.messages.map((m) => ({ role: m.role, text: m.text, citations: m.citations ?? [] }))));
+        } else setMessages((cur) => (cur.length ? cur : t.messages.map((m) => ({ role: m.role, text: m.text, citations: m.citations ?? [], proposals: m.proposals ?? [] }))));
       })
       .catch(() => setError("Could not load your last chat."))
       .finally(() => setHistory("done"));
@@ -172,6 +194,8 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
             onText: (delta) => patchLast((m) => ({ ...m, text: m.text + delta })),
             // A citation follows the text streamed so far.
             onCite: (cites: Citation[]) => patchLast((m) => ({ ...m, citations: [...m.citations, ...placeAt(cites, m.text.length)] })),
+            // A suggested deck edit shows as an Apply card under this answer.
+            onProposal: (p) => patchLast((m) => ({ ...m, proposals: [...(m.proposals ?? []).filter((x) => x.id !== p.id), p] })),
             onDone: (d) => {
               if (typeof d.thread_id === "number") keepThread(d.thread_id);
               if (!isOpen()) onUnread();
@@ -188,7 +212,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
         // Drop an empty answer bubble (error before any text), unless it was stopped on purpose.
         setMessages((cur) => {
           const last = cur[cur.length - 1];
-          return last?.role === "assistant" && !last.text && !last.stopped ? cur.slice(0, -1) : cur;
+          return last?.role === "assistant" && isEmptyAnswer(last) ? cur.slice(0, -1) : cur;
         });
         setBusy(false);
         setStatus("");
@@ -258,6 +282,18 @@ export function LogPoseProvider({
     }
   }, []);
 
+  const [editor, setEditorState] = useState<DeckEditor | null>(null);
+  const editorOwner = useRef<object | null>(null);
+  const setEditor = useCallback((owner: object, next: DeckEditor | null) => {
+    if (next) {
+      editorOwner.current = owner;
+      setEditorState(next);
+    } else if (editorOwner.current === owner) {
+      editorOwner.current = null;
+      setEditorState(null);
+    }
+  }, []);
+
   const [open, setOpen] = useState(false);
   const openRef = useRef(open);
   openRef.current = open && !hidden;
@@ -274,8 +310,8 @@ export function LogPoseProvider({
   const closePanel = useCallback(() => setOpen(false), []);
 
   const value = useMemo<LogPoseValue>(
-    () => ({ enabled, apiBase, session: manager, setPage, openPanel }),
-    [enabled, apiBase, manager, setPage, openPanel],
+    () => ({ enabled, apiBase, session: manager, setPage, setEditor, openPanel }),
+    [enabled, apiBase, manager, setPage, setEditor, openPanel],
   );
 
   const show = enabled === true && !hidden;
@@ -284,7 +320,7 @@ export function LogPoseProvider({
       <SourceHooksContext.Provider value={sources ?? NO_HOOKS}>
         {children}
         {show && !open ? <LogPoseCompass working={chat.busy} unread={unread} onClick={openPanel} /> : null}
-        {show && open ? <LogPosePanel page={page ?? defaultPage} chat={chat} onClose={closePanel} /> : null}
+        {show && open ? <LogPosePanel page={page ?? defaultPage} editor={editor} chat={chat} onClose={closePanel} /> : null}
       </SourceHooksContext.Provider>
     </LogPoseContext.Provider>
   );
@@ -326,7 +362,7 @@ function CompassIcon() {
 
 type Chat = ReturnType<typeof useChat>;
 
-function LogPosePanel({ page, chat, onClose }: { page: LogPosePage | null; chat: Chat; onClose: () => void }) {
+function LogPosePanel({ page, editor, chat, onClose }: { page: LogPosePage | null; editor: DeckEditor | null; chat: Chat; onClose: () => void }) {
   const phone = !useMedia(DRAWER_QUERY);
   const [draft, setDraft] = useState("");
   const [dropped, setDropped] = useState(false);
@@ -480,7 +516,7 @@ function LogPosePanel({ page, chat, onClose }: { page: LogPosePage | null; chat:
           </div>
         ) : null}
         {chat.messages.map((m, i) =>
-          m.role === "assistant" && !m.text && !m.stopped ? null : m.role === "user" ? (
+          m.role === "assistant" && isEmptyAnswer(m) ? null : m.role === "user" ? (
             <div key={i} className="lp-msg lp-msg-user">
               <p>{m.text}</p>
             </div>
@@ -488,6 +524,9 @@ function LogPosePanel({ page, chat, onClose }: { page: LogPosePage | null; chat:
             <div key={i} className="lp-msg lp-msg-assistant">
               {m.text ? <CitedAnswer text={m.text} citations={m.citations} done={!(chat.busy && i === chat.messages.length - 1)} /> : null}
               {m.stopped ? <p className="lp-stopped">Stopped.</p> : null}
+              {(m.proposals ?? []).map((p) => (
+                <DeckEditCard key={p.id} proposal={p} editor={editor} busy={chat.busy} onAskAgain={() => submit(ASK_AGAIN)} />
+              ))}
             </div>
           ),
         )}

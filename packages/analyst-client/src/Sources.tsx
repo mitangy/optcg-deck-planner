@@ -21,6 +21,8 @@ export type SourceHooks = {
   href?: (source: ParsedSource) => string | null;
   /** A card's name and picture from the app's card data. */
   card?: (id: string) => { name?: string; imageUrl?: string } | null | undefined;
+  /** Where a deck ("planner:<id>" or "duel:<id>") can be opened in the app, for an edit that belongs to another page. */
+  deckHref?: (ref: string) => string | null;
 };
 
 export const SourceHooksContext = createContext<SourceHooks>({});

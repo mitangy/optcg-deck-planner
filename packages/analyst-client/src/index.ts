@@ -38,5 +38,20 @@ export { clampSheet, clampSize, dragSheet, dragSize, keySize, readSheet, readSiz
 export { readThreadId, writeThreadId, THREAD_KEY } from "./threadStore";
 export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdown";
 export { Markdown } from "./Markdown";
-export { LogPoseProvider, LogPoseCompass, useLogPose, useLogPosePage, messageContext, type LogPosePage } from "./LogPose";
+export { LogPoseProvider, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseDeckEditor, messageContext, type LogPosePage } from "./LogPose";
+export { DeckEditCard } from "./DeckEditCard";
+export {
+  applyOps,
+  isEmptyAnswer,
+  normalizeCardId,
+  parseProposal,
+  proposalState,
+  undoOps,
+  type DeckEditLine,
+  type DeckEditOp,
+  type DeckEditor,
+  type DeckEditProposal,
+  type ProposalKind,
+  type ProposalState,
+} from "./proposals";
 export { CitedAnswer, type SourceHooks } from "./Sources";

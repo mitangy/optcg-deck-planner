@@ -338,5 +338,8 @@ module.exports = {
     { id: "e2e-don-pile-contextmenu-ignored", args: "don-piles --project=desktop-1280 -g \"offsets|lone chip\"", file: "duel-web/src/board/DonStrip.tsx", from: "      onContextMenu={onPileMove ? handleContextMenu : undefined}\n", to: "", kills: ["don-piles.spec.ts > right-clicking a DON!! offsets it into a second pile that stays inside the rail (#381) [desktop-1280]", "don-piles.spec.ts > the lone chip in the last pile goes back to the main pile on the next right-click (#381) [desktop-1280]"] },
     { id: "e2e-don-pile-longpress-ignored", args: "don-piles --project=desktop-1280 -g \"holding\"", file: "duel-web/src/board/DonStrip.tsx", from: "      if (onPileMove && e.pointerType !== \"mouse\") lp.onPointerDown(e);\n", to: "", kills: ["don-piles.spec.ts > holding a DON!! with a finger moves it to another pile and ignores the release click (#381) [desktop-1280]"] },
     { id: "e2e-don-pile-no-wrap-to-main", args: "don-piles --project=desktop-1280 -g \"lone chip\"", file: "duel-web/src/board/donPiles.ts", from: "(wholePile && from === highest) || ", to: "", kills: ["don-piles.spec.ts > the lone chip in the last pile goes back to the main pile on the next right-click (#381) [desktop-1280]"] },
+
+    // Log Pose Apply card (#400)
+    { id: "e2e-edit-no-refresh", args: "log-pose-apply --project=desktop-1280", file: "duel-web/src/pages/DeckConfigurePage.tsx", from: "              setTick((n) => n + 1);\n            },\n            note:", to: "            },\n            note:", kills: ["log-pose-apply.spec.ts > applies a Log Pose deck edit and undoes it (#400) [desktop-1280]"] },
   ],
 };

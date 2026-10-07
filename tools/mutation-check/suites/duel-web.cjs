@@ -1102,5 +1102,13 @@ module.exports = {
     { id: "don-piles-strip-no-gaps", file: "duel-web/src/board/DonStrip.tsx", from: "    \"--don-gaps\": Math.max(groups.length - 1, 0),\n", to: "    \"--don-gaps\": 0,\n", kills: ["renders one .don-pile group per pile on your side with the gaps in the rail style (#381)"] },
     { id: "don-piles-strip-always-wraps", file: "duel-web/src/board/DonStrip.tsx", from: "if (groups.length <= 1) return items.map(renderChip);", to: "if (groups.length < 1) return items.map(renderChip);", kills: ["lays out a single pile as a plain rail with no wrapper (#381)"] },
     { id: "don-piles-opp-gets-piles", file: "duel-web/src/board/DonStrip.tsx", from: "const piled = Boolean(tokens && onDonPileMove);", to: "const piled = Boolean(onDonPileMove);", kills: ["opponent DON!! never form piles (#381)"] },
+    // Log Pose Apply card (#400)
+    { id: "duel-apply-one-copy", file: `${src}/decks/editDeck.ts`, from: "for (let n = op.after - op.before; n > 0; n--) next.push(op.id);", to: "if (op.after > op.before) next.push(op.id);", kills: ["applies a Log Pose edit as one save with the right copies (#400)"] },
+    { id: "duel-apply-remove-one-copy", file: `${src}/decks/editDeck.ts`, from: "for (let n = op.before - op.after; n > 0; n--) next.splice(next.lastIndexOf(op.id), 1);", to: "if (op.before > op.after) next.splice(next.lastIndexOf(op.id), 1);", kills: ["applies a Log Pose edit as one save with the right copies (#400)"] },
+    { id: "duel-apply-unchecked", file: `${src}/decks/editDeck.ts`, from: "    if (now !== op.before) {", to: "    if (false) {", kills: ["refuses a Log Pose edit when a card's count moved (#400)"] },
+    { id: "duel-apply-leader-allowed", file: `${src}/decks/editDeck.ts`, from: "if (lookupCard(op.id).type === \"leader\") return { ok: false, error: \"Leaders cannot be added to the main deck\" };", to: "", kills: ["refuses to put a leader in the main deck (#400)"] },
+    { id: "duel-context-ref-dropped", file: `${src}/logPose.ts`, from: "    ref: `duel:${deck.id}`,\n", to: "", kills: ["sends the deck being edited as one entry per card with its copies (#377)"] },
+    { id: "edit-card-reason-hidden", file: "packages/analyst-client/src/DeckEditCard.tsx", from: "{l.reason ? <span className=\"lp-edit-reason\">{l.reason}</span> : null}", to: "", kills: ["shows each change with its reason and the legality result (#400)"] },
+    { id: "edit-card-legality-hidden", file: "packages/analyst-client/src/DeckEditCard.tsx", from: "<p className=\"lp-edit-ok\">✓ Legal after this change · {legality.count} cards</p>", to: "<p className=\"lp-edit-ok\">✓</p>", kills: ["shows each change with its reason and the legality result (#400)"] },
   ],
 };
