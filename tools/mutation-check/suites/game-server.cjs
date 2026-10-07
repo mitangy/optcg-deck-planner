@@ -136,5 +136,15 @@ module.exports = {
     { id: "prod-dev-secret-allowed", file: env, from: "  if (secret === DEV_GAME_TOKEN_SECRET) {\n    throw new Error(\"GAME_TOKEN_SECRET must be set in production\");\n  }", to: "", kills: ["refuses to start in production with the dev game token secret"] },
     { id: "prod-token-optional", file: env, from: "  if (env.NODE_ENV === \"production\") return true;\n", to: "", kills: ["starts in production without REQUIRE_GAME_TOKEN and still requires tokens"] },
     { id: "prod-start-needs-token-flag", file: env, from: "    throw new Error(\"GAME_TOKEN_SECRET must be set in production\");\n  }\n}", to: "    throw new Error(\"GAME_TOKEN_SECRET must be set in production\");\n  }\n  if ((env.REQUIRE_GAME_TOKEN ?? \"\").toLowerCase() !== \"true\") throw new Error(\"REQUIRE_GAME_TOKEN must be true in production\");\n}", kills: ["starts in production without REQUIRE_GAME_TOKEN and still requires tokens"] },
+    // matchup brief tickets (#401)
+    { id: "brief-ticket-opponent-is-self", file: room, from: "    const theirs = this.replay.players[1 - seat];", to: "    const theirs = this.replay.players[seat];", kills: ["an unranked room gives each player a brief ticket for their own seat and the other seat's leader (#401)"] },
+    // Two layers of one rule: the room never asks for a ranked ticket, and the minter never signs one.
+    { id: "brief-ticket-in-ranked", edits: [
+      { file: room, from: "    if (this.ranked || !this.replay) return undefined;", to: "    if (!this.replay) return undefined;" },
+      { file: "game-server/src/briefTicket.ts", from: "  if (claims.ranked) return null;\n", to: "" },
+    ], kills: ["a ranked room's welcome says ranked and carries no brief ticket (#401)", "a ranked game gets no ticket and the ticket lasts three hours (#401)"] },
+    { id: "brief-ticket-to-spectators", file: room, from: "      role: \"spectator\",\n      view,\n      players: this.playersInfo(),\n      ranked: this.ranked,\n", to: "      role: \"spectator\",\n      view,\n      players: this.playersInfo(),\n      ranked: this.ranked,\n      brief: this.briefFor(cameraSeat),\n", kills: ["spectators never get a brief ticket (#401)"] },
+    { id: "brief-ticket-unsalted", file: "game-server/src/briefTicket.ts", from: "createHmac(\"sha256\", \"match-brief:\" + getGameTokenSecret())", to: "createHmac(\"sha256\", getGameTokenSecret())", kills: ["a brief ticket is not a game token and needs the brief key (#401)"] },
+    { id: "brief-ticket-json-order", file: "game-server/src/briefTicket.ts", from: "return `mb1.${body}.${sig}`;", to: "return `mb0.${body}.${sig}`;", kills: ["the game server signs the shared brief ticket vector (#401)"] },
   ],
 };
