@@ -8,21 +8,29 @@ import type { CardView, Intent, PendingChoiceView, PlayerView, Seat } from "../n
 import { briefShown } from "./matchBrief";
 
 /**
- * Whether the board offers the copilot. Everything the matchup brief needs (an unranked room, a player, a ticket,
- * Log Pose on for the account) plus its own setting, and the view must be from the seat the ticket was minted for:
- * in hotseat the ticket is seat 0's, so the copilot is there for seat 0's turns only.
+ * Whether the game offers the copilot at all: everything the matchup brief needs (an unranked room, a player, a
+ * ticket, Log Pose on for the account) plus its own setting, and a seat the ticket was minted for. A plan keeps
+ * going while this holds, even while the device shows the other seat (hotseat: the defender answers the attack).
  */
-export function copilotShown(o: {
+export function copilotAvailable(o: {
   ranked: boolean | null | undefined;
   role: "player" | "spectator";
   brief: unknown;
   logPoseEnabled: boolean | null;
   setting: boolean;
-  viewSeat: Seat | null | undefined;
   ticketSeat: Seat | null | undefined;
 }): boolean {
-  if (o.viewSeat == null || o.ticketSeat == null || o.viewSeat !== o.ticketSeat) return false;
+  if (o.ticketSeat == null) return false;
   return briefShown(o);
+}
+
+/**
+ * Whether the board draws the copilot's button: the game offers it and the view is from the seat the ticket was
+ * minted for. In hotseat the ticket is seat 0's, so the button is there for seat 0's turns only.
+ */
+export function copilotShown(o: Parameters<typeof copilotAvailable>[0] & { viewSeat: Seat | null | undefined }): boolean {
+  if (o.viewSeat == null || o.viewSeat !== o.ticketSeat) return false;
+  return copilotAvailable(o);
 }
 
 /** The analyst's limits (analyst/src/copilot.ts): more than this is refused, so the snapshot is cut to it. */
@@ -341,6 +349,17 @@ export function stepRun(run: PlanRun, view: PlayerView): { run: PlanRun; send: I
     case "blocked":
       return { run: { ...run, state: "blocked", reason: next.reason, cursor: next.cursor }, send: null };
   }
+}
+
+/**
+ * A fresh view from the other seat (hotseat: the device is with the defender, or with the opponent after the turn
+ * passes). The plan only waits while it is still its own turn. Once the turn has moved on, a plan whose last move was
+ * End turn is done, and any other plan can no longer be played.
+ */
+export function stepRunOtherSeat(run: PlanRun, view: PlayerView): PlanRun {
+  if (!runActive(run) || view.turnNumber === run.plan.turn) return run;
+  if (run.cursor.inFlight?.type === "end_turn") return { ...run, state: "done", reason: undefined, cursor: { step: run.plan.steps.length, done: 0, inFlight: null } };
+  return stopRun(run, "The turn changed.");
 }
 
 /** Why Play this turn is unavailable for a plan, or null when it can start. */

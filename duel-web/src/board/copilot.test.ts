@@ -4,6 +4,7 @@ import type { Intent, PendingChoiceView, PlayerView } from "../net/protocol";
 import {
   buildSnapshot,
   compactLegal,
+  copilotAvailable,
   copilotShown,
   nextIntent,
   planCardMode,
@@ -14,6 +15,7 @@ import {
   startCursor,
   startRun,
   stepRun,
+  stepRunOtherSeat,
   stopRun,
   type PlanCursor,
   type PlanRun,
@@ -465,5 +467,35 @@ describe("the Play this turn button (#416)", () => {
     expect(planCardMode(p, stopRun(run, "r"), null, mkView())).toEqual({ kind: "stopped", step: 0, reason: "r" });
     expect(planCardMode(p, { ...run, state: "done" }, null, mkView())).toEqual({ kind: "done" });
     expect(planCardMode(p, { ...run, state: "blocked", reason: "no" }, run, mkView())).toEqual({ kind: "blocked", step: 0, reason: "no" });
+  });
+});
+
+describe("a plan outlives the device showing the other seat (#416)", () => {
+  it("the game still offers the copilot while the view is the other seat's; only the button needs the ticket's seat (#416)", () => {
+    expect(copilotAvailable({ ...base, viewSeat: 1, ticketSeat: 0 } as typeof base)).toBe(true);
+    expect(copilotShown({ ...base, viewSeat: 1, ticketSeat: 0 })).toBe(false);
+    expect(copilotAvailable({ ...base, ticketSeat: undefined })).toBe(false);
+  });
+
+  const p = plan([give("L0", 1), attack("L0", "L1"), endTurn]);
+  const sentEnd: PlanRun = { ...startRun(p), cursor: { step: 2, done: 0, inFlight: END } };
+
+  it("waits on the same turn while the defender answers (#416)", () => {
+    const run = { ...startRun(p), cursor: { step: 1, done: 0, inFlight: null } };
+    expect(stepRunOtherSeat(run, mkView({ seat: 1, activeSeat: 0, turnNumber: 3 }, []))).toBe(run);
+  });
+
+  it("is done when the turn has passed to the other seat after End turn was sent (#416)", () => {
+    expect(stepRunOtherSeat(sentEnd, mkView({ seat: 1, activeSeat: 1, turnNumber: 4 }, []))).toMatchObject({ state: "done" });
+  });
+
+  it("stops, turn changed, when the turn has moved on before the plan finished (#416)", () => {
+    const mid = { ...startRun(p), cursor: { step: 1, done: 0, inFlight: null } };
+    expect(stepRunOtherSeat(mid, mkView({ seat: 1, activeSeat: 1, turnNumber: 4 }, []))).toMatchObject({ state: "stopped", reason: "The turn changed." });
+  });
+
+  it("leaves a run that already ended alone (#416)", () => {
+    const stopped = stopRun(startRun(p), "You stopped it.");
+    expect(stepRunOtherSeat(stopped, mkView({ seat: 1, turnNumber: 4 }, []))).toBe(stopped);
   });
 });

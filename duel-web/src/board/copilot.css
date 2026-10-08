@@ -7,6 +7,18 @@
   width: 92px;
 }
 
+/* The phone bar is crowded: with Brief and Log Pose both there, their icon boxes take the bar's own 40px size (the
+   menu and the pass button already do) and the buttons sit a little closer, so the turn chip is never cut off. */
+.arena .hud-compact .hud-actions:has(.hud-copilot-btn) {
+  gap: 0.2rem;
+}
+
+.arena .hud-compact .hud-brief-btn.hud-icon-btn {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+}
+
 .copilot-pill {
   position: fixed;
   left: 50%;
@@ -28,6 +40,16 @@
   font-size: 0.78rem;
   line-height: 1;
   white-space: nowrap;
+}
+
+/* The pill floats over the opponent's top row for a few seconds: only Stop takes taps, so a count chip or a DON!!
+   under the text stays reachable. */
+.copilot-pill {
+  pointer-events: none;
+}
+
+.copilot-pill-stop {
+  pointer-events: auto;
 }
 
 .copilot-pill-dot {

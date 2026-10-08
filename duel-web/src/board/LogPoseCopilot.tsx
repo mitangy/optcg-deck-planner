@@ -9,6 +9,7 @@ import type { BattleLogEntry } from "./battleLog";
 import { describeBattle } from "./battleBanner";
 import {
   buildSnapshot,
+  copilotAvailable,
   copilotShown,
   planCardMode,
   playBlockReason,
@@ -18,6 +19,7 @@ import {
   skipStep,
   startRun,
   stepRun,
+  stepRunOtherSeat,
   stopRun,
   type PlanCardMode,
   type PlanRun,
@@ -28,11 +30,18 @@ export type CopilotLayout = "desktop" | "portrait" | "landscape";
 
 export const COPILOT_STARTERS = ["What's my best play this turn?", "Plan my turn", "Should I block or counter?"];
 
-function CompassGlyph({ size = 18 }: { size?: number }) {
+/** A speech bubble with a compass needle in it: not the Brief button's bare compass, so the two sit side by side apart. */
+function CopilotGlyph({ size = 18 }: { size?: number }) {
   return (
     <svg className="hud-brief-icon" width={size} height={size} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <circle cx="10" cy="10" r="7.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M13.2 6.8 11.4 11.4 6.8 13.2 8.6 8.6z" fill="currentColor" />
+      <path
+        d="M4.5 3h11A1.5 1.5 0 0 1 17 4.5v8a1.5 1.5 0 0 1-1.5 1.5H9.2L5.6 16.8a.5.5 0 0 1-.8-.4V14h-.3A1.5 1.5 0 0 1 3 12.5v-8A1.5 1.5 0 0 1 4.5 3z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M10 5.6l1.7 3.9L10 11.9 8.3 9.5z" fill="currentColor" />
     </svg>
   );
 }
@@ -235,15 +244,17 @@ export function useLogPoseCopilot(o: {
   const settings = useDuelSettings();
   const brief = o.source?.brief ?? null;
   const view = o.view ?? null;
-  const shown = copilotShown({
+  const gate = {
     ranked: o.source?.ranked ?? null,
     role: o.role,
     brief,
     logPoseEnabled: enabled,
     setting: settings.logPoseCopilot,
-    viewSeat: view?.seat,
     ticketSeat: o.ticketSeat,
-  });
+  };
+  // Offered: the plan, its card and the panel stay. Shown: the button too, on the ticket's own seat's view only.
+  const offered = copilotAvailable(gate);
+  const shown = copilotShown({ ...gate, viewSeat: view?.seat });
 
   const store = useMemo(createStore, []);
   const ticketRef = useRef<string | null>(null);
@@ -300,13 +311,13 @@ export function useLogPoseCopilot(o: {
     }),
     [store, actions],
   );
-  useLogPoseGame(shown ? game : null);
+  useLogPoseGame(offered ? game : null);
 
   // Log Pose may open over the board while the copilot is on.
   useEffect(() => {
-    setBoardCopilot(shown);
+    setBoardCopilot(offered);
     return () => setBoardCopilot(false);
-  }, [shown]);
+  }, [offered]);
 
   // The executor: every fresh view moves the approved plan on by at most one intent.
   const { over } = o;
@@ -315,14 +326,16 @@ export function useLogPoseCopilot(o: {
     store.set({ view });
     const run = store.get().run;
     if (!runActive(run)) return;
-    if (!shown) store.set({ run: stopRun(run, "Log Pose left the board.") });
+    if (!offered) store.set({ run: stopRun(run, "Log Pose left the board.") });
     else if (over) store.set({ run: stopRun(run, "The game is over.") });
+    // Hotseat: the device shows the other seat (the defender answering the attack). The plan waits for its seat.
+    else if (view.seat !== ticketSeatRef.current) store.set({ run: stepRunOtherSeat(run, view) });
     else {
       const r = stepRun(run, view);
       store.set({ run: r.run });
       if (r.send) sendRef.current(r.send);
     }
-  }, [view, shown, over, store]);
+  }, [view, offered, over, store]);
 
   // A refused move ends the plan: it was built on a board that is no longer the one on screen.
   const banner = o.errorBanner ?? null;
@@ -341,9 +354,11 @@ export function useLogPoseCopilot(o: {
     },
     () => null,
   );
-  const running = shown && activeRun !== null;
+  const running = offered && activeRun !== null;
+  // The pill stays up while the device shows the other seat (hotseat: the defender answers), so Stop is always there.
+  const pill = running && activeRun ? <CopilotPill run={activeRun} onStop={actions.stop} /> : null;
 
-  if (!shown) return { shown: false, trigger: null, railTrigger: null, pill: null };
+  if (!shown) return { shown: false, trigger: null, railTrigger: null, pill };
 
   const hidden = o.over;
   const label = "Log Pose";
@@ -360,7 +375,7 @@ export function useLogPoseCopilot(o: {
         aria-hidden={hidden ? true : undefined}
         onClick={openPanel}
       >
-        <CompassGlyph />
+        <CopilotGlyph />
         {o.layout === "desktop" ? <span className="hud-brief-label">Log Pose</span> : null}
         <span className="hud-brief-dot" aria-hidden="true" />
       </button>
@@ -368,9 +383,8 @@ export function useLogPoseCopilot(o: {
   const railTrigger =
     o.layout === "landscape" ? (
       <button type="button" className="lp-rail-btn" aria-label={label} title="Ask Log Pose about this game" data-busy={running ? "true" : undefined} onClick={openPanel}>
-        <CompassGlyph size={20} />
+        <CopilotGlyph size={20} />
       </button>
     ) : null;
-  const pill = running && activeRun ? <CopilotPill run={activeRun} onStop={actions.stop} /> : null;
   return { shown: true, trigger, railTrigger, pill };
 }
