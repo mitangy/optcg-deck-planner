@@ -21,7 +21,7 @@ export type ReviewRequest = { match_id: string; regenerate?: boolean };
 /** A matchup brief: the game server's ticket, and whether to write one when none is saved (false only looks). */
 export type BriefRequest = { ticket: string; generate: boolean };
 
-export type ErrorCode = "budget" | "auth" | "server" | "bad_request";
+export type ErrorCode = "budget" | "busy" | "auth" | "server" | "bad_request";
 export type DonePayload = {
   thread_id?: number;
   cost_usd?: number;
@@ -46,6 +46,7 @@ export type StreamHandlers = {
 };
 
 export const BUDGET_MESSAGE = "Daily Log Pose limit reached. It resets tomorrow.";
+export const BUSY_MESSAGE = "Log Pose is still answering your other question. Try again in a moment.";
 export const GENERIC_ERROR = "Log Pose couldn't answer just now. Try again in a moment.";
 export const AUTH_ERROR = "Log Pose needs you to sign in again.";
 
@@ -63,6 +64,7 @@ export class AnalystError extends Error {
 /** The text to show for an error event or AnalystError. */
 export function errorText(err: { message?: string; code?: string }): string {
   if (err.code === "budget") return BUDGET_MESSAGE;
+  if (err.code === "busy") return BUSY_MESSAGE;
   if (err.code === "auth") return AUTH_ERROR;
   return err.message?.trim() || GENERIC_ERROR;
 }

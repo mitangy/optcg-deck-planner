@@ -36,6 +36,8 @@ export function handConfirmAnchor(
   if (choice.seat !== mySeat) return null;
   if (choice.kind === "life_trigger" || choice.kind === "order_effects") return null;
   if ((choice.request?.type ?? "confirm") !== "confirm") return null;
+  // A cost that cannot be paid has only "Can't pay": the centred prompt owns it (#374).
+  if (choice.unpayable) return null;
   if (choice.sourceInstanceId !== used.instanceId) return null;
   // Still mid-resolution: an event between hand and trash, not a card on the field.
   if (!you.resolving?.some((c) => c.id === used.instanceId)) return null;

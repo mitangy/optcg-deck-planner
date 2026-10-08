@@ -13,6 +13,7 @@ module.exports = {
   runner: "vitest",
   mutations: [
     // Asking for Log Pose (#393)
+    { id: "client-busy-shown-as-budget", file: client, from: "  if (err.code === \"busy\") return BUSY_MESSAGE;\n", to: "", kills: ["shows its own message, not the daily-limit one, when another stream is still running"] },
     { id: "access-session-unknown-state-accepted", file: session, from: "return value === \"none\" || value === \"pending\" || value === \"denied\" ? value : undefined;", to: "return typeof value === \"string\" ? (value as AccessState) : undefined;", kills: ["reads where a disabled player's request stands and ignores values it doesn't know (#393)"] },
     { id: "access-session-non-owner-marked-owner", file: session, from: "    if (body.owner === true) {\n      out.owner = true;", to: "    if (true) {\n      out.owner = true;", kills: ["reads owner and the waiting count only for owners (#393)"] },
     { id: "access-session-pending-count-dropped", file: session, from: "        out.pendingRequests = Math.floor(body.pending_requests);", to: "", kills: ["reads owner and the waiting count only for owners (#393)"] },

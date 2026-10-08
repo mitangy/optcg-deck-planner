@@ -116,7 +116,7 @@ export class ChatHttpError extends Error {
   constructor(
     readonly status: number,
     message: string,
-    readonly code: "auth" | "budget" | "bad_request" | "server",
+    readonly code: "auth" | "budget" | "busy" | "bad_request" | "server",
   ) {
     super(message);
   }
@@ -316,6 +316,26 @@ async function recordUsage(api: PlannerApi, token: string, kind: "chat" | "revie
   });
 }
 
+/** Streams running per user. Two are allowed (a review beside the chat panel, or a new review as an aborted one winds down); more would let parallel requests all pass the spend-cap check. */
+const MAX_STREAMS_PER_USER = 2;
+const streaming = new Map<string, number>();
+
+/** Claims one of the user's streams (the token's user id; admit has checked its signature). Returns the release. */
+function claimStream(token: string): () => void {
+  const user = token.split(".")[1] ?? token;
+  const running = streaming.get(user) ?? 0;
+  if (running >= MAX_STREAMS_PER_USER) throw new ChatHttpError(429, "Log Pose is still answering your other questions. Wait for one to finish.", "busy");
+  streaming.set(user, running + 1);
+  return () => {
+    const left = (streaming.get(user) ?? 1) - 1;
+    if (left > 0) streaming.set(user, left);
+    else streaming.delete(user);
+  };
+}
+
+/** The usage a failed model call had already been billed, which the error carries. */
+const partialUsageOf = (err: unknown): Usage => (err as { partialUsage?: Usage } | null)?.partialUsage ?? { input_tokens: 0, output_tokens: 0 };
+
 const addUsage = (a: Usage, b: Usage): Usage => ({
   input_tokens: a.input_tokens + b.input_tokens,
   output_tokens: a.output_tokens + b.output_tokens,
@@ -354,22 +374,29 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
     const out = streamTo(o.emit, () => {
       wroteText = true;
     });
-    const reply = await o.deps.callModel(
-      {
-        model: CHAT_MODEL,
-        max_tokens: o.maxTokens,
-        system: o.system,
-        tools: apiTools(o.tools),
-        messages: withCacheBreakpoint([...(o.history ?? []), ...state.turn]),
-        output_config: { effort: o.effort },
-      },
-      (delta) => {
-        out.onText(breakPending ? `\n\n${delta}` : delta);
-        breakPending = false;
-      },
-      o.signal,
-      out.onCite,
-    );
+    let reply: ModelReply;
+    try {
+      reply = await o.deps.callModel(
+        {
+          model: CHAT_MODEL,
+          max_tokens: o.maxTokens,
+          system: o.system,
+          tools: apiTools(o.tools),
+          messages: withCacheBreakpoint([...(o.history ?? []), ...state.turn]),
+          output_config: { effort: o.effort },
+        },
+        (delta) => {
+          out.onText(breakPending ? `\n\n${delta}` : delta);
+          breakPending = false;
+        },
+        o.signal,
+        out.onCite,
+      );
+    } catch (err) {
+      // The tokens a dropped stream had already used are still billed.
+      state.usage = addUsage(state.usage, partialUsageOf(err));
+      throw err;
+    }
     out.flush();
     state.usage = addUsage(state.usage, reply.usage);
     state.turn.push({ role: "assistant", content: reply.content });
@@ -386,6 +413,15 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
 
 /** One chat turn: the player's message, as many tool rounds as the model needs, the answer streamed. */
 export async function runChat(deps: ChatDeps, token: string, body: z.infer<typeof chatBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
+  const release = claimStream(token);
+  try {
+    await chatTurn(deps, token, body, emit, signal);
+  } finally {
+    release();
+  }
+}
+
+async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chatBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
   const { api } = deps;
   let threadId = body.thread_id;
   let history: Message[] = [];
@@ -444,6 +480,15 @@ export async function runChat(deps: ChatDeps, token: string, body: z.infer<typeo
 
 /** The post-game analysis of one of the player's games: one model call over the game from their seat, saved for next time. */
 export async function runReview(deps: ChatDeps, token: string, body: z.infer<typeof reviewBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
+  const release = claimStream(token);
+  try {
+    await reviewTurn(deps, token, body, emit, signal);
+  } finally {
+    release();
+  }
+}
+
+async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof reviewBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
   const { api } = deps;
   let game: Awaited<ReturnType<typeof reviewMatch>>;
   try {
@@ -457,28 +502,35 @@ export async function runReview(deps: ChatDeps, token: string, body: z.infer<typ
   const out = streamTo(emit, (delta) => {
     text += delta;
   });
-  const reply = await deps.callModel(
-    {
-      model: CHAT_MODEL,
-      max_tokens: 6000,
-      system: [{ type: "text", text: instructionsFor(true) + REVIEW_INSTRUCTIONS, cache_control: { type: "ephemeral" } }],
-      // One source per turn, so the review can cite the turns it talks about.
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Here is the game, from my seat: an overview, then each turn as its own source." },
-            ...gameResults("match", game.matchId, game),
-            { type: "text", text: [...game.notes, "Write the post-game analysis."].join(" ") },
-          ],
-        },
-      ],
-      output_config: { effort: "high" },
-    },
-    out.onText,
-    signal,
-    out.onCite,
-  );
+  let reply: ModelReply;
+  try {
+    reply = await deps.callModel(
+      {
+        model: CHAT_MODEL,
+        max_tokens: 6000,
+        system: [{ type: "text", text: instructionsFor(true) + REVIEW_INSTRUCTIONS, cache_control: { type: "ephemeral" } }],
+        // One source per turn, so the review can cite the turns it talks about.
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Here is the game, from my seat: an overview, then each turn as its own source." },
+              ...gameResults("match", game.matchId, game),
+              { type: "text", text: [...game.notes, "Write the post-game analysis."].join(" ") },
+            ],
+          },
+        ],
+        output_config: { effort: "high" },
+      },
+      out.onText,
+      signal,
+      out.onCite,
+    );
+  } catch (err) {
+    const partial = partialUsageOf(err);
+    if (partial.input_tokens || partial.output_tokens) await recordUsage(api, token, "review", partial, costUsd(partial)).catch(() => undefined);
+    throw err;
+  }
   out.flush();
   const cost = costUsd(reply.usage);
   await recordUsage(api, token, "review", reply.usage, cost).catch(() => undefined);
@@ -584,13 +636,25 @@ export function anthropicModel(client: { beta: { messages: { stream: (p: never, 
       const c = toCitation(citation);
       if (c) onCite?.(c);
     });
-    const msg = await stream.finalMessage();
+    // What the stream has used so far, kept as it arrives: a stream that fails or is aborted never reaches finalMessage's usage.
+    let used: Usage = { input_tokens: 0, output_tokens: 0 };
+    stream.on("streamEvent", (_event, snapshot) => {
+      used = { ...snapshot.usage };
+    });
+    let msg: Awaited<ReturnType<StreamLike["finalMessage"]>>;
+    try {
+      msg = await stream.finalMessage();
+    } catch (err) {
+      throw Object.assign(err instanceof Error ? err : new Error(String(err)), { partialUsage: used });
+    }
     return { content: msg.content as unknown as Block[], stop_reason: msg.stop_reason, usage: msg.usage, model: msg.model };
   };
 }
 
 type StreamLike = {
-  on: ((event: "text", cb: (delta: string) => void) => unknown) & ((event: "citation", cb: (citation: unknown) => void) => unknown);
+  on: ((event: "text", cb: (delta: string) => void) => unknown) &
+    ((event: "citation", cb: (citation: unknown) => void) => unknown) &
+    ((event: "streamEvent", cb: (event: unknown, snapshot: { usage: Usage }) => void) => unknown);
   finalMessage: () => Promise<{ content: unknown; stop_reason: string | null; usage: Usage; model?: string }>;
 };
 

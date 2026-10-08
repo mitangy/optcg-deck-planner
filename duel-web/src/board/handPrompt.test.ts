@@ -53,6 +53,11 @@ describe("hand-anchored Yes/No", () => {
     expect(handConfirmAnchor(hakiConfirm(), 0, HAKI_USE, you())).toEqual(SLOT);
   });
 
+  it("keeps the pop-up with Can't pay for an unpayable cost asked by the card just used from the hand (#374)", () => {
+    expect(handConfirmAnchor(hakiConfirm({ unpayable: true }), 0, HAKI_USE, you())).toBeNull();
+    expect(handConfirmAnchor(hakiConfirm({ unpayable: false }), 0, HAKI_USE, you())).toEqual(SLOT);
+  });
+
   it("keeps the pop-up for a card other than the one just used from the hand (#270)", () => {
     const other = hakiConfirm({ sourceInstanceId: "y-c1", cardDefId: "OP01-016" });
     expect(handConfirmAnchor(other, 0, HAKI_USE, you())).toBeNull();
