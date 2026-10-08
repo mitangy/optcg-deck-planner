@@ -56,6 +56,25 @@ describe("propose_deck_edit (#400)", () => {
     expect(await refused(propose(open(), [change(BLUE, 1), change("ST01-015", -1)]))).toMatch(/off-color/);
   });
 
+  it("lets a change fix some of several off-color cards without adding a problem (#406)", async () => {
+    const deck = open([...MAIN.slice(0, 12), { id: "EB01-012", copies: 1 }, { id: "EB01-013", copies: 1 }]);
+    expect(analyzeDeck(catalog, deckFromLines(catalog, deck.cards!, LEADER)).hints.some((h) => h.tier === "rule" && h.id === "offcolor")).toBe(true);
+    const r = await propose(deck, [change("EB01-013", -1), change("ST01-015", 1)]);
+    expect(r.ok).toBe(true);
+  });
+
+  it("lets a change fix some of several over-limit cards without adding a problem (#406)", async () => {
+    const deck = open([...MAIN.slice(0, 10), { id: "ST01-013", copies: 5 }, { id: "ST01-014", copies: 5 }]);
+    const r = await propose(deck, [change("ST01-014", -1), change("ST01-016", 1)]);
+    expect(r.ok).toBe(true);
+  });
+
+  it("still refuses a NEW off-color card on a deck that already has one (#406)", async () => {
+    const deck = open([...MAIN.slice(0, 12), { id: "EB01-012", copies: 1 }, { id: "EB01-013", copies: 1 }]);
+    const another = [...catalog.cards.values()].find((c) => c.type === "character" && c.colors.length === 1 && !c.colors.includes("red") && c.id !== "EB01-012" && c.id !== "EB01-013")!.id;
+    expect(await refused(propose(deck, [change(another, 1), change("ST01-014", -1)]))).toMatch(/off-color/);
+  });
+
   it("refuses a banned card with the ban list (#400)", async () => {
     const lib = library({ banned: ["ST01-016"] });
     expect(await refused(propose(open(), [change("ST01-016", 2), change("ST01-015", -2)], lib))).toMatch(/ST01-016 is banned/);

@@ -48,7 +48,8 @@ type Problem = { key: string; text: string };
 async function problemsOf(catalog: Catalog, library: OfficialLibrary | undefined, deck: Deck) {
   const rule: Problem[] = analyzeDeck(catalog, deck)
     .hints.filter((h) => h.tier === "rule")
-    .map((h) => ({ key: `${h.id}:${[...(h.cardIds ?? [])].sort().join(",")}`, text: h.title }));
+    // One key per offending card, so fixing only some of them adds nothing; a hint with no cards keeps one key.
+    .flatMap((h) => (h.cardIds?.length ? h.cardIds : [""]).map((cardId) => ({ key: `${h.id}:${cardId}`, text: h.title })));
   const ban = library ? await deckBanCheck(library, deck) : null;
   const banProblems: Problem[] = (ban?.problems ?? []).map((p) => ({ key: p.problem, text: p.problem }));
   const upcoming = (ban?.upcoming ?? []).map((p) => `${p.problem} (from ${p.effective})`);
@@ -62,7 +63,7 @@ async function problemsOf(catalog: Catalog, library: OfficialLibrary | undefined
  */
 function introducedProblems(before: Problem[], beforeCount: number, after: Problem[], afterCount: number): string[] {
   const had = new Set(before.map((p) => p.key));
-  const added = after.filter((p) => !had.has(p.key)).map((p) => p.text);
+  const added = [...new Set(after.filter((p) => !had.has(p.key)).map((p) => p.text))];
   if (Math.abs(afterCount - DECK_SIZE) > Math.abs(beforeCount - DECK_SIZE)) added.push(`${afterCount} of ${DECK_SIZE} cards`);
   return added;
 }
