@@ -87,6 +87,8 @@
 [data-mode="light"] .card-preview-traits,
 [data-mode="light"] .battle-log-turn-title,
 [data-mode="light"] .home-kicker,
+[data-mode="light"] .home-deck-label,
+[data-mode="light"] .friends-title,
 [data-mode="light"] .panel-title {
   color: var(--chrome-bright);
 }

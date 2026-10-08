@@ -272,13 +272,38 @@ export function googleLoginUrl(returnTo: string = window.location.origin): strin
   return u.toString();
 }
 
-export async function fetchLeaderboard(): Promise<
-  { user_id: number; name: string; rating: number; games_played: number }[]
-> {
-  const res = await fetch(`${getApiBaseUrl()}/duel/leaderboard`);
+export type LeaderboardEntry = {
+  user_id: number;
+  name: string;
+  username?: string | null;
+  rating: number;
+  games_played: number;
+};
+
+/** The top players by Bounty; players with no games are left out by the server. */
+export async function fetchLeaderboard(limit = 5): Promise<LeaderboardEntry[]> {
+  const res = await fetch(`${getApiBaseUrl()}/duel/leaderboard?limit=${limit}`);
   if (!res.ok) return [];
-  const body = (await res.json()) as {
-    entries: { user_id: number; name: string; rating: number; games_played: number }[];
-  };
+  const body = (await res.json()) as { entries?: LeaderboardEntry[] };
   return body.entries ?? [];
+}
+
+/** Your Bounty, record and rank (`rank` is null until you have a ranked game). */
+export type RatingMe = {
+  user_id: number;
+  email: string;
+  name: string;
+  username: string | null;
+  rating: number;
+  games_played: number;
+  wins: number;
+  losses: number;
+  rank: number | null;
+};
+
+/** GET /duel/rating/me; null when signed out or the call fails. */
+export async function fetchRatingMe(): Promise<RatingMe | null> {
+  const res = await fetch(`${getApiBaseUrl()}/duel/rating/me`, { credentials: "include" });
+  if (!res.ok) return null;
+  return (await res.json()) as RatingMe;
 }

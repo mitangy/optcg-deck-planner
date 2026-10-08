@@ -5,6 +5,22 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Lobby: last Play mode, Your voyage, Top bounties, guest intro (#431)
+    { id: "home-join-not-stored-as-create", file: `${src}/home/lastMode.ts`, from: '  if (raw === "join") return "create";\n', to: "", kills: ["stores joining a room as the private room mode, so Play reopens Create (#431)"] },
+    { id: "home-last-mode-accepts-unknown", file: `${src}/home/lastMode.ts`, from: '  return raw === "hotseat" || raw === "create" || raw === "queue" || raw === "spectate" ? raw : null;', to: "  return (raw || null) as LastMode | null;", kills: ["reads an unknown or missing value as no last mode (#431)"] },
+    { id: "home-last-mode-read-throws", file: `${src}/home/lastMode.ts`, from: "  try {\n    return toLastMode(storage?.getItem(LAST_MODE_KEY));\n  } catch {\n    return null;\n  }", to: "  return toLastMode(storage?.getItem(LAST_MODE_KEY));", kills: ["does not throw when storage is blocked (#431)"] },
+    { id: "home-ranked-opens-sheet", file: `${src}/home/primaryAction.ts`, from: '  if (mode === "queue") return { act: "start", mode, subline: SUBLINE[mode] };\n', to: "", kills: ["starts the Ranked queue in one tap for a player whose last mode was Ranked (#431)"] },
+    { id: "home-no-mode-opens-ranked", file: `${src}/home/primaryAction.ts`, from: '  if (mode === null) return { act: "choose", mode: null, subline: "Choose a mode" };', to: '  if (mode === null) return { act: "start", mode: "queue", subline: SUBLINE.queue };', kills: ["opens the mode chooser when there is no last mode (#431)"] },
+    { id: "home-tiles-repeat-last-mode", file: `${src}/home/primaryAction.ts`, from: "TILE_ORDER.filter((m) => m !== lastMode)", to: "[...TILE_ORDER]", kills: ["lists the other modes as tiles, all four when none was used (#431)"] },
+    { id: "home-streak-counts-cut-off", file: `${src}/home/voyage.ts`, from: "    if (g.finished === false) continue;\n", to: "", kills: ["skips cut-off games without breaking or starting a streak (#431)", "has no streak without a finished game (#431)"] },
+    { id: "home-streak-never-breaks", file: `${src}/home/voyage.ts`, from: "    else if (run.won === g.won) run.count += 1;\n    else break;", to: "    else run.count += 1;", kills: ["counts the streak from the newest finished game (#431)"] },
+    { id: "home-streak-label-swapped", file: `${src}/home/voyage.ts`, from: '`${s.won ? "W" : "L"}${s.count}`', to: '`${s.won ? "L" : "W"}${s.count}`', kills: ["writes W3, L1 and a dash for no streak (#431)"] },
+    { id: "home-record-losses-first", file: `${src}/home/voyage.ts`, from: "`${wins}–${losses}`", to: "`${losses}–${wins}`", kills: ["writes the record as wins–losses (#431)"] },
+    { id: "home-pinned-you-in-top-five", file: `${src}/home/bounties.ts`, from: "rank <= topN", to: "rank < topN", kills: ["pins nothing when you are on the board already, or the sixth place is the first one off it (#431)"] },
+    { id: "home-pinned-you-no-rank", file: `${src}/home/bounties.ts`, from: "me?.rank ?? 0", to: "me?.rank ?? Infinity", kills: ["pins nothing for someone with no ranked games or signed out (#431)"] },
+    { id: "home-intro-for-signed-in", file: `${src}/home/intro.ts`, from: 'authMode === "guest" && !done', to: "!done", kills: ["never shows to signed-in players (#431)"] },
+    { id: "home-intro-ignores-dismissal", file: `${src}/home/intro.ts`, from: 'authMode === "guest" && !done', to: 'authMode === "guest"', kills: ["shows to guests who have not dismissed it or started a match (#431)"] },
+    { id: "home-intro-not-remembered", file: `${src}/home/intro.ts`, from: '    storage?.setItem(INTRO_KEY, "1");', to: "    storage?.setItem(INTRO_KEY, \"0\");", kills: ["remembers dismissal and survives blocked storage (#431)"] },
     // Asking for Log Pose (#393)
     { id: "access-form-shown-while-pending", file: "packages/analyst-client/src/AccessViews.tsx", from: "  if (sent || access === \"pending\") {", to: "  if (sent) {", kills: ["shows no form once a request is waiting (#393)"] },
     { id: "access-note-uncapped", file: "packages/analyst-client/src/AccessViews.tsx", from: "        maxLength={NOTE_MAX}\n", to: "", kills: ["offers the form with a 500 character note to someone who hasn't asked (#393)"] },

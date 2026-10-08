@@ -516,11 +516,20 @@
   width: 100%;
   max-width: 440px;
   margin: 0 auto;
-  padding: clamp(2rem, 9vh, 5rem) 1rem 2rem;
+  padding: clamp(1.25rem, 5vh, 3rem) 1rem 2rem;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 1.25rem;
+}
+
+/* Deck, Play and the modes; the side column (you, friends, bounties) follows on narrow screens. */
+.home-primary,
+.home-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
 }
 
 .home-hero {
@@ -528,8 +537,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
-  margin-bottom: 0.5rem;
+  gap: 0.25rem;
 }
 
 .home-kicker {
@@ -545,7 +553,7 @@
   margin: 0;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(2.6rem, 11vw, 3.6rem);
+  font-size: clamp(2rem, 9vw, 2.6rem);
   line-height: 1;
   letter-spacing: 0.01em;
   color: var(--chrome-bright);
@@ -555,9 +563,9 @@
 /* Rope-and-knot divider under the wordmark. */
 .home-rule {
   position: relative;
-  width: min(240px, 70%);
+  width: min(200px, 60%);
   height: 1px;
-  margin-top: 0.75rem;
+  margin-top: 0.6rem;
   background: linear-gradient(90deg, transparent, var(--chrome), transparent);
 }
 
@@ -578,19 +586,124 @@
   gap: 0.65rem;
 }
 
+/* Play names the mode it repeats; the sub-line is hidden from the accessible name (aria-describedby carries it). */
+.home-actions .btn-play {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  min-height: 72px;
+  padding-block: 0.6rem;
+  line-height: 1.1;
+}
+
+.btn-play-sub {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+}
+
+.mode-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+/* No mode used yet: all four, two by two. */
+.mode-tiles-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mode-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.1rem;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgb(var(--panel-rgb) / 0.6);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.mode-tile:not(:disabled):hover {
+  border-color: var(--line-strong);
+  background-color: var(--arena-panel);
+}
+
+.mode-tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.mode-tile:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mode-tile-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--chrome-bright);
+}
+
+.mode-tile-blurb {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+/* Phones: titles only. */
+@media (max-width: 479px) {
+  .mode-tile {
+    min-height: 44px;
+    align-items: center;
+    text-align: center;
+  }
+
+  .mode-tile-blurb {
+    display: none;
+  }
+}
+
 .deck-switcher {
   position: relative;
 }
 
+/* The deck is the hero: the leader card large and slightly tilted, glowing in its first colour. */
 .home-deck {
+  --leader-w: 96px;
+  --glow: 210 165 77;
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  align-items: stretch;
+  gap: 1rem;
   width: 100%;
-  padding: 0.55rem 0.8rem 0.55rem 0.55rem;
+  padding: 0.9rem 0.9rem 0.9rem 0.8rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  background: rgb(var(--panel-rgb) / 0.6);
+  border-radius: 14px;
+  background-color: rgb(var(--panel-rgb) / 0.6);
+  background-image: radial-gradient(
+    calc(var(--leader-w) * 1.5) calc(var(--leader-w) * 1.6) at calc(var(--leader-w) / 2 + 0.8rem) 50%,
+    rgb(var(--glow) / 0.2),
+    transparent 70%
+  );
   color: var(--muted);
   font: inherit;
   text-align: left;
@@ -601,7 +714,7 @@
 .home-deck:hover,
 .home-deck.open {
   border-color: var(--line-strong);
-  background: var(--arena-panel);
+  background-color: var(--arena-panel);
 }
 
 .home-deck:focus-visible {
@@ -619,6 +732,25 @@
   object-fit: cover;
   object-position: center top;
   background: var(--arena-mid);
+}
+
+/* The box is sized by width and the card's ratio, so late art never moves anything. */
+.home-deck .home-deck-art {
+  align-self: center;
+  width: var(--leader-w);
+  height: auto;
+  aspect-ratio: 63 / 88;
+  border-radius: 6px;
+  transform: rotate(-3deg);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.45),
+    0 0 26px rgb(var(--glow) / 0.5);
+}
+
+[data-mode="light"] .home-deck .home-deck-art {
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.25),
+    0 0 20px rgb(var(--glow) / 0.45);
 }
 
 .home-deck-text,
@@ -672,10 +804,62 @@
   white-space: nowrap;
 }
 
+.home-deck .home-deck-name {
+  font-size: 1.15rem;
+}
+
+/* Name block between equal gaps above and below; Change deck and Edit deck share the bottom row. */
+.home-deck-label {
+  margin-top: auto;
+}
+
+.home-deck .home-deck-leader {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+/* Reserved to the same height as the Edit link, which sits over this row's right end. */
+.home-deck-change {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  margin-top: auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--chrome-bright);
+}
+
 .home-deck-chevron {
-  flex: 0 0 auto;
+  display: inline-block;
+  margin-left: 0.3rem;
   color: var(--chrome-bright);
   transition: transform 140ms ease;
+}
+
+.home-deck-edit {
+  position: absolute;
+  right: 0.9rem;
+  bottom: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 0.5rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.home-deck-edit:hover {
+  color: var(--chrome-bright);
+  background: rgb(var(--chrome-rgb) / 0.1);
+}
+
+.home-deck-edit:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }
 
 .home-deck.open .home-deck-chevron {
@@ -1380,38 +1564,383 @@ label.btn.is-busy {
   cursor: pointer;
 }
 
-/* Landscape phones: a compact header so Play stays on the first screen. */
+/* Wide windows: deck and Play on the left, your voyage, friends and bounties on the right. */
+@media (min-width: 1000px) and (min-height: 500px) {
+  .home {
+    max-width: 1100px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    column-gap: 2.5rem;
+    row-gap: 1.25rem;
+    align-items: start;
+    padding: clamp(1.5rem, 5vh, 3rem) 1.5rem 2rem;
+  }
+
+  /* The top bar carries the mark; the deck is the hero. */
+  .home-hero {
+    display: none;
+  }
+
+  .home-version {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Tablets and wide windows: a bigger hero card (the card is the page's focus). */
+@media (min-width: 480px) {
+  .home-deck {
+    --leader-w: 120px;
+  }
+}
+
+@media (min-width: 1000px) and (min-height: 500px) {
+  .home-deck {
+    --leader-w: 170px;
+    gap: 1.5rem;
+    padding: 1.25rem 1.25rem 1.25rem 1.1rem;
+  }
+
+  .home-deck .home-deck-name {
+    font-size: 1.5rem;
+  }
+
+  .home-deck-leader {
+    font-size: 0.88rem;
+  }
+
+  .home-deck-edit {
+    right: 1.25rem;
+    bottom: 1.25rem;
+  }
+
+  .home-actions .btn-play {
+    min-height: 84px;
+  }
+
+  .btn-play-sub {
+    font-size: 0.85rem;
+  }
+
+  .mode-tile {
+    min-height: 62px;
+  }
+
+  .mode-tile-title {
+    font-size: 0.92rem;
+  }
+}
+
+/* Landscape phones: a compact header so Play and the deck both stay on the first screen. */
 @media (orientation: landscape) and (max-height: 499px) {
   .home {
+    max-width: 720px;
     padding-top: 0.75rem;
     padding-bottom: 1rem;
     gap: 0.75rem;
   }
 
   /* The top bar carries the mark; Play and the deck sit side by side. */
-  .home {
-    max-width: 720px;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
-    column-gap: 0.75rem;
-  }
-
-  .home > * {
-    grid-column: 1 / -1;
-  }
-
-  .home > .home-actions {
-    grid-column: 1;
-  }
-
-  .home > .deck-switcher {
-    grid-column: 2;
-  }
-
   .home-hero {
     display: none;
   }
+
+  .home-primary {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .home-primary > * {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .home-primary > .home-actions {
+    order: 1;
+    flex: 1 1 0;
+  }
+
+  .home-primary > .deck-switcher {
+    order: 2;
+    flex: 1 1 0;
+  }
+
+  .home-primary > .install-hint,
+  .home-primary > .intro {
+    order: 3;
+  }
+
+  .home-deck {
+    --leader-w: 56px;
+    gap: 0.75rem;
+    padding: 0.5rem 0.7rem 0.5rem 0.55rem;
+  }
+
+  .home-deck .home-deck-name {
+    font-size: 1rem;
+  }
+
+  .home-deck-edit {
+    right: 0.7rem;
+    bottom: 0.5rem;
+  }
+
+  .home-actions .btn-play {
+    min-height: 64px;
+  }
+}
+
+/* —— Your voyage, Top bounties, how it works —— */
+
+.voyage,
+.bounties {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.voyage-card,
+.bounty-list,
+.intro {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgb(var(--panel-rgb) / 0.6);
+}
+
+.voyage-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--line);
+}
+
+.voyage-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+}
+
+.voyage-stat + .voyage-stat {
+  border-left: 1px solid var(--line);
+}
+
+.voyage-stat b {
+  min-height: 1.4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  line-height: 1.4rem;
+  color: var(--ink);
+}
+
+.voyage-stat > span {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Three rows tall whether they are loading, loaded or empty, so the column below never moves. */
+.voyage-games {
+  min-height: calc(3 * 44px);
+}
+
+.voyage-games > .friends-empty {
+  padding: 0.75rem;
+}
+
+.voyage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.voyage-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.voyage-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.35rem 0.75rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.voyage-row:hover {
+  background: rgb(var(--chrome-rgb) / 0.08);
+}
+
+.voyage-row:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus);
+}
+
+.voyage-chip {
+  flex: 0 0 auto;
+  min-width: 2rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-align: center;
+  color: var(--muted);
+}
+
+.voyage-row[data-outcome="won"] .voyage-chip {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.voyage-row[data-outcome="lost"] .voyage-chip {
+  border-color: var(--crimson-bright);
+  color: var(--crimson-bright);
+}
+
+.voyage-vs {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.voyage-opp,
+.voyage-leader {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voyage-opp {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.voyage-leader {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.voyage-delta {
+  flex: 0 0 auto;
+  min-width: 2.2rem;
+  text-align: right;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.bounty-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.bounty-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.bounty-row + .bounty-row {
+  border-top: 1px solid var(--line);
+}
+
+.bounty-row.me {
+  background: rgb(var(--chrome-rgb) / 0.1);
+}
+
+.bounty-row.pinned {
+  border-top: 1px dashed var(--line-strong);
+}
+
+.bounty-rank {
+  flex: 0 0 1.4rem;
+  font-weight: 800;
+  color: var(--chrome-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+.bounty-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.bounty-row .bounty-amount {
+  flex: 0 0 auto;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem;
+}
+
+.intro-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+  counter-reset: intro;
+}
+
+.intro-steps li {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr);
+  column-gap: 0.5rem;
+  counter-increment: intro;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.intro-steps li::before {
+  content: counter(intro);
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  align-self: start;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--chrome-bright);
+}
+
+.intro-steps b {
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.intro-dismiss {
+  align-self: flex-end;
 }
 
 .topbar-mark {
