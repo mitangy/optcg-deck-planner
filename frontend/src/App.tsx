@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -3180,10 +3180,18 @@ function AvailableDonSection({
 }) {
   const [err, setErr] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(query.trim()), 250);
+    return () => window.clearTimeout(t);
+  }, [query]);
   const donQ = useQuery({
-    queryKey: ["catalog-don"],
-    queryFn: () => api.searchCatalog({ card_type: "DON", limit: 100 }),
+    queryKey: ["catalog-don", debouncedQ],
+    queryFn: () => api.searchCatalog({ q: debouncedQ || undefined, card_type: "DON", limit: 100 }),
     staleTime: 60_000,
+    // Keep the grid on screen while the next search loads so typing never collapses it to a skeleton.
+    placeholderData: keepPreviousData,
   });
 
   const neededById = useMemo(() => {
@@ -3217,7 +3225,7 @@ function AvailableDonSection({
   const resultCount = donQ.data?.length ?? 0;
   const summary = [
     `${donCount}/${DON_DECK_LIMIT} in deck`,
-    resultCount > 0 ? `${resultCount} available` : null,
+    resultCount > 0 ? `${resultCount} ${debouncedQ ? "found" : "available"}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -3230,41 +3238,47 @@ function AvailableDonSection({
         storageKey={DECK_DON_AVAILABLE_OPEN_KEY}
         defaultOpen={false}
       >
+        <div className="deck-editor-filters">
+          <CardSearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search DON!! by name, set or ID"
+            label="Search DON!! cards"
+          />
+        </div>
         {err && <p className="error deck-editor-status">{err}</p>}
         {donQ.isLoading && <InlineSkeleton lines={3} label="Loading DON!! cards…" />}
         {donQ.error && <p className="error deck-editor-status">{(donQ.error as Error).message}</p>}
         {donQ.data && donQ.data.length === 0 && (
-          <p className="muted deck-editor-status">No DON!! cards in the catalog yet.</p>
+          <p className="muted deck-editor-status">
+            {debouncedQ ? `No DON!! cards match “${debouncedQ}”.` : "No DON!! cards in the catalog yet."}
+          </p>
         )}
         {donQ.data && donQ.data.length > 0 && (
-          <ul className="deck-editor-results don-available-list">
+          <ul className="don-available-list">
             {donQ.data.map((card) => {
               const inDeck = neededById.get(card.card_id) ?? 0;
               const busy = pendingId === card.card_id;
               const atCap = donCount >= DON_DECK_LIMIT && inDeck === 0;
               return (
-                <li key={card.card_id} className="deck-editor-result">
-                  <div className="deck-editor-result-main">
-                    <CardThumb src={card.image_url || undefined} alt={card.name} />
-                    <div>
-                      <div className="card-id">{card.card_id}</div>
-                      <div>{card.name}</div>
-                      <div className="muted">
-                        {[card.group_name, money(card.market_price)].filter(Boolean).join(" · ")}
-                        {inDeck > 0 ? ` · In deck ×${inDeck}` : ""}
-                      </div>
+                <li key={card.card_id} className="don-tile">
+                  <CardThumb src={card.image_url || undefined} alt={card.name} />
+                  <div className="don-tile-text">
+                    <div className="card-id">{card.card_id}</div>
+                    <div className="don-tile-name">{card.name}</div>
+                    <div className="muted don-tile-meta">
+                      {[card.group_name, money(card.market_price)].filter(Boolean).join(" · ")}
                     </div>
+                    {inDeck > 0 && <div className="don-tile-indeck">In deck ×{inDeck}</div>}
                   </div>
-                  <div className="deck-editor-result-actions">
-                    <button
-                      type="button"
-                      className="btn secondary"
-                      disabled={busy || atCap}
-                      onClick={() => void addOne(card)}
-                    >
-                      {inDeck > 0 ? "Add another" : "Add"}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="btn secondary don-tile-add"
+                    disabled={busy || atCap}
+                    onClick={() => void addOne(card)}
+                  >
+                    {inDeck > 0 ? "Add another" : "Add"}
+                  </button>
                 </li>
               );
             })}

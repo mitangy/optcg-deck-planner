@@ -165,6 +165,31 @@ test("edit mode opens the card editor and in-deck steppers without breaking layo
   expect(issues, formatIssues(issues)).toEqual([]);
 });
 
+test("DON!! browser shows big card tiles and searches the DON!! catalog (#435)", async ({ page, planner }) => {
+  await page.getByRole("button", { name: /Available DON!! cards/ }).click();
+  const tiles = page.locator(".don-tile");
+  await expect(tiles).toHaveCount(3);
+  for (const img of await page.locator(".don-tile .thumb").all()) {
+    expect((await img.boundingBox())!.width).toBeGreaterThanOrEqual(120);
+  }
+  const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  expect(await noOverflow()).toBe(true);
+
+  const sent = page.waitForRequest((r) => r.url().includes("/catalog/cards") && r.url().includes("card_type=DON") && r.url().includes("q=zoro"));
+  await page.getByRole("searchbox", { name: "Search DON!! cards" }).fill("zoro");
+  await sent;
+  await expect(tiles).toHaveCount(1);
+  await expect(tiles.first()).toContainText("DON-002");
+
+  await page.getByRole("searchbox", { name: "Search DON!! cards" }).fill("nothing-like-this");
+  await expect(page.getByText("No DON!! cards match “nothing-like-this”.")).toBeVisible();
+  await page.getByRole("searchbox", { name: "Search DON!! cards" }).fill("zoro");
+  await expect(tiles).toHaveCount(1);
+
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
+
 /** Opens the deck's stats where they live: the sticky dock at 1200, the sheet behind the Stats pill on a phone. */
 async function openStats(page: import("@playwright/test").Page) {
   if (page.viewportSize()!.width >= 1000) return;

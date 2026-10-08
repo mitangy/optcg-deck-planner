@@ -28,6 +28,12 @@ type FixtureCard = {
   alt_arts?: Array<{ product_id: number; name: string; market_price: number; low_price: number; group_name: string; is_special: boolean }>;
 };
 const CARDS = fixture<FixtureCard[]>("cards.json");
+/** DON!! catalog rows for the "Available DON!! cards" drawer. Kept out of CARDS so deck and shopping fixtures (and snapshots) stay unchanged. */
+const DON_CARDS = [
+  { card_id: "DON-001", name: "DON!! Card (Luffy)", product_id: 301, group_name: "Extra Booster: Memorial Collection" },
+  { card_id: "DON-002", name: "DON!! Card (Zoro)", product_id: 302, group_name: "Premium Booster" },
+  { card_id: "DON-003", name: "DON!! Card (Nami Gold)", product_id: 303, group_name: "Premium Booster" },
+].map((c) => ({ ...c, rarity: "DON", color: "", card_type: "DON!!", cost: null, market_price: 1.5, low_price: 1.1 }));
 const SALES = fixture<unknown[]>("sales.json");
 const SHARE = fixture<unknown>("share.json");
 
@@ -249,7 +255,17 @@ export const test = base.extend<{ planner: Planner }>({
       }
       if (path === "/catalog/cards") {
         // Name / ID search over the fixture cards (the deck editor and Collection "Add cards" use it).
-        const q = (new URL(req.url()).searchParams.get("q") ?? "").toLowerCase();
+        const params = new URL(req.url()).searchParams;
+        const q = (params.get("q") ?? "").toLowerCase();
+        if ((params.get("card_type") ?? "").toLowerCase().includes("don")) {
+          return json(
+            DON_CARDS.filter((c) => `${c.card_id} ${c.name} ${c.group_name}`.toLowerCase().includes(q)).map((c) => ({
+              ...c,
+              image_url: img(c.product_id),
+              tcgplayer_url: "",
+            })),
+          );
+        }
         if (!q) return json([]);
         return json(
           CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q)).map((c) => ({
