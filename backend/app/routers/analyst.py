@@ -19,7 +19,7 @@ from app.tournament_sync import sync_status
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.models import AnalystAccess, AnalystLesson, AnalystPrefs, AnalystToken, Deck, DuelMatch, DuelMatchLog, User
+from app.models import AnalystAccess, AnalystLesson, AnalystPrefs, AnalystSetting, AnalystToken, Deck, DuelMatch, DuelMatchLog, User
 from app.routers.duel import match_history
 from app.schemas import (
     CARD_ID_PATTERN,
@@ -95,6 +95,21 @@ def _chat_sig(settings: Settings, uid: int, exp: int) -> str:
 def is_chat_owner(settings: Settings, user: User) -> bool:
     """Owners are everyone on ANALYST_CHAT_EMAILS: they always have the chat and answer access requests."""
     return user.email.strip().lower() in settings.analyst_chat_email_set
+
+
+def is_model_admin(settings: Settings, user: User) -> bool:
+    """Only ANALYST_MODEL_ADMIN_EMAILS may change the model Log Pose runs on."""
+    return user.email.strip().lower() in settings.analyst_model_admin_email_set
+
+
+# The models the chat may run on, cheapest first; the first is the default.
+CHAT_MODELS = ("claude-sonnet-5-5", "claude-opus-5-5")
+
+
+def chat_model(db: Session) -> str:
+    """The saved chat model, or the default when none is saved (or the saved one is no longer offered)."""
+    value = db.scalar(select(AnalystSetting.value).where(AnalystSetting.key == "chat_model"))
+    return value if value in CHAT_MODELS else CHAT_MODELS[0]
 
 
 def _service_configured(settings: Settings) -> bool:

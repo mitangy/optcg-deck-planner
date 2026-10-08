@@ -358,3 +358,31 @@ def test_the_thread_view_shows_a_deck_edit_under_the_answer_that_made_it(chat):
     assert view[3]["proposals"][0] == _edit("t1")
     # The model's own history is unchanged.
     assert c.get(f"/analyst/chat/threads/{tid}/content", headers=h).json()["messages"] == messages
+
+
+def test_only_the_model_admin_can_change_the_chat_model_428(chat, monkeypatch):
+    """Everyone with the chat sees the model; PUT is for ANALYST_MODEL_ADMIN_EMAILS only, and only for offered models (#428)."""
+    c, _ = chat
+    _session(c)  # DEV@localhost is a chat owner but not the model admin
+    got = c.get("/analyst/settings/model").json()
+    assert got == {"model": "claude-sonnet-5-5", "options": ["claude-sonnet-5-5", "claude-opus-5-5"], "can_edit": False}
+    assert c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"}).status_code == 403
+    assert c.get("/analyst/settings/model").json()["model"] == "claude-sonnet-5-5"
+
+    monkeypatch.setenv("ANALYST_MODEL_ADMIN_EMAILS", " dev@LOCALHOST ")
+    get_settings.cache_clear()
+    assert c.get("/analyst/settings/model").json()["can_edit"] is True
+    assert c.put("/analyst/settings/model", json={"model": "gpt-5"}).status_code == 422
+    r = c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"})
+    assert r.status_code == 200 and r.json()["model"] == "claude-opus-5-5" and r.json()["can_edit"] is True
+
+
+def test_the_budget_carries_the_saved_chat_model_428(chat, monkeypatch):
+    """The analyst learns the model on the budget call it already makes, the same for every player (#428)."""
+    c, _ = chat
+    _, body = _session(c)
+    assert c.get("/analyst/chat/budget", headers=_as(body["token"])).json()["model"] == "claude-sonnet-5-5"
+    monkeypatch.setenv("ANALYST_MODEL_ADMIN_EMAILS", "dev@localhost")
+    get_settings.cache_clear()
+    assert c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"}).status_code == 200
+    assert c.get("/analyst/chat/budget", headers=_as(body["token"])).json()["model"] == "claude-opus-5-5"

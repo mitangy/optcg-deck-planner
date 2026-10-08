@@ -71,3 +71,5 @@ export {
 export { logPoseChrome, type LogPoseChrome } from "./chrome";
 export { CitedAnswer, type SourceHooks } from "./Sources";
 export { RequestAccessView, RequestsList } from "./AccessViews";
+export { getModelSetting, modelLabel, setModelSetting, type ModelSetting } from "./modelSetting";
+export { ModelPicker } from "./ModelPicker";
