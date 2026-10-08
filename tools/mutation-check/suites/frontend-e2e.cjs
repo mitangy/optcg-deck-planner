@@ -84,5 +84,14 @@ module.exports = {
       { file: "packages/analyst-client/src/LogPose.tsx", from: "useMemo(() => (available ? (ask: LogPoseAsk) => void openLogPose(ask) : null), [available, openLogPose])", to: "useMemo(() => (ask: LogPoseAsk) => void openLogPose(ask), [openLogPose])" },
       { file: "packages/analyst-client/src/LogPose.tsx", from: "      if (!available) return false;\n", to: "" },
     ], kills: [`${deck} > no Why? on a hint while Log Pose is off (#399) [desktop-1200]`, `${deck} > no Why? on a hint while Log Pose is off (#399) [phone-375]`] },
+
+    // Log Pose docked to a side of the planner (#432)
+    { id: "fe-lp-dock-room-missing", args: "log-pose-dock --project=desktop-1200", file: "packages/analyst-client/src/logPose.css", from: "  html[data-lp-dock=\"right\"] body {\n    padding-right: var(--lp-dock-w, 380px);", to: "  html[data-lp-dock=\"right\"] body {\n    padding-left: var(--lp-dock-w, 380px);", kills: ["log-pose-dock.spec.ts > a panel docked to the right gives the page its room, so the top bar and the deck stay left of it (#432) [desktop-1200]"] },
+    { id: "fe-lp-dock-room-kept-after-close", args: "log-pose-dock --project=desktop-1200", file: "packages/analyst-client/src/LogPose.tsx", from: "      delete root.dataset.lpDock;\n", to: "", kills: ["log-pose-dock.spec.ts > a panel docked to the right gives the page its room, so the top bar and the deck stay left of it (#432) [desktop-1200]"] },
+    { id: "fe-lp-phone-docks", args: "log-pose-dock --project=phone-375", edits: [
+      { file: "packages/analyst-client/src/LogPose.tsx", from: "const dockable = wideEnough && (!inGame || hosts.columns);", to: "const dockable = !inGame || hosts.columns;" },
+      { file: "packages/analyst-client/src/LogPose.tsx", from: "const edge = !phone && dock !== null && !inGame;", to: "const edge = dock !== null && !inGame;" },
+    ], kills: ["log-pose-dock.spec.ts > a phone keeps the bottom sheet even when a side was remembered, and the page gets no extra room (#432) [phone-375]"] },
+    { id: "fe-lp-topbar-not-narrowed", args: "log-pose-dock --project=desktop-1200", file: "frontend/src/styles.css", from: "@container topbar (max-width: 1200px) {", to: "@container topbar (max-width: 1px) {", kills: ["log-pose-dock.spec.ts > a panel docked to the right gives the page its room, so the top bar and the deck stay left of it (#432) [desktop-1200]"] },
   ],
 };
