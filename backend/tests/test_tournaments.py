@@ -519,6 +519,15 @@ def test_days_and_min_players_narrow_the_events_397(analyst):  # noqa: F811
     assert _stats(c, days=1)["total_decks"] == 0
 
 
+def test_a_leaders_view_of_a_window_whose_only_event_has_no_decks_answers_with_zero_share_405(analyst):  # noqa: F811
+    """A just-started event is stored with empty standings; the leader view must not divide by zero (#405)."""
+    c, SessionLocal = analyst
+    seed(SessionLocal, [event("e9", "Live Cup", ago(0.1), 32, [], [])])
+    out = _stats(c, leader=Z, days=7)
+    assert out["meta"] == {"decks": 0, "total_decks": 0, "share": 0.0}
+    assert out["events"] == []
+
+
 def test_stats_and_sync_status_are_for_the_analyst_service_only_397(analyst):  # noqa: F811
     """Both endpoints refuse a missing or wrong service secret (#397)."""
     c, SessionLocal = analyst
