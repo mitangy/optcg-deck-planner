@@ -9,7 +9,7 @@ import type { Message, Usage } from "../src/chat";
 import type { PlannerApi } from "../src/matches";
 
 export type StatsFixtures = { synthetic: true; responses: Record<string, unknown> };
-export type TournamentFixtures = Record<string, unknown>;
+export type TournamentFixtures = { synthetic: true; responses: Record<string, unknown> };
 
 export type PlannerOptions = {
   mode: "fake" | "live";
@@ -38,6 +38,19 @@ export function statsAnswer(fixtures: StatsFixtures, params: URLSearchParams): u
   if (!leader) return { ...window, total_games: 0, leaders: [] };
   if (opponent) return { ...window, leader, opponent, ...emptySplit };
   return { ...window, leader, overall: emptySplit, opponents: [], cards: [] };
+}
+
+/** The fixture answer for a tournament query, keyed by leader and opponent ("" for the meta overview); a leader with no fixture has no decks. */
+export function tournamentAnswer(fixtures: TournamentFixtures, params: URLSearchParams): unknown {
+  const leader = params.get("leader");
+  const opponent = params.get("opponent");
+  const key = [leader && `leader=${leader}`, opponent && `opponent=${opponent}`].filter(Boolean).join("&");
+  const window = { days: Number(params.get("days") ?? 30), min_players: Number(params.get("min_players") ?? 8), min_games: MIN_GAMES, source: "Limitless TCG tournaments" };
+  if (!leader && !opponent && "" in fixtures.responses) return { ...(fixtures.responses[""] as object), ...window };
+  if (key in fixtures.responses) return { ...(fixtures.responses[key] as object), ...window };
+  if (!leader) return { ...window, events: [], total_decks: 0, total_games: 0, leaders: [] };
+  if (opponent) return { ...window, leader, opponent, events: [], ...emptyRecord, ties: 0 };
+  return { ...window, leader, events: [], meta: { decks: 0, total_decks: 0, share: 0 }, overall: { ...emptyRecord, ties: 0 }, mirror_games: 0, opponents: [], top_placings: [], decklists: 0, too_few_decks: true, cards: [] };
 }
 
 export function evalPlanner(opts: PlannerOptions): { api: PlannerApi; captured: Captured } {
@@ -72,7 +85,7 @@ export function evalPlanner(opts: PlannerOptions): { api: PlannerApi; captured: 
     }
     if (method === "GET" && path === "/analyst/stats/matchups") return json(statsAnswer(opts.stats, url.searchParams));
     if (method === "GET" && path.startsWith("/analyst/corpus/games")) return json({ total: 0, offset: 0, window_days: 90, games: [] });
-    if (method === "GET" && path === "/analyst/tournaments/stats" && opts.tournaments) return json(opts.tournaments);
+    if (method === "GET" && path === "/analyst/tournaments/stats" && opts.tournaments) return json(tournamentAnswer(opts.tournaments, url.searchParams));
     if (method === "GET" && path === "/analyst/decks") return json({ decks: [] });
     if (method === "GET" && path === "/analyst/matches") return json({ matches: [] });
     if (method === "GET" && path === "/analyst/lessons") return json({ lessons: [] });

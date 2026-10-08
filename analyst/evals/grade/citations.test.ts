@@ -27,4 +27,11 @@ describe("citations", () => {
     // The ban status block is not a numbered ruling.
     expect(citationCheck(cite("card:OP01-013", "ruling:OP01-013#ban"), cites).ok).toBe(true);
   });
+
+  it("counts a rule's subsections as citing the rule, but not a longer section number (#414)", () => {
+    expect(sourceMatches("rule:10-1-4", "rule:10-1-4-1")).toBe(true);
+    expect(sourceMatches("rule:10-1-4", "rule:10-1-4-1-2")).toBe(true);
+    expect(sourceMatches("rule:10-1-4", "rule:10-1-40")).toBe(false);
+    expect(sourceMatches("ruling:OP01-061#1", "ruling:OP01-061#1-2")).toBe(false);
+  });
 });

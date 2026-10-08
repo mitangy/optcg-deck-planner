@@ -12,14 +12,23 @@ describe("grounding", () => {
     expect(r.ungrounded).toEqual(["60%"]);
   });
 
-  it("accepts a tool's 78.0% written as 78% but not 35.3% written as 35% (#403)", () => {
+  it("accepts a tool's 78.0% written as 78% (#403)", () => {
     const tools = "By turn 3: 78% to have seen at least 1. By turn 1: 35.3% to have seen at least 1.";
     expect(grounded("You see it 78% of the time by turn 3.", { tools, user }, { catalog }).ok).toBe(true);
-    expect(grounded("About 35% in the opening hand.", { tools, user }, { catalog }).ok).toBe(false);
     expect(grounded("35.3% in the opening hand.", { tools, user }, { catalog }).ok).toBe(true);
     // Half a point either way of a whole number the tool printed; not more.
     expect(grounded("78.4% by turn 3.", { tools, user }, { catalog }).ok).toBe(true);
     expect(grounded("79% by turn 3.", { tools, user }, { catalog }).ok).toBe(false);
+  });
+
+  it("accepts a whole-number rounding of a tool's percentage but not a number it never returned (#414)", () => {
+    const tools = "By turn 1: 35.3% to have seen at least 1. By turn 3: 91.2%, and 86.7% on turn 1.";
+    expect(grounded("About 35% in the opening hand.", { tools, user }, { catalog }).ok).toBe(true);
+    expect(grounded("You have 91% by turn 3, 87% on turn 1.", { tools, user }, { catalog }).ok).toBe(true);
+    expect(grounded("About 36% in the opening hand.", { tools, user }, { catalog }).ungrounded).toEqual(["36%"]);
+    expect(grounded("About 90% by turn 3.", { tools, user }, { catalog }).ungrounded).toEqual(["90%"]);
+    expect(grounded("35.6% in the opening hand.", { tools, user }, { catalog }).ungrounded).toEqual(["35.6%"]);
+    expect(grounded("35.9% in the opening hand.", { tools, user }, { catalog }).ungrounded).toEqual(["35.9%"]);
   });
 
   it("flags a card number the tools never returned (#403)", () => {

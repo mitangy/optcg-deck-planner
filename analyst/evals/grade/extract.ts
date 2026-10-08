@@ -24,6 +24,33 @@ export function closePercent(a: number, c: number, tol: number): boolean {
   return Math.abs(a - c) <= tol + 1e-9;
 }
 
+const ID = "P-\\d{3}|[A-Z]{2,4}\\d{2}-\\d{3}";
+const SIGN = "[+\\-\\u2212\\u2013]"; // plus, hyphen, minus sign U+2212, en dash
+/** "+2x OP01-016", "-4 Komachiyo (OP01-010)": a sign, a count, then the card number (bare, or in parentheses after the card name). */
+const EDIT = new RegExp(`(${SIGN})\\s*(\\d{1,2})(?![\\d,.]\\d)\\s*x?\\s*(?:(${ID})|[A-Z][^()\\n/,;]{0,49}?\\(\\s*(${ID})\\s*\\))`, "y");
+const NEXT_EDIT = new RegExp(`\\s*[/,;]\\s*(?=${SIGN}\\s*\\d)`, "g");
+
+/** Edits on one line: the line must start with the edit (after a list marker or bold), later ones follow a "/", "," or ";" as in a swap. */
+function lineEdits(raw: string): Edit[] {
+  const line = raw
+    .replace(/(\*\*|__|`)/g, "")
+    .trim()
+    .replace(new RegExp(`^(?:[-*\u2022]|\\d+[.)])\\s+(?=${SIGN}\\s*\\d)`), "");
+  const out: Edit[] = [];
+  let at = 0;
+  for (;;) {
+    EDIT.lastIndex = at;
+    const m = EDIT.exec(line);
+    if (!m) break;
+    out.push({ sign: m[1] === "+" ? "+" : "-", copies: Number(m[2]), id: (m[3] ?? m[4])! });
+    NEXT_EDIT.lastIndex = EDIT.lastIndex;
+    const next = NEXT_EDIT.exec(line);
+    if (!next) break;
+    at = next.index + next[0].length;
+  }
+  return out;
+}
+
 export function extractFacts(answer: string): Facts {
   const percents = [...answer.matchAll(/(\d+(?:\.\d+)?)\s*%/g)].map((m) => ({ value: Number(m[1]), whole: !m[1]!.includes(".") }));
   const games = [...answer.matchAll(/(\d[\d,]*)\s+games?\b/gi)].map((m) => num(m[1]!));
@@ -34,10 +61,6 @@ export function extractFacts(answer: string): Facts {
     ...[...bare.matchAll(/\d[\d,]*(?:\.\d+)?/g)].map((m) => num(m[0])),
     ...[...bare.toLowerCase().matchAll(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\b/g)].map((m) => WORDS[m[1]!]!),
   ];
-  const edits = [...answer.matchAll(/^\s*([+-])\s*(\d+)\s*x?\s*(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})/gm)].map((m) => ({
-    sign: m[1] as "+" | "-",
-    copies: Number(m[2]),
-    id: m[3]!,
-  }));
+  const edits = answer.split("\n").flatMap(lineEdits);
   return { percents, games, wins, cardIds, numbers, edits };
 }

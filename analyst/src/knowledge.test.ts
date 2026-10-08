@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "./catalog";
 import type { Deck } from "./decks";
-import { cardRulings, deckBanCheck } from "./knowledge";
+import { cardRulings, deckBanCheck, rulesLookup } from "./knowledge";
 import { banListProblems, parseBanList, type BanList } from "./official/banlist";
 import { parseErrata } from "./official/errata";
 import { OfficialLibrary, type FaqSet } from "./official/library";
 import type { PdfItem } from "./official/pdf";
-import { parseFaqIndex, parseQaTable } from "./official/qa";
+import { parseFaqIndex, parseQaTable, type QaEntry } from "./official/qa";
 import { parseRules, searchRules } from "./official/rules";
 import { newestFormat, parseNote, queryPlaybook, type Playbook } from "./playbook";
 
@@ -250,6 +250,42 @@ describe("card rulings and deck legality", () => {
     const check = await deckBanCheck(lib, deck);
     expect(check.problems.map((p) => p.cards)).toEqual([[realIds.banned]]);
     expect(check.upcoming.map((p) => [p.cards, p.effective])).toEqual([[[realIds.soon], "2031-03-03"]]);
+  });
+});
+
+describe("general rules Q&A lookup", () => {
+  const row = (question: string, answer = "Yes."): QaEntry => ({ cardId: null, label: "Battle", question, answer });
+  const general: QaEntry[] = [
+    row("Can a character attack when the battle is played?"),
+    row("Can the attack target be changed when the battle ends?"),
+    row("Does the attack target stay when a battle is played?"),
+    row("Is the battle area the attack area when the character is played?"),
+    row("Can the character attack the target when the battle is played again?"),
+    row("Can a Blocker change the target of an attack?", "The target becomes the Blocker."),
+  ];
+  const lookup = (entries: QaEntry[], query: string, limit?: number) => {
+    class Lib extends FixedLibrary {
+      override rules(): ReturnType<OfficialLibrary["rules"]> {
+        return Promise.reject(new Error("no rules"));
+      }
+    }
+    return rulesLookup(new Lib(fixedList, { entries: [], general: entries, files: 1, failed: [] }), { query, limit });
+  };
+
+  it("ranks the entry with the rare question word above entries that match more common words (#414)", async () => {
+    const out = await lookup(general, "attack target battle character blocker");
+    expect(out.generalQa[0]!.question).toContain("Blocker");
+  });
+
+  it("puts an entry whose question has the word above one that only mentions it in the answer (#414)", async () => {
+    const out = await lookup([row("Can a card be trashed?", "Yes, even a Blocker."), row("Can a Blocker be rested?", "Yes.")], "blocker");
+    expect(out.generalQa[0]!.question).toContain("rested");
+  });
+
+  it("returns more than four Q&A entries (#414)", async () => {
+    const many = Array.from({ length: 8 }, (_, n) => row(`Does the attack target ${n} change?`));
+    expect((await lookup(many, "attack target")).generalQa).toHaveLength(6);
+    expect((await lookup(many, "attack target", 2)).generalQa).toHaveLength(6);
   });
 });
 

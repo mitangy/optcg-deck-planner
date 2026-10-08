@@ -73,7 +73,7 @@ export function groupTable(rows: readonly Row[], baseline?: Baseline): string[] 
 export function renderReport(input: { rows: readonly Row[]; errors: readonly ErrorRow[]; meta: RunMeta; wallS: number; cases: readonly EvalCase[]; baseline?: Baseline; stoppedAtCap?: boolean }): string {
   const { rows, errors, meta, baseline } = input;
   const cost = totalCost(rows);
-  const judge = rows.reduce((s, r) => s + (r.judge_usage ? judgeCostUsd(r.judge_usage) : 0), 0);
+  const judge = rows.reduce((s, r) => s + (r.judge_usage ? judgeCostUsd(r.judge_usage, r.judge_model) : 0), 0);
   const lines: string[] = [
     `# Log Pose eval: ${meta.variant}${baseline ? " vs baseline" : ""}`,
     `model ${meta.model} · judge ${meta.judge_model} · git ${meta.git_sha.slice(0, 7)} · prompt_sha ${meta.prompt_sha.slice(0, 8)}${baseline ? (baseline.prompt_sha === meta.prompt_sha ? " (same)" : " (changed)") : ""} · tools_sha ${meta.tools_sha.slice(0, 8)}${baseline ? (baseline.tools_sha === meta.tools_sha ? " (same)" : " (changed)") : ""}`,

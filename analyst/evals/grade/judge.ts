@@ -1,20 +1,27 @@
 /**
- * The two LLM-judged steps, on a Sonnet 5.5 judge (the model under test is Opus, which would favour its own style):
+ * The two LLM-judged steps. The reading steps run on a Sonnet 5.5 judge; the D-group rubric, which has to check card
+ * text, odds and plans against the tool results, runs on Opus (RUBRIC_MODEL):
  *  - extractVerdict reads the yes/no, legal/not legal and who-can/cannot out of an A, B or C answer;
  *  - rubricJudge scores a D answer against the six standard items plus the case's own focus items.
  * The answer and the tool results go inside tags as untrusted data. Judge calls are paid; the offline judge
  * below is a regex stand-in for dry runs and tests (it never calls the API).
  */
-import type { Usage } from "../../src/chat";
+import { costUsd, type Usage } from "../../src/chat";
 import { withRetry } from "../retry";
 import type { Rubric, Verdict } from "../types";
 
 export const JUDGE_MODEL = "claude-sonnet-5-5";
+/** The judge for D-group rubrics (pinned here, not ANALYST_CHAT_MODEL, so a changed chat model doesn't change the judge). */
+export const RUBRIC_MODEL = "claude-opus-5-5";
 
-/** Dollars per million tokens for the judge model (input, output, cache reads). */
+/** Dollars per million tokens for the Sonnet judge (input, output, cache reads). */
 const JUDGE_PRICE = { input: 2, output: 10, cacheRead: 0.2 };
 
-export const judgeCostUsd = (u: Usage) => (u.input_tokens * JUDGE_PRICE.input + u.output_tokens * JUDGE_PRICE.output + (u.cache_read_input_tokens ?? 0) * JUDGE_PRICE.cacheRead) / 1e6;
+/** What one judge call cost, priced by the model that answered: Opus at the chat model's price, anything else at Sonnet's. */
+export const judgeCostUsd = (u: Usage, model: string = JUDGE_MODEL) =>
+  model.startsWith("claude-opus")
+    ? costUsd(u)
+    : (u.input_tokens * JUDGE_PRICE.input + u.output_tokens * JUDGE_PRICE.output + (u.cache_read_input_tokens ?? 0) * JUDGE_PRICE.cacheRead) / 1e6;
 
 export type JudgeMeta = { usage: Usage; model: string; fallback: boolean };
 
@@ -79,11 +86,11 @@ const RUBRIC_SCHEMA = {
 type CreateClient = { beta: { messages: { create: (p: never) => Promise<{ model: string; content: { type: string; text?: string }[]; usage: Usage }> } } };
 
 export function anthropicJudge(client: CreateClient, opts: { retryMs?: number } = {}): Judge {
-  const ask = async <T>(system: string, user: string, schema: object, effort: "low" | "medium") => {
+  const ask = async <T>(model: string, system: string, user: string, schema: object, effort: "low" | "medium") => {
     const msg = await withRetry(
       () =>
         client.beta.messages.create({
-          model: JUDGE_MODEL,
+          model,
           max_tokens: 2000,
           system,
           messages: [{ role: "user", content: user }],
@@ -94,17 +101,17 @@ export function anthropicJudge(client: CreateClient, opts: { retryMs?: number } 
       { baseMs: opts.retryMs },
     );
     const text = msg.content.find((b) => b.type === "text")?.text ?? "";
-    return { value: JSON.parse(text) as T, usage: msg.usage, model: msg.model, fallback: msg.model !== JUDGE_MODEL };
+    return { value: JSON.parse(text) as T, usage: msg.usage, model: msg.model, fallback: msg.model !== model };
   };
   return {
     async extractVerdict({ question, answer }) {
-      const r = await ask<Verdict>(VERDICT_SYSTEM, `<question>${question}</question>\n<answer>${answer}</answer>`, VERDICT_SCHEMA, "low");
+      const r = await ask<Verdict>(JUDGE_MODEL, VERDICT_SYSTEM, `<question>${question}</question>\n<answer>${answer}</answer>`, VERDICT_SCHEMA, "low");
       return { verdict: r.value, usage: r.usage, model: r.model, fallback: r.fallback };
     },
     async rubric({ question, answer, toolResults, deck, focus }) {
       const items = Object.entries(rubricItems(focus)).map(([id, text]) => `${id}: ${text}`).join("\n");
       const user = `<question>${question}</question>\n${deck ? `<deck>${deck}</deck>\n` : ""}<tool_results>${toolResults}</tool_results>\n<answer>${answer}</answer>\n\nItems:\n${items}`;
-      const r = await ask<{ items: { id: string; pass: boolean | null; why: string }[] }>(RUBRIC_SYSTEM, user, RUBRIC_SCHEMA, "medium");
+      const r = await ask<{ items: { id: string; pass: boolean | null; why: string }[] }>(RUBRIC_MODEL, RUBRIC_SYSTEM, user, RUBRIC_SCHEMA, "medium");
       const rubric: Rubric = {};
       for (const it of r.value.items) rubric[it.id] = { pass: it.pass, why: it.why };
       return { rubric, usage: r.usage, model: r.model, fallback: r.fallback };
