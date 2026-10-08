@@ -3601,36 +3601,13 @@ img.zone-pile-face {
 }
 
 /* Attack-ready glow (#412): your Leader / Characters that can attack now.
-   Box-shadow only, so nothing moves; later than .has-actions so it wins. */
+   A soft, still green edge (box-shadow only, so nothing moves); later than
+   .has-actions so it wins. */
 .card-tile.attack-ready {
-  border-color: #3cc86e;
+  border-color: rgba(60, 200, 110, 0.55);
   box-shadow:
-    0 0 0 2px rgba(60, 200, 110, 0.7),
-    0 0 14px 3px rgba(60, 200, 110, 0.55);
-  animation: attack-ready-pulse 2s ease-in-out infinite;
-}
-
-@keyframes attack-ready-pulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 2px rgba(60, 200, 110, 0.7),
-      0 0 14px 3px rgba(60, 200, 110, 0.55);
-  }
-  50% {
-    box-shadow:
-      0 0 0 2px rgba(60, 200, 110, 0.55),
-      0 0 8px 2px rgba(60, 200, 110, 0.3);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .card-tile.attack-ready {
-    animation: none;
-  }
-}
-:root[data-motion="reduce"] .card-tile.attack-ready {
-  animation: none;
+    0 0 0 1px rgba(60, 200, 110, 0.4),
+    0 0 6px 1px rgba(60, 200, 110, 0.22);
 }
 
 
