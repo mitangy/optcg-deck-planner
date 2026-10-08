@@ -365,7 +365,7 @@ def test_only_the_model_admin_can_change_the_chat_model_428(chat, monkeypatch):
     c, _ = chat
     _session(c)  # DEV@localhost is a chat owner but not the model admin
     got = c.get("/analyst/settings/model").json()
-    assert got == {"model": "claude-sonnet-5-5", "options": ["claude-sonnet-5-5", "claude-opus-5-5"], "can_edit": False}
+    assert got == {"model": "claude-sonnet-5-5", "options": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-haiku-4-5"], "can_edit": False}
     assert c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"}).status_code == 403
     assert c.get("/analyst/settings/model").json()["model"] == "claude-sonnet-5-5"
 
@@ -375,6 +375,19 @@ def test_only_the_model_admin_can_change_the_chat_model_428(chat, monkeypatch):
     assert c.put("/analyst/settings/model", json={"model": "gpt-5"}).status_code == 422
     r = c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"})
     assert r.status_code == 200 and r.json()["model"] == "claude-opus-5-5" and r.json()["can_edit"] is True
+
+
+def test_the_model_admin_can_pick_either_haiku_430(chat, monkeypatch):
+    """Haiku 5.5 and 4.5 are offered too; the saved choice is what the setting and the budget report (#430)."""
+    c, _ = chat
+    _, body = _session(c)
+    monkeypatch.setenv("ANALYST_MODEL_ADMIN_EMAILS", "dev@localhost")
+    get_settings.cache_clear()
+    for model in ("claude-haiku-5-5", "claude-haiku-4-5"):
+        r = c.put("/analyst/settings/model", json={"model": model})
+        assert r.status_code == 200 and r.json()["model"] == model
+        assert c.get("/analyst/settings/model").json()["model"] == model
+        assert c.get("/analyst/chat/budget", headers=_as(body["token"])).json()["model"] == model
 
 
 def test_the_budget_carries_the_saved_chat_model_428(chat, monkeypatch):

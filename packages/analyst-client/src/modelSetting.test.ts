@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getModelSetting, modelLabel, setModelSetting } from "./modelSetting";
+import { getModelSetting, modelCostHint, modelLabel, setModelSetting } from "./modelSetting";
 
 function reply(body: unknown, status = 200) {
   const calls: { url: string; init: RequestInit }[] = [];
@@ -17,6 +17,16 @@ describe("Log Pose model setting (#428)", () => {
     expect((await getModelSetting("/api", reply({ ...body, can_edit: "yes" }).impl)).canEdit).toBe(false);
     expect(modelLabel("claude-sonnet-5-5")).toBe("Sonnet 5.5");
     expect(modelLabel("claude-opus-5-5")).toBe("Opus 5.5");
+    expect(modelLabel("claude-haiku-5-5")).toBe("Haiku 5.5");
+    expect(modelLabel("claude-haiku-4-5")).toBe("Haiku 4.5");
+  });
+
+  it("tells the admin what the chosen model costs next to Sonnet, and nothing for an unknown one (#430)", () => {
+    expect(modelCostHint("claude-opus-5-5")).toMatch(/2x Sonnet/);
+    expect(modelCostHint("claude-haiku-5-5")).toMatch(/1\/20 of Sonnet/);
+    expect(modelCostHint("claude-haiku-4-5")).toMatch(/half of Sonnet/);
+    expect(modelCostHint("claude-sonnet-5-5")).toBe("Default.");
+    expect(modelCostHint("gpt-5")).toBe("");
   });
 
   it("saves with PUT and the cookie, and surfaces the server's refusal (#428)", async () => {
