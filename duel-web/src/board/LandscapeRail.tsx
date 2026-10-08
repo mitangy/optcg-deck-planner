@@ -37,6 +37,8 @@ type RailProps = {
   /** A Log Pose matchup brief is available (a third button). */
   hasBrief?: boolean;
   logCount: number;
+  /** More rail buttons after the panels (the Log Pose copilot's). */
+  extra?: ReactNode;
   /** The ⋯ match menu button (there is no top bar in landscape). */
   menu: ReactNode;
 };
@@ -45,7 +47,7 @@ type RailProps = {
  * Landscape phones: the left column shrinks to an icon rail so the board gets
  * the width. The log and chat open as overlays (see LandscapeOverlay).
  */
-export function LandscapeRail({ open, onToggle, hasChat, hasBrief = false, logCount, menu }: RailProps) {
+export function LandscapeRail({ open, onToggle, hasChat, hasBrief = false, logCount, extra, menu }: RailProps) {
   const panels: LandscapePanel[] = [...(hasChat ? (["log", "chat"] as const) : (["log"] as const)), ...(hasBrief ? (["brief"] as const) : [])];
   return (
     <nav className="lp-rail" aria-label="Board panels">
@@ -68,6 +70,7 @@ export function LandscapeRail({ open, onToggle, hasChat, hasBrief = false, logCo
           ) : null}
         </button>
       ))}
+      {extra}
     </nav>
   );
 }

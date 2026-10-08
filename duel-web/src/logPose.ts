@@ -15,20 +15,36 @@ export function showsLogPose(pathname: string): boolean {
 
 /**
  * What the app tells the Log Pose provider for a route. A board hides it entirely, except while that board
- * shows a matchup brief (so "Ask Log Pose" can open the panel); the compass is never drawn on a board.
+ * shows a matchup brief or the copilot (so "Ask Log Pose" can open the panel); the compass is never drawn on a board.
  */
 export function logPoseChromeFor(pathname: string, boardBrief: boolean): { hidden: boolean; launcher: boolean } {
   return { hidden: !showsLogPose(pathname) && !boardBrief, launcher: showsLogPose(pathname) };
 }
 
-let boardBriefUp = false;
+/** Why the board on screen lets Log Pose's panel open over it: a matchup brief, the copilot, or both. */
+const boardReasons = new Set<"brief" | "copilot">();
 const boardBriefListeners = new Set<() => void>();
+
+function setBoardReason(reason: "brief" | "copilot", on: boolean): void {
+  if (boardReasons.has(reason) === on) return;
+  if (on) boardReasons.add(reason);
+  else boardReasons.delete(reason);
+  for (const l of boardBriefListeners) l();
+}
 
 /** A board with a matchup brief mounted says so here, so the app can let Log Pose's panel open over it. */
 export function setBoardBrief(on: boolean): void {
-  if (boardBriefUp === on) return;
-  boardBriefUp = on;
-  for (const l of boardBriefListeners) l();
+  setBoardReason("brief", on);
+}
+
+/** A board with the Log Pose copilot on says so here, for the same reason. The brief and the copilot don't cancel each other. */
+export function setBoardCopilot(on: boolean): void {
+  setBoardReason("copilot", on);
+}
+
+/** Whether the board on screen lets Log Pose's panel open over it. */
+export function boardOpensLogPose(): boolean {
+  return boardReasons.size > 0;
 }
 
 export function useBoardBrief(): boolean {
@@ -37,7 +53,7 @@ export function useBoardBrief(): boolean {
       boardBriefListeners.add(l);
       return () => boardBriefListeners.delete(l);
     },
-    () => boardBriefUp,
+    boardOpensLogPose,
     () => false,
   );
 }

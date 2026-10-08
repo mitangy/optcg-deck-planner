@@ -1,5 +1,6 @@
 import {
   createContext,
+  Fragment,
   useCallback,
   useContext,
   useEffect,
@@ -19,8 +20,10 @@ import {
   type ChatContext,
   type ChatRequest,
   type DeckContext,
+  type GameChatContext,
+  type TurnPlan,
 } from "./client";
-import { askContext, canAsk, messageContext, requestAction, type LogPoseAsk } from "./ask";
+import { askContext, canAsk, gameMessageContext, messageContext, requestAction, type LogPoseAsk } from "./ask";
 import { placeAt, type Citation, type PlacedCitation } from "./citations";
 import { logPoseChrome } from "./chrome";
 import { DeckEditCard } from "./DeckEditCard";
@@ -43,6 +46,21 @@ export type LogPosePage = {
   starters?: string[];
 };
 
+/**
+ * A live game the page lets Log Pose see and plan for (the duel board in a casual or practice game). While one is
+ * registered every message carries `context.game`, taken when the message is sent.
+ */
+export type LogPoseGame = {
+  /** Chip text: "Looking at: <label>". */
+  label: string;
+  /** The game as it is right now, or null when it can't be read (the message goes without it). */
+  context: () => GameChatContext | null;
+  /** The Turn plan card for a plan under an answer. `ask` sends a message as the player. */
+  renderPlan: (plan: TurnPlan, ctx: { busy: boolean; ask: (text: string) => void }) => ReactNode;
+  /** Prompt chips offered while the thread is empty, instead of the page's. */
+  starters?: string[];
+};
+
 type LogPoseValue = {
   /** null until the session endpoint answers. */
   enabled: boolean | null;
@@ -51,6 +69,8 @@ type LogPoseValue = {
   setPage: (owner: object, page: LogPosePage | null) => void;
   /** Registers the deck the page has open, so Apply cards for it can save changes. */
   setEditor: (owner: object, editor: DeckEditor | null) => void;
+  /** Registers the live game the page has open. */
+  setGame: (owner: object, game: LogPoseGame | null) => void;
   openPanel: () => void;
   /** Log Pose can answer here: the session is enabled and the page doesn't hide it. */
   available: boolean;
@@ -72,6 +92,7 @@ const LogPoseContext = createContext<LogPoseValue>({
   session: fallbackSession,
   setPage: () => {},
   setEditor: () => {},
+  setGame: () => {},
   openPanel: () => {},
   available: false,
   openLogPose: () => false,
@@ -113,6 +134,19 @@ export function useLogPoseDeckEditor(editor: DeckEditor | null) {
   }, [editor, owner, setEditor]);
 }
 
+/**
+ * Registers the live game the calling page shows while it is mounted (null for none). Kept as a value like the
+ * deck editor: memoize it, and let `context()` read the latest game from a ref.
+ */
+export function useLogPoseGame(game: LogPoseGame | null) {
+  const { setGame } = useContext(LogPoseContext);
+  const owner = useRef({}).current;
+  useEffect(() => {
+    setGame(owner, game);
+    return () => setGame(owner, null);
+  }, [game, owner, setGame]);
+}
+
 /** Sent when the player taps Ask again on an edit whose deck changed. */
 const ASK_AGAIN = "My deck changed. Update that suggestion for the deck as it is now.";
 
@@ -133,7 +167,7 @@ function useMedia(query: string): boolean {
   return match;
 }
 
-type Msg = { role: "user" | "assistant"; text: string; citations: PlacedCitation[]; proposals?: DeckEditProposal[]; stopped?: boolean };
+type Msg = { role: "user" | "assistant"; text: string; citations: PlacedCitation[]; proposals?: DeckEditProposal[]; plans?: TurnPlan[]; stopped?: boolean };
 
 function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean, onUnread: () => void) {
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -199,6 +233,8 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
             onCite: (cites: Citation[]) => patchLast((m) => ({ ...m, citations: [...m.citations, ...placeAt(cites, m.text.length)] })),
             // A suggested deck edit shows as an Apply card under this answer.
             onProposal: (p) => patchLast((m) => ({ ...m, proposals: [...(m.proposals ?? []).filter((x) => x.id !== p.id), p] })),
+            // A turn plan shows as a Turn plan card under this answer.
+            onPlan: (plan) => patchLast((m) => ({ ...m, plans: [...(m.plans ?? []).filter((x) => x.id !== plan.id), plan] })),
             onDone: (d) => {
               if (typeof d.thread_id === "number") keepThread(d.thread_id);
               if (!isOpen()) onUnread();
@@ -331,9 +367,21 @@ export function LogPoseProvider({
 
   const closePanel = useCallback(() => setOpen(false), []);
 
+  const [game, setGameState] = useState<LogPoseGame | null>(null);
+  const gameOwner = useRef<object | null>(null);
+  const setGame = useCallback((owner: object, next: LogPoseGame | null) => {
+    if (next) {
+      gameOwner.current = owner;
+      setGameState(next);
+    } else if (gameOwner.current === owner) {
+      gameOwner.current = null;
+      setGameState(null);
+    }
+  }, []);
+
   const value = useMemo<LogPoseValue>(
-    () => ({ enabled, apiBase, session: manager, setPage, setEditor, openPanel, available, openLogPose }),
-    [enabled, apiBase, manager, setPage, setEditor, openPanel, available, openLogPose],
+    () => ({ enabled, apiBase, session: manager, setPage, setEditor, setGame, openPanel, available, openLogPose }),
+    [enabled, apiBase, manager, setPage, setEditor, setGame, openPanel, available, openLogPose],
   );
 
   // A panel left open on a page that hides Log Pose must not come back on the next one.
@@ -362,6 +410,7 @@ export function LogPoseProvider({
           <LogPosePanel
             page={page ?? defaultPage}
             editor={editor}
+            game={game}
             chat={chat}
             session={session}
             apiBase={apiBase}
@@ -448,6 +497,7 @@ type Request = LogPoseAsk & { nonce: number };
 function LogPosePanel({
   page,
   editor,
+  game,
   chat,
   session,
   apiBase,
@@ -458,6 +508,7 @@ function LogPosePanel({
 }: {
   page: LogPosePage | null;
   editor: DeckEditor | null;
+  game: LogPoseGame | null;
   chat: Chat;
   session: ChatSession;
   apiBase: string;
@@ -486,7 +537,7 @@ function LogPosePanel({
   const { loadHistory } = chat;
 
   // A different page brings its chip back.
-  const pageKey = page ? JSON.stringify([page.label, page.deck, page.matchId]) : "";
+  const pageKey = page ? JSON.stringify([page.label, page.deck, page.matchId, game?.label]) : (game?.label ?? "");
   useEffect(() => setDropped(false), [pageKey]);
 
   useEffect(() => {
@@ -578,7 +629,8 @@ function LogPosePanel({
   const submit = (text: string) => {
     if (chat.busy || !text.trim()) return;
     stick.current = true;
-    void chat.send(text, extra ? { ...messageContext(page, dropped), ...extra } : messageContext(page, dropped));
+    const context = gameMessageContext(page, game, dropped);
+    void chat.send(text, extra ? { ...context, ...extra } : context);
     setExtra(null);
     setDraft("");
     requestAnimationFrame(resize);
@@ -604,9 +656,10 @@ function LogPosePanel({
     inputRef.current?.focus({ preventScroll: true });
   };
 
-  const starters = page?.starters ?? [];
+  const starters = game?.starters ?? page?.starters ?? [];
   const empty = chat.messages.length === 0 && chat.history !== "loading";
-  const showChip = Boolean(page?.label) && !dropped;
+  const chipLabel = game?.label ?? page?.label;
+  const showChip = Boolean(chipLabel) && !dropped;
   const aboutHint = extra?.hint;
 
   return (
@@ -684,6 +737,11 @@ function LogPosePanel({
               {(m.proposals ?? []).map((p) => (
                 <DeckEditCard key={p.id} proposal={p} editor={editor} busy={chat.busy} onAskAgain={() => submit(ASK_AGAIN)} />
               ))}
+              {game
+                ? (m.plans ?? []).map((plan) => (
+                    <Fragment key={plan.id}>{game.renderPlan(plan, { busy: chat.busy, ask: submit })}</Fragment>
+                  ))
+                : null}
             </div>
           ),
         )}
@@ -705,9 +763,9 @@ function LogPosePanel({
         {showChip || aboutHint ? (
           <div className="lp-context">
             {showChip ? (
-              <span className="lp-chip" title={`Looking at: ${page!.label}`}>
-                <span className="lp-chip-text">Looking at: {page!.label}</span>
-                <button type="button" className="lp-chip-x" onClick={() => setDropped(true)} aria-label={`Don't send ${page!.label} with the next message`}>
+              <span className="lp-chip" title={`Looking at: ${chipLabel}`}>
+                <span className="lp-chip-text">Looking at: {chipLabel}</span>
+                <button type="button" className="lp-chip-x" onClick={() => setDropped(true)} aria-label={`Don't send ${chipLabel} with the next message`}>
                   <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                     <path d="M6 6l8 8M14 6l-8 8" />
                   </svg>

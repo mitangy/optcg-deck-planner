@@ -879,7 +879,7 @@ export function HotseatPage() {
         errorBanner={bag.error}
         matchOver={bag.matchOver}
         battleLog={bag.battleLog}
-        matchBrief={{ brief: bags.current[0]?.brief ?? null, ranked: bags.current[0]?.ranked ?? null }}
+        matchBrief={{ brief: bags.current[0]?.brief ?? null, ranked: bags.current[0]?.ranked ?? null, ticketSeat: 0 }}
         hotseatPass={{ otherSeat: other, onPass: () => passDevice(other) }}
         rematch={{
           state: bag.rematch ?? null,

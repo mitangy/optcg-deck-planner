@@ -1,5 +1,5 @@
 /** Asking Log Pose a ready-made question from elsewhere in the app (React-free, so it can be tested in node). */
-import type { ChatContext, DeckContext } from "./client";
+import type { ChatContext, DeckContext, GameChatContext } from "./client";
 import type { LogPosePage } from "./LogPose";
 
 /** A build hint, as the deck hints UI shows it. */
@@ -59,4 +59,20 @@ export function requestAction(req: Pick<LogPoseAsk, "send">, state: { busy: bool
   if (state.history !== "done") return "wait";
   if (state.busy || req.send === false) return "prefill";
   return "send";
+}
+
+/**
+ * The context of a message while a game is registered: the page's own, plus the game as it is right now and the
+ * "duel-board" page id. The game is read at send time (`game.context()`), left out while its chip is dropped, and
+ * left out (the page's context alone) when the game can't be read.
+ */
+export function gameMessageContext(
+  page: LogPosePage | null,
+  game: { context: () => GameChatContext | null } | null,
+  dropped: boolean,
+): ChatContext | undefined {
+  const base = messageContext(page, dropped);
+  if (!game || dropped) return base;
+  const snapshot = game.context();
+  return snapshot ? { ...base, page: "duel-board", game: snapshot } : base;
 }

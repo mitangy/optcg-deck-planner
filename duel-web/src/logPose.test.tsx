@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CitedAnswer, DeckEditCard, Markdown, messageContext, parseProposal, parseSource, RequestAccessView, type DeckEditor, type PlacedCitation } from "@optcg/analyst-client";
 import { HintActions } from "@optcg/deck-analytics/ui";
-import { deckContext, logPoseChromeFor, reviewMode, showsLogPose, sourceHref } from "./logPose";
+import { boardOpensLogPose, deckContext, logPoseChromeFor, reviewMode, setBoardBrief, setBoardCopilot, showsLogPose, sourceHref } from "./logPose";
 
 describe("Log Pose compass placement (#377)", () => {
   it("stays off every route that renders a board (#377)", () => {
@@ -187,6 +187,23 @@ describe("Log Pose on boards with a matchup brief (#401)", () => {
     for (const path of ["/", "/decks", "/history"]) {
       expect(logPoseChromeFor(path, false), path).toEqual({ hidden: false, launcher: true });
     }
+  });
+});
+
+describe("Log Pose on boards with the copilot (#416)", () => {
+  it("the panel opens over a board while the copilot or a brief is up, and closes only when neither is (#416)", () => {
+    expect(boardOpensLogPose()).toBe(false);
+    setBoardCopilot(true);
+    expect(boardOpensLogPose()).toBe(true);
+    setBoardBrief(true);
+    setBoardCopilot(false);
+    // The brief unmounting must not take the copilot's permission with it, nor the reverse.
+    expect(boardOpensLogPose()).toBe(true);
+    setBoardCopilot(true);
+    setBoardBrief(false);
+    expect(boardOpensLogPose()).toBe(true);
+    setBoardCopilot(false);
+    expect(boardOpensLogPose()).toBe(false);
   });
 });
 

@@ -124,9 +124,9 @@ export const applyOps = (p: DeckEditProposal): DeckEditOp[] => p.lines.map((l) =
 /** The ops Undo sends: each line back from `after` to `before`. */
 export const undoOps = (p: DeckEditProposal): DeckEditOp[] => p.lines.map((l) => ({ id: l.id, before: l.after, after: l.before }));
 
-/** An answer bubble worth keeping: it has text, a deck edit, or was stopped on purpose. */
-export const isEmptyAnswer = (m: { text: string; proposals?: readonly unknown[]; stopped?: boolean }): boolean =>
-  !m.text && !m.proposals?.length && !m.stopped;
+/** An answer bubble worth keeping: it has text, a deck edit, a turn plan, or was stopped on purpose. */
+export const isEmptyAnswer = (m: { text: string; proposals?: readonly unknown[]; plans?: readonly unknown[]; stopped?: boolean }): boolean =>
+  !m.text && !m.proposals?.length && !m.plans?.length && !m.stopped;
 
 export const DISMISSED_KEY = "optcg-logpose:dismissed";
 const MAX_DISMISSED = 200;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { askContext, canAsk, hintAsk, HINT_LIMITS, requestAction } from "./ask";
+import { askContext, canAsk, gameMessageContext, hintAsk, HINT_LIMITS, requestAction } from "./ask";
 
 const deck = { name: "Zoro", leaderId: "OP01-001", cards: [{ id: "OP01-016", copies: 4 }], plannerDeckId: 7 };
 const page = { page: "deck", label: "Zoro", deck };
@@ -49,5 +49,34 @@ describe("asking Log Pose why (#399)", () => {
   it("puts a Why? in the composer instead of sending while an answer is streaming (#399)", () => {
     expect(requestAction({}, { busy: true, history: "done" })).toBe("prefill");
     expect(requestAction({ send: false }, { busy: false, history: "done" })).toBe("prefill");
+  });
+});
+
+describe("a message about the live game (#416)", () => {
+  const snap = (turn: number) => ({ ticket: "mb1.x", snapshot: { turn } as never });
+
+  it("reads the game when the message is sent, not when the chat opened (#416)", () => {
+    let turn = 1;
+    const game = { context: () => snap(turn) };
+    expect(gameMessageContext(null, game, false)?.game?.snapshot).toMatchObject({ turn: 1 });
+    turn = 2;
+    expect(gameMessageContext(null, game, false)?.game?.snapshot).toMatchObject({ turn: 2 });
+  });
+
+  it("names the duel board as the page and keeps the page's deck (#416)", () => {
+    const ctx = gameMessageContext(page, { context: () => snap(1) }, false);
+    expect(ctx).toMatchObject({ page: "duel-board", deck });
+  });
+
+  it("leaves the game out once its chip is dropped, and when it can't be read (#416)", () => {
+    const dropped = gameMessageContext(page, { context: () => snap(1) }, true);
+    expect(dropped).toEqual({ page: "deck" });
+    expect(dropped).not.toHaveProperty("game");
+    const unreadable = gameMessageContext(page, { context: () => null }, false);
+    expect(unreadable).toEqual({ page: "deck", deck });
+  });
+
+  it("changes nothing without a game (#416)", () => {
+    expect(gameMessageContext(page, null, false)).toEqual({ page: "deck", deck });
   });
 });
