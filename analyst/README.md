@@ -58,7 +58,7 @@ The duel app and the deck planner show a Log Pose compass in the corner for play
 
 1. The app asks `POST /analyst/chat/session` (signed-in cookie) for a 30-minute chat token, signed with `ANALYST_SERVICE_SECRET`.
 2. It streams `POST /chat` or `POST /review-match` on this server with `Authorization: Bearer <token>`. Answers come back as server-sent events: `thread`, `status`, `text`, `cite`, `done`, `error`.
-3. This server checks the token and the spend caps with the API, runs the Claude API (`ANALYST_CHAT_MODEL`, default `claude-opus-5-5`) with the same tools as a personal link, and saves the thread, the cost and any review through the API.
+3. This server checks the token and the spend caps with the API, runs the Claude API (`ANALYST_CHAT_MODEL`, default `claude-sonnet-5-5`) with the same tools as a personal link, and saves the thread, the cost and any review through the API.
 
 Sources: fact-bearing tool results (cards, rules and rulings, win rates, playbook, your lessons and games, deck checks, draw odds) go to the model as Claude API `search_result` blocks (`src/sources.ts`), so its sentences carry citations. A `cite` event carries the citations (`source`, `title`, `cited_text`) of the text streamed so far; the panel puts a numbered marker after that text. Source ids: `card:<id>`, `rule:<section>`, `ruling:<card>#<n>`, `stats:<leader>[~<opponent>|#<card>]`, `playbook:<leader>[~<opponent>]`, `lesson:<id>`, `match:<match_id>[#t<turn>]`, `game:<game_id>[#t<turn>]`, `deck:<hash>`, `odds:<shape>`. The stored thread keeps the model's content, citations included; reviews store their citations with their text.
 

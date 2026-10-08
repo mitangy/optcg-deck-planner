@@ -193,5 +193,7 @@ module.exports = {
     { id: "pos-read-nan-ok", file: "packages/analyst-client/src/panelPos.ts", from: "Number.isFinite(v.r) && Number.isFinite(v.b) ? { r: Number(v.r), b: Number(v.b) }", to: "true ? { r: Number(v.r), b: Number(v.b) }", kills: ["reads nothing from garbage (#423)"] },
     { id: "pos-read-unguarded", file: "packages/analyst-client/src/panelPos.ts", from: "  } catch {\n    return null;\n  }\n}\n\n/** Remembers the position", to: "  } finally {\n    void 0;\n  }\n}\n\n/** Remembers the position", kills: ["works when storage throws (#423)"] },
     { id: "pos-write-unguarded", file: "packages/analyst-client/src/panelPos.ts", from: "  } catch {\n    /* storage blocked: the position just isn't remembered */", to: "  } finally {\n    /* storage blocked: the position just isn't remembered */", kills: ["works when storage throws (#423)"] },
+    { id: "model-setting-can-edit-always", file: "packages/analyst-client/src/modelSetting.ts", from: "canEdit: r.can_edit === true", to: "canEdit: true", kills: ["reads who may edit it from can_edit"] },
+    { id: "model-setting-saves-with-post", file: "packages/analyst-client/src/modelSetting.ts", from: "call(apiBase, { method: \"PUT\",", to: "call(apiBase, { method: \"POST\",", kills: ["saves with PUT and the cookie"] },
   ],
 };

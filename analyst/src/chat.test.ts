@@ -14,7 +14,7 @@ import {
 } from "@optcg/rules";
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "./catalog";
-import { admit, anthropicModel, chatBody, ChatHttpError, contextBlock, costUsd, flattenCited, originAllowed, runBrief, runChat, runReview, toCitation, type CallModel, type ChatDeps, type ModelReply, type SseEvent } from "./chat";
+import { admit, anthropicModel, CHAT_MODEL, chatBody, ChatHttpError, contextBlock, costUsd, flattenCited, originAllowed, runBrief, runChat, runReview, toCitation, type CallModel, type ChatDeps, type ModelReply, type SseEvent } from "./chat";
 import { narrateGame, replayGame, searchGames } from "./matches";
 
 const catalog = loadCatalog();
@@ -127,9 +127,16 @@ describe("game archive", () => {
 
 describe("chat", () => {
   it("prices calls at the chat model's rates, cache reads and writes included (#377)", () => {
-    expect(costUsd({ input_tokens: 1_000_000, output_tokens: 0 })).toBeCloseTo(4);
-    expect(costUsd({ input_tokens: 0, output_tokens: 1_000_000 })).toBeCloseTo(20);
-    expect(costUsd({ input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 1_000_000, cache_creation_input_tokens: 1_000_000 })).toBeCloseTo(5.2);
+    const opus = "claude-opus-5-5";
+    expect(costUsd({ input_tokens: 1_000_000, output_tokens: 0 }, opus)).toBeCloseTo(4);
+    expect(costUsd({ input_tokens: 0, output_tokens: 1_000_000 }, opus)).toBeCloseTo(20);
+    expect(costUsd({ input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 1_000_000, cache_creation_input_tokens: 1_000_000 }, opus)).toBeCloseTo(5.2);
+  });
+
+  it("costUsd prices Sonnet at Sonnet rates (#428)", () => {
+    const u = { input_tokens: 1_000_000, output_tokens: 100_000 };
+    expect(costUsd(u, "claude-sonnet-5-5")).toBeCloseTo(3);
+    expect(costUsd(u, "claude-opus-5-5")).toBeCloseTo(6);
   });
 
   it("turns away a missing token, an expired session and a spent budget before any model call (#377)", async () => {
@@ -182,6 +189,30 @@ describe("chat", () => {
     expect(spend).toMatchObject({ kind: "chat", input_tokens: 3000, output_tokens: 300 });
     expect(spend.cost_usd).toBeCloseTo(costUsd(usage(3000, 300)));
     expect(events.at(-1)!.data).toMatchObject({ thread_id: 9, spent_today_usd: 0.5, daily_cap_usd: 3 });
+  });
+
+  it("runs every call on the model the planner's budget names, and falls back to the default for an unknown one (#428)", async () => {
+    const runOn = async (budgetModel: unknown) => {
+      const { calls, api } = planner({
+        "POST /analyst/chat/threads": { id: 9 },
+        "POST /analyst/chat/threads/9/messages": null,
+        "POST /analyst/chat/usage": null,
+        "GET /analyst/chat/budget": { ...BUDGET, model: budgetModel },
+      });
+      const { seen, callModel } = scriptedModel([{ content: [{ type: "text", text: "Ahoy." }], stop_reason: "end_turn", usage: usage(1_000_000, 100_000) }]);
+      await runChat(deps(api, callModel), "chat.tok", { message: "Hi" }, () => undefined, new AbortController().signal);
+      return { model: seen[0]!.model, spend: calls.find((c) => c.url.endsWith("/chat/usage"))!.body as Record<string, unknown> };
+    };
+    const opus = await runOn("claude-opus-5-5");
+    expect(opus.model).toBe("claude-opus-5-5");
+    expect(opus.spend).toMatchObject({ model: "claude-opus-5-5" });
+    expect(opus.spend.cost_usd).toBeCloseTo(6);
+    const sonnet = await runOn("claude-sonnet-5-5");
+    expect(sonnet.model).toBe("claude-sonnet-5-5");
+    expect(sonnet.spend.cost_usd).toBeCloseTo(3);
+    // An unknown name (or none) is not sent to the API: the env/default model is used instead.
+    expect((await runOn("gpt-5")).model).toBe(CHAT_MODEL);
+    expect((await runOn(undefined)).model).toBe(CHAT_MODEL);
   });
 
   it("resends an existing thread as stored and adds only the new turn (#377)", async () => {

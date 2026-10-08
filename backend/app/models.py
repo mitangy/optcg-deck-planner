@@ -575,6 +575,15 @@ class AnalystAccess(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class AnalystSetting(Base):
+    """One global Log Pose setting (today only the chat model), the same for every player and both apps."""
+
+    __tablename__ = "analyst_settings"
+
+    key: Mapped[str] = mapped_column(String(32), primary_key=True)
+    value: Mapped[str] = mapped_column(String(64))
+
+
 class AnalystLesson(Base):
     """A short strategy lesson Claude drafted through a player's personal link.
 

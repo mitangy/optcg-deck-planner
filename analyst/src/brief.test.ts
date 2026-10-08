@@ -141,6 +141,21 @@ describe("matchup brief", () => {
     expect(seen).toHaveLength(0);
   });
 
+  it("writes the brief on the model the budget names (#428)", async () => {
+    const { calls, api } = planner({
+      "POST /analyst/briefs/lookup": { ...LOOKUP, brief: null },
+      "GET /analyst/chat/budget": { ...BUDGET_OPEN, model: "claude-opus-5-5" },
+      "POST /analyst/chat/usage": null,
+      "PUT /analyst/briefs": null,
+    });
+    const { seen, callModel } = scriptedModel([
+      { content: [{ type: "text", text: "**Game plan** Curve out.", citations: [loc("card:OP01-016", "A 4 cost character")] }], stop_reason: "end_turn", usage: usage(1_000_000, 100_000) },
+    ]);
+    await run(deps(api, callModel), true);
+    expect(seen[0]!.model).toBe("claude-opus-5-5");
+    expect(calls.find((c) => c.url.endsWith("/chat/usage"))!.body).toMatchObject({ kind: "brief", model: "claude-opus-5-5" });
+  });
+
   it("writes the brief from both leaders and the player's deck with only shared tools, then saves it and records brief spend (#401)", async () => {
     const { calls, api } = planner({
       "POST /analyst/briefs/lookup": { ...LOOKUP, brief: null },

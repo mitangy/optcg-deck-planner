@@ -22,6 +22,7 @@ from app.db import get_db
 from app.brief_tickets import BriefClaims, brief_key, deck_counts, verify_brief_ticket
 from app.models import (
     AnalystAccess,
+    AnalystSetting,
     AnalystMatchBrief,
     AnalystMatchReview,
     AnalystMessage,
@@ -31,10 +32,12 @@ from app.models import (
     DuelMatch,
     User,
 )
-from app.routers.analyst import access_status, analyst_user, chat_enabled_for, is_chat_owner, mint_chat_token, require_service, requests_open
+from app.routers.analyst import CHAT_MODELS, access_status, analyst_user, chat_enabled_for, chat_model, is_chat_owner, is_model_admin, mint_chat_token, require_service, requests_open
 from app.schemas import (
     CARD_ID_PATTERN,
     AnalystAppendIn,
+    AnalystModelIn,
+    AnalystModelSetting,
     AnalystBriefIn,
     AnalystBriefLookupIn,
     AnalystBriefLookupOut,
@@ -126,7 +129,44 @@ def chat_budget(
         spent_month_usd=round(month, 4),
         monthly_cap_usd=settings.analyst_chat_monthly_usd,
         allowed=today < settings.analyst_chat_daily_usd and month < settings.analyst_chat_monthly_usd,
+        model=chat_model(db),
     )
+
+
+def _model_setting(db: Session, settings: Settings, user: User) -> AnalystModelSetting:
+    return AnalystModelSetting(model=chat_model(db), options=list(CHAT_MODELS), can_edit=is_model_admin(settings, user))
+
+
+@router.get("/settings/model", response_model=AnalystModelSetting)
+def get_model_setting(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AnalystModelSetting:
+    """The model Log Pose runs on for everyone, and whether this player may change it."""
+    if not (is_model_admin(settings, user) or chat_enabled_for(settings, user, db)):
+        raise HTTPException(status_code=403, detail="Log Pose isn't on for you")
+    return _model_setting(db, settings, user)
+
+
+@router.put("/settings/model", response_model=AnalystModelSetting)
+def put_model_setting(
+    body: AnalystModelIn,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AnalystModelSetting:
+    if not is_model_admin(settings, user):
+        raise HTTPException(status_code=403, detail="Only the Log Pose model admin can change the model")
+    if body.model not in CHAT_MODELS:
+        raise HTTPException(status_code=422, detail="Unknown model")
+    row = db.get(AnalystSetting, "chat_model")
+    if row is None:
+        db.add(AnalystSetting(key="chat_model", value=body.model))
+    else:
+        row.value = body.model
+    db.commit()
+    return _model_setting(db, settings, user)
 
 
 @router.post("/chat/usage", status_code=204)

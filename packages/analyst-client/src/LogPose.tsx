@@ -31,6 +31,7 @@ import { isEmptyAnswer, type DeckEditor, type DeckEditProposal } from "./proposa
 import { ResizeHandles, SheetGrip, useDrawerSize, useHeaderMove, useSheetHeight } from "./PanelResize";
 import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
 import { RequestAccessView, RequestsList } from "./AccessViews";
+import { ModelPicker } from "./ModelPicker";
 import { createSessionManager, type ChatSession, type SessionManager } from "./session";
 import { readThreadId, writeThreadId } from "./threadStore";
 
@@ -744,6 +745,7 @@ function LogPosePanel({
           </svg>
         </button>
       </header>
+      {showChat ? <ModelPicker apiBase={apiBase} /> : null}
 
       <div ref={listRef} className="lp-body" onScroll={onScroll} aria-live="polite" aria-busy={chat.busy}>
         {!chatOn ? (

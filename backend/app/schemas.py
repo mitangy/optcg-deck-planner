@@ -842,6 +842,17 @@ class AnalystChatBudget(BaseModel):
     spent_month_usd: float
     monthly_cap_usd: float
     allowed: bool
+    model: str
+
+
+class AnalystModelSetting(BaseModel):
+    model: str
+    options: list[str]
+    can_edit: bool
+
+
+class AnalystModelIn(BaseModel):
+    model: str
 
 
 class AnalystUsageIn(BaseModel):

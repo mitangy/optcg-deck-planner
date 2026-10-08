@@ -12,11 +12,14 @@ import { COPILOT_INSTRUCTIONS, gameContext, gameContextBlock, PLAN_TOOL, turnPla
 import { deckEditTool, PROPOSE_TOOL, type DeckEditProposal } from "./proposals";
 import { adaptToolResult, gameResults } from "./sources";
 
-export const CHAT_MODEL = process.env.ANALYST_CHAT_MODEL || "claude-opus-5-5";
+export const CHAT_MODEL = process.env.ANALYST_CHAT_MODEL || "claude-sonnet-5-5";
+/** The models the planner may pick for Log Pose (its model setting); anything else falls back to CHAT_MODEL. */
+export const CHAT_MODELS = ["claude-sonnet-5-5", "claude-opus-5-5"];
 export const MAX_TOOL_ROUNDS = 12;
 
-/** Dollars per million tokens for the chat model (input, output, cache reads, cache writes). */
-const PRICE = { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 };
+/** Dollars per million tokens (input, output, cache reads, cache writes): Opus, and Sonnet for any other model. */
+const OPUS_PRICE = { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 };
+const SONNET_PRICE = { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 };
 
 export type Usage = {
   input_tokens: number;
@@ -25,8 +28,10 @@ export type Usage = {
   cache_creation_input_tokens?: number | null;
 };
 
-export function costUsd(u: Usage): number {
+/** What a call cost, priced by the model that served it (the chat model when unknown). */
+export function costUsd(u: Usage, model: string = CHAT_MODEL): number {
   const m = 1_000_000;
+  const PRICE = model.startsWith("claude-opus") ? OPUS_PRICE : SONNET_PRICE;
   return (
     (u.input_tokens * PRICE.input +
       u.output_tokens * PRICE.output +
@@ -289,7 +294,19 @@ async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEdit
   }
 }
 
-type Budget = { allowed: boolean; spent_today_usd: number; daily_cap_usd: number };
+type Budget = { allowed: boolean; spent_today_usd: number; daily_cap_usd: number; model?: string };
+
+/** The model a budget answer names, if it is one we offer; else the env/default CHAT_MODEL. */
+export const modelOf = (budget: { model?: unknown }): string => (typeof budget.model === "string" && CHAT_MODELS.includes(budget.model) ? budget.model : CHAT_MODEL);
+
+/** The model Log Pose runs on right now (the planner holds the one setting both apps share). A failed lookup means CHAT_MODEL. */
+async function currentModel(api: PlannerApi, token: string): Promise<string> {
+  try {
+    return modelOf(await plannerCall<Budget>(api, token, "/analyst/chat/budget", true));
+  } catch {
+    return CHAT_MODEL;
+  }
+}
 
 /** Checks the chat token only; throws ChatHttpError before anything is streamed. */
 export async function admitToken(api: PlannerApi, token: string | null): Promise<string> {
@@ -305,9 +322,10 @@ export async function admitToken(api: PlannerApi, token: string | null): Promise
 }
 
 /** Throws the 429 ChatHttpError when the player's daily cap (or everyone's monthly cap) is spent. */
-export async function checkBudget(api: PlannerApi, token: string): Promise<void> {
+export async function checkBudget(api: PlannerApi, token: string): Promise<string> {
   const budget = await plannerCall<Budget>(api, token, "/analyst/chat/budget", true);
   if (!budget.allowed) throw new ChatHttpError(429, "Log Pose has reached today's limit. It resets at midnight UTC.", "budget");
+  return modelOf(budget);
 }
 
 /** Checks the chat token and the spend caps; throws ChatHttpError before anything is streamed. */
@@ -317,10 +335,10 @@ export async function admit(api: PlannerApi, token: string | null): Promise<stri
   return ok;
 }
 
-async function recordUsage(api: PlannerApi, token: string, kind: "chat" | "review" | "brief", usage: Usage, cost: number) {
+async function recordUsage(api: PlannerApi, token: string, kind: "chat" | "review" | "brief", usage: Usage, cost: number, model: string = CHAT_MODEL) {
   await plannerCall(api, token, "/analyst/chat/usage", true, {
     kind,
-    model: CHAT_MODEL,
+    model,
     input_tokens: usage.input_tokens,
     output_tokens: usage.output_tokens,
     cache_read_tokens: usage.cache_read_input_tokens ?? 0,
@@ -357,11 +375,13 @@ const addUsage = (a: Usage, b: Usage): Usage => ({
 });
 
 /** What the tool loop has done so far; filled in as it goes so a failed run still knows its spend. */
-type RoundsState = { turn: Message[]; usage: Usage; finished: boolean };
+type RoundsState = { turn: Message[]; usage: Usage; finished: boolean; model?: string };
 const newRounds = (...turn: Message[]): RoundsState => ({ turn, usage: { input_tokens: 0, output_tokens: 0 }, finished: false });
 
 type RoundsOptions = {
   deps: ChatDeps;
+  /** The model every call of the loop runs on. */
+  model: string;
   system: Record<string, unknown>[];
   tools: ToolDef[];
   /** Earlier messages sent ahead of the turn (a stored thread). */
@@ -393,7 +413,7 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
     try {
       reply = await o.deps.callModel(
         {
-          model: CHAT_MODEL,
+          model: o.model,
           max_tokens: o.maxTokens,
           system: o.system,
           tools: apiTools(o.tools),
@@ -414,6 +434,7 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
     }
     out.flush();
     state.usage = addUsage(state.usage, reply.usage);
+    state.model = reply.model ?? state.model;
     state.turn.push({ role: "assistant", content: reply.content });
     const calls = reply.content.filter((b) => b.type === "tool_use");
     if (reply.stop_reason !== "tool_use" || calls.length === 0) {
@@ -454,6 +475,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
     const title = body.message.replace(/\s+/g, " ").slice(0, 80);
     threadId = (await plannerCall<{ id: number }>(api, token, "/analyst/chat/threads", true, { title })).id;
   }
+  const model = await currentModel(api, token);
   emit({ event: "thread", data: { thread_id: threadId } });
 
   const ctx = contextBlock(body.context);
@@ -477,11 +499,11 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   const state = newRounds(userMessage);
   const turn = state.turn;
   try {
-    await runToolRounds(state, { deps, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal, onPlan });
+    await runToolRounds(state, { deps, model, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal, onPlan });
   } finally {
     const { usage, finished } = state;
-    const cost = costUsd(usage);
-    if (usage.input_tokens || usage.output_tokens) await recordUsage(api, token, "chat", usage, cost).catch(() => undefined);
+    const cost = costUsd(usage, state.model ?? model);
+    if (usage.input_tokens || usage.output_tokens) await recordUsage(api, token, "chat", usage, cost, state.model ?? model).catch(() => undefined);
     // A turn is stored only once the model has answered, so the thread always ends on an assistant message.
     if (finished) {
       await plannerCall(api, token, `/analyst/chat/threads/${threadId}/messages`, true, { messages: turn });
@@ -497,7 +519,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   const budget = await plannerCall<Budget>(api, token, "/analyst/chat/budget", true);
   emit({
     event: "done",
-    data: { thread_id: threadId, cost_usd: costUsd(state.usage), spent_today_usd: budget.spent_today_usd, daily_cap_usd: budget.daily_cap_usd },
+    data: { thread_id: threadId, cost_usd: costUsd(state.usage, state.model ?? model), spent_today_usd: budget.spent_today_usd, daily_cap_usd: budget.daily_cap_usd },
   });
 }
 
@@ -521,6 +543,7 @@ async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof re
     throw err;
   }
   emit({ event: "status", data: { text: "Reading the game" } });
+  const model = await currentModel(api, token);
   let text = "";
   const out = streamTo(emit, (delta) => {
     text += delta;
@@ -529,7 +552,7 @@ async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof re
   try {
     reply = await deps.callModel(
       {
-        model: CHAT_MODEL,
+        model,
         max_tokens: 6000,
         system: [{ type: "text", text: instructionsFor(true) + REVIEW_INSTRUCTIONS, cache_control: { type: "ephemeral" } }],
         // One source per turn, so the review can cite the turns it talks about.
@@ -551,12 +574,12 @@ async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof re
     );
   } catch (err) {
     const partial = partialUsageOf(err);
-    if (partial.input_tokens || partial.output_tokens) await recordUsage(api, token, "review", partial, costUsd(partial)).catch(() => undefined);
+    if (partial.input_tokens || partial.output_tokens) await recordUsage(api, token, "review", partial, costUsd(partial, model), model).catch(() => undefined);
     throw err;
   }
   out.flush();
-  const cost = costUsd(reply.usage);
-  await recordUsage(api, token, "review", reply.usage, cost).catch(() => undefined);
+  const cost = costUsd(reply.usage, reply.model ?? model);
+  await recordUsage(api, token, "review", reply.usage, cost, reply.model ?? model).catch(() => undefined);
   const cited = flattenCited(reply.content);
   const final = cited.text || text.trim();
   if (!final) throw new Error("Log Pose didn't write anything for this game. Try again.");
@@ -617,7 +640,7 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
   // Generating is a stream like a chat or review: claimed before the budget check, so parallel briefs can't all pass it.
   const release = claimStream(token);
   try {
-    await checkBudget(api, token);
+    const model = await checkBudget(api, token);
 
     const tools = buildTools(deps.catalog, undefined, undefined, deps.knowledge).filter((t) => BRIEF_TOOLS.includes(t.name));
     const deckLines = found.deck.map((c) => `${c.copies}x${c.id}`);
@@ -633,9 +656,9 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
     const system = [{ type: "text", text: instructionsFor(false) + BRIEF_INSTRUCTIONS, cache_control: { type: "ephemeral" } }];
     const state = newRounds({ role: "user", content: [{ type: "text", text: prompt }] });
     try {
-      await runToolRounds(state, { deps, system, tools, emit, signal, maxRounds: BRIEF_MAX_ROUNDS, maxTokens: BRIEF_MAX_TOKENS, effort: "low" });
+      await runToolRounds(state, { deps, model, system, tools, emit, signal, maxRounds: BRIEF_MAX_ROUNDS, maxTokens: BRIEF_MAX_TOKENS, effort: "low" });
     } finally {
-      if (state.usage.input_tokens || state.usage.output_tokens) await recordUsage(api, token, "brief", state.usage, costUsd(state.usage)).catch(() => undefined);
+      if (state.usage.input_tokens || state.usage.output_tokens) await recordUsage(api, token, "brief", state.usage, costUsd(state.usage, state.model ?? model), state.model ?? model).catch(() => undefined);
     }
     if (!state.finished) throw new Error("Log Pose used too many lookups on that one. Try again.");
     // The saved text is what was streamed: the rounds' text blocks, kept apart by a blank line.
@@ -650,7 +673,7 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
     const cited = flattenCited(blocks);
     if (!cited.text) throw new Error("Log Pose didn't write a brief. Try again.");
     await plannerCall(api, token, "/analyst/briefs", true, { ticket: body.ticket, variant, text: cited.text, citations: cited.citations }, "PUT");
-    emit({ event: "done", data: { cached: false, cost_usd: costUsd(state.usage), saved: true } });
+    emit({ event: "done", data: { cached: false, cost_usd: costUsd(state.usage, state.model ?? model), saved: true } });
   } finally {
     release();
   }
