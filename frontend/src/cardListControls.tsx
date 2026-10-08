@@ -431,18 +431,28 @@ export function CollapsibleFilters({
   );
 }
 
-export function CardSearchInput({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+export function CardSearchInput({
+  value,
+  onChange,
+  placeholder = "Search name, ID, color…",
+  label = "Search cards",
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  placeholder?: string;
+  label?: string;
+}) {
   const id = useId();
   return (
     <div className="card-search">
       <label className="sr-only" htmlFor={id}>
-        Search cards
+        {label}
       </label>
       <input
         id={id}
         type="search"
         className="card-search-input"
-        placeholder="Search name, ID, color…"
+        placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoComplete="off"

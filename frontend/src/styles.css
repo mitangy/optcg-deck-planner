@@ -3744,15 +3744,77 @@ tr.done td {
 }
 
 .don-available-list {
-  max-height: min(22rem, 45svh);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.65rem;
+  max-height: min(36rem, 70svh);
   overflow: auto;
   overscroll-behavior: contain;
+}
+
+.don-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.don-tile .thumb-btn {
+  display: block;
+  width: 100%;
+}
+
+.don-tile .thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 63 / 88;
+}
+
+.don-tile-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.don-tile-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.don-tile-meta {
+  font-size: 0.78rem;
+}
+
+.don-tile-indeck {
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.don-tile-add {
+  width: 100%;
+  flex: 0 0 auto;
 }
 
 @media (max-width: 720px) {
   .deck-editor,
   .don-available {
     margin-bottom: 0.65rem;
+  }
+
+  .don-available-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
   }
 
   .deck-editor .filter-drawer-toggle,
