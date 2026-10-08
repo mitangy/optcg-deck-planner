@@ -304,6 +304,7 @@
   border-radius: 12px;
   background: var(--arena-panel);
   min-width: 0;
+  scroll-margin-top: 4.5rem;
 }
 
 .match-log-turn[data-yours] {

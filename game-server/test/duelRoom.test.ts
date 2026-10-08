@@ -502,6 +502,92 @@ describe("DuelRoom", () => {
 
   const handIds = (hand: { id: string }[] | undefined) => (hand ?? []).map((c) => c.id);
 
+  type RawWelcome = {
+    seat: 0 | 1;
+    role?: string;
+    ranked?: boolean;
+    brief?: { ticket: string; leaderId: string; opponentId: string; deck: string[] };
+  };
+  const ticketClaims = (ticket: string) =>
+    JSON.parse(Buffer.from(ticket.split(".")[1]!, "base64url").toString("utf8")) as Record<string, unknown>;
+  const zoroDeckFor = (extra: string) => ({
+    leaderId: "OP01-001",
+    deck: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", extra].flatMap((id) => [id, id, id, id]),
+  });
+  const luffyDeck = { leaderId: "ST01-001", deck: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "ST01-014"].flatMap((id) => [id, id, id, id]) };
+
+  /** Two seats with different leaders and decks (one card apart), plus a spectator, keeping each raw welcome. */
+  async function briefRoom(createOpts: Record<string, unknown>, decks: boolean) {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 42,
+      autoSkipMulligan: true,
+      ...createOpts,
+    });
+    const welcomes: RawWelcome[] = [];
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const seatDeck = (d: unknown) => (decks ? { deck: d } : {});
+    const c0 = await colyseus.connectTo(room, { ...joinOpts("a", 0), ...seatDeck(zoroDeckFor("ST01-013")) });
+    attach(c0, bags[0]);
+    c0.onMessage("welcome", (m: RawWelcome) => welcomes.push(m));
+    const c1 = await colyseus.connectTo(room, { ...joinOpts("b", 1), ...seatDeck(luffyDeck) });
+    attach(c1, bags[1]);
+    c1.onMessage("welcome", (m: RawWelcome) => welcomes.push(m));
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    const spec = await colyseus.connectTo(room, {
+      protocolVersion: PROTOCOL_VERSION,
+      devUserId: "watcher",
+      role: "spectator",
+      preferredSeat: 0,
+    });
+    spec.onMessage("welcome", (m: RawWelcome) => welcomes.push(m));
+    spec.send("sync", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => welcomes.some((w) => w.role === "spectator"), 8000);
+    return { room, welcomes };
+  }
+
+  it("an unranked room gives each player a brief ticket for their own seat and the other seat's leader (#401)", async () => {
+    const { welcomes } = await briefRoom({}, true);
+    const w0 = welcomes.find((w) => w.role === "player" && w.seat === 0)!;
+    const w1 = welcomes.find((w) => w.role === "player" && w.seat === 1)!;
+    assert.equal(w0.ranked, false);
+    assert.equal(w0.brief!.leaderId, "OP01-001");
+    assert.equal(w0.brief!.opponentId, "ST01-001");
+    assert.equal(w1.brief!.leaderId, "ST01-001");
+    assert.equal(w1.brief!.opponentId, "OP01-001");
+    assert.equal(w0.brief!.deck.length, 20);
+    assert.notDeepEqual(w0.brief!.deck, w1.brief!.deck);
+    const c0 = ticketClaims(w0.brief!.ticket);
+    assert.equal(c0.seat, 0);
+    assert.equal(c0.leader, "OP01-001");
+    assert.equal(c0.opponent, "ST01-001");
+    assert.deepEqual(c0.deck, w0.brief!.deck);
+    const c1 = ticketClaims(w1.brief!.ticket);
+    assert.equal(c1.leader, "ST01-001");
+    assert.equal(c1.opponent, "OP01-001");
+  });
+
+  it("a ranked room's welcome says ranked and carries no brief ticket (#401)", async () => {
+    const { welcomes } = await briefRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() }, false);
+    const players = welcomes.filter((w) => w.role === "player");
+    assert.deepEqual(new Set(players.map((w) => w.seat)), new Set([0, 1]));
+    for (const w of players) {
+      assert.equal(w.ranked, true);
+      assert.equal(w.brief, undefined);
+    }
+  });
+
+  it("spectators never get a brief ticket (#401)", async () => {
+    const { welcomes } = await briefRoom({}, true);
+    const spec = welcomes.find((w) => w.role === "spectator")!;
+    assert.equal(spec.ranked, false);
+    assert.equal(spec.brief, undefined);
+  });
+
   it("a player's hand_order reorders the hands spectators see, and the other player is unaffected (#346)", async () => {
     const { welcome, bags, c0, specViews } = await watchRoom({});
     const engine = handIds(welcome.view.revealedHands?.[0]);
@@ -1510,6 +1596,64 @@ describe("DuelRoom", () => {
     internals(room).seatRemainingMs[other] = 1;
     await waitUntil(() => bags[0].over != null, 5000);
     assert.deepEqual(bags[0].over!.result, { winner: active, reason: "timeout" });
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  /** Seat 1 brings an Imu leader (mandatory start-of-game Stage prompt); seat 0 is the first player. */
+  async function imuSecondRoom(timer: Record<string, number>) {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 8,
+      autoSkipMulligan: false,
+      timer,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const imuDeck = {
+      leaderId: "OP13-079",
+      deck: ["OP13-099", "ST01-003", "ST01-006", "ST01-008", "ST01-009", "ST01-014"].flatMap((id) => [id, id, id, id]),
+    };
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, { ...joinOpts("bob", 1), deck: imuDeck });
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    const m = internals(room).match;
+    assert.equal(m.phase, "mulligan");
+    assert.equal(m.activeSeat, 0);
+    assert.equal(m.pendingChoices[0]?.seat, 1, "the Imu seat owes the Stage prompt");
+    return { room, c0, c1, bags };
+  }
+
+  it("per-player clock: the Imu seat's open Stage prompt drains its own bank, not the first player's (#353)", async () => {
+    const { room, c0, c1, bags } = await imuSecondRoom({ seatSeconds: 900 });
+    assert.equal(internals(room).clockSeat, 1);
+
+    // Seat 0 cannot mulligan yet, so its bank must hold while seat 1's runs out.
+    internals(room).seatRemainingMs[0] = 1;
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(internals(room).match.winner, null);
+    assert.equal(bags[0].over, undefined);
+
+    internals(room).seatRemainingMs[1] = 1;
+    await waitUntil(() => bags[0].over != null, 5000);
+    assert.deepEqual(bags[0].over!.result, { winner: 0, reason: "timeout" });
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("match clock: expiry while the Imu seat's Stage prompt is open names the prompt owner the loser (#353)", async () => {
+    const { room, c0, c1, bags } = await imuSecondRoom({ matchSeconds: 900 });
+
+    internals(room).matchEndsAt = Date.now() - 1;
+    await waitUntil(() => bags[0].over != null, 5000);
+    assert.deepEqual(bags[0].over!.result, { winner: 0, reason: "match_timeout" });
 
     await c0.leave(true);
     await c1.leave(true);

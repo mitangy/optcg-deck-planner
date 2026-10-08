@@ -7,7 +7,8 @@ service, which reads and writes everything here with that token plus the service
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -18,14 +19,32 @@ from app.analyst_corpus import MAX_GAMES, game_replay, search_games
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.models import AnalystMatchReview, AnalystMessage, AnalystThread, AnalystUsage, DuelMatch, User
-from app.routers.analyst import analyst_user, chat_enabled_for, mint_chat_token, require_service
+from app.brief_tickets import BriefClaims, brief_key, deck_counts, verify_brief_ticket
+from app.models import (
+    AnalystAccess,
+    AnalystMatchBrief,
+    AnalystMatchReview,
+    AnalystMessage,
+    AnalystProposal,
+    AnalystThread,
+    AnalystUsage,
+    DuelMatch,
+    User,
+)
+from app.routers.analyst import access_status, analyst_user, chat_enabled_for, is_chat_owner, mint_chat_token, require_service, requests_open
 from app.schemas import (
     CARD_ID_PATTERN,
     AnalystAppendIn,
+    AnalystBriefIn,
+    AnalystBriefLookupIn,
+    AnalystBriefLookupOut,
+    AnalystBriefOut,
     AnalystChatBudget,
+    AnalystCitation,
     AnalystChatSession,
+    AnalystDeckEdit,
     AnalystDisplayMessage,
+    AnalystProposalsIn,
     AnalystReviewIn,
     AnalystReviewOut,
     AnalystStoredMessage,
@@ -54,15 +73,33 @@ Service = Annotated[None, Depends(_service)]
 
 @router.post("/chat/session", response_model=AnalystChatSession)
 def chat_session(
+    db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> AnalystChatSession:
-    """Whether the Log Pose panel is on for this player, and a fresh token for it when it is."""
-    if not chat_enabled_for(settings, user):
-        return AnalystChatSession(enabled=False)
+    """Whether the Log Pose panel is on for this player, and a fresh token for it when it is.
+
+    When it is off but players can ask for it, `access` says where their request stands."""
+    if not chat_enabled_for(settings, user, db):
+        if not requests_open(settings):
+            return AnalystChatSession(enabled=False)
+        return AnalystChatSession(enabled=False, access=access_status(db, user) or "none")
     token, exp = mint_chat_token(settings, user, int(datetime.now(timezone.utc).timestamp()))
     expires_at = datetime.fromtimestamp(exp, timezone.utc).isoformat()
-    return AnalystChatSession(enabled=True, token=token, expires_at=expires_at, chat_url=settings.analyst_public_url.rstrip("/"))
+    owner = is_chat_owner(settings, user)
+    pending = (
+        db.scalar(select(func.count()).select_from(AnalystAccess).where(AnalystAccess.status == "pending")) or 0
+        if owner
+        else 0
+    )
+    return AnalystChatSession(
+        enabled=True,
+        token=token,
+        expires_at=expires_at,
+        chat_url=settings.analyst_public_url.rstrip("/"),
+        owner=owner,
+        pending_requests=pending,
+    )
 
 
 def _spent(db: Session, since: datetime, user_id: int | None = None) -> float:
@@ -166,29 +203,138 @@ def append_messages(
     db.commit()
 
 
-def _display_text(role: str, content: str | list[dict]) -> str:
-    """What the panel shows for a stored message: its text, without tool calls, tool results or page context."""
-    if isinstance(content, str):
-        return "" if content.startswith(CONTEXT_PREFIX) else content
-    texts = [
-        b.get("text", "")
+PROPOSE_TOOL = "propose_deck_edit"
+
+
+def _proposal_ids(content: str | list[dict]) -> list[str]:
+    """The ids of the propose_deck_edit calls in one stored message."""
+    if not isinstance(content, list):
+        return []
+    return [
+        b["id"]
         for b in content
-        if b.get("type") == "text" and not (role == "user" and b.get("text", "").startswith(CONTEXT_PREFIX))
+        if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == PROPOSE_TOOL and isinstance(b.get("id"), str)
     ]
-    return "\n\n".join(t for t in texts if t.strip())
 
 
-def thread_view(messages: list[tuple[str, str | list[dict]]]) -> list[AnalystDisplayMessage]:
-    """Stored messages as chat bubbles: tool-result-only turns drop out and one answer's pieces join up."""
-    out: list[AnalystDisplayMessage] = []
-    for role, content in messages:
-        text = _display_text(role, content)
-        if not text:
+@router.post("/chat/threads/{thread_id}/proposals", status_code=204)
+def save_proposals(
+    thread_id: int,
+    body: AnalystProposalsIn,
+    _: Service,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(analyst_user)],
+) -> None:
+    """The analyst keeps the deck edits it suggested in a turn next to the thread, so their cards come back on reload (#400).
+
+    Each must come from a propose_deck_edit call stored in this thread; repeats are ignored.
+    """
+    row = _own_thread(db, user, thread_id)
+    made = {i for m in _messages(db, row.id) if m.role == "assistant" for i in _proposal_ids(json.loads(m.content))}
+    if any(p.id not in made for p in body.proposals):
+        raise HTTPException(status_code=400, detail="A proposal must come from a propose_deck_edit call in this thread")
+    have = set(db.scalars(select(AnalystProposal.id).where(AnalystProposal.thread_id == row.id)).all())
+    for p in body.proposals:
+        if p.id not in have:
+            have.add(p.id)
+            db.add(AnalystProposal(thread_id=row.id, id=p.id, payload=p.model_dump_json()))
+    db.commit()
+
+
+def _stored_proposals(db: Session, thread_id: int) -> dict[str, AnalystDeckEdit]:
+    out: dict[str, AnalystDeckEdit] = {}
+    for r in db.scalars(select(AnalystProposal).where(AnalystProposal.thread_id == thread_id).order_by(AnalystProposal.created_at)).all():
+        try:
+            out[r.id] = AnalystDeckEdit.model_validate_json(r.payload)
+        except ValueError:
             continue
+    return out
+
+
+MAX_CITED_TEXT = 800
+
+
+def _utf16_len(text: str) -> int:
+    """Length in UTF-16 code units, the offsets the browser counts text in."""
+    return len(text.encode("utf-16-le")) // 2
+
+
+def _block_citations(block: dict) -> list[dict]:
+    """The search-result citations on one text block (other kinds aren't ours), without repeats."""
+    seen: set[tuple[str, str]] = set()
+    out: list[dict] = []
+    for raw in block.get("citations") or []:
+        if not isinstance(raw, dict) or raw.get("type") != "search_result_location":
+            continue
+        source, quote = raw.get("source"), raw.get("cited_text") or ""
+        if not isinstance(source, str) or not source or not isinstance(quote, str) or (source, quote) in seen:
+            continue
+        seen.add((source, quote))
+        title = raw.get("title")
+        out.append(
+            {
+                "source": source[:200],
+                "title": title[:200] if isinstance(title, str) else "",
+                "cited_text": quote if len(quote) <= MAX_CITED_TEXT else quote[: MAX_CITED_TEXT - 1] + "\u2026",
+            }
+        )
+    return out
+
+
+def _display_text(role: str, content: str | list[dict]) -> tuple[str, list[AnalystCitation]]:
+    """What the panel shows for a stored message: its text blocks run together (as they stream), without tool calls,
+    tool results or page context, and the citations at the end of the blocks they belong to."""
+    if isinstance(content, str):
+        return ("" if content.startswith(CONTEXT_PREFIX) else content), []
+    text = ""
+    cites: list[AnalystCitation] = []
+    for b in content:
+        if b.get("type") != "text":
+            continue
+        piece = b.get("text", "")
+        if role == "user" and piece.startswith(CONTEXT_PREFIX):
+            continue
+        text += piece
+        if role == "assistant":
+            at = _utf16_len(text)
+            cites += [AnalystCitation(at=at, **c) for c in _block_citations(b)]
+    return text, cites
+
+
+def _attach(out: list[AnalystDisplayMessage], pending: list[AnalystDeckEdit]) -> None:
+    """Put the deck edits of a finished turn under the answer that ended it (an answer of its own when there is none)."""
+    if not pending:
+        return
+    if out and out[-1].role == "assistant":
+        out[-1].proposals += pending
+    else:
+        out.append(AnalystDisplayMessage(role="assistant", text="", proposals=list(pending)))
+    pending.clear()
+
+
+def thread_view(
+    messages: list[tuple[str, str | list[dict]]], proposals: dict[str, AnalystDeckEdit] | None = None
+) -> list[AnalystDisplayMessage]:
+    """Stored messages as chat bubbles: tool-result-only turns drop out and one answer's pieces join up.
+
+    A deck edit goes under the bubble that ends the turn it was suggested in (#400)."""
+    out: list[AnalystDisplayMessage] = []
+    pending: list[AnalystDeckEdit] = []
+    for role, content in messages:
+        if role == "assistant":
+            pending += [proposals[i] for i in _proposal_ids(content) if proposals and i in proposals]
+        text, cites = _display_text(role, content)
+        if not text.strip():
+            continue
+        if role == "user":
+            _attach(out, pending)
         if out and out[-1].role == role == "assistant":
+            base = _utf16_len(out[-1].text) + 2
             out[-1].text += "\n\n" + text
+            out[-1].citations += [c.model_copy(update={"at": c.at + base}) for c in cites]
         else:
-            out.append(AnalystDisplayMessage(role=role, text=text))
+            out.append(AnalystDisplayMessage(role=role, text=text, citations=cites))
+    _attach(out, pending)
     return out
 
 
@@ -216,12 +362,23 @@ def view_thread(
     """One of the signed-in player's threads as the panel shows it."""
     row = _own_thread(db, user, thread_id)
     return AnalystThreadView(
-        id=row.id, title=row.title, messages=thread_view([(m.role, json.loads(m.content)) for m in _messages(db, row.id)])
+        id=row.id,
+        title=row.title,
+        messages=thread_view([(m.role, json.loads(m.content)) for m in _messages(db, row.id)], _stored_proposals(db, row.id)),
     )
 
 
 def _review_out(row: AnalystMatchReview) -> AnalystReviewOut:
-    return AnalystReviewOut(match_id=row.match_id, text=row.text, created_at=row.created_at.isoformat() if row.created_at else None)
+    try:
+        citations = [AnalystCitation(**c) for c in json.loads(row.citations or "[]")]
+    except (ValueError, TypeError):
+        citations = []
+    return AnalystReviewOut(
+        match_id=row.match_id,
+        text=row.text,
+        citations=citations,
+        created_at=row.created_at.isoformat() if row.created_at else None,
+    )
 
 
 @router.get("/reviews/{match_id}", response_model=AnalystReviewOut)
@@ -253,16 +410,97 @@ def put_review(
     )
     if played is None:
         raise HTTPException(status_code=404, detail="Match not found")
+    # A citation can only follow text that is there.
+    limit = _utf16_len(body.text)
+    citations = json.dumps([c.model_dump() for c in body.citations if c.at <= limit])
     row = db.get(AnalystMatchReview, (user.id, match_id))
     if row is None:
-        row = AnalystMatchReview(user_id=user.id, match_id=match_id, text=body.text)
+        row = AnalystMatchReview(user_id=user.id, match_id=match_id, text=body.text, citations=citations)
         db.add(row)
     else:
         row.text = body.text
+        row.citations = citations
         row.created_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(row)
     return _review_out(row)
+
+
+BRIEF_TTL = timedelta(days=7)
+
+
+def _brief_claims(body: AnalystBriefLookupIn, settings: Settings) -> BriefClaims:
+    """The ticket's claims; a forged, expired, ranked or non-ticket string is a 403."""
+    claims = verify_brief_ticket(body.ticket, settings, int(time.time()))
+    if claims is None:
+        raise HTTPException(status_code=403, detail="Not a valid brief ticket")
+    return claims
+
+
+def _brief_out(row: AnalystMatchBrief) -> AnalystBriefOut:
+    try:
+        citations = [AnalystCitation(**c) for c in json.loads(row.citations or "[]")]
+    except (ValueError, TypeError):
+        citations = []
+    return AnalystBriefOut(
+        text=row.text, citations=citations, created_at=row.created_at.isoformat() if row.created_at else None
+    )
+
+
+@router.post("/briefs/lookup", response_model=AnalystBriefLookupOut)
+def lookup_brief(
+    body: AnalystBriefLookupIn,
+    _: Service,
+    db: Annotated[Session, Depends(get_db)],
+    __: Annotated[User, Depends(analyst_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AnalystBriefLookupOut:
+    """What a matchup brief is about (from a game-server ticket) and the saved brief for it, if it is fresh."""
+    claims = _brief_claims(body, settings)
+    key = brief_key(claims, body.variant)
+    row = db.get(AnalystMatchBrief, key)
+    brief = None
+    if row is not None:
+        made = row.created_at
+        if made is not None and made.tzinfo is None:
+            made = made.replace(tzinfo=timezone.utc)
+        if made is None or made >= datetime.now(timezone.utc) - BRIEF_TTL:
+            brief = _brief_out(row)
+    return AnalystBriefLookupOut(
+        leader_id=claims.leader, opponent_id=claims.opponent, deck=deck_counts(claims), key=key, brief=brief
+    )
+
+
+@router.put("/briefs", status_code=204)
+def put_brief(
+    body: AnalystBriefIn,
+    _: Service,
+    db: Annotated[Session, Depends(get_db)],
+    __: Annotated[User, Depends(analyst_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> None:
+    """The analyst saves a matchup brief for the ticket's leaders and deck (the ticket is checked again)."""
+    claims = _brief_claims(body, settings)
+    key = brief_key(claims, body.variant)
+    # A citation can only follow text that is there.
+    limit = _utf16_len(body.text)
+    citations = json.dumps([c.model_dump() for c in body.citations if c.at <= limit])
+    row = db.get(AnalystMatchBrief, key)
+    if row is None:
+        row = AnalystMatchBrief(
+            key=key,
+            variant=body.variant,
+            leader_id=claims.leader,
+            opponent_id=claims.opponent,
+            text=body.text,
+            citations=citations,
+        )
+        db.add(row)
+    else:
+        row.text = body.text
+        row.citations = citations
+        row.created_at = datetime.now(timezone.utc)
+    db.commit()
 
 
 @router.get("/corpus/games")

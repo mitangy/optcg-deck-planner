@@ -162,7 +162,34 @@
   border: 2px solid var(--lp-surface-d);
 }
 
-/* ——— Panel: drawer on desktop, full-height sheet on phones ——— */
+/* Pending access requests (owners): a count, not the unread dot. */
+.lp-compass-count {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--lp-needle-d);
+  border: 2px solid var(--lp-surface-d);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.lp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ——— Panel: a full-height sheet on phones, a resizable drawer on desktop and tablets ——— */
 
 .lp-panel {
   position: fixed;
@@ -174,18 +201,21 @@
   overflow: hidden;
   font-size: 0.95rem;
   line-height: 1.45;
+  /* Phone sheet: bottom-anchored, as tall as --lp-sheet-h (a share of the screen the grab handle sets), up to full height. */
+  left: 0;
+  right: 0;
+  top: calc(var(--lp-vv-top, 0px) + var(--lp-vv-height, 100dvh) - var(--lp-sheet-h, var(--lp-vv-height, 100dvh)));
+  height: var(--lp-sheet-h, var(--lp-vv-height, 100dvh));
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+  border-radius: 14px 14px 0 0;
+  animation: lp-sheet-in 0.2s ease-out;
+  overscroll-behavior: contain;
 }
 
-@media (min-width: 900px) {
-  .lp-panel {
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 420px;
-    height: 100dvh;
-    border-left: 1px solid var(--lp-line-d);
-    padding-right: env(safe-area-inset-right, 0px);
-    animation: lp-drawer-in 0.18s ease-out;
+@keyframes lp-sheet-in {
+  from {
+    transform: translateY(32px);
+    opacity: 0;
   }
 }
 
@@ -196,38 +226,151 @@
   }
 }
 
-@media (max-width: 899.98px) {
-  .lp-panel {
-    left: 0;
-    right: 0;
-    top: var(--lp-vv-top, 0px);
-    height: var(--lp-vv-height, 100dvh);
-    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
-    animation: lp-sheet-in 0.2s ease-out;
-    overscroll-behavior: contain;
-  }
-}
-
-@keyframes lp-sheet-in {
-  from {
-    transform: translateY(32px);
-    opacity: 0;
-  }
-}
-
+/* The sheet's grab handle: a 44px-tall hit area around a small bar. */
 .lp-grip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ns-resize;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+.lp-grip::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -8px;
+  bottom: -8px;
+}
+
+.lp-grip-bar {
+  display: block;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--lp-line-d);
+}
+
+.lp-grip:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+  outline-offset: -2px;
+}
+
+.lp-grip:focus-visible .lp-grip-bar,
+.lp-grip:hover .lp-grip-bar {
+  background: var(--lp-accent-d);
+}
+
+/* Resize handles (drawer only): top edge, left edge and the corner between them. */
+.lp-resize {
   display: none;
 }
 
-@media (max-width: 899.98px) {
-  .lp-grip {
+@media (min-width: 640px), (pointer: fine) {
+  .lp-panel {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: min(420px, 100vw);
+    height: 100dvh;
+    border-radius: 0;
+    border-left: 1px solid var(--lp-line-d);
+    padding: 0 env(safe-area-inset-right, 0px) 0 0;
+    animation: lp-drawer-in 0.18s ease-out;
+  }
+
+  /* Once resized it is a window anchored to the bottom-right corner (width and height come from inline style). */
+  .lp-panel[data-sized] {
+    top: auto;
+    border-top: 1px solid var(--lp-line-d);
+    border-top-left-radius: var(--lp-radius-d);
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  .lp-resize {
     display: block;
-    flex: none;
-    width: 40px;
-    height: 4px;
-    margin: 8px auto 0;
-    border-radius: 2px;
-    background: var(--lp-line-d);
+    position: absolute;
+    z-index: 3;
+    touch-action: none;
+    background: transparent;
+  }
+
+  .lp-resize-top {
+    top: 0;
+    left: 14px;
+    right: 56px;
+    height: 8px;
+    cursor: ns-resize;
+  }
+
+  .lp-resize-left {
+    top: 14px;
+    bottom: 0;
+    left: 0;
+    width: 8px;
+    cursor: ew-resize;
+  }
+
+  .lp-resize-corner {
+    top: 0;
+    left: 0;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+  }
+
+  .lp-resize::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    background: var(--lp-accent-d);
+  }
+
+  .lp-resize-top::after {
+    inset: 0 0 auto 0;
+    height: 2px;
+  }
+
+  .lp-resize-left::after {
+    inset: 0 auto 0 0;
+    width: 2px;
+  }
+
+  .lp-resize-corner::after {
+    inset: 0 auto auto 0;
+    width: 10px;
+    height: 10px;
+    border-top-left-radius: var(--lp-radius-d);
+    background: transparent;
+    border-top: 3px solid var(--lp-accent-d);
+    border-left: 3px solid var(--lp-accent-d);
+  }
+
+  .lp-resize:hover::after,
+  .lp-resize:focus-visible::after,
+  .lp-resize:active::after {
+    opacity: 0.8;
+  }
+
+  .lp-resize:focus-visible {
+    outline: none;
+  }
+
+  .lp-grip {
+    display: none;
   }
 }
 
@@ -239,6 +382,31 @@
   min-height: 56px;
   padding: 8px 10px 8px 16px;
   border-bottom: 1px solid var(--lp-line-d);
+}
+
+/* Desktop: the header is the drag surface for moving the window. */
+.lp-head[data-movable] {
+  touch-action: none;
+  cursor: grab;
+}
+
+.lp-panel[data-moving] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lp-panel[data-moving] .lp-head {
+  cursor: grabbing;
+}
+
+.lp-move {
+  cursor: inherit;
+  touch-action: none;
+}
+
+/* What a page pins above the chat (the matchup brief on a board). */
+.lp-pinned {
+  flex: none;
 }
 
 .lp-head-icon {
@@ -258,6 +426,7 @@
   flex: 1;
   min-width: 0;
   margin: 0;
+  white-space: nowrap;
   font-family: var(--lp-font-display, inherit);
   font-size: 1.15rem;
   font-weight: 650;
@@ -452,6 +621,8 @@
 
 .lp-context {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -705,4 +876,678 @@
 
 :root[data-motion="reduce"] .lp-panel {
   animation: none;
+}
+
+
+/* ——— Sources: markers, popover, list, own-judgement note ——— */
+
+.lp-cite {
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 650;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  margin: 0 0.12rem;
+  padding: 0 0.3rem;
+  vertical-align: 0.15em;
+  border: 1px solid color-mix(in srgb, var(--lp-accent-d) 55%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lp-accent-d) 12%, transparent);
+  color: var(--lp-accent-d);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* A bigger hit target than the pill that doesn't move anything. */
+.lp-cite::before {
+  content: "";
+  position: absolute;
+  inset: -9px -6px;
+}
+
+.lp-cite:hover,
+.lp-cite[data-open] {
+  background: var(--lp-accent-d);
+  color: var(--lp-on-accent-d);
+}
+
+.lp-cite:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+  outline-offset: 2px;
+}
+
+.lp-pop {
+  position: fixed;
+  z-index: calc(var(--lp-z-panel, 85) + 10);
+  width: min(340px, calc(100vw - 16px));
+  max-height: min(60dvh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 40px 12px 12px;
+  border: 1px solid var(--lp-line-d);
+  border-radius: 12px;
+  background: var(--lp-surface-d);
+  color: var(--lp-ink-d);
+  box-shadow: var(--lp-shadow-d);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.lp-pop-x {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--lp-muted-d);
+  cursor: pointer;
+}
+
+.lp-pop-x:hover {
+  background: var(--lp-surface-2-d);
+}
+
+.lp-pop-x:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+}
+
+.lp-pop-x svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.lp-src-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.lp-src-img {
+  flex: none;
+  width: 56px;
+  aspect-ratio: 5 / 7;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--lp-surface-2-d);
+}
+
+.lp-src-main {
+  min-width: 0;
+}
+
+.lp-pop p {
+  margin: 0;
+}
+
+.lp-src-line {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.lp-badge {
+  flex: none;
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--lp-line-d);
+  background: var(--lp-surface-2-d);
+  color: var(--lp-muted-d);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.lp-src-title {
+  min-width: 0;
+  margin: 0;
+  font-weight: 600;
+}
+
+.lp-src-meta {
+  margin-top: 2px;
+  color: var(--lp-muted-d);
+  font-size: 0.8rem;
+}
+
+.lp-src-meta a {
+  color: var(--lp-accent-d);
+  text-underline-offset: 2px;
+}
+
+.lp-warn {
+  color: var(--lp-danger-d);
+  font-weight: 600;
+}
+
+.lp-quote {
+  margin: 8px 0 0;
+  padding: 2px 0 2px 10px;
+  border-left: 3px solid var(--lp-line-d);
+  color: var(--lp-ink-d);
+  white-space: pre-wrap;
+}
+
+.lp-sources {
+  margin-top: 8px;
+  border-top: 1px solid var(--lp-line-d);
+  padding-top: 6px;
+  font-size: 0.85rem;
+}
+
+.lp-sources-sum {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--lp-muted-d);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lp-sources-sum:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+  outline-offset: 2px;
+}
+
+.lp-sources-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lp-src {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.lp-src-n {
+  flex: none;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lp-accent-d) 12%, transparent);
+  color: var(--lp-accent-d);
+  font-size: 0.7rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-src-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.lp-sources .lp-src-meta {
+  margin: 2px 0 0;
+}
+
+.lp-own {
+  margin: 8px 0 0;
+  color: var(--lp-muted-d);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-resize::after {
+    transition: none;
+  }
+}
+
+/* ——— Apply card: a deck edit Log Pose suggests (#400) ——— */
+
+.logpose {
+  --lp-ok-d: var(--lp-ok, #1f7a4d);
+}
+
+.lp-edit {
+  margin: 10px 0 0;
+  padding: 10px 12px 8px;
+  min-width: 0;
+  border: 1px solid var(--lp-line-d);
+  border-radius: 10px;
+  background: var(--lp-surface-d);
+  color: var(--lp-ink-d);
+  font-size: 0.875rem;
+}
+
+.lp-edit-head {
+  margin: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--lp-muted-d);
+  min-width: 0;
+}
+
+.lp-edit-head-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp-edit-summary {
+  margin: 4px 0 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lp-edit-rows {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 120ms ease;
+}
+
+.lp-edit[data-state="dismissed"] .lp-edit-rows {
+  opacity: 0.5;
+}
+
+.lp-edit-row {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    "badge name count"
+    ". reason reason"
+    ". own own";
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: center;
+  min-width: 0;
+}
+
+.lp-edit-row > * {
+  min-width: 0;
+}
+
+.lp-edit-badge {
+  grid-area: badge;
+  justify-self: stretch;
+  text-align: center;
+  padding: 2px 0;
+  border-radius: 6px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--lp-ok-d) 14%, transparent);
+  color: var(--lp-ok-d);
+}
+
+.lp-edit-row[data-dir="remove"] .lp-edit-badge {
+  background: color-mix(in srgb, var(--lp-danger-d) 12%, transparent);
+  color: var(--lp-danger-d);
+}
+
+.lp-edit-name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lp-edit-thumb {
+  flex: none;
+  width: 28px;
+  height: 39px;
+  border-radius: 3px;
+  background: var(--lp-surface-2-d);
+  overflow: hidden;
+}
+
+.lp-edit-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lp-edit-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.lp-edit-id {
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-edit-count {
+  grid-area: count;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--lp-muted-d);
+}
+
+.lp-edit-reason {
+  grid-area: reason;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+  overflow-wrap: anywhere;
+}
+
+.lp-edit-own {
+  grid-area: own;
+  justify-self: start;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--lp-line-d);
+  font-size: 0.75rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-edit-own[data-short="true"] {
+  border-color: color-mix(in srgb, var(--lp-danger-d) 45%, transparent);
+  color: var(--lp-danger-d);
+  font-weight: 600;
+}
+
+.lp-edit-legal {
+  margin-top: 10px;
+  min-width: 0;
+}
+
+.lp-edit-legal p,
+.lp-edit-problems {
+  margin: 0;
+}
+
+.lp-edit-ok {
+  color: var(--lp-ok-d);
+  font-weight: 600;
+}
+
+.lp-edit-bad {
+  color: var(--lp-danger-d);
+  font-weight: 600;
+}
+
+.lp-edit-problems {
+  padding-left: 1.1rem;
+  color: var(--lp-danger-d);
+  overflow-wrap: anywhere;
+}
+
+.lp-edit-muted {
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+  overflow-wrap: anywhere;
+}
+
+/* One fixed-height slot: each state's controls swap in place, the first control keeps its spot. */
+.lp-edit-actions {
+  margin-top: 10px;
+  min-height: 36px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lp-edit-actions > * {
+  min-width: 0;
+}
+
+.lp-edit-btn {
+  flex: none;
+  min-width: 5.5rem;
+}
+
+.lp-edit-primary,
+.lp-edit-done {
+  min-width: 7.5rem;
+}
+
+.lp-edit-primary {
+  border-color: var(--lp-accent-d);
+  background: var(--lp-accent-d);
+  color: var(--lp-on-accent-d);
+  font-weight: 600;
+}
+
+.lp-edit-done {
+  flex: none;
+  min-height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0 12px;
+  font-weight: 600;
+  color: var(--lp-ok-d);
+  white-space: nowrap;
+}
+
+.lp-edit-note {
+  flex: 1 1 auto;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  color: var(--lp-muted-d);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.lp-edit-link {
+  color: var(--lp-accent-d);
+  font-weight: 600;
+}
+
+.lp-edit-status {
+  margin: 4px 0 0;
+  min-height: 1.3em;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: var(--lp-muted-d);
+  overflow-wrap: anywhere;
+}
+
+.lp-edit-status[data-error="true"] {
+  color: var(--lp-danger-d);
+}
+
+/* Phones: touch-sized buttons that share the row. */
+.lp-panel[data-phone] .lp-edit-actions {
+  min-height: 44px;
+}
+
+.lp-panel[data-phone] .lp-edit-btn,
+.lp-panel[data-phone] .lp-edit-done {
+  flex: 1 1 0;
+  min-height: 44px;
+}
+
+.lp-panel[data-phone] .lp-edit-note {
+  flex: 1 1 0;
+}
+
+/* ——— Asking for access, and the owner's request list ——— */
+
+.lp-requests-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lp-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--lp-needle-d);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+.lp-access {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 480px;
+  min-width: 0;
+}
+
+.lp-access-heading,
+.lp-access-lead {
+  margin: 0;
+  font-family: var(--lp-font-display, inherit);
+  font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--lp-ink-d);
+}
+
+.lp-access-text {
+  margin: 0 0 4px;
+  color: var(--lp-muted-d);
+}
+
+.lp-access-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.lp-access-opt {
+  font-weight: 400;
+  color: var(--lp-muted-d);
+}
+
+.lp-access-note {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+}
+
+.lp-access-count {
+  margin: -4px 0 0;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-access-send {
+  align-self: flex-start;
+  min-width: 148px;
+}
+
+.lp-reqs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.lp-req {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--lp-line-d);
+  border-radius: 12px;
+  background: var(--lp-surface-2-d);
+  min-width: 0;
+}
+
+.lp-req-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.lp-req-name {
+  margin: 0;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.lp-req-meta {
+  margin: 2px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-req-status[data-status="pending"] {
+  color: var(--lp-ink-d);
+  border-color: var(--lp-accent-d);
+}
+
+.lp-req-status[data-status="denied"] {
+  color: var(--lp-danger-d);
+}
+
+.lp-req-note {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lp-req-actions {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lp-req-btn {
+  min-width: 84px;
+  min-height: 40px;
+}
+
+@media (max-width: 420px) {
+  .lp-head {
+    gap: 4px;
+    padding-left: 12px;
+  }
+  .lp-head .lp-btn:not(.lp-btn-icon) {
+    padding: 0 8px;
+  }
+  /* Owners' header carries Requests + New chat: drop the small icon so the title stays on one line. */
+  .lp-head[data-owner] .lp-head-icon {
+    display: none;
+  }
 }

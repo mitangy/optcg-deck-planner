@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 
 class UserOut(BaseModel):
@@ -824,6 +824,36 @@ class AnalystChatSession(BaseModel):
     token: str | None = None
     expires_at: str | None = None  # ISO 8601, UTC
     chat_url: str | None = None
+    # Signed-in player who is not enabled but may ask: "none" | "pending" | "denied" (null when requests are closed).
+    access: Literal["none", "pending", "denied"] | None = None
+    # Only when enabled: whether this player can answer requests, and how many are waiting.
+    owner: bool | None = None
+    pending_requests: int | None = None
+
+
+class AnalystAccessRequestIn(BaseModel):
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] = ""
+
+
+class AnalystAccessRequested(BaseModel):
+    access: Literal["pending"]
+
+
+class AnalystAccessDecisionIn(BaseModel):
+    status: Literal["approved", "denied"]
+
+
+class AnalystAccessRow(BaseModel):
+    user_id: int
+    name: str
+    note: str
+    status: Literal["pending", "approved", "denied"]
+    created_at: str | None = None
+    decided_at: str | None = None
+
+
+class AnalystAccessList(BaseModel):
+    requests: list[AnalystAccessRow]
 
 
 class AnalystChatBudget(BaseModel):
@@ -835,7 +865,7 @@ class AnalystChatBudget(BaseModel):
 
 
 class AnalystUsageIn(BaseModel):
-    kind: Literal["chat", "review"]
+    kind: Literal["chat", "review", "brief"]
     model: str = Field(default="", max_length=64)
     input_tokens: int = Field(default=0, ge=0)
     output_tokens: int = Field(default=0, ge=0)
@@ -874,9 +904,65 @@ class AnalystAppendIn(BaseModel):
     messages: list[AnalystStoredMessage] = Field(min_length=1, max_length=40)
 
 
+class AnalystCitation(BaseModel):
+    """A source cited in an answer: `at` is the UTF-16 offset in the answer's text the citation follows."""
+
+    at: int = Field(ge=0)
+    source: str = Field(min_length=1, max_length=200)
+    title: str = Field(default="", max_length=200)
+    cited_text: str = Field(default="", max_length=1000)
+
+
+class AnalystDeckEditLine(BaseModel):
+    id: str = Field(pattern=CARD_ID_PATTERN)
+    name: str = Field(max_length=120)
+    before: int = Field(ge=0, le=50)
+    after: int = Field(ge=0, le=50)
+    reason: str = Field(max_length=300)
+
+
+class AnalystDeckEditTarget(BaseModel):
+    ref: str = Field(max_length=80)
+    name: str = Field(max_length=200)
+    leader_id: str | None = None
+
+
+class AnalystDeckEditLegality(BaseModel):
+    legal: bool
+    count: int = Field(ge=0, le=500)
+    problems: list[str] = Field(default_factory=list, max_length=20)
+    upcoming: list[str] = Field(default_factory=list, max_length=20)
+    ban_list_checked: bool
+
+    @field_validator("problems", "upcoming")
+    @classmethod
+    def _short(cls, v: list[str]) -> list[str]:
+        if any(len(x) > 300 for x in v):
+            raise ValueError("too long")
+        return v
+
+
+class AnalystDeckEdit(BaseModel):
+    """A deck change Log Pose suggests for the deck open in an app, shown as an Apply card (#400)."""
+
+    id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    version: Literal[1]
+    target: AnalystDeckEditTarget
+    summary: str = Field(max_length=300)
+    lines: list[AnalystDeckEditLine] = Field(min_length=1, max_length=12)
+    base: list[AnalystDeckCard] = Field(default_factory=list, max_length=80)
+    legality: AnalystDeckEditLegality
+
+
+class AnalystProposalsIn(BaseModel):
+    proposals: list[AnalystDeckEdit] = Field(min_length=1, max_length=4)
+
+
 class AnalystDisplayMessage(BaseModel):
     role: Literal["user", "assistant"]
     text: str
+    citations: list[AnalystCitation] = Field(default_factory=list)
+    proposals: list[AnalystDeckEdit] = Field(default_factory=list)
 
 
 class AnalystThreadView(BaseModel):
@@ -887,9 +973,40 @@ class AnalystThreadView(BaseModel):
 
 class AnalystReviewIn(BaseModel):
     text: str = Field(min_length=1, max_length=20000)
+    citations: list[AnalystCitation] = Field(default_factory=list, max_length=200)
+
+
+class AnalystBriefLookupIn(BaseModel):
+    ticket: str = Field(min_length=10, max_length=4000)
+    variant: str = Field(min_length=1, max_length=32)
+
+
+class AnalystBriefIn(AnalystBriefLookupIn):
+    text: str = Field(min_length=1, max_length=8000)
+    citations: list[AnalystCitation] = Field(default_factory=list, max_length=100)
+
+
+class AnalystBriefOut(BaseModel):
+    text: str
+    citations: list[AnalystCitation] = Field(default_factory=list)
+    created_at: str | None
+
+
+class AnalystBriefDeckLine(BaseModel):
+    id: str
+    copies: int
+
+
+class AnalystBriefLookupOut(BaseModel):
+    leader_id: str
+    opponent_id: str
+    deck: list[AnalystBriefDeckLine]
+    key: str
+    brief: AnalystBriefOut | None = None
 
 
 class AnalystReviewOut(BaseModel):
     match_id: str
     text: str
+    citations: list[AnalystCitation] = Field(default_factory=list)
     created_at: str | None

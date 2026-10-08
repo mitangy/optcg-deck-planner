@@ -13,7 +13,7 @@ import {
   type Seat,
 } from "@optcg/rules";
 import { describe, expect, it } from "vitest";
-import { draftLesson, matchupStats, myLessons, narrateReplay, reviewMatch, tokenIsValid } from "./matches";
+import { draftLesson, matchupStats, myLessons, narrateReplay, reviewMatch, tokenIsValid, tournamentStats } from "./matches";
 
 /** Play legal moves until a Life card is taken as damage. */
 function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, { type: "life_taken" }> } {
@@ -177,6 +177,26 @@ describe("learning loop", () => {
     expect(stats.matchups[0].opponent_name).toBe(getCardDef("OP01-060").name);
     expect(stats.cards[0].id_name).toBe(getCardDef("OP01-006").name);
     await expect(matchupStats({ ...api, serviceSecret: "" }, {})).rejects.toThrow(/ANALYST_SERVICE_SECRET/);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("reads tournament stats with the service secret only and names leaders and cards, but not events (#397)", async () => {
+    const { calls, api } = recorder({
+      leader: "OP01-001",
+      events: [{ id: "6abcfe1c783097f8dcb74092", name: "Cup" }],
+      opponents: [{ opponent: "OP01-060", games: 6 }],
+      cards: [{ id: "OP01-006", rate: 0.5 }],
+      top_placings: [{ event_id: "6abcfe1c783097f8dcb74092", decklist: { "OP01-006": 4 } }],
+    });
+    const stats = (await tournamentStats(api, { leader: " op01-001", opponent: "op01-060", days: 14, minPlayers: 16 })) as Record<string, any>;
+    expect(calls).toEqual([
+      { url: "https://api.test/analyst/tournaments/stats?leader=OP01-001&opponent=OP01-060&days=14&min_players=16", method: "GET", headers: { "X-Analyst-Service": "svc" }, body: undefined },
+    ]);
+    expect(stats.leader_name).toBe(getCardDef("OP01-001").name);
+    expect(stats.opponents[0].opponent_name).toBe(getCardDef("OP01-060").name);
+    expect(stats.cards[0].id_name).toBe(getCardDef("OP01-006").name);
+    expect(stats.events[0]).toEqual({ id: "6abcfe1c783097f8dcb74092", name: "Cup" });
+    await expect(tournamentStats({ ...api, serviceSecret: "" }, {})).rejects.toThrow(/ANALYST_SERVICE_SECRET/);
     expect(calls).toHaveLength(1);
   });
 

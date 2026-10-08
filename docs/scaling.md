@@ -81,8 +81,8 @@ change a plan and need Miko's go-ahead.
   room closes and sends its `final` log. If a game-server process crashes
   without closing its rooms, those unfinished logs are lost after 6 hours;
   without Redis they stay in Postgres as before.
-- Catalog sync's lock and status are per API worker, so with
-  `WEB_CONCURRENCY` above 1 two syncs can overlap.
+- Catalog sync's lock and status, and the tournament sync background task,
+  are per API worker, so with `WEB_CONCURRENCY` above 1 they can run twice.
 - Public playmat links are bearer URLs: anyone given one can load that image
   until it is deleted (cached copies outlive the delete). Rotating
   `COSMETIC_URL_SECRET` retires every link at once. The route has no rate

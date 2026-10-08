@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     game_server_url: str = ""
     # Signs public playmat / card back links (falls back to session_secret).
     cosmetic_url_secret: str = ""
+    # Background pull of Limitless TCG tournament results for Log Pose. Unset: on in
+    # production, off everywhere else (tests, local dev). TOURNAMENT_SYNC=true/false overrides.
+    tournament_sync: bool | None = None
+    tournament_sync_days: int = 30
 
     @property
     def analyst_chat_email_set(self) -> set[str]:
@@ -95,6 +99,10 @@ class Settings(BaseSettings):
             if url.startswith(prefix):
                 return "postgresql+psycopg2://" + url[len(prefix) :]
         return url
+
+    @property
+    def tournament_sync_enabled(self) -> bool:
+        return self.is_production if self.tournament_sync is None else self.tournament_sync
 
     @property
     def is_production(self) -> bool:

@@ -1,0 +1,234 @@
+/* Log Pose copilot on the board (casual and practice games). The pill is fixed over the board under the top bar,
+   never in its flow, so a plan starting, stepping or stopping moves nothing. Layer: above the board and its prompts
+   (45-50) and the matchup brief (55), below the match menu (60) and the Log Pose panel (90). */
+
+/* "Log Pose" in the top bar: the Brief button's box, a little wider for its label. Busy (a plan running) is the dot. */
+.hud-brief-btn.hud-copilot-btn.hud-brief-text {
+  width: 92px;
+}
+
+/* The phone bar is crowded: with Brief and Log Pose both there, their icon boxes take the bar's own 40px size (the
+   menu and the pass button already do) and the buttons sit a little closer, so the turn chip is never cut off. */
+.arena .hud-compact .hud-actions:has(.hud-copilot-btn) {
+  gap: 0.2rem;
+}
+
+.arena .hud-compact .hud-brief-btn.hud-icon-btn {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+}
+
+.copilot-pill {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 56;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 34px;
+  max-width: calc(100vw - 24px);
+  padding: 0 0.3rem 0 0.7rem;
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: 999px;
+  background: var(--lp-surface);
+  color: var(--lp-ink);
+  box-shadow: var(--lp-shadow);
+  font-family: var(--lp-font);
+  font-size: 0.78rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* The pill floats over the opponent's top row for a few seconds: only Stop takes taps, so a count chip or a DON!!
+   under the text stays reachable. */
+.copilot-pill {
+  pointer-events: none;
+}
+
+.copilot-pill-stop {
+  pointer-events: auto;
+}
+
+.copilot-pill-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lp-accent);
+  animation: lp-pulse 1.2s ease-in-out infinite;
+}
+
+.copilot-pill[data-state="choice"] .copilot-pill-dot,
+.copilot-pill[data-state="blocked"] .copilot-pill-dot {
+  background: var(--lp-needle);
+  animation: none;
+}
+
+.copilot-pill-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copilot-pill-stop {
+  flex: none;
+  box-sizing: border-box;
+  min-width: 52px;
+  height: 26px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.copilot-pill-stop:hover {
+  background: var(--lp-surface-2);
+}
+
+.copilot-pill-stop:focus-visible {
+  outline: 2px solid var(--lp-focus);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .copilot-pill {
+    height: 44px;
+  }
+
+  .copilot-pill-stop {
+    min-width: 60px;
+    height: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copilot-pill-dot {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .copilot-pill-dot {
+  animation: none;
+}
+
+/* The Turn plan card, under Log Pose's answer in the panel. */
+.copilot-plan {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  min-width: 0;
+  border: 1px solid var(--lp-line-d, var(--lp-line));
+  border-radius: 10px;
+  background: var(--lp-surface-d, var(--lp-surface));
+  color: var(--lp-ink-d, var(--lp-ink));
+  font-size: 0.875rem;
+}
+
+.copilot-plan-title {
+  margin: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--lp-muted-d, var(--lp-muted));
+}
+
+.copilot-plan-summary {
+  margin: 2px 0 8px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.copilot-steps {
+  margin: 0;
+  padding: 0 0 0 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.copilot-step {
+  min-width: 0;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+  overflow-wrap: anywhere;
+}
+
+.copilot-step::marker {
+  color: var(--lp-muted-d, var(--lp-muted));
+  font-variant-numeric: tabular-nums;
+}
+
+.copilot-step-label {
+  display: block;
+}
+
+.copilot-step-why {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d, var(--lp-muted));
+}
+
+.copilot-step[data-done="true"] {
+  opacity: 0.6;
+}
+
+.copilot-step[data-current="true"] {
+  border-left-color: var(--lp-accent-d, var(--lp-accent));
+  background: var(--lp-surface-2-d, var(--lp-surface-2));
+  font-weight: 600;
+}
+
+/* Always one line tall at least, so a state change (waiting, your call, blocked) never resizes the card's buttons. */
+.copilot-plan-status {
+  margin: 8px 0 0;
+  min-height: 1.4em;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d, var(--lp-muted));
+  overflow-wrap: anywhere;
+}
+
+.copilot-plan-status[data-kind="blocked"] {
+  color: var(--lp-danger-d, var(--lp-danger));
+}
+
+.copilot-plan-actions {
+  margin-top: 8px;
+  min-height: 36px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.copilot-btn {
+  flex: none;
+  min-width: 5.5rem;
+}
+
+.copilot-btn-primary {
+  min-width: 8rem;
+  border-color: var(--lp-accent-d, var(--lp-accent));
+  background: var(--lp-accent-d, var(--lp-accent));
+  color: var(--lp-on-accent-d, var(--lp-on-accent));
+}
+
+.copilot-btn-stop {
+  border-color: var(--lp-danger-d, var(--lp-danger));
+  color: var(--lp-danger-d, var(--lp-danger));
+}
+
+.lp-panel[data-phone] .copilot-plan-actions {
+  min-height: 44px;
+}
+
+.lp-panel[data-phone] .copilot-btn {
+  flex: 1 1 0;
+  min-height: 44px;
+}

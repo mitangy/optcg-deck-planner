@@ -12,7 +12,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app import db as app_db
-from app.models import Deck, DuelMatch, GroupBuy, User
+from app.models import AnalystMatchReview, Deck, DuelMatch, GroupBuy, User
 from tests.db_support import make_bare_engine, requires_postgres, using_postgres
 
 _PK = "SERIAL" if using_postgres() else "INTEGER"
@@ -40,9 +40,14 @@ _LEGACY_DDL = [
         winner_seat INTEGER NOT NULL, reason VARCHAR(64), ranked BOOLEAN,
         seat0_rating_before INTEGER NOT NULL, seat1_rating_before INTEGER NOT NULL,
         seat0_rating_after INTEGER NOT NULL, seat1_rating_after INTEGER NOT NULL, created_at {_TS})""",
+    # analyst_match_reviews before citations
+    f"""CREATE TABLE analyst_match_reviews (
+        user_id INTEGER NOT NULL REFERENCES users (id), match_id VARCHAR(64) NOT NULL,
+        text TEXT NOT NULL, created_at {_TS}, PRIMARY KEY (user_id, match_id))""",
     "INSERT INTO users (email, name, google_sub) VALUES ('old@example.com', 'Old', 'sub-old')",
     "INSERT INTO decks (user_id, name, leader_card_id, sort_order) VALUES (1, 'Red Luffy', 'OP01-001', 0)",
     "INSERT INTO group_buys (host_user_id, title, status, invite_token) VALUES (1, 'Old pool', 'open', 'tok-old')",
+    "INSERT INTO analyst_match_reviews (user_id, match_id, text) VALUES (1, 'old-match', 'You lost on turn 4.')",
     "INSERT INTO duel_matches (match_id, seat0_user_id, seat1_user_id, winner_seat, reason, ranked, "
     "seat0_rating_before, seat1_rating_before, seat0_rating_after, seat1_rating_after) "
     "VALUES ('old-match', 1, 1, 0, 'life', TRUE, 1000, 1000, 1016, 984)",
@@ -90,6 +95,15 @@ def test_old_rows_get_defaults_for_every_added_column(legacy_engine):
         match = db.query(DuelMatch).one()
         assert (match.seat0_leader_id, match.seat1_leader_id, match.turns) == (None, None, None)
         assert (match.match_id, match.seat0_rating_after) == ("old-match", 1016)
+
+
+def test_an_old_review_gets_a_citations_column_and_reads_back_without_sources(legacy_engine):
+    """Reviews written before sources existed keep their text; the new nullable column reads as no citations (#390)."""
+    app_db.init_db()
+    assert "citations" in _columns(legacy_engine, "analyst_match_reviews")
+    with Session(legacy_engine) as db:
+        review = db.query(AnalystMatchReview).one()
+        assert (review.match_id, review.text, review.citations) == ("old-match", "You lost on turn 4.", None)
 
 
 def test_every_current_model_column_exists_after_migration(legacy_engine):

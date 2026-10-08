@@ -26,6 +26,7 @@ import {
   type PlayerView,
   type Seat,
   type SeatPlayers,
+  type BriefTicketWire,
   type TimerMessage,
   type HandOrderMessage,
   type RematchAction,
@@ -44,6 +45,8 @@ export type DuelClientHandlers = {
     view: PlayerView;
     role: "player" | "spectator";
     players?: SeatPlayers;
+    ranked?: boolean;
+    brief?: BriefTicketWire;
   }) => void;
   onView?: (view: PlayerView) => void;
   onEvents?: (events: unknown[]) => void;
@@ -516,6 +519,8 @@ export class DuelClient {
           view: msg.view,
           role: msg.role ?? (msg.view.spectator ? "spectator" : "player"),
           players: msg.players,
+          ranked: msg.ranked,
+          brief: msg.brief,
         });
         this.endTurnSentOn = null;
         this.noteView(msg.view);

@@ -1,0 +1,20 @@
+{
+  "secret": "vector-secret",
+  "now": 1900000000,
+  "claims": {
+    "mid": "vector-room",
+    "seat": 0,
+    "ranked": false,
+    "leader": "OP01-001",
+    "opponent": "OP05-098",
+    "deck": [
+      "OP01-016",
+      "OP01-016",
+      "OP01-016",
+      "OP01-016",
+      "ST01-006",
+      "ST01-006"
+    ]
+  },
+  "ticket": "mb1.eyJwIjoibWF0Y2hfYnJpZWYiLCJtaWQiOiJ2ZWN0b3Itcm9vbSIsInNlYXQiOjAsInJhbmtlZCI6ZmFsc2UsImxlYWRlciI6Ik9QMDEtMDAxIiwib3Bwb25lbnQiOiJPUDA1LTA5OCIsImRlY2siOlsiT1AwMS0wMTYiLCJPUDAxLTAxNiIsIk9QMDEtMDE2IiwiT1AwMS0wMTYiLCJTVDAxLTAwNiIsIlNUMDEtMDA2Il0sImV4cCI6MTkwMDAxMDgwMH0.4PECy8BtIBROJQYJWp5O0RUcOCpizCGo1DxAr8-17Mo"
+}

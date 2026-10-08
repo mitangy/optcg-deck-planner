@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,7 +9,7 @@ from app.body_limit import BodySizeLimitMiddleware
 from app.config import get_settings
 from app.cors import TieredCORSMiddleware
 from app.db import init_db, startup_lock
-from app.routers import analyst, analyst_chat, api, auth, duel, duel_prefs, feedback, friends
+from app.routers import analyst, analyst_access, analyst_chat, api, auth, duel, duel_prefs, feedback, friends
 
 settings = get_settings()
 
@@ -29,7 +31,16 @@ async def lifespan(_app: FastAPI):
             backfill_seats(db)
         finally:
             db.close()
-    yield
+    from app.tournament_sync import start_background
+
+    sync_task = start_background(settings)
+    try:
+        yield
+    finally:
+        if sync_task is not None:
+            sync_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await sync_task
 
 
 _docs = None if settings.is_production else "/docs"
@@ -82,6 +93,7 @@ app.include_router(duel_prefs.router)
 app.include_router(feedback.router)
 app.include_router(analyst.router)
 app.include_router(analyst_chat.router)
+app.include_router(analyst_access.router)
 
 
 @app.get("/")

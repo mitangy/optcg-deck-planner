@@ -144,14 +144,22 @@ const words = (q: string) =>
     .split(/[^a-z0-9!+-]+/)
     .filter((w) => w.length > 2);
 
-/** Q&A entries ranked by how many of the query's words they contain. */
+/**
+ * Q&A entries ranked by their query words, rarest words first: each word weighs log(entries / entries containing it),
+ * and counts double when it is in the label or question rather than only the answer.
+ */
 export function searchQa(entries: readonly QaEntry[], query: string, limit = 5): QaEntry[] {
   const terms = [...new Set(words(query))];
   if (!terms.length) return [];
+  const docs = entries.map((e) => ({ head: `${e.label} ${e.question}`.toLowerCase(), answer: e.answer.toLowerCase() }));
+  const weight = new Map(
+    terms.map((t) => [t, Math.log(1 + entries.length / Math.max(1, docs.filter((d) => d.head.includes(t) || d.answer.includes(t)).length))]),
+  );
   return entries
     .map((e, i) => {
-      const text = `${e.label} ${e.question} ${e.answer}`.toLowerCase();
-      return { e, i, score: terms.filter((t) => text.includes(t)).length };
+      const d = docs[i]!;
+      const score = terms.reduce((sum, t) => sum + weight.get(t)! * (d.head.includes(t) ? 2 : d.answer.includes(t) ? 1 : 0), 0);
+      return { e, i, score };
     })
     .filter((r) => r.score > 0)
     .sort((a, b) => b.score - a.score || a.i - b.i)

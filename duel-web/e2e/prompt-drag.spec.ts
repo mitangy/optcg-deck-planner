@@ -62,6 +62,22 @@ test("double-clicking a moved prompt's header puts it back (#324)", async ({ pag
   await page.locator(`${PROMPT} > h3`).dblclick({ position: { x: 40, y: 10 } });
   const after = (await page.locator(PROMPT).boundingBox())!;
   expect(after.y).toBeCloseTo(before.y, 0);
+  // The saved spot is cleared too: the next pop-up opens centred.
+  await page.reload();
+  await expect(page.locator(".choice-confirm")).toBeVisible();
+  expect((await page.locator(PROMPT).boundingBox())!.y).toBeCloseTo(before.y, 0);
+});
+
+test("the next prompt opens where the last one was dragged (#422)", async ({ page }) => {
+  const before = await open(page);
+  await dragHeader(page, -40, -200);
+  const dropped = (await page.locator(PROMPT).boundingBox())!;
+  // The demo keeps one prompt up, so a reload (a fresh prompt, settings kept) stands in for the next.
+  await page.reload();
+  await expect(page.locator(".choice-confirm")).toBeVisible();
+  await expect.poll(async () => (await page.locator(PROMPT).boundingBox())!.y).toBeCloseTo(dropped.y, 0);
+  expect(dropped.y).toBeLessThan(before.y - 100);
+  expect((await page.locator(PROMPT).boundingBox())!.x).toBeCloseTo(dropped.x, 0);
 });
 
 /** The prompt's box lies fully inside the viewport. */

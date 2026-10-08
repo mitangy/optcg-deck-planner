@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useParams } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { BackLink } from "./BackLink";
-import { useLogPosePage } from "@optcg/analyst-client";
+import { useLogPoseDeckEditor, useLogPosePage, type DeckEditor as LogPoseDeckEditor } from "@optcg/analyst-client";
 import { DECK_EDITOR_STARTERS, deckContext } from "../logPose";
 import { DeckEditor } from "../board/DeckEditor";
 import { DeckImportPanel } from "../board/DeckImportPanel";
-import { MAX_MAIN_DECK_SIZE } from "../decks/editDeck";
+import { applyDeckOps, MAX_MAIN_DECK_SIZE } from "../decks/editDeck";
 import { pullPlannerDeck, saveDeckToPlanner } from "../decks/planner";
 import { fetchAuthMe } from "../net/api";
 import {
@@ -57,6 +57,25 @@ export function DeckConfigurePage() {
   useLogPosePage(
     deck ? { page: "deck-editor", label: deck.name || "This deck", deck: deckContext(deck), starters: DECK_EDITOR_STARTERS } : null,
   );
+
+  // Log Pose's Apply card saves through the same local save as manual edits, then the page reloads the deck.
+  const editor = useMemo<LogPoseDeckEditor | null>(
+    () =>
+      deck
+        ? {
+            ref: deckContext(deck).ref!,
+            cards: deckContext(deck).cards,
+            apply: async (ops) => {
+              const result = applyDeckOps(deck.id, ops);
+              if (!result.ok) throw new Error(result.error);
+              setTick((n) => n + 1);
+            },
+            note: deck.plannerDeckId ? "Saved in the duel app; use Save to planner to sync." : undefined,
+          }
+        : null,
+    [deck],
+  );
+  useLogPoseDeckEditor(editor);
 
   if (!deckId || !deck) {
     return <Navigate to="/decks" replace />;

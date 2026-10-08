@@ -5046,7 +5046,7 @@ body.is-panel-drag * {
 }
 
 /* A hand card that costs more than your active DON!!. */
-.arena .card-tile.hand-unaffordable:not(.selected) {
+.arena .card-tile.hand-unaffordable:not(.selected, .card-lifted) {
   opacity: 1;
   filter: grayscale(1);
 }

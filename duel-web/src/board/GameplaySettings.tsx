@@ -77,6 +77,11 @@ const TOGGLES: Toggle[] = [
     hint: "Draws the cannon-shot arc from the attacking card to its target during a battle.",
   },
   {
+    key: "attackGlow",
+    label: "Attack-ready glow",
+    hint: "Your Leader and Characters that can attack right now glow green.",
+  },
+  {
     key: "previewBigCard",
     label: "Big card preview",
     hint: "Desktop: the card preview on the left shows just the card, as big as it fits. Off shows a smaller card with its cost, colour, power and Counter icons and its text below.",
@@ -275,8 +280,8 @@ export function GameplaySettingsFields() {
             log, actions, Grid hand, chat ...) to snap it into the left or right column, and the
             fanned hand&apos;s grip to move it anywhere (spectating, each of the two hands has its own). Drop the opponent hand on the top of the
             playmat to pin it there. Drag the inner edge of a column, or the line between two panels, to
-            resize them (double-click an edge to reset it). Reset puts every panel, size and both
-            hands back.
+            resize them (double-click an edge to reset it). Reset puts every panel, size, both
+            hands and moved pop-ups back.
           </p>
         </div>
       ) : null}

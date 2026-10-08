@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Markdown, messageContext } from "@optcg/analyst-client";
-import { deckContext, reviewMode, showsLogPose } from "./logPose";
+import { CitedAnswer, DeckEditCard, Markdown, messageContext, parseProposal, parseSource, RequestAccessView, type DeckEditor, type PlacedCitation } from "@optcg/analyst-client";
+import { HintActions } from "@optcg/deck-analytics/ui";
+import { boardOpensLogPose, deckContext, logPoseChromeFor, reviewMode, setBoardBrief, setBoardCopilot, showsLogPose, sourceHref } from "./logPose";
 
 describe("Log Pose compass placement (#377)", () => {
   it("stays off every route that renders a board (#377)", () => {
@@ -17,9 +18,10 @@ describe("Log Pose compass placement (#377)", () => {
 
 describe("Log Pose page context (#377)", () => {
   it("sends the deck being edited as one entry per card with its copies (#377)", () => {
-    const ctx = deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100", "OP05-100", "OP05-101", "OP05-100"] });
+    const ctx = deckContext({ id: "d-1", name: "Enel", leaderId: "OP05-098", cards: ["OP05-100", "OP05-100", "OP05-101", "OP05-100"] });
     expect(ctx).toEqual({
       name: "Enel",
+      ref: "duel:d-1",
       leaderId: "OP05-098",
       cards: [
         { id: "OP05-100", copies: 3 },
@@ -29,9 +31,54 @@ describe("Log Pose page context (#377)", () => {
   });
 
   it("leaves the deck out of the next message after the chip's × is pressed, keeping the page id (#377)", () => {
-    const page = { page: "deck-editor", label: "Enel", deck: deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"] }) };
+    const page = { page: "deck-editor", label: "Enel", deck: deckContext({ id: "d-1", name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"] }) };
     expect(messageContext(page, false)).toEqual({ page: "deck-editor", deck: page.deck });
     expect(messageContext(page, true)).toEqual({ page: "deck-editor" });
+  });
+});
+
+describe("Log Pose Apply card (#400)", () => {
+  const wire = {
+    id: "t1",
+    version: 1,
+    target: { ref: "duel:d-1", name: "Luffy", leader_id: "ST01-001" },
+    summary: "Trim the slow event",
+    lines: [
+      { id: "ST01-016", name: "Diable Jambe", before: 0, after: 2, reason: "Cheaper trade for the same effect" },
+      { id: "ST01-015", name: "Gum-Gum Jet Pistol", before: 2, after: 0, reason: "Too slow on turn two" },
+    ],
+    base: [{ id: "ST01-015", copies: 2 }],
+    legality: { legal: false, count: 49, problems: ["49 of 50 cards"], upcoming: [], ban_list_checked: true },
+  };
+  const editor: DeckEditor = { ref: "duel:d-1", cards: [{ id: "ST01-015", copies: 2 }], apply: async () => {} };
+
+  it("shows each change with its reason and the legality result (#400)", () => {
+    const html = renderToStaticMarkup(<DeckEditCard proposal={parseProposal(wire)!} editor={editor} />);
+    expect(html).toContain("Suggested edit · Luffy");
+    expect(html).toContain("Cheaper trade for the same effect");
+    expect(html).toContain("Too slow on turn two");
+    expect(html).toContain("Still not legal:");
+    expect(html).toContain("49 of 50 cards");
+    expect(html).toContain(">Apply<");
+    const ok = renderToStaticMarkup(<DeckEditCard proposal={parseProposal({ ...wire, legality: { ...wire.legality, legal: true, count: 50, problems: [] } })!} editor={editor} />);
+    expect(ok).toContain("Legal after this change · 50 cards");
+  });
+});
+
+describe("Why? on a build hint (#399)", () => {
+  const actions = (onAsk?: () => void) => renderToStaticMarkup(<HintActions dismissed={false} onDismiss={() => {}} onRestore={() => {}} onAsk={onAsk} />);
+
+  it("shows Why? in a hint's popover only when Log Pose can answer (#399)", () => {
+    expect(actions()).not.toContain("Ask Log Pose");
+    expect(actions()).toContain("Dismiss");
+    const withAsk = actions(() => {});
+    expect(withAsk).toContain("Why? Ask Log Pose");
+    expect(withAsk.indexOf("Why? Ask Log Pose")).toBeLessThan(withAsk.indexOf("Dismiss"));
+  });
+
+  it("tells Log Pose the planner deck a duel deck is linked to (#399)", () => {
+    expect(deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"], plannerDeckId: 42 }).plannerDeckId).toBe(42);
+    expect(deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"] })).not.toHaveProperty("plannerDeckId");
   });
 });
 
@@ -69,5 +116,117 @@ describe("Log Pose markdown rendering (#377)", () => {
     expect(html).toContain("<ul><li>Draw</li><li>Attack</li></ul>");
     expect(html).toContain("<th>Leader</th><th>WR</th>");
     expect(html).toContain("<td>Enel</td><td>54%</td>");
+  });
+});
+
+const cite = (at: number, source: string, cited_text: string, title: string): PlacedCitation => ({ at, source, title, cited_text });
+const TEXT = "Zoro costs 3. Blockers rest. He wins by trading.";
+const CITES = [
+  cite(13, "card:OP01-001", "cost 3", "Zoro (OP01-001)"),
+  cite(28, "rule:6-5-3", "Blocker rests", "Rules §6-5-3 Blocker"),
+  cite(28, "card:OP01-001", "power 5000", "Zoro (OP01-001)"),
+];
+
+describe("sources in a Log Pose answer (#390)", () => {
+  it("puts a numbered marker right after each cited sentence, one number per source (#390)", () => {
+    const html = renderToStaticMarkup(<CitedAnswer text={TEXT} citations={CITES} />);
+    const markers = [...html.matchAll(/<button type="button" class="lp-cite"[^>]*aria-label="Source (\d+): ([^"]*)"[^>]*>(\d+)<\/button>/g)].map((m) => [m[1], m[2], m[3]]);
+    expect(markers).toEqual([
+      ["1", "Zoro (OP01-001)", "1"],
+      ["2", "Rules §6-5-3 Blocker", "2"],
+      ["1", "Zoro (OP01-001)", "1"],
+    ]);
+    expect(html).toContain("Zoro costs 3.<button");
+    expect(html).toContain("Blockers rest.<button");
+    expect(html).toMatch(/Blockers rest\.<button[^>]*>2<\/button><button[^>]*>1<\/button> He wins/);
+  });
+
+  it("lists each cited source once under the answer, with its kind (#390)", () => {
+    const html = renderToStaticMarkup(<CitedAnswer text={TEXT} citations={CITES} />);
+    expect(html).toContain("Sources (2)");
+    expect(html.match(/<li class="lp-src"/g)).toHaveLength(2);
+    expect(html).toContain(">Card</span>");
+    expect(html).toContain(">Rules §6-5-3</span>");
+  });
+
+  it("says an answer that cites nothing is Log Pose's own judgement, but not while it is still streaming or empty (#390)", () => {
+    expect(renderToStaticMarkup(<CitedAnswer text="I'd cut the 1-drops." citations={[]} />)).toContain("own judgement");
+    expect(renderToStaticMarkup(<CitedAnswer text="I'd cut the 1-drops." citations={[]} done={false} />)).not.toContain("own judgement");
+    expect(renderToStaticMarkup(<CitedAnswer text="   " citations={[]} />)).not.toContain("own judgement");
+    expect(renderToStaticMarkup(<CitedAnswer text={TEXT} citations={CITES} />)).not.toContain("own judgement");
+  });
+
+  it("shows source titles and answer text as text, and can't be made to draw a marker by the text itself (#390)", () => {
+    const evil = [cite(5, "card:X", "<script>bad()</script>", '<img src=x onerror="alert(1)">')];
+    const html = renderToStaticMarkup(<CitedAnswer text={"Hello \uE0007\uE001 <b>there</b>"} citations={evil} />);
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain("<b>");
+    expect(html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
+    expect(html.match(/class="lp-cite"/g)).toHaveLength(1);
+    expect(html).not.toMatch(/\uE000|\uE001/);
+  });
+
+  it("links only your own match logs, to the turn that was cited (#390)", () => {
+    expect(sourceHref(parseSource("match:abc#t3"))).toBe("/history/abc#turn-3");
+    expect(sourceHref(parseSource("match:abc"))).toBe("/history/abc");
+    expect(sourceHref(parseSource("match:a%b/c#t2"))).toBe("/history/a%25b%2Fc#turn-2");
+    expect(sourceHref(parseSource("game:g_9#t3"))).toBeNull();
+    expect(sourceHref(parseSource("card:OP01-001"))).toBeNull();
+  });
+});
+
+describe("Log Pose on boards with a matchup brief (#401)", () => {
+  it("Log Pose stays hidden on a board unless a brief is up, and never shows its compass there (#401)", () => {
+    for (const path of ["/duel", "/hotseat", "/demo"]) {
+      expect(logPoseChromeFor(path, false), path).toEqual({ hidden: true, launcher: false });
+      // With a brief up the panel may open (from "Ask Log Pose"), but the compass is not drawn on a board.
+      expect(logPoseChromeFor(path, true), path).toEqual({ hidden: false, launcher: false });
+    }
+    // Everywhere else Log Pose is as before.
+    for (const path of ["/", "/decks", "/history"]) {
+      expect(logPoseChromeFor(path, false), path).toEqual({ hidden: false, launcher: true });
+    }
+  });
+});
+
+describe("Log Pose on boards with the copilot (#416)", () => {
+  it("the panel opens over a board while the copilot or a brief is up, and closes only when neither is (#416)", () => {
+    expect(boardOpensLogPose()).toBe(false);
+    setBoardCopilot(true);
+    expect(boardOpensLogPose()).toBe(true);
+    setBoardBrief(true);
+    setBoardCopilot(false);
+    // The brief unmounting must not take the copilot's permission with it, nor the reverse.
+    expect(boardOpensLogPose()).toBe(true);
+    setBoardCopilot(true);
+    setBoardBrief(false);
+    expect(boardOpensLogPose()).toBe(true);
+    setBoardCopilot(false);
+    expect(boardOpensLogPose()).toBe(false);
+  });
+});
+
+describe("asking for Log Pose: the request view (#393)", () => {
+  const view = (access: "none" | "pending" | "denied") => renderToStaticMarkup(<RequestAccessView apiBase="/api" access={access} onSent={() => {}} />);
+
+  it("offers the form with a 500 character note to someone who hasn't asked (#393)", () => {
+    const html = view("none");
+    expect(html).toContain("Request access to Log Pose");
+    expect(html).toContain('maxLength="500"');
+    expect(html).toContain("Request access</button>");
+  });
+
+  it("shows no form once a request is waiting (#393)", () => {
+    const html = view("pending");
+    expect(html).toContain("Request sent.");
+    expect(html).not.toContain("<textarea");
+    expect(html).not.toContain("<button");
+  });
+
+  it("says the request wasn't approved and offers the form again (#393)", () => {
+    const html = view("denied");
+    expect(html).toContain("approved this time");
+    expect(html).toContain("<textarea");
   });
 });

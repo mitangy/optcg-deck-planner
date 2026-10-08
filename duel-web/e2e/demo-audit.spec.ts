@@ -810,6 +810,8 @@ for (const handLayout of ["fan", "grid"]) {
     type Box = { x: number; y: number; width: number; height: number };
     // Drag hand card `from` to a point worked out once the hand is raised under the pointer.
     const drag = async (from: number, to: (box: (i: number) => Promise<Box>) => Promise<{ x: number; y: number }>) => {
+      // A pointer left on a card's edge after the last drop can keep the fan rising and tucking.
+      if (!touch) await page.mouse.move(4, 4);
       // The last drop's slide (#338) and the fan's rise / tuck must settle before the cards are measured.
       await page.waitForFunction(() =>
         document

@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -106,6 +107,16 @@ export function usePointerDrag<T>({
     startRef.current = null;
     setDragging(false);
   }, []);
+
+  // Turning off mid-drag drops the handlers, so the up / cancel that would end
+  // the drag never arrives. End it here so callers can undo what drag start did (#364).
+  const onDragCancelRef = useRef(onDragCancel);
+  onDragCancelRef.current = onDragCancel;
+  useEffect(() => {
+    if (enabled || !startRef.current?.started) return;
+    reset();
+    onDragCancelRef.current?.();
+  }, [enabled, reset]);
 
   const onPointerDown = useCallback(
     (e: ReactPointerEvent) => {

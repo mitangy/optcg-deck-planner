@@ -44,6 +44,7 @@ jobs:
       - run: npm run typecheck -w @optcg/game-server
       - run: npm run typecheck -w @optcg/analyst
       - run: npm test
+      - run: npm run eval:validate -w @optcg/analyst
       # Fixed-seed fuzz games; a failure prints the seed and intent index to replay.
       - run: npm run fuzz:smoke -w @optcg/rules
       # Views (getPlayerView per seat after every move) must stay well ahead of the uncached path, timed in one process.

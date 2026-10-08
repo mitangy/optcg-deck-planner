@@ -3600,6 +3600,16 @@ img.zone-pile-face {
   box-shadow: 0 0 0 2px rgb(var(--chrome-rgb) / 0.55);
 }
 
+/* Attack-ready glow (#412): your Leader / Characters that can attack now.
+   A soft, still green edge (box-shadow only, so nothing moves); later than
+   .has-actions so it wins. */
+.card-tile.attack-ready {
+  border-color: rgba(60, 200, 110, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(60, 200, 110, 0.4),
+    0 0 6px 1px rgba(60, 200, 110, 0.22);
+}
+
 
 /* —— Hand collapse —— */
 .hand-rail-head {

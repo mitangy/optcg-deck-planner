@@ -73,6 +73,12 @@ export type DuelSettings = {
    */
   spectatorNearFanPos: string;
   spectatorFarFanPos: string;
+  /**
+   * Where a dragged centred pop-up was left, as an "x,y" pixel offset from the
+   * centre (e.g. "-40,-200"); "" = centred. The next pop-up opens there. Stays
+   * on this device: pixels from a desktop window mean nothing on a phone.
+   */
+  promptPos: string;
   /** Desktop: the fanned hand (or corner dock) stays raised instead of tucking away. */
   keepHandOpen: boolean;
   /**
@@ -104,6 +110,8 @@ export type DuelSettings = {
   cantAttackWarning: boolean;
   /** The "cannon shot" arc from the attacker to its target during a battle. */
   battleArrow: boolean;
+  /** A green glow on your Leader and Characters that can attack right now. */
+  attackGlow: boolean;
   /** Desktop card preview: only the card, as big as fits (on), or a smaller card with its stat icons and text (off). */
   previewBigCard: boolean;
   /** DON!! given to a rested Leader or Character stays upright under it instead of turning sideways with it. */
@@ -132,6 +140,14 @@ export type DuelSettings = {
   /** Short chime when the game needs you. */
   turnSound: boolean;
 
+  // —— Log Pose ——
+  /** The Log Pose matchup brief (Brief button and card) before casual and practice games. Never in ranked. */
+  matchBrief: boolean;
+  /** Write the matchup brief by itself when none is saved (uses your Log Pose daily limit). Off: tap Get brief. */
+  matchBriefAuto: boolean;
+  /** Log Pose on the board in casual and practice games: ask about your turn and let it play one you approve. Never in ranked. */
+  logPoseCopilot: boolean;
+
   // —— Deck editor ——
   /** Deck stats, draw odds and build hints (shared with the planner) in the deck editor. */
   deckStats: boolean;
@@ -154,6 +170,7 @@ const DEFAULTS: DuelSettings = {
   handFanPos: "",
   spectatorNearFanPos: "",
   spectatorFarFanPos: "",
+  promptPos: "",
   keepHandOpen: false,
   panelLayout: "",
   panelSizes: "",
@@ -164,6 +181,7 @@ const DEFAULTS: DuelSettings = {
   handCounters: true,
   cantAttackWarning: true,
   battleArrow: true,
+  attackGlow: true,
   previewBigCard: false,
   donUpright: false,
   oppHandSpot: "",
@@ -175,6 +193,9 @@ const DEFAULTS: DuelSettings = {
   cardSpotlight: true,
   turnAlert: true,
   turnSound: false,
+  matchBrief: true,
+  matchBriefAuto: false,
+  logPoseCopilot: false,
   deckStats: true,
 };
 
@@ -246,10 +267,11 @@ function sanitize(
   return next;
 }
 
-/** Dev fields that stay on this device; everything else follows the account. */
+/** Fields that stay on this device (dev keys, pixel offsets); everything else follows the account. */
 const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
   "useDevKey",
   "devUserKey",
+  "promptPos",
 ];
 
 /** The part of the settings saved to a signed-in player's account. */

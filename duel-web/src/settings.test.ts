@@ -192,6 +192,12 @@ describe("account settings", () => {
     expect(synced).not.toHaveProperty("devUserKey");
   });
 
+  it("keeps where pop-ups open on this device, not the account (#422)", () => {
+    stubStored({ promptPos: "-40,-200" });
+    expect(syncedSettings(loadSettings())).not.toHaveProperty("promptPos");
+    expect(mergeRemoteSettings(loadSettings(), { promptPos: "9,9" }).promptPos).toBe("-40,-200");
+  });
+
   it("applies account settings but keeps this device's device-only fields", () => {
     stubStored({ useDevKey: true, devUserKey: "mine", handLayout: "fan" });
     const merged = mergeRemoteSettings(loadSettings(), {
