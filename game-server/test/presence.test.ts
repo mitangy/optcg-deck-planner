@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { PresenceReporter } from "../src/presence.js";
+import { PresenceReporter, type PresenceEntry } from "../src/presence.js";
 
 async function waitUntil(pred: () => boolean, timeoutMs = 8000): Promise<void> {
   const start = Date.now();
@@ -52,5 +52,40 @@ describe("PresenceReporter", () => {
     reporter.markDirty();
     await waitUntil(() => count === 2, 1000);
     reporter.stop();
+  });
+});
+
+describe("PresenceReporter heartbeat", () => {
+  function counting() {
+    const bodies: unknown[] = [];
+    const send = (async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)));
+      return new Response(null, { status: 204 });
+    }) as unknown as typeof fetch;
+    return { bodies, send };
+  }
+
+  it("stops re-sending an empty snapshot once the API has it, so its database can sleep (#389)", async () => {
+    const { bodies, send } = counting();
+    const reporter = new PresenceReporter(send, "gs-idle", 10, 15);
+    reporter.start();
+    await new Promise((r) => setTimeout(r, 120));
+    reporter.stop();
+    assert.equal(bodies.length, 1);
+  });
+
+  it("keeps re-sending while someone is in a room, even after an idle spell (#389)", async () => {
+    const { bodies, send } = counting();
+    const reporter = new PresenceReporter(send, "gs-busy", 10, 15);
+    const entries: PresenceEntry[] = [];
+    reporter.register({ presenceEntries: () => entries });
+    reporter.start();
+    await new Promise((r) => setTimeout(r, 60));
+    const idle = bodies.length;
+    // A seat fills without a change notice: the heartbeat must still carry it.
+    entries.push({ user_id: 5, room_id: "r1", role: "player", phase: "playing", ranked: false });
+    await new Promise((r) => setTimeout(r, 120));
+    reporter.stop();
+    assert.ok(bodies.length - idle >= 3, `sent ${bodies.length - idle} after the room filled`);
   });
 });

@@ -428,6 +428,118 @@ def test_oversized_progress_log_is_dropped(client, monkeypatch: pytest.MonkeyPat
     assert c.get("/duel/matches/me/small").json()["log"] == small
 
 
+def test_live_progress_stays_in_redis_and_lists_as_unfinished_389(client, fake_redis):
+    """With Redis, per-turn snapshots skip Postgres but still read back as the unfinished game."""
+    from app.models import DuelMatchProgress
+
+    c, SessionLocal = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    logs = [{"seat": 0, "turns": [{"turn": 1}]}, {"seat": 1, "turns": [{"turn": 1}, {"turn": 2}]}]
+    assert _progress(c, "live", a["user_id"], me["id"], seat_logs=logs, turns=2).status_code == 204
+    with SessionLocal() as db:
+        assert db.query(DuelMatchProgress).count() == 0
+    assert fake_redis.ttl("duel:progress:live") > 0
+
+    listed = c.get("/duel/matches/me").json()["matches"]
+    assert [(m["match_id"], m["finished"], m["turns"], m["your_seat"]) for m in listed] == [("live", False, 2, 1)]
+    assert c.get("/duel/matches/me/live").json()["log"] == logs[1]
+    # Different players for the same match id are refused, as in Postgres.
+    assert _progress(c, "live", me["id"], a["user_id"]).status_code == 409
+
+
+def test_final_progress_is_durable_in_postgres_with_redis_389(client, fake_redis):
+    """A room closing without a result sends final: true; that snapshot must reach Postgres."""
+    from app.models import DuelMatchProgress
+
+    c, SessionLocal = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    early = [{"seat": 0, "turns": [{"turn": 1}]}, {"seat": 1, "turns": [{"turn": 1}]}]
+    last = [{"seat": 0, "turns": [{"turn": 1}, {"turn": 2}]}, {"seat": 1, "turns": [{"turn": 1}, {"turn": 2}]}]
+    _progress(c, "cut", me["id"], a["user_id"], seat_logs=early, turns=1)
+    assert _progress(c, "cut", me["id"], a["user_id"], seat_logs=last, turns=2, final=True).status_code == 204
+    with SessionLocal() as db:
+        row = db.get(DuelMatchProgress, "cut")
+        assert row is not None and row.turns == 2
+    # The durable copy replaces the live one.
+    assert not fake_redis.exists("duel:progress:cut")
+    assert [m["turns"] for m in c.get("/duel/matches/me").json()["matches"]] == [2]
+    assert c.get("/duel/matches/me/cut").json()["log"] == last[0]
+
+
+def test_result_clears_live_progress_in_redis_389(client, fake_redis):
+    """The result deletes the live snapshot; a late or racing one never lists the game twice."""
+    from datetime import datetime, timezone
+
+    from app import duel_live
+    from app.models import DuelMatchProgress
+
+    c, _ = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    _progress(c, "g", me["id"], a["user_id"], turns=1)
+    _ingest(c, "g", me["id"], a["user_id"], 0)
+    assert not fake_redis.exists("duel:progress:g")
+    # A snapshot that arrives after the result is not stored.
+    assert _progress(c, "g", me["id"], a["user_id"], turns=1).status_code == 204
+    assert not fake_redis.exists("duel:progress:g")
+    # One that raced past the check is hidden by the reader.
+    duel_live.write_progress(
+        fake_redis,
+        DuelMatchProgress(
+            match_id="g", seat0_user_id=me["id"], seat1_user_id=a["user_id"], ranked=False,
+            turns=1, updated_at=datetime.now(timezone.utc),
+        ),
+    )
+    listed = c.get("/duel/matches/me").json()["matches"]
+    assert [(m["match_id"], m["finished"]) for m in listed] == [("g", True)]
+
+
+ADMIN = {"X-Catalog-Token": "dev-sync-token"}
+
+
+def test_tokens_carry_the_game_server_pool_pointer_389(client, fake_redis, monkeypatch: pytest.MonkeyPatch):
+    """New games follow the Redis pool pointer, else GAME_SERVER_URL (blue/green without a rebuild)."""
+    c, _ = client
+    monkeypatch.setenv("GAME_SERVER_URL", "https://gs-blue.example.com")
+    get_settings.cache_clear()
+    assert c.post("/duel/dev-token", json={"user_key": "alice"}).json()["game_server_url"] == "https://gs-blue.example.com"
+
+    r = c.put("/duel/admin/game-server-pool", json={"url": "https://gs-green.example.com/"}, headers=ADMIN)
+    assert r.status_code == 200, r.text
+    assert r.json() == {"pool_url": "https://gs-green.example.com", "game_server_url": "https://gs-green.example.com"}
+    assert c.post("/duel/dev-token", json={"user_key": "alice"}).json()["game_server_url"] == "https://gs-green.example.com"
+    guest = c.post("/duel/guest-token", json={"guest_id": "poolguest0001"}).json()
+    assert guest["game_server_url"] == "https://gs-green.example.com"
+    assert c.get("/duel/admin/game-server-pool", headers=ADMIN).json()["pool_url"] == "https://gs-green.example.com"
+
+    # Clearing the pointer falls back to the environment.
+    assert c.put("/duel/admin/game-server-pool", json={"url": None}, headers=ADMIN).json()["pool_url"] is None
+    assert c.post("/duel/dev-token", json={"user_key": "alice"}).json()["game_server_url"] == "https://gs-blue.example.com"
+
+
+def test_game_server_pool_needs_the_admin_token_and_a_safe_url_389(client, fake_redis):
+    c, _ = client
+    good = {"url": "https://gs-green.example.com"}
+    assert c.put("/duel/admin/game-server-pool", json=good).status_code == 401
+    assert c.put("/duel/admin/game-server-pool", json=good, headers={"X-Catalog-Token": "guess"}).status_code == 401
+    assert c.get("/duel/admin/game-server-pool").status_code == 401
+    assert not fake_redis.exists("duel:gs:current")
+    for bad in (
+        "http://gs.example.com",
+        "javascript:alert(1)",
+        "https://user:pw@gs.example.com",
+        "https://gs.example.com/?next=evil",
+        "https://gs.example.com:99999",
+        "wss://gs.example.com",
+    ):
+        assert c.put("/duel/admin/game-server-pool", json={"url": bad}, headers=ADMIN).status_code == 422, bad
+    assert not fake_redis.exists("duel:gs:current")
+    local = c.put("/duel/admin/game-server-pool", json={"url": "http://localhost:2567"}, headers=ADMIN)
+    assert local.json()["pool_url"] == "http://localhost:2567"
+
+
 def test_new_guest_accounts_are_capped_per_client_ip_318(client, monkeypatch: pytest.MonkeyPatch):
     from app.rate_limit import RateLimiter
     from app.routers import duel as duel_router

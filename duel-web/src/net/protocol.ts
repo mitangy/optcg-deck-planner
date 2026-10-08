@@ -4,6 +4,7 @@
  */
 
 import { lookupCard } from "../cards/atlas";
+import { getApiBaseUrl } from "../config";
 
 export const PROTOCOL_VERSION = 5 as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
@@ -159,7 +160,13 @@ export type CosmeticsMessage = {
 };
 
 
-/** A player's custom playmat / card back as small data URLs (null = default). */
+/**
+ * A player's custom playmat / card back (null = default). On the wire each is
+ * a small image data URL or an account upload's public path
+ * (`/duel/cosmetics/<id>/public/<sig>`, relative to the API). `parseSkin`
+ * resolves a received path against the API base, so a parsed skin holds
+ * image URLs ready for CSS.
+ */
 export type SeatSkin = {
   playmat: string | null;
   cardBack: string | null;
@@ -176,12 +183,16 @@ export const SKIN_MAX_PLAYMAT_CHARS = 450_000;
 export const SKIN_MAX_CARD_BACK_CHARS = 90_000;
 
 const SKIN_DATA_URL = /^data:image\/(?:jpeg|webp|png);base64,[A-Za-z0-9+/]+={0,2}$/;
+/** Public path of an account upload; the game server accepts the same shape. */
+export const SKIN_PUBLIC_PATH = /^\/duel\/cosmetics\/\d+\/public\/[A-Za-z0-9_-]{16,128}$/;
 
 function asSkinImage(raw: unknown, maxChars: number): string | null {
-  // Only image data URLs are ever put in CSS `url(...)`; anything else is dropped.
-  return typeof raw === "string" && raw.length <= maxChars && SKIN_DATA_URL.test(raw)
-    ? raw
-    : null;
+  // Only image data URLs and API upload URLs are ever put in CSS `url(...)`;
+  // anything else is dropped.
+  if (typeof raw !== "string" || raw.length > maxChars) return null;
+  if (SKIN_DATA_URL.test(raw)) return raw;
+  if (SKIN_PUBLIC_PATH.test(raw)) return `${getApiBaseUrl()}${raw}`;
+  return null;
 }
 
 export function parseSkin(raw: unknown): SkinMessage {

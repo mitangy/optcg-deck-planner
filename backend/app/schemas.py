@@ -477,6 +477,20 @@ class DuelTokenOut(BaseModel):
     display_name: str = ""
     rating: int
     games_played: int
+    # Game-server pool new games should join (blue/green); None: use the build's default.
+    game_server_url: str | None = None
+
+
+class GameServerPoolIn(BaseModel):
+    # https://… (or http://localhost / 127.0.0.1 for dev); null clears the pointer.
+    url: str | None = Field(default=None, max_length=512)
+
+
+class GameServerPoolOut(BaseModel):
+    # The Redis pointer (duel:gs:current), if set.
+    pool_url: str | None = None
+    # What token responses hand out now: the pointer, else GAME_SERVER_URL, else null.
+    game_server_url: str | None = None
 
 
 class DuelMatchIngest(BaseModel):
@@ -506,6 +520,9 @@ class DuelMatchProgressIngest(BaseModel):
     turns: int | None = Field(default=None, ge=0, le=10_000)
     replay: dict | None = None
     seat_logs: list[dict] | None = Field(default=None, min_length=2, max_length=2)
+    # Sent by the room's dispose path when it closes without a result: this snapshot
+    # is the game's last, so it is written to Postgres even when Redis holds live ones.
+    final: bool = False
 
 
 class DuelMatchHistoryEntry(BaseModel):
@@ -781,6 +798,9 @@ class DuelCosmeticOut(BaseModel):
     kind: str
     size: int
     created_at: str
+    # Signed link anyone can load without a session (relative to the API base),
+    # e.g. "/duel/cosmetics/123/public/<sig>"; immutable and publicly cacheable.
+    public_path: str
 
 
 class DuelCosmeticActiveOut(BaseModel):

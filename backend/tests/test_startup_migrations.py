@@ -146,3 +146,25 @@ def test_postgres_boolean_columns_are_real_booleans_defaulting_false(legacy_engi
         assert col["type"].__class__.__name__ == "BOOLEAN", (table, column)
         assert "false" in str(col["default"]).lower(), (table, column)
     assert _columns(legacy_engine, "group_buys")["ordered_at"]["type"].timezone is True
+
+
+@requires_postgres
+def test_startup_waits_for_another_worker_holding_the_startup_lock_389(legacy_engine):
+    """Several uvicorn workers start at once; only one may run the migrations at a time."""
+    import threading
+
+    entered = threading.Event()
+
+    def other_worker() -> None:
+        with app_db.startup_lock(legacy_engine):
+            entered.set()
+
+    with legacy_engine.connect() as holder:
+        holder.execute(text("SELECT pg_advisory_lock(:key)"), {"key": app_db.STARTUP_LOCK_KEY})
+        worker = threading.Thread(target=other_worker, daemon=True)
+        worker.start()
+        assert not entered.wait(0.5)
+        holder.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": app_db.STARTUP_LOCK_KEY})
+        holder.commit()
+    assert entered.wait(5)
+    worker.join(5)

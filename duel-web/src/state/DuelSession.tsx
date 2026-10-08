@@ -31,9 +31,7 @@ import type {
   UndoAction,
   UndoState,
 } from "../net/protocol";
-import { SKIN_MAX_CARD_BACK_CHARS, SKIN_MAX_PLAYMAT_CHARS } from "../net/protocol";
-import { cardBackShareUrl } from "../cardBack";
-import { playmatShareUrl } from "../playmat";
+import { buildSharedSkin, isSkinPathRejected } from "../skinShare";
 import {
   initSeatArtPrefsFromStorage,
   replaceSeatArtPrefs,
@@ -164,6 +162,8 @@ const Ctx = createContext<DuelSession | null>(null);
 export function DuelSessionProvider({ children }: { children: React.ReactNode }) {
   const clientRef = useRef(new DuelClient());
   const serverUrlRef = useRef<string | null>(null);
+  /** The last skin sent carried an account upload path (see skinShare.ts). */
+  const skinSentAsPathRef = useRef(false);
   const seatRef = useRef<Seat | null>(null);
   const [connected, setConnected] = useState(false);
   const [launch, setLaunch] = useState<MatchLaunch | null>(null);
@@ -203,7 +203,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
 
     function persistToken(token: string, roomId: string) {
       const s = seatRef.current;
-      const url = serverUrlRef.current;
+      // The server this match was created on, so a reload rejoins that pool.
+      const url = serverUrlRef.current ?? client.serverUrl;
       if (s !== 0 && s !== 1) return;
       if (!url) return;
       saveMatchResume({
@@ -246,11 +247,10 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
               client.sendCosmetics(prefs);
             });
             initSeatArtPrefsFromStorage(s);
-            void Promise.all([
-              playmatShareUrl(SKIN_MAX_PLAYMAT_CHARS),
-              cardBackShareUrl(SKIN_MAX_CARD_BACK_CHARS),
-            ]).then(([playmat, cardBack]) => {
-              if (playmat || cardBack) client.sendSkin({ playmat, cardBack });
+            void buildSharedSkin().then((shared) => {
+              if (!shared) return;
+              skinSentAsPathRef.current = shared.usesPath;
+              client.sendSkin(shared.skin);
             });
           }
           const tok = client.getReconnectionToken();
@@ -285,6 +285,14 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         },
         onError: (err) => {
           if (isSeatReservationExpiredError(err.message)) return;
+          if (skinSentAsPathRef.current && isSkinPathRejected(err)) {
+            // A game server from before public paths: share the art as data URLs instead.
+            skinSentAsPathRef.current = false;
+            void buildSharedSkin({ allowPaths: false }).then((shared) => {
+              if (shared) client.sendSkin(shared.skin);
+            });
+            return;
+          }
           // A spectator who arrives before the first deal is not in trouble:
           // the board already says "Waiting for the match to start…".
           if (err.code === "match_not_ready" && !viewRef.current) return;
@@ -457,10 +465,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setResuming(false);
         setRole(opts.role ?? "player");
         connectRoleRef.current = opts.role ?? "player";
-        if (opts.serverUrl) {
-          serverUrlRef.current = opts.serverUrl;
-          setLastServerUrl(opts.serverUrl);
-        }
+        // A new match: forget the last match's server (unset → the client's own).
+        serverUrlRef.current = opts.serverUrl ?? null;
+        if (opts.serverUrl) setLastServerUrl(opts.serverUrl);
         wireHandlers();
         const info = await client.connect(opts);
         if (launchGenRef.current !== gen) throw abandon();
@@ -484,10 +491,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setView(null);
         setQueueing(true);
         setResuming(false);
-        if (opts.serverUrl) {
-          serverUrlRef.current = opts.serverUrl;
-          setLastServerUrl(opts.serverUrl);
-        }
+        serverUrlRef.current = opts.serverUrl ?? null;
+        if (opts.serverUrl) setLastServerUrl(opts.serverUrl);
         wireHandlers();
         try {
           const info = await client.queueRanked(opts);

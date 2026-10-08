@@ -4,7 +4,17 @@ import { ApiError } from "./api";
 
 export type CosmeticKind = "playmat" | "cardBack";
 
-export type AccountCosmetic = { id: number; kind: CosmeticKind; size: number; created_at: string };
+export type AccountCosmetic = {
+  id: number;
+  kind: CosmeticKind;
+  size: number;
+  created_at: string;
+  /**
+   * Signed, cookie-free path (relative to the API base) the opponent's board can
+   * load: `/duel/cosmetics/<id>/public/<sig>`. Absent on older APIs.
+   */
+  public_path?: string;
+};
 
 export type AccountCosmetics = {
   items: AccountCosmetic[];

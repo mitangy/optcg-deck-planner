@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from app.body_limit import BodySizeLimitMiddleware
 from app.config import get_settings
 from app.cors import TieredCORSMiddleware
-from app.db import init_db
+from app.db import init_db, startup_lock
 from app.routers import analyst, analyst_access, analyst_chat, api, auth, duel, duel_prefs, feedback, friends
 
 settings = get_settings()
@@ -16,19 +16,21 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    init_db()
-    # Re-flag alt printings when SPECIAL_NAME_MARKERS expands (no TCGCSV wait).
-    from app.catalog_sync import refresh_special_flags
-    from app.db import SessionLocal
+    # Several workers start together; one at a time migrates and backfills.
+    with startup_lock():
+        init_db()
+        # Re-flag alt printings when SPECIAL_NAME_MARKERS expands (no TCGCSV wait).
+        from app.catalog_sync import refresh_special_flags
+        from app.db import SessionLocal
 
-    from app.analyst_stats import backfill_seats
+        from app.analyst_stats import backfill_seats
 
-    db = SessionLocal()
-    try:
-        refresh_special_flags(db)
-        backfill_seats(db)
-    finally:
-        db.close()
+        db = SessionLocal()
+        try:
+            refresh_special_flags(db)
+            backfill_seats(db)
+        finally:
+            db.close()
     from app.tournament_sync import start_background
 
     sync_task = start_background(settings)

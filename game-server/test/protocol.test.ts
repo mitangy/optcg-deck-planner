@@ -4,9 +4,22 @@ import {
   parseCreateOptions,
   parseIntentMessage,
   parseJoinOptions,
+  parseSkinMessage,
 } from "../src/protocol.js";
 
 describe("protocol parsers", () => {
+  it("accepts a cosmetic link as a playmat, so seats relay a short path instead of the image (#389)", () => {
+    const path = "/duel/cosmetics/123/public/AbCdEfGhIjKlMnOpQrStUv";
+    const s = parseSkinMessage({ protocolVersion: PROTOCOL_VERSION, skin: { playmat: path, cardBack: null } });
+    assert.equal(s.playmat, path);
+  });
+
+  it("rejects links that aren't our signed cosmetic paths (#389)", () => {
+    for (const playmat of ["https://evil.example/x.png", "/duel/cosmetics/123/public/short", "/duel/cosmetics/abc/public/AbCdEfGhIjKlMnOpQrStUv"]) {
+      assert.throws(() => parseSkinMessage({ protocolVersion: PROTOCOL_VERSION, skin: { playmat } }), /playmat/);
+    }
+  });
+
   it("parses join options", () => {
     const j = parseJoinOptions({
       protocolVersion: PROTOCOL_VERSION,

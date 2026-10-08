@@ -6,7 +6,7 @@
 import { abilitiesFor } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import type { Ability, CmpOp, Cond, Cost, CountExpr, Filter, Keyword, PlayerRestriction, Restriction, Selector, Static, Value } from "../effects/types.js";
-import type { BindingValue, CardDef, CardInstance, InstanceId, MatchState, Seat } from "../types.js";
+import type { BindingValue, CardDef, CardInstance, InstanceId, MatchState, Modifier, Seat } from "../types.js";
 import { activeDon, donOnField, fieldCards, locate, otherSeat, type Located, type ZoneName } from "./state.js";
 
 export interface EvalCtx {
@@ -51,18 +51,104 @@ export interface StaticEntry {
 
 let staticGuard = 0;
 
+// ---------------------------------------------------------------------------
+// Per-state query cache
+// ---------------------------------------------------------------------------
+
+/**
+ * Memo of static-ability results for one state object, active only inside
+ * `withQueryCache`. Queries are otherwise recomputed from scratch because the
+ * engine mutates its working state while resolving an intent. Static results
+ * depend on the re-entrancy guards (nested queries see fewer statics), so only
+ * top-level queries, made with no guard raised, read or fill those entries.
+ */
+interface QueryCache {
+  state: MatchState;
+  activeStatics: StaticEntry[] | null;
+  negated: Map<InstanceId, boolean>;
+  staticsFor: Map<string, { entry: StaticEntry; s: Static }[]>;
+  cardModifiers: Map<InstanceId, Modifier[]> | null;
+  located: Map<InstanceId, Located | null>;
+}
+
+let queryCache: QueryCache | null = null;
+let queryCacheEnabled = true;
+
+/** Turns `withQueryCache` into a plain call (for equivalence tests and the benchmark baseline). */
+export function setQueryCacheEnabled(enabled: boolean): void {
+  queryCacheEnabled = enabled;
+}
+
+/**
+ * Runs `fn` with derived static-ability results memoized for `state`. The state
+ * must not be mutated while `fn` runs; read-only work such as building views
+ * and listing legal intents qualifies. The cache is dropped when `fn` returns.
+ */
+export function withQueryCache<T>(state: MatchState, fn: () => T): T {
+  if (!queryCacheEnabled || queryCache?.state === state) return fn();
+  const outer = queryCache;
+  queryCache = { state, activeStatics: null, negated: new Map(), staticsFor: new Map(), cardModifiers: null, located: new Map() };
+  try {
+    return fn();
+  } finally {
+    queryCache = outer;
+  }
+}
+
+function cacheOf(state: MatchState): QueryCache | null {
+  return queryCache !== null && queryCache.state === state ? queryCache : null;
+}
+
+/** The cache for static-ability results: only queries made with no re-entrancy guard raised use it. */
+function topLevelCacheOf(state: MatchState): QueryCache | null {
+  return staticGuard === 0 && negateGuard === 0 && costGuard === 0 ? cacheOf(state) : null;
+}
+
+/** `locate` memoized while a query cache is active. Callers must not mutate the result. */
+function locateCard(state: MatchState, id: InstanceId): Located | null {
+  const cache = cacheOf(state);
+  if (!cache) return locate(state, id);
+  let hit = cache.located.get(id);
+  if (hit === undefined) cache.located.set(id, (hit = locate(state, id)));
+  return hit;
+}
+
+// Static abilities per card definition. The ability registry is frozen, so these never go stale.
+const staticAbilityCache = new Map<string, { field: readonly Ability[]; hand: readonly Ability[]; negate: readonly Ability[]; cost: readonly Ability[] }>();
+function staticAbilitiesOf(defId: string) {
+  let hit = staticAbilityCache.get(defId);
+  if (!hit) {
+    const statics = abilitiesFor(defId).filter((a) => a.trigger === "static");
+    hit = {
+      field: statics.filter((a) => !handOnly(a)),
+      hand: statics.filter((a) => handOnly(a)),
+      negate: statics.filter((a) => (a.statics ?? []).some((s) => s.s === "negate")),
+      cost: statics.filter((a) => (a.statics ?? []).some((s) => s.s === "cost")),
+    };
+    staticAbilityCache.set(defId, hit);
+  }
+  return hit;
+}
+
 let negateGuard = 0;
 export function isNegated(state: MatchState, card: CardInstance): boolean {
-  if (state.modifiers.some((m) => m.target.kind === "card" && m.target.id === card.id && m.effect.type === "negate")) return true;
+  if (cardModifiers(state, card).some((m) => m.effect.type === "negate")) return true;
   // Static "… have their effects negated" (the negating card's own negation is not re-checked).
   if (negateGuard > 0) return false;
+  const cache = topLevelCacheOf(state);
+  if (!cache) return negatedByStatic(state, card);
+  let hit = cache.negated.get(card.id);
+  if (hit === undefined) cache.negated.set(card.id, (hit = negatedByStatic(state, card)));
+  return hit;
+}
+
+function negatedByStatic(state: MatchState, card: CardInstance): boolean {
   negateGuard += 1;
   try {
-    const loc = locate(state, card.id);
+    const loc = locateCard(state, card.id);
     if (!loc) return false;
     for (const seat of [0, 1] as Seat[]) for (const src of fieldCards(state.players[seat])) {
-      for (const ability of abilitiesFor(src.defId)) {
-        if (ability.trigger !== "static") continue;
+      for (const ability of staticAbilitiesOf(src.defId).negate) {
         for (const s of ability.statics ?? []) {
           if (s.s !== "negate") continue;
           if (s.target === "self" ? src.id !== card.id : !selectorMatches(state, ctxFor(seat, src), s.target.all, loc)) continue;
@@ -83,23 +169,28 @@ function handOnly(ability: Ability): boolean {
 /** Static abilities currently in effect. Re-entrant queries during condition checks see none. */
 export function activeStatics(state: MatchState): StaticEntry[] {
   if (staticGuard > 0) return [];
+  const cache = topLevelCacheOf(state);
+  if (!cache) return computeActiveStatics(state);
+  return (cache.activeStatics ??= computeActiveStatics(state));
+}
+
+function computeActiveStatics(state: MatchState): StaticEntry[] {
   staticGuard += 1;
   try {
     const out: StaticEntry[] = [];
     for (const seat of [0, 1] as Seat[]) {
       const p = state.players[seat];
       for (const card of fieldCards(p)) {
-        if (isNegated(state, card)) continue;
-        for (const ability of abilitiesFor(card.defId)) {
-          if (ability.trigger !== "static" || handOnly(ability)) continue;
+        const abilities = staticAbilitiesOf(card.defId).field;
+        if (abilities.length === 0 || isNegated(state, card)) continue;
+        for (const ability of abilities) {
           if (ability.don && card.attachedDonIds.length < ability.don) continue;
           const ctx = ctxFor(seat, card);
           if ((ability.conditions ?? []).every((c) => evalCond(state, ctx, c))) out.push({ seat, card, zone: "field", ability });
         }
       }
       for (const card of p.hand) {
-        for (const ability of abilitiesFor(card.defId)) {
-          if (ability.trigger !== "static" || !handOnly(ability)) continue;
+        for (const ability of staticAbilitiesOf(card.defId).hand) {
           const ctx = ctxFor(seat, card);
           if ((ability.conditions ?? []).every((c) => evalCond(state, ctx, c))) out.push({ seat, card, zone: "hand", ability });
         }
@@ -116,12 +207,21 @@ function staticApplies(state: MatchState, entry: StaticEntry, s: Static, target:
   const t = s.target;
   if (t === "self") return entry.card.id === target.card.id;
   if (typeof t !== "object" || !("all" in t)) return false;
-  const loc = locate(state, target.card.id);
+  const loc = locateCard(state, target.card.id);
   if (!loc) return false;
   return selectorMatches(state, ctxFor(entry.seat, entry.card), t.all, loc);
 }
 
 function staticsFor(state: MatchState, seat: Seat, card: CardInstance): { entry: StaticEntry; s: Static }[] {
+  const cache = topLevelCacheOf(state);
+  if (!cache) return computeStaticsFor(state, seat, card);
+  const key = `${seat}|${card.id}`;
+  let hit = cache.staticsFor.get(key);
+  if (!hit) cache.staticsFor.set(key, (hit = computeStaticsFor(state, seat, card)));
+  return hit;
+}
+
+function computeStaticsFor(state: MatchState, seat: Seat, card: CardInstance): { entry: StaticEntry; s: Static }[] {
   const out: { entry: StaticEntry; s: Static }[] = [];
   const entries = activeStatics(state);
   // Selector checks inside static targeting see printed values (no recursion).
@@ -141,8 +241,20 @@ function staticsFor(state: MatchState, seat: Seat, card: CardInstance): { entry:
   return out;
 }
 
-function cardModifiers(state: MatchState, card: CardInstance) {
-  return state.modifiers.filter((m) => m.target.kind === "card" && m.target.id === card.id);
+const NO_MODIFIERS: readonly Modifier[] = [];
+function cardModifiers(state: MatchState, card: CardInstance): readonly Modifier[] {
+  const cache = cacheOf(state);
+  if (!cache) return state.modifiers.filter((m) => m.target.kind === "card" && m.target.id === card.id);
+  if (!cache.cardModifiers) {
+    cache.cardModifiers = new Map();
+    for (const m of state.modifiers) {
+      if (m.target.kind !== "card") continue;
+      const list = cache.cardModifiers.get(m.target.id);
+      if (list) list.push(m);
+      else cache.cardModifiers.set(m.target.id, [m]);
+    }
+  }
+  return cache.cardModifiers.get(card.id) ?? NO_MODIFIERS;
 }
 
 // ---------------------------------------------------------------------------
@@ -179,8 +291,7 @@ function costStaticsFor(state: MatchState, card: CardInstance): { entry: StaticE
   try {
     const out: { entry: StaticEntry; s: Static }[] = [];
     for (const seat of [0, 1] as Seat[]) for (const src of fieldCards(state.players[seat])) {
-      for (const ability of abilitiesFor(src.defId)) {
-        if (ability.trigger !== "static" || !(ability.statics ?? []).some((s) => s.s === "cost")) continue;
+      for (const ability of staticAbilitiesOf(src.defId).cost) {
         if (ability.don && src.attachedDonIds.length < ability.don) continue;
         if (isNegated(state, src)) continue;
         const ctx = ctxFor(seat, src);
@@ -236,7 +347,7 @@ export function playerRestricted(state: MatchState, seat: Seat, restriction: Pla
   const applies = (filter: Filter | undefined, ctxSeat: Seat) => {
     if (!filter) return true;
     if (!card) return false;
-    const loc = locate(state, card.id) ?? { seat, zone: "hand" as const, index: 0, id: card.id, defId: card.defId };
+    const loc = locateCard(state, card.id) ?? { seat, zone: "hand" as const, index: 0, id: card.id, defId: card.defId };
     return loc != null && filterMatches(state, ctxFor(ctxSeat, card), filter, loc);
   };
   for (const m of state.modifiers) {
@@ -258,13 +369,13 @@ export function attackTargetAllowed(state: MatchState, seat: Seat, target: CardI
     if (s.s === "player_restrict" && s.restriction === "attack_only_matching" && s.filter && (s.player === "you" ? entry.seat : otherSeat(entry.seat)) === seat) filters.push({ filter: s.filter, seat: entry.seat, source: entry.card });
   }
   if (!filters.length) return true;
-  const loc = locate(state, target.id);
+  const loc = locateCard(state, target.id);
   return loc != null && filters.every((f) => filterMatches(state, ctxFor(f.seat, f.source), f.filter, loc));
 }
 
 /** "This card cannot attack … matching": does a restriction forbid \`attacker\` from attacking \`target\`? */
 export function cannotAttackMatching(state: MatchState, seat: Seat, attacker: CardInstance, target: CardInstance): boolean {
-  const loc = locate(state, target.id);
+  const loc = locateCard(state, target.id);
   if (!loc) return false;
   for (const { entry, s } of staticsFor(state, seat, attacker)) if (s.s === "restrict" && s.restriction === "cannot_attack_matching" && s.filter && filterMatches(state, ctxFor(entry.seat, entry.card), s.filter, loc)) return true;
   for (const m of cardModifiers(state, attacker)) if (m.effect.type === "restrict" && m.effect.restriction === "cannot_attack_matching" && m.effect.filter && filterMatches(state, ctxFor(m.sourceSeat, attacker), m.effect.filter, loc)) return true;
@@ -307,7 +418,7 @@ export function protectedFromBattleKoBy(state: MatchState, seat: Seat, card: Car
 export function counterOf(state: MatchState, seat: Seat, card: CardInstance): number {
   const def = getCardDef(card.defId);
   let value = def.counter ?? 0;
-  const loc = locate(state, card.id);
+  const loc = locateCard(state, card.id);
   for (const entry of activeStatics(state)) {
     if (entry.seat !== seat) continue;
     // Hand-zone Counter statics only change the card itself ("this card in your hand has a +N Counter").
@@ -326,7 +437,7 @@ export function counterOf(state: MatchState, seat: Seat, card: CardInstance): nu
 export function playCostOf(state: MatchState, seat: Seat, card: CardInstance): number {
   const def = getCardDef(card.defId);
   let cost = def.cost;
-  const loc = locate(state, card.id);
+  const loc = locateCard(state, card.id);
   for (const entry of activeStatics(state)) {
     if (entry.seat !== seat) continue;
     for (const s of entry.ability.statics ?? []) {
@@ -346,7 +457,7 @@ export function playCostOf(state: MatchState, seat: Seat, card: CardInstance): n
 function findBattleCard(state: MatchState, defId: string): Located | null {
   const b = state.battle;
   if (!b) return null;
-  const loc = locate(state, b.attackerId);
+  const loc = locateCard(state, b.attackerId);
   return loc && loc.defId === defId ? loc : null;
 }
 
@@ -477,11 +588,11 @@ export function filterMatches(state: MatchState, ctx: EvalCtx, f: Filter, loc: L
   }
   if (f.onlySelf && loc.id !== ctx.sourceId) return false;
   if (f.notColorsOfVar) {
-    const colors = new Set(asList(ctx.vars[f.notColorsOfVar]).flatMap((id) => { const l = locate(state, id); return l ? getCardDef(l.defId).colors : []; }));
+    const colors = new Set(asList(ctx.vars[f.notColorsOfVar]).flatMap((id) => { const l = locateCard(state, id); return l ? getCardDef(l.defId).colors : []; }));
     if (def.colors.some((c) => colors.has(c))) return false;
   }
   if (f.sameNameAsVar) {
-    const names = new Set(asList(ctx.vars[f.sameNameAsVar]).flatMap((id) => { const l = locate(state, id); return l ? [getCardDef(l.defId).name] : []; }));
+    const names = new Set(asList(ctx.vars[f.sameNameAsVar]).flatMap((id) => { const l = locateCard(state, id); return l ? [getCardDef(l.defId).name] : []; }));
     if (!names.has(def.name)) return false;
   }
   const card = loc.card;
@@ -521,17 +632,17 @@ export function evalCount(state: MatchState, ctx: EvalCtx, expr: CountExpr): num
     case "don_active": return activeDon(state.players[relSeat(ctx, expr.player)]).length;
     case "don_rested": return state.players[relSeat(ctx, expr.player)].costArea.filter((d) => d.rested).length;
     case "don_deck": return state.players[relSeat(ctx, expr.player)].donDeck.length;
-    case "don_attached_self": { const loc = locate(state, ctx.sourceId); return loc?.card?.attachedDonIds.length ?? 0; }
+    case "don_attached_self": { const loc = locateCard(state, ctx.sourceId); return loc?.card?.attachedDonIds.length ?? 0; }
     case "cards": return candidates(state, ctx, expr.selector).length;
     case "var": { const v = ctx.vars[expr.name]; return typeof v === "number" ? v : typeof v === "boolean" ? (v ? 1 : 0) : asList(v).length; }
     case "leader_power": { const s = relSeat(ctx, expr.player); return powerOf(state, s, state.players[s].leader); }
     case "don_attached_total": return state.players[relSeat(ctx, expr.player)].attachedDons.length;
-    case "self_power": { const loc = locate(state, ctx.sourceId); return loc?.card ? powerOf(state, loc.seat, loc.card) : 0; }
+    case "self_power": { const loc = locateCard(state, ctx.sourceId); return loc?.card ? powerOf(state, loc.seat, loc.card) : 0; }
     case "battle_power": {
       const b = state.battle;
       if (!b) return 0;
       const id = expr.role === "attacker" ? b.attackerId : b.target.kind === "leader" ? state.players[otherSeat(b.attackerSeat)].leader.id : b.target.instanceId;
-      const loc = locate(state, id);
+      const loc = locateCard(state, id);
       return loc?.card ? powerOf(state, loc.seat, loc.card) : 0;
     }
     case "sum": return expr.exprs.reduce((n, e) => n + evalCount(state, ctx, e), 0);
@@ -543,7 +654,7 @@ export function evalCount(state: MatchState, ctx: EvalCtx, expr: CountExpr): num
     case "leader_base_power": { const s = relSeat(ctx, expr.player); return basePowerOf(state, s, state.players[s].leader); }
     case "distinct_names": return new Set(candidates(state, ctx, expr.selector).map((l) => getCardDef(l.defId).name)).size;
     case "var_sum": return asList(ctx.vars[expr.name]).reduce((n, id) => {
-      const loc = locate(state, id);
+      const loc = locateCard(state, id);
       if (!loc) return n;
       if (expr.field === "cost") return n + (loc.card && onField(loc) ? costOf(state, loc.seat, loc.card) : getCardDef(loc.defId).cost);
       return n + (loc.card && onField(loc) ? powerOf(state, loc.seat, loc.card) : getCardDef(loc.defId).power ?? 0);
@@ -558,7 +669,7 @@ export function evalValue(state: MatchState, ctx: EvalCtx, value: Value): number
 }
 
 function sourceCard(state: MatchState, ctx: EvalCtx): CardInstance | undefined {
-  return locate(state, ctx.sourceId)?.card;
+  return locateCard(state, ctx.sourceId)?.card;
 }
 
 export function evalCond(state: MatchState, ctx: EvalCtx, cond: Cond): boolean {
@@ -579,8 +690,8 @@ export function evalCond(state: MatchState, ctx: EvalCtx, cond: Cond): boolean {
     case "self_rested": return (sourceCard(state, ctx)?.rested ?? false) === cond.value;
     case "self_played_this_turn": return sourceCard(state, ctx)?.playedTurn === state.turnNumber;
     case "var_count": return cmp(cond.op, evalCount(state, ctx, { of: "var", name: cond.name }), evalValue(state, ctx, cond.value));
-    case "var_all_match": { const ids = asList(ctx.vars[cond.name]); return ids.length > 0 && ids.every((id) => { const loc = locate(state, id); return loc != null && filterMatches(state, ctx, cond.filter, loc); }); }
-    case "var_any_match": return asList(ctx.vars[cond.name]).some((id) => { const loc = locate(state, id); return loc != null && filterMatches(state, ctx, cond.filter, loc); });
+    case "var_all_match": { const ids = asList(ctx.vars[cond.name]); return ids.length > 0 && ids.every((id) => { const loc = locateCard(state, id); return loc != null && filterMatches(state, ctx, cond.filter, loc); }); }
+    case "var_any_match": return asList(ctx.vars[cond.name]).some((id) => { const loc = locateCard(state, id); return loc != null && filterMatches(state, ctx, cond.filter, loc); });
     case "battle_against": {
       const b = state.battle;
       if (!b) return false;
@@ -606,7 +717,7 @@ export function evalCond(state: MatchState, ctx: EvalCtx, cond: Cond): boolean {
       if (!b) return false;
       const defenderId = b.target.kind === "leader" ? state.players[otherSeat(b.attackerSeat)].leader.id : b.target.instanceId;
       const otherId = b.attackerId === ctx.sourceId ? defenderId : defenderId === ctx.sourceId ? b.attackerId : null;
-      const loc = otherId ? locate(state, otherId) : null;
+      const loc = otherId ? locateCard(state, otherId) : null;
       return loc != null && filterMatches(state, ctx, cond.filter, loc);
     }
     case "self_flag": { const card = sourceCard(state, ctx); return card != null && state.modifiers.some((m) => m.target.kind === "card" && m.target.id === card.id && m.effect.type === "flag" && m.effect.flag === cond.flag); }
@@ -626,7 +737,7 @@ export function evalCond(state: MatchState, ctx: EvalCtx, cond: Cond): boolean {
 
 export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean {
   const p = state.players[ctx.seat];
-  const src = locate(state, ctx.sourceId);
+  const src = locateCard(state, ctx.sourceId);
   switch (cost.k) {
     case "rest_don": return activeDon(p).length >= cost.count;
     case "return_don": return donOnField(p) >= cost.count;

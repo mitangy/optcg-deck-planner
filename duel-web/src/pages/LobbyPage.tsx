@@ -25,6 +25,7 @@ import {
   warmDuelServices,
   type AuthUser,
 } from "../net/api";
+import { gameServerUrlFor, rememberedGameServerUrl } from "../net/gameServer";
 import { clearMatchResume, loadMatchResume } from "../net/matchResume";
 import { devKeyAllowed, loadSettings } from "../settings";
 import { LaunchCancelledError, useDuelSession, type MatchLaunch } from "../state/DuelSession";
@@ -449,7 +450,7 @@ export function LobbyPage() {
       window.history.replaceState(window.history.state, "", window.location.pathname);
     }
     // Wake free-tier Render API + game-server so hotseat mint/create is warm.
-    warmDuelServices(getApiBaseUrl(), serverUrl);
+    warmDuelServices(getApiBaseUrl(), rememberedGameServerUrl() ?? serverUrl);
     void fetchAuthMe()
       .then((u) => {
         if (u) setAuthUser(u);
@@ -532,18 +533,18 @@ export function LobbyPage() {
       const minted = await mintGuestGameToken(getOrCreateGuestId());
       setRating(minted.rating);
       setBounty(minted.rating);
-      return { serverUrl, gameToken: minted.token };
+      return { serverUrl: gameServerUrlFor(minted, serverUrl), gameToken: minted.token };
     }
     if (authMode === "google") {
       const minted = await mintSessionGameToken();
       setRating(minted.rating);
       setBounty(minted.rating);
-      return { serverUrl, gameToken: minted.token };
+      return { serverUrl: gameServerUrlFor(minted, serverUrl), gameToken: minted.token };
     }
     const minted = await mintDevGameToken(settings.devUserKey.trim());
     setRating(minted.rating);
     setBounty(minted.rating);
-    return { serverUrl, gameToken: minted.token };
+    return { serverUrl: gameServerUrlFor(minted, serverUrl), gameToken: minted.token };
   }
 
   function hotseatUserKey(): string {
@@ -580,7 +581,7 @@ export function LobbyPage() {
         // Fire-and-forget wake only — do not block the lobby on free-tier API
         // cold starts. HotseatPage awaits readiness + mints with a visible
         // Starting screen.
-        warmDuelServices(getApiBaseUrl(), serverUrl);
+        warmDuelServices(getApiBaseUrl(), rememberedGameServerUrl() ?? serverUrl);
         navigate("/hotseat", {
           state: {
             serverUrl,

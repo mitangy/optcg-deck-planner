@@ -21,7 +21,14 @@ export type MatchResultPayload = {
 export type MatchProgressPayload = Pick<
   MatchResultPayload,
   "seat0_user_id" | "seat1_user_id" | "ranked" | "seat0_leader_id" | "seat1_leader_id" | "turns" | "replay" | "seat_logs"
->;
+> & {
+  /**
+   * The room is closing without a result: this is the game's last log and must
+   * be stored durably. Live turn snapshots leave it out, so the API may keep
+   * them in Redis instead of writing Postgres every turn.
+   */
+  final?: true;
+};
 
 export interface OutboxDatabase {
   query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
@@ -59,6 +66,21 @@ export class MatchResultOutbox {
   drain(): Promise<void> {
     if (!this.running) this.running = this.drainBatch().finally(() => { this.running = null; });
     return this.running;
+  }
+
+  /**
+   * Milliseconds until the next undelivered row is due (0 when one is due now),
+   * or null when nothing is waiting. Rows another process holds count from the
+   * end of its lease; rows parked forever ('infinity') never wake anyone.
+   */
+  async nextDueInMs(): Promise<number | null> {
+    const { rows } = await this.db.query<{ wait_ms: number | string | null }>(
+      `SELECT EXTRACT(EPOCH FROM (MIN(GREATEST(available_at, COALESCE(locked_until, available_at))) - now())) * 1000 AS wait_ms
+       FROM duel_match_outbox WHERE delivered_at IS NULL AND available_at < 'infinity'::timestamptz`,
+    );
+    const wait = rows[0]?.wait_ms;
+    // MIN over no rows is NULL: nothing is waiting.
+    return wait === null || wait === undefined ? null : Math.max(0, Math.ceil(Number(wait)));
   }
 
   private async drainBatch(): Promise<void> {
@@ -109,9 +131,76 @@ export class MatchResultOutbox {
   }
 }
 
+/**
+ * Drains the outbox only when there is something to send: after an enqueue, at
+ * startup, and when a failed delivery's retry falls due. An idle game server
+ * sends the database nothing, so a serverless Postgres (Neon) can scale to zero.
+ */
+export class OutboxScheduler {
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private running: Promise<void> | null = null;
+  private again = false;
+  private stopped = false;
+  constructor(
+    private outbox: Pick<MatchResultOutbox, "enqueue" | "drain" | "nextDueInMs">,
+    private setTimer: (fn: () => void, ms: number) => ReturnType<typeof setTimeout> = (fn, ms) => {
+      const t = setTimeout(fn, ms);
+      t.unref?.();
+      return t;
+    },
+    private clearTimer: (t: ReturnType<typeof setTimeout>) => void = clearTimeout,
+    /** Floor between drains, so a row due "now" that another process holds cannot spin. */
+    private minWaitMs = 1000,
+  ) {}
+
+  /** Durably queue a result, then deliver it right away. */
+  async enqueue(payload: MatchResultPayload): Promise<void> {
+    await this.outbox.enqueue(payload);
+    void this.kick();
+  }
+
+  /** Drain now (or right after the drain in progress) and schedule the next due retry. */
+  kick(): Promise<void> {
+    if (this.stopped) return Promise.resolve();
+    if (this.running) {
+      this.again = true;
+      return this.running;
+    }
+    this.running = this.run().finally(() => { this.running = null; });
+    return this.running;
+  }
+
+  private async run(): Promise<void> {
+    do {
+      this.again = false;
+      if (this.timer) { this.clearTimer(this.timer); this.timer = null; }
+      try {
+        await this.outbox.drain();
+      } catch {
+        console.error("Outbox drain failed; retained rows will retry");
+      }
+    } while (this.again && !this.stopped);
+    let wait: number | null;
+    try {
+      wait = await this.outbox.nextDueInMs();
+    } catch {
+      // Can't tell what is pending (database unreachable): look again later.
+      wait = 30_000;
+    }
+    if (wait === null || this.stopped) return;
+    this.timer = this.setTimer(() => { this.timer = null; void this.kick(); }, Math.max(this.minWaitMs, wait));
+  }
+
+  async stop(): Promise<void> {
+    this.stopped = true;
+    if (this.timer) { this.clearTimer(this.timer); this.timer = null; }
+    await this.running;
+  }
+}
+
 let pool: Pool | null = null;
 let outbox: MatchResultOutbox | null = null;
-let drainTimer: ReturnType<typeof setInterval> | null = null;
+let scheduler: OutboxScheduler | null = null;
 
 export async function startMatchResultOutbox(): Promise<void> {
   if (outbox) return;
@@ -126,15 +215,13 @@ export async function startMatchResultOutbox(): Promise<void> {
   const candidate = new MatchResultOutbox(pool);
   try { await candidate.initialize(); } catch (error) { await pool.end(); pool = null; throw error; }
   outbox = candidate;
-  const drain = () => void candidate.drain().catch(() => console.error("Outbox drain failed; retained rows will retry"));
-  drain(); // Startup does not wait for a cold API or a delivery backlog.
-  drainTimer = setInterval(drain, 5000);
-  drainTimer.unref();
+  scheduler = new OutboxScheduler(candidate);
+  void scheduler.kick(); // Startup does not wait for a cold API or a delivery backlog.
 }
 
 export async function stopMatchResultOutbox(): Promise<void> {
-  if (drainTimer) clearInterval(drainTimer);
-  drainTimer = null;
+  await scheduler?.stop();
+  scheduler = null;
   await outbox?.drain().catch(() => undefined);
   await pool?.end();
   pool = null;
@@ -143,8 +230,8 @@ export async function stopMatchResultOutbox(): Promise<void> {
 
 /** Resolves once durable; API delivery happens independently. */
 export async function postMatchResult(payload: MatchResultPayload): Promise<void> {
-  if (!outbox) throw new Error("Match result outbox is not configured");
-  await outbox.enqueue(payload);
+  if (!scheduler) throw new Error("Match result outbox is not configured");
+  await scheduler.enqueue(payload);
 }
 
 /**

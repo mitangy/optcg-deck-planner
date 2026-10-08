@@ -119,6 +119,8 @@ async function checkBrief(page: Page, duel: { startPractice: (o: { seed: number 
     expect(b.x + b.width).toBeLessThanOrEqual(vp.width + 1);
     expect(b.y + b.height).toBeLessThanOrEqual(vp.height + 1);
   };
+  // Measure the sheet where it settles, not partway through its slide-in.
+  await panel.evaluate((el) => Promise.all(el.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished)));
   inside((await panel.boundingBox())!);
   const briefBox = (await brief.boundingBox())!;
   const panelBox = (await panel.boundingBox())!;

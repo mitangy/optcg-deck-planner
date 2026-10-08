@@ -36,6 +36,8 @@ npm run export-atlas # writes mobile/assets/cardAtlas.json
 SIM_GAMES=200 npm run sim
 npm run scenario-coverage             # supported cards no test mentions, by set (a to-do list, not a gate)
 npm run scenario-coverage -- --summary OP01 EB01
+npm run bench:views                   # µs per move: applyIntent, and both seats' views with and without the query cache
+npm run bench:views -- --gate         # CI: exit 1 unless cached views are ≥1.8x faster than uncached
 ```
 
 ## Golden replays
