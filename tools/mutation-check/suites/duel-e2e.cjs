@@ -404,5 +404,12 @@ module.exports = {
       { file: "duel-web/src/board/copilot.css", from: ".arena .hud-compact .hud-actions:has(.hud-copilot-btn) {\n  gap: 0.2rem;\n}\n", to: "" },
     ], kills: ["copilot.spec.ts > practice: Log Pose plans a turn, plays it only after approval, and moves nothing on the board (#416) [phone-375]"] },
     { id: "e2e-copilot-settings-switch-dead", args: "copilot --project=desktop-1280 -g Settings", file: "duel-web/src/history/MatchBriefSettings.tsx", from: "            onChange={(e) => updateSettings({ logPoseCopilot: e.target.checked })}", to: "            onChange={() => updateSettings({})}", kills: ["copilot.spec.ts > the Settings page has the Log Pose copilot switch, off until it is turned on (#416) [desktop-1280]"] },
+    // Lobby quick fixes (#431)
+    { id: "e2e-lobby-leader-name-pill", args: "lobby --project=desktop-1280", file: "duel-web/src/ui.css", from: "/* \"Incomplete\" tag on decks under 50 cards (deck list, practice picker, deck menu). */\n.deck-incomplete-badge {", to: ".home-deck-leader,\n/* \"Incomplete\" tag on decks under 50 cards (deck list, practice picker, deck menu). */\n.deck-incomplete-badge {", kills: ["lobby.spec.ts > shows the deck's leader name as plain text, not a pill (#431) [desktop-1280]"] },
+    // Both layers: the hero stays, and Play and the deck stack again.
+    { id: "e2e-lobby-landscape-too-tall", args: "lobby --project=desktop-1280", edits: [
+      { file: "duel-web/src/ui.css", from: "  .home-hero {\n    display: none;\n  }\n", to: "" },
+      { file: "duel-web/src/ui.css", from: "    display: grid;\n    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);\n", to: "" },
+    ], kills: ["lobby.spec.ts > phone landscape fits Play and the deck on the first screen (#431) [desktop-1280]"] },
   ],
 };

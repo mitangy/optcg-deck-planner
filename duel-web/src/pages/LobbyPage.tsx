@@ -827,6 +827,10 @@ export function LobbyPage() {
           </button>
         </div>
 
+        {selectedDeck ? (
+          <DeckSwitcher decks={decks} selectedDeck={selectedDeck} onChoose={chooseDeck} />
+        ) : null}
+
         {showIosHint ? (
           <div className="install-hint" role="note" aria-label="Install on your iPhone">
             <span>
@@ -844,10 +848,6 @@ export function LobbyPage() {
               ✕
             </button>
           </div>
-        ) : null}
-
-        {selectedDeck ? (
-          <DeckSwitcher decks={decks} selectedDeck={selectedDeck} onChoose={chooseDeck} />
         ) : null}
 
         {friendError ? <p className="error-text">{friendError}</p> : null}

@@ -647,7 +647,6 @@
   white-space: nowrap;
 }
 
-.home-deck-leader,
 /* "Incomplete" tag on decks under 50 cards (deck list, practice picker, deck menu). */
 .deck-incomplete-badge {
   display: inline-block;
@@ -665,7 +664,8 @@
   white-space: nowrap;
 }
 
-.deck-menu-sub {
+.deck-menu-sub,
+.home-deck-leader {
   font-size: 0.76rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1388,17 +1388,29 @@ label.btn.is-busy {
     gap: 0.75rem;
   }
 
+  /* The top bar carries the mark; Play and the deck sit side by side. */
+  .home {
+    max-width: 720px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    column-gap: 0.75rem;
+  }
+
+  .home > * {
+    grid-column: 1 / -1;
+  }
+
+  .home > .home-actions {
+    grid-column: 1;
+  }
+
+  .home > .deck-switcher {
+    grid-column: 2;
+  }
+
   .home-hero {
-    margin-bottom: 0;
-  }
-
-  .home-kicker,
-  .home-rule {
     display: none;
-  }
-
-  .home-brand {
-    font-size: 2rem;
   }
 }
 
