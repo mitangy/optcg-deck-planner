@@ -280,8 +280,8 @@ export function GameplaySettingsFields() {
             log, actions, Grid hand, chat ...) to snap it into the left or right column, and the
             fanned hand&apos;s grip to move it anywhere (spectating, each of the two hands has its own). Drop the opponent hand on the top of the
             playmat to pin it there. Drag the inner edge of a column, or the line between two panels, to
-            resize them (double-click an edge to reset it). Reset puts every panel, size and both
-            hands back.
+            resize them (double-click an edge to reset it). Reset puts every panel, size, both
+            hands and moved pop-ups back.
           </p>
         </div>
       ) : null}

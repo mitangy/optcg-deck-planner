@@ -3,6 +3,7 @@ import { lookupCard } from "../cards/atlas";
 import type { PendingChoiceView } from "../net/protocol";
 import { peekPillLeft } from "./peekPill";
 import { usePromptDodge } from "./usePromptDodge";
+import { useDuelSettings } from "../settings";
 import { usePromptDrag } from "./promptDrag";
 import { DESKTOP_BOARD_QUERY, useMediaQuery } from "./useMediaQuery";
 import "./float.css";
@@ -33,7 +34,7 @@ export function HideablePrompt({
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   usePromptDodge(wrapRef, dodge, dodge != null && !hidden);
-  usePromptDrag(wrapRef);
+  usePromptDrag(wrapRef, useDuelSettings().promptPos);
   return (
     <>
       <div ref={wrapRef} hidden={hidden} className="prompt-hide-wrap">

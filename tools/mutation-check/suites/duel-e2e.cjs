@@ -221,7 +221,7 @@ module.exports = {
       "confirm-keys.spec.ts > N answers No on the Yes/No shown on a hand card (#324) [desktop-1280]",
     ] },
     // dragging a centred prompt by its header (#324)
-    { id: "e2e-prompt-drag-unhooked", args: "prompt-drag -g \"moves it\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "  usePromptDrag(wrapRef);\n", to: "", kills: [
+    { id: "e2e-prompt-drag-unhooked", args: "prompt-drag -g \"moves it\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "  usePromptDrag(wrapRef, useDuelSettings().promptPos);\n", to: "", kills: [
       "prompt-drag.spec.ts > dragging a prompt's header moves it, and its buttons still answer (#324) [desktop-1280]",
       "prompt-drag.spec.ts > dragging a prompt's header moves it, and its buttons still answer (#324) [phone-375]",
     ] },
@@ -234,7 +234,17 @@ module.exports = {
       "prompt-drag.spec.ts > a dragged prompt stays on screen (#324) [desktop-1280]",
       "prompt-drag.spec.ts > a dragged prompt stays on screen (#324) [phone-375]",
     ] },
-    { id: "e2e-prompt-drag-no-reset", args: "prompt-drag --project=desktop-1280 -g double", file: "duel-web/src/board/promptDrag.ts", from: "!target.closest(\"button\")) write({ x: 0, y: 0 });", to: "!target.closest(\"button\")) return;", kills: ["prompt-drag.spec.ts > double-clicking a moved prompt's header puts it back (#324) [desktop-1280]"] },
+    { id: "e2e-prompt-drag-no-reset", args: "prompt-drag --project=desktop-1280 -g double", file: "duel-web/src/board/promptDrag.ts", from: "!target.closest(\"button\")) {\n        write({ x: 0, y: 0 });\n        save(offset);\n      }", to: "!target.closest(\"button\")) return;", kills: ["prompt-drag.spec.ts > double-clicking a moved prompt's header puts it back (#324) [desktop-1280]"] },
+    // the next pop-up opens where the last was dragged (#422)
+    { id: "e2e-prompt-pos-not-restored", args: "prompt-drag -g \"#422\"", file: "duel-web/src/board/promptDrag.ts", from: "    write(parsePromptPos(saved));\n", to: "", kills: [
+      "prompt-drag.spec.ts > the next prompt opens where the last one was dragged (#422) [desktop-1280]",
+      "prompt-drag.spec.ts > the next prompt opens where the last one was dragged (#422) [phone-375]",
+    ] },
+    { id: "e2e-prompt-pos-not-saved", args: "prompt-drag -g \"#422\"", file: "duel-web/src/board/promptDrag.ts", from: "        if (moved) save(offset);\n", to: "", kills: [
+      "prompt-drag.spec.ts > the next prompt opens where the last one was dragged (#422) [desktop-1280]",
+      "prompt-drag.spec.ts > the next prompt opens where the last one was dragged (#422) [phone-375]",
+    ] },
+    { id: "e2e-prompt-pos-reset-not-saved", args: "prompt-drag --project=desktop-1280 -g double", file: "duel-web/src/board/promptDrag.ts", from: "        write({ x: 0, y: 0 });\n        save(offset);\n", to: "        write({ x: 0, y: 0 });\n", kills: ["prompt-drag.spec.ts > double-clicking a moved prompt's header puts it back (#324) [desktop-1280]"] },
     // Face-up Life reaches both mats (#327)
     { id: "e2e-your-face-up-life-not-passed", args: "demo-audit --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/DuelBoard.tsx", from: "                faceUpLife: you.faceUpLife,\n", to: "", kills: ["demo-audit.spec.ts > face-up Life cards show face up on both mats (#327) [desktop-1280]"] },
     { id: "e2e-opp-face-up-life-portrait-only", args: "demo-audit --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/DuelBoard.tsx", from: "                faceUpLife: opp.faceUpLife,", to: "                faceUpLife: portraitMat ? opp.faceUpLife : undefined,", kills: ["demo-audit.spec.ts > face-up Life cards show face up on both mats (#327) [desktop-1280]"] },

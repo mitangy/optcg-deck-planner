@@ -73,6 +73,12 @@ export type DuelSettings = {
    */
   spectatorNearFanPos: string;
   spectatorFarFanPos: string;
+  /**
+   * Where a dragged centred pop-up was left, as an "x,y" pixel offset from the
+   * centre (e.g. "-40,-200"); "" = centred. The next pop-up opens there. Stays
+   * on this device: pixels from a desktop window mean nothing on a phone.
+   */
+  promptPos: string;
   /** Desktop: the fanned hand (or corner dock) stays raised instead of tucking away. */
   keepHandOpen: boolean;
   /**
@@ -164,6 +170,7 @@ const DEFAULTS: DuelSettings = {
   handFanPos: "",
   spectatorNearFanPos: "",
   spectatorFarFanPos: "",
+  promptPos: "",
   keepHandOpen: false,
   panelLayout: "",
   panelSizes: "",
@@ -260,10 +267,11 @@ function sanitize(
   return next;
 }
 
-/** Dev fields that stay on this device; everything else follows the account. */
+/** Fields that stay on this device (dev keys, pixel offsets); everything else follows the account. */
 const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
   "useDevKey",
   "devUserKey",
+  "promptPos",
 ];
 
 /** The part of the settings saved to a signed-in player's account. */

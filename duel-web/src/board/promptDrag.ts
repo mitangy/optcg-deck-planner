@@ -1,4 +1,5 @@
 import { useEffect, type RefObject } from "react";
+import { updateSettings } from "../settings";
 
 export type Offset = { x: number; y: number };
 type Rect = { left: number; top: number; right: number; bottom: number };
@@ -17,20 +18,41 @@ export function clampPromptOffset(base: Rect, want: Offset, view: { width: numbe
   };
 }
 
+/** The saved `promptPos` ("x,y" pixels from centre); "" or anything unreadable is centred. */
+export function parsePromptPos(s: string): Offset {
+  const [x, y, ...rest] = s.split(",");
+  if (y === undefined || rest.length > 0 || !x.trim() || !y.trim()) return { x: 0, y: 0 };
+  const o = { x: Number(x), y: Number(y) };
+  return Number.isFinite(o.x) && Number.isFinite(o.y) ? o : { x: 0, y: 0 };
+}
+
+export function serializePromptPos(o: Offset): string {
+  const x = Math.round(o.x);
+  const y = Math.round(o.y);
+  return x === 0 && y === 0 ? "" : `${x},${y}`;
+}
+
 /** The prompt's header row is the grip; its buttons (Hide) still click. */
 const GRIP = ".ability-prompt > h3";
 
 /**
  * Lets the player drag a centred prompt by its header. The offset lives on the
- * wrapper as `--prompt-dx` / `--prompt-dy` (the prompt's CSS `translate`), so it
- * carries over to the next prompt in the same spot; double-click the header to
- * put it back. Fixed overlay: moving it shifts nothing else.
+ * wrapper as `--prompt-dx` / `--prompt-dy` (the prompt's CSS `translate`).
+ * Where a drag ends it is saved as the `promptPos` setting (`saved`), so the
+ * next pop-up, or a reload, opens in the same spot (#422); double-click the
+ * header to put it back. Only the player's own drags save: a spot squeezed
+ * onto a small screen keeps the saved one. Fixed overlay: moving it shifts
+ * nothing else.
  */
-export function usePromptDrag(wrapRef: RefObject<HTMLElement | null>) {
+export function usePromptDrag(wrapRef: RefObject<HTMLElement | null>, saved: string) {
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
     let offset: Offset = { x: 0, y: 0 };
+    const save = (o: Offset) => {
+      const pos = serializePromptPos(o);
+      if (pos !== saved) updateSettings({ promptPos: pos });
+    };
     const write = (o: Offset) => {
       offset = o;
       if (o.x === 0 && o.y === 0) {
@@ -60,10 +82,12 @@ export function usePromptDrag(wrapRef: RefObject<HTMLElement | null>) {
       const base = baseRect(prompt);
       const start = { x: e.clientX, y: e.clientY };
       const from = offset;
+      let moved = false;
       e.preventDefault();
       grip.setPointerCapture?.(e.pointerId);
       prompt.classList.add("is-dragging");
       const move = (ev: PointerEvent) => {
+        moved = true;
         write(clampPromptOffset(base, { x: from.x + ev.clientX - start.x, y: from.y + ev.clientY - start.y }, view()));
       };
       const end = () => {
@@ -71,6 +95,7 @@ export function usePromptDrag(wrapRef: RefObject<HTMLElement | null>) {
         grip.removeEventListener("pointermove", move);
         grip.removeEventListener("pointerup", end);
         grip.removeEventListener("pointercancel", end);
+        if (moved) save(offset);
       };
       grip.addEventListener("pointermove", move);
       grip.addEventListener("pointerup", end);
@@ -78,7 +103,10 @@ export function usePromptDrag(wrapRef: RefObject<HTMLElement | null>) {
     };
     const onDoubleClick = (e: MouseEvent) => {
       const target = e.target as Element | null;
-      if (target?.closest(GRIP) && !target.closest("button")) write({ x: 0, y: 0 });
+      if (target?.closest(GRIP) && !target.closest("button")) {
+        write({ x: 0, y: 0 });
+        save(offset);
+      }
     };
     // A moved prompt must never end up out of reach (#335): re-clamp it when
     // the window shrinks, a new or taller prompt opens in the same spot, it is
@@ -104,6 +132,7 @@ export function usePromptDrag(wrapRef: RefObject<HTMLElement | null>) {
     };
     const changes = new MutationObserver(watchPrompt);
     changes.observe(wrap, { childList: true, attributes: true, attributeFilter: ["hidden", "style"] });
+    write(parsePromptPos(saved));
     watchPrompt();
     wrap.addEventListener("pointerdown", onPointerDown);
     wrap.addEventListener("dblclick", onDoubleClick);
@@ -116,5 +145,5 @@ export function usePromptDrag(wrapRef: RefObject<HTMLElement | null>) {
       wrap.removeEventListener("dblclick", onDoubleClick);
       window.removeEventListener("resize", reclampSoon);
     };
-  }, [wrapRef]);
+  }, [wrapRef, saved]);
 }
