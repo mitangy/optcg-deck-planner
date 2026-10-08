@@ -104,6 +104,8 @@ export type DuelSettings = {
   cantAttackWarning: boolean;
   /** The "cannon shot" arc from the attacker to its target during a battle. */
   battleArrow: boolean;
+  /** A green glow on your Leader and Characters that can attack right now. */
+  attackGlow: boolean;
   /** Desktop card preview: only the card, as big as fits (on), or a smaller card with its stat icons and text (off). */
   previewBigCard: boolean;
   /** DON!! given to a rested Leader or Character stays upright under it instead of turning sideways with it. */
@@ -170,6 +172,7 @@ const DEFAULTS: DuelSettings = {
   handCounters: true,
   cantAttackWarning: true,
   battleArrow: true,
+  attackGlow: true,
   previewBigCard: false,
   donUpright: false,
   oppHandSpot: "",
