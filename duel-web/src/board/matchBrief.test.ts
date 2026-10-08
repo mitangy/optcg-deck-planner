@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { briefOpenAfter, briefSeenKey, briefShown, briefStart } from "./matchBrief";
+import { briefFoldsAway, briefSeenKey, briefShown, briefStart } from "./matchBrief";
 
 const ticket = { ticket: "mb1.x.y", leaderId: "OP01-001", opponentId: "ST01-001", deck: ["OP01-016"] };
 const good = { ranked: false as boolean | null | undefined, role: "player" as const, brief: ticket as unknown, logPoseEnabled: true as boolean | null, setting: true };
@@ -29,17 +29,17 @@ describe("matchup brief on the board", () => {
     expect(briefStart({ cached: true, auto: false, requested: false })).toBe("show");
   });
 
-  it("the brief folds away when the first turn starts and stays shut until tapped (#401)", () => {
-    const open = { open: true, autoClosed: false };
-    // During the mulligan it stays up.
-    expect(briefOpenAfter(open, "mulligan")).toEqual(open);
-    // The first turn folds it away, once.
-    const folded = briefOpenAfter(open, "refresh");
-    expect(folded).toEqual({ open: false, autoClosed: true });
-    // Tapped open on turn 1, it stays open through later phases.
-    const tapped = { open: true, autoClosed: true };
-    expect(briefOpenAfter(tapped, "main")).toEqual(tapped);
-    expect(briefOpenAfter(tapped, "end")).toEqual(tapped);
+  it("the panel folds away when the first turn starts, only if it opened by itself and was left alone (#401, #423)", () => {
+    const fresh = { auto: true, touched: false };
+    // During the mulligan (or before the phase is known) it stays up.
+    expect(briefFoldsAway(fresh, "mulligan")).toBe(false);
+    expect(briefFoldsAway(fresh, undefined)).toBe(false);
+    // The first turn folds it away.
+    expect(briefFoldsAway(fresh, "refresh")).toBe(true);
+    expect(briefFoldsAway(fresh, "main")).toBe(true);
+    // One the player opened, or started using, stays.
+    expect(briefFoldsAway({ auto: false, touched: false }, "main")).toBe(false);
+    expect(briefFoldsAway({ auto: true, touched: true }, "main")).toBe(false);
   });
 
   it("remembers a room's brief by room id so a reload or rematch doesn't open it again (#401)", () => {

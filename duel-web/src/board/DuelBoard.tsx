@@ -2092,7 +2092,6 @@ export function DuelBoard({
         </button>
       ) : null}
 
-      {brief.card}
       {copilot.pill}
 
       {mulliganPhase && !spectating ? (
@@ -2431,19 +2430,12 @@ export function DuelBoard({
         )}
       </div>
 
-      {lp && (lpPanel || brief.open) ? (
+      {lp && lpPanel ? (
         <LandscapeOverlay
-          panel={brief.open ? "brief" : lpPanel!}
-          // The brief never takes the board's taps: the mulligan buttons stay usable while it is up.
-          backdrop={!brief.open}
-          onClose={() => {
-            brief.setOpen(false);
-            setLpPanel(null);
-          }}
+          panel={lpPanel}
+          onClose={() => setLpPanel(null)}
         >
-          {brief.open ? (
-            brief.landscapeBody
-          ) : lpPanel === "log" ? (
+          {lpPanel === "log" ? (
             <BattleLogPanel
               entries={battleLog}
               viewingSeat={spectating || mySeat == null ? undefined : mySeat}

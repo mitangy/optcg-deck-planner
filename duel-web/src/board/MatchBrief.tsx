@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AnalystError,
   CitedAnswer,
@@ -14,7 +13,7 @@ import { lookupCard } from "../cards/atlas";
 import { deckContext, setBoardBrief } from "../logPose";
 import type { BriefTicketWire } from "../net/protocol";
 import { useDuelSettings } from "../settings";
-import { briefOpenAfter, briefSeenKey, briefShown, briefStart, type BriefOpen } from "./matchBrief";
+import { briefFoldsAway, briefSeenKey, briefShown, briefStart } from "./matchBrief";
 
 export type BriefLayout = "desktop" | "portrait" | "landscape";
 
@@ -57,38 +56,74 @@ function CompassGlyph() {
   );
 }
 
-type Rect = { top: number; left?: number; right?: number; width: number; maxHeight: number };
+type PinnedProps = {
+  you: string;
+  opp: string;
+  state: BriefState;
+  collapsed: boolean;
+  onToggle: () => void;
+  onGet: () => void;
+};
 
-/** Where the fixed card sits: over the right-hand side panels (desktop) or under the top bar (phone portrait). */
-function useCardRect(open: boolean, layout: BriefLayout): Rect | null {
-  const [rect, setRect] = useState<Rect | null>(null);
-  useLayoutEffect(() => {
-    if (!open || layout === "landscape") {
-      setRect(null);
-      return;
-    }
-    const bar = () => document.querySelector<HTMLElement>(".arena .hud-bar")?.getBoundingClientRect().bottom ?? 0;
-    const measure = () => {
-      if (layout === "portrait") {
-        setRect({ top: bar() + 8, left: 16, right: 16, width: 0, maxHeight: Math.min(window.innerHeight * 0.38, 320) });
-        return;
-      }
-      const col = document.querySelector<HTMLElement>('[data-panel-col="right"]');
-      const r = col?.getBoundingClientRect();
-      if (r && r.width > 0) setRect({ top: r.top, left: r.left, width: r.width, maxHeight: Math.min(r.height * 0.7, 520) });
-      else setRect({ top: bar() + 8, right: 16, width: 360, maxHeight: Math.min(window.innerHeight * 0.6, 520) });
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    const col = layout === "desktop" ? document.querySelector('[data-panel-col="right"]') : null;
-    const ro = col && typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
-    if (col && ro) ro.observe(col);
-    return () => {
-      window.removeEventListener("resize", measure);
-      ro?.disconnect();
-    };
-  }, [open, layout]);
-  return rect;
+/**
+ * The brief as it sits at the top of the Log Pose chat: a header row that folds the rest away, the text, and the
+ * button that writes one. It never changes the board; it is part of the panel's own scroll.
+ */
+function PinnedBrief({ you, opp, state, collapsed, onToggle, onGet }: PinnedProps) {
+  const busy = state.kind === "peek" || state.kind === "streaming";
+  return (
+    <section className="match-brief-pinned" aria-label="Matchup brief" data-collapsed={collapsed ? "true" : undefined}>
+      <button type="button" className="mb-toggle" aria-expanded={!collapsed} onClick={onToggle}>
+        <span className="mb-heading">
+          <span className="mb-title">Matchup brief</span>
+          <span className="mb-sub" title={`${you} vs ${opp}`}>
+            {you} vs {opp}
+          </span>
+        </span>
+        <svg className="mb-chevron" width="16" height="16" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {collapsed ? null : (
+        <>
+          <div className="mb-body" data-state={state.kind} aria-busy={busy}>
+            {state.kind === "peek" ? (
+              <p className="mb-status" role="status">
+                <span className="lp-status-dot" aria-hidden="true" />
+                <span>Checking for a saved brief…</span>
+              </p>
+            ) : null}
+            {state.kind === "offer" ? (
+              <p className="mb-note">No brief saved for this matchup yet. Log Pose can write one; the game goes on meanwhile.</p>
+            ) : null}
+            {state.kind === "streaming" ? (
+              <p className="mb-status" role="status">
+                <span className="lp-status-dot" aria-hidden="true" />
+                <span>{state.status ? `${state.status}… you can keep playing` : "Writing… you can keep playing"}</span>
+              </p>
+            ) : null}
+            {state.kind === "streaming" || state.kind === "ready" || state.kind === "error"
+              ? state.text ? (
+                  <CitedAnswer text={state.text} citations={state.citations} done={state.kind !== "streaming"} />
+                ) : null
+              : null}
+            {state.kind === "error" ? (
+              <p className="mb-error" role="alert">
+                {state.message}
+              </p>
+            ) : null}
+          </div>
+          {state.kind === "offer" || state.kind === "error" ? (
+            <div className="mb-foot">
+              <button type="button" className="btn btn-primary btn-sm" onClick={onGet}>
+                {state.kind === "error" ? "Try again" : "Get brief"}
+              </button>
+            </div>
+          ) : null}
+        </>
+      )}
+    </section>
+  );
 }
 
 /**
@@ -104,12 +139,12 @@ export function useMatchBrief(o: {
   phase: string | null | undefined;
   over: boolean;
   layout: BriefLayout;
-}): { shown: boolean; trigger: ReactNode; card: ReactNode; landscapeBody: ReactNode; open: boolean; setOpen: (open: boolean) => void } {
-  const { enabled, session, openPanel } = useLogPose();
+}): { shown: boolean; trigger: ReactNode; open: boolean; setOpen: (open: boolean) => void } {
+  const { enabled, session, openPanel, closePanel, panelOpen } = useLogPose();
   const settings = useDuelSettings();
   const brief = o.source?.brief ?? null;
   const shown = briefShown({ ranked: o.source?.ranked ?? null, role: o.role, brief, logPoseEnabled: enabled, setting: settings.matchBrief });
-  const [ui, setUi] = useState<BriefOpen>({ open: false, autoClosed: false });
+  const [collapsed, setCollapsed] = useState(false);
   const [state, setState] = useState<BriefState>({ kind: "peek" });
   const abort = useRef<AbortController | null>(null);
   const ticketRef = useRef<string | null>(null);
@@ -197,18 +232,41 @@ export function useMatchBrief(o: {
     };
   }, [shown, contentKey, stream]);
 
-  // Opens by itself once per room, during the mulligan; folds away when the first turn starts.
-  useEffect(() => {
-    if (!shown || !o.roomMatchId || o.phase !== "mulligan" || readSeen(o.roomMatchId)) return;
-    writeSeen(o.roomMatchId);
-    setUi((p) => ({ ...p, open: true }));
-  }, [shown, o.roomMatchId, o.phase]);
-  useEffect(() => {
-    setUi((p) => briefOpenAfter(p, o.phase));
-  }, [o.phase]);
+  const open = shown && panelOpen;
+  const setOpen = useCallback((next: boolean) => (next ? openPanel() : closePanel()), [openPanel, closePanel]);
 
-  const open = shown && ui.open;
-  const setOpen = useCallback((next: boolean) => setUi((p) => ({ ...p, open: next })), []);
+  // Opens the Log Pose panel by itself once per room, during the mulligan, on a wide screen only (a phone's panel is
+  // a sheet over the Keep and Mulligan buttons, so there the Brief button just shows its dot). It folds away when
+  // the first turn starts, but only if it opened by itself and was left alone.
+  const auto = useRef({ opened: false, touched: false });
+  useEffect(() => {
+    if (!shown || o.layout !== "desktop" || !o.roomMatchId || o.phase !== "mulligan" || readSeen(o.roomMatchId)) return;
+    writeSeen(o.roomMatchId);
+    auto.current = { opened: true, touched: false };
+    openPanel({ quiet: true });
+  }, [shown, o.layout, o.roomMatchId, o.phase, openPanel]);
+  useEffect(() => {
+    if (!auto.current.opened) return;
+    if (!panelOpen) {
+      auto.current.opened = false;
+      return;
+    }
+    const touch = (e: Event) => {
+      if ((e.target as Element | null)?.closest?.(".lp-panel")) auto.current.touched = true;
+    };
+    document.addEventListener("pointerdown", touch, true);
+    document.addEventListener("keydown", touch, true);
+    return () => {
+      document.removeEventListener("pointerdown", touch, true);
+      document.removeEventListener("keydown", touch, true);
+    };
+  }, [panelOpen]);
+  useEffect(() => {
+    if (briefFoldsAway({ auto: auto.current.opened, touched: auto.current.touched }, o.phase)) {
+      auto.current.opened = false;
+      closePanel();
+    }
+  }, [o.phase, closePanel]);
 
   // Log Pose may open over the board only while a brief is up.
   useEffect(() => {
@@ -222,95 +280,21 @@ export function useMatchBrief(o: {
     () => (brief ? deckContext({ name: "This game", leaderId: brief.leaderId, cards: brief.deck }) : undefined),
     [brief],
   );
-  useLogPosePage(shown && brief ? { page: "match-brief", label: `${you} vs ${opp}`, deck, starters: STARTERS } : null);
-
-  const rect = useCardRect(open && o.layout !== "landscape", o.layout);
-
-  useEffect(() => {
-    if (!open || o.layout === "landscape") return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, o.layout, setOpen]);
-
-  if (!shown || !brief) return { shown: false, trigger: null, card: null, landscapeBody: null, open: false, setOpen };
-
-  const busy = state.kind === "peek" || state.kind === "streaming";
-  const ask = () => {
-    openPanel();
-  };
-  const getBrief = () => {
+  const getBrief = useCallback(() => {
     written.current.add(contentKey);
     void stream(true);
-  };
-
-  const body = (
-    <>
-      <div className="mb-head">
-        <div className="mb-heading">
-          <h2 className="mb-title">Matchup brief</h2>
-          <p className="mb-sub" title={`${you} vs ${opp}`}>
-            {you} vs {opp}
-          </p>
-        </div>
-        <button type="button" className="mb-close" aria-label="Close matchup brief" onClick={() => setOpen(false)}>
-          ×
-        </button>
-      </div>
-      <div className="mb-body" data-state={state.kind} aria-busy={busy}>
-        {state.kind === "peek" ? (
-          <p className="mb-status" role="status">
-            <span className="lp-status-dot" aria-hidden="true" />
-            <span>Checking for a saved brief…</span>
-          </p>
-        ) : null}
-        {state.kind === "offer" ? (
-          <p className="mb-note">No brief saved for this matchup yet. Log Pose can write one; the game goes on meanwhile.</p>
-        ) : null}
-        {state.kind === "streaming" ? (
-          <p className="mb-status" role="status">
-            <span className="lp-status-dot" aria-hidden="true" />
-            <span>{state.status ? `${state.status}… you can keep playing` : "Writing… you can keep playing"}</span>
-          </p>
-        ) : null}
-        {state.kind === "streaming" || state.kind === "ready" || state.kind === "error"
-          ? state.text ? (
-              <CitedAnswer text={state.text} citations={state.citations} done={state.kind !== "streaming"} />
-            ) : null
-          : null}
-        {state.kind === "error" ? (
-          <p className="mb-error" role="alert">
-            {state.message}
-          </p>
-        ) : null}
-      </div>
-      <div className="mb-foot">
-        {state.kind === "offer" || state.kind === "error" ? (
-          <button type="button" className="btn btn-primary btn-sm" onClick={getBrief}>
-            {state.kind === "error" ? "Try again" : "Get brief"}
-          </button>
-        ) : null}
-        <button type="button" className="btn btn-secondary btn-sm" onClick={ask}>
-          Ask Log Pose
-        </button>
-      </div>
-    </>
+  }, [contentKey, stream]);
+  const toggle = useCallback(() => setCollapsed((c) => !c), []);
+  // Kept as one element so the panel's copy only changes when what it shows does.
+  const pinned = useMemo(
+    () => (shown && brief ? <PinnedBrief you={you} opp={opp} state={state} collapsed={collapsed} onToggle={toggle} onGet={getBrief} /> : null),
+    [shown, brief, you, opp, state, collapsed, toggle, getBrief],
   );
+  useLogPosePage(shown && brief ? { page: "match-brief", label: `${you} vs ${opp}`, deck, starters: STARTERS, pinned } : null);
 
-  const style: CSSProperties | undefined = rect
-    ? { top: rect.top, left: rect.left, right: rect.right, width: rect.width || undefined, maxHeight: rect.maxHeight }
-    : undefined;
-  const card =
-    open && o.layout !== "landscape" && typeof document !== "undefined"
-      ? createPortal(
-          <section className="match-brief logpose" data-layout={o.layout} style={style} role="region" aria-label="Matchup brief">
-            {body}
-          </section>,
-          document.body,
-        )
-      : null;
+  if (!shown || !brief) return { shown: false, trigger: null, open: false, setOpen };
+
+  const busy = state.kind === "peek" || state.kind === "streaming";
 
   const hidden = o.over;
   const label = "Matchup brief";
@@ -334,5 +318,5 @@ export function useMatchBrief(o: {
       </button>
     );
 
-  return { shown: true, trigger, card, landscapeBody: <div className="match-brief-lp logpose">{body}</div>, open, setOpen };
+  return { shown: true, trigger, open, setOpen };
 }
