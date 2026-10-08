@@ -206,7 +206,7 @@ async function attempt(deps: RunnerDeps, opts: RunOptions, c: EvalCase, gold: Go
       extraBanProblems: banList ? (cards, leaderId) => banListProblems(banList, cards, leaderId).map((p) => p.problem) : undefined,
     });
     const judgeUsage = result.judged.reduce((u, j) => addUsage(u, j.usage), ZERO);
-    const judgeCost = result.judged.reduce((s, j) => s + judgeCostUsd(j.usage), 0);
+    const judgeCost = result.judged.reduce((s, j) => s + judgeCostUsd(j.usage, j.model), 0);
     writeTrace({ grade: result.grade, explanation: result.explanation, rubric: result.rubric });
     return {
       ...base_row,
