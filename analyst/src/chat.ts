@@ -591,40 +591,46 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
     emit({ event: "done", data: { cached: false } });
     return;
   }
-  await checkBudget(api, token);
-
-  const tools = buildTools(deps.catalog, undefined, undefined, deps.knowledge).filter((t) => BRIEF_TOOLS.includes(t.name));
-  const deckLines = found.deck.map((c) => `${c.copies}x${c.id}`);
-  const prompt = [
-    `Leader: ${found.leader_id} (${nameOf(deps.catalog, found.leader_id)})`,
-    `Opponent's leader: ${found.opponent_id} (${nameOf(deps.catalog, found.opponent_id)})`,
-    "My deck:",
-    `1x${found.leader_id}`,
-    ...deckLines,
-    "",
-    "Write the matchup brief.",
-  ].join("\n");
-  const system = [{ type: "text", text: instructionsFor(false) + BRIEF_INSTRUCTIONS, cache_control: { type: "ephemeral" } }];
-  const state = newRounds({ role: "user", content: [{ type: "text", text: prompt }] });
+  // Generating is a stream like a chat or review: claimed before the budget check, so parallel briefs can't all pass it.
+  const release = claimStream(token);
   try {
-    await runToolRounds(state, { deps, system, tools, emit, signal, maxRounds: BRIEF_MAX_ROUNDS, maxTokens: BRIEF_MAX_TOKENS, effort: "low" });
+    await checkBudget(api, token);
+
+    const tools = buildTools(deps.catalog, undefined, undefined, deps.knowledge).filter((t) => BRIEF_TOOLS.includes(t.name));
+    const deckLines = found.deck.map((c) => `${c.copies}x${c.id}`);
+    const prompt = [
+      `Leader: ${found.leader_id} (${nameOf(deps.catalog, found.leader_id)})`,
+      `Opponent's leader: ${found.opponent_id} (${nameOf(deps.catalog, found.opponent_id)})`,
+      "My deck:",
+      `1x${found.leader_id}`,
+      ...deckLines,
+      "",
+      "Write the matchup brief.",
+    ].join("\n");
+    const system = [{ type: "text", text: instructionsFor(false) + BRIEF_INSTRUCTIONS, cache_control: { type: "ephemeral" } }];
+    const state = newRounds({ role: "user", content: [{ type: "text", text: prompt }] });
+    try {
+      await runToolRounds(state, { deps, system, tools, emit, signal, maxRounds: BRIEF_MAX_ROUNDS, maxTokens: BRIEF_MAX_TOKENS, effort: "low" });
+    } finally {
+      if (state.usage.input_tokens || state.usage.output_tokens) await recordUsage(api, token, "brief", state.usage, costUsd(state.usage)).catch(() => undefined);
+    }
+    if (!state.finished) throw new Error("Log Pose used too many lookups on that one. Try again.");
+    // The saved text is what was streamed: the rounds' text blocks, kept apart by a blank line.
+    const blocks: Block[] = [];
+    for (const m of state.turn) {
+      if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
+      const text = m.content.filter((b) => b.type === "text");
+      if (!text.length) continue;
+      if (blocks.length) blocks.push({ type: "text", text: "\n\n" });
+      blocks.push(...text);
+    }
+    const cited = flattenCited(blocks);
+    if (!cited.text) throw new Error("Log Pose didn't write a brief. Try again.");
+    await plannerCall(api, token, "/analyst/briefs", true, { ticket: body.ticket, variant, text: cited.text, citations: cited.citations }, "PUT");
+    emit({ event: "done", data: { cached: false, cost_usd: costUsd(state.usage), saved: true } });
   } finally {
-    if (state.usage.input_tokens || state.usage.output_tokens) await recordUsage(api, token, "brief", state.usage, costUsd(state.usage)).catch(() => undefined);
+    release();
   }
-  if (!state.finished) throw new Error("Log Pose used too many lookups on that one. Try again.");
-  // The saved text is what was streamed: the rounds' text blocks, kept apart by a blank line.
-  const blocks: Block[] = [];
-  for (const m of state.turn) {
-    if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
-    const text = m.content.filter((b) => b.type === "text");
-    if (!text.length) continue;
-    if (blocks.length) blocks.push({ type: "text", text: "\n\n" });
-    blocks.push(...text);
-  }
-  const cited = flattenCited(blocks);
-  if (!cited.text) throw new Error("Log Pose didn't write a brief. Try again.");
-  await plannerCall(api, token, "/analyst/briefs", true, { ticket: body.ticket, variant, text: cited.text, citations: cited.citations }, "PUT");
-  emit({ event: "done", data: { cached: false, cost_usd: costUsd(state.usage), saved: true } });
 }
 
 /** The Claude API behind CallModel: a streamed Messages call. */

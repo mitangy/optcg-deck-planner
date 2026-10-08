@@ -199,7 +199,8 @@ module.exports = {
     ], kills: ["replays a cached brief's citations at the offsets they were saved at (#401)"] },
     { id: "brief-peek-generates", file: chat, from: "  if (!body.generate) {", to: "  if (false) {", kills: ["a peek with nothing cached calls no model and records no spend (#401)"] },
     { id: "brief-refusal-ignored", file: chat, from: "      throw new ChatHttpError(400, \"Matchup briefs are only for casual and practice games.\", \"bad_request\");\n    }\n    throw err;\n  }", to: "      found = { leader_id: \"OP01-001\", opponent_id: \"ST01-001\", deck: [], key: \"\", brief: null };\n    } else {\n      throw err;\n    }\n  }", kills: ["a ticket the planner refuses never reaches the model (#401)"] },
-    { id: "brief-no-budget-check", file: chat, from: "  await checkBudget(api, token);\n\n  const tools", to: "\n  const tools", kills: ["an empty budget stops a brief that has to be written, after the lookup (#401)"] },
+    { id: "brief-no-stream-claim", file: chat, from: "  const release = claimStream(token);\n  try {\n    await checkBudget(api, token);\n\n    const tools", to: "  const release = () => {};\n  try {\n    await checkBudget(api, token);\n\n    const tools", kills: ["counts a generating brief as one of the user's two streams, but not a cached or peeked one (#409)"] },
+    { id: "brief-no-budget-check", file: chat, from: "    await checkBudget(api, token);\n\n    const tools", to: "\n    const tools", kills: ["an empty budget stops a brief that has to be written, after the lookup (#401)"] },
     // Layers of one rule (a brief is cached for everyone, so it can't use personal tools): no personal context, the name filter, and the non-personal prompt.
     { id: "brief-personal-tools", edits: [
       { file: chat, from: "buildTools(deps.catalog, undefined, undefined, deps.knowledge).filter((t) => BRIEF_TOOLS.includes(t.name))", to: "buildTools(deps.catalog, undefined, { api, token }, deps.knowledge)" },

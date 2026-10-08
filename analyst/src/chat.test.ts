@@ -14,7 +14,7 @@ import {
 } from "@optcg/rules";
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "./catalog";
-import { admit, anthropicModel, chatBody, ChatHttpError, contextBlock, costUsd, flattenCited, originAllowed, runChat, runReview, toCitation, type CallModel, type ChatDeps, type ModelReply, type SseEvent } from "./chat";
+import { admit, anthropicModel, chatBody, ChatHttpError, contextBlock, costUsd, flattenCited, originAllowed, runBrief, runChat, runReview, toCitation, type CallModel, type ChatDeps, type ModelReply, type SseEvent } from "./chat";
 import { narrateGame, replayGame, searchGames } from "./matches";
 
 const catalog = loadCatalog();
@@ -259,6 +259,39 @@ describe("chat", () => {
     release();
     await Promise.all([first, second]);
     await expect(runChat(deps(api, fast), "chat.1.3.sig2", { message: "Again" }, () => {}, signal)).resolves.toBeUndefined();
+  });
+
+  it("counts a generating brief as one of the user's two streams, but not a cached or peeked one (#409)", async () => {
+    const lookup = { leader_id: "OP01-001", opponent_id: "ST01-001", deck: [{ id: "OP01-016", copies: 4 }], key: "k" };
+    const TICKET = "mb1.ticket-body.ticket-sig";
+    const { api } = planner({
+      "POST /analyst/briefs/lookup": { ...lookup, brief: null },
+      "GET /analyst/chat/budget": BUDGET,
+      "POST /analyst/chat/usage": null,
+      "POST /analyst/chat/threads": { id: 9 },
+      "POST /analyst/chat/threads/9/messages": null,
+      "PUT /analyst/briefs": null,
+    });
+    const cached = planner({ "POST /analyst/briefs/lookup": { ...lookup, brief: { text: "Saved.", citations: [], created_at: null } } }).api;
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const reply: ModelReply = { content: [{ type: "text", text: "Done." }], stop_reason: "end_turn", usage: usage(10, 5) };
+    const slow: CallModel = async () => {
+      await gate;
+      return reply;
+    };
+    const fast: CallModel = async () => reply;
+    const signal = new AbortController().signal;
+    const brief = (d: ChatDeps, generate: boolean, token = "chat.1.3.sig2") => runBrief(d, token, { ticket: TICKET, generate }, () => {}, signal);
+    const first = brief(deps(api, slow), true, "chat.1.2.sig");
+    const second = runChat(deps(api, slow), "chat.1.4.sig3", { message: "Beside it" }, () => {}, signal);
+    await expect(brief(deps(api, fast), true)).rejects.toMatchObject({ status: 429, code: "busy" });
+    await expect(brief(deps(api, fast), false)).resolves.toBeUndefined();
+    await expect(brief(deps(cached, fast), true)).resolves.toBeUndefined();
+    await expect(brief(deps(api, fast), true, "chat.2.2.sig")).resolves.toBeUndefined();
+    release();
+    await Promise.all([first, second]);
+    await expect(brief(deps(api, fast), true)).resolves.toBeUndefined();
   });
 
   it("lets only the apps' own origins call the chat from a browser (#377)", () => {
