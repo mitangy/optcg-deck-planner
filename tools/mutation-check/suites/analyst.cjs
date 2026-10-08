@@ -253,8 +253,8 @@ module.exports = {
 
     // grounded
     { id: "eval-grounding-skips-percent", file: evGrounding, from: "for (const p of facts.percents) {", to: "for (const p of [] as typeof facts.percents) {", kills: ["flags a percentage no tool returned"] },
-    { id: "eval-grounding-loose-rounding", file: evGrounding, from: "const PERCENT_TOL = 0.05;", to: "const PERCENT_TOL = 0.5;", kills: ["accepts a tool's 78.0% written as 78%"] },
-    { id: "eval-grounding-whole-allowance", file: evGrounding, from: " || (Number.isInteger(c.value) && closePercent(p.value, c.value, WHOLE_TOL))", to: "", kills: ["accepts a tool's 78.0% written as 78%"] },
+    { id: "eval-grounding-loose-rounding", file: evGrounding, from: "const PERCENT_TOL = 0.05;", to: "const PERCENT_TOL = 0.5;", kills: ["accepts a whole-number rounding of a tool's percentage"] },
+    { id: "eval-grounding-whole-allowance", file: evGrounding, from: " ||\n        (Number.isInteger(c.value) && closePercent(p.value, c.value, WHOLE_TOL))", to: "", kills: ["accepts a tool's 78.0% written as 78%"] },
     { id: "eval-grounding-skips-cards", file: evGrounding, from: "if (!opts.catalog.cards.has(id) || !haystack.has(id))", to: "if (false)", kills: ["flags a card number the tools never returned"] },
     { id: "eval-grounding-skips-wins", file: evGrounding, from: "for (const n of facts.wins) if (!known.wins.includes(n)) ungrounded.push(`${n} wins`);", to: "", kills: ["flags a win count the tools never returned"] },
     { id: "eval-grounding-tools-only", file: evGrounding, from: "const source = [corpus.tools, corpus.user].join(\"\\n\");", to: "const source = corpus.tools;", kills: ["counts the player's own message as a source"] },
@@ -279,7 +279,19 @@ module.exports = {
     { id: "eval-exact-no-ruling-claim", file: evExact, from: "if (said !== \"no\" || !v.says_no_official_ruling) return no(", to: "if (said !== \"no\") return no(", kills: ["needs an A15 answer to say no official ruling covers it"] },
     { id: "eval-extract-card-digits-counted", file: evExtract, from: "const bare = answer.replace(CARD_ID, \" \");", to: "const bare = answer;", kills: ["needs the gold number among the answer's numbers, ignoring the digits in card numbers"] },
     { id: "eval-extract-card-after-quantity", file: evExtract, from: "/(?<![A-Z0-9])(P-", to: "/\\b(P-", kills: ["counts the player's own message as a source"] },
-    { id: "eval-extract-ignores-minus-lines", file: evExtract, from: "/^\\s*([+-])\\s*(\\d+)\\s*x?\\s*(P-", to: "/^\\s*([+])\\s*(\\d+)\\s*x?\\s*(P-", kills: ["reads +N/-N edit lines with card numbers"] },
+    { id: "eval-extract-ignores-minus-lines", file: evExtract, from: "const SIGN = \"[+\\\\-\\\\u2212\\\\u2013]\";", to: "const SIGN = \"[+]\";", kills: ["reads +N/-N edit lines with card numbers"] },
+    { id: "eval-extract-bullet-not-stripped", file: evExtract, from: ".replace(new RegExp(`^(?:[-*\\u2022]|\\\\d+[.)])\\\\s+(?=${SIGN}\\\\s*\\\\d)`), \"\")", to: "", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
+    { id: "eval-extract-bold-not-stripped", file: evExtract, from: '.replace(/(\\*\\*|__|`)/g, "")', to: "", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
+    { id: "eval-extract-unicode-minus-ignored", file: evExtract, from: "const SIGN = \"[+\\\\-\\\\u2212\\\\u2013]\";", to: "const SIGN = \"[+\\\\-]\";", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
+    { id: "eval-extract-name-before-id-ignored", file: evExtract, from: "|[A-Z][^()\\\\n/,;]{0,49}?\\\\(\\\\s*(${ID})\\\\s*\\\\))", to: ")", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
+    { id: "eval-extract-only-first-edit-on-line", file: evExtract, from: "    if (!next) break;\n", to: "    break;\n", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
+    { id: "eval-extract-lowercase-prose-is-edit", file: evExtract, from: "|[A-Z][^()\\\\n/,;]{0,49}?\\\\(", to: "|[^()\\\\n/,;]{1,50}?\\\\(", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
+    { id: "eval-grounding-no-whole-rounding", file: evGrounding, from: " ||\n        (p.whole && p.value === Math.round(c.value)),", to: ",", kills: ["accepts a whole-number rounding of a tool's percentage"] },
+    { id: "eval-grounding-rounds-any-percent", file: evGrounding, from: "p.value === Math.round(c.value)", to: "Math.abs(p.value - c.value) < 1", kills: ["accepts a whole-number rounding of a tool's percentage"] },
+    { id: "eval-judge-rubric-on-sonnet", file: evJudge, from: "(RUBRIC_MODEL, RUBRIC_SYSTEM", to: "(JUDGE_MODEL, RUBRIC_SYSTEM", kills: ["judges D rubrics on Opus"] },
+    { id: "eval-judge-opus-priced-as-sonnet", file: evJudge, from: 'model.startsWith("claude-opus")', to: "false", kills: ["prices a judge call by the model that answered it (#414)"] },
+    { id: "eval-planner-tournament-fixture-ignored", file: evPlanner, from: "if (key in fixtures.responses) return { ...(fixtures.responses[key] as object), ...window };\n  if (!leader) return { ...window, events: [], total_decks", to: "if (false) return { ...(fixtures.responses[key] as object), ...window };\n  if (!leader) return { ...window, events: [], total_decks", kills: ["answers tournament stats from the fixtures by leader and opponent"] },
+    { id: "eval-planner-tournament-route-missing", file: evPlanner, from: 'path === "/analyst/tournaments/stats" && opts.tournaments', to: 'path === "/analyst/tournaments/stats" && false', kills: ["answers tournament stats from the fixtures by leader and opponent"] },
     { id: "eval-extract-no-number-words", file: evExtract, from: "    ...[...bare.toLowerCase().matchAll(/\\b(one|two|three|four|five|six|seven|eight|nine|ten)\\b/g)].map((m) => WORDS[m[1]!]!),\n", to: "", kills: ["reads percentages, game counts, win counts and number words"] },
 
     // D: edits, rubric and the self-test
@@ -313,7 +325,7 @@ module.exports = {
     // fake planner: eval spend never reaches a player's caps
     { id: "eval-planner-usage-not-local", file: evPlanner, from: "if (method === \"POST\" && path === \"/analyst/chat/usage\") {", to: "if (false) {", kills: ["keeps chat usage local but forwards stats reads"] },
     { id: "eval-planner-live-no-forward", file: evPlanner, from: "if (live && forwarded && opts.liveUrl) {", to: "if (false) {", kills: ["keeps chat usage local but forwards stats reads"] },
-    { id: "eval-planner-fixture-ignored", file: evPlanner, from: "if (key in fixtures.responses)", to: "if (false)", kills: ["answers stats from the fixtures when fake"] },
+    { id: "eval-planner-fixture-ignored", file: evPlanner, from: "if (key in fixtures.responses) return { ...(fixtures.responses[key] as object), ...window };\n  if (!leader) return { ...window, total_games", to: "if (false) return { ...(fixtures.responses[key] as object), ...window };\n  if (!leader) return { ...window, total_games", kills: ["answers stats from the fixtures when fake"] },
 
     // harness: failures are classed, not scored
     { id: "eval-errors-in-results", file: evRunner, from: "else return fault(\"api_error\", msgOf(err));", to: "else graded = { failure: \"too_many_rounds\" };", kills: ["puts a failed model call in errors.jsonl, not in the scores"] },
