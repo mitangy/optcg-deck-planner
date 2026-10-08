@@ -203,3 +203,25 @@ test("no Why? on a hint while Log Pose is off (#399)", async ({ page }) => {
   await expect(page.locator(".dh-pop").getByRole("button", { name: "Dismiss" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Ask Log Pose/ })).toHaveCount(0);
 });
+
+test("deck $ left prices wanted alt arts by their count (#433)", async ({ page }) => {
+  // Still needed: Izo 2 x $1.25, Kid & Killer 4 x $6.80, EB01-009 2 x $3.50, EB01-011 1 x $0.10 = $36.80.
+  const left = page.locator(".deck-progress-meta");
+  await expect(left).toHaveText("$36.80 left");
+
+  const filters = page.getByRole("button", { name: /^Filters/ });
+  await filters.click();
+  await page.getByLabel("Show alt arts").check();
+  await filters.click();
+
+  const inc = page.locator(IZO).getByRole("button", { name: /Increase want for/ });
+  const qty = page.locator(IZO).locator(".alt-want-qty");
+  // One alt copy at $14.99, the other still-needed copy at $1.25: 36.80 - 2.50 + 16.24.
+  await inc.click();
+  await expect(qty).toHaveText("1");
+  await expect(left).toHaveText("$50.54 left");
+  // Both still-needed copies as the alt: 36.80 - 2.50 + 29.98.
+  await inc.click();
+  await expect(qty).toHaveText("2");
+  await expect(left).toHaveText("$64.28 left");
+});
