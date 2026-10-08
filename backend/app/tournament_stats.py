@@ -120,7 +120,7 @@ def tournament_stats(db: Session, leader: str | None, opponent: str | None, days
         **window,
         "leader": leader,
         "events": [event_out(e) for e in events if e.id in used],
-        "meta": {"decks": len(leader_decks), "total_decks": len(decks), "share": round(len(leader_decks) / len(decks), 3)},
+        "meta": {"decks": len(leader_decks), "total_decks": len(decks), "share": round(len(leader_decks) / len(decks), 3) if decks else 0.0},
         "overall": _tally([r for _l, o, r, _g in mine if o != leader]),
         "mirror_games": sum(1 for g in games if g.leader_a == leader and g.leader_b == leader),
         "opponents": [{"opponent": o, **_tally(rs)} for o, rs in sorted(by_opp.items(), key=lambda kv: (-len(kv[1]), kv[0]))],
