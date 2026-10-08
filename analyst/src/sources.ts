@@ -5,7 +5,9 @@
  * sentence, line or turn) under a stable machine-readable `source` id the apps parse:
  *   card:<id>                      rule:<section>                  ruling:<card>#<n> | ruling:general#<hash>
  *   stats:<leader>[~<opp>|#<card>] playbook:<leader>[~<opp>]       lesson:<id>
+ *   tourney:<leader>[~<opp>|#<card>] (Limitless TCG tournaments)   event:<limitless event id>
  *   match:<match_id>[#t<turn>]     game:<game_id>[#t<turn>]        deck:<hash>        odds:<shape>
+ *   sim:<hash>[#curve|#cards|#line]
  * A tool without an adapter (or an answer that can't be adapted) keeps its plain text.
  */
 
@@ -206,6 +208,93 @@ function statsAdapter(v: Rec): ToolContent[] {
   return out.filter((b): b is SearchResultBlock => b !== null);
 }
 
+// ——— tournaments (Limitless TCG) ———
+
+const ordinal = (n: number) => {
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
+  return `${n}${suffix}`;
+};
+
+/** "4xOP01-006, 3xOP01-016": the list as OPTCGSim-style entries, most copies first. */
+function decklistText(list: unknown): string {
+  if (!list || typeof list !== "object") return "";
+  return Object.entries(list as Record<string, number>)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([id, n]) => `${n}x${id}`)
+    .join(", ");
+}
+
+/** Tournament results as sources of their own (tourney:, event:), never stats:, so they stay apart from optcgduel.app numbers. */
+function tournamentAdapter(v: Rec): ToolContent[] {
+  const name = (id: string, n?: string | null) => (n ? `${n} (${id})` : id);
+  const w = `Source: Limitless TCG tournament results (play.limitlesstcg.com), last ${v.days} days, events with at least ${v.min_players} players; not games from optcgduel.app.`;
+  const withTies = (r: Rec) => (typeof r.ties === "number" && r.ties > 0 ? `Ties not counted as games: ${r.ties}.` : null);
+  const out: (SearchResultBlock | null)[] = [];
+  const events: Rec[] = v.events ?? [];
+  if (v.leaders) {
+    const top: Rec[] = v.top_win_rate ?? [];
+    out.push(
+      searchResult("tourney:meta", "Tournament meta overview", [
+        `${v.total_decks} decks and ${v.total_games} finished games from ${events.length} events.`,
+        ...top.map((l, i) => recordSentence(`Top win rate ${i + 1}, ${name(l.leader, l.leader_name)} (at least ${v.top_win_rate_min_games} games)`, l)),
+        w,
+      ]),
+    );
+    for (const l of v.leaders as Rec[]) {
+      out.push(
+        searchResult(`tourney:${l.leader}`, `${name(l.leader, l.leader_name)} at tournaments`, [
+          typeof l.share === "number" && `Meta share: ${pct(l.share)} of tournament decks (${l.decks} decks).`,
+          recordSentence("Tournament record", l),
+          withTies(l),
+          w,
+        ]),
+      );
+    }
+  } else if (v.opponent) {
+    const title = `${name(v.leader, v.leader_name)} vs ${name(v.opponent, v.opponent_name)} at tournaments`;
+    out.push(
+      searchResult(`tourney:${v.leader}~${v.opponent}`, title, [
+        v.mirror ? `Mirror match: ${v.games} tournament games; every game is a win and a loss for the same leader, so there is no win rate.` : null,
+        ...(v.mirror ? [] : [recordSentence("Tournament record", v), withTies(v)]),
+        w,
+      ]),
+    );
+  } else if (v.leader) {
+    const label = name(v.leader, v.leader_name);
+    const m: Rec = v.meta ?? {};
+    out.push(
+      searchResult(`tourney:${v.leader}`, `${label} at tournaments`, [
+        typeof m.share === "number" && `Meta share: ${pct(m.share)} of tournament decks (${m.decks} of ${m.total_decks} decks in ${events.length} events).`,
+        recordSentence("Tournament record against other leaders", v.overall),
+        withTies(v.overall ?? {}),
+        v.mirror_games > 0 && `Mirror matches: ${v.mirror_games} games, left out of the record.`,
+        w,
+      ]),
+    );
+    for (const o of (v.opponents ?? []) as Rec[]) {
+      out.push(searchResult(`tourney:${v.leader}~${o.opponent}`, `${label} vs ${name(o.opponent, o.opponent_name)} at tournaments`, [recordSentence("Tournament record", o), withTies(o), w]));
+    }
+    const rate = (c: Rec) => `Included in ${pct(c.rate)} of ${v.decklists} Limitless decklists (${c.decks} decks), average ${c.average_copies} copies.`;
+    for (const c of (v.cards ?? []) as Rec[]) {
+      const card = c.id_name ? `${c.id_name} (${c.id})` : c.id;
+      out.push(searchResult(`tourney:${v.leader}#${c.id}`, `${label} tournament lists with ${card}`, [rate(c), v.too_few_decks && `Only ${v.decklists} decklists, too few to call this a trend.`, w]));
+    }
+    const finishes = new Map<string, Rec[]>();
+    for (const t of (v.top_placings ?? []) as Rec[]) finishes.set(t.event_id, [...(finishes.get(t.event_id) ?? []), t]);
+    for (const [id, list] of finishes) {
+      const e = list[0]!;
+      const lists = list.flatMap((t) => {
+        const r = t.record ?? {};
+        const text = decklistText(t.decklist);
+        return [`${label} finished ${ordinal(t.placing)} (${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ""}).`, text && `Decklist: ${text}.`];
+      });
+      out.push(searchResult(`event:${id}`, `${e.event}, ${e.date}`, [`${e.event}: ${e.date}, ${e.players} players.`, ...lists, w]));
+    }
+  }
+  return out.filter((b): b is SearchResultBlock => b !== null);
+}
+
 // ——— playbook ———
 
 function playbookTitle(m: Rec | null | undefined, fallback: string, vs?: string): string {
@@ -375,6 +464,28 @@ function analyzeDeckAdapter(v: Rec): ToolContent[] {
   return result ? [result, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])] : [];
 }
 
+/** A suggested deck edit as one source: the app shows it as an Apply card, so the model is told nothing has changed. */
+function proposalAdapter(v: Rec): ToolContent[] {
+  const lines: Rec[] = Array.isArray(v.lines) ? v.lines : [];
+  const legality: Rec = v.legality ?? {};
+  const problems: string[] = Array.isArray(legality.problems) ? legality.problems : [];
+  const after = new Map<string, number>((Array.isArray(v.base) ? v.base : []).map((c: Rec) => [String(c.id), Number(c.copies)]));
+  for (const l of lines) after.set(String(l.id), Number(l.after));
+  const afterCards = [...after].filter(([, n]) => n > 0).map(([id, copies]) => ({ id, copies }));
+  const facts: Fact[] = [
+    "Shown to the player as an Apply card; nothing has changed yet.",
+    ...lines.map((l) => {
+      const delta = Number(l.after) - Number(l.before);
+      return `${delta > 0 ? "+" : "-"}${Math.abs(delta)} ${l.name} (${l.id}): ${l.reason}`;
+    }),
+    legality.legal ? `After the change: ${legality.count} cards, legal.` : `After the change: ${legality.count} cards. Still not legal: ${problems.join("; ")}.`,
+    ...(Array.isArray(legality.upcoming) ? legality.upcoming : []).map((u: string) => `Ban list: ${u}`),
+    legality.ban_list_checked === false && "The ban list couldn't be checked.",
+  ];
+  const result = searchResult(deckSourceId(v.target?.leader_id ?? undefined, afterCards), `Suggested edit: ${v.target?.name ?? "deck"}`, facts);
+  return result ? [result] : [];
+}
+
 function oddsAdapter(v: Rec): ToolContent[] {
   if (!Array.isArray(v.byTurn)) return [];
   const order = v.goingFirst ? "going first" : "going second";
@@ -387,12 +498,83 @@ function oddsAdapter(v: Rec): ToolContent[] {
   return result ? [result, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])] : [];
 }
 
+// ——— goldfish simulation ———
+
+const pct1 = (x: unknown) => (typeof x === "number" ? x.toFixed(1) : "?");
+
+/** The engine-support facts of a simulation, kept next to every speed number in its main source. */
+function simSupportFacts(v: Rec): Fact[] {
+  const s = v.support ?? {};
+  const runs = v.setup?.runs;
+  const flagged: Rec[] = s.flagged ?? [];
+  return [
+    flagged.length
+      ? `Engine support incomplete: ${flagged.map((f) => `${f.name} (${f.id}, ${f.support})`).join(", ")} ${flagged.length === 1 ? "is" : "are"} not fully supported; ${s.runsAffected} of ${runs} games played or used one of them, so treat those games as approximate.`
+      : "Every card in this deck is fully supported by the duel engine.",
+    v.errors?.runs > 0 && `${v.errors.runs} games stopped on an engine error and count as no win.`,
+  ];
+}
+
+function simulateAdapter(v: Rec): ToolContent[] {
+  const st = v.setup;
+  if (typeof v.sourceId !== "string" || !st || !Array.isArray(v.lethal?.byTurn)) return [];
+  const id: string = v.sourceId;
+  const name = v.deck?.name || v.deck?.leader?.name || "Deck";
+  const order = st.goingFirst ? "going first" : "going second";
+  const lethal = v.lethal;
+  const main = searchResult(id, `Goldfish: ${name}, ${order}, dummy at ${st.opponent.life} Life`, [
+    `Setup: ${st.runs} scripted solitaire games of ${name} (${v.deck?.leader?.id}) ${order}, against a dummy at ${st.opponent.life} Life and ${st.opponent.power} power that never blocks, counters or attacks, through your turn ${st.turns}.`,
+    st.truncated && `Stopped after ${st.runs} of ${st.runsRequested} requested games to stay within the time limit.`,
+    ...lethal.byTurn
+      .filter((t: Rec) => t.turn >= 2)
+      .map((t: Rec) => `Won by your turn ${t.turn} in ${t.wins} of ${st.runs} games (${pct1(t.percent)}%, 95% interval ${pct1(t.interval?.[0])}% to ${pct1(t.interval?.[1])}%).`),
+    lethal.wins > 0
+      ? `Fastest win: your turn ${lethal.fastestWinTurn}; median win turn ${lethal.medianWinTurn} among the ${lethal.wins} wins.`
+      : `No win by your turn ${st.turns} in any of ${st.runs} games.`,
+    ...simSupportFacts(v),
+  ]);
+
+  const hand = v.openingHand ?? {};
+  const rule = st.mulligan === "never" ? "never mulligan" : st.keepCards?.length ? `mulligan a hand with none of ${joined(st.keepCards.map((c: Rec) => c.name))}` : "mulligan a hand with no Character costing 3 or less";
+  const curve = searchResult(`${id}#curve`, `Goldfish curve: ${name}`, [
+    `Mulliganed ${pct1(hand.mulliganPercent)}% of opening hands (${rule}).`,
+    typeof hand.keepCardPercent === "number" && `The kept hand held ${joined(st.keepCards?.map((c: Rec) => c.name))} in ${pct1(hand.keepCardPercent)}% of games.`,
+    ...(v.curve ?? [])
+      .filter((c: Rec) => c.runs > 0)
+      .map(
+        (c: Rec) =>
+          `Your turn ${c.turn}: ${c.avgDon} DON!!, all of it spent on plays in ${c.allDonUsedPercent}% of games (average ${c.avgSpent} spent); average ${c.avgCharacters} Characters on board, dummy at ${c.avgOpponentLife} Life.${c.runs < st.runs ? ` (over the ${c.runs} games still going)` : ""}`,
+      ),
+  ]);
+
+  const cards = searchResult(
+    `${id}#cards`,
+    `Goldfish card timing: ${name}`,
+    (v.cards ?? []).map((c: Rec) => `${c.name} (${c.id}) first played by your turn ${c.byTurn.map((t: Rec, i: number) => `${i === 0 ? "" : "turn "}${t.turn} in ${pct1(t.percent)}%`).join(", ")}`),
+  );
+
+  const ex = v.example;
+  const line = ex
+    ? searchResult(`${id}#line`, `Example: fastest win (seed ${ex.seed})`, [
+        ...(ex.turns ?? []).map(
+          (t: Rec) =>
+            `Your turn ${t.turn} (${t.line}): played ${joined(t.played) || "nothing"}; attached ${t.donGiven} DON!!; ${t.attacks} attacks, ${t.hits} hits; dummy at ${t.opponentLife} Life.`,
+        ),
+        `Won on your turn ${ex.winTurn}.`,
+      ])
+    : null;
+
+  const results = [main, curve, cards, line].filter((r): r is SearchResultBlock => r !== null);
+  return [...results, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])];
+}
+
 const ADAPTERS: Record<string, (v: Rec) => ToolContent[]> = {
   search_cards: searchCardsAdapter,
   get_cards: getCardsAdapter,
   rules_lookup: rulesAdapter,
   card_rulings: cardRulingsAdapter,
   matchup_stats: statsAdapter,
+  tournament_stats: tournamentAdapter,
   playbook: playbookIndexAdapter,
   my_lessons: lessonsAdapter,
   review_match: reviewAdapter,
@@ -400,6 +582,8 @@ const ADAPTERS: Record<string, (v: Rec) => ToolContent[]> = {
   search_matches: searchMatchesAdapter,
   analyze_deck: analyzeDeckAdapter,
   draw_odds: oddsAdapter,
+  propose_deck_edit: proposalAdapter,
+  simulate: simulateAdapter,
 };
 
 /**

@@ -164,3 +164,34 @@ describe("cite events and saved citations (#390)", () => {
     expect((await fetchSavedReview("https://api.test", "m1", impl))!.citations).toEqual([]);
   });
 });
+
+describe("deck edit events (#400)", () => {
+  const wire = {
+    id: "t1",
+    version: 1,
+    target: { ref: "duel:d1", name: "Luffy", leader_id: "ST01-001" },
+    summary: "Tune",
+    lines: [{ id: "ST01-016", name: "Diable Jambe", before: 0, after: 2, reason: "Cheaper" }],
+    base: [{ id: "ST01-015", copies: 2 }],
+    legality: { legal: true, count: 50, problems: [], upcoming: [], ban_list_checked: true },
+  };
+
+  it("hands a proposal event to onProposal and ignores one with no usable lines (#400)", async () => {
+    const f = fakeFetch([15 * 60_000], () =>
+      sse(`event: proposal\ndata: ${JSON.stringify(wire)}\n\nevent: proposal\ndata: ${JSON.stringify({ ...wire, id: "t2", lines: [] })}\n\n`),
+    );
+    const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+    const seen: unknown[] = [];
+    await streamAnalyst(mgr, "/chat", { message: "hi" }, { onProposal: (p) => seen.push(p) }, undefined, f.impl);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ id: "t1", target: { ref: "duel:d1", name: "Luffy", leaderId: "ST01-001" }, legality: { banListChecked: true } });
+  });
+
+  it("reads a saved thread's deck edits and drops unusable ones (#400)", async () => {
+    const impl = (async () =>
+      Response.json({ id: 4, title: "t", messages: [{ role: "user", text: "hi" }, { role: "assistant", text: "See the card.", proposals: [wire, { id: "bad" }] }] })) as unknown as typeof fetch;
+    const thread = await fetchThread("https://api.test", 4, impl);
+    expect(thread!.messages[0]!.proposals).toEqual([]);
+    expect(thread!.messages[1]!.proposals!.map((p) => p.id)).toEqual(["t1"]);
+  });
+});

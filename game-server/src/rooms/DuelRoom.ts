@@ -36,6 +36,7 @@ import {
   requireGameToken,
 } from "../env.js";
 import { sanitizeDisplayName, verifyGameToken } from "../gameToken.js";
+import { mintBriefTicket } from "../briefTicket.js";
 import { collectPublicDefIds, visibleArtPrefs } from "../publicArt.js";
 import { checkMatchmakeToken, claimCreatorRoom, gameSeed, releaseCreatorRoom } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
@@ -63,6 +64,7 @@ import {
   type UndoAction,
   type UndoAppliedMessage,
   type UndoStateMessage,
+  type BriefTicketWire,
   type WelcomeMessage,
 } from "../protocol.js";
 import {
@@ -810,6 +812,8 @@ export class DuelRoom extends Room implements PresenceSource {
         role: "player",
         view,
         players: this.playersInfo(),
+        ranked: this.ranked,
+        brief: this.briefFor(slot.seat),
       };
       client.send("welcome", welcome);
       client.send("view", {
@@ -1769,6 +1773,26 @@ export class DuelRoom extends Room implements PresenceSource {
     }
   }
 
+  /**
+   * The matchup-brief ticket for a player seat: that seat's own leader and deck
+   * against the other seat's leader. Never minted for a ranked room.
+   */
+  private briefFor(seat: Seat): BriefTicketWire | undefined {
+    if (this.ranked || !this.replay) return undefined;
+    const mine = this.replay.players[seat];
+    const theirs = this.replay.players[1 - seat];
+    const ticket = mintBriefTicket({
+      mid: this.gameKey(),
+      seat,
+      ranked: this.ranked,
+      leader: mine.leaderId,
+      opponent: theirs.leaderId,
+      deck: mine.deck,
+    });
+    if (!ticket) return undefined;
+    return { ticket, leaderId: mine.leaderId, opponentId: theirs.leaderId, deck: [...mine.deck] };
+  }
+
   /** Rematches share the room: key each game's result separately. */
   private gameKey(): string {
     return this.gameNumber > 1 ? `${this.matchId}-r${this.gameNumber - 1}` : this.matchId;
@@ -1891,6 +1915,8 @@ export class DuelRoom extends Room implements PresenceSource {
       role: "player",
       view,
       players: this.playersInfo(),
+      ranked: this.ranked,
+      brief: this.briefFor(seat),
     };
     client.send("welcome", welcome);
     client.send("view", {
@@ -1942,6 +1968,7 @@ export class DuelRoom extends Room implements PresenceSource {
       role: "spectator",
       view,
       players: this.playersInfo(),
+      ranked: this.ranked,
     };
     client.send("welcome", welcome);
     client.send("view", {

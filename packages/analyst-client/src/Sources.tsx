@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { createPortal } from "react-dom";
 import {
   buildSources,
+  eventLink,
+  hasRecord,
   kindLabel,
   placeMarkers,
   placePopover,
@@ -21,6 +23,8 @@ export type SourceHooks = {
   href?: (source: ParsedSource) => string | null;
   /** A card's name and picture from the app's card data. */
   card?: (id: string) => { name?: string; imageUrl?: string } | null | undefined;
+  /** Where a deck ("planner:<id>" or "duel:<id>") can be opened in the app, for an edit that belongs to another page. */
+  deckHref?: (ref: string) => string | null;
 };
 
 export const SourceHooksContext = createContext<SourceHooks>({});
@@ -62,7 +66,7 @@ function PlaybookLine({ title }: { title: string }) {
 function SourceBody({ parsed, title, quote, showCard }: { parsed: ParsedSource; title: string; quote?: string; showCard?: boolean }) {
   const hooks = useContext(SourceHooksContext);
   const card = parsed.kind === "card" && showCard ? hooks.card?.(parsed.id) : null;
-  const link = safeLink(hooks.href?.(parsed));
+  const link = safeLink(hooks.href?.(parsed)) ?? eventLink(parsed);
   return (
     <>
       <div className="lp-src-head">
@@ -74,13 +78,13 @@ function SourceBody({ parsed, title, quote, showCard }: { parsed: ParsedSource; 
           <p className="lp-src-title">{parsed.kind === "card" && card?.name ? `${card.name} (${parsed.id})` : title}</p>
         </div>
       </div>
-      {parsed.kind === "stats" && quote ? <StatsLine quote={quote} /> : null}
+      {hasRecord(parsed) && quote ? <StatsLine quote={quote} /> : null}
       {parsed.kind === "playbook" ? <PlaybookLine title={title} /> : null}
       {quote ? <blockquote className="lp-quote">{quote}</blockquote> : null}
       {link ? (
         <p className="lp-src-meta">
           <a href={link} target="_blank" rel="noopener noreferrer">
-            {parsed.kind === "match" ? "Open this game's log" : "Open"}
+            {parsed.kind === "match" ? "Open this game's log" : parsed.kind === "event" ? "Open on Limitless TCG" : "Open"}
           </a>
         </p>
       ) : null}
@@ -165,6 +169,7 @@ function SourcesList({ entries }: { entries: SourceEntry[] }) {
         {entries.map((e) => {
           const quote = e.quotes[0];
           const card = e.parsed.kind === "card" ? hooks.card?.(e.parsed.id) : null;
+          const link = safeLink(hooks.href?.(e.parsed)) ?? eventLink(e.parsed);
           return (
             <li key={e.source} className="lp-src">
               <span className="lp-src-n" aria-hidden="true">
@@ -175,12 +180,12 @@ function SourcesList({ entries }: { entries: SourceEntry[] }) {
                   <span className="lp-badge">{kindLabel(e.parsed)}</span>
                   <span className="lp-src-title">{e.parsed.kind === "card" && card?.name ? `${card.name} (${e.parsed.id})` : e.title}</span>
                 </p>
-                {e.parsed.kind === "stats" && quote ? <StatsLine quote={quote} /> : null}
+                {hasRecord(e.parsed) && quote ? <StatsLine quote={quote} /> : null}
                 {e.parsed.kind === "playbook" ? <PlaybookLine title={e.title} /> : null}
-                {safeLink(hooks.href?.(e.parsed)) ? (
+                {link ? (
                   <p className="lp-src-meta">
-                    <a href={safeLink(hooks.href?.(e.parsed))!} target="_blank" rel="noopener noreferrer">
-                      Open
+                    <a href={link} target="_blank" rel="noopener noreferrer">
+                      {e.parsed.kind === "event" ? "Open on Limitless TCG" : "Open"}
                     </a>
                   </p>
                 ) : null}

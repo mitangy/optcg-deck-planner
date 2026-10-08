@@ -6,6 +6,7 @@ export {
   fetchSavedReview,
   fetchThread,
   streamAnalyst,
+  type BriefRequest,
   type ChatContext,
   type DeckContext,
   type DonePayload,
@@ -24,6 +25,8 @@ export {
   placeMarkers,
   placePopover,
   playbookStatus,
+  eventLink,
+  hasRecord,
   safeLink,
   splitMarks,
   statsDetail,
@@ -39,6 +42,23 @@ export { clampSheet, clampSize, dragSheet, dragSize, keySize, readSheet, readSiz
 export { readThreadId, writeThreadId, THREAD_KEY } from "./threadStore";
 export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdown";
 export { Markdown } from "./Markdown";
-export { LogPoseProvider, LogPoseCompass, useLogPose, useLogPosePage, messageContext, type LogPosePage } from "./LogPose";
+export { LogPoseProvider, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, useLogPoseDeckEditor, type LogPosePage } from "./LogPose";
+export { askContext, canAsk, hintAsk, HINT_LIMITS, messageContext, requestAction, type HintContext, type LogPoseAsk } from "./ask";
+export { DeckEditCard } from "./DeckEditCard";
+export {
+  applyOps,
+  isEmptyAnswer,
+  normalizeCardId,
+  parseProposal,
+  proposalState,
+  undoOps,
+  type DeckEditLine,
+  type DeckEditOp,
+  type DeckEditor,
+  type DeckEditProposal,
+  type ProposalKind,
+  type ProposalState,
+} from "./proposals";
+export { logPoseChrome, type LogPoseChrome } from "./chrome";
 export { CitedAnswer, type SourceHooks } from "./Sources";
 export { RequestAccessView, RequestsList } from "./AccessViews";

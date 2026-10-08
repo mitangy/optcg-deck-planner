@@ -152,6 +152,8 @@ import { latestOpponentPlay, opponentPlayCaption } from "./opponentPlay";
 import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY, RAIL_HAND_QUERY, TILT_BOARD_QUERY } from "./useMediaQuery";
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
+import { useMatchBrief } from "./MatchBrief";
+import type { BriefTicketWire } from "../net/protocol";
 import { matchMenuItems } from "./matchMenuItems";
 import { openFeedback } from "../feedbackDialog";
 import { isPromptHidden, promptOpenFor } from "./promptHide";
@@ -203,6 +205,11 @@ type Props = {
   /** Online: each seat's shared custom playmat / card back (shown for the opponent only). */
   seatSkins?: readonly [SeatSkin | null, SeatSkin | null];
   leaveLabel?: string;
+  /**
+   * Log Pose matchup brief for casual and practice games: the game server's ticket and whether the room is
+   * ranked. The board shows a Brief button and card only when the pair says unranked, a player and a ticket.
+   */
+  matchBrief?: { brief: BriefTicketWire | null; ranked: boolean | null };
   /** Searches and effect ordering float cards over the board instead of a pop-up (always in matches; `/demo?box` shows the pop-up fallback). */
   floatingPrompts?: boolean;
   /** Before the first view: what the empty board says (queueing, connecting, starting). */
@@ -277,6 +284,7 @@ export function DuelBoard({
   rematch,
   loadMatchRecord,
   leaveLabel = "Leave",
+  matchBrief,
   floatingPrompts = true,
   waiting,
   onSendIntent: sendIntent,
@@ -547,6 +555,14 @@ export function DuelBoard({
   }, [over]);
   const mySeat = seat ?? view?.seat ?? null;
   const spectating = spectator || Boolean(view?.spectator);
+  const brief = useMatchBrief({
+    source: matchBrief,
+    role: spectating ? "spectator" : "player",
+    roomMatchId: matchId,
+    phase: view?.phase,
+    over,
+    layout: lp ? "landscape" : wide ? "desktop" : "portrait",
+  });
   const result = describeMatchResult({
     winner: matchOver?.winner ?? view?.winner,
     // The room's reason (concede / clock) beats the engine's view.winReason.
@@ -1858,6 +1874,7 @@ export function DuelBoard({
             ) : null}
           </div>
           <div className="hud-actions">
+            {brief.trigger}
             {hudUndoPass}
             {matchMenuEl("top")}
           </div>
@@ -1932,6 +1949,7 @@ export function DuelBoard({
             ) : null}
           </div>
           <div className="hud-actions">
+            {brief.trigger}
             {hotseatPass ? null : <RoomChip roomId={matchId} />}
             {undo && undoState?.enabled && !spectating && !over ? (
               undoPendingMine ? (
@@ -2052,6 +2070,8 @@ export function DuelBoard({
         </button>
       ) : null}
 
+      {brief.card}
+
       {mulliganPhase && !spectating ? (
         <div
           className={`mulligan-banner${view.you.mulliganDone ? "" : " mulligan-banner-explainer"}`}
@@ -2080,8 +2100,17 @@ export function DuelBoard({
         {panelDrag.overlay}
         {lp ? (
           <LandscapeRail
-            open={lpPanel}
-            onToggle={(panel) => setLpPanel((cur) => (cur === panel ? null : panel))}
+            open={brief.open ? "brief" : lpPanel}
+            onToggle={(panel) => {
+              if (panel === "brief") {
+                setLpPanel(null);
+                brief.setOpen(!brief.open);
+              } else {
+                brief.setOpen(false);
+                setLpPanel((cur) => (cur === panel ? null : panel));
+              }
+            }}
+            hasBrief={brief.shown}
             hasChat={Boolean(chat)}
             logCount={battleLog.length}
             menu={matchMenuEl("left")}
@@ -2377,9 +2406,19 @@ export function DuelBoard({
         )}
       </div>
 
-      {lp && lpPanel ? (
-        <LandscapeOverlay panel={lpPanel} onClose={() => setLpPanel(null)}>
-          {lpPanel === "log" ? (
+      {lp && (lpPanel || brief.open) ? (
+        <LandscapeOverlay
+          panel={brief.open ? "brief" : lpPanel!}
+          // The brief never takes the board's taps: the mulligan buttons stay usable while it is up.
+          backdrop={!brief.open}
+          onClose={() => {
+            brief.setOpen(false);
+            setLpPanel(null);
+          }}
+        >
+          {brief.open ? (
+            brief.landscapeBody
+          ) : lpPanel === "log" ? (
             <BattleLogPanel
               entries={battleLog}
               viewingSeat={spectating || mySeat == null ? undefined : mySeat}

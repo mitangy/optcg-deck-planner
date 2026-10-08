@@ -5,6 +5,8 @@ const session = "packages/analyst-client/src/session.ts";
 const md = "packages/analyst-client/src/markdown.ts";
 const cit = "packages/analyst-client/src/citations.ts";
 const size = "packages/analyst-client/src/panelSize.ts";
+const prop = "packages/analyst-client/src/proposals.ts";
+const ask = "packages/analyst-client/src/ask.ts";
 const access = "packages/analyst-client/src/access.ts";
 module.exports = {
   cwd: "packages/analyst-client",
@@ -52,7 +54,7 @@ module.exports = {
     // sources, citations and panel size (#390)
     { id: "cit-any-prefix-is-a-kind", file: cit, from: "  if (!KINDS.includes(head)) return", to: "  if (false) return", kills: ["reads the kind, id and part of every source"] },
     { id: "cit-turn-not-read", file: cit, from: "const m = /^t(\\d+)$/.exec(part);", to: "const m = null as RegExpExecArray | null;", kills: ["reads the kind, id and part of every source"] },
-    { id: "cit-opponent-not-split", file: cit, from: "if ((head === \"stats\" || head === \"playbook\") && id.includes(\"~\")) {", to: "if (false) {", kills: ["reads the kind, id and part of every source"] },
+    { id: "cit-opponent-not-split", file: cit, from: "if ((head === \"stats\" || head === \"tourney\" || head === \"playbook\") && id.includes(\"~\")) {", to: "if (false) {", kills: ["reads the kind, id and part of every source"] },
     { id: "cit-label-rules-no-section-sign", file: cit, from: "`Rules \u00a7${p.id}`", to: "`Rules ${p.id}`", kills: ["labels each kind of source"] },
     { id: "cit-label-match-no-turn", file: cit, from: "return p.turn ? `Your match turn ${p.turn}` : \"Your match\";", to: "return \"Your match\";", kills: ["labels each kind of source"] },
     { id: "cit-label-ruling", file: cit, from: "return \"Official ruling\";", to: "return \"Ruling\";", kills: ["labels each kind of source"] },
@@ -84,7 +86,7 @@ module.exports = {
     { id: "cit-parse-negative-offset", file: cit, from: "Number.isFinite(c.at) && c.at >= 0 ?", to: "Number.isFinite(c.at) ?", kills: ["reads a saved thread's and review's citations"] },
     { id: "client-cite-event-ignored", file: client, from: "  else if (event === \"cite\") {", to: "  else if (event === \"citation\") {", kills: ["hands the citations of a cite event to the panel"] },
     { id: "client-cite-empty-forwarded", file: client, from: "    if (citations.length) handlers.onCite?.(citations);", to: "    handlers.onCite?.(citations);", kills: ["hands the citations of a cite event to the panel"] },
-    { id: "client-thread-citations-dropped", file: client, from: "return { ...body, messages: body.messages.map((m) => ({ ...m, citations: parseCitations(m.citations, true) })) };", to: "return body;", kills: ["reads a saved thread's and review's citations"] },
+    { id: "client-thread-citations-dropped", file: client, from: "      citations: parseCitations(m.citations, true),\n", to: "", kills: ["reads a saved thread's and review's citations"] },
     { id: "client-review-citations-dropped", file: client, from: "return { ...body, citations: parseCitations(body.citations, true) };", to: "return body;", kills: ["reads a saved thread's and review's citations"] },
     { id: "size-minimum-ignored", file: size, from: "Math.min(Math.max(v, min), max);", to: "Math.min(v, max);", kills: ["never goes below 320x360"] },
     { id: "size-maximum-ignored", file: size, from: "Math.min(Math.max(v, min), max);", to: "Math.max(v, min);", kills: ["never goes below 320x360"] },
@@ -108,5 +110,45 @@ module.exports = {
     { id: "size-sheet-drag-inverted", file: size, from: "startFrac + (startY - y) / screenH", to: "startFrac + (y - startY) / screenH", kills: ["gets taller as the grab handle is dragged up"] },
     { id: "size-sheet-full-stored", file: size, from: "    if (frac >= 1) globalThis.localStorage?.removeItem(SHEET_KEY);", to: "    if (false) globalThis.localStorage?.removeItem(SHEET_KEY);", kills: ["remembers the phone sheet"] },
     { id: "size-sheet-read-unclamped", file: size, from: "return raw === null || raw === undefined ? 1 : clampSheet(Number(raw));", to: "return raw === null || raw === undefined ? 1 : Number(raw);", kills: ["remembers the phone sheet"] },
+    // matchup brief (#401)
+    { id: "chrome-launcher-ignored", file: "packages/analyst-client/src/chrome.ts", from: "compass: on && o.launcher && !o.open", to: "compass: on && !o.open", kills: ["a provider without a launcher hides the compass but still opens the panel (#401)"] },
+    { id: "chrome-panel-needs-launcher", file: "packages/analyst-client/src/chrome.ts", from: "panel: on && o.open", to: "panel: on && o.launcher && o.open", kills: ["a provider without a launcher hides the compass but still opens the panel (#401)"] },
+    { id: "chrome-hidden-ignored", file: "packages/analyst-client/src/chrome.ts", from: "const on = (o.enabled === true || o.requestable === true) && !o.hidden;", to: "const on = o.enabled === true || o.requestable === true;", kills: ["shows nothing while hidden or until chat is known to be on (#401)"] },
+    { id: "chrome-enabled-unknown-shown", file: "packages/analyst-client/src/chrome.ts", from: "const on = (o.enabled === true || o.requestable === true) && !o.hidden;", to: "const on = (o.enabled !== false || o.requestable === true) && !o.hidden;", kills: ["shows nothing while hidden or until chat is known to be on (#401)"] },
+    { id: "chrome-requestable-ignored", file: "packages/analyst-client/src/chrome.ts", from: "(o.enabled === true || o.requestable === true) && !o.hidden", to: "o.enabled === true && !o.hidden", kills: ["a player who can only ask for access still gets the compass and panel, but not while hidden (#393, #401)"] },
+    // deck edit suggestions (#400)
+    { id: "proposal-parse-keeps-bad-lines", file: prop, from: "if (!lid || before === null || after === null || before === after) continue;", to: "if (!lid || before === null || after === null) continue;", kills: ["reads a proposal and drops malformed lines (#400)"] },
+    { id: "proposal-parse-bad-counts", file: prop, from: "if (!lid || before === null || after === null || before === after) continue;", to: "if (!lid || before === after) continue;", kills: ["reads a proposal and drops malformed lines (#400)"] },
+    { id: "proposal-ready-checks-after", file: prop, from: "const atBefore = changed.length === 0;", to: "const atBefore = p.lines.every((l) => has(l.id) === l.after);", kills: ["is ready when every touched card is at its before count (#400)"] },
+    { id: "proposal-undo-same-ops", file: prop, from: "export const undoOps = (p: DeckEditProposal): DeckEditOp[] => p.lines.map((l) => ({ id: l.id, before: l.after, after: l.before }));", to: "export const undoOps = (p: DeckEditProposal): DeckEditOp[] => applyOps(p);", kills: ["is applied when every touched card is at its after count, and undo swaps them (#400)"] },
+    { id: "proposal-drift-ignored", file: prop, from: "const drifted = [...others].some(", to: "const drifted = false && [...others].some(", kills: ["flags a conflict when a touched card changed, and drift when only others did (#400)"] },
+    { id: "proposal-ref-ignored", file: prop, from: "if (!editor || editor.ref !== p.target.ref)", to: "if (!editor)", kills: ["is for another deck when the open deck's ref differs (#400)"] },
+    { id: "proposal-ids-not-normalized", file: prop, from: "for (const c of cards) m.set(normalizeCardId(c.id), (m.get(normalizeCardId(c.id)) ?? 0) + c.copies);", to: "for (const c of cards) m.set(c.id, (m.get(c.id) ?? 0) + c.copies);", kills: ["counts a card saved with an art suffix as the same card (#400)"] },
+    { id: "proposal-dismissed-over-applied", file: prop, from: "if (gone && (kind === \"ready\" || kind === \"conflict\")) kind = \"dismissed\";", to: "if (gone) kind = \"dismissed\";", kills: ["shows a dismissed edit as dismissed only while it could still be applied (#400)"] },
+    { id: "proposal-dismissed-ignored", file: prop, from: "if (gone && (kind === \"ready\" || kind === \"conflict\")) kind = \"dismissed\";", to: "", kills: ["shows a dismissed edit as dismissed only while it could still be applied (#400)"] },
+    { id: "proposal-empty-answer-ignores-cards", file: prop, from: "!m.text && !m.proposals?.length && !m.stopped", to: "!m.text && !m.stopped", kills: ["keeps an answer that has only a deck edit (#400)"] },
+    { id: "client-proposal-event-dropped", file: client, from: "    const proposal = parseProposal(d);\n    if (proposal) handlers.onProposal?.(proposal);\n", to: "", kills: ["hands a proposal event to onProposal and ignores one with no usable lines (#400)"] },
+    { id: "client-saved-proposals-dropped", file: client, from: "proposals: (Array.isArray(m.proposals) ? m.proposals : []).map(parseProposal).filter((p): p is DeckEditProposal => p !== null),", to: "proposals: [],", kills: ["reads a saved thread's deck edits and drops unusable ones (#400)"] },
+    // asking Log Pose why (#399)
+    { id: "ask-while-session-unknown", file: ask, from: "return enabled === true && !hidden;", to: "return enabled !== false && !hidden;", kills: ["offers Why? only when chat is on and Log Pose shows on this page"] },
+    { id: "ask-on-hidden-pages", file: ask, from: "return enabled === true && !hidden;", to: "return enabled === true;", kills: ["offers Why? only when chat is on and Log Pose shows on this page"] },
+    { id: "hint-ask-drops-detail", file: ask, from: "    detail: h.detail.slice(0, HINT_LIMITS.detail),\n", to: "", kills: ["sends its id, detail and cards"] },
+    { id: "hint-ask-no-trim", file: ask, from: "h.detail.slice(0, HINT_LIMITS.detail)", to: "h.detail", kills: ["trims a long hint to the analyst's limits"] },
+    { id: "ask-respects-dropped-chip", file: ask, from: "...messageContext(page, false), ...extra", to: "...messageContext(page, true), ...extra", kills: ["sends the open deck even after its chip's"] },
+    { id: "ask-sends-before-history", file: ask, from: "  if (state.history !== \"done\") return \"wait\";\n", to: "", kills: ["waits for the last chat to load before sending a Why?"] },
+    { id: "ask-sends-while-busy", file: ask, from: "state.busy || req.send === false", to: "req.send === false", kills: ["puts a Why? in the composer instead of sending while an answer is streaming"] },
+    // goldfish sim sources (#402)
+    { id: "citations-sim-kind-missing", file: cit, from: ", \"lesson\", \"sim\"];", to: ", \"lesson\"];", kills: ["parses sim: sources and labels them Goldfish sim (#402)"] },
+    // tournament sources (#397)
+    { id: "tourney-opponent-unparsed", file: cit, from: "if ((head === \"stats\" || head === \"tourney\" || head === \"playbook\") && id.includes(\"~\")) {", to: "if ((head === \"stats\" || head === \"playbook\") && id.includes(\"~\")) {", kills: ["reads tournament sources like stats ones: leader~opponent"] },
+    { id: "tourney-kind-unknown", file: cit, from: "[\"card\", \"rule\", \"ruling\", \"stats\", \"tourney\", \"event\",", to: "[\"card\", \"rule\", \"ruling\", \"stats\", \"event\",", kills: ["reads tournament sources like stats ones: leader~opponent", "shows the win-record line for optcgduel.app win rates and tournament records only"] },
+    { id: "event-kind-unknown", file: cit, from: "\"tourney\", \"event\", \"playbook\",", to: "\"tourney\", \"playbook\",", kills: ["reads tournament sources like stats ones: leader~opponent", "links an event to its Limitless TCG page"] },
+    { id: "tourney-badged-as-win-rate", file: cit, from: "    case \"tourney\":\n      return \"Tournament\";", to: "    case \"tourney\":\n      return \"Win rate\";", kills: ["reads tournament sources like stats ones: leader~opponent"] },
+    { id: "event-badge-dropped", file: cit, from: "    case \"event\":\n      return \"Tournament event\";\n", to: "", kills: ["reads tournament sources like stats ones: leader~opponent"] },
+    { id: "tourney-record-line-dropped", file: cit, from: "p.kind === \"stats\" || p.kind === \"tourney\"", to: "p.kind === \"stats\"", kills: ["shows the win-record line for optcgduel.app win rates and tournament records only"] },
+    { id: "record-line-for-every-source", file: cit, from: "p.kind === \"stats\" || p.kind === \"tourney\"", to: "true", kills: ["shows the win-record line for optcgduel.app win rates and tournament records only"] },
+    { id: "event-link-any-kind", file: cit, from: "return p.kind === \"event\" && /^", to: "return /^", kills: ["links an event to its Limitless TCG page"] },
+    { id: "event-link-unchecked-id", file: cit, from: "/^[A-Za-z0-9_-]{1,64}$/.test(p.id)", to: "p.id.length > 0", kills: ["links an event to its Limitless TCG page"] },
+    { id: "event-link-wrong-host", file: cit, from: "https://play.limitlesstcg.com/tournament/", to: "https://play.limitlesstcg.com/tournaments/", kills: ["links an event to its Limitless TCG page"] },
   ],
 };

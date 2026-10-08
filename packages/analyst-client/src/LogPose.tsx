@@ -20,7 +20,11 @@ import {
   type ChatRequest,
   type DeckContext,
 } from "./client";
+import { askContext, canAsk, messageContext, requestAction, type LogPoseAsk } from "./ask";
 import { placeAt, type Citation, type PlacedCitation } from "./citations";
+import { logPoseChrome } from "./chrome";
+import { DeckEditCard } from "./DeckEditCard";
+import { isEmptyAnswer, type DeckEditor, type DeckEditProposal } from "./proposals";
 import { ResizeHandles, SheetGrip, useDrawerSize, useSheetHeight } from "./PanelResize";
 import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
 import { RequestAccessView, RequestsList } from "./AccessViews";
@@ -45,7 +49,13 @@ type LogPoseValue = {
   apiBase: string;
   session: SessionManager;
   setPage: (owner: object, page: LogPosePage | null) => void;
+  /** Registers the deck the page has open, so Apply cards for it can save changes. */
+  setEditor: (owner: object, editor: DeckEditor | null) => void;
   openPanel: () => void;
+  /** Log Pose can answer here: the session is enabled and the page doesn't hide it. */
+  available: boolean;
+  /** Opens the panel and, with an ask, puts that question to Log Pose. Returns false when it isn't available. */
+  openLogPose: (ask?: LogPoseAsk) => boolean;
 };
 
 const NO_HOOKS: SourceHooks = {};
@@ -61,8 +71,17 @@ const LogPoseContext = createContext<LogPoseValue>({
   apiBase: "",
   session: fallbackSession,
   setPage: () => {},
+  setEditor: () => {},
   openPanel: () => {},
+  available: false,
+  openLogPose: () => false,
 });
+
+/** A function that asks Log Pose a question and opens its panel, or null while Log Pose can't answer (signed out, not enabled, hidden page). */
+export function useLogPoseAsk(): ((ask: LogPoseAsk) => void) | null {
+  const { available, openLogPose } = useContext(LogPoseContext);
+  return useMemo(() => (available ? (ask: LogPoseAsk) => void openLogPose(ask) : null), [available, openLogPose]);
+}
 
 /** Whether chat is on for this user (false outside a provider), plus the session for review streams. */
 export function useLogPose() {
@@ -79,6 +98,23 @@ export function useLogPosePage(page: LogPosePage | null) {
     return () => setPage(owner, null);
   }, [key, owner, setPage]);
 }
+
+/**
+ * Registers the deck the calling page has open while it is mounted (null for none). Unlike the page context this
+ * is kept as a value, not through JSON, because it carries the app's save function: memoize the editor so it
+ * only changes when the deck does.
+ */
+export function useLogPoseDeckEditor(editor: DeckEditor | null) {
+  const { setEditor } = useContext(LogPoseContext);
+  const owner = useRef({}).current;
+  useEffect(() => {
+    setEditor(owner, editor);
+    return () => setEditor(owner, null);
+  }, [editor, owner, setEditor]);
+}
+
+/** Sent when the player taps Ask again on an edit whose deck changed. */
+const ASK_AGAIN = "My deck changed. Update that suggestion for the deck as it is now.";
 
 /** Desktop and tablets (a fine pointer, or 640px and wider) get the resizable drawer; anything else gets the phone sheet. */
 export const DRAWER_QUERY = "(min-width: 640px), (pointer: fine)";
@@ -97,19 +133,7 @@ function useMedia(query: string): boolean {
   return match;
 }
 
-type Msg = { role: "user" | "assistant"; text: string; citations: PlacedCitation[]; stopped?: boolean };
-
-/** Builds the request context: the page id always; the deck / match only while the chip is kept. */
-export function messageContext(page: LogPosePage | null, dropped: boolean): ChatContext | undefined {
-  if (!page) return undefined;
-  const ctx: ChatContext = {};
-  if (page.page) ctx.page = page.page;
-  if (!dropped) {
-    if (page.deck) ctx.deck = page.deck;
-    if (page.matchId) ctx.matchId = page.matchId;
-  }
-  return Object.keys(ctx).length ? ctx : undefined;
-}
+type Msg = { role: "user" | "assistant"; text: string; citations: PlacedCitation[]; proposals?: DeckEditProposal[]; stopped?: boolean };
 
 function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean, onUnread: () => void) {
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -138,7 +162,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
         if (!t) {
           writeThreadId(null);
           setThreadId(null);
-        } else setMessages((cur) => (cur.length ? cur : t.messages.map((m) => ({ role: m.role, text: m.text, citations: m.citations ?? [] }))));
+        } else setMessages((cur) => (cur.length ? cur : t.messages.map((m) => ({ role: m.role, text: m.text, citations: m.citations ?? [], proposals: m.proposals ?? [] }))));
       })
       .catch(() => setError("Could not load your last chat."))
       .finally(() => setHistory("done"));
@@ -173,6 +197,8 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
             onText: (delta) => patchLast((m) => ({ ...m, text: m.text + delta })),
             // A citation follows the text streamed so far.
             onCite: (cites: Citation[]) => patchLast((m) => ({ ...m, citations: [...m.citations, ...placeAt(cites, m.text.length)] })),
+            // A suggested deck edit shows as an Apply card under this answer.
+            onProposal: (p) => patchLast((m) => ({ ...m, proposals: [...(m.proposals ?? []).filter((x) => x.id !== p.id), p] })),
             onDone: (d) => {
               if (typeof d.thread_id === "number") keepThread(d.thread_id);
               if (!isOpen()) onUnread();
@@ -189,7 +215,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
         // Drop an empty answer bubble (error before any text), unless it was stopped on purpose.
         setMessages((cur) => {
           const last = cur[cur.length - 1];
-          return last?.role === "assistant" && !last.text && !last.stopped ? cur.slice(0, -1) : cur;
+          return last?.role === "assistant" && isEmptyAnswer(last) ? cur.slice(0, -1) : cur;
         });
         setBusy(false);
         setStatus("");
@@ -224,6 +250,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
 export function LogPoseProvider({
   apiBase,
   hidden = false,
+  launcher = true,
   defaultPage = null,
   account,
   sources,
@@ -232,6 +259,8 @@ export function LogPoseProvider({
   apiBase: string;
   /** Hide the compass and panel (e.g. on a live match); the chat keeps its state. */
   hidden?: boolean;
+  /** Show the compass (default). Off: the panel still opens (e.g. from a button on the page) but no launcher is drawn. */
+  launcher?: boolean;
   /** Page info for routes whose page component doesn't call useLogPosePage. */
   defaultPage?: LogPosePage | null;
   /** Who is signed in, when the app knows (e.g. user id): the session is asked again when it changes. */
@@ -259,6 +288,18 @@ export function LogPoseProvider({
     }
   }, []);
 
+  const [editor, setEditorState] = useState<DeckEditor | null>(null);
+  const editorOwner = useRef<object | null>(null);
+  const setEditor = useCallback((owner: object, next: DeckEditor | null) => {
+    if (next) {
+      editorOwner.current = owner;
+      setEditorState(next);
+    } else if (editorOwner.current === owner) {
+      editorOwner.current = null;
+      setEditorState(null);
+    }
+  }, []);
+
   const [open, setOpen] = useState(false);
   const openRef = useRef(open);
   openRef.current = open && !hidden;
@@ -267,6 +308,20 @@ export function LogPoseProvider({
   const markUnread = useCallback(() => setUnread(true), []);
   const chat = useChat(apiBase, manager, isOpen, markUnread);
 
+  const available = canAsk(enabled, hidden);
+  const [request, setRequest] = useState<(LogPoseAsk & { nonce: number }) | null>(null);
+  const nonce = useRef(0);
+  const openLogPose = useCallback(
+    (ask?: LogPoseAsk) => {
+      if (!available) return false;
+      if (ask) setRequest({ ...ask, nonce: ++nonce.current });
+      setOpen(true);
+      setUnread(false);
+      return true;
+    },
+    [available],
+  );
+  const handled = useCallback(() => setRequest(null), []);
   const openPanel = useCallback(() => {
     setOpen(true);
     setUnread(false);
@@ -277,18 +332,24 @@ export function LogPoseProvider({
   const closePanel = useCallback(() => setOpen(false), []);
 
   const value = useMemo<LogPoseValue>(
-    () => ({ enabled, apiBase, session: manager, setPage, openPanel }),
-    [enabled, apiBase, manager, setPage, openPanel],
+    () => ({ enabled, apiBase, session: manager, setPage, setEditor, openPanel, available, openLogPose }),
+    [enabled, apiBase, manager, setPage, setEditor, openPanel, available, openLogPose],
   );
+
+  // A panel left open on a page that hides Log Pose must not come back on the next one.
+  useEffect(() => {
+    if (hidden) setOpen(false);
+  }, [hidden]);
 
   // Signed-in players who can ask for access get the compass too, opening a request form instead of the chat.
   const chatOn = enabled === true;
-  const show = (chatOn || (session !== null && !session.enabled && session.access !== undefined)) && !hidden;
+  const requestable = session !== null && !session.enabled && session.access !== undefined;
+  const chrome = logPoseChrome({ enabled, hidden, launcher, open, requestable });
   return (
     <LogPoseContext.Provider value={value}>
       <SourceHooksContext.Provider value={sources ?? NO_HOOKS}>
         {children}
-        {show && !open ? (
+        {chrome.compass ? (
           <LogPoseCompass
             working={chat.busy}
             unread={unread}
@@ -297,14 +358,17 @@ export function LogPoseProvider({
             onClick={openPanel}
           />
         ) : null}
-        {show && open && session ? (
+        {chrome.panel && session ? (
           <LogPosePanel
             page={page ?? defaultPage}
+            editor={editor}
             chat={chat}
             session={session}
             apiBase={apiBase}
             refreshSession={() => void manager.refresh()}
             onClose={closePanel}
+            request={request}
+            onRequestHandled={handled}
           />
         ) : null}
       </SourceHooksContext.Provider>
@@ -379,20 +443,28 @@ function CompassIcon() {
 
 type Chat = ReturnType<typeof useChat>;
 
+type Request = LogPoseAsk & { nonce: number };
+
 function LogPosePanel({
   page,
+  editor,
   chat,
   session,
   apiBase,
   refreshSession,
   onClose,
+  request,
+  onRequestHandled,
 }: {
   page: LogPosePage | null;
+  editor: DeckEditor | null;
   chat: Chat;
   session: ChatSession;
   apiBase: string;
   refreshSession: () => void;
   onClose: () => void;
+  request: Request | null;
+  onRequestHandled: () => void;
 }) {
   const chatOn = session.enabled;
   const owner = session.enabled && session.owner === true;
@@ -401,6 +473,9 @@ function LogPosePanel({
   const showChat = chatOn && view === "chat";
   const phone = !useMedia(DRAWER_QUERY);
   const [draft, setDraft] = useState("");
+  /** Context for the next message only: the hint a Why? was about. */
+  const [extra, setExtra] = useState<LogPoseAsk["context"] | null>(null);
+  const handled = useRef(0);
   const [dropped, setDropped] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -417,6 +492,28 @@ function LogPosePanel({
   useEffect(() => {
     if (chatOn) loadHistory();
   }, [chatOn, loadHistory]);
+
+  // A Why? from elsewhere in the app: send it once the last chat has loaded, or fill the composer while an answer streams.
+  const { send: chatSend, history: chatHistory, busy: chatBusy } = chat;
+  useEffect(() => {
+    if (!request) return;
+    const action = requestAction(request, { busy: chatBusy, history: chatHistory });
+    if (action === "wait") return;
+    if (handled.current === request.nonce) return;
+    handled.current = request.nonce;
+    onRequestHandled();
+    setView("chat");
+    setDropped(false);
+    if (action === "send") {
+      stick.current = true;
+      void chatSend(request.prompt, askContext(page, request.context));
+    } else {
+      setDraft(request.prompt);
+      setExtra(request.context ?? null);
+      if (!phone) inputRef.current?.focus({ preventScroll: true });
+      requestAnimationFrame(resize);
+    }
+  }, [request, chatHistory, chatBusy, chatSend, onRequestHandled, page, phone]);
 
   // Esc closes the drawer on desktop.
   useEffect(() => {
@@ -481,7 +578,8 @@ function LogPosePanel({
   const submit = (text: string) => {
     if (chat.busy || !text.trim()) return;
     stick.current = true;
-    void chat.send(text, messageContext(page, dropped));
+    void chat.send(text, extra ? { ...messageContext(page, dropped), ...extra } : messageContext(page, dropped));
+    setExtra(null);
     setDraft("");
     requestAnimationFrame(resize);
   };
@@ -500,6 +598,7 @@ function LogPosePanel({
 
   const newChat = () => {
     chat.reset();
+    setExtra(null);
     setDropped(false);
     setDraft("");
     inputRef.current?.focus({ preventScroll: true });
@@ -508,6 +607,7 @@ function LogPosePanel({
   const starters = page?.starters ?? [];
   const empty = chat.messages.length === 0 && chat.history !== "loading";
   const showChip = Boolean(page?.label) && !dropped;
+  const aboutHint = extra?.hint;
 
   return (
     <div
@@ -573,7 +673,7 @@ function LogPosePanel({
           </div>
         ) : null}
         {(showChat ? chat.messages : []).map((m, i) =>
-          m.role === "assistant" && !m.text && !m.stopped ? null : m.role === "user" ? (
+          m.role === "assistant" && isEmptyAnswer(m) ? null : m.role === "user" ? (
             <div key={i} className="lp-msg lp-msg-user">
               <p>{m.text}</p>
             </div>
@@ -581,6 +681,9 @@ function LogPosePanel({
             <div key={i} className="lp-msg lp-msg-assistant">
               {m.text ? <CitedAnswer text={m.text} citations={m.citations} done={!(chat.busy && i === chat.messages.length - 1)} /> : null}
               {m.stopped ? <p className="lp-stopped">Stopped.</p> : null}
+              {(m.proposals ?? []).map((p) => (
+                <DeckEditCard key={p.id} proposal={p} editor={editor} busy={chat.busy} onAskAgain={() => submit(ASK_AGAIN)} />
+              ))}
             </div>
           ),
         )}
@@ -599,16 +702,28 @@ function LogPosePanel({
 
       {showChat ? (
       <div className="lp-foot">
-        {showChip ? (
+        {showChip || aboutHint ? (
           <div className="lp-context">
-            <span className="lp-chip" title={`Looking at: ${page!.label}`}>
-              <span className="lp-chip-text">Looking at: {page!.label}</span>
-              <button type="button" className="lp-chip-x" onClick={() => setDropped(true)} aria-label={`Don't send ${page!.label} with the next message`}>
-                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M6 6l8 8M14 6l-8 8" />
-                </svg>
-              </button>
-            </span>
+            {showChip ? (
+              <span className="lp-chip" title={`Looking at: ${page!.label}`}>
+                <span className="lp-chip-text">Looking at: {page!.label}</span>
+                <button type="button" className="lp-chip-x" onClick={() => setDropped(true)} aria-label={`Don't send ${page!.label} with the next message`}>
+                  <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <path d="M6 6l8 8M14 6l-8 8" />
+                  </svg>
+                </button>
+              </span>
+            ) : null}
+            {aboutHint ? (
+              <span className="lp-chip" title={`About: ${aboutHint.title}`}>
+                <span className="lp-chip-text">About: {aboutHint.title}</span>
+                <button type="button" className="lp-chip-x" onClick={() => setExtra(null)} aria-label={`Don't send the ${aboutHint.title} hint with the next message`}>
+                  <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <path d="M6 6l8 8M14 6l-8 8" />
+                  </svg>
+                </button>
+              </span>
+            ) : null}
           </div>
         ) : null}
         <form className="lp-composer" onSubmit={onSubmit}>

@@ -164,3 +164,42 @@ test("edit mode opens the card editor and in-deck steppers without breaking layo
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
 });
+
+/** Opens the deck's stats where they live: the sticky dock at 1200, the sheet behind the Stats pill on a phone. */
+async function openStats(page: import("@playwright/test").Page) {
+  if (page.viewportSize()!.width >= 1000) return;
+  await page.getByRole("button", { name: /^Stats/ }).click();
+}
+
+test("Why? on a build hint opens Log Pose and sends the hint with the deck (#399)", async ({ page, planner }) => {
+  planner.enableLogPose();
+  await planner.open(`/decks/${DECK_ID}`);
+  await openStats(page);
+
+  await page.locator('[data-hint-id="count"]:visible').click();
+  const pop = page.locator(".dh-pop");
+  const why = pop.getByRole("button", { name: "Why? Ask Log Pose" });
+  const dismiss = pop.getByRole("button", { name: "Dismiss" });
+  const [whyBox, dismissBox] = [await why.boundingBox(), await dismiss.boundingBox()];
+  expect(whyBox!.height).toBe(dismissBox!.height);
+  expect(whyBox!.height).toBeGreaterThanOrEqual(page.viewportSize()!.width < 500 ? 44 : 32);
+  expect(whyBox!.y).toBe(dismissBox!.y);
+  await why.click();
+
+  await expect(page.getByRole("dialog", { name: "Log Pose" })).toBeVisible();
+  await expect(page.getByText("Because the deck has 15 cards.")).toBeVisible();
+  await expect(pop).toHaveCount(0);
+  expect(planner.chats).toHaveLength(1);
+  const chat = planner.chats[0]!;
+  expect(chat.message).toContain("14 of 50 cards");
+  expect(chat.context?.hint?.id).toBe("count");
+  expect(chat.context?.deck?.leaderId).toBe("EB01-001");
+  expect(chat.context?.deck?.plannerDeckId).toBe(DECK_ID);
+});
+
+test("no Why? on a hint while Log Pose is off (#399)", async ({ page }) => {
+  await openStats(page);
+  await page.locator('[data-hint-id="count"]:visible').click();
+  await expect(page.locator(".dh-pop").getByRole("button", { name: "Dismiss" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Ask Log Pose/ })).toHaveCount(0);
+});

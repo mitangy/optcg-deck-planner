@@ -1,22 +1,35 @@
 /** Requests to the analyst service (chat and match reviews) and to the API's chat history. */
 import { parseCitations, type Citation, type PlacedCitation } from "./citations";
+import type { HintContext } from "./ask";
+import { parseProposal, type DeckEditProposal } from "./proposals";
 import type { SessionManager } from "./session";
 import { SseHttpError, streamSse } from "./sse";
 
-export type DeckContext = { name: string; leaderId: string | null; cards: { id: string; copies: number }[] };
+export type DeckContext = {
+  name: string;
+  leaderId: string | null;
+  cards: { id: string; copies: number }[];
+  /** Which saved deck this is ("planner:<id>" or "duel:<id>"), so a suggested edit knows where it applies. */
+  ref?: string;
+  plannerDeckId?: number;
+};
 /** What the page the user is on adds to a message. */
-export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string };
+export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string; hint?: HintContext };
 
 export type ChatRequest = { thread_id?: number; message: string; context?: ChatContext };
 export type ReviewRequest = { match_id: string; regenerate?: boolean };
+/** A matchup brief: the game server's ticket, and whether to write one when none is saved (false only looks). */
+export type BriefRequest = { ticket: string; generate: boolean };
 
-export type ErrorCode = "budget" | "busy" | "auth" | "server";
+export type ErrorCode = "budget" | "busy" | "auth" | "server" | "bad_request";
 export type DonePayload = {
   thread_id?: number;
   cost_usd?: number;
   spent_today_usd?: number;
   daily_cap_usd?: number;
   saved?: boolean;
+  /** A brief served from the saved copy (free). */
+  cached?: boolean;
 };
 
 export type StreamHandlers = {
@@ -25,6 +38,8 @@ export type StreamHandlers = {
   onText?: (delta: string) => void;
   /** Sources cited by the text streamed so far: place their markers at its current end. */
   onCite?: (citations: Citation[]) => void;
+  /** A deck edit Log Pose suggests for the open deck, to show as an Apply card under the answer. */
+  onProposal?: (proposal: DeckEditProposal) => void;
   onDone?: (done: DonePayload) => void;
   /** An `error` event inside the stream. */
   onError?: (err: { message: string; code?: ErrorCode }) => void;
@@ -62,6 +77,9 @@ function dispatch(handlers: StreamHandlers, event: string, data: unknown) {
   else if (event === "cite") {
     const citations = parseCitations(d.citations);
     if (citations.length) handlers.onCite?.(citations);
+  } else if (event === "proposal") {
+    const proposal = parseProposal(d);
+    if (proposal) handlers.onProposal?.(proposal);
   } else if (event === "done") handlers.onDone?.(d as DonePayload);
   else if (event === "error")
     handlers.onError?.({ message: typeof d.message === "string" ? d.message : "", code: d.code as ErrorCode | undefined });
@@ -84,8 +102,8 @@ function refusalReason(body: string): string | null {
  */
 export async function streamAnalyst(
   session: SessionManager,
-  path: "/chat" | "/review-match",
-  body: ChatRequest | ReviewRequest,
+  path: "/chat" | "/review-match" | "/brief",
+  body: ChatRequest | ReviewRequest | BriefRequest,
   handlers: StreamHandlers,
   signal?: AbortSignal,
   fetchImpl: typeof fetch = fetch,
@@ -117,7 +135,7 @@ export async function streamAnalyst(
   }
 }
 
-export type ThreadMessage = { role: "user" | "assistant"; text: string; citations?: PlacedCitation[] };
+export type ThreadMessage = { role: "user" | "assistant"; text: string; citations?: PlacedCitation[]; proposals?: DeckEditProposal[] };
 export type ThreadHistory = { id: number; title: string; messages: ThreadMessage[] };
 
 /** GET {apiBase}/analyst/chat/threads/{id}; null when it is gone (404). */
@@ -126,7 +144,14 @@ export async function fetchThread(apiBase: string, threadId: number, fetchImpl: 
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Could not load the chat (${res.status})`);
   const body = (await res.json()) as ThreadHistory;
-  return { ...body, messages: body.messages.map((m) => ({ ...m, citations: parseCitations(m.citations, true) })) };
+  return {
+    ...body,
+    messages: body.messages.map((m) => ({
+      ...m,
+      citations: parseCitations(m.citations, true),
+      proposals: (Array.isArray(m.proposals) ? m.proposals : []).map(parseProposal).filter((p): p is DeckEditProposal => p !== null),
+    })),
+  };
 }
 
 export type SavedReview = { match_id: string; text: string; citations: PlacedCitation[]; created_at: string };

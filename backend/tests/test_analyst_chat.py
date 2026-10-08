@@ -136,8 +136,8 @@ def test_threads_store_messages_as_sent_and_show_only_the_conversation(chat):
 
     view = c.get(f"/analyst/chat/threads/{tid}").json()
     assert view["messages"] == [
-        {"role": "user", "text": "How is my Zoro?", "citations": []},
-        {"role": "assistant", "text": "Let me look.\n\nIt's legal.", "citations": []},
+        {"role": "user", "text": "How is my Zoro?", "citations": [], "proposals": []},
+        {"role": "assistant", "text": "Let me look.\n\nIt's legal.", "citations": [], "proposals": []},
     ]
     c.post("/analyst/chat/threads", json={"title": "never answered"}, headers=h)
     assert [t["id"] for t in c.get("/analyst/chat/threads").json()["threads"]] == [tid]
@@ -286,3 +286,75 @@ def test_opted_out_players_games_leave_the_corpus(analyst):
     assert c.put("/analyst/sharing", json={"share_matches": False}).status_code == 200
     assert c.get("/analyst/corpus/games", headers=SERVICE).json()["total"] == 0
     assert c.get(f"/analyst/corpus/games/{gid}/replay", headers=SERVICE).status_code == 404
+
+def _edit(pid: str, name: str = "Luffy") -> dict:
+    """A deck edit as the analyst saves it (#400)."""
+    return {
+        "id": pid,
+        "version": 1,
+        "target": {"ref": "duel:d1", "name": name, "leader_id": "ST01-001"},
+        "summary": "Tune the list",
+        "lines": [
+            {"id": "ST01-016", "name": "Diable Jambe", "before": 0, "after": 2, "reason": "Cheaper"},
+            {"id": "ST01-015", "name": "Gum-Gum Jet Pistol", "before": 2, "after": 0, "reason": "Too slow"},
+        ],
+        "base": [{"id": "ST01-015", "copies": 2}],
+        "legality": {"legal": True, "count": 50, "problems": [], "upcoming": [], "ban_list_checked": False},
+    }
+
+
+def _propose_turn(call_id: str, answer: str, name: str = "propose_deck_edit") -> list[dict]:
+    return [
+        {"role": "user", "content": [{"type": "text", "text": "<context>page: deck</context>"}, {"type": "text", "text": f"Review {call_id}"}]},
+        # The turn's tool_use message has no text, like a model that goes straight to the tool.
+        {"role": "assistant", "content": [{"type": "tool_use", "id": call_id, "name": name, "input": {}}]},
+        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": call_id, "content": "ok"}]},
+        {"role": "assistant", "content": [{"type": "text", "text": answer}]},
+    ]
+
+
+def test_a_proposal_must_come_from_a_propose_deck_edit_call_in_its_thread(chat):
+    """A deck edit is kept only when its id is a stored propose_deck_edit tool_use of this thread (#400)."""
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Luffy"}, headers=h).json()["id"]
+    messages = _propose_turn("t1", "See the card.") + _propose_turn("t2", "Another.", name="get_cards")
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
+    url = f"/analyst/chat/threads/{tid}/proposals"
+    # Neither an id the thread never had, nor a call to some other tool.
+    assert c.post(url, json={"proposals": [_edit("nope")]}, headers=h).status_code == 400
+    assert c.post(url, json={"proposals": [_edit("t2")]}, headers=h).status_code == 400
+    # One bad one refuses the batch.
+    assert c.post(url, json={"proposals": [_edit("t1"), _edit("nope")]}, headers=h).status_code == 400
+    assert [m["proposals"] for m in c.get(f"/analyst/chat/threads/{tid}").json()["messages"]] == [[], [], [], []]
+    assert c.post(url, json={"proposals": [_edit("t1")]}, headers=h).status_code == 204
+    # Saving the same one again is ignored; the first stays.
+    assert c.post(url, json={"proposals": [_edit("t1", name="Changed")]}, headers=h).status_code == 204
+    shown = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
+    assert [p["target"]["name"] for m in shown for p in m["proposals"]] == ["Luffy"]
+
+
+def test_the_thread_view_shows_a_deck_edit_under_the_answer_that_made_it(chat):
+    """The edit from the second turn sits on that turn's answer, not the first one's (#400)."""
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Luffy"}, headers=h).json()["id"]
+    first = [
+        {"role": "user", "content": [{"type": "text", "text": "Hi"}]},
+        {"role": "assistant", "content": [{"type": "text", "text": "Ahoy."}]},
+    ]
+    messages = first + _propose_turn("t1", "See the card.")
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
+    assert c.post(f"/analyst/chat/threads/{tid}/proposals", json={"proposals": [_edit("t1")]}, headers=h).status_code == 204
+    view = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
+    assert [(m["role"], m["text"], [p["id"] for p in m["proposals"]]) for m in view] == [
+        ("user", "Hi", []),
+        ("assistant", "Ahoy.", []),
+        ("user", "Review t1", []),
+        ("assistant", "See the card.", ["t1"]),
+    ]
+    assert view[3]["proposals"][0] == _edit("t1")
+    # The model's own history is unchanged.
+    assert c.get(f"/analyst/chat/threads/{tid}/content", headers=h).json()["messages"] == messages

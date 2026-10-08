@@ -14,6 +14,8 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.analyst_stats import matchup_stats
+from app.tournament_stats import tournament_stats
+from app.tournament_sync import sync_status
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
@@ -236,6 +238,34 @@ def analyst_matchup_stats(
     if opponent and not leader:
         raise HTTPException(status_code=400, detail="Give a leader with the opponent")
     return matchup_stats(db, leader, opponent, days, ranked_only)
+
+
+@router.get("/tournaments/stats")
+def analyst_tournament_stats(
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    leader: Annotated[str | None, Query(pattern=CARD_ID_PATTERN)] = None,
+    opponent: Annotated[str | None, Query(pattern=CARD_ID_PATTERN)] = None,
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
+    min_players: Annotated[int, Query(ge=1, le=1000)] = 8,
+    x_analyst_service: Annotated[str | None, Header()] = None,
+) -> dict:
+    """Leader and matchup results from Limitless TCG tournaments (no player names), for the analyst service."""
+    require_service(settings, x_analyst_service)
+    if opponent and not leader:
+        raise HTTPException(status_code=400, detail="Give a leader with the opponent")
+    return tournament_stats(db, leader, opponent, days, min_players)
+
+
+@router.get("/tournaments/sync-status")
+def analyst_tournament_sync_status(
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_analyst_service: Annotated[str | None, Header()] = None,
+) -> dict:
+    """What the Limitless sync has stored, and how its last run went."""
+    require_service(settings, x_analyst_service)
+    return sync_status(db)
 
 
 @router.get("/sharing", response_model=AnalystSharing)

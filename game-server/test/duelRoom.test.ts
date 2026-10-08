@@ -502,6 +502,92 @@ describe("DuelRoom", () => {
 
   const handIds = (hand: { id: string }[] | undefined) => (hand ?? []).map((c) => c.id);
 
+  type RawWelcome = {
+    seat: 0 | 1;
+    role?: string;
+    ranked?: boolean;
+    brief?: { ticket: string; leaderId: string; opponentId: string; deck: string[] };
+  };
+  const ticketClaims = (ticket: string) =>
+    JSON.parse(Buffer.from(ticket.split(".")[1]!, "base64url").toString("utf8")) as Record<string, unknown>;
+  const zoroDeckFor = (extra: string) => ({
+    leaderId: "OP01-001",
+    deck: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", extra].flatMap((id) => [id, id, id, id]),
+  });
+  const luffyDeck = { leaderId: "ST01-001", deck: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "ST01-014"].flatMap((id) => [id, id, id, id]) };
+
+  /** Two seats with different leaders and decks (one card apart), plus a spectator, keeping each raw welcome. */
+  async function briefRoom(createOpts: Record<string, unknown>, decks: boolean) {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 42,
+      autoSkipMulligan: true,
+      ...createOpts,
+    });
+    const welcomes: RawWelcome[] = [];
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const seatDeck = (d: unknown) => (decks ? { deck: d } : {});
+    const c0 = await colyseus.connectTo(room, { ...joinOpts("a", 0), ...seatDeck(zoroDeckFor("ST01-013")) });
+    attach(c0, bags[0]);
+    c0.onMessage("welcome", (m: RawWelcome) => welcomes.push(m));
+    const c1 = await colyseus.connectTo(room, { ...joinOpts("b", 1), ...seatDeck(luffyDeck) });
+    attach(c1, bags[1]);
+    c1.onMessage("welcome", (m: RawWelcome) => welcomes.push(m));
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    const spec = await colyseus.connectTo(room, {
+      protocolVersion: PROTOCOL_VERSION,
+      devUserId: "watcher",
+      role: "spectator",
+      preferredSeat: 0,
+    });
+    spec.onMessage("welcome", (m: RawWelcome) => welcomes.push(m));
+    spec.send("sync", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => welcomes.some((w) => w.role === "spectator"), 8000);
+    return { room, welcomes };
+  }
+
+  it("an unranked room gives each player a brief ticket for their own seat and the other seat's leader (#401)", async () => {
+    const { welcomes } = await briefRoom({}, true);
+    const w0 = welcomes.find((w) => w.role === "player" && w.seat === 0)!;
+    const w1 = welcomes.find((w) => w.role === "player" && w.seat === 1)!;
+    assert.equal(w0.ranked, false);
+    assert.equal(w0.brief!.leaderId, "OP01-001");
+    assert.equal(w0.brief!.opponentId, "ST01-001");
+    assert.equal(w1.brief!.leaderId, "ST01-001");
+    assert.equal(w1.brief!.opponentId, "OP01-001");
+    assert.equal(w0.brief!.deck.length, 20);
+    assert.notDeepEqual(w0.brief!.deck, w1.brief!.deck);
+    const c0 = ticketClaims(w0.brief!.ticket);
+    assert.equal(c0.seat, 0);
+    assert.equal(c0.leader, "OP01-001");
+    assert.equal(c0.opponent, "ST01-001");
+    assert.deepEqual(c0.deck, w0.brief!.deck);
+    const c1 = ticketClaims(w1.brief!.ticket);
+    assert.equal(c1.leader, "ST01-001");
+    assert.equal(c1.opponent, "OP01-001");
+  });
+
+  it("a ranked room's welcome says ranked and carries no brief ticket (#401)", async () => {
+    const { welcomes } = await briefRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() }, false);
+    const players = welcomes.filter((w) => w.role === "player");
+    assert.deepEqual(new Set(players.map((w) => w.seat)), new Set([0, 1]));
+    for (const w of players) {
+      assert.equal(w.ranked, true);
+      assert.equal(w.brief, undefined);
+    }
+  });
+
+  it("spectators never get a brief ticket (#401)", async () => {
+    const { welcomes } = await briefRoom({}, true);
+    const spec = welcomes.find((w) => w.role === "spectator")!;
+    assert.equal(spec.ranked, false);
+    assert.equal(spec.brief, undefined);
+  });
+
   it("a player's hand_order reorders the hands spectators see, and the other player is unaffected (#346)", async () => {
     const { welcome, bags, c0, specViews } = await watchRoom({});
     const engine = handIds(welcome.view.revealedHands?.[0]);
