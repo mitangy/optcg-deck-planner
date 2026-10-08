@@ -1999,3 +1999,107 @@ label.btn.is-busy {
   --fb-danger: var(--crimson-bright);
   font-family: var(--font-body);
 }
+
+/* —— Live line, Ask Log Pose tile, Unranked, wave drift —— */
+
+.home-live {
+  margin: 0;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.voyage-delta-none {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.logpose-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 56px;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid rgb(var(--chrome-rgb) / 0.35);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgb(var(--chrome-rgb) / 0.12), rgb(var(--panel-rgb) / 0.6) 70%);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.logpose-tile:hover {
+  border-color: var(--chrome);
+}
+
+.logpose-tile-glyph {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--chrome);
+  border-radius: 50%;
+  color: var(--chrome-bright);
+  font-size: 0.95rem;
+}
+
+.logpose-tile-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.logpose-tile-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.logpose-tile-sub {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+/* The wave texture behind the lobby drifts sideways, one tile (120px) per 90s. The page's own
+   copy of the texture is switched off while the lobby is up, and this fixed layer carries it. */
+:root:has(.home-shell) {
+  --wave-layer: none;
+}
+
+.home-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.home-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--wave-src);
+  background-size: 120px 24px;
+  animation: wave-drift 90s linear infinite;
+}
+
+@keyframes wave-drift {
+  to {
+    background-position: 120px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-shell::before {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .home-shell::before {
+  animation: none;
+}

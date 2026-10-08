@@ -307,3 +307,13 @@ export async function fetchRatingMe(): Promise<RatingMe | null> {
   if (!res.ok) return null;
   return (await res.json()) as RatingMe;
 }
+
+export type LiveCounts = { online: number; matches: number };
+
+/** GET /duel/live (public): players online and matches in progress; null when the call fails. */
+export async function fetchLive(): Promise<LiveCounts | null> {
+  const res = await fetch(`${getApiBaseUrl()}/duel/live`);
+  if (!res.ok) return null;
+  const j = (await res.json()) as Partial<LiveCounts>;
+  return typeof j.online === "number" && typeof j.matches === "number" ? { online: j.online, matches: j.matches } : null;
+}

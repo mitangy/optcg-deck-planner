@@ -36,6 +36,8 @@ import { dismissInvite, inviteFriend, inviteFrom, type Friend, type FriendInvite
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
 import { UpdateNotice, VersionStatus } from "../VersionStatus";
 import { IntroStrip } from "../home/IntroStrip";
+import { LiveLine } from "../home/LiveLine";
+import { LogPoseTile } from "../home/LogPoseTile";
 import { TopBounties } from "../home/TopBounties";
 import { VoyageCard } from "../home/VoyageCard";
 import { introDone, introVisible, markIntroDone } from "../home/intro";
@@ -944,6 +946,7 @@ export function LobbyPage() {
         <div className="home-side">
           {friendError ? <p className="error-text">{friendError}</p> : null}
           {busy && busyStatus && !sheetOpen ? <p className="friends-note">{busyStatus}</p> : null}
+          <LogPoseTile deck={selectedDeck} />
           {authMode === "google" ? <VoyageCard me={me} /> : null}
           <FriendsPanel
             signedIn={friendsEnabled}
@@ -955,6 +958,7 @@ export function LobbyPage() {
             onSpectate={spectateFriend}
           />
           <TopBounties me={authMode === "google" ? me : null} />
+          <LiveLine />
         </div>
         <div className="home-version">
           <VersionStatus />

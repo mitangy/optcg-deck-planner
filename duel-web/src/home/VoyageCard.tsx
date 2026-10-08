@@ -70,7 +70,7 @@ export function VoyageCard({ me }: { me: RatingMe | null | undefined }) {
                       <span className="voyage-opp">vs {r.opponent}</span>
                       <span className="voyage-leader">{r.opponentLeader}</span>
                     </span>
-                    <span className="voyage-delta">{r.bountyDelta ?? "·"}</span>
+                    <span className={`voyage-delta${r.bountyDelta == null ? " voyage-delta-none" : ""}`}>{r.bountyDelta ?? "Unranked"}</span>
                   </Link>
                 </li>
               ))}
