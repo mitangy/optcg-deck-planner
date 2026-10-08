@@ -204,6 +204,32 @@ describe("chat", () => {
     expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/chat/threads"))).toBe(false);
   });
 
+  it("drops earlier turns' thinking blocks when resending a thread (#424)", async () => {
+    const earlier = [
+      { role: "user", content: [{ type: "text", text: "Hi" }] },
+      { role: "assistant", content: [{ type: "thinking", thinking: "hmm", signature: "sigA" }, { type: "redacted_thinking", data: "xx" }, { type: "text", text: "Ahoy." }] },
+    ];
+    const { api } = planner({
+      "GET /analyst/chat/threads/4/content": { id: 4, title: "t", messages: earlier },
+      "POST /analyst/chat/threads/4/messages": null,
+      "POST /analyst/chat/usage": null,
+      "GET /analyst/chat/budget": BUDGET,
+    });
+    const toolUse = { type: "tool_use", id: "t1", name: "get_cards", input: { ids: ["OP01-001"] } };
+    const now = { type: "thinking", thinking: "look it up", signature: "sigB" };
+    const { seen, callModel } = scriptedModel([
+      { content: [now, toolUse], stop_reason: "tool_use", usage: usage(10, 5) },
+      { content: [{ type: "text", text: "Done." }], stop_reason: "end_turn", usage: usage(10, 5) },
+    ]);
+    await runChat(deps(api, callModel), "chat.tok", { thread_id: 4, message: "Again?" }, () => {}, new AbortController().signal);
+    expect(seen[0]!.messages[1]).toEqual({ role: "assistant", content: [{ type: "text", text: "Ahoy." }] });
+    // This turn's own thinking stays for the tool loop.
+    const turn = seen[1]!.messages.at(-2);
+    expect(turn.role).toBe("assistant");
+    expect(turn.content[0]).toEqual(now);
+    expect(JSON.stringify(seen[1]!.messages.slice(0, 2))).not.toContain("thinking");
+  });
+
   it("doesn't save a turn the model never finished, but still counts what it cost (#377)", async () => {
     const { calls, api } = planner({
       "POST /analyst/chat/threads": { id: 9 },
