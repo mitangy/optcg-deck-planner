@@ -26,6 +26,7 @@ import {
   optcgSimFilename,
 } from "./optcgsimExport";
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
+import { deckRemainingMarket, remainingCostForCard } from "./deckCost";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { submitFeedback } from "./feedback";
 import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
@@ -271,34 +272,6 @@ function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["group-buys"] });
 }
 
-function shoppingRemainingForItem(item: {
-  still_need: number;
-  product_id?: number | null;
-  market_price: number | null;
-  alt_arts?: { product_id: number; wanted?: number; market_price: number | null }[];
-}): number | null {
-  const still = item.still_need;
-  if (still <= 0) return 0;
-  let remaining = still;
-  let total = 0;
-  let missingPrice = false;
-  for (const alt of item.alt_arts ?? []) {
-    if (remaining <= 0) break;
-    const want = alt.wanted ?? 0;
-    const take = Math.min(Math.max(0, want), remaining);
-    if (take <= 0) continue;
-    if (alt.market_price == null) missingPrice = true;
-    else total += take * alt.market_price;
-    remaining -= take;
-  }
-  if (remaining > 0) {
-    if (item.market_price == null) missingPrice = true;
-    else total += remaining * item.market_price;
-  }
-  if (missingPrice) return null;
-  return Math.round(total * 100) / 100;
-}
-
 function applyAltWantOptimistic(
   qc: ReturnType<typeof useQueryClient>,
   cardId: string,
@@ -319,7 +292,7 @@ function applyAltWantOptimistic(
       const alt_arts = (item.alt_arts ?? []).map((a) =>
         a.product_id === productId ? { ...a, wanted: qty } : a,
       );
-      const patched = { ...item, alt_arts, remaining_cost: shoppingRemainingForItem({ ...item, alt_arts }) };
+      const patched = { ...item, alt_arts, remaining_cost: remainingCostForCard({ ...item, alt_arts }) };
       cardsStill += patched.still_need;
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return patched;
@@ -348,10 +321,19 @@ function applyAltWantOptimistic(
   });
 }
 
-function patchOwnedQty(cardId: string, qty: number, need: number, market: number | null | undefined) {
+function patchOwnedQty(
+  cardId: string,
+  qty: number,
+  need: number,
+  market: number | null | undefined,
+  alt_arts?: { product_id: number; wanted?: number; market_price: number | null }[],
+) {
   const still = Math.max(0, need - qty);
-  const remaining =
-    market != null && !Number.isNaN(market) ? Math.round(still * market * 100) / 100 : null;
+  const remaining = remainingCostForCard({
+    still_need: still,
+    market_price: market != null && !Number.isNaN(market) ? market : null,
+    alt_arts,
+  });
   return { owned: qty, still_need: still, remaining_cost: remaining };
 }
 
@@ -436,7 +418,7 @@ function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: str
         if (item.remaining_cost != null) remaining += item.remaining_cost;
         return item;
       }
-      const patched = patchOwnedQty(id, qty, item.need, item.market_price);
+      const patched = patchOwnedQty(id, qty, item.need, item.market_price, item.alt_arts);
       cardsStill += patched.still_need;
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return { ...item, ...patched };
@@ -2550,10 +2532,7 @@ function summarizeDeckProgress(cards: CardView[]) {
   const copiesNeeded = cards.reduce((sum, c) => sum + c.needed, 0);
   const copiesStill = cards.reduce((sum, c) => sum + c.still_need, 0);
   const copiesOwned = copiesNeeded - copiesStill;
-  const remainingMarket = cards.reduce((sum, c) => {
-    if (c.still_need <= 0 || c.market_price == null) return sum;
-    return sum + c.still_need * c.market_price;
-  }, 0);
+  const remainingMarket = deckRemainingMarket(cards);
   return {
     uniqueTotal,
     uniqueComplete,

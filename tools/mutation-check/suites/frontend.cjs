@@ -108,5 +108,10 @@ module.exports = {
     { id: "planner-context-ref-dropped", file: "frontend/src/logPose.ts", from: "    ...(deck.id ? { ref: `planner:${deck.id}` } : {}),\n", to: "", kills: ["sends a deck's main-deck cards with their copies, without the leader or DON!! (#377)"] },
     // Why? on a build hint (#399)
     { id: "logpose-deck-no-id", file: "frontend/src/logPose.ts", from: "    ...(deck.id ? { plannerDeckId: deck.id } : {}),\n", to: "", kills: ["tells Log Pose which planner deck is open"] },
+    // Deck "$ left" and optimistic owned patch price wanted alt arts (#433)
+    { id: "deck-cost-ignores-alt-wants", file: "frontend/src/deckCost.ts", from: "    const want = alt.wanted ?? 0;", to: "    const want = 0;", kills: ["prices wanted alt copies at the alt price and the rest at standard (#433)", "sums alt-aware costs and leaves out unpriced and finished cards (#433)"] },
+    { id: "deck-cost-alt-uncapped", file: "frontend/src/deckCost.ts", from: "    const take = Math.min(Math.max(0, want), remaining);", to: "    const take = Math.max(0, want);", kills: ["caps alt copies at still_need so extra wants are not bought (#433)"] },
+    { id: "deck-cost-alt-missing-price-zero", file: "frontend/src/deckCost.ts", from: "    if (alt.market_price == null) missingPrice = true;", to: "    if (alt.market_price == null) total += 0;", kills: ["returns null when a wanted alt has no price (#433)"] },
+    { id: "deck-cost-sum-counts-unpriced-as-standard", file: "frontend/src/deckCost.ts", from: "(remainingCostForCard(c) ?? 0)", to: "(remainingCostForCard(c) ?? c.still_need * 1)", kills: ["sums alt-aware costs and leaves out unpriced and finished cards (#433)"] },
   ],
 };
