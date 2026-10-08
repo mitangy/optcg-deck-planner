@@ -102,8 +102,8 @@ def is_model_admin(settings: Settings, user: User) -> bool:
     return user.email.strip().lower() in settings.analyst_model_admin_email_set
 
 
-# The models the chat may run on, cheapest first; the first is the default.
-CHAT_MODELS = ("claude-sonnet-5-5", "claude-opus-5-5")
+# The models the chat may run on; the first is the default.
+CHAT_MODELS = ("claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-haiku-4-5")
 
 
 def chat_model(db: Session) -> str:

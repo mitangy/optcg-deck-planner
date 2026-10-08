@@ -139,6 +139,78 @@ describe("chat", () => {
     expect(costUsd(u, "claude-opus-5-5")).toBeCloseTo(6);
   });
 
+  it("costUsd prices Sonnet cache reads at 0.20 per million, as Opus does (#430)", () => {
+    expect(costUsd({ input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 1_000_000 }, "claude-sonnet-5-5")).toBeCloseTo(0.2);
+  });
+
+  it("costUsd prices Haiku 4.5 at its own rates and an unknown model as Opus (#430)", () => {
+    const u = { input_tokens: 1_000_000, output_tokens: 1_000_000, cache_read_input_tokens: 1_000_000, cache_creation_input_tokens: 1_000_000 };
+    expect(costUsd(u, "claude-haiku-4-5")).toBeCloseTo(1 + 5 + 0.1 + 1.25);
+    expect(costUsd(u, "claude-mystery-9")).toBeCloseTo(costUsd(u, "claude-opus-5-5"));
+  });
+
+  it("costUsd moves Haiku 5.5 to its long-prompt tier only past 100K prompt tokens, cache included (#430)", () => {
+    const m = "claude-haiku-5-5";
+    expect(costUsd({ input_tokens: 100_000, output_tokens: 100_000 }, m)).toBeCloseTo(0.06);
+    expect(costUsd({ input_tokens: 100_001, output_tokens: 100_000 }, m)).toBeCloseTo(0.30001, 4);
+    expect(costUsd({ input_tokens: 1000, output_tokens: 0, cache_read_input_tokens: 99_000, cache_creation_input_tokens: 1001 }, m)).toBeCloseTo(0.0005 + 0.00495 + 0.0006255, 6);
+  });
+
+  it("prices a Haiku 5.5 turn call by call, so only the call over 100K pays the long tier (#430)", async () => {
+    const { calls, api } = planner({
+      "POST /analyst/chat/threads": { id: 9 },
+      "POST /analyst/chat/threads/9/messages": null,
+      "POST /analyst/chat/usage": null,
+      "GET /analyst/chat/budget": { ...BUDGET, model: "claude-haiku-5-5" },
+    });
+    const toolUse = { type: "tool_use", id: "t1", name: "get_cards", input: { ids: ["OP01-001"] } };
+    const { callModel } = scriptedModel([
+      { content: [toolUse], stop_reason: "tool_use", usage: usage(150_000, 0) },
+      { content: [{ type: "text", text: "Done." }], stop_reason: "end_turn", usage: usage(60_000, 0) },
+    ]);
+    const events: SseEvent[] = [];
+    await runChat(deps(api, callModel), "chat.tok", { message: "Hi" }, (e) => events.push(e), new AbortController().signal);
+    // 150K at 0.50 plus 60K at 0.10; pricing the 210K total as one call would give 0.105.
+    const expected = 0.075 + 0.006;
+    expect(events.at(-1)!.data).toMatchObject({ cost_usd: expect.closeTo(expected, 6) });
+    expect((calls.find((c) => c.url.endsWith("/chat/usage"))!.body as Record<string, number>).cost_usd).toBeCloseTo(expected, 6);
+  });
+
+  it("sends no output_config.effort to Haiku 4.5, in a chat, a review or a brief, while Sonnet gets one (#430)", async () => {
+    const chat = async (model: string) => {
+      const { api } = planner({
+        "POST /analyst/chat/threads": { id: 9 },
+        "POST /analyst/chat/threads/9/messages": null,
+        "POST /analyst/chat/usage": null,
+        "GET /analyst/chat/budget": { ...BUDGET, model },
+      });
+      const { seen, callModel } = scriptedModel([{ content: [{ type: "text", text: "Ahoy." }], stop_reason: "end_turn", usage: usage(10, 10) }]);
+      await runChat(deps(api, callModel), "chat.tok", { message: "Hi" }, () => undefined, new AbortController().signal);
+      return seen[0]!;
+    };
+    const review = async (model: string) => {
+      const { api } = planner({
+        "GET /analyst/matches/m1/replay": { match_id: "m1", your_seat: taken.seat, replay },
+        "GET /analyst/chat/budget": { ...BUDGET, model },
+        "POST /analyst/chat/usage": null,
+        "PUT /analyst/reviews/m1": { match_id: "m1", text: "x", created_at: null },
+      });
+      const { seen, callModel } = scriptedModel([{ content: [{ type: "text", text: "You lost." }], stop_reason: "end_turn", usage: usage(10, 10) }]);
+      await runReview(deps(api, callModel), "chat.tok", { match_id: "m1" }, () => undefined, new AbortController().signal);
+      return seen[0]!;
+    };
+    expect((await chat("claude-sonnet-5-5")).output_config).toEqual({ effort: "medium" });
+    expect((await review("claude-sonnet-5-5")).output_config).toEqual({ effort: "high" });
+    const haikuChat = await chat("claude-haiku-4-5");
+    expect(haikuChat.model).toBe("claude-haiku-4-5");
+    expect("output_config" in haikuChat).toBe(false);
+    const haikuReview = await review("claude-haiku-4-5");
+    expect(haikuReview.model).toBe("claude-haiku-4-5");
+    expect("output_config" in haikuReview).toBe(false);
+    // Haiku 5.5 does take an effort.
+    expect((await chat("claude-haiku-5-5")).output_config).toEqual({ effort: "medium" });
+  });
+
   it("turns away a missing token, an expired session and a spent budget before any model call (#377)", async () => {
     const ok = planner({ "GET /analyst/me": {}, "GET /analyst/chat/budget": BUDGET });
     await expect(admit(ok.api, "chat.1.2.sig")).resolves.toBe("chat.1.2.sig");

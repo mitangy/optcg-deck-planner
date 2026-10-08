@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getModelSetting, modelLabel, setModelSetting, type ModelSetting } from "./modelSetting";
+import { getModelSetting, modelCostHint, modelLabel, setModelSetting, type ModelSetting } from "./modelSetting";
 
 /** The model Log Pose runs on. Shown only to the model admin (the API says so with can_edit); everyone else sees nothing. */
 export function ModelPicker({ apiBase }: { apiBase: string }) {
@@ -50,7 +50,7 @@ export function ModelPicker({ apiBase }: { apiBase: string }) {
           {error}
         </p>
       ) : (
-        <p className="lp-model-note">Opus costs about twice as much. This changes it for everyone.</p>
+        <p className="lp-model-note">{[modelCostHint(setting.model), "This changes it for everyone."].filter(Boolean).join(" ")}</p>
       )}
     </div>
   );
