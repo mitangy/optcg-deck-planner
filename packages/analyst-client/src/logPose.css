@@ -384,6 +384,31 @@
   border-bottom: 1px solid var(--lp-line-d);
 }
 
+/* Desktop: the header is the drag surface for moving the window. */
+.lp-head[data-movable] {
+  touch-action: none;
+  cursor: grab;
+}
+
+.lp-panel[data-moving] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lp-panel[data-moving] .lp-head {
+  cursor: grabbing;
+}
+
+.lp-move {
+  cursor: inherit;
+  touch-action: none;
+}
+
+/* What a page pins above the chat (the matchup brief on a board). */
+.lp-pinned {
+  flex: none;
+}
+
 .lp-head-icon {
   flex: none;
   width: 26px;

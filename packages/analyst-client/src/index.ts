@@ -47,6 +47,7 @@ export {
   type StatsDetail,
 } from "./citations";
 export { clampSheet, clampSize, dragSheet, dragSize, keySize, readSheet, readSize, writeSheet, writeSize, type Edge, type Size } from "./panelSize";
+export { clampPos, dragPos, keyPos, readPos, writePos, type Pos } from "./panelPos";
 export { readThreadId, writeThreadId, THREAD_KEY } from "./threadStore";
 export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdown";
 export { Markdown } from "./Markdown";

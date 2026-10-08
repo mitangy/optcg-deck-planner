@@ -24,12 +24,12 @@ export function briefStart(o: { cached: boolean; auto: boolean; requested: boole
   return o.auto || o.requested ? "generate" : "offer";
 }
 
-export type BriefOpen = { open: boolean; autoClosed: boolean };
-
-/** The card folds away once, when the game first leaves the mulligan; after that it opens only when tapped. */
-export function briefOpenAfter(prev: BriefOpen, phase: string | null | undefined): BriefOpen {
-  if (!phase || phase === "mulligan" || prev.autoClosed) return prev;
-  return { open: false, autoClosed: true };
+/**
+ * Whether the Log Pose panel folds away now. It does once the game leaves the mulligan, but only when it opened by
+ * itself (`auto`) and the player hasn't touched it (`touched`): a panel the player opened, or started using, stays.
+ */
+export function briefFoldsAway(s: { auto: boolean; touched: boolean }, phase: string | null | undefined): boolean {
+  return Boolean(phase) && phase !== "mulligan" && s.auto && !s.touched;
 }
 
 /** sessionStorage key for "this room's brief has already opened by itself" (the room, so a rematch or reload doesn't pop it again). */

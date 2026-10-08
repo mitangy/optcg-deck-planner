@@ -28,7 +28,7 @@ import { placeAt, type Citation, type PlacedCitation } from "./citations";
 import { logPoseChrome } from "./chrome";
 import { DeckEditCard } from "./DeckEditCard";
 import { isEmptyAnswer, type DeckEditor, type DeckEditProposal } from "./proposals";
-import { ResizeHandles, SheetGrip, useDrawerSize, useSheetHeight } from "./PanelResize";
+import { ResizeHandles, SheetGrip, useDrawerSize, useHeaderMove, useSheetHeight } from "./PanelResize";
 import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
 import { RequestAccessView, RequestsList } from "./AccessViews";
 import { createSessionManager, type ChatSession, type SessionManager } from "./session";
@@ -44,6 +44,11 @@ export type LogPosePage = {
   matchId?: string;
   /** Prompt chips offered while the thread is empty. */
   starters?: string[];
+  /**
+   * Content the page keeps at the top of the chat, above the messages (the matchup brief on a board). Passed by
+   * value, not through JSON: memoize it so it only changes when what it shows does.
+   */
+  pinned?: ReactNode;
 };
 
 /**
@@ -71,7 +76,11 @@ type LogPoseValue = {
   setEditor: (owner: object, editor: DeckEditor | null) => void;
   /** Registers the live game the page has open. */
   setGame: (owner: object, game: LogPoseGame | null) => void;
-  openPanel: () => void;
+  /** Opens the panel. `quiet` keeps the keyboard where it is (the composer isn't focused), for a panel that opens by itself. */
+  openPanel: (opts?: { quiet?: boolean }) => void;
+  closePanel: () => void;
+  /** The panel is open (and not hidden by the page). */
+  panelOpen: boolean;
   /** Log Pose can answer here: the session is enabled and the page doesn't hide it. */
   available: boolean;
   /** Opens the panel and, with an ask, puts that question to Log Pose. Returns false when it isn't available. */
@@ -94,6 +103,8 @@ const LogPoseContext = createContext<LogPoseValue>({
   setEditor: () => {},
   setGame: () => {},
   openPanel: () => {},
+  closePanel: () => {},
+  panelOpen: false,
   available: false,
   openLogPose: () => false,
 });
@@ -113,11 +124,12 @@ export function useLogPose() {
 export function useLogPosePage(page: LogPosePage | null) {
   const { setPage } = useContext(LogPoseContext);
   const owner = useRef({}).current;
-  const key = page ? JSON.stringify(page) : "";
+  const { pinned, ...plain } = page ?? {};
+  const key = page ? JSON.stringify(plain) : "";
   useEffect(() => {
-    setPage(owner, key ? (JSON.parse(key) as LogPosePage) : null);
+    setPage(owner, key ? { ...(JSON.parse(key) as LogPosePage), pinned } : null);
     return () => setPage(owner, null);
-  }, [key, owner, setPage]);
+  }, [key, pinned, owner, setPage]);
 }
 
 /**
@@ -340,6 +352,7 @@ export function LogPoseProvider({
   const openRef = useRef(open);
   openRef.current = open && !hidden;
   const [unread, setUnread] = useState(false);
+  const [quiet, setQuiet] = useState(false);
   const isOpen = useCallback(() => openRef.current, []);
   const markUnread = useCallback(() => setUnread(true), []);
   const chat = useChat(apiBase, manager, isOpen, markUnread);
@@ -352,18 +365,23 @@ export function LogPoseProvider({
       if (!available) return false;
       if (ask) setRequest({ ...ask, nonce: ++nonce.current });
       setOpen(true);
+      setQuiet(false);
       setUnread(false);
       return true;
     },
     [available],
   );
   const handled = useCallback(() => setRequest(null), []);
-  const openPanel = useCallback(() => {
-    setOpen(true);
-    setUnread(false);
-    // Not on yet: ask again, so a player approved while this tab was open lands in the chat.
-    if (!manager.current()?.enabled) void manager.refresh();
-  }, [manager]);
+  const openPanel = useCallback(
+    (opts?: { quiet?: boolean }) => {
+      setOpen(true);
+      setQuiet(opts?.quiet === true);
+      setUnread(false);
+      // Not on yet: ask again, so a player approved while this tab was open lands in the chat.
+      if (!manager.current()?.enabled) void manager.refresh();
+    },
+    [manager],
+  );
 
   const closePanel = useCallback(() => setOpen(false), []);
 
@@ -380,8 +398,8 @@ export function LogPoseProvider({
   }, []);
 
   const value = useMemo<LogPoseValue>(
-    () => ({ enabled, apiBase, session: manager, setPage, setEditor, setGame, openPanel, available, openLogPose }),
-    [enabled, apiBase, manager, setPage, setEditor, setGame, openPanel, available, openLogPose],
+    () => ({ enabled, apiBase, session: manager, setPage, setEditor, setGame, openPanel, closePanel, panelOpen: open && !hidden, available, openLogPose }),
+    [enabled, apiBase, manager, setPage, setEditor, setGame, openPanel, closePanel, open, hidden, available, openLogPose],
   );
 
   // A panel left open on a page that hides Log Pose must not come back on the next one.
@@ -403,7 +421,7 @@ export function LogPoseProvider({
             unread={unread}
             requests={session?.enabled ? (session.pendingRequests ?? 0) : 0}
             requestOnly={!chatOn}
-            onClick={openPanel}
+            onClick={() => openPanel()}
           />
         ) : null}
         {chrome.panel && session ? (
@@ -416,6 +434,7 @@ export function LogPoseProvider({
             apiBase={apiBase}
             refreshSession={() => void manager.refresh()}
             onClose={closePanel}
+            quiet={quiet}
             request={request}
             onRequestHandled={handled}
           />
@@ -503,6 +522,7 @@ function LogPosePanel({
   apiBase,
   refreshSession,
   onClose,
+  quiet,
   request,
   onRequestHandled,
 }: {
@@ -514,6 +534,8 @@ function LogPosePanel({
   apiBase: string;
   refreshSession: () => void;
   onClose: () => void;
+  /** Opened by the page, not the player: don't take the keyboard. */
+  quiet: boolean;
   request: Request | null;
   onRequestHandled: () => void;
 }) {
@@ -534,6 +556,7 @@ function LogPosePanel({
   const stick = useRef(true);
   const drawer = useDrawerSize();
   const sheet = useSheetHeight(panelRef, phone);
+  const move = useHeaderMove(drawer, panelRef);
   const { loadHistory } = chat;
 
   // A different page brings its chip back.
@@ -578,8 +601,8 @@ function LogPosePanel({
 
   // Desktop: focus the composer. Phones wait for a tap so the keyboard doesn't jump up.
   useEffect(() => {
-    if (!phone && showChat) inputRef.current?.focus({ preventScroll: true });
-  }, [phone, showChat]);
+    if (!phone && showChat && !quiet) inputRef.current?.focus({ preventScroll: true });
+  }, [phone, showChat, quiet]);
 
   // Phones: the sheet covers the screen, so the page behind must not scroll; and it follows
   // the visual viewport so the composer stays above the on-screen keyboard.
@@ -671,16 +694,34 @@ function LogPosePanel({
       aria-labelledby="lp-title"
       data-phone={phone ? "true" : undefined}
       data-sized={!phone && drawer.size ? "true" : undefined}
-      style={!phone && drawer.size ? { width: drawer.size.w, height: drawer.size.h } : undefined}
+      style={
+        !phone && drawer.size
+          ? { width: drawer.size.w, height: drawer.size.h, ...(drawer.pos ? { right: drawer.pos.r, bottom: drawer.pos.b } : {}) }
+          : undefined
+      }
     >
       {phone ? <SheetGrip {...sheet} /> : <ResizeHandles drawer={drawer} panelRef={panelRef} />}
-      <header className="lp-head" data-owner={owner ? "true" : undefined}>
+      <header className="lp-head" data-owner={owner ? "true" : undefined} data-movable={phone ? undefined : "true"} {...(phone ? {} : move.header)}>
         <span className="lp-head-icon" aria-hidden="true">
           <CompassIcon />
         </span>
         <h2 id="lp-title" className="lp-title">
           Log Pose
         </h2>
+        {!phone ? (
+          <button
+            type="button"
+            className="lp-btn lp-btn-icon lp-move"
+            aria-label="Move Log Pose"
+            aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
+            title="Drag the header to move (double-click to reset), or use the arrow keys here"
+            {...move.grip}
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <path d="M10 3v14M3 10h14M10 3 8 5M10 3l2 2M10 17l-2-2M10 17l2-2M3 10l2-2M3 10l2 2M17 10l-2-2M17 10l-2 2" />
+            </svg>
+          </button>
+        ) : null}
         {owner && view === "chat" ? (
           <button type="button" className="lp-btn lp-btn-quiet lp-requests-btn" onClick={() => setView("requests")}>
             Requests
@@ -710,6 +751,7 @@ function LogPosePanel({
         ) : view === "requests" ? (
           <RequestsList apiBase={apiBase} onChanged={refreshSession} />
         ) : null}
+        {showChat && page?.pinned ? <div className="lp-pinned">{page.pinned}</div> : null}
         {showChat && chat.history === "loading" ? <p className="lp-note">Loading your last chat…</p> : null}
         {showChat && empty ? (
           <div className="lp-empty">

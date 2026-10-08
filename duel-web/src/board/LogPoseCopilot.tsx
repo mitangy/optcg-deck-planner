@@ -373,7 +373,7 @@ export function useLogPoseCopilot(o: {
         style={hidden ? { visibility: "hidden" } : undefined}
         tabIndex={hidden ? -1 : undefined}
         aria-hidden={hidden ? true : undefined}
-        onClick={openPanel}
+        onClick={() => openPanel()}
       >
         <CopilotGlyph />
         {o.layout === "desktop" ? <span className="hud-brief-label">Log Pose</span> : null}
@@ -382,7 +382,7 @@ export function useLogPoseCopilot(o: {
     );
   const railTrigger =
     o.layout === "landscape" ? (
-      <button type="button" className="lp-rail-btn" aria-label={label} title="Ask Log Pose about this game" data-busy={running ? "true" : undefined} onClick={openPanel}>
+      <button type="button" className="lp-rail-btn" aria-label={label} title="Ask Log Pose about this game" data-busy={running ? "true" : undefined} onClick={() => openPanel()}>
         <CopilotGlyph size={20} />
       </button>
     ) : null;

@@ -6,9 +6,10 @@
  * spec controls (a peek finds nothing saved; "Get brief" streams two text events and a citation, and is held
  * until the spec lets it finish, so the board can be measured while the brief is writing).
  *
- * What it proves: the card offers a brief and writes one without moving the board or the Brief button, it
- * stays clear of the playmat and hand, it folds away when the first turn starts, and "Ask Log Pose" opens the
- * Log Pose panel.
+ * What it proves: the brief lives at the top of the Log Pose panel (opened by the Brief button, or by itself
+ * during the mulligan on a wide screen only), offers a brief and writes one without moving the board or the
+ * Brief button, the panel is dragged by its header and resized from its corner on a wide screen and stays on
+ * screen and remembered, and an untouched self-opened panel folds away when the first turn starts.
  */
 import { test, expect, mintGameToken, FAKE_API, type Page } from "./fixtures";
 
@@ -66,47 +67,72 @@ async function expectNoSidewaysScroll(page: Page) {
   expect(wide).toBeLessThanOrEqual(0);
 }
 
-async function checkBrief(page: Page, duel: { startPractice: (o: { seed: number }) => Promise<void> }, landscape: boolean, shot: string) {
+type Kind = "desktop" | "portrait" | "landscape";
+
+/** The point at the middle of `box` belongs to `el` (nothing, such as a panel, sits on top of it). */
+async function reachable(page: Page, el: ReturnType<Page["locator"]>) {
+  const box = (await el.boundingBox())!;
+  return el.evaluate(
+    (node, p) => {
+      const hit = document.elementFromPoint(p.x, p.y);
+      return Boolean(hit && node.contains(hit));
+    },
+    { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+  );
+}
+
+async function checkBrief(page: Page, duel: { startPractice: (o: { seed: number }) => Promise<void> }, kind: Kind, shot: string) {
   const logPose = await stubLogPose(page);
   await duel.startPractice({ seed: 11 });
 
   const trigger = page.getByRole("button", { name: "Matchup brief", exact: true });
-  const card = page.locator(landscape ? ".match-brief-lp" : ".match-brief");
+  const panel = page.getByRole("dialog", { name: /Log Pose/ });
+  const brief = panel.locator(".match-brief-pinned");
   const playmat = page.locator(".playmat");
+  const keep = page.getByRole("button", { name: "Keep opening hand" });
   await expect(trigger).toBeVisible();
 
-  // It opens by itself during the mulligan and offers a brief (nothing is saved, and "auto" is off).
-  await expect(card).toBeVisible();
-  await expect(card.getByRole("button", { name: "Get brief" })).toBeVisible();
+  if (kind === "desktop") {
+    // On a wide screen the panel opens by itself during the mulligan, without taking the keyboard or the board's buttons.
+    await expect(panel).toBeVisible();
+    await expect(brief.getByRole("button", { name: "Get brief" })).toBeVisible();
+    await expect(page.getByLabel("Message Log Pose")).not.toBeFocused();
+    expect(await reachable(page, keep)).toBe(true);
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  } else {
+    // A phone's panel would cover Keep and Mulligan, so it waits for the Brief button.
+    await expect(panel).toHaveCount(0);
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await trigger.click();
+    await expect(panel).toBeVisible();
+    await expect(brief.getByRole("button", { name: "Get brief" })).toBeVisible();
+  }
   expect(logPose.requests.every((r) => r.generate === false)).toBe(true);
   await expectNoSidewaysScroll(page);
-
-  // Where it sits: over the right column on desktop, clear of the hand on a phone.
-  const rect = round(await card.boundingBox());
-  if (!landscape) {
-    const colEl = page.locator('[data-panel-col="right"]');
-    const col = (await colEl.count()) > 0 ? await colEl.boundingBox() : null;
-    if (col) {
-      expect(rect!.x).toBeGreaterThanOrEqual(Math.floor(col.x) - 1);
-      expect(rect!.x + rect!.width).toBeLessThanOrEqual(Math.ceil(col.x + col.width) + 1);
-    } else {
-      const hand = await page.locator(".hand-row").first().boundingBox();
-      expect(hand).not.toBeNull();
-      expect(rect!.y + rect!.height).toBeLessThanOrEqual(Math.ceil(hand!.y) + 1);
-    }
-  }
   await page.screenshot({ path: test.info().outputPath(`${shot}-offer.png`) });
 
-  // Close it with ×; the board and the button have not moved.
-  const closed = async () => {
-    if (landscape) await page.keyboard.press("Escape");
-    else await card.getByRole("button", { name: "Close matchup brief" }).click();
-    await expect(card).toHaveCount(0);
+  // The brief is the first thing in the chat and the panel is on screen.
+  const vp = page.viewportSize()!;
+  const inside = (b: Box) => {
+    expect(b.x).toBeGreaterThanOrEqual(0);
+    expect(b.y).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width).toBeLessThanOrEqual(vp.width + 1);
+    expect(b.y + b.height).toBeLessThanOrEqual(vp.height + 1);
   };
-  await closed();
+  inside((await panel.boundingBox())!);
+  const briefBox = (await brief.boundingBox())!;
+  const panelBox = (await panel.boundingBox())!;
+  expect(briefBox.y).toBeLessThan(panelBox.y + 200);
+
+  // Close the panel with its own button: the board and the Brief button have not moved.
+  const closePanel = async () => {
+    await panel.getByRole("button", { name: "Close Log Pose" }).click();
+    await expect(panel).toHaveCount(0);
+  };
+  await closePanel();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
   const mat0 = round(await playmat.boundingBox());
   const trig0 = round(await trigger.boundingBox());
-
   const stable = async (why: string) => {
     expect(round(await playmat.boundingBox()), `playmat ${why}`).toEqual(mat0);
     expect(round(await trigger.boundingBox()), `trigger ${why}`).toEqual(trig0);
@@ -115,46 +141,172 @@ async function checkBrief(page: Page, duel: { startPractice: (o: { seed: number 
 
   // Open it again from the button, ask for a brief, and measure while it writes and when it is done.
   await trigger.click();
-  await expect(card).toBeVisible();
-  await stable("with the card open");
-  await card.getByRole("button", { name: "Get brief" }).click();
-  await expect(card.getByRole("status")).toContainText("Writing");
+  await expect(panel).toBeVisible();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await stable("with the panel open");
+  await brief.getByRole("button", { name: "Get brief" }).click();
+  await expect(brief.getByRole("status")).toContainText("Writing");
   await stable("while it writes");
   logPose.release();
-  await expect(card).toContainText("Curve out and keep DON!! up.");
-  await expect(card.getByRole("button", { name: "Get brief" })).toHaveCount(0);
+  await expect(brief).toContainText("Curve out and keep DON!! up.");
+  await expect(brief.getByRole("button", { name: "Get brief" })).toHaveCount(0);
   await stable("when it is done");
   expect(logPose.requests.filter((r) => r.generate)).toHaveLength(1);
   await page.screenshot({ path: test.info().outputPath(`${shot}-ready.png`) });
 
-  // "Ask Log Pose" opens the Log Pose panel for this matchup.
-  await card.getByRole("button", { name: "Ask Log Pose" }).click();
-  await expect(page.getByRole("dialog", { name: /Log Pose/ })).toBeVisible();
-  await page.screenshot({ path: test.info().outputPath(`${shot}-logpose.png`) });
-  await page.getByRole("button", { name: "Close Log Pose" }).click();
-  await expect(page.getByRole("dialog", { name: /Log Pose/ })).toHaveCount(0);
+  // The brief folds down to its header row and back.
+  const toggle = brief.getByRole("button", { name: /^Matchup brief/ });
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(brief).not.toContainText("Curve out and keep DON!! up.");
+  await toggle.click();
+  await expect(brief).toContainText("Curve out and keep DON!! up.");
 
-  // Opening hands kept: the card folds away with the mulligan, the button stays.
-  if (!(await card.isVisible())) await trigger.click();
-  await page.getByRole("button", { name: "Keep opening hand" }).click();
-  await page.getByRole("button", { name: "Keep opening hand" }).click();
+  if (kind === "desktop") await moveAndResize(page, panel, stable, trigger, shot);
+
+  // You can talk to Log Pose from here: the brief stays pinned above the messages.
+  await panel.getByLabel("Message Log Pose").fill("Who goes first?");
+  await expect(panel.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
+  await panel.getByLabel("Message Log Pose").fill("");
+  await page.screenshot({ path: test.info().outputPath(`${shot}-logpose.png`) });
+
+  // Opening hands kept: the panel is put away first on a phone, which it would cover.
+  if (await panel.isVisible()) await closePanel();
+  await keep.click();
+  await keep.click();
   await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "main");
-  await expect(card).toHaveCount(0);
   await expect(trigger).toBeVisible();
   await page.screenshot({ path: test.info().outputPath(`${shot}-turn1.png`) });
 }
 
-test("practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401)", async ({ page, duel }, info) => {
-  await checkBrief(page, duel, false, info.project.name);
+/** The Log Pose panel is resized from its corner, dragged by its header, stays on screen, moves nothing else and is remembered (#423). */
+async function moveAndResize(page: Page, panel: ReturnType<Page["locator"]>, stable: (why: string) => Promise<void>, trigger: ReturnType<Page["locator"]>, shot: string) {
+  const vp = page.viewportSize()!;
+  const drag = async (el: ReturnType<Page["locator"]>, dx: number, dy: number) => {
+    const b = (await el.boundingBox())!;
+    const x = b.x + b.width / 2;
+    const y = b.y + b.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + dx / 2, y + dy / 2, { steps: 4 });
+    await page.mouse.move(x + dx, y + dy, { steps: 4 });
+    await page.mouse.up();
+  };
+  const onScreen = (b: Box) => {
+    expect(b.x).toBeGreaterThanOrEqual(0);
+    expect(b.y).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width).toBeLessThanOrEqual(vp.width + 1);
+    expect(b.y + b.height).toBeLessThanOrEqual(vp.height + 1);
+  };
+  const near = (a: number, b: number, why: string, tol = 2) => expect(Math.abs(a - b), `${why}: ${a} vs ${b}`).toBeLessThanOrEqual(tol);
+
+  // Shrink it from the top-left corner; the bottom-right corner stays where it was.
+  const start = (await panel.boundingBox())!;
+  const handle = panel.locator(".lp-resize-corner");
+  const dw = 60;
+  const dh = 120;
+  await drag(handle, dw, dh);
+  const small = (await panel.boundingBox())!;
+  near(start.width - small.width, dw, "narrower");
+  near(start.height - small.height, dh, "shorter");
+  near(small.x + small.width, start.x + start.width, "right edge stays");
+  near(small.y + small.height, start.y + start.height, "bottom edge stays");
+  onScreen(small);
+  await stable("after resizing the panel");
+  await page.screenshot({ path: test.info().outputPath(`${shot}-resized.png`) });
+
+  // Drag it by its header: it follows the pointer, and stays inside the window.
+  const mx = -Math.min(300, Math.round(small.x) - 20);
+  const my = -80;
+  await drag(panel.locator("#lp-title"), mx, my);
+  const moved = (await panel.boundingBox())!;
+  near(moved.x - small.x, mx, "moved x");
+  near(moved.y - small.y, my, "moved y");
+  near(moved.width, small.width, "moving keeps the width");
+  near(moved.height, small.height, "moving keeps the height");
+  onScreen(moved);
+  await stable("after dragging the panel");
+  await page.screenshot({ path: test.info().outputPath(`${shot}-moved.png`) });
+
+  // The header's buttons still work, and pushing the panel past the edge stops at the edge.
+  await drag(panel.locator("#lp-title"), -5000, -5000);
+  onScreen((await panel.boundingBox())!);
+  await drag(panel.locator("#lp-title"), mx * -1 + 5000, 5000);
+  const corner = (await panel.boundingBox())!;
+  onScreen(corner);
+  near(corner.x + corner.width, vp.width, "stops at the right edge");
+  near(corner.y + corner.height, vp.height, "stops at the bottom edge");
+  await drag(panel.locator("#lp-title"), mx, my);
+  const placed = (await panel.boundingBox())!;
+
+  // Closed and opened again: it comes back where it was left.
+  await panel.getByRole("button", { name: "Close Log Pose" }).click();
+  await expect(panel).toHaveCount(0);
+  await trigger.click();
+  await expect(panel).toBeVisible();
+  // The panel slides in for a moment: wait for it to settle before measuring.
+  await expect.poll(async () => Math.abs((await panel.boundingBox())!.x - placed.x)).toBeLessThanOrEqual(1);
+  const kept = (await panel.boundingBox())!;
+  for (const k of ["x", "y", "width", "height"] as const) near(kept[k], placed[k], `kept ${k}`, 1);
+  await stable("after reopening the panel");
+
+  // The arrow keys on the Move grip nudge it.
+  await panel.getByRole("button", { name: "Move Log Pose" }).focus();
+  await page.keyboard.press("ArrowLeft");
+  const nudged = (await panel.boundingBox())!;
+  near(kept.x - nudged.x, 16, "one arrow key is 16px");
+  await page.keyboard.press("ArrowRight");
+
+  // A double-click on the header puts it back in the corner (its size stays).
+  const t = (await panel.locator("#lp-title").boundingBox())!;
+  await page.mouse.dblclick(t.x + t.width / 2, t.y + t.height / 2);
+  await expect.poll(async () => Math.round((await panel.boundingBox())!.x + (await panel.boundingBox())!.width)).toBe(vp.width);
+  const reset = (await panel.boundingBox())!;
+  near(reset.y + reset.height, vp.height, "reset to the bottom edge");
+  near(reset.width, small.width, "reset keeps the size");
+  await stable("after resetting the panel");
+}
+
+test("practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423)", async ({ page, duel }, info) => {
+  await checkBrief(page, duel, (page.viewportSize()?.width ?? 0) > 600 ? "desktop" : "portrait", info.project.name);
 });
 
 test.describe("landscape phone", () => {
   test.use({ viewport: { width: 812, height: 375 }, hasTouch: true });
 
-  test("practice: the matchup brief offers, writes and opens Log Pose without moving the board, in landscape (#401)", async ({ page, duel }, info) => {
+  test("practice: the matchup brief offers, writes and opens Log Pose without moving the board, in landscape (#401, #423)", async ({ page, duel }, info) => {
     test.skip(info.project.name !== "desktop-1280", "one run is enough: the viewport is set here");
-    await checkBrief(page, duel, true, "landscape");
+    await checkBrief(page, duel, "landscape", "landscape");
   });
+});
+
+test("the panel that opened itself for the mulligan folds away when the first turn starts, if nobody touched it (#423)", async ({ page, duel }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "only a wide screen opens the panel by itself");
+  await stubLogPose(page);
+  await duel.startPractice({ seed: 11 });
+  const panel = page.getByRole("dialog", { name: /Log Pose/ });
+  await expect(panel).toBeVisible();
+  const keep = page.getByRole("button", { name: "Keep opening hand" });
+  await keep.click();
+  await keep.click();
+  await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "main");
+  await expect(panel).toHaveCount(0);
+});
+
+test("a panel the player opened or used stays open when the first turn starts (#423)", async ({ page, duel }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "only a wide screen opens the panel by itself");
+  await stubLogPose(page);
+  await duel.startPractice({ seed: 11 });
+  const panel = page.getByRole("dialog", { name: /Log Pose/ });
+  await expect(panel).toBeVisible();
+  // Touching the panel (here, folding the brief) makes it the player's.
+  await panel.getByRole("button", { name: /^Matchup brief/ }).click();
+  const keep = page.getByRole("button", { name: "Keep opening hand" });
+  await keep.click();
+  await keep.click();
+  await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "main");
+  await expect(panel).toBeVisible();
 });
 
 test("a spectator of a practice room gets no Brief button or card, even with Log Pose on (#401)", async ({ page, duel, browser }, info) => {
@@ -184,7 +336,7 @@ test("a spectator of a practice room gets no Brief button or card, even with Log
   // Nothing of the brief, and no Log Pose compass or panel on the board.
   await spec.waitForTimeout(500);
   await expect(spec.getByRole("button", { name: "Matchup brief" })).toHaveCount(0);
-  await expect(spec.locator(".match-brief")).toHaveCount(0);
+  await expect(spec.locator(".match-brief-pinned")).toHaveCount(0);
   await expect(spec.getByRole("button", { name: "Log Pose", exact: true })).toHaveCount(0);
   await watcher.close();
 });
