@@ -249,6 +249,15 @@ export function apiTools(tools: ToolDef[]) {
   });
 }
 
+/** Earlier assistant turns without their thinking blocks: a signature is bound to the system prompt and tools it was made under, which can differ now (#424). */
+function withoutOldThinking(history: Message[]): Message[] {
+  return history.map((m) => {
+    if (m.role !== "assistant" || !Array.isArray(m.content)) return m;
+    const kept = m.content.filter((b) => b.type !== "thinking" && b.type !== "redacted_thinking");
+    return kept.length && kept.length < m.content.length ? { ...m, content: kept } : m;
+  });
+}
+
 /** History plus a cache breakpoint on the newest block, so the next call reads the whole prefix from cache. */
 function withCacheBreakpoint(messages: Message[]): Message[] {
   const out = messages.slice();
@@ -436,7 +445,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   let history: Message[] = [];
   if (threadId) {
     try {
-      history = (await plannerCall<{ messages: Message[] }>(api, token, `/analyst/chat/threads/${threadId}/content`, true)).messages;
+      history = withoutOldThinking((await plannerCall<{ messages: Message[] }>(api, token, `/analyst/chat/threads/${threadId}/content`, true)).messages);
     } catch (err) {
       if (err instanceof PlannerApiError && err.status === 404) throw new ChatHttpError(404, "That conversation is gone.", "bad_request");
       throw err;
