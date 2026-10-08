@@ -139,6 +139,8 @@ export type DuelSettings = {
   matchBrief: boolean;
   /** Write the matchup brief by itself when none is saved (uses your Log Pose daily limit). Off: tap Get brief. */
   matchBriefAuto: boolean;
+  /** Log Pose on the board in casual and practice games: ask about your turn and let it play one you approve. Never in ranked. */
+  logPoseCopilot: boolean;
 
   // —— Deck editor ——
   /** Deck stats, draw odds and build hints (shared with the planner) in the deck editor. */
@@ -186,6 +188,7 @@ const DEFAULTS: DuelSettings = {
   turnSound: false,
   matchBrief: true,
   matchBriefAuto: false,
+  logPoseCopilot: false,
   deckStats: true,
 };
 

@@ -13,13 +13,159 @@ export type DeckContext = {
   ref?: string;
   plannerDeckId?: number;
 };
+
+/** A card on a board as the analyst sees it. `id` is the instance id; `defId` the printed card number. */
+export type SnapCard = {
+  id: string;
+  defId: string;
+  rested?: boolean;
+  don?: number;
+  power?: number;
+  cost?: number;
+  sick?: boolean;
+  rush?: boolean;
+  status?: string[];
+};
+
+/** One legal move, compacted from the game server's legal intents. */
+export type LegalAction =
+  | { type: "play_card"; card: string; trash?: string }
+  | { type: "give_don"; target: string }
+  | { type: "activate_ability"; source: string; abilityId: string; target?: string }
+  | { type: "declare_attack"; attacker: string; target: string }
+  | { type: "declare_block"; blocker: string }
+  | { type: "pass_block" }
+  | { type: "counter_from_hand" | "counter_event"; card: string }
+  | { type: "pass_counter" }
+  | { type: "end_turn" };
+
+/** What one seat can see of a game: never the opponent's hand, only a count. */
+export type GameSnapshot = {
+  seat: 0 | 1;
+  turn: number;
+  phase: string;
+  yourTurn: boolean;
+  you: {
+    leader: SnapCard;
+    characters: SnapCard[];
+    stage: SnapCard | null;
+    hand: { id: string; defId: string; cost?: number; counter?: number }[];
+    deck: number;
+    life: number;
+    faceUpLife: string[];
+    trash: string[];
+    donActive: number;
+    donRested: number;
+    donDeck: number;
+  };
+  opponent: {
+    leader: SnapCard;
+    characters: SnapCard[];
+    stage: SnapCard | null;
+    hand: number;
+    deck: number;
+    life: number;
+    faceUpLife: string[];
+    trash: string[];
+    donActive: number;
+    donTotal: number;
+    donDeck: number;
+  };
+  battle?: string | null;
+  choice?: { prompt: string; kind: string } | null;
+  legal: LegalAction[];
+};
+
+/** The live game sent with a message: the brief ticket proves an unranked room, the analyst checks it again. */
+export type GameChatContext = { ticket: string; snapshot: GameSnapshot; log?: string[] };
+
 /** What the page the user is on adds to a message. */
-export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string; hint?: HintContext };
+export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string; hint?: HintContext; game?: GameChatContext };
 
 export type ChatRequest = { thread_id?: number; message: string; context?: ChatContext };
 export type ReviewRequest = { match_id: string; regenerate?: boolean };
 /** A matchup brief: the game server's ticket, and whether to write one when none is saved (false only looks). */
 export type BriefRequest = { ticket: string; generate: boolean };
+
+/** One step of a turn plan Log Pose proposes. `label` is written by the analyst from the board, not by the model. */
+export type PlanStep = { label: string; why?: string } & (
+  | { action: "play"; card: string; trash?: string }
+  | { action: "give_don"; target: string; count: number }
+  | { action: "activate"; source: string; abilityId?: string; target?: string }
+  | { action: "attack"; attacker: string; target: string }
+  | { action: "end_turn" }
+);
+
+export type TurnPlan = {
+  /** The tool call's id. */
+  id: string;
+  /** The game turn the plan was made for. */
+  turn: number;
+  summary: string;
+  steps: PlanStep[];
+};
+
+export const PLAN_LIMITS = { summary: 300, label: 200, why: 400, id: 40, steps: 15, count: 10 };
+
+const str = (v: unknown, max: number): string | null => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
+const optStr = (v: unknown, max: number): string | undefined => str(v, max) ?? undefined;
+
+function parseStep(raw: unknown): PlanStep | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const label = str(o.label, PLAN_LIMITS.label);
+  if (!label) return null;
+  const base = { label, ...(optStr(o.why, PLAN_LIMITS.why) ? { why: optStr(o.why, PLAN_LIMITS.why) } : {}) };
+  const id = (v: unknown) => str(v, PLAN_LIMITS.id);
+  switch (o.action) {
+    case "play": {
+      const card = id(o.card);
+      const trash = id(o.trash);
+      return card ? { ...base, action: "play", card, ...(trash ? { trash } : {}) } : null;
+    }
+    case "give_don": {
+      const target = id(o.target);
+      const count = o.count;
+      if (!target || typeof count !== "number" || !Number.isInteger(count) || count < 1 || count > PLAN_LIMITS.count) return null;
+      return { ...base, action: "give_don", target, count };
+    }
+    case "activate": {
+      const source = id(o.source);
+      const abilityId = id(o.abilityId);
+      const target = id(o.target);
+      return source ? { ...base, action: "activate", source, ...(abilityId ? { abilityId } : {}), ...(target ? { target } : {}) } : null;
+    }
+    case "attack": {
+      const attacker = id(o.attacker);
+      const target = id(o.target);
+      return attacker && target ? { ...base, action: "attack", attacker, target } : null;
+    }
+    case "end_turn":
+      return { ...base, action: "end_turn" };
+    default:
+      return null;
+  }
+}
+
+/**
+ * A turn plan from a `plan` event, or null when it is unusable. One bad step drops the whole plan: a plan with a
+ * hole in it (a missing Play before its Attack) must never run.
+ */
+export function parseTurnPlan(raw: unknown): TurnPlan | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const id = str(o.id, PLAN_LIMITS.id);
+  const summary = str(o.summary, PLAN_LIMITS.summary);
+  if (!id || !summary || typeof o.turn !== "number" || !Number.isInteger(o.turn) || o.turn < 0) return null;
+  if (!Array.isArray(o.steps) || o.steps.length < 1 || o.steps.length > PLAN_LIMITS.steps) return null;
+  const steps: PlanStep[] = [];
+  for (const s of o.steps) {
+    const step = parseStep(s);
+    if (!step) return null;
+    steps.push(step);
+  }
+  return { id, turn: o.turn, summary, steps };
+}
 
 export type ErrorCode = "budget" | "busy" | "auth" | "server" | "bad_request";
 export type DonePayload = {
@@ -40,6 +186,8 @@ export type StreamHandlers = {
   onCite?: (citations: Citation[]) => void;
   /** A deck edit Log Pose suggests for the open deck, to show as an Apply card under the answer. */
   onProposal?: (proposal: DeckEditProposal) => void;
+  /** A turn plan Log Pose proposes for the live game, to show as a Turn plan card under the answer. */
+  onPlan?: (plan: TurnPlan) => void;
   onDone?: (done: DonePayload) => void;
   /** An `error` event inside the stream. */
   onError?: (err: { message: string; code?: ErrorCode }) => void;
@@ -80,6 +228,9 @@ function dispatch(handlers: StreamHandlers, event: string, data: unknown) {
   } else if (event === "proposal") {
     const proposal = parseProposal(d);
     if (proposal) handlers.onProposal?.(proposal);
+  } else if (event === "plan") {
+    const plan = parseTurnPlan(d);
+    if (plan) handlers.onPlan?.(plan);
   } else if (event === "done") handlers.onDone?.(d as DonePayload);
   else if (event === "error")
     handlers.onError?.({ message: typeof d.message === "string" ? d.message : "", code: d.code as ErrorCode | undefined });

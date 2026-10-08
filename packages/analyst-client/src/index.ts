@@ -5,12 +5,20 @@ export {
   errorText,
   fetchSavedReview,
   fetchThread,
+  parseTurnPlan,
+  PLAN_LIMITS,
   streamAnalyst,
   type BriefRequest,
   type ChatContext,
   type DeckContext,
   type DonePayload,
   type ErrorCode,
+  type GameChatContext,
+  type GameSnapshot,
+  type LegalAction,
+  type PlanStep,
+  type SnapCard,
+  type TurnPlan,
   type SavedReview,
   type StreamHandlers,
 } from "./client";
@@ -42,8 +50,8 @@ export { clampSheet, clampSize, dragSheet, dragSize, keySize, readSheet, readSiz
 export { readThreadId, writeThreadId, THREAD_KEY } from "./threadStore";
 export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdown";
 export { Markdown } from "./Markdown";
-export { LogPoseProvider, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, useLogPoseDeckEditor, type LogPosePage } from "./LogPose";
-export { askContext, canAsk, hintAsk, HINT_LIMITS, messageContext, requestAction, type HintContext, type LogPoseAsk } from "./ask";
+export { LogPoseProvider, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, useLogPoseDeckEditor, useLogPoseGame, type LogPoseGame, type LogPosePage } from "./LogPose";
+export { askContext, canAsk, gameMessageContext, hintAsk, HINT_LIMITS, messageContext, requestAction, type HintContext, type LogPoseAsk } from "./ask";
 export { DeckEditCard } from "./DeckEditCard";
 export {
   applyOps,

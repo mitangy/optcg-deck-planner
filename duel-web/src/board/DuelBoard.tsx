@@ -153,6 +153,7 @@ import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY,
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { useMatchBrief } from "./MatchBrief";
+import { useLogPoseCopilot } from "./LogPoseCopilot";
 import type { BriefTicketWire } from "../net/protocol";
 import { matchMenuItems } from "./matchMenuItems";
 import { openFeedback } from "../feedbackDialog";
@@ -209,7 +210,12 @@ type Props = {
    * Log Pose matchup brief for casual and practice games: the game server's ticket and whether the room is
    * ranked. The board shows a Brief button and card only when the pair says unranked, a player and a ticket.
    */
-  matchBrief?: { brief: BriefTicketWire | null; ranked: boolean | null };
+  matchBrief?: {
+    brief: BriefTicketWire | null;
+    ranked: boolean | null;
+    /** The seat the ticket is for (hotseat: seat 0, the player's). Online it is the board's own `seat`. The Log Pose copilot is offered on that seat's turns only. */
+    ticketSeat?: Seat;
+  };
   /** Searches and effect ordering float cards over the board instead of a pop-up (always in matches; `/demo?box` shows the pop-up fallback). */
   floatingPrompts?: boolean;
   /** Before the first view: what the empty board says (queueing, connecting, starting). */
@@ -562,6 +568,17 @@ export function DuelBoard({
     phase: view?.phase,
     over,
     layout: lp ? "landscape" : wide ? "desktop" : "portrait",
+  });
+  const copilot = useLogPoseCopilot({
+    source: matchBrief,
+    role: spectating ? "spectator" : "player",
+    view,
+    battleLog,
+    onSendIntent,
+    over,
+    layout: lp ? "landscape" : wide ? "desktop" : "portrait",
+    ticketSeat: matchBrief?.ticketSeat ?? seat,
+    errorBanner,
   });
   const result = describeMatchResult({
     winner: matchOver?.winner ?? view?.winner,
@@ -1878,6 +1895,7 @@ export function DuelBoard({
           </div>
           <div className="hud-actions">
             {brief.trigger}
+            {copilot.trigger}
             {hudUndoPass}
             {matchMenuEl("top")}
           </div>
@@ -1953,6 +1971,7 @@ export function DuelBoard({
           </div>
           <div className="hud-actions">
             {brief.trigger}
+            {copilot.trigger}
             {hotseatPass ? null : <RoomChip roomId={matchId} />}
             {undo && undoState?.enabled && !spectating && !over ? (
               undoPendingMine ? (
@@ -2074,6 +2093,7 @@ export function DuelBoard({
       ) : null}
 
       {brief.card}
+      {copilot.pill}
 
       {mulliganPhase && !spectating ? (
         <div
@@ -2114,6 +2134,7 @@ export function DuelBoard({
               }
             }}
             hasBrief={brief.shown}
+            extra={copilot.railTrigger}
             hasChat={Boolean(chat)}
             logCount={battleLog.length}
             menu={matchMenuEl("left")}

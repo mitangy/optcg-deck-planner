@@ -40,6 +40,20 @@ export function MatchBriefSettings() {
           Log Pose writes one as soon as the game starts, and it counts toward your Log Pose daily limit.
         </p>
       </div>
+      <div className="gameplay-toggle">
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={settings.logPoseCopilot}
+            onChange={(e) => updateSettings({ logPoseCopilot: e.target.checked })}
+          />
+          <span>Log Pose in casual and practice games</span>
+        </label>
+        <p className="field-hint">
+          Ask Log Pose about your turn from the board, and let it play a turn you approve. Never in ranked
+          games. Uses your Log Pose daily limit.
+        </p>
+      </div>
     </>
   );
 }

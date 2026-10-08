@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnalystError, BUDGET_MESSAGE, BUSY_MESSAGE, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, streamAnalyst } from "./client";
+import { AnalystError, BUDGET_MESSAGE, BUSY_MESSAGE, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, parseTurnPlan, streamAnalyst } from "./client";
 import { createSessionManager, needsRefresh } from "./session";
 
 const NOW = Date.parse("2026-10-06T12:00:00Z");
@@ -193,5 +193,65 @@ describe("deck edit events (#400)", () => {
     const thread = await fetchThread("https://api.test", 4, impl);
     expect(thread!.messages[0]!.proposals).toEqual([]);
     expect(thread!.messages[1]!.proposals!.map((p) => p.id)).toEqual(["t1"]);
+  });
+});
+
+describe("turn plans (#416)", () => {
+  const plan = {
+    id: "toolu_1",
+    turn: 3,
+    summary: "Play Nami, then swing.",
+    steps: [
+      { action: "play", card: "c12", label: "Play Nami (cost 1)", why: "Curve out", extra: "dropped" },
+      { action: "give_don", target: "leader1", count: 2, label: "Give 2 DON!! to Luffy" },
+      { action: "activate", source: "c3", abilityId: "a1", label: "Use Zoro" },
+      { action: "attack", attacker: "leader1", target: "oppLeader", label: "Attack the Leader" },
+      { action: "end_turn", label: "End turn" },
+    ],
+  };
+
+  it("keeps every kind of step and only the fields it knows (#416)", () => {
+    const parsed = parseTurnPlan(plan)!;
+    expect(parsed.steps.map((s) => s.action)).toEqual(["play", "give_don", "activate", "attack", "end_turn"]);
+    expect(parsed.steps[0]).toEqual({ action: "play", card: "c12", label: "Play Nami (cost 1)", why: "Curve out" });
+    expect(parsed.steps[1]).toMatchObject({ action: "give_don", target: "leader1", count: 2 });
+    expect(parsed).toMatchObject({ id: "toolu_1", turn: 3, summary: "Play Nami, then swing." });
+  });
+
+  it("drops a plan with a step it can't run instead of running the rest (#416)", () => {
+    const bad = [
+      { action: "give_don", target: "leader1", count: 0, label: "x" },
+      { action: "give_don", target: "leader1", count: 11, label: "x" },
+      { action: "give_don", target: "leader1", count: 1.5, label: "x" },
+      { action: "give_don", target: "leader1", label: "x" },
+      { action: "play", label: "x" },
+      { action: "attack", attacker: "a", label: "x" },
+      { action: "teleport", label: "x" },
+      { action: "end_turn" },
+      "end_turn",
+    ];
+    for (const step of bad) expect(parseTurnPlan({ ...plan, steps: [plan.steps[0], step, plan.steps[4]] })).toBeNull();
+  });
+
+  it("needs an id, a summary, a turn and 1 to 15 steps (#416)", () => {
+    const one = plan.steps[4];
+    expect(parseTurnPlan({ ...plan, steps: [] })).toBeNull();
+    expect(parseTurnPlan({ ...plan, steps: Array.from({ length: 16 }, () => one) })).toBeNull();
+    expect(parseTurnPlan({ ...plan, steps: Array.from({ length: 15 }, () => one) })?.steps).toHaveLength(15);
+    expect(parseTurnPlan({ ...plan, id: "" })).toBeNull();
+    expect(parseTurnPlan({ ...plan, summary: " " })).toBeNull();
+    expect(parseTurnPlan({ ...plan, turn: "3" })).toBeNull();
+    expect(parseTurnPlan(null)).toBeNull();
+    expect(parseTurnPlan({ ...plan, summary: "s".repeat(500) })!.summary).toHaveLength(300);
+  });
+
+  it("hands a plan event to onPlan and ignores a malformed one (#416)", async () => {
+    const f = fakeFetch([15 * 60_000], () =>
+      sse(`event: text\ndata: {"delta":"Here."}\n\nevent: plan\ndata: ${JSON.stringify(plan)}\n\nevent: plan\ndata: ${JSON.stringify({ ...plan, id: "t2", steps: [] })}\n\n`),
+    );
+    const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+    const seen: unknown[] = [];
+    await streamAnalyst(mgr, "/chat", { message: "plan" }, { onPlan: (p) => seen.push(p) }, undefined, f.impl);
+    expect(seen.map((p) => (p as { id: string }).id)).toEqual(["toolu_1"]);
   });
 });

@@ -8,6 +8,7 @@ import type { Catalog } from "./catalog";
 import { PlannerApiError, plannerCall, reviewMatch, tokenIsValid, type PlannerApi } from "./matches";
 import { newestFormat } from "./playbook";
 import { buildTools, instructionsFor, type Knowledge, type ToolDef } from "./server";
+import { COPILOT_INSTRUCTIONS, gameContext, gameContextBlock, PLAN_TOOL, turnPlanTool, verifyGame, type TurnPlan } from "./copilot";
 import { deckEditTool, PROPOSE_TOOL, type DeckEditProposal } from "./proposals";
 import { adaptToolResult, gameResults } from "./sources";
 
@@ -53,7 +54,7 @@ export type CallModel = (
   onCite?: (citation: Citation) => void,
 ) => Promise<ModelReply>;
 
-export type SseEvent = { event: "thread" | "status" | "text" | "cite" | "proposal" | "done" | "error"; data: Record<string, unknown> };
+export type SseEvent = { event: "thread" | "status" | "text" | "cite" | "proposal" | "plan" | "done" | "error"; data: Record<string, unknown> };
 
 const MAX_CITED_TEXT = 800;
 
@@ -150,6 +151,7 @@ export const chatBody = z.object({
       deck: deckContext.optional(),
       hint: hintContext.optional(),
       matchId: z.string().max(80).optional(),
+      game: gameContext.optional(),
     })
     .optional(),
 });
@@ -217,6 +219,7 @@ const STATUS: Record<string, string> = {
   draft_lesson: "Saving a lesson draft",
   my_lessons: "Reading your lessons",
   propose_deck_edit: "Checking the suggested change",
+  propose_turn_plan: "Checking the turn plan",
 };
 
 export function contextBlock(ctx: z.infer<typeof chatBody>["context"]): string | null {
@@ -258,7 +261,7 @@ function withCacheBreakpoint(messages: Message[]): Message[] {
   return out;
 }
 
-async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEditProposal) => void): Promise<Block> {
+async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEditProposal) => void, onPlan?: (p: TurnPlan) => void): Promise<Block> {
   const tool = tools.find((t) => t.name === block.name);
   const base = { type: "tool_result", tool_use_id: block.id };
   if (!tool) return { ...base, is_error: true, content: `Unknown tool ${String(block.name)}` };
@@ -268,6 +271,7 @@ async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEdit
     const result = await tool.run(parsed.data as Record<string, unknown>);
     const text = result.content.map((c) => c.text).join("\n");
     if (tool.name === PROPOSE_TOOL && !result.isError && onProposal) onProposal({ id: String(block.id), ...(JSON.parse(text) as Omit<DeckEditProposal, "id">) });
+    if (tool.name === PLAN_TOOL && !result.isError && onPlan) onPlan({ id: String(block.id), ...(JSON.parse(text) as Omit<TurnPlan, "id">) });
     // Facts become search results the model can cite; anything we can't adapt goes back as plain text.
     const sources = result.isError ? null : adaptToolResult(tool.name, text);
     return { ...base, ...(result.isError ? { is_error: true } : {}), content: sources ?? text };
@@ -360,6 +364,8 @@ type RoundsOptions = {
   effort: "low" | "medium" | "high";
   /** Called with each deck edit the model proposes (chat only). */
   onProposal?: (p: DeckEditProposal) => void;
+  /** Called with each turn plan the model proposes (Log Pose copilot). */
+  onPlan?: (p: TurnPlan) => void;
 };
 
 /**
@@ -406,7 +412,7 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
       break;
     }
     for (const name of new Set(calls.map((c) => String(c.name)))) o.emit({ event: "status", data: { text: STATUS[name] ?? "Working" } });
-    state.turn.push({ role: "user", content: await Promise.all(calls.map((c) => runTool(o.tools, c, o.onProposal))) });
+    state.turn.push({ role: "user", content: await Promise.all(calls.map((c) => runTool(o.tools, c, o.onProposal, o.onPlan))) });
   }
   return state;
 }
@@ -423,6 +429,9 @@ export async function runChat(deps: ChatDeps, token: string, body: z.infer<typeo
 
 async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chatBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
   const { api } = deps;
+  // A live game is verified first, so a ranked or forged ticket costs nothing: no thread, no model call.
+  const game = body.context?.game;
+  const claims = game ? await verifyGame(api, token, deps.catalog, game) : null;
   let threadId = body.thread_id;
   let history: Message[] = [];
   if (threadId) {
@@ -441,20 +450,25 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   const ctx = contextBlock(body.context);
   const userMessage: Message = {
     role: "user",
-    content: [...(ctx ? [{ type: "text", text: ctx }] : []), { type: "text", text: body.message }],
+    content: [...(ctx ? [{ type: "text", text: ctx }] : []), ...(game && claims ? [{ type: "text", text: gameContextBlock(deps.catalog, game, claims) }] : []), { type: "text", text: body.message }],
   };
   const proposals: DeckEditProposal[] = [];
   // Always registered, so a propose_deck_edit tool_use kept in the history still matches a tool.
-  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck)];
+  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), turnPlanTool(deps.catalog, game)];
   const onProposal = (p: DeckEditProposal) => {
     proposals.push(p);
     emit({ event: "proposal", data: p });
   };
-  const system = [{ type: "text", text: instructionsFor(true) + CHAT_INSTRUCTIONS, cache_control: { type: "ephemeral" } }];
+  const onPlan = (p: TurnPlan) => emit({ event: "plan", data: p });
+  // The copilot text is a second block after the cached prefix, so turns without a game keep the same cached prefix.
+  const system = [
+    { type: "text", text: instructionsFor(true) + CHAT_INSTRUCTIONS, cache_control: { type: "ephemeral" } },
+    ...(game ? [{ type: "text", text: COPILOT_INSTRUCTIONS }] : []),
+  ];
   const state = newRounds(userMessage);
   const turn = state.turn;
   try {
-    await runToolRounds(state, { deps, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal });
+    await runToolRounds(state, { deps, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal, onPlan });
   } finally {
     const { usage, finished } = state;
     const cost = costUsd(usage);
