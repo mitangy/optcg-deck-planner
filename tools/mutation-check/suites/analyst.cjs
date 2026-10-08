@@ -96,6 +96,10 @@ module.exports = {
     { id: "rules-any-numbered-line-opens-chapter", file: rules, from: " : Number(id) === chapter + 1 && /^[A-Z][^.]{0,60}$/.test(m[2]!.trim());", to: " : Number(id) === chapter + 1;", kills: ["keeps wrapped lines in their section"] },
     { id: "rules-page-numbers-kept", file: rules, from: "if (!line || PAGE_NUMBER.test(line) || /\\.{5,}/.test(line)) continue;", to: "if (!line || /\\.{5,}/.test(line)) continue;", kills: ["keeps wrapped lines in their section"] },
     { id: "rules-no-heading-boost", file: rules, from: "      if (text.replace(/[[\\]]/g, \"\").trim() === phrase.replace(/[[\\]]/g, \"\")) score += terms.length + 1;\n", to: "", kills: ["ranks the heading that names a keyword"] },
+    { id: "qa-answer-match-weighs-as-question", file: qa, from: "(d.head.includes(t) ? 2 : d.answer.includes(t) ? 1 : 0), 0);", to: "(d.head.includes(t) || d.answer.includes(t) ? 1 : 0), 0);", kills: ["puts an entry whose question has the word above"] },
+    { id: "qa-plain-count-scoring", file: qa, from: "weight.get(t)! * (d.head", to: "1 * (d.head", kills: ["ranks the entry with the rare question word above"] },
+    { id: "rules-lookup-qa-four", file: knowledge, from: "searchQa(faq.general, q.query, Math.max(limit, 6))", to: "searchQa(faq.general, q.query, 4)", kills: ["returns more than four Q&A entries"] },
+    { id: "rules-lookup-qa-ignores-floor", file: knowledge, from: "Math.max(limit, 6))", to: "limit)", kills: ["returns more than four Q&A entries"] },
     { id: "qa-labels-not-shifted", file: qa, from: "    for (const it of labels) rowAt(it.y, line).label.push(it);", to: "    for (const it of labels) rowAt(it.y).label.push(it);", kills: ["matches each question and answer to its card"] },
     { id: "qa-answers-to-row-below", file: qa, from: "      for (let n = rows.length - 1; n >= 0; n--) if (y <= rows[n]!.top + shift + 2) return rows[n]!;", to: "      for (let n = 0; n < rows.length; n++) if (y >= rows[n]!.top - shift - 2) return rows[n]!;", kills: ["matches each question and answer to its card"] },
     { id: "qa-page-break-row-split", file: qa, from: "        if (n === 0 && prev) {", to: "        if (false) {", kills: ["joins a row that runs over a page break"] },
@@ -261,6 +265,8 @@ module.exports = {
 
     // cited
     { id: "eval-cites-any-group", file: evCitations, from: "const missing = cites.all.filter((group) => !hit(group));", to: "const missing = cites.all.some(hit) ? [] : cites.all;", kills: ["needs a citation for every required group"] },
+    { id: "eval-cites-rule-subsections", file: evCitations, from: 'source === rule || source.startsWith(`${rule}-`)', to: "source === rule", kills: ["counts a rule's subsections as citing the rule"] },
+    { id: "eval-cites-rule-prefix-only", file: evCitations, from: 'source === rule || source.startsWith(`${rule}-`)', to: "source.startsWith(rule)", kills: ["counts a rule's subsections as citing the rule"] },
     { id: "eval-cites-substring", file: evCitations, from: "return source === rule;", to: "return source.includes(rule);", kills: ["does not let ruling:OP01-061#12 satisfy ruling:OP01-061#1"] },
     { id: "eval-cites-no-wildcard", file: evCitations, from: "if (rule.endsWith(\"*\")) return source.startsWith(rule.slice(0, -1));", to: "", kills: ["accepts any alternative within a group, and a * suffix wildcard"] },
     { id: "eval-cites-ignores-none", file: evCitations, from: "const forbidden = sources.filter((s) => (cites.none ?? []).some((rule) => sourceMatches(rule, s)));", to: "const forbidden: string[] = [];", kills: ["fails an answer that cites a forbidden ruling"] },
