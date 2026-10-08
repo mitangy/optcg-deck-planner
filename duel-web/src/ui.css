@@ -1689,6 +1689,21 @@ label.btn.is-busy {
   .home-actions .btn-play {
     min-height: 64px;
   }
+
+  .home-primary > .intro {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .home-primary > .intro .intro-steps {
+    flex: 1 1 auto;
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .home-primary > .intro .intro-dismiss {
+    align-self: center;
+  }
 }
 
 /* —— Your voyage, Top bounties, how it works —— */
@@ -1941,6 +1956,7 @@ label.btn.is-busy {
 
 .intro-dismiss {
   align-self: flex-end;
+  white-space: nowrap;
 }
 
 .topbar-mark {
@@ -2067,7 +2083,8 @@ label.btn.is-busy {
 }
 
 /* The wave texture behind the lobby drifts sideways, one tile (120px) per 90s. The page's own
-   copy of the texture is switched off while the lobby is up, and this fixed layer carries it. */
+   copy of the texture is switched off while the lobby is up, and this fixed layer carries it.
+   The layer is one tile wider than the screen and moves by transform, so the drift never repaints. */
 :root:has(.home-shell) {
   --wave-layer: none;
 }
@@ -2080,17 +2097,21 @@ label.btn.is-busy {
 .home-shell::before {
   content: "";
   position: fixed;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: -120px;
+  width: calc(100% + 120px);
   z-index: -1;
   pointer-events: none;
   background-image: var(--wave-src);
   background-size: 120px 24px;
+  will-change: transform;
   animation: wave-drift 90s linear infinite;
 }
 
 @keyframes wave-drift {
   to {
-    background-position: 120px 0;
+    transform: translateX(120px);
   }
 }
 
