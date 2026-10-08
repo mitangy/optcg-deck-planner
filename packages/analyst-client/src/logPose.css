@@ -1372,6 +1372,8 @@
 
 .lp-panel[data-phone] .lp-edit-note {
   flex: 1 1 0;
+}
+
 /* ——— Asking for access, and the owner's request list ——— */
 
 .lp-requests-btn {
