@@ -22,9 +22,9 @@ import { OfficialLibrary } from "../src/official/library";
 import { loadPlaybook } from "../src/playbook";
 import { buildTools, instructionsFor } from "../src/server";
 import { CASES } from "./cases";
-import { anthropicJudge, JUDGE_MODEL, offlineJudge, type Judge } from "./grade/judge";
+import { anthropicJudge, JUDGE_MODEL, RUBRIC_MODEL, offlineJudge, type Judge } from "./grade/judge";
 import { loadCases } from "./load";
-import { evalPlanner, type PlannerOptions, type StatsFixtures } from "./planner";
+import { evalPlanner, type PlannerOptions, type StatsFixtures, type TournamentFixtures } from "./planner";
 import { baselineFrom, renderReport, stateFile, summaryLine } from "./report";
 import { runEval } from "./runner";
 import { oracleScript, scriptedModel } from "./scripted";
@@ -75,9 +75,11 @@ if (f.selftest) {
 const library = f.library === "none" ? undefined : new OfficialLibrary({ baseUrl: process.env.OFFICIAL_SITE_URL || undefined });
 const playbook = loadPlaybook();
 const stats = JSON.parse(readFileSync(here("fixtures/stats.json"), "utf8")) as StatsFixtures;
+const tournaments = JSON.parse(readFileSync(here("fixtures/tournaments.json"), "utf8")) as TournamentFixtures;
 const planner: PlannerOptions = {
   mode: f.planner === "live" ? "live" : "fake",
   stats,
+  tournaments,
   liveUrl: process.env.PLANNER_API_URL,
   secret: process.env.ANALYST_SERVICE_SECRET,
 };
@@ -122,7 +124,7 @@ const meta: RunMeta = {
   variant,
   git_sha: gitSha,
   model: CHAT_MODEL,
-  judge_model: scripted ? "offline-judge" : JUDGE_MODEL,
+  judge_model: scripted ? "offline-judge" : `${JUDGE_MODEL} (D rubrics: ${RUBRIC_MODEL})`,
   prompt_sha: sha(instructionsFor(true) + CHAT_INSTRUCTIONS),
   tools_sha: sha(JSON.stringify(apiTools(tools))),
   cases_sha: sha(readFileSync(here("cases.ts"), "utf8")),

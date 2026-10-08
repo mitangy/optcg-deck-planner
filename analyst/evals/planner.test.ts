@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evalPlanner, type StatsFixtures } from "./planner";
+import { evalPlanner, type StatsFixtures, type TournamentFixtures } from "./planner";
 
 const stats: StatsFixtures = { synthetic: true, responses: { "leader=OP13-004": { leader: "OP13-004", overall: { games: 9 } } } };
 
@@ -25,5 +25,19 @@ describe("eval planner", () => {
     expect(known).toMatchObject({ leader: "OP13-004", overall: { games: 9 }, days: 30 });
     const unknown = await (await api.fetchImpl!("https://planner.eval/analyst/stats/matchups?leader=OP16-001&opponent=OP17-058", {})).json();
     expect(unknown).toMatchObject({ leader: "OP16-001", opponent: "OP17-058", games: 0, too_few_games: true, win_rate: null });
+  });
+
+  it("answers tournament stats from the fixtures by leader and opponent, and with no decks for a leader it has none for (#414)", async () => {
+    const tournaments: TournamentFixtures = {
+      synthetic: true,
+      responses: { "": { total_decks: 48, leaders: [{ leader: "OP13-004" }] }, "leader=OP13-004": { leader: "OP13-004", meta: { decks: 9 } }, "leader=OP13-004&opponent=OP15-058": { leader: "OP13-004", opponent: "OP15-058", games: 12 } },
+    };
+    const { api } = evalPlanner({ mode: "fake", stats, tournaments });
+    const get = async (q: string) => (await api.fetchImpl!(`https://planner.eval/analyst/tournaments/stats${q}`, {})).json();
+    expect(await get("?days=14")).toMatchObject({ total_decks: 48, days: 14, source: "Limitless TCG tournaments" });
+    expect(await get("?leader=OP13-004")).toMatchObject({ meta: { decks: 9 } });
+    expect(await get("?leader=OP13-004&opponent=OP15-058")).toMatchObject({ games: 12 });
+    expect(await get("?leader=OP16-001")).toMatchObject({ leader: "OP16-001", meta: { decks: 0 }, top_placings: [], too_few_decks: true });
+    expect(await get("?leader=OP16-001&opponent=OP17-058")).toMatchObject({ games: 0, too_few_games: true, win_rate: null });
   });
 });

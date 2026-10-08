@@ -1,0 +1,810 @@
+{
+  "synthetic": true,
+  "note": "Invented tournament responses in the backend's shape (backend/app/tournament_stats.py), keyed by leader and opponent ('' for the meta overview). Not real events.",
+  "responses": {
+    "": {
+      "days": 30,
+      "min_players": 8,
+      "min_games": 5,
+      "source": "Limitless TCG tournaments",
+      "events": [
+        {
+          "id": "eval-cup-1",
+          "name": "Eval Weekly Cup",
+          "date": "2026-09-27",
+          "players": 32
+        },
+        {
+          "id": "eval-cup-2",
+          "name": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64
+        }
+      ],
+      "total_decks": 48,
+      "total_games": 210,
+      "leaders": [
+        {
+          "leader": "OP13-004",
+          "decks": 9,
+          "share": 0.188,
+          "games": 41,
+          "wins": 22,
+          "win_rate": 0.537,
+          "interval": [
+            0.387,
+            0.679
+          ],
+          "too_few_games": false,
+          "ties": 0
+        },
+        {
+          "leader": "OP15-058",
+          "decks": 8,
+          "share": 0.167,
+          "games": 36,
+          "wins": 19,
+          "win_rate": 0.528,
+          "interval": [
+            0.37,
+            0.68
+          ],
+          "too_few_games": false,
+          "ties": 0
+        },
+        {
+          "leader": "OP14-041",
+          "decks": 6,
+          "share": 0.125,
+          "games": 28,
+          "wins": 13,
+          "win_rate": 0.464,
+          "interval": [
+            0.295,
+            0.642
+          ],
+          "too_few_games": false,
+          "ties": 0
+        },
+        {
+          "leader": "OP17-058",
+          "decks": 5,
+          "share": 0.104,
+          "games": 24,
+          "wins": 12,
+          "win_rate": 0.5,
+          "interval": [
+            0.314,
+            0.686
+          ],
+          "too_few_games": false,
+          "ties": 0
+        },
+        {
+          "leader": "OP16-001",
+          "decks": 4,
+          "share": 0.083,
+          "games": 15,
+          "wins": 6,
+          "win_rate": 0.4,
+          "interval": [
+            0.198,
+            0.643
+          ],
+          "too_few_games": false,
+          "ties": 0
+        },
+        {
+          "leader": "OP09-062",
+          "decks": 3,
+          "share": 0.063,
+          "games": 11,
+          "wins": 5,
+          "win_rate": 0.455,
+          "interval": [
+            0.213,
+            0.72
+          ],
+          "too_few_games": false,
+          "ties": 0
+        }
+      ],
+      "top_win_rate": [
+        {
+          "leader": "OP13-004",
+          "games": 41,
+          "wins": 22,
+          "win_rate": 0.537,
+          "interval": [
+            0.387,
+            0.679
+          ],
+          "too_few_games": false,
+          "ties": 0
+        },
+        {
+          "leader": "OP15-058",
+          "games": 36,
+          "wins": 19,
+          "win_rate": 0.528,
+          "interval": [
+            0.37,
+            0.68
+          ],
+          "too_few_games": false,
+          "ties": 0
+        },
+        {
+          "leader": "OP17-058",
+          "games": 24,
+          "wins": 12,
+          "win_rate": 0.5,
+          "interval": [
+            0.314,
+            0.686
+          ],
+          "too_few_games": false,
+          "ties": 0
+        }
+      ],
+      "top_win_rate_min_games": 20
+    },
+    "leader=OP13-004": {
+      "days": 30,
+      "min_players": 8,
+      "min_games": 5,
+      "source": "Limitless TCG tournaments",
+      "leader": "OP13-004",
+      "events": [
+        {
+          "id": "eval-cup-1",
+          "name": "Eval Weekly Cup",
+          "date": "2026-09-27",
+          "players": 32
+        },
+        {
+          "id": "eval-cup-2",
+          "name": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64
+        }
+      ],
+      "meta": {
+        "decks": 9,
+        "total_decks": 48,
+        "share": 0.188
+      },
+      "overall": {
+        "games": 41,
+        "wins": 22,
+        "win_rate": 0.537,
+        "interval": [
+          0.387,
+          0.679
+        ],
+        "too_few_games": false,
+        "ties": 0
+      },
+      "mirror_games": 0,
+      "opponents": [
+        {
+          "opponent": "OP15-058",
+          "games": 12,
+          "wins": 7,
+          "win_rate": 0.583,
+          "interval": [
+            0.32,
+            0.807
+          ],
+          "too_few_games": false,
+          "ties": 0
+        },
+        {
+          "opponent": "OP14-041",
+          "games": 8,
+          "wins": 4,
+          "win_rate": 0.5,
+          "interval": [
+            0.215,
+            0.785
+          ],
+          "too_few_games": false,
+          "ties": 0
+        },
+        {
+          "opponent": "OP16-001",
+          "games": 3,
+          "wins": null,
+          "win_rate": null,
+          "interval": null,
+          "too_few_games": true,
+          "ties": 0
+        }
+      ],
+      "top_placings": [
+        {
+          "event_id": "eval-cup-2",
+          "event": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64,
+          "placing": 3,
+          "record": {
+            "wins": 6,
+            "losses": 2,
+            "ties": 0
+          },
+          "decklist": {
+            "OP13-005": 4,
+            "OP13-081": 4,
+            "OP13-082": 3
+          }
+        },
+        {
+          "event_id": "eval-cup-1",
+          "event": "Eval Weekly Cup",
+          "date": "2026-09-27",
+          "players": 32,
+          "placing": 4,
+          "record": {
+            "wins": 5,
+            "losses": 2,
+            "ties": 0
+          },
+          "decklist": {
+            "OP13-005": 4,
+            "OP13-081": 3,
+            "OP13-082": 2
+          }
+        }
+      ],
+      "decklists": 9,
+      "too_few_decks": false,
+      "cards": [
+        {
+          "id": "OP13-005",
+          "decks": 9,
+          "rate": 1,
+          "average_copies": 4
+        },
+        {
+          "id": "OP13-081",
+          "decks": 8,
+          "rate": 0.889,
+          "average_copies": 3.6
+        },
+        {
+          "id": "OP13-082",
+          "decks": 6,
+          "rate": 0.667,
+          "average_copies": 2.7
+        }
+      ]
+    },
+    "leader=OP15-058": {
+      "days": 30,
+      "min_players": 8,
+      "min_games": 5,
+      "source": "Limitless TCG tournaments",
+      "leader": "OP15-058",
+      "events": [
+        {
+          "id": "eval-cup-1",
+          "name": "Eval Weekly Cup",
+          "date": "2026-09-27",
+          "players": 32
+        },
+        {
+          "id": "eval-cup-2",
+          "name": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64
+        }
+      ],
+      "meta": {
+        "decks": 8,
+        "total_decks": 48,
+        "share": 0.167
+      },
+      "overall": {
+        "games": 36,
+        "wins": 19,
+        "win_rate": 0.528,
+        "interval": [
+          0.37,
+          0.68
+        ],
+        "too_few_games": false,
+        "ties": 0
+      },
+      "mirror_games": 0,
+      "opponents": [
+        {
+          "opponent": "OP13-004",
+          "games": 12,
+          "wins": 5,
+          "win_rate": 0.417,
+          "interval": [
+            0.193,
+            0.68
+          ],
+          "too_few_games": false,
+          "ties": 0
+        },
+        {
+          "opponent": "OP17-058",
+          "games": 9,
+          "wins": 5,
+          "win_rate": 0.556,
+          "interval": [
+            0.267,
+            0.811
+          ],
+          "too_few_games": false,
+          "ties": 0
+        }
+      ],
+      "top_placings": [
+        {
+          "event_id": "eval-cup-2",
+          "event": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64,
+          "placing": 1,
+          "record": {
+            "wins": 8,
+            "losses": 1,
+            "ties": 0
+          },
+          "decklist": {
+            "OP13-060": 4,
+            "OP13-061": 4,
+            "OP13-062": 3
+          }
+        }
+      ],
+      "decklists": 8,
+      "too_few_decks": false,
+      "cards": [
+        {
+          "id": "OP13-060",
+          "decks": 8,
+          "rate": 1,
+          "average_copies": 4
+        },
+        {
+          "id": "OP13-061",
+          "decks": 7,
+          "rate": 0.875,
+          "average_copies": 3.7
+        },
+        {
+          "id": "OP13-062",
+          "decks": 5,
+          "rate": 0.625,
+          "average_copies": 2.8
+        }
+      ]
+    },
+    "leader=OP14-041": {
+      "days": 30,
+      "min_players": 8,
+      "min_games": 5,
+      "source": "Limitless TCG tournaments",
+      "leader": "OP14-041",
+      "events": [
+        {
+          "id": "eval-cup-1",
+          "name": "Eval Weekly Cup",
+          "date": "2026-09-27",
+          "players": 32
+        },
+        {
+          "id": "eval-cup-2",
+          "name": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64
+        }
+      ],
+      "meta": {
+        "decks": 6,
+        "total_decks": 48,
+        "share": 0.125
+      },
+      "overall": {
+        "games": 28,
+        "wins": 13,
+        "win_rate": 0.464,
+        "interval": [
+          0.295,
+          0.642
+        ],
+        "too_few_games": false,
+        "ties": 0
+      },
+      "mirror_games": 0,
+      "opponents": [
+        {
+          "opponent": "OP13-004",
+          "games": 8,
+          "wins": 4,
+          "win_rate": 0.5,
+          "interval": [
+            0.215,
+            0.785
+          ],
+          "too_few_games": false,
+          "ties": 0
+        },
+        {
+          "opponent": "OP15-058",
+          "games": 7,
+          "wins": 3,
+          "win_rate": 0.429,
+          "interval": [
+            0.158,
+            0.75
+          ],
+          "too_few_games": false,
+          "ties": 0
+        }
+      ],
+      "top_placings": [
+        {
+          "event_id": "eval-cup-1",
+          "event": "Eval Weekly Cup",
+          "date": "2026-09-27",
+          "players": 32,
+          "placing": 2,
+          "record": {
+            "wins": 6,
+            "losses": 2,
+            "ties": 0
+          },
+          "decklist": {
+            "OP13-041": 4,
+            "OP13-042": 4
+          }
+        }
+      ],
+      "decklists": 6,
+      "too_few_decks": false,
+      "cards": [
+        {
+          "id": "OP13-041",
+          "decks": 6,
+          "rate": 1,
+          "average_copies": 4
+        },
+        {
+          "id": "OP13-042",
+          "decks": 5,
+          "rate": 0.833,
+          "average_copies": 3.4
+        }
+      ]
+    },
+    "leader=OP16-001": {
+      "days": 30,
+      "min_players": 8,
+      "min_games": 5,
+      "source": "Limitless TCG tournaments",
+      "leader": "OP16-001",
+      "events": [
+        {
+          "id": "eval-cup-1",
+          "name": "Eval Weekly Cup",
+          "date": "2026-09-27",
+          "players": 32
+        },
+        {
+          "id": "eval-cup-2",
+          "name": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64
+        }
+      ],
+      "meta": {
+        "decks": 4,
+        "total_decks": 48,
+        "share": 0.083
+      },
+      "overall": {
+        "games": 15,
+        "wins": 6,
+        "win_rate": 0.4,
+        "interval": [
+          0.198,
+          0.643
+        ],
+        "too_few_games": false,
+        "ties": 0
+      },
+      "mirror_games": 0,
+      "opponents": [
+        {
+          "opponent": "OP17-058",
+          "games": 3,
+          "wins": null,
+          "win_rate": null,
+          "interval": null,
+          "too_few_games": true,
+          "ties": 0
+        },
+        {
+          "opponent": "OP13-004",
+          "games": 3,
+          "wins": null,
+          "win_rate": null,
+          "interval": null,
+          "too_few_games": true,
+          "ties": 0
+        }
+      ],
+      "top_placings": [
+        {
+          "event_id": "eval-cup-1",
+          "event": "Eval Weekly Cup",
+          "date": "2026-09-27",
+          "players": 32,
+          "placing": 8,
+          "record": {
+            "wins": 4,
+            "losses": 3,
+            "ties": 0
+          },
+          "decklist": {
+            "OP13-005": 4,
+            "OP13-006": 3
+          }
+        }
+      ],
+      "decklists": 4,
+      "too_few_decks": true,
+      "cards": [
+        {
+          "id": "OP13-005",
+          "decks": 4,
+          "rate": 1,
+          "average_copies": 4
+        },
+        {
+          "id": "OP13-006",
+          "decks": 3,
+          "rate": 0.75,
+          "average_copies": 3
+        }
+      ]
+    },
+    "leader=OP09-062": {
+      "days": 30,
+      "min_players": 8,
+      "min_games": 5,
+      "source": "Limitless TCG tournaments",
+      "leader": "OP09-062",
+      "events": [
+        {
+          "id": "eval-cup-1",
+          "name": "Eval Weekly Cup",
+          "date": "2026-09-27",
+          "players": 32
+        },
+        {
+          "id": "eval-cup-2",
+          "name": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64
+        }
+      ],
+      "meta": {
+        "decks": 3,
+        "total_decks": 48,
+        "share": 0.063
+      },
+      "overall": {
+        "games": 11,
+        "wins": 5,
+        "win_rate": 0.455,
+        "interval": [
+          0.213,
+          0.72
+        ],
+        "too_few_games": false,
+        "ties": 0
+      },
+      "mirror_games": 0,
+      "opponents": [
+        {
+          "opponent": "OP15-058",
+          "games": 4,
+          "wins": null,
+          "win_rate": null,
+          "interval": null,
+          "too_few_games": true,
+          "ties": 0
+        }
+      ],
+      "top_placings": [
+        {
+          "event_id": "eval-cup-2",
+          "event": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64,
+          "placing": 16,
+          "record": {
+            "wins": 5,
+            "losses": 3,
+            "ties": 0
+          },
+          "decklist": {
+            "OP13-060": 4,
+            "OP13-101": 3
+          }
+        }
+      ],
+      "decklists": 3,
+      "too_few_decks": true,
+      "cards": [
+        {
+          "id": "OP13-060",
+          "decks": 3,
+          "rate": 1,
+          "average_copies": 4
+        },
+        {
+          "id": "OP13-101",
+          "decks": 2,
+          "rate": 0.667,
+          "average_copies": 3.5
+        }
+      ]
+    },
+    "leader=OP17-058": {
+      "days": 30,
+      "min_players": 8,
+      "min_games": 5,
+      "source": "Limitless TCG tournaments",
+      "leader": "OP17-058",
+      "events": [
+        {
+          "id": "eval-cup-1",
+          "name": "Eval Weekly Cup",
+          "date": "2026-09-27",
+          "players": 32
+        },
+        {
+          "id": "eval-cup-2",
+          "name": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64
+        }
+      ],
+      "meta": {
+        "decks": 5,
+        "total_decks": 48,
+        "share": 0.104
+      },
+      "overall": {
+        "games": 24,
+        "wins": 12,
+        "win_rate": 0.5,
+        "interval": [
+          0.314,
+          0.686
+        ],
+        "too_few_games": false,
+        "ties": 0
+      },
+      "mirror_games": 0,
+      "opponents": [
+        {
+          "opponent": "OP15-058",
+          "games": 9,
+          "wins": 4,
+          "win_rate": 0.444,
+          "interval": [
+            0.189,
+            0.733
+          ],
+          "too_few_games": false,
+          "ties": 0
+        },
+        {
+          "opponent": "OP16-001",
+          "games": 3,
+          "wins": null,
+          "win_rate": null,
+          "interval": null,
+          "too_few_games": true,
+          "ties": 0
+        }
+      ],
+      "top_placings": [
+        {
+          "event_id": "eval-cup-2",
+          "event": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64,
+          "placing": 5,
+          "record": {
+            "wins": 6,
+            "losses": 3,
+            "ties": 0
+          },
+          "decklist": {
+            "OP13-062": 4,
+            "OP13-061": 4
+          }
+        }
+      ],
+      "decklists": 5,
+      "too_few_decks": false,
+      "cards": [
+        {
+          "id": "OP13-062",
+          "decks": 5,
+          "rate": 1,
+          "average_copies": 4
+        },
+        {
+          "id": "OP13-061",
+          "decks": 4,
+          "rate": 0.8,
+          "average_copies": 3.5
+        }
+      ]
+    },
+    "leader=OP13-004&opponent=OP15-058": {
+      "days": 30,
+      "min_players": 8,
+      "min_games": 5,
+      "source": "Limitless TCG tournaments",
+      "leader": "OP13-004",
+      "opponent": "OP15-058",
+      "events": [
+        {
+          "id": "eval-cup-1",
+          "name": "Eval Weekly Cup",
+          "date": "2026-09-27",
+          "players": 32
+        },
+        {
+          "id": "eval-cup-2",
+          "name": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64
+        }
+      ],
+      "games": 12,
+      "wins": 7,
+      "win_rate": 0.583,
+      "interval": [
+        0.32,
+        0.807
+      ],
+      "too_few_games": false,
+      "ties": 0
+    },
+    "leader=OP16-001&opponent=OP17-058": {
+      "days": 30,
+      "min_players": 8,
+      "min_games": 5,
+      "source": "Limitless TCG tournaments",
+      "leader": "OP16-001",
+      "opponent": "OP17-058",
+      "events": [
+        {
+          "id": "eval-cup-2",
+          "name": "Eval Monthly Open",
+          "date": "2026-10-04",
+          "players": 64
+        }
+      ],
+      "games": 3,
+      "wins": null,
+      "win_rate": null,
+      "interval": null,
+      "too_few_games": true,
+      "ties": 0
+    }
+  }
+}
