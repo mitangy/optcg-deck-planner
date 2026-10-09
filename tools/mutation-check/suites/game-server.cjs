@@ -148,5 +148,10 @@ module.exports = {
     { id: "brief-ticket-to-spectators", file: room, from: "      role: \"spectator\",\n      view,\n      players: this.playersInfo(),\n      ranked: this.ranked,\n", to: "      role: \"spectator\",\n      view,\n      players: this.playersInfo(),\n      ranked: this.ranked,\n      brief: this.briefFor(cameraSeat),\n", kills: ["spectators never get a brief ticket (#401)"] },
     { id: "brief-ticket-unsalted", file: "game-server/src/briefTicket.ts", from: "createHmac(\"sha256\", \"match-brief:\" + getGameTokenSecret())", to: "createHmac(\"sha256\", getGameTokenSecret())", kills: ["a brief ticket is not a game token and needs the brief key (#401)"] },
     { id: "brief-ticket-json-order", file: "game-server/src/briefTicket.ts", from: "return `mb1.${body}.${sig}`;", to: "return `mb0.${body}.${sig}`;", kills: ["the game server signs the shared brief ticket vector (#401)"] },
+    // DON!! card art (#440)
+    { id: "skin-don-art-string-passthrough", file: proto, from: "donArt: asDonArtId(skin.donArt),", to: "donArt: (skin.donArt as number | undefined) ?? null,", kills: ["relays only a positive 31-bit integer as the DON!! art id, never a string or URL (#440)"] },
+    { id: "skin-don-art-unbounded", file: proto, from: "Number.isSafeInteger(raw) && raw > 0 && raw <= 2_147_483_647", to: "Number.isSafeInteger(raw) && raw > 0", kills: ["relays only a positive 31-bit integer as the DON!! art id, never a string or URL (#440)"] },
+    { id: "skin-don-art-not-integer", file: proto, from: "Number.isSafeInteger(raw) && raw > 0 && raw <= 2_147_483_647", to: "typeof raw === \"number\" && raw > 0 && raw <= 2_147_483_647", kills: ["relays only a positive 31-bit integer as the DON!! art id, never a string or URL (#440)"] },
+    { id: "skin-don-art-negative", file: proto, from: "Number.isSafeInteger(raw) && raw > 0 && raw <= 2_147_483_647", to: "Number.isSafeInteger(raw) && raw <= 2_147_483_647", kills: ["relays only a positive 31-bit integer as the DON!! art id, never a string or URL (#440)"] },
   ],
 };

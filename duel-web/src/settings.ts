@@ -4,6 +4,7 @@
  * come from the build (VITE_GAME_SERVER_URL / VITE_DEV_JOIN_SECRET).
  */
 import { useSyncExternalStore } from "react";
+import { asDonArtId } from "./board/donArt";
 import { OPP_HAND_SPOTS, type OppHandSpot } from "./board/panelLayout";
 import { COLOR_MODES, DEFAULT_THEME, THEME_IDS, type ColorMode, type ThemeId } from "./theme";
 
@@ -52,6 +53,8 @@ export type DuelSettings = {
   theme: ThemeId;
   /** Dark or light menus and panels, or follow the device. */
   colorMode: ColorMode;
+  /** TCGPlayer productId of the DON!! card art you play with (#440); null = the bundled art. */
+  donArt: number | null;
 
   // —— Gameplay ——
   /** Second tap before ending the turn: always, only while you can still act, or never. */
@@ -162,6 +165,7 @@ const DEFAULTS: DuelSettings = {
   playmatOpacity: 1,
   theme: DEFAULT_THEME,
   colorMode: "dark",
+  donArt: null,
   endTurnConfirm: "actions",
   responseStops: "always",
   screenOrientation: "auto",
@@ -261,7 +265,10 @@ function sanitize(
   // A theme removed in a later build (or synced from a newer one) falls back to the default.
   if (!THEME_IDS.includes(next.theme)) next.theme = DEFAULTS.theme;
   if (!COLOR_MODES.includes(next.colorMode)) next.colorMode = DEFAULTS.colorMode;
+  // Accounts store "no art" as 0 (their settings take only strings, numbers and booleans).
+  next.donArt = asDonArtId(next.donArt);
   for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
+    if (k === "donArt") continue;
     if (typeof next[k] !== typeof DEFAULTS[k]) (next as Record<string, unknown>)[k] = DEFAULTS[k];
   }
   return next;
@@ -278,7 +285,9 @@ const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
 export function syncedSettings(s: DuelSettings): Record<string, string | number | boolean> {
   const out: Record<string, string | number | boolean> = {};
   for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
-    if (!DEVICE_ONLY_KEYS.includes(k)) out[k] = s[k];
+    if (DEVICE_ONLY_KEYS.includes(k)) continue;
+    // The account takes no null: 0 stands for the default art (#440).
+    out[k] = k === "donArt" ? (s.donArt ?? 0) : (s[k] as string | number | boolean);
   }
   return out;
 }

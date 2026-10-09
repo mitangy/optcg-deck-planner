@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type P
 import { lookupCard } from "../cards/atlas";
 import type { ChoiceOptionView, ChoiceRequestView, Intent, PendingChoiceView, PlayerView, Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
-import { DON_CARD_ART } from "./donArt";
+import { fallbackToDefaultDon, useDonArt } from "./donArt";
 import { arrangementAnswer, arrangementRows, groupAnswer, initialArrangement, mergeArrangement, moveToRow, nudge, setSide, withoutIds, type Arrangement } from "./deckOrder";
 import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "./liveTargets";
 import { promptSourceName, PromptHideButton } from "./HideablePrompt";
@@ -62,6 +62,7 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge
   /** Why a disabled card can't be picked. */
   disabledNote?: string;
 }) {
+  const donArt = useDonArt();
   const owner = option.ownerSeat == null ? null : option.ownerSeat === mySeat ? "Yours" : "Opponent";
   const zone = option.zone ? ZONE_LABEL[option.zone] ?? option.zone : null;
   // Field targets: read the card's live state off the board.
@@ -80,7 +81,7 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge
           disabled={disabled}
           onClick={onToggle}
         >
-          <img src={DON_CARD_ART} alt="" draggable={false} />
+          <img src={donArt(option.ownerSeat)} alt="" draggable={false} onError={fallbackToDefaultDon} />
         </button>
         <span className="choice-option-caption">
           {badge ? <span className="choice-badge">{badge}</span> : null}
