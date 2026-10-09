@@ -297,6 +297,14 @@ describe("copilot turn plan", () => {
     expect(await refusedWith(g, [{ action: "attack", attacker: "y-l", target: "o-c1" }])).toMatch(/first step isn't a legal action/);
   });
 
+  it("accepts a plan that opens with a targeted activate: legal activations carry no target, the player picks it when the ability resolves (#419)", async () => {
+    const g = game({ legal: [{ type: "activate_ability", source: "y-c1", abilityId: "a1" }, { type: "end_turn" }] });
+    const r = await plan(g, [{ action: "activate", source: "y-c1", abilityId: "a1", target: "o-c1" }, { action: "end_turn" }]);
+    expect(r.plan).toBeDefined();
+    // The source still has to match: ignoring the target must not loosen the rest.
+    expect(await refusedWith(g, [{ action: "activate", source: "y-l", abilityId: "a1", target: "o-c1" }])).toMatch(/first step isn't a legal action/);
+  });
+
   it("stands in as a refusing tool when no game is attached (#416)", async () => {
     const r = await turnPlanTool(catalog, undefined).run({ summary: "x", steps: [{ action: "end_turn" }] });
     expect(r.isError).toBe(true);
