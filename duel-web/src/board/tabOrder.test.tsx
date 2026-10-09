@@ -1,6 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { CardTile } from "./CardTile";
 import { StatusRow } from "./StatusIcon";
 
 vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
@@ -15,12 +14,5 @@ describe("tab order", () => {
       expect(b).toContain('tabindex="-1"');
       expect(b).not.toContain('tabindex="0"');
     }
-  });
-
-  it("the inspect chip on a card is not a Tab stop (#282)", () => {
-    const html = renderToStaticMarkup(<CardTile defId="ST01-001" inspectGestures />);
-    const chip = html.match(/<span[^>]*card-inspect-chip[^>]*>/)?.[0];
-    expect(chip).toBeTruthy();
-    expect(chip).toContain('tabindex="-1"');
   });
 });

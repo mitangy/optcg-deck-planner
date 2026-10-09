@@ -61,7 +61,6 @@ module.exports = {
     ], kills: ["demo-audit.spec.ts > Turn and clocks keeps its content height and its column its width when dragged to the end (#370) [desktop-1280]"] },
 
     // Desktop review P3 (#282): desktop-only affordances must not reach phones
-    { id: "e2e-inspect-chip-mid-card-on-touch", args: "demo-audit playthrough --project=phone-375", file: "duel-web/src/styles.css", from: "@media (min-width: 900px) and (min-height: 500px) and (hover: hover) and (pointer: fine) {\n  .card-inspect-chip {", to: "@media all {\n  .card-inspect-chip {", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [phone-375]"] },
     { id: "e2e-phone-pass-label-long", args: "playthrough --project=phone-375", file: "duel-web/src/board/DuelBoard.tsx", from: "        → P{hotseatPass.otherSeat + 1}\n", to: "        Switch to {playerLabel(hotseatPass.otherSeat)}\n", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [phone-375]"] },
 
     // UI audit

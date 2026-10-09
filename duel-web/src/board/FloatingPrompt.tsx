@@ -119,7 +119,7 @@ function useFloatReorder(order: readonly string[], onReorder: (next: string[]) =
     "data-float-id": id,
     onPointerDown: (e: ReactPointerEvent) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
-      if ((e.target as HTMLElement).closest(".float-nudge, .card-inspect-chip")) return;
+      if ((e.target as HTMLElement).closest(".float-nudge")) return;
       press.current = { id, x: e.clientX, y: e.clientY };
     },
     onClickCapture: (e: ReactMouseEvent) => {
