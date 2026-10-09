@@ -33,6 +33,7 @@ import { VersionStatus } from "../VersionStatus";
 import { openFeedback } from "../feedbackDialog";
 import { AnalystLinkPanel } from "../history/AnalystLinkPanel";
 import "../history/history.css";
+import { NavMenu } from "../nav/NavMenu";
 
 const MODE_OPTIONS: { value: ColorMode; label: string }[] = [
   { value: "dark", label: "Dark" },
@@ -104,6 +105,7 @@ export function SettingsPage() {
     <div className="app-shell">
       <div className="page page-narrow page-settings">
         <header className="page-header">
+          <NavMenu />
           <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <h1 className="page-title">Settings</h1>
         </header>

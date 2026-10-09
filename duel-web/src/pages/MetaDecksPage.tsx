@@ -19,6 +19,7 @@ import {
   type MetaLeader,
   type MetaLeadersResponse,
 } from "../decks/meta";
+import { NavMenu } from "../nav/NavMenu";
 
 type Load<T> = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: T };
 
@@ -268,6 +269,7 @@ export function MetaDecksPage() {
     <div className="app-shell">
       <div className="deck-config deck-config-wide meta-page">
         <header className="deck-config-header">
+          <NavMenu />
           <BackLink to="/decks" label="Decks" ariaLabel="Back to decks" />
           <div className="deck-config-heading">
             <h1 className="deck-config-title">Meta decks</h1>

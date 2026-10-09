@@ -12,6 +12,7 @@ import { NewDeckPage } from "./pages/NewDeckPage";
 import { DemoPage } from "./pages/DemoPage";
 import { DuelPage } from "./pages/DuelPage";
 import { HotseatPage } from "./pages/HotseatPage";
+import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { LegalPage } from "./pages/LegalPage";
 import { LobbyPage } from "./pages/LobbyPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -60,6 +61,7 @@ export function App() {
         <Route path="/duel" element={<DuelPage />} />
         <Route path="/hotseat" element={<HotseatPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/history/:matchId" element={<MatchLogPage />} />
         <Route path="/auth/complete" element={<AuthCompletePage />} />
