@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-09
+  { date: "2026-10-09", app: "duel", pr: 482, title: "Hands and Life revealed at game end", text: "When a match ends, both hands and every Life card flip face up for players and spectators, so you can see what your opponent was holding." },
   { date: "2026-10-09", app: "both", pr: 473, title: "Log Pose sees the whole game in reviews", text: "Game reviews now see your hand, both boards, Life and DON!! each turn, both deck lists and the text of every card, so Log Pose can tell you which counters you held and what the opponent was doing. The opponent's hand and deck list are shown only once the game is over." },
   { date: "2026-10-09", app: "duel", pr: 475, title: "Roomier match logs", text: "On a computer the match log is wider and each turn shows your hands beside what happened, so more fits on screen. Repeated cards in a hand show once with ×2 or ×3, and a row of turn numbers at the top jumps straight to any turn." },
   { date: "2026-10-09", app: "duel", pr: 465, title: "Opponent hand beside their mat", text: "Pin the opponent's hand to the left or right of the board and it now sits as a small fan in the open space beside their mat instead of crowding its corner. Drag it there, or pick it in Settings." },

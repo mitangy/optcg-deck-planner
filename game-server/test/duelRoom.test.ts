@@ -21,6 +21,8 @@ type PlayerView = {
   seat: 0 | 1;
   you: { hand: { id: string; defId: string }[]; lifeCount: number; mulliganDone: boolean };
   opponent: { handCount: number };
+  revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+  revealedLife?: [string[], string[]];
   legalIntents: (Record<string, unknown> & { type: string })[];
   winner: 0 | 1 | null;
   phase: string;
@@ -431,6 +433,8 @@ describe("DuelRoom", () => {
       spectator?: boolean;
       you: PlayerView["you"] & { handCount?: number };
       revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+      revealedLife?: [string[], string[]];
+      winner?: 0 | 1 | null;
     };
   };
 
@@ -1099,6 +1103,25 @@ describe("DuelRoom", () => {
 
     await c0.leave(true);
     await c1.leave(true);
+  });
+
+  it("conceding flips both hands and all Life face up for players and ranked spectators, never before (#482)", async () => {
+    const { bags, c0, specViews } = await watchRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() });
+    assert.ok(bags[0].welcome!.you.hand.length > 0);
+    for (const bag of bags) assert.ok(bag.views.every((v) => v.revealedHands === undefined && v.revealedLife === undefined), "live views carry no hidden cards");
+
+    c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => bags.every((b) => b.views.at(-1)?.winner != null) && specViews.at(-1)?.winner != null, 8000);
+
+    const ids = (hand: { id: string }[] | undefined) => (hand ?? []).map((c) => c.id);
+    const hand0 = ids(bags[0].welcome!.you.hand);
+    const hand1 = ids(bags[1].welcome!.you.hand);
+    for (const final of [bags[0].views.at(-1)!, bags[1].views.at(-1)!, specViews.at(-1)!]) {
+      assert.deepEqual(ids(final.revealedHands?.[0]), hand0);
+      assert.deepEqual(ids(final.revealedHands?.[1]), hand1);
+      assert.equal(final.revealedLife?.[0].length, bags[0].welcome!.you.lifeCount);
+      assert.equal(final.revealedLife?.[1].length, bags[1].welcome!.you.lifeCount);
+    }
   });
 
   it("rematch: both agree, the loser picks turn order, a fresh game starts", async () => {

@@ -1415,6 +1415,10 @@ body.is-panel-drag * {
 }
 
 .opp-fan-face .card-caption,
+.opp-corner-face .card-caption,
+.opp-corner-face .card-overlays,
+.opp-compact-face .card-caption,
+.opp-compact-face .card-overlays,
 .opp-fan-face .card-overlays,
 .opp-hand-face .card-caption,
 .opp-hand-face .card-overlays {
@@ -4046,7 +4050,8 @@ body.is-panel-drag * {
     background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent);
   }
 
-  .opp-hand-compact .card-back {
+  .opp-hand-compact .card-back,
+  .opp-hand-compact .card-tile.opp-compact-face {
     width: 15px;
     height: 21px;
     flex: none;
@@ -4982,6 +4987,9 @@ body.is-panel-drag * {
 .opp-hand-corner .opp-corner-cards {
   display: flex;
   justify-content: center;
+}
+.opp-hand-corner .opp-corner-face {
+  pointer-events: auto;
 }
 .opp-hand-corner .opp-corner-card {
   flex: 0 0 auto;
