@@ -578,6 +578,22 @@ test("the waiting pill stays on screen on a landscape phone (#262)", async ({ pa
   expect(text).toBeLessThanOrEqual(1);
 });
 
+// A landscape phone narrower than 600px (iPhone SE, 568x320) gets the landscape layout, not the portrait one whose
+// hand panel fills the screen and squeezes the mats to nothing (#469).
+test("a small landscape phone gets the landscape board with readable cards (#469)", async ({ page }, info) => {
+  test.skip(info.project.name !== "phone-375", "landscape phone layout");
+  for (const size of [{ width: 568, height: 320 }, { width: 640, height: 360 }]) {
+    await page.setViewportSize(size);
+    await page.goto("/demo");
+    await page.locator(".board-root").waitFor();
+    await expect(page.locator(".arena")).toHaveClass(/arena-lp/);
+    const card = (await page.locator(".side-grid .card-tile").first().boundingBox())!;
+    expect(card.width, `card width at ${size.width}x${size.height}`).toBeGreaterThanOrEqual(24);
+    expect(card.y + card.height).toBeLessThanOrEqual(size.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(size.width);
+  }
+});
+
 // Deck editor (#262): art that fails to load falls back to the card id
 // instead of a broken image, and − count + stay on one row.
 async function openSeededDeck(page: import("@playwright/test").Page, failArt: boolean) {
