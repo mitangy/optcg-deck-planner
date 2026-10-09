@@ -3,6 +3,7 @@
  * The FastAPI backend is faked as a signed-out guest, like e2e/lobby.spec.ts.
  */
 import { test, expect, type Page } from "@playwright/test";
+import { notesFor } from "../../packages/patch-notes/src/helpers";
 import { FAKE_API, RED_VANILLA } from "./fixtures";
 
 const KEY = "optcg.patchNotes.lastSeen.duel";
@@ -36,7 +37,8 @@ const card = (page: Page) => page.getByRole("region", { name: "What's new" });
 test("the card shows after an update and Got it keeps it away, even after a reload (#450)", async ({ page }) => {
   await openLobby(page, "2026-10-05");
   await expect(card(page)).toBeVisible();
-  await expect(card(page)).toContainText("Meta deck browser");
+  // The newest duel note leads the card (a hard-coded title breaks as soon as more notes land).
+  await expect(card(page)).toContainText(notesFor("duel")[0].title);
   await expect(card(page)).toContainText("more");
 
   // It overlays the page: dismissing it moves nothing, and it sits fully on screen.
