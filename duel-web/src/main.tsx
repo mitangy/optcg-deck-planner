@@ -15,6 +15,7 @@ import "./board.css";
 import "./interactions.css";
 import "./auth/username.css";
 import "./light.css";
+import "./metaDecks.css";
 import "@optcg/site-legal/siteLegal.css";
 import "@optcg/analyst-client/logPose.css";
 import "./logPose.css";

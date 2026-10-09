@@ -58,6 +58,7 @@ import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
 import { CompassIcon } from "./ThemeIcons";
 import { HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
+import { MetaPage } from "./MetaPage";
 import { cardImageUrl } from "./cardImage";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
 import { CardScanner, useImageDrop } from "./CardScanner";
@@ -458,6 +459,15 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
     },
   });
   const shortName = (user.name || user.email).split("@")[0];
+  const navRef = useRef<HTMLElement>(null);
+  const { pathname } = useLocation();
+  // On phones the nav row scrolls inside itself; keep the active link visible.
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector<HTMLElement>("a.active");
+    if (!nav || !active) return;
+    nav.scrollLeft = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
+  }, [pathname]);
 
   return (
     <div className="app">
@@ -475,11 +485,12 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
               <span>Planner</span>
             </Link>
           </div>
-          <nav aria-label="Primary">
+          <nav aria-label="Primary" ref={navRef}>
             <NavLink to="/" end>
               Shopping
             </NavLink>
             <NavLink to="/decks">Decks</NavLink>
+            <NavLink to="/meta">Meta</NavLink>
             <NavLink to="/collection">Collection</NavLink>
             <NavLink to="/group-buys">Group buys</NavLink>
             <NavLink to="/import">Import</NavLink>
@@ -3946,6 +3957,46 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <Shell user={user}>{children}</Shell>;
 }
 
+/** Meta browsing is public: signed-in users get the app shell, everyone else the slim public header. */
+function MetaRoute() {
+  const { data: user, isLoading } = useMe();
+  if (isLoading) return <AuthLoadingSkeleton label="Loading…" />;
+  if (user) {
+    return (
+      <Shell user={user}>
+        <MetaPage user={user} />
+      </Shell>
+    );
+  }
+  return (
+    <div className="app public-app">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand">
+            <Link to="/login">
+              <img className="brand-logo" src="/optcg-logo.png" alt="ONE PIECE CARD GAME" width={562} height={145} />
+              <span>Planner</span>
+            </Link>
+          </div>
+          <div className="user">
+            <BuildTag />
+            <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
+              Play Duel
+            </a>
+            <ThemeToggle />
+            <Link className="btn secondary" to="/login">
+              Sign in
+            </Link>
+          </div>
+        </div>
+      </header>
+      <main className="app-main">
+        <MetaPage user={null} />
+      </main>
+    </div>
+  );
+}
+
 function PublicSharePage() {
   const { token = "" } = useParams();
   const [onlyNeed, setOnlyNeed] = useState(true);
@@ -4176,6 +4227,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />
+        <Route path="/meta" element={<MetaRoute />} />
         <Route path="/group-buy/join/:token" element={<GroupBuyJoinPage />} />
         <Route path="/group-buy/view/:token" element={<PublicGroupBuyPage />} />
         <Route path="/terms" element={<LegalPage kind="terms" />} />

@@ -1,0 +1,363 @@
+/* Meta deck browser (/decks/meta). Uses the shared palette tokens, so crew themes and light mode follow. */
+
+.deck-list-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+.meta-page {
+  overflow-x: clip;
+}
+
+.meta-window {
+  flex: 0 0 auto;
+  min-width: 10rem;
+}
+
+.meta-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.meta-leaders,
+.meta-detail-col {
+  min-width: 0;
+}
+
+.meta-leader-list,
+.meta-deck-list,
+.meta-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.meta-leader-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.meta-status {
+  margin: 0;
+  min-height: 2.75rem;
+}
+
+/* Leader rows */
+.meta-leader {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  min-height: 64px;
+  background: rgb(var(--panel-rgb) / 0.55);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.meta-leader:hover {
+  border-color: var(--line-strong);
+}
+
+.meta-leader:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(var(--chrome-rgb) / 0.3);
+}
+
+/* Selection is a ring (box-shadow), so picking a leader never resizes the row. */
+.meta-leader.is-selected {
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 1px var(--chrome);
+  background: rgb(var(--chrome-rgb) / 0.12);
+}
+
+.meta-leader-art {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 56px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  object-fit: cover;
+  object-position: center top;
+  background: var(--arena-mid);
+}
+
+.meta-art-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.5rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: center;
+  overflow: hidden;
+  line-height: 1.1;
+}
+
+.meta-leader-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.meta-leader-name {
+  font-weight: 600;
+  color: var(--chrome-bright);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta-leader-id {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.meta-leader-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.6rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.meta-leader-stats b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* Decklists */
+.meta-all-leaders {
+  display: none;
+  margin-bottom: 0.75rem;
+}
+
+.meta-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.meta-detail-title {
+  margin: 0;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.meta-top8 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.meta-top8 input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--chrome-bright);
+}
+
+.meta-deck-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.meta-deck {
+  min-width: 0;
+  background: rgb(var(--panel-rgb) / 0.55);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.25rem 0.6rem 0.6rem;
+}
+
+.meta-deck.is-open {
+  border-color: var(--line-strong);
+}
+
+.meta-deck-toggle {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: transparent;
+  border: none;
+  color: var(--chrome-bright);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  padding: 0.3rem 0;
+}
+
+.meta-deck-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.meta-deck-chevron {
+  flex: 0 0 auto;
+  color: var(--muted);
+  transition: transform 140ms ease;
+}
+
+.meta-deck.is-open .meta-deck-chevron {
+  transform: rotate(180deg);
+}
+
+.meta-deck-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.meta-deck-actions .btn {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-inline: 0.9rem;
+}
+
+.meta-deck-actions .meta-copy {
+  min-width: 6.5rem;
+}
+
+.meta-deck-added {
+  color: var(--ok);
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0 0.3rem;
+}
+
+.meta-deck-error {
+  margin: 0.5rem 0 0;
+}
+
+.meta-cards {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-flow: row wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1rem;
+}
+
+.meta-cost-group {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.meta-cost-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.meta-card-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.meta-card {
+  flex: 0 0 auto;
+  width: 60px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.meta-card-thumb {
+  position: relative;
+  display: block;
+  aspect-ratio: 5 / 7;
+}
+
+.meta-card-art {
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  object-fit: cover;
+  background: var(--arena-mid);
+}
+
+.meta-card-count {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: rgb(var(--abyss-rgb) / 0.85);
+  color: #f1e9d6;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.meta-card-name {
+  font-size: 0.7rem;
+  line-height: 1.2;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.meta-credit {
+  margin: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Phones: one pane at a time. Picking a leader swaps the list for its decklists. */
+@media (max-width: 760px) {
+  .meta-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .meta-layout.has-leader .meta-leaders {
+    display: none;
+  }
+
+  .meta-layout:not(.has-leader) .meta-detail-col {
+    display: none;
+  }
+
+  .meta-all-leaders {
+    display: inline-flex;
+  }
+
+  .meta-window {
+    flex: 1 1 100%;
+  }
+
+  .meta-deck-actions .btn {
+    flex: 1 1 auto;
+  }
+}
