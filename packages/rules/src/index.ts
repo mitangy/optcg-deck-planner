@@ -41,7 +41,17 @@ export {
 } from "./engine.js";
 export { describeEvents } from "./describeEvents.js";
 export { reseedMatch } from "./reseed.js";
-export { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay, type ReplayStep } from "./matchReplay.js";
+export { MATCH_REPLAY_SCHEMA, replayMatch, replayStart, replayApply, type MatchReplay, type ReplayStep } from "./matchReplay.js";
+export {
+  createTimelineBuilder,
+  buildReplayTimeline,
+  timelineStateAt,
+  getReplayView,
+  projectReplayEvents,
+  DEFAULT_CHECKPOINT_EVERY,
+  type ReplayTimeline,
+  type TimelineStep,
+} from "./replayTimeline.js";
 export { SEAT_LOG_SCHEMA, seatLog, type SeatLog, type SeatLogTurn } from "./seatLog.js";
 export type {
   Seat,
