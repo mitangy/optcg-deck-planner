@@ -18,6 +18,7 @@ import {
   deleteThread,
   errorText,
   fetchThread,
+  stampPlan,
   streamAnalyst,
   type ChatContext,
   type ChatRequest,
@@ -312,7 +313,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
             // A suggested deck edit shows as an Apply card under this answer.
             onProposal: (p) => patchLast((m) => ({ ...m, proposals: [...(m.proposals ?? []).filter((x) => x.id !== p.id), p] })),
             // A turn plan shows as a Turn plan card under this answer.
-            onPlan: (plan) => patchLast((m) => ({ ...m, plans: [...(m.plans ?? []).filter((x) => x.id !== plan.id), plan] })),
+            onPlan: (plan) => patchLast((m) => ({ ...m, plans: [...(m.plans ?? []).filter((x) => x.id !== plan.id), stampPlan(plan, context)] })),
             onDone: (d) => {
               if (typeof d.thread_id === "number") keepThread(d.thread_id);
               if (!isOpen()) onUnread();

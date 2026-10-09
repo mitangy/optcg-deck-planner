@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { lookupCard } from "../cards/atlas";
 import type { SeatLogJson } from "./historyApi";
-import { matchLogTurns } from "./matchLog";
+import { groupHand, matchLogTurns } from "./matchLog";
 
 const zoro = "OP01-001";
 const log: SeatLogJson = {
@@ -63,5 +63,13 @@ describe("match page log", () => {
       turns: [{ ...log.turns[2]!, hand: ["OP01-001"], opponentHandCount: 2, opponentHand: ["OP05-060", "OP01-016"] }, log.turns[1]!],
     };
     expect(matchLogTurns(revealed).map((t) => t.opponentHand)).toEqual([["OP05-060", "OP01-016"], undefined]);
+  });
+
+  it("merges copies of a card in a hand and keeps first-seen order (#470)", () => {
+    expect(groupHand(["OP05-060", "OP01-001", "OP05-060", "ST01-003", "OP01-001", "OP05-060"])).toEqual([
+      { defId: "OP05-060", count: 3 },
+      { defId: "OP01-001", count: 2 },
+      { defId: "ST01-003", count: 1 },
+    ]);
   });
 });

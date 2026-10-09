@@ -353,7 +353,7 @@ export function checkTurnPlan(catalog: Catalog, game: GameContext, input: { summ
       case "give_don":
         return a.type === "give_don" && a.target === first.target;
       case "activate":
-        return a.type === "activate_ability" && a.source === first.source && (!first.abilityId || a.abilityId === first.abilityId) && (!first.target || a.target === first.target);
+        return a.type === "activate_ability" && a.source === first.source && (!first.abilityId || a.abilityId === first.abilityId);
       case "attack":
         return a.type === "declare_attack" && a.attacker === first.attacker && a.target === first.target;
       case "end_turn":
@@ -374,7 +374,7 @@ export function turnPlanTool(catalog: Catalog, game: GameContext | undefined): T
     title: "Plan the turn",
     description:
       "Plan the player's whole turn from the <game> block. Nothing is played: the app shows the steps as a card the player can run with Play this turn. " +
-      "Give every step in order. Actions: play (card = hand id, trash = character to replace), give_don (target, count), activate (source, abilityId, target), attack (attacker, target = the opponent's Leader or character id), end_turn (last only). " +
+      "Give every step in order. Actions: play (card = hand id, trash = character to replace), give_don (target, count), activate (source, abilityId; the target, if any, is chosen when the ability resolves and is the player's to pick), attack (attacker, target = the opponent's Leader or character id), end_turn (last only). " +
       "Characters played earlier in the plan can act in later steps by their hand id. The plan is checked against the board and refused with the reason when a step can't work.",
     inputSchema: {
       summary: z.string().trim().min(3).max(300),
