@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
 import type { BoardWaiting } from "../board/PendingBoard";
+import { MovedElsewhereOverlay } from "../board/MovedElsewhereOverlay";
 import { BountyAmount } from "../Bounty";
 import { useFriends } from "../friends/FriendsPanel";
 import { pollsInvitesWhileWaiting, type FriendInvite } from "../friends/friendsApi";
@@ -18,6 +19,8 @@ export function DuelPage() {
     launching,
     queueing,
     connected,
+    takenOver,
+    takeOver,
     canReconnect,
     resuming,
     reconnecting,
@@ -130,7 +133,7 @@ export function DuelPage() {
         onConcede={connected && role === "player" ? () => concede() : undefined}
         onHandOrder={connected && role === "player" ? sendHandOrder : undefined}
         undo={role === "player" ? { state: undo, onAction: sendUndo } : undefined}
-        onSendIntent={sendIntent}
+        onSendIntent={takenOver ? () => undefined : sendIntent}
         rematch={role === "player" ? { state: rematch, onAction: sendRematch } : undefined}
         loadMatchRecord={role === "player" ? loadMatchRecord : undefined}
         seatSkins={seatSkins}
@@ -143,6 +146,15 @@ export function DuelPage() {
         }}
         onClearError={clearError}
       />
+      {takenOver && matchId && (seat === 0 || seat === 1) ? (
+        <MovedElsewhereOverlay
+          onPlayHere={() => takeOver(matchId, seat)}
+          onLeave={() => {
+            void leave();
+            navigate("/", { replace: true });
+          }}
+        />
+      ) : null}
     </div>
   );
 }
