@@ -229,6 +229,14 @@ describe("account settings", () => {
     expect(mergeRemoteSettings(loadSettings(), { promptPos: "9,9" }).promptPos).toBe("-40,-200");
   });
 
+  it("follows the account for the column pop-ups dock into, and drops an unknown side (#449)", () => {
+    stubStored({ promptDock: "left" });
+    expect(syncedSettings(loadSettings()).promptDock).toBe("left");
+    expect(mergeRemoteSettings(loadSettings(), { promptDock: "right" }).promptDock).toBe("right");
+    stubStored({ promptDock: "top" });
+    expect(loadSettings().promptDock).toBe("");
+  });
+
   it("applies account settings but keeps this device's device-only fields", () => {
     stubStored({ useDevKey: true, devUserKey: "mine", handLayout: "fan" });
     const merged = mergeRemoteSettings(loadSettings(), {

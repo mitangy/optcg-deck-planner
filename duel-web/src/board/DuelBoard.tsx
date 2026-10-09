@@ -2635,6 +2635,7 @@ export function DuelBoard({
         <HideablePrompt
           name="Order effects"
           dodge={promptBattle}
+          dockable={wide && !lp}
           hidden={isPromptHidden(hiddenChoiceId, view.pendingChoices[0].id)}
           onShow={() => setHiddenChoiceId(null)}
         >
@@ -2657,6 +2658,7 @@ export function DuelBoard({
         <HideablePrompt
           name={promptSourceName(view.pendingChoices[0])}
           dodge={promptBattle}
+          dockable={wide && !lp}
           hidden={isPromptHidden(hiddenChoiceId, view.pendingChoices[0].id)}
           onShow={() => setHiddenChoiceId(null)}
         >

@@ -222,7 +222,7 @@ module.exports = {
       "confirm-keys.spec.ts > N answers No on the Yes/No shown on a hand card (#324) [desktop-1280]",
     ] },
     // dragging a centred prompt by its header (#324)
-    { id: "e2e-prompt-drag-unhooked", args: "prompt-drag -g \"moves it\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "  usePromptDrag(wrapRef, useDuelSettings().promptPos);\n", to: "", kills: [
+    { id: "e2e-prompt-drag-unhooked", args: "prompt-drag -g \"moves it\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "  usePromptDrag(wrapRef, promptPos, { side, dockable, setSide });\n", to: "", kills: [
       "prompt-drag.spec.ts > dragging a prompt's header moves it, and its buttons still answer (#324) [desktop-1280]",
       "prompt-drag.spec.ts > dragging a prompt's header moves it, and its buttons still answer (#324) [phone-375]",
     ] },
@@ -237,11 +237,11 @@ module.exports = {
     ] },
     { id: "e2e-prompt-drag-no-reset", args: "prompt-drag --project=desktop-1280 -g double", file: "duel-web/src/board/promptDrag.ts", from: "!target.closest(\"button\")) {\n        write({ x: 0, y: 0 });\n        save(offset);\n      }", to: "!target.closest(\"button\")) return;", kills: ["prompt-drag.spec.ts > double-clicking a moved prompt's header puts it back (#324) [desktop-1280]"] },
     // the next pop-up opens where the last was dragged (#422)
-    { id: "e2e-prompt-pos-not-restored", args: "prompt-drag -g \"#422\"", file: "duel-web/src/board/promptDrag.ts", from: "    write(parsePromptPos(saved));\n", to: "", kills: [
+    { id: "e2e-prompt-pos-not-restored", args: "prompt-drag -g \"#422\"", file: "duel-web/src/board/promptDrag.ts", from: "    write(side ? { x: 0, y: 0 } : parsePromptPos(saved));\n", to: "", kills: [
       "prompt-drag.spec.ts > the next prompt opens where the last one was dragged (#422) [desktop-1280]",
       "prompt-drag.spec.ts > the next prompt opens where the last one was dragged (#422) [phone-375]",
     ] },
-    { id: "e2e-prompt-pos-not-saved", args: "prompt-drag -g \"#422\"", file: "duel-web/src/board/promptDrag.ts", from: "        if (moved) save(offset);\n", to: "", kills: [
+    { id: "e2e-prompt-pos-not-saved", args: "prompt-drag -g \"#422\"", file: "duel-web/src/board/promptDrag.ts", from: "        } else save(offset);\n", to: "        }\n", kills: [
       "prompt-drag.spec.ts > the next prompt opens where the last one was dragged (#422) [desktop-1280]",
       "prompt-drag.spec.ts > the next prompt opens where the last one was dragged (#422) [phone-375]",
     ] },
@@ -417,5 +417,30 @@ module.exports = {
     { id: "e2e-lobby-play-forgets-mode", args: "queue-board --project=desktop-1280", file: "duel-web/src/pages/LobbyPage.tsx", from: "    writeLastMode(mode);\n", to: "", kills: ["queue-board.spec.ts > after Ranked once, one tap on Play searches for an opponent (#431) [desktop-1280]"] },
     // DON!! card art (#440)
     { id: "e2e-don-art-strip-ignores-side-art", args: "don-art --project=desktop-1280 -g shows", file: "duel-web/src/board/SideField.tsx", from: "            donArt={donArtUrl}\n", to: "", kills: ["don-art.spec.ts > your DON!! shows the chosen art and the opponent's the default (#440) [desktop-1280]"] },
+    // docking the pop-up into a side column (#449)
+    { id: "e2e-prompt-dock-at-never", args: "prompt-dock --project=desktop-1280 -g \"dragging the header|screen's edge\"", file: "duel-web/src/board/promptDock.ts", from: "  if (x <= EDGE_PX) return \"left\";\n  if (x >= viewWidth - EDGE_PX) return \"right\";\n  const over = (c: Span | null) => c != null && x >= c.left && x <= c.right;\n  if (over(columns.left)) return \"left\";\n  if (over(columns.right)) return \"right\";\n  return null;", to: "  return null;", kills: [
+      "prompt-dock.spec.ts > dragging the header onto the right column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449) [desktop-1280]",
+      "prompt-dock.spec.ts > dragging the header onto the left column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449) [desktop-1280]",
+      "prompt-dock.spec.ts > the screen's edge docks too, and dragging a docked pop-up out floats it where it was dropped (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-prompt-dock-not-saved", args: "prompt-dock --project=desktop-1280 -g \"dragging the header\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "updateSettings({ promptDock: s })", to: "updateSettings({})", kills: [
+      "prompt-dock.spec.ts > dragging the header onto the right column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-prompt-dock-host-no-room", args: "prompt-dock --project=desktop-1280 -g \"dragging the header\"", file: "duel-web/src/board/promptDock.ts", from: "      const h = `${prompt.offsetHeight + 2 * DOCK_PAD_PX}px`;", to: "      const h = \"0px\";", kills: [
+      "prompt-dock.spec.ts > dragging the header onto the right column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449) [desktop-1280]",
+      "prompt-dock.spec.ts > dragging the header onto the left column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-prompt-dock-no-hint", args: "prompt-dock --project=desktop-1280 -g \"drop hint\"", file: "duel-web/src/board/promptDock.ts", from: "    if (s === side) col.setAttribute(\"data-prompt-drop\", \"\");", to: "    if (false) col.setAttribute(\"data-prompt-drop\", \"\");", kills: ["prompt-dock.spec.ts > a column shows a drop hint while the header is dragged over it, and not after (#449) [desktop-1280]"] },
+    { id: "e2e-prompt-dock-hint-stays", args: "prompt-dock --project=desktop-1280 -g \"drop hint\"", file: "duel-web/src/board/promptDrag.ts", from: "        if (dockable) showDropHint(null);\n", to: "", kills: ["prompt-dock.spec.ts > a column shows a drop hint while the header is dragged over it, and not after (#449) [desktop-1280]"] },
+    { id: "e2e-prompt-dock-drag-out-stays", args: "prompt-dock --project=desktop-1280 -g \"screen's edge\"", file: "duel-web/src/board/promptDrag.ts", from: "          if (dropped && !overOwnColumn && pulledLoose(offset.x - from.x, offset.y - from.y)) {", to: "          if (false) {", kills: ["prompt-dock.spec.ts > the screen's edge docks too, and dragging a docked pop-up out floats it where it was dropped (#449) [desktop-1280]"] },
+    { id: "e2e-prompt-dock-remounts-prompt", args: "prompt-dock --project=desktop-1280 -g \"dock buttons\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "      <div ref={wrapRef} hidden={hidden} className=\"prompt-hide-wrap\">", to: "      <div key={side} ref={wrapRef} hidden={hidden} className=\"prompt-hide-wrap\">", kills: ["prompt-dock.spec.ts > the dock buttons dock and undock, and the picks made so far are kept (#449) [desktop-1280]"] },
+    { id: "e2e-prompt-dock-buttons-do-nothing", args: "prompt-dock --project=desktop-1280 -g \"dock buttons\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "          onClick={() => dock.setSide(dock.side === s ? \"\" : s)}", to: "          onClick={() => dock.setSide(dock.side)}", kills: ["prompt-dock.spec.ts > the dock buttons dock and undock, and the picks made so far are kept (#449) [desktop-1280]"] },
+    { id: "e2e-prompt-dock-hidden-keeps-room", args: "prompt-dock --project=desktop-1280 -g \"hidden and brought back\"", file: "duel-web/src/board/promptDock.ts", from: "      host.style.display = wrap.hidden ? \"none\" : \"\";\n", to: "", kills: ["prompt-dock.spec.ts > a docked pop-up can be hidden and brought back docked (#449) [desktop-1280]"] },
+    { id: "e2e-prompt-dock-reset-keeps-side", args: "prompt-dock --project=desktop-1280 -g Reset", file: "duel-web/src/board/layoutReset.ts", from: "  promptDock: \"\",\n", to: "", kills: ["prompt-dock.spec.ts > Reset layout clears the docked side (#449) [desktop-1280]"] },
+    // Both call sites: the board offers docking on phones too.
+    { id: "e2e-prompt-dock-on-phones", args: "prompt-dock --project=phone-375", edits: [
+      { file: "duel-web/src/board/DuelBoard.tsx", from: "          name=\"Order effects\"\n          dodge={promptBattle}\n          dockable={wide && !lp}", to: "          name=\"Order effects\"\n          dodge={promptBattle}\n          dockable" },
+      { file: "duel-web/src/board/DuelBoard.tsx", from: "          name={promptSourceName(view.pendingChoices[0])}\n          dodge={promptBattle}\n          dockable={wide && !lp}", to: "          name={promptSourceName(view.pendingChoices[0])}\n          dodge={promptBattle}\n          dockable" },
+    ], kills: ["prompt-dock.spec.ts > phones ignore a saved dock and keep the floating pop-up (#449) [phone-375]"] },
   ],
 };
