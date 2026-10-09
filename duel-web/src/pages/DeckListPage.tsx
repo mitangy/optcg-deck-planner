@@ -443,13 +443,22 @@ export function DeckListPage() {
             <h1 className="deck-config-title">Decks</h1>
             <p className="meta">Choose a deck to edit, or create a new one.</p>
           </div>
-          <button
-            type="button"
-            className="btn btn-primary deck-list-new"
-            onClick={() => navigate("/decks/new")}
-          >
-            New deck
-          </button>
+          <div className="deck-list-header-actions">
+            <button
+              type="button"
+              className="btn btn-secondary deck-list-meta"
+              onClick={() => navigate("/decks/meta")}
+            >
+              Meta decks
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary deck-list-new"
+              onClick={() => navigate("/decks/new")}
+            >
+              New deck
+            </button>
+          </div>
         </header>
 
         <div className="deck-list-columns">

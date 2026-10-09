@@ -36,6 +36,9 @@ const DON_CARDS = [
 ].map((c) => ({ ...c, rarity: "DON", color: "", card_type: "DON!!", cost: null, market_price: 1.5, low_price: 1.1 }));
 const SALES = fixture<unknown[]>("sales.json");
 const SHARE = fixture<unknown>("share.json");
+type MetaDeckFixture = { placing: number | null; [key: string]: unknown };
+const META_LEADERS = fixture<{ leaders: unknown[] }>("meta-leaders.json");
+const META_DECKS = fixture<{ leader_id: string; decks: MetaDeckFixture[] }>("meta-decks.json");
 
 export const SHARE_TOKEN = "tok-oden-1";
 export const DECK_ID = 1;
@@ -64,6 +67,10 @@ type Planner = {
   errors: string[];
   /** Turn Log Pose on for this session (call before `open`): the fake chat session answers enabled. */
   enableLogPose(): void;
+  /** Sign out for this session (call before `open`): /auth/me answers null. */
+  signOut(): void;
+  /** Decks the page created through POST /decks (name and decklist as sent). */
+  createdDecks: { name: string; decklist: string }[];
   /** JSON bodies the page POSTed to the fake analyst's /chat. */
   chats: { message: string; thread_id?: number; context?: { page?: string; deck?: { leaderId: string | null; plannerDeckId?: number }; hint?: { id: string } } }[];
 };
@@ -77,6 +84,8 @@ export const test = base.extend<{ planner: Planner }>({
       if (m.type() === "error" && !/Failed to load resource|net::ERR_/.test(m.text())) errors.push(`console: ${m.text()}`);
     });
 
+    let signedIn = true;
+    const createdDecks: Planner["createdDecks"] = [];
     const owned = new Map(CARDS.map((c) => [c.card_id, c.owned]));
     const altWants = new Map<string, number>();
     const cardView = (c: FixtureCard) => {
@@ -231,6 +240,19 @@ export const test = base.extend<{ planner: Planner }>({
       if (path === "/analyst/chat/session" && logPoseOn) {
         return json({ enabled: true, token: "t", expires_at: "2030-01-01T00:00:00Z", chat_url: "http://127.0.0.1:5180/fake-analyst" });
       }
+      if (path === "/auth/me" && !signedIn) return json(null);
+      if (path === "/meta/leaders") return json({ ...META_LEADERS, days: Number(new URL(req.url()).searchParams.get("days") ?? 30) });
+      if (path === "/meta/decks") {
+        const q = new URL(req.url()).searchParams;
+        const top = Number(q.get("top") ?? 0);
+        const same = q.get("leader") === META_DECKS.leader_id;
+        return json({ ...META_DECKS, decks: same ? META_DECKS.decks.filter((d) => !top || (d.placing !== null && d.placing <= top)) : [] });
+      }
+      if (path === "/decks" && method === "POST") {
+        const body = JSON.parse(req.postData() ?? "{}") as { name: string; decklist: string };
+        createdDecks.push(body);
+        return json({ id: DECK_ID, name: body.name, leader_card_id: "OP17-039", card_count: 0, total_cards: 0, sort_order: 1 });
+      }
       if (path === "/auth/me") return json({ id: 1, email: "nami@e2e.test", name: "Nami", sum_across_leaders: false });
       if (path === "/decks") {
         const d = deckDetail();
@@ -352,6 +374,10 @@ export const test = base.extend<{ planner: Planner }>({
       requests,
       errors,
       chats,
+      createdDecks,
+      signOut() {
+        signedIn = false;
+      },
       enableLogPose() {
         logPoseOn = true;
       },
