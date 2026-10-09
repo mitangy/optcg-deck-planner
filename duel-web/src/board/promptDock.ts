@@ -76,7 +76,9 @@ export function usePromptDockHost(wrapRef: RefObject<HTMLElement | null>, side: 
     const host = document.createElement("div");
     host.className = "board-panel prompt-dock-host";
     host.dataset.promptDockHost = side;
-    column.insertBefore(host, column.firstChild);
+    // Under the no-top-bar action row, when the column has one.
+    const actions = column.querySelector(":scope > .col-actions");
+    column.insertBefore(host, actions ? actions.nextSibling : column.firstChild);
     arena?.setAttribute("data-prompt-dock", side);
     wrap.dataset.docked = side;
     let raf = 0;
