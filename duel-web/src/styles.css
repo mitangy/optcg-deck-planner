@@ -2397,27 +2397,9 @@ img.zone-pile-face {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* A click here dropped a text caret in the rotated ornament: a slanted cursor between the mats. */
+  /* A click or double-click on the strip's prompt text must not select it (#314). */
   user-select: none;
   -webkit-user-select: none;
-}
-
-.midline-ornament {
-  width: min(420px, 70%);
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--chrome), transparent);
-  position: relative;
-}
-
-.midline-ornament span {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  border: 1px solid var(--chrome);
-  transform: translate(-50%, -50%) rotate(45deg);
-  background: var(--arena-deep);
 }
 
 .prompt {
@@ -3680,13 +3662,18 @@ img.zone-pile-face {
 }
 
 /* Attack-ready glow (#412): your Leader / Characters that can attack now.
-   A soft, still green edge (box-shadow only, so nothing moves); later than
-   .has-actions so it wins. */
+   A thin, still ring (box-shadow only, so nothing moves) on a dark edge that
+   separates it from the art; later than .has-actions so it wins. Green by
+   default, light gold on Green cards where green would vanish (#449). */
 .card-tile.attack-ready {
-  border-color: rgba(60, 200, 110, 0.55);
+  --attack-ring: 74 222 128;
+  border-color: rgba(6, 10, 16, 0.92);
   box-shadow:
-    0 0 0 1px rgba(60, 200, 110, 0.4),
-    0 0 6px 1px rgba(60, 200, 110, 0.22);
+    0 0 0 2px rgb(var(--attack-ring)),
+    0 0 7px 2px rgb(var(--attack-ring) / 0.35);
+}
+.card-tile.attack-ready.attack-ready-light {
+  --attack-ring: 255 232 150;
 }
 
 

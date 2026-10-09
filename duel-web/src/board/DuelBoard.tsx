@@ -2261,11 +2261,7 @@ export function DuelBoard({
                 </div>
               ) : rotateHintShown ? (
                 <RotateHint onClose={closeRotateHint} />
-              ) : (
-                <div className="midline-ornament" aria-hidden>
-                  <span />
-                </div>
-              )}
+              ) : null}
             </div>
 
             <SideField
@@ -2785,7 +2781,7 @@ export function DuelBoard({
         <DonAttachConfirm
           pending={pendingAttach}
           targetName={pendingAttachName}
-          onConfirm={confirmAttach}
+          onConfirm={() => confirmAttach()}
           onCancel={clearDonSelection}
         />
       ) : null}
