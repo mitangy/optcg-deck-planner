@@ -337,7 +337,7 @@ export interface ResolutionFrame {
 export type GameEvent =
   | { type: "mulligan_resolved"; seat: Seat; didMulligan: boolean }
   | { type: "phase_changed"; phase: Phase; activeSeat: Seat }
-  | { type: "drew"; seat: Seat; count: number }
+  | { type: "drew"; seat: Seat; count: number; /** Turn-start draw only: the drawn card, hidden from everyone but the drawer by projectGameEvents. */ defIds?: CardDefId[]; /** True for the Draw Phase draw (not an effect draw). */ turnDraw?: boolean }
   | { type: "don_placed"; seat: Seat; count: number }
   | { type: "card_played"; seat: Seat; defId: CardDefId; instanceId: InstanceId; costPaid: number }
   | { type: "stage_replaced"; seat: Seat; trashedDefId: CardDefId }

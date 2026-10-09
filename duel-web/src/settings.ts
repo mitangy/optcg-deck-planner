@@ -115,6 +115,8 @@ export type DuelSettings = {
   battleArrow: boolean;
   /** A green glow on your Leader and Characters that can attack right now. */
   attackGlow: boolean;
+  /** Portrait phones: your own mat is drawn the simplified way the opponent's is (count row, bigger cards). */
+  compactOwnBoard: boolean;
   /** Desktop card preview: only the card, as big as fits (on), or a smaller card with its stat icons and text (off). */
   previewBigCard: boolean;
   /** DON!! given to a rested Leader or Character stays upright under it instead of turning sideways with it. */
@@ -186,6 +188,7 @@ const DEFAULTS: DuelSettings = {
   cantAttackWarning: true,
   battleArrow: true,
   attackGlow: true,
+  compactOwnBoard: false,
   previewBigCard: false,
   donUpright: false,
   oppHandSpot: "",

@@ -82,6 +82,11 @@ const TOGGLES: Toggle[] = [
     hint: "Your Leader and Characters that can attack right now glow green.",
   },
   {
+    key: "compactOwnBoard",
+    label: "Simple board on phones",
+    hint: "Portrait phones: shows your own cards the way your opponent's are shown: Life, Deck, DON!! deck and Trash become a row of counts, and the cards get bigger. Tap Trash or face-up Life to open it.",
+  },
+  {
     key: "previewBigCard",
     label: "Big card preview",
     hint: "Desktop: the card preview on the left shows just the card, as big as it fits. Off shows a smaller card with its cost, colour, power and Counter icons and its text below.",
@@ -348,7 +353,7 @@ export function GameplaySettingsFields() {
             disabled={settings.animationSpeed === "off"}
             onChange={(e) => updateSettings({ cardSpotlight: e.target.checked })}
           />
-          <span>Show played and trashed cards</span>
+          <span>Show played, trashed and drawn cards</span>
         </label>
         <p className="field-hint">
           Each card that is played, used as a Counter, K.O.&apos;d or trashed by an effect (from

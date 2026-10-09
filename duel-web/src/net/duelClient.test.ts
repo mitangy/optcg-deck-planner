@@ -205,6 +205,28 @@ describe("DuelClient turn guard", () => {
     expect(t.sent()).toEqual(["end_turn", "play_card"]);
   });
 
+  it("sends one Pass block when a tap races the automatic pass, and passes again on the next step (#445)", () => {
+    const t = wired();
+    t.view(3, 1);
+    // The tap and the automatic pass both answer the block step before its result arrives: the second is dropped.
+    t.client.sendIntent({ type: "pass_block" });
+    t.client.sendIntent({ type: "pass_block" });
+    expect(t.sent()).toEqual(["pass_block"]);
+    // The counter step's view: its own pass goes out once too.
+    t.view(3, 1);
+    t.client.sendIntent({ type: "pass_counter" });
+    t.client.sendIntent({ type: "pass_counter" });
+    expect(t.sent()).toEqual(["pass_block", "pass_counter"]);
+    // The next attack's counter step is a new view: it is answered too.
+    t.view(3, 1);
+    t.client.sendIntent({ type: "pass_counter" });
+    expect(t.sent()).toEqual(["pass_block", "pass_counter", "pass_counter"]);
+    // A refused pass can be tried again.
+    t.error("illegal_intent", "Counter step: use a Counter or pass");
+    t.client.sendIntent({ type: "pass_counter" });
+    expect(t.sent()).toEqual(["pass_block", "pass_counter", "pass_counter", "pass_counter"]);
+  });
+
   it("still answers an end-of-turn prompt after End turn (#328)", () => {
     const t = wired();
     t.view(3, 0);

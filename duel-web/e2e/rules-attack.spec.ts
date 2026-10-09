@@ -7,7 +7,7 @@
  * The shuffle seed is fixed, so both opening hands are the same every run.
  * Rules don't depend on screen size, so this runs on the desktop project only.
  */
-import { test, expect, type Page } from "./fixtures";
+import { test, expect, type Page, keepBothHands } from "./fixtures";
 
 type Side = "you" | "opp";
 
@@ -32,8 +32,7 @@ test("an unblocked Leader attack moves one Life card to the defender's hand", as
   const root = page.locator(".board-root");
 
   // Both players keep their opening hands.
-  await page.getByRole("button", { name: "Keep opening hand" }).click();
-  await page.getByRole("button", { name: "Keep opening hand" }).click();
+  await keepBothHands(page);
   await expect(root).toHaveAttribute("data-phase", "main");
   await expect(root).toHaveAttribute("data-turn", "1");
 

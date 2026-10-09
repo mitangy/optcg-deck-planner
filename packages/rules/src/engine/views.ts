@@ -16,7 +16,8 @@ function cardView(state: MatchState, seat: Seat, c: CardInstance) {
   if (hasRestriction(state, seat, c, "cannot_attack")) statuses.push("Cannot attack");
   const rush = keywords.includes("rush") || keywords.includes("rush_character");
   if (c.summoningSick && !rush && def.type === "character") statuses.push("Summoning sick");
-  for (const k of keywords) statuses.push(KEYWORD_LABELS[k] ?? k);
+  // Rush only matters the turn the card is played; afterwards its pill is noise (the keyword stays in `keywords`).
+  for (const k of keywords) if (c.summoningSick || (k !== "rush" && k !== "rush_character")) statuses.push(KEYWORD_LABELS[k] ?? k);
   if (hasRestriction(state, seat, c, "no_refresh")) statuses.push("Won't refresh");
   for (const label of c.statusLabels ?? []) if (!statuses.includes(label)) statuses.push(label);
   return {
@@ -158,6 +159,10 @@ export function projectGameEvents(events: readonly GameEvent[], viewerSeat: Seat
   return events.map((event) => {
     if (event.type === "life_added" && !event.faceUp) return { ...event, defId: "HIDDEN" };
     if ((event.type === "life_taken" || event.type === "trigger_available") && viewerSeat !== event.seat) return { ...event, defId: "HIDDEN" };
+    if (event.type === "drew" && event.defIds && viewerSeat !== event.seat) {
+      const { defIds: _hidden, ...rest } = event;
+      return structuredClone(rest) as GameEvent;
+    }
     if (event.type === "card_moved" && event.hidden && viewerSeat !== event.seat) return { ...event, defId: "HIDDEN" };
     if ((event.type === "pending_choice_added" || event.type === "pending_choice_resolved") && event.hideCardDefFromOthers && event.privateToSeat !== viewerSeat) {
       return event.type === "pending_choice_added" ? { ...event, cardDefId: "HIDDEN", prompt: "Opponent is resolving a private card choice." } : { ...event, cardDefId: "HIDDEN" };

@@ -19,6 +19,7 @@ export type ToggleKey =
   | "cantAttackWarning"
   | "battleArrow"
   | "attackGlow"
+  | "compactOwnBoard"
   | "previewBigCard"
   | "donUpright"
   | "oppHandTopRight"
@@ -47,6 +48,8 @@ export function toggleShown(key: ToggleKey, d: FieldDevice): boolean {
   if (key === "keepHandOpen") return d.desktop;
   // Key tabs are only drawn with a mouse and keyboard.
   if (key === "shortcutTags") return d.finePointer;
+  // The simplified own mat is the portrait phone layout; a desktop window has no count row.
+  if (key === "compactOwnBoard") return !d.desktop;
   // Desktop picks the spot in the Opponent hand position list instead.
   if (key === "oppHandTopRight") return !d.desktop;
   return true;

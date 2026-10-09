@@ -1,7 +1,11 @@
 export { createSseParser, streamSse, SseHttpError, type SseEvent } from "./sse";
 export {
   AnalystError,
-  BUDGET_MESSAGE,
+  CREDIT_MESSAGE,
+  DAILY_MESSAGE,
+  MONTHLY_MESSAGE,
+  deleteThread,
+  limitCode,
   errorText,
   fetchSavedReview,
   fetchThread,
@@ -23,7 +27,27 @@ export {
   type StreamHandlers,
 } from "./client";
 export { createSessionManager, fetchChatSession, needsRefresh, parseAccess, REFRESH_MARGIN_MS, type AccessState, type ChatSession, type SessionManager } from "./session";
-export { decideAccess, listAccessRequests, NOTE_MAX, requestAccess, sortRequests, type AccessRequest, type AccessStatus } from "./access";
+export { answerTopup, decideAccess, listAccessRequests, NOTE_MAX, requestAccess, setFreeSpots, sortRequests, type AccessList, type AccessRequest, type AccessStatus } from "./access";
+export {
+  applyDone,
+  creditLeft,
+  fetchCredit,
+  formatUsd,
+  limitText,
+  lowCreditText,
+  meterFill,
+  meterText,
+  parseCredit,
+  questionsLeft,
+  refillDay,
+  requestTopup,
+  withRefusal,
+  FALLBACK_CHAT_USD,
+  LOW_CREDIT_USD,
+  type Credit,
+  type RefusalCode,
+} from "./credit";
+export { fetchUsageSummary, parseUsage, type UsageGroup, type UsagePlayer, type UsageSummary } from "./usage";
 export {
   buildSources,
   kindLabel,
@@ -53,7 +77,7 @@ export { growOrigin, compassRect, type Rect } from "./panelMotion";
 export { readThreadId, writeThreadId, THREAD_KEY } from "./threadStore";
 export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdown";
 export { Markdown } from "./Markdown";
-export { LogPoseProvider, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, useLogPoseDeckEditor, useLogPoseGame, useLogPoseDock, useLogPoseDockHost, type DockHosts, type LogPoseGame, type LogPosePage } from "./LogPose";
+export { LogPoseProvider, type OwnClaude, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, useLogPoseDeckEditor, useLogPoseGame, useLogPoseDock, useLogPoseDockHost, type DockHosts, type LogPoseGame, type LogPosePage } from "./LogPose";
 export { askContext, canAsk, gameMessageContext, hintAsk, HINT_LIMITS, messageContext, requestAction, type HintContext, type LogPoseAsk } from "./ask";
 export { DeckEditCard } from "./DeckEditCard";
 export {
@@ -73,5 +97,6 @@ export {
 export { logPoseChrome, type LogPoseChrome } from "./chrome";
 export { CitedAnswer, type SourceHooks } from "./Sources";
 export { RequestAccessView, RequestsList } from "./AccessViews";
+export { UsageView } from "./UsageView";
 export { getModelSetting, modelLabel, setModelSetting, type ModelSetting } from "./modelSetting";
 export { ModelPicker } from "./ModelPicker";

@@ -50,12 +50,13 @@ export type BattleLogEntry = {
 /**
  * A played or trashed card for the board spotlight (see cardSpotlight.ts).
  * `play` ends on the field (`instanceId`, when the card stays there); `trash`
- * ends in its owner's trash. `label` is the short caption under the card.
+ * ends in its owner's trash; `draw` (the viewer's own Draw Phase card) ends in
+ * their hand. `label` is the short caption under the card.
  */
 export type CardSpotlight = {
   defId: string;
   ownerSeat: 0 | 1;
-  kind: "play" | "trash";
+  kind: "play" | "trash" | "draw";
   label: string;
   instanceId?: string;
 };
@@ -264,6 +265,18 @@ function revealOf(e: LooseEvent): BattleLogEntry["reveal"] {
   return seat != null && !isHiddenDef(e.defId) ? { defId: e.defId as string, ownerSeat: seat } : undefined;
 }
 
+/**
+ * "You draw <card>" for the viewer's own Draw Phase card, which the server sends
+ * only to the drawer; every other draw (an effect, the opponent's) stays a count.
+ */
+function drawLine(e: LooseEvent, youSeat: number | null): Line {
+  const defId = Array.isArray(e.defIds) && e.defIds.length === 1 ? e.defIds[0] : undefined;
+  if (e.turnDraw === true && isYou(e.seat, youSeat) && typeof defId === "string" && !isHiddenDef(defId)) {
+    return spotted(line("routine", false, `${act(e.seat, youSeat, "draw", "draws")} `, card(defId, e.seat)), e, defId, "draw", "Drew");
+  }
+  return line("routine", false, `${act(e.seat, youSeat, "draw", "draws")} ${Number(e.count) || 1}`);
+}
+
 function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line | null {
   const { youSeat } = ctx;
   switch (e.type) {
@@ -278,7 +291,7 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
       if (e.phase === "main") return line("phase", false, `—— Main phase · ${seatLabel(e.activeSeat, youSeat)} ——`);
       return null;
     case "drew":
-      return line("routine", false, `${act(e.seat, youSeat, "draw", "draws")} ${Number(e.count) || 1}`);
+      return drawLine(e, youSeat);
     case "don_placed": {
       const count = Number(e.count) || 0;
       // "You place 0 DON!!" (an empty DON!! deck) is noise.

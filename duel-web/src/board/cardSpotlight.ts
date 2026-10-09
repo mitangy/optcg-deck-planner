@@ -1,7 +1,7 @@
 /**
  * Card spotlight: each card played or trashed (K.O., counter, discard, mill,
- * Life trashed ...) is shown big over its owner's half of the board for a
- * moment, then shrinks into the spot it went to. Pure planning here; the
+ * Life trashed ...), and your own Draw Phase card, is shown big over its owner's half of the board for a
+ * moment, then shrinks into the spot it went to (a drawn card: your hand). Pure planning here; the
  * layer that draws it is CardSpotlight.tsx.
  *
  * Driven by the battle log (`BattleLogEntry.spotlight`), so it names the same

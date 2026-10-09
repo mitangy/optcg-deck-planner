@@ -117,6 +117,8 @@ export class DuelClient {
   private illegalIntentOn: number | null = null;
   /** Another device took the seat over; cleared by the next connect. */
   private takenOverFlag = false;
+  /** A battle pass sent since the last view: a second one (a tap racing the automatic pass) could only be refused. */
+  private passSent: Intent["type"] | null = null;
 
   setHandlers(h: DuelClientHandlers) {
     this.handlers = h;
@@ -348,6 +350,10 @@ export class DuelClient {
     // after End turn reaches the server in the opponent's turn: "Not your turn".
     if (lateForTurn(intent, this.endTurnSentOn, this.lastView)) return;
     if (intent.type === "end_turn" && this.lastView) this.endTurnSentOn = this.lastView.turnNumber;
+    if (ONCE_PER_VIEW.has(intent.type)) {
+      if (this.passSent === intent.type) return;
+      this.passSent = intent.type;
+    }
     this.room.send("intent", { protocolVersion: PROTOCOL_VERSION, intent });
   }
 
@@ -528,6 +534,7 @@ export class DuelClient {
 
   private noteView(view: PlayerView) {
     this.lastView = view;
+    this.passSent = null;
     if (view.turnNumber !== this.endTurnSentOn) this.endTurnSentOn = null;
     if (this.illegalIntentOn !== null && view.turnNumber !== this.illegalIntentOn) {
       this.illegalIntentOn = null;
@@ -587,6 +594,7 @@ export class DuelClient {
         if (err.code === "illegal_intent") {
           // A rejected End turn leaves the turn open: let the player act again.
           this.endTurnSentOn = null;
+          this.passSent = null;
           this.illegalIntentOn = this.lastView?.turnNumber ?? null;
         }
         this.handlers.onError?.(err);
@@ -719,6 +727,9 @@ export class DuelClient {
 
 /** Prompts can still be answered after End turn (end-of-turn effects); everything else waits for the next turn. */
 const AFTER_END_TURN = new Set<Intent["type"]>(["resolve_pending_choice", "order_pending_effects"]);
+
+/** Battle passes answer one step each: the next view brings the next step (#445). */
+const ONCE_PER_VIEW = new Set<Intent["type"]>(["pass_block", "pass_counter"]);
 
 /** An action sent after End turn, while the view still shows the turn that was ended. */
 export function lateForTurn(intent: Intent, endTurnSentOn: number | null, view: PlayerView | null): boolean {
