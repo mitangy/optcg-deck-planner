@@ -35,6 +35,30 @@ describe("protocol parsers", () => {
     assert.equal(j.secret, "s");
   });
 
+  it("parses takeover and ownerToken join options, and refuses a takeover that names no seat (#451)", () => {
+    const j = parseJoinOptions({
+      protocolVersion: PROTOCOL_VERSION,
+      gameToken: "t.s",
+      preferredSeat: 1,
+      takeover: true,
+      ownerToken: " o.k ",
+    });
+    assert.equal(j.takeover, true);
+    assert.equal(j.ownerToken, "o.k");
+    assert.equal(parseJoinOptions({ protocolVersion: PROTOCOL_VERSION, devUserId: "d" }).takeover, undefined);
+    const bad = (extra: Record<string, unknown>) =>
+      assert.throws(
+        () => parseJoinOptions({ protocolVersion: PROTOCOL_VERSION, devUserId: "d", takeover: true, ...extra }),
+        (err: Error & { code?: string }) => err.code === "bad_protocol",
+      );
+    bad({}); // no preferredSeat
+    bad({ preferredSeat: 0, role: "spectator" });
+    assert.throws(
+      () => parseJoinOptions({ protocolVersion: PROTOCOL_VERSION, devUserId: "d", preferredSeat: 0, takeover: "yes" }),
+      (err: Error & { code?: string }) => err.code === "bad_protocol",
+    );
+  });
+
   it("parses spectator join role", () => {
     const j = parseJoinOptions({
       protocolVersion: PROTOCOL_VERSION,

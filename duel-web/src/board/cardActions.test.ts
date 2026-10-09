@@ -147,19 +147,43 @@ describe("counter step primary label (#255)", () => {
   });
 });
 
-describe("popoverPlacement (#255)", () => {
+describe("popoverPlacement (#255, #449)", () => {
   const box = { left: 600, top: 400, width: 100, height: 140 };
+  const size = { width: 160, height: 150 };
+  const vp = { width: 1280, height: 720 };
 
   it("centres over the card, tucked over its top edge (#255)", () => {
-    expect(popoverPlacement(box, 160, 1280)).toEqual({ left: 650, top: 410, above: true });
+    expect(popoverPlacement(box, size, vp)).toEqual({ left: 650, top: 410, above: true });
   });
 
-  it("flips below the card when there is no headroom (#255)", () => {
-    expect(popoverPlacement({ ...box, top: 40 }, 160, 1280)).toEqual({ left: 650, top: 170, above: false });
+  it("flips below the card when its height does not fit above (#255, #449)", () => {
+    expect(popoverPlacement({ ...box, top: 40 }, size, vp)).toEqual({ left: 650, top: 170, above: false });
+    // 100 px of headroom was enough for the old fixed 72 px rule, but not for a 150 px popover.
+    expect(popoverPlacement({ ...box, top: 100 }, size, vp)).toEqual({ left: 650, top: 230, above: false });
   });
 
   it("stays inside the viewport at both edges (#255)", () => {
-    expect(popoverPlacement({ ...box, left: 0 }, 200, 375).left).toBe(108);
-    expect(popoverPlacement({ ...box, left: 300 }, 200, 375).left).toBe(267);
+    expect(popoverPlacement({ ...box, left: 0 }, { ...size, width: 200 }, { width: 375, height: 720 }).left).toBe(108);
+    expect(popoverPlacement({ ...box, left: 300 }, { ...size, width: 200 }, { width: 375, height: 720 }).left).toBe(267);
+  });
+
+  it("slides back on screen when neither side has room (#449)", () => {
+    // 375 px tall landscape window, card in the middle: 150 px does not fit above or below.
+    const short = { width: 812, height: 375 };
+    const mid = { left: 300, top: 120, width: 60, height: 84 };
+    const tall = { width: 160, height: 180 };
+    const p = popoverPlacement(mid, tall, short);
+    expect(p.above).toBe(false);
+    expect(p.top).toBeGreaterThanOrEqual(8);
+    expect(p.top + tall.height).toBeLessThanOrEqual(short.height - 8);
+    // Taller than the window: pinned to the top edge.
+    expect(popoverPlacement(mid, { width: 160, height: 500 }, short).top).toBe(8);
+  });
+
+  it("keeps a popover that fits neither side inside the window, over the roomier side (#449)", () => {
+    const low = { left: 600, top: 300, width: 100, height: 140 };
+    const out = popoverPlacement(low, { width: 160, height: 330 }, { width: 1280, height: 480 });
+    expect(out.top + 330).toBeLessThanOrEqual(480 - 8);
+    expect(out.top).toBeGreaterThanOrEqual(8);
   });
 });

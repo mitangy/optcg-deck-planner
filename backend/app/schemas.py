@@ -821,6 +821,10 @@ class AnalystChatSession(BaseModel):
     # Only when enabled: whether this player can answer requests, and how many are waiting.
     owner: bool | None = None
     pending_requests: int | None = None
+    # Only when not enabled but able to ask: the free spots (how many in all and how many are left) and the monthly credit a spot brings.
+    free_spots: int | None = None
+    spots_left: int | None = None
+    free_credit_usd: float | None = None
 
 
 class AnalystAccessRequestIn(BaseModel):
@@ -828,7 +832,8 @@ class AnalystAccessRequestIn(BaseModel):
 
 
 class AnalystAccessRequested(BaseModel):
-    access: Literal["pending"]
+    # "approved" when a free spot was left, "pending" when the player is on the waitlist.
+    access: Literal["pending", "approved"]
 
 
 class AnalystAccessDecisionIn(BaseModel):
@@ -842,10 +847,31 @@ class AnalystAccessRow(BaseModel):
     status: Literal["pending", "approved", "denied"]
     created_at: str | None = None
     decided_at: str | None = None
+    auto_approved: bool = False
+    # This month's credit and how much of it the player has used (credit_usd is null for owners).
+    credit_usd: float | None = None
+    credit_spent_usd: float = 0.0
+    # When a player out of credit asked for more.
+    topup_requested_at: str | None = None
 
 
 class AnalystAccessList(BaseModel):
     requests: list[AnalystAccessRow]
+    free_spots: int
+    spots_used: int
+
+
+class AnalystFreeSpotsIn(BaseModel):
+    free_spots: int = Field(ge=0, le=10_000)
+
+
+class AnalystFreeSpots(BaseModel):
+    free_spots: int
+    spots_used: int
+
+
+class AnalystTopupDecisionIn(BaseModel):
+    action: Literal["add", "dismiss"]
 
 
 class AnalystChatBudget(BaseModel):
@@ -855,6 +881,15 @@ class AnalystChatBudget(BaseModel):
     monthly_cap_usd: float
     allowed: bool
     model: str
+    # This month's credit (null for owners, who have none to run out of), how much of it the player has used, and when it refills.
+    credit_usd: float | None = None
+    credit_spent_usd: float = 0.0
+    credit_resets_at: str = ""
+    # Why the player can't ask right now: monthly (everyone's cap), credit (their own), daily (their day's cap); precedence in that order.
+    refusal: Literal["credit", "daily", "monthly"] | None = None
+    # The player's own average chat cost, to say how many questions are left.
+    avg_chat_cost_usd: float | None = None
+    topup_requested: bool = False
 
 
 class AnalystModelSetting(BaseModel):
@@ -875,6 +910,38 @@ class AnalystUsageIn(BaseModel):
     cache_read_tokens: int = Field(default=0, ge=0)
     cache_write_tokens: int = Field(default=0, ge=0)
     cost_usd: float = Field(ge=0)
+    thread_id: int | None = Field(default=None, ge=1)
+    outcome: Literal["ok", "error", "aborted", "refused"] = "ok"
+    refusal: Literal["credit", "daily", "monthly", "busy"] | None = None
+    tool_calls: int = Field(default=0, ge=0, le=1000)
+    duration_ms: int = Field(default=0, ge=0, le=3_600_000)
+
+
+class AnalystUsagePlayer(BaseModel):
+    user_id: int
+    name: str
+    spent_usd: float
+    credit_usd: float | None = None
+    credit_spent_usd: float = 0.0
+    threads: int
+    questions: int
+    refused: int
+    last_used: str | None = None
+
+
+class AnalystUsageGroup(BaseModel):
+    kind: str
+    model: str
+    requests: int
+    cost_usd: float
+
+
+class AnalystUsageSummary(BaseModel):
+    today_usd: float
+    month_usd: float
+    total_usd: float
+    players: list[AnalystUsagePlayer]
+    groups: list[AnalystUsageGroup]
 
 
 class AnalystThreadIn(BaseModel):

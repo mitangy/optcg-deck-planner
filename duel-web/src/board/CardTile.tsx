@@ -228,13 +228,6 @@ export function CardTile({
     .filter(Boolean)
     .join(" ");
 
-  function openInspectFromChip(e?: MouseEvent) {
-    e?.preventDefault();
-    e?.stopPropagation();
-    clickDeferRef.current?.cancel();
-    setInspectOpen(true);
-  }
-
   function handleClick(e: MouseEvent) {
     // Long-press already opened inspect — suppress the synthetic click.
     if (longPressRef.current?.consumeActivated()) {
@@ -299,7 +292,6 @@ export function CardTile({
   const canInspect =
     inspectOnClick || inspectGestures || Boolean(onClick) || dragEnabled;
   const interactive = Boolean(onClick || inspectOnClick || dragEnabled || inspectGestures);
-  const showInspectChip = canInspect && !inspectOnClick;
 
   const body = (
     <>
@@ -427,20 +419,6 @@ export function CardTile({
               : `Cost ${entry.cost}`}
         </div>
       </div>
-      {showInspectChip ? (
-        // Mouse / touch shortcut; keyboard players press I on the focused card
-        // instead, so the chip stays out of the Tab order (~30 stops a board).
-        <span
-          role="button"
-          tabIndex={-1}
-          className="card-inspect-chip"
-          title="Inspect card (or double-click / right-click / long-press)"
-          aria-label={`Inspect ${entry.name}`}
-          onClick={openInspectFromChip}
-        >
-          i
-        </span>
-      ) : null}
     </>
   );
 

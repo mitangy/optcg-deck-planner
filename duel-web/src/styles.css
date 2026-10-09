@@ -240,46 +240,6 @@ button {
   background: rgba(40, 60, 45, 0.45);
 }
 
-.card-inspect-chip {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  z-index: 2;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(0, 0, 0, 0.28);
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 0.58rem;
-  font-weight: 600;
-  line-height: 1;
-  padding: 0;
-  cursor: pointer;
-  opacity: 0.55;
-  transition: opacity 0.15s ease, background 0.15s ease;
-}
-
-/* Desktop with a mouse: mid-left, since the corners belong to the power /
-   DON!! stack (top right) and the status icons (bottom right). Touch hides the
-   chip (see the pointer: coarse rule): long-press inspects and a tap must select. */
-@media (min-width: 900px) and (min-height: 500px) and (hover: hover) and (pointer: fine) {
-  .card-inspect-chip {
-    top: 50%;
-    right: auto;
-    left: 3px;
-    transform: translateY(-50%);
-  }
-}
-
-.card-tile:hover .card-inspect-chip,
-.card-inspect-chip:focus-visible {
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.55);
-}
-
 .card-tile {
   position: relative;
   touch-action: manipulation;
@@ -1375,6 +1335,66 @@ html:has(.duel-root) body {
   opacity: 0.6;
 }
 
+/* Match moved to another device: fixed over the frozen board, never in flow. */
+.moved-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b))
+    max(0.75rem, var(--safe-l));
+  background: rgb(var(--abyss-rgb) / 0.78);
+  overflow-y: auto;
+}
+
+.moved-card {
+  width: min(24rem, 100%);
+  min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--arena-panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 1.1rem 1.1rem 1rem;
+  text-align: center;
+  color: var(--ink);
+}
+
+.moved-card h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.1rem;
+  color: var(--chrome-bright);
+}
+
+.moved-card p {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.moved-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.moved-actions .btn {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+@media (max-height: 460px) {
+  .moved-card {
+    padding: 0.7rem 0.9rem;
+  }
+  .moved-card p {
+    margin-bottom: 0.6rem;
+  }
+}
+
 .rating-chip {
   color: var(--muted);
   font-size: 0.7rem;
@@ -2440,27 +2460,9 @@ img.zone-pile-face {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* A click here dropped a text caret in the rotated ornament: a slanted cursor between the mats. */
+  /* A click or double-click on the strip's prompt text must not select it (#314). */
   user-select: none;
   -webkit-user-select: none;
-}
-
-.midline-ornament {
-  width: min(420px, 70%);
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--chrome), transparent);
-  position: relative;
-}
-
-.midline-ornament span {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  border: 1px solid var(--chrome);
-  transform: translate(-50%, -50%) rotate(45deg);
-  background: var(--arena-deep);
 }
 
 .prompt {
@@ -3723,13 +3725,18 @@ img.zone-pile-face {
 }
 
 /* Attack-ready glow (#412): your Leader / Characters that can attack now.
-   A soft, still green edge (box-shadow only, so nothing moves); later than
-   .has-actions so it wins. */
+   A thin, still ring (box-shadow only, so nothing moves) on a dark edge that
+   separates it from the art; later than .has-actions so it wins. Green by
+   default, light gold on Green cards where green would vanish (#449). */
 .card-tile.attack-ready {
-  border-color: rgba(60, 200, 110, 0.55);
+  --attack-ring: 74 222 128;
+  border-color: rgba(6, 10, 16, 0.92);
   box-shadow:
-    0 0 0 1px rgba(60, 200, 110, 0.4),
-    0 0 6px 1px rgba(60, 200, 110, 0.22);
+    0 0 0 2px rgb(var(--attack-ring)),
+    0 0 7px 2px rgb(var(--attack-ring) / 0.35);
+}
+.card-tile.attack-ready.attack-ready-light {
+  --attack-ring: 255 232 150;
 }
 
 
@@ -5133,13 +5140,6 @@ details.deck-config-section.deck-collapsible {
    carries the count there, so skip the peeking cards. */
 .choice-option .don-under {
   display: none;
-}
-
-/* Touch: long-press already inspects; the nested chip steals taps on small cards. */
-@media (pointer: coarse) {
-  .card-inspect-chip {
-    display: none;
-  }
 }
 
 /* Deck editor on phones: compact rows (thumbnail, name, − n +) and a sticky count bar,

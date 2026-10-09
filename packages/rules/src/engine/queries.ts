@@ -632,7 +632,7 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
     case "return_don": return donOnField(p) >= cost.count;
     case "trash_hand": case "reveal_hand": case "hand_to_deck_bottom":
       return candidates(state, ctx, { player: "you", zone: "hand", ...(cost.filter ? { filter: cost.filter } : {}) }).filter((l) => l.id !== ctx.sourceId).length >= cost.count;
-    case "rest_self": return src?.card != null && onField(src) && !src.card.rested;
+    case "rest_self": return src?.card != null && onField(src) && !src.card.rested && !hasRestriction(state, src.seat, src.card, "cannot_be_rested");
     case "trash_self": case "self_to_hand": case "self_to_deck_bottom": return src != null && (src.zone === "character" || src.zone === "stage");
     case "rest_cards": return candidates(state, ctx, cost.selector).filter((l) => l.card && !l.card.rested).length >= cost.count;
     case "trash_cards": case "return_cards_to_hand": case "cards_to_deck_bottom": return candidates(state, ctx, cost.selector).length >= cost.count;
