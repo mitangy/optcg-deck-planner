@@ -555,6 +555,7 @@ function removalBlocked(state: MatchState, loc: Located, byEffectOf: Seat, kind:
   const opp = byEffectOf !== loc.seat;
   if (kind === "ko" && (protectedFromSource(state, loc, "cannot_be_ko_by_effect_from", source, byEffectOf) || protectedFromSource(state, loc, "cannot_be_ko_by_opponent_effect_from", source, byEffectOf))) return true;
   if (kind === "rest" && protectedFromSource(state, loc, "cannot_be_rested_by_opponent_effect_from", source, byEffectOf)) return true;
+  if (kind === "rest" && hasRestriction(state, loc.seat, loc.card, "cannot_be_rested")) return true;
   if (kind === "rest") return opp && hasRestriction(state, loc.seat, loc.card, "cannot_be_rested_by_opponent_effect");
   if (kind === "ko" && (hasRestriction(state, loc.seat, loc.card, "cannot_be_ko") || hasRestriction(state, loc.seat, loc.card, "cannot_be_ko_by_effect"))) return true;
   if (kind === "ko" && opp && hasRestriction(state, loc.seat, loc.card, "cannot_be_ko_by_opponent_effect")) return true;
