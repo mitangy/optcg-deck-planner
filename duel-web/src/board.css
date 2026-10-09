@@ -1265,7 +1265,9 @@ body.is-panel-drag .panel-grip {
 .arena.arena-wide .col-resize {
   top: 0;
   bottom: 0;
-  z-index: 40;
+  /* Over the panels, under the fanned hand (16): a card reaching over the
+     column edge gets the pointer, not this handle (#449). */
+  z-index: 15;
   width: 9px;
   cursor: col-resize;
 }

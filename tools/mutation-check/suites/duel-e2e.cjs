@@ -429,5 +429,10 @@ module.exports = {
     { id: "e2e-lobby-play-forgets-mode", args: "queue-board --project=desktop-1280", file: "duel-web/src/pages/LobbyPage.tsx", from: "    writeLastMode(mode);\n", to: "", kills: ["queue-board.spec.ts > after Ranked once, one tap on Play searches for an opponent (#431) [desktop-1280]"] },
     // DON!! card art (#440)
     { id: "e2e-don-art-strip-ignores-side-art", args: "don-art --project=desktop-1280 -g shows", file: "duel-web/src/board/SideField.tsx", from: "            donArt={donArtUrl}\n", to: "", kills: ["don-art.spec.ts > your DON!! shows the chosen art and the opponent's the default (#440) [desktop-1280]"] },
+    // Column resize handle under the fanned hand, so a card over the column edge keeps the pointer (#449)
+    { id: "e2e-col-resize-above-hand-fan", args: "demo-audit --project=desktop-1280 -g 449", file: "duel-web/src/board.css", from: "  z-index: 15;\n  width: 9px;\n  cursor: col-resize;", to: "  z-index: 40;\n  width: 9px;\n  cursor: col-resize;", kills: [
+      "demo-audit.spec.ts > a hand card over the left column edge gets the pointer, not the resize handle (#449) [desktop-1280]",
+      "demo-audit.spec.ts > a hand card over the right column edge gets the pointer, not the resize handle (#449) [desktop-1280]",
+    ] },
   ],
 };
