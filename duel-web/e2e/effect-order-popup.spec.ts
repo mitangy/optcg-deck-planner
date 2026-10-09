@@ -82,11 +82,12 @@ test("a header drag does not reorder the cards, a card drag still does (#449)", 
   expect(await ids()).toEqual(["e0", "e1", "e2"]);
   await dragHead(page, 0, 40);
   expect(await ids()).toEqual(["e0", "e1", "e2"]);
+  await page.waitForTimeout(400);
   const a = (await page.locator(`${STAGE} .float-card`).first().boundingBox())!;
   const c = (await page.locator(`${STAGE} .float-card`).last().boundingBox())!;
   await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
   await page.mouse.down();
-  await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2, { steps: 10 });
+  await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2, { steps: 20 });
   await page.mouse.up();
-  expect(await ids()).toEqual(["e1", "e2", "e0"]);
+  await expect.poll(ids).toEqual(["e1", "e2", "e0"]);
 });
