@@ -750,9 +750,10 @@ test("desktop mulligan puts Keep and Mulligan side by side in the board dock, wi
   await expect(page.locator(".intent-empty")).toHaveCount(0);
 });
 
-// The opponent hand pins above the top of the playmat (left, centre or right)
-// instead of its side panel, and drags back into a column (#264).
-test("the opponent hand pins to the top of the mat, stays after a reload, and drags back to a column (#264)", async ({ page, duel }, info) => {
+// The opponent hand pins to the playmat (beside the opponent's mat for left /
+// right, above it for centre) instead of its side panel, and drags back into a
+// column (#264, #462).
+test("the opponent hand pins to the mat, stays after a reload, and drags back to a column (#264)", async ({ page, duel }, info) => {
   test.skip(info.project.name !== "desktop-1280", "side panels move on desktop only");
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
@@ -774,10 +775,10 @@ test("the opponent hand pins to the top of the mat, stays after a reload, and dr
   await page.mouse.up();
   await expect(page.locator(".opp-hand-mat-right .opp-hand-corner")).toBeVisible();
   expect(await inColumn()).toBe(0);
-  // It sits above the opponent's mat, not over its cards.
+  // It sits in the open space beside the opponent's mat, not over its cards.
   const hand = (await page.locator(".opp-hand-mat").boundingBox())!;
   const mat = (await page.locator(".side-field.side-opp").boundingBox())!;
-  expect(hand.y + hand.height).toBeLessThanOrEqual(mat.y + 1);
+  expect(hand.x).toBeGreaterThanOrEqual(mat.x + mat.width - 1);
   const issues = (await duel.audit()).filter((i) => !isKnown(i));
   if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
   expect(issues, formatIssues(issues)).toEqual([]);
@@ -792,6 +793,86 @@ test("the opponent hand pins to the top of the mat, stays after a reload, and dr
   await expect(page.locator(".opp-hand-mat")).toHaveCount(0);
   await expect.poll(inColumn).toBe(1);
   expect(duel.errors).toEqual([]);
+});
+
+// Left / right: the hand fills the open space beside the opponent's mat, over
+// the mat's height, and the mat keeps the strip it would give up for the top
+// centre spot. A narrow window has no such space, so the hand stays above the
+// mat there (#462).
+for (const vp of [
+  { width: 1280, height: 720 },
+  { width: 1440, height: 900 },
+]) {
+  for (const spot of ["left", "right"] as const) {
+    test(`the opponent hand fills the open space beside the opponent mat with spot ${spot} at ${vp.width}x${vp.height} (#462)`, async ({ page, duel }, info) => {
+      test.skip(info.project.name !== "desktop-1280", "sets its own viewport");
+      await page.setViewportSize(vp);
+      const open = async (oppHandSpot: string) => {
+        await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), { oppHandSpot });
+        await page.goto("/demo?full");
+        await page.locator(".board-root").waitFor();
+        await page.waitForTimeout(400);
+      };
+      await open("centre");
+      const centreMat = (await page.locator(".side-field.side-opp").boundingBox())!;
+
+      await open(spot);
+      await expect(page.locator(`.opp-hand-mat-side.opp-hand-mat-${spot} .opp-hand-corner`)).toBeVisible();
+      const hand = (await page.locator(".opp-hand-mat-side").boundingBox())!;
+      const mat = (await page.locator(".side-field.side-opp").boundingBox())!;
+      const playmat = (await page.locator(".playmat").boundingBox())!;
+      // No strip reserved: the mat is bigger than with the top centre spot.
+      expect(mat.height).toBeGreaterThan(centreMat.height + 4);
+      // Entirely in the gutter between the mat and the playmat's edge...
+      if (spot === "left") {
+        expect(hand.x).toBeGreaterThanOrEqual(playmat.x - 1);
+        expect(hand.x + hand.width).toBeLessThanOrEqual(mat.x + 1);
+      } else {
+        expect(hand.x).toBeGreaterThanOrEqual(mat.x + mat.width - 1);
+        expect(hand.x + hand.width).toBeLessThanOrEqual(playmat.x + playmat.width + 1);
+      }
+      // ...over the opponent mat's height, not above it.
+      expect(hand.y).toBeGreaterThanOrEqual(mat.y - 1);
+      expect(hand.y + hand.height).toBeLessThanOrEqual(mat.y + mat.height + 1);
+      expect(hand.width).toBeGreaterThan(30);
+      // Every card back stays inside the wrapper.
+      const backs = await page.locator(".opp-hand-mat-side .opp-corner-card").evaluateAll((els) =>
+        els.map((el) => {
+          const r = el.getBoundingClientRect();
+          return { l: r.left, t: r.top, r: r.right, b: r.bottom };
+        }),
+      );
+      expect(backs.length).toBeGreaterThan(0);
+      for (const b of backs) {
+        expect(b.l).toBeGreaterThanOrEqual(hand.x - 1);
+        expect(b.r).toBeLessThanOrEqual(hand.x + hand.width + 1);
+        expect(b.t).toBeGreaterThanOrEqual(hand.y - 1);
+        expect(b.b).toBeLessThanOrEqual(hand.y + hand.height + 1);
+      }
+      const issues = (await duel.audit()).filter((i) => !isKnown(i));
+      if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
+      expect(issues, formatIssues(issues)).toEqual([]);
+      expect(duel.errors).toEqual([]);
+    });
+  }
+}
+
+test("the top centre opponent hand keeps a strip above the mat, and left / right fall back to it when the window leaves no room beside the mat (#462)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "sets its own viewport");
+  for (const [spot, vp] of [
+    ["centre", { width: 1280, height: 720 }],
+    ["right", { width: 1000, height: 1100 }],
+  ] as const) {
+    await page.setViewportSize(vp);
+    await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), { oppHandSpot: spot });
+    await page.goto("/demo?full");
+    await page.locator(".board-root").waitFor();
+    await page.waitForTimeout(400);
+    const hand = (await page.locator(".opp-hand-mat").boundingBox())!;
+    const mat = (await page.locator(".side-field.side-opp").boundingBox())!;
+    expect(hand.height, `${spot} strip has room for the cards`).toBeGreaterThan(20);
+    expect(hand.y + hand.height, `${spot} strip sits above the mat`).toBeLessThanOrEqual(mat.y + 1);
+  }
 });
 
 // Block step: dragging a Counter onto the defender passes the block and plays

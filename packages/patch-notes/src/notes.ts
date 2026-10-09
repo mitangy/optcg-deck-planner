@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-09
+  { date: "2026-10-09", app: "duel", title: "Opponent hand beside their mat", text: "Pin the opponent's hand to the left or right of the board and it now fills the open space beside their mat instead of crowding its corner. Drag it there, or pick it in Settings." },
   // 2026-10-08
   { date: "2026-10-08", app: "both", pr: 444, title: "Meta deck browser", text: "Browse popular tournament decks by leader and turn one into your own deck with a single click." },
   { date: "2026-10-08", app: "duel", pr: 441, title: "Choose your DON!! art", text: "Pick which DON!! card art you play with in Settings." },
