@@ -2,8 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { searchAtlas } from "../cards/searchAtlas";
 import {
   addCardToDeck,
+  addCard,
   applyDeckOps,
+  applyOps,
   countCardInDeck,
+  isDeckDirty,
+  removeAllCopies,
+  removeCard,
+  saveDeckDraft,
   removeAllCopiesFromDeck,
   removeCardFromDeck,
 } from "./editDeck";
@@ -135,6 +141,47 @@ describe("applying a Log Pose edit (#400)", () => {
     expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/Leaders/) });
     expect(getSavedDeck("apply-deck")!.cards).toEqual(["ST01-006"]);
     deleteDeck("apply-deck");
+  });
+});
+
+describe("editing an unsaved draft (#481)", () => {
+  it("edits a card list without changing the list or the saved deck (#481)", () => {
+    const saved = saveDeck({ id: "draft-deck", name: "Draft", leaderId: "ST01-001", cards: ["ST01-006", "ST01-006"] });
+    const added = addCard(saved.cards, "ST01-008");
+    expect(added).toEqual({ ok: true, cards: ["ST01-006", "ST01-006", "ST01-008"] });
+    expect(removeCard(saved.cards, "ST01-006")).toEqual({ ok: true, cards: ["ST01-006"] });
+    expect(removeAllCopies(saved.cards, "ST01-006")).toEqual({ ok: true, cards: [] });
+    expect(applyOps(saved.cards, [{ id: "ST01-006", before: 2, after: 3 }])).toMatchObject({ ok: true });
+    expect(saved.cards).toEqual(["ST01-006", "ST01-006"]);
+    expect(getSavedDeck("draft-deck")!.cards).toEqual(["ST01-006", "ST01-006"]);
+  });
+
+  it("is dirty for a swapped card or leader, not for the same cards in another order (#481)", () => {
+    const saved = { leaderId: "ST01-001", cards: ["ST01-006", "ST01-008", "ST01-006"] };
+    expect(isDeckDirty(saved, { leaderId: "ST01-001", cards: ["ST01-008", "ST01-006", "ST01-006"] })).toBe(false);
+    expect(isDeckDirty(saved, { leaderId: "ST01-001", cards: ["ST01-006", "ST01-008", "ST01-009"] })).toBe(true);
+    expect(isDeckDirty(saved, { leaderId: "ST01-001", cards: ["ST01-006", "ST01-008"] })).toBe(true);
+    expect(isDeckDirty(saved, { leaderId: "ST01-002", cards: saved.cards })).toBe(true);
+  });
+
+  it("saving a draft marks a planner-linked deck edited and drops art prefs of removed cards (#481)", () => {
+    saveDeck({
+      id: "draft-linked",
+      name: "Linked",
+      leaderId: "ST01-001",
+      cards: ["ST01-006", "ST01-008"],
+      artPrefs: { "ST01-006": "p1", "ST01-008": "p1" },
+      plannerDeckId: 5,
+    });
+    const result = saveDeckDraft("draft-linked", { leaderId: "ST01-001", cards: ["ST01-006"] });
+    expect(result.ok).toBe(true);
+    const deck = getSavedDeck("draft-linked")!;
+    expect(deck.cards).toEqual(["ST01-006"]);
+    expect(deck.editedLocally).toBe(true);
+    expect(deck.artPrefs).toEqual({ "ST01-006": "p1" });
+    saveDeck({ id: "draft-plain", name: "Plain", leaderId: "ST01-001", cards: [] });
+    saveDeckDraft("draft-plain", { leaderId: "ST01-001", cards: ["ST01-006"] });
+    expect(getSavedDeck("draft-plain")!.editedLocally).toBeUndefined();
   });
 });
 

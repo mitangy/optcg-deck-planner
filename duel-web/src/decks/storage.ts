@@ -20,6 +20,8 @@ export type SavedDeck = {
   artPrefs?: Record<string, string>;
   /** Deck planner deck this copy is linked to (see `decks/planner.ts`). */
   plannerDeckId?: number;
+  /** Saved edits on a planner-linked deck: games keep this version instead of re-importing the planner's (#481). */
+  editedLocally?: boolean;
   updatedAt: number;
 };
 
@@ -186,6 +188,8 @@ export function saveDeck(input: {
   artPrefs?: Record<string, string>;
   /** Omit to keep the existing planner link. */
   plannerDeckId?: number;
+  /** Omit to keep the existing value. */
+  editedLocally?: boolean;
 }): SavedDeck {
   const decks = readAll();
   const id = input.id ?? crypto.randomUUID();
@@ -204,6 +208,7 @@ export function saveDeck(input: {
     cards: [...input.cards],
     artPrefs,
     plannerDeckId: input.plannerDeckId ?? existing?.plannerDeckId,
+    editedLocally: input.editedLocally ?? existing?.editedLocally,
     updatedAt: Date.now(),
   };
   const idx = decks.findIndex((d) => d.id === id);
@@ -330,6 +335,8 @@ export function upsertPlannerDeck(input: {
     cards: v.cards,
     artPrefs: kept,
     plannerDeckId: input.plannerId,
+    // A planner pull replaces local edits on purpose.
+    editedLocally: false,
   });
   return { ok: true, deck, warnings: v.warnings };
 }
