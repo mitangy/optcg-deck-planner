@@ -331,6 +331,8 @@ export function DuelBoard({
   const compactHud = useMediaQuery(COMPACT_HUD_QUERY);
   const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
   const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_QUERY);
+  /** "Simple board on phones": your own mat gets the count row and bigger cards the opponent's has (portrait only). */
+  const simpleOwnBoard = prefs.compactOwnBoard && portraitMat;
   /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
   const lp = wide && landscapePhone;
   // Log Pose docked to a side: its panel renders into a host at the top of that side column, only while it is open.
@@ -407,13 +409,7 @@ export function DuelBoard({
   // Landscape phones keep the hand in the right column (a scrolling grid), never over the field.
   const railHand = usesRailHand(wide, lp, railHandTall, fanHand);
   /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling. */
-  const phoneFan = usesPhoneFan(
-    wide,
-    specFans ? "fan" : handLayout,
-    specFans && view?.revealedHands
-      ? (view.revealedHands[seat ?? view.seat]?.length ?? 0)
-      : (view?.you.hand.length ?? 0),
-  );
+  const phoneFan = usesPhoneFan(wide, specFans ? "fan" : handLayout);
   /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
   const panelLayout = useMemo(() => parsePanelLayout(prefs.panelLayout), [prefs.panelLayout]);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
@@ -888,6 +884,12 @@ export function DuelBoard({
       // it, the next hover raises the hand again.
       setTuckUnderPointer(document.querySelector(".hand-fan:hover, .hand-dock:hover") != null);
     }
+  }
+
+  /** Portrait phones: fold the hand away under its title row, or open it again. */
+  function toggleHandCollapsed() {
+    setHandCollapsed((v) => !v);
+    setHandFilter(null);
   }
 
   /** Under the handle: Hide / Show, only with Keep hand open (H does the same). */
@@ -2244,6 +2246,8 @@ export function DuelBoard({
 
             <SideField
               side="you"
+              compact={simpleOwnBoard}
+              countRow={simpleOwnBoard}
               turnOrder={youFirst ? "first" : "second"}
               activeTurn={youActive}
               matImageUrl={skins.near.playmat}
@@ -2394,8 +2398,25 @@ export function DuelBoard({
                     <HandLabel name={seatLabel(players, boardSeat)} count={handCount} />
                   ) : (
                     <>
-                      <span className="hand-rail-title">{spectating ? (nearHand ? "Seat hand" : "Seat hand (hidden)") : "Hand"}</span>
-                      <span className="hand-rail-count">{handCount}</span>
+                      {spectating ? (
+                        <>
+                          <span className="hand-rail-title">{nearHand ? "Seat hand" : "Seat hand (hidden)"}</span>
+                          <span className="hand-rail-count">{handCount}</span>
+                        </>
+                      ) : (
+                        // The whole title row is a Hide / Show target too (#445): it stays
+                        // put and the same size while the hand folds, unlike the small button.
+                        <button
+                          type="button"
+                          className="hand-rail-toggle"
+                          aria-expanded={!(handCollapsed && !handPick)}
+                          aria-label={`${handCollapsed && !handPick ? "Show" : "Hide"} your hand, ${handCount} cards`}
+                          onClick={toggleHandCollapsed}
+                        >
+                          <span className="hand-rail-title">Hand</span>
+                          <span className="hand-rail-count">{handCount}</span>
+                        </button>
+                      )}
                     </>
                   )}
                   {!spectating ? (
@@ -2403,14 +2424,8 @@ export function DuelBoard({
                       {sortHandBtn}
                       <button
                         type="button"
-                        className="hand-rail-btn"
-                        onClick={() => {
-                          setHandCollapsed((v) => {
-                            const next = !v;
-                            if (next) setHandFilter(null);
-                            return next;
-                          });
-                        }}
+                        className="hand-rail-btn hand-collapse-btn"
+                        onClick={toggleHandCollapsed}
                       >
                         {handCollapsed && !handPick ? "Show" : "Hide"}
                       </button>

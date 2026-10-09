@@ -219,7 +219,9 @@ export function SideField({
   const [trashOpen, setTrashOpen] = useState(false);
   const [trashTopInspect, setTrashTopInspect] = useState(false);
   const [lifeOpen, setLifeOpen] = useState(false);
-  const counts = countRow && side === "opp";
+  /** Count row instead of piles: the opponent's mat on a portrait phone, and yours with "Simple board". */
+  const counts = countRow;
+  const who = side === "you" ? "Your" : "Opponent";
   const faceUpLife = data.faceUpLife ?? [];
   const trashTop = data.trash.length ? data.trash[data.trash.length - 1] : null;
   const trashTitle = side === "you" ? "Your trash" : "Opponent trash";
@@ -279,18 +281,18 @@ export function SideField({
             <CountChip
               kind="life"
               text={zonePileCountLabel(data.lifeCount, leaderLife ?? undefined)}
-              label={`Opponent life: ${data.lifeCount} cards${
+              label={`${who} life: ${data.lifeCount} cards${
                 faceUpLife.length ? `, ${faceUpLife.length} face up` : ""
               }`}
               extra={faceUpLife.length ? `${faceUpLife.length}\u2191` : undefined}
               onOpen={faceUpLife.length ? () => setLifeOpen(true) : undefined}
             />
-            <CountChip kind="deck" text={String(data.deckCount)} label={`Opponent deck: ${data.deckCount} cards`} />
-            <CountChip kind="don" text={String(data.donDeckCount)} label={`Opponent DON!! deck: ${data.donDeckCount} cards`} />
+            <CountChip kind="deck" text={String(data.deckCount)} label={`${who} deck: ${data.deckCount} cards`} />
+            <CountChip kind="don" text={String(data.donDeckCount)} label={`${who} DON!! deck: ${data.donDeckCount} cards`} />
             <CountChip
               kind="trash"
               text={String(data.trash.length)}
-              label={`View opponent trash, ${data.trash.length} cards`}
+              label={`View ${who.toLowerCase()} trash, ${data.trash.length} cards`}
               onOpen={() => setTrashOpen(true)}
             />
           </div>

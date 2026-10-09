@@ -105,7 +105,7 @@ export function ZonePile({
         {faces >= 3 ? <span className="zone-pile-face" /> : null}
         {faces >= 2 ? <span className="zone-pile-face mid" /> : null}
         {topArt ? (
-          <img className="zone-pile-face top don-pile-art" src={topArt} alt="" />
+          <img className="zone-pile-face top don-pile-art" src={topArt} alt="" draggable={false} />
         ) : (
           <span className="zone-pile-face top" />
         )}
