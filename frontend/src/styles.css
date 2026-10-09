@@ -5644,6 +5644,20 @@ tr.row-flash > td {
   --fb-danger: var(--danger);
 }
 
+/* What's new card (packages/patch-notes): map its tokens to the planner palette (light and dark). */
+.wn-card {
+  --wn-bg: var(--card);
+  --wn-ink: var(--ink);
+  --wn-line: var(--line-strong);
+  --wn-accent: var(--primary-bg, var(--accent));
+  --wn-on-accent: var(--primary-ink);
+  font-family: var(--font-body);
+}
+
+.wn-card-heading {
+  font-family: var(--font-display);
+}
+
 /* ---- Meta (tournament decks) ---- */
 .meta-page {
   min-width: 0;

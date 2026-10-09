@@ -445,6 +445,9 @@ export function SettingsPage() {
           </p>
           <VersionStatus actions />
           <div className="about-feedback">
+            <Link to="/whats-new" className="btn btn-ghost btn-sm about-feedback-btn">
+              What’s new
+            </Link>
             <button type="button" className="btn btn-ghost btn-sm about-feedback-btn" onClick={() => openFeedback("Send feedback")}>
               Send feedback
             </button>
