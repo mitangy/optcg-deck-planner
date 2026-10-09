@@ -5,6 +5,12 @@
  */
 const intents = "packages/rules/src/engine/intents.ts";
 const procedure = "packages/rules/src/engine/procedure.ts";
+const TOP_CENTRE = "demo-audit.spec.ts > the top centre opponent hand keeps a strip above the mat, and left / right fall back to it when the window leaves no room beside the mat (#462) [desktop-1280]";
+const side = (spot, w, h) => `demo-audit.spec.ts > the opponent hand fills the open space beside the opponent mat with spot ${spot} at ${w}x${h} (#462) [desktop-1280]`;
+const SIDE_L_720 = side("left", 1280, 720);
+const SIDE_R_720 = side("right", 1280, 720);
+const SIDE_L_900 = side("left", 1440, 900);
+const SIDE_R_900 = side("right", 1440, 900);
 const queueBoard = "queue-board.spec.ts > Find match opens the board while the queue searches [desktop-1280]";
 const rules = "rules-attack.spec.ts > an unblocked Leader attack moves one Life card to the defender's hand [desktop-1280]";
 
@@ -12,6 +18,11 @@ module.exports = {
   cwd: "duel-web",
   runner: "playwright",
   mutations: [
+    // Small landscape phones get the landscape board (#469). Both JS layout queries (wide board and landscape phone) go back to 600px.
+    { id: "e2e-small-landscape-phone-portrait-layout", args: "demo-audit --project=phone-375 -g 469", edits: [
+      { file: "duel-web/src/board/useMediaQuery.ts", from: "and (min-width: 480px) and (max-height: 499px)\";\n\n/**\n * Compact HUD", to: "and (min-width: 600px) and (max-height: 499px)\";\n\n/**\n * Compact HUD" },
+      { file: "duel-web/src/board/useMediaQuery.ts", from: "export const LANDSCAPE_PHONE_QUERY =\n  \"(orientation: landscape) and (min-width: 480px)", to: "export const LANDSCAPE_PHONE_QUERY =\n  \"(orientation: landscape) and (min-width: 600px)" },
+    ], kills: ["demo-audit.spec.ts > a small landscape phone gets the landscape board with readable cards (#469) [phone-375]"] },
     // rules, clicked through the UI
     { id: "e2e-first-turn-attack-allowed", args: "rules-attack --project=desktop-1280", edits: [
       { file: intents, from: "      if (p.turnsStarted < 2) return err(\"FIRST_TURN\", \"You cannot attack on your first turn\");", to: "" },
@@ -138,10 +149,14 @@ module.exports = {
     { id: "e2e-rail-idle-not-passed", args: "demo-audit --project=phone-375 -g \"action bar says\"", file: "duel-web/src/board/DuelBoard.tsx", from: "      idle={oppWait ? \"opponent\" : view.pendingChoices?.[0]?.seat === mySeat ? \"prompt\" : null}\n", to: "", kills: ["demo-audit.spec.ts > the action bar says to answer the prompt or shows the wait (#262) [phone-375]"] },
     { id: "e2e-dock-no-mulligan-extra", args: "demo-audit --project=desktop-1280 -g \"desktop mulligan puts Keep\"", file: "duel-web/src/board/DuelBoard.tsx", from: "          extras={dock.extras}\n", to: "", kills: ["demo-audit.spec.ts > desktop mulligan puts Keep and Mulligan side by side in the board dock, with no Actions panel (#368) [desktop-1280]"] },
     // opponent hand pinned to the top of the mat (#264)
-    { id: "e2e-opp-hand-mat-drop-ignored", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board/SidePanels.tsx", from: "      matPin!.onChange(d.mat.spot);\n      return;", to: "      return;", kills: ["demo-audit.spec.ts > the opponent hand pins to the top of the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
-    { id: "e2e-opp-hand-stays-on-mat", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board/SidePanels.tsx", from: "    if (matPin?.id === d.id && matPin.spot) matPin.onChange(null);\n", to: "", kills: ["demo-audit.spec.ts > the opponent hand pins to the top of the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
-    { id: "e2e-opp-hand-also-in-column", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    oppHand: oppHandOnMat || specFans === \"desktop\" ? null : (", to: "    oppHand: (", kills: ["demo-audit.spec.ts > the opponent hand pins to the top of the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
-    { id: "e2e-opp-hand-strip-not-reserved", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board.css", from: "  --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);", to: "  --hint-h: 0px;", kills: ["demo-audit.spec.ts > the opponent hand pins to the top of the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
+    { id: "e2e-opp-hand-mat-drop-ignored", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board/SidePanels.tsx", from: "      matPin!.onChange(d.mat.spot);\n      return;", to: "      return;", kills: ["demo-audit.spec.ts > the opponent hand pins to the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
+    { id: "e2e-opp-hand-stays-on-mat", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board/SidePanels.tsx", from: "    if (matPin?.id === d.id && matPin.spot) matPin.onChange(null);\n", to: "", kills: ["demo-audit.spec.ts > the opponent hand pins to the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
+    { id: "e2e-opp-hand-also-in-column", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    oppHand: oppHandOnMat || specFans === \"desktop\" ? null : (", to: "    oppHand: (", kills: ["demo-audit.spec.ts > the opponent hand pins to the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
+    { id: "e2e-opp-hand-strip-not-reserved", args: "demo-audit --project=desktop-1280 -g \"top centre opponent hand\"", file: "duel-web/src/board.css", from: "  --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);\n}\n\n@container playmat (aspect-ratio < 1.02) {", to: "  --hint-h: 0px;\n}\n\n@container playmat (aspect-ratio < 1.02) {", kills: [TOP_CENTRE] },
+    // beside the opponent mat for left / right (#462)
+    { id: "e2e-opp-hand-side-class-dropped", args: "demo-audit --project=desktop-1280 -g \"open space beside\"", file: "duel-web/src/board/DuelBoard.tsx", from: "${oppHandOnMat === \"centre\" ? \"\" : \" opp-hand-mat-side\"}", to: "", kills: [SIDE_L_720, SIDE_R_720, SIDE_L_900, SIDE_R_900] },
+    { id: "e2e-opp-hand-side-vertical", args: "demo-audit --project=desktop-1280 -g \"open space beside\"", file: "duel-web/src/board.css", from: "    flex-direction: row;\n    justify-content: center;\n    align-items: flex-start;\n  }\n\n  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner-mat .opp-corner-card {", to: "    flex-direction: column;\n    justify-content: center;\n    align-items: flex-start;\n  }\n\n  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner-mat .opp-corner-card {", kills: [SIDE_L_720, SIDE_R_720, SIDE_L_900, SIDE_R_900] },
+    { id: "e2e-opp-hand-fallback-not-reserved", args: "demo-audit --project=desktop-1280 -g \"top centre opponent hand\"", file: "duel-web/src/board.css", from: "@container playmat (aspect-ratio < 1.02) {\n  .arena.arena-wide .playmat-inner:has(> .opp-hand-mat-side) {\n    --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);\n  }\n}\n", to: "", kills: [TOP_CENTRE] },
     // Block step: a Counter dragged onto the defender passes the block, then counters (#300)
     { id: "e2e-skip-block-counter-not-sent", args: "demo-audit --project=desktop-1280 -g \"skips the block\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    if (queuedCounter.mode === \"send\") onSendIntent(intent);", to: "    if (false) onSendIntent(intent);", kills: ["demo-audit.spec.ts > dragging a Counter onto the defender in the block step skips the block and counters (#300) [desktop-1280]"] },
     { id: "e2e-skip-block-chip-not-draggable", args: "demo-audit --project=phone-375 -g \"skips the block\"", file: "duel-web/src/board/DuelBoard.tsx", from: "          defend.phase === \"counter\" || defend.earlyCounters.length > 0", to: "          defend.phase === \"counter\"", kills: ["demo-audit.spec.ts > dragging a Counter onto the defender in the block step skips the block and counters (#300) [phone-375]"] },
@@ -380,9 +395,8 @@ module.exports = {
     { id: "e2e-unaffordable-lifted-slot-visible", args: "hand-lift-unaffordable -g \"leaves its slot empty\"", file: "duel-web/src/board.css", from: ".arena .card-tile.hand-unaffordable:not(.selected, .card-lifted) {", to: ".arena .card-tile.hand-unaffordable:not(.selected) {", kills: ["hand-lift-unaffordable.spec.ts > a dragged grayed-out hand card leaves its slot empty like any other (#364) [desktop-1280]", "hand-lift-unaffordable.spec.ts > a dragged grayed-out hand card leaves its slot empty like any other (#364) [phone-375]"] },
     { id: "e2e-drag-disabled-mid-drag-keeps-lift", args: "hand-lift-unaffordable -g \"cut short by Sort\"", file: "duel-web/src/board/usePointerDrag.ts", from: "    reset();\n    onDragCancelRef.current?.();\n", to: "", kills: ["hand-lift-unaffordable.spec.ts > a hand card drag cut short by Sort lets the lifted copy go (#364) [desktop-1280]", "hand-lift-unaffordable.spec.ts > a hand card drag cut short by Sort lets the lifted copy go (#364) [phone-375]"] },
     // matchup brief (#401), pinned in the Log Pose panel that moves and resizes (#423)
-    // The Brief button is a fixed box (CSS) and its label never changes (code): the mutation lets the label grow with the status.
+    // The Brief button sizes to its label, and the label never changes: the mutation lets the label grow with the status.
     { id: "e2e-brief-trigger-text-grows", args: "match-brief --project=desktop-1280 -g \"without moving the board \\(#401\\)\"", edits: [
-      { file: "duel-web/src/logPose.css", from: ".hud-brief-btn.hud-brief-text {\n  width: 76px;\n}", to: ".hud-brief-btn.hud-brief-text {\n  width: auto;\n}" },
       { file: "duel-web/src/board/MatchBrief.tsx", from: "<span className=\"hud-brief-label\">Brief</span>", to: "<span className=\"hud-brief-label\">{busy ? \"Writing the brief…\" : \"Brief\"}</span>" },
     ], kills: ["match-brief.spec.ts > practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423) [desktop-1280]"] },
     { id: "e2e-brief-panel-in-flow", args: "match-brief --project=desktop-1280 --project=phone-375 -g \"pinned in the Log Pose panel\"", file: "packages/analyst-client/src/logPose.css", from: ".lp-panel {\n  position: fixed;", to: ".lp-panel {\n  position: static;", kills: ["match-brief.spec.ts > practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423) [desktop-1280]", "match-brief.spec.ts > practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423) [phone-375]"] },
@@ -617,6 +631,16 @@ module.exports = {
     // Docked fan: menu, Hand and Sort stack at the fan's left (#449)
     { id: "e2e-hand-menu-row", args: "hand-menu --project=desktop-1280", file: "duel-web/src/board.css", from: "  justify-self: start;\n  flex-direction: column;\n  align-items: flex-start;", to: "  justify-self: start;\n  align-items: flex-start;", kills: ["hand-menu.spec.ts > docked fan: menu, Hand and Sort stack in a column at the fan's left, tucked (#449) [desktop-1280]", "hand-menu.spec.ts > docked fan: menu, Hand and Sort stack in a column at the fan's left, shown (#449) [desktop-1280]"] },
     { id: "e2e-hand-menu-clipped-at-bottom", args: "hand-menu --project=desktop-1280 -g tucked", file: "duel-web/src/board.css", from: "  transform: translateY(calc(var(--fan-ch) * var(--fan-peek) - 100% - 4px));\n", to: "", kills: ["hand-menu.spec.ts > docked fan: menu, Hand and Sort stack in a column at the fan's left, tucked (#449) [desktop-1280]"] },
+
+    // Brief and Log Pose top-bar buttons hug their label with even padding (#463)
+    { id: "e2e-top-bar-text-buttons-fixed-width", args: "copilot --project=desktop-1280 -g \"#463\"", edits: [
+      { file: "duel-web/src/logPose.css", from: ".hud-brief-btn.hud-brief-text {\n  width: auto;\n  padding: 0 0.7rem;\n}", to: ".hud-brief-btn.hud-brief-text {\n  width: 76px;\n}" },
+      { file: "duel-web/src/board/copilot.css", from: "/* \"Log Pose\" in the top bar sizes to its label like Brief (same padding). Busy (a plan running) is the dot. */\n", to: ".hud-brief-btn.hud-copilot-btn.hud-brief-text {\n  width: 92px;\n}\n" },
+    ], kills: [
+      "copilot.spec.ts > the Brief and Log Pose buttons keep even padding in the desktop top bar at 1280x720 (#463) [desktop-1280]",
+      "copilot.spec.ts > the Brief and Log Pose buttons keep even padding in the desktop top bar at 1440x900 (#463) [desktop-1280]",
+    ] },
+
     // Menu and full leaderboard (#460)
     { id: "e2e-nav-esc-does-not-close", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "      if (e.key === \"Escape\") {\n        e.preventDefault();\n        setOpen(false);\n        return;\n      }\n", to: "", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
     { id: "e2e-nav-backdrop-does-not-close", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "<div className=\"nav-backdrop\" onClick={close} aria-hidden />", to: "<div className=\"nav-backdrop\" aria-hidden />", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },

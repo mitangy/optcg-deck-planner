@@ -173,16 +173,30 @@ export type MatSpot = "left" | "centre" | "right";
 export type OppHandSpot = MatSpot | "";
 export const OPP_HAND_SPOTS: readonly OppHandSpot[] = ["", "left", "centre", "right"];
 
+/**
+ * The playmat leaves open space beside the opponent's mat for a left / right
+ * hand once its inner box is at least this much wider than tall (kept in step
+ * with the `@container playmat (aspect-ratio >= 1.02)` rules in board.css).
+ * The tilted board never does.
+ */
+export const MAT_SIDE_MIN_ASPECT = 1.02;
+
 export type MatRect = { left: number; right: number; top: number; bottom: number };
 
 /**
  * The mat spot a dragged opponent hand lands on: over the top strip of the
- * playmat (its top fifth, or just above it), by thirds of its width. Null
- * anywhere else, so it goes back to a column.
+ * playmat (its top fifth, or just above it), by thirds of its width. With
+ * `opp` (the opponent's mat, when there is open space beside it) the gutters
+ * on either side of that mat, from the strip down to its bottom edge, are the
+ * left / right spots too. Null anywhere else, so it goes back to a column.
  */
-export function matSpotAt(mat: MatRect, x: number, y: number): MatSpot | null {
+export function matSpotAt(mat: MatRect, x: number, y: number, opp?: MatRect): MatSpot | null {
   if (x < mat.left || x > mat.right) return null;
   const band = (mat.bottom - mat.top) * 0.2;
+  if (opp && y >= mat.top - band / 2 && y <= opp.bottom) {
+    if (x < opp.left) return "left";
+    if (x > opp.right) return "right";
+  }
   if (y < mat.top - band / 2 || y > mat.top + band) return null;
   const third = (mat.right - mat.left) / 3;
   if (x < mat.left + third) return "left";
