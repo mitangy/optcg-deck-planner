@@ -2507,19 +2507,34 @@ body.is-panel-drag * {
   position: absolute;
   left: 0.45rem;
   right: 0.45rem;
-  bottom: 100%;
+  bottom: 0.45rem;
   z-index: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem 0.5rem;
-  margin-bottom: 0.2rem;
   padding: 0.35rem 0.5rem;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--arena-mid);
   color: var(--ink);
   font-size: 0.76rem;
+}
+
+.chat-command.hint {
+  bottom: 100%;
+  margin-bottom: 0.2rem;
+  pointer-events: none;
+}
+
+.chat-command > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.chat-command .chat-command-confirm {
+  order: 3;
+  flex: 1 0 100%;
 }
 
 .chat-command button {

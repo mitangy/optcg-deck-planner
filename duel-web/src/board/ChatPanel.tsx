@@ -96,7 +96,7 @@ export function ChatPanel({ lines, mySeat, onSend, onConcede, defaultOpen = fals
           {canSend ? (
             <div className="chat-form-wrap">
               {command ? (
-                <div className="chat-command" role="status">
+                <div className={`chat-command${command === "unavailable" ? " hint" : ""}`} role="status">
                   {command === "confirm" ? (
                     <>
                       <span>Concede this match?</span>
