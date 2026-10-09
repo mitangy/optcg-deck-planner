@@ -1,7 +1,7 @@
 /**
  * Card spotlight layer: the card that was just played or trashed, big over
  * its owner's half of the board, then shrinking into the spot it went to (its
- * field tile, or the trash). Planning lives in cardSpotlight.ts.
+ * field tile, the trash, or your hand for the card you drew). Planning lives in cardSpotlight.ts.
  *
  * Never gates input: the layer ignores the pointer, the board is already
  * updated underneath, and any pointer or key press ends the batch on screen.
@@ -196,11 +196,31 @@ function placeGroup(g: HTMLElement) {
   g.style.top = `${Math.round(top)}px`;
 }
 
+/** Hand zones by layout: desktop fan, phone rail, dock, plain row (same order as BoardMotion). */
+const HAND_ZONES = [".hand-fan-cards", ".rail-hand-cards", ".hand-dock-cards", ".hand-row-inner", ".hand-row"];
+
+/**
+ * Where a drawn card went: a card-sized spot at the middle of the visible hand.
+ * (Not the new tile: it is still flying in from the deck when the spotlight
+ * plans its exit.) Null, so the card fades in place, when no hand is on screen.
+ */
+function handLandingRect(): DOMRect | null {
+  for (const sel of HAND_ZONES) {
+    const zr = visibleRect(document.querySelector(sel));
+    if (!zr) continue;
+    const h = Math.min(86, zr.height);
+    const w = Math.min(h / 1.4, zr.width);
+    return new DOMRect(zr.left + zr.width / 2 - w / 2, zr.top + zr.height / 2 - h / 2, w, h);
+  }
+  return null;
+}
+
 /**
  * Where the card went: its field tile for a Character or Stage that stayed in
  * play, otherwise its owner's trash (an Event resolves into the trash too).
  */
 function landingRect(card: SpotlightCard, oppSeat: 0 | 1): DOMRect | null {
+  if (card.kind === "draw") return handLandingRect();
   const side = sideOf(card.ownerSeat, oppSeat);
   if (card.kind === "play" && card.instanceId) {
     const tile = visibleRect(

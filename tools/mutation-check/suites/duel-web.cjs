@@ -5,6 +5,10 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Turn-start draw spotlight (#FEEDBACK)
+    {"id": "draw-spotlight-opponent", "file": "duel-web/src/board/battleLog.ts", "from": "if (e.turnDraw === true && isYou(e.seat, youSeat) && ", "to": "if (e.turnDraw === true && ", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#FEEDBACK)"]},
+    {"id": "draw-spotlight-effect-draws", "file": "duel-web/src/board/battleLog.ts", "from": "if (e.turnDraw === true && isYou(", "to": "if (isYou(", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#FEEDBACK)"]},
+    {"id": "draw-unnamed", "file": "duel-web/src/board/battleLog.ts", "from": "typeof defId === \"string\" && !isHiddenDef(defId)) {", "to": "false) {", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#FEEDBACK)"]},
     // Asking for Log Pose (#393)
     { id: "access-form-shown-while-pending", file: "packages/analyst-client/src/AccessViews.tsx", from: "  if (sent || access === \"pending\") {", to: "  if (sent) {", kills: ["shows no form once a request is waiting (#393)"] },
     { id: "access-note-uncapped", file: "packages/analyst-client/src/AccessViews.tsx", from: "        maxLength={NOTE_MAX}\n", to: "", kills: ["offers the form with a 500 character note to someone who hasn't asked (#393)"] },
@@ -858,8 +862,10 @@ module.exports = {
     // phone P1 fixes (#271)
     { id: "counter-short-confirms", file: `${src}/board/cardActions.ts`, from: "const short = model.remaining != null && model.remaining > 0 && !model.stagedUnknown;", to: "const short = false;", kills: ["warns instead of Confirm counter while the staged counters are still short (#271)"] },
     { id: "counter-unknown-warns", file: `${src}/board/cardActions.ts`, from: " && !model.stagedUnknown;", to: ";", kills: ["warns instead of Confirm counter while the staged counters are still short (#271)"] },
-    { id: "phone-fan-any-size", file: `${src}/board/handLayout.ts`, from: "handCount <= PHONE_FAN_MAX", to: "true", kills: ["portrait phones fan up to 8 cards and scroll a bigger hand (#271)"] },
-    { id: "phone-fan-off-by-one", file: `${src}/board/handLayout.ts`, from: "handCount <= PHONE_FAN_MAX", to: "handCount < PHONE_FAN_MAX", kills: ["portrait phones fan up to 8 cards and scroll a bigger hand (#271)"] },
+    { id: "simple-board-switch-on-desktop", file: `${src}/board/gameplayFields.ts`, from: "if (key === \"compactOwnBoard\") return !d.desktop;", to: "if (key === \"compactOwnBoard\") return true;", kills: ["lists Simple board only on phones and tablets, not a desktop window (#FEEDBACK)"] },
+    { id: "simple-board-switch-hidden-on-phone", file: `${src}/board/gameplayFields.ts`, from: "if (key === \"compactOwnBoard\") return !d.desktop;", to: "if (key === \"compactOwnBoard\") return false;", kills: ["lists Simple board only on phones and tablets, not a desktop window (#FEEDBACK)"] },
+    { id: "phone-fan-auto-scrolls", file: `${src}/board/handLayout.ts`, from: "return !wide && handLayout !== \"grid\";", to: "return !wide && handLayout === \"fan\";", kills: ["portrait phones keep the fan when the hand grows past 8 cards (#FEEDBACK)"] },
+    { id: "phone-fan-ignores-grid", file: `${src}/board/handLayout.ts`, from: "return !wide && handLayout !== \"grid\";", to: "return !wide;", kills: ["the Grid layout never fans (#271)"] },
     { id: "rail-hand-not-landscape", file: `${src}/board/handLayout.ts`, from: "wide && (landscapePhone || (tall && !fanHand))", to: "wide && tall && !fanHand", kills: ["landscape phones keep the hand in the right column, even in a short window (#271)"] },
     // phone P2 fixes (#276)
     { id: "log-phase-noise", file: `${src}/board/battleLog.ts`, from: "      return null;\n    case \"drew\":", to: "      return line(\"routine\", false, `Phase \u2192 ${String(e.phase)}`);\n    case \"drew\":", kills: ["keeps the Main phase header and drops the other phase changes (#276)"] },

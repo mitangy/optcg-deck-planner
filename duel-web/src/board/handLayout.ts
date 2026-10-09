@@ -1,9 +1,13 @@
-/** Past this many cards the overlapped portrait fan is unreadable: the hand scrolls instead. */
+/** Past this many cards a spectator's far strip on a portrait phone scrolls instead of fanning. */
 export const PHONE_FAN_MAX = 8;
 
-/** Portrait phones draw the hand as an overlapped fan, until it gets too big to read. */
-export function usesPhoneFan(wide: boolean, handLayout: string, handCount: number): boolean {
-  return !wide && handLayout !== "grid" && handCount <= PHONE_FAN_MAX;
+/**
+ * Portrait phones draw your hand as an overlapped fan whenever the Hand setting
+ * is not Grid, whatever its size: a big hand overlaps more (the cards' margins
+ * in board.css) rather than silently turning into the scrolling Grid (#FEEDBACK).
+ */
+export function usesPhoneFan(wide: boolean, handLayout: string): boolean {
+  return !wide && handLayout !== "grid";
 }
 
 /**

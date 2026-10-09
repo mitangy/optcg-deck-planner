@@ -25,4 +25,9 @@ describe("gameplay rows by device", () => {
     expect(toggleShown("layoutGrips", { ...desktop, desktop: false })).toBe(false);
     expect(toggleShown("turnSound", phone)).toBe(true);
   });
+
+  it("lists Simple board only on phones and tablets, not a desktop window (#FEEDBACK)", () => {
+    expect(toggleShown("compactOwnBoard", phone)).toBe(true);
+    expect(toggleShown("compactOwnBoard", desktop)).toBe(false);
+  });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildTestDeck, DEFAULT_LEADER_ID, getCardDef } from "../cards/definitions.js";
-import { applyIntent, createMatch, listLegalIntents, skipMulligans } from "../engine.js";
+import { applyIntent, createMatch, listLegalIntents, projectGameEvents, skipMulligans } from "../engine.js";
 import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../matchReplay.js";
 import { createSeededRng } from "../rng.js";
 import { seatLog } from "../seatLog.js";
@@ -84,6 +84,21 @@ describe("match history seat log", () => {
     const taker = game.taken.event.seat;
     expect(lifeEvents(taker)[0]!.e.defId).toBe(game.taken.event.defId);
     expect(lifeEvents((1 - taker) as Seat)[0]!.e.defId).toBe("HIDDEN");
+  });
+
+  it("names the Draw Phase card only for the player who drew it (#FEEDBACK)", () => {
+    let raw: Extract<GameEvent, { type: "drew" }> | undefined;
+    replayMatch(game.replay, (step) => {
+      raw ||= step.events.find((e): e is Extract<GameEvent, { type: "drew" }> => e.type === "drew" && e.turnDraw === true);
+    });
+    expect(raw?.defIds).toHaveLength(1);
+    const drawOf = (viewer: Seat) =>
+      seatLog(game.replay, viewer).turns.flatMap((t) => t.events).find((e): e is Extract<GameEvent, { type: "drew" }> => e.type === "drew" && e.turnDraw === true)!;
+    expect(drawOf(raw!.seat).defIds).toEqual(raw!.defIds);
+    const other = drawOf((1 - raw!.seat) as Seat);
+    expect(other.seat).toBe(raw!.seat);
+    expect(other.defIds).toBeUndefined();
+    expect(projectGameEvents([raw!], null)[0]).not.toHaveProperty("defIds");
   });
 
   it("files each event under the turn it happened on, with whose turn it was (#252)", () => {
