@@ -1627,6 +1627,7 @@ export function DuelBoard({
       lines={chat.lines}
       mySeat={spectating ? null : boardSeat}
       onSend={chat.onSend}
+      onConcede={onConcede && !spectating && !over ? onConcede : undefined}
       defaultOpen={wide}
     />
   ) : null;

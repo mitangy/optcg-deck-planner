@@ -1015,7 +1015,14 @@ export function DemoPage() {
               }
             : undefined
         }
-        onConcede={params.has("practice") ? undefined : () => undefined}
+        onConcede={
+          params.has("practice")
+            ? undefined
+            : () => {
+                const w = window as { __demoConcedes?: number };
+                w.__demoConcedes = (w.__demoConcedes ?? 0) + 1;
+              }
+        }
         timer={
           params.has("clock")
             ? {

@@ -434,5 +434,9 @@ module.exports = {
       "demo-audit.spec.ts > a hand card over the left column edge gets the pointer, not the resize handle (#449) [desktop-1280]",
       "demo-audit.spec.ts > a hand card over the right column edge gets the pointer, not the resize handle (#449) [desktop-1280]",
     ] },
+    // /ff in chat concedes (#449)
+    { id: "e2e-chat-ff-posted-as-chat", args: "chat-ff --project=desktop-1280 --project=phone-375", file: "duel-web/src/board/ChatPanel.tsx", from: "    if (parseChatCommand(text)) {", to: "    if (false as boolean && parseChatCommand(text)) {", kills: ["chat-ff.spec.ts > /ff asks to confirm, posts nothing, and concedes only on confirm (#449) [desktop-1280]", "chat-ff.spec.ts > /ff asks to confirm, posts nothing, and concedes only on confirm (#449) [phone-375]"] },
+    { id: "e2e-chat-ff-skips-confirm", args: "chat-ff --project=desktop-1280 --project=phone-375", file: "duel-web/src/board/ChatPanel.tsx", from: "      setCommand(onConcede ? \"confirm\" : \"unavailable\");", to: "      onConcede?.();\n      setCommand(onConcede ? \"confirm\" : \"unavailable\");", kills: ["chat-ff.spec.ts > /ff asks to confirm, posts nothing, and concedes only on confirm (#449) [desktop-1280]", "chat-ff.spec.ts > /ff asks to confirm, posts nothing, and concedes only on confirm (#449) [phone-375]"] },
+    { id: "e2e-chat-ff-no-hint-when-unavailable", args: "chat-ff --project=desktop-1280 --project=phone-375", file: "duel-web/src/board/ChatPanel.tsx", from: "setCommand(onConcede ? \"confirm\" : \"unavailable\");", to: "setCommand(\"confirm\");", kills: ["chat-ff.spec.ts > /ff where conceding is unavailable shows a hint without moving the input or posting (#449) [desktop-1280]", "chat-ff.spec.ts > /ff where conceding is unavailable shows a hint without moving the input or posting (#449) [phone-375]"] },
   ],
 };
