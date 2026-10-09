@@ -4,9 +4,25 @@ import {
   parseCreateOptions,
   parseIntentMessage,
   parseJoinOptions,
+  parseSkinMessage,
 } from "../src/protocol.js";
 
 describe("protocol parsers", () => {
+  it("relays only a positive 31-bit integer as the DON!! art id, never a string or URL (#440)", () => {
+    const donArt = (v: unknown) =>
+      parseSkinMessage({ protocolVersion: PROTOCOL_VERSION, skin: { donArt: v } }).donArt;
+    assert.equal(donArt(512345), 512345);
+    assert.equal(donArt(2_147_483_647), 2_147_483_647);
+    for (const bad of ["512345", "https://evil.example/x.jpg", -5, 0, 1.5, 2_147_483_648, NaN, {}, true]) {
+      assert.equal(donArt(bad), null, String(bad));
+    }
+    // Old clients send no donArt at all.
+    assert.equal(
+      parseSkinMessage({ protocolVersion: PROTOCOL_VERSION, skin: { playmat: null, cardBack: null } }).donArt,
+      null,
+    );
+  });
+
   it("parses join options", () => {
     const j = parseJoinOptions({
       protocolVersion: PROTOCOL_VERSION,

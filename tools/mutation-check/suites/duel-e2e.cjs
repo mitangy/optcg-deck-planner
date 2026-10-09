@@ -404,5 +404,7 @@ module.exports = {
       { file: "duel-web/src/board/copilot.css", from: ".arena .hud-compact .hud-actions:has(.hud-copilot-btn) {\n  gap: 0.2rem;\n}\n", to: "" },
     ], kills: ["copilot.spec.ts > practice: Log Pose plans a turn, plays it only after approval, and moves nothing on the board (#416) [phone-375]"] },
     { id: "e2e-copilot-settings-switch-dead", args: "copilot --project=desktop-1280 -g Settings", file: "duel-web/src/history/MatchBriefSettings.tsx", from: "            onChange={(e) => updateSettings({ logPoseCopilot: e.target.checked })}", to: "            onChange={() => updateSettings({})}", kills: ["copilot.spec.ts > the Settings page has the Log Pose copilot switch, off until it is turned on (#416) [desktop-1280]"] },
+    // DON!! card art (#440)
+    { id: "e2e-don-art-strip-ignores-side-art", args: "don-art --project=desktop-1280 -g shows", file: "duel-web/src/board/SideField.tsx", from: "            donArt={donArtUrl}\n", to: "", kills: ["don-art.spec.ts > your DON!! shows the chosen art and the opponent's the default (#440) [desktop-1280]"] },
   ],
 };

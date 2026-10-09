@@ -136,6 +136,8 @@ export type CosmeticsMessage = {
 export type SeatSkin = {
   playmat: string | null;
   cardBack: string | null;
+  /** TCGPlayer productId of the DON!! card art (#440); null = the bundled art. */
+  donArt: number | null;
 };
 
 export type SkinMessage = {
@@ -149,6 +151,13 @@ export const SKIN_MAX_PLAYMAT_CHARS = 450_000;
 export const SKIN_MAX_CARD_BACK_CHARS = 90_000;
 
 const SKIN_DATA_URL = /^data:image\/(?:jpeg|webp|png);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+/** A positive 31-bit integer (a TCGPlayer productId); anything else is dropped to null, never relayed. */
+function asDonArtId(raw: unknown): number | null {
+  return typeof raw === "number" && Number.isSafeInteger(raw) && raw > 0 && raw <= 2_147_483_647
+    ? raw
+    : null;
+}
 
 function asSkinImage(raw: unknown, maxChars: number, field: string): string | null {
   if (raw === null || raw === undefined) return null;
@@ -177,6 +186,7 @@ export function parseSkinMessage(raw: unknown): SeatSkin {
   return {
     playmat: asSkinImage(skin.playmat, SKIN_MAX_PLAYMAT_CHARS, "playmat"),
     cardBack: asSkinImage(skin.cardBack, SKIN_MAX_CARD_BACK_CHARS, "cardBack"),
+    donArt: asDonArtId(skin.donArt),
   };
 }
 
