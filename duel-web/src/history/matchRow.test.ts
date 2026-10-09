@@ -23,6 +23,13 @@ const cardName = (id: string) => names[id] ?? id;
 const now = new Date("2026-10-02T12:00:00Z");
 
 describe("match history rows", () => {
+  it("offers Watch replay only for games whose recording is ready (#476)", () => {
+    // A live game keeps a replay too (has_replay) but cannot be watched until its room closes.
+    expect(matchRow(entry({ replay_ready: true }), cardName, now).replay).toBe(true);
+    expect(matchRow(entry({ replay_ready: false, has_replay: true }), cardName, now).replay).toBe(false);
+    expect(matchRow(entry({ has_replay: true }), cardName, now).replay).toBe(false);
+  });
+
   it("says who conceded, left or took the last hit from your side (#244)", () => {
     expect(matchRow(entry({ won: false, reason: "concede" }), cardName, now).how).toBe("You conceded");
     expect(matchRow(entry({ won: true, reason: "concede" }), cardName, now).how).toBe("Opponent conceded");

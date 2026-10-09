@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-09
+  { date: "2026-10-09", app: "duel", pr: 0, title: "Watch your games again", text: "Tap Watch on a game in Match history to replay it on the board, step by step or at your chosen speed. Switch between what you saw and both hands, and flip the board to either side." },
   { date: "2026-10-09", app: "duel", pr: 465, title: "Opponent hand beside their mat", text: "Pin the opponent's hand to the left or right of the board and it now sits as a small fan in the open space beside their mat instead of crowding its corner. Drag it there, or pick it in Settings." },
   { date: "2026-10-09", app: "duel", pr: 471, title: "Small phones in landscape", text: "Phones narrower than 600px, like the iPhone SE, now get the full landscape board instead of a squeezed one." },
   { date: "2026-10-09", app: "duel", pr: 456, title: "Bigger board, dockable pop-ups and more", text: "A Bigger playing area setting, switches to hide Card preview, Recent plays and Chat, and pop-ups you can dock into a side column. Attach DON!! works again, /ff concedes, and an agreed Undo keeps the same draws." },

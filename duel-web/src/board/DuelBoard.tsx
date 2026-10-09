@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { movePile, type DonPiles } from "./donPiles";
 import type {
   ChatLine,
@@ -209,6 +209,11 @@ type Props = {
   seatSkins?: readonly [SeatSkin | null, SeatSkin | null];
   leaveLabel?: string;
   /**
+   * Replay viewer: the board is a read-only spectator view of a recorded game. `controls` takes the action bar's
+   * place, `quiet` mutes sounds and card spotlights while jumping around, and the room and concede links are gone.
+   */
+  replay?: { controls: ReactNode; quiet: boolean };
+  /**
    * Log Pose matchup brief for casual and practice games: the game server's ticket and whether the room is
    * ranked. The board shows a Brief button and card only when the pair says unranked, a player and a ticket.
    */
@@ -292,6 +297,7 @@ export function DuelBoard({
   rematch,
   loadMatchRecord,
   leaveLabel = "Leave",
+  replay,
   matchBrief,
   floatingPrompts = true,
   waiting,
@@ -560,10 +566,12 @@ export function DuelBoard({
   // Screen stays on through the opponent's long turns; released when the match ends.
   useScreenWakeLock(!over);
   /** "View board" on the match-over card: the card steps aside so the final board shows. */
-  const [resultHidden, setResultHidden] = useState(false);
+  // A replay opens on the result pill rather than the modal, so the last move can be looked at.
+  const isReplay = replay != null;
+  const [resultHidden, setResultHidden] = useState(isReplay);
   useEffect(() => {
-    if (!over) setResultHidden(false);
-  }, [over]);
+    if (!over) setResultHidden(isReplay);
+  }, [over, isReplay]);
   const mySeat = seat ?? view?.seat ?? null;
   const spectating = spectator || Boolean(view?.spectator);
   const brief = useMatchBrief({
@@ -723,13 +731,14 @@ export function DuelBoard({
   useIncomingAttackCue(attackKey, { sound: prefs.turnSound });
   // Same master Sounds toggle: a tick per opponent card use, a thud per Life lost.
   const reveals = useOpponentReveals(battleLog, previewOppSeat, !spectating && !over);
-  const spotlights = useCardSpotlights(battleLog, prefs.cardSpotlight && !over);
+  const replayQuiet = replay?.quiet === true;
+  const spotlights = useCardSpotlights(battleLog, prefs.cardSpotlight && !over && !replayQuiet);
   useSoundCues(view, battleLog, previewOppSeat, {
     enabled: alertsOn,
     sound: prefs.turnSound,
     spectating,
   });
-  useGameSfx(view, battleLog, { sound: prefs.turnSound, muted: Boolean(hotseatPass) || autoPass != null, spectating });
+  useGameSfx(view, battleLog, { sound: prefs.turnSound, muted: Boolean(hotseatPass) || autoPass != null || replayQuiet, spectating });
 
   // iOS only plays sound after one started inside a gesture: unlock on the
   // first touch of the match so a later cue is allowed to play.
@@ -1303,7 +1312,7 @@ export function DuelBoard({
   const drawerClass =
     drawer === "open" ? " is-open" : drawer === "hidden" ? " is-hidden" : tuckUnderPointer ? " is-tucking" : "";
 
-  const splash: SplashMessage | null = over || !prefs.turnSplash
+  const splash: SplashMessage | null = over || !prefs.turnSplash || replayQuiet
     ? null
     : mulliganPhase
       ? spectating
@@ -1624,6 +1633,8 @@ export function DuelBoard({
       onCard={{ count: cardIntents.length, active: popoverOpen }}
       emptyHint={affordHint}
     />
+  ) : replay ? (
+    <div className="intent-bar replay-bar">{replay.controls}</div>
   ) : (
     <div className="intent-bar">
       <p className="intent-empty">
@@ -1840,6 +1851,7 @@ export function DuelBoard({
         hotseat: Boolean(hotseatPass),
         fullscreenOffered,
         canConcede: Boolean(onConcede),
+        replay: isReplay,
       })}
       info={{
         matchup: players
@@ -1848,7 +1860,7 @@ export function DuelBoard({
               spectating ? 1 : oppSeat,
             )}`
           : null,
-        seat: spectating ? "Spectating" : null,
+        seat: isReplay ? "Replay" : spectating ? "Spectating" : null,
         order: orderLabel,
       }}
       roomId={matchId}
@@ -1897,7 +1909,7 @@ export function DuelBoard({
             ) : oppActive && !spectating ? (
               <span className="hud-turn-chip hud-turn-theirs">OPPONENT&apos;S TURN</span>
             ) : null}
-            {spectating ? <span className="hud-turn-chip">SPECTATOR</span> : null}
+            {spectating ? <span className="hud-turn-chip">{isReplay ? "REPLAY" : "SPECTATOR"}</span> : null}
             {formatCountdown(timer?.turnEndsAt, now) ? (
               <span className="hud-turn-chip hud-timer" title="Turn clock">
                 {formatCountdown(timer?.turnEndsAt, now)}
@@ -1965,7 +1977,7 @@ export function DuelBoard({
                 </span>
               </span>
             ) : spectating ? (
-              <span>Spectating</span>
+              <span>{isReplay ? "Replay" : "Spectating"}</span>
             ) : null}
             <span className={`hud-turn-chip hud-order${youFirst ? " first" : ""}`}>
               {orderLabel}
@@ -1977,7 +1989,7 @@ export function DuelBoard({
             ) : oppActive && !spectating ? (
               <span className="hud-turn-chip hud-turn-theirs">OPPONENT&apos;S TURN</span>
             ) : null}
-            {spectating ? <span className="hud-turn-chip">SPECTATOR</span> : null}
+            {spectating ? <span className="hud-turn-chip">{isReplay ? "REPLAY" : "SPECTATOR"}</span> : null}
             {formatCountdown(timer?.turnEndsAt, now) ? (
               <span className="hud-turn-chip hud-timer" title="Turn clock">
                 Turn {formatCountdown(timer?.turnEndsAt, now)}
@@ -2012,7 +2024,7 @@ export function DuelBoard({
           <div className="hud-actions">
             {brief.trigger}
             {copilot.trigger}
-            {hotseatPass ? null : <RoomChip roomId={matchId} />}
+            {hotseatPass || isReplay ? null : <RoomChip roomId={matchId} />}
             {undo && undoState?.enabled && !spectating && !over ? (
               undoPendingMine ? (
                 <button
@@ -2732,6 +2744,8 @@ export function DuelBoard({
           <p className="meta">They are resolving an effect choice.</p>
         </div>
       ) : null}
+
+      {replay && wide && !lp ? <div className="replay-dock">{replay.controls}</div> : null}
 
       {docked ? (
         <PrimaryDock

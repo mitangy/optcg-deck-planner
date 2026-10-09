@@ -412,3 +412,59 @@
     width: 2rem;
   }
 }
+
+/* —— Watch replay (#476) —— */
+.history-item {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.history-item > .history-row-link {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.history-replay-btn,
+.history-replay-slot {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 5.5rem;
+}
+
+.history-replay-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--arena-panel);
+  color: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.history-replay-btn:hover,
+.history-replay-btn:focus-visible {
+  background: color-mix(in srgb, var(--arena-panel) 85%, var(--chrome) 15%);
+  outline: none;
+}
+
+.history-replay-btn:focus-visible {
+  box-shadow: var(--focus);
+}
+
+@media (max-width: 480px) {
+  /* The button shrinks to a 44px play icon; rows without one keep the same gap. */
+  .history-replay-btn,
+  .history-replay-slot {
+    width: 44px;
+  }
+
+  .history-replay-label {
+    display: none;
+  }
+}

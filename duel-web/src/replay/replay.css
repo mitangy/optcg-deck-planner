@@ -1,0 +1,329 @@
+/* —— Replay viewer —— */
+.replay-controls {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--arena-panel);
+  color: var(--chrome-bright, inherit);
+}
+
+.replay-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.replay-transport {
+  justify-content: center;
+}
+
+.replay-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.replay-btn:hover:not(:disabled),
+.replay-btn:focus-visible {
+  background: color-mix(in srgb, var(--arena-panel) 80%, var(--chrome) 20%);
+  outline: none;
+}
+
+.replay-btn:focus-visible,
+.replay-seg-btn:focus-visible,
+.replay-select:focus-visible,
+.replay-range:focus-visible {
+  box-shadow: var(--focus);
+}
+
+.replay-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.replay-play {
+  width: 3.5rem;
+  border-color: var(--chrome);
+}
+
+.replay-scrub {
+  gap: 0.5rem;
+}
+
+.replay-range {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 2.75rem;
+  margin: 0;
+  accent-color: var(--chrome);
+}
+
+.replay-readout {
+  flex: 0 0 auto;
+  min-width: 5.5ch;
+  white-space: nowrap;
+  text-align: right;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.replay-pick {
+  justify-content: space-between;
+}
+
+.replay-field {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.replay-field-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.replay-select {
+  box-sizing: border-box;
+  min-width: 4.2rem;
+  height: 2.75rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--arena-panel);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.replay-seg {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.replay-seg-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0 0.5rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.replay-seg-btn + .replay-seg-btn {
+  border-left: 1px solid var(--line);
+}
+
+.replay-seg-btn[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--arena-panel) 55%, var(--chrome) 45%);
+  color: var(--chrome-bright, inherit);
+}
+
+/* On a phone the bar sits where the action bar does. */
+.intent-bar.replay-bar {
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+/* Desktop: the controls float over the right rail's free space, like the primary action dock. */
+.replay-dock {
+  position: fixed;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 17;
+  width: min(18rem, 24vw);
+  min-width: 16.5rem;
+}
+
+/* A short notice under the top bar: older rules, or where the recording stops. */
+.replay-banner {
+  position: fixed;
+  top: calc(var(--topbar-h, 3.5rem) + 0.4rem);
+  left: 50%;
+  z-index: 30;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: max-content;
+  max-width: min(34rem, calc(100vw - 2rem));
+  margin: 0;
+  padding: 0.35rem 0.4rem 0.35rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--arena-panel);
+  color: var(--chrome-bright, inherit);
+  font-size: 0.8rem;
+  line-height: 1.25;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+.replay-banner a {
+  color: var(--chrome);
+  white-space: nowrap;
+}
+
+.replay-banner-text {
+  min-width: 0;
+}
+
+.replay-banner-close {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.replay-banner-close:hover,
+.replay-banner-close:focus-visible {
+  background: color-mix(in srgb, var(--arena-panel) 70%, var(--chrome) 30%);
+  outline: none;
+}
+
+/* The result pill sits above the controls at the bottom of the rail. */
+.replay-root .match-result-pill.match-result-pill-rail {
+  bottom: calc(0.75rem + 15rem);
+}
+
+/* A hand card the viewer may not see: a card back in the same tile box, so a hidden hand lays out like a shown one. */
+.card-tile.card-tile-hidden {
+  cursor: default;
+}
+
+.card-tile-hidden .card-tile-back {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: #1a2838;
+  background-image: var(--card-back-art), linear-gradient(145deg, #243447, #15202c);
+  background-size: cover, auto;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+/* —— Phones and tablets: transport, scrubber and mode toggle, with the rest behind More —— */
+.replay-compact {
+  gap: 0.3rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.replay-compact .replay-transport .replay-btn {
+  flex: 1 1 0;
+  width: auto;
+  max-width: 3.6rem;
+}
+
+.replay-compact .replay-range,
+.replay-compact .replay-more,
+.replay-compact .replay-seg-btn {
+  height: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.replay-compact .replay-more {
+  width: 2.75rem;
+}
+
+/* The More sheet floats over the board (a fixed overlay, so opening it moves nothing). */
+.replay-more-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  background: transparent;
+}
+
+.replay-more-sheet {
+  position: fixed;
+  right: max(0.5rem, env(safe-area-inset-right));
+  bottom: max(0.5rem, env(safe-area-inset-bottom));
+  z-index: 45;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: min(20rem, calc(100vw - 1rem));
+  padding: 0.6rem;
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: 12px;
+  background: var(--arena-panel);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+.replay-more-done {
+  flex: 1 1 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+/* Landscape phones: the rail is short, so every row shrinks a little. */
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
+  .replay-compact {
+    gap: 0.2rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .replay-compact .replay-btn,
+  .replay-compact .replay-range,
+  .replay-compact .replay-more,
+  .replay-compact .replay-seg-btn {
+    height: 2.25rem;
+    min-height: 2.25rem;
+  }
+
+  .replay-compact .replay-transport .replay-btn {
+    max-width: 2.6rem;
+  }
+
+  .replay-compact .replay-more {
+    width: 2.25rem;
+  }
+
+  .replay-more-sheet {
+    bottom: auto;
+    top: 0.5rem;
+  }
+
+  /* The turn is in the scrubber's readout, which gives the near hand its room back. */
+  .replay-root .arena-rail .turn-panel {
+    display: none;
+  }
+}

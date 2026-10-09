@@ -88,8 +88,10 @@ describe("replay timeline", () => {
       const view = getReplayView(state, { cameraSeat, viewerSeat: viewer, revealAll: false });
       const json = JSON.stringify(view);
       for (const id of opp) expect(json).not.toContain(`"${id}"`);
-      expect(view.revealedHands[1]).toBeNull();
-      expect(view.revealedHands[0]?.map((c) => c.id)).toEqual(handIds(state, 0));
+      // The hand keeps its size, face down.
+      expect(view.revealedHands[1]).toHaveLength(opp.length);
+      expect(view.revealedHands[1].every((c) => c.defId === "HIDDEN")).toBe(true);
+      expect(view.revealedHands[0].map((c) => c.id)).toEqual(handIds(state, 0));
       expect(view.cameraSeat).toBe(cameraSeat);
     }
   });
@@ -97,8 +99,8 @@ describe("replay timeline", () => {
   it("Reveal all shows both hands (#476)", () => {
     const state = timelineStateAt(t, midGame);
     const view = getReplayView(state, { cameraSeat: 1, viewerSeat: viewer, revealAll: true });
-    expect(view.revealedHands[0]?.map((c) => c.id)).toEqual(handIds(state, 0));
-    expect(view.revealedHands[1]?.map((c) => c.id)).toEqual(handIds(state, 1));
+    expect(view.revealedHands[0].map((c) => c.id)).toEqual(handIds(state, 0));
+    expect(view.revealedHands[1].map((c) => c.id)).toEqual(handIds(state, 1));
   });
 
   it("Reveal all names the opponent's draws; What I saw does not (#476)", () => {

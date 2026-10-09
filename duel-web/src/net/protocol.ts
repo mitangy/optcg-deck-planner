@@ -1,6 +1,7 @@
 /**
  * Wire types for protocolVersion 5 — mirrored from game-server/src/protocol.ts.
- * Do not import @optcg/rules into the app.
+ * Do not import @optcg/rules into the app, except through the lazy replay chunk (src/replay), which
+ * loads the engine on /replay only; the main bundle must stay free of rules data.
  */
 
 import { lookupCard } from "../cards/atlas";
@@ -342,7 +343,7 @@ export type PlayerView = {
   winner: Seat | null;
   winReason: string | null;
   legalIntents: Intent[];
-  /** Spectators of unranked rooms: both hands, indexed by seat. */
+  /** Spectators of unranked rooms: both hands, indexed by seat. A replay viewer gets `HIDDEN` placeholders for a hand it may not show. */
   revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
 };
 
