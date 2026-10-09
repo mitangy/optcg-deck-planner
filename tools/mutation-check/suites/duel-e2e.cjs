@@ -45,6 +45,10 @@ module.exports = {
     { id: "e2e-don-chip-clicks-ignored", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/ChoicePrompt.tsx", from: "  const chip = target?.closest?.<HTMLElement>(\".don-strip .don-chip-btn[data-don-id]\");", to: "  const chip = null as HTMLElement | null;", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [desktop-1280]"] },
     { id: "e2e-don-chip-disabled", args: "demo-audit --project=phone-375", file: "duel-web/src/board/DonStrip.tsx", from: "      tabIndex={canDrag ? undefined : -1}\n", to: "      disabled={!canDrag}\n", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [phone-375]"] },
 
+    // Match log: two turns per row on desktop, jump chips (#470)
+    { id: "e2e-match-log-hands-not-beside", args: "match-log-layout --project=desktop-1280", file: "duel-web/src/history/history.css", from: "  .match-log-turn-body[data-hands] {\n    display: grid;", to: "  .match-log-turn-body[data-hands] {\n    display: block;", kills: ["match-log-layout.spec.ts > hands sit beside the turn's plays on desktop (#470) [desktop-1280]"] },
+    { id: "e2e-match-log-chip-jumps-wrong-turn", args: "match-log-layout --project=phone-375", file: "duel-web/src/pages/MatchLogPage.tsx", from: "document.getElementById(`turn-${turn}`)?.scrollIntoView({ behavior", to: "document.getElementById(`turn-${turn + 1}`)?.scrollIntoView({ behavior", kills: ["match-log-layout.spec.ts > jump chips scroll to that turn (#470) [phone-375]"] },
+
     // Dock sits in the gap between the mats (#368). Both layers: the taller strip and the reserve.
     { id: "e2e-dock-covers-mats", args: "dock-room --project=desktop-1280", edits: [
       { file: "duel-web/src/board.css", from: "  --midline-h: calc(var(--dock-h) + 0.5rem);\n", to: "" },
