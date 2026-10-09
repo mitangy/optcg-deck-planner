@@ -81,7 +81,7 @@ test("a spectator who arrives before the match starts sees waiting, not an error
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Play", exact: true }).click();
-  await page.getByRole("button", { name: /^Private room/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
   await page.getByRole("button", { name: "Create room" }).click();
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
   const roomId = (body.room?.roomId ?? body.roomId)!;
@@ -235,7 +235,7 @@ test.describe("landscape phone", () => {
     });
     await page.goto("/");
     await page.getByRole("button", { name: "Play", exact: true }).click();
-    await page.getByRole("button", { name: /^Private room/ }).click();
+    await page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
     await page.getByRole("button", { name: "Create room" }).click();
     await expect(page.locator(".room-invite-id")).toBeVisible({ timeout: 30_000 });
     // The waiting board used to drop its mat (and the card on it) into the 44px icon-rail column.
@@ -455,7 +455,7 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
   });
   await host.page.goto("/");
   await host.page.getByRole("button", { name: "Play", exact: true }).click();
-  await host.page.getByRole("button", { name: /^Private room/ }).click();
+  await host.page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
   await host.page.getByRole("button", { name: "Create room" }).click();
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
   const roomId = (body.room?.roomId ?? body.roomId)!;
