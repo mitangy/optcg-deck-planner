@@ -5482,3 +5482,32 @@ body.is-panel-drag * {
   box-sizing: border-box;
   padding-inline: calc(var(--fan-cw) * 0.3);
 }
+
+/* —— Log Pose docked into a side column (desktop) ——
+   The host sits at the top of the column, only while the panel is open and docked to that side, and takes
+   most of its height (the panels below shrink to their minimum heights). It is not a movable panel (no
+   data-panel), so the drag and resize code leaves it alone. It is above its neighbours, so a card fan that
+   overhangs its own panel never draws over the Log Pose panel. */
+.arena.arena-wide .board-panel.lp-dock-host {
+  flex: 1 1 60%;
+  min-height: 340px;
+  z-index: 2;
+  /* A little air, so the panel reads as a card like the others and not as the column's own edge. */
+  padding: 6px;
+}
+
+/* While Log Pose is docked in a column, that column is at least as wide as the panel's minimum (320px), so its
+   header stays on one row. The saved column widths are untouched: undocked or closed, the column is itself again. */
+.arena.arena-wide.arena-lp-dock-left .arena-body {
+  grid-template-columns: max(var(--left-w), 320px) minmax(0, 1fr) var(--rail-w);
+}
+
+.arena.arena-wide.arena-lp-dock-right .arena-body {
+  grid-template-columns: var(--left-w) minmax(0, 1fr) max(var(--rail-w), 320px);
+}
+
+/* The opponent-hand fan hangs its cards from above its own top edge (the rest is clipped by the column). With the
+   Log Pose host directly above it nothing is "above" any more, so it gets that room itself and shows whole. */
+.arena.arena-wide .lp-dock-host + .board-panel .opp-hand-fan {
+  padding-top: calc(var(--fan-w) * 0.5);
+}

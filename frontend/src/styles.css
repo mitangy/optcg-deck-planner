@@ -5991,3 +5991,58 @@ a.meta-leader-card:focus-visible {
     flex: 1 1 auto;
   }
 }
+
+
+/* Log Pose docked to a side (#432): the top bar has less room than the window, so it lays out like the narrow
+   one (brand and user on a row, the nav under them) whenever the room left beside the panel is under 1200px. */
+html[data-lp-dock] .topbar {
+  container: topbar / inline-size;
+}
+
+@container topbar (max-width: 1200px) {
+  .topbar-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand user"
+      "nav nav";
+    gap: 0.35rem 0.75rem;
+    padding: 0.5rem 0.75rem 0.15rem;
+    max-width: none;
+    width: 100%;
+  }
+
+  .topbar .brand {
+    grid-area: brand;
+    min-width: 0;
+  }
+
+  .topbar nav {
+    grid-area: nav;
+    justify-content: space-between;
+    gap: 0.15rem;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .topbar nav a {
+    white-space: nowrap;
+    padding-inline: 0.5rem;
+  }
+
+  .topbar .user {
+    grid-area: user;
+    width: auto;
+    max-width: 100%;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .topbar .user > * {
+    white-space: nowrap;
+  }
+
+  .topbar .build-tag {
+    display: none;
+  }
+}
