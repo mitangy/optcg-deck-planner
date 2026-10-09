@@ -333,6 +333,24 @@ describe("chat", () => {
     expect(JSON.stringify(seen[1]!.messages.slice(0, 2))).not.toContain("thinking");
   });
 
+  it("drops an earlier assistant turn that was only thinking instead of resending its signature (#425)", async () => {
+    const earlier = [
+      { role: "user", content: [{ type: "text", text: "Hi" }] },
+      { role: "assistant", content: [{ type: "thinking", thinking: "", signature: "sigA" }] },
+    ];
+    const { api } = planner({
+      "GET /analyst/chat/threads/4/content": { id: 4, title: "t", messages: earlier },
+      "POST /analyst/chat/threads/4/messages": null,
+      "POST /analyst/chat/usage": null,
+      "GET /analyst/chat/budget": BUDGET,
+    });
+    const { seen, callModel } = scriptedModel([{ content: [{ type: "text", text: "Sure." }], stop_reason: "end_turn", usage: usage(10, 5) }]);
+    await runChat(deps(api, callModel), "chat.tok", { thread_id: 4, message: "Again?" }, () => {}, new AbortController().signal);
+    expect(JSON.stringify(seen[0]!.messages)).not.toContain("thinking");
+    expect(seen[0]!.messages.some((m: any) => m.role === "assistant")).toBe(false);
+    expect(seen[0]!.messages.every((m: any) => m.content.length > 0)).toBe(true);
+  });
+
   it("doesn't save a turn the model never finished, but still counts what it cost (#377)", async () => {
     const { calls, api } = planner({
       "POST /analyst/chat/threads": { id: 9 },

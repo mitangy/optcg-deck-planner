@@ -273,10 +273,12 @@ export function apiTools(tools: ToolDef[]) {
 
 /** Earlier assistant turns without their thinking blocks: a signature is bound to the system prompt and tools it was made under, which can differ now (#424). */
 function withoutOldThinking(history: Message[]): Message[] {
-  return history.map((m) => {
-    if (m.role !== "assistant" || !Array.isArray(m.content)) return m;
+  return history.flatMap((m) => {
+    if (m.role !== "assistant" || !Array.isArray(m.content)) return [m];
     const kept = m.content.filter((b) => b.type !== "thinking" && b.type !== "redacted_thinking");
-    return kept.length && kept.length < m.content.length ? { ...m, content: kept } : m;
+    // A turn that was only thinking (cut off by max_tokens, say) has nothing left to resend: drop it (#425).
+    if (!kept.length) return m.content.length ? [] : [m];
+    return [kept.length < m.content.length ? { ...m, content: kept } : m];
   });
 }
 
