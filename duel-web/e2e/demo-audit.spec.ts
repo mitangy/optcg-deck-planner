@@ -849,6 +849,12 @@ for (const vp of [
         expect(b.t).toBeGreaterThanOrEqual(hand.y - 1);
         expect(b.b).toBeLessThanOrEqual(hand.y + hand.height + 1);
       }
+      // Laid out horizontally like a regular hand: each back sits right of the last,
+      // and the row is not stacked down the gutter.
+      const cardH = backs[0].b - backs[0].t;
+      for (let i = 1; i < backs.length; i++) expect(backs[i].l).toBeGreaterThan(backs[i - 1].l);
+      const tops = backs.map((b) => b.t);
+      expect(Math.max(...tops) - Math.min(...tops)).toBeLessThan(cardH / 2);
       const issues = (await duel.audit()).filter((i) => !isKnown(i));
       if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
       expect(issues, formatIssues(issues)).toEqual([]);
