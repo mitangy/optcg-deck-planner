@@ -62,7 +62,7 @@
 }
 
 /* Battle / choice prompt gets its own strip between the mats. The strip is
-   always reserved (ornament when idle) so a battle starting never moves the
+   always reserved (empty when idle) so a battle starting never moves the
    board, and the mat-size math below subtracts it. */
 .arena .playmat {
   --midline-h: 1.6rem;
@@ -1950,6 +1950,18 @@ body.is-panel-drag * {
   grid-column: 1;
   grid-row: 1;
   justify-self: end;
+}
+
+/* The default spot stacks the handle's controls (menu, Hand, Sort) one under
+   another at the far left of the fan (#449). A column is taller than the
+   tucked strip, so it is lifted until its bottom sits on the strip's bottom
+   edge: nothing is clipped by the window. Held in the free space left of the
+   mat, so it never covers the mat's DON!! deck or the cards. */
+.hand-fan-center:not(.hand-fan-spec) .hand-fan-head {
+  justify-self: start;
+  flex-direction: column;
+  align-items: flex-start;
+  transform: translateY(calc(var(--fan-ch) * var(--fan-peek) - 100% - 4px));
 }
 
 .hand-fan-center .hand-fan-cards {

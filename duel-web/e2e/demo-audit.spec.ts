@@ -193,19 +193,28 @@ test("clicking board slots leaves no text caret on the mat (#246)", async ({ pag
   }
 });
 
-// The idle midline ornament is a 45°-rotated span, so a caret dropped in it drew as a slanted text cursor.
-test("clicking the midline between the mats leaves no text caret (#314)", async ({ page }) => {
+// The strip between the mats draws no divider line or diamond, but keeps its height for the prompt text (#449).
+test("an idle midline strip has no divider line and keeps the height of one with a prompt (#449)", async ({ page }) => {
   await page.goto("/demo?cantattack");
-  await page.locator(".midline-ornament").waitFor();
-  const box = (await page.locator(".midline").first().boundingBox())!;
-  for (const fx of [0.5, 0.2]) {
-    await page.mouse.click(box.x + box.width * fx, box.y + box.height / 2);
-    const selection = await page.evaluate(() => {
-      const s = getSelection();
-      return { type: s?.type, inMidline: !!s?.anchorNode?.parentElement?.closest(".midline") };
-    });
-    expect({ fx, ...selection }).not.toMatchObject({ type: "Caret", inMidline: true });
-  }
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".midline")).toHaveCount(1);
+  // The phone Rotate hint is the only thing an idle strip may hold.
+  await expect(page.locator(".midline > :not(.rotate-hint)")).toHaveCount(0);
+  await expect(page.locator(".midline-ornament")).toHaveCount(0);
+  const idle = (await page.locator(".midline").boundingBox())!.height;
+  await page.goto("/demo?attacked");
+  await expect(page.locator(".midline .prompt-text")).toBeVisible();
+  expect((await page.locator(".midline").boundingBox())!.height).toBeCloseTo(idle, 0);
+});
+
+// The prompt text in the strip between the mats is chrome: double-clicking it must not select a word (#314).
+test("double-clicking the midline prompt text selects nothing (#314)", async ({ page }) => {
+  await page.goto("/demo?attacked");
+  const text = page.locator(".midline .prompt-text");
+  await expect(text).toBeVisible();
+  await text.dblclick();
+  const selected = await page.evaluate(() => getSelection()?.toString() ?? "");
+  expect(selected).toBe("");
 });
 
 // DON!! −N used to open a grid of DON!! cards: pick them off the board instead.
@@ -432,7 +441,8 @@ test("the fanned hand drags to the middle of the screen and floats there after a
   const grip = (await page.locator(".hand-fan-grip").boundingBox())!;
   await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
   await page.mouse.down();
-  await page.mouse.move(grip.x + 200, 300, { steps: 8 });
+  // The docked fan's grip sits above its cards (the handle is stacked, #449), so aim higher to land clear of the End turn dock.
+  await page.mouse.move(grip.x + 200, 230, { steps: 8 });
   await page.mouse.up();
   await expect(fan).toHaveClass(/hand-fan-float/);
   const box = (await fan.boundingBox())!;

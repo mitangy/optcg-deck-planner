@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import { cardBackCssValue } from "../cardBack";
 import { lookupCard } from "../cards/atlas";
+import { attackReadyClass } from "./attackGlow";
 import type { CardView, Seat } from "../net/protocol";
 import { CardInspect } from "./CardInspect";
 import { CardTile } from "./CardTile";
@@ -341,7 +342,7 @@ export function SideField({
               const extraClass = [
                 isTargetable ? "attack-target" : "",
                 isActionable && !isSelected ? "has-actions" : "",
-                attackReadyIds?.has(c.id) && !isSelected && !isTargetable ? "attack-ready" : "",
+                attackReadyIds?.has(c.id) && !isSelected && !isTargetable ? attackReadyClass(lookupCard(c.defId).colors) : "",
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -413,7 +414,7 @@ export function SideField({
             const extraClass = [
               isTargetable ? "attack-target" : "",
               isActionable && !isSelected ? "has-actions" : "",
-              attackReadyIds?.has(leaderId) && !isSelected && !isTargetable ? "attack-ready" : "",
+              attackReadyIds?.has(leaderId) && !isSelected && !isTargetable ? attackReadyClass(lookupCard(data.leader.defId).colors) : "",
             ]
               .filter(Boolean)
               .join(" ");
