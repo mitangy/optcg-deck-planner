@@ -5666,3 +5666,60 @@ body.is-panel-drag * {
     padding: 1cqh 1cqw;
   }
 }
+
+/* —— No top bar (#468) ——
+   Bigger playing area on a computer drops the top bar: the board takes the whole window height. The bar's
+   buttons (Brief, Log Pose, Undo, the ⋯ match menu) ride in one row at the top of the right column (the left one
+   when the right is empty). The row has a fixed height and is in the column's flow, so a button coming or going
+   never moves a panel; it is not a movable panel (no data-panel), so drag and resize leave it alone. */
+.arena.arena-wide .col-actions {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  min-width: 0;
+  height: calc(44px + var(--safe-t));
+  padding: var(--safe-t) 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+  background: rgb(var(--deep-rgb) / 0.35);
+}
+
+.arena.arena-wide .col-actions > * {
+  flex: none;
+}
+
+.arena.arena-wide .col-actions .hud-icon-btn,
+.arena.arena-wide .col-actions .hud-pass-btn,
+.arena.arena-wide .col-actions .hud-undo-btn {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0 0.6rem;
+  font-size: 0.8rem;
+}
+
+.arena.arena-wide .col-actions .hud-menu-btn {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+/* Brief and Log Pose are icons here (the buttons keep their names): with Undo and the hot-seat switch beside them,
+   their text labels would not fit the narrowest column. */
+.arena.arena-wide .col-actions .hud-brief-btn.hud-brief-text {
+  width: 36px;
+  padding: 0;
+}
+
+.arena.arena-wide .col-actions .hud-brief-label {
+  display: none;
+}
+
+/* The pop-ups that hang under the old bar sit at the top of the window now. */
+.arena.arena-no-hud .undo-request {
+  top: calc(var(--safe-t) + 0.75rem);
+}
+
+.arena.arena-no-hud .float-layer-peek {
+  padding-top: calc(var(--safe-t) + 0.75rem);
+}

@@ -41,7 +41,9 @@ function measure(root: HTMLElement) {
   for (const col of root.querySelectorAll<HTMLElement>("[data-panel-col]")) {
     const column = col.dataset.panelCol as PanelColumn;
     const r = col.getBoundingClientRect();
-    columns[column] = { left: r.left, right: r.right, top: r.top };
+    // An empty column's drop line goes under the action row (no top bar), not over it.
+    const actions = col.querySelector<HTMLElement>(":scope > .col-actions");
+    columns[column] = { left: r.left, right: r.right, top: actions ? actions.getBoundingClientRect().bottom : r.top };
     for (const p of col.querySelectorAll<HTMLElement>(":scope > [data-panel]")) {
       const pr = p.getBoundingClientRect();
       panels.push({ id: p.dataset.panel as PanelId, column, top: pr.top, bottom: pr.bottom });

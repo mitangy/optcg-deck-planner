@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { ConfirmButton } from "./ConfirmButton";
 import { useClickCopy } from "./clickCopy";
 import { spectateUrl } from "./clipboard";
@@ -18,8 +18,12 @@ type Props = {
   onReport: () => void;
   onConcede: () => void;
   onLeave: () => void;
-  /** "left": opens beside the landscape icon rail instead of under the top bar. */
-  placement?: "top" | "left";
+  /**
+   * "left": opens beside the landscape icon rail instead of under the top bar.
+   * "anchor": opens right under the button wherever it sits (the side-column row
+   * when Bigger playing area hides the top bar), kept on screen.
+   */
+  placement?: "top" | "left" | "anchor";
 };
 
 /**
@@ -47,6 +51,23 @@ export function MatchMenu({
   const wasOpen = useRef(false);
   const closeTimer = useRef<number | null>(null);
   const { copied, copy } = useCopyFlash();
+  const [anchorStyle, setAnchorStyle] = useState<CSSProperties | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    if (!open || placement !== "anchor") return;
+    const place = () => {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const width = Math.min(280, window.innerWidth - 16);
+      const top = r.bottom + 6;
+      // Right edges line up, then slide back on screen (a button in the left column is nearer the edge).
+      const left = Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8));
+      setAnchorStyle({ top, left, right: "auto", width, maxHeight: Math.max(120, window.innerHeight - top - 8) });
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [open, placement]);
 
   useEffect(() => {
     if (open) {
@@ -94,7 +115,13 @@ export function MatchMenu({
       {open ? (
         <>
           <div className="match-menu-backdrop" onPointerDown={() => setOpen(false)} />
-          <div ref={panelRef} className={`match-menu${placement === "left" ? " match-menu-left" : ""}`} role="menu" aria-label="Match menu">
+          <div
+            ref={panelRef}
+            className={`match-menu${placement === "left" ? " match-menu-left" : ""}`}
+            style={placement === "anchor" ? anchorStyle : undefined}
+            role="menu"
+            aria-label="Match menu"
+          >
             <div className="match-menu-info">
               {info.matchup ? <strong>{info.matchup}</strong> : null}
               <span>
