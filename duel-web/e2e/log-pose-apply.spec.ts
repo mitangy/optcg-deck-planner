@@ -34,7 +34,7 @@ const sse = (events: [string, unknown][]) => events.map(([e, d]) => `event: ${e}
 
 async function fakeLogPose(page: Page): Promise<void> {
   await page.route(`${FAKE_API}/**`, (route) => route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } }));
-  const cors = { "access-control-allow-origin": "http://127.0.0.1:5174", "access-control-allow-credentials": "true" };
+  const cors = { "access-control-allow-origin": process.env.E2E_PAGE_ORIGIN ?? "http://127.0.0.1:5174", "access-control-allow-credentials": "true" };
   await page.route(`${FAKE_API}/analyst/chat/session`, (route) =>
     route.fulfill({
       headers: cors,
