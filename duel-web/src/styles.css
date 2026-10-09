@@ -240,46 +240,6 @@ button {
   background: rgba(40, 60, 45, 0.45);
 }
 
-.card-inspect-chip {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  z-index: 2;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(0, 0, 0, 0.28);
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 0.58rem;
-  font-weight: 600;
-  line-height: 1;
-  padding: 0;
-  cursor: pointer;
-  opacity: 0.55;
-  transition: opacity 0.15s ease, background 0.15s ease;
-}
-
-/* Desktop with a mouse: mid-left, since the corners belong to the power /
-   DON!! stack (top right) and the status icons (bottom right). Touch hides the
-   chip (see the pointer: coarse rule): long-press inspects and a tap must select. */
-@media (min-width: 900px) and (min-height: 500px) and (hover: hover) and (pointer: fine) {
-  .card-inspect-chip {
-    top: 50%;
-    right: auto;
-    left: 3px;
-    transform: translateY(-50%);
-  }
-}
-
-.card-tile:hover .card-inspect-chip,
-.card-inspect-chip:focus-visible {
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.55);
-}
-
 .card-tile {
   position: relative;
   touch-action: manipulation;
@@ -5097,13 +5057,6 @@ details.deck-config-section.deck-collapsible {
    carries the count there, so skip the peeking cards. */
 .choice-option .don-under {
   display: none;
-}
-
-/* Touch: long-press already inspects; the nested chip steals taps on small cards. */
-@media (pointer: coarse) {
-  .card-inspect-chip {
-    display: none;
-  }
 }
 
 /* Deck editor on phones: compact rows (thumbnail, name, − n +) and a sticky count bar,

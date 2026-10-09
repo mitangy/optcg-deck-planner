@@ -797,18 +797,6 @@
   pointer-events: none;
 }
 
-.board-col .card-preview-live-big {
-  position: absolute;
-  left: 0.25rem;
-  right: 0.25rem;
-  bottom: 0.25rem;
-  padding: 0.2rem 0.4rem;
-  border-radius: 6px;
-  background: rgb(var(--deep-rgb) / 0.85);
-  font-size: 0.78rem;
-  pointer-events: none;
-}
-
 /* Fit, never crop: the "Image Coming Soon" placeholder is not card-shaped. */
 .board-col .card-preview-img {
   object-fit: contain;
