@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-09
+  { date: "2026-10-09", app: "duel", pr: 467, title: "Tidier Brief and Log Pose buttons", text: "The Brief and Log Pose buttons at the top of a game now have the same even spacing, so \"Log Pose\" no longer presses against its border." },
   { date: "2026-10-09", app: "duel", pr: 464, title: "Solid Mulligan button", text: "The Mulligan button is solid now instead of see-through, so the board no longer shows through it." },
   { date: "2026-10-09", app: "duel", pr: 459, title: "More EB05 cards playable", text: "28 more EB05 Heroines Edition Vol. 2 cards are playable in duels. EB05 card text comes from TCGPlayer until Bandai publishes it." },
   // 2026-10-08
