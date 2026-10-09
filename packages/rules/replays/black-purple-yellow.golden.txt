@@ -185,8 +185,12 @@ Seat 1 leader: Crocodile (OP04-058)
 > #47 seat 0 pass_counter
   Battle fails (5000 vs 7000)
 
-> #48 seat 1 activate_ability {"sourceId":"card_101","abilityId":"eb05-057#m0"}
+> #48 seat 1 activate_ability {"sourceId":"card_101","abilityId":"eb05-057#0"}
   Seat 1 activates Nojiko's ability
+  Seat 1 may resolve Nojiko's effect (Nojiko — choose up to 1 card to receive DON!!.)
+
+> #49 seat 1 resolve_pending_choice {"accept":true,"selectedOptionIds":["o0"]}
+  Seat 1 accepts Nojiko's effect
   Seat 1 attaches DON!! to Crocodile → 6000 power
 
 == final state ==
