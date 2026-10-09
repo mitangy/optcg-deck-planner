@@ -255,7 +255,7 @@
   animation: none;
 }
 
-/* The Brief button in the top bar: a fixed box, so loading, ready and error never change its size. */
+/* The Brief button in the top bar: a box sized by its fixed label, so loading, ready and error never change its size. */
 .hud-brief-btn {
   position: relative;
   flex: none;
@@ -277,7 +277,8 @@
 }
 
 .hud-brief-btn.hud-brief-text {
-  width: 76px;
+  width: auto;
+  padding: 0 0.7rem;
 }
 
 .hud-brief-btn.hud-icon-btn {

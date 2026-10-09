@@ -2,10 +2,7 @@
    never in its flow, so a plan starting, stepping or stopping moves nothing. Layer: above the board and its prompts
    (45-50) and the matchup brief (55), below the match menu (60) and the Log Pose panel (90). */
 
-/* "Log Pose" in the top bar: the Brief button's box, a little wider for its label. Busy (a plan running) is the dot. */
-.hud-brief-btn.hud-copilot-btn.hud-brief-text {
-  width: 92px;
-}
+/* "Log Pose" in the top bar sizes to its label like Brief (same padding). Busy (a plan running) is the dot. */
 
 /* The phone bar is crowded: with Brief and Log Pose both there, their icon boxes take the bar's own 40px size (the
    menu and the pass button already do) and the buttons sit a little closer, so the turn chip is never cut off. */
