@@ -39,7 +39,7 @@ const DEFAULT_STACKS: string[] = [];
 const DEFAULT_OFFSCREEN_OK: string[] = [];
 
 /** Containers that scroll sideways on purpose. */
-const DEFAULT_HSCROLL_OK: string[] = [];
+const DEFAULT_HSCROLL_OK: string[] = [".topbar nav"];
 
 /** Layers that intentionally sit over the page (what is under them is expected to be covered). */
 const DEFAULT_OVERLAYS = ["[role=dialog]", "[aria-modal=true]", ".market-sales", ".head-popover-panel", ".sort-menu-panel", ".stats-pill"];

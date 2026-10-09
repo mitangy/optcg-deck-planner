@@ -691,19 +691,19 @@ describe("DuelRoom", () => {
     const dupB = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("same-user"));
     await waitUntil(() => aLeft, 3000);
 
+    // Listen before the second player joins: pairing runs inside that join, so `matched` for dupB can arrive
+    // before the join call returns. Pairing creates a duel room, which can be slow on a loaded CI runner.
+    const matched = (c: typeof dupB) =>
+      new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error("matched timeout")), 20000);
+        c.onMessage("matched", (m: { roomId: string; seat: number }) => {
+          clearTimeout(t);
+          resolve(m);
+        });
+      });
+    const mineP = matched(dupB);
     const other = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("other-user"));
-    const [mine, theirs] = await Promise.all(
-      [dupB, other].map(
-        (c) =>
-          new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
-            const t = setTimeout(() => reject(new Error("matched timeout")), 5000);
-            c.onMessage("matched", (m: { roomId: string; seat: number }) => {
-              clearTimeout(t);
-              resolve(m);
-            });
-          }),
-      ),
-    );
+    const [mine, theirs] = await Promise.all([mineP, matched(other)]);
     assert.equal(mine!.roomId, theirs!.roomId);
     assert.notEqual(mine!.seat, theirs!.seat);
     await dupB.leave(true);

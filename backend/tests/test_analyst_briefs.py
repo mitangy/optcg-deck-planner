@@ -109,7 +109,9 @@ def test_a_tampered_or_expired_ticket_is_refused(chat):
     prefix, payload, sig = good.split(".")
     other = _ticket(leader="ST01-001").split(".")[1]
     assert _lookup(c, body["token"], f"{prefix}.{other}.{sig}").status_code == 403
-    assert _lookup(c, body["token"], f"{prefix}.{payload}.{sig[:-2]}AA").status_code == 403
+    # Change the first character: the last one carries padding bits, and a random signature can already end in the replacement.
+    bad = ("B" if sig[0] != "B" else "C") + sig[1:]
+    assert _lookup(c, body["token"], f"{prefix}.{payload}.{bad}").status_code == 403
     assert _lookup(c, body["token"], _ticket(exp=int(time.time()) - 5)).status_code == 403
 
 

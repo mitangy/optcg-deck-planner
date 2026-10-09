@@ -229,12 +229,12 @@ async function moveAndResize(page: Page, panel: ReturnType<Page["locator"]>, sta
   await page.screenshot({ path: test.info().outputPath(`${shot}-moved.png`) });
 
   // The header's buttons still work, and pushing the panel past the edge stops at the edge.
-  await drag(panel.locator("#lp-title"), -5000, -5000);
+  await drag(panel.locator("#lp-title"), 0, -5000);
   onScreen((await panel.boundingBox())!);
-  await drag(panel.locator("#lp-title"), mx * -1 + 5000, 5000);
+  // (Pulling it to the left or right edge docks it in the board's column instead, #432.)
+  await drag(panel.locator("#lp-title"), 0, 5000);
   const corner = (await panel.boundingBox())!;
   onScreen(corner);
-  near(corner.x + corner.width, vp.width, "stops at the right edge");
   near(corner.y + corner.height, vp.height, "stops at the bottom edge");
   await drag(panel.locator("#lp-title"), mx, my);
   const placed = (await panel.boundingBox())!;
@@ -301,6 +301,8 @@ test("a panel the player opened or used stays open when the first turn starts (#
   await panel.getByRole("button", { name: /^Matchup brief/ }).click();
   await keepBothHands(page);
   await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "main");
+  // A panel that folds away shrinks into the compass for ~200ms before it goes (#432): look after that.
+  await page.waitForTimeout(600);
   await expect(panel).toBeVisible();
 });
 

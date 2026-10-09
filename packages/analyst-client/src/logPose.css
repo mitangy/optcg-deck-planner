@@ -208,22 +208,14 @@
   height: var(--lp-sheet-h, var(--lp-vv-height, 100dvh));
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
   border-radius: 14px 14px 0 0;
-  animation: lp-sheet-in 0.2s ease-out;
   overscroll-behavior: contain;
 }
 
-@keyframes lp-sheet-in {
-  from {
-    transform: translateY(32px);
-    opacity: 0;
-  }
-}
-
-@keyframes lp-drawer-in {
-  from {
-    transform: translateX(24px);
-    opacity: 0;
-  }
+/* Opening and closing are played from LogPose.tsx (Web Animations): the panel grows out of the compass and
+   shrinks back into it, or a docked one slides from its edge. Nothing plays under reduced motion. While it
+   shrinks it no longer takes clicks. */
+.lp-panel[data-closing] {
+  pointer-events: none;
 }
 
 /* The sheet's grab handle: a 44px-tall hit area around a small bar. */
@@ -286,16 +278,138 @@
     border-radius: 0;
     border-left: 1px solid var(--lp-line-d);
     padding: 0 env(safe-area-inset-right, 0px) 0 0;
-    animation: lp-drawer-in 0.18s ease-out;
   }
 
-  /* Once resized it is a window anchored to the bottom-right corner (width and height come from inline style). */
+  /* Once resized or moved it is a window anchored to the bottom-right corner (width, height and the gap to the
+     corner come from inline style): a border and rounded corners all the way round. */
   .lp-panel[data-sized] {
     top: auto;
-    border-top: 1px solid var(--lp-line-d);
-    border-top-left-radius: var(--lp-radius-d);
+    border: 1px solid var(--lp-line-d);
+    border-radius: var(--lp-radius-d);
     max-width: calc(100vw - 16px);
     max-height: calc(100dvh - 16px);
+  }
+
+  /* Docked to a screen edge: a full-height strip, square, with a border on its inner side only. Its width is
+     inline (the remembered docked width); the page makes room for it (html[data-lp-dock], below). */
+  .lp-panel[data-dock] {
+    top: 0;
+    bottom: 0;
+    height: 100dvh;
+    max-width: 50vw;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .lp-panel[data-dock="right"] {
+    right: 0;
+    left: auto;
+    border-left: 1px solid var(--lp-line-d);
+  }
+
+  .lp-panel[data-dock="left"] {
+    left: 0;
+    right: auto;
+    padding: 0 0 0 env(safe-area-inset-left, 0px);
+    border-right: 1px solid var(--lp-line-d);
+  }
+
+  /* Docked into the game: an ordinary panel in the board's column, filling the slot its host gives it. */
+  .lp-panel[data-embedded] {
+    position: relative;
+    inset: auto;
+    z-index: auto;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    padding: 0;
+    border: 1px solid var(--line, var(--lp-line-d));
+    border-radius: 10px;
+    box-shadow: none;
+  }
+
+  /* A narrow board column: the header gives up its icon and tightens, and the title may shorten rather than push
+     the buttons out. */
+  .lp-panel[data-embedded] .lp-head {
+    gap: 4px;
+    padding: 6px 6px 6px 12px;
+    min-height: 48px;
+  }
+
+  .lp-panel[data-embedded] .lp-head-icon {
+    display: none;
+  }
+
+  .lp-panel[data-embedded] .lp-title {
+    font-size: 1rem;
+  }
+
+  .lp-panel[data-embedded] .lp-head .lp-btn-icon {
+    width: 32px;
+    min-height: 32px;
+  }
+
+  .lp-panel[data-embedded] .lp-head .lp-btn {
+    padding-inline: 8px;
+  }
+
+  .lp-panel[data-embedded] .lp-head .lp-btn-icon {
+    padding: 0;
+  }
+
+  /* A very narrow column (the board's left one by default): the title gets a row of its own and the composer
+     stacks, instead of squeezing the buttons and the field. */
+  .lp-panel[data-embedded] {
+    container: lp-embed / inline-size;
+  }
+
+  @container lp-embed (max-width: 249px) {
+    .lp-panel[data-embedded] .lp-head {
+      flex-wrap: wrap;
+      row-gap: 0;
+    }
+
+    .lp-panel[data-embedded] .lp-title {
+      flex: 1 0 100%;
+    }
+
+    .lp-panel[data-embedded] .lp-composer {
+      flex-wrap: wrap;
+    }
+
+    .lp-panel[data-embedded] .lp-input {
+      flex: 1 0 100%;
+    }
+
+    .lp-panel[data-embedded] .lp-btn-send {
+      margin-left: auto;
+    }
+  }
+
+  /* The page keeps clear of a docked strip: the room is padding on the body, so sticky bars and content shrink
+     with it and nothing scrolls sideways. */
+  html[data-lp-dock] body {
+    box-sizing: border-box;
+  }
+
+  html[data-lp-dock="right"] body {
+    padding-right: var(--lp-dock-w, 380px);
+  }
+
+  html[data-lp-dock="left"] body {
+    padding-left: var(--lp-dock-w, 380px);
+  }
+
+  /* The translucent area a drag would dock into. */
+  .lp-dock-preview {
+    position: fixed;
+    z-index: calc(var(--lp-z-panel, 85) - 1);
+    pointer-events: none;
+    border: 2px dashed var(--lp-accent-d);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--lp-accent-d) 16%, transparent);
   }
 
   .lp-resize {
@@ -369,6 +483,36 @@
     outline: none;
   }
 
+  .lp-panel[data-dock] .lp-resize-top,
+  .lp-panel[data-dock] .lp-resize-left,
+  .lp-panel[data-dock] .lp-resize-corner {
+    display: none;
+  }
+
+  .lp-resize-dock {
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: ew-resize;
+  }
+
+  .lp-resize-dock-right {
+    left: 0;
+  }
+
+  .lp-resize-dock-left {
+    right: 0;
+  }
+
+  .lp-resize-dock::after {
+    inset: 0 auto 0 0;
+    width: 2px;
+  }
+
+  .lp-resize-dock-left::after {
+    inset: 0 0 0 auto;
+  }
+
   .lp-grip {
     display: none;
   }
@@ -388,6 +532,8 @@
 .lp-head[data-movable] {
   touch-action: none;
   cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .lp-panel[data-moving] {
@@ -426,6 +572,8 @@
   flex: 1;
   min-width: 0;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--lp-font-display, inherit);
   font-size: 1.15rem;
