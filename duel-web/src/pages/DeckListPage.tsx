@@ -27,6 +27,7 @@ import { useSwipeMove } from "../decks/useSwipeMove";
 import { DESKTOP_DECKS_QUERY, useMediaQuery } from "../board/useMediaQuery";
 import { fetchAuthMe, googleLoginUrl, type AuthUser } from "../net/api";
 import type { ImportIntoDeckResult } from "../decks/storage";
+import { NavMenu } from "../nav/NavMenu";
 
 type PlannerState =
   | { status: "loading" }
@@ -438,6 +439,7 @@ export function DeckListPage() {
     <div className={`app-shell${drag ? " is-deck-dragging" : ""}`}>
       <div className="deck-config deck-config-wide deck-list-page">
         <header className="deck-config-header">
+          <NavMenu />
           <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <div className="deck-config-heading">
             <h1 className="deck-config-title">Decks</h1>

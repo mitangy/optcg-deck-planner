@@ -160,10 +160,11 @@ function parseQualifiers(text: string, ctx: Ctx, filter: Filter, extra: { totalC
     if ((m = take(/^with the <(\w+)> attribute/))) { filter.attributes = [m[1]!]; continue; }
     if ((m = take(/^with (?:a )?\[(Blocker|Rush|Double Attack|Banish)\]/))) { filter.keyword = m[1]!.toLowerCase().replace(" ", "_") as Filter["keyword"]; continue; }
     if ((m = take(/^that (?:was|were) played (?:on|during) this turn/))) { filter.playedThisTurn = true; continue; }
-    if ((m = take(/^(?:with |and )?(?:the )?(§T\d+§(?:(?:, | or |, or )§T\d+§)*) type/))) { const traits = traitList(m[1]!, ctx); if (!traits) return false; filter.traits = traits; continue; }
+    if ((m = take(/^(?:with |and )?(?:both )?(?:the )?(§T\d+§(?:(?:, | or |, or )§T\d+§)*) type/))) { const traits = traitList(m[1]!, ctx); if (!traits) return false; filter.traits = traits; continue; }
     if ((m = take(/^(?:with )?(\d+) to (\d+) (base )?power/))) { const key = m[3] ? "basePower" : "power"; filter.all = [...(filter.all ?? []), { [key]: { op: ">=", value: num(m[1]!) } }, { [key]: { op: "<=", value: num(m[2]!) } }]; continue; }
     if ((m = take(/^(?:with )?(?:a |an )?(base )?cost of (\d+) to (\d+)/))) { const key = m[1] ? "baseCost" : "cost"; filter.all = [...(filter.all ?? []), { [key]: { op: ">=", value: num(m[2]!) } }, { [key]: { op: "<=", value: num(m[3]!) } }]; continue; }
     if ((m = take(/^(?:and |with )?no base effect/i))) { filter.vanilla = true; continue; }
+    if ((m = take(/^without (\[(?:Blocker|Rush|Double Attack|Banish|Unblockable)\])(?! effect)/))) { filter.textExcludes = [...(filter.textExcludes ?? []), m[1]!]; continue; }
     if ((m = take(/^without (?:a |an )?(\[[^\]]+\]) effect/i))) { filter.textExcludes = [...(filter.textExcludes ?? []), m[1]!]; continue; }
     if ((m = take(/^with (?:a |an )?(\[[^\]]+\]) effect/i))) { filter.textIncludes = [...(filter.textIncludes ?? []), m[1]!]; continue; }
     if ((m = take(/^that has (\d+) or (less|more) power/))) { filter.power = cmp(m[2]!, num(m[1]!)); continue; }
@@ -200,7 +201,8 @@ export interface PhraseOptions {
 
 /** Parse "up to 1 of your opponent's rested Characters with a cost of 3 or less". */
 export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {}): CardPhrase | null {
-  let text = input.trim();
+  // "up to 1 of your Leader or up to 1 of your Characters" picks one card among both: same as "Leader or Characters".
+  let text = input.trim().replace(/^up to (\d+) of (your(?: opponent's)?) (leader(?: card)?) or up to \1 of \2 (characters?)\b/i, "up to $1 of $2 $3 or $4");
   const selfMatch = /^this (character|leader|stage|card|event)(?: card)?$/i.exec(text);
   if (selfMatch) return { selector: { player: "you", zone: "field" }, quant: { kind: "self" } };
   const leader = /^(your|your opponent's|their|its owner's) leader(?: card)?$/i.exec(text);

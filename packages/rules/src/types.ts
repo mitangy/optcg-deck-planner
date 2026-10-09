@@ -42,7 +42,7 @@ export interface CardDef {
   traits?: string[];
   hasTrigger?: boolean;
   /** `bandai` when verified against the official card list snapshot. */
-  dataSource?: "bandai" | "bundled" | "stub";
+  dataSource?: "bandai" | "bundled" | "tcgplayer" | "stub";
 }
 
 export interface CardInstance {
@@ -260,9 +260,10 @@ export type EngineStep =
   | { kind: "after_block_triggers" }
   | { kind: "damage" }
   | { kind: "battle_ko"; targetSeat: Seat; targetId: InstanceId; replaced?: boolean }
-  | { kind: "life_damage" }
+  /** `lethal`: the defender was at 0 Life when the hit landed (loses unless a damage replacement applies). `dealt`: damage events already fired for this hit. */
+  | { kind: "life_damage"; replaced?: boolean; lethal?: boolean; dealt?: boolean }
   /** Effect damage outside battle (Life to hand with Trigger checks). */
-  | { kind: "effect_damage"; seat: Seat; remaining: number }
+  | { kind: "effect_damage"; seat: Seat; remaining: number; replaced?: boolean }
   | { kind: "end_battle" }
   | { kind: "end_phase" }
   | { kind: "start_turn_triggers" };

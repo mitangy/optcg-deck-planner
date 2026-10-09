@@ -4,6 +4,7 @@ import { getOrCreateGuestId } from "../auth/guestId";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
 import { isIncompleteDeck } from "../decks/deckStatus";
+import { NavMenu } from "../nav/NavMenu";
 import { getApiBaseUrl, getGameServerUrl, getPlannerUrl } from "../config";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { refreshLinkedDeck } from "../decks/planner";
@@ -824,9 +825,12 @@ export function LobbyPage() {
     <div className="app-shell home-shell">
       <header className="topbar">
         <div className="topbar-inner">
-          <Link to="/" className="topbar-mark" aria-label="OPTCG Duel home">
-            OPTCG Duel
-          </Link>
+          <div className="topbar-left">
+            <NavMenu />
+            <Link to="/" className="topbar-mark" aria-label="OPTCG Duel home">
+              OPTCG Duel
+            </Link>
+          </div>
           <div className="topbar-right">
             {authMode === "guest" ? (
               <a className="btn btn-primary btn-sm" href={googleLoginUrl()}>
@@ -846,7 +850,7 @@ export function LobbyPage() {
               href={getPlannerUrl()}
               target="_blank"
               rel="noopener"
-              className="icon-btn"
+              className="icon-btn topbar-in-menu"
               aria-label="Deck planner"
               title="Deck planner"
             >
@@ -858,7 +862,7 @@ export function LobbyPage() {
               </svg>
               <span className="icon-btn-label">Planner</span>
             </a>
-            <Link to="/history" className="icon-btn" aria-label="Match history" title="Match history">
+            <Link to="/history" className="icon-btn topbar-in-menu" aria-label="Match history" title="Match history">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
                 <path
                   fill="currentColor"

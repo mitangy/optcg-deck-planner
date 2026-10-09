@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { BountyAmount } from "../Bounty";
 import { fetchLeaderboard, type LeaderboardEntry, type RatingMe } from "../net/api";
 import { pinnedYou } from "./bounties";
@@ -19,13 +20,25 @@ export function TopBounties({ me }: { me: RatingMe | null | undefined }) {
     };
   }, []);
 
+  return <TopBountiesCard entries={entries} me={me} />;
+}
+
+/** The card itself; hidden when there is nothing to show. */
+export function TopBountiesCard({ entries, me }: { entries: LeaderboardEntry[]; me: RatingMe | null | undefined }) {
   if (entries.length === 0) return null;
   const you = pinnedYou(me ?? null, TOP_N);
 
   return (
     <section className="bounties" aria-label="Top bounties">
       <div className="friends-head">
-        <h2 className="friends-title">Top bounties</h2>
+        <h2 className="friends-title">
+          <Link to="/leaderboard" className="bounties-title-link">
+            Top bounties
+          </Link>
+        </h2>
+        <Link to="/leaderboard" className="bounties-see-all" aria-label="See full leaderboard">
+          See all
+        </Link>
       </div>
       <ol className="bounty-list">
         {entries.slice(0, TOP_N).map((e, i) => (

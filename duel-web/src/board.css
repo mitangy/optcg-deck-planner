@@ -553,7 +553,7 @@
    Column widths live on the board root, not .arena-body, so fixed overlays
    (prompts, hand dock, turn splash) can line up with the board column. */
 @media (min-width: 900px) and (min-height: 500px),
-  (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+  (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena {
     --left-w: clamp(190px, 18vw, 320px);
     --rail-w: clamp(250px, 22vw, 380px);
@@ -2218,7 +2218,7 @@ body.is-panel-drag * {
 
 /* —— Landscape phones: slimmer columns, compact game state —— */
 
-@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena {
     --left-w: clamp(140px, 20vw, 210px);
     --rail-w: clamp(190px, 26vw, 260px);
@@ -2791,7 +2791,7 @@ body.is-panel-drag * {
 
 /* —— Landscape phones: rail layout with height-bound mats —— */
 
-@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena .hud-bar {
     --hud-py: 0.25rem;
     --hud-px: 0.6rem;
@@ -3866,7 +3866,7 @@ body.is-panel-drag * {
 
 /* —— Landscape phones: icon rail | board | slim action column, hand under the board —— */
 
-@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena.arena-lp {
     --lp-rail-w: calc(44px + var(--safe-l));
     --left-w: var(--lp-rail-w);
@@ -4124,7 +4124,7 @@ body.is-panel-drag * {
   }
 }
 
-@media (hover: hover) and (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (hover: hover) and (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena.arena-lp .hand-dock:hover {
     width: auto;
     transform: none;
@@ -4341,7 +4341,7 @@ body.is-panel-drag * {
 }
 
 /* Landscape phones: the tray fills the right column above the primary. */
-@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena.arena-lp .arena-rail .defend-tray {
     flex: 1 1 0;
     min-height: 0;
@@ -5202,7 +5202,7 @@ body.is-panel-drag * {
 
 /* Phone boards: names and power at 10px or more (they were 7 to 8px), and the printed
    cost line goes (the art shows it) unless an effect changed it. */
-@media (pointer: coarse) and (max-width: 599px), (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (pointer: coarse) and (max-width: 599px), (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena .side-field .card-caption .name {
     font-size: clamp(0.625rem, calc(var(--c) * 0.12 * var(--text-scale, 1)), 0.74rem);
   }
@@ -5218,7 +5218,7 @@ body.is-panel-drag * {
 }
 
 /* Landscape phones: the rail is narrow, so the pill's subtext wraps instead of being cut. */
-@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .waiting-opp-text span {
     white-space: normal;
     overflow-wrap: anywhere;
@@ -5738,7 +5738,7 @@ body.is-panel-drag * {
   }
 }
 
-@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena.arena-big.arena-lp .playmat {
     --mat-gap: 2px;
     --midline-h: 1rem;

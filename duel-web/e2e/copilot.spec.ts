@@ -313,6 +313,47 @@ async function expectTopBarFits(page: Page) {
   expect(cut, "top bar").toEqual([]);
 }
 
+/**
+ * The desktop text buttons (Brief, Log Pose) hug their label with the same padding on both sides (#463): content
+ * (text + icon) is at least 8px from each border, left and right within 2px, and nothing overflows the box.
+ * Returns how many were measured so a caller can refuse a vacuous pass.
+ */
+async function expectTopBarButtonsPadded(page: Page) {
+  const rows = await page.evaluate(() => {
+    const out: { name: string; left: number; right: number; over: number }[] = [];
+    for (const b of document.querySelectorAll<HTMLElement>(".arena .hud-bar .hud-brief-btn.hud-brief-text")) {
+      const box = b.getBoundingClientRect();
+      if (box.width === 0) continue;
+      const rects: DOMRect[] = [];
+      const walk = (n: Node) => {
+        if (n.nodeType === Node.TEXT_NODE) {
+          if (!n.textContent?.trim()) return;
+          const r = document.createRange();
+          r.selectNodeContents(n);
+          rects.push(...Array.from(r.getClientRects()));
+        } else if (n instanceof Element) {
+          if (getComputedStyle(n).position === "absolute") return;
+          if (n instanceof SVGElement && n.tagName.toLowerCase() === "svg") rects.push(n.getBoundingClientRect());
+          else n.childNodes.forEach(walk);
+        }
+      };
+      b.childNodes.forEach(walk);
+      if (rects.length === 0) continue;
+      const left = Math.min(...rects.map((r) => r.left));
+      const right = Math.max(...rects.map((r) => r.right));
+      out.push({ name: b.textContent?.trim() || b.getAttribute("aria-label") || b.className, left: left - box.left, right: box.right - right, over: b.scrollWidth - b.clientWidth });
+    }
+    return out;
+  });
+  expect(rows.length, "Brief and Log Pose both measured").toBeGreaterThanOrEqual(2);
+  for (const r of rows) {
+    expect(r.left, `${r.name} left gap`).toBeGreaterThanOrEqual(8);
+    expect(r.right, `${r.name} right gap`).toBeGreaterThanOrEqual(8);
+    expect(Math.abs(r.left - r.right), `${r.name} gap difference`).toBeLessThanOrEqual(2);
+    expect(r.over, `${r.name} overflows its box`).toBeLessThanOrEqual(0);
+  }
+}
+
 /** The pill floats over the board's top edge: it must clear the hand, the End turn control, the top bar and the rail. */
 async function expectPillClear(page: Page) {
   const p = (await pill(page).boundingBox())!;
@@ -385,6 +426,21 @@ test.describe("landscape phone", () => {
     test.skip(info.project.name !== "desktop-1280", "one run is enough: the viewport is set here");
     await checkCopilot(page, duel, "landscape", "phone_812x375_landscape");
   });
+});
+
+test.describe("desktop top bar padding", () => {
+  for (const vp of [{ width: 1280, height: 720 }, { width: 1440, height: 900 }]) {
+    test(`the Brief and Log Pose buttons keep even padding in the desktop top bar at ${vp.width}x${vp.height} (#463)`, async ({ page, duel }, info) => {
+      test.skip(info.project.name !== "desktop-1280", "desktop only: the phone bar uses icon boxes");
+      await page.setViewportSize(vp);
+      await setSettings(page, { logPoseCopilot: true });
+      await stubLogPose(page);
+      await duel.startPractice({ seed: 7 });
+      await expect(page.getByRole("button", { name: "Matchup brief", exact: true })).toBeVisible();
+      await expect(logPoseButton(page)).toContainText("Log Pose");
+      await expectTopBarButtonsPadded(page);
+    });
+  }
 });
 
 test("Stop on the pill leaves the rest of the plan unsent (#416)", async ({ page, duel }) => {

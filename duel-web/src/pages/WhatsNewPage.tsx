@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { latestNoteDate, markSeen, notesFor, WhatsNewList } from "@optcg/patch-notes";
 import { BackLink } from "./BackLink";
+import { NavMenu } from "../nav/NavMenu";
 
 const NOTES = notesFor("duel");
 
@@ -14,6 +15,7 @@ export function WhatsNewPage() {
     <div className="app-shell">
       <div className="page page-narrow whats-new-page">
         <header className="page-header">
+          <NavMenu />
           <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <h1 className="page-title">What’s new</h1>
         </header>

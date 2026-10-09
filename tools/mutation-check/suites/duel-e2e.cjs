@@ -18,6 +18,11 @@ module.exports = {
   cwd: "duel-web",
   runner: "playwright",
   mutations: [
+    // Small landscape phones get the landscape board (#469). Both JS layout queries (wide board and landscape phone) go back to 600px.
+    { id: "e2e-small-landscape-phone-portrait-layout", args: "demo-audit --project=phone-375 -g 469", edits: [
+      { file: "duel-web/src/board/useMediaQuery.ts", from: "and (min-width: 480px) and (max-height: 499px)\";\n\n/**\n * Compact HUD", to: "and (min-width: 600px) and (max-height: 499px)\";\n\n/**\n * Compact HUD" },
+      { file: "duel-web/src/board/useMediaQuery.ts", from: "export const LANDSCAPE_PHONE_QUERY =\n  \"(orientation: landscape) and (min-width: 480px)", to: "export const LANDSCAPE_PHONE_QUERY =\n  \"(orientation: landscape) and (min-width: 600px)" },
+    ], kills: ["demo-audit.spec.ts > a small landscape phone gets the landscape board with readable cards (#469) [phone-375]"] },
     // rules, clicked through the UI
     { id: "e2e-first-turn-attack-allowed", args: "rules-attack --project=desktop-1280", edits: [
       { file: intents, from: "      if (p.turnsStarted < 2) return err(\"FIRST_TURN\", \"You cannot attack on your first turn\");", to: "" },
@@ -210,6 +215,11 @@ module.exports = {
       "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [desktop-1280]",
       "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [phone-375]",
     ] },
+    // The Mulligan button is opaque over the board dock (#461)
+    { id: "e2e-mulligan-btn-transparent", args: "demo-audit -g \"solid background, not see-through\"", file: "duel-web/src/styles.css", from: "  background: var(--arena-raised) !important;\n  color: var(--chrome-bright) !important;\n  border-color: var(--chrome) !important;", to: "  background: transparent !important;\n  color: var(--chrome-bright) !important;\n  border-color: var(--chrome) !important;", kills: [
+      "demo-audit.spec.ts > the Mulligan button has a solid background, not see-through (#461) [desktop-1280]",
+      "demo-audit.spec.ts > the Mulligan button has a solid background, not see-through (#461) [phone-375]",
+    ] },
     // "Opponent hand, top right" is the top-right spot (#297)
     { id: "e2e-opp-hand-top-right-not-migrated", args: "demo-audit -g \"Opponent hand, top right\"", file: "duel-web/src/settings.ts", from: "  if (oppHandTopRight === true && !next.oppHandSpot) next.oppHandSpot = \"right\";\n", to: "", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [desktop-1280]", "demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [phone-375]"] },
     { id: "e2e-opp-hand-top-right-switch-on-desktop", args: "demo-audit --project=desktop-1280 -g \"Opponent hand, top right\"", file: "duel-web/src/board/gameplayFields.ts", from: "  if (key === \"oppHandTopRight\") return !d.desktop;\n", to: "", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [desktop-1280]"] },
@@ -381,9 +391,8 @@ module.exports = {
     { id: "e2e-unaffordable-lifted-slot-visible", args: "hand-lift-unaffordable -g \"leaves its slot empty\"", file: "duel-web/src/board.css", from: ".arena .card-tile.hand-unaffordable:not(.selected, .card-lifted) {", to: ".arena .card-tile.hand-unaffordable:not(.selected) {", kills: ["hand-lift-unaffordable.spec.ts > a dragged grayed-out hand card leaves its slot empty like any other (#364) [desktop-1280]", "hand-lift-unaffordable.spec.ts > a dragged grayed-out hand card leaves its slot empty like any other (#364) [phone-375]"] },
     { id: "e2e-drag-disabled-mid-drag-keeps-lift", args: "hand-lift-unaffordable -g \"cut short by Sort\"", file: "duel-web/src/board/usePointerDrag.ts", from: "    reset();\n    onDragCancelRef.current?.();\n", to: "", kills: ["hand-lift-unaffordable.spec.ts > a hand card drag cut short by Sort lets the lifted copy go (#364) [desktop-1280]", "hand-lift-unaffordable.spec.ts > a hand card drag cut short by Sort lets the lifted copy go (#364) [phone-375]"] },
     // matchup brief (#401), pinned in the Log Pose panel that moves and resizes (#423)
-    // The Brief button is a fixed box (CSS) and its label never changes (code): the mutation lets the label grow with the status.
+    // The Brief button sizes to its label, and the label never changes: the mutation lets the label grow with the status.
     { id: "e2e-brief-trigger-text-grows", args: "match-brief --project=desktop-1280 -g \"without moving the board \\(#401\\)\"", edits: [
-      { file: "duel-web/src/logPose.css", from: ".hud-brief-btn.hud-brief-text {\n  width: 76px;\n}", to: ".hud-brief-btn.hud-brief-text {\n  width: auto;\n}" },
       { file: "duel-web/src/board/MatchBrief.tsx", from: "<span className=\"hud-brief-label\">Brief</span>", to: "<span className=\"hud-brief-label\">{busy ? \"Writing the brief…\" : \"Brief\"}</span>" },
     ], kills: ["match-brief.spec.ts > practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423) [desktop-1280]"] },
     { id: "e2e-brief-panel-in-flow", args: "match-brief --project=desktop-1280 --project=phone-375 -g \"pinned in the Log Pose panel\"", file: "packages/analyst-client/src/logPose.css", from: ".lp-panel {\n  position: fixed;", to: ".lp-panel {\n  position: static;", kills: ["match-brief.spec.ts > practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423) [desktop-1280]", "match-brief.spec.ts > practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423) [phone-375]"] },
@@ -618,5 +627,29 @@ module.exports = {
     // Docked fan: menu, Hand and Sort stack at the fan's left (#449)
     { id: "e2e-hand-menu-row", args: "hand-menu --project=desktop-1280", file: "duel-web/src/board.css", from: "  justify-self: start;\n  flex-direction: column;\n  align-items: flex-start;", to: "  justify-self: start;\n  align-items: flex-start;", kills: ["hand-menu.spec.ts > docked fan: menu, Hand and Sort stack in a column at the fan's left, tucked (#449) [desktop-1280]", "hand-menu.spec.ts > docked fan: menu, Hand and Sort stack in a column at the fan's left, shown (#449) [desktop-1280]"] },
     { id: "e2e-hand-menu-clipped-at-bottom", args: "hand-menu --project=desktop-1280 -g tucked", file: "duel-web/src/board.css", from: "  transform: translateY(calc(var(--fan-ch) * var(--fan-peek) - 100% - 4px));\n", to: "", kills: ["hand-menu.spec.ts > docked fan: menu, Hand and Sort stack in a column at the fan's left, tucked (#449) [desktop-1280]"] },
+
+    // Brief and Log Pose top-bar buttons hug their label with even padding (#463)
+    { id: "e2e-top-bar-text-buttons-fixed-width", args: "copilot --project=desktop-1280 -g \"#463\"", edits: [
+      { file: "duel-web/src/logPose.css", from: ".hud-brief-btn.hud-brief-text {\n  width: auto;\n  padding: 0 0.7rem;\n}", to: ".hud-brief-btn.hud-brief-text {\n  width: 76px;\n}" },
+      { file: "duel-web/src/board/copilot.css", from: "/* \"Log Pose\" in the top bar sizes to its label like Brief (same padding). Busy (a plan running) is the dot. */\n", to: ".hud-brief-btn.hud-copilot-btn.hud-brief-text {\n  width: 92px;\n}\n" },
+    ], kills: [
+      "copilot.spec.ts > the Brief and Log Pose buttons keep even padding in the desktop top bar at 1280x720 (#463) [desktop-1280]",
+      "copilot.spec.ts > the Brief and Log Pose buttons keep even padding in the desktop top bar at 1440x900 (#463) [desktop-1280]",
+    ] },
+
+    // Menu and full leaderboard (#460)
+    { id: "e2e-nav-esc-does-not-close", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "      if (e.key === \"Escape\") {\n        e.preventDefault();\n        setOpen(false);\n        return;\n      }\n", to: "", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
+    { id: "e2e-nav-backdrop-does-not-close", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "<div className=\"nav-backdrop\" onClick={close} aria-hidden />", to: "<div className=\"nav-backdrop\" aria-hidden />", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
+    { id: "e2e-nav-focus-not-restored", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "      buttonRef.current?.focus();\n", to: "", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
+    { id: "e2e-nav-focus-not-moved-in", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "      drawerRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();\n", to: "", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
+    { id: "e2e-nav-link-keeps-drawer-open", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "                    onClick={close}\n", to: "", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
+    { id: "e2e-nav-current-page-unmarked", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "aria-current={item.href === active ? \"page\" : undefined}", to: "aria-current={undefined}", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
+    { id: "e2e-nav-missing-on-whats-new", args: "nav-leaderboard --project=desktop-1280 -g \"every page\"", file: "duel-web/src/pages/WhatsNewPage.tsx", from: "          <NavMenu />\n", to: "", kills: ["nav-leaderboard.spec.ts > every page's header starts with the menu button (#460) [desktop-1280]"] },
+    { id: "e2e-leaderboard-limit-five", args: "nav-leaderboard --project=desktop-1280 -g \"the leaderboard lists\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "const LIMIT = 100;", to: "const LIMIT = 5;", kills: ["nav-leaderboard.spec.ts > the leaderboard lists ranked players with Bounty and games, and marks your row (#460) [desktop-1280]"] },
+    { id: "e2e-leaderboard-name-ignores-username", args: "nav-leaderboard --project=desktop-1280 -g \"the leaderboard lists\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "{e.username || e.name}", to: "{e.name}", kills: ["nav-leaderboard.spec.ts > the leaderboard lists ranked players with Bounty and games, and marks your row (#460) [desktop-1280]"] },
+    { id: "e2e-leaderboard-games-column-wrong", args: "nav-leaderboard --project=desktop-1280 -g \"the leaderboard lists\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "<span className=\"leaderboard-games\">{e.games_played}</span>", to: "<span className=\"leaderboard-games\">{i + 1}</span>", kills: ["nav-leaderboard.spec.ts > the leaderboard lists ranked players with Bounty and games, and marks your row (#460) [desktop-1280]"] },
+    { id: "e2e-leaderboard-own-row-not-marked", args: "nav-leaderboard --project=desktop-1280 -g \"the leaderboard lists\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "const mine = me != null && e.user_id === me.user_id;", to: "const mine = false;", kills: ["nav-leaderboard.spec.ts > the leaderboard lists ranked players with Bounty and games, and marks your row (#460) [desktop-1280]"] },
+    { id: "e2e-leaderboard-you-not-pinned", args: "nav-leaderboard --project=desktop-1280 -g \"the leaderboard pins\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "const you = pinnedYou(me, entries.length);", to: "const you = null as ReturnType<typeof pinnedYou>;", kills: ["nav-leaderboard.spec.ts > the leaderboard pins You under a list you are not in (#460) [desktop-1280]"] },
+    { id: "e2e-leaderboard-empty-shows-nothing", args: "nav-leaderboard --project=desktop-1280 -g \"nobody has played\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "state.status === \"ready\" && entries.length === 0 ?", to: "state.status === \"ready\" && entries.length < 0 ?", kills: ["nav-leaderboard.spec.ts > the leaderboard says so when nobody has played ranked yet (#460) [desktop-1280]"] },
   ],
 };
