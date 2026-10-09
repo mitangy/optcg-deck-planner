@@ -27,7 +27,7 @@ module.exports = {
     { id: "home-intro-ignores-dismissal", file: `${src}/home/intro.ts`, from: 'authMode === "guest" && !done', to: 'authMode === "guest"', kills: ["shows to guests who have not dismissed it or started a match (#431)"] },
     { id: "home-intro-not-remembered", file: `${src}/home/intro.ts`, from: '    storage?.setItem(INTRO_KEY, "1");', to: "    storage?.setItem(INTRO_KEY, \"0\");", kills: ["remembers dismissal and survives blocked storage (#431)"] },
     // Asking for Log Pose (#393)
-    { id: "access-form-shown-while-pending", file: "packages/analyst-client/src/AccessViews.tsx", from: "  if (sent || access === \"pending\") {", to: "  if (sent) {", kills: ["shows no form once a request is waiting (#393)"] },
+    { id: "access-form-shown-while-pending", file: "packages/analyst-client/src/AccessViews.tsx", from: "  if (sent === \"pending\" || access === \"pending\") {", to: "  if (sent === \"pending\") {", kills: ["shows no form once a request is waiting (#393)"] },
     { id: "access-note-uncapped", file: "packages/analyst-client/src/AccessViews.tsx", from: "        maxLength={NOTE_MAX}\n", to: "", kills: ["offers the form with a 500 character note to someone who hasn't asked (#393)"] },
     { id: "access-denied-looks-like-first-ask", file: "packages/analyst-client/src/AccessViews.tsx", from: "      {access === \"denied\" ? (\n        <p className=\"lp-access-lead\"", to: "      {false ? (\n        <p className=\"lp-access-lead\"", kills: ["says the request wasn't approved and offers the form again (#393)"] },
     // turn guard: no actions after End turn until its result arrives (#328)
@@ -1275,5 +1275,10 @@ module.exports = {
     { id: "meta-sig-ignores-leader", file: `${src}/decks/meta.ts`, from: "`${leaderId.toUpperCase()}|", to: "`|", kills: ["does not match a deck with one card swapped or a different leader (#443)", "signatures ignore case and order but not leader (#443)"] },
     { id: "meta-sig-cards-by-length", file: `${src}/decks/meta.ts`, from: "[...cardIds].map((c) => c.toUpperCase()).sort().join(\",\")}`", to: "String(cardIds.length)}`", kills: ["does not match a deck with one card swapped or a different leader (#443)"] },
     { id: "meta-card-ids-ignore-count", file: `${src}/decks/meta.ts`, from: "Array.from({ length: c.count }, () => c.card_id)", to: "[c.card_id]", kills: ["finds a saved deck with the same leader and cards in any order (#443)"] },
+    // Free spots (#446)
+    { id: "access-form-full-when-spots-left", file: "packages/analyst-client/src/AccessViews.tsx", from: "spotsLeft !== undefined && spotsLeft <= 0", to: "spotsLeft !== undefined && spotsLeft < 0", kills: ["offers the waitlist, naming the live number of spots, once they are all taken (#446)"] },
+    { id: "access-form-waitlist-count-fixed", file: "packages/analyst-client/src/AccessViews.tsx", from: "`All ${freeSpots ?? 50} free spots", to: "`All 50 free spots", kills: ["offers the waitlist, naming the live number of spots, once they are all taken (#446)"] },
+    { id: "access-form-spots-left-hidden", file: "packages/analyst-client/src/AccessViews.tsx", from: "{!full && spotsLeft !== undefined && freeSpots ? (", to: "{false ? (", kills: ["says how many free spots are left while there are some (#446)"] },
+    { id: "access-form-spots-left-swapped", file: "packages/analyst-client/src/AccessViews.tsx", from: "{spotsLeft} of {freeSpots} free spots left", to: "{freeSpots} of {spotsLeft} free spots left", kills: ["says how many free spots are left while there are some (#446)"] },
   ],
 };
