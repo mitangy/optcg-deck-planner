@@ -408,6 +408,55 @@ test("Turn and clocks keeps its content height and its column its width when dra
   expect(narrow.contentW).toBeLessThanOrEqual(Math.ceil(narrow.w));
 });
 
+// A fanned hand parked against a screen edge reaches over the side column; where a card and the
+// column's resize handle overlap, the card wins: the handle neither lights up nor grabs the drag (#449).
+for (const side of ["left", "right"] as const) {
+  test(`a hand card over the ${side} column edge gets the pointer, not the resize handle (#449)`, async ({ page }, info) => {
+    test.skip(info.project.name !== "desktop-1280", "side panels resize on desktop only");
+    await page.addInitScript(
+      (pos) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ handLayout: "fan", handFanPos: pos })),
+      side === "right" ? "0.97,1" : "0.03,1",
+    );
+    await page.goto("/demo?full&hand=8");
+    await page.locator(".board-root").waitFor();
+    const handle = page.locator(`.col-resize-${side}`);
+    const col = page.locator(`[data-panel-col="${side}"]`);
+    await page.locator(".hand-fan").hover({ position: { x: 30, y: 8 }, force: true });
+    await page.waitForTimeout(700);
+    // The middle of the patch where a fanned card and the handle overlap.
+    const spot = await page.evaluate((cls) => {
+      const h = document.querySelector(cls)!.getBoundingClientRect();
+      for (const c of document.querySelectorAll(".hand-fan .card-tile")) {
+        const r = c.getBoundingClientRect();
+        const x0 = Math.max(r.left, h.left);
+        const x1 = Math.min(r.right, h.right);
+        const y0 = Math.max(r.top, h.top);
+        const y1 = Math.min(r.bottom, h.bottom);
+        if (x1 - x0 > 4 && y1 - y0 > 4) return { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+      }
+      return null;
+    }, `.col-resize-${side}`);
+    expect(spot, "a fanned card should reach over the column edge").not.toBeNull();
+    const { x, y } = spot!;
+    await page.mouse.move(x, y);
+    expect(await page.evaluate(([px, py]) => !!document.elementFromPoint(px!, py!)?.closest(".hand-fan .card-tile"), [x, y])).toBe(true);
+    await page.waitForTimeout(250);
+    expect(await handle.evaluate((el) => getComputedStyle(el).opacity)).toBe("0");
+    const w0 = (await col.boundingBox())!.width;
+    await page.mouse.down();
+    await page.mouse.move(x + (side === "right" ? -80 : 80), y, { steps: 6 });
+    await page.mouse.up();
+    expect(Math.abs((await col.boundingBox())!.width - w0)).toBeLessThan(2);
+    // Off the card the handle still grabs.
+    const box = (await handle.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + 120);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + (side === "right" ? -60 : 60), box.y + 120, { steps: 6 });
+    await page.mouse.up();
+    expect((await col.boundingBox())!.width).toBeGreaterThan(w0 + 40);
+  });
+}
+
 // Phones and landscape phones have no side columns to resize.
 test("phones show no panel resize handles (#347)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "the phone project only");
