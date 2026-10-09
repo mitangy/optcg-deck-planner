@@ -8,10 +8,10 @@ import json
 import logging
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request, Response
 from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -53,6 +53,7 @@ from app.schemas import (
     DuelMatchHistoryOut,
     DuelMatchIngest,
     DuelMatchProgressIngest,
+    DuelMatchReplayOut,
     DuelMatchOut,
     DuelPresenceSnapshot,
     DuelLiveOut,
@@ -65,6 +66,8 @@ log = logging.getLogger(__name__)
 
 # A long game is a few hundred intents (tens of KB). Anything far larger is dropped, not the result.
 MAX_REPLAY_BYTES = 1_000_000
+# A cut-off game whose room never reported closing (server crash) counts as closed after this long without a snapshot.
+PROGRESS_STALE_AFTER = timedelta(hours=24)
 
 _token_rate = RateLimiter(max_calls=30, period_s=60)
 _ingest_rate = RateLimiter(max_calls=120, period_s=60)
@@ -376,6 +379,7 @@ def ingest_match_progress(
     row.seat0_leader_id = body.seat0_leader_id
     row.seat1_leader_id = body.seat1_leader_id
     row.turns = body.turns
+    row.closed = body.closed
     row.replay = _capped_json(body.replay, "progress replay", match_id)
     row.seat0_log = _capped_json(seat_logs[0], "progress seat 0 log", match_id)
     row.seat1_log = _capped_json(seat_logs[1], "progress seat 1 log", match_id)
@@ -497,6 +501,18 @@ def match_history(
     return entries[:limit]
 
 
+def _progress_closed(progress: DuelMatchProgress, now: datetime) -> bool:
+    """Nobody is playing this cut-off game any more: its room said so, or it went quiet for a day."""
+    if progress.closed:
+        return True
+    updated = progress.updated_at
+    if updated is None:
+        return False
+    if updated.tzinfo is None:
+        updated = updated.replace(tzinfo=timezone.utc)
+    return now - updated > PROGRESS_STALE_AFTER
+
+
 def _sort_time(iso: str | None) -> datetime:
     if not iso:
         return datetime.min.replace(tzinfo=timezone.utc)
@@ -510,6 +526,7 @@ def _unfinished_entries(db: Session, user: User, rows: list[DuelMatchProgress]) 
         return []
     opponent_ids = {r.seat1_user_id if r.seat0_user_id == user.id else r.seat0_user_id for r in rows}
     opponents = {u.id: u for u in db.scalars(select(User).where(User.id.in_(opponent_ids))).all()}
+    now = datetime.now(timezone.utc)
     entries = []
     for r in rows:
         seat = 0 if r.seat0_user_id == user.id else 1
@@ -531,6 +548,7 @@ def _unfinished_entries(db: Session, user: User, rows: list[DuelMatchProgress]) 
                 has_replay=r.replay is not None,
                 has_log=(r.seat0_log if seat == 0 else r.seat1_log) is not None,
                 finished=False,
+                replay_ready=r.replay is not None and _progress_closed(r, now),
             )
         )
     return entries
@@ -569,6 +587,7 @@ def _history_entries(db: Session, user: User, rows: list[DuelMatch]) -> list[Due
                 rating_after=r.seat0_rating_after if seat == 0 else r.seat1_rating_after,
                 has_replay=r.match_id in with_replay,
                 has_log=(r.match_id, seat) in with_log,
+                replay_ready=r.match_id in with_replay,
             )
         )
     return matches
@@ -598,6 +617,49 @@ def my_match(
     return DuelMatchDetailOut(
         match=_history_entries(db, user, [row])[0],
         log=json.loads(seat_log.log) if seat_log else None,
+    )
+
+
+@router.get("/matches/me/{match_id}/replay", response_model=DuelMatchReplayOut)
+def my_match_replay(
+    match_id: str,
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> DuelMatchReplayOut:
+    """The recording of one of the signed-in player's games, for the replay viewer.
+
+    It holds both hands and decks, so it goes only to the game's own players, and only once
+    nobody is playing it any more. Finished games always qualify; a game that never sent a
+    result qualifies after its room closed.
+    """
+    row = db.scalar(select(DuelMatch).where(DuelMatch.match_id == match_id))
+    if row is not None:
+        if user.id not in (row.seat0_user_id, row.seat1_user_id):
+            raise HTTPException(status_code=404, detail="Match not found")
+        log_row = db.get(DuelMatchLog, match_id)
+        if log_row is None:
+            raise HTTPException(status_code=404, detail="No replay was kept for this match")
+        seat0_id, seat1_id, turns, replay_text, finished = row.seat0_user_id, row.seat1_user_id, row.turns, log_row.replay, True
+    else:
+        progress = db.get(DuelMatchProgress, match_id)
+        players = (progress.seat0_user_id, progress.seat1_user_id) if progress is not None else ()
+        if user.id not in players:
+            raise HTTPException(status_code=404, detail="Match not found")
+        if not _progress_closed(progress, datetime.now(timezone.utc)):
+            raise HTTPException(status_code=409, detail="This game is still being played")
+        if progress.replay is None:
+            raise HTTPException(status_code=404, detail="No replay was kept for this match")
+        seat0_id, seat1_id, turns, replay_text, finished = progress.seat0_user_id, progress.seat1_user_id, progress.turns, progress.replay, False
+    names = {u.id: duel_display_name(u) for u in db.scalars(select(User).where(User.id.in_((seat0_id, seat1_id)))).all()}
+    response.headers["Cache-Control"] = "private, max-age=300"
+    return DuelMatchReplayOut(
+        match_id=match_id,
+        your_seat=0 if seat0_id == user.id else 1,
+        players=[names.get(seat0_id, "Player"), names.get(seat1_id, "Player")],
+        finished=finished,
+        turns=turns,
+        replay=json.loads(replay_text),
     )
 
 

@@ -1414,6 +1414,7 @@ describe("DuelRoom", () => {
       const text = JSON.stringify(payload.seat_logs);
       assert.ok(!text.includes('"opponentHand"'), "no opponent hand in a live snapshot");
       assert.ok(!text.includes('"opponentOpeningHand"'));
+      assert.equal(payload.closed, undefined, "a live snapshot is not closed (#476)");
     }
 
     // The hand count stays in a live snapshot, so the page can still show it.
@@ -1432,6 +1433,7 @@ describe("DuelRoom", () => {
     await waitUntil(() => sent.length > live, 5000);
     const closing = sent.at(-1)!.seat_logs!;
     assert.ok(closing.every((l) => l.opponentOpeningHand && l.turns.some((t) => t.opponentHand)));
+    assert.equal(sent.at(-1)!.closed, true, "the closing snapshot opens the recording to the players (#476)");
   });
 
   it("the result sent to the backend carries leaders, turns, the replay, each seat's log and how it ended (#244, #252)", async () => {
