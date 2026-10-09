@@ -171,7 +171,9 @@ describe("EB05-052 Gloriosa damage replacement (#458)", () => {
     const h = new Harness();
     h.field(1, "EB05-052");
     h.life(1, ...opts.life);
-    h.attack(h.state.players[0].leader, "leader");
+    // P-028 has [Double Attack].
+    const attacker = opts.double ? h.field(0, "P-028")[0]! : h.state.players[0].leader;
+    h.attack(attacker, "leader");
     h.act(1, { type: "pass_block" });
     h.act(1, { type: "pass_counter" });
     return h;
@@ -185,6 +187,25 @@ describe("EB05-052 Gloriosa damage replacement (#458)", () => {
     expect(h.state.players[1].characters.length).toBe(0);
     expect(h.state.players[1].trash).toEqual(["EB05-052"]);
     expect(h.state.phase).toBe("main");
+  });
+
+  it("trashing Gloriosa prevents both damage of a Double Attack, which is one hit (#458)", () => {
+    const h = hitLeader({ life: [KAROO, KAROO, KAROO], double: true });
+    expect(h.choice?.kind).toBe("effect");
+    h.accept(1);
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].life.length).toBe(3);
+    expect(h.state.players[1].trash).toEqual(["EB05-052"]);
+  });
+
+  it("declining a Double Attack takes both damage without asking again (#458)", () => {
+    const h = hitLeader({ life: [KAROO, KAROO, KAROO], double: true });
+    h.decline(1);
+    h.decline(1); // Life check of the first card
+    expect(h.choice?.kind).toBe("life_trigger");
+    h.decline(1); // Life check of the second card
+    expect(h.state.players[1].life.length).toBe(1);
+    expect(h.state.players[1].characters.map((c) => c.defId)).toEqual(["EB05-052"]);
   });
 
   it("declining takes the damage and keeps Gloriosa (#458)", () => {

@@ -294,9 +294,9 @@ function advanceStep(sim: Sim): void {
         const hit = findDamageReplacement(state, defSeat);
         if (hit) { step.replaced = false; pushReplacementFrame(sim, hit, d.leader.id); return; }
       }
+      // Double Attack's 2 damage is one hit: the replacement is offered once and covers all of it.
       const prevented = step.replaced === true;
-      delete step.replaced;
-      if (prevented) { b.damageRemaining -= 1; delete step.lethal; return; }
+      if (prevented) { b.damageRemaining = 0; delete step.lethal; return; }
       if (step.lethal) { gameOver(sim, b.attackerSeat, "leader_battle_at_zero_life"); return; }
       // Life ran out mid Double Attack: the remaining damage is lost, the game goes on.
       if (d.life.length === 0) { b.damageRemaining = 0; state.steps.shift(); return; }
