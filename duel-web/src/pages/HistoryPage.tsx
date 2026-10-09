@@ -9,6 +9,7 @@ import { useClickCopy } from "../board/clickCopy";
 import { ApiError, googleLoginUrl } from "../net/api";
 import { BackLink } from "./BackLink";
 import "../history/history.css";
+import { NavMenu } from "../nav/NavMenu";
 
 type State =
   | { status: "loading" }
@@ -57,6 +58,7 @@ export function HistoryPage() {
     <div className="app-shell">
       <div className="page page-narrow">
         <header className="page-header">
+          <NavMenu />
           <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <h1 className="page-title">Match history</h1>
         </header>
