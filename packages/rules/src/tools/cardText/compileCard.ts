@@ -132,7 +132,16 @@ function parseEventTrigger(text: string, ctx: Ctx): { trigger: EventTrigger; con
 
 const REPLACEMENT_RE = /^if (this character|this leader|your leader|your (.+?)|(?:one of |any of )?your (.+?)) would (?:be )?(KO'd|removed from the field|leave the field|be removed from the field by your opponent's effect or KO'd)( by (?:an? |your )?(?:opponent's )?effects?| in battle)?(?: by your opponent's effect)?, (you may )?(.+?) instead$/i;
 
+/** "If you would take damage, you may trash this Character instead." */
+const DAMAGE_REPLACEMENT_RE = /^if you would take damage, (you may )?(.+?) instead$/i;
+
 function parseReplacement(text: string, ctx: Ctx): Replacement | null {
+  const dmg = DAMAGE_REPLACEMENT_RE.exec(clean(text));
+  if (dmg) {
+    const costs = parseCosts(dmg[2]!, ctx);
+    const instead: Effect | null = costs ? { do: "pay", costs, then: { do: "nothing" } } : parseStatement(dmg[2]!, ctx);
+    return instead ? { event: "life_damage", target: "self", instead, optional: Boolean(dmg[1]) } : null;
+  }
   const m = REPLACEMENT_RE.exec(clean(text));
   if (!m) return null;
   const subject = m[1]!.replace(/^(?:one of|any of) /i, "");

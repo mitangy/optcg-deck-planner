@@ -233,6 +233,7 @@ const COST_RULES: Rule<Cost>[] = [
   [/^give (\d+) active DON!! cards? to (?:1 of )?(.+)$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[2]!.replace(/^your /i, ""), ctx); return p ? { k: "give_don", count: num(m[1]!), selector: p.selector } : null; }],
   [/^place (\d+) (.+?) at the bottom of (?:the owner's|your) deck$/i, (m, ctx) => { if (/from your (hand|trash)/i.test(m[2]!)) return null; const p = parseCardPhrase("all your " + m[2]!, ctx); return p ? { k: "cards_to_deck_bottom", selector: p.selector, count: num(m[1]!) } : null; }],
   [/^rest your (?:1 )?leader$/i, () => ({ k: "rest_cards", selector: { player: "you", zone: "leader" }, count: 1 })],
+  [/^rest your leader (§N\d+§(?:(?:, | or )§N\d+§)*)$/i, (m, ctx) => { const n = nameList(m[1]!, ctx); return n ? { k: "rest_cards", selector: { player: "you", zone: "leader", filter: { names: n, rested: false } }, count: 1 } : null; }],
   [/^KO (\d+) of your (.+)$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[2]!, ctx); return p ? { k: "ko_cards", selector: p.selector, count: num(m[1]!) } : null; }],
   [/^return (\d+) of your active DON!! cards? to your DON!! deck$/i, (m) => ({ k: "return_active_don", count: num(m[1]!) })],
   [/^return (\d+) DON!! cards? from your field to your DON!! deck$/i, (m) => ({ k: "return_don", count: num(m[1]!) })],
@@ -456,6 +457,15 @@ const EFFECT_RULES: EffectRule[] = [
   [new RegExp("^set the cost of (.+?) to (\\d+) " + DUR + "$", "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[3]); return target && d ? { do: "set_cost", target, value: num(m[2]!), duration: d } : null; }],
   [/^give up to (\d+) rested DON!! cards? to each of (.+)$/i, (m, ctx) => { const p = parseCardPhrase("all " + m[2]!, ctx); return p ? { do: "give_don", target: { ref: "all", selector: p.selector }, count: num(m[1]!), donState: "rested" } : null; }],
   [/^give (up to \d+ of .+?) up to (\d+) rested DON!! cards? each$/i, (m, ctx) => { const p = parseCardPhrase(m[1]!, ctx); return p ? { do: "give_don", target: toTarget(p), count: num(m[2]!), donState: "rested" } : null; }],
+  [/^(KO|rest) or (rest|KO) (up to \d+ .+)$/i, (m, ctx) => {
+    const first = m[1]!.toUpperCase(), second = m[2]!.toUpperCase();
+    if (first === second) return null;
+    const target = fieldTarget(m[3]!, ctx);
+    if (!target || target.ref !== "choose") return null;
+    const act = (kind: string): Effect => (kind === "KO" ? { do: "ko", target: { ref: "var", name: "_last" } } : { do: "rest", target: { ref: "var", name: "_last" } });
+    const label = (kind: string) => (kind === "KO" ? "K.O. it" : "Rest it");
+    return { do: "seq", steps: [{ do: "select", bind: "_last", selector: target.selector, min: target.min, max: target.max }, { do: "choose_one", options: [{ label: label(first), effect: act(first) }, { label: label(second), effect: act(second) }] }] };
+  }],
   [/^return (up to \d+ .+?) to the owner's hand or the bottom of their deck$/i, (m, ctx) => { const target = fieldTarget(m[1]!, ctx); return target && target.ref === "choose" ? { do: "seq", steps: [{ do: "select", bind: "_last", selector: target.selector, min: target.min, max: target.max }, { do: "choose_one", options: [{ label: "Return to hand", effect: { do: "to_hand", target: { ref: "var", name: "_last" } } }, { label: "Place at the bottom of the deck", effect: { do: "to_deck", target: { ref: "var", name: "_last" }, position: "bottom" } }] }] } : null; }],
   [new RegExp("^(.+?)'s? base power becomes the same as the power of your opponent's attacking leader or character " + DUR + "$", "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[2]); return target && d ? { do: "base_power", target, value: { count: { of: "battle_power", role: "attacker" } }, duration: d } : null; }],
   [/^(?:add|place) (.+?) (?:to|at) the top of your opponent's life cards face-up$/i, (m, ctx) => { const target = fieldTarget(m[1]!, ctx); return target ? { do: "to_life", target, position: "top", faceUp: true } : null; }],

@@ -8,6 +8,9 @@ export type FieldDevice = {
   finePointer: boolean;
 };
 
+/** The "Show on screen" switches: each hides one non-core element (the Battle log has none). */
+export type ShowKey = "showCardPreview" | "showRecentPlays" | "showChat";
+
 export type ToggleKey =
   | "sortHandByCost"
   | "keepHandOpen"
@@ -24,10 +27,20 @@ export type ToggleKey =
   | "donUpright"
   | "oppHandTopRight"
   | "tiltedBoard"
+  | "bigBoard"
   | "turnSplash"
   | "reduceMotion"
   | "turnAlert"
   | "turnSound";
+
+/**
+ * Whether a "Show on screen" switch is listed. Card preview and Recent plays
+ * are desktop side panels (phones have no counterpart); Chat has one on every
+ * device (desktop panel, phone pill, landscape rail button).
+ */
+export function showToggleShown(key: ShowKey, d: FieldDevice): boolean {
+  return key === "showChat" ? true : d.desktop;
+}
 
 /** The Screen orientation lock only does anything on a phone or tablet. */
 export function showOrientation(d: FieldDevice): boolean {

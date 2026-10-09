@@ -25,7 +25,20 @@ export type DuelJoinOptions = {
   role?: "player" | "spectator";
   /** Optional deck for this seat (overrides create-time placeholder for that seat). */
   deck?: PlayerDeckWire;
+  /**
+   * Move a live match to this device: rebind the seat the signed-in account
+   * holds to this connection (#451). Needs role "player" and a preferredSeat.
+   */
+  takeover?: boolean;
+  /**
+   * Practice only: a game token of the account that controls this (guest) seat,
+   * so that account can later take the seat over. Ignored when invalid.
+   */
+  ownerToken?: string;
 };
+
+/** Close code sent to a socket whose seat moved to another device (#451). */
+export const TAKEN_OVER_CLOSE_CODE = 4451;
 
 export type PlayerDeckWire = {
   leaderId: string;
@@ -236,8 +249,23 @@ export function parseJoinOptions(raw: unknown): DuelJoinOptions {
   if (o.deck !== undefined) {
     deck = asPlayerDeck(o.deck);
   }
+  if (o.takeover !== undefined && typeof o.takeover !== "boolean") {
+    throw Object.assign(new Error("takeover must be a boolean"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  const takeover = o.takeover === true ? true : undefined;
+  if (takeover && (role === "spectator" || preferredSeat === undefined)) {
+    throw Object.assign(new Error("takeover needs a player role and preferredSeat"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  const ownerToken =
+    typeof o.ownerToken === "string" && o.ownerToken.trim() ? o.ownerToken.trim() : undefined;
   return {
     protocolVersion: PROTOCOL_VERSION,
+    takeover,
+    ownerToken,
     devUserId,
     gameToken,
     secret: typeof o.secret === "string" ? o.secret : undefined,

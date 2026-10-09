@@ -176,7 +176,8 @@ function activatableAbilities(state: MatchState, seat: Seat, card: CardInstance)
 
 function canAttackWith(state: MatchState, seat: Seat, card: CardInstance, target: "leader" | "character"): boolean {
   const p = state.players[seat];
-  if (card.rested || hasRestriction(state, seat, card, "cannot_attack")) return false;
+  // Attacking rests the attacker, so a Character that "cannot be rested" cannot attack (official Q&A).
+  if (card.rested || hasRestriction(state, seat, card, "cannot_attack") || hasRestriction(state, seat, card, "cannot_be_rested")) return false;
   const tax = restrictionValue(state, seat, card, "attack_requires_discard");
   if (typeof tax === "number" && p.hand.length < tax) return false;
   if (target === "leader" && (hasRestriction(state, seat, card, "cannot_attack_leader") || playerRestricted(state, seat, "cannot_attack_leader") || !attackTargetAllowed(state, seat, state.players[otherSeat(seat)].leader))) return false;
@@ -196,6 +197,8 @@ function canBlockWith(state: MatchState, seat: Seat, blocker: CardInstance): boo
   const b = state.battle;
   if (!b || blocker.rested || !hasKeyword(state, seat, blocker, "blocker")) return false;
   if (hasRestriction(state, seat, blocker, "cannot_block")) return false;
+  // [Blocker] rests the blocker, so a Character that "cannot be rested" cannot activate it (official Q&A).
+  if (hasRestriction(state, seat, blocker, "cannot_be_rested")) return false;
   if (b.blockerId) return false;
   if (b.target.kind === "character" && b.target.instanceId === blocker.id) return false;
   const attacker = locate(state, b.attackerId)?.card;

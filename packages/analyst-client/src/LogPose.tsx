@@ -15,6 +15,7 @@ import {
 import { createPortal } from "react-dom";
 import {
   AnalystError,
+  deleteThread,
   errorText,
   fetchThread,
   stampPlan,
@@ -22,9 +23,11 @@ import {
   type ChatContext,
   type ChatRequest,
   type DeckContext,
+  type DonePayload,
   type GameChatContext,
   type TurnPlan,
 } from "./client";
+import { applyDone, fetchCredit, limitText, lowCreditText, meterFill, meterText, requestTopup, withRefusal, creditLeft, type Credit, type RefusalCode } from "./credit";
 import { askContext, canAsk, gameMessageContext, messageContext, requestAction, type LogPoseAsk } from "./ask";
 import { placeAt, type Citation, type PlacedCitation } from "./citations";
 import { logPoseChrome } from "./chrome";
@@ -35,9 +38,29 @@ import { clampDockW, DOCK_W_DEFAULT, readDock, readDockW, writeDock, writeDockW,
 import { compassRect, growOrigin, popFrames, POP_MS, slideFrames, type Rect } from "./panelMotion";
 import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
 import { RequestAccessView, RequestsList } from "./AccessViews";
+import { UsageView } from "./UsageView";
 import { ModelPicker } from "./ModelPicker";
 import { createSessionManager, type ChatSession, type SessionManager } from "./session";
 import { readThreadId, writeThreadId } from "./threadStore";
+
+/** How a player out of credit can use Log Pose on their own Claude plan: a link, or a function that takes them there (the app's Settings). */
+export type OwnClaude = { href?: string; onSelect?: () => void };
+
+/** The player's credit, kept fresh: loaded when the panel is on, updated by each answer. */
+function useCredit(apiBase: string, on: boolean, account: string | number | null | undefined) {
+  const [credit, setCredit] = useState<Credit | null>(null);
+  const refresh = useCallback(() => {
+    if (!on) return;
+    void fetchCredit(apiBase).then((c) => c && setCredit(c));
+  }, [apiBase, on]);
+  useEffect(() => {
+    if (on) refresh();
+    else setCredit(null);
+  }, [on, refresh, account]);
+  const apply = useCallback((d: DonePayload) => setCredit((c) => applyDone(c, d)), []);
+  const refuse = useCallback((code: RefusalCode) => setCredit((c) => withRefusal(c, code)), []);
+  return useMemo(() => ({ credit, refresh, apply, refuse }), [credit, refresh, apply, refuse]);
+}
 
 /** What the current page tells Log Pose: shown as the "Looking at" chip and sent with each message. */
 export type LogPosePage = {
@@ -220,7 +243,12 @@ function useMedia(query: string): boolean {
 
 type Msg = { role: "user" | "assistant"; text: string; citations: PlacedCitation[]; proposals?: DeckEditProposal[]; plans?: TurnPlan[]; stopped?: boolean };
 
-function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean, onUnread: () => void) {
+/** How an answer changes the player's credit: its done event carries the new figures; a refusal switches the input for a notice. */
+type CreditHooks = { apply: (d: DonePayload) => void; refuse: (code: RefusalCode) => void; refresh: () => void };
+
+const isLimit = (code: string | undefined): code is RefusalCode => code === "credit" || code === "daily" || code === "monthly";
+
+function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean, onUnread: () => void, credit: CreditHooks) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [threadId, setThreadId] = useState<number | null>(() => readThreadId());
   const [busy, setBusy] = useState(false);
@@ -289,14 +317,25 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
             onDone: (d) => {
               if (typeof d.thread_id === "number") keepThread(d.thread_id);
               if (!isOpen()) onUnread();
+              credit.apply(d);
+              credit.refresh();
             },
-            onError: (e) => setError(errorText(e)),
+            onError: (e) => {
+              // A limit shows as a notice in place of the input, not as an error line.
+              if (isLimit(e.code)) {
+                credit.refuse(e.code);
+                credit.refresh();
+              } else setError(errorText(e));
+            },
           },
           ctrl.signal,
         );
       } catch (e) {
         if (ctrl.signal.aborted) patchLast((m) => ({ ...m, stopped: true }));
-        else setError(e instanceof AnalystError ? errorText(e) : errorText({}));
+        else if (e instanceof AnalystError && isLimit(e.code)) {
+          credit.refuse(e.code);
+          credit.refresh();
+        } else setError(e instanceof AnalystError ? errorText(e) : errorText({}));
       } finally {
         if (abort.current === ctrl) abort.current = null;
         // Drop an empty answer bubble (error before any text), unless it was stopped on purpose.
@@ -308,7 +347,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
         setStatus("");
       }
     },
-    [busy, threadId, session, keepThread, isOpen, onUnread],
+    [busy, threadId, session, keepThread, isOpen, onUnread, credit],
   );
 
   const stop = useCallback(() => abort.current?.abort(), []);
@@ -327,7 +366,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
 
   useEffect(() => () => abort.current?.abort(), []);
 
-  return { messages, busy, status, error, history, loadHistory, send, stop, reset };
+  return { messages, busy, status, error, history, threadId, loadHistory, send, stop, reset };
 }
 
 /**
@@ -341,6 +380,7 @@ export function LogPoseProvider({
   defaultPage = null,
   account,
   sources,
+  ownClaude,
   children,
 }: {
   apiBase: string;
@@ -354,6 +394,8 @@ export function LogPoseProvider({
   account?: string | number | null;
   /** Links and card data for the sources Log Pose cites (all optional). */
   sources?: SourceHooks;
+  /** Where "Use Log Pose in your own Claude" goes for a player out of credit (their personal connector). Without it the button isn't shown. */
+  ownClaude?: OwnClaude;
   children: ReactNode;
 }) {
   const [session, setSession] = useState<ChatSession | null>(null);
@@ -402,7 +444,9 @@ export function LogPoseProvider({
   };
   const isOpen = useCallback(() => openRef.current, []);
   const markUnread = useCallback(() => setUnread(true), []);
-  const chat = useChat(apiBase, manager, isOpen, markUnread);
+  const creditState = useCredit(apiBase, enabled === true, account);
+  const creditHooks = useMemo(() => ({ apply: creditState.apply, refuse: creditState.refuse, refresh: creditState.refresh }), [creditState.apply, creditState.refuse, creditState.refresh]);
+  const chat = useChat(apiBase, manager, isOpen, markUnread, creditHooks);
 
   const available = canAsk(enabled, hidden);
   const [request, setRequest] = useState<(LogPoseAsk & { nonce: number }) | null>(null);
@@ -428,8 +472,10 @@ export function LogPoseProvider({
       setUnread(false);
       // Not on yet: ask again, so a player approved while this tab was open lands in the chat.
       if (!manager.current()?.enabled) void manager.refresh();
+      // A brief or review may have spent credit since the panel was last open.
+      else creditState.refresh();
     },
-    [manager],
+    [manager, creditState.refresh],
   );
 
   const closePanel = useCallback(() => setOpen(false), []);
@@ -535,6 +581,9 @@ export function LogPoseProvider({
             game={game}
             chat={chat}
             session={session}
+            credit={creditState.credit}
+            ownClaude={ownClaude}
+            onCreditChanged={creditState.refresh}
             apiBase={apiBase}
             refreshSession={() => void manager.refresh()}
             onClose={closePanel}
@@ -634,6 +683,9 @@ function LogPosePanel({
   game,
   chat,
   session,
+  credit,
+  ownClaude,
+  onCreditChanged,
   apiBase,
   refreshSession,
   onClose,
@@ -657,6 +709,9 @@ function LogPosePanel({
   game: LogPoseGame | null;
   chat: Chat;
   session: ChatSession;
+  credit: Credit | null;
+  ownClaude?: OwnClaude;
+  onCreditChanged: () => void;
   apiBase: string;
   refreshSession: () => void;
   onClose: () => void;
@@ -684,7 +739,8 @@ function LogPosePanel({
   const chatOn = session.enabled;
   const owner = session.enabled && session.owner === true;
   const waiting = session.enabled ? (session.pendingRequests ?? 0) : 0;
-  const [view, setView] = useState<"chat" | "requests">("chat");
+  const [view, setView] = useState<"chat" | "requests" | "usage">("chat");
+  const blocked = chatOn && credit?.refusal ? credit : null;
   const showChat = chatOn && view === "chat";
   const phone = !useMedia(DRAWER_QUERY);
   const [draft, setDraft] = useState("");
@@ -918,7 +974,7 @@ function LogPosePanel({
             {waiting > 0 ? <span className="lp-count">{waiting > 99 ? "99+" : waiting}</span> : null}
           </button>
         ) : null}
-        {view === "requests" ? (
+        {view !== "chat" ? (
           <button type="button" className="lp-btn lp-btn-quiet" onClick={() => setView("chat")}>
             Back to chat
           </button>
@@ -934,13 +990,34 @@ function LogPosePanel({
           </svg>
         </button>
       </header>
+      {owner && view !== "chat" ? (
+        <div className="lp-tabs" role="tablist" aria-label="Owner tools">
+          <button type="button" role="tab" className="lp-tab" aria-selected={view === "requests"} onClick={() => setView("requests")}>
+            Requests
+            {waiting > 0 ? <span className="lp-count">{waiting > 99 ? "99+" : waiting}</span> : null}
+          </button>
+          <button type="button" role="tab" className="lp-tab" aria-selected={view === "usage"} onClick={() => setView("usage")}>
+            Usage
+          </button>
+        </div>
+      ) : null}
+      {showChat && !owner ? <CreditMeter credit={credit} /> : null}
       {showChat ? <ModelPicker apiBase={apiBase} /> : null}
 
       <div ref={listRef} className="lp-body" onScroll={onScroll} aria-live="polite" aria-busy={chat.busy}>
         {!chatOn ? (
-          <RequestAccessView apiBase={apiBase} access={session.access ?? "none"} onSent={refreshSession} />
+          <RequestAccessView
+            apiBase={apiBase}
+            access={session.access ?? "none"}
+            onSent={refreshSession}
+            freeSpots={session.enabled ? undefined : session.freeSpots}
+            spotsLeft={session.enabled ? undefined : session.spotsLeft}
+            freeCreditUsd={session.enabled ? undefined : session.freeCreditUsd}
+          />
         ) : view === "requests" ? (
           <RequestsList apiBase={apiBase} onChanged={refreshSession} />
+        ) : view === "usage" ? (
+          <UsageView apiBase={apiBase} />
         ) : null}
         {showChat && page?.pinned ? <div className="lp-pinned">{page.pinned}</div> : null}
         {showChat && chat.history === "loading" ? <p className="lp-note">Loading your last chat…</p> : null}
@@ -950,7 +1027,7 @@ function LogPosePanel({
             {starters.length ? (
               <div className="lp-starters">
                 {starters.map((s) => (
-                  <button key={s} type="button" className="lp-starter" onClick={() => submit(s)} disabled={chat.busy}>
+                  <button key={s} type="button" className="lp-starter" onClick={() => submit(s)} disabled={chat.busy || blocked !== null}>
                     {s}
                   </button>
                 ))}
@@ -993,6 +1070,15 @@ function LogPosePanel({
 
       {showChat ? (
       <div className="lp-foot">
+        {blocked ? (
+          <LimitCard
+            apiBase={apiBase}
+            credit={blocked}
+            ownClaude={ownClaude?.onSelect ? { ...ownClaude, onSelect: () => (ownClaude.onSelect?.(), onClose()) } : ownClaude}
+            onAsked={onCreditChanged}
+          />
+        ) : (
+          <>
         {showChip || aboutHint ? (
           <div className="lp-context">
             {showChip ? (
@@ -1016,6 +1102,11 @@ function LogPosePanel({
               </span>
             ) : null}
           </div>
+        ) : null}
+        {credit && lowCreditText(credit) ? (
+          <p className="lp-low" role="status">
+            {lowCreditText(credit)}
+          </p>
         ) : null}
         <form className="lp-composer" onSubmit={onSubmit}>
           <textarea
@@ -1042,6 +1133,16 @@ function LogPosePanel({
             </button>
           )}
         </form>
+          </>
+        )}
+        <ChatNotice
+          threadId={chat.threadId}
+          busy={chat.busy}
+          onDelete={async (id) => {
+            await deleteThread(apiBase, id);
+            newChat();
+          }}
+        />
       </div>
       ) : null}
     </div>
@@ -1052,5 +1153,126 @@ function LogPosePanel({
       {embedded ? createPortal(node, embedded) : node}
       {preview ? createPortal(<div className="logpose lp-dock-preview" data-side={preview.side} aria-hidden="true" style={preview.rect} />, document.body) : null}
     </>
+  );
+}
+
+/** The thin credit bar under the header: "$3.40 of $5.00 left this month". Its height is fixed so loading it moves nothing. */
+function CreditMeter({ credit }: { credit: Credit | null }) {
+  const text = credit ? meterText(credit) : null;
+  if (credit && credit.creditUsd === null) return null;
+  const left = credit ? creditLeft(credit) : null;
+  return (
+    <div className="lp-credit" data-low={credit && lowCreditText(credit) ? "true" : undefined} data-empty={credit && left === 0 ? "true" : undefined}>
+      <p className="lp-credit-text">{text ?? "\u00a0"}</p>
+      <span
+        className="lp-credit-bar"
+        role="progressbar"
+        aria-label="Credit left this month"
+        aria-valuemin={0}
+        aria-valuemax={credit?.creditUsd ?? 0}
+        aria-valuenow={left ?? 0}
+      >
+        <span style={{ width: `${credit ? Math.round(meterFill(credit) * 100) : 0}%` }} />
+      </span>
+    </div>
+  );
+}
+
+/** Replaces the input when a limit stops the player: out of credit (with ways forward), today's cap, or the monthly cap. */
+function LimitCard({ apiBase, credit, ownClaude, onAsked }: { apiBase: string; credit: Credit; ownClaude?: OwnClaude; onAsked: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [asked, setAsked] = useState(credit.topupRequested);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => setAsked(credit.topupRequested), [credit.topupRequested]);
+  const ask = async () => {
+    if (busy || asked) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await requestTopup(apiBase);
+      setAsked(true);
+      onAsked();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not send that.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="lp-limit" data-kind={credit.refusal ?? undefined} role="status">
+      <p className="lp-limit-text">{limitText(credit)}</p>
+      {credit.refusal === "credit" ? (
+        <>
+          <div className="lp-limit-actions">
+            {ownClaude?.href ? (
+              <a className="lp-btn lp-btn-send lp-limit-btn" href={ownClaude.href} target="_blank" rel="noreferrer noopener">
+                Use Log Pose in your own Claude
+              </a>
+            ) : ownClaude?.onSelect ? (
+              <button type="button" className="lp-btn lp-btn-send lp-limit-btn" onClick={ownClaude.onSelect}>
+                Use Log Pose in your own Claude
+              </button>
+            ) : null}
+            <button type="button" className="lp-btn lp-limit-btn" disabled={busy || asked} aria-busy={busy} onClick={() => void ask()}>
+              {asked ? "Request sent" : "Ask for more"}
+            </button>
+          </div>
+          {asked ? <p className="lp-note">Owners can see your request and may add more credit.</p> : null}
+          {error ? (
+            <p className="lp-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/** One line under the input: chats are kept, and the player can delete this one. The confirmation takes the line's place so nothing moves. */
+function ChatNotice({ threadId, busy, onDelete }: { threadId: number | null; busy: boolean; onDelete: (id: number) => Promise<void> }) {
+  const [asking, setAsking] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setAsking(false);
+    setFailed(false);
+  }, [threadId]);
+  const confirm = async () => {
+    if (threadId === null || working) return;
+    setWorking(true);
+    setFailed(false);
+    try {
+      await onDelete(threadId);
+      setAsking(false);
+    } catch {
+      setFailed(true);
+    } finally {
+      setWorking(false);
+    }
+  };
+  return (
+    <p className="lp-saved">
+      {asking ? (
+        <>
+          <span className="lp-saved-text">{failed ? "Couldn\u2019t delete. Try again?" : "Delete this chat for good?"}</span>
+          <button type="button" className="lp-saved-btn lp-saved-danger" disabled={working} onClick={() => void confirm()}>
+            Delete
+          </button>
+          <button type="button" className="lp-saved-btn" disabled={working} onClick={() => setAsking(false)}>
+            Keep
+          </button>
+        </>
+      ) : (
+        <>
+          <span className="lp-saved-text">Chats are saved to improve Log Pose.</span>
+          {threadId !== null ? (
+            <button type="button" className="lp-saved-btn" disabled={busy} onClick={() => setAsking(true)}>
+              Delete this chat
+            </button>
+          ) : null}
+        </>
+      )}
+    </p>
   );
 }

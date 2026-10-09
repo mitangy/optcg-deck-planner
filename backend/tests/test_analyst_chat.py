@@ -20,6 +20,8 @@ def chat(analyst, monkeypatch: pytest.MonkeyPatch):  # noqa: F811
     monkeypatch.setenv("ANALYST_CHAT_EMAILS", "Someone@else.example, DEV@localhost")
     monkeypatch.setenv("ANALYST_CHAT_DAILY_USD", "1.0")
     monkeypatch.setenv("ANALYST_CHAT_MONTHLY_USD", "5.0")
+    # No free spots here: requests wait for an owner, as the access tests expect (#446 tests turn spots on).
+    monkeypatch.setenv("ANALYST_FREE_SPOTS", "0")
     get_settings.cache_clear()
     yield analyst
     get_settings.cache_clear()
@@ -245,14 +247,15 @@ def test_the_corpus_is_anonymized_and_puts_the_leader_on_side_a(analyst):
     """Corpus games carry opaque ids and rating bands, never names or match ids; side A is the asked leader (#377)."""
     c, _ = analyst
     a, b = _users(c, "alice", "bob")
-    _zoro_vs_lucci(c, "g", b, a, [(1, 0)])  # seat 0 Zoro (bob), seat 1 Lucci (alice) wins
+    # A match id no opaque id can contain by chance (they are letters and digits only).
+    _zoro_vs_lucci(c, "secret-match-", b, a, [(1, 0)])  # seat 0 Zoro (bob), seat 1 Lucci (alice) wins
     r = c.get("/analyst/corpus/games", params={"leader": LUCCI}, headers=SERVICE)
     assert r.status_code == 200, r.text
     out = r.json()
     assert out["total"] == 1
     game = out["games"][0]
     assert game["A"]["leader"] == LUCCI and game["A"]["won"] is True and game["B"]["leader"] == ZORO
-    assert game["game_id"].startswith("g_") and "g0" not in str(game) and "alice" not in str(game)
+    assert game["game_id"].startswith("g_") and "secret-match" not in str(game) and "alice" not in str(game)
     assert game["A"]["rating_band"].endswith("99")
 
     replay = c.get(f"/analyst/corpus/games/{game['game_id']}/replay", headers=SERVICE).json()

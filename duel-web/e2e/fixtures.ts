@@ -60,6 +60,47 @@ export function mintGameToken(uid: number, name: string): string {
   return `${body}.${b64url(createHmac("sha256", GAME_TOKEN_SECRET).update(body).digest())}`;
 }
 
+export type FakeAccount = { uid: number; name: string; username?: string };
+
+/**
+ * Make `page` a signed-in browser: the fake `/auth/me` answers as `account` and
+ * `/duel/token` mints that account's game token, so a second browser context
+ * given the same account is the same player on another device (#451). Other
+ * paths fall through to whatever route was registered before this one (the
+ * `duel` fixture's guest-token mint), then to a 404 so the lobby panels stay empty.
+ */
+export async function signInAs(page: Page, account: FakeAccount): Promise<void> {
+  const user = { id: account.uid, email: `${account.name}@e2e.test`, name: account.name, username: account.username ?? account.name };
+  await page.route(`${FAKE_API}/**`, (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/health") return route.fulfill({ json: { ok: true } });
+    if (path === "/auth/me") return route.fulfill({ json: user });
+    if (path === "/duel/token") {
+      return route.fulfill({
+        json: { token: mintGameToken(account.uid, account.name), expires_at: 0, user_id: account.uid, email: user.email, rating: 1000, games_played: 0 },
+      });
+    }
+    if (path === "/duel/rating/me") {
+      return route.fulfill({ json: { user_id: account.uid, ...user, rating: 1000, games_played: 0, wins: 0, losses: 0, rank: null } });
+    }
+    if (path === "/duel/leaderboard") return route.fulfill({ json: { entries: [] } });
+    if (path === "/duel/matches/me") return route.fulfill({ json: { matches: [] } });
+    if (path === "/friends") return route.fulfill({ json: { friends: [], incoming: [], outgoing: [], invites: [] } });
+    return route.fallback();
+  });
+}
+
+/** Seed the saved decks a lobby needs before it can start anything. */
+export async function seedDecks(page: Page, you: DeckList = RED_VANILLA): Promise<void> {
+  await page.addInitScript((d) => {
+    if (sessionStorage.getItem("e2e-seeded")) return;
+    sessionStorage.setItem("e2e-seeded", "1");
+    localStorage.clear();
+    localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify([{ id: "e2e-you", name: "E2E You", ...d, updatedAt: 1 }]));
+    localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
+  }, you);
+}
+
 type Duel = {
   /** Lobby → Practice → Start practice, with fixed decks and a fixed shuffle seed. */
   startPractice(opts: { seed: number; you?: DeckList; opponent?: DeckList }): Promise<void>;

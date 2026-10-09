@@ -833,7 +833,7 @@ function withOneActiveDon(base: PlayerView): PlayerView {
  * `?oppturn` the opponent's turn, `?unaffordable` your main phase with 1 active DON!! (costlier hand cards gray out), `?clock` per-player clocks, `?away` a
  * disconnected opponent, `?over` the match-over screen (`&guest`: no saved match) with a rematch vote
  * (`&rematch=ask|wait|choose|left`), `?full` a full board, `?rest=N` / `?restlead` /
- * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
+ * `?oppfull` rested cards (see withRestedField), `?green` a Green Leader and Character (attack-ready glow colour), `?statuses` stacked status
  * icons (see withManyStatuses), `?motion` a button that steps
  * through every card animation, `?box` the old pop-up instead of floating-card
  * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=newgate`: long names on both sides; `=haki`: the Haki's Yes/No above the hand; `=block`: the block step, to skip it with a Counter drag) drag QA (see
@@ -866,6 +866,18 @@ export function DemoPage() {
     params.has("dons") ? withAttachedDon(withStatuses) : withStatuses,
     params,
   );
+  // `?green`: swap in a Green Leader and a Green Character (y-c3), to check
+  // the attack-ready glow stays visible on green art (#449).
+  const colored: PlayerView = params.has("green")
+    ? {
+        ...board,
+        you: {
+          ...board.you,
+          leader: { ...board.you.leader, defId: "ST02-001" },
+          characters: board.you.characters.map((c) => (c.id === "y-c3" ? { ...c, defId: "ST02-005" } : c)),
+        },
+      }
+    : board;
   // `?cantattack`: your main phase where only the Leader may attack, so the
   // summoning-sick / rested Characters show the "can't attack" warning.
   // `?unaffordable` is the same with only 1 active DON!!, so the costlier hand
@@ -873,7 +885,7 @@ export function DemoPage() {
   // so the attack-ready glow shows on a Character as well (#412).
   const mainPhase: PlayerView = params.has("cantattack") || params.has("unaffordable")
     ? {
-        ...(params.has("unaffordable") ? withOneActiveDon(board) : board),
+        ...(params.has("unaffordable") ? withOneActiveDon(colored) : colored),
         phase: "main",
         battle: null,
         legalIntents: [
@@ -882,10 +894,10 @@ export function DemoPage() {
           ...(params.has("attackready")
             ? [{ type: "declare_attack", attackerId: "y-c3", target: { kind: "leader" } }]
             : []),
-          ...board.legalIntents.filter((i) => i.type === "give_don"),
+          ...colored.legalIntents.filter((i) => i.type === "give_don"),
         ],
       }
-    : board;
+    : colored;
   const withTurn: PlayerView = withWaiting(
     params.has("oppturn") ? { ...mainPhase, activeSeat: 1 } : mainPhase,
     params.get("wait"),
@@ -1015,7 +1027,14 @@ export function DemoPage() {
               }
             : undefined
         }
-        onConcede={params.has("practice") ? undefined : () => undefined}
+        onConcede={
+          params.has("practice")
+            ? undefined
+            : () => {
+                const w = window as { __demoConcedes?: number };
+                w.__demoConcedes = (w.__demoConcedes ?? 0) + 1;
+              }
+        }
         timer={
           params.has("clock")
             ? {

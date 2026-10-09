@@ -5,6 +5,12 @@
  */
 const intents = "packages/rules/src/engine/intents.ts";
 const procedure = "packages/rules/src/engine/procedure.ts";
+const TOP_CENTRE = "demo-audit.spec.ts > the top centre opponent hand keeps a strip above the mat, and left / right fall back to it when the window leaves no room beside the mat (#462) [desktop-1280]";
+const side = (spot, w, h) => `demo-audit.spec.ts > the opponent hand fills the open space beside the opponent mat with spot ${spot} at ${w}x${h} (#462) [desktop-1280]`;
+const SIDE_L_720 = side("left", 1280, 720);
+const SIDE_R_720 = side("right", 1280, 720);
+const SIDE_L_900 = side("left", 1440, 900);
+const SIDE_R_900 = side("right", 1440, 900);
 const queueBoard = "queue-board.spec.ts > Find match opens the board while the queue searches [desktop-1280]";
 const rules = "rules-attack.spec.ts > an unblocked Leader attack moves one Life card to the defender's hand [desktop-1280]";
 
@@ -12,6 +18,11 @@ module.exports = {
   cwd: "duel-web",
   runner: "playwright",
   mutations: [
+    // Small landscape phones get the landscape board (#469). Both JS layout queries (wide board and landscape phone) go back to 600px.
+    { id: "e2e-small-landscape-phone-portrait-layout", args: "demo-audit --project=phone-375 -g 469", edits: [
+      { file: "duel-web/src/board/useMediaQuery.ts", from: "and (min-width: 480px) and (max-height: 499px)\";\n\n/**\n * Compact HUD", to: "and (min-width: 600px) and (max-height: 499px)\";\n\n/**\n * Compact HUD" },
+      { file: "duel-web/src/board/useMediaQuery.ts", from: "export const LANDSCAPE_PHONE_QUERY =\n  \"(orientation: landscape) and (min-width: 480px)", to: "export const LANDSCAPE_PHONE_QUERY =\n  \"(orientation: landscape) and (min-width: 600px)" },
+    ], kills: ["demo-audit.spec.ts > a small landscape phone gets the landscape board with readable cards (#469) [phone-375]"] },
     // rules, clicked through the UI
     { id: "e2e-first-turn-attack-allowed", args: "rules-attack --project=desktop-1280", edits: [
       { file: intents, from: "      if (p.turnsStarted < 2) return err(\"FIRST_TURN\", \"You cannot attack on your first turn\");", to: "" },
@@ -34,18 +45,14 @@ module.exports = {
     { id: "e2e-don-chip-clicks-ignored", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/ChoicePrompt.tsx", from: "  const chip = target?.closest?.<HTMLElement>(\".don-strip .don-chip-btn[data-don-id]\");", to: "  const chip = null as HTMLElement | null;", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [desktop-1280]"] },
     { id: "e2e-don-chip-disabled", args: "demo-audit --project=phone-375", file: "duel-web/src/board/DonStrip.tsx", from: "      tabIndex={canDrag ? undefined : -1}\n", to: "      disabled={!canDrag}\n", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [phone-375]"] },
 
-    // Dock sits in the gap between the mats, clear of the diamond (#368). Both layers: the taller strip and the reserve.
-    { id: "e2e-dock-covers-mats-and-diamond", args: "dock-room --project=desktop-1280", edits: [
+    // Dock sits in the gap between the mats (#368). Both layers: the taller strip and the reserve.
+    { id: "e2e-dock-covers-mats", args: "dock-room --project=desktop-1280", edits: [
       { file: "duel-web/src/board.css", from: "  --midline-h: calc(var(--dock-h) + 0.5rem);\n", to: "" },
       { file: "duel-web/src/board.css", from: "  padding-right: var(--dock-reserve, 0px);\n", to: "" },
     ], kills: [
-      "dock-room.spec.ts > the dock sits between the mats and clear of the divider diamond on /demo?turn0 (#368) [desktop-1280]",
-      "dock-room.spec.ts > the dock sits between the mats and clear of the divider diamond on /demo?cantattack (#368) [desktop-1280]",
+      "dock-room.spec.ts > the dock sits between the mats on /demo?turn0 (#368) [desktop-1280]",
+      "dock-room.spec.ts > the dock sits between the mats on /demo?cantattack (#368) [desktop-1280]",
     ] },
-    { id: "e2e-dock-diamond-under-button", args: "dock-room --project=desktop-1280", file: "duel-web/src/board.css", from: "  padding-right: var(--dock-reserve, 0px);\n", to: "", kills: [
-      "dock-room.spec.ts > the dock sits between the mats and clear of the divider diamond on /demo?turn0 (#368) [desktop-1280]",
-    ] },
-
     // Desktop review P2 (#281): the Grid hand is now the default on tall desktop windows
     { id: "e2e-tab-skips-grid-hand", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/useBoardHotkeys.ts", from: ", .board-root .rail-hand-cards button.card-tile\",", to: "\",", kills: ["demo-audit.spec.ts > Tab visits the field cards, the hand, then the other controls and comes back (#262) [desktop-1280]"] },
     { id: "e2e-deck-editor-shrinks-to-content", args: "demo-audit --project=desktop-1280", file: "duel-web/src/styles.css", from: "  width: 100%;\n  max-width: 920px;\n  margin: 0 auto;", to: "  max-width: 920px;\n  margin: 0 auto;", kills: ["demo-audit.spec.ts > deck editor keeps − count + on one row (#262) [desktop-1280]"] },
@@ -61,7 +68,6 @@ module.exports = {
     ], kills: ["demo-audit.spec.ts > Turn and clocks keeps its content height and its column its width when dragged to the end (#370) [desktop-1280]"] },
 
     // Desktop review P3 (#282): desktop-only affordances must not reach phones
-    { id: "e2e-inspect-chip-mid-card-on-touch", args: "demo-audit playthrough --project=phone-375", file: "duel-web/src/styles.css", from: "@media (min-width: 900px) and (min-height: 500px) and (hover: hover) and (pointer: fine) {\n  .card-inspect-chip {", to: "@media all {\n  .card-inspect-chip {", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [phone-375]"] },
     { id: "e2e-phone-pass-label-long", args: "playthrough --project=phone-375", file: "duel-web/src/board/DuelBoard.tsx", from: "        → P{hotseatPass.otherSeat + 1}\n", to: "        Switch to {playerLabel(hotseatPass.otherSeat)}\n", kills: ["playthrough.spec.ts > practice match plays to the end by clicking (seed 7) [phone-375]"] },
 
     // UI audit
@@ -72,8 +78,10 @@ module.exports = {
       { file: "duel-web/src/styles.css", from: ".order-list .order-row .choice-order-name {\n  flex: 1 1 6rem;\n  display: -webkit-box;\n  -webkit-line-clamp: 2;\n  -webkit-box-orient: vertical;\n  white-space: normal;\n  overflow-wrap: anywhere;\n}", to: ".order-list .order-row .choice-order-name {\n  flex: 1 1 auto;\n}" },
     ], kills: ["demo-audit.spec.ts > /demo?prompt=satori passes the UI audit [phone-375]"] },
     { id: "e2e-mat-text-caret", args: "demo-audit --project=desktop-1280", file: "duel-web/src/styles.css", from: "  user-select: none;\n  -webkit-user-select: none;\n  -webkit-touch-callout: none;\n}", to: "}", kills: ["demo-audit.spec.ts > clicking board slots leaves no text caret on the mat (#246) [desktop-1280]"] },
-    // The rotated midline ornament took a text caret on click and drew it as a slanted cursor (#314).
-    { id: "e2e-midline-text-caret", args: "demo-audit --project=desktop-1280 -g \"midline between\"", file: "duel-web/src/styles.css", from: "  justify-content: center;\n  /* A click here dropped a text caret in the rotated ornament: a slanted cursor between the mats. */\n  user-select: none;\n  -webkit-user-select: none;\n}", to: "  justify-content: center;\n}", kills: ["demo-audit.spec.ts > clicking the midline between the mats leaves no text caret (#314) [desktop-1280]"] },
+    // The prompt text in the midline strip must not be selectable (#314); the divider ornament is gone and the strip keeps its height (#449).
+    { id: "e2e-midline-text-selectable", args: "demo-audit --project=desktop-1280 -g \"midline prompt\"", file: "duel-web/src/styles.css", from: "  justify-content: center;\n  /* A click or double-click on the strip's prompt text must not select it (#314). */\n  user-select: none;\n  -webkit-user-select: none;\n}", to: "  justify-content: center;\n}", kills: ["demo-audit.spec.ts > double-clicking the midline prompt text selects nothing (#314) [desktop-1280]"] },
+    { id: "e2e-midline-ornament-back", args: "demo-audit --project=desktop-1280 -g \"idle midline\"", file: "duel-web/src/board/DuelBoard.tsx", from: "              ) : null}\n            </div>\n\n            <SideField\n              side=\"you\"", to: "              ) : <div className=\"midline-ornament\" aria-hidden><span /></div>}\n            </div>\n\n            <SideField\n              side=\"you\"", kills: ["demo-audit.spec.ts > an idle midline strip has no divider line and keeps the height of one with a prompt (#449) [desktop-1280]"] },
+    { id: "e2e-midline-strip-collapses", args: "demo-audit --project=desktop-1280 -g \"idle midline\"", file: "duel-web/src/board.css", from: "  flex: 0 0 var(--midline-h);\n  height: var(--midline-h);\n  min-height: 0;\n  width: 100%;", to: "  flex: 0 0 auto;\n  height: auto;\n  min-height: 0;\n  width: 100%;", kills: ["demo-audit.spec.ts > an idle midline strip has no divider line and keeps the height of one with a prompt (#449) [desktop-1280]"] },
     { id: "e2e-readiness-chip-one-line", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board.css", from: "  line-height: 1.2;\n  text-align: center;\n  color: var(--muted);", to: "  line-height: 1.2;\n  text-align: center;\n  white-space: nowrap;\n  color: var(--muted);", kills: ["demo-audit.spec.ts > /demo?prompt=restgrid passes the UI audit [desktop-1280]"] },
     { id: "e2e-readiness-chip-phone-full-size", args: "demo-audit --project=phone-375", file: "duel-web/src/board.css", from: "    font-size: 0.5rem;\n    padding: 0.18rem 0.3rem;\n", to: "    padding: 0.18rem 0.3rem;\n", kills: ["demo-audit.spec.ts > /demo?prompt=restgrid passes the UI audit [phone-375]"] },
     { id: "e2e-rested-prompt-tile-turns", args: "demo-audit --project=phone-375", file: "duel-web/src/styles.css", from: ".choice-option .card-tile.rested {\n  transform: none;\n}\n.choice-option .card-tile.rested .card-overlays {\n  inset: 0;\n  width: auto;\n  height: auto;\n  transform: none;\n}\n.choice-option .card-tile.rested .status-chips {\n  bottom: 1.55rem;\n}\n", to: "", kills: ["demo-audit.spec.ts > /demo?prompt=selectgrid passes the UI audit [phone-375]"] },
@@ -137,10 +145,14 @@ module.exports = {
     { id: "e2e-rail-idle-not-passed", args: "demo-audit --project=phone-375 -g \"action bar says\"", file: "duel-web/src/board/DuelBoard.tsx", from: "      idle={oppWait ? \"opponent\" : view.pendingChoices?.[0]?.seat === mySeat ? \"prompt\" : null}\n", to: "", kills: ["demo-audit.spec.ts > the action bar says to answer the prompt or shows the wait (#262) [phone-375]"] },
     { id: "e2e-dock-no-mulligan-extra", args: "demo-audit --project=desktop-1280 -g \"desktop mulligan puts Keep\"", file: "duel-web/src/board/DuelBoard.tsx", from: "          extras={dock.extras}\n", to: "", kills: ["demo-audit.spec.ts > desktop mulligan puts Keep and Mulligan side by side in the board dock, with no Actions panel (#368) [desktop-1280]"] },
     // opponent hand pinned to the top of the mat (#264)
-    { id: "e2e-opp-hand-mat-drop-ignored", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board/SidePanels.tsx", from: "      matPin!.onChange(d.mat.spot);\n      return;", to: "      return;", kills: ["demo-audit.spec.ts > the opponent hand pins to the top of the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
-    { id: "e2e-opp-hand-stays-on-mat", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board/SidePanels.tsx", from: "    if (matPin?.id === d.id && matPin.spot) matPin.onChange(null);\n", to: "", kills: ["demo-audit.spec.ts > the opponent hand pins to the top of the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
-    { id: "e2e-opp-hand-also-in-column", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    oppHand: oppHandOnMat || specFans === \"desktop\" ? null : (", to: "    oppHand: (", kills: ["demo-audit.spec.ts > the opponent hand pins to the top of the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
-    { id: "e2e-opp-hand-strip-not-reserved", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board.css", from: "  --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);", to: "  --hint-h: 0px;", kills: ["demo-audit.spec.ts > the opponent hand pins to the top of the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
+    { id: "e2e-opp-hand-mat-drop-ignored", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board/SidePanels.tsx", from: "      matPin!.onChange(d.mat.spot);\n      return;", to: "      return;", kills: ["demo-audit.spec.ts > the opponent hand pins to the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
+    { id: "e2e-opp-hand-stays-on-mat", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board/SidePanels.tsx", from: "    if (matPin?.id === d.id && matPin.spot) matPin.onChange(null);\n", to: "", kills: ["demo-audit.spec.ts > the opponent hand pins to the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
+    { id: "e2e-opp-hand-also-in-column", args: "demo-audit --project=desktop-1280 -g \"opponent hand pins\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    oppHand: oppHandOnMat || specFans === \"desktop\" ? null : (", to: "    oppHand: (", kills: ["demo-audit.spec.ts > the opponent hand pins to the mat, stays after a reload, and drags back to a column (#264) [desktop-1280]"] },
+    { id: "e2e-opp-hand-strip-not-reserved", args: "demo-audit --project=desktop-1280 -g \"top centre opponent hand\"", file: "duel-web/src/board.css", from: "  --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);\n}\n\n@container playmat (aspect-ratio < 1.02) {", to: "  --hint-h: 0px;\n}\n\n@container playmat (aspect-ratio < 1.02) {", kills: [TOP_CENTRE] },
+    // beside the opponent mat for left / right (#462)
+    { id: "e2e-opp-hand-side-class-dropped", args: "demo-audit --project=desktop-1280 -g \"open space beside\"", file: "duel-web/src/board/DuelBoard.tsx", from: "${oppHandOnMat === \"centre\" ? \"\" : \" opp-hand-mat-side\"}", to: "", kills: [SIDE_L_720, SIDE_R_720, SIDE_L_900, SIDE_R_900] },
+    { id: "e2e-opp-hand-side-vertical", args: "demo-audit --project=desktop-1280 -g \"open space beside\"", file: "duel-web/src/board.css", from: "    flex-direction: row;\n    justify-content: center;\n    align-items: flex-start;\n  }\n\n  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner-mat .opp-corner-card {", to: "    flex-direction: column;\n    justify-content: center;\n    align-items: flex-start;\n  }\n\n  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner-mat .opp-corner-card {", kills: [SIDE_L_720, SIDE_R_720, SIDE_L_900, SIDE_R_900] },
+    { id: "e2e-opp-hand-fallback-not-reserved", args: "demo-audit --project=desktop-1280 -g \"top centre opponent hand\"", file: "duel-web/src/board.css", from: "@container playmat (aspect-ratio < 1.02) {\n  .arena.arena-wide .playmat-inner:has(> .opp-hand-mat-side) {\n    --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);\n  }\n}\n", to: "", kills: [TOP_CENTRE] },
     // Block step: a Counter dragged onto the defender passes the block, then counters (#300)
     { id: "e2e-skip-block-counter-not-sent", args: "demo-audit --project=desktop-1280 -g \"skips the block\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    if (queuedCounter.mode === \"send\") onSendIntent(intent);", to: "    if (false) onSendIntent(intent);", kills: ["demo-audit.spec.ts > dragging a Counter onto the defender in the block step skips the block and counters (#300) [desktop-1280]"] },
     { id: "e2e-skip-block-chip-not-draggable", args: "demo-audit --project=phone-375 -g \"skips the block\"", file: "duel-web/src/board/DuelBoard.tsx", from: "          defend.phase === \"counter\" || defend.earlyCounters.length > 0", to: "          defend.phase === \"counter\"", kills: ["demo-audit.spec.ts > dragging a Counter onto the defender in the block step skips the block and counters (#300) [phone-375]"] },
@@ -203,6 +215,11 @@ module.exports = {
       "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [desktop-1280]",
       "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [phone-375]",
     ] },
+    // The Mulligan button is opaque over the board dock (#461)
+    { id: "e2e-mulligan-btn-transparent", args: "demo-audit -g \"solid background, not see-through\"", file: "duel-web/src/styles.css", from: "  background: var(--arena-raised) !important;\n  color: var(--chrome-bright) !important;\n  border-color: var(--chrome) !important;", to: "  background: transparent !important;\n  color: var(--chrome-bright) !important;\n  border-color: var(--chrome) !important;", kills: [
+      "demo-audit.spec.ts > the Mulligan button has a solid background, not see-through (#461) [desktop-1280]",
+      "demo-audit.spec.ts > the Mulligan button has a solid background, not see-through (#461) [phone-375]",
+    ] },
     // "Opponent hand, top right" is the top-right spot (#297)
     { id: "e2e-opp-hand-top-right-not-migrated", args: "demo-audit -g \"Opponent hand, top right\"", file: "duel-web/src/settings.ts", from: "  if (oppHandTopRight === true && !next.oppHandSpot) next.oppHandSpot = \"right\";\n", to: "", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [desktop-1280]", "demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [phone-375]"] },
     { id: "e2e-opp-hand-top-right-switch-on-desktop", args: "demo-audit --project=desktop-1280 -g \"Opponent hand, top right\"", file: "duel-web/src/board/gameplayFields.ts", from: "  if (key === \"oppHandTopRight\") return !d.desktop;\n", to: "", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [desktop-1280]"] },
@@ -222,7 +239,7 @@ module.exports = {
       "confirm-keys.spec.ts > N answers No on the Yes/No shown on a hand card (#324) [desktop-1280]",
     ] },
     // dragging a centred prompt by its header (#324)
-    { id: "e2e-prompt-drag-unhooked", args: "prompt-drag -g \"moves it\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "  usePromptDrag(wrapRef, useDuelSettings().promptPos);\n", to: "", kills: [
+    { id: "e2e-prompt-drag-unhooked", args: "prompt-drag -g \"moves it\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "  usePromptDrag(wrapRef, promptPos, { side, dockable, setSide });\n", to: "", kills: [
       "prompt-drag.spec.ts > dragging a prompt's header moves it, and its buttons still answer (#324) [desktop-1280]",
       "prompt-drag.spec.ts > dragging a prompt's header moves it, and its buttons still answer (#324) [phone-375]",
     ] },
@@ -237,11 +254,11 @@ module.exports = {
     ] },
     { id: "e2e-prompt-drag-no-reset", args: "prompt-drag --project=desktop-1280 -g double", file: "duel-web/src/board/promptDrag.ts", from: "!target.closest(\"button\")) {\n        write({ x: 0, y: 0 });\n        save(offset);\n      }", to: "!target.closest(\"button\")) return;", kills: ["prompt-drag.spec.ts > double-clicking a moved prompt's header puts it back (#324) [desktop-1280]"] },
     // the next pop-up opens where the last was dragged (#422)
-    { id: "e2e-prompt-pos-not-restored", args: "prompt-drag -g \"#422\"", file: "duel-web/src/board/promptDrag.ts", from: "    write(parsePromptPos(saved));\n", to: "", kills: [
+    { id: "e2e-prompt-pos-not-restored", args: "prompt-drag -g \"#422\"", file: "duel-web/src/board/promptDrag.ts", from: "    write(side ? { x: 0, y: 0 } : parsePromptPos(saved));\n", to: "", kills: [
       "prompt-drag.spec.ts > the next prompt opens where the last one was dragged (#422) [desktop-1280]",
       "prompt-drag.spec.ts > the next prompt opens where the last one was dragged (#422) [phone-375]",
     ] },
-    { id: "e2e-prompt-pos-not-saved", args: "prompt-drag -g \"#422\"", file: "duel-web/src/board/promptDrag.ts", from: "        if (moved) save(offset);\n", to: "", kills: [
+    { id: "e2e-prompt-pos-not-saved", args: "prompt-drag -g \"#422\"", file: "duel-web/src/board/promptDrag.ts", from: "        } else save(offset);\n", to: "        }\n", kills: [
       "prompt-drag.spec.ts > the next prompt opens where the last one was dragged (#422) [desktop-1280]",
       "prompt-drag.spec.ts > the next prompt opens where the last one was dragged (#422) [phone-375]",
     ] },
@@ -259,6 +276,19 @@ module.exports = {
       { file: "duel-web/src/board/usePromptDodge.ts", from: "      const placedByPlayer = wrap.dataset.dragged != null;\n", to: "      const placedByPlayer = false;\n" },
       { file: "duel-web/src/board/promptDrag.ts", from: "      if (next.x !== offset.x || next.y !== offset.y) write(next);\n", to: "" },
     ], kills: ["prompt-drag.spec.ts > a prompt dragged during a battle stays on screen where it was dropped (#335) [desktop-1280]"] },
+    // The effect-order pop-up does not dim the board and drags by its header (#449)
+    { id: "e2e-effect-order-scrim", args: "effect-order-popup -g \"undimmed\"", file: "duel-web/src/board/FloatingPrompt.tsx", from: "      {free ? null : <div className=\"float-scrim\" aria-hidden />}", to: "      <div className=\"float-scrim\" aria-hidden />", kills: [
+      "effect-order-popup.spec.ts > ordering simultaneous effects leaves the board undimmed and clickable behind it (#449) [desktop-1280]",
+      "effect-order-popup.spec.ts > ordering simultaneous effects leaves the board undimmed and clickable behind it (#449) [phone-375]",
+    ] },
+    { id: "e2e-effect-order-not-draggable", args: "effect-order-popup -g \"drags by its header\"", file: "duel-web/src/board/FloatingPrompt.tsx", from: "  usePromptDrag(wrapRef, useDuelSettings().promptPos, FLOATING_NO_DOCK);\n", to: "", kills: [
+      "effect-order-popup.spec.ts > the effect-order pop-up drags by its header and the next one opens there (#449) [desktop-1280]",
+      "effect-order-popup.spec.ts > the effect-order pop-up drags by its header and the next one opens there (#449) [phone-375]",
+    ] },
+    { id: "e2e-effect-order-spot-not-shared", args: "effect-order-popup -g \"drags by its header\"", file: "duel-web/src/board/FloatingPrompt.tsx", from: "  usePromptDrag(wrapRef, useDuelSettings().promptPos, FLOATING_NO_DOCK);\n", to: "  usePromptDrag(wrapRef, \"\", FLOATING_NO_DOCK);\n", kills: [
+      "effect-order-popup.spec.ts > the effect-order pop-up drags by its header and the next one opens there (#449) [desktop-1280]",
+      "effect-order-popup.spec.ts > the effect-order pop-up drags by its header and the next one opens there (#449) [phone-375]",
+    ] },
     // Y / Space press the Confirm button of a pick prompt (#337)
     { id: "e2e-confirm-button-key-unmounted", args: "confirm-keys --project=desktop-1280 -g \"#337\"", file: "duel-web/src/board/DuelBoard.tsx", from: "  useConfirmButtonKey();\n", to: "", kills: [
       "confirm-keys.spec.ts > Space presses Confirm on a card search (#337) [desktop-1280]",
@@ -361,9 +391,8 @@ module.exports = {
     { id: "e2e-unaffordable-lifted-slot-visible", args: "hand-lift-unaffordable -g \"leaves its slot empty\"", file: "duel-web/src/board.css", from: ".arena .card-tile.hand-unaffordable:not(.selected, .card-lifted) {", to: ".arena .card-tile.hand-unaffordable:not(.selected) {", kills: ["hand-lift-unaffordable.spec.ts > a dragged grayed-out hand card leaves its slot empty like any other (#364) [desktop-1280]", "hand-lift-unaffordable.spec.ts > a dragged grayed-out hand card leaves its slot empty like any other (#364) [phone-375]"] },
     { id: "e2e-drag-disabled-mid-drag-keeps-lift", args: "hand-lift-unaffordable -g \"cut short by Sort\"", file: "duel-web/src/board/usePointerDrag.ts", from: "    reset();\n    onDragCancelRef.current?.();\n", to: "", kills: ["hand-lift-unaffordable.spec.ts > a hand card drag cut short by Sort lets the lifted copy go (#364) [desktop-1280]", "hand-lift-unaffordable.spec.ts > a hand card drag cut short by Sort lets the lifted copy go (#364) [phone-375]"] },
     // matchup brief (#401), pinned in the Log Pose panel that moves and resizes (#423)
-    // The Brief button is a fixed box (CSS) and its label never changes (code): the mutation lets the label grow with the status.
+    // The Brief button sizes to its label, and the label never changes: the mutation lets the label grow with the status.
     { id: "e2e-brief-trigger-text-grows", args: "match-brief --project=desktop-1280 -g \"without moving the board \\(#401\\)\"", edits: [
-      { file: "duel-web/src/logPose.css", from: ".hud-brief-btn.hud-brief-text {\n  width: 76px;\n}", to: ".hud-brief-btn.hud-brief-text {\n  width: auto;\n}" },
       { file: "duel-web/src/board/MatchBrief.tsx", from: "<span className=\"hud-brief-label\">Brief</span>", to: "<span className=\"hud-brief-label\">{busy ? \"Writing the brief…\" : \"Brief\"}</span>" },
     ], kills: ["match-brief.spec.ts > practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423) [desktop-1280]"] },
     { id: "e2e-brief-panel-in-flow", args: "match-brief --project=desktop-1280 --project=phone-375 -g \"pinned in the Log Pose panel\"", file: "packages/analyst-client/src/logPose.css", from: ".lp-panel {\n  position: fixed;", to: ".lp-panel {\n  position: static;", kills: ["match-brief.spec.ts > practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423) [desktop-1280]", "match-brief.spec.ts > practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423) [phone-375]"] },
@@ -466,5 +495,161 @@ module.exports = {
     { id: "e2e-lp-dock-fan-behind-host", args: "log-pose-dock --project=desktop-1280 -g \"on a board\"", file: "duel-web/src/board.css", from: "lp-dock-host + .board-panel .opp-hand-fan {\n  padding-top: calc(var(--fan-w) * 0.5);", to: "lp-dock-host + .board-panel .opp-hand-fan {\n  padding-top: 0;", kills: ["log-pose-dock.spec.ts > on a board, docking puts the panel in that side's column in place of an empty slot, and closing gives the slot back (#432) [desktop-1280]"] },
     // DON!! card art (#440)
     { id: "e2e-don-art-strip-ignores-side-art", args: "don-art --project=desktop-1280 -g shows", file: "duel-web/src/board/SideField.tsx", from: "            donArt={donArtUrl}\n", to: "", kills: ["don-art.spec.ts > your DON!! shows the chosen art and the opponent's the default (#440) [desktop-1280]"] },
+    // What's new (#450)
+    { id: "e2e-wn-got-it-not-remembered", args: "whats-new --project=desktop-1280", file: "packages/patch-notes/src/WhatsNewCard.tsx", from: "    if (latest) markSeen(app, latest);\n    setOpen(false);", to: "    setOpen(false);", kills: ["whats-new.spec.ts > the card shows after an update and Got it keeps it away, even after a reload (#450) [desktop-1280]"] },
+    // Both layers: the See all click and the page itself record the day as seen.
+    { id: "e2e-wn-see-all-not-remembered", args: "whats-new --project=desktop-1280", edits: [
+      { file: "packages/patch-notes/src/WhatsNewCard.tsx", from: "<Link to={to} className=\"wn-card-link\" onClick={dismiss}>", to: "<Link to={to} className=\"wn-card-link\">" },
+      { file: "duel-web/src/pages/WhatsNewPage.tsx", from: "    if (latest) markSeen(\"duel\", latest);\n", to: "" },
+    ], kills: ["whats-new.spec.ts > See all opens the full list and the card stays away afterwards (#450) [desktop-1280]"] },
+    { id: "e2e-wn-first-visit-not-recorded", args: "whats-new --project=desktop-1280", file: "packages/patch-notes/src/lastSeen.ts", from: "    if (latest) markSeen(app, latest, storage);\n    return [];", to: "    return [];", kills: ["whats-new.spec.ts > a first visit shows no card and quietly marks the newest update as seen (#450) [desktop-1280]"] },
+    { id: "e2e-wn-card-in-flow", args: "whats-new --project=desktop-1280", file: "packages/patch-notes/src/whatsNew.css", from: ".wn-card {\n  position: fixed;", to: ".wn-card {\n  position: static;", kills: ["whats-new.spec.ts > the card shows after an update and Got it keeps it away, even after a reload (#450) [desktop-1280]"] },
+    { id: "e2e-wn-route-missing", args: "whats-new --project=desktop-1280", file: "duel-web/src/App.tsx", from: "path=\"/whats-new\"", to: "path=\"/whats-newest\"", kills: ["whats-new.spec.ts > See all opens the full list and the card stays away afterwards (#450) [desktop-1280]", "whats-new.spec.ts > Settings > About links to the full list (#450) [desktop-1280]"] },
+    { id: "e2e-wn-footer-link-missing", args: "whats-new --project=desktop-1280", file: "packages/site-legal/src/SiteFooter.tsx", from: "          <Link to=\"/whats-new\" className=\"site-footer-link\">\n            What’s new\n          </Link>\n", to: "", kills: ["whats-new.spec.ts > See all opens the full list and the card stays away afterwards (#450) [desktop-1280]"] },
+    { id: "e2e-wn-settings-link-missing", args: "whats-new --project=desktop-1280", file: "duel-web/src/pages/SettingsPage.tsx", from: "            <Link to=\"/whats-new\" className=\"btn btn-ghost btn-sm about-feedback-btn\">\n              What’s new\n            </Link>\n", to: "", kills: ["whats-new.spec.ts > Settings > About links to the full list (#450) [desktop-1280]"] },
+    // Column resize handle under the fanned hand, so a card over the column edge keeps the pointer (#449)
+    { id: "e2e-col-resize-above-hand-fan", args: "demo-audit --project=desktop-1280 -g 449", file: "duel-web/src/board.css", from: "  z-index: 15;\n  width: 9px;\n  cursor: col-resize;", to: "  z-index: 40;\n  width: 9px;\n  cursor: col-resize;", kills: [
+      "demo-audit.spec.ts > a hand card over the left column edge gets the pointer, not the resize handle (#449) [desktop-1280]",
+      "demo-audit.spec.ts > a hand card over the right column edge gets the pointer, not the resize handle (#449) [desktop-1280]",
+    ] },
+    // /ff in chat concedes (#449)
+    { id: "e2e-chat-ff-posted-as-chat", args: "chat-ff --project=desktop-1280 --project=phone-375", file: "duel-web/src/board/ChatPanel.tsx", from: "    if (parseChatCommand(text)) {", to: "    if (false as boolean && parseChatCommand(text)) {", kills: ["chat-ff.spec.ts > /ff asks to confirm, posts nothing, and concedes only on confirm (#449) [desktop-1280]", "chat-ff.spec.ts > /ff asks to confirm, posts nothing, and concedes only on confirm (#449) [phone-375]"] },
+    { id: "e2e-chat-ff-skips-confirm", args: "chat-ff --project=desktop-1280 --project=phone-375", file: "duel-web/src/board/ChatPanel.tsx", from: "      setCommand(onConcede ? \"confirm\" : \"unavailable\");", to: "      onConcede?.();\n      setCommand(onConcede ? \"confirm\" : \"unavailable\");", kills: ["chat-ff.spec.ts > /ff asks to confirm, posts nothing, and concedes only on confirm (#449) [desktop-1280]", "chat-ff.spec.ts > /ff asks to confirm, posts nothing, and concedes only on confirm (#449) [phone-375]"] },
+    { id: "e2e-chat-ff-no-hint-when-unavailable", args: "chat-ff --project=desktop-1280 --project=phone-375", file: "duel-web/src/board/ChatPanel.tsx", from: "setCommand(onConcede ? \"confirm\" : \"unavailable\");", to: "setCommand(\"confirm\");", kills: ["chat-ff.spec.ts > /ff where conceding is unavailable shows a hint without moving the input or posting (#449) [desktop-1280]", "chat-ff.spec.ts > /ff where conceding is unavailable shows a hint without moving the input or posting (#449) [phone-375]"] },
+
+    // Moving a live match to another device (#451)
+    { id: "e2e-handoff-lobby-never-offers", args: "device-handoff --project=desktop-1280", file: "duel-web/src/pages/LobbyPage.tsx", from: "          {otherDevice ? (", to: "          {false ? (", kills: ["device-handoff.spec.ts > practice: the lobby of a second device resumes the match and the first device is told (#451) [desktop-1280]", "device-handoff.spec.ts > private room: the host moves to a third device while the guest plays on (#451) [desktop-1280]"] },
+    { id: "e2e-handoff-old-device-not-closed", args: "device-handoff --project=desktop-1280", file: "game-server/src/rooms/DuelRoom.ts", from: "    if (old) {\n      old.send(\"taken_over\"", to: "    if (old && !old) {\n      old.send(\"taken_over\"", kills: ["device-handoff.spec.ts > practice: the lobby of a second device resumes the match and the first device is told (#451) [desktop-1280]", "device-handoff.spec.ts > private room: the host moves to a third device while the guest plays on (#451) [desktop-1280]"] },
+    // Both layers: the server's welcome sync and the client's own sync request after a takeover join.
+    { id: "e2e-handoff-new-device-gets-no-board", args: "device-handoff --project=desktop-1280", edits: [
+      { file: "game-server/src/rooms/DuelRoom.ts", from: "    if (this.matchStarted && this.match) this.sendSync(client);\n    this.refreshMetadata();", to: "    this.refreshMetadata();" },
+      { file: "duel-web/src/net/duelClient.ts", from: "        if (params.takeover) room.send(\"sync\", { protocolVersion: PROTOCOL_VERSION });", to: "" },
+    ], kills: ["device-handoff.spec.ts > practice: the lobby of a second device resumes the match and the first device is told (#451) [desktop-1280]", "device-handoff.spec.ts > private room: the host moves to a third device while the guest plays on (#451) [desktop-1280]"] },
+    { id: "e2e-handoff-practice-overlay-never-mounts", args: "device-handoff --project=desktop-1280", file: "duel-web/src/pages/HotseatPage.tsx", from: "{takenOver && matchId ? (", to: "{false && matchId ? (", kills: ["device-handoff.spec.ts > practice: the lobby of a second device resumes the match and the first device is told (#451) [desktop-1280]"] },
+    { id: "e2e-handoff-room-overlay-never-mounts", args: "device-handoff --project=desktop-1280", file: "duel-web/src/pages/DuelPage.tsx", from: "{takenOver && matchId && (seat === 0 || seat === 1) ? (", to: "{false && matchId && (seat === 0 || seat === 1) ? (", kills: ["device-handoff.spec.ts > private room: the host moves to a third device while the guest plays on (#451) [desktop-1280]"] },
+    { id: "e2e-handoff-practice-play-here-dead", args: "device-handoff --project=desktop-1280", file: "duel-web/src/pages/HotseatPage.tsx", from: "onPlayHere={() => playHere(matchId)}", to: "onPlayHere={() => undefined}", kills: ["device-handoff.spec.ts > practice: the lobby of a second device resumes the match and the first device is told (#451) [desktop-1280]"] },
+    { id: "e2e-handoff-room-play-here-dead", args: "device-handoff --project=desktop-1280", file: "duel-web/src/pages/DuelPage.tsx", from: "onPlayHere={() => takeOver(matchId, seat)}", to: "onPlayHere={() => undefined}", kills: ["device-handoff.spec.ts > private room: the host moves to a third device while the guest plays on (#451) [desktop-1280]"] },
+    // Log Pose credit and free spots (#446)
+    { id: "e2e-credit-meter-text", args: "log-pose-credit --project=desktop-1280", file: "packages/analyst-client/src/credit.ts", from: "left this month`", to: "left today`", kills: ["log-pose-credit.spec.ts > the meter says what is left this month and a low-credit line counts questions (#446) [desktop-1280]"] },
+    { id: "e2e-credit-low-line-never", args: "log-pose-credit --project=desktop-1280", file: "packages/analyst-client/src/credit.ts", from: "LOW_CREDIT_USD = 1;", to: "LOW_CREDIT_USD = 0;", kills: ["log-pose-credit.spec.ts > the meter says what is left this month and a low-credit line counts questions (#446) [desktop-1280]"] },
+    { id: "e2e-credit-limit-card-hidden", args: "log-pose-credit --project=desktop-1280", file: "packages/analyst-client/src/LogPose.tsx", from: "const blocked = chatOn && credit?.refusal ? credit : null;", to: "const blocked = null as typeof credit;", kills: ["log-pose-credit.spec.ts > out of credit, the input becomes a notice with a way to ask for more and to use your own Claude (#446) [desktop-1280]"] },
+    { id: "e2e-credit-meter-stuck-after-answer", args: "log-pose-credit --project=desktop-1280", file: "packages/analyst-client/src/LogPose.tsx", from: "              credit.apply(d);\n              credit.refresh();", to: "", kills: ["log-pose-credit.spec.ts > a finished answer moves the meter (#446) [desktop-1280]"] },
+    { id: "e2e-credit-delete-no-fresh-chat", args: "log-pose-credit --project=desktop-1280", file: "packages/analyst-client/src/LogPose.tsx", from: "await deleteThread(apiBase, id);\n            newChat();", to: "await deleteThread(apiBase, id);", kills: ["log-pose-credit.spec.ts > deleting a chat asks first, deletes it and starts a fresh chat (#446) [desktop-1280]"] },
+    { id: "e2e-credit-waitlist-never", args: "log-pose-credit --project=desktop-1280", file: "packages/analyst-client/src/AccessViews.tsx", from: "spotsLeft !== undefined && spotsLeft <= 0", to: "false", kills: ["log-pose-credit.spec.ts > with every free spot taken the form offers the waitlist (#446) [desktop-1280]"] },
+    { id: "e2e-credit-topup-wrong-path", args: "log-pose-credit --project=desktop-1280", file: "packages/analyst-client/src/access.ts", from: "/topup`", to: "/topupx`", kills: ["log-pose-credit.spec.ts > owners switch between Requests and Usage and answer a top-up (#446) [desktop-1280]"] },
+    // docking the pop-up into a side column (#449)
+    { id: "e2e-prompt-dock-at-never", args: "prompt-dock --project=desktop-1280 -g \"dragging the header|screen's edge\"", file: "duel-web/src/board/promptDock.ts", from: "  if (x <= EDGE_PX) return \"left\";\n  if (x >= viewWidth - EDGE_PX) return \"right\";\n  const over = (c: Span | null) => c != null && x >= c.left && x <= c.right;\n  if (over(columns.left)) return \"left\";\n  if (over(columns.right)) return \"right\";\n  return null;", to: "  return null;", kills: [
+      "prompt-dock.spec.ts > dragging the header onto the right column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449) [desktop-1280]",
+      "prompt-dock.spec.ts > dragging the header onto the left column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449) [desktop-1280]",
+      "prompt-dock.spec.ts > the screen's edge docks too, and dragging a docked pop-up out floats it where it was dropped (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-prompt-dock-not-saved", args: "prompt-dock --project=desktop-1280 -g \"dragging the header\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "updateSettings({ promptDock: s })", to: "updateSettings({})", kills: [
+      "prompt-dock.spec.ts > dragging the header onto the right column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-prompt-dock-host-no-room", args: "prompt-dock --project=desktop-1280 -g \"dragging the header\"", file: "duel-web/src/board/promptDock.ts", from: "      const h = `${prompt.offsetHeight + 2 * DOCK_PAD_PX}px`;", to: "      const h = \"0px\";", kills: [
+      "prompt-dock.spec.ts > dragging the header onto the right column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449) [desktop-1280]",
+      "prompt-dock.spec.ts > dragging the header onto the left column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-prompt-dock-no-hint", args: "prompt-dock --project=desktop-1280 -g \"drop hint\"", file: "duel-web/src/board/promptDock.ts", from: "    if (s === side) col.setAttribute(\"data-prompt-drop\", \"\");", to: "    if (false) col.setAttribute(\"data-prompt-drop\", \"\");", kills: ["prompt-dock.spec.ts > a column shows a drop hint while the header is dragged over it, and not after (#449) [desktop-1280]"] },
+    { id: "e2e-prompt-dock-hint-stays", args: "prompt-dock --project=desktop-1280 -g \"drop hint\"", file: "duel-web/src/board/promptDrag.ts", from: "        if (dockable) showDropHint(null);\n", to: "", kills: ["prompt-dock.spec.ts > a column shows a drop hint while the header is dragged over it, and not after (#449) [desktop-1280]"] },
+    { id: "e2e-prompt-dock-drag-out-stays", args: "prompt-dock --project=desktop-1280 -g \"screen's edge\"", file: "duel-web/src/board/promptDrag.ts", from: "          if (dropped && !overOwnColumn && pulledLoose(offset.x - from.x, offset.y - from.y)) {", to: "          if (false) {", kills: ["prompt-dock.spec.ts > the screen's edge docks too, and dragging a docked pop-up out floats it where it was dropped (#449) [desktop-1280]"] },
+    { id: "e2e-prompt-dock-remounts-prompt", args: "prompt-dock --project=desktop-1280 -g \"dock buttons\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "      <div ref={wrapRef} hidden={hidden} className=\"prompt-hide-wrap\">", to: "      <div key={side} ref={wrapRef} hidden={hidden} className=\"prompt-hide-wrap\">", kills: ["prompt-dock.spec.ts > the dock buttons dock and undock, and the picks made so far are kept (#449) [desktop-1280]"] },
+    { id: "e2e-prompt-dock-buttons-do-nothing", args: "prompt-dock --project=desktop-1280 -g \"dock buttons\"", file: "duel-web/src/board/HideablePrompt.tsx", from: "          onClick={() => dock.setSide(dock.side === s ? \"\" : s)}", to: "          onClick={() => dock.setSide(dock.side)}", kills: ["prompt-dock.spec.ts > the dock buttons dock and undock, and the picks made so far are kept (#449) [desktop-1280]"] },
+    { id: "e2e-prompt-dock-hidden-keeps-room", args: "prompt-dock --project=desktop-1280 -g \"hidden and brought back\"", file: "duel-web/src/board/promptDock.ts", from: "      host.style.display = wrap.hidden ? \"none\" : \"\";\n", to: "", kills: ["prompt-dock.spec.ts > a docked pop-up can be hidden and brought back docked (#449) [desktop-1280]"] },
+    { id: "e2e-prompt-dock-reset-keeps-side", args: "prompt-dock --project=desktop-1280 -g Reset", file: "duel-web/src/board/layoutReset.ts", from: "  promptDock: \"\",\n", to: "", kills: ["prompt-dock.spec.ts > Reset layout clears the docked side (#449) [desktop-1280]"] },
+    // Both call sites: the board offers docking on phones too.
+    { id: "e2e-prompt-dock-on-phones", args: "prompt-dock --project=phone-375", edits: [
+      { file: "duel-web/src/board/DuelBoard.tsx", from: "          name=\"Order effects\"\n          dodge={promptBattle}\n          dockable={wide && !lp}", to: "          name=\"Order effects\"\n          dodge={promptBattle}\n          dockable" },
+      { file: "duel-web/src/board/DuelBoard.tsx", from: "          name={promptSourceName(view.pendingChoices[0])}\n          dodge={promptBattle}\n          dockable={wide && !lp}", to: "          name={promptSourceName(view.pendingChoices[0])}\n          dodge={promptBattle}\n          dockable" },
+    ], kills: ["prompt-dock.spec.ts > phones ignore a saved dock and keep the floating pop-up (#449) [phone-375]"] },
+    // Bigger playing area (#449)
+    { id: "e2e-big-board-ignored", args: "bigger-board --project=desktop-1280 -g \"bigger\"", file: "duel-web/src/board/DuelBoard.tsx", from: "${bigBoard ? \" arena-big\" : \"\"}", to: "", kills: [
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at desktop 1280x720 (#449) [desktop-1280]",
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at phone portrait 375x812 (#449) [desktop-1280]",
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at phone landscape 812x375 (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-big-board-default-on", args: "bigger-board --project=desktop-1280 -g \"bigger\"", file: "duel-web/src/settings.ts", from: "  bigBoard: false,\n", to: "  bigBoard: true,\n", kills: [
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at desktop 1280x720 (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-big-board-saved-width-wins", args: "bigger-board --project=desktop-1280 -g \"dragged out\"", file: "duel-web/src/board/DuelBoard.tsx", from: "          ...(bigBoard ? null : panelResize.arenaStyle(shownPanels)),", to: "          ...panelResize.arenaStyle(shownPanels),", kills: [
+      "bigger-board.spec.ts > a column width dragged out does not fight Bigger playing area, and comes back when it is off (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-big-board-column-handles-stay", args: "bigger-board --project=desktop-1280 -g \"dragged out\"", file: "duel-web/src/board/DuelBoard.tsx", from: "            {prefs.layoutGrips && !bigBoard ? (\n              <div className=\"col-resize col-resize-left\"", to: "            {prefs.layoutGrips ? (\n              <div className=\"col-resize col-resize-left\"", kills: [
+      "bigger-board.spec.ts > a column width dragged out does not fight Bigger playing area, and comes back when it is off (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-big-board-rail-too-narrow", args: "bigger-board --project=desktop-1280 -g \"keeps the board clean\"", file: "duel-web/src/board.css", from: "  --rail-w: clamp(250px, 17vw, 330px);\n}", to: "  --rail-w: clamp(110px, 9vw, 130px);\n}", kills: [
+      "bigger-board.spec.ts > Bigger playing area keeps the board clean and End turn reachable at desktop 1280x720 (#449) [desktop-1280]",
+    ] },
+    // Show on screen (#449)
+    { id: "e2e-show-preview-ignored", args: "show-hide --project=desktop-1280 -g \"showCardPreview\"", file: "duel-web/src/board/DuelBoard.tsx", from: "preview: prefs.showCardPreview ? <CardPreviewPanel /> : null,", to: "preview: <CardPreviewPanel />,", kills: [
+      "show-hide.spec.ts > showCardPreview off removes only the preview panel and the Battle log stays (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-recent-ignored", args: "show-hide --project=desktop-1280 -g \"showRecentPlays\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    recent: prefs.showRecentPlays ? (\n      <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} />\n    ) : null,", to: "    recent: <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} />,", kills: [
+      "show-hide.spec.ts > showRecentPlays off removes only the recent panel and the Battle log stays (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-chat-ignored", args: "show-hide --project=desktop-1280 -g \"showChat\"", file: "duel-web/src/board/DuelBoard.tsx", from: "  const chatPanel = chat && prefs.showChat ? (", to: "  const chatPanel = chat ? (", kills: [
+      "show-hide.spec.ts > showChat off removes only the chat panel and the Battle log stays (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-chat-ignored-phone", args: "show-hide --project=phone-375 -g \"Chat pill\"", file: "duel-web/src/board/DuelBoard.tsx", from: "  const chatPanel = chat && prefs.showChat ? (", to: "  const chatPanel = chat ? (", kills: [
+      "show-hide.spec.ts > the Chat pill is shown by default and gone with Chat off, the Battle log stays (#449) [phone-375]",
+    ] },
+    { id: "e2e-show-chat-rail-button-stays", args: "show-hide --project=desktop-1280 -g \"landscape phone\"", file: "duel-web/src/board/DuelBoard.tsx", from: "            hasChat={chatPanel != null}", to: "            hasChat={Boolean(chat)}", kills: [
+      "show-hide.spec.ts > a landscape phone's rail loses the Chat button with Chat off but keeps the Battle log (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-default-hidden", args: "show-hide --project=desktop-1280 -g \"by default\"", file: "duel-web/src/settings.ts", from: "  showRecentPlays: true,\n", to: "  showRecentPlays: false,\n", kills: [
+      "show-hide.spec.ts > every panel is shown by default (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-hiding-resets-layout", args: "show-hide --project=desktop-1280 -g \"keeps its place\"", file: "duel-web/src/board/GameplaySettings.tsx", from: "                onChange={(e) => updateSettings({ [t.key]: e.target.checked })}", to: "                onChange={(e) => updateSettings({ [t.key]: e.target.checked, panelLayout: \"\" })}", kills: [
+      "show-hide.spec.ts > a hidden panel keeps its place in the saved layout and returns to it (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-empty-column-stays", args: "show-hide --project=desktop-1280 -g \"collapses\"", file: "duel-web/src/board/panelLayout.ts", from: "  const collapse = (c: PanelColumn) => !dragging && shown[c].length === 0 && !busy[c];", to: "  const collapse = (_c: PanelColumn) => false;", kills: [
+      "show-hide.spec.ts > a column with nothing left to show collapses and the playmat area gets its width (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-log-keeps-its-height", args: "show-hide --project=desktop-1280 -g \"takes the freed height\"", file: "duel-web/src/board.css", from: ".arena.arena-wide .board-panel[data-panel=\"log\"],\n.arena.arena-wide .board-panel[data-panel=\"hand\"],\n", to: ".arena.arena-wide .board-panel[data-panel=\"hand\"],\n", kills: [
+      "show-hide.spec.ts > the Battle log stays with everything hidden, and takes the freed height (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-switch-lists-battle-log", args: "show-hide --project=desktop-1280 -g \"Settings switches\"", file: "duel-web/src/board/GameplaySettings.tsx", from: "const SHOW_TOGGLES: ShowToggle[] = [\n", to: "const SHOW_TOGGLES: ShowToggle[] = [\n  { key: \"showCardPreview\", label: \"Battle log\", hint: \"\" },\n", kills: [
+      "show-hide.spec.ts > the Settings switches hide and show the panels live, with none for the Battle log (#449) [desktop-1280]",
+    ] },
+    // Attack-ready ring colour (#449)
+    { id: "e2e-attack-glow-green-card-green-ring", args: "attack-glow --project=desktop-1280 -g \"#449\"", file: "duel-web/src/board/attackGlow.ts", from: "colors.some((c) => c.toLowerCase() === \"green\")", to: "false", kills: ["attack-glow.spec.ts > attack-ready ring is light on Green cards and green on the rest, with a dark edge (#449) [desktop-1280]"] },
+    { id: "e2e-attack-glow-green-card-green-ring-phone", args: "attack-glow --project=phone-375 -g \"#449\"", file: "duel-web/src/board/attackGlow.ts", from: "colors.some((c) => c.toLowerCase() === \"green\")", to: "false", kills: ["attack-glow.spec.ts > attack-ready ring is light on Green cards and green on the rest, with a dark edge (#449) [phone-375]"] },
+    { id: "e2e-attack-glow-light-ring-css", args: "attack-glow --project=desktop-1280 -g \"#449\"", file: "duel-web/src/styles.css", from: ".card-tile.attack-ready.attack-ready-light {\n  --attack-ring: 255 232 150;\n}", to: "", kills: ["attack-glow.spec.ts > attack-ready ring is light on Green cards and green on the rest, with a dark edge (#449) [desktop-1280]"] },
+    { id: "e2e-attack-glow-no-dark-edge", args: "attack-glow --project=desktop-1280 -g \"#449\"", file: "duel-web/src/styles.css", from: "  border-color: rgba(6, 10, 16, 0.92);\n  box-shadow:\n    0 0 0 2px rgb(var(--attack-ring)),", to: "  box-shadow:\n    0 0 0 2px rgb(var(--attack-ring)),", kills: ["attack-glow.spec.ts > attack-ready ring is light on Green cards and green on the rest, with a dark edge (#449) [desktop-1280]"] },
+
+    // Card popover and Attach DON!! confirm stay on screen; the Attach button sends (#449)
+    { id: "e2e-popover-above-ignores-height", args: "don-popover --project=desktop-1280 -g \"popover\"", file: "duel-web/src/board/cardActions.ts", from: "  if (aboveBottom - size.height >= edge) return { left, top: aboveBottom, above: true };", to: "  if (box.top > 72) return { left, top: aboveBottom, above: true };", kills: ["don-popover.spec.ts > a Leader near the top of the window gets its +1 / +2 popover on screen and +1 attaches (#449) [desktop-1280]", "don-popover.spec.ts > the popover stays on screen wherever the card sits, above, below or squeezed (#449) [desktop-1280]"] },
+    { id: "e2e-popover-above-ignores-height-phone", args: "don-popover --project=phone-375 -g \"popover\"", file: "duel-web/src/board/cardActions.ts", from: "  if (aboveBottom - size.height >= edge) return { left, top: aboveBottom, above: true };", to: "  if (box.top > 72) return { left, top: aboveBottom, above: true };", kills: ["don-popover.spec.ts > a Leader near the top of the window gets its +1 / +2 popover on screen and +1 attaches (#449) [phone-375]"] },
+    { id: "e2e-attach-confirm-ignores-height", args: "don-popover --project=desktop-1280 -g \"Attach DON!! confirm stays\"", file: "duel-web/src/board/BoardOverlays.tsx", from: "popoverPlacement(box, { width, height: size.height },", to: "popoverPlacement(box, { width, height: 0 },", kills: ["don-popover.spec.ts > the Attach DON!! confirm stays on screen for a Leader near the top (#449) [desktop-1280]"] },
+    { id: "e2e-attach-confirm-click-passes-event", args: "don-popover --project=desktop-1280 -g \"tapping Attach\"", file: "duel-web/src/board/DuelBoard.tsx", from: "onConfirm={() => confirmAttach()}", to: "onConfirm={confirmAttach as () => void}", kills: ["don-popover.spec.ts > tapping Attach DON!! on the confirm sends the give_don and closes it (#449) [desktop-1280]"] },
+    { id: "e2e-attach-confirm-click-passes-event-phone", args: "don-popover --project=phone-375 -g \"tapping Attach\"", file: "duel-web/src/board/DuelBoard.tsx", from: "onConfirm={() => confirmAttach()}", to: "onConfirm={confirmAttach as () => void}", kills: ["don-popover.spec.ts > tapping Attach DON!! on the confirm sends the give_don and closes it (#449) [phone-375]"] },
+
+    // Docked fan: menu, Hand and Sort stack at the fan's left (#449)
+    { id: "e2e-hand-menu-row", args: "hand-menu --project=desktop-1280", file: "duel-web/src/board.css", from: "  justify-self: start;\n  flex-direction: column;\n  align-items: flex-start;", to: "  justify-self: start;\n  align-items: flex-start;", kills: ["hand-menu.spec.ts > docked fan: menu, Hand and Sort stack in a column at the fan's left, tucked (#449) [desktop-1280]", "hand-menu.spec.ts > docked fan: menu, Hand and Sort stack in a column at the fan's left, shown (#449) [desktop-1280]"] },
+    { id: "e2e-hand-menu-clipped-at-bottom", args: "hand-menu --project=desktop-1280 -g tucked", file: "duel-web/src/board.css", from: "  transform: translateY(calc(var(--fan-ch) * var(--fan-peek) - 100% - 4px));\n", to: "", kills: ["hand-menu.spec.ts > docked fan: menu, Hand and Sort stack in a column at the fan's left, tucked (#449) [desktop-1280]"] },
+
+    // Brief and Log Pose top-bar buttons hug their label with even padding (#463)
+    { id: "e2e-top-bar-text-buttons-fixed-width", args: "copilot --project=desktop-1280 -g \"#463\"", edits: [
+      { file: "duel-web/src/logPose.css", from: ".hud-brief-btn.hud-brief-text {\n  width: auto;\n  padding: 0 0.7rem;\n}", to: ".hud-brief-btn.hud-brief-text {\n  width: 76px;\n}" },
+      { file: "duel-web/src/board/copilot.css", from: "/* \"Log Pose\" in the top bar sizes to its label like Brief (same padding). Busy (a plan running) is the dot. */\n", to: ".hud-brief-btn.hud-copilot-btn.hud-brief-text {\n  width: 92px;\n}\n" },
+    ], kills: [
+      "copilot.spec.ts > the Brief and Log Pose buttons keep even padding in the desktop top bar at 1280x720 (#463) [desktop-1280]",
+      "copilot.spec.ts > the Brief and Log Pose buttons keep even padding in the desktop top bar at 1440x900 (#463) [desktop-1280]",
+    ] },
+
+    // Menu and full leaderboard (#460)
+    { id: "e2e-nav-esc-does-not-close", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "      if (e.key === \"Escape\") {\n        e.preventDefault();\n        setOpen(false);\n        return;\n      }\n", to: "", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
+    { id: "e2e-nav-backdrop-does-not-close", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "<div className=\"nav-backdrop\" onClick={close} aria-hidden />", to: "<div className=\"nav-backdrop\" aria-hidden />", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
+    { id: "e2e-nav-focus-not-restored", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "      buttonRef.current?.focus();\n", to: "", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
+    { id: "e2e-nav-focus-not-moved-in", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "      drawerRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();\n", to: "", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
+    { id: "e2e-nav-link-keeps-drawer-open", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "                    onClick={close}\n", to: "", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
+    { id: "e2e-nav-current-page-unmarked", args: "nav-leaderboard --project=desktop-1280 -g \"the menu opens\"", file: "duel-web/src/nav/NavMenu.tsx", from: "aria-current={item.href === active ? \"page\" : undefined}", to: "aria-current={undefined}", kills: ["nav-leaderboard.spec.ts > the menu opens, closes and takes you home (#460) [desktop-1280]"] },
+    { id: "e2e-nav-missing-on-whats-new", args: "nav-leaderboard --project=desktop-1280 -g \"every page\"", file: "duel-web/src/pages/WhatsNewPage.tsx", from: "          <NavMenu />\n", to: "", kills: ["nav-leaderboard.spec.ts > every page's header starts with the menu button (#460) [desktop-1280]"] },
+    { id: "e2e-leaderboard-limit-five", args: "nav-leaderboard --project=desktop-1280 -g \"the leaderboard lists\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "const LIMIT = 100;", to: "const LIMIT = 5;", kills: ["nav-leaderboard.spec.ts > the leaderboard lists ranked players with Bounty and games, and marks your row (#460) [desktop-1280]"] },
+    { id: "e2e-leaderboard-name-ignores-username", args: "nav-leaderboard --project=desktop-1280 -g \"the leaderboard lists\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "{e.username || e.name}", to: "{e.name}", kills: ["nav-leaderboard.spec.ts > the leaderboard lists ranked players with Bounty and games, and marks your row (#460) [desktop-1280]"] },
+    { id: "e2e-leaderboard-games-column-wrong", args: "nav-leaderboard --project=desktop-1280 -g \"the leaderboard lists\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "<span className=\"leaderboard-games\">{e.games_played}</span>", to: "<span className=\"leaderboard-games\">{i + 1}</span>", kills: ["nav-leaderboard.spec.ts > the leaderboard lists ranked players with Bounty and games, and marks your row (#460) [desktop-1280]"] },
+    { id: "e2e-leaderboard-own-row-not-marked", args: "nav-leaderboard --project=desktop-1280 -g \"the leaderboard lists\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "const mine = me != null && e.user_id === me.user_id;", to: "const mine = false;", kills: ["nav-leaderboard.spec.ts > the leaderboard lists ranked players with Bounty and games, and marks your row (#460) [desktop-1280]"] },
+    { id: "e2e-leaderboard-you-not-pinned", args: "nav-leaderboard --project=desktop-1280 -g \"the leaderboard pins\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "const you = pinnedYou(me, entries.length);", to: "const you = null as ReturnType<typeof pinnedYou>;", kills: ["nav-leaderboard.spec.ts > the leaderboard pins You under a list you are not in (#460) [desktop-1280]"] },
+    { id: "e2e-leaderboard-empty-shows-nothing", args: "nav-leaderboard --project=desktop-1280 -g \"nobody has played\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "state.status === \"ready\" && entries.length === 0 ?", to: "state.status === \"ready\" && entries.length < 0 ?", kills: ["nav-leaderboard.spec.ts > the leaderboard says so when nobody has played ranked yet (#460) [desktop-1280]"] },
   ],
 };

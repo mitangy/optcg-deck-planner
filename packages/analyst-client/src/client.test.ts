@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnalystError, BUDGET_MESSAGE, BUSY_MESSAGE, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, parseTurnPlan, stampPlan, streamAnalyst, ticketGameKey } from "./client";
+import { AnalystError, BUSY_MESSAGE, CREDIT_MESSAGE, DAILY_MESSAGE, MONTHLY_MESSAGE, deleteThread, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, parseTurnPlan, stampPlan, streamAnalyst, ticketGameKey } from "./client";
 import { createSessionManager, needsRefresh } from "./session";
 
 const NOW = Date.parse("2026-10-06T12:00:00Z");
@@ -67,7 +67,38 @@ describe("analyst stream requests (#377)", () => {
     const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
     const err = await streamAnalyst(mgr, "/chat", { message: "hi" }, {}, undefined, f.impl).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(AnalystError);
-    expect(errorText(err as AnalystError)).toBe(BUDGET_MESSAGE);
+    expect(errorText(err as AnalystError)).toBe(DAILY_MESSAGE);
+  });
+
+  it("tells a spent credit, today's cap and the monthly cap apart on a 429 (#446)", async () => {
+    for (const [code, message] of [["credit", CREDIT_MESSAGE], ["daily", DAILY_MESSAGE], ["monthly", MONTHLY_MESSAGE]] as const) {
+      const f = fakeFetch([15 * 60_000], () => new Response(JSON.stringify({ error: "x", code }), { status: 429, headers: { "Content-Type": "application/json" } }));
+      const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+      const err = await streamAnalyst(mgr, "/chat", { message: "hi" }, {}, undefined, f.impl).catch((e: unknown) => e);
+      expect(err).toMatchObject({ code });
+      expect(errorText(err as AnalystError)).toBe(message);
+    }
+  });
+
+  it("tells them apart in a stream's error event too (#446)", async () => {
+    for (const [code, message] of [["credit", CREDIT_MESSAGE], ["daily", DAILY_MESSAGE], ["monthly", MONTHLY_MESSAGE]] as const) {
+      const f = fakeFetch([15 * 60_000], () => sse(`event: error\ndata: {"message":"cap","code":"${code}"}\n\n`));
+      const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+      const got: Array<{ code?: string }> = [];
+      const shown: string[] = [];
+      await streamAnalyst(mgr, "/chat", { message: "hi" }, { onError: (e) => (got.push(e), shown.push(errorText(e))) }, undefined, f.impl);
+      expect(got[0]!.code).toBe(code);
+      expect(shown).toEqual([message]);
+    }
+  });
+
+  it("deletes a chat with the cookie and treats an already-gone chat as deleted (#446)", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const impl = (status: number) => (async (url: string, init: RequestInit) => (calls.push({ url, init }), new Response(null, { status }))) as unknown as typeof fetch;
+    await deleteThread("https://api.test", 9, impl(204));
+    expect(calls[0]).toMatchObject({ url: "https://api.test/analyst/chat/threads/9", init: { method: "DELETE", credentials: "include" } });
+    await expect(deleteThread("/api", 9, impl(404))).resolves.toBeUndefined();
+    await expect(deleteThread("/api", 9, impl(500))).rejects.toThrow(/delete/);
   });
 
   it("shows the analyst's own reason when it refuses before streaming (#387)", async () => {
@@ -82,14 +113,6 @@ describe("analyst stream requests (#377)", () => {
       expect(err).toBeInstanceOf(AnalystError);
       expect(errorText(err as AnalystError)).toBe(shown);
     }
-  });
-
-  it("shows the daily-limit message for an in-stream budget error (#377)", async () => {
-    const f = fakeFetch([15 * 60_000], () => sse('event: error\ndata: {"message":"cap hit","code":"budget"}\n\n'));
-    const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
-    const shown: string[] = [];
-    await streamAnalyst(mgr, "/chat", { message: "hi" }, { onError: (e) => shown.push(errorText(e)) }, undefined, f.impl);
-    expect(shown).toEqual([BUDGET_MESSAGE]);
   });
 
   it("shows its own message, not the daily-limit one, when another stream is still running (#377)", async () => {

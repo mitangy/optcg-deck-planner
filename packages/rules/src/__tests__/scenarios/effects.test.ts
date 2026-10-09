@@ -110,6 +110,45 @@ const rows: CardScenario[] = [
     expect: { me: { power: { "ST01-001": 9000 } } },
   },
 
+  // ST32-002 Kouzuki Oden: [On Play] Draw 1 card and up to 1 of your opponent's Characters with a base cost of 6 or less cannot be rested until the end of your opponent's next End Phase.
+  // Official Q&A: a Character that "cannot be rested" cannot activate [Blocker], attack, or pay "You may rest this Character:" costs.
+  {
+    card: "ST32-002", name: "Character that cannot be rested can't activate Blocker (Kouzuki Oden ST32-002) (#449)",
+    me: { hand: ["ST32-002"], field: [ROBIN], don: { active: 5 } },
+    opp: { field: [CHOPPER] },
+    steps: [{ play: "ST32-002" }, { pick: [CHOPPER] }, { attack: mine(ROBIN), at: "leader" }],
+    expect: { opp: { blockers: [] } },
+  },
+  {
+    card: "ST32-002", name: "a Blocker not chosen by Kouzuki Oden can still block (#449)",
+    me: { hand: ["ST32-002"], field: [ROBIN], don: { active: 5 } },
+    opp: { field: [CHOPPER, "OP04-104"] },
+    steps: [{ play: "ST32-002" }, { pick: ["OP04-104"] }, { attack: mine(ROBIN), at: "leader" }],
+    expect: { opp: { blockers: [CHOPPER] } },
+  },
+  {
+    card: "ST32-002", name: "Character that cannot be rested can't attack (Kouzuki Oden ST32-002) (#449)",
+    me: { hand: ["ST32-002"], don: { active: 5 } },
+    opp: { field: [ROBIN] },
+    steps: [{ play: "ST32-002" }, { pick: [ROBIN] }, { endTurn: true }, { attack: theirs(ROBIN), at: "leader", rejects: true }],
+    expect: { opp: { rested: [] } },
+  },
+  {
+    card: "ST32-002", name: "Character that cannot be rested can't pay a rest-this-Character cost (Kouzuki Oden ST32-002) (#449)",
+    me: { hand: ["ST32-002"], don: { active: 5 } },
+    opp: { field: ["EB01-016"] },
+    steps: [{ play: "ST32-002" }, { pick: ["EB01-016"] }, { endTurn: true }, { activate: theirs("EB01-016"), ability: "eb01-016#0", rejects: true }],
+    expect: { opp: { rested: [] } },
+  },
+
+  {
+    card: "ST32-002", name: "Character that cannot be rested stays active when an effect would rest it (Kouzuki Oden ST32-002) (#449)",
+    me: { hand: ["ST32-002", "EB01-015"], don: { active: 7 } },
+    opp: { field: [CHOPPER] },
+    steps: [{ play: "ST32-002" }, { pick: [CHOPPER] }, { play: "EB01-015" }, { pick: [CHOPPER] }],
+    expect: { opp: { rested: [] } },
+  },
+
   // ST01-002 Usopp: [DON!! x2] [When Attacking] Your opponent cannot activate a [Blocker] Character that has 5000 or more power during this battle.
   {
     card: "ST01-002", name: "stops a 5000-power Blocker but not a 1000-power one",

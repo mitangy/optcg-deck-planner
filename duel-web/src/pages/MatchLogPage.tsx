@@ -14,6 +14,7 @@ import { useLogPosePage } from "@optcg/analyst-client";
 import { LogPoseReview } from "../history/LogPoseReview";
 import { MATCH_LOG_STARTERS } from "../logPose";
 import "../history/history.css";
+import { NavMenu } from "../nav/NavMenu";
 
 type State =
   | { status: "loading" }
@@ -82,6 +83,7 @@ export function MatchLogPage() {
     <div className="app-shell">
       <div className="page page-narrow">
         <header className="page-header">
+          <NavMenu />
           <BackLink to="/history" label="History" ariaLabel="Back to match history" />
           <h1 className="page-title">Match log</h1>
         </header>

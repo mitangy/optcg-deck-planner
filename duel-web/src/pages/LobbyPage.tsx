@@ -4,6 +4,7 @@ import { getOrCreateGuestId } from "../auth/guestId";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
 import { isIncompleteDeck } from "../decks/deckStatus";
+import { NavMenu } from "../nav/NavMenu";
 import { getApiBaseUrl, getGameServerUrl, getPlannerUrl } from "../config";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { refreshLinkedDeck } from "../decks/planner";
@@ -22,12 +23,19 @@ import {
   googleLoginUrl,
   mintDevGameToken,
   mintGuestGameToken,
+  mintOwnerToken,
   mintSessionGameToken,
   warmDuelServices,
   type AuthUser,
   type RatingMe,
 } from "../net/api";
 import { clearMatchResume, loadMatchResume } from "../net/matchResume";
+import {
+  activeMatchModeLabel,
+  fetchActiveMatches,
+  pickOtherDeviceMatch,
+  type ActiveMatch,
+} from "../net/activeMatches";
 import { devKeyAllowed, loadSettings } from "../settings";
 import { LaunchCancelledError, useDuelSession, type MatchLaunch } from "../state/DuelSession";
 import { needsUsername } from "../auth/username";
@@ -35,6 +43,7 @@ import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel
 import { dismissInvite, inviteFriend, inviteFrom, type Friend, type FriendInvite } from "../friends/friendsApi";
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
 import { UpdateNotice, VersionStatus } from "../VersionStatus";
+import { WhatsNewCard } from "@optcg/patch-notes";
 import { IntroStrip } from "../home/IntroStrip";
 import { LiveLine } from "../home/LiveLine";
 import { LogPoseTile } from "../home/LogPoseTile";
@@ -294,7 +303,7 @@ function DeckSwitcher({
 
 export function LobbyPage() {
   const navigate = useNavigate();
-  const { client, connect, queueRanked, cancelQueue, queueing, setRating, startMatch } =
+  const { client, connect, queueRanked, cancelQueue, queueing, setRating, startMatch, takeOver } =
     useDuelSession();
   const location = useLocation();
   // `/watch/:roomId` (a shared spectate link) goes straight into that match.
@@ -334,6 +343,66 @@ export function LobbyPage() {
     : devKeyAllowed() && settings.useDevKey
       ? "dev"
       : "guest";
+
+  /** Account that could hold a match on another device (guest ids are per browser). */
+  const matchOwner: "session" | "dev" | undefined =
+    authMode === "google" ? "session" : authMode === "dev" && settings.devUserKey.trim() ? "dev" : undefined;
+  /** A live match this account holds a seat in that this tab does not already resume (#451). */
+  const [otherDevice, setOtherDevice] = useState<ActiveMatch | null>(null);
+
+  useEffect(() => {
+    if (!authChecked || !matchOwner) {
+      setOtherDevice(null);
+      return;
+    }
+    let cancelled = false;
+    async function refresh() {
+      try {
+        const token = await mintOwnerToken(matchOwner, settings.devUserKey.trim());
+        if (!token || cancelled) return;
+        const matches = await fetchActiveMatches(serverUrl, token);
+        if (cancelled) return;
+        setOtherDevice(pickOtherDeviceMatch(matches, loadMatchResume()));
+      } catch {
+        /* optional card: stay silent */
+      }
+    }
+    void refresh();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authChecked, matchOwner]);
+
+  function resumeOnThisDevice(m: ActiveMatch) {
+    clearMatchResume();
+    if (m.practice) {
+      navigate("/hotseat", {
+        state: {
+          serverUrl,
+          userKey: hotseatUserKey(),
+          useToken: true,
+          deckWire: { leaderId: "", deck: [] },
+          deckName: "",
+          owner: matchOwner,
+          takeover: { roomId: m.roomId },
+        },
+      });
+      return;
+    }
+    const devKey = settings.devUserKey.trim();
+    takeOver(m.roomId, m.seats[0], async () => {
+      const token = await mintOwnerToken(matchOwner, devKey);
+      if (!token) throw new Error("Sign in to move a match to this device.");
+      return token;
+    });
+    navigate("/duel");
+  }
 
   const friendsEnabled = authMode === "google" && Boolean(authUser?.username);
   const friends = useFriends(friendsEnabled);
@@ -655,6 +724,7 @@ export function LobbyPage() {
             enemyDeckWire: deckToWire(enemy),
             deckName: selectedDeck!.name,
             enemyDeckName: enemy.name,
+            owner: matchOwner,
           },
         });
         return;
@@ -755,9 +825,12 @@ export function LobbyPage() {
     <div className="app-shell home-shell">
       <header className="topbar">
         <div className="topbar-inner">
-          <Link to="/" className="topbar-mark" aria-label="OPTCG Duel home">
-            OPTCG Duel
-          </Link>
+          <div className="topbar-left">
+            <NavMenu />
+            <Link to="/" className="topbar-mark" aria-label="OPTCG Duel home">
+              OPTCG Duel
+            </Link>
+          </div>
           <div className="topbar-right">
             {authMode === "guest" ? (
               <a className="btn btn-primary btn-sm" href={googleLoginUrl()}>
@@ -777,7 +850,7 @@ export function LobbyPage() {
               href={getPlannerUrl()}
               target="_blank"
               rel="noopener"
-              className="icon-btn"
+              className="icon-btn topbar-in-menu"
               aria-label="Deck planner"
               title="Deck planner"
             >
@@ -789,7 +862,7 @@ export function LobbyPage() {
               </svg>
               <span className="icon-btn-label">Planner</span>
             </a>
-            <Link to="/history" className="icon-btn" aria-label="Match history" title="Match history">
+            <Link to="/history" className="icon-btn topbar-in-menu" aria-label="Match history" title="Match history">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
                 <path
                   fill="currentColor"
@@ -853,6 +926,27 @@ export function LobbyPage() {
                   }}
                 >
                   Discard
+                </button>
+              </div>
+            </section>
+          ) : null}
+
+          {otherDevice ? (
+            <section className="notice notice-gold" aria-label="Resume match from another device">
+              <div className="notice-body">
+                <strong>Match in progress on another device</strong>
+                <span>
+                  Your {activeMatchModeLabel(otherDevice)} match is still running. Resume it here
+                  to take over your seat.
+                </span>
+              </div>
+              <div className="notice-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => resumeOnThisDevice(otherDevice)}
+                >
+                  Resume match
                 </button>
               </div>
             </section>
@@ -1122,6 +1216,7 @@ export function LobbyPage() {
           </div>
         </div>
       ) : null}
+      <WhatsNewCard app="duel" Link={Link} />
     </div>
   );
 }

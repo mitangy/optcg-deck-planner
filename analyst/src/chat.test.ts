@@ -64,6 +64,7 @@ function planner(answers: Record<string, unknown>) {
     const answer = answers[key];
     if (answer === null) return new Response(null, { status: 204 });
     if (typeof answer === "number") return new Response("{}", { status: answer });
+    if (typeof answer === "function") return new Response(JSON.stringify((answer as (u: string) => unknown)(url)), { status: 200 });
     return new Response(JSON.stringify(answer), { status: 200 });
   }) as unknown as typeof fetch;
   return { calls, api: { baseUrl: "https://api.test", serviceSecret: "svc", fetchImpl } };
@@ -218,10 +219,103 @@ describe("chat", () => {
     await expect(admit(ok.api, "personal-link-token")).rejects.toMatchObject({ status: 401 });
     const expired = planner({ "GET /analyst/me": 401 });
     await expect(admit(expired.api, "chat.1.2.sig")).rejects.toMatchObject({ status: 401, code: "auth" });
-    const spent = planner({ "GET /analyst/me": {}, "GET /analyst/chat/budget": { ...BUDGET, allowed: false } });
+    const spent = planner({ "GET /analyst/me": {}, "GET /analyst/chat/budget": { ...BUDGET, allowed: false, refusal: "daily" } });
     const err = await admit(spent.api, "chat.1.2.sig").catch((e) => e);
     expect(err).toBeInstanceOf(ChatHttpError);
-    expect(err).toMatchObject({ status: 429, code: "budget" });
+    expect(err).toMatchObject({ status: 429, code: "daily" });
+  });
+
+  it("refuses with the code of the limit that stopped the player and logs a free refused row (#446)", async () => {
+    for (const refusal of ["credit", "daily", "monthly"] as const) {
+      const { calls, api } = planner({ "GET /analyst/me": {}, "GET /analyst/chat/budget": { ...BUDGET, allowed: false, refusal }, "POST /analyst/chat/usage": null });
+      await expect(admit(api, "chat.1.2.sig", "review")).rejects.toMatchObject({ status: 429, code: refusal });
+      expect(calls.find((c) => c.url.endsWith("/chat/usage"))!.body).toEqual({ kind: "review", cost_usd: 0, outcome: "refused", refusal });
+    }
+  });
+
+  it("logs a busy refusal when a third stream starts (#446)", async () => {
+    const { calls, api } = planner({ "POST /analyst/chat/threads": { id: 9 }, "POST /analyst/chat/usage": null, "GET /analyst/chat/budget": BUDGET });
+    const never = new Promise<ModelReply>(() => {});
+    const callModel: CallModel = () => never;
+    const d = deps(api, callModel);
+    void runChat(d, "chat.77.2.sig", { message: "one" }, () => {}, new AbortController().signal);
+    void runChat(d, "chat.77.2.sig", { message: "two" }, () => {}, new AbortController().signal);
+    await new Promise((r) => setTimeout(r, 20));
+    await expect(runChat(d, "chat.77.2.sig", { message: "three" }, () => {}, new AbortController().signal)).rejects.toMatchObject({ code: "busy" });
+    expect(calls.filter((c) => c.url.endsWith("/chat/usage")).map((c) => c.body)).toEqual([{ kind: "chat", cost_usd: 0, outcome: "refused", refusal: "busy" }]);
+  });
+
+  it("stops between tool rounds when the credit runs out, keeps what was answered and says why (#446)", async () => {
+    const { calls, api } = planner({
+      "POST /analyst/chat/threads": { id: 9 },
+      "POST /analyst/chat/threads/9/messages": null,
+      "POST /analyst/chat/usage": null,
+      // The check that counts the unsaved answer (extra=...) finds the credit gone.
+      "GET /analyst/chat/budget": (url: string) => (url.includes("extra=") ? { ...BUDGET, allowed: false, refusal: "credit" } : BUDGET),
+    });
+    const toolUse = { type: "tool_use", id: "t1", name: "get_cards", input: { ids: ["OP01-001"] } };
+    const { seen, callModel } = scriptedModel([
+      { content: [{ type: "text", text: "Checking." }, toolUse], stop_reason: "tool_use", usage: usage(1000, 100) },
+      { content: [{ type: "text", text: "Should never be asked." }], stop_reason: "end_turn", usage: usage(2000, 200) },
+    ]);
+    const events: SseEvent[] = [];
+    await expect(runChat(deps(api, callModel), "chat.tok", { message: "Is this leader good?" }, (e) => events.push(e), new AbortController().signal)).rejects.toMatchObject({ status: 429, code: "credit" });
+    expect(seen).toHaveLength(1);
+    expect(events.map((e) => e.event)).not.toContain("done");
+    // What the second check was asked: the first round's cost.
+    const check = calls.filter((c) => c.url.includes("extra="));
+    expect(check).toHaveLength(1);
+    expect(Number(new URL(check[0]!.url).searchParams.get("extra"))).toBeCloseTo(costUsd(usage(1000, 100)), 6);
+    // The thread keeps the question and the text answered, as plain messages that end on the assistant.
+    const saved = calls.find((c) => c.url.endsWith("/threads/9/messages"))!.body as { messages: { role: string; content: any }[] };
+    expect(saved.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(saved.messages[1]!.content).toEqual([{ type: "text", text: "Checking." }]);
+    // The cost is recorded, then a free row says the limit stopped it.
+    const rows = calls.filter((c) => c.url.endsWith("/chat/usage")).map((c) => c.body as Record<string, unknown>);
+    expect(rows[0]).toMatchObject({ kind: "chat", thread_id: 9, outcome: "ok", tool_calls: 1, input_tokens: 1000 });
+    expect(rows[1]).toEqual({ kind: "chat", cost_usd: 0, outcome: "refused", refusal: "credit", thread_id: 9 });
+  });
+
+  it("sends the player's credit with the done event so the meter can update (#446)", async () => {
+    const { api } = planner({
+      "POST /analyst/chat/threads": { id: 9 },
+      "POST /analyst/chat/threads/9/messages": null,
+      "POST /analyst/chat/usage": null,
+      "GET /analyst/chat/budget": { ...BUDGET, credit_usd: 5, credit_spent_usd: 1.25, refusal: null },
+    });
+    const { callModel } = scriptedModel([{ content: [{ type: "text", text: "Hi." }], stop_reason: "end_turn", usage: usage(10, 5) }]);
+    const events: SseEvent[] = [];
+    await runChat(deps(api, callModel), "chat.tok", { message: "Hi" }, (e) => events.push(e), new AbortController().signal);
+    expect(events.at(-1)!.data).toMatchObject({ credit_usd: 5, credit_spent_usd: 1.25, refusal: null });
+  });
+
+  it("keeps nothing when the limit stops an answer before it said anything (#446)", async () => {
+    const { calls, api } = planner({
+      "POST /analyst/chat/threads": { id: 9 },
+      "POST /analyst/chat/usage": null,
+      "GET /analyst/chat/budget": (url: string) => (url.includes("extra=") ? { ...BUDGET, allowed: false, refusal: "daily" } : BUDGET),
+    });
+    const toolUse = { type: "tool_use", id: "t1", name: "get_cards", input: { ids: ["OP01-001"] } };
+    const { callModel } = scriptedModel([{ content: [toolUse], stop_reason: "tool_use", usage: usage(1000, 100) }]);
+    await expect(runChat(deps(api, callModel), "chat.tok", { message: "Hi" }, () => {}, new AbortController().signal)).rejects.toMatchObject({ code: "daily" });
+    expect(calls.some((c) => c.url.endsWith("/messages"))).toBe(false);
+  });
+
+  it("marks a chat that was stopped as aborted and one that broke as an error (#446)", async () => {
+    const run = async (abort: boolean) => {
+      const { calls, api } = planner({ "POST /analyst/chat/threads": { id: 9 }, "POST /analyst/chat/usage": null });
+      const ctrl = new AbortController();
+      const dropped = Object.assign(new Error("connection reset"), { partialUsage: usage(700, 40) });
+      const { callModel } = scriptedModel([dropped]);
+      const wrapped: CallModel = async (...a) => {
+        if (abort) ctrl.abort();
+        return callModel(...a);
+      };
+      await runChat(deps(api, wrapped), "chat.1.2.sig", { message: "Hi" }, () => {}, ctrl.signal).catch(() => undefined);
+      return (calls.find((c) => c.url.endsWith("/chat/usage"))!.body as Record<string, unknown>).outcome;
+    };
+    expect(await run(true)).toBe("aborted");
+    expect(await run(false)).toBe("error");
   });
 
   it("runs the tools the model asks for, streams the answer and saves the whole turn (#377)", async () => {
@@ -258,7 +352,8 @@ describe("chat", () => {
     expect(JSON.stringify(saved)).not.toContain("cache_control");
 
     const spend = calls.find((c) => c.url.endsWith("/chat/usage"))!.body as Record<string, unknown>;
-    expect(spend).toMatchObject({ kind: "chat", input_tokens: 3000, output_tokens: 300 });
+    expect(spend).toMatchObject({ kind: "chat", input_tokens: 3000, output_tokens: 300, thread_id: 9, outcome: "ok", tool_calls: 1 });
+    expect(spend.duration_ms).toBeGreaterThanOrEqual(0);
     expect(spend.cost_usd).toBeCloseTo(costUsd(usage(3000, 300)));
     expect(events.at(-1)!.data).toMatchObject({ thread_id: 9, spent_today_usd: 0.5, daily_cap_usd: 3 });
   });

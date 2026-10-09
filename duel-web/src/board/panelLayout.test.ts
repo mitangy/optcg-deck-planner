@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PANEL_LAYOUT,
+  collapsedColumns,
   movePanel,
   nudgePanel,
   panelDropAt,
@@ -135,5 +136,42 @@ describe("matSpotAt", () => {
     expect(matSpotAt(mat, 600, 300)).toBeNull();
     expect(matSpotAt(mat, 250, 120)).toBeNull();
     expect(matSpotAt(mat, 600, 20)).toBeNull();
+  });
+
+  // The opponent's mat sits 150 px in from each side of the playmat, 100 to 350 px down.
+  const opp = { left: 450, right: 750, top: 100, bottom: 350 };
+
+  it("pins to the open space beside the opponent mat, down to the mat's bottom edge (#462)", () => {
+    expect(matSpotAt(mat, 350, 120, opp)).toBe("left");
+    expect(matSpotAt(mat, 350, 340, opp)).toBe("left");
+    expect(matSpotAt(mat, 850, 340, opp)).toBe("right");
+    // Over the mat itself the top band still works by thirds.
+    expect(matSpotAt(mat, 600, 120, opp)).toBe("centre");
+    expect(matSpotAt(mat, 480, 120, opp)).toBe("left");
+  });
+
+  it("is not a spot in the open space below the opponent mat's bottom edge (#462)", () => {
+    expect(matSpotAt(mat, 350, 400, opp)).toBeNull();
+    expect(matSpotAt(mat, 850, 400, opp)).toBeNull();
+  });
+});
+
+describe("collapsedColumns", () => {
+  const none = { left: [], right: ["turn", "hand"] } as Record<"left" | "right", PanelId[]>;
+
+  it("collapses a column with no panel to show so the board gets its width (#449)", () => {
+    expect(collapsedColumns(none, false)).toEqual({ left: true, right: false });
+    expect(collapsedColumns({ left: ["log"], right: [] }, false)).toEqual({ left: false, right: true });
+  });
+
+  it("keeps both columns open while a panel is dragged, so they stay drop targets (#449)", () => {
+    expect(collapsedColumns(none, true)).toEqual({ left: false, right: false });
+  });
+
+  it("keeps a column that holds the defend tray (#449)", () => {
+    expect(collapsedColumns({ left: ["log"], right: [] }, false, { right: true })).toEqual({
+      left: false,
+      right: false,
+    });
   });
 });
