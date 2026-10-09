@@ -566,6 +566,15 @@ module.exports = {
     { id: "e2e-big-board-rail-too-narrow", args: "bigger-board --project=desktop-1280 -g \"keeps the board clean\"", file: "duel-web/src/board.css", from: "  --rail-w: clamp(250px, 17vw, 330px);\n}", to: "  --rail-w: clamp(110px, 9vw, 130px);\n}", kills: [
       "bigger-board.spec.ts > Bigger playing area keeps the board clean and End turn reachable at desktop 1280x720 (#449) [desktop-1280]",
     ] },
+    // Two-row mats (#468): the desktop and landscape-phone grids lose their rule, so the cost row comes back under the Leader.
+    { id: "e2e-big-board-two-row-desktop-missing", args: "bigger-board --project=desktop-1280 -g \"makes your mat|Leader's row\"", file: "duel-web/src/board.css", from: ".arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-grid {\n  --g: 1.4cqh;", to: ".arena.arena-big.arena-wide.arena-tilt:not(.arena-lp) .side-grid {\n  --g: 1.4cqh;", kills: [
+      "bigger-board.spec.ts > Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at desktop 1280x720 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at desktop 1280x720 (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-big-board-two-row-landscape-missing", args: "bigger-board --project=desktop-1280 -g \"makes your mat|Leader's row\"", file: "duel-web/src/board.css", from: "  .arena.arena-big.arena-lp .side-grid {\n    --g: 1.2cqh;\n    --c: min(\n      calc((100cqw - 3cqw", to: "  .arena.arena-big.arena-lp.arena-tilt .side-grid {\n    --g: 1.2cqh;\n    --c: min(\n      calc((100cqw - 3cqw", kills: [
+      "bigger-board.spec.ts > Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at phone landscape 812x375 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at phone landscape 812x375 (#449) [desktop-1280]",
+    ] },
     // Show on screen (#449)
     { id: "e2e-show-preview-ignored", args: "show-hide --project=desktop-1280 -g \"showCardPreview\"", file: "duel-web/src/board/DuelBoard.tsx", from: "preview: prefs.showCardPreview ? <CardPreviewPanel /> : null,", to: "preview: <CardPreviewPanel />,", kills: [
       "show-hide.spec.ts > showCardPreview off removes only the preview panel and the Battle log stays (#449) [desktop-1280]",
