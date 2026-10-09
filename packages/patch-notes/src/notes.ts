@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-09
-  { date: "2026-10-09", app: "duel", pr: 461, title: "Solid Mulligan button", text: "The Mulligan button is solid now instead of see-through, so the board no longer shows through it." },
+  { date: "2026-10-09", app: "duel", pr: 464, title: "Solid Mulligan button", text: "The Mulligan button is solid now instead of see-through, so the board no longer shows through it." },
   // 2026-10-08
   { date: "2026-10-08", app: "both", pr: 444, title: "Meta deck browser", text: "Browse popular tournament decks by leader and turn one into your own deck with a single click." },
   { date: "2026-10-08", app: "duel", pr: 441, title: "Choose your DON!! art", text: "Pick which DON!! card art you play with in Settings." },
