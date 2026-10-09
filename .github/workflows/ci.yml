@@ -238,7 +238,9 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:16
+        # The official image through Google's Docker Hub mirror: anonymous Docker Hub pulls
+        # from shared runners hit its rate limit and fail the job before any test runs (#477).
+        image: mirror.gcr.io/library/postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
