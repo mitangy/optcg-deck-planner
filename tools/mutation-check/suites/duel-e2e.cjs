@@ -200,6 +200,11 @@ module.exports = {
       "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [desktop-1280]",
       "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [phone-375]",
     ] },
+    // The Mulligan button is opaque over the board dock (#461)
+    { id: "e2e-mulligan-btn-transparent", args: "demo-audit -g \"solid background, not see-through\"", file: "duel-web/src/styles.css", from: "  background: var(--arena-raised) !important;\n  color: var(--chrome-bright) !important;\n  border-color: var(--chrome) !important;", to: "  background: transparent !important;\n  color: var(--chrome-bright) !important;\n  border-color: var(--chrome) !important;", kills: [
+      "demo-audit.spec.ts > the Mulligan button has a solid background, not see-through (#461) [desktop-1280]",
+      "demo-audit.spec.ts > the Mulligan button has a solid background, not see-through (#461) [phone-375]",
+    ] },
     // "Opponent hand, top right" is the top-right spot (#297)
     { id: "e2e-opp-hand-top-right-not-migrated", args: "demo-audit -g \"Opponent hand, top right\"", file: "duel-web/src/settings.ts", from: "  if (oppHandTopRight === true && !next.oppHandSpot) next.oppHandSpot = \"right\";\n", to: "", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [desktop-1280]", "demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [phone-375]"] },
     { id: "e2e-opp-hand-top-right-switch-on-desktop", args: "demo-audit --project=desktop-1280 -g \"Opponent hand, top right\"", file: "duel-web/src/board/gameplayFields.ts", from: "  if (key === \"oppHandTopRight\") return !d.desktop;\n", to: "", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [desktop-1280]"] },
