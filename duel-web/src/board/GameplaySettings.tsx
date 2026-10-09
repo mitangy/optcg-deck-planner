@@ -327,13 +327,13 @@ export function GameplaySettingsFields() {
             onChange={(e) => updateSettings({ oppHandSpot: e.target.value as OppHandSpot })}
           >
             <option value="">In its side panel</option>
-            <option value="left">Top left of the mat</option>
+            <option value="left">Left of the mat</option>
             <option value="centre">Top centre of the mat</option>
-            <option value="right">Top right of the mat</option>
+            <option value="right">Right of the mat</option>
           </select>
           <p className="field-hint">
             Where the opponent&apos;s hand sits on a desktop window: in the right-hand panel, or
-            pinned above their half of the playmat.
+            pinned beside or above their half of the playmat.
           </p>
         </div>
       ) : null}

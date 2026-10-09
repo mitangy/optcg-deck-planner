@@ -2222,7 +2222,9 @@ export function DuelBoard({
                 rootRef={farRef}
               />
             ) : oppHandOnMat ? (
-              <div className={`opp-hand-mat opp-hand-mat-${oppHandOnMat}`}>
+              <div
+                className={`opp-hand-mat opp-hand-mat-${oppHandOnMat}${oppHandOnMat === "centre" ? "" : " opp-hand-mat-side"}`}
+              >
                 <SidePanel
                   id="oppHand"
                   dragging={panelDrag.draggingId === "oppHand"}
