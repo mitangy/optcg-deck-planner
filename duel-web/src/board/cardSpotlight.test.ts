@@ -45,6 +45,23 @@ describe("log spotlight field", () => {
     ]);
   });
 
+  it("names and spotlights only your own Draw Phase card, flying to your hand (#445)", () => {
+    const drew = { type: "drew", seat: 0, count: 1, defIds: ["ST01-004"], turnDraw: true };
+    const [mine] = narrate([drew]);
+    expect(mine!.text).toBe("You draw Sanji");
+    expect(mine!.spotlight).toEqual({ defId: "ST01-004", ownerSeat: 0, kind: "draw", label: "Drew" });
+    // Seat 1's draw reaches this viewer with the card stripped; a card that did arrive is still not theirs to show.
+    const [theirs] = narrate([{ ...drew, seat: 1 }]);
+    expect(theirs!.spotlight).toBeUndefined();
+    expect(theirs!.text).toBe("Opponent draws 1");
+    const [stripped] = narrate([{ type: "drew", seat: 1, count: 1, turnDraw: true }]);
+    expect(stripped!.spotlight).toBeUndefined();
+    // An effect draw (no turnDraw) stays a count.
+    const [effect] = narrate([{ type: "drew", seat: 0, count: 2, defIds: ["ST01-004"] }]);
+    expect(effect!.spotlight).toBeUndefined();
+    expect(effect!.text).toBe("You draw 2");
+  });
+
   it("leaves hidden cards, draws and searches out of the spotlight (#339)", () => {
     const lines = narrate([
       { type: "card_moved", seat: 1, defId: "HIDDEN", from: "hand", to: "trash" },

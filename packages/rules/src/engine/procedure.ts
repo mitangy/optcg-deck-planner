@@ -139,7 +139,7 @@ export function beginTurn(sim: Sim): void {
     const defId = p.deck.shift()!;
     const id = p.zoneInstanceIds.deck.shift()!;
     p.hand.push({ id, defId, rested: false, attachedDonIds: [] });
-    sim.events.push({ type: "drew", seat, count: 1 });
+    sim.events.push({ type: "drew", seat, count: 1, defIds: [defId], turnDraw: true });
     }
   }
   sim.events.push({ type: "phase_changed", phase: "draw", activeSeat: seat });

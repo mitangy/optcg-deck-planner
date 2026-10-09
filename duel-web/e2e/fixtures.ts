@@ -32,6 +32,19 @@ export async function preferFan(page: Page): Promise<void> {
 }
 
 /** 50-card mono-red list of plain Characters: games are decided by attacks, not effects. */
+/**
+ * Practice: both players keep their opening hands. The device passes to the second player after the first keeps, so
+ * the second tap waits for that; tapped straight away it can land on the first player's button again (#445).
+ */
+export async function keepBothHands(page: Page): Promise<void> {
+  const root = page.locator(".board-root");
+  const keep = page.getByRole("button", { name: "Keep opening hand" });
+  const first = (await root.getAttribute("data-seat")) ?? "";
+  await keep.click();
+  await expect(root).not.toHaveAttribute("data-seat", first);
+  await keep.click();
+}
+
 export const RED_VANILLA: DeckList = {
   leaderId: "ST01-001",
   cards: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "OP12-002"].flatMap((id) => [id, id, id, id]),
