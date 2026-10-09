@@ -65,26 +65,6 @@ describe("match page log", () => {
     expect(matchLogTurns(revealed).map((t) => t.opponentHand)).toEqual([["OP05-060", "OP01-016"], undefined]);
   });
 
-  it("pairs turns into rounds by turn number, even when a turn is skipped (#470)", () => {
-    // Turn 2 has only phase steps, so it has no entries and is left out of the list.
-    const skipped: SeatLogJson = {
-      ...log,
-      turns: [
-        log.turns[1]!,
-        { turn: 2, activeSeat: 1, events: [{ type: "phase_changed", phase: "main", activeSeat: 1 }] },
-        log.turns[3]!,
-        { turn: 4, activeSeat: 1, events: [{ type: "drew", seat: 1, count: 1 }] },
-        { turn: 5, activeSeat: 0, events: [{ type: "don_placed", seat: 0, count: 1 }] },
-      ],
-    };
-    expect(matchLogTurns(skipped).map((t) => [t.turn, t.round, t.col])).toEqual([
-      [1, 1, 1],
-      [3, 2, 1],
-      [4, 2, 2],
-      [5, 3, 1],
-    ]);
-  });
-
   it("merges copies of a card in a hand and keeps first-seen order (#470)", () => {
     expect(groupHand(["OP05-060", "OP01-001", "OP05-060", "ST01-003", "OP01-001", "OP05-060"])).toEqual([
       { defId: "OP05-060", count: 3 },

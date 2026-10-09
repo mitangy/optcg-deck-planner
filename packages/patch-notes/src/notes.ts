@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-09
-  { date: "2026-10-09", app: "duel", pr: 475, title: "Roomier match logs", text: "On a computer the match log now shows two turns side by side, so more fits on screen. Repeated cards in a hand show once with ×2 or ×3, and a row of turn numbers at the top jumps straight to any turn." },
+  { date: "2026-10-09", app: "duel", pr: 475, title: "Roomier match logs", text: "On a computer the match log is wider and each turn shows your hands beside what happened, so more fits on screen. Repeated cards in a hand show once with ×2 or ×3, and a row of turn numbers at the top jumps straight to any turn." },
   { date: "2026-10-09", app: "duel", pr: 465, title: "Opponent hand beside their mat", text: "Pin the opponent's hand to the left or right of the board and it now sits as a small fan in the open space beside their mat instead of crowding its corner. Drag it there, or pick it in Settings." },
   { date: "2026-10-09", app: "duel", pr: 471, title: "Small phones in landscape", text: "Phones narrower than 600px, like the iPhone SE, now get the full landscape board instead of a squeezed one." },
   { date: "2026-10-09", app: "duel", pr: 456, title: "Bigger board, dockable pop-ups and more", text: "A Bigger playing area setting, switches to hide Card preview, Recent plays and Chat, and pop-ups you can dock into a side column. Attach DON!! works again, /ff concedes, and an agreed Undo keeps the same draws." },

@@ -304,16 +304,6 @@
 }
 
 .match-log-openings,
-/* Only fills the empty cell of a round in the two-column desktop grid. */
-.match-log-turn-quiet {
-  display: none;
-  margin: 0;
-  font-size: 0.75rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--chrome);
-}
-
 .match-log-turns {
   display: flex;
   flex-direction: column;
@@ -432,25 +422,26 @@
     grid-column: 1 / -1;
   }
 
-  .match-log-turns {
+  /* A turn: title across the top, plays on the left, hands on the right. */
+  .match-log-turn-body[data-hands] {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.55fr);
+    grid-template-areas: "lines hands";
+    column-gap: 1rem;
+    align-items: start;
   }
 
-  .match-log-turns > .match-log-turn {
-    grid-row: var(--round);
-    grid-column: var(--col);
+  .match-log-turn-body[data-hands] > .match-log-lines {
+    grid-area: lines;
   }
 
-  .match-log-turns > .match-log-turn-quiet {
-    display: block;
+  .match-log-turn-body[data-hands] > .match-log-turn-hand {
+    grid-area: hands;
     align-self: start;
-  }
-
-  /* Two columns leave each card about half the page: label above its cards. */
-  .match-log-turns .match-log-turn-hand {
+    margin: 0;
+    padding: 0 0 0 1rem;
+    border-bottom: 0;
+    border-left: 1px dashed var(--line);
     grid-template-columns: minmax(0, 1fr);
   }
 

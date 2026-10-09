@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "../board/CardInspect";
@@ -67,13 +67,6 @@ export function MatchLogPage() {
   const intro = turns.find((t) => t.turn === 0);
   const playTurns = turns.filter((t) => t.turn > 0);
   const log = detail?.log ?? null;
-  // Turns with nothing to narrate (often turn 1) would leave a hole in the two-column grid.
-  const shownTurns = new Set(playTurns.map((t) => t.turn));
-  const lastTurn = playTurns.at(-1)?.turn ?? 0;
-  const quietTurns = (log?.turns ?? [])
-    .filter((t) => t.turn > 0 && t.turn < lastTurn && !shownTurns.has(t.turn))
-    .map((t) => ({ turn: t.turn, yours: t.activeSeat === log?.seat }));
-
   // Chips scroll in place and keep the hash in sync (so the URL can be shared) without a navigation.
   const jumpTo = (e: MouseEvent<HTMLAnchorElement>, turn: number) => {
     e.preventDefault();
@@ -113,54 +106,53 @@ export function MatchLogPage() {
       id={`turn-${t.turn}`}
       className="match-log-turn"
       data-yours={t.yours ? "true" : undefined}
-      data-round={t.round}
-      data-col={t.col}
-      style={{ "--round": t.round, "--col": t.col } as CSSProperties}
     >
       <h2 className="match-log-turn-title">
         {t.turn > 0 ? <span className="match-log-turn-no">Turn {t.turn}</span> : null}
         <span>{t.label}</span>
       </h2>
-      {t.hand || t.opponentHand || t.opponentHandCount != null ? (
-        <div className="match-log-turn-hand">
-          {t.hand ? (
-            t.hand.length ? (
-              <div className="match-log-turn-hand-row">
-                <span className="match-log-turn-hand-label">Your hand ({t.hand.length})</span>
-                <p className="match-log-hand-cards match-log-turn-hand-cards">
-                  {handCards(t.hand, seat)}
-                </p>
-              </div>
-            ) : (
-              <span className="match-log-turn-hand-label">Your hand: empty</span>
-            )
-          ) : null}
-          {t.opponentHand ? (
-            t.opponentHand.length ? (
-              <div className="match-log-turn-hand-row">
-                <span className="match-log-turn-hand-label">Opponent's hand ({t.opponentHand.length})</span>
-                <p className="match-log-hand-cards match-log-turn-hand-cards">
-                  {handCards(t.opponentHand, opponentSeat)}
-                </p>
-              </div>
-            ) : (
-              <span className="match-log-turn-hand-label">Opponent's hand: empty</span>
-            )
-          ) : t.opponentHandCount != null ? (
-            <span className="match-log-turn-opp">Opponent: {t.opponentHandCount} {t.opponentHandCount === 1 ? "card" : "cards"}</span>
-          ) : null}
-        </div>
-      ) : null}
-      <ul className="battle-log-lines match-log-lines">
-        {t.entries.map((line) => (
-          <li key={line.id} className={`log-line log-${line.tone}${line.important ? " log-important" : ""}`}>
-            <span className="log-icon" aria-hidden>
-              {TONE_ICON[line.tone] ?? ""}
-            </span>
-            <span className="log-text">{line.segments.map(segment)}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="match-log-turn-body" data-hands={t.hand || t.opponentHand || t.opponentHandCount != null ? "true" : undefined}>
+        {t.hand || t.opponentHand || t.opponentHandCount != null ? (
+          <div className="match-log-turn-hand">
+            {t.hand ? (
+              t.hand.length ? (
+                <div className="match-log-turn-hand-row">
+                  <span className="match-log-turn-hand-label">Your hand ({t.hand.length})</span>
+                  <p className="match-log-hand-cards match-log-turn-hand-cards">
+                    {handCards(t.hand, seat)}
+                  </p>
+                </div>
+              ) : (
+                <span className="match-log-turn-hand-label">Your hand: empty</span>
+              )
+            ) : null}
+            {t.opponentHand ? (
+              t.opponentHand.length ? (
+                <div className="match-log-turn-hand-row">
+                  <span className="match-log-turn-hand-label">Opponent's hand ({t.opponentHand.length})</span>
+                  <p className="match-log-hand-cards match-log-turn-hand-cards">
+                    {handCards(t.opponentHand, opponentSeat)}
+                  </p>
+                </div>
+              ) : (
+                <span className="match-log-turn-hand-label">Opponent's hand: empty</span>
+              )
+            ) : t.opponentHandCount != null ? (
+              <span className="match-log-turn-opp">Opponent: {t.opponentHandCount} {t.opponentHandCount === 1 ? "card" : "cards"}</span>
+            ) : null}
+          </div>
+        ) : null}
+        <ul className="battle-log-lines match-log-lines">
+          {t.entries.map((line) => (
+            <li key={line.id} className={`log-line log-${line.tone}${line.important ? " log-important" : ""}`}>
+              <span className="log-icon" aria-hidden>
+                {TONE_ICON[line.tone] ?? ""}
+              </span>
+              <span className="log-text">{line.segments.map(segment)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </section>
   );
 
@@ -259,15 +251,6 @@ export function MatchLogPage() {
             {intro ? renderTurn(intro) : null}
             <div className="match-log-turns">
               {playTurns.map(renderTurn)}
-              {quietTurns.map((t) => (
-                <p
-                  key={`quiet-${t.turn}`}
-                  className="match-log-turn match-log-turn-quiet"
-                  style={{ "--round": Math.ceil(t.turn / 2), "--col": t.turn % 2 === 1 ? 1 : 2 } as CSSProperties}
-                >
-                  <span className="match-log-turn-no">Turn {t.turn}</span> {t.yours ? "Your turn" : "Opponent's turn"}: nothing to log
-                </p>
-              ))}
             </div>
             {log.diverged ? (
               <p className="field-hint history-hint">The log stops early: card rules changed after this game was played.</p>

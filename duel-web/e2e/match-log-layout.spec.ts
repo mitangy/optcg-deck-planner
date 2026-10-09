@@ -60,24 +60,27 @@ async function noSidewaysScroll(page: Page): Promise<void> {
   expect(over, "page scrolls sideways").toBeLessThanOrEqual(0);
 }
 
-test("two turns per row on desktop (#470)", async ({ page }, testInfo) => {
+const parts = async (page: Page, turn: number) => {
+  const turnBox = page.locator(`#turn-${turn}`);
+  return { hands: (await turnBox.locator(".match-log-turn-hand").boundingBox())!, lines: (await turnBox.locator(".match-log-lines").boundingBox())! };
+};
+
+test("hands sit beside the turn's plays on desktop (#470)", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-1280", "desktop layout");
   await openLog(page);
   await settled(page);
-  const [t1, t2, t3] = [await box(page, 1), await box(page, 2), await box(page, 3)];
-  expect(t2.y, "turns 1 and 2 share a row").toBeCloseTo(t1.y, 0);
-  expect(t2.x, "turn 2 sits right of turn 1").toBeGreaterThan(t1.x + t1.width - 1);
-  expect(t3.y, "turn 3 starts below both").toBeGreaterThan(Math.max(t1.y + t1.height, t2.y + t2.height) - 1);
+  const { hands, lines } = await parts(page, 2);
+  expect(hands.x, "hands start right of the plays").toBeGreaterThanOrEqual(lines.x + lines.width - 1);
+  expect(Math.abs(hands.y - lines.y), "hands and plays start level").toBeLessThanOrEqual(4);
   await noSidewaysScroll(page);
 });
 
-test("one turn per row on phones (#470)", async ({ page }, testInfo) => {
+test("hands sit above the turn's plays on phones (#470)", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "phone-375", "phone layout");
   await openLog(page);
   await settled(page);
-  const [t1, t2] = [await box(page, 1), await box(page, 2)];
-  expect(t2.y, "turn 2 is below turn 1").toBeGreaterThan(t1.y + t1.height - 1);
-  expect(t2.x).toBeCloseTo(t1.x, 0);
+  const { hands, lines } = await parts(page, 2);
+  expect(hands.y + hands.height, "hands end above the plays").toBeLessThanOrEqual(lines.y + 1);
   await noSidewaysScroll(page);
 });
 
