@@ -378,6 +378,7 @@ function completeFrame(sim: Sim, frame: ResolutionFrame): void {
     else if (typeof target === "string") {
       const step = state.steps[0];
       if (step && step.kind === "battle_ko" && step.targetId === target) (step as { replaced?: boolean }).replaced = replaced;
+      else if (step && (step.kind === "life_damage" || step.kind === "effect_damage")) step.replaced = replaced;
     }
     return;
   }
@@ -575,7 +576,8 @@ export function findReplacement(state: MatchState, loc: Located, events: Replace
       if (r.byOpponent && !byOpponent) continue;
       if (r.sourceFilter) { const src = acting ? locate(state, acting.id) : null; if (!src || !filterMatches(state, ctxFor(seat, card), r.sourceFilter, src)) continue; }
       if (r.event === "removed_by_opponent_effect" && !byOpponent) continue;
-      if (r.target === "self" ? card.id !== loc.id : !selectorMatches(state, ctxFor(seat, card), r.target, loc)) continue;
+      // Damage is dealt to the player: the replacement's source card is the card itself.
+      if (!events.includes("life_damage") && (r.target === "self" ? card.id !== loc.id : !selectorMatches(state, ctxFor(seat, card), r.target, loc))) continue;
       if (!abilityGateOpen(state, seat, { id: card.id, defId: card.defId, card }, ability)) continue;
       if (r.instead.do === "pay" && !canPayCosts(state, ctxFor(seat, card), r.instead.costs)) continue;
       return { seat, card, ability };
@@ -593,6 +595,12 @@ export function findReplacement(state: MatchState, loc: Located, events: Replace
     return { seat, card: pseudo, ability };
   }
   return null;
+}
+
+/** "If you would take damage, ... instead" (Gloriosa EB05-052): a replacement available to `seat` right now. */
+export function findDamageReplacement(state: MatchState, seat: Seat): { seat: Seat; card: CardInstance; ability: Ability } | null {
+  const leader = locate(state, state.players[seat].leader.id);
+  return leader ? findReplacement(state, leader, ["life_damage"], true) : null;
 }
 
 export function pushReplacementFrame(sim: Sim, hit: { seat: Seat; card: CardInstance; ability: Ability }, targetId: InstanceId, parentId?: string): void {

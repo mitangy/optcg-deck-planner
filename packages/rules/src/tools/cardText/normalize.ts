@@ -69,12 +69,13 @@ export function normalizeText(input: string): string {
     .replace(/"([^"]+)" type(?! including)/g, "{$1} type")
     .replace(/\[([^\]]+)\] type\b/g, "{$1} type")
     .replace(/\bthey place\b/g, "your opponent places")
+    .replace(/\bthey trash\b/g, "your opponent trashes")
     .replace(/\bthe owner's choosing\b/g, "their choosing")
     .replace(/\byou can (trash|rest|return|place|add|give)\b/gi, "you may $1")
     .replace(/\byour opponent must (place|trash|return)\b/gi, "your opponent $1s")
     .replace(/\bK\.O\.'s\b/g, "KOs")
-    .replace(/"(Strike|Slash|Special|Wisdom|Ranged)" attribute/gi, "<$1> attribute")
-    .replace(/"(Strike|Slash|Special|Wisdom|Ranged)" or "(Strike|Slash|Special|Wisdom|Ranged)" attribute/gi, "<$1> or <$2> attribute");
+    .replace(/"(Strike|Slash|Special|Wisdom|Ranged)" or "(Strike|Slash|Special|Wisdom|Ranged)" attribute/gi, "<$1> or <$2> attribute")
+    .replace(/"(Strike|Slash|Special|Wisdom|Ranged)" attribute/gi, "<$1> attribute");
   // Remove reminder text; repeat for nested parentheses.
   for (let pass = 0; pass < 3; pass += 1) text = text.replace(/\s*\([^()]*\)/g, "");
   text = text.replace(/[➀-➉①-⑩]/g, (ch) => ` [RDON ${CIRCLED[ch]}] `);
