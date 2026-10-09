@@ -97,6 +97,20 @@ describe("keywords and statics", () => {
     expect(h.legal(0).some((i) => i.type === "declare_attack" && i.attackerId === sanji.id)).toBe(true);
   });
 
+  it("a Rush Character shows its Rush pill only the turn it is played (#445)", () => {
+    const h = new Harness({ leaders: ["OP09-081", "ST01-001"] });
+    h.hand(0, "OP09-118");
+    h.don(0, 10);
+    h.play(0, "OP09-118");
+    const roger = () => h.view(0).you.characters[0]!;
+    expect(roger().statusLabels).toContain("Rush");
+    h.act(0, { type: "end_turn" });
+    h.act(1, { type: "end_turn" });
+    expect(roger().keywords).toContain("rush");
+    expect(roger().rush).toBe(true);
+    expect(roger().statusLabels).not.toContain("Rush");
+  });
+
   it("OP01-001 Zoro Leader aura applies with DON!! during your turn only", () => {
     const h = new Harness({ leaders: ["OP01-001", "ST01-001"] });
     h.field(0, FILLER);

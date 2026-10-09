@@ -31,8 +31,12 @@ class Settings(BaseSettings):
     # In-app Log Pose chat: who may use it (comma-separated emails) and its spend caps in USD.
     # The daily cap is per player; the monthly cap covers everyone. Off when no emails are set.
     analyst_chat_emails: str = ""
-    analyst_chat_daily_usd: float = 3.0
-    analyst_chat_monthly_usd: float = 50.0
+    analyst_chat_daily_usd: float = 1.0
+    analyst_chat_monthly_usd: float = 250.0
+    # Each approved player's monthly Log Pose credit (analyst_access.credit_usd overrides it per player); owners are exempt.
+    analyst_user_credit_usd: float = 5.0
+    # How many players are approved at once when they ask (an owner can change it; the setting wins).
+    analyst_free_spots: int = 50
     # Who may change the model Log Pose runs on (comma-separated emails); everyone with the chat sees the choice.
     analyst_model_admin_emails: str = "gamefreakmichaeltang@gmail.com"
     # Extra CORS origins for Expo / duel-web (comma-separated).

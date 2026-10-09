@@ -58,6 +58,7 @@ export function CardPreviewPanel() {
         className="card-preview-img"
         src={src}
         alt={entry.name}
+        draggable={false}
         onError={() => setFailed(src)}
         onLoad={(e) => {
           if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) setFailed(src);

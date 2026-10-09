@@ -139,11 +139,22 @@ export class ChatHttpError extends Error {
   constructor(
     readonly status: number,
     message: string,
-    readonly code: "auth" | "budget" | "busy" | "bad_request" | "server",
+    readonly code: "auth" | ErrorRefusal | "busy" | "bad_request" | "server",
   ) {
     super(message);
   }
 }
+
+/** Why the planner refuses to start (or go on with) an answer: the player's monthly credit is used up, they hit today's cap, or everyone hit the month's cap. */
+export type Refusal = "credit" | "daily" | "monthly";
+type ErrorRefusal = Refusal;
+const REFUSAL_MESSAGES: Record<Refusal, string> = {
+  credit: "You've used this month's free Log Pose credit.",
+  daily: "Log Pose has reached today's limit. It resets at midnight UTC.",
+  monthly: "Log Pose is resting until the 1st.",
+};
+/** The 429 for a refusal. */
+export const refusalError = (r: Refusal) => new ChatHttpError(429, REFUSAL_MESSAGES[r], r);
 
 const deckContext = z.object({
   name: z.string().max(120).optional(),
@@ -311,7 +322,20 @@ async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEdit
   }
 }
 
-type Budget = { allowed: boolean; spent_today_usd: number; daily_cap_usd: number; model?: string };
+type Budget = {
+  allowed: boolean;
+  spent_today_usd: number;
+  daily_cap_usd: number;
+  model?: string;
+  /** The limit that stops this player, when one does. */
+  refusal?: Refusal | null;
+  /** This month's credit (null for an owner), what the player has used of it, and when it refills. */
+  credit_usd?: number | null;
+  credit_spent_usd?: number;
+  credit_resets_at?: string;
+};
+
+type Kind = "chat" | "review" | "brief";
 
 /** The model a budget answer names, if it is one we offer; else the env/default CHAT_MODEL. */
 export const modelOf = (budget: { model?: unknown }): string => (typeof budget.model === "string" && CHAT_MODELS.includes(budget.model) ? budget.model : CHAT_MODEL);
@@ -338,21 +362,28 @@ export async function admitToken(api: PlannerApi, token: string | null): Promise
   return token;
 }
 
-/** Throws the 429 ChatHttpError when the player's daily cap (or everyone's monthly cap) is spent. */
-export async function checkBudget(api: PlannerApi, token: string): Promise<string> {
+/** Throws the 429 ChatHttpError when the player's credit, today's cap or everyone's monthly cap stops them. A refusal is logged as a $0 usage row. */
+export async function checkBudget(api: PlannerApi, token: string, kind: Kind = "chat"): Promise<string> {
   const budget = await plannerCall<Budget>(api, token, "/analyst/chat/budget", true);
-  if (!budget.allowed) throw new ChatHttpError(429, "Log Pose has reached today's limit. It resets at midnight UTC.", "budget");
+  const refusal = budget.refusal ?? (budget.allowed ? null : "daily");
+  if (refusal) {
+    await recordRefusal(api, token, kind, refusal);
+    throw refusalError(refusal);
+  }
   return modelOf(budget);
 }
 
-/** Checks the chat token and the spend caps; throws ChatHttpError before anything is streamed. */
-export async function admit(api: PlannerApi, token: string | null): Promise<string> {
+/** Checks the chat token and the limits; throws ChatHttpError before anything is streamed. */
+export async function admit(api: PlannerApi, token: string | null, kind: Kind = "chat"): Promise<string> {
   const ok = await admitToken(api, token);
-  await checkBudget(api, ok);
+  await checkBudget(api, ok, kind);
   return ok;
 }
 
-async function recordUsage(api: PlannerApi, token: string, kind: "chat" | "review" | "brief", usage: Usage, cost: number, model: string = CHAT_MODEL) {
+/** How a request went, for the usage log. */
+type UsageMeta = { threadId?: number; outcome?: "ok" | "error" | "aborted"; toolCalls?: number; durationMs?: number };
+
+async function recordUsage(api: PlannerApi, token: string, kind: Kind, usage: Usage, cost: number, model: string = CHAT_MODEL, meta: UsageMeta = {}) {
   await plannerCall(api, token, "/analyst/chat/usage", true, {
     kind,
     model,
@@ -361,7 +392,32 @@ async function recordUsage(api: PlannerApi, token: string, kind: "chat" | "revie
     cache_read_tokens: usage.cache_read_input_tokens ?? 0,
     cache_write_tokens: usage.cache_creation_input_tokens ?? 0,
     cost_usd: cost,
+    ...(meta.threadId ? { thread_id: meta.threadId } : {}),
+    outcome: meta.outcome ?? "ok",
+    tool_calls: meta.toolCalls ?? 0,
+    duration_ms: Math.max(0, Math.round(meta.durationMs ?? 0)),
   });
+}
+
+/** A request turned away: a $0 row saying why, so "who ran out and when" is a query. Never blocks the refusal itself. */
+async function recordRefusal(api: PlannerApi, token: string, kind: Kind, refusal: Refusal | "busy", threadId?: number) {
+  await plannerCall(api, token, "/analyst/chat/usage", true, {
+    kind,
+    cost_usd: 0,
+    outcome: "refused",
+    refusal,
+    ...(threadId ? { thread_id: threadId } : {}),
+  }).catch(() => undefined);
+}
+
+/** The limit that stops the player now, counting `extra` dollars an unsaved answer has cost so far; null when none (or the planner can't say). */
+async function refusalNow(api: PlannerApi, token: string, extra: number): Promise<Refusal | null> {
+  try {
+    const budget = await plannerCall<Budget>(api, token, `/analyst/chat/budget?extra=${extra.toFixed(6)}`, true);
+    return budget.refusal ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Streams running per user. Two are allowed (a review beside the chat panel, or a new review as an aborted one winds down); more would let parallel requests all pass the spend-cap check. */
@@ -369,10 +425,13 @@ const MAX_STREAMS_PER_USER = 2;
 const streaming = new Map<string, number>();
 
 /** Claims one of the user's streams (the token's user id; admit has checked its signature). Returns the release. */
-function claimStream(token: string): () => void {
+async function claimStream(api: PlannerApi, token: string, kind: Kind): Promise<() => void> {
   const user = token.split(".")[1] ?? token;
   const running = streaming.get(user) ?? 0;
-  if (running >= MAX_STREAMS_PER_USER) throw new ChatHttpError(429, "Log Pose is still answering your other questions. Wait for one to finish.", "busy");
+  if (running >= MAX_STREAMS_PER_USER) {
+    await recordRefusal(api, token, kind, "busy");
+    throw new ChatHttpError(429, "Log Pose is still answering your other questions. Wait for one to finish.", "busy");
+  }
   streaming.set(user, running + 1);
   return () => {
     const left = (streaming.get(user) ?? 1) - 1;
@@ -392,8 +451,19 @@ const addUsage = (a: Usage, b: Usage): Usage => ({
 });
 
 /** What the tool loop has done so far; filled in as it goes so a failed run still knows its spend. */
-type RoundsState = { turn: Message[]; usage: Usage; /** Dollars spent, priced call by call (a long Haiku 5.5 prompt costs more per token). */ cost: number; finished: boolean; model?: string };
-const newRounds = (...turn: Message[]): RoundsState => ({ turn, usage: { input_tokens: 0, output_tokens: 0 }, cost: 0, finished: false });
+type RoundsState = {
+  turn: Message[];
+  usage: Usage;
+  /** Dollars spent, priced call by call (a long Haiku 5.5 prompt costs more per token). */
+  cost: number;
+  finished: boolean;
+  model?: string;
+  /** Tool calls the model made. */
+  toolCalls: number;
+  /** Set when the loop stopped between rounds because a limit was reached. */
+  refusal?: Refusal;
+};
+const newRounds = (...turn: Message[]): RoundsState => ({ turn, usage: { input_tokens: 0, output_tokens: 0 }, cost: 0, finished: false, toolCalls: 0 });
 
 type RoundsOptions = {
   deps: ChatDeps;
@@ -412,6 +482,8 @@ type RoundsOptions = {
   onProposal?: (p: DeckEditProposal) => void;
   /** Called with each turn plan the model proposes (Log Pose copilot). */
   onPlan?: (p: TurnPlan) => void;
+  /** Asked before every round after the first with what the answer has cost so far: a limit it returns stops the loop there. */
+  recheck?: (cost: number) => Promise<Refusal | null>;
 };
 
 /**
@@ -422,6 +494,14 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
   // Text from separate rounds is kept apart by a blank line, as the stored thread shows it.
   let wroteText = false;
   for (let round = 0; round < o.maxRounds; round++) {
+    if (round > 0 && o.recheck) {
+      // One answer must not run far past the credit: stop here, between rounds, and keep what was answered.
+      const refusal = await o.recheck(state.cost);
+      if (refusal) {
+        state.refusal = refusal;
+        break;
+      }
+    }
     let breakPending = wroteText;
     const out = streamTo(o.emit, () => {
       wroteText = true;
@@ -461,15 +541,26 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
       state.finished = true;
       break;
     }
+    state.toolCalls += calls.length;
     for (const name of new Set(calls.map((c) => String(c.name)))) o.emit({ event: "status", data: { text: STATUS[name] ?? "Working" } });
     state.turn.push({ role: "user", content: await Promise.all(calls.map((c) => runTool(o.tools, c, o.onProposal, o.onPlan))) });
   }
   return state;
 }
 
+/** The turn's user message and the text answered so far as one assistant message (tool calls dropped), or null when nothing was said. */
+export function answeredSoFar(turn: Message[]): Message[] | null {
+  const text = turn
+    .filter((m) => m.role === "assistant" && Array.isArray(m.content))
+    .map((m) => (m.content as Block[]).filter((b) => b.type === "text").map((b) => String(b.text)).join(""))
+    .filter((t) => t.trim())
+    .join("\n\n");
+  return text ? [turn[0]!, { role: "assistant", content: [{ type: "text", text }] }] : null;
+}
+
 /** One chat turn: the player's message, as many tool rounds as the model needs, the answer streamed. */
 export async function runChat(deps: ChatDeps, token: string, body: z.infer<typeof chatBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
-  const release = claimStream(token);
+  const release = await claimStream(deps.api, token, "chat");
   try {
     await chatTurn(deps, token, body, emit, signal);
   } finally {
@@ -518,34 +609,57 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   ];
   const state = newRounds(userMessage);
   const turn = state.turn;
+  const started = Date.now();
+  let failed = false;
   try {
-    await runToolRounds(state, { deps, model, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal, onPlan });
+    await runToolRounds(state, {
+      deps, model, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal, onPlan,
+      recheck: (cost) => refusalNow(api, token, cost),
+    });
+  } catch (err) {
+    failed = true;
+    throw err;
   } finally {
     const { usage, finished } = state;
     const cost = state.cost;
-    if (usage.input_tokens || usage.output_tokens) await recordUsage(api, token, "chat", usage, cost, state.model ?? model).catch(() => undefined);
+    const outcome = finished || state.refusal ? "ok" : failed && signal.aborted ? "aborted" : "error";
+    if (usage.input_tokens || usage.output_tokens) {
+      await recordUsage(api, token, "chat", usage, cost, state.model ?? model, { threadId, outcome, toolCalls: state.toolCalls, durationMs: Date.now() - started }).catch(() => undefined);
+    }
+    if (state.refusal) await recordRefusal(api, token, "chat", state.refusal, threadId);
     // A turn is stored only once the model has answered, so the thread always ends on an assistant message.
-    if (finished) {
-      await plannerCall(api, token, `/analyst/chat/threads/${threadId}/messages`, true, { messages: turn });
+    // A turn a limit cut short keeps what was already answered, as plain text.
+    const kept = finished ? turn : state.refusal ? answeredSoFar(turn) : null;
+    if (kept) {
+      await plannerCall(api, token, `/analyst/chat/threads/${threadId}/messages`, true, { messages: kept });
       // Kept next to the thread so the card comes back after a reload. A failure here must never lose the turn.
-      if (proposals.length) {
+      if (finished && proposals.length) {
         await plannerCall(api, token, `/analyst/chat/threads/${threadId}/proposals`, true, { proposals }).catch((err) =>
           console.error("saving deck edit proposals failed", err instanceof Error ? err.message : err),
         );
       }
     }
   }
+  if (state.refusal) throw refusalError(state.refusal);
   if (!state.finished) throw new Error("Log Pose used too many lookups on that one. Try asking something narrower.");
   const budget = await plannerCall<Budget>(api, token, "/analyst/chat/budget", true);
   emit({
     event: "done",
-    data: { thread_id: threadId, cost_usd: state.cost, spent_today_usd: budget.spent_today_usd, daily_cap_usd: budget.daily_cap_usd },
+    data: {
+      thread_id: threadId,
+      cost_usd: state.cost,
+      spent_today_usd: budget.spent_today_usd,
+      daily_cap_usd: budget.daily_cap_usd,
+      credit_usd: budget.credit_usd ?? null,
+      credit_spent_usd: budget.credit_spent_usd ?? 0,
+      refusal: budget.refusal ?? null,
+    },
   });
 }
 
 /** The post-game analysis of one of the player's games: one model call over the game from their seat, saved for next time. */
 export async function runReview(deps: ChatDeps, token: string, body: z.infer<typeof reviewBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
-  const release = claimStream(token);
+  const release = await claimStream(deps.api, token, "review");
   try {
     await reviewTurn(deps, token, body, emit, signal);
   } finally {
@@ -564,6 +678,7 @@ async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof re
   }
   emit({ event: "status", data: { text: "Reading the game" } });
   const model = await currentModel(api, token);
+  const started = Date.now();
   let text = "";
   const out = streamTo(emit, (delta) => {
     text += delta;
@@ -594,12 +709,14 @@ async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof re
     );
   } catch (err) {
     const partial = partialUsageOf(err);
-    if (partial.input_tokens || partial.output_tokens) await recordUsage(api, token, "review", partial, costUsd(partial, model), model).catch(() => undefined);
+    if (partial.input_tokens || partial.output_tokens) {
+      await recordUsage(api, token, "review", partial, costUsd(partial, model), model, { outcome: signal.aborted ? "aborted" : "error", durationMs: Date.now() - started }).catch(() => undefined);
+    }
     throw err;
   }
   out.flush();
   const cost = costUsd(reply.usage, reply.model ?? model);
-  await recordUsage(api, token, "review", reply.usage, cost, reply.model ?? model).catch(() => undefined);
+  await recordUsage(api, token, "review", reply.usage, cost, reply.model ?? model, { durationMs: Date.now() - started }).catch(() => undefined);
   const cited = flattenCited(reply.content);
   const final = cited.text || text.trim();
   if (!final) throw new Error("Log Pose didn't write anything for this game. Try again.");
@@ -658,9 +775,19 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
     return;
   }
   // Generating is a stream like a chat or review: claimed before the budget check, so parallel briefs can't all pass it.
-  const release = claimStream(token);
+  const release = await claimStream(api, token, "brief");
   try {
-    const model = await checkBudget(api, token);
+    let model: string;
+    try {
+      model = await checkBudget(api, token, "brief");
+    } catch (err) {
+      // Out of credit: the board just shows no brief, and no error.
+      if (err instanceof ChatHttpError && err.code === "credit") {
+        emit({ event: "done", data: { cached: false, refused: "credit" } });
+        return;
+      }
+      throw err;
+    }
 
     const tools = buildTools(deps.catalog, undefined, undefined, deps.knowledge).filter((t) => BRIEF_TOOLS.includes(t.name));
     const deckLines = found.deck.map((c) => `${c.copies}x${c.id}`);
@@ -675,10 +802,24 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
     ].join("\n");
     const system = [{ type: "text", text: instructionsFor(false) + BRIEF_INSTRUCTIONS, cache_control: { type: "ephemeral" } }];
     const state = newRounds({ role: "user", content: [{ type: "text", text: prompt }] });
+    const started = Date.now();
+    let failed = false;
     try {
-      await runToolRounds(state, { deps, model, system, tools, emit, signal, maxRounds: BRIEF_MAX_ROUNDS, maxTokens: BRIEF_MAX_TOKENS, effort: "low" });
+      await runToolRounds(state, { deps, model, system, tools, emit, signal, maxRounds: BRIEF_MAX_ROUNDS, maxTokens: BRIEF_MAX_TOKENS, effort: "low", recheck: (cost) => refusalNow(api, token, cost) });
+    } catch (err) {
+      failed = true;
+      throw err;
     } finally {
-      if (state.usage.input_tokens || state.usage.output_tokens) await recordUsage(api, token, "brief", state.usage, state.cost, state.model ?? model).catch(() => undefined);
+      const outcome = state.finished || state.refusal ? "ok" : failed && signal.aborted ? "aborted" : "error";
+      if (state.usage.input_tokens || state.usage.output_tokens) {
+        await recordUsage(api, token, "brief", state.usage, state.cost, state.model ?? model, { outcome, toolCalls: state.toolCalls, durationMs: Date.now() - started }).catch(() => undefined);
+      }
+    }
+    if (state.refusal) {
+      // The credit ran out while writing: nothing is saved or shown, and no error.
+      await recordRefusal(api, token, "brief", state.refusal);
+      emit({ event: "done", data: { cached: false, refused: state.refusal } });
+      return;
     }
     if (!state.finished) throw new Error("Log Pose used too many lookups on that one. Try again.");
     // The saved text is what was streamed: the rounds' text blocks, kept apart by a blank line.

@@ -16,6 +16,9 @@ module.exports = {
   cwd: "packages/rules",
   runner: "vitest",
   mutations: [
+    {"id":"rush-pill-forever","file":"packages/rules/src/engine/views.ts","from":"if (c.summoningSick || (k !== \"rush\" && k !== \"rush_character\")) statuses.push","to":"statuses.push","kills":["shows its Rush pill only the turn it is played"]},
+    {"id":"turn-draw-leaks-card","file":"packages/rules/src/engine/views.ts","from":"if (event.type === \"drew\" && event.defIds && viewerSeat !== event.seat) {","to":"if (false) {","kills":["names the Draw Phase card only for the player who drew it"]},
+    {"id":"turn-draw-hidden-from-drawer","file":"packages/rules/src/engine/views.ts","from":"if (event.type === \"drew\" && event.defIds && viewerSeat !== event.seat) {","to":"if (event.type === \"drew\" && event.defIds) {","kills":["names the Draw Phase card only for the player who drew it"]},
     {"id":"life-from-leader","file":"packages/rules/src/engine/intents.ts","from":"for (let i = 0; i < n && player.deck.length; i += 1) {","to":"for (let i = 0; i < n - 1 && player.deck.length; i += 1) {","kills":["sets Life from the Leader"]},
     {"id":"deterministic-shuffle","file":"packages/rules/src/engine/intents.ts","from":"const shuffled = rng.shuffle(dealt);","to":"const shuffled = ((xs) => xs.sort(() => Math.random() - 0.5))(dealt);","kills":["deterministic per seed"]},
     {"id":"mulligan-redraw","file":"packages/rules/src/engine/intents.ts","from":"p.mulliganDone = true;","to":"p.mulliganDone = true; if (intent.doMulligan) { p.hand.pop(); }","kills":["redraws five"]},

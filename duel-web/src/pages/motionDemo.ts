@@ -43,11 +43,17 @@ export function motionDemoSteps(base: PlayerView): MotionDemoStep[] {
     }),
     (o) => ({ ...o, mulliganDone: true }),
   );
-  push("Draw", (y) => ({
-    ...y,
-    deckCount: y.deckCount - 1,
-    hand: [...y.hand, { id: "demo-draw", defId: "ST01-004" }],
-  }));
+  push(
+    "Draw",
+    (y) => ({
+      ...y,
+      deckCount: y.deckCount - 1,
+      hand: [...y.hand, { id: "demo-draw", defId: "ST01-004" }],
+    }),
+    (o) => o,
+    // The Draw Phase draw: the server names the card to the drawer only.
+    [{ type: "drew", seat: 0, count: 1, defIds: ["ST01-004"], turnDraw: true }],
+  );
   push("DON!!", (y) => ({
     ...y,
     donDeckCount: y.donDeckCount - 2,

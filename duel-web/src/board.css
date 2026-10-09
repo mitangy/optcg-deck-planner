@@ -3753,7 +3753,8 @@ body.is-panel-drag * {
 @media (max-width: 899px) and (orientation: portrait) {
   /* Same width as your mat (the base portrait rule), so when the height binds (mulligan
      explainer, 320px screens) both mats shrink together and stay centred on one axis. */
-  .arena .side-opp.side-counts .side-grid {
+  .arena .side-opp.side-counts .side-grid,
+  .arena .side-you.side-counts .side-grid {
     --g: 1.6cqw;
     --c: min(
       calc((100cqw - 2.8cqw - 4 * 1.6cqw) / 5),
@@ -3771,7 +3772,8 @@ body.is-panel-drag * {
 
   /* Leader sits between the stage and the cost area: no room to turn at
      full size. */
-  .arena .side-opp.side-counts .zone-leader {
+  .arena .side-opp.side-counts .zone-leader,
+  .arena .side-you.side-counts .zone-leader {
     --rest-k: 0.714;
     --rest-shift: 0px;
   }
@@ -5528,4 +5530,56 @@ body.is-panel-drag * {
   width: 100%;
   box-sizing: border-box;
   padding-inline: calc(var(--fan-cw) * 0.3);
+}
+
+/* Holding a card must not open the phone's image sheet (iOS Save / Share), start
+   an image drag or select the caption: the app's own press-and-hold inspects it.
+   Card art and tiles only, so chat inputs, the log and the inspect panel's card
+   text stay selectable. (#445) */
+.card-tile,
+.card-tile *,
+.board-root img,
+.card-preview-img,
+.card-inspect-art,
+.card-inspect-art img,
+.card-spotlight-card,
+.card-spotlight-card *,
+.reveal-card,
+.reveal-card *,
+.trash-viewer-backdrop img,
+.defend-chip,
+.defend-chip * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* —— Log Pose docked into a side column (desktop) ——
+   The host sits at the top of the column, only while the panel is open and docked to that side, and takes
+   most of its height (the panels below shrink to their minimum heights). It is not a movable panel (no
+   data-panel), so the drag and resize code leaves it alone. It is above its neighbours, so a card fan that
+   overhangs its own panel never draws over the Log Pose panel. */
+.arena.arena-wide .board-panel.lp-dock-host {
+  flex: 1 1 60%;
+  min-height: 340px;
+  z-index: 2;
+  /* A little air, so the panel reads as a card like the others and not as the column's own edge. */
+  padding: 6px;
+}
+
+/* While Log Pose is docked in a column, that column is at least as wide as the panel's minimum (320px), so its
+   header stays on one row. The saved column widths are untouched: undocked or closed, the column is itself again. */
+.arena.arena-wide.arena-lp-dock-left .arena-body {
+  grid-template-columns: max(var(--left-w), 320px) minmax(0, 1fr) var(--rail-w);
+}
+
+.arena.arena-wide.arena-lp-dock-right .arena-body {
+  grid-template-columns: var(--left-w) minmax(0, 1fr) max(var(--rail-w), 320px);
+}
+
+/* The opponent-hand fan hangs its cards from above its own top edge (the rest is clipped by the column). With the
+   Log Pose host directly above it nothing is "above" any more, so it gets that room itself and shows whole. */
+.arena.arena-wide .lp-dock-host + .board-panel .opp-hand-fan {
+  padding-top: calc(var(--fan-w) * 0.5);
 }

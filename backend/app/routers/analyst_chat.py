@@ -12,10 +12,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.analyst_corpus import MAX_GAMES, game_replay, search_games
+from app.analyst_credit import credit_for, day_start, month_start, next_month_start, refusal_for, spent_since
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
@@ -32,7 +33,9 @@ from app.models import (
     DuelMatch,
     User,
 )
+from app.routers.analyst_access import free_spots, spots_used
 from app.routers.analyst import CHAT_MODELS, access_status, analyst_user, chat_enabled_for, chat_model, is_chat_owner, is_model_admin, mint_chat_token, require_service, requests_open
+from app.usernames import duel_display_name
 from app.schemas import (
     CARD_ID_PATTERN,
     AnalystAppendIn,
@@ -56,7 +59,10 @@ from app.schemas import (
     AnalystThreadsOut,
     AnalystThreadSummary,
     AnalystThreadView,
+    AnalystUsageGroup,
     AnalystUsageIn,
+    AnalystUsagePlayer,
+    AnalystUsageSummary,
 )
 
 router = APIRouter(prefix="/analyst", tags=["analyst"])
@@ -86,12 +92,25 @@ def chat_session(
     if not chat_enabled_for(settings, user, db):
         if not requests_open(settings):
             return AnalystChatSession(enabled=False)
-        return AnalystChatSession(enabled=False, access=access_status(db, user) or "none")
+        free = free_spots(db, settings)
+        return AnalystChatSession(
+            enabled=False,
+            access=access_status(db, user) or "none",
+            free_spots=free,
+            spots_left=max(0, free - spots_used(db)),
+            free_credit_usd=settings.analyst_user_credit_usd,
+        )
     token, exp = mint_chat_token(settings, user, int(datetime.now(timezone.utc).timestamp()))
     expires_at = datetime.fromtimestamp(exp, timezone.utc).isoformat()
     owner = is_chat_owner(settings, user)
+    # Waiting requests: players on the waitlist and players who asked for more credit.
     pending = (
-        db.scalar(select(func.count()).select_from(AnalystAccess).where(AnalystAccess.status == "pending")) or 0
+        db.scalar(
+            select(func.count())
+            .select_from(AnalystAccess)
+            .where(or_(AnalystAccess.status == "pending", AnalystAccess.topup_requested_at.is_not(None)))
+        )
+        or 0
         if owner
         else 0
     )
@@ -105,11 +124,37 @@ def chat_session(
     )
 
 
-def _spent(db: Session, since: datetime, user_id: int | None = None) -> float:
-    q = select(func.coalesce(func.sum(AnalystUsage.cost_usd), 0.0)).where(AnalystUsage.created_at >= since)
-    if user_id is not None:
-        q = q.where(AnalystUsage.user_id == user_id)
-    return float(db.scalar(q) or 0.0)
+def budget_for(db: Session, settings: Settings, user: User, extra: float = 0.0) -> AnalystChatBudget:
+    """This player's spend today, their credit this month and everyone's spend this month, against the limits.
+
+    `extra` is what a running answer has cost so far (not saved yet); it counts toward every limit."""
+    now = datetime.now(timezone.utc)
+    today = spent_since(db, day_start(now), user.id) + extra
+    month = spent_since(db, month_start(now)) + extra
+    credit_spent = spent_since(db, month_start(now), user.id) + extra
+    row = db.scalar(select(AnalystAccess).where(AnalystAccess.user_id == user.id))
+    credit = credit_for(settings, user, row, now)
+    refusal = refusal_for(settings, spent_today=today, spent_month=month, credit=credit, credit_spent=credit_spent)
+    recent = db.scalars(
+        select(AnalystUsage.cost_usd)
+        .where(AnalystUsage.user_id == user.id, AnalystUsage.kind == "chat", AnalystUsage.cost_usd > 0)
+        .order_by(AnalystUsage.id.desc())
+        .limit(30)
+    ).all()
+    return AnalystChatBudget(
+        spent_today_usd=round(today, 4),
+        daily_cap_usd=settings.analyst_chat_daily_usd,
+        spent_month_usd=round(month, 4),
+        monthly_cap_usd=settings.analyst_chat_monthly_usd,
+        allowed=refusal is None,
+        model=chat_model(db),
+        credit_usd=None if credit is None else round(credit, 4),
+        credit_spent_usd=round(credit_spent, 4),
+        credit_resets_at=next_month_start(now).isoformat(),
+        refusal=refusal,  # type: ignore[arg-type]
+        avg_chat_cost_usd=round(sum(recent) / len(recent), 4) if recent else None,
+        topup_requested=row is not None and row.topup_requested_at is not None,
+    )
 
 
 @router.get("/chat/budget", response_model=AnalystChatBudget)
@@ -118,18 +163,81 @@ def chat_budget(
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(analyst_user)],
     settings: Annotated[Settings, Depends(get_settings)],
+    extra: Annotated[float, Query(ge=0, le=1000)] = 0.0,
 ) -> AnalystChatBudget:
-    """This player's spend today and everyone's this month, against the caps."""
+    """The analyst's check before (and, with `extra`, during) an answer: may this player ask, and which limit stops them."""
+    return budget_for(db, settings, user, extra)
+
+
+@router.get("/chat/credit", response_model=AnalystChatBudget)
+def chat_credit(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AnalystChatBudget:
+    """The signed-in player's own credit and limits, for the panel's meter."""
+    if not chat_enabled_for(settings, user, db):
+        raise HTTPException(status_code=403, detail="Log Pose isn't on for you")
+    return budget_for(db, settings, user)
+
+
+@router.get("/usage/summary", response_model=AnalystUsageSummary)
+def usage_summary(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AnalystUsageSummary:
+    """What Log Pose has cost, for owners: today, this month and all time, per player, and per kind and model."""
+    if not is_chat_owner(settings, user):
+        raise HTTPException(status_code=403, detail="Only Log Pose owners can see usage")
     now = datetime.now(timezone.utc)
-    today = _spent(db, now.replace(hour=0, minute=0, second=0, microsecond=0), user.id)
-    month = _spent(db, now.replace(day=1, hour=0, minute=0, second=0, microsecond=0))
-    return AnalystChatBudget(
-        spent_today_usd=round(today, 4),
-        daily_cap_usd=settings.analyst_chat_daily_usd,
-        spent_month_usd=round(month, 4),
-        monthly_cap_usd=settings.analyst_chat_monthly_usd,
-        allowed=today < settings.analyst_chat_daily_usd and month < settings.analyst_chat_monthly_usd,
-        model=chat_model(db),
+    this_month = month_start(now)
+    U = AnalystUsage
+    asked = (U.outcome != "refused") & (U.kind == "chat")
+    rows = db.execute(
+        select(
+            U.user_id,
+            func.coalesce(func.sum(U.cost_usd), 0.0),
+            func.coalesce(func.sum(case((U.created_at >= this_month, U.cost_usd), else_=0.0)), 0.0),
+            func.coalesce(func.sum(case((asked, 1), else_=0)), 0),
+            func.coalesce(func.sum(case((U.outcome == "refused", 1), else_=0)), 0),
+            func.max(U.created_at),
+        )
+        .group_by(U.user_id)
+        .order_by(func.sum(U.cost_usd).desc())
+        .limit(100)
+    ).all()
+    access = {a.user_id: a for a in db.scalars(select(AnalystAccess)).all()}
+    threads = dict(db.execute(select(AnalystThread.user_id, func.count()).group_by(AnalystThread.user_id)).all())
+    players = []
+    for uid, total, month, questions, refused, last in rows:
+        u = db.get(User, uid)
+        if u is None:
+            continue
+        players.append(
+            AnalystUsagePlayer(
+                user_id=uid,
+                name=duel_display_name(u),
+                spent_usd=round(float(total), 4),
+                credit_usd=credit_for(settings, u, access.get(uid), now),
+                credit_spent_usd=round(float(month), 4),
+                threads=int(threads.get(uid, 0)),
+                questions=int(questions),
+                refused=int(refused),
+                last_used=last.isoformat() if last else None,
+            )
+        )
+    groups = db.execute(
+        select(U.kind, U.model, func.coalesce(func.sum(case((U.outcome != "refused", 1), else_=0)), 0), func.coalesce(func.sum(U.cost_usd), 0.0))
+        .group_by(U.kind, U.model)
+        .order_by(func.sum(U.cost_usd).desc())
+    ).all()
+    return AnalystUsageSummary(
+        today_usd=round(spent_since(db, day_start(now)), 4),
+        month_usd=round(spent_since(db, this_month), 4),
+        total_usd=round(spent_since(db, datetime(2000, 1, 1, tzinfo=timezone.utc)), 4),
+        players=players,
+        groups=[AnalystUsageGroup(kind=k, model=m or "unknown", requests=int(n), cost_usd=round(float(c), 4)) for k, m, n, c in groups if n or c],
     )
 
 
@@ -176,7 +284,13 @@ def record_usage(
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(analyst_user)],
 ) -> None:
-    db.add(AnalystUsage(user_id=user.id, **body.model_dump()))
+    fields = body.model_dump()
+    # A thread id only sticks to the player's own thread.
+    if body.thread_id is not None:
+        own = db.get(AnalystThread, body.thread_id)
+        if own is None or own.user_id != user.id:
+            fields["thread_id"] = None
+    db.add(AnalystUsage(user_id=user.id, **fields))
     db.commit()
 
 
@@ -199,6 +313,21 @@ def create_thread(
     db.commit()
     db.refresh(row)
     return AnalystThreadSummary(id=row.id, title=row.title, updated_at=row.updated_at.isoformat() if row.updated_at else None)
+
+
+@router.delete("/chat/threads/{thread_id}", status_code=204)
+def delete_thread(
+    thread_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    """A player deletes one of their threads: its messages and deck-edit cards go; its usage rows stay so cost totals don't change."""
+    row = _own_thread(db, user, thread_id)
+    db.execute(update(AnalystUsage).where(AnalystUsage.thread_id == row.id).values(thread_id=None))
+    db.execute(delete(AnalystProposal).where(AnalystProposal.thread_id == row.id))
+    db.execute(delete(AnalystMessage).where(AnalystMessage.thread_id == row.id))
+    db.delete(row)
+    db.commit()
 
 
 def _messages(db: Session, thread_id: int) -> list[AnalystMessage]:

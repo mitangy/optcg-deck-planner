@@ -106,6 +106,7 @@ def test_an_approved_player_gets_a_working_chat_token_and_denying_ends_it_393(ch
     assert _session(c) | {"token": None, "expires_at": None} == {
         "enabled": True, "token": None, "expires_at": None, "chat_url": "https://analyst.example",
         "access": None, "owner": True, "pending_requests": 2,
+        "free_spots": None, "spots_left": None, "free_credit_usd": None,
     }
     assert _decide(c, me, "approved").json()["status"] == "approved"
     assert _session(c)["pending_requests"] == 1

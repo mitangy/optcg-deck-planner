@@ -167,6 +167,50 @@ def _ensure_analyst_review_citations() -> None:
         conn.execute(text("ALTER TABLE analyst_match_reviews ADD COLUMN citations TEXT"))
 
 
+def _add_columns(table: str, columns: list[tuple[str, str]]) -> None:
+    """Add the missing columns to an existing table (create_all does not alter tables)."""
+    inspector = inspect(engine)
+    if table not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns(table)}
+    missing = [(name, typ) for name, typ in columns if name not in existing]
+    if not missing:
+        return
+    with engine.begin() as conn:
+        for name, typ in missing:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {typ}"))
+
+
+def _ensure_analyst_usage_columns() -> None:
+    """Add the analytics columns to analyst_usage on existing DBs (#446)."""
+    _add_columns(
+        "analyst_usage",
+        [
+            ("thread_id", "INTEGER"),
+            ("outcome", "VARCHAR(16) DEFAULT 'ok'"),
+            ("refusal", "VARCHAR(16)"),
+            ("tool_calls", "INTEGER DEFAULT 0"),
+            ("duration_ms", "INTEGER DEFAULT 0"),
+        ],
+    )
+
+
+def _ensure_analyst_access_credit_columns() -> None:
+    """Add the credit, free-spot and top-up columns to analyst_access on existing DBs (#446)."""
+    false = "FALSE" if engine.dialect.name == "postgresql" else "0"
+    ts = "TIMESTAMP" if engine.dialect.name == "sqlite" else "TIMESTAMP WITH TIME ZONE"
+    _add_columns(
+        "analyst_access",
+        [
+            ("credit_usd", "FLOAT"),
+            ("topup_usd", "FLOAT DEFAULT 0"),
+            ("topup_month", "VARCHAR(7)"),
+            ("auto_approved", f"BOOLEAN DEFAULT {false}"),
+            ("topup_requested_at", ts),
+        ],
+    )
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_group_buy_columns()
@@ -176,6 +220,8 @@ def init_db() -> None:
     _ensure_user_username()
     _ensure_duel_match_replay_columns()
     _ensure_analyst_review_citations()
+    _ensure_analyst_usage_columns()
+    _ensure_analyst_access_credit_columns()
 
 
 def get_db() -> Generator[Session, None, None]:

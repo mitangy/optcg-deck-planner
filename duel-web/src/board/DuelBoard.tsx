@@ -154,6 +154,7 @@ import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY,
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { useMatchBrief } from "./MatchBrief";
+import { useLogPoseDock, useLogPoseDockHost } from "@optcg/analyst-client";
 import { useLogPoseCopilot } from "./LogPoseCopilot";
 import type { BriefTicketWire } from "../net/protocol";
 import { matchMenuItems } from "./matchMenuItems";
@@ -330,8 +331,17 @@ export function DuelBoard({
   const compactHud = useMediaQuery(COMPACT_HUD_QUERY);
   const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
   const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_QUERY);
+  /** "Simple board on phones": your own mat gets the count row and bigger cards the opponent's has (portrait only). */
+  const simpleOwnBoard = prefs.compactOwnBoard && portraitMat;
   /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
   const lp = wide && landscapePhone;
+  // Log Pose docked to a side: its panel renders into a host at the top of that side column, only while it is open.
+  // Narrow windows and landscape phones have no side columns, so there it floats.
+  const logPoseDock = useLogPoseDock();
+  const [logPoseHostL, setLogPoseHostL] = useState<HTMLElement | null>(null);
+  const [logPoseHostR, setLogPoseHostR] = useState<HTMLElement | null>(null);
+  useLogPoseDockHost(wide && !lp, logPoseHostL, logPoseHostR);
+  const logPoseSide = wide && !lp && logPoseDock.open ? logPoseDock.dock : null;
   const [promptSlot, setPromptSlot] = useState<HTMLElement | null>(null);
   const promptSlotValue = useMemo(() => ({ slot: promptSlot, setSlot: setPromptSlot }), [promptSlot]);
   /** Tall desktop, Grid layout: the hand is an always-open grid side panel (no dock). */
@@ -399,13 +409,7 @@ export function DuelBoard({
   // Landscape phones keep the hand in the right column (a scrolling grid), never over the field.
   const railHand = usesRailHand(wide, lp, railHandTall, fanHand);
   /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling. */
-  const phoneFan = usesPhoneFan(
-    wide,
-    specFans ? "fan" : handLayout,
-    specFans && view?.revealedHands
-      ? (view.revealedHands[seat ?? view.seat]?.length ?? 0)
-      : (view?.you.hand.length ?? 0),
-  );
+  const phoneFan = usesPhoneFan(wide, specFans ? "fan" : handLayout);
   /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
   const panelLayout = useMemo(() => parsePanelLayout(prefs.panelLayout), [prefs.panelLayout]);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
@@ -880,6 +884,12 @@ export function DuelBoard({
       // it, the next hover raises the hand again.
       setTuckUnderPointer(document.querySelector(".hand-fan:hover, .hand-dock:hover") != null);
     }
+  }
+
+  /** Portrait phones: fold the hand away under its title row, or open it again. */
+  function toggleHandCollapsed() {
+    setHandCollapsed((v) => !v);
+    setHandFilter(null);
   }
 
   /** Under the handle: Hide / Show, only with Keep hand open (H does the same). */
@@ -1836,7 +1846,7 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
       }${
         tilted ? " arena-tilt" : ""
@@ -2147,6 +2157,7 @@ export function DuelBoard({
           />
         ) : wide ? (
           <aside className="arena-left board-col" data-panel-col="left" aria-label="Side panels, left">
+            {logPoseSide === "left" ? <div ref={setLogPoseHostL} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("left")}
             {prefs.layoutGrips ? (
               <div className="col-resize col-resize-left" {...panelResize.columnHandleProps("left")} />
@@ -2236,6 +2247,8 @@ export function DuelBoard({
 
             <SideField
               side="you"
+              compact={simpleOwnBoard}
+              countRow={simpleOwnBoard}
               turnOrder={youFirst ? "first" : "second"}
               activeTurn={youActive}
               matImageUrl={skins.near.playmat}
@@ -2328,6 +2341,7 @@ export function DuelBoard({
 
         {wide && !lp ? (
           <div className="arena-rail board-col" data-panel-col="right">
+            {logPoseSide === "right" ? <div ref={setLogPoseHostR} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("right")}
             {prefs.layoutGrips ? (
               <div className="col-resize col-resize-right" {...panelResize.columnHandleProps("right")} />
@@ -2385,8 +2399,25 @@ export function DuelBoard({
                     <HandLabel name={seatLabel(players, boardSeat)} count={handCount} />
                   ) : (
                     <>
-                      <span className="hand-rail-title">{spectating ? (nearHand ? "Seat hand" : "Seat hand (hidden)") : "Hand"}</span>
-                      <span className="hand-rail-count">{handCount}</span>
+                      {spectating ? (
+                        <>
+                          <span className="hand-rail-title">{nearHand ? "Seat hand" : "Seat hand (hidden)"}</span>
+                          <span className="hand-rail-count">{handCount}</span>
+                        </>
+                      ) : (
+                        // The whole title row is a Hide / Show target too (#445): it stays
+                        // put and the same size while the hand folds, unlike the small button.
+                        <button
+                          type="button"
+                          className="hand-rail-toggle"
+                          aria-expanded={!(handCollapsed && !handPick)}
+                          aria-label={`${handCollapsed && !handPick ? "Show" : "Hide"} your hand, ${handCount} cards`}
+                          onClick={toggleHandCollapsed}
+                        >
+                          <span className="hand-rail-title">Hand</span>
+                          <span className="hand-rail-count">{handCount}</span>
+                        </button>
+                      )}
                     </>
                   )}
                   {!spectating ? (
@@ -2394,14 +2425,8 @@ export function DuelBoard({
                       {sortHandBtn}
                       <button
                         type="button"
-                        className="hand-rail-btn"
-                        onClick={() => {
-                          setHandCollapsed((v) => {
-                            const next = !v;
-                            if (next) setHandFilter(null);
-                            return next;
-                          });
-                        }}
+                        className="hand-rail-btn hand-collapse-btn"
+                        onClick={toggleHandCollapsed}
                       >
                         {handCollapsed && !handPick ? "Show" : "Hide"}
                       </button>
