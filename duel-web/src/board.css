@@ -5034,11 +5034,13 @@ body.is-panel-drag * {
    row, so it never covers the opponent's cards. Left / right: the hand fills
    the open space beside the opponent's mat (see .opp-hand-mat-side below);
    only when the window is too narrow to leave that space (and while the board
-   is tilted) does it fall back to the same top strip. The reservation sits on
+   is tilted, or has the two-row mats of Bigger playing area, which fill the
+   width beside them, #468) does it fall back to the same top strip. The reservation sits on
    .playmat-inner for those, because a container query cannot style its own
    container. */
 .arena.arena-wide .playmat:has(> .playmat-inner > .opp-hand-mat-centre),
-.arena.arena-wide.arena-tilt .playmat-inner:has(> .opp-hand-mat-side) {
+.arena.arena-wide.arena-tilt .playmat-inner:has(> .opp-hand-mat-side),
+.arena.arena-wide.arena-big:not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) {
   --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);
 }
 
@@ -5113,7 +5115,7 @@ body.is-panel-drag * {
    .side-field (--hint-h is 0 here, nothing is reserved at the top). The
    tilted board keeps the strip. */
 @container playmat (aspect-ratio >= 1.02) {
-  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-side {
+  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-side {
     --m-h: calc((100cqh - var(--midline-h) - 3 * var(--mat-gap)) / 2);
     --m-w: min(100cqw, calc(var(--m-h) * 1.95));
     position: absolute;
@@ -5127,11 +5129,11 @@ body.is-panel-drag * {
     justify-content: stretch;
   }
 
-  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-left {
+  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-left {
     left: 0;
   }
 
-  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-right {
+  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-right {
     right: 0;
   }
 

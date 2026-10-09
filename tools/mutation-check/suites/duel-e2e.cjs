@@ -585,6 +585,16 @@ module.exports = {
       "bigger-board.spec.ts > Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at desktop 1280x720 (#468) [desktop-1280]",
       "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at desktop 1280x720 (#449) [desktop-1280]",
     ] },
+    // Two-row mats leave no room beside the opponent mat, so a left/right opponent hand takes the top strip (#468): both layers off.
+    { id: "e2e-big-board-opp-hand-side-over-mat", args: "bigger-board --project=desktop-1280 -g \"docked opponent hand\"", edits: [
+      { file: "duel-web/src/board.css", from: ".arena.arena-wide.arena-big:not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) {", to: ".arena.arena-wide.arena-big.arena-tilt:not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) {" },
+      { file: "duel-web/src/board.css", from: "  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-side {", to: "  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-side {" },
+    ], kills: [
+      "bigger-board.spec.ts > with Bigger playing area a left-docked opponent hand sits above the opponent mat, not over it, at 1280x720 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a right-docked opponent hand sits above the opponent mat, not over it, at 1280x720 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a left-docked opponent hand sits above the opponent mat, not over it, at 1440x900 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a right-docked opponent hand sits above the opponent mat, not over it, at 1440x900 (#468) [desktop-1280]",
+    ] },
     { id: "e2e-big-board-two-row-landscape-missing", args: "bigger-board --project=desktop-1280 -g \"makes your mat|Leader's row\"", file: "duel-web/src/board.css", from: "  .arena.arena-big.arena-lp .side-grid {\n    --g: 1.2cqh;\n    --c: min(\n      calc((100cqw - 3cqw", to: "  .arena.arena-big.arena-lp.arena-tilt .side-grid {\n    --g: 1.2cqh;\n    --c: min(\n      calc((100cqw - 3cqw", kills: [
       "bigger-board.spec.ts > Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at phone landscape 812x375 (#468) [desktop-1280]",
       "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at phone landscape 812x375 (#449) [desktop-1280]",

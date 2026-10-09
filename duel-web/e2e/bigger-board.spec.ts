@@ -125,3 +125,24 @@ test("a column width dragged out does not fight Bigger playing area, and comes b
   // No drag handle either: dragging one would save a width this mode ignores.
   await expect(page.locator(".col-resize")).toHaveCount(0);
 });
+
+// Two-row mats fill the board's width, so there is no open space beside the
+// opponent's mat for a hand docked left or right (#462): it goes back to the
+// strip above the mat instead of covering the mat's cards (#468).
+for (const vp of [
+  { width: 1280, height: 720 },
+  { width: 1440, height: 900 },
+]) {
+  for (const spot of ["left", "right"] as const) {
+    test(`with Bigger playing area a ${spot}-docked opponent hand sits above the opponent mat, not over it, at ${vp.width}x${vp.height} (#468)`, async ({ page, duel }, info) => {
+      await openDemo(page, vp, "?full", { bigBoard: true, oppHandSpot: spot });
+      await expect(page.locator(`.opp-hand-mat-${spot} .opp-hand-corner`)).toBeVisible();
+      const hand = (await page.locator(".opp-hand-mat").boundingBox())!;
+      const mat = (await page.locator(".side-field.side-opp").boundingBox())!;
+      expect(hand.y + hand.height, "hand bottom above the opponent mat").toBeLessThanOrEqual(mat.y + 1);
+      const issues = (await duel.audit()).filter((i) => !isKnown(i));
+      if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
+      expect(issues, formatIssues(issues)).toEqual([]);
+    });
+  }
+}
