@@ -58,7 +58,7 @@ test("Show played and trashed cards off: a played card shows no spotlight (#339)
   expect(await page.locator(".card-spotlight-layer").count()).toBe(0);
 });
 
-test("your Draw Phase card shows big over your half, then flies into your hand (#FEEDBACK)", async ({ page }) => {
+test("your Draw Phase card shows big over your half, then flies into your hand (#445)", async ({ page }) => {
   await openMotionDemo(page, {});
   await stepTo(page, "Draw");
   const card = page.locator('.card-spotlight-card[data-def-id="ST01-004"]');
@@ -91,7 +91,7 @@ test("your Draw Phase card shows big over your half, then flies into your hand (
   expect(dist(path.end, path.hand!)).toBeLessThan(dist(path.start, path.hand!) / 2);
 });
 
-test("Show cards off: your Draw Phase card shows no spotlight (#FEEDBACK)", async ({ page }) => {
+test("Show cards off: your Draw Phase card shows no spotlight (#445)", async ({ page }) => {
   await openMotionDemo(page, { cardSpotlight: false });
   await stepTo(page, "Draw");
   await page.waitForTimeout(300);

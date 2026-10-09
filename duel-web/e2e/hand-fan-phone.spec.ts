@@ -2,7 +2,7 @@
  * Portrait phones: the hand is a fan (the Hand setting says Fan or Auto) however
  * many cards it holds, and Hide / Show works from the "Hand N" title row too.
  * Reported from a 440x479 phone: spamming Hide / Show left the hand a scrolling
- * Grid whatever the setting said (#FEEDBACK).
+ * Grid whatever the setting said (#445).
  */
 import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
@@ -34,7 +34,7 @@ const handShape = (page: Page) =>
   });
 
 for (const size of SIZES) {
-  test(`a 11-card hand stays a fan after rapid Hide / Show taps at ${size.width}x${size.height} (#FEEDBACK)`, async ({ page }, info) => {
+  test(`a 11-card hand stays a fan after rapid Hide / Show taps at ${size.width}x${size.height} (#445)`, async ({ page }, info) => {
     test.skip(info.project.name !== "phone-375", "portrait phone behavior");
     await page.setViewportSize(size);
     await page.goto("/demo?full&hand=11");
@@ -57,7 +57,7 @@ for (const size of SIZES) {
   });
 }
 
-test("tapping the Hand title row hides and shows the hand like the button (#FEEDBACK)", async ({ page }, info) => {
+test("tapping the Hand title row hides and shows the hand like the button (#445)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "portrait phone behavior");
   await page.setViewportSize(SIZES[0]!);
   await page.goto("/demo?full");

@@ -97,7 +97,7 @@ describe("keywords and statics", () => {
     expect(h.legal(0).some((i) => i.type === "declare_attack" && i.attackerId === sanji.id)).toBe(true);
   });
 
-  it("a Rush Character shows its Rush pill only the turn it is played (#FEEDBACK)", () => {
+  it("a Rush Character shows its Rush pill only the turn it is played (#445)", () => {
     const h = new Harness({ leaders: ["OP09-081", "ST01-001"] });
     h.hand(0, "OP09-118");
     h.don(0, 10);

@@ -5488,7 +5488,7 @@ body.is-panel-drag * {
 /* Holding a card must not open the phone's image sheet (iOS Save / Share), start
    an image drag or select the caption: the app's own press-and-hold inspects it.
    Card art and tiles only, so chat inputs, the log and the inspect panel's card
-   text stay selectable. (#FEEDBACK) */
+   text stay selectable. (#445) */
 .card-tile,
 .card-tile *,
 .board-root img,

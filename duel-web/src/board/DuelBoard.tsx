@@ -2394,7 +2394,7 @@ export function DuelBoard({
                           <span className="hand-rail-count">{handCount}</span>
                         </>
                       ) : (
-                        // The whole title row is a Hide / Show target too (#FEEDBACK): it stays
+                        // The whole title row is a Hide / Show target too (#445): it stays
                         // put and the same size while the hand folds, unlike the small button.
                         <button
                           type="button"

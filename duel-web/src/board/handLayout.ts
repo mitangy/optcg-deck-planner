@@ -4,7 +4,7 @@ export const PHONE_FAN_MAX = 8;
 /**
  * Portrait phones draw your hand as an overlapped fan whenever the Hand setting
  * is not Grid, whatever its size: a big hand overlaps more (the cards' margins
- * in board.css) rather than silently turning into the scrolling Grid (#FEEDBACK).
+ * in board.css) rather than silently turning into the scrolling Grid (#445).
  */
 export function usesPhoneFan(wide: boolean, handLayout: string): boolean {
   return !wide && handLayout !== "grid";

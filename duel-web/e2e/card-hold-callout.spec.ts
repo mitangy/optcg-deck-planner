@@ -1,7 +1,7 @@
 /**
  * Holding a card on a phone must not bring up the browser's image sheet (iOS
  * Save / Share) or start an image drag or text selection, and the app's own
- * press-and-hold must still open the card inspector (#FEEDBACK).
+ * press-and-hold must still open the card inspector (#445).
  *
  * Chromium has no `-webkit-touch-callout`, so the test reads what it does
  * support from the same rule (`user-select`, `-webkit-user-drag`) and the
@@ -24,7 +24,7 @@ const props = (page: Page, selector: string) =>
     };
   });
 
-test("a held hand card's art has no image callout, drag or selection (#FEEDBACK)", async ({ page }, info) => {
+test("a held hand card's art has no image callout, drag or selection (#445)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "phone behavior");
   await page.goto("/demo?full");
   await page.locator(".hand-row-inner .card-tile img").first().waitFor();
@@ -32,7 +32,7 @@ test("a held hand card's art has no image callout, drag or selection (#FEEDBACK)
   expect(await props(page, ".side-you .card-tile img")).toMatchObject({ userSelect: "none", callout: "none", draggable: false });
 });
 
-test("press-and-hold on a hand card still opens the inspector, and its art is not selectable (#FEEDBACK)", async ({ page }, info) => {
+test("press-and-hold on a hand card still opens the inspector, and its art is not selectable (#445)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "phone behavior");
   await page.goto("/demo?full");
   const card = page.locator(".hand-row-inner .card-tile").first();

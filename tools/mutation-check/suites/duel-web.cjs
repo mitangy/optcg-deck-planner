@@ -5,10 +5,10 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
-    // Turn-start draw spotlight (#FEEDBACK)
-    {"id": "draw-spotlight-opponent", "file": "duel-web/src/board/battleLog.ts", "from": "if (e.turnDraw === true && isYou(e.seat, youSeat) && ", "to": "if (e.turnDraw === true && ", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#FEEDBACK)"]},
-    {"id": "draw-spotlight-effect-draws", "file": "duel-web/src/board/battleLog.ts", "from": "if (e.turnDraw === true && isYou(", "to": "if (isYou(", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#FEEDBACK)"]},
-    {"id": "draw-unnamed", "file": "duel-web/src/board/battleLog.ts", "from": "typeof defId === \"string\" && !isHiddenDef(defId)) {", "to": "false) {", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#FEEDBACK)"]},
+    // Turn-start draw spotlight (#445)
+    {"id": "draw-spotlight-opponent", "file": "duel-web/src/board/battleLog.ts", "from": "if (e.turnDraw === true && isYou(e.seat, youSeat) && ", "to": "if (e.turnDraw === true && ", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#445)"]},
+    {"id": "draw-spotlight-effect-draws", "file": "duel-web/src/board/battleLog.ts", "from": "if (e.turnDraw === true && isYou(", "to": "if (isYou(", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#445)"]},
+    {"id": "draw-unnamed", "file": "duel-web/src/board/battleLog.ts", "from": "typeof defId === \"string\" && !isHiddenDef(defId)) {", "to": "false) {", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#445)"]},
     // Lobby: last Play mode, Your voyage, Top bounties, guest intro (#431)
     { id: "home-join-not-stored-as-create", file: `${src}/home/lastMode.ts`, from: '  if (raw === "join") return "create";\n', to: "", kills: ["stores joining a room as the private room mode, so Play reopens Create (#431)"] },
     { id: "home-last-mode-accepts-unknown", file: `${src}/home/lastMode.ts`, from: '  return raw === "hotseat" || raw === "create" || raw === "queue" || raw === "spectate" ? raw : null;', to: "  return (raw || null) as LastMode | null;", kills: ["reads an unknown or missing value as no last mode (#431)"] },
@@ -883,9 +883,9 @@ module.exports = {
     // phone P1 fixes (#271)
     { id: "counter-short-confirms", file: `${src}/board/cardActions.ts`, from: "const short = model.remaining != null && model.remaining > 0 && !model.stagedUnknown;", to: "const short = false;", kills: ["warns instead of Confirm counter while the staged counters are still short (#271)"] },
     { id: "counter-unknown-warns", file: `${src}/board/cardActions.ts`, from: " && !model.stagedUnknown;", to: ";", kills: ["warns instead of Confirm counter while the staged counters are still short (#271)"] },
-    { id: "simple-board-switch-on-desktop", file: `${src}/board/gameplayFields.ts`, from: "if (key === \"compactOwnBoard\") return !d.desktop;", to: "if (key === \"compactOwnBoard\") return true;", kills: ["lists Simple board only on phones and tablets, not a desktop window (#FEEDBACK)"] },
-    { id: "simple-board-switch-hidden-on-phone", file: `${src}/board/gameplayFields.ts`, from: "if (key === \"compactOwnBoard\") return !d.desktop;", to: "if (key === \"compactOwnBoard\") return false;", kills: ["lists Simple board only on phones and tablets, not a desktop window (#FEEDBACK)"] },
-    { id: "phone-fan-auto-scrolls", file: `${src}/board/handLayout.ts`, from: "return !wide && handLayout !== \"grid\";", to: "return !wide && handLayout === \"fan\";", kills: ["portrait phones keep the fan when the hand grows past 8 cards (#FEEDBACK)"] },
+    { id: "simple-board-switch-on-desktop", file: `${src}/board/gameplayFields.ts`, from: "if (key === \"compactOwnBoard\") return !d.desktop;", to: "if (key === \"compactOwnBoard\") return true;", kills: ["lists Simple board only on phones and tablets, not a desktop window (#445)"] },
+    { id: "simple-board-switch-hidden-on-phone", file: `${src}/board/gameplayFields.ts`, from: "if (key === \"compactOwnBoard\") return !d.desktop;", to: "if (key === \"compactOwnBoard\") return false;", kills: ["lists Simple board only on phones and tablets, not a desktop window (#445)"] },
+    { id: "phone-fan-auto-scrolls", file: `${src}/board/handLayout.ts`, from: "return !wide && handLayout !== \"grid\";", to: "return !wide && handLayout === \"fan\";", kills: ["portrait phones keep the fan when the hand grows past 8 cards (#445)"] },
     { id: "phone-fan-ignores-grid", file: `${src}/board/handLayout.ts`, from: "return !wide && handLayout !== \"grid\";", to: "return !wide;", kills: ["the Grid layout never fans (#271)"] },
     { id: "rail-hand-not-landscape", file: `${src}/board/handLayout.ts`, from: "wide && (landscapePhone || (tall && !fanHand))", to: "wide && tall && !fanHand", kills: ["landscape phones keep the hand in the right column, even in a short window (#271)"] },
     // phone P2 fixes (#276)

@@ -45,7 +45,7 @@ describe("log spotlight field", () => {
     ]);
   });
 
-  it("names and spotlights only your own Draw Phase card, flying to your hand (#FEEDBACK)", () => {
+  it("names and spotlights only your own Draw Phase card, flying to your hand (#445)", () => {
     const drew = { type: "drew", seat: 0, count: 1, defIds: ["ST01-004"], turnDraw: true };
     const [mine] = narrate([drew]);
     expect(mine!.text).toBe("You draw Sanji");

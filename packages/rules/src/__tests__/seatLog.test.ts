@@ -86,7 +86,7 @@ describe("match history seat log", () => {
     expect(lifeEvents((1 - taker) as Seat)[0]!.e.defId).toBe("HIDDEN");
   });
 
-  it("names the Draw Phase card only for the player who drew it (#FEEDBACK)", () => {
+  it("names the Draw Phase card only for the player who drew it (#445)", () => {
     let raw: Extract<GameEvent, { type: "drew" }> | undefined;
     replayMatch(game.replay, (step) => {
       raw ||= step.events.find((e): e is Extract<GameEvent, { type: "drew" }> => e.type === "drew" && e.turnDraw === true);

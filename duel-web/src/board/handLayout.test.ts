@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { spectatorFans, spectatorFarStrip, usesPhoneFan, usesRailHand } from "./handLayout";
 
 describe("hand layout (#271)", () => {
-  it("portrait phones keep the fan when the hand grows past 8 cards (#FEEDBACK)", () => {
+  it("portrait phones keep the fan when the hand grows past 8 cards (#445)", () => {
     // Hand sizes are not an input: a 9+ card hand used to flip to the scrolling Grid whatever the setting said.
     expect(usesPhoneFan(false, "fan")).toBe(true);
     expect(usesPhoneFan(false, "auto")).toBe(true);
