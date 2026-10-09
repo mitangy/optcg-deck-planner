@@ -101,6 +101,7 @@ import {
 } from "./intentFilter";
 import { dockIntents, splitPrimaryIntent } from "./primaryIntent";
 import { SideField } from "./SideField";
+import { DonArtContext, donArtUrl } from "./donArt";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
 import { moveToSlot, reconcileHandOrder } from "./handOrder";
@@ -1630,7 +1631,7 @@ export function DuelBoard({
     />
   ) : null;
   const skins = sideSkins({
-    own: { playmat: playmatUrl, cardBack: cardBackUrl },
+    own: { playmat: playmatUrl, cardBack: cardBackUrl, donArt: prefs.donArt },
     seatSkins,
     nearSeat: boardSeat,
     farSeat: oppSeat,
@@ -1639,6 +1640,10 @@ export function DuelBoard({
   });
   const oppMatUrl = skins.far.playmat;
   const oppCardBackUrl = skins.far.cardBack;
+  const nearDonUrl = donArtUrl(skins.near.donArt);
+  const farDonUrl = donArtUrl(skins.far.donArt);
+  /** DON!! face for a seat's half; no seat (or your own) is the near half. */
+  const donArtForSeat = (s?: Seat) => (s != null && s === oppSeat && s !== boardSeat ? farDonUrl : nearDonUrl);
 
   /** Desktop side panels, by id; null when a panel has nothing to show right now. */
   const sidePanels: Record<PanelId, React.ReactNode> = {
@@ -1826,6 +1831,7 @@ export function DuelBoard({
   return (
     <MatchViewerSeatContext.Provider value={spectating ? null : boardSeat}>
     <PromptSlotContext.Provider value={promptSlotValue}>
+    <DonArtContext.Provider value={donArtForSeat}>
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
@@ -2184,6 +2190,7 @@ export function DuelBoard({
               activeTurn={oppActive}
               matImageUrl={oppMatUrl}
               cardBackUrl={oppCardBackUrl}
+              donArtUrl={farDonUrl}
               matDim={playmatDim}
               matOpacity={playmatOpacity}
               ownerSeat={oppSeat}
@@ -2234,6 +2241,7 @@ export function DuelBoard({
               matDim={playmatDim}
               matOpacity={playmatOpacity}
               cardBackUrl={skins.near.cardBack}
+              donArtUrl={nearDonUrl}
               ownerSeat={boardSeat}
               viewingSeat={viewingSeat}
               data={{
@@ -2783,6 +2791,7 @@ export function DuelBoard({
         </div>
       ) : null}
     </div>
+    </DonArtContext.Provider>
     </PromptSlotContext.Provider>
     </MatchViewerSeatContext.Provider>
   );

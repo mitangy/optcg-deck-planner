@@ -10,6 +10,7 @@ import {
 } from "../account/cosmeticsSync";
 import { startAccountSync, stopAccountSync } from "../account/accountSync";
 import { CARD_BACK_ASPECT, cardBackCssValue, useCardBackUrl } from "../cardBack";
+import { DonArtPicker } from "./DonArtPicker";
 import { CosmeticHistory } from "../cosmetics/CosmeticHistory";
 import { ImageEditor } from "../cosmetics/ImageEditor";
 import {
@@ -114,6 +115,7 @@ export function SettingsPage() {
           <a href="#deck-editor">Deck editor</a>
           <a href="#playmat">Playmat</a>
           <a href="#card-back">Card back</a>
+          <a href="#don-card">DON!! card</a>
         </nav>
 
         {/* Phones: one column in this order. 1024px and up: Gameplay on the right, the rest on the left. */}
@@ -422,6 +424,15 @@ export function SettingsPage() {
             </div>
           </div>
           <CosmeticHistory kind="cardBack" />
+        </section>
+
+        <section className="panel" id="don-card">
+          <h2 className="panel-title">DON!! card</h2>
+          <DonArtPicker
+            value={settings.donArt}
+            onChange={(donArt) => update({ donArt })}
+            savedWhere={savedWhere}
+          />
         </section>
 
         {authUser ? <AnalystLinkPanel /> : null}

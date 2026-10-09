@@ -106,6 +106,8 @@ type Props = {
   turnOrder?: "first" | "second";
   /** Custom card back (object URL) for face-down cards on this half. */
   cardBackUrl?: string | null;
+  /** DON!! face for this half (already resolved to a URL); the bundled art when absent (#440). */
+  donArtUrl?: string;
   /** This half's player is taking the current turn (glow + tag). */
   activeTurn?: boolean;
   /**
@@ -208,6 +210,7 @@ export function SideField({
   matOpacity = 1,
   turnOrder,
   cardBackUrl,
+  donArtUrl,
   activeTurn = false,
   countRow = false,
 }: Props) {
@@ -255,7 +258,7 @@ export function SideField({
         matImageUrl ? " has-mat-art" : ""
       }${activeTurn ? " is-active-turn" : ""}${counts ? " side-counts" : ""}`}
       style={
-        matImageUrl || cardBackUrl
+        matImageUrl || cardBackUrl || donArtUrl
           ? ({
               ...(matImageUrl
                 ? { "--mat-art": `url("${matImageUrl}")`, "--mat-dim": String(matDim),
@@ -263,6 +266,7 @@ export function SideField({
                   }
                 : null),
               ...(cardBackUrl ? { "--card-back-art": cardBackCssValue(cardBackUrl) } : null),
+              ...(donArtUrl ? { "--don-face-art": `url("${donArtUrl}")` } : null),
             } as CSSProperties)
           : undefined
       }
@@ -502,6 +506,7 @@ export function SideField({
         <div className="zone-cost">
           <DonStrip
             side={side}
+            donArt={donArtUrl}
             tokens={data.costArea}
             activeCount={data.activeDonCount}
             totalCount={data.costAreaCount ?? data.costArea?.length ?? 0}

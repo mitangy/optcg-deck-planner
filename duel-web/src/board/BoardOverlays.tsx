@@ -4,7 +4,7 @@ import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import { boxCenter } from "./battleArc";
-import { DON_CARD_ART } from "./donArt";
+import { fallbackToDefaultDon, useDonArt } from "./donArt";
 import { attachLabel, quickAttachLabel, type PendingAttach } from "./donSelection";
 import { popoverPlacement, type CardActionText } from "./cardActions";
 import { useTrackedBoxes } from "./useTrackedBoxes";
@@ -28,6 +28,7 @@ export function DonAttachConfirm({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const donArt = useDonArt();
   const boxes = useTrackedBoxes([pending.targetId]);
   const box = boxes?.[0] ?? null;
   const confirmRef = useRef<HTMLButtonElement | null>(null);
@@ -59,7 +60,7 @@ export function DonAttachConfirm({
       style={{ ...style, width: half * 2 }}
     >
       <div className="don-attach-title">
-        <img src={DON_CARD_ART} alt="" className="don-attach-icon" draggable={false} />
+        <img src={donArt()} alt="" className="don-attach-icon" draggable={false} onError={fallbackToDefaultDon} />
         <span>
           ×{pending.donIds.length} → <strong>{targetName}</strong>
         </span>
@@ -112,6 +113,7 @@ export function CardActionPopover({
   donCounts?: number[];
   onDon?: (count: number) => void;
 }) {
+  const donArt = useDonArt();
   const boxes = useTrackedBoxes([anchorId]);
   const box = boxes?.[0] ?? null;
   const ref = useRef<HTMLDivElement | null>(null);
@@ -137,7 +139,7 @@ export function CardActionPopover({
     >
       {donCounts.length > 0 && onDon ? (
         <div className="card-actions-don" role="group" aria-label={`Give DON!! to ${cardName}`}>
-          <img src={DON_CARD_ART} alt="" className="don-quick-icon" draggable={false} />
+          <img src={donArt()} alt="" className="don-quick-icon" draggable={false} onError={fallbackToDefaultDon} />
           {donCounts.map((n, i) => (
             <button
               key={n}
@@ -183,6 +185,7 @@ export type GhostPayload =
  * drop hit-testing (elementFromPoint) sees the board underneath.
  */
 export function DragGhost({ payload }: { payload: GhostPayload | null }) {
+  const donArt = useDonArt();
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const active = payload != null;
 
@@ -199,7 +202,7 @@ export function DragGhost({ payload }: { payload: GhostPayload | null }) {
   if (!payload || !pos || typeof document === "undefined") return null;
   const src =
     payload.type === "give_don"
-      ? DON_CARD_ART
+      ? donArt()
       : resolveCardImageUrl(payload.defId, { ownerSeat: payload.ownerSeat, size: "thumb" });
   const label = payload.type === "give_don" ? "DON!!" : lookupCard(payload.defId).name;
 

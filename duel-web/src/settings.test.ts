@@ -26,6 +26,37 @@ describe("loadSettings", () => {
   });
 });
 
+describe("DON!! art setting (#440)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps a stored product id and defaults to the bundled art", () => {
+    stubStored({ donArt: 512345 });
+    expect(loadSettings().donArt).toBe(512345);
+    stubStored({});
+    expect(loadSettings().donArt).toBeNull();
+  });
+
+  it("falls back to the bundled art for anything that is not a positive integer", () => {
+    for (const bad of ["512345", -3, 0, 2.5, true, {}, "https://evil.example/x.jpg"]) {
+      stubStored({ donArt: bad });
+      expect(loadSettings().donArt, String(bad)).toBeNull();
+    }
+  });
+
+  it("follows the account: a chosen art is saved, and the default saves as 0 and loads back as null", () => {
+    stubStored({ donArt: 512345 });
+    expect(syncedSettings(loadSettings()).donArt).toBe(512345);
+    stubStored({});
+    expect(syncedSettings(loadSettings()).donArt).toBe(0);
+    expect(mergeRemoteSettings(loadSettings(), { donArt: 0 }).donArt).toBeNull();
+    stubStored({ donArt: 7 });
+    expect(mergeRemoteSettings(loadSettings(), { donArt: 0 }).donArt).toBeNull();
+    expect(mergeRemoteSettings(loadSettings(), { donArt: 99 }).donArt).toBe(99);
+  });
+});
+
 describe("end-turn confirm default", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
