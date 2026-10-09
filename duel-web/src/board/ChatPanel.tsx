@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { CHAT_MAX_LENGTH, type ChatLine, type Seat } from "../net/protocol";
+import { parseChatCommand } from "./chatCommand";
 import { unreadChatCount } from "./chatUnread";
 import { playerLabel } from "./playerNames";
 
@@ -8,6 +9,8 @@ type Props = {
   /** Your seat, or null when spectating (read-only). */
   mySeat: Seat | null;
   onSend: (text: string) => void;
+  /** Concede the match; undefined when conceding is unavailable (`/ff` then shows a hint). */
+  onConcede?: () => void;
   /** Start expanded (wide layouts, where chat has its own rail slot). */
   defaultOpen?: boolean;
 };
@@ -18,9 +21,11 @@ function speaker(seat: Seat, mySeat: Seat | null): string {
 }
 
 /** Collapsible match chat; mirrors the battle log panel's placement. */
-export function ChatPanel({ lines, mySeat, onSend, defaultOpen = false }: Props) {
+export function ChatPanel({ lines, mySeat, onSend, onConcede, defaultOpen = false }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const [draft, setDraft] = useState("");
+  /** Inline result of a `/ff`: asks to confirm, or says conceding is unavailable. */
+  const [command, setCommand] = useState<"confirm" | "unavailable" | null>(null);
   const [lastSeenId, setLastSeenId] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -38,6 +43,13 @@ export function ChatPanel({ lines, mySeat, onSend, defaultOpen = false }: Props)
     e.preventDefault();
     const text = draft.trim();
     if (!text) return;
+    if (parseChatCommand(text)) {
+      setDraft("");
+      setCommand(onConcede ? "confirm" : "unavailable");
+      inputRef.current?.focus();
+      return;
+    }
+    setCommand(null);
     onSend(text);
     setDraft("");
     inputRef.current?.focus();
@@ -82,6 +94,31 @@ export function ChatPanel({ lines, mySeat, onSend, defaultOpen = false }: Props)
             )}
           </div>
           {canSend ? (
+            <div className="chat-form-wrap">
+              {command ? (
+                <div className={`chat-command${command === "unavailable" ? " hint" : ""}`} role="status">
+                  {command === "confirm" ? (
+                    <>
+                      <span>Concede this match?</span>
+                      <button
+                        type="button"
+                        className="chat-command-confirm"
+                        onClick={() => {
+                          setCommand(null);
+                          onConcede?.();
+                        }}
+                      >
+                        Confirm concede
+                      </button>
+                      <button type="button" className="chat-command-cancel" onClick={() => setCommand(null)}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <span>You can't concede here</span>
+                  )}
+                </div>
+              ) : null}
             <form className="chat-form" onSubmit={submit}>
               <input
                 ref={inputRef}
@@ -91,7 +128,10 @@ export function ChatPanel({ lines, mySeat, onSend, defaultOpen = false }: Props)
                 placeholder="Message…"
                 aria-label="Chat message"
                 autoComplete="off"
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  if (command === "unavailable") setCommand(null);
+                }}
                 // Keep board shortcuts (Esc clears DON!! selection) from firing while typing.
                 onKeyDown={(e) => e.stopPropagation()}
               />
@@ -99,6 +139,7 @@ export function ChatPanel({ lines, mySeat, onSend, defaultOpen = false }: Props)
                 Send
               </button>
             </form>
+            </div>
           ) : (
             <p className="chat-readonly">Spectators can read chat but not send.</p>
           )}

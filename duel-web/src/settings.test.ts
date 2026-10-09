@@ -229,6 +229,14 @@ describe("account settings", () => {
     expect(mergeRemoteSettings(loadSettings(), { promptPos: "9,9" }).promptPos).toBe("-40,-200");
   });
 
+  it("follows the account for the column pop-ups dock into, and drops an unknown side (#449)", () => {
+    stubStored({ promptDock: "left" });
+    expect(syncedSettings(loadSettings()).promptDock).toBe("left");
+    expect(mergeRemoteSettings(loadSettings(), { promptDock: "right" }).promptDock).toBe("right");
+    stubStored({ promptDock: "top" });
+    expect(loadSettings().promptDock).toBe("");
+  });
+
   it("applies account settings but keeps this device's device-only fields", () => {
     stubStored({ useDevKey: true, devUserKey: "mine", handLayout: "fan" });
     const merged = mergeRemoteSettings(loadSettings(), {
@@ -275,5 +283,24 @@ describe("hand, one-tap and text size settings", () => {
     expect(loadSettings().textSize).toBe("xlarge");
     stubStored({ textSize: "huge" });
     expect(loadSettings().textSize).toBe("medium");
+  });
+});
+
+describe("Show on screen and Bigger playing area (#449)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("follow the account: saved with it and applied from it", () => {
+    stubStored({});
+    const synced = syncedSettings(loadSettings());
+    expect(synced).toMatchObject({ bigBoard: false, showChat: true, showRecentPlays: true, showCardPreview: true });
+    const merged = mergeRemoteSettings(loadSettings(), {
+      bigBoard: true,
+      showChat: false,
+      showRecentPlays: false,
+      showCardPreview: false,
+    });
+    expect(merged).toMatchObject({ bigBoard: true, showChat: false, showRecentPlays: false, showCardPreview: false });
   });
 });

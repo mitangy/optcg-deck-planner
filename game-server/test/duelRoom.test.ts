@@ -1282,13 +1282,12 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("an accepted undo re-seeds the rng instead of restoring it, and the replay still rebuilds (#369)", async () => {
+  it("an accepted undo restores the turn exactly, so the same cards are drawn again, and the replay rebuilds (#449)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 53,
       autoSkipMulligan: true,
     });
-    Object.assign(room, { freshSeed: () => 777_001 });
     const bags: [SeatBag, SeatBag] = [
       { views: [], errors: [] },
       { views: [], errors: [] },
@@ -1309,30 +1308,23 @@ describe("DuelRoom", () => {
     const atTurnStart = internals(room).replay!.intents.length;
     const next = (1 - active) as 0 | 1;
     await waitUntil(() => bags[next].views.at(-1)!.activeSeat === next, 5000);
+    const turnStart = JSON.stringify(internals(room).match);
+    // The next player ends their turn: the following turn's draw happens here.
     clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
     await waitUntil(() => internals(room).replay!.intents.length > atTurnStart, 5000);
+    const afterFirst = JSON.stringify(internals(room).match);
     clients[active].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
     await new Promise((r) => setTimeout(r, 50));
     clients[next].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
     await waitUntil(() => applied.length === 1, 5000);
 
-    assert.equal(internals(room).match.rng.seed, 777_001);
-    assert.deepEqual(internals(room).replay!.reseeds, [{ atIntent: atTurnStart, seed: 777_001, shuffleDecks: true }]);
-    // Both players saw their next draws, so the decks are reshuffled: same cards, new order.
-    const snapped = JSON.parse((room as unknown as { turnSnapshots: { match: string }[] }).turnSnapshots.at(-1)!.match) as MatchState;
-    for (const seat of [0, 1] as const) {
-      const now = internals(room).match.players[seat];
-      const was = snapped.players[seat];
-      assert.deepEqual([...now.zoneInstanceIds.deck].sort(), [...was.zoneInstanceIds.deck].sort());
-      assert.notDeepEqual(now.zoneInstanceIds.deck, was.zoneInstanceIds.deck);
-      assert.deepEqual(now.life, was.life);
-      assert.equal(now.deck.length, now.zoneInstanceIds.deck.length);
-    }
-    // The game goes on from the new seed and the recording still rebuilds it.
-    const moved = internals(room).replay!.intents.length;
+    // Rewound exactly: same rng, same deck order, nothing recorded as a re-seed.
+    assert.equal(JSON.stringify(internals(room).match), turnStart);
+        assert.equal(internals(room).replay!.reseeds?.length ?? 0, 0);
+    // Playing the same move again draws the same cards as before the undo.
     clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
-    await waitUntil(() => internals(room).replay!.intents.length > moved, 5000);
-    assert.equal(internals(room).match.rng.seed, 777_001);
+    await waitUntil(() => internals(room).replay!.intents.length > atTurnStart, 5000);
+    assert.equal(JSON.stringify(internals(room).match), afterFirst);
     assertReplayRebuilds(room);
 
     await c0.leave(true);

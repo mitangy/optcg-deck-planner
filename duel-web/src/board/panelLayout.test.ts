@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PANEL_LAYOUT,
+  collapsedColumns,
   movePanel,
   nudgePanel,
   panelDropAt,
@@ -135,5 +136,25 @@ describe("matSpotAt", () => {
     expect(matSpotAt(mat, 600, 300)).toBeNull();
     expect(matSpotAt(mat, 250, 120)).toBeNull();
     expect(matSpotAt(mat, 600, 20)).toBeNull();
+  });
+});
+
+describe("collapsedColumns", () => {
+  const none = { left: [], right: ["turn", "hand"] } as Record<"left" | "right", PanelId[]>;
+
+  it("collapses a column with no panel to show so the board gets its width (#449)", () => {
+    expect(collapsedColumns(none, false)).toEqual({ left: true, right: false });
+    expect(collapsedColumns({ left: ["log"], right: [] }, false)).toEqual({ left: false, right: true });
+  });
+
+  it("keeps both columns open while a panel is dragged, so they stay drop targets (#449)", () => {
+    expect(collapsedColumns(none, true)).toEqual({ left: false, right: false });
+  });
+
+  it("keeps a column that holds the defend tray (#449)", () => {
+    expect(collapsedColumns({ left: ["log"], right: [] }, false, { right: true })).toEqual({
+      left: false,
+      right: false,
+    });
   });
 });
