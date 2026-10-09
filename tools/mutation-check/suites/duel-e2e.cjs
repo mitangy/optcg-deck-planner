@@ -371,9 +371,8 @@ module.exports = {
     { id: "e2e-unaffordable-lifted-slot-visible", args: "hand-lift-unaffordable -g \"leaves its slot empty\"", file: "duel-web/src/board.css", from: ".arena .card-tile.hand-unaffordable:not(.selected, .card-lifted) {", to: ".arena .card-tile.hand-unaffordable:not(.selected) {", kills: ["hand-lift-unaffordable.spec.ts > a dragged grayed-out hand card leaves its slot empty like any other (#364) [desktop-1280]", "hand-lift-unaffordable.spec.ts > a dragged grayed-out hand card leaves its slot empty like any other (#364) [phone-375]"] },
     { id: "e2e-drag-disabled-mid-drag-keeps-lift", args: "hand-lift-unaffordable -g \"cut short by Sort\"", file: "duel-web/src/board/usePointerDrag.ts", from: "    reset();\n    onDragCancelRef.current?.();\n", to: "", kills: ["hand-lift-unaffordable.spec.ts > a hand card drag cut short by Sort lets the lifted copy go (#364) [desktop-1280]", "hand-lift-unaffordable.spec.ts > a hand card drag cut short by Sort lets the lifted copy go (#364) [phone-375]"] },
     // matchup brief (#401), pinned in the Log Pose panel that moves and resizes (#423)
-    // The Brief button is a fixed box (CSS) and its label never changes (code): the mutation lets the label grow with the status.
+    // The Brief button sizes to its label, and the label never changes: the mutation lets the label grow with the status.
     { id: "e2e-brief-trigger-text-grows", args: "match-brief --project=desktop-1280 -g \"without moving the board \\(#401\\)\"", edits: [
-      { file: "duel-web/src/logPose.css", from: ".hud-brief-btn.hud-brief-text {\n  width: 76px;\n}", to: ".hud-brief-btn.hud-brief-text {\n  width: auto;\n}" },
       { file: "duel-web/src/board/MatchBrief.tsx", from: "<span className=\"hud-brief-label\">Brief</span>", to: "<span className=\"hud-brief-label\">{busy ? \"Writing the brief…\" : \"Brief\"}</span>" },
     ], kills: ["match-brief.spec.ts > practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423) [desktop-1280]"] },
     { id: "e2e-brief-panel-in-flow", args: "match-brief --project=desktop-1280 --project=phone-375 -g \"pinned in the Log Pose panel\"", file: "packages/analyst-client/src/logPose.css", from: ".lp-panel {\n  position: fixed;", to: ".lp-panel {\n  position: static;", kills: ["match-brief.spec.ts > practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423) [desktop-1280]", "match-brief.spec.ts > practice: the matchup brief offers, writes and opens Log Pose without moving the board (#401), pinned in the Log Pose panel that moves and resizes (#423) [phone-375]"] },
@@ -608,5 +607,14 @@ module.exports = {
     // Docked fan: menu, Hand and Sort stack at the fan's left (#449)
     { id: "e2e-hand-menu-row", args: "hand-menu --project=desktop-1280", file: "duel-web/src/board.css", from: "  justify-self: start;\n  flex-direction: column;\n  align-items: flex-start;", to: "  justify-self: start;\n  align-items: flex-start;", kills: ["hand-menu.spec.ts > docked fan: menu, Hand and Sort stack in a column at the fan's left, tucked (#449) [desktop-1280]", "hand-menu.spec.ts > docked fan: menu, Hand and Sort stack in a column at the fan's left, shown (#449) [desktop-1280]"] },
     { id: "e2e-hand-menu-clipped-at-bottom", args: "hand-menu --project=desktop-1280 -g tucked", file: "duel-web/src/board.css", from: "  transform: translateY(calc(var(--fan-ch) * var(--fan-peek) - 100% - 4px));\n", to: "", kills: ["hand-menu.spec.ts > docked fan: menu, Hand and Sort stack in a column at the fan's left, tucked (#449) [desktop-1280]"] },
+
+    // Brief and Log Pose top-bar buttons hug their label with even padding (#463)
+    { id: "e2e-top-bar-text-buttons-fixed-width", args: "copilot --project=desktop-1280 -g \"#463\"", edits: [
+      { file: "duel-web/src/logPose.css", from: ".hud-brief-btn.hud-brief-text {\n  width: auto;\n  padding: 0 0.7rem;\n}", to: ".hud-brief-btn.hud-brief-text {\n  width: 76px;\n}" },
+      { file: "duel-web/src/board/copilot.css", from: "/* \"Log Pose\" in the top bar sizes to its label like Brief (same padding). Busy (a plan running) is the dot. */\n", to: ".hud-brief-btn.hud-copilot-btn.hud-brief-text {\n  width: 92px;\n}\n" },
+    ], kills: [
+      "copilot.spec.ts > the Brief and Log Pose buttons keep even padding in the desktop top bar at 1280x720 (#463) [desktop-1280]",
+      "copilot.spec.ts > the Brief and Log Pose buttons keep even padding in the desktop top bar at 1440x900 (#463) [desktop-1280]",
+    ] },
   ],
 };
