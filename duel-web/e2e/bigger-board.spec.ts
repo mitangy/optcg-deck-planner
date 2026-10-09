@@ -9,10 +9,11 @@ import { test, expect, formatIssues, preferFan } from "./fixtures";
 import { isKnown } from "./known-issues";
 import type { Page } from "@playwright/test";
 
+/** `twoRow`: the mats fold the DON!! cost area into the Leader row (#468), which is what makes the cards much bigger. */
 const VIEWPORTS = [
-  { name: "desktop 1280x720", width: 1280, height: 720 },
-  { name: "phone portrait 375x812", width: 375, height: 812 },
-  { name: "phone landscape 812x375", width: 812, height: 375 },
+  { name: "desktop 1280x720", width: 1280, height: 720, twoRow: true },
+  { name: "phone portrait 375x812", width: 375, height: 812, twoRow: false },
+  { name: "phone landscape 812x375", width: 812, height: 375, twoRow: true },
 ];
 
 test.beforeEach(({}, info) => {
@@ -49,7 +50,8 @@ for (const vp of VIEWPORTS) {
 
     // A phone mat is already as wide as the screen, so it grows in height.
     expect(on.mat * on.matH, "mat area").toBeGreaterThan(off.mat * off.matH * 1.03);
-    expect(on.card, "card width").toBeGreaterThan(off.card * 1.05);
+    // Two-row mats (#468) grow the cards by a quarter or more; a portrait phone is width-bound and gains a little.
+    expect(on.card, "card width").toBeGreaterThan(off.card * (vp.twoRow ? 1.25 : 1.05));
   });
 
   test(`Bigger playing area keeps the board clean and End turn reachable at ${vp.name} (#449)`, async ({ page, duel }, info) => {
@@ -70,6 +72,37 @@ for (const vp of VIEWPORTS) {
       expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
     }
     expect(duel.errors).toEqual([]);
+  });
+}
+
+/**
+ * Vertical centres of your cost area and DON!! deck against your Leader's top and bottom: they sit in the Leader's
+ * row when both centres fall within it.
+ */
+async function leaderRow(page: Page) {
+  return page.evaluate(() => {
+    const box = (sel: string) => {
+      const r = document.querySelector(`.side-you ${sel}`)!.getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom, mid: r.top + r.height / 2 };
+    };
+    return { leader: box(".zone-leader .card-tile"), cost: box(".zone-cost"), donDeck: box(".zone-don-deck") };
+  });
+}
+
+for (const vp of VIEWPORTS.filter((v) => v.twoRow)) {
+  test(`Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at ${vp.name} (#468)`, async ({ page }) => {
+    await openDemo(page, vp, "", {});
+    const off = await leaderRow(page);
+    // Off, they have a row of their own under the Leader.
+    expect(off.cost.mid, "cost area below the Leader").toBeGreaterThan(off.leader.bottom);
+    expect(off.donDeck.mid, "DON!! deck below the Leader").toBeGreaterThan(off.leader.bottom);
+
+    await openDemo(page, vp, "", { bigBoard: true });
+    const on = await leaderRow(page);
+    for (const zone of ["cost", "donDeck"] as const) {
+      expect(on[zone].mid, `${zone} centre under the Leader's top`).toBeGreaterThanOrEqual(on.leader.top);
+      expect(on[zone].mid, `${zone} centre above the Leader's bottom`).toBeLessThanOrEqual(on.leader.bottom);
+    }
   });
 }
 
