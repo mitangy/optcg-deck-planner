@@ -787,6 +787,10 @@ module.exports = {
     { id: "matspot-whole-mat", file: `${src}/board/panelLayout.ts`, from: "  if (y < mat.top - band / 2 || y > mat.top + band) return null;\n", to: "", kills: ["is not a mat spot lower on the mat or beside it, so the panel goes to a column (#264)"] },
     { id: "matspot-beside-mat", file: `${src}/board/panelLayout.ts`, from: "  if (x < mat.left || x > mat.right) return null;\n", to: "", kills: ["is not a mat spot lower on the mat or beside it, so the panel goes to a column (#264)"] },
     { id: "matspot-no-right", file: `${src}/board/panelLayout.ts`, from: "  if (x > mat.right - third) return \"right\";\n", to: "", kills: ["pins to the left, centre or right third over the top of the mat (#264)"] },
+    // opponent hand pinned beside the opponent's mat (#462)
+    { id: "matspot-gutter-left-ignored", file: `${src}/board/panelLayout.ts`, from: "    if (x < opp.left) return \"left\";\n", to: "", kills: ["pins to the open space beside the opponent mat, down to the mat's bottom edge (#462)"] },
+    { id: "matspot-gutter-right-ignored", file: `${src}/board/panelLayout.ts`, from: "    if (x > opp.right) return \"right\";\n", to: "", kills: ["pins to the open space beside the opponent mat, down to the mat's bottom edge (#462)"] },
+    { id: "matspot-gutter-runs-below-mat", file: `${src}/board/panelLayout.ts`, from: "y <= opp.bottom) {", to: "y <= mat.bottom) {", kills: ["is not a spot in the open space below the opponent mat's bottom edge (#462)"] },
     { id: "opp-hand-spot-unchecked", file: `${src}/settings.ts`, from: "  if (!OPP_HAND_SPOTS.includes(next.oppHandSpot)) next.oppHandSpot = DEFAULTS.oppHandSpot;\n", to: "", kills: ["keeps a pinned opponent hand spot and drops an unknown one (#264)"] },
     // review fixes (#262)
     { id: "signin-shows-raw-error", file: `${src}/auth/signInError.ts`, from: "  return \"We couldn't finish signing you in. Please try again in a moment.\";", to: "  return e instanceof Error ? e.message : \"Sign-in failed\";", kills: ["never shows the raw API error text (#262)"] },

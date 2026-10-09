@@ -30,6 +30,7 @@
   overflow: hidden;
   padding: 6px 8px;
   container-type: size;
+  container-name: playmat;
 }
 
 .arena .playmat-inner {
@@ -5028,11 +5029,23 @@ body.is-panel-drag * {
   order: 2;
 }
 
-/* —— Opponent hand pinned above the playmat (desktop, oppHandSpot) ——
-   The mats give up a strip at the top for it, like the phone hint row, so
-   it never covers the opponent's cards. */
-.arena.arena-wide .playmat:has(> .playmat-inner > .opp-hand-mat) {
+/* —— Opponent hand pinned to the playmat (desktop, oppHandSpot) ——
+   Top centre: the mats give up a strip at the top for it, like the phone hint
+   row, so it never covers the opponent's cards. Left / right: the hand fills
+   the open space beside the opponent's mat (see .opp-hand-mat-side below);
+   only when the window is too narrow to leave that space (and while the board
+   is tilted) does it fall back to the same top strip. The reservation sits on
+   .playmat-inner for those, because a container query cannot style its own
+   container. */
+.arena.arena-wide .playmat:has(> .playmat-inner > .opp-hand-mat-centre),
+.arena.arena-wide.arena-tilt .playmat-inner:has(> .opp-hand-mat-side) {
   --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);
+}
+
+@container playmat (aspect-ratio < 1.02) {
+  .arena.arena-wide .playmat-inner:has(> .opp-hand-mat-side) {
+    --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);
+  }
 }
 
 .opp-hand-mat {
@@ -5093,6 +5106,81 @@ body.is-panel-drag * {
 
 .opp-hand-mat-right .opp-hand-corner-mat > .opp-hand-count {
   order: -1;
+}
+
+/* Left / right with room: the hand is a small horizontal fan at the top of the gutter
+   beside the opponent's mat, over the mat's height. The mat math below mirrors
+   .side-field (--hint-h is 0 here, nothing is reserved at the top). The
+   tilted board keeps the strip. */
+@container playmat (aspect-ratio >= 1.02) {
+  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-side {
+    --m-h: calc((100cqh - var(--midline-h) - 3 * var(--mat-gap)) / 2);
+    --m-w: min(100cqw, calc(var(--m-h) * 1.95));
+    position: absolute;
+    /* The mats and the strip share the space left over by 3 gaps, so the opponent
+       mat starts half a gap down. */
+    top: calc(var(--mat-gap) / 2);
+    width: calc((100cqw - var(--m-w)) / 2 - 0.6rem);
+    max-width: none;
+    height: var(--m-h);
+    container-type: size;
+    justify-content: stretch;
+  }
+
+  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-left {
+    left: 0;
+  }
+
+  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-right {
+    right: 0;
+  }
+
+  .arena.arena-wide .opp-hand-mat-side > .board-panel {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+  }
+
+  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner-mat {
+    --pad: 0.3rem;
+    --cw: min(calc(var(--dock-cw, 4.6rem) * 0.75), calc(100cqw * 0.6));
+    --step: min(
+      calc(var(--cw) * 0.55),
+      calc((100cqw - var(--pad) - var(--cw)) / max(1, var(--n) - 1))
+    );
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    width: 100%;
+    padding: 0.3rem 0;
+  }
+
+  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner.opp-hand-corner-mat > .opp-hand-count {
+    order: 0;
+    align-self: center;
+  }
+
+  /* A small horizontal fan, like a regular hand, centred at the top of the gutter. */
+  .arena.arena-wide .opp-hand-mat-side .opp-corner-cards {
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner-mat .opp-corner-card {
+    width: var(--cw);
+    height: calc(var(--cw) * 1.4);
+    margin-top: 0;
+    margin-left: 0;
+    transform: rotate(calc(var(--rot, 0deg) * 0.6));
+    transform-origin: 50% 0;
+  }
+
+  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner-mat .opp-corner-card + .opp-corner-card {
+    margin-top: 0;
+    margin-left: calc(var(--step) - var(--cw));
+  }
 }
 
 /* Drop target while dragging the opponent hand over the top of the mat. */

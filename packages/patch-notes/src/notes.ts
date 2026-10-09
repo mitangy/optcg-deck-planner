@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-09
+  { date: "2026-10-09", app: "duel", pr: 465, title: "Opponent hand beside their mat", text: "Pin the opponent's hand to the left or right of the board and it now sits as a small fan in the open space beside their mat instead of crowding its corner. Drag it there, or pick it in Settings." },
   { date: "2026-10-09", app: "duel", pr: 471, title: "Small phones in landscape", text: "Phones narrower than 600px, like the iPhone SE, now get the full landscape board instead of a squeezed one." },
   { date: "2026-10-09", app: "duel", pr: 456, title: "Bigger board, dockable pop-ups and more", text: "A Bigger playing area setting, switches to hide Card preview, Recent plays and Chat, and pop-ups you can dock into a side column. Attach DON!! works again, /ff concedes, and an agreed Undo keeps the same draws." },
   { date: "2026-10-09", app: "duel", pr: 467, title: "Tidier Brief and Log Pose buttons", text: "The Brief and Log Pose buttons at the top of a game now have the same even spacing, so \"Log Pose\" no longer presses against its border." },
