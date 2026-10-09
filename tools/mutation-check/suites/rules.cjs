@@ -436,5 +436,9 @@ module.exports = {
       { file: GF, from: "const center = (p + z2 / (2 * n)) / (1 + z2 / n);", to: "const center = p;" },
       { file: GF, from: "const half = (z * Math.sqrt(p * (1 - p) / n + z2 / (4 * n * n))) / (1 + z2 / n);", to: "const half = z * Math.sqrt(p * (1 - p) / n);" },
     ], kills: ["win-by-turn intervals are 95% Wilson intervals, never zero-width at 0 wins (#402)"] },
+    { id: "cannot-rest-blocker", file: "packages/rules/src/engine/intents.ts", from: '  if (hasRestriction(state, seat, blocker, "cannot_be_rested")) return false;\n', to: "", kills: ["Character that cannot be rested can't activate Blocker (Kouzuki Oden ST32-002) (#449)"] },
+    { id: "cannot-rest-attack", file: "packages/rules/src/engine/intents.ts", from: ' || hasRestriction(state, seat, card, "cannot_be_rested")) return false;', to: ") return false;", kills: ["Character that cannot be rested can't attack (Kouzuki Oden ST32-002) (#449)"] },
+    { id: "cannot-rest-self-cost", file: "packages/rules/src/engine/queries.ts", from: ' && !src.card.rested && !hasRestriction(state, src.seat, src.card, "cannot_be_rested");', to: " && !src.card.rested;", kills: ["Character that cannot be rested can't pay a rest-this-Character cost (Kouzuki Oden ST32-002) (#449)"] },
+    { id: "cannot-rest-by-effect", file: "packages/rules/src/engine/runtime.ts", from: '  if (kind === "rest" && hasRestriction(state, loc.seat, loc.card, "cannot_be_rested")) return true;\n', to: "", kills: ["Character that cannot be rested stays active when an effect would rest it (Kouzuki Oden ST32-002) (#449)"] },
   ],
 };
