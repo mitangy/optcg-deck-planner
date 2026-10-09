@@ -33,7 +33,7 @@ module.exports = {
     { id: "intent-returns-envelope", file: proto, from: "  return o.intent as Intent;", to: "  return o as unknown as Intent;", kills: ["parses intent envelope"] },
     // CORS allowlist
     { id: "cors-allowlisted-wildcard", file: cors, from: "      return { \"Access-Control-Allow-Origin\": origin };", to: "      return { \"Access-Control-Allow-Origin\": \"*\" };", kills: ["reflects allowlisted Origin"] },
-    { id: "cors-reflects-any-origin", file: cors, from: "    return { \"Access-Control-Allow-Origin\": \"null\" };", to: "    return { \"Access-Control-Allow-Origin\": origin };", kills: ["rejects unknown browser Origin"] },
+    { id: "cors-reflects-any-origin", file: cors, from: "    return { \"Access-Control-Allow-Origin\": \"null\" };", to: "    return { \"Access-Control-Allow-Origin\": origin };", kills: ["rejects unknown browser Origin", "answers the CORS preflight and tags responses for an allowlisted origin only"] },
     { id: "cors-no-origin-blocked", file: cors, from: "    if (!origin) {\n      return { \"Access-Control-Allow-Origin\": \"*\" };\n    }", to: "", kills: ["allows requests with no Origin"] },
     // DuelRoom / ranked_queue
     { id: "welcome-wrong-seat-view", edits: [
@@ -153,5 +153,29 @@ module.exports = {
     { id: "skin-don-art-unbounded", file: proto, from: "Number.isSafeInteger(raw) && raw > 0 && raw <= 2_147_483_647", to: "Number.isSafeInteger(raw) && raw > 0", kills: ["relays only a positive 31-bit integer as the DON!! art id, never a string or URL (#440)"] },
     { id: "skin-don-art-not-integer", file: proto, from: "Number.isSafeInteger(raw) && raw > 0 && raw <= 2_147_483_647", to: "typeof raw === \"number\" && raw > 0 && raw <= 2_147_483_647", kills: ["relays only a positive 31-bit integer as the DON!! art id, never a string or URL (#440)"] },
     { id: "skin-don-art-negative", file: proto, from: "Number.isSafeInteger(raw) && raw > 0 && raw <= 2_147_483_647", to: "Number.isSafeInteger(raw) && raw <= 2_147_483_647", kills: ["relays only a positive 31-bit integer as the DON!! art id, never a string or URL (#440)"] },
+    // Device handoff (#451)
+    { id: "handoff-join-drops-takeover", file: proto, from: "  const takeover = o.takeover === true ? true : undefined;", to: "  const takeover = undefined;", kills: ["parses takeover and ownerToken join options", "taking a seat over closes the old connected device"] },
+    { id: "handoff-takeover-without-seat", file: proto, from: "  if (takeover && (role === \"spectator\" || preferredSeat === undefined)) {", to: "  if (false) {", kills: ["parses takeover and ownerToken join options"] },
+    { id: "handoff-skip-owner-check", file: room, from: "    if (!slot || owner !== identity.userId) {", to: "    if (!slot) {", kills: ["another account cannot take over a seat it does not hold (#451)", "a guest seat without ownerToken cannot be taken over by an account (#451)"] },
+    // Three layers of one rule: the ranked reservation (two checks) and the takeover owner check.
+    { id: "handoff-ranked-seat-takeover-unguarded", edits: [
+      { file: room, from: "    if (!slot || owner !== identity.userId) {", to: "    if (!slot) {" },
+      { file: room, from: "    if (seat !== 0 && seat !== 1) {\n      throw Object.assign(new Error(\"Identity is not reserved for this match\")", to: "    if (false) {\n      throw Object.assign(new Error(\"Identity is not reserved for this match\")" },
+      { file: room, from: "    if (identity.preferredSeat !== seat) {\n      throw Object.assign(new Error(\"Identity is not reserved for the requested seat\")", to: "    if (false) {\n      throw Object.assign(new Error(\"Identity is not reserved for the requested seat\")" },
+    ], kills: ["a ranked reserved seat can only be taken over by its own account on its own seat (#451)"] },
+    { id: "handoff-ignore-owner-token", file: room, from: "    const ownerUid = join.ownerToken ? (verifyGameToken(join.ownerToken)?.uid ?? null) : null;", to: "    const ownerUid = null;", kills: ["a practice owner takes over both guest seats with ownerToken; others cannot (#451)"] },
+    { id: "handoff-allowed-after-match-over", file: room, from: "    if (this.matchOverSent) {\n      this.rejectJoin(client, \"match_over\", \"That match has ended\");", to: "    if (false) {\n      this.rejectJoin(client, \"match_over\", \"That match has ended\");", kills: ["takeover is refused once the match is over (#451)"] },
+    { id: "handoff-old-device-stays-bound", file: room, from: "    slot.sessionId = client.sessionId;\n    this.intentTimestamps.delete(oldSessionId);", to: "    this.intentTimestamps.delete(oldSessionId);", kills: ["taking a seat over closes the old connected device"] },
+    { id: "handoff-old-device-not-told", file: room, from: "      old.send(\"taken_over\", { protocolVersion: PROTOCOL_VERSION, seat });\n", to: "", kills: ["taking a seat over closes the old connected device"] },
+    { id: "handoff-old-device-not-closed", file: room, from: "      old.leave(TAKEN_OVER_CLOSE_CODE);", to: "", kills: ["taking a seat over closes the old connected device"] },
+    { id: "handoff-no-welcome-for-new-device", file: room, from: "    if (this.matchStarted && this.match) this.sendSync(client);\n    this.refreshMetadata();\n  }\n\n  /** Lobby lookup", to: "    this.refreshMetadata();\n  }\n\n  /** Lobby lookup", kills: ["taking a seat over closes the old connected device"] },
+    { id: "handoff-old-reconnection-survives", file: room, from: "      if (entry[0] === oldSessionId) entry[1].reject(false);", to: "", kills: ["taking over a dropped seat during the reconnect grace works and the old reconnection token can no longer reclaim (#451)"] },
+    { id: "handoff-metadata-no-owners", file: room, from: "{ owners: [...this.seatOwnerUids], phase, ranked: this.ranked }", to: "{ owners: [null, null], phase, ranked: this.ranked }", kills: ["GET /active-matches lists a live match for the account that holds a seat", "GET /active-matches reports a practice match"] },
+    { id: "handoff-metadata-never-finished", file: room, from: "const phase = this.matchOverSent ? \"finished\" : this.matchStarted", to: "const phase = this.matchStarted", kills: ["GET /active-matches leaves out finished matches (#451)"] },
+    { id: "handoff-lookup-lists-finished", file: appConfig, from: "if (!owners || meta?.phase === \"finished\") return [];", to: "if (!owners) return [];", kills: ["GET /active-matches leaves out finished matches (#451)"] },
+    { id: "handoff-lookup-lists-everyone", file: appConfig, from: "owners[s] === uid)", to: "owners[s] != null)", kills: ["GET /active-matches lists a live match for the account that holds a seat, not for anyone else (#451)"] },
+    { id: "handoff-lookup-no-auth", file: appConfig, from: "      if (uid === null) {", to: "      if (false) {", kills: ["GET /active-matches lists a live match for the account that holds a seat, not for anyone else (#451)"] },
+    { id: "handoff-lookup-dev-id-when-tokens-required", file: appConfig, from: "if (!requireGameToken() && typeof devUserId", to: "if (typeof devUserId", kills: ["GET /active-matches accepts ?devUserId= only while game tokens are not required (#451)"] },
+    { id: "handoff-lookup-no-dev-id", file: appConfig, from: "if (!requireGameToken() && typeof devUserId", to: "if (false && typeof devUserId", kills: ["GET /active-matches accepts ?devUserId= only while game tokens are not required (#451)"] },
   ],
 };
