@@ -29,7 +29,7 @@ test("a spectator of an unranked room sees both hands face up (#250)", async ({ 
   });
   await spec.goto("/");
   await spec.getByRole("button", { name: "Play", exact: true }).click();
-  await spec.getByRole("button", { name: /^Spectate/ }).click();
+  await spec.getByRole("dialog").getByRole("button", { name: /^Spectate/ }).click();
   await spec.getByLabel("Room id").fill(roomId!);
   await spec.getByRole("button", { name: "Watch", exact: true }).click();
 
