@@ -10,7 +10,7 @@ import { expireBattle, expireEndOfTurn, expireStartOfTurn } from "./modifiers.js
 import { hasKeyword, hasRestriction, powerOf, protectedFromBattleKoBy, restrictionValue } from "./queries.js";
 import { addModifier } from "./modifiers.js";
 import {
-  abilityGateOpen, dispatchEvent, findReplacement, newBatch, performKo, pushReplacementFrame, queueWindow, runFrames, startAbility, takeLifeToHand, type Sim,
+  abilityGateOpen, dispatchEvent, findDamageReplacement, findReplacement, newBatch, performKo, pushReplacementFrame, queueWindow, runFrames, startAbility, takeLifeToHand, type Sim,
 } from "./runtime.js";
 import { alloc, fieldCards, isOnField, locate, otherSeat, placeDonFromDeck, putCard, takeCard } from "./state.js";
 
@@ -274,7 +274,13 @@ function advanceStep(sim: Sim): void {
         return;
       }
       // Defeat is decided once, from Life when battle damage is dealt: 0 Life loses.
-      if (state.players[defSeat].life.length === 0) { gameOver(sim, b.attackerSeat, "leader_battle_at_zero_life"); return; }
+      if (state.players[defSeat].life.length === 0) {
+        // "If you would take damage" can still prevent the loss (Gloriosa EB05-052).
+        if (!findDamageReplacement(state, defSeat)) { gameOver(sim, b.attackerSeat, "leader_battle_at_zero_life"); return; }
+        b.damageRemaining = 1;
+        state.steps.unshift({ kind: "life_damage", lethal: true }, { kind: "end_battle" });
+        return;
+      }
       b.damageRemaining = hasKeyword(state, b.attackerSeat, attacker, "double_attack") ? 2 : 1;
       state.steps.unshift({ kind: "life_damage" }, { kind: "end_battle" });
       return;
@@ -284,6 +290,14 @@ function advanceStep(sim: Sim): void {
       if (!b || !b.damageRemaining) { state.steps.shift(); return; }
       const defSeat = otherSeat(b.attackerSeat);
       const d = state.players[defSeat];
+      if (step.replaced === undefined) {
+        const hit = findDamageReplacement(state, defSeat);
+        if (hit) { step.replaced = false; pushReplacementFrame(sim, hit, d.leader.id); return; }
+      }
+      const prevented = step.replaced === true;
+      delete step.replaced;
+      if (prevented) { b.damageRemaining -= 1; delete step.lethal; return; }
+      if (step.lethal) { gameOver(sim, b.attackerSeat, "leader_battle_at_zero_life"); return; }
       // Life ran out mid Double Attack: the remaining damage is lost, the game goes on.
       if (d.life.length === 0) { b.damageRemaining = 0; state.steps.shift(); return; }
       b.damageRemaining -= 1;
@@ -356,6 +370,13 @@ function advanceStep(sim: Sim): void {
     case "effect_damage": {
       if (step.remaining <= 0) { state.steps.shift(); return; }
       const d = state.players[step.seat];
+      if (step.replaced === undefined) {
+        const hit = findDamageReplacement(state, step.seat);
+        if (hit) { step.replaced = false; pushReplacementFrame(sim, hit, d.leader.id); return; }
+      }
+      const prevented = step.replaced === true;
+      delete step.replaced;
+      if (prevented) { step.remaining -= 1; return; }
       if (d.life.length === 0) { gameOver(sim, otherSeat(step.seat), "leader_battle_at_zero_life"); return; }
       step.remaining -= 1;
       const lifeId = d.zoneInstanceIds.life[0]!;
