@@ -142,7 +142,8 @@ import { handCardOutOfReach, needsDonHint } from "./handAffordance";
 import { phaseLabel } from "./phaseLabel";
 import { playerLabel, seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
-import { RematchPanel } from "./RematchPanel";
+import type { RematchDeckOption } from "../decks/rematchDecks";
+import { RematchPanel, type RematchDecks } from "./RematchPanel";
 import { RoomChip } from "./RoomShare";
 import { PendingBoard, type BoardWaiting } from "./PendingBoard";
 import { fanPose, handDrawer } from "./handFan";
@@ -200,8 +201,10 @@ type Props = {
   /** Rematch vote on the match-over screen (unranked rooms). */
   rematch?: {
     state: RematchState | null;
-    onAction: (action: RematchAction) => void;
+    onAction: (action: RematchAction, decks?: RematchDecks) => void;
     autoAccept?: boolean;
+    /** Saved decks to switch to for the next game. */
+    deckOptions?: readonly RematchDeckOption[];
   };
   /** Opponent dropped: epoch ms until which they may reconnect before forfeiting. */
   opponentAwayUntil?: number | null;
@@ -963,6 +966,8 @@ export function DuelBoard({
     onHideHand: toggleHandHidden,
     onSortHand: () => setHandSorted((v) => !v),
     onHelp: () => setHelpOpen(true),
+    fullscreenOffered,
+    onToggleFullscreen: toggleFullscreen,
   });
 
   const donSelectActive = selectedDonIds.size > 0 || pendingAttach != null;
@@ -1739,8 +1744,17 @@ export function DuelBoard({
   const collapsed = collapsedColumns(shownPanels, panelDrag.draggingId != null, {
     right: railDefend && defendTray != null,
   });
-  const noLeftCol = wide && !lp && collapsed.left;
-  const noRightCol = wide && !lp && collapsed.right;
+  /**
+   * Bigger playing area on a computer: no top bar. Its buttons ride in a row at the top of the right column, or
+   * of the left one when the right has nothing in it. The side follows what is on screen when nothing is being
+   * dragged, so the row stays put while a panel is carried over the columns; with both columns empty the right
+   * one stays open for the row (it is the only way to the match menu).
+   */
+  const noTopBar = bigBoard && wide && !lp && !compactHud;
+  const idleCollapsed = collapsedColumns(shownPanels, false, { right: railDefend && defendTray != null });
+  const actionsSide: PanelColumn | null = !noTopBar ? null : idleCollapsed.right && !idleCollapsed.left ? "left" : "right";
+  const noLeftCol = wide && !lp && collapsed.left && actionsSide !== "left";
+  const noRightCol = wide && !lp && collapsed.right && actionsSide !== "right";
   const arenaStyle: CSSProperties | undefined =
     wide && !lp
       ? ({
@@ -1837,7 +1851,7 @@ export function DuelBoard({
     </>
   );
   const reportProblem = () => openFeedback("Report a problem");
-  const matchMenuEl = (placement: "top" | "left") => (
+  const matchMenuEl = (placement: "top" | "left" | "anchor") => (
     <MatchMenu
       placement={placement}
       items={matchMenuItems({
@@ -1868,6 +1882,16 @@ export function DuelBoard({
     />
   );
 
+  /** The no-top-bar action row: same buttons as the phone bar, a fixed height so nothing moves when one comes or goes. */
+  const columnActions = (
+    <div className="col-actions">
+      {brief.trigger}
+      {copilot.trigger}
+      {hudUndoPass}
+      {matchMenuEl("anchor")}
+    </div>
+  );
+
   return (
     <MatchViewerSeatContext.Provider value={spectating ? null : boardSeat}>
     <PromptSlotContext.Provider value={promptSlotValue}>
@@ -1879,14 +1903,14 @@ export function DuelBoard({
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
       }${
         tilted ? " arena-tilt" : ""
-      }${bigBoard ? " arena-big" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}`}
+      }${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
       data-phase={view.phase}
       data-turn={view.turnNumber}
       data-seat={boardSeat}
       style={arenaStyle}
     >
-      {lp ? null : compactHud ? (
+      {lp || noTopBar ? null : compactHud ? (
         <header className="hud-bar hud-compact">
           <div className={`hud-status${yourTurn ? " pulse" : ""}`}>
             {mulliganPhase && decidingMulligan ? null : (
@@ -2186,6 +2210,7 @@ export function DuelBoard({
           />
         ) : wide ? (
           <aside className="arena-left board-col" data-panel-col="left" aria-label="Side panels, left">
+            {actionsSide === "left" ? columnActions : null}
             {logPoseSide === "left" ? <div ref={setLogPoseHostL} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("left")}
             {prefs.layoutGrips && !bigBoard ? (
@@ -2368,6 +2393,7 @@ export function DuelBoard({
 
         {wide && !lp ? (
           <div className="arena-rail board-col" data-panel-col="right">
+            {actionsSide === "right" ? columnActions : null}
             {logPoseSide === "right" ? <div ref={setLogPoseHostR} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("right")}
             {prefs.layoutGrips && !bigBoard ? (
@@ -2836,6 +2862,7 @@ export function DuelBoard({
                 mySeat={boardSeat}
                 players={players}
                 autoAccept={rematch.autoAccept}
+                deckOptions={rematch.deckOptions}
                 onAction={rematch.onAction}
               />
             ) : null}

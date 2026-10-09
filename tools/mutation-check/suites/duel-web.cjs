@@ -153,6 +153,13 @@ module.exports = {
     { id: "hotkeys-spectator-letters", file: `${src}/board/hotkeys.ts`, from: "    if (ctx.focus === \"control\" || ctx.spectating || e.repeat) return null;", to: "    if (ctx.focus === \"control\" || e.repeat) return null;", kills: ["gives spectators only the help list"] },
     { id: "hotkeys-spectator-hotkeys", file: `${src}/board/hotkeys.ts`, from: "  if (ctx.spectating) return null;\n  if (e.key === \"Escape\")", to: "  if (e.key === \"Escape\")", kills: ["gives spectators only the help list"] },
     { id: "hotkeys-modal-hotkeys", file: `${src}/board/hotkeys.ts`, from: "  if (ctx.modalOpen) return null;\n", to: "", kills: ["does nothing while a modal is open"] },
+    // F toggles full screen (#468)
+    { id: "hotkeys-f-dead", file: `${src}/board/hotkeys.ts`, from: "    return \"fullscreen\";", to: "    return null;", kills: ["F toggles full screen, either case, when the browser offers it (#468)"] },
+    { id: "hotkeys-f-without-offer", file: `${src}/board/hotkeys.ts`, from: "if (!ctx.fullscreenOffered || e.repeat) return null;", to: "if (e.repeat) return null;", kills: ["F does nothing when full screen is not offered, with a modifier, held down or while typing (#468)"] },
+    { id: "hotkeys-f-repeat-fires", file: `${src}/board/hotkeys.ts`, from: "if (!ctx.fullscreenOffered || e.repeat) return null;", to: "if (!ctx.fullscreenOffered) return null;", kills: ["F does nothing when full screen is not offered, with a modifier, held down or while typing (#468)"] },
+    { id: "hotkeys-f-lowercase-only", file: `${src}/board/hotkeys.ts`, from: "if (e.key.toLowerCase() === \"f\") {", to: "if (e.key === \"f\") {", kills: ["F toggles full screen, either case, when the browser offers it (#468)"] },
+    { id: "hotkeys-f-spectators-locked-out", file: `${src}/board/hotkeys.ts`, from: "if (!ctx.fullscreenOffered || e.repeat) return null;", to: "if (!ctx.fullscreenOffered || e.repeat || ctx.spectating) return null;", kills: ["F toggles full screen, either case, when the browser offers it (#468)"] },
+    { id: "hotkeys-f-needs-card-keys", file: `${src}/board/hotkeys.ts`, from: "if (!ctx.fullscreenOffered || e.repeat) return null;", to: "if (!ctx.fullscreenOffered || e.repeat || !ctx.cardKeys) return null;", kills: ["F toggles full screen, either case, when the browser offers it (#468)"] },
     { id: "hotkeys-modifier-combos", file: `${src}/board/hotkeys.ts`, from: "  if (e.ctrlKey || e.metaKey || e.altKey) return null;\n", to: "", kills: ["ignores ctrl, meta and alt combinations"] },
     { id: "hotkeys-after-match-over", file: `${src}/board/hotkeys.ts`, from: "if (ctx.typing || ctx.over) return null;", to: "if (ctx.typing) return null;", kills: ["does nothing once the match is over"] },
     { id: "hotkeys-slot-off-by-one", file: `${src}/board/hotkeys.ts`, from: "{ kind: \"slot\", n: Number(e.key) }", to: "{ kind: \"slot\", n: Number(e.key) - 1 }", kills: ["presses the Nth action button"] },
@@ -1361,5 +1368,13 @@ module.exports = {
     // Game-over hand reveal (#482)
     { id: "opp-corner-ignores-revealed-cards", file: `${src}/board/TurnStatusPanel.tsx`, from: "const card = cards?.[i];", to: "const card = undefined as { id: string; defId: string } | undefined;", kills: ["shows the corner hand face up instead of backs once the cards are revealed (#482)"] },
     { id: "opp-compact-ignores-revealed-cards", file: `${src}/board/TurnStatusPanel.tsx`, from: "        {cards ? (\n          cards.slice(0, 10).map", to: "        {false ? (\n          cards!.slice(0, 10).map", kills: ["shows the compact rail hand face up once the cards are revealed (#482)"] },
+    // Rematch deck pick (#479)
+    { id: "rematch-pick-ignored", file: `${src}/board/RematchPanel.tsx`, from: "(id ? options.find((o) => o.id === id)?.wire : undefined)", to: "(id ? undefined : undefined)", kills: ["asks for a rematch with the picked deck at the player's own seat (#479)", "practice sends each seat's own pick (#479)"] },
+    { id: "rematch-always-sends-deck", file: `${src}/board/RematchPanel.tsx`, from: "return decks[0] || decks[1] ? decks : undefined;", to: "return decks;", kills: ["keeps the same deck by default: no deck is sent (#479)"] },
+    { id: "rematch-seat0-pick-for-both", file: `${src}/board/RematchPanel.tsx`, from: "[wire(picks[0]), wire(picks[1])]", to: "[wire(picks[0]), wire(picks[0])]", kills: ["asks for a rematch with the picked deck at the player's own seat (#479)", "practice sends each seat's own pick (#479)"] },
+    { id: "rematch-practice-one-picker", file: `${src}/board/RematchPanel.tsx`, from: "(autoAccept ? ([0, 1] as const) : [mySeat])", to: "[mySeat]", kills: ["practice shows one picker per seat (#479)"] },
+    { id: "rematch-no-keep-option", file: `${src}/board/RematchPanel.tsx`, from: '        <option value="">Keep same deck</option>\n', to: "", kills: ["offers Keep same deck first, then each saved deck, before asking (#479)"] },
+    { id: "rematch-opp-note-reads-own-seat", file: `${src}/board/RematchPanel.tsx`, from: "state.newDeck[oppSeat]", to: "state.newDeck[mySeat]", kills: ["tells you when the opponent is bringing a different deck, not when you are (#479)"] },
+    { id: "rematch-state-drops-new-deck", file: `${src}/net/protocol.ts`, from: "newDeck: [newDeck[0] === true, newDeck[1] === true],", to: "newDeck: [false, false],", kills: ["reads which seats are bringing a new deck, and treats a missing field as none (#479)"] },
   ],
 };

@@ -3337,6 +3337,36 @@ body.is-panel-drag * {
   flex: 1 1 8rem;
 }
 
+.rematch-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.rematch-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  font-size: 0.74rem;
+  color: var(--ink);
+}
+
+.rematch-deck select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+}
+
 /* —— Choice targets: live readiness under each field card —— */
 
 .choice-readiness {
@@ -5042,11 +5072,13 @@ body.is-panel-drag * {
    row, so it never covers the opponent's cards. Left / right: the hand fills
    the open space beside the opponent's mat (see .opp-hand-mat-side below);
    only when the window is too narrow to leave that space (and while the board
-   is tilted) does it fall back to the same top strip. The reservation sits on
+   is tilted, or has the two-row mats of Bigger playing area, which fill the
+   width beside them, #468) does it fall back to the same top strip. The reservation sits on
    .playmat-inner for those, because a container query cannot style its own
    container. */
 .arena.arena-wide .playmat:has(> .playmat-inner > .opp-hand-mat-centre),
-.arena.arena-wide.arena-tilt .playmat-inner:has(> .opp-hand-mat-side) {
+.arena.arena-wide.arena-tilt .playmat-inner:has(> .opp-hand-mat-side),
+.arena.arena-wide.arena-big:not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) {
   --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);
 }
 
@@ -5121,7 +5153,7 @@ body.is-panel-drag * {
    .side-field (--hint-h is 0 here, nothing is reserved at the top). The
    tilted board keeps the strip. */
 @container playmat (aspect-ratio >= 1.02) {
-  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-side {
+  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-side {
     --m-h: calc((100cqh - var(--midline-h) - 3 * var(--mat-gap)) / 2);
     --m-w: min(100cqw, calc(var(--m-h) * 1.95));
     position: absolute;
@@ -5135,11 +5167,11 @@ body.is-panel-drag * {
     justify-content: stretch;
   }
 
-  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-left {
+  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-left {
     left: 0;
   }
 
-  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-right {
+  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-right {
     right: 0;
   }
 
@@ -5725,14 +5757,177 @@ body.is-panel-drag * {
   padding: 2px 3px;
 }
 
-/* The mat's own padding and the gaps between its piles and cards. */
-.arena.arena-big.arena-wide:not(.arena-lp) .side-grid {
+/* The mat's own padding and the gaps between its piles and cards (the tilted
+   board keeps this three-row layout). */
+.arena.arena-big.arena-wide.arena-tilt:not(.arena-lp) .side-grid {
   --g: 0.9cqh;
   --c: min(
     calc((100cqw - 3.6cqh - 6 * 0.9cqh) / 7),
     calc((100cqh - 3.6cqh - 2 * 0.9cqh) / 3.8)
   );
   padding: 1.8cqh;
+}
+
+/* —— Two-row mats (desktop and landscape phones) ——
+   Both are height-bound, so the usual three rows (Characters, Leader, DON!!)
+   leave empty felt beside the mats. The DON!! cost area and the DON!! deck
+   move up into the Leader's row, which makes each mat two card rows tall and
+   wider, and the cards much bigger. Eight columns; yours is below, the
+   opponent's is the same mat turned 180°:
+
+     life characters characters characters characters characters .    deck
+     life cost       cost       leader     stage      dondeck    .    trash
+
+   The spare column beside the Characters is where a rested Character spills
+   (--char-span 6). The mat is as wide as its eight columns need (--mat-h is
+   capped so the mat never gets taller than that), or as the board column
+   allows. The tilted board and phone portrait keep their own layouts. */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field {
+  --mat-h: min(
+    calc((100cqh - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2),
+    calc(100cqw / 2.9)
+  );
+  width: calc(var(--mat-h) * 2.9);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-grid {
+  --g: 1.4cqh;
+  --c: min(
+    calc((100cqw - 3cqh - 7 * 1.4cqh) / 8),
+    calc((100cqh - 3cqh - 1.4cqh) / 2.8)
+  );
+  padding: 1.5cqh;
+  grid-template-columns: repeat(8, var(--c));
+  grid-template-rows: calc(var(--c) * 1.4) calc(var(--c) * 1.4);
+  grid-template-areas:
+    "life characters characters characters characters characters . deck"
+    "life cost cost leader stage dondeck . trash";
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-opp .side-grid {
+  grid-template-rows: calc(var(--c) * 1.4) calc(var(--c) * 1.4);
+  grid-template-areas:
+    "trash . dondeck stage leader cost cost life"
+    "deck . characters characters characters characters characters life";
+}
+
+/* The cost area is two columns wide and one card tall: the label ("DON!! 3/9")
+   on top, the chips wrapping into rows under it (5 a row; they shrink a step
+   past 5 DON!!, and resting ones turn on their side and run wider, so 10
+   DON!! fit in two or three rows, always inside the strip). */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-strip {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: calc(var(--c) * 0.02);
+  padding: calc(var(--c) * 0.04) calc(var(--c) * 0.07);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-strip-label {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 0.35em;
+  align-self: flex-start;
+  margin: 0;
+  padding: 0.04em 0.4em 0.06em;
+  line-height: 1.1;
+  font-size: clamp(0.5rem, calc(var(--c) * 0.11), 0.75rem);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-strip-nums {
+  font-size: clamp(0.58rem, calc(var(--c) * 0.14), 0.95rem);
+  line-height: 1.1;
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-strip-rail {
+  --don-w: calc(var(--c) * (0.36 - 0.08 * min(1, max(0, var(--don-count, 0) - 5))));
+  flex: 1 1 0;
+  min-height: 0;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--c) * 0.025) calc(var(--c) * 0.04);
+  padding: 0;
+}
+
+/* Chips wrap instead of overlapping; a rested one turns on its side, so its
+   box is as tall as a chip is wide. */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-chip-btn + .don-chip-btn {
+  margin-left: 0;
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-chip.rested {
+  margin: calc(var(--don-w) * -0.2) calc(var(--don-w) * 0.2);
+}
+
+/* Separate DON!! piles (#381) wrap as groups, each with a faint ring so a
+   pile still reads as one when the chips wrap (no extra height). */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-pile {
+  flex-wrap: wrap;
+  max-width: 100%;
+  gap: calc(var(--c) * 0.04);
+  border-radius: calc(var(--c) * 0.04);
+  background: rgb(var(--chrome-bright-rgb) / 0.1);
+  box-shadow: 0 0 0 calc(var(--c) * 0.02) rgb(var(--chrome-bright-rgb) / 0.3);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-pile + .don-pile {
+  margin-left: 0;
+}
+
+/* The selection pill sits on the label row, at the right end. */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-select-count {
+  left: auto;
+  right: calc(var(--c) * 0.07);
+  top: calc(var(--c) * 0.05);
+  transform: none;
+  max-width: calc(100% - var(--c) * 0.9);
+  padding: 0.03rem 0.35rem;
+  font-size: clamp(0.45rem, calc(var(--c) * 0.1), 0.62rem);
+}
+
+/* A rested Leader or Stage turns at 85%, so the pair (Leader, Stage back to back)
+   spills 0.1 of a card into the cost area on one side and the DON!! deck's
+   column on the other, never onto a DON!! chip. */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-leader,
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-stage {
+  --rest-k: 0.85;
+  --rest-shift: calc(var(--c) * -0.095);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-stage,
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field.side-opp .zone-leader {
+  --rest-shift: calc(var(--c) * 0.095);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field.side-opp .zone-stage {
+  --rest-shift: calc(var(--c) * -0.095);
+}
+
+/* The turn-order tag stays inside the Life column, off the first Character. */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .mat-order {
+  top: 1.5cqh;
+  left: 1.5cqh;
+  padding: 0.1em 0.45em;
+  font-size: clamp(0.5rem, 3.9cqh, 0.78rem);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-opp .mat-order {
+  top: auto;
+  left: auto;
+  bottom: 1.5cqh;
+  right: 1.5cqh;
+}
+
+/* A full-height row: the DON!! deck is as big as the Deck pile beside it. */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-don-deck .zone-pile-stack {
+  width: calc(var(--c) * 0.64);
+  height: calc(var(--c) * 0.88);
 }
 
 @media (max-width: 899px) and (orientation: portrait) {
@@ -5753,12 +5948,181 @@ body.is-panel-drag * {
     padding: 1px 3px calc(2px + var(--safe-b));
   }
 
+  /* Two-row mats (see the desktop rules above). The mat is as wide as its
+     eight columns need, or as the board column allows. */
+  .arena.arena-big.arena-lp .side-field {
+    --mat-h: min(
+      calc((100cqh - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2),
+      calc(100cqw / 2.95)
+    );
+    width: calc(var(--mat-h) * 2.95);
+  }
+
   .arena.arena-big.arena-lp .side-grid {
     --g: 1.2cqh;
     --c: min(
-      calc((100cqw - 2cqw - 6 * 1.2cqh) / 7),
-      calc((100cqh - 2cqh - 2 * 1.2cqh) / 3.9)
+      calc((100cqw - 3cqw - 7 * 1.2cqh) / 8),
+      calc((100cqh - 3cqh - 1.2cqh) / 2.8)
     );
-    padding: 1cqh 1cqw;
+    padding: 1.5cqh 1.5cqw;
+    justify-content: center;
+    grid-template-columns: repeat(8, var(--c));
+    grid-template-rows: calc(var(--c) * 1.4) calc(var(--c) * 1.4);
+    grid-template-areas:
+      "life characters characters characters characters characters . deck"
+      "life cost cost leader stage dondeck . trash";
   }
+
+  .arena.arena-big.arena-lp .side-opp .side-grid {
+    grid-template-areas:
+      "trash . dondeck stage leader cost cost life"
+      "deck . characters characters characters characters characters life";
+  }
+
+  .arena.arena-big.arena-lp .side-field .zone-cost {
+    display: flex;
+    align-items: center;
+  }
+
+  .arena.arena-big.arena-lp .side-field .zone-leader,
+  .arena.arena-big.arena-lp .side-field .zone-stage {
+    --rest-k: 0.85;
+    --rest-shift: calc(var(--c) * -0.095);
+  }
+
+  .arena.arena-big.arena-lp .side-field .zone-stage,
+  .arena.arena-big.arena-lp .side-field.side-opp .zone-leader {
+    --rest-shift: calc(var(--c) * 0.095);
+  }
+
+  .arena.arena-big.arena-lp .side-field.side-opp .zone-stage {
+    --rest-shift: calc(var(--c) * -0.095);
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-strip {
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: calc(var(--c) * 0.02);
+    padding: calc(var(--c) * 0.04) calc(var(--c) * 0.07);
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-strip-label {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    align-self: flex-start;
+    gap: 0.3em;
+    margin: 0;
+    padding: 0.04em 0.35em 0.06em;
+    line-height: 1.1;
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-strip-rail {
+    --don-w: calc(var(--c) * (0.36 - 0.08 * min(1, max(0, var(--don-count, 0) - 5))));
+    flex: 1 1 0;
+    min-height: 0;
+    flex-wrap: wrap;
+    align-content: center;
+    align-items: center;
+    justify-content: center;
+    gap: calc(var(--c) * 0.025) calc(var(--c) * 0.04);
+    padding: 0;
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-chip-btn + .don-chip-btn {
+    margin-left: 0;
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-chip.rested {
+    margin: calc(var(--don-w) * -0.2) calc(var(--don-w) * 0.2);
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-pile {
+    flex-wrap: wrap;
+    max-width: 100%;
+    gap: calc(var(--c) * 0.04);
+    border-radius: calc(var(--c) * 0.04);
+    background: rgb(var(--chrome-bright-rgb) / 0.1);
+    box-shadow: 0 0 0 calc(var(--c) * 0.02) rgb(var(--chrome-bright-rgb) / 0.3);
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-pile + .don-pile {
+    margin-left: 0;
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-select-count {
+    left: auto;
+    right: calc(var(--c) * 0.07);
+    top: calc(var(--c) * 0.05);
+    transform: none;
+    max-width: calc(100% - var(--c) * 0.9);
+    padding: 0.03rem 0.35rem;
+    font-size: clamp(0.45rem, calc(var(--c) * 0.1), 0.62rem);
+  }
+
+  .arena.arena-big.arena-lp .side-field .zone-don-deck .zone-pile-stack {
+    width: calc(var(--c) * 0.6);
+    height: calc(var(--c) * 0.84);
+  }
+}
+
+/* —— No top bar (#468) ——
+   Bigger playing area on a computer drops the top bar: the board takes the whole window height. The bar's
+   buttons (Brief, Log Pose, Undo, the ⋯ match menu) ride in one row at the top of the right column (the left one
+   when the right is empty). The row has a fixed height and is in the column's flow, so a button coming or going
+   never moves a panel; it is not a movable panel (no data-panel), so drag and resize leave it alone. */
+.arena.arena-wide .col-actions {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  min-width: 0;
+  height: calc(44px + var(--safe-t));
+  padding: var(--safe-t) 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+  background: rgb(var(--deep-rgb) / 0.35);
+}
+
+.arena.arena-wide .col-actions > * {
+  flex: none;
+}
+
+.arena.arena-wide .col-actions .hud-icon-btn,
+.arena.arena-wide .col-actions .hud-pass-btn,
+.arena.arena-wide .col-actions .hud-undo-btn {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0 0.6rem;
+  font-size: 0.8rem;
+}
+
+.arena.arena-wide .col-actions .hud-menu-btn {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+/* Brief and Log Pose are icons here (the buttons keep their names): with Undo and the hot-seat switch beside them,
+   their text labels would not fit the narrowest column. */
+.arena.arena-wide .col-actions .hud-brief-btn.hud-brief-text {
+  width: 36px;
+  padding: 0;
+}
+
+.arena.arena-wide .col-actions .hud-brief-label {
+  display: none;
+}
+
+/* The pop-ups that hang under the old bar sit at the top of the window now. */
+.arena.arena-no-hud .undo-request {
+  top: calc(var(--safe-t) + 0.75rem);
+}
+
+.arena.arena-no-hud .float-layer-peek {
+  padding-top: calc(var(--safe-t) + 0.75rem);
 }

@@ -681,6 +681,8 @@ export type RematchState = {
   /** Over, unranked, and both players still in the room. */
   available: boolean;
   requested: [boolean, boolean];
+  /** That seat's current request carries a different deck for the next game. */
+  newDeck: [boolean, boolean];
   declinedBy: Seat | null;
   /** Both agreed: the loser picks who goes first. */
   chooser: Seat | null;
@@ -693,10 +695,12 @@ export function parseRematchState(raw: unknown): RematchState {
   const o = raw as Record<string, unknown>;
   if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
   const req = Array.isArray(o.requested) ? o.requested : [];
+  const newDeck = Array.isArray(o.newDeck) ? o.newDeck : [];
   const seatOrNull = (v: unknown): Seat | null => (v === 0 || v === 1 ? v : null);
   return {
     available: o.available === true,
     requested: [req[0] === true, req[1] === true],
+    newDeck: [newDeck[0] === true, newDeck[1] === true],
     declinedBy: seatOrNull(o.declinedBy),
     chooser: seatOrNull(o.chooser),
   };

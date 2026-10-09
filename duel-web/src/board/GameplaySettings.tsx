@@ -116,7 +116,7 @@ const TOGGLES: Toggle[] = [
   {
     key: "bigBoard",
     label: "Bigger playing area",
-    hint: "Takes as much of the window as it can for the two playmats: the side columns shrink to their minimum and the margins, gaps and top bar around the board are trimmed so the mats and their cards come out bigger. A column width you dragged out comes back when this is off.",
+    hint: "Gives the two playmats as much of the window as it can. On computers it hides the top bar (its menu moves to the ⋯ button at the top of a side column), shrinks the side columns to their minimum and trims the margins and gaps. Computers and landscape phones get wider two-row mats. A column width you dragged out comes back when this is off.",
   },
   {
     key: "turnSplash",

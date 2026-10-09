@@ -177,5 +177,9 @@ module.exports = {
     { id: "handoff-lookup-no-dev-id", file: appConfig, from: "if (!requireGameToken() && typeof devUserId", to: "if (false && typeof devUserId", kills: ["GET /active-matches accepts ?devUserId= only while game tokens are not required (#451)"] },
     // Game-over reveal (#482)
     { id: "reveal-concede-no-broadcast", file: room, from: "    this.syncPublicState();\n    this.broadcastViews([]);\n    this.undoRequest = null;\n    this.broadcastUndoState();\n    this.stopSeatClock();\n    this.broadcastTimer();\n    this.log(\"info\", \"concede\"", to: "    this.syncPublicState();\n    this.undoRequest = null;\n    this.broadcastUndoState();\n    this.stopSeatClock();\n    this.broadcastTimer();\n    this.log(\"info\", \"concede\"", kills: ["conceding flips both hands and all Life face up for players and ranked spectators, never before (#482)"] },
+    // Rematch deck pick (#479)
+    { id: "rematch-pick-not-applied", file: room, from: "          if (picked) this.seatDecks[s] = picked;", to: "          void picked;", kills: ["rematch: a player who picks a different deck plays it in the next game (#479)"] },
+    { id: "rematch-decline-keeps-pick", file: room, from: "        this.rematchRequested = [false, false];\n        this.rematchDecks = [null, null];\n        this.rematchDeclinedBy = seat;", to: "        this.rematchRequested = [false, false];\n        this.rematchDeclinedBy = seat;", kills: ["rematch: declining drops a picked deck (#479)"] },
+    { id: "rematch-deck-unchecked", file: room, from: "      if (deck) assertKnownDeck(deck);\n", to: "", kills: ["rematch: a deck with unknown cards is refused (#479)"] },
   ],
 };

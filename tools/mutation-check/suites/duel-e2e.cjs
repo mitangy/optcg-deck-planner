@@ -587,6 +587,25 @@ module.exports = {
     { id: "e2e-big-board-rail-too-narrow", args: "bigger-board --project=desktop-1280 -g \"keeps the board clean\"", file: "duel-web/src/board.css", from: "  --rail-w: clamp(250px, 17vw, 330px);\n}", to: "  --rail-w: clamp(110px, 9vw, 130px);\n}", kills: [
       "bigger-board.spec.ts > Bigger playing area keeps the board clean and End turn reachable at desktop 1280x720 (#449) [desktop-1280]",
     ] },
+    // Two-row mats (#468): the desktop and landscape-phone grids lose their rule, so the cost row comes back under the Leader.
+    { id: "e2e-big-board-two-row-desktop-missing", args: "bigger-board --project=desktop-1280 -g \"makes your mat|Leader's row\"", file: "duel-web/src/board.css", from: ".arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-grid {\n  --g: 1.4cqh;", to: ".arena.arena-big.arena-wide.arena-tilt:not(.arena-lp) .side-grid {\n  --g: 1.4cqh;", kills: [
+      "bigger-board.spec.ts > Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at desktop 1280x720 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at desktop 1280x720 (#449) [desktop-1280]",
+    ] },
+    // Two-row mats leave no room beside the opponent mat, so a left/right opponent hand takes the top strip (#468): both layers off.
+    { id: "e2e-big-board-opp-hand-side-over-mat", args: "bigger-board --project=desktop-1280 -g \"docked opponent hand\"", edits: [
+      { file: "duel-web/src/board.css", from: ".arena.arena-wide.arena-big:not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) {", to: ".arena.arena-wide.arena-big.arena-tilt:not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) {" },
+      { file: "duel-web/src/board.css", from: "  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-side {", to: "  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-side {" },
+    ], kills: [
+      "bigger-board.spec.ts > with Bigger playing area a left-docked opponent hand sits above the opponent mat, not over it, at 1280x720 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a right-docked opponent hand sits above the opponent mat, not over it, at 1280x720 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a left-docked opponent hand sits above the opponent mat, not over it, at 1440x900 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a right-docked opponent hand sits above the opponent mat, not over it, at 1440x900 (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-big-board-two-row-landscape-missing", args: "bigger-board --project=desktop-1280 -g \"makes your mat|Leader's row\"", file: "duel-web/src/board.css", from: "  .arena.arena-big.arena-lp .side-grid {\n    --g: 1.2cqh;\n    --c: min(\n      calc((100cqw - 3cqw", to: "  .arena.arena-big.arena-lp.arena-tilt .side-grid {\n    --g: 1.2cqh;\n    --c: min(\n      calc((100cqw - 3cqw", kills: [
+      "bigger-board.spec.ts > Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at phone landscape 812x375 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at phone landscape 812x375 (#449) [desktop-1280]",
+    ] },
     // Show on screen (#449)
     { id: "e2e-show-preview-ignored", args: "show-hide --project=desktop-1280 -g \"showCardPreview\"", file: "duel-web/src/board/DuelBoard.tsx", from: "preview: prefs.showCardPreview ? <CardPreviewPanel /> : null,", to: "preview: <CardPreviewPanel />,", kills: [
       "show-hide.spec.ts > showCardPreview off removes only the preview panel and the Battle log stays (#449) [desktop-1280]",
@@ -658,5 +677,29 @@ module.exports = {
     { id: "e2e-leaderboard-own-row-not-marked", args: "nav-leaderboard --project=desktop-1280 -g \"the leaderboard lists\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "const mine = me != null && e.user_id === me.user_id;", to: "const mine = false;", kills: ["nav-leaderboard.spec.ts > the leaderboard lists ranked players with Bounty and games, and marks your row (#460) [desktop-1280]"] },
     { id: "e2e-leaderboard-you-not-pinned", args: "nav-leaderboard --project=desktop-1280 -g \"the leaderboard pins\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "const you = pinnedYou(me, entries.length);", to: "const you = null as ReturnType<typeof pinnedYou>;", kills: ["nav-leaderboard.spec.ts > the leaderboard pins You under a list you are not in (#460) [desktop-1280]"] },
     { id: "e2e-leaderboard-empty-shows-nothing", args: "nav-leaderboard --project=desktop-1280 -g \"nobody has played\"", file: "duel-web/src/pages/LeaderboardPage.tsx", from: "state.status === \"ready\" && entries.length === 0 ?", to: "state.status === \"ready\" && entries.length < 0 ?", kills: ["nav-leaderboard.spec.ts > the leaderboard says so when nobody has played ranked yet (#460) [desktop-1280]"] },
+
+    // No top bar with Bigger playing area on a computer; F toggles full screen (#468)
+    { id: "e2e-no-top-bar-bar-still-renders", args: "no-top-bar --project=desktop-1280 -g \"no top bar|right column empty\"", file: "duel-web/src/board/DuelBoard.tsx", from: "      {lp || noTopBar ? null : compactHud ? (", to: "      {lp ? null : compactHud ? (", kills: [
+      "no-top-bar.spec.ts > Bigger playing area on a computer has no top bar and the board starts at the top of the window (#468) [desktop-1280]",
+      "no-top-bar.spec.ts > with the right column empty the action row moves to the left column and its menu stays on screen (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-no-top-bar-row-stays-in-empty-column", args: "no-top-bar --project=desktop-1280 -g \"right column empty\"", file: "duel-web/src/board/DuelBoard.tsx", from: "!noTopBar ? null : idleCollapsed.right && !idleCollapsed.left ? \"left\" : \"right\";", to: "!noTopBar ? null : \"right\";", kills: [
+      "no-top-bar.spec.ts > with the right column empty the action row moves to the left column and its menu stays on screen (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-no-top-bar-menu-not-anchored", args: "no-top-bar --project=desktop-1280 -g \"right column empty\"", file: "duel-web/src/board/MatchMenu.tsx", from: "style={placement === \"anchor\" ? anchorStyle : undefined}", to: "style={undefined}", kills: [
+      "no-top-bar.spec.ts > with the right column empty the action row moves to the left column and its menu stays on screen (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-no-top-bar-phone-loses-bar", args: "no-top-bar --project=desktop-1280 -g \"portrait phone\"", file: "duel-web/src/board/DuelBoard.tsx", from: "const noTopBar = bigBoard && wide && !lp && !compactHud;", to: "const noTopBar = bigBoard && !lp;", kills: [
+      "no-top-bar.spec.ts > a portrait phone keeps its compact top bar with Bigger playing area on (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-no-top-bar-off-without-big-board", args: "no-top-bar --project=desktop-1280 -g \"still there\"", file: "duel-web/src/board/DuelBoard.tsx", from: "const noTopBar = bigBoard && wide && !lp && !compactHud;", to: "const noTopBar = wide && !lp && !compactHud;", kills: [
+      "no-top-bar.spec.ts > the top bar is still there on a computer without Bigger playing area (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-f-key-does-not-toggle-full-screen", args: "no-top-bar --project=desktop-1280 -g \"F toggles\"", file: "duel-web/src/board/useBoardHotkeys.ts", from: "      else if (action === \"fullscreen\") o.onToggleFullscreen();\n", to: "", kills: [
+      "no-top-bar.spec.ts > F toggles full screen on the board, with or without Bigger playing area (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-f-key-not-offered-on-board", args: "no-top-bar --project=desktop-1280 -g \"F toggles\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    fullscreenOffered,\n    onToggleFullscreen: toggleFullscreen,", to: "    fullscreenOffered: false,\n    onToggleFullscreen: toggleFullscreen,", kills: [
+      "no-top-bar.spec.ts > F toggles full screen on the board, with or without Bigger playing area (#468) [desktop-1280]",
+    ] },
   ],
 };

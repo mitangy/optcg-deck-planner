@@ -192,6 +192,8 @@ export class DuelRoom extends Room implements PresenceSource {
   private gameNumber = 0;
   private rematchRequested: [boolean, boolean] = [false, false];
   private rematchDeclinedBy: Seat | null = null;
+  /** Deck each seat picked with its rematch request (null: keep the current deck). */
+  private rematchDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private lastTimerActiveSeat: Seat | null = null;
   /** Start-of-turn states, oldest first (unranked rooms only). */
@@ -1227,6 +1229,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.clockSeat = null;
     this.rematchRequested = [false, false];
     this.rematchDeclinedBy = null;
+    this.rematchDecks = [null, null];
     this.seatHandOrder = [[], []];
     this.publicArtDefs = [new Set(), new Set()];
     this.sentPublicArt = ["{}", "{}"];
@@ -1244,6 +1247,7 @@ export class DuelRoom extends Room implements PresenceSource {
       protocolVersion: PROTOCOL_VERSION,
       available,
       requested: [...this.rematchRequested],
+      newDeck: [this.rematchDecks[0] != null, this.rematchDecks[1] != null],
       declinedBy: this.rematchDeclinedBy,
       chooser: available && both && this.match?.winner != null ? ((1 - this.match.winner) as Seat) : null,
     };
@@ -1266,8 +1270,10 @@ export class DuelRoom extends Room implements PresenceSource {
       return;
     }
     let action: RematchAction;
+    let deck: PlayerDeckWire | undefined;
     try {
-      action = parseRematchMessage(message);
+      ({ action, deck } = parseRematchMessage(message));
+      if (deck) assertKnownDeck(deck);
     } catch (e) {
       const err = e as Error & { code?: ErrorCode };
       this.sendError(client, err.code ?? "bad_protocol", err.message);
@@ -1285,11 +1291,13 @@ export class DuelRoom extends Room implements PresenceSource {
     switch (action) {
       case "request":
         this.rematchRequested[seat] = true;
+        this.rematchDecks[seat] = deck ?? null;
         this.rematchDeclinedBy = null;
         this.broadcastRematchState();
         return;
       case "decline":
         this.rematchRequested = [false, false];
+        this.rematchDecks = [null, null];
         this.rematchDeclinedBy = seat;
         this.broadcastRematchState();
         return;
@@ -1301,7 +1309,16 @@ export class DuelRoom extends Room implements PresenceSource {
         }
         const firstSeat: Seat = action === "first" ? seat : ((1 - seat) as Seat);
         this.seed = gameSeed();
-        this.log("info", "rematch_start", { matchId: this.matchId, game: this.gameNumber + 1, firstSeat });
+        this.log("info", "rematch_start", {
+          matchId: this.matchId,
+          game: this.gameNumber + 1,
+          firstSeat,
+          newDeck: [this.rematchDecks[0] != null, this.rematchDecks[1] != null],
+        });
+        for (const s of [0, 1] as const) {
+          const picked = this.rematchDecks[s];
+          if (picked) this.seatDecks[s] = picked;
+        }
         this.startMatch(firstSeat);
         return;
       }
