@@ -167,12 +167,16 @@ export function parseTurnPlan(raw: unknown): TurnPlan | null {
   return { id, turn: o.turn, summary, steps };
 }
 
-export type ErrorCode = "budget" | "busy" | "auth" | "server" | "bad_request";
+export type ErrorCode = "credit" | "daily" | "monthly" | "busy" | "auth" | "server" | "bad_request";
 export type DonePayload = {
   thread_id?: number;
   cost_usd?: number;
   spent_today_usd?: number;
   daily_cap_usd?: number;
+  /** The player's monthly credit after this answer (null for an owner), what they have used and the limit that now stops them. */
+  credit_usd?: number | null;
+  credit_spent_usd?: number;
+  refusal?: "credit" | "daily" | "monthly" | null;
   saved?: boolean;
   /** A brief served from the saved copy (free). */
   cached?: boolean;
@@ -193,7 +197,9 @@ export type StreamHandlers = {
   onError?: (err: { message: string; code?: ErrorCode }) => void;
 };
 
-export const BUDGET_MESSAGE = "Daily Log Pose limit reached. It resets tomorrow.";
+export const CREDIT_MESSAGE = "You've used this month's free Log Pose credit.";
+export const DAILY_MESSAGE = "You've hit today's Log Pose limit. It's back at midnight UTC.";
+export const MONTHLY_MESSAGE = "Log Pose is resting until the 1st.";
 export const BUSY_MESSAGE = "Log Pose is still answering your other question. Try again in a moment.";
 export const GENERIC_ERROR = "Log Pose couldn't answer just now. Try again in a moment.";
 export const AUTH_ERROR = "Log Pose needs you to sign in again.";
@@ -211,7 +217,9 @@ export class AnalystError extends Error {
 
 /** The text to show for an error event or AnalystError. */
 export function errorText(err: { message?: string; code?: string }): string {
-  if (err.code === "budget") return BUDGET_MESSAGE;
+  if (err.code === "credit") return CREDIT_MESSAGE;
+  if (err.code === "daily") return DAILY_MESSAGE;
+  if (err.code === "monthly") return MONTHLY_MESSAGE;
   if (err.code === "busy") return BUSY_MESSAGE;
   if (err.code === "auth") return AUTH_ERROR;
   return err.message?.trim() || GENERIC_ERROR;
@@ -246,10 +254,21 @@ function refusalReason(body: string): string | null {
   }
 }
 
+/** Which limit a 429 body names; a 429 that names none is taken as the daily one. */
+export function limitCode(body: string): "credit" | "daily" | "monthly" | "busy" {
+  try {
+    const code = (JSON.parse(body) as { code?: unknown }).code;
+    if (code === "credit" || code === "daily" || code === "monthly" || code === "busy") return code;
+  } catch {
+    /* not JSON */
+  }
+  return "daily";
+}
+
 /**
  * POSTs `body` to {chat_url}{path} with the session token and streams the answer into
  * `handlers`. A 401 before the stream starts refreshes the session and retries once;
- * 429 throws the budget error; any other status throws a generic error.
+ * 429 throws the error for the limit the analyst names (credit, daily or monthly); any other status throws a generic error.
  */
 export async function streamAnalyst(
   session: SessionManager,
@@ -280,7 +299,10 @@ export async function streamAnalyst(
       if (!(e instanceof SseHttpError)) throw e;
       if (e.status === 401 && attempt === 0) continue;
       if (e.status === 401) throw new AnalystError("auth", AUTH_ERROR);
-      if (e.status === 429) throw new AnalystError("budget", BUDGET_MESSAGE);
+      if (e.status === 429) {
+        const code = limitCode(e.body);
+        throw new AnalystError(code, errorText({ code }));
+      }
       throw new AnalystError("server", refusalReason(e.body) ?? GENERIC_ERROR);
     }
   }
@@ -314,4 +336,10 @@ export async function fetchSavedReview(apiBase: string, matchId: string, fetchIm
   if (!res.ok) throw new Error(`Could not load the review (${res.status})`);
   const body = (await res.json()) as SavedReview;
   return { ...body, citations: parseCitations(body.citations, true) };
+}
+
+/** DELETE {apiBase}/analyst/chat/threads/{id}: the player deletes a chat. What it cost stays in the totals. */
+export async function deleteThread(apiBase: string, threadId: number, fetchImpl: typeof fetch = fetch): Promise<void> {
+  const res = await fetchImpl(`${apiBase}/analyst/chat/threads/${threadId}`, { method: "DELETE", credentials: "include" });
+  if (!res.ok && res.status !== 404) throw new Error("Couldn't delete that chat. Try again in a moment.");
 }

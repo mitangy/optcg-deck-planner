@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo } from "react";
-import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { SiteFooter } from "@optcg/site-legal";
 import { LogPoseProvider } from "@optcg/analyst-client";
 import { getApiBaseUrl } from "./config";
@@ -31,6 +31,9 @@ export function App() {
   // Re-applies when the device switches light / dark while on "Match my device".
   const deviceLight = useMediaQuery(LIGHT_QUERY);
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  // A player out of Log Pose credit can use it on their own Claude plan: that link is made in Settings.
+  const ownClaude = useMemo(() => ({ onSelect: () => navigate("/settings#log-pose") }), [navigate]);
   // Before paint, so switching theme (or loading it from the account) never
   // flashes the old palette.
   useLayoutEffect(() => applyTheme(theme, colorMode), [theme, colorMode, deviceLight]);
@@ -44,7 +47,7 @@ export function App() {
   const chrome = logPoseChromeFor(pathname, useBoardBrief());
 
   return (
-    <LogPoseProvider apiBase={getApiBaseUrl()} hidden={chrome.hidden} launcher={chrome.launcher} defaultPage={logPosePage} sources={SOURCE_HOOKS}>
+    <LogPoseProvider apiBase={getApiBaseUrl()} hidden={chrome.hidden} launcher={chrome.launcher} defaultPage={logPosePage} sources={SOURCE_HOOKS} ownClaude={ownClaude}>
       <Routes>
         <Route path="/" element={<LobbyPage />} />
         <Route path="/watch/:roomId" element={<LobbyPage />} />
