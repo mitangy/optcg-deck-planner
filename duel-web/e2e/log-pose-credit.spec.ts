@@ -63,6 +63,8 @@ const openPanel = async (page: Page) => {
   await page.goto("/");
   await page.locator(".lp-compass").click();
   await page.locator(".lp-panel").waitFor();
+  // The panel grows out of the compass; measure only once it has settled.
+  await expect.poll(() => page.locator(".lp-panel").evaluate((el) => el.getAnimations().length)).toBe(0);
 };
 
 test("the meter says what is left this month and a low-credit line counts questions (#446)", async ({ page }) => {
