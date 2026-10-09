@@ -5,6 +5,10 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Turn-start draw spotlight (#445)
+    {"id": "draw-spotlight-opponent", "file": "duel-web/src/board/battleLog.ts", "from": "if (e.turnDraw === true && isYou(e.seat, youSeat) && ", "to": "if (e.turnDraw === true && ", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#445)"]},
+    {"id": "draw-spotlight-effect-draws", "file": "duel-web/src/board/battleLog.ts", "from": "if (e.turnDraw === true && isYou(", "to": "if (isYou(", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#445)"]},
+    {"id": "draw-unnamed", "file": "duel-web/src/board/battleLog.ts", "from": "typeof defId === \"string\" && !isHiddenDef(defId)) {", "to": "false) {", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#445)"]},
     // Lobby: last Play mode, Your voyage, Top bounties, guest intro (#431)
     { id: "home-join-not-stored-as-create", file: `${src}/home/lastMode.ts`, from: '  if (raw === "join") return "create";\n', to: "", kills: ["stores joining a room as the private room mode, so Play reopens Create (#431)"] },
     { id: "home-last-mode-accepts-unknown", file: `${src}/home/lastMode.ts`, from: '  return raw === "hotseat" || raw === "create" || raw === "queue" || raw === "spectate" ? raw : null;', to: "  return (raw || null) as LastMode | null;", kills: ["reads an unknown or missing value as no last mode (#431)"] },
@@ -38,6 +42,9 @@ module.exports = {
     { id: "turn-guard-blocks-prompts", file: `${src}/net/duelClient.ts`, from: " && !AFTER_END_TURN.has(intent.type);", to: ";", kills: ["still answers an end-of-turn prompt after End turn (#328)"] },
     { id: "turn-guard-rejection-keeps-lock", file: `${src}/net/duelClient.ts`, from: "          // A rejected End turn leaves the turn open: let the player act again.\n          this.endTurnSentOn = null;\n", to: "", kills: ["lets you act again when the server rejects the End turn (#328)"] },
     { id: "turn-guard-reconnect-keeps-lock", file: `${src}/net/duelClient.ts`, from: "      // An End turn lost with the old socket must not lock the turn.\n      if (this.room === room) this.endTurnSentOn = null;\n", to: "", kills: ["lets you act again after the socket reconnects (#328)"] },
+    { id: "pass-once-per-view-off", file: `${src}/net/duelClient.ts`, from: "      if (this.passSent === intent.type) return;\n", to: "", kills: ["sends one Pass block when a tap races the automatic pass, and passes again on the next step (#445)"] },
+    { id: "pass-once-per-view-sticks", file: `${src}/net/duelClient.ts`, from: "    this.lastView = view;\n    this.passSent = null;\n", to: "    this.lastView = view;\n", kills: ["sends one Pass block when a tap races the automatic pass, and passes again on the next step (#445)"] },
+    { id: "pass-once-per-view-refusal-sticks", file: `${src}/net/duelClient.ts`, from: "          this.passSent = null;\n", to: "", kills: ["sends one Pass block when a tap races the automatic pass, and passes again on the next step (#445)"] },
     { id: "stale-illegal-intent-never", file: `${src}/net/duelClient.ts`, from: "      this.handlers.onStaleIllegalIntent?.();\n", to: "", kills: ["reports a rejected action stale once the turn changes, not before (#328)"] },
     { id: "stale-illegal-intent-same-turn", file: `${src}/net/duelClient.ts`, from: "if (this.illegalIntentOn !== null && view.turnNumber !== this.illegalIntentOn) {", to: "if (this.illegalIntentOn !== null) {", kills: ["reports a rejected action stale once the turn changes, not before (#328)"] },
     // text size setting
@@ -882,8 +889,10 @@ module.exports = {
     // phone P1 fixes (#271)
     { id: "counter-short-confirms", file: `${src}/board/cardActions.ts`, from: "const short = model.remaining != null && model.remaining > 0 && !model.stagedUnknown;", to: "const short = false;", kills: ["warns instead of Confirm counter while the staged counters are still short (#271)"] },
     { id: "counter-unknown-warns", file: `${src}/board/cardActions.ts`, from: " && !model.stagedUnknown;", to: ";", kills: ["warns instead of Confirm counter while the staged counters are still short (#271)"] },
-    { id: "phone-fan-any-size", file: `${src}/board/handLayout.ts`, from: "handCount <= PHONE_FAN_MAX", to: "true", kills: ["portrait phones fan up to 8 cards and scroll a bigger hand (#271)"] },
-    { id: "phone-fan-off-by-one", file: `${src}/board/handLayout.ts`, from: "handCount <= PHONE_FAN_MAX", to: "handCount < PHONE_FAN_MAX", kills: ["portrait phones fan up to 8 cards and scroll a bigger hand (#271)"] },
+    { id: "simple-board-switch-on-desktop", file: `${src}/board/gameplayFields.ts`, from: "if (key === \"compactOwnBoard\") return !d.desktop;", to: "if (key === \"compactOwnBoard\") return true;", kills: ["lists Simple board only on phones and tablets, not a desktop window (#445)"] },
+    { id: "simple-board-switch-hidden-on-phone", file: `${src}/board/gameplayFields.ts`, from: "if (key === \"compactOwnBoard\") return !d.desktop;", to: "if (key === \"compactOwnBoard\") return false;", kills: ["lists Simple board only on phones and tablets, not a desktop window (#445)"] },
+    { id: "phone-fan-auto-scrolls", file: `${src}/board/handLayout.ts`, from: "return !wide && handLayout !== \"grid\";", to: "return !wide && handLayout === \"fan\";", kills: ["portrait phones keep the fan when the hand grows past 8 cards (#445)"] },
+    { id: "phone-fan-ignores-grid", file: `${src}/board/handLayout.ts`, from: "return !wide && handLayout !== \"grid\";", to: "return !wide;", kills: ["the Grid layout never fans (#271)"] },
     { id: "rail-hand-not-landscape", file: `${src}/board/handLayout.ts`, from: "wide && (landscapePhone || (tall && !fanHand))", to: "wide && tall && !fanHand", kills: ["landscape phones keep the hand in the right column, even in a short window (#271)"] },
     // phone P2 fixes (#276)
     { id: "log-phase-noise", file: `${src}/board/battleLog.ts`, from: "      return null;\n    case \"drew\":", to: "      return line(\"routine\", false, `Phase \u2192 ${String(e.phase)}`);\n    case \"drew\":", kills: ["keeps the Main phase header and drops the other phase changes (#276)"] },

@@ -120,7 +120,7 @@ test("the panel grows out of the compass, and closing shrinks it back before the
   // Opening: the click leaves the panel growing from the compass's centre (1238, 678), measured from the panel's corner.
   const opening = await page.evaluate(async () => {
     (document.querySelector(".lp-compass") as HTMLElement).click();
-    await new Promise((r) => queueMicrotask(() => queueMicrotask(r)));
+    await new Promise<void>((r) => queueMicrotask(() => queueMicrotask(r)));
     const el = document.querySelector<HTMLElement>(".lp-panel");
     return el ? { playing: el.getAnimations().length, origin: el.style.transformOrigin, left: el.offsetLeft, compass: !!document.querySelector(".lp-compass") } : null;
   });
@@ -137,7 +137,7 @@ test("the panel grows out of the compass, and closing shrinks it back before the
   // Closing: still on screen, no longer taking clicks, and the compass has not come back yet.
   const closing = await page.evaluate(async () => {
     (document.querySelector('.lp-panel button[aria-label="Close Log Pose"]') as HTMLElement).click();
-    await new Promise((r) => queueMicrotask(() => queueMicrotask(r)));
+    await new Promise<void>((r) => queueMicrotask(() => queueMicrotask(r)));
     const el = document.querySelector<HTMLElement>(".lp-panel");
     return { mounted: !!el, closing: el?.dataset.closing, playing: el?.getAnimations().length, compass: !!document.querySelector(".lp-compass") };
   });
@@ -159,7 +159,7 @@ test("halfway through opening the panel is smaller than the open panel and still
   await expect(compass(page)).toBeVisible();
   const frame = await page.evaluate(async () => {
     (document.querySelector(".lp-compass") as HTMLElement).click();
-    await new Promise((r) => queueMicrotask(() => queueMicrotask(r)));
+    await new Promise<void>((r) => queueMicrotask(() => queueMicrotask(r)));
     const el = document.querySelector<HTMLElement>(".lp-panel")!;
     const a = el.getAnimations()[0]!;
     a.pause();
@@ -180,13 +180,13 @@ test("opens and closes at once under reduced motion (#432)", async ({ page }) =>
   await expect(compass(page)).toBeVisible();
   const opened = await page.evaluate(async () => {
     (document.querySelector(".lp-compass") as HTMLElement).click();
-    await new Promise((r) => queueMicrotask(() => queueMicrotask(r)));
+    await new Promise<void>((r) => queueMicrotask(() => queueMicrotask(r)));
     return document.querySelector<HTMLElement>(".lp-panel")?.getAnimations().length;
   });
   expect(opened).toBe(0);
   const closed = await page.evaluate(async () => {
     (document.querySelector('.lp-panel button[aria-label="Close Log Pose"]') as HTMLElement).click();
-    await new Promise((r) => queueMicrotask(() => queueMicrotask(r)));
+    await new Promise<void>((r) => queueMicrotask(() => queueMicrotask(r)));
     return { mounted: !!document.querySelector(".lp-panel"), compass: !!document.querySelector(".lp-compass") };
   });
   expect(closed).toEqual({ mounted: false, compass: true });

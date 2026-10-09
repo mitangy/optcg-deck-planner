@@ -176,7 +176,7 @@ export function CardInspect({
         <div className="card-inspect-scroll">
           <div className="card-inspect-art">
             {imageUrl ? (
-              <img src={imageUrl} alt={entry.name} className="card-inspect-img" />
+              <img src={imageUrl} alt={entry.name} className="card-inspect-img" draggable={false} />
             ) : (
               <div className="card-inspect-fallback">{entry.id}</div>
             )}
