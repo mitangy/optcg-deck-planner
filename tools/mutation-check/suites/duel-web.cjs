@@ -1275,5 +1275,12 @@ module.exports = {
     { id: "meta-sig-ignores-leader", file: `${src}/decks/meta.ts`, from: "`${leaderId.toUpperCase()}|", to: "`|", kills: ["does not match a deck with one card swapped or a different leader (#443)", "signatures ignore case and order but not leader (#443)"] },
     { id: "meta-sig-cards-by-length", file: `${src}/decks/meta.ts`, from: "[...cardIds].map((c) => c.toUpperCase()).sort().join(\",\")}`", to: "String(cardIds.length)}`", kills: ["does not match a deck with one card swapped or a different leader (#443)"] },
     { id: "meta-card-ids-ignore-count", file: `${src}/decks/meta.ts`, from: "Array.from({ length: c.count }, () => c.card_id)", to: "[c.card_id]", kills: ["finds a saved deck with the same leader and cards in any order (#443)"] },
+    // Bigger playing area, Show on screen (#449)
+    { id: "show-switch-preview-on-phone", file: `${src}/board/gameplayFields.ts`, from: '  return key === "showChat" ? true : d.desktop;', to: "  return true;", kills: ["lists Card preview and Recent plays only where those panels exist, and Chat everywhere"] },
+    { id: "show-switch-chat-desktop-only", file: `${src}/board/gameplayFields.ts`, from: '  return key === "showChat" ? true : d.desktop;', to: "  return d.desktop;", kills: ["lists Card preview and Recent plays only where those panels exist, and Chat everywhere"] },
+    { id: "show-settings-device-only", file: `${src}/settings.ts`, from: '  "promptPos",\n];', to: '  "promptPos",\n  "showChat",\n  "bigBoard",\n];', kills: ["follow the account: saved with it and applied from it"] },
+    { id: "collapse-while-dragging", file: `${src}/board/panelLayout.ts`, from: "!dragging && shown[c].length === 0 && !busy[c]", to: "shown[c].length === 0 && !busy[c]", kills: ["keeps both columns open while a panel is dragged, so they stay drop targets (#449)"] },
+    { id: "collapse-defend-tray-column", file: `${src}/board/panelLayout.ts`, from: "!dragging && shown[c].length === 0 && !busy[c]", to: "!dragging && shown[c].length === 0", kills: ["keeps a column that holds the defend tray (#449)"] },
+    { id: "collapse-nonempty-column", file: `${src}/board/panelLayout.ts`, from: "!dragging && shown[c].length === 0 && !busy[c]", to: "!dragging && shown[c].length <= 1 && !busy[c]", kills: ["collapses a column with no panel to show so the board gets its width (#449)"] },
   ],
 };

@@ -625,6 +625,25 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   min-width: 0;
 }
 
+/* "Show on screen": the hide switches sit together in a boxed group. */
+.gameplay-group {
+  gap: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.gameplay-group > .field-hint {
+  margin: -0.5rem 0 0;
+}
+
+/* Inside a .field the switch labels would take the small muted field-label look. */
+.gameplay-group .gameplay-toggle .switch {
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
 .gameplay-toggle .field-hint {
   padding-left: 1.6rem;
 }

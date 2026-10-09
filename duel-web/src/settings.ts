@@ -130,6 +130,17 @@ export type DuelSettings = {
   textSize: TextSize;
   /** Desktop: tilt the board away from you, seen from your seat. */
   tiltedBoard: boolean;
+  /**
+   * Bigger playing area: the side columns shrink to their minimum and the
+   * board's margins, gaps and chrome are trimmed so the mats and cards grow.
+   */
+  bigBoard: boolean;
+  /** Desktop: the Recent plays panel (the Battle log has no switch). */
+  showRecentPlays: boolean;
+  /** Match chat: desktop panel, phone pill, landscape rail button. */
+  showChat: boolean;
+  /** Desktop: the Card preview panel (the hovered card's art and text, top of the left column). */
+  showCardPreview: boolean;
   /** "Your turn" / "Opponent's turn" banner over the board. */
   turnSplash: boolean;
   /** Tone down board animations even when the OS has no reduced-motion preference. */
@@ -191,6 +202,10 @@ const DEFAULTS: DuelSettings = {
   oppHandSpot: "",
   textSize: "medium",
   tiltedBoard: false,
+  bigBoard: false,
+  showRecentPlays: true,
+  showChat: true,
+  showCardPreview: true,
   turnSplash: true,
   reduceMotion: false,
   animationSpeed: "normal",

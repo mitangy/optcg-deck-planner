@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { showOrientation, toggleShown, turnAlertCopy, type FieldDevice } from "./gameplayFields";
+import { showOrientation, showToggleShown, toggleShown, turnAlertCopy, type FieldDevice } from "./gameplayFields";
 
 const desktop: FieldDevice = { desktop: true, tiltFits: true, finePointer: true };
 const phone: FieldDevice = { desktop: false, tiltFits: false, finePointer: false };
@@ -24,5 +24,16 @@ describe("gameplay rows by device", () => {
     expect(toggleShown("layoutGrips", desktop)).toBe(true);
     expect(toggleShown("layoutGrips", { ...desktop, desktop: false })).toBe(false);
     expect(toggleShown("turnSound", phone)).toBe(true);
+  });
+});
+
+describe("Show on screen rows by device (#449)", () => {
+  it("lists Card preview and Recent plays only where those panels exist, and Chat everywhere", () => {
+    expect(showToggleShown("showCardPreview", desktop)).toBe(true);
+    expect(showToggleShown("showRecentPlays", desktop)).toBe(true);
+    expect(showToggleShown("showCardPreview", phone)).toBe(false);
+    expect(showToggleShown("showRecentPlays", phone)).toBe(false);
+    expect(showToggleShown("showChat", phone)).toBe(true);
+    expect(showToggleShown("showChat", desktop)).toBe(true);
   });
 });
