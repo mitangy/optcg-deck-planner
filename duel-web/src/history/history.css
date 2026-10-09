@@ -286,11 +286,35 @@
 }
 
 /* —— Match log page —— */
+/* One column of cards at 600px on phones and tablets; from 1000px the page
+   widens and the turns pair up two to a row (odd turns left, even right). */
+.match-log-page {
+  max-width: 600px;
+}
+
 .match-summary {
   margin-bottom: 0.25rem;
 }
 
 .match-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.match-log-openings,
+/* Only fills the empty cell of a round in the two-column desktop grid. */
+.match-log-turn-quiet {
+  display: none;
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.match-log-turns {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -333,6 +357,120 @@
   gap: 0.35rem 0.9rem;
   margin: 0;
   font-size: 0.88rem;
+}
+
+/* Turn jump strip: stays in reach while you scroll. Chips are a fixed size so
+   nothing shifts; on phones it is one row that scrolls sideways inside itself. */
+.match-log-jump {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.45rem 0;
+  background: var(--arena-deep);
+  border-bottom: 1px solid var(--line);
+}
+
+.match-log-jump-chip {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  padding: 0 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--arena-panel);
+  color: var(--muted, var(--chrome));
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+.match-log-jump-chip[data-yours] {
+  border-color: var(--chrome);
+  color: var(--chrome-bright);
+}
+
+.match-log-jump-chip:hover {
+  background: var(--arena-raised);
+}
+
+.match-log-jump-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+@media (max-width: 999px) {
+  .match-log-jump {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+}
+
+@media (min-width: 1000px) {
+  .match-log-page {
+    max-width: 1180px;
+  }
+
+  .match-log-openings {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  /* A lone hand takes the whole row. */
+  .match-log-openings > :only-child {
+    grid-column: 1 / -1;
+  }
+
+  .match-log-turns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+
+  .match-log-turns > .match-log-turn {
+    grid-row: var(--round);
+    grid-column: var(--col);
+  }
+
+  .match-log-turns > .match-log-turn-quiet {
+    display: block;
+    align-self: start;
+  }
+
+  /* Two columns leave each card about half the page: label above its cards. */
+  .match-log-turns .match-log-turn-hand {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .match-log-jump {
+    /* Wrapping rows would otherwise cover a lot of a short window. */
+    max-height: 6.5rem;
+    overflow-y: auto;
+  }
+}
+
+.log-card-group {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2rem;
+}
+
+.log-card-count {
+  font-size: 0.75em;
+  font-weight: 700;
+  color: var(--chrome-bright);
 }
 
 /* Hand at the start of a turn: secondary to the event lines below it.

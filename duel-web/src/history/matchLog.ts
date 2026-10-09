@@ -4,6 +4,10 @@ import type { SeatLogJson } from "./historyApi";
 
 export type MatchLogTurn = {
   turn: number;
+  /** Both players' turns make one round: turns 1 and 2 are round 1. The "Before the game" step is round 0. */
+  round: number;
+  /** Desktop grid column: odd turns left (1), even turns right (2). From the turn number, so skipped turns don't shift it. */
+  col: 1 | 2;
   /** "Your turn", "Opponent's turn", or "Before the game" for the mulligan step. */
   label: string;
   yours: boolean;
@@ -26,6 +30,8 @@ export function matchLogTurns(log: SeatLogJson): MatchLogTurn[] {
     const yours = t.activeSeat === log.seat;
     turns.push({
       turn: t.turn,
+      round: Math.ceil(t.turn / 2),
+      col: t.turn % 2 === 1 ? 1 : 2,
       label: t.turn === 0 ? "Before the game" : yours ? "Your turn" : "Opponent's turn",
       yours: t.turn !== 0 && yours,
       entries,
@@ -35,4 +41,11 @@ export function matchLogTurns(log: SeatLogJson): MatchLogTurn[] {
     });
   }
   return turns;
+}
+
+/** A hand as distinct cards with copy counts, in the order each card first appears. */
+export function groupHand(defIds: string[]): { defId: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const id of defIds) counts.set(id, (counts.get(id) ?? 0) + 1);
+  return [...counts].map(([defId, count]) => ({ defId, count }));
 }
