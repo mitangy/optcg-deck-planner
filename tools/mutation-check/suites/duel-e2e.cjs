@@ -12,6 +12,11 @@ module.exports = {
   cwd: "duel-web",
   runner: "playwright",
   mutations: [
+    // Small landscape phones get the landscape board (#469). Both JS layout queries (wide board and landscape phone) go back to 600px.
+    { id: "e2e-small-landscape-phone-portrait-layout", args: "demo-audit --project=phone-375 -g 469", edits: [
+      { file: "duel-web/src/board/useMediaQuery.ts", from: "and (min-width: 480px) and (max-height: 499px)\";\n\n/**\n * Compact HUD", to: "and (min-width: 600px) and (max-height: 499px)\";\n\n/**\n * Compact HUD" },
+      { file: "duel-web/src/board/useMediaQuery.ts", from: "export const LANDSCAPE_PHONE_QUERY =\n  \"(orientation: landscape) and (min-width: 480px)", to: "export const LANDSCAPE_PHONE_QUERY =\n  \"(orientation: landscape) and (min-width: 600px)" },
+    ], kills: ["demo-audit.spec.ts > a small landscape phone gets the landscape board with readable cards (#469) [phone-375]"] },
     // rules, clicked through the UI
     { id: "e2e-first-turn-attack-allowed", args: "rules-attack --project=desktop-1280", edits: [
       { file: intents, from: "      if (p.turnsStarted < 2) return err(\"FIRST_TURN\", \"You cannot attack on your first turn\");", to: "" },
