@@ -2016,6 +2016,20 @@ label.btn.is-busy {
   font-family: var(--font-body);
 }
 
+/* What's new card (packages/patch-notes): map its tokens to the arena palette (follows crew themes and light mode). */
+.wn-card {
+  --wn-bg: var(--arena-panel);
+  --wn-ink: var(--ink);
+  --wn-line: var(--line-strong);
+  --wn-accent: var(--chrome);
+  --wn-on-accent: var(--on-chrome);
+  font-family: var(--font-body);
+}
+
+.wn-card-heading {
+  font-family: var(--font-display);
+}
+
 /* —— Live line, Ask Log Pose tile, Unranked, wave drift —— */
 
 .home-live {

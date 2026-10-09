@@ -28,10 +28,12 @@ import {
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
 import { deckRemainingMarket, remainingCostForCard } from "./deckCost";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
+import { WhatsNewCard } from "@optcg/patch-notes";
 import { submitFeedback } from "./feedback";
 import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
 import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose } from "./logPose";
 import { LegalPage } from "./LegalPage";
+import { WhatsNewPage } from "./WhatsNewPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
   CardSearchInput,
@@ -511,6 +513,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
         </div>
       </header>
       <main className="app-main">{children}</main>
+      <WhatsNewCard app="planner" Link={Link} />
     </div>
   );
 }
@@ -4230,6 +4233,7 @@ export default function App() {
         <Route path="/meta" element={<MetaRoute />} />
         <Route path="/group-buy/join/:token" element={<GroupBuyJoinPage />} />
         <Route path="/group-buy/view/:token" element={<PublicGroupBuyPage />} />
+        <Route path="/whats-new" element={<WhatsNewPage />} />
         <Route path="/terms" element={<LegalPage kind="terms" />} />
         <Route path="/privacy" element={<LegalPage kind="privacy" />} />
         <Route path="/cookies" element={<LegalPage kind="cookies" />} />

@@ -18,6 +18,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { MatchLogPage } from "./pages/MatchLogPage";
 import { UsernameSetupPage } from "./pages/UsernameSetupPage";
+import { WhatsNewPage } from "./pages/WhatsNewPage";
 import { useDuelSettings } from "./settings";
 import { FeedbackHost } from "./FeedbackHost";
 import { openFeedback } from "./feedbackDialog";
@@ -61,6 +62,7 @@ export function App() {
         <Route path="/auth/complete" element={<AuthCompletePage />} />
         <Route path="/welcome/username" element={<UsernameSetupPage />} />
         <Route path="/demo" element={<DemoPage />} />
+        <Route path="/whats-new" element={<WhatsNewPage />} />
         <Route path="/terms" element={<LegalPage kind="terms" />} />
         <Route path="/privacy" element={<LegalPage kind="privacy" />} />
         <Route path="/cookies" element={<LegalPage kind="cookies" />} />

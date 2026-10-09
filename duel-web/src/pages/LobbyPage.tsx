@@ -35,6 +35,7 @@ import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel
 import { dismissInvite, inviteFriend, inviteFrom, type Friend, type FriendInvite } from "../friends/friendsApi";
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
 import { UpdateNotice, VersionStatus } from "../VersionStatus";
+import { WhatsNewCard } from "@optcg/patch-notes";
 import { IntroStrip } from "../home/IntroStrip";
 import { LiveLine } from "../home/LiveLine";
 import { LogPoseTile } from "../home/LogPoseTile";
@@ -1122,6 +1123,7 @@ export function LobbyPage() {
           </div>
         </div>
       ) : null}
+      <WhatsNewCard app="duel" Link={Link} />
     </div>
   );
 }

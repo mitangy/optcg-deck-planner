@@ -29,6 +29,10 @@ Only write a test for behavior you can actually break. A test earns its place by
 6. **Name tests after the behavior and the PR number**, e.g. `Marco On K.O. fires once when he K.O.s himself (#225)`.
 7. **Before a mutation run, make sure no other run is in progress.** Suites share one restore journal, so `run.cjs` refuses to start while another run is active.
 
+## Patch notes
+
+- Player-facing changes add an entry at the top of `packages/patch-notes/src/notes.ts` in the same PR.
+
 ## Production data
 
 - Never create accounts in production for testing: automated browsers use the fixed guest id `automation-test-guest`; see `AGENTS.md` "Never create accounts in production for testing" (#447).

@@ -36,6 +36,7 @@ node tools/mutation-check/run.cjs --check-anchors   # all suites, no tests
 | `backend` | `backend/tests` | pytest (`BACKEND_PYTHON`: a Python with `backend/requirements.txt` installed) |
 | `frontend` | `frontend/src` | vitest |
 | `deck-analytics` | `packages/deck-analytics/src` | vitest |
+| `patch-notes` | `packages/patch-notes/src` | vitest |
 | `analyst-client` | `packages/analyst-client/src` | vitest |
 | `analyst` | `analyst/src` | vitest |
 | `game-server` | `game-server/test` | mocha |

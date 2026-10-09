@@ -1278,5 +1278,10 @@ module.exports = {
     { id: "meta-sig-ignores-leader", file: `${src}/decks/meta.ts`, from: "`${leaderId.toUpperCase()}|", to: "`|", kills: ["does not match a deck with one card swapped or a different leader (#443)", "signatures ignore case and order but not leader (#443)"] },
     { id: "meta-sig-cards-by-length", file: `${src}/decks/meta.ts`, from: "[...cardIds].map((c) => c.toUpperCase()).sort().join(\",\")}`", to: "String(cardIds.length)}`", kills: ["does not match a deck with one card swapped or a different leader (#443)"] },
     { id: "meta-card-ids-ignore-count", file: `${src}/decks/meta.ts`, from: "Array.from({ length: c.count }, () => c.card_id)", to: "[c.card_id]", kills: ["finds a saved deck with the same leader and cards in any order (#443)"] },
+    // What's new card (#450)
+    { id: "wn-card-shows-every-note", file: "packages/patch-notes/src/WhatsNewCard.tsx", from: "const SHOWN = 3;", to: "const SHOWN = 99;", kills: ["announces the three newest notes since the last seen day and counts the rest (#450)"] },
+    { id: "wn-card-hides-the-rest-count", file: "packages/patch-notes/src/WhatsNewCard.tsx", from: "{more > 0 ? <p", to: "{false ? <p", kills: ["announces the three newest notes since the last seen day and counts the rest (#450)"] },
+    { id: "wn-card-shows-when-nothing-new", file: "packages/patch-notes/src/WhatsNewCard.tsx", from: "if (!open || unseen.length === 0) return null;", to: "if (!open) return null;", kills: ["stays hidden when the newest day was already seen (#450)", "stays hidden on a first run and records the newest day for next time (#450)"] },
+    { id: "wn-card-first-run-shows-backlog", file: "packages/patch-notes/src/WhatsNewCard.tsx", from: "useState(() => loadUnseen(app))", to: "useState(() => notesFor(app))", kills: ["stays hidden on a first run and records the newest day for next time (#450)", "stays hidden when the newest day was already seen (#450)"] },
   ],
 };
