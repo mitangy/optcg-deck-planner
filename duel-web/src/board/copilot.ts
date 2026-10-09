@@ -254,8 +254,8 @@ function stepIntent(step: PlanStep, view: PlayerView): Intent | string {
         (i) =>
           i.type === "activate_ability" &&
           i.sourceId === step.source &&
-          (step.abilityId == null || i.abilityId === step.abilityId) &&
-          (step.target == null || i.targetId === step.target),
+          // The engine's legal activations never carry a target: it is chosen when the ability resolves.
+          (step.abilityId == null || i.abilityId === step.abilityId),
         "That ability can't be used right now.",
       );
     case "attack":
@@ -363,10 +363,12 @@ export function stepRunOtherSeat(run: PlanRun, view: PlayerView): PlanRun {
 }
 
 /** Why Play this turn is unavailable for a plan, or null when it can start. */
-export function playBlockReason(plan: TurnPlan, view: PlayerView | null, run: PlanRun | null | undefined): string | null {
+export function playBlockReason(plan: TurnPlan, view: PlayerView | null, run: PlanRun | null | undefined, gameKey?: string | null): string | null {
   if (runActive(run)) return "Another plan is running. Stop it first.";
   if (!view || view.spectator) return "Waiting for the game.";
   if (view.winner != null) return "The game is over.";
+  // Instance ids are per-game counters, so a plan from another game (or one with no game on record) names the wrong cards.
+  if (gameKey && plan.gameKey !== gameKey) return "This plan was for an earlier game.";
   if (plan.turn !== view.turnNumber) return "This plan was for an earlier turn.";
   if (view.activeSeat !== view.seat) return "It isn't your turn.";
   return null;
@@ -388,7 +390,7 @@ export type PlanCardMode =
   | { kind: "stopped"; step: number; reason?: string };
 
 /** What a Turn plan card shows: its own run if it has one (running or finished), else whether it may start. */
-export function planCardMode(plan: TurnPlan, own: PlanRun | null | undefined, active: PlanRun | null | undefined, view: PlayerView | null): PlanCardMode {
+export function planCardMode(plan: TurnPlan, own: PlanRun | null | undefined, active: PlanRun | null | undefined, view: PlayerView | null, gameKey?: string | null): PlanCardMode {
   if (own) {
     const step = own.cursor.step;
     switch (own.state) {
@@ -404,5 +406,5 @@ export function planCardMode(plan: TurnPlan, own: PlanRun | null | undefined, ac
         return { kind: "stopped", step, reason: own.reason };
     }
   }
-  return { kind: "idle", disabledReason: playBlockReason(plan, view, active) };
+  return { kind: "idle", disabledReason: playBlockReason(plan, view, active, gameKey) };
 }
