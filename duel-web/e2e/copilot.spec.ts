@@ -12,7 +12,7 @@
  * opponent's hand; the plan card sends nothing until Play this turn; the plan then plays out (DON!!, attack, end
  * turn) with a "step N of M" pill and Stop; Stop leaves the rest unsent; and none of it moves the board.
  */
-import { test, expect, mintGameToken, FAKE_API, type Page } from "./fixtures";
+import { test, expect, mintGameToken, FAKE_API, type Page, keepBothHands } from "./fixtures";
 
 const ANALYST = "http://127.0.0.1:8766";
 const PAGE_ORIGIN = process.env.E2E_PAGE_ORIGIN ?? "http://127.0.0.1:5174";
@@ -114,15 +114,21 @@ async function stubLogPose(page: Page) {
 
 /**
  * Slows what the browser sends to the game server (never what comes back), so a plan's steps can be watched one by
- * one: with a delay set, each message lands that long after it was sent. Order is kept (one delay for all).
+ * one: with a delay set, each message lands that long after it was sent. Order is kept, also across a delay change:
+ * a message never goes out before one sent earlier, so dropping the delay to 0 can't let a click overtake a
+ * delayed plan step (#445).
  */
 async function slowGameServer(page: Page) {
   await page.addInitScript(() => {
     const w = window as unknown as { __sendDelay: number };
     w.__sendDelay = 0;
+    let lastAt = 0;
     const send = WebSocket.prototype.send;
     WebSocket.prototype.send = function (this: WebSocket, data: Parameters<WebSocket["send"]>[0]) {
-      if (w.__sendDelay > 0) setTimeout(() => send.call(this, data), w.__sendDelay);
+      const now = Date.now();
+      const at = Math.max(now + w.__sendDelay, lastAt);
+      lastAt = at;
+      if (at > now) setTimeout(() => send.call(this, data), at - now);
       else send.call(this, data);
     };
   });
@@ -153,8 +159,7 @@ async function endTurn(page: Page) {
 /** Both mulligans kept, then each seat passes once: it is your (seat 0) turn 3, the first one that may attack. */
 async function reachTurnThree(page: Page) {
   const root = page.locator(".board-root");
-  await page.getByRole("button", { name: "Keep opening hand" }).click();
-  await page.getByRole("button", { name: "Keep opening hand" }).click();
+  await keepBothHands(page);
   await expect(root).toHaveAttribute("data-phase", "main");
   await endTurn(page);
   await expect(root).toHaveAttribute("data-turn", "2");
@@ -255,7 +260,8 @@ async function checkCopilot(page: Page, duel: { startPractice: (o: { seed: numbe
   await button.click();
   await expect(panel(page)).toBeVisible();
   // From here every intent takes a moment to land, so the steps can be watched.
-  await wire.setDelay(2500);
+  // Long enough that the checks below finish before the next step lands, even on a busy runner (#445).
+  await wire.setDelay(8000);
   await card.getByRole("button", { name: "Play this turn" }).click();
   await expect(pill(page)).toBeVisible();
   await expect(pill(page)).toContainText(/Log Pose · step \d of 3/);
@@ -264,7 +270,7 @@ async function checkCopilot(page: Page, duel: { startPractice: (o: { seed: numbe
   await expect(card.getByRole("button", { name: "Play this turn" })).toHaveCount(0);
   await expect(card.getByRole("button", { name: "Stop" })).toBeVisible();
   // The DON!! is on the Leader before the attack is sent.
-  await expect.poll(() => leaderPower(page)).toBe("6000");
+  await expect.poll(() => leaderPower(page), { timeout: 20_000 }).toBe("6000");
   await expect(page.locator(".board-root")).toHaveAttribute("data-seat", "0");
   await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "main");
   await stable("while the plan runs");
@@ -333,12 +339,21 @@ async function expectPillClear(page: Page) {
  */
 async function finishOpponentDefence(page: Page) {
   const lifeCheck = page.getByRole("button", { name: /^(No Trigger|Add to hand)$/ });
-  const defence = page.locator(".intent-btn-primary", { hasText: /^(Pass block|Pass counter|Take hit|Resolve)$/ });
+  // The button that answers each battle step. Matching the step keeps a stale "Pass block" (still on screen as the
+  // Counter step starts) from going out twice: the game refuses it, and a refused move stops the plan (#445).
+  const answers: Record<string, RegExp> = { block: /^Pass block$/, counter: /^(Pass counter|Take hit)$/, damage: /^Resolve$/ };
+  let answered: string | null = null;
   await expect
     .poll(
       async () => {
         if (await lifeCheck.isVisible().catch(() => false)) return true;
-        if (await defence.first().isVisible().catch(() => false)) await defence.first().click({ timeout: 2000 }).catch(() => undefined);
+        const step = await page.locator(".board-root").getAttribute("data-phase");
+        const label = step ? answers[step] : undefined;
+        if (!label || step === answered) return false;
+        const button = page.locator(".intent-btn-primary", { hasText: label }).first();
+        if (await button.isVisible().catch(() => false)) {
+          await button.click({ timeout: 2000 }).then(() => (answered = step)).catch(() => undefined);
+        }
         return false;
       },
       { timeout: 30_000, intervals: [200] },
@@ -350,8 +365,7 @@ async function finishOpponentDefence(page: Page) {
 test("the Log Pose button is not on the board while the copilot setting is off (#416)", async ({ page, duel }) => {
   await stubLogPose(page);
   await duel.startPractice({ seed: 7 });
-  await page.getByRole("button", { name: "Keep opening hand" }).click();
-  await page.getByRole("button", { name: "Keep opening hand" }).click();
+  await keepBothHands(page);
   await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "main");
   // Brief is on by default, so the bar did render its buttons: only Log Pose's is missing.
   await expect(page.getByRole("button", { name: "Matchup brief", exact: true })).toBeVisible();
@@ -385,7 +399,9 @@ test("Stop on the pill leaves the rest of the plan unsent (#416)", async ({ page
   const card = panel(page).getByRole("region", { name: "Turn plan" });
   await expect(card).toBeVisible();
 
-  await wire.setDelay(1500);
+  // Long enough that closing the panel and tapping Stop beat the first step's answer on a busy runner; the attack
+  // goes out as soon as that answer lands, so a short delay lets it slip past Stop (#445).
+  await wire.setDelay(6000);
   await card.getByRole("button", { name: "Play this turn" }).click();
   await expect(pill(page)).toContainText(/step 1 of 3/);
   // A phone's panel covers the board and its pill: close it, then stop from the pill.
@@ -399,7 +415,7 @@ test("Stop on the pill leaves the rest of the plan unsent (#416)", async ({ page
   await expect(card.getByRole("button", { name: "Stop" })).toHaveCount(0);
 
   // The step that was already on its way lands (the Leader gets its DON!!); the attack and End turn are never sent.
-  await expect.poll(() => leaderPower(page)).toBe("6000");
+  await expect.poll(() => leaderPower(page), { timeout: 20_000 }).toBe("6000");
   await page.waitForTimeout(4000);
   await expect(root).toHaveAttribute("data-turn", "3");
   await expect(root).toHaveAttribute("data-seat", "0");
