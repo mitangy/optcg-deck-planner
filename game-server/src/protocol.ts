@@ -558,7 +558,9 @@ export type UndoAppliedMessage = {
 
 /**
  * Rematch (unranked rooms): both seats "request", then the loser picks
- * "first" or "second"; "decline" withdraws / refuses.
+ * "first" or "second"; "decline" withdraws / refuses. A "request" may carry
+ * a `deck` to play the next game with instead of the seat's current deck;
+ * a deck on any other action is a protocol error.
  */
 export type RematchAction = "request" | "decline" | "first" | "second";
 
@@ -567,12 +569,14 @@ export type RematchStateMessage = {
   /** Match is over, the room is unranked and both players are still here. */
   available: boolean;
   requested: [boolean, boolean];
+  /** True when that seat's current request carries a different deck. */
+  newDeck: [boolean, boolean];
   declinedBy: Seat | null;
   /** Set once both agreed: the loser, who picks first / second. */
   chooser: Seat | null;
 };
 
-export function parseRematchMessage(raw: unknown): RematchAction {
+export function parseRematchMessage(raw: unknown): { action: RematchAction; deck?: PlayerDeckWire } {
   if (!raw || typeof raw !== "object") {
     throw Object.assign(new Error("rematch message body required"), { code: "bad_protocol" as const });
   }
@@ -585,7 +589,13 @@ export function parseRematchMessage(raw: unknown): RematchAction {
       code: "bad_protocol" as const,
     });
   }
-  return o.action;
+  if (o.deck === undefined || o.deck === null) return { action: o.action };
+  if (o.action !== "request") {
+    throw Object.assign(new Error("rematch deck is only allowed with action request"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  return { action: o.action, deck: asPlayerDeck(o.deck) };
 }
 
 export function parseUndoMessage(raw: unknown): UndoAction {

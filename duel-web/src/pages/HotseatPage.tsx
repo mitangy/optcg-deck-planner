@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getApiBaseUrl, rewriteLoopbackToPageHost } from "../config";
 import { DuelBoard } from "../board/DuelBoard";
@@ -18,6 +18,7 @@ import {
 } from "../decks/seatArtPrefs";
 import { awaitDuelServicesReady, hotseatGuestId, mintGuestGameToken, mintOwnerToken } from "../net/api";
 import { MovedElsewhereOverlay } from "../board/MovedElsewhereOverlay";
+import { rematchDeckOptions } from "../decks/rematchDecks";
 import { DuelClient } from "../net/duelClient";
 import {
   clearMatchResume,
@@ -143,6 +144,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 export function HotseatPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const rematchDecks = useMemo(() => rematchDeckOptions(), []);
   const navFromRoute = (location.state ?? null) as HotseatNavState | null;
   // Capture resume intent once on mount. Refresh keeps history.state, so we
   // prefer a sessionStorage blob over treating that state as a fresh start.
@@ -990,7 +992,8 @@ export function HotseatPage() {
         rematch={{
           state: bag.rematch ?? null,
           autoAccept: true,
-          onAction: (action: RematchAction) => {
+          deckOptions: rematchDecks,
+          onAction: (action: RematchAction, decks) => {
             // Both seats are this player: agree from both, and let the losing
             // seat's client pick the turn order.
             const state = bag.rematch;
@@ -1002,7 +1005,9 @@ export function HotseatPage() {
                   : [];
             for (const b of targets) {
               try {
-                b?.client.sendRematch(action);
+                // Each seat's client carries its own seat's deck pick.
+                const s = bags.current.indexOf(b);
+                b?.client.sendRematch(action, action === "request" && s >= 0 ? decks?.[s] : undefined);
               } catch {
                 /* disconnected */
               }
