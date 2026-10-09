@@ -1368,5 +1368,13 @@ module.exports = {
     { id: "top-bounties-see-all-not-linked", file: `${src}/home/TopBounties.tsx`, from: "<Link to=\"/leaderboard\" className=\"bounties-see-all\"", to: "<Link to=\"/\" className=\"bounties-see-all\"", kills: ["links its title and a See all link to the full leaderboard (#460)"] },
     { id: "top-bounties-see-all-unnamed", file: `${src}/home/TopBounties.tsx`, from: "aria-label=\"See full leaderboard\"", to: "aria-label=\"See all\"", kills: ["links its title and a See all link to the full leaderboard (#460)"] },
     { id: "top-bounties-shown-when-empty", file: `${src}/home/TopBounties.tsx`, from: "  if (entries.length === 0) return null;\n", to: "", kills: ["stays hidden when there are no ranked players (#460)"] },
+    // Rematch deck pick (#479)
+    { id: "rematch-pick-ignored", file: `${src}/board/RematchPanel.tsx`, from: "(id ? options.find((o) => o.id === id)?.wire : undefined)", to: "(id ? undefined : undefined)", kills: ["asks for a rematch with the picked deck at the player's own seat (#479)", "practice sends each seat's own pick (#479)"] },
+    { id: "rematch-always-sends-deck", file: `${src}/board/RematchPanel.tsx`, from: "return decks[0] || decks[1] ? decks : undefined;", to: "return decks;", kills: ["keeps the same deck by default: no deck is sent (#479)"] },
+    { id: "rematch-seat0-pick-for-both", file: `${src}/board/RematchPanel.tsx`, from: "[wire(picks[0]), wire(picks[1])]", to: "[wire(picks[0]), wire(picks[0])]", kills: ["asks for a rematch with the picked deck at the player's own seat (#479)", "practice sends each seat's own pick (#479)"] },
+    { id: "rematch-practice-one-picker", file: `${src}/board/RematchPanel.tsx`, from: "(autoAccept ? ([0, 1] as const) : [mySeat])", to: "[mySeat]", kills: ["practice shows one picker per seat (#479)"] },
+    { id: "rematch-no-keep-option", file: `${src}/board/RematchPanel.tsx`, from: '        <option value="">Keep same deck</option>\n', to: "", kills: ["offers Keep same deck first, then each saved deck, before asking (#479)"] },
+    { id: "rematch-opp-note-reads-own-seat", file: `${src}/board/RematchPanel.tsx`, from: "state.newDeck[oppSeat]", to: "state.newDeck[mySeat]", kills: ["tells you when the opponent is bringing a different deck, not when you are (#479)"] },
+    { id: "rematch-state-drops-new-deck", file: `${src}/net/protocol.ts`, from: "newDeck: [newDeck[0] === true, newDeck[1] === true],", to: "newDeck: [false, false],", kills: ["reads which seats are bringing a new deck, and treats a missing field as none (#479)"] },
   ],
 };

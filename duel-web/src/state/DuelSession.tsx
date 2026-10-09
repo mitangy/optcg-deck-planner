@@ -23,6 +23,7 @@ import type {
   ChatLine,
   Intent,
   MatchOverMessage,
+  PlayerDeckWire,
   PlayerView,
   Seat,
   SeatPlayers,
@@ -145,7 +146,7 @@ type DuelSession = {
   seatSkins: [SeatSkin | null, SeatSkin | null];
   /** Rematch vote once the match is over (null until the server reports it). */
   rematch: RematchState | null;
-  sendRematch: (action: RematchAction) => void;
+  sendRematch: (action: RematchAction, deck?: PlayerDeckWire) => void;
   sendUndo: (action: UndoAction) => void;
   rating: number | null;
   lastServerUrl: string | null;
@@ -470,9 +471,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       awayUntil,
       seatSkins,
       rematch,
-      sendRematch(action) {
+      sendRematch(action, deck) {
         try {
-          client.sendRematch(action);
+          client.sendRematch(action, deck);
         } catch (e) {
           setErrorBanner(e instanceof Error ? e.message : "Rematch failed");
         }
