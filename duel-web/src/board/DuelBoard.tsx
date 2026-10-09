@@ -154,6 +154,7 @@ import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY,
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { useMatchBrief } from "./MatchBrief";
+import { useLogPoseDock, useLogPoseDockHost } from "@optcg/analyst-client";
 import { useLogPoseCopilot } from "./LogPoseCopilot";
 import type { BriefTicketWire } from "../net/protocol";
 import { matchMenuItems } from "./matchMenuItems";
@@ -332,6 +333,13 @@ export function DuelBoard({
   const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_QUERY);
   /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
   const lp = wide && landscapePhone;
+  // Log Pose docked to a side: its panel renders into a host at the top of that side column, only while it is open.
+  // Narrow windows and landscape phones have no side columns, so there it floats.
+  const logPoseDock = useLogPoseDock();
+  const [logPoseHostL, setLogPoseHostL] = useState<HTMLElement | null>(null);
+  const [logPoseHostR, setLogPoseHostR] = useState<HTMLElement | null>(null);
+  useLogPoseDockHost(wide && !lp, logPoseHostL, logPoseHostR);
+  const logPoseSide = wide && !lp && logPoseDock.open ? logPoseDock.dock : null;
   const [promptSlot, setPromptSlot] = useState<HTMLElement | null>(null);
   const promptSlotValue = useMemo(() => ({ slot: promptSlot, setSlot: setPromptSlot }), [promptSlot]);
   /** Tall desktop, Grid layout: the hand is an always-open grid side panel (no dock). */
@@ -1835,7 +1843,7 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
       }${
         tilted ? " arena-tilt" : ""
@@ -2146,6 +2154,7 @@ export function DuelBoard({
           />
         ) : wide ? (
           <aside className="arena-left board-col" data-panel-col="left" aria-label="Side panels, left">
+            {logPoseSide === "left" ? <div ref={setLogPoseHostL} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("left")}
             {prefs.layoutGrips ? (
               <div className="col-resize col-resize-left" {...panelResize.columnHandleProps("left")} />
@@ -2327,6 +2336,7 @@ export function DuelBoard({
 
         {wide && !lp ? (
           <div className="arena-rail board-col" data-panel-col="right">
+            {logPoseSide === "right" ? <div ref={setLogPoseHostR} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("right")}
             {prefs.layoutGrips ? (
               <div className="col-resize col-resize-right" {...panelResize.columnHandleProps("right")} />

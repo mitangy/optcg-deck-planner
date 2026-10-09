@@ -12,6 +12,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   AnalystError,
   deleteThread,
@@ -31,7 +32,9 @@ import { placeAt, type Citation, type PlacedCitation } from "./citations";
 import { logPoseChrome } from "./chrome";
 import { DeckEditCard } from "./DeckEditCard";
 import { isEmptyAnswer, type DeckEditor, type DeckEditProposal } from "./proposals";
-import { ResizeHandles, SheetGrip, useDrawerSize, useHeaderMove, useSheetHeight } from "./PanelResize";
+import { DockHandle, ResizeHandles, SheetGrip, useDrawerSize, useHeaderMove, useSheetHeight, type DockPreview } from "./PanelResize";
+import { clampDockW, DOCK_W_DEFAULT, readDock, readDockW, writeDock, writeDockW, type Dock } from "./panelDock";
+import { compassRect, growOrigin, popFrames, POP_MS, slideFrames, type Rect } from "./panelMotion";
 import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
 import { RequestAccessView, RequestsList } from "./AccessViews";
 import { UsageView } from "./UsageView";
@@ -90,6 +93,12 @@ export type LogPoseGame = {
   starters?: string[];
 };
 
+/**
+ * Where a game board lets Log Pose dock: `columns` is false when the board has no side columns (narrow window,
+ * landscape phone), and the panel then floats. `left` / `right` are the elements the panel renders into.
+ */
+export type DockHosts = { columns: boolean; left: HTMLElement | null; right: HTMLElement | null };
+
 type LogPoseValue = {
   /** null until the session endpoint answers. */
   enabled: boolean | null;
@@ -103,8 +112,13 @@ type LogPoseValue = {
   /** Opens the panel. `quiet` keeps the keyboard where it is (the composer isn't focused), for a panel that opens by itself. */
   openPanel: (opts?: { quiet?: boolean }) => void;
   closePanel: () => void;
-  /** The panel is open (and not hidden by the page). */
+  /** The panel is open (and not hidden by the page). It turns false the moment it is closed, while the panel is still shrinking into the compass. */
   panelOpen: boolean;
+  /** The side the player docked the panel to (remembered), or null while it floats. */
+  dock: Dock;
+  setDock: (dock: Dock) => void;
+  /** A board registers its side columns so the panel can dock into them (see useLogPoseDockHost). */
+  setDockHost: (owner: object, hosts: DockHosts | null) => void;
   /** Log Pose can answer here: the session is enabled and the page doesn't hide it. */
   available: boolean;
   /** Opens the panel and, with an ask, puts that question to Log Pose. Returns false when it isn't available. */
@@ -129,6 +143,9 @@ const LogPoseContext = createContext<LogPoseValue>({
   openPanel: () => {},
   closePanel: () => {},
   panelOpen: false,
+  dock: null,
+  setDock: () => {},
+  setDockHost: () => {},
   available: false,
   openLogPose: () => false,
 });
@@ -181,6 +198,26 @@ export function useLogPoseGame(game: LogPoseGame | null) {
     setGame(owner, game);
     return () => setGame(owner, null);
   }, [game, owner, setGame]);
+}
+
+/**
+ * The docking state, for a board that shows Log Pose in a side column: `dock` is the side the player chose, `open`
+ * whether the panel is open. Render a host element in that column only while both hold (so a closed panel leaves
+ * no empty slot), and register it with `useLogPoseDockHost`.
+ */
+export function useLogPoseDock() {
+  const { dock, panelOpen, setDock } = useContext(LogPoseContext);
+  return { dock, open: panelOpen, setDock };
+}
+
+/** Registers the board's dock hosts while the calling component is mounted (see DockHosts). */
+export function useLogPoseDockHost(columns: boolean, left: HTMLElement | null, right: HTMLElement | null) {
+  const { setDockHost } = useContext(LogPoseContext);
+  const owner = useRef({}).current;
+  useEffect(() => {
+    setDockHost(owner, { columns, left, right });
+    return () => setDockHost(owner, null);
+  }, [columns, left, right, owner, setDockHost]);
 }
 
 /** Sent when the player taps Ask again on an edit whose deck changed. */
@@ -392,10 +429,18 @@ export function LogPoseProvider({
   }, []);
 
   const [open, setOpen] = useState(false);
+  // The panel stays on screen after `open` turns false, while it shrinks into the compass.
+  const [mounted, setMounted] = useState(false);
   const openRef = useRef(open);
   openRef.current = open && !hidden;
   const [unread, setUnread] = useState(false);
   const [quiet, setQuiet] = useState(false);
+  const compassAt = useRef<Rect | null>(null);
+  /** Remembers where the compass is as the panel opens, so the panel grows out of it. */
+  const noteCompass = () => {
+    const r = document.querySelector(".lp-compass")?.getBoundingClientRect();
+    compassAt.current = r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
+  };
   const isOpen = useCallback(() => openRef.current, []);
   const markUnread = useCallback(() => setUnread(true), []);
   const creditState = useCredit(apiBase, enabled === true, account);
@@ -409,6 +454,7 @@ export function LogPoseProvider({
     (ask?: LogPoseAsk) => {
       if (!available) return false;
       if (ask) setRequest({ ...ask, nonce: ++nonce.current });
+      if (!openRef.current) noteCompass();
       setOpen(true);
       setQuiet(false);
       setUnread(false);
@@ -419,6 +465,7 @@ export function LogPoseProvider({
   const handled = useCallback(() => setRequest(null), []);
   const openPanel = useCallback(
     (opts?: { quiet?: boolean }) => {
+      if (!openRef.current) noteCompass();
       setOpen(true);
       setQuiet(opts?.quiet === true);
       setUnread(false);
@@ -431,6 +478,38 @@ export function LogPoseProvider({
   );
 
   const closePanel = useCallback(() => setOpen(false), []);
+  const exited = useCallback(() => {
+    if (!openRef.current) setMounted(false);
+  }, []);
+
+  // Docking (desktop only): a side the player chose, how wide the strip is outside a game, and the board's side columns.
+  const wideEnough = useMedia(DRAWER_QUERY);
+  const [dock, setDockState] = useState<Dock>(() => readDock());
+  const [dockW, setDockW] = useState(() => readDockW());
+  const setDock = useCallback((next: Dock) => {
+    setDockState(next);
+    writeDock(next);
+  }, []);
+  const commitDockW = useCallback((w: number) => {
+    const v = clampDockW(w, window.innerWidth);
+    setDockW(v);
+    writeDockW(v);
+  }, []);
+  const [hosts, setHosts] = useState<DockHosts | null>(null);
+  const hostsOwner = useRef<object | null>(null);
+  const setDockHost = useCallback((owner: object, next: DockHosts | null) => {
+    if (next) {
+      hostsOwner.current = owner;
+      setHosts(next);
+    } else if (hostsOwner.current === owner) {
+      hostsOwner.current = null;
+      setHosts(null);
+    }
+  }, []);
+  const inGame = hosts !== null;
+  const dockable = wideEnough && (!inGame || hosts.columns);
+  const dockedTo: Dock = dockable ? dock : null;
+  const embedded = dockedTo && hosts ? hosts[dockedTo] : null;
 
   const [game, setGameState] = useState<LogPoseGame | null>(null);
   const gameOwner = useRef<object | null>(null);
@@ -445,19 +524,42 @@ export function LogPoseProvider({
   }, []);
 
   const value = useMemo<LogPoseValue>(
-    () => ({ enabled, apiBase, session: manager, setPage, setEditor, setGame, openPanel, closePanel, panelOpen: open && !hidden, available, openLogPose }),
-    [enabled, apiBase, manager, setPage, setEditor, setGame, openPanel, closePanel, open, hidden, available, openLogPose],
+    () => ({ enabled, apiBase, session: manager, setPage, setEditor, setGame, openPanel, closePanel, panelOpen: open && !hidden, dock, setDock, setDockHost, available, openLogPose }),
+    [enabled, apiBase, manager, setPage, setEditor, setGame, openPanel, closePanel, open, hidden, dock, setDock, setDockHost, available, openLogPose],
   );
 
   // A panel left open on a page that hides Log Pose must not come back on the next one.
   useEffect(() => {
-    if (hidden) setOpen(false);
+    if (hidden) {
+      setOpen(false);
+      setMounted(false);
+    }
   }, [hidden]);
+  useEffect(() => {
+    if (open) setMounted(true);
+  }, [open]);
+  // No panel to play the closing animation on (the session went away): don't keep the compass hidden.
+  useEffect(() => {
+    if (!open && mounted && !session) setMounted(false);
+  }, [open, mounted, session]);
 
   // Signed-in players who can ask for access get the compass too, opening a request form instead of the chat.
   const chatOn = enabled === true;
   const requestable = session !== null && !session.enabled && session.access !== undefined;
-  const chrome = logPoseChrome({ enabled, hidden, launcher, open, requestable });
+  const chrome = logPoseChrome({ enabled, hidden, launcher, open: open || mounted, requestable });
+
+  // A panel docked to the screen edge (outside a game) keeps the page out from under it: the page gets room on that side.
+  const edgeDock = chrome.panel && !inGame ? dockedTo : null;
+  useEffect(() => {
+    if (!edgeDock) return;
+    const root = document.documentElement;
+    root.dataset.lpDock = edgeDock;
+    root.style.setProperty("--lp-dock-w", `${dockW}px`);
+    return () => {
+      delete root.dataset.lpDock;
+      root.style.removeProperty("--lp-dock-w");
+    };
+  }, [edgeDock, dockW]);
   return (
     <LogPoseContext.Provider value={value}>
       <SourceHooksContext.Provider value={sources ?? NO_HOOKS}>
@@ -484,6 +586,17 @@ export function LogPoseProvider({
             apiBase={apiBase}
             refreshSession={() => void manager.refresh()}
             onClose={closePanel}
+            closing={!open}
+            onExited={exited}
+            origin={() => compassAt.current ?? compassRect({ w: window.innerWidth, h: window.innerHeight })}
+            dock={dockedTo}
+            canDock={dockable}
+            inGame={inGame}
+            embedded={embedded}
+            dockW={dockW}
+            onDockW={setDockW}
+            onCommitDockW={commitDockW}
+            onDock={setDock}
             quiet={quiet}
             request={request}
             onRequestHandled={handled}
@@ -575,6 +688,17 @@ function LogPosePanel({
   apiBase,
   refreshSession,
   onClose,
+  closing,
+  onExited,
+  origin,
+  dock,
+  canDock,
+  inGame,
+  embedded,
+  dockW,
+  onDockW,
+  onCommitDockW,
+  onDock,
   quiet,
   request,
   onRequestHandled,
@@ -590,6 +714,22 @@ function LogPosePanel({
   apiBase: string;
   refreshSession: () => void;
   onClose: () => void;
+  /** Closed, and shrinking into the compass: `onExited` unmounts the panel once that is done. */
+  closing: boolean;
+  onExited: () => void;
+  /** Where the compass is (or would be): the panel grows out of it and shrinks back into it. */
+  origin: () => Rect;
+  /** Docked to this side (desktop only), or floating. */
+  dock: Dock;
+  /** Docking is possible on this page (a game board without side columns can't). */
+  canDock: boolean;
+  inGame: boolean;
+  /** The board element a docked panel renders into; null while it has none (the panel waits). */
+  embedded: HTMLElement | null;
+  dockW: number;
+  onDockW: (w: number) => void;
+  onCommitDockW: (w: number) => void;
+  onDock: (dock: Dock) => void;
   /** Opened by the page, not the player: don't take the keyboard. */
   quiet: boolean;
   request: Request | null;
@@ -613,7 +753,48 @@ function LogPosePanel({
   const stick = useRef(true);
   const drawer = useDrawerSize();
   const sheet = useSheetHeight(panelRef, phone);
-  const move = useHeaderMove(drawer, panelRef);
+  const [preview, setPreview] = useState<DockPreview | null>(null);
+  const move = useHeaderMove(drawer, panelRef, { dock: phone ? null : dock, enabled: !phone && canDock, inGame, width: dockW, setDock: onDock }, setPreview);
+  const pending = !phone && dock !== null && inGame && !embedded;
+  const edge = !phone && dock !== null && !inGame;
+
+  // Pops out of the compass when it opens and shrinks back into it when it closes. A docked panel slides from its
+  // edge, and one inside the board just appears. No animation (reduced motion, no Web Animations) is an instant open / close.
+  const playing = useRef<Animation | null>(null);
+  const phase = useRef<"in" | "out" | null>(null);
+  useLayoutEffect(() => {
+    if (pending) {
+      if (closing) onExited();
+      return;
+    }
+    const el = panelRef.current;
+    const want = closing ? "out" : "in";
+    if (phase.current === want) return;
+    phase.current = want;
+    const done = closing ? onExited : undefined;
+    const reduced = document.documentElement.dataset.motion === "reduce" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (!el || embedded || reduced || typeof el.animate !== "function") {
+      playing.current?.cancel();
+      done?.();
+      return;
+    }
+    playing.current?.cancel();
+    let frames;
+    if (edge && dock) frames = slideFrames(dock, !closing);
+    else {
+      const o = growOrigin(origin(), el.getBoundingClientRect());
+      el.style.transformOrigin = `${o.x}px ${o.y}px`;
+      frames = popFrames(!closing);
+    }
+    const a = el.animate(frames, { duration: POP_MS, easing: closing ? "ease-in" : "ease-out", fill: closing ? "forwards" : "none" });
+    playing.current = a;
+    a.onfinish = () => {
+      if (playing.current !== a) return;
+      playing.current = null;
+      el.style.removeProperty("transform-origin");
+      done?.();
+    };
+  }, [closing, pending, embedded, edge, dock, origin, onExited]);
   const { loadHistory } = chat;
 
   // A different page brings its chip back.
@@ -692,7 +873,7 @@ function LogPosePanel({
     const el = listRef.current;
     if (el && showChat && stick.current) el.scrollTop = el.scrollHeight;
     else if (el && !showChat) el.scrollTop = 0;
-  }, [chat.messages, chat.status, chat.error, chat.busy, showChat]);
+  }, [chat.messages, chat.status, chat.error, chat.busy, showChat, embedded]);
 
   const onScroll = () => {
     const el = listRef.current;
@@ -742,7 +923,8 @@ function LogPosePanel({
   const showChip = Boolean(chipLabel) && !dropped;
   const aboutHint = extra?.hint;
 
-  return (
+  const floating = !phone && dock === null;
+  const node = (
     <div
       ref={panelRef}
       className="logpose lp-panel"
@@ -750,14 +932,20 @@ function LogPosePanel({
       aria-modal={phone ? "true" : undefined}
       aria-labelledby="lp-title"
       data-phone={phone ? "true" : undefined}
-      data-sized={!phone && drawer.size ? "true" : undefined}
+      data-sized={floating && drawer.size ? "true" : undefined}
+      data-dock={!phone && dock ? dock : undefined}
+      data-embedded={embedded ? "true" : undefined}
+      data-moving={move.moving ? "true" : undefined}
+      data-closing={closing ? "true" : undefined}
       style={
-        !phone && drawer.size
-          ? { width: drawer.size.w, height: drawer.size.h, ...(drawer.pos ? { right: drawer.pos.r, bottom: drawer.pos.b } : {}) }
-          : undefined
+        edge
+          ? { width: dockW }
+          : floating && drawer.size
+            ? { width: drawer.size.w, height: drawer.size.h, ...(drawer.pos ? { right: drawer.pos.r, bottom: drawer.pos.b } : {}) }
+            : undefined
       }
     >
-      {phone ? <SheetGrip {...sheet} /> : <ResizeHandles drawer={drawer} panelRef={panelRef} />}
+      {phone ? <SheetGrip {...sheet} /> : embedded ? null : edge && dock ? <DockHandle side={dock} width={dockW} onWidth={onDockW} onCommit={onCommitDockW} onReset={() => onCommitDockW(DOCK_W_DEFAULT)} /> : <ResizeHandles drawer={drawer} panelRef={panelRef} />}
       <header className="lp-head" data-owner={owner ? "true" : undefined} data-movable={phone ? undefined : "true"} {...(phone ? {} : move.header)}>
         <span className="lp-head-icon" aria-hidden="true">
           <CompassIcon />
@@ -771,7 +959,7 @@ function LogPosePanel({
             className="lp-btn lp-btn-icon lp-move"
             aria-label="Move Log Pose"
             aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
-            title="Drag the header to move (double-click to reset), or use the arrow keys here"
+            title="Drag the header to move, or to a screen edge to dock (double-click to reset). Arrow keys here move it; toward an edge docks, away undocks."
             {...move.grip}
           >
             <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -957,6 +1145,13 @@ function LogPosePanel({
       </div>
       ) : null}
     </div>
+  );
+  if (pending) return null;
+  return (
+    <>
+      {embedded ? createPortal(node, embedded) : node}
+      {preview ? createPortal(<div className="logpose lp-dock-preview" data-side={preview.side} aria-hidden="true" style={preview.rect} />, document.body) : null}
+    </>
   );
 }
 

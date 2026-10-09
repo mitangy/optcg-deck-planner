@@ -26,6 +26,9 @@ module.exports = {
     { id: "home-intro-for-signed-in", file: `${src}/home/intro.ts`, from: 'authMode === "guest" && !done', to: "!done", kills: ["never shows to signed-in players (#431)"] },
     { id: "home-intro-ignores-dismissal", file: `${src}/home/intro.ts`, from: 'authMode === "guest" && !done', to: 'authMode === "guest"', kills: ["shows to guests who have not dismissed it or started a match (#431)"] },
     { id: "home-intro-not-remembered", file: `${src}/home/intro.ts`, from: '    storage?.setItem(INTRO_KEY, "1");', to: "    storage?.setItem(INTRO_KEY, \"0\");", kills: ["remembers dismissal and survives blocked storage (#431)"] },
+    // Automated browsers reuse one guest account (#447)
+    { id: "guest-id-automation-random", file: `${src}/auth/guestId.ts`, from: "  if (isAutomatedBrowser()) return AUTOMATION_GUEST_ID;\n  try {\n    const existing", to: "  try {\n    const existing", kills: ["gives an automated browser the same fixed guest id every run and writes nothing (#447)"] },
+    { id: "guest-id-always-automation", file: `${src}/auth/guestId.ts`, from: 'navigator.webdriver === true', to: 'navigator.webdriver !== undefined', kills: ["gives a normal browser a random id that is stored and reused (#447)"] },
     // Asking for Log Pose (#393)
     { id: "access-form-shown-while-pending", file: "packages/analyst-client/src/AccessViews.tsx", from: "  if (sent === \"pending\" || access === \"pending\") {", to: "  if (sent === \"pending\") {", kills: ["shows no form once a request is waiting (#393)"] },
     { id: "access-note-uncapped", file: "packages/analyst-client/src/AccessViews.tsx", from: "        maxLength={NOTE_MAX}\n", to: "", kills: ["offers the form with a 500 character note to someone who hasn't asked (#393)"] },
