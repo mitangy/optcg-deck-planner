@@ -435,3 +435,54 @@
 .prompt-hide-wrap .ability-prompt.is-dragging > h3 {
   cursor: grabbing;
 }
+
+/* Effect ordering (#449): no scrim, and only the header, cards and buttons catch the
+   pointer, so the board (and the battle arrow) behind the empty parts stays in reach.
+   The header drags the stage (usePromptDrag; the offset rides on `translate`). */
+.float-layer-free .float-row,
+.float-layer-free .float-axis,
+.float-layer-free .float-stage-free {
+  pointer-events: none;
+}
+
+.float-layer-free .float-head,
+.float-layer-free .float-card,
+.float-layer-free .float-note,
+.float-layer-free .float-actions {
+  pointer-events: auto;
+}
+
+.prompt-hide-wrap .float-stage-free {
+  translate: var(--prompt-dx, 0) var(--prompt-dy, 0);
+}
+
+.float-stage-free > .float-head {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 0.25rem 0.9rem;
+  border-radius: 999px;
+  background: rgb(var(--deep-rgb) / 0.88);
+  border: 1px solid var(--line-strong);
+}
+
+.float-stage-free > .float-head > strong::before {
+  content: "⠿";
+  margin-right: 0.4rem;
+  opacity: 0.6;
+  font-family: system-ui, sans-serif;
+}
+
+.float-stage-free.is-dragging > .float-head {
+  cursor: grabbing;
+}
+
+/* Over the live board the text needs its own backing (there is no scrim to read against). */
+.float-layer-free .float-effect-text,
+.float-layer-free .float-note,
+.float-layer-free .float-axis > span:not(.float-axis-line) {
+  padding: 0.1rem 0.5rem;
+  border-radius: 0.5rem;
+  background: rgb(var(--deep-rgb) / 0.82);
+}
