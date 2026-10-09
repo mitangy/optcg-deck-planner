@@ -17,6 +17,9 @@ import { useDuelSettings } from "../settings";
  */
 
 /** Pending choices this prototype can float; everything else keeps the pop-up. */
+
+/** The effect-order pop-up drags like the others but does not dock (#449). */
+const FLOATING_NO_DOCK = { side: "" as const, dockable: false, setSide: () => undefined };
 export function canFloat(choice: PendingChoiceView): boolean {
   if (choice.kind === "order_effects") return (choice.unorderedChoices?.length ?? 0) > 1;
   const request = choice.request;
@@ -150,7 +153,7 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
   // board and the battle behind it stay clickable and visible, and its header drags it (promptPos).
   const free = choice.kind === "order_effects";
   const wrapRef = useRef<HTMLDivElement | null>(null);
-  usePromptDrag(wrapRef, useDuelSettings().promptPos);
+  usePromptDrag(wrapRef, useDuelSettings().promptPos, FLOATING_NO_DOCK);
   const layer = peek ? (
     <BackPill label={`Back to ${name} · ${count} card${count === 1 ? "" : "s"}`} onShow={() => onPeek(false)} />
   ) : (

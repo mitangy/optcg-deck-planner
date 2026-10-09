@@ -49,7 +49,8 @@ test("dragging a prompt's header moves it, and its buttons still answer (#324)",
 
 test("a dragged prompt stays on screen (#324)", async ({ page }) => {
   await open(page);
-  await dragHeader(page, -2000, -2000);
+  // Straight up: letting go at the screen's left edge would dock it instead (#449).
+  await dragHeader(page, 0, -2000);
   const box = (await page.locator(PROMPT).boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(7.5);
   expect(box.y).toBeGreaterThanOrEqual(7.5);

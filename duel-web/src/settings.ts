@@ -6,6 +6,7 @@
 import { useSyncExternalStore } from "react";
 import { asDonArtId } from "./board/donArt";
 import { OPP_HAND_SPOTS, type OppHandSpot } from "./board/panelLayout";
+import { PROMPT_DOCKS, type PromptDock } from "./board/promptDock";
 import { COLOR_MODES, DEFAULT_THEME, THEME_IDS, type ColorMode, type ThemeId } from "./theme";
 
 /** When "End turn" asks for a second tap. */
@@ -82,6 +83,12 @@ export type DuelSettings = {
    * on this device: pixels from a desktop window mean nothing on a phone.
    */
   promptPos: string;
+  /**
+   * Desktop: the side column pop-ups dock into ("left" / "right"), or "" to
+   * float. Follows the account; phones and landscape phones (no side columns)
+   * ignore it. See board/promptDock.ts.
+   */
+  promptDock: PromptDock;
   /** Desktop: the fanned hand (or corner dock) stays raised instead of tucking away. */
   keepHandOpen: boolean;
   /**
@@ -177,6 +184,7 @@ const DEFAULTS: DuelSettings = {
   spectatorNearFanPos: "",
   spectatorFarFanPos: "",
   promptPos: "",
+  promptDock: "",
   keepHandOpen: false,
   panelLayout: "",
   panelSizes: "",
@@ -261,6 +269,7 @@ function sanitize(
   if (storedLayout === "fanRight" || storedLayout === "fanCenter") next.handLayout = "fan";
   if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;
   if (!TEXT_SIZES.includes(next.textSize)) next.textSize = DEFAULTS.textSize;
+  if (!PROMPT_DOCKS.includes(next.promptDock)) next.promptDock = DEFAULTS.promptDock;
   if (!OPP_HAND_SPOTS.includes(next.oppHandSpot)) next.oppHandSpot = DEFAULTS.oppHandSpot;
   // Builds before #295 had a separate "Opponent hand, top right" switch; on is
   // the hand pinned top right, unless a spot was picked since.
