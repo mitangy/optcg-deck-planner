@@ -750,6 +750,20 @@ test("desktop mulligan puts Keep and Mulligan side by side in the board dock, wi
   await expect(page.locator(".intent-empty")).toHaveCount(0);
 });
 
+// Mulligan floats over the board in the desktop dock, so its fill must be opaque (#461).
+test("the Mulligan button has a solid background, not see-through (#461)", async ({ page }) => {
+  await page.goto("/demo?turn0");
+  await page.locator(".board-root").waitFor();
+  const redo = page.getByRole("button", { name: /^Mulligan/ });
+  await expect(redo).toBeVisible();
+  const bg = await redo.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const m = bg.match(/^rgba?\(([^)]+)\)$/);
+  expect(m, `unparseable background ${bg}`).not.toBeNull();
+  const parts = m![1].split(/[\s,/]+/).filter(Boolean);
+  const alpha = parts.length > 3 ? Number(parts[3]) : 1;
+  expect(alpha, `background was ${bg}`).toBe(1);
+});
+
 // The opponent hand pins above the top of the playmat (left, centre or right)
 // instead of its side panel, and drags back into a column (#264).
 test("the opponent hand pins to the top of the mat, stays after a reload, and drags back to a column (#264)", async ({ page, duel }, info) => {
