@@ -2498,6 +2498,48 @@ body.is-panel-drag * {
   cursor: not-allowed;
 }
 
+/* `/ff` result floats over the bottom of the chat log so the input never moves. */
+.chat-form-wrap {
+  position: relative;
+}
+
+.chat-command {
+  position: absolute;
+  left: 0.45rem;
+  right: 0.45rem;
+  bottom: 100%;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-bottom: 0.2rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--arena-mid);
+  color: var(--ink);
+  font-size: 0.76rem;
+}
+
+.chat-command button {
+  min-height: 32px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chat-command .chat-command-confirm {
+  border-color: rgb(var(--btn-edge-rgb) / 0.45);
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  color: var(--on-chrome);
+}
+
 /* Narrow: chat and battle log float from the top of the play area (not the
    board root) so a wrapped HUD can never cover them. Phone blocks below
    refine the battle-log pill. */

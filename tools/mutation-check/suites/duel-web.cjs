@@ -1275,5 +1275,8 @@ module.exports = {
     { id: "meta-sig-ignores-leader", file: `${src}/decks/meta.ts`, from: "`${leaderId.toUpperCase()}|", to: "`|", kills: ["does not match a deck with one card swapped or a different leader (#443)", "signatures ignore case and order but not leader (#443)"] },
     { id: "meta-sig-cards-by-length", file: `${src}/decks/meta.ts`, from: "[...cardIds].map((c) => c.toUpperCase()).sort().join(\",\")}`", to: "String(cardIds.length)}`", kills: ["does not match a deck with one card swapped or a different leader (#443)"] },
     { id: "meta-card-ids-ignore-count", file: `${src}/decks/meta.ts`, from: "Array.from({ length: c.count }, () => c.card_id)", to: "[c.card_id]", kills: ["finds a saved deck with the same leader and cards in any order (#443)"] },
+    { id: "chat-command-ignores-ff", file: `${src}/board/chatCommand.ts`, from: "new Set([\"/ff\", \"/surrender\", \"/concede\"])", to: "new Set([\"/surrender\", \"/concede\"])", kills: ["reads /ff, /surrender and /concede as concede, ignoring case and padding (#449)"] },
+    { id: "chat-command-no-trim-or-case", file: `${src}/board/chatCommand.ts`, from: "text.trim().toLowerCase()", to: "text", kills: ["reads /ff, /surrender and /concede as concede, ignoring case and padding (#449)"] },
+    { id: "chat-command-substring-match", file: `${src}/board/chatCommand.ts`, from: "CONCEDE.has(text.trim().toLowerCase())", to: "[...CONCEDE].some((c) => text.toLowerCase().includes(c))", kills: ["leaves messages that merely contain or extend the command as chat (#449)"] },
   ],
 };
