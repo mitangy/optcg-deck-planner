@@ -6,6 +6,8 @@ import { useClickCopy } from "./clickCopy";
 import { floatLookAnswer, moveId, nearestSlot, tapInOrder } from "./floatOrder";
 import "./float.css";
 import { BackPill, promptSourceName } from "./HideablePrompt";
+import { usePromptDrag } from "./promptDrag";
+import { useDuelSettings } from "../settings";
 
 /**
  * Floating-card prompts (always on in matches; `/demo?box` shows the pop-up fallback): instead of a pop-up panel,
@@ -144,13 +146,17 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
   actions: ReactNode;
 }) {
   const name = choice.kind === "order_effects" ? "Order effects" : sourceName(choice);
-  if (peek) {
-    return <BackPill label={`Back to ${name} · ${count} card${count === 1 ? "" : "s"}`} onShow={() => onPeek(false)} />;
-  }
-  return (
-    <div className="float-layer" role="dialog" aria-label={choice.prompt} style={{ "--n": count } as CSSProperties}>
-      <div className="float-scrim" aria-hidden />
-      <div className="float-stage">
+  // Effect ordering is a free-standing pop-up like the other choice prompts (#449): no scrim, the
+  // board and the battle behind it stay clickable and visible, and its header drags it (promptPos).
+  const free = choice.kind === "order_effects";
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  usePromptDrag(wrapRef, useDuelSettings().promptPos);
+  const layer = peek ? (
+    <BackPill label={`Back to ${name} · ${count} card${count === 1 ? "" : "s"}`} onShow={() => onPeek(false)} />
+  ) : (
+    <div className={`float-layer${free ? " float-layer-free" : ""}`} role="dialog" aria-label={choice.prompt} style={{ "--n": count } as CSSProperties}>
+      {free ? null : <div className="float-scrim" aria-hidden />}
+      <div className={`float-stage${free ? " float-stage-free" : ""}`}>
         <div className="float-head">
           <strong>{name}</strong>
           <span className="float-prompt">{choice.prompt}</span>
@@ -170,6 +176,13 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
         </div>
       </div>
     </div>
+  );
+  return free ? (
+    <div ref={wrapRef} className="prompt-hide-wrap">
+      {layer}
+    </div>
+  ) : (
+    layer
   );
 }
 

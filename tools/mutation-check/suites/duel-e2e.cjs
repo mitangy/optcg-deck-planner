@@ -258,6 +258,19 @@ module.exports = {
       { file: "duel-web/src/board/usePromptDodge.ts", from: "      const placedByPlayer = wrap.dataset.dragged != null;\n", to: "      const placedByPlayer = false;\n" },
       { file: "duel-web/src/board/promptDrag.ts", from: "      if (next.x !== offset.x || next.y !== offset.y) write(next);\n", to: "" },
     ], kills: ["prompt-drag.spec.ts > a prompt dragged during a battle stays on screen where it was dropped (#335) [desktop-1280]"] },
+    // The effect-order pop-up does not dim the board and drags by its header (#449)
+    { id: "e2e-effect-order-scrim", args: "effect-order-popup -g \"undimmed\"", file: "duel-web/src/board/FloatingPrompt.tsx", from: "      {free ? null : <div className=\"float-scrim\" aria-hidden />}", to: "      <div className=\"float-scrim\" aria-hidden />", kills: [
+      "effect-order-popup.spec.ts > ordering simultaneous effects leaves the board undimmed and clickable behind it (#449) [desktop-1280]",
+      "effect-order-popup.spec.ts > ordering simultaneous effects leaves the board undimmed and clickable behind it (#449) [phone-375]",
+    ] },
+    { id: "e2e-effect-order-not-draggable", args: "effect-order-popup -g \"drags by its header\"", file: "duel-web/src/board/FloatingPrompt.tsx", from: "  usePromptDrag(wrapRef, useDuelSettings().promptPos);\n", to: "", kills: [
+      "effect-order-popup.spec.ts > the effect-order pop-up drags by its header and the next one opens there (#449) [desktop-1280]",
+      "effect-order-popup.spec.ts > the effect-order pop-up drags by its header and the next one opens there (#449) [phone-375]",
+    ] },
+    { id: "e2e-effect-order-spot-not-shared", args: "effect-order-popup -g \"drags by its header\"", file: "duel-web/src/board/FloatingPrompt.tsx", from: "  usePromptDrag(wrapRef, useDuelSettings().promptPos);\n", to: "  usePromptDrag(wrapRef, \"\");\n", kills: [
+      "effect-order-popup.spec.ts > the effect-order pop-up drags by its header and the next one opens there (#449) [desktop-1280]",
+      "effect-order-popup.spec.ts > the effect-order pop-up drags by its header and the next one opens there (#449) [phone-375]",
+    ] },
     // Y / Space press the Confirm button of a pick prompt (#337)
     { id: "e2e-confirm-button-key-unmounted", args: "confirm-keys --project=desktop-1280 -g \"#337\"", file: "duel-web/src/board/DuelBoard.tsx", from: "  useConfirmButtonKey();\n", to: "", kills: [
       "confirm-keys.spec.ts > Space presses Confirm on a card search (#337) [desktop-1280]",

@@ -33,7 +33,9 @@ export function serializePromptPos(o: Offset): string {
 }
 
 /** The prompt's header row is the grip; its buttons (Hide) still click. */
-const GRIP = ".ability-prompt > h3";
+const GRIP = ".ability-prompt > h3, .float-stage-free > .float-head";
+/** The box a drag moves: a pop-up, or the effect-order stage (#449). */
+const BOX = ".ability-prompt, .float-stage-free";
 
 /**
  * Lets the player drag a centred prompt by its header. The offset lives on the
@@ -113,7 +115,7 @@ export function usePromptDrag(wrapRef: RefObject<HTMLElement | null>, saved: str
     // shown again after Hide, or the battle dodge moves its base spot.
     const reclamp = () => {
       if (offset.x === 0 && offset.y === 0) return;
-      const prompt = wrap.querySelector<HTMLElement>(".ability-prompt");
+      const prompt = wrap.querySelector<HTMLElement>(BOX);
       if (!prompt || prompt.offsetHeight === 0) return;
       const next = clampPromptOffset(baseRect(prompt), offset, view());
       if (next.x !== offset.x || next.y !== offset.y) write(next);
@@ -126,7 +128,7 @@ export function usePromptDrag(wrapRef: RefObject<HTMLElement | null>, saved: str
     const sizes = new ResizeObserver(reclampSoon);
     const watchPrompt = () => {
       sizes.disconnect();
-      const prompt = wrap.querySelector<HTMLElement>(".ability-prompt");
+      const prompt = wrap.querySelector<HTMLElement>(BOX);
       if (prompt) sizes.observe(prompt);
       reclampSoon();
     };
