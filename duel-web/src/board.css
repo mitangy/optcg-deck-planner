@@ -3333,6 +3333,36 @@ body.is-panel-drag * {
   flex: 1 1 8rem;
 }
 
+.rematch-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.rematch-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  font-size: 0.74rem;
+  color: var(--ink);
+}
+
+.rematch-deck select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+}
+
 /* —— Choice targets: live readiness under each field card —— */
 
 .choice-readiness {

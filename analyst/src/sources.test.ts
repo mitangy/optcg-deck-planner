@@ -66,6 +66,23 @@ describe("tool answers as citable sources (#390)", () => {
     }
   });
 
+  it("quotes the opponent's opening hand in a review overview only when the game revealed it (#472)", () => {
+    const overview = (g: object) => texts(gameResults("match", "m1", g)[0]!);
+    expect(overview({ ...GAME, opponentOpeningHand: ["Lucci", "Kaku"] })).toContain("Opponent's opening hand (revealed after the game): Lucci, Kaku.");
+    expect(overview(GAME).join(" ")).not.toContain("Opponent's opening hand");
+  });
+
+  it("quotes the deck lists in the overview of a review and of a corpus game (#472)", () => {
+    const overview = (prefix: "match" | "game", g: object) => texts(gameResults(prefix, "x1", g)[0]!).join("\n");
+    const mine = overview("match", { ...GAME, yourDeck: [{ id: "OP01-001", name: "Roronoa Zoro", copies: 1 }, { id: "OP01-016", name: "Nami", copies: 4 }] });
+    expect(mine).toContain("Your deck list: 1x Roronoa Zoro (OP01-001), 4x Nami (OP01-016).");
+    expect(mine).not.toContain("Opponent's deck list");
+    expect(overview("match", { ...GAME, opponentDeck: [{ id: "OP02-001", name: "Rob Lucci", copies: 3 }] })).toContain("Opponent's deck list (revealed after the game): 3x Rob Lucci (OP02-001).");
+    const corpus = overview("game", { leaders: { A: "Zoro", B: "Lucci" }, wentFirst: "A", decks: { A: [{ id: "OP01-016", name: "Nami", copies: 2 }], B: [{ id: "OP02-001", name: "Rob Lucci", copies: 3 }] }, log: [] });
+    expect(corpus).toContain("Player A deck list: 2x Nami (OP01-016).");
+    expect(corpus).toContain("Player B deck list: 3x Rob Lucci (OP02-001).");
+  });
+
   it("drops blank facts and gives no source at all when nothing is left to quote (#390)", () => {
     expect(searchResult("card:X", "X", ["a", "  ", "", null, undefined, false, " b "])!.content.map((c) => c.text)).toEqual(["a", "b"]);
     expect(searchResult("card:X", "X", ["  ", null])).toBeNull();

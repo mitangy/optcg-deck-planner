@@ -142,7 +142,8 @@ import { handCardOutOfReach, needsDonHint } from "./handAffordance";
 import { phaseLabel } from "./phaseLabel";
 import { playerLabel, seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
-import { RematchPanel } from "./RematchPanel";
+import type { RematchDeckOption } from "../decks/rematchDecks";
+import { RematchPanel, type RematchDecks } from "./RematchPanel";
 import { RoomChip } from "./RoomShare";
 import { PendingBoard, type BoardWaiting } from "./PendingBoard";
 import { fanPose, handDrawer } from "./handFan";
@@ -200,8 +201,10 @@ type Props = {
   /** Rematch vote on the match-over screen (unranked rooms). */
   rematch?: {
     state: RematchState | null;
-    onAction: (action: RematchAction) => void;
+    onAction: (action: RematchAction, decks?: RematchDecks) => void;
     autoAccept?: boolean;
+    /** Saved decks to switch to for the next game. */
+    deckOptions?: readonly RematchDeckOption[];
   };
   /** Opponent dropped: epoch ms until which they may reconnect before forfeiting. */
   opponentAwayUntil?: number | null;
@@ -2853,6 +2856,7 @@ export function DuelBoard({
                 mySeat={boardSeat}
                 players={players}
                 autoAccept={rematch.autoAccept}
+                deckOptions={rematch.deckOptions}
                 onAction={rematch.onAction}
               />
             ) : null}
