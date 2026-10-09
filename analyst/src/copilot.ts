@@ -5,7 +5,7 @@
  * propose_turn_plan tool, which checks a whole turn against the snapshot and writes nothing.
  */
 import { z } from "zod";
-import type { Catalog } from "./catalog";
+import type { Catalog, CardRow } from "./catalog";
 import { PlannerApiError, plannerCall, type PlannerApi } from "./matches";
 import type { ToolDef } from "./server";
 
@@ -130,6 +130,13 @@ function summarize(catalog: Catalog, ids: string[]): string {
 
 const MAX_TEXT = 400;
 
+/** One card of a card reference: id, name, type, cost, power, counter and the (truncated) rules text. */
+export function cardReferenceLine(c: CardRow): string {
+  const stats = [c.type, c.cost !== undefined ? `cost ${c.cost}` : "", c.power !== undefined ? `power ${c.power}` : "", c.counter ? `counter ${c.counter}` : ""].filter(Boolean);
+  const text = c.text.length > MAX_TEXT ? `${c.text.slice(0, MAX_TEXT - 1)}…` : c.text;
+  return `- ${c.id} ${c.name} (${stats.join(", ")})${text ? `: ${text}` : ""}`;
+}
+
 /** The <game> block that starts the user message: the board as the player sees it, readable by the model. */
 export function gameContextBlock(catalog: Catalog, game: GameContext, claims: GameClaims): string {
   const s = game.snapshot;
@@ -175,9 +182,7 @@ export function gameContextBlock(catalog: Catalog, game: GameContext, claims: Ga
   for (const id of ids) {
     const c = catalog.cards.get(id);
     if (!c) continue;
-    const stats = [c.type, c.cost !== undefined ? `cost ${c.cost}` : "", c.power !== undefined ? `power ${c.power}` : "", c.counter ? `counter ${c.counter}` : ""].filter(Boolean);
-    const text = c.text.length > MAX_TEXT ? `${c.text.slice(0, MAX_TEXT - 1)}…` : c.text;
-    lines.push(`- ${c.id} ${c.name} (${stats.join(", ")})${text ? `: ${text}` : ""}`);
+    lines.push(cardReferenceLine(c));
   }
   return `<game>\n${lines.join("\n")}\n</game>`;
 }
