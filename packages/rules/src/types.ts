@@ -260,8 +260,8 @@ export type EngineStep =
   | { kind: "after_block_triggers" }
   | { kind: "damage" }
   | { kind: "battle_ko"; targetSeat: Seat; targetId: InstanceId; replaced?: boolean }
-  /** `lethal`: the defender was at 0 Life when the hit landed (loses unless a damage replacement applies). */
-  | { kind: "life_damage"; replaced?: boolean; lethal?: boolean }
+  /** `lethal`: the defender was at 0 Life when the hit landed (loses unless a damage replacement applies). `dealt`: damage events already fired for this hit. */
+  | { kind: "life_damage"; replaced?: boolean; lethal?: boolean; dealt?: boolean }
   /** Effect damage outside battle (Life to hand with Trigger checks). */
   | { kind: "effect_damage"; seat: Seat; remaining: number; replaced?: boolean }
   | { kind: "end_battle" }

@@ -304,8 +304,12 @@ function advanceStep(sim: Sim): void {
       const attacker = locate(state, b.attackerId)?.card;
       const lifeId = d.zoneInstanceIds.life[0]!;
       const lifeDef = d.life[0]!;
-      dispatchEvent(state, "leader_damaged", { seat: defSeat });
-      if (attacker) dispatchEvent(state, "attack_damage", { seat: b.attackerSeat, card: attacker });
+      // "When ... deals/takes damage" sees a Double Attack's 2 damage once: it is one hit.
+      if (!step.dealt) {
+        step.dealt = true;
+        dispatchEvent(state, "leader_damaged", { seat: defSeat });
+        if (attacker) dispatchEvent(state, "attack_damage", { seat: b.attackerSeat, card: attacker });
+      }
       if (attacker && hasKeyword(state, b.attackerSeat, attacker, "banish")) {
         const entry = takeCard(state, { seat: defSeat, zone: "life", index: 0, id: lifeId, defId: lifeDef });
         putCard(state, defSeat, "trash", entry);
