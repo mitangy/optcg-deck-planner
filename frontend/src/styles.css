@@ -2320,10 +2320,18 @@ tr.done td {
 
   .topbar nav {
     grid-area: nav;
-    justify-content: space-between;
-    gap: 0.15rem;
+    justify-content: flex-start;
+    gap: 0.35rem;
     width: 100%;
     min-width: 0;
+    /* Items keep their normal gap; when they don't fit the row scrolls inside itself. */
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .topbar nav::-webkit-scrollbar {
+    display: none;
   }
 
   .user {
@@ -2384,13 +2392,12 @@ tr.done td {
   /* Underlined tabs instead of fat pills — saves ~20px of chrome. Tabs size
      to their label (not equal widths) so five fit on a 320px phone. */
   .topbar nav a {
-    flex: 1 1 auto;
-    min-width: 0;
+    flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 0.35rem 0.2rem 0.45rem;
+    padding: 0.35rem 0.55rem 0.45rem;
     min-height: 2.5rem;
     border-radius: 8px 8px 0 0;
     font-size: 0.88rem;
@@ -5468,12 +5475,6 @@ button.ghost.scan-open:hover {
   .done-editing-extra {
     display: none;
   }
-  /* Five nav tabs (with Collection) need a touch less type to fit 320px. */
-  .topbar nav a {
-    padding-left: 0.1rem;
-    padding-right: 0.1rem;
-    font-size: 0.8rem;
-  }
 }
 
 /* ——— Deck list density: ~96px art in the list rows (grid view and other pages keep the big thumb) ——— */
@@ -5642,6 +5643,355 @@ tr.row-flash > td {
   --fb-on-accent: var(--primary-ink);
   --fb-danger: var(--danger);
 }
+
+/* ---- Meta (tournament decks) ---- */
+.meta-page {
+  min-width: 0;
+}
+
+.meta-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.meta-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.meta-select select {
+  min-width: 9rem;
+}
+
+.meta-leader-grid,
+.meta-deck-list,
+.meta-card-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.meta-leader-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.meta-leader-grid > li {
+  min-width: 0;
+  display: flex;
+}
+
+.meta-leader-card {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: var(--shadow);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+a.meta-leader-card:hover,
+a.meta-leader-card:focus-visible {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-lift);
+}
+
+a.meta-leader-card:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.meta-leader-art {
+  flex: 0 0 auto;
+  width: 72px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--thumb-bg);
+  display: block;
+}
+
+.meta-leader-art.placeholder {
+  background: var(--bg-deep);
+}
+
+.meta-leader-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.meta-leader-body h2 {
+  margin: 0 0 0.15rem;
+  font-size: 1.1rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.meta-leader-body .muted {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.meta-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, auto));
+  justify-content: start;
+  gap: 0.25rem 1rem;
+  margin: 0.6rem 0 0;
+}
+
+.meta-stats > div {
+  min-width: 0;
+}
+
+.meta-stats dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.meta-stats dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta-stats-spacer {
+  min-height: 2.6rem;
+}
+
+.meta-leader-head {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  min-width: 0;
+}
+
+.meta-filters {
+  margin-left: auto;
+}
+
+.meta-state {
+  margin: 1.5rem 0;
+}
+
+.meta-state .btn.secondary {
+  width: auto;
+  margin-top: 0.5rem;
+}
+
+.meta-deck-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.meta-deck {
+  min-width: 0;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.5rem 0.9rem 0.8rem;
+  box-shadow: var(--shadow);
+}
+
+.meta-deck-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.35rem 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.meta-deck-chevron {
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.meta-deck.is-open .meta-deck-chevron {
+  transform: rotate(45deg);
+}
+
+.meta-deck-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.meta-deck-event {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.meta-deck-sub {
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta-deck-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.meta-deck-actions .btn {
+  width: auto;
+  margin-top: 0;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.9rem;
+}
+
+.meta-deck-actions .btn.primary {
+  min-width: 7.5rem;
+}
+
+.meta-deck-actions .btn.secondary:not(a) {
+  min-width: 6.5rem;
+}
+
+.meta-deck-error {
+  margin: 0.5rem 0 0;
+}
+
+.meta-deck-cards {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.5rem;
+}
+
+.meta-deck-cards h4 {
+  margin: 0.75rem 0 0.4rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.meta-card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.meta-card {
+  flex: 0 0 auto;
+  width: 72px;
+}
+
+.meta-deck-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  min-width: 0;
+}
+
+.meta-deck-groups > section {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.meta-card-art {
+  position: relative;
+  width: 100%;
+}
+
+.meta-card-art .thumb-btn {
+  display: block;
+  width: 100%;
+}
+
+.meta-card-art .thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 7;
+}
+
+.meta-card-count {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--sea-night);
+  color: var(--gold-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.meta-card-name {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta-credit {
+  margin: 2rem 0 0;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 400px) {
+  .meta-stats {
+    grid-template-columns: repeat(2, minmax(0, auto));
+  }
+}
+
+@media (max-width: 520px) {
+  .meta-controls,
+  .meta-select,
+  .meta-select select {
+    width: 100%;
+  }
+
+  .meta-select select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .meta-filters {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .meta-deck-actions .btn {
+    flex: 1 1 auto;
+  }
+}
+
 
 /* Log Pose docked to a side (#432): the top bar has less room than the window, so it lays out like the narrow
    one (brand and user on a row, the nav under them) whenever the room left beside the panel is under 1200px. */

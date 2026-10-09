@@ -25,6 +25,8 @@ const api = "backend/app/routers/api.py";
 const tsync = "backend/app/tournament_sync.py";
 const tstats = "backend/app/tournament_stats.py";
 const mainpy = "backend/app/main.py";
+const metaDecks = "backend/app/meta_decks.py";
+const metaRouter = "backend/app/routers/meta.py";
 
 module.exports = {
   cwd: "backend",
@@ -535,5 +537,48 @@ module.exports = {
     { id: "model-setting-haiku-not-offered", file: analyst, from: "\"claude-opus-5-5\", \"claude-haiku-5-5\", \"claude-haiku-4-5\")", to: "\"claude-opus-5-5\")", kills: ["test_the_model_admin_can_pick_either_haiku_430", "test_only_the_model_admin_can_change_the_chat_model_428"] },
     { id: "model-budget-ignores-saved", file: chat, from: "        model=chat_model(db),", to: "        model=CHAT_MODELS[0],", kills: ["test_the_budget_carries_the_saved_chat_model_428"] },
     { id: "model-admin-emails-case-sensitive", file: config, from: "        return {e.strip().lower() for e in self.analyst_model_admin_emails.split(\",\") if e.strip()}", to: "        return {e.strip() for e in self.analyst_model_admin_emails.split(\",\") if e.strip()}", kills: ["test_only_the_model_admin_can_change_the_chat_model_428"] },
+    // duel landing counts (#431)
+    { id: "rating-me-wins-count-every-match", file: duel, from: "                (seat0) & (DuelMatch.winner_seat == 0),\n                (seat1) & (DuelMatch.winner_seat == 1),", to: "                seat0,\n                seat1,", kills: ["test_rating_me_counts_wins_losses_and_rank_431"] },
+    { id: "rating-me-losses-skip-unranked", file: duel, from: "    played = db.scalar(select(func.count(DuelMatch.id)).where(or_(seat0, seat1)))", to: "    played = db.scalar(select(func.count(DuelMatch.id)).where(or_(seat0, seat1), DuelMatch.ranked))", kills: ["test_rating_me_counts_wins_losses_and_rank_431"] },
+    { id: "rating-me-rank-counts-unplayed", file: duel, from: "            .where(DuelRating.games_played > 0, DuelRating.rating > rating.rating)", to: "            .where(DuelRating.rating > rating.rating)", kills: ["test_rating_me_counts_wins_losses_and_rank_431"] },
+    { id: "rating-me-rank-counts-ties", file: duel, from: "DuelRating.rating > rating.rating)", to: "DuelRating.rating >= rating.rating)", kills: ["test_rating_me_counts_wins_losses_and_rank_431"] },
+    { id: "rating-me-rank-without-games", file: duel, from: "    if rating.games_played > 0:\n        ahead", to: "    if True:\n        ahead", kills: ["test_rating_me_rank_is_null_without_ranked_games_431"] },
+    { id: "leaderboard-lists-unplayed", file: duel, from: "        .where(DuelRating.games_played > 0)\n        .order_by(DuelRating.rating.desc()", to: "        .order_by(DuelRating.rating.desc()", kills: ["test_leaderboard_skips_players_with_no_games_431"] },
+    { id: "live-counts-stale-presence", file: duel, from: "        if now - _utc(row.updated_at) > PRESENCE_TTL:\n            continue", to: "        if False:\n            continue", kills: ["test_live_counts_fresh_playing_rooms_and_online_users_431"] },
+    { id: "live-online-includes-finished", file: duel, from: "        if row.phase != \"finished\":\n            online.add", to: "        if True:\n            online.add", kills: ["test_live_counts_fresh_playing_rooms_and_online_users_431"] },
+    { id: "live-matches-count-spectators", file: duel, from: "        if row.role == \"player\" and row.phase == \"playing\":", to: "        if row.phase == \"playing\":", kills: ["test_live_counts_fresh_playing_rooms_and_online_users_431"] },
+    { id: "live-matches-count-waiting-rooms", file: duel, from: "row.role == \"player\" and row.phase == \"playing\":", to: "row.role == \"player\" and row.phase != \"finished\":", kills: ["test_live_counts_fresh_playing_rooms_and_online_users_431"] },
+    { id: "live-matches-count-players-not-rooms", file: duel, from: "            rooms.add(row.room_id)", to: "            rooms.add(row.user_id)", kills: ["test_live_counts_fresh_playing_rooms_and_online_users_431"] },
+    { id: "live-online-ignores-lobby-ttl", file: duel, from: "        if now - _utc(seen.seen_at) <= ONLINE_TTL:", to: "        if True:", kills: ["test_live_counts_fresh_playing_rooms_and_online_users_431"] },
+    { id: "live-online-ignores-lobby-seen", file: duel, from: "        if now - _utc(seen.seen_at) <= ONLINE_TTL:\n            online.add(seen.user_id)", to: "        pass", kills: ["test_live_counts_fresh_playing_rooms_and_online_users_431"] },
+    { id: "live-cache-never-expires", file: duel, from: "    if _live_cache is not None and tick - _live_cache[0] < LIVE_CACHE_S:", to: "    if _live_cache is not None:", kills: ["test_live_result_is_cached_for_30_seconds_431"] },
+    { id: "live-cache-unused", file: duel, from: "    if _live_cache is not None and tick - _live_cache[0] < LIVE_CACHE_S:", to: "    if False:", kills: ["test_live_result_is_cached_for_30_seconds_431"] },
+    // meta deck browser (#443)
+    { id: "meta-window-ignored", file: metaDecks, from: "Tournament.date >= _since(days), ", to: "", kills: ["test_window_and_min_players_pick_the_events_that_count_443"] },
+    { id: "meta-min-players-ignored", file: metaDecks, from: ", Tournament.players >= min_players)", to: ")", kills: ["test_window_and_min_players_pick_the_events_that_count_443"] },
+    { id: "meta-leaders-tie-unordered", file: metaDecks, from: "leaders.sort(key=lambda x: (-x[\"decks\"], x[\"leader_id\"]))", to: "leaders.sort(key=lambda x: -x[\"decks\"])", kills: ["test_leaders_are_sorted_by_decks_then_id_with_their_share_443"] },
+    { id: "meta-leaders-sorted-by-id", file: metaDecks, from: "leaders.sort(key=lambda x: (-x[\"decks\"], x[\"leader_id\"]))", to: "leaders.sort(key=lambda x: x[\"leader_id\"])", kills: ["test_leaders_are_sorted_by_decks_then_id_with_their_share_443"] },
+    { id: "meta-share-of-leaders-not-decks", file: metaDecks, from: "round(r[\"decks\"] / len(decks), 3)", to: "round(r[\"decks\"] / len(by_leader), 3)", kills: ["test_leaders_are_sorted_by_decks_then_id_with_their_share_443"] },
+    { id: "meta-top8-excludes-eighth", file: metaDecks, from: "d.placing <= TOP_FINISH", to: "d.placing < TOP_FINISH", kills: ["test_leader_record_top8_and_win_rate_443"] },
+    { id: "meta-win-rate-counts-ties", file: metaDecks, from: "games = r[\"wins\"] + r[\"losses\"]", to: "games = r[\"wins\"] + r[\"losses\"] + r[\"ties\"]", kills: ["test_leader_record_top8_and_win_rate_443"] },
+    { id: "meta-win-rate-zero-without-games", file: metaDecks, from: "if games else None", to: "if games else 0.0", kills: ["test_leader_record_top8_and_win_rate_443"] },
+    { id: "meta-name-suffix-kept", file: metaDecks, from: "return _NAME_SUFFIX_RE.sub(\"\", name or \"\").strip()", to: "return (name or \"\").strip()", kills: ["test_leader_and_card_names_drop_catalog_suffixes_443"] },
+    { id: "meta-placing-nulls-first", file: metaDecks, from: "(r[0].placing is None, r[0].placing or 0)", to: "(r[0].placing or 0)", kills: ["test_decks_are_ordered_by_placing_then_players_then_date_443"] },
+    { id: "meta-players-ascending", file: metaDecks, from: "events[r[0].tournament_id].players, reverse=True)", to: "events[r[0].tournament_id].players)", kills: ["test_decks_are_ordered_by_placing_then_players_then_date_443"] },
+    { id: "meta-date-ascending", file: metaDecks, from: "events[r[0].tournament_id].date, reverse=True)", to: "events[r[0].tournament_id].date)", kills: ["test_decks_are_ordered_by_placing_then_players_then_date_443"] },
+    { id: "meta-top-ignored", file: metaDecks, from: "    if top:\n", to: "    if False:\n", kills: ["test_top_filter_keeps_only_decks_placing_at_or_above_it_443"] },
+    { id: "meta-top-excludes-boundary", file: metaDecks, from: "TournamentDeck.placing <= top", to: "TournamentDeck.placing < top", kills: ["test_top_filter_keeps_only_decks_placing_at_or_above_it_443"] },
+    { id: "meta-empty-lists-included", file: metaDecks, from: "        if counts:\n", to: "        if True:\n", kills: ["test_decks_without_a_decklist_are_left_out_443"] },
+    { id: "meta-cards-sorted-by-id", file: metaDecks, from: "cards.sort(key=_cost_key)", to: "cards.sort(key=lambda c: c[\"card_id\"])", kills: ["test_deck_rows_carry_event_record_and_sorted_cards_without_player_data_443"] },
+    { id: "meta-unknown-cost-first", file: metaDecks, from: "return (99, card[\"card_id\"])", to: "return (-1, card[\"card_id\"])", kills: ["test_deck_rows_carry_event_record_and_sorted_cards_without_player_data_443"] },
+    { id: "meta-text-counts-flattened", file: metaDecks, from: "f\"{c['count']}x{c['card_id']}\" for c in cards", to: "f\"1x{c['card_id']}\" for c in cards", kills: ["test_text_creates_a_planner_deck_with_that_leader_and_those_cards_443", "test_deck_rows_carry_event_record_and_sorted_cards_without_player_data_443"] },
+    { id: "meta-card-count-distinct", file: metaDecks, from: "sum(c[\"count\"] for c in cards)", to: "len(cards)", kills: ["test_deck_rows_carry_event_record_and_sorted_cards_without_player_data_443"] },
+    { id: "meta-cache-control-missing", file: metaRouter, from: "    response.headers[\"Cache-Control\"] = f\"public, max-age={CACHE_TTL_S}\"\n", to: "    pass\n", kills: ["test_responses_are_cacheable_and_reused_for_ten_minutes_443"] },
+    { id: "meta-cache-unused", file: metaRouter, from: "if hit and now - hit[0] < CACHE_TTL_S:", to: "if False:", kills: ["test_responses_are_cacheable_and_reused_for_ten_minutes_443"] },
+    { id: "meta-cache-never-expires", file: metaRouter, from: "if hit and now - hit[0] < CACHE_TTL_S:", to: "if hit:", kills: ["test_responses_are_cacheable_and_reused_for_ten_minutes_443"] },
+    { id: "meta-cache-key-ignores-days", file: metaRouter, from: "(\"leaders\", days, min_players)", to: "(\"leaders\", min_players)", kills: ["test_responses_are_cacheable_and_reused_for_ten_minutes_443"] },
+    { id: "meta-rate-limit-shared-key", file: metaRouter, from: "_rate_limiter.allow(client_ip(request))", to: "_rate_limiter.allow(\"meta\")", kills: ["test_meta_requests_are_rate_limited_per_client_ip_443"] },
+    { id: "meta-rate-limit-off", file: metaRouter, from: "if not _rate_limiter.allow(client_ip(request)):", to: "if False:", kills: ["test_meta_requests_are_rate_limited_per_client_ip_443"] },
+    { id: "meta-requires-login", edits: [{ file: metaRouter, from: "from app.db import get_db", to: "from app.auth import get_current_user\nfrom app.db import get_db" }, { file: metaRouter, from: "def get_meta_leaders(\n    request: Request,", to: "def get_meta_leaders(\n    _user: Annotated[object, Depends(get_current_user)],\n    request: Request," }], kills: ["test_meta_endpoints_need_no_login_443"] },
   ],
 };

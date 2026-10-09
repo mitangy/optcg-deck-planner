@@ -596,7 +596,8 @@ const LIGHT_TEXT: Record<string, string[]> = {
     ".recent-play-opp .recent-play-who",
     ".log-phase .log-text",
   ],
-  "/": [".home-kicker"],
+  // The wordmark kicker is hidden on a wide window; the deck hero and the side column are what shows.
+  "/": [".home-deck-label", ".friends-title"],
   "/settings": [".panel-title"],
 };
 

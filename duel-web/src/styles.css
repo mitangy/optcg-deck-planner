@@ -101,12 +101,14 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   overflow-x: clip;
+  --wave-src: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='24' viewBox='0 0 120 24'%3E%3Cpath d='M0 12c15 0 15-8 30-8s15 8 30 8 15-8 30-8 15 8 30 8' fill='none' stroke='%23d2a54d' stroke-opacity='0.035' stroke-width='1.2'/%3E%3C/svg%3E");
+  --wave-layer: var(--wave-src);
   /* Moonlit sea: cool glow from above, faint warm lantern low-right, and a
      barely-there wave line texture. */
   background:
     radial-gradient(1000px 560px at 50% -12%, var(--glow-top), transparent 62%),
     radial-gradient(640px 380px at 100% 100%, var(--glow-low), transparent 60%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='24' viewBox='0 0 120 24'%3E%3Cpath d='M0 12c15 0 15-8 30-8s15 8 30 8 15-8 30-8 15 8 30 8' fill='none' stroke='%23d2a54d' stroke-opacity='0.035' stroke-width='1.2'/%3E%3C/svg%3E"),
+    var(--wave-layer),
     var(--arena-deep);
 }
 

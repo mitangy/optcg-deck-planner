@@ -7,6 +7,7 @@ import { defaultLogPosePage, logPoseChromeFor, SOURCE_HOOKS, useBoardBrief } fro
 import { AuthCompletePage } from "./pages/AuthCompletePage";
 import { DeckConfigurePage } from "./pages/DeckConfigurePage";
 import { DeckListPage } from "./pages/DeckListPage";
+import { MetaDecksPage } from "./pages/MetaDecksPage";
 import { NewDeckPage } from "./pages/NewDeckPage";
 import { DemoPage } from "./pages/DemoPage";
 import { DuelPage } from "./pages/DuelPage";
@@ -48,6 +49,7 @@ export function App() {
         <Route path="/" element={<LobbyPage />} />
         <Route path="/watch/:roomId" element={<LobbyPage />} />
         <Route path="/decks" element={<DeckListPage />} />
+        <Route path="/decks/meta" element={<MetaDecksPage />} />
         <Route path="/decks/new" element={<NewDeckPage />} />
         <Route path="/decks/:deckId/configure" element={<DeckConfigurePage />} />
         <Route path="/decks/configure" element={<Navigate to="/decks" replace />} />

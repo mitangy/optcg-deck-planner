@@ -330,7 +330,7 @@ test("a spectator of a practice room gets no Brief button or card, even with Log
   await spec.route(`${FAKE_API}/health`, (route) => route.fulfill({ json: { ok: true } }));
   await spec.goto("/");
   await spec.getByRole("button", { name: "Play", exact: true }).click();
-  await spec.getByRole("button", { name: /^Spectate/ }).click();
+  await spec.getByRole("dialog").getByRole("button", { name: /^Spectate/ }).click();
   await spec.getByLabel("Room id").fill(roomId!);
   await spec.getByRole("button", { name: "Watch", exact: true }).click();
   await expect(spec.locator(".board-root")).toBeVisible({ timeout: 30_000 });

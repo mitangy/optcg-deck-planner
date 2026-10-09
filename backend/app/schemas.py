@@ -625,6 +625,18 @@ class DuelRatingOut(BaseModel):
     username: str | None = None
     rating: int
     games_played: int
+    # Finished games (ranked and unranked) from the user's own seat.
+    wins: int = 0
+    losses: int = 0
+    # 1 + players with games and a strictly higher rating; null before the first ranked game.
+    rank: int | None = None
+
+
+class DuelLiveOut(BaseModel):
+    """Counts only: players online and matches in progress."""
+
+    online: int
+    matches: int
 
 
 class DuelLeaderboardEntryOut(BaseModel):

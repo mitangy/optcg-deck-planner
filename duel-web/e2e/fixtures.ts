@@ -103,7 +103,7 @@ export const test = base.extend<{ duel: Duel }>({
         }, decks);
         await page.goto("/");
         await page.getByRole("button", { name: "Play", exact: true }).click();
-        await page.getByRole("button", { name: /^Practice/ }).click();
+        await page.getByRole("dialog").getByRole("button", { name: /^Practice/ }).click();
         await page.getByLabel("Opponent deck").selectOption("e2e-opp");
         await page.getByRole("button", { name: "Start practice" }).click();
         await expect(page.getByRole("button", { name: "Keep opening hand" })).toBeVisible({ timeout: 30_000 });

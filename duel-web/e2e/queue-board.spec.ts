@@ -15,7 +15,7 @@ async function openRanked(page: Page) {
   }, RED_VANILLA);
   await page.goto("/");
   await page.getByRole("button", { name: "Play", exact: true }).click();
-  await page.getByRole("button", { name: /^Ranked/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Ranked/ }).click();
   await page.getByRole("button", { name: "Find match" }).click();
 }
 
@@ -40,4 +40,19 @@ test("a failed match request returns to the lobby and says why", async ({ page, 
   await openRanked(page);
   await expect(page.locator(".error-text")).toContainText("Token mint failed", { timeout: 30_000 });
   await expect(page).toHaveURL(/\/$/);
+});
+
+test("after Ranked once, one tap on Play searches for an opponent (#431)", async ({ page, duel: _duel }) => {
+  await openRanked(page);
+  const board = page.locator(".board-root.arena-pending");
+  await expect(board.getByRole("status")).toContainText("Searching for an opponent");
+  await board.getByRole("button", { name: "Cancel" }).click();
+  await expect(page).toHaveURL(/\/$/);
+
+  // Back in the lobby Play names the mode, and no sheet opens.
+  const play = page.getByRole("button", { name: "Play", exact: true });
+  await expect(play).toHaveAccessibleDescription(/^Ranked/);
+  await play.click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".board-root.arena-pending").getByRole("status")).toContainText("Searching for an opponent");
 });
