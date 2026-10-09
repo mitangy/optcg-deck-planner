@@ -6,6 +6,7 @@ import {
   intentLabel,
   parseError,
   parseMatchOver,
+  parseRematchState,
   parseView,
   parseWelcome,
   type PlayerView,
@@ -218,5 +219,13 @@ describe("welcome brief ticket (#401)", () => {
     const watched = parseWelcome({ ...base, role: "spectator", view: specView, ranked: false, brief: ticket });
     expect(watched.brief).toBeUndefined();
     expect(watched.ranked).toBe(false);
+  });
+});
+
+describe("parseRematchState", () => {
+  it("reads which seats are bringing a new deck, and treats a missing field as none (#479)", () => {
+    const base = { protocolVersion: PROTOCOL_VERSION, available: true, requested: [true, false], declinedBy: null, chooser: null };
+    expect(parseRematchState({ ...base, newDeck: [false, true] }).newDeck).toEqual([false, true]);
+    expect(parseRematchState(base).newDeck).toEqual([false, false]);
   });
 });
