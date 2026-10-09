@@ -11,10 +11,11 @@ import { generateAbilities, serializeGenerated } from "../tools/cardText/generat
 describe("card data", () => {
   it("covers every catalog id (official list plus flagged bundled rows)", () => {
     const ids = listCardDataIds();
-    expect(ids.length).toBe(2834);
+    expect(ids.length).toBe(2863);
     const official = listCardDefs().filter((d) => d.dataSource === "bandai");
     expect(official.length).toBe(2785);
-    expect(listCardDefs().filter((d) => d.dataSource === "bundled").length).toBe(49);
+    expect(listCardDefs().filter((d) => d.dataSource === "bundled").length).toBe(28);
+    expect(listCardDefs().filter((d) => d.dataSource === "tcgplayer").length).toBe(50);
   });
 
   it("carries the confirmed ST01 and Teach corrections from official data", () => {
@@ -62,7 +63,7 @@ describe("card data", () => {
   });
 
   it("records provenance for every card", () => {
-    expect(Object.keys(CARD_SOURCE_RECORDS).length).toBe(2834);
+    expect(Object.keys(CARD_SOURCE_RECORDS).length).toBe(2863);
     expect(cardSourceRecord("ST01-005")?.fields).toMatchObject({ identity: "verified", counter: "verified", errata: "unknown" });
     expect(cardSourceRecord("EB05-002")?.fields.identity).toBe("unverified");
   });
@@ -70,7 +71,7 @@ describe("card data", () => {
 
 describe("ability registry", () => {
   it("validates every card and matches deterministic regeneration", () => {
-    expect(ABILITY_REGISTRY.cards.size).toBe(2834);
+    expect(ABILITY_REGISTRY.cards.size).toBe(2863);
     const text = serializeGenerated(generateAbilities());
     const current = readFileSync(resolve(__dirname, "../cards/generated/abilities.json"), "utf8").replace(/\r\n/g, "\n");
     expect(current === text, "generated abilities.json is stale: run npx tsx src/tools/cardText/generate.ts").toBe(true);
@@ -96,7 +97,7 @@ describe("ability registry", () => {
 describe("support manifest and ranked gate", () => {
   it("labels every catalog card and blocks decks with unsupported cards", () => {
     const manifest = buildCardSupportManifest();
-    expect(Object.keys(manifest).length).toBe(2834);
+    expect(Object.keys(manifest).length).toBe(2863);
     expect(manifest["ST01-003"]).toBe("none");
     expect(manifest["ST01-006"]).toBe("keywords");
     expect(manifest["OP01-016"]).toBe("ok");

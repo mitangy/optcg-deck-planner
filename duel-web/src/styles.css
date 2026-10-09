@@ -3712,9 +3712,10 @@ img.zone-pile-face {
   color: var(--chrome-bright);
 }
 
-/* Keep is the main choice (theme button); Mulligan is the quieter outline. */
+/* Keep is the main choice (theme button); Mulligan is the quieter outline
+   button on a solid fill so the board never shows through it in the dock (#461). */
 .intent-btn-mulligan {
-  background: transparent !important;
+  background: var(--arena-raised) !important;
   color: var(--chrome-bright) !important;
   border-color: var(--chrome) !important;
 }
