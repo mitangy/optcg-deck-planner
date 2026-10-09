@@ -1,7 +1,9 @@
 /**
  * A player's own games and decks, read from the planner API with their personal connector token.
- * Full replays need the analyst's service secret too; they are re-run here and narrated only
- * from the player's seat, so the opponent's hand and deck never reach the chat.
+ * Full replays need the analyst's service secret too; they are re-run here and narrated from the
+ * player's seat. Each turn lists the player's own hand after the draw. The opponent's hand and
+ * opening hand are named only once the game is over (the History page reveals them then too); the
+ * player could not see them while it was being played.
  */
 import {
   describeEvents,
@@ -113,9 +115,10 @@ type Narration = {
 /**
  * Re-run a game and describe it turn by turn. With a seat, only what that seat could see is named
  * and lines say "you" and "opponent"; with view null (corpus games) every card is named and the
- * seats are Player A (seat 0) and Player B (seat 1).
+ * seats are Player A (seat 0) and Player B (seat 1). Each turn lists the hand(s) after the draw; with a
+ * seat the opponent's hand is listed only when revealOpponent is set (a finished game).
  */
-function narrate(replay: MatchReplay, view: Seat | null, opts: NarrateOptions): Narration {
+function narrate(replay: MatchReplay, view: Seat | null, opts: NarrateOptions, revealOpponent = false): Narration {
   const fromTurn = opts.fromTurn ?? 1;
   const toTurn = opts.toTurn ?? Number.POSITIVE_INFINITY;
   const maxLines = opts.maxLines ?? 400;
@@ -137,6 +140,14 @@ function narrate(replay: MatchReplay, view: Seat | null, opts: NarrateOptions): 
   // Without played mulligans the opening state is already turn 1; otherwise it's the mulligan step (turn 0)
   // and the hand to report is the one kept after each seat's mulligan choice.
   const openingHands: Narration["openingHands"] = [hand(opening, 0), hand(opening, 1)];
+  const handLines = (state: typeof opening): string[] => {
+    const names = (s: Seat) => hand(state, s).join(", ") || "empty";
+    if (view === null) return [`Player A's hand: ${names(0)}.`, `Player B's hand: ${names(1)}.`];
+    return [
+      `Your hand after the draw: ${names(view)}.`,
+      ...(revealOpponent ? [`Opponent's hand (revealed after the game): ${names((1 - view) as Seat)}.`] : []),
+    ];
+  };
   let final = opening;
   let divergedAt: string | null = null;
   try {
@@ -146,8 +157,12 @@ function narrate(replay: MatchReplay, view: Seat | null, opts: NarrateOptions): 
       view === null
         ? `--- Turn ${turn} (Player ${side(active)}'s turn) ---`
         : `--- Turn ${turn} (${active === view ? "your" : "opponent's"} turn) ---`;
-    if (opening.phase !== "mulligan" && turn >= fromTurn && turn <= toTurn) push(header());
+    if (opening.phase !== "mulligan" && turn >= fromTurn && turn <= toTurn) {
+      push(header());
+      for (const line of handLines(opening)) push(line);
+    }
     final = replayMatch(replay, (step) => {
+      let started = false;
       if (step.intent.type === "mulligan") openingHands[step.seat] = hand(step.state, step.seat);
       const events = view === null ? step.events : projectGameEvents(step.events, view);
       for (const event of events) {
@@ -156,13 +171,18 @@ function narrate(replay: MatchReplay, view: Seat | null, opts: NarrateOptions): 
           if (event.phase === "refresh") {
             turn += 1;
             active = event.activeSeat;
-            if (turn >= fromTurn && turn <= toTurn) push(header());
+            if (turn >= fromTurn && turn <= toTurn) {
+              push(header());
+              started = true;
+            }
           }
           continue;
         }
         if (turn < fromTurn || turn > toTurn) continue;
         for (const line of describeEvents([event])) push(label(line));
       }
+      // The step that opens a turn ends in its main phase, with the draw done: that is the hand to list.
+      if (started) for (const line of handLines(step.state)) push(line);
     });
   } catch (err) {
     divergedAt = err instanceof Error ? err.message : String(err);
@@ -178,7 +198,9 @@ const narrationNotes = (n: Narration, maxLines: number | undefined, first: strin
 
 /** The game as a turn-by-turn log seen from one seat: your hidden cards named, the opponent's not. */
 export function narrateReplay(replay: MatchReplay, seat: Seat, opts: NarrateOptions = {}) {
-  const n = narrate(replay, seat, opts);
+  // Same rule as the History page: the opponent's hand is shown for finished games only.
+  const revealed = replay.end !== undefined && replay.end !== null;
+  const n = narrate(replay, seat, opts, revealed);
   const you = n.final.players[seat];
   const opp = n.final.players[(1 - seat) as Seat];
   return {
@@ -187,6 +209,7 @@ export function narrateReplay(replay: MatchReplay, seat: Seat, opts: NarrateOpti
     yourLeader: cardName(replay.players[seat].leaderId),
     opponentLeader: cardName(replay.players[(1 - seat) as Seat].leaderId),
     yourOpeningHand: n.openingHands[seat],
+    ...(revealed ? { opponentOpeningHand: n.openingHands[(1 - seat) as Seat] } : {}),
     result: replay.end
       ? { won: replay.end.winner === seat, reason: replay.end.reason }
       : null,
@@ -204,7 +227,9 @@ export function narrateReplay(replay: MatchReplay, seat: Seat, opts: NarrateOpti
     notes: narrationNotes(
       n,
       opts.maxLines,
-      "Log lines come from the duel engine re-running the game; 'Opponent' cards that were face-down to you show as 'a hidden card'.",
+      revealed
+        ? "Log lines come from the duel engine re-running the game; 'Opponent' cards that were face-down to you show as 'a hidden card'. Each turn lists your hand after the draw and the opponent's hand, revealed because the game is over; the player couldn't see the opponent's hand during the game."
+        : "Log lines come from the duel engine re-running the game; 'Opponent' cards that were face-down to you show as 'a hidden card'. Each turn lists your hand after the draw.",
     ),
   };
 }

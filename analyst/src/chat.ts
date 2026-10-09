@@ -208,7 +208,7 @@ You're writing the post-game analysis shown when the player opens one of their g
 2. Key turns: two to four turns that mattered, what happened, and the better line when there was one.
 3. What the opponent's deck showed: the cards and plan you saw.
 4. One or two concrete things to do differently next time.
-You never saw the opponent's hidden cards; don't state guesses about them as fact. Use only cards named in the log.
+Each turn lists the player's hand after the draw and, because the game is over, the opponent's hand (revealed only after the game). Use them to judge which counters were held, missed lines and what the opponent could have done. Judge the player's decisions by what they could know at the time: they didn't see the opponent's hand during the game. Use only cards named in the log.
 Each turn of the game is a source the app turns into numbered citations. Ground what happened in the turns (state it in sentences you can cite, one turn's events at a time) and mark your own advice and reads as your judgement. Don't write source ids or citation numbers yourself.`;
 
 export const BRIEF_INSTRUCTIONS = `

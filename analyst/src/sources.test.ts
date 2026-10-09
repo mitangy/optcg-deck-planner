@@ -66,6 +66,12 @@ describe("tool answers as citable sources (#390)", () => {
     }
   });
 
+  it("quotes the opponent's opening hand in a review overview only when the game revealed it (#472)", () => {
+    const overview = (g: object) => texts(gameResults("match", "m1", g)[0]!);
+    expect(overview({ ...GAME, opponentOpeningHand: ["Lucci", "Kaku"] })).toContain("Opponent's opening hand (revealed after the game): Lucci, Kaku.");
+    expect(overview(GAME).join(" ")).not.toContain("Opponent's opening hand");
+  });
+
   it("drops blank facts and gives no source at all when nothing is left to quote (#390)", () => {
     expect(searchResult("card:X", "X", ["a", "  ", "", null, undefined, false, " b "])!.content.map((c) => c.text)).toEqual(["a", "b"]);
     expect(searchResult("card:X", "X", ["  ", null])).toBeNull();

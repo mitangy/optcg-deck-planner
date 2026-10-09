@@ -71,9 +71,16 @@ module.exports = {
     { id: "review-turn-headers-dropped", file: matches, from: "          if (event.phase === \"refresh\") {", to: "          if (false) {", kills: ["reads only the asked turns and cuts long logs"] },
     { id: "review-turns-by-seat-alternation", edits: [
       { file: matches, from: "          if (event.phase === \"refresh\") {", to: "          if (event.activeSeat !== active) {" },
-      { file: matches, from: "    if (opening.phase !== \"mulligan\" && turn >= fromTurn && turn <= toTurn) push(header());", to: "    if (turn >= fromTurn && turn <= toTurn) push(header());" },
+      { file: matches, from: "    if (opening.phase !== \"mulligan\" && turn >= fromTurn && turn <= toTurn) {", to: "    if (turn >= fromTurn && turn <= toTurn) {" },
     ], kills: ["numbers turns like the engine when the mulligan step was played"] },
     { id: "review-opening-hand-before-mulligan", file: matches, from: "      if (step.intent.type === \"mulligan\") openingHands[step.seat] = hand(step.state, step.seat);\n", to: "", kills: ["gives the opening hand after a mulligan redraw"] },
+    { id: "review-hand-lines-dropped", edits: [
+      { file: matches, from: "      if (started) for (const line of handLines(step.state)) push(line);", to: "" },
+      { file: matches, from: "      for (const line of handLines(opening)) push(line);", to: "" },
+    ], kills: ["lists your hand after the draw inside each turn", "lists both players' hands each turn in a corpus game", "counts hand lines against maxLines"] },
+    { id: "review-reveal-ignores-end", file: matches, from: "  const revealed = replay.end !== undefined && replay.end !== null;", to: "  const revealed = true;", kills: ["keeps the opponent's hand out of a game that has no end yet"] },
+    { id: "review-opponent-hand-is-own", file: matches, from: "`Opponent's hand (revealed after the game): ${names((1 - view) as Seat)}.`", to: "`Opponent's hand (revealed after the game): ${names(view)}.`", kills: ["lists your hand after the draw inside each turn"] },
+    { id: "review-overview-drops-opponent-opening-hand", file: sources, from: "game.opponentOpeningHand && `Opponent's opening hand", to: "false && `Opponent's opening hand", kills: ["quotes the opponent's opening hand in a review overview"] },
     { id: "review-went-first-for-everyone", file: matches, from: "    wentFirst: replay.firstSeat === seat,", to: "    wentFirst: true,", kills: ["tells the game from the reviewing player's seat"] },
     { id: "review-result-not-from-seat", file: matches, from: "      ? { won: replay.end.winner === seat, reason: replay.end.reason }", to: "      ? { won: true, reason: replay.end.reason }", kills: ["tells the game from the reviewing player's seat"] },
     { id: "review-opening-hand-seat-0", file: matches, from: "    yourOpeningHand: n.openingHands[seat],", to: "    yourOpeningHand: n.openingHands[0],", kills: ["tells the game from the reviewing player's seat"] },

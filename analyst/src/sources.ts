@@ -381,6 +381,7 @@ export function gameResults(prefix: "match" | "game", id: string, game: Rec): Se
     ? [
         `Your leader ${game.yourLeader} against ${game.opponentLeader}; you went ${game.wentFirst ? "first" : "second"}.`,
         game.yourOpeningHand && `Your opening hand: ${listCards(game.yourOpeningHand)}.`,
+        game.opponentOpeningHand && `Opponent's opening hand (revealed after the game): ${listCards(game.opponentOpeningHand)}.`,
         game.result && `Result: you ${game.result.won ? "won" : "lost"} (${game.result.reason}).`,
         game.finalState && `Final state, turn ${game.finalState.turn}: your life ${game.finalState.yourLife}, opponent life ${game.finalState.opponentLife}; your board: ${listCards(game.finalState.yourBoard) || "empty"}; opponent board: ${listCards(game.finalState.opponentBoard) || "empty"}.`,
       ]

@@ -7,13 +7,15 @@ import {
   getCardDef,
   listLegalIntents,
   MATCH_REPLAY_SCHEMA,
+  seatLog,
   skipMulligans,
   type GameEvent,
   type MatchReplay,
   type Seat,
 } from "@optcg/rules";
 import { describe, expect, it } from "vitest";
-import { draftLesson, matchupStats, myLessons, narrateReplay, reviewMatch, tokenIsValid, tournamentStats } from "./matches";
+import { groupTurns } from "./sources";
+import { draftLesson, matchupStats, myLessons, narrateGame, narrateReplay, reviewMatch, tokenIsValid, tournamentStats } from "./matches";
 
 /** Play legal moves until a Life card is taken as damage. */
 function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, { type: "life_taken" }> } {
@@ -132,6 +134,58 @@ describe("match review", () => {
     expect(kept[0]).not.toEqual(dealt[0]);
     expect(narrateReplay(played, 0).yourOpeningHand).toEqual(kept[0]);
     expect(narrateReplay(played, 1).yourOpeningHand).toEqual(kept[1]);
+  });
+
+  const names = (ids: string[] | undefined) => (ids ?? []).map((id) => getCardDef(id).name).join(", ") || "empty";
+
+  it("lists your hand after the draw inside each turn, and the opponent's hand once the game is over (#472)", () => {
+    for (const seat of [0, 1] as Seat[]) {
+      const turns = seatLog(replay, seat, { revealOpponent: true }).turns.filter((t) => t.turn > 0);
+      const grouped = groupTurns(narrateReplay(replay, seat).log).filter((g) => g.turn > 0);
+      expect(grouped.length).toBe(turns.length);
+      let differs = 0;
+      for (const [i, t] of turns.entries()) {
+        const lines = grouped[i]!.lines;
+        expect(grouped[i]!.turn).toBe(t.turn);
+        expect(lines).toContain(`Your hand after the draw: ${names(t.hand)}.`);
+        expect(lines).toContain(`Opponent's hand (revealed after the game): ${names(t.opponentHand)}.`);
+        if (names(t.hand) !== names(t.opponentHand)) differs += 1;
+      }
+      // The two hands must be told apart, or swapping them would pass.
+      expect(differs).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps the opponent's hand out of a game that has no end yet (#472)", () => {
+    const { replay: played, kept } = gameWithMulligans(5, [false, false]);
+    const review = narrateReplay(played, 0);
+    const handLines = review.log.filter((l) => l.includes("hand"));
+    expect(handLines.length).toBeGreaterThan(0);
+    expect(handLines.every((l) => l.startsWith("Your hand after the draw: "))).toBe(true);
+    expect(review.log.join("\n")).not.toContain("Opponent's hand");
+    expect(review).not.toHaveProperty("opponentOpeningHand");
+    // The first player skips the draw, so turn 1 shows the hand kept after the mulligan.
+    expect(review.log).toContain(`Your hand after the draw: ${kept[0]!.join(", ")}.`);
+    expect(narrateReplay(replay, 0).opponentOpeningHand).toEqual(narrateReplay(replay, 1).yourOpeningHand);
+    expect(narrateReplay(replay, 0).opponentOpeningHand).not.toEqual(narrateReplay(replay, 0).yourOpeningHand);
+  });
+
+  it("lists both players' hands each turn in a corpus game (#472)", () => {
+    const log = narrateGame(replay).log;
+    const turns = seatLog(replay, 0, { revealOpponent: true }).turns.filter((t) => t.turn > 0);
+    const grouped = groupTurns(log).filter((g) => g.turn > 0);
+    expect(grouped.length).toBe(turns.length);
+    for (const [i, t] of turns.entries()) {
+      expect(grouped[i]!.lines).toContain(`Player A's hand: ${names(t.hand)}.`);
+      expect(grouped[i]!.lines).toContain(`Player B's hand: ${names(t.opponentHand)}.`);
+    }
+  });
+
+  it("counts hand lines against maxLines and keeps them inside their turn (#472)", () => {
+    const review = narrateReplay(replay, 0, { maxLines: 2 });
+    expect(review.log).toHaveLength(2);
+    expect(review.log[1]).toMatch(/^Your hand after the draw: /);
+    expect(review.truncated).toBe(true);
   });
 
   it("asks the planner for a replay with the player's token and the service secret (#244)", async () => {
