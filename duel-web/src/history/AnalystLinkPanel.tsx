@@ -31,6 +31,11 @@ export function AnalystLinkPanel() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // "Use Log Pose in your own Claude" in the chat panel lands here.
+  useEffect(() => {
+    if (window.location.hash === "#log-pose") document.getElementById("log-pose")?.scrollIntoView({ block: "start" });
+  }, []);
+
   useEffect(() => {
     void fetchAnalystLink()
       .then((s) => setHasLink(s.has_token))
@@ -101,7 +106,7 @@ export function AnalystLinkPanel() {
   }
 
   return (
-    <section className="panel" aria-labelledby="analyst-title">
+    <section className="panel" id="log-pose" aria-labelledby="analyst-title">
       <h2 className="panel-title" id="analyst-title">Log Pose (Claude)</h2>
       <MatchBriefSettings />
       <p className="panel-copy">

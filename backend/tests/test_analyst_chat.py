@@ -20,6 +20,8 @@ def chat(analyst, monkeypatch: pytest.MonkeyPatch):  # noqa: F811
     monkeypatch.setenv("ANALYST_CHAT_EMAILS", "Someone@else.example, DEV@localhost")
     monkeypatch.setenv("ANALYST_CHAT_DAILY_USD", "1.0")
     monkeypatch.setenv("ANALYST_CHAT_MONTHLY_USD", "5.0")
+    # No free spots here: requests wait for an owner, as the access tests expect (#446 tests turn spots on).
+    monkeypatch.setenv("ANALYST_FREE_SPOTS", "0")
     get_settings.cache_clear()
     yield analyst
     get_settings.cache_clear()

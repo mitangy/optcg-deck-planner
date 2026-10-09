@@ -573,6 +573,15 @@ class AnalystAccess(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # This player's monthly credit in dollars; NULL means the default (ANALYST_USER_CREDIT_USD).
+    credit_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Extra credit an owner granted for one month: topup_usd counts only while topup_month ("2026-10") is the current month.
+    topup_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    topup_month: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    # Approved at once by the free-spots rule (it keeps its spot used even if later revoked).
+    auto_approved: Mapped[bool] = mapped_column(Boolean, default=False)
+    # When a player out of credit asked for more; cleared when an owner grants or dismisses it.
+    topup_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class AnalystSetting(Base):
@@ -685,6 +694,14 @@ class AnalystUsage(Base):
     cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cache_write_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    # The thread a chat call belonged to. No foreign key: deleting a thread keeps its usage rows (cost totals stay), with this nulled.
+    thread_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    # ok | error | aborted | refused
+    outcome: Mapped[str] = mapped_column(String(16), default="ok")
+    # Why a refused request was turned away: credit | daily | monthly | busy.
+    refusal: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    tool_calls: Mapped[int] = mapped_column(Integer, default=0)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
