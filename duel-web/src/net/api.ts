@@ -1,5 +1,6 @@
 /** Duel-web ↔ FastAPI helpers (tokens + light auth). */
 import { getApiBaseUrl } from "../config";
+import { devKeyAllowed, loadSettings } from "../settings";
 
 export type DuelTokenResponse = {
   token: string;
@@ -185,6 +186,35 @@ export async function mintSessionGameToken(): Promise<DuelTokenResponse> {
     credentials: "include",
     label: "Session token mint",
   });
+}
+
+/**
+ * Game token of the account that owns this device's seats, or null for a guest
+ * (a guest id is per browser, so there is nothing to move to another device).
+ */
+export async function mintOwnerToken(
+  owner: "session" | "dev" | undefined,
+  devUserKey: string,
+): Promise<string | null> {
+  if (owner === "session") return (await mintSessionGameToken()).token;
+  if (owner === "dev") return (await mintDevGameToken(devUserKey)).token;
+  return null;
+}
+
+/**
+ * Token for "Play here instead": the signed-in session, else the dev key when
+ * this browser plays under one. The caller cannot tell which account it is.
+ */
+export async function mintAccountGameToken(): Promise<DuelTokenResponse> {
+  try {
+    return await mintSessionGameToken();
+  } catch (e) {
+    const settings = loadSettings();
+    if (devKeyAllowed() && settings.useDevKey && settings.devUserKey.trim()) {
+      return mintDevGameToken(settings.devUserKey.trim());
+    }
+    throw e;
+  }
 }
 
 /**

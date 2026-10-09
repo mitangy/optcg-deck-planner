@@ -25,7 +25,14 @@ export type DuelJoinOptions = {
   role?: "player" | "spectator";
   /** Optional deck for this seat. */
   deck?: PlayerDeckWire;
+  /** Take over the seat `preferredSeat` that this account already holds (move a live match to this device). */
+  takeover?: boolean;
+  /** Practice only: game token of the signed-in account that owns this (guest-identity) seat. */
+  ownerToken?: string;
 };
+
+/** Close code the server uses on a socket whose seat another device took over. */
+export const TAKEN_OVER_CLOSE_CODE = 4451;
 
 export type DuelCreateOptions = {
   protocolVersion?: ProtocolVersion;

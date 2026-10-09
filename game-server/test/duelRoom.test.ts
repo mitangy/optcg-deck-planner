@@ -14,6 +14,7 @@ import { matchMaker } from "colyseus";
 import { createHmac } from "node:crypto";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
 import type { MatchProgressPayload, MatchResultPayload } from "../src/writeback.js";
+import { deviceHandoffTests } from "./deviceHandoff.js";
 import { replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
 
 type PlayerView = {
@@ -1714,4 +1715,6 @@ describe("DuelRoom", () => {
     assert.ok(pongs < 100, `answered ${pongs} of 100 pings`);
     assert.equal(colyseus.getRoomById(room.roomId)?.clients.length ?? 0, 0);
   });
+
+  deviceHandoffTests(() => colyseus);
 });

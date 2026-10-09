@@ -1332,6 +1332,66 @@ html:has(.duel-root) body {
   opacity: 0.6;
 }
 
+/* Match moved to another device: fixed over the frozen board, never in flow. */
+.moved-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b))
+    max(0.75rem, var(--safe-l));
+  background: rgb(var(--abyss-rgb) / 0.78);
+  overflow-y: auto;
+}
+
+.moved-card {
+  width: min(24rem, 100%);
+  min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--arena-panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 1.1rem 1.1rem 1rem;
+  text-align: center;
+  color: var(--ink);
+}
+
+.moved-card h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.1rem;
+  color: var(--chrome-bright);
+}
+
+.moved-card p {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.moved-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.moved-actions .btn {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+@media (max-height: 460px) {
+  .moved-card {
+    padding: 0.7rem 0.9rem;
+  }
+  .moved-card p {
+    margin-bottom: 0.6rem;
+  }
+}
+
 .rating-chip {
   color: var(--muted);
   font-size: 0.7rem;
