@@ -9,7 +9,6 @@ import {
   getPlayerView,
   getSpectatorView,
   projectGameEvents,
-  reseedMatch,
   listLegalIntents,
   MATCH_REPLAY_SCHEMA,
   REGISTRY_HASH,
@@ -1350,11 +1349,6 @@ export class DuelRoom extends Room implements PresenceSource {
     }
   }
 
-  /** Entropy for an undo re-seed. A method so tests can pin it. */
-  private freshSeed(): number {
-    return gameSeed();
-  }
-
   private applyUndo(by: Seat) {
     const idx = this.undoTargetIndex();
     if (idx === null) {
@@ -1366,19 +1360,10 @@ export class DuelRoom extends Room implements PresenceSource {
     this.match = deserializeMatch(snap.match);
     this.turnSnapshots = this.turnSnapshots.slice(0, idx + 1);
     this.replay?.intents.splice(snap.intentCount);
-    // Restoring the old rng would repeat the same draws and shuffles, so both
-    // players could read the upcoming deck order off the rewound turn (#369).
-    // Re-seed from fresh entropy instead, and record it so the replay still
-    // rebuilds the game. The engine draws from match.rng, not the room's.
-    const reseed = this.freshSeed();
-    // Both players saw their next draws, so the decks are reshuffled too.
-    this.match = reseedMatch(this.match, reseed, true);
-    this.rng = createSeededRng(reseed);
-    if (this.replay) {
-      const kept = (this.replay.reseeds ?? []).filter((r) => r.atIntent < snap.intentCount);
-      kept.push({ atIntent: snap.intentCount, seed: reseed >>> 0, shuffleDecks: true });
-      this.replay.reseeds = kept;
-    }
+    // Restore the turn exactly: match.rng and deck order come back with the
+    // snapshot (the engine draws from match.rng), so drawing again gives the same
+    // cards as before the undo (#449). Nothing is recorded in the replay; older
+    // replays may still carry `reseeds` from the #369 behavior and keep working.
     this.actedSinceSnapshot = false;
     this.undoRequest = null;
     this.log("info", "undo_applied", { matchId: this.matchId, by, toTurn: snap.turnNumber });
