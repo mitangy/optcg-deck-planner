@@ -183,7 +183,7 @@ async function attempt(deps: RunnerDeps, opts: RunOptions, c: EvalCase, gold: Go
     tool_calls: t.toolCalls.length,
     rounds: calls.length,
     latency_s: Math.round((Date.now() - started) / 100) / 10,
-    cost_usd: costUsd(usage),
+    cost_usd: calls.reduce((sum, k) => sum + costUsd(k.usage, k.model), 0),
     retries,
     answer_sha256: createHash("sha256").update(t.answer).digest("hex"),
   };

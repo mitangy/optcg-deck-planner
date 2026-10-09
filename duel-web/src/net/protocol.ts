@@ -4,6 +4,7 @@
  */
 
 import { lookupCard } from "../cards/atlas";
+import { asDonArtId } from "../board/donArt";
 
 export const PROTOCOL_VERSION = 5 as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
@@ -163,6 +164,8 @@ export type CosmeticsMessage = {
 export type SeatSkin = {
   playmat: string | null;
   cardBack: string | null;
+  /** TCGPlayer productId of the DON!! card art (#440); null = the bundled art. */
+  donArt: number | null;
 };
 
 export type SkinMessage = {
@@ -196,6 +199,7 @@ export function parseSkin(raw: unknown): SkinMessage {
     skin: {
       playmat: asSkinImage(skin.playmat, SKIN_MAX_PLAYMAT_CHARS),
       cardBack: asSkinImage(skin.cardBack, SKIN_MAX_CARD_BACK_CHARS),
+      donArt: asDonArtId(skin.donArt),
     },
   };
 }

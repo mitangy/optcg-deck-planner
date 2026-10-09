@@ -28,6 +28,12 @@ type FixtureCard = {
   alt_arts?: Array<{ product_id: number; name: string; market_price: number; low_price: number; group_name: string; is_special: boolean }>;
 };
 const CARDS = fixture<FixtureCard[]>("cards.json");
+/** DON!! catalog rows for the "Available DON!! cards" drawer. Kept out of CARDS so deck and shopping fixtures (and snapshots) stay unchanged. */
+const DON_CARDS = [
+  { card_id: "DON-001", name: "DON!! Card (Luffy)", product_id: 301, group_name: "Extra Booster: Memorial Collection" },
+  { card_id: "DON-002", name: "DON!! Card (Zoro)", product_id: 302, group_name: "Premium Booster" },
+  { card_id: "DON-003", name: "DON!! Card (Nami Gold)", product_id: 303, group_name: "Premium Booster" },
+].map((c) => ({ ...c, rarity: "DON", color: "", card_type: "DON!!", cost: null, market_price: 1.5, low_price: 1.1 }));
 const SALES = fixture<unknown[]>("sales.json");
 const SHARE = fixture<unknown>("share.json");
 
@@ -50,6 +56,8 @@ type Planner = {
   audit(opts?: Parameters<typeof auditPage>[1]): Promise<AuditIssue[]>;
   /** Owned counts as the fake backend holds them. */
   owned: Map<string, number>;
+  /** Wanted alt-art copies as the fake backend holds them, keyed `CARD-ID:productId`. */
+  altWants: Map<string, number>;
   /** Requests the page made to the fake API, e.g. "PUT /owned/EB01-002". */
   requests: string[];
   /** Page errors and console errors collected so far (network noise excluded). */
@@ -70,6 +78,7 @@ export const test = base.extend<{ planner: Planner }>({
     });
 
     const owned = new Map(CARDS.map((c) => [c.card_id, c.owned]));
+    const altWants = new Map<string, number>();
     const cardView = (c: FixtureCard) => {
       const o = owned.get(c.card_id) ?? 0;
       return {
@@ -88,7 +97,7 @@ export const test = base.extend<{ planner: Planner }>({
         tcgplayer_url: c.product_id ? `https://www.tcgplayer.com/product/${c.product_id}` : "",
         product_id: c.product_id,
         section: c.section,
-        alt_arts: (c.alt_arts ?? []).map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", wanted: 0, ...a })),
+        alt_arts: (c.alt_arts ?? []).map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", ...a, wanted: altWants.get(`${c.card_id}:${a.product_id}`) ?? 0 })),
       };
     };
     const mainCards = CARDS.reduce((s, c) => s + c.needed, 0);
@@ -103,13 +112,24 @@ export const test = base.extend<{ planner: Planner }>({
       main_cards: mainCards,
       don_cards: 0,
     });
+    // Mirrors backend allocate_still_need_buys: wanted alt copies first (capped by still_need), the rest at the standard price.
+    const remainingCost = (v: ReturnType<typeof cardView>) => {
+      let left = v.still_need;
+      let total = 0;
+      for (const a of v.alt_arts) {
+        const take = Math.min(a.wanted, left);
+        total += take * a.market_price;
+        left -= take;
+      }
+      return Math.round((total + left * v.market_price) * 100) / 100;
+    };
     const shopping = () => {
       const items = CARDS.filter((c) => c.card_type !== "Leader").map((c) => {
         const v = cardView(c);
         return {
           ...v,
           need: v.needed,
-          remaining_cost: v.still_need * v.market_price,
+          remaining_cost: remainingCost(v),
           used_in: ["Oden Red/Green"],
           primary_leader_card_id: "EB01-001",
           primary_leader_name: "Kouzuki Oden",
@@ -249,7 +269,17 @@ export const test = base.extend<{ planner: Planner }>({
       }
       if (path === "/catalog/cards") {
         // Name / ID search over the fixture cards (the deck editor and Collection "Add cards" use it).
-        const q = (new URL(req.url()).searchParams.get("q") ?? "").toLowerCase();
+        const params = new URL(req.url()).searchParams;
+        const q = (params.get("q") ?? "").toLowerCase();
+        if ((params.get("card_type") ?? "").toLowerCase().includes("don")) {
+          return json(
+            DON_CARDS.filter((c) => `${c.card_id} ${c.name} ${c.group_name}`.toLowerCase().includes(q)).map((c) => ({
+              ...c,
+              image_url: img(c.product_id),
+              tcgplayer_url: "",
+            })),
+          );
+        }
         if (!q) return json([]);
         return json(
           CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q)).map((c) => ({
@@ -272,6 +302,13 @@ export const test = base.extend<{ planner: Planner }>({
         const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
         owned.set(cardId, qty);
         return json({ card_id: cardId, qty });
+      }
+      // Alt-art wants: the deck page saves one printing's count and gets the deck back.
+      if ((m = path.match(/^\/decks\/(\d+)\/cards\/([^/]+)\/printings\/(\d+)$/)) && method === "PUT") {
+        const cardId = decodeURIComponent(m[2]!).toUpperCase();
+        const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
+        altWants.set(`${cardId}:${m[3]}`, qty);
+        return json(deckDetail());
       }
       // One ordered group buy for 4 × Kid & Killer. Mark purchased adds the receipt copies to Owned; Undo takes them back.
       if (path === "/group-buys") return json([groupBuy()]);
@@ -311,6 +348,7 @@ export const test = base.extend<{ planner: Planner }>({
 
     await use({
       owned,
+      altWants,
       requests,
       errors,
       chats,

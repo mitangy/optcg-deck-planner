@@ -34,6 +34,7 @@ import type {
 import { SKIN_MAX_CARD_BACK_CHARS, SKIN_MAX_PLAYMAT_CHARS } from "../net/protocol";
 import { cardBackShareUrl } from "../cardBack";
 import { playmatShareUrl } from "../playmat";
+import { currentSettings } from "../settings";
 import {
   initSeatArtPrefsFromStorage,
   replaceSeatArtPrefs,
@@ -250,7 +251,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
               playmatShareUrl(SKIN_MAX_PLAYMAT_CHARS),
               cardBackShareUrl(SKIN_MAX_CARD_BACK_CHARS),
             ]).then(([playmat, cardBack]) => {
-              if (playmat || cardBack) client.sendSkin({ playmat, cardBack });
+              const donArt = currentSettings().donArt;
+              if (playmat || cardBack || donArt) client.sendSkin({ playmat, cardBack, donArt });
             });
           }
           const tok = client.getReconnectionToken();

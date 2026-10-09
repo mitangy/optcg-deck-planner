@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -26,6 +26,7 @@ import {
   optcgSimFilename,
 } from "./optcgsimExport";
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
+import { deckRemainingMarket, remainingCostForCard } from "./deckCost";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { submitFeedback } from "./feedback";
 import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
@@ -271,34 +272,6 @@ function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["group-buys"] });
 }
 
-function shoppingRemainingForItem(item: {
-  still_need: number;
-  product_id?: number | null;
-  market_price: number | null;
-  alt_arts?: { product_id: number; wanted?: number; market_price: number | null }[];
-}): number | null {
-  const still = item.still_need;
-  if (still <= 0) return 0;
-  let remaining = still;
-  let total = 0;
-  let missingPrice = false;
-  for (const alt of item.alt_arts ?? []) {
-    if (remaining <= 0) break;
-    const want = alt.wanted ?? 0;
-    const take = Math.min(Math.max(0, want), remaining);
-    if (take <= 0) continue;
-    if (alt.market_price == null) missingPrice = true;
-    else total += take * alt.market_price;
-    remaining -= take;
-  }
-  if (remaining > 0) {
-    if (item.market_price == null) missingPrice = true;
-    else total += remaining * item.market_price;
-  }
-  if (missingPrice) return null;
-  return Math.round(total * 100) / 100;
-}
-
 function applyAltWantOptimistic(
   qc: ReturnType<typeof useQueryClient>,
   cardId: string,
@@ -319,7 +292,7 @@ function applyAltWantOptimistic(
       const alt_arts = (item.alt_arts ?? []).map((a) =>
         a.product_id === productId ? { ...a, wanted: qty } : a,
       );
-      const patched = { ...item, alt_arts, remaining_cost: shoppingRemainingForItem({ ...item, alt_arts }) };
+      const patched = { ...item, alt_arts, remaining_cost: remainingCostForCard({ ...item, alt_arts }) };
       cardsStill += patched.still_need;
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return patched;
@@ -348,10 +321,19 @@ function applyAltWantOptimistic(
   });
 }
 
-function patchOwnedQty(cardId: string, qty: number, need: number, market: number | null | undefined) {
+function patchOwnedQty(
+  cardId: string,
+  qty: number,
+  need: number,
+  market: number | null | undefined,
+  alt_arts?: { product_id: number; wanted?: number; market_price: number | null }[],
+) {
   const still = Math.max(0, need - qty);
-  const remaining =
-    market != null && !Number.isNaN(market) ? Math.round(still * market * 100) / 100 : null;
+  const remaining = remainingCostForCard({
+    still_need: still,
+    market_price: market != null && !Number.isNaN(market) ? market : null,
+    alt_arts,
+  });
   return { owned: qty, still_need: still, remaining_cost: remaining };
 }
 
@@ -436,7 +418,7 @@ function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: str
         if (item.remaining_cost != null) remaining += item.remaining_cost;
         return item;
       }
-      const patched = patchOwnedQty(id, qty, item.need, item.market_price);
+      const patched = patchOwnedQty(id, qty, item.need, item.market_price, item.alt_arts);
       cardsStill += patched.still_need;
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return { ...item, ...patched };
@@ -2550,10 +2532,7 @@ function summarizeDeckProgress(cards: CardView[]) {
   const copiesNeeded = cards.reduce((sum, c) => sum + c.needed, 0);
   const copiesStill = cards.reduce((sum, c) => sum + c.still_need, 0);
   const copiesOwned = copiesNeeded - copiesStill;
-  const remainingMarket = cards.reduce((sum, c) => {
-    if (c.still_need <= 0 || c.market_price == null) return sum;
-    return sum + c.still_need * c.market_price;
-  }, 0);
+  const remainingMarket = deckRemainingMarket(cards);
   return {
     uniqueTotal,
     uniqueComplete,
@@ -3180,10 +3159,18 @@ function AvailableDonSection({
 }) {
   const [err, setErr] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(query.trim()), 250);
+    return () => window.clearTimeout(t);
+  }, [query]);
   const donQ = useQuery({
-    queryKey: ["catalog-don"],
-    queryFn: () => api.searchCatalog({ card_type: "DON", limit: 100 }),
+    queryKey: ["catalog-don", debouncedQ],
+    queryFn: () => api.searchCatalog({ q: debouncedQ || undefined, card_type: "DON", limit: 100 }),
     staleTime: 60_000,
+    // Keep the grid on screen while the next search loads so typing never collapses it to a skeleton.
+    placeholderData: keepPreviousData,
   });
 
   const neededById = useMemo(() => {
@@ -3217,7 +3204,7 @@ function AvailableDonSection({
   const resultCount = donQ.data?.length ?? 0;
   const summary = [
     `${donCount}/${DON_DECK_LIMIT} in deck`,
-    resultCount > 0 ? `${resultCount} available` : null,
+    resultCount > 0 ? `${resultCount} ${debouncedQ ? "found" : "available"}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -3230,41 +3217,47 @@ function AvailableDonSection({
         storageKey={DECK_DON_AVAILABLE_OPEN_KEY}
         defaultOpen={false}
       >
+        <div className="deck-editor-filters">
+          <CardSearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search DON!! by name, set or ID"
+            label="Search DON!! cards"
+          />
+        </div>
         {err && <p className="error deck-editor-status">{err}</p>}
         {donQ.isLoading && <InlineSkeleton lines={3} label="Loading DON!! cards…" />}
         {donQ.error && <p className="error deck-editor-status">{(donQ.error as Error).message}</p>}
         {donQ.data && donQ.data.length === 0 && (
-          <p className="muted deck-editor-status">No DON!! cards in the catalog yet.</p>
+          <p className="muted deck-editor-status">
+            {debouncedQ ? `No DON!! cards match “${debouncedQ}”.` : "No DON!! cards in the catalog yet."}
+          </p>
         )}
         {donQ.data && donQ.data.length > 0 && (
-          <ul className="deck-editor-results don-available-list">
+          <ul className="don-available-list">
             {donQ.data.map((card) => {
               const inDeck = neededById.get(card.card_id) ?? 0;
               const busy = pendingId === card.card_id;
               const atCap = donCount >= DON_DECK_LIMIT && inDeck === 0;
               return (
-                <li key={card.card_id} className="deck-editor-result">
-                  <div className="deck-editor-result-main">
-                    <CardThumb src={card.image_url || undefined} alt={card.name} />
-                    <div>
-                      <div className="card-id">{card.card_id}</div>
-                      <div>{card.name}</div>
-                      <div className="muted">
-                        {[card.group_name, money(card.market_price)].filter(Boolean).join(" · ")}
-                        {inDeck > 0 ? ` · In deck ×${inDeck}` : ""}
-                      </div>
+                <li key={card.card_id} className="don-tile">
+                  <CardThumb src={card.image_url || undefined} alt={card.name} />
+                  <div className="don-tile-text">
+                    <div className="card-id">{card.card_id}</div>
+                    <div className="don-tile-name">{card.name}</div>
+                    <div className="muted don-tile-meta">
+                      {[card.group_name, money(card.market_price)].filter(Boolean).join(" · ")}
                     </div>
+                    {inDeck > 0 && <div className="don-tile-indeck">In deck ×{inDeck}</div>}
                   </div>
-                  <div className="deck-editor-result-actions">
-                    <button
-                      type="button"
-                      className="btn secondary"
-                      disabled={busy || atCap}
-                      onClick={() => void addOne(card)}
-                    >
-                      {inDeck > 0 ? "Add another" : "Add"}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="btn secondary don-tile-add"
+                    disabled={busy || atCap}
+                    onClick={() => void addOne(card)}
+                  >
+                    {inDeck > 0 ? "Add another" : "Add"}
+                  </button>
                 </li>
               );
             })}

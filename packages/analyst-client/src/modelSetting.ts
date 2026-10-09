@@ -10,6 +10,22 @@ export function modelLabel(id: string): string {
   return m ? `${m[1]![0]!.toUpperCase()}${m[1]!.slice(1)} ${m[2]}.${m[3]}` : id;
 }
 
+/** What the selected model costs next to the default, Sonnet; the picker's note. */
+export function modelCostHint(id: string): string {
+  switch (id) {
+    case "claude-sonnet-5-5":
+      return "Default.";
+    case "claude-opus-5-5":
+      return "Costs about 2x Sonnet.";
+    case "claude-haiku-5-5":
+      return "Costs about 1/20 of Sonnet.";
+    case "claude-haiku-4-5":
+      return "Costs about half of Sonnet.";
+    default:
+      return "";
+  }
+}
+
 function parse(raw: unknown): ModelSetting | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;

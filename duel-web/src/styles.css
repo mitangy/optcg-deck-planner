@@ -1872,6 +1872,123 @@ html:has(.duel-root) body {
   }
 }
 
+/* —— DON!! card art picker (#440) —— */
+.don-art-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.don-art-head {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.don-art-head-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.don-art-preview {
+  width: 112px;
+  aspect-ratio: 63 / 88;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  background-color: #1a2838;
+}
+
+@media (max-width: 420px) {
+  .don-art-preview {
+    width: 84px;
+  }
+}
+
+/* Fixed height: the page stays the same size however many printings match. */
+.don-art-scroll {
+  height: min(26rem, 60dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgb(var(--abyss-rgb) / 0.12);
+}
+
+.don-art-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 6.5rem), 1fr));
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.don-art-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.35rem;
+  text-align: left;
+  color: var(--ink);
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.don-art-tile:hover {
+  border-color: var(--chrome-dim);
+}
+
+.don-art-tile:focus-visible {
+  outline: none;
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 3px rgb(var(--chrome-rgb) / 0.25);
+}
+
+/* Selected: a second ring instead of a thicker border, so tiles never shift. */
+.don-art-tile.is-active {
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 2px var(--chrome);
+}
+
+.don-art-tile img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  object-fit: cover;
+  border-radius: 5px;
+  background-color: #1a2838;
+}
+
+.don-art-name,
+.don-art-set {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.don-art-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.don-art-set {
+  font-size: 0.7rem;
+  line-height: 1.2;
+  color: var(--muted);
+}
+
 button.zone-pile {
   appearance: none;
   background: transparent;
@@ -4955,7 +5072,8 @@ details.deck-config-section.deck-collapsible {
   );
   border-radius: var(--tile-r);
   background-color: #e9ece8;
-  background-image: url("/cards/DON.jpg");
+  /* Second layer: the bundled face shows if a chosen one fails to load (#440). */
+  background-image: var(--don-face-art, url("/cards/DON.jpg")), url("/cards/DON.jpg");
   /* Zoomed so the slivers that peek out show the white burst, not just the
      card's black frame. */
   background-size: 150% 150%;

@@ -14,12 +14,25 @@ import { adaptToolResult, gameResults } from "./sources";
 
 export const CHAT_MODEL = process.env.ANALYST_CHAT_MODEL || "claude-sonnet-5-5";
 /** The models the planner may pick for Log Pose (its model setting); anything else falls back to CHAT_MODEL. */
-export const CHAT_MODELS = ["claude-sonnet-5-5", "claude-opus-5-5"];
+export const CHAT_MODELS = ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-haiku-4-5"];
+/** Haiku 4.5 rejects output_config.effort; every other offered model takes it. */
+const NO_EFFORT_MODELS = ["claude-haiku-4-5"];
+/** The request's `output_config` for a model: the effort, unless the model does not support one. */
+const outputConfigFor = (model: string, effort: "low" | "medium" | "high") => (NO_EFFORT_MODELS.includes(model) ? {} : { output_config: { effort } });
 export const MAX_TOOL_ROUNDS = 12;
 
-/** Dollars per million tokens (input, output, cache reads, cache writes): Opus, and Sonnet for any other model. */
-const OPUS_PRICE = { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 };
-const SONNET_PRICE = { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 };
+/** Dollars per million tokens: input, output, cache reads, cache writes. */
+type Price = { input: number; output: number; cacheRead: number; cacheWrite: number };
+const OPUS_PRICE: Price = { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 };
+/** Haiku 5.5 is priced by the size of one call's prompt: the first tier up to 100K tokens, the second beyond. */
+const HAIKU_5_5_TIER_TOKENS = 100_000;
+const HAIKU_5_5_PRICE: Price = { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 };
+const HAIKU_5_5_LONG_PRICE: Price = { input: 0.5, output: 2.5, cacheRead: 0.05, cacheWrite: 0.625 };
+const PRICES: Record<string, Price> = {
+  "claude-opus-5-5": OPUS_PRICE,
+  "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
+  "claude-haiku-4-5": { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
+};
 
 export type Usage = {
   input_tokens: number;
@@ -28,15 +41,19 @@ export type Usage = {
   cache_creation_input_tokens?: number | null;
 };
 
-/** What a call cost, priced by the model that served it (the chat model when unknown). */
+/** What ONE model call cost, priced by the model that served it. An unknown model is priced as Opus, the dearest, so caps never undercount. */
 export function costUsd(u: Usage, model: string = CHAT_MODEL): number {
   const m = 1_000_000;
-  const PRICE = model.startsWith("claude-opus") ? OPUS_PRICE : SONNET_PRICE;
+  let price = PRICES[model] ?? OPUS_PRICE;
+  if (model === "claude-haiku-5-5") {
+    const prompt = u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+    price = prompt > HAIKU_5_5_TIER_TOKENS ? HAIKU_5_5_LONG_PRICE : HAIKU_5_5_PRICE;
+  }
   return (
-    (u.input_tokens * PRICE.input +
-      u.output_tokens * PRICE.output +
-      (u.cache_read_input_tokens ?? 0) * PRICE.cacheRead +
-      (u.cache_creation_input_tokens ?? 0) * PRICE.cacheWrite) /
+    (u.input_tokens * price.input +
+      u.output_tokens * price.output +
+      (u.cache_read_input_tokens ?? 0) * price.cacheRead +
+      (u.cache_creation_input_tokens ?? 0) * price.cacheWrite) /
     m
   );
 }
@@ -375,8 +392,8 @@ const addUsage = (a: Usage, b: Usage): Usage => ({
 });
 
 /** What the tool loop has done so far; filled in as it goes so a failed run still knows its spend. */
-type RoundsState = { turn: Message[]; usage: Usage; finished: boolean; model?: string };
-const newRounds = (...turn: Message[]): RoundsState => ({ turn, usage: { input_tokens: 0, output_tokens: 0 }, finished: false });
+type RoundsState = { turn: Message[]; usage: Usage; /** Dollars spent, priced call by call (a long Haiku 5.5 prompt costs more per token). */ cost: number; finished: boolean; model?: string };
+const newRounds = (...turn: Message[]): RoundsState => ({ turn, usage: { input_tokens: 0, output_tokens: 0 }, cost: 0, finished: false });
 
 type RoundsOptions = {
   deps: ChatDeps;
@@ -418,7 +435,7 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
           system: o.system,
           tools: apiTools(o.tools),
           messages: withCacheBreakpoint([...(o.history ?? []), ...state.turn]),
-          output_config: { effort: o.effort },
+          ...outputConfigFor(o.model, o.effort),
         },
         (delta) => {
           out.onText(breakPending ? `\n\n${delta}` : delta);
@@ -429,11 +446,14 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
       );
     } catch (err) {
       // The tokens a dropped stream had already used are still billed.
-      state.usage = addUsage(state.usage, partialUsageOf(err));
+      const partial = partialUsageOf(err);
+      state.usage = addUsage(state.usage, partial);
+      state.cost += costUsd(partial, o.model);
       throw err;
     }
     out.flush();
     state.usage = addUsage(state.usage, reply.usage);
+    state.cost += costUsd(reply.usage, reply.model ?? o.model);
     state.model = reply.model ?? state.model;
     state.turn.push({ role: "assistant", content: reply.content });
     const calls = reply.content.filter((b) => b.type === "tool_use");
@@ -502,7 +522,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
     await runToolRounds(state, { deps, model, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal, onPlan });
   } finally {
     const { usage, finished } = state;
-    const cost = costUsd(usage, state.model ?? model);
+    const cost = state.cost;
     if (usage.input_tokens || usage.output_tokens) await recordUsage(api, token, "chat", usage, cost, state.model ?? model).catch(() => undefined);
     // A turn is stored only once the model has answered, so the thread always ends on an assistant message.
     if (finished) {
@@ -519,7 +539,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   const budget = await plannerCall<Budget>(api, token, "/analyst/chat/budget", true);
   emit({
     event: "done",
-    data: { thread_id: threadId, cost_usd: costUsd(state.usage, state.model ?? model), spent_today_usd: budget.spent_today_usd, daily_cap_usd: budget.daily_cap_usd },
+    data: { thread_id: threadId, cost_usd: state.cost, spent_today_usd: budget.spent_today_usd, daily_cap_usd: budget.daily_cap_usd },
   });
 }
 
@@ -566,7 +586,7 @@ async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof re
             ],
           },
         ],
-        output_config: { effort: "high" },
+        ...outputConfigFor(model, "high"),
       },
       out.onText,
       signal,
@@ -658,7 +678,7 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
     try {
       await runToolRounds(state, { deps, model, system, tools, emit, signal, maxRounds: BRIEF_MAX_ROUNDS, maxTokens: BRIEF_MAX_TOKENS, effort: "low" });
     } finally {
-      if (state.usage.input_tokens || state.usage.output_tokens) await recordUsage(api, token, "brief", state.usage, costUsd(state.usage, state.model ?? model), state.model ?? model).catch(() => undefined);
+      if (state.usage.input_tokens || state.usage.output_tokens) await recordUsage(api, token, "brief", state.usage, state.cost, state.model ?? model).catch(() => undefined);
     }
     if (!state.finished) throw new Error("Log Pose used too many lookups on that one. Try again.");
     // The saved text is what was streamed: the rounds' text blocks, kept apart by a blank line.
@@ -673,7 +693,7 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
     const cited = flattenCited(blocks);
     if (!cited.text) throw new Error("Log Pose didn't write a brief. Try again.");
     await plannerCall(api, token, "/analyst/briefs", true, { ticket: body.ticket, variant, text: cited.text, citations: cited.citations }, "PUT");
-    emit({ event: "done", data: { cached: false, cost_usd: costUsd(state.usage, state.model ?? model), saved: true } });
+    emit({ event: "done", data: { cached: false, cost_usd: state.cost, saved: true } });
   } finally {
     release();
   }

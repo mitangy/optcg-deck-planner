@@ -25,6 +25,9 @@ module.exports = {
     { id: "access-decide-wrong-player", file: access, from: "`/requests/${encodeURIComponent(String(userId))}`", to: "`/requests`", kills: ["posts the decision to that player's request (#393)"] },
     { id: "access-list-not-sorted", file: access, from: "  return [...rows].sort((a, b) => RANK[a.status] - RANK[b.status]);", to: "  return [...rows];", kills: ["keeps pending first, then approved, then denied, newest first within each (#393)"] },
     { id: "access-list-denied-first", file: access, from: "denied: 2 }", to: "denied: -1 }", kills: ["keeps pending first, then approved, then denied, newest first within each (#393)"] },
+    // Model picker (#430)
+    { id: "model-hint-haiku-5-5-as-sonnet", file: "packages/analyst-client/src/modelSetting.ts", from: "      return \"Costs about 1/20 of Sonnet.\";", to: "      return \"Default.\";", kills: ["tells the admin what the chosen model costs next to Sonnet, and nothing for an unknown one (#430)"] },
+    { id: "model-label-haiku-version-dropped", file: "packages/analyst-client/src/modelSetting.ts", from: "const m = /^claude-([a-z]+)-(\\d+)-(\\d+)$/.exec(id);", to: "const m = /^claude-([a-z]+)-(\\d+)-5$/.exec(id);", kills: ["reads who may edit it from can_edit, and shows model ids as names (#428)"] },
     // SSE parser
     { id: "sse-drops-partial-line", file: sse, from: "      buf = buf.slice(start);", to: "      buf = \"\";", kills: ["parses the same events wherever the stream is split", "parses a stream fed one character at a time"] },
     { id: "sse-crlf-not-held", file: sse, from: "        if (c === \"\\r\" && i === buf.length - 1) break;\n", to: "", kills: ["including a \\r\\n split between chunks"] },

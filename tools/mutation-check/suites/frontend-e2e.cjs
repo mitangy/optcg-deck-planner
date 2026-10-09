@@ -18,6 +18,8 @@ module.exports = {
   cwd: "frontend",
   runner: "playwright",
   mutations: [
+    // Deck "$ left" prices wanted alt arts (#433): summarizeDeckProgress reverted to still_need * market_price
+    { id: "e2e-deck-left-ignores-alt-wants", args: "deck.spec -g \"wanted alt arts\"", file: app, from: "  const remainingMarket = deckRemainingMarket(cards);", to: "  const remainingMarket = cards.reduce((sum, c) => {\n    if (c.still_need <= 0 || c.market_price == null) return sum;\n    return sum + c.still_need * c.market_price;\n  }, 0);", kills: [`${deck} > deck $ left prices wanted alt arts by their count (#433) [desktop-1200]`, `${deck} > deck $ left prices wanted alt arts by their count (#433) [phone-375]`] },
     // UI polish rules 1 and 6: a trigger must not move when it opens something
     // The panel expands in flow instead of floating, so the price shifts in its cell.
     { id: "e2e-price-panel-in-flow", args: "deck --project=desktop-1200 -g \"market price\"", file: css, from: ".market-sales {\n  position: fixed;", to: ".market-sales {\n  position: static;", kills: [`${trigger} [desktop-1200]`] },
@@ -36,6 +38,10 @@ module.exports = {
     { id: "e2e-list-button-pressed-state", args: "deck --project=desktop-1200 -g \"opens the deck\"", file: layout, from: "        aria-pressed={layout === \"list\"}", to: "        aria-pressed={layout === \"grid\"}", kills: [`${deck} > opens the deck and passes the UI audit [desktop-1200]`] },
     // The deck header (title, Main badge, leader line) is part of the region snapshot.
     { id: "e2e-deck-main-badge-missing", args: "deck --project=desktop-1200 -g \"opens the deck\"", file: app, from: "            {data.is_main && <span className=\"deck-main-badge\">Main deck</span>}", to: "", kills: [`${deck} > opens the deck and passes the UI audit [desktop-1200]`] },
+
+    // DON!! browser (#435)
+    { id: "e2e-don-search-not-sent", args: "deck -g \"DON!! browser\"", file: app, from: "api.searchCatalog({ q: debouncedQ || undefined, card_type: \"DON\", limit: 100 })", to: "api.searchCatalog({ card_type: \"DON\", limit: 100 })", kills: [`${deck} > DON!! browser shows big card tiles and searches the DON!! catalog (#435) [desktop-1200]`, `${deck} > DON!! browser shows big card tiles and searches the DON!! catalog (#435) [phone-375]`] },
+    { id: "e2e-don-tiles-small", args: "deck -g \"DON!! browser\"", file: css, from: ".don-tile .thumb {\n  width: 100%;\n  height: auto;", to: ".don-tile .thumb {\n  width: 60px;\n  height: auto;", kills: [`${deck} > DON!! browser shows big card tiles and searches the DON!! catalog (#435) [desktop-1200]`, `${deck} > DON!! browser shows big card tiles and searches the DON!! catalog (#435) [phone-375]`] },
 
     // Owned stepper
     { id: "e2e-owned-plus-adds-two", args: "deck --project=desktop-1200 -g \"owned stepper\"", file: app, from: "        onClick={() => commit(displayQty + 1)}", to: "        onClick={() => commit(displayQty + 2)}", kills: [`${deck} > owned stepper saves each click and updates still needed [desktop-1200]`] },

@@ -415,5 +415,7 @@ module.exports = {
     // Lobby: new layout and last-mode Play (#431)
     { id: "e2e-lobby-no-two-columns", args: "lobby --project=desktop-1280", file: "duel-web/src/ui.css", from: "@media (min-width: 1000px) and (min-height: 500px) {\n  .home {\n    max-width: 1100px;\n    display: grid;", to: "@media (min-width: 99999px) and (min-height: 500px) {\n  .home {\n    max-width: 1100px;\n    display: grid;", kills: ["lobby.spec.ts > signed in at 1280x720, your voyage and Friends sit right of the deck and above the fold (#431) [desktop-1280]"] },
     { id: "e2e-lobby-play-forgets-mode", args: "queue-board --project=desktop-1280", file: "duel-web/src/pages/LobbyPage.tsx", from: "    writeLastMode(mode);\n", to: "", kills: ["queue-board.spec.ts > after Ranked once, one tap on Play searches for an opponent (#431) [desktop-1280]"] },
+    // DON!! card art (#440)
+    { id: "e2e-don-art-strip-ignores-side-art", args: "don-art --project=desktop-1280 -g shows", file: "duel-web/src/board/SideField.tsx", from: "            donArt={donArtUrl}\n", to: "", kills: ["don-art.spec.ts > your DON!! shows the chosen art and the opponent's the default (#440) [desktop-1280]"] },
   ],
 };

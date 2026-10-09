@@ -215,7 +215,7 @@ describe("matchup brief", () => {
     ]);
     const spend = calls.find((c) => c.url.endsWith("/chat/usage"))!.body;
     expect(spend).toMatchObject({ kind: "brief", input_tokens: 3000, output_tokens: 300 });
-    expect(events.at(-1)).toEqual({ event: "done", data: { cached: false, cost_usd: costUsd(usage(3000, 300)), saved: true } });
+    expect(events.at(-1)).toEqual({ event: "done", data: { cached: false, cost_usd: expect.closeTo(costUsd(usage(3000, 300)), 9), saved: true } });
   });
 
   it("the cache variant follows the newest set (#401)", () => {
