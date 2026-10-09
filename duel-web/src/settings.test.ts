@@ -285,3 +285,22 @@ describe("hand, one-tap and text size settings", () => {
     expect(loadSettings().textSize).toBe("medium");
   });
 });
+
+describe("Show on screen and Bigger playing area (#449)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("follow the account: saved with it and applied from it", () => {
+    stubStored({});
+    const synced = syncedSettings(loadSettings());
+    expect(synced).toMatchObject({ bigBoard: false, showChat: true, showRecentPlays: true, showCardPreview: true });
+    const merged = mergeRemoteSettings(loadSettings(), {
+      bigBoard: true,
+      showChat: false,
+      showRecentPlays: false,
+      showCardPreview: false,
+    });
+    expect(merged).toMatchObject({ bigBoard: true, showChat: false, showRecentPlays: false, showCardPreview: false });
+  });
+});

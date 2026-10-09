@@ -1306,5 +1306,12 @@ module.exports = {
     { id: "prompt-dock-device-only", file: `${src}/settings.ts`, from: "  \"promptPos\",\n];", to: "  \"promptPos\",\n  \"promptDock\",\n];", kills: ["follows the account for the column pop-ups dock into, and drops an unknown side (#449)"] },
     { id: "prompt-dock-unknown-side-kept", file: `${src}/settings.ts`, from: "  if (!PROMPT_DOCKS.includes(next.promptDock)) next.promptDock = DEFAULTS.promptDock;\n", to: "", kills: ["follows the account for the column pop-ups dock into, and drops an unknown side (#449)"] },
     { id: "layout-reset-keeps-prompt-dock", file: `${src}/board/layoutReset.ts`, from: "  promptDock: \"\",\n", to: "", kills: ["is offered, and puts back, each moved piece of the layout including both spectator fans (#346) where pop-ups open (#422) and the column they dock into (#449)"] },
+    // Bigger playing area, Show on screen (#449)
+    { id: "show-switch-preview-on-phone", file: `${src}/board/gameplayFields.ts`, from: '  return key === "showChat" ? true : d.desktop;', to: "  return true;", kills: ["lists Card preview and Recent plays only where those panels exist, and Chat everywhere"] },
+    { id: "show-switch-chat-desktop-only", file: `${src}/board/gameplayFields.ts`, from: '  return key === "showChat" ? true : d.desktop;', to: "  return d.desktop;", kills: ["lists Card preview and Recent plays only where those panels exist, and Chat everywhere"] },
+    { id: "show-settings-device-only", file: `${src}/settings.ts`, from: '  "promptPos",\n];', to: '  "promptPos",\n  "showChat",\n  "bigBoard",\n];', kills: ["follow the account: saved with it and applied from it"] },
+    { id: "collapse-while-dragging", file: `${src}/board/panelLayout.ts`, from: "!dragging && shown[c].length === 0 && !busy[c]", to: "shown[c].length === 0 && !busy[c]", kills: ["keeps both columns open while a panel is dragged, so they stay drop targets (#449)"] },
+    { id: "collapse-defend-tray-column", file: `${src}/board/panelLayout.ts`, from: "!dragging && shown[c].length === 0 && !busy[c]", to: "!dragging && shown[c].length === 0", kills: ["keeps a column that holds the defend tray (#449)"] },
+    { id: "collapse-nonempty-column", file: `${src}/board/panelLayout.ts`, from: "!dragging && shown[c].length === 0 && !busy[c]", to: "!dragging && shown[c].length <= 1 && !busy[c]", kills: ["collapses a column with no panel to show so the board gets its width (#449)"] },
   ],
 };

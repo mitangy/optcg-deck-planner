@@ -147,6 +147,20 @@ export function nudgePanel(
   return movePanel(layout, id, column, shown[i + 2] ?? null);
 }
 
+/**
+ * Which desktop columns collapse to nothing: one with no panel to show (every
+ * panel in it hidden or moved away). While a panel is being dragged both stay
+ * open as drop targets, and a column holding the defend tray (`busy`) stays.
+ */
+export function collapsedColumns(
+  shown: Record<PanelColumn, readonly PanelId[]>,
+  dragging: boolean,
+  busy: Partial<Record<PanelColumn, boolean>> = {},
+): Record<PanelColumn, boolean> {
+  const collapse = (c: PanelColumn) => !dragging && shown[c].length === 0 && !busy[c];
+  return { left: collapse("left"), right: collapse("right") };
+}
+
 export function samePanelLayout(a: PanelLayout, b: PanelLayout): boolean {
   return serializePanelLayoutRaw(a) === serializePanelLayoutRaw(b);
 }

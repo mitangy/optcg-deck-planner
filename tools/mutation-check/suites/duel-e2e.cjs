@@ -520,5 +520,54 @@ module.exports = {
       { file: "duel-web/src/board/DuelBoard.tsx", from: "          name=\"Order effects\"\n          dodge={promptBattle}\n          dockable={wide && !lp}", to: "          name=\"Order effects\"\n          dodge={promptBattle}\n          dockable" },
       { file: "duel-web/src/board/DuelBoard.tsx", from: "          name={promptSourceName(view.pendingChoices[0])}\n          dodge={promptBattle}\n          dockable={wide && !lp}", to: "          name={promptSourceName(view.pendingChoices[0])}\n          dodge={promptBattle}\n          dockable" },
     ], kills: ["prompt-dock.spec.ts > phones ignore a saved dock and keep the floating pop-up (#449) [phone-375]"] },
+    // Bigger playing area (#449)
+    { id: "e2e-big-board-ignored", args: "bigger-board --project=desktop-1280 -g \"bigger\"", file: "duel-web/src/board/DuelBoard.tsx", from: "${bigBoard ? \" arena-big\" : \"\"}", to: "", kills: [
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at desktop 1280x720 (#449) [desktop-1280]",
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at phone portrait 375x812 (#449) [desktop-1280]",
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at phone landscape 812x375 (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-big-board-default-on", args: "bigger-board --project=desktop-1280 -g \"bigger\"", file: "duel-web/src/settings.ts", from: "  bigBoard: false,\n", to: "  bigBoard: true,\n", kills: [
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at desktop 1280x720 (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-big-board-saved-width-wins", args: "bigger-board --project=desktop-1280 -g \"dragged out\"", file: "duel-web/src/board/DuelBoard.tsx", from: "          ...(bigBoard ? null : panelResize.arenaStyle(shownPanels)),", to: "          ...panelResize.arenaStyle(shownPanels),", kills: [
+      "bigger-board.spec.ts > a column width dragged out does not fight Bigger playing area, and comes back when it is off (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-big-board-column-handles-stay", args: "bigger-board --project=desktop-1280 -g \"dragged out\"", file: "duel-web/src/board/DuelBoard.tsx", from: "            {prefs.layoutGrips && !bigBoard ? (\n              <div className=\"col-resize col-resize-left\"", to: "            {prefs.layoutGrips ? (\n              <div className=\"col-resize col-resize-left\"", kills: [
+      "bigger-board.spec.ts > a column width dragged out does not fight Bigger playing area, and comes back when it is off (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-big-board-rail-too-narrow", args: "bigger-board --project=desktop-1280 -g \"keeps the board clean\"", file: "duel-web/src/board.css", from: "  --rail-w: clamp(250px, 17vw, 330px);\n}", to: "  --rail-w: clamp(110px, 9vw, 130px);\n}", kills: [
+      "bigger-board.spec.ts > Bigger playing area keeps the board clean and End turn reachable at desktop 1280x720 (#449) [desktop-1280]",
+    ] },
+    // Show on screen (#449)
+    { id: "e2e-show-preview-ignored", args: "show-hide --project=desktop-1280 -g \"showCardPreview\"", file: "duel-web/src/board/DuelBoard.tsx", from: "preview: prefs.showCardPreview ? <CardPreviewPanel /> : null,", to: "preview: <CardPreviewPanel />,", kills: [
+      "show-hide.spec.ts > showCardPreview off removes only the preview panel and the Battle log stays (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-recent-ignored", args: "show-hide --project=desktop-1280 -g \"showRecentPlays\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    recent: prefs.showRecentPlays ? (\n      <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} />\n    ) : null,", to: "    recent: <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} />,", kills: [
+      "show-hide.spec.ts > showRecentPlays off removes only the recent panel and the Battle log stays (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-chat-ignored", args: "show-hide --project=desktop-1280 -g \"showChat\"", file: "duel-web/src/board/DuelBoard.tsx", from: "  const chatPanel = chat && prefs.showChat ? (", to: "  const chatPanel = chat ? (", kills: [
+      "show-hide.spec.ts > showChat off removes only the chat panel and the Battle log stays (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-chat-ignored-phone", args: "show-hide --project=phone-375 -g \"Chat pill\"", file: "duel-web/src/board/DuelBoard.tsx", from: "  const chatPanel = chat && prefs.showChat ? (", to: "  const chatPanel = chat ? (", kills: [
+      "show-hide.spec.ts > the Chat pill is shown by default and gone with Chat off, the Battle log stays (#449) [phone-375]",
+    ] },
+    { id: "e2e-show-chat-rail-button-stays", args: "show-hide --project=desktop-1280 -g \"landscape phone\"", file: "duel-web/src/board/DuelBoard.tsx", from: "            hasChat={chatPanel != null}", to: "            hasChat={Boolean(chat)}", kills: [
+      "show-hide.spec.ts > a landscape phone's rail loses the Chat button with Chat off but keeps the Battle log (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-default-hidden", args: "show-hide --project=desktop-1280 -g \"by default\"", file: "duel-web/src/settings.ts", from: "  showRecentPlays: true,\n", to: "  showRecentPlays: false,\n", kills: [
+      "show-hide.spec.ts > every panel is shown by default (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-hiding-resets-layout", args: "show-hide --project=desktop-1280 -g \"keeps its place\"", file: "duel-web/src/board/GameplaySettings.tsx", from: "                onChange={(e) => updateSettings({ [t.key]: e.target.checked })}", to: "                onChange={(e) => updateSettings({ [t.key]: e.target.checked, panelLayout: \"\" })}", kills: [
+      "show-hide.spec.ts > a hidden panel keeps its place in the saved layout and returns to it (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-empty-column-stays", args: "show-hide --project=desktop-1280 -g \"collapses\"", file: "duel-web/src/board/panelLayout.ts", from: "  const collapse = (c: PanelColumn) => !dragging && shown[c].length === 0 && !busy[c];", to: "  const collapse = (_c: PanelColumn) => false;", kills: [
+      "show-hide.spec.ts > a column with nothing left to show collapses and the playmat area gets its width (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-log-keeps-its-height", args: "show-hide --project=desktop-1280 -g \"takes the freed height\"", file: "duel-web/src/board.css", from: ".arena.arena-wide .board-panel[data-panel=\"log\"],\n.arena.arena-wide .board-panel[data-panel=\"hand\"],\n", to: ".arena.arena-wide .board-panel[data-panel=\"hand\"],\n", kills: [
+      "show-hide.spec.ts > the Battle log stays with everything hidden, and takes the freed height (#449) [desktop-1280]",
+    ] },
+    { id: "e2e-show-switch-lists-battle-log", args: "show-hide --project=desktop-1280 -g \"Settings switches\"", file: "duel-web/src/board/GameplaySettings.tsx", from: "const SHOW_TOGGLES: ShowToggle[] = [\n", to: "const SHOW_TOGGLES: ShowToggle[] = [\n  { key: \"showCardPreview\", label: \"Battle log\", hint: \"\" },\n", kills: [
+      "show-hide.spec.ts > the Settings switches hide and show the panels live, with none for the Battle log (#449) [desktop-1280]",
+    ] },
   ],
 };
