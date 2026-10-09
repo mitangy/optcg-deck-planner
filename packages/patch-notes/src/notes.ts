@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-09
-  { date: "2026-10-09", app: "duel", pr: 0, title: "Full Bounty leaderboard and a menu", text: "Tap Top bounties on the home page to see the full leaderboard. A menu button on every page takes you home or anywhere else in one tap." },
+  { date: "2026-10-09", app: "duel", pr: 466, title: "Full Bounty leaderboard and a menu", text: "Tap Top bounties on the home page to see the full leaderboard. A menu button on every page takes you home or anywhere else in one tap." },
   // 2026-10-08
   { date: "2026-10-08", app: "both", pr: 444, title: "Meta deck browser", text: "Browse popular tournament decks by leader and turn one into your own deck with a single click." },
   { date: "2026-10-08", app: "duel", pr: 441, title: "Choose your DON!! art", text: "Pick which DON!! card art you play with in Settings." },
