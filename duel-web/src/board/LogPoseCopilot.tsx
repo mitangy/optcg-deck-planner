@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useLogPose, useLogPoseGame, type GameChatContext, type LogPoseGame, type TurnPlan } from "@optcg/analyst-client";
+import { ticketGameKey, useLogPose, useLogPoseGame, type GameChatContext, type LogPoseGame, type TurnPlan } from "@optcg/analyst-client";
 import { lookupCard } from "../cards/atlas";
 import { setBoardCopilot } from "../logPose";
 import type { BriefTicketWire, Intent, PlayerView, Seat } from "../net/protocol";
@@ -168,10 +168,10 @@ export function TurnPlanCard({
 }
 
 /** Subscribes one card to the shared run, so it follows the plan without the panel re-registering anything. */
-function PlanCardConnector({ plan, store, actions, ctx }: { plan: TurnPlan; store: Store; actions: Actions; ctx: { busy: boolean; ask: (text: string) => void } }) {
+function PlanCardConnector({ plan, store, actions, gameKey, ctx }: { plan: TurnPlan; store: Store; actions: Actions; gameKey: string | null; ctx: { busy: boolean; ask: (text: string) => void } }) {
   const snap = useSyncExternalStore(store.subscribe, store.get, store.get);
   const own = snap.run?.plan.id === plan.id ? snap.run : (snap.finished[plan.id] ?? null);
-  const mode = planCardMode(plan, own, snap.run, snap.view);
+  const mode = planCardMode(plan, own, snap.run, snap.view, gameKey);
   return (
     <TurnPlanCard
       plan={plan}
@@ -259,6 +259,7 @@ export function useLogPoseCopilot(o: {
   const store = useMemo(createStore, []);
   const ticketRef = useRef<string | null>(null);
   ticketRef.current = brief?.ticket ?? null;
+  const gameKeyNow = () => (ticketRef.current ? ticketGameKey(ticketRef.current) : null);
   const viewRef = useRef(view);
   viewRef.current = view;
   const logRef = useRef(o.battleLog);
@@ -278,7 +279,7 @@ export function useLogPoseCopilot(o: {
       play: (plan) => {
         const { view: v, run } = store.get();
         const cur = viewRef.current ?? v;
-        if (!cur || playBlockReason(plan, cur, run) !== null) return;
+        if (!cur || playBlockReason(plan, cur, run, gameKeyNow()) !== null) return;
         apply(startRun(plan), cur);
       },
       stop: () => {
@@ -307,7 +308,7 @@ export function useLogPoseCopilot(o: {
         const log = recentLog(logRef.current);
         return { ticket, snapshot: buildSnapshot(v, battle, v.pendingChoices?.[0]), ...(log.length ? { log } : {}) };
       },
-      renderPlan: (plan, ctx) => <PlanCardConnector key={plan.id} plan={plan} store={store} actions={actions} ctx={ctx} />,
+      renderPlan: (plan, ctx) => <PlanCardConnector key={plan.id} plan={plan} store={store} actions={actions} gameKey={gameKeyNow()} ctx={ctx} />,
     }),
     [store, actions],
   );

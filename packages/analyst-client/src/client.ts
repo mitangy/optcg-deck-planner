@@ -103,7 +103,30 @@ export type TurnPlan = {
   turn: number;
   summary: string;
   steps: PlanStep[];
+  /** The game (its ticket's match key) the plan was made for, stamped when the answer arrives. Card ids only mean something in that game. */
+  gameKey?: string;
 };
+
+/**
+ * The game a brief ticket was minted for: its `mid` claim (the match, or `match-rN` for a rematch). It is the same
+ * across the fresh tickets a reconnect brings and differs per game. An unreadable ticket stands for itself.
+ */
+export function ticketGameKey(ticket: string): string {
+  try {
+    const body = ticket.split(".")[1] ?? "";
+    const json = atob(body.replace(/-/g, "+").replace(/_/g, "/"));
+    const mid = (JSON.parse(json) as { mid?: unknown }).mid;
+    return typeof mid === "string" && mid ? mid : ticket;
+  } catch {
+    return ticket;
+  }
+}
+
+/** Ties a plan to the game its message was sent for, so a later game never plays it. No game context, no stamp. */
+export function stampPlan(plan: TurnPlan, context: ChatContext | undefined): TurnPlan {
+  const ticket = context?.game?.ticket;
+  return ticket ? { ...plan, gameKey: ticketGameKey(ticket) } : plan;
+}
 
 export const PLAN_LIMITS = { summary: 300, label: 200, why: 400, id: 40, steps: 15, count: 10 };
 

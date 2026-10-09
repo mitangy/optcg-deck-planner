@@ -232,5 +232,8 @@ module.exports = {
     { id: "pos-write-unguarded", file: "packages/analyst-client/src/panelPos.ts", from: "  } catch {\n    /* storage blocked: the position just isn't remembered */", to: "  } finally {\n    /* storage blocked: the position just isn't remembered */", kills: ["works when storage throws (#423)"] },
     { id: "model-setting-can-edit-always", file: "packages/analyst-client/src/modelSetting.ts", from: "canEdit: r.can_edit === true", to: "canEdit: true", kills: ["reads who may edit it from can_edit"] },
     { id: "model-setting-saves-with-post", file: "packages/analyst-client/src/modelSetting.ts", from: "call(apiBase, { method: \"PUT\",", to: "call(apiBase, { method: \"POST\",", kills: ["saves with PUT and the cookie"] },
+    { id: "plan-not-stamped-with-game", file: client, from: "return ticket ? { ...plan, gameKey: ticketGameKey(ticket) } : plan;", to: "return plan;", kills: ["stamps the plan with the game its message was sent for, not the ticket string (#419)"] },
+    { id: "plan-stamped-without-game", file: client, from: "return ticket ? { ...plan, gameKey: ticketGameKey(ticket) } : plan;", to: "return { ...plan, gameKey: ticketGameKey(ticket ?? \"\") };", kills: ["leaves a plan unstamped when the message carried no game (#419)"] },
+    { id: "ticket-key-is-whole-ticket", file: client, from: "return typeof mid === \"string\" && mid ? mid : ticket;", to: "return ticket;", kills: ["keys a game by its match, the same across a reconnect's fresh tickets and different in a rematch (#419)", "stamps the plan with the game its message was sent for, not the ticket string (#419)"] },
   ],
 };

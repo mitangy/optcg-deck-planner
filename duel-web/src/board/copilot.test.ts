@@ -315,7 +315,17 @@ describe("playing out an approved plan (#416)", () => {
     expect(nextIntent(p, first.cursor, mkView({}, []))).toMatchObject({ kind: "blocked", cursor: { step: 0, done: 1 } });
   });
 
-  it("uses the named ability and target, and attacks the named Leader or Character (#416)", () => {
+  it("runs a planned activate with a target even though engine legal activations never carry one (#419)", () => {
+    const legal: Intent[] = [{ type: "activate_ability", sourceId: "c1", abilityId: "a1" }];
+    const view = mkView({}, legal);
+    const act = (s: TurnPlan["steps"][number]) => nextIntent(plan([s]), startCursor, view);
+    expect(act({ action: "activate", source: "c1", abilityId: "a1", target: "o1", label: "x" })).toMatchObject({ kind: "send", intent: legal[0] });
+    // Ignoring the target must not loosen the source or ability match.
+    expect(act({ action: "activate", source: "c2", abilityId: "a1", target: "o1", label: "x" })).toMatchObject({ kind: "blocked" });
+    expect(act({ action: "activate", source: "c1", abilityId: "a9", target: "o1", label: "x" })).toMatchObject({ kind: "blocked" });
+  });
+
+  it("uses the named ability, and attacks the named Leader or Character (#416)", () => {
     const legal: Intent[] = [
       { type: "activate_ability", sourceId: "c1", abilityId: "a1" },
       { type: "activate_ability", sourceId: "c1", abilityId: "a2", targetId: "o1" },
@@ -325,7 +335,6 @@ describe("playing out an approved plan (#416)", () => {
     const view = mkView({}, legal);
     const act = (s: TurnPlan["steps"][number]) => nextIntent(plan([s]), startCursor, view);
     expect(act({ action: "activate", source: "c1", abilityId: "a2", label: "x" })).toMatchObject({ kind: "send", intent: legal[1] });
-    expect(act({ action: "activate", source: "c1", target: "o1", label: "x" })).toMatchObject({ kind: "send", intent: legal[1] });
     expect(act({ action: "activate", source: "c1", abilityId: "a9", label: "x" })).toMatchObject({ kind: "blocked" });
     expect(act(attack("L0", "L1"))).toMatchObject({ kind: "send", intent: legal[2] });
     expect(act(attack("L0", "o1"))).toMatchObject({ kind: "send", intent: legal[3] });
@@ -455,6 +464,19 @@ describe("the Play this turn button (#416)", () => {
     expect(playBlockReason(p, mkView(), stepsRunning)).toMatch(/another plan is running/i);
     expect(playBlockReason(p, mkView({ winner: 0 }), null)).toBeTruthy();
     expect(playBlockReason(p, null, null)).toBeTruthy();
+  });
+
+  it("refuses a plan made in an earlier game: instance ids are re-permuted per game (#419)", () => {
+    const gameA = plan([{ action: "play", card: "card_17", label: "Play card_17" }]);
+    const stamped: TurnPlan = { ...gameA, gameKey: "mb1.gameA" };
+    // Game B has a different card under the same id and a legal play for it on the same turn.
+    const viewB = mkView({ you: { ...mkView().you, hand: [{ id: "card_17", defId: "OP01-120", playCost: 5 }] } }, [{ type: "play_card", handIndex: 0 }]);
+    expect(playBlockReason(stamped, viewB, null, "mb1.gameB")).toBe("This plan was for an earlier game.");
+    expect(planCardMode(stamped, null, null, viewB, "mb1.gameB")).toEqual({ kind: "idle", disabledReason: "This plan was for an earlier game." });
+    // A plan with no stamp can't be tied to this game either.
+    expect(playBlockReason(gameA, viewB, null, "mb1.gameB")).toBe("This plan was for an earlier game.");
+    // The same game's own plan still plays.
+    expect(playBlockReason(stamped, viewB, null, "mb1.gameA")).toBeNull();
   });
 
   it("lets a finished run stop blocking the next plan (#416)", () => {

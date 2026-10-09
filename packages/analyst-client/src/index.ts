@@ -6,6 +6,8 @@ export {
   fetchSavedReview,
   fetchThread,
   parseTurnPlan,
+  stampPlan,
+  ticketGameKey,
   PLAN_LIMITS,
   streamAnalyst,
   type BriefRequest,

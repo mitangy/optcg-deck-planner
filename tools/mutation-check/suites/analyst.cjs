@@ -437,5 +437,6 @@ module.exports = {
     { id: "copilot-plan-tool-unregistered-without-game", file: chat, from: "deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), turnPlanTool(deps.catalog, game)];", to: "deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), ...(game ? [turnPlanTool(deps.catalog, game)] : [])];", kills: ["keeps the tool registered for a later turn without a game"] },
     { id: "copilot-refused-plan-emitted", file: chat, from: "if (tool.name === PLAN_TOOL && !result.isError && onPlan)", to: "if (tool.name === PLAN_TOOL && onPlan)", kills: ["sends a refused plan back to the model and emits no plan event (#416)"] },
     { id: "copilot-ticket-unchecked-before-thread", file: chat, from: "  const claims = game ? await verifyGame(api, token, deps.catalog, game) : null;\n", to: "  const claims = game ? { leader: \"\", opponent: \"\", deck: [] } : null;\n", kills: ["copilot refuses a ranked or forged ticket before any model call (#416)"] },
+    { id: "copilot-first-activate-target-required", file: copilot, from: "(!first.abilityId || a.abilityId === first.abilityId);", to: "(!first.abilityId || a.abilityId === first.abilityId) && (!first.target || a.target === first.target);", kills: ["accepts a plan that opens with a targeted activate: legal activations carry no target, the player picks it when the ability resolves (#419)"] },
   ],
 };

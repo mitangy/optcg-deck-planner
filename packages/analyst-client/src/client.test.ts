@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnalystError, BUDGET_MESSAGE, BUSY_MESSAGE, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, parseTurnPlan, streamAnalyst } from "./client";
+import { AnalystError, BUDGET_MESSAGE, BUSY_MESSAGE, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, parseTurnPlan, stampPlan, streamAnalyst, ticketGameKey } from "./client";
 import { createSessionManager, needsRefresh } from "./session";
 
 const NOW = Date.parse("2026-10-06T12:00:00Z");
@@ -253,5 +253,29 @@ describe("turn plans (#416)", () => {
     const seen: unknown[] = [];
     await streamAnalyst(mgr, "/chat", { message: "plan" }, { onPlan: (p) => seen.push(p) }, undefined, f.impl);
     expect(seen.map((p) => (p as { id: string }).id)).toEqual(["toolu_1"]);
+  });
+});
+
+describe("which game a turn plan belongs to (#419)", () => {
+  const p = { id: "t1", turn: 3, summary: "Go", steps: [{ action: "end_turn" as const, label: "End turn" }] };
+  const ticket = (mid: string, exp: number) => `mb1.${btoa(JSON.stringify({ mid, seat: 0, exp })).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}.sig`;
+  const ctx = (t: string) => ({ game: { ticket: t, snapshot: {} as never } });
+
+  it("keys a game by its match, the same across a reconnect's fresh tickets and different in a rematch (#419)", () => {
+    expect(ticketGameKey(ticket("m1", 100))).toBe("m1");
+    expect(ticketGameKey(ticket("m1", 999))).toBe("m1");
+    expect(ticketGameKey(ticket("m1-r1", 100))).toBe("m1-r1");
+    expect(ticketGameKey("not-a-ticket")).toBe("not-a-ticket");
+  });
+
+  it("stamps the plan with the game its message was sent for, not the ticket string (#419)", () => {
+    expect(stampPlan(p, ctx(ticket("m1", 100))).gameKey).toBe("m1");
+    expect(stampPlan(p, ctx(ticket("m1", 999))).gameKey).toBe("m1");
+    expect(stampPlan(p, ctx(ticket("m1-r1", 100))).gameKey).toBe("m1-r1");
+  });
+
+  it("leaves a plan unstamped when the message carried no game (#419)", () => {
+    expect(stampPlan(p, undefined)).not.toHaveProperty("gameKey");
+    expect(stampPlan(p, { page: "decks" })).not.toHaveProperty("gameKey");
   });
 });
