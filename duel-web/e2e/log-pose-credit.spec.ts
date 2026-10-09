@@ -7,7 +7,7 @@ import type { Page } from "@playwright/test";
 import { test, expect, FAKE_API } from "./fixtures";
 
 const ANALYST = "http://127.0.0.1:8766";
-const ORIGIN = "http://127.0.0.1:5174";
+const ORIGIN = process.env.E2E_PAGE_ORIGIN ?? "http://127.0.0.1:5174";
 const cors = { "access-control-allow-origin": ORIGIN, "access-control-allow-credentials": "true", "access-control-allow-headers": "content-type" };
 
 const credit = (over: Record<string, unknown> = {}) => ({
