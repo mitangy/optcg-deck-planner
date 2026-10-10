@@ -458,7 +458,7 @@ const EFFECT_RULES: EffectRule[] = [
   [/^reveal up to (\d+) (.+?) from your deck and add (?:it|them) to your hand$/i, (m, ctx) => {
     const target = zoneTarget(m[1] ? "up to " + m[1] + " " + m[2] : m[2]!, "deck", ctx);
     if (!target) return null;
-    // The opponent sees the card before it is added to the hand (#523).
+    // The opponent sees the card before it is added to the hand (#524).
     if (target.ref === "choose" && target.bind) return { do: "seq", steps: [{ do: "reveal", target }, { do: "to_hand", target: { ref: "var", name: target.bind } }, { do: "shuffle", player: "you" }] };
     return { do: "seq", steps: [{ do: "to_hand", target }, { do: "shuffle", player: "you" }] };
   }],
@@ -788,7 +788,7 @@ export function parseEffectBody(body: string, ctx: Ctx, split: (text: string) =>
 /**
  * "Reveal 1 card from the top of your deck. If the revealed card has a cost of 4 or more, return up to 1 of your
  * Characters to the owner's hand. Then, place the revealed card at the bottom of your deck." The Character picked in
- * the middle rebinds `_last`, so "the revealed card" would point at it (#523). When a step between the reveal and a
+ * the middle rebinds `_last`, so "the revealed card" would point at it (#524). When a step between the reveal and a
  * later mention of "the revealed card" rebinds `_last`, the reveal binds `_revealed` instead and every sentence that
  * says "the revealed card" reads it.
  */

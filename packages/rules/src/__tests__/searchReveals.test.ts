@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Harness } from "../testing/harness.js";
 import type { GameEvent } from "../types.js";
 
-// "Reveal up to 1 X from your deck / hand and add it to ..." shows the card to the opponent (#523).
+// "Reveal up to 1 X from your deck / hand and add it to ..." shows the card to the opponent (#524).
 
 const SMILE = "OP01-116"; // Artificial Devil Fruit SMILE
 const URUGE = "OP10-101"; // {Supernovas} vanilla Character
@@ -20,8 +20,8 @@ function pickEvents(h: Harness, defId: string): GameEvent[] {
   return r.events;
 }
 
-describe("revealing a card while searching (#523)", () => {
-  it("OP01-098 Kurozumi Orochi reveals the [Artificial Devil Fruit SMILE] it adds from the deck (#523)", () => {
+describe("revealing a card while searching (#524)", () => {
+  it("OP01-098 Kurozumi Orochi reveals the [Artificial Devil Fruit SMILE] it adds from the deck (#524)", () => {
     const h = new Harness();
     h.hand(0, "OP01-098");
     h.don(0, 1);
@@ -32,7 +32,7 @@ describe("revealing a card while searching (#523)", () => {
     expect(h.state.players[0].hand.map((c) => c.defId)).toEqual([SMILE]);
   });
 
-  it("OP10-119 Trafalgar Law reveals the {Supernovas} Character it adds to Life from the hand (#523)", () => {
+  it("OP10-119 Trafalgar Law reveals the {Supernovas} Character it adds to Life from the hand (#524)", () => {
     const h = new Harness();
     h.hand(0, "OP10-119", URUGE);
     h.don(0, 7);
@@ -42,7 +42,7 @@ describe("revealing a card while searching (#523)", () => {
     expect(h.state.players[0].life[0]).toBe(URUGE);
   });
 
-  it("ST13-005 Emporio.Ivankov reveals the cost 5 Character it adds to Life from the hand (#523)", () => {
+  it("ST13-005 Emporio.Ivankov reveals the cost 5 Character it adds to Life from the hand (#524)", () => {
     const h = new Harness();
     h.hand(0, "ST13-005", COST_5);
     h.don(0, 3);

@@ -1,5 +1,5 @@
 /**
- * A replacement covers every cause its text names (#523). Thatch: "If this Character would be removed from the
+ * A replacement covers every cause its text names (#524). Thatch: "If this Character would be removed from the
  * field by your opponent's effect or K.O.'d, trash this Character and draw 1 card instead." Any K.O. (battle, the
  * opponent's effect, your own effect) and any removal by the opponent's effect; not a removal by your own effect.
  */
@@ -15,38 +15,38 @@ const BRICK_FIST = "OP02-067"; // [Main] Return up to 1 Character with a cost of
 
 const rows: CardScenario[] = [
   {
-    card: THATCH, name: "is trashed instead of returned to the hand by the opponent's effect, and you draw 1 card (#523)",
+    card: THATCH, name: "is trashed instead of returned to the hand by the opponent's effect, and you draw 1 card (#524)",
     me: { field: [THATCH], deckTop: [ROBIN] },
     opp: { hand: [MUGGY_BALL], don: { active: 2 } },
     steps: [{ endTurn: true }, { play: MUGGY_BALL }, { pick: [THATCH] }],
     expect: { me: { field: [], trash: [THATCH], hand: [ROBIN] } },
   },
   {
-    card: THATCH, name: "is trashed and draws 1 card when your own effect K.O.s it (#523)",
+    card: THATCH, name: "is trashed and draws 1 card when your own effect K.O.s it (#524)",
     me: { field: [{ card: HAKUBA, don: 1 }, THATCH], deckTop: [ROBIN] },
     steps: [{ attack: mine(HAKUBA), at: "leader" }, { accept: true }, { passBattle: true }],
     expect: { me: { field: [HAKUBA], trash: [THATCH], hand: [ROBIN] } },
   },
   {
-    card: THATCH, name: "is trashed and draws 1 card when the opponent's effect K.O.s it (#523)",
+    card: THATCH, name: "is trashed and draws 1 card when the opponent's effect K.O.s it (#524)",
     me: { field: [{ card: THATCH, rested: true }], deckTop: [ROBIN] },
     opp: { hand: [JAMBE], don: { active: 2 } },
     steps: [{ endTurn: true }, { play: JAMBE }, { pick: [THATCH] }],
     expect: { me: { field: [], trash: [THATCH], hand: [ROBIN] } },
   },
   {
-    card: THATCH, name: "is trashed and draws 1 card when it is K.O.'d in battle (#523)",
+    card: THATCH, name: "is trashed and draws 1 card when it is K.O.'d in battle (#524)",
     me: { field: [{ card: THATCH, rested: true }], deckTop: [ROBIN] },
     opp: { field: [ROBIN] },
     steps: [{ endTurn: true }, { attack: theirs(ROBIN), at: mine(THATCH) }, { passBattle: true }],
     expect: { me: { field: [], trash: [THATCH], hand: [ROBIN] } },
   },
   {
-    card: THATCH, name: "is returned to the hand as usual by your own effect, without a draw (#523)",
+    card: THATCH, name: "is returned to the hand as usual by your own effect, without a draw (#524)",
     me: { field: [THATCH], hand: [BRICK_FIST], don: { active: 2 }, deckTop: [ROBIN] },
     steps: [{ play: BRICK_FIST }, { pick: [THATCH] }],
     expect: { me: { field: [], hand: [THATCH], trash: [BRICK_FIST] } },
   },
 ];
 
-runScenarios("replacement scope (#523)", rows);
+runScenarios("replacement scope (#524)", rows);
