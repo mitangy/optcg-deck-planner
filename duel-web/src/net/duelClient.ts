@@ -33,6 +33,7 @@ import {
   type RematchAction,
   type RematchState,
   type UndoAction,
+  type UndoApplied,
   type UndoState,
   TAKEN_OVER_CLOSE_CODE,
 } from "./protocol";
@@ -51,7 +52,8 @@ export type DuelClientHandlers = {
     brief?: BriefTicketWire;
   }) => void;
   onView?: (view: PlayerView) => void;
-  onEvents?: (events: unknown[]) => void;
+  /** `step`: intents the room had applied after these events (undo trims the log back to a step). */
+  onEvents?: (events: unknown[], step?: number) => void;
   onError?: (err: ErrorMessage) => void;
   /** The turn moved on since the last rejected action, so its error is old news. */
   onStaleIllegalIntent?: () => void;
@@ -63,8 +65,8 @@ export type DuelClientHandlers = {
   onChat?: (lines: ChatLine[]) => void;
   /** Undo availability / open request (unranked rooms). */
   onUndoState?: (state: UndoState) => void;
-  /** An accepted undo rewound the match to the start of `toTurn`. */
-  onUndoApplied?: (info: { toTurn: number; by: Seat }) => void;
+  /** An accepted undo took back the last action, restoring the state of `toTurn` / `toStep`. */
+  onUndoApplied?: (info: UndoApplied) => void;
   /** Seats that dropped: epoch ms until which each may still reconnect. */
   onPresence?: (awayUntil: [number | null, number | null]) => void;
   /** Rematch vote after the match ends. */
@@ -586,7 +588,11 @@ export class DuelClient {
 
     room.onMessage("events", (raw: unknown) => {
       if (raw && typeof raw === "object" && Array.isArray((raw as { events?: unknown }).events)) {
-        this.handlers.onEvents?.((raw as { events: unknown[] }).events);
+        const step = (raw as { step?: unknown }).step;
+        this.handlers.onEvents?.(
+          (raw as { events: unknown[] }).events,
+          typeof step === "number" ? step : undefined,
+        );
       }
     });
 

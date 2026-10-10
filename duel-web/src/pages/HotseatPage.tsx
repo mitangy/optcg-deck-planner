@@ -266,7 +266,7 @@ export function HotseatPage() {
           if (!alive()) return;
           bump((n) => n + 1);
         },
-        onEvents: (events) => {
+        onEvents: (events, step) => {
           const turn = bag.view?.turnNumber ?? 1;
           const instances = (bag.instances ??= new Map());
           indexViewInstances(bag.view, instances);
@@ -275,7 +275,10 @@ export function HotseatPage() {
             turnNumber: turn,
             instances,
           });
-          if (lines.length) bag.battleLog = [...bag.battleLog, ...lines];
+          if (lines.length) {
+            const stamped = step === undefined ? lines : lines.map((l) => ({ ...l, step }));
+            bag.battleLog = [...bag.battleLog, ...stamped];
+          }
           if (!alive()) return;
           bump((n) => n + 1);
         },
@@ -317,8 +320,8 @@ export function HotseatPage() {
           if (!alive()) return;
           bump((n) => n + 1);
         },
-        onUndoApplied: ({ toTurn, by }) => {
-          bag.battleLog = rewindBattleLog(bag.battleLog, toTurn, by, bag.seat);
+        onUndoApplied: ({ toTurn, toStep, by, action }) => {
+          bag.battleLog = rewindBattleLog(bag.battleLog, toTurn, by, bag.seat, toStep, action?.label);
           if (!alive()) return;
           bump((n) => n + 1);
         },

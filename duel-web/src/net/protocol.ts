@@ -639,13 +639,27 @@ export function parseChatHistory(raw: unknown): ChatLine[] {
   return o.messages.map(asChatLine);
 }
 
+/** One undoable action: who took it and a short description ("play Nami"). */
+export type UndoActionInfo = { seat: Seat; label: string };
+
 /** Undo availability pushed by the server (enabled only in unranked rooms). */
 export type UndoState = {
   enabled: boolean;
-  /** Turn an undo would rewind to right now; null when nothing to undo. */
+  /** Turn of the state an undo would restore right now; null when nothing to undo. */
   targetTurn: number | null;
+  /** The last action, which an undo would take back; null when nothing to undo. */
+  action: UndoActionInfo | null;
   /** Open request awaiting the other seat's answer. */
-  pending: { from: Seat; toTurn: number } | null;
+  pending: { from: Seat; toTurn: number; action: UndoActionInfo | null } | null;
+};
+
+/** Broadcast after an accepted undo. */
+export type UndoApplied = {
+  toTurn: number;
+  /** Intent count after the rewind; absent from older servers. */
+  toStep?: number;
+  by: Seat;
+  action: UndoActionInfo | null;
 };
 
 /** Client to room: your hand's order (card instance ids, left to right) for spectators' fans. */
@@ -664,18 +678,31 @@ export function parseUndoState(raw: unknown): UndoState {
   const p = o.pending as Record<string, unknown> | null | undefined;
   const pending =
     p && typeof p === "object" && (p.from === 0 || p.from === 1) && typeof p.toTurn === "number"
-      ? { from: p.from as Seat, toTurn: p.toTurn }
+      ? { from: p.from as Seat, toTurn: p.toTurn, action: parseUndoActionInfo(p.action) }
       : null;
-  return { enabled: o.enabled === true, targetTurn: turn, pending };
+  return { enabled: o.enabled === true, targetTurn: turn, action: parseUndoActionInfo(o.action), pending };
 }
 
-export function parseUndoApplied(raw: unknown): { toTurn: number; by: Seat } {
+/** Lenient: an older server sends no action, and a malformed one is just dropped. */
+function parseUndoActionInfo(raw: unknown): UndoActionInfo | null {
+  if (!raw || typeof raw !== "object") return null;
+  const a = raw as Record<string, unknown>;
+  if ((a.seat !== 0 && a.seat !== 1) || typeof a.label !== "string" || a.label === "") return null;
+  return { seat: a.seat, label: a.label };
+}
+
+export function parseUndoApplied(raw: unknown): UndoApplied {
   if (!raw || typeof raw !== "object") throw new Error("undo_applied body required");
   const o = raw as Record<string, unknown>;
   if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
   if (typeof o.toTurn !== "number") throw new Error("undo_applied.toTurn required");
   if (o.by !== 0 && o.by !== 1) throw new Error("undo_applied.by required");
-  return { toTurn: o.toTurn, by: o.by };
+  return {
+    toTurn: o.toTurn,
+    ...(typeof o.toStep === "number" ? { toStep: o.toStep } : {}),
+    by: o.by,
+    action: parseUndoActionInfo(o.action),
+  };
 }
 
 /** Rematch vote after a match ends (unranked rooms). */
