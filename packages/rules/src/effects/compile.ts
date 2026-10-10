@@ -179,8 +179,8 @@ export function compileCost(cost: Cost, out: Instr[], who: Rel = "you"): void {
     case "return_active_don": out.push({ op: "act", effect: { do: "return_don", player: who, count: cost.count, activeOnly: true } }); return;
     case "ko_cards": select(cost.selector, cost.count, "K.O. (cost)"); out.push({ op: "act", effect: { do: "ko", target: costVar } }); return;
     case "give_don": select(cost.selector, 1, "receive DON!! (cost)"); out.push({ op: "act", effect: { do: "give_don", target: costVar, count: cost.count, donState: "active" } }); return;
-    case "life_face_down": out.push({ op: "act", effect: { do: "life_face", player: "you", count: cost.count, faceUp: false } }); return;
-    case "life_face_up": out.push({ op: "act", effect: { do: "life_face", player: "you", count: cost.count, faceUp: true } }); return;
+    case "life_face_down": out.push({ op: "act", effect: { do: "life_face", player: "you", count: cost.count, faceUp: false, ...(cost.position ? { position: cost.position } : {}) } }); return;
+    case "life_face_up": out.push({ op: "act", effect: { do: "life_face", player: "you", count: cost.count, faceUp: true, ...(cost.position ? { position: cost.position } : {}) } }); return;
     case "mill": out.push({ op: "act", effect: { do: "mill", player: "you", count: cost.count } }); return;
     case "power": out.push({ op: "act", effect: { do: "power", target: cost.target === "self" ? self : { ref: "leader", player: "you" }, amount: cost.amount, duration: "turn" } }); return;
     case "give_opponent_don": out.push({ op: "select", bind: "_cost", selector: { player: "opponent", zone: "character" }, min: 1, max: 1, chooser: "you", purpose: "receive your opponent's DON!! (cost)" }); out.push({ op: "act", effect: { do: "give_don", target: costVar, count: cost.count, donState: "rested", player: "opponent" } }); return;

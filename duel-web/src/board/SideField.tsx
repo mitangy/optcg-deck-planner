@@ -6,6 +6,7 @@ import type { CardView, Seat } from "../net/protocol";
 import { CardInspect } from "./CardInspect";
 import { CardTile } from "./CardTile";
 import { DonStrip } from "./DonStrip";
+import { useDuelSettings } from "../settings";
 import type { DonPiles } from "./donPiles";
 import { donTotal } from "./donTotals";
 import { TrashViewer, trashNewestFirst } from "./TrashViewer";
@@ -219,6 +220,8 @@ export function SideField({
   activeTurn = false,
   countRow = false,
 }: Props) {
+  /** One-tap actions: a click can fire a one-shot action, so wait out the double-click (inspect) window (#513). */
+  const oneTap = useDuelSettings().oneTapActions;
   const mirrored = side === "opp";
   const interactive = side === "you" && drag;
   const [trashOpen, setTrashOpen] = useState(false);
@@ -369,7 +372,7 @@ export function SideField({
                   classNameExtra={extraClass || undefined}
                   inspectGestures
                   onClick={tapHandler}
-                  instantClick={isSelectable}
+                  instantClick={isSelectable && !oneTap}
                   dropAttr={dropAttr}
                   dropHighlight={giveHl || trashHl || counterDropHl(c.id)}
                   {...attackDragProps(c.id)}
@@ -440,7 +443,7 @@ export function SideField({
                 classNameExtra={extraClass || undefined}
                 inspectGestures
                 onClick={tapHandler}
-                instantClick={isSelectable}
+                instantClick={isSelectable && !oneTap}
                 dropAttr={
                   interactive && drag?.giveDonHighlightIds?.has(leaderId)
                     ? `give_don:${leaderId}`
@@ -494,7 +497,7 @@ export function SideField({
                   classNameExtra={extraClass || undefined}
                   inspectGestures
                   onClick={tapHandler}
-                  instantClick={isSelectable}
+                  instantClick={isSelectable && !oneTap}
                   ownerSeat={ownerSeat}
                   viewingSeat={viewingSeat}
                 />

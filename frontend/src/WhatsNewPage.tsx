@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { latestNoteDate, markSeen, notesFor, WhatsNewList } from "@optcg/patch-notes";
+import { markAllSeen, notesFor, WhatsNewList } from "@optcg/patch-notes";
 import { ThemeToggle } from "./ThemeToggle";
 
 const NOTES = notesFor("planner");
@@ -8,8 +8,7 @@ const NOTES = notesFor("planner");
 /** Public page: everything that changed in the planner, newest first. Opening it counts as seeing the latest update. */
 export function WhatsNewPage() {
   useEffect(() => {
-    const latest = latestNoteDate("planner");
-    if (latest) markSeen("planner", latest);
+    markAllSeen("planner");
   }, []);
   return (
     <div className="app public-app">

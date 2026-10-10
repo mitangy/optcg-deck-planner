@@ -1,4 +1,4 @@
-import { latestNoteDate, unseenNotes, type AppName } from "./helpers";
+import { latestNoteDate, noteKey, notesFor, unseenNotes, type AppName } from "./helpers";
 import { PATCH_NOTES } from "./notes";
 import type { PatchNote } from "./types";
 
@@ -29,6 +29,43 @@ export function readLastSeen(app: AppName, storage: NotesStorage | null = defaul
   }
 }
 
+export function seenKeysKey(app: AppName): string {
+  return `optcg.patchNotes.seenOnLastDay.${app}`;
+}
+
+/** The note keys recorded as seen on the last-seen day, or null when none were recorded (a date stored by an older version). */
+export function readSeenOnLastDay(app: AppName, storage: NotesStorage | null = defaultStorage()): string[] | null {
+  try {
+    const lastSeen = readLastSeen(app, storage);
+    const raw = storage?.getItem(seenKeysKey(app));
+    if (lastSeen === null || !raw) return null;
+    const parsed = JSON.parse(raw) as { date?: unknown; keys?: unknown };
+    if (parsed.date !== lastSeen || !Array.isArray(parsed.keys)) return null;
+    return parsed.keys.filter((k): k is string => typeof k === "string");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Records every note `app` has as seen: the newest day, and which notes of that
+ * day were shown, so a note added later the same day is still announced.
+ * Never moves backwards.
+ */
+export function markAllSeen(app: AppName, storage: NotesStorage | null = defaultStorage(), notes: readonly PatchNote[] = PATCH_NOTES): void {
+  try {
+    const latest = latestNoteDate(app, notes);
+    if (!latest) return;
+    markSeen(app, latest, storage);
+    if (readLastSeen(app, storage) !== latest) return;
+    const keys = new Set(readSeenOnLastDay(app, storage) ?? []);
+    for (const n of notesFor(app, notes)) if (n.date === latest) keys.add(noteKey(n));
+    storage?.setItem(seenKeysKey(app), JSON.stringify({ date: latest, keys: [...keys] }));
+  } catch {
+    // Private mode or blocked storage: the card just comes back next visit.
+  }
+}
+
 /** Records `date` as seen. Never moves backwards. */
 export function markSeen(app: AppName, date: string, storage: NotesStorage | null = defaultStorage()): void {
   try {
@@ -52,9 +89,8 @@ export function loadUnseen(
 ): PatchNote[] {
   const lastSeen = readLastSeen(app, storage);
   if (lastSeen === null) {
-    const latest = latestNoteDate(app, notes);
-    if (latest) markSeen(app, latest, storage);
+    markAllSeen(app, storage, notes);
     return [];
   }
-  return unseenNotes(app, lastSeen, notes);
+  return unseenNotes(app, lastSeen, notes, readSeenOnLastDay(app, storage));
 }

@@ -65,6 +65,38 @@ for (const [name, size] of [["portrait", null], ["landscape", { width: 812, heig
       await expect.poll(async () => (await sent(page)).map((i) => (i as { type: string; targetId?: string }).type + ":" + (i as { targetId?: string }).targetId)).toEqual(["give_don:y-c1"]);
     });
 
+    test(`Double-click with One-tap actions inspects without playing the card (#513) [${name}]`, async ({ page }) => {
+      test.skip(test.info().project.name !== "desktop-1280", "double-click is a mouse gesture");
+      await openDemo(page, "", true);
+      await page.locator(HAND_CARD).nth(2).dblclick();
+      await expect(page.locator(".card-inspect, [role=dialog]").first()).toBeVisible();
+      await page.waitForTimeout(500);
+      expect(await sent(page)).toEqual([]);
+    });
+
+    test(`Double-click with One-tap actions inspects a board card without attacking (#513) [${name}]`, async ({ page }) => {
+      test.skip(test.info().project.name !== "desktop-1280", "double-click is a mouse gesture");
+      await openDemo(page, "?cantattack&attackready", true);
+      await page.locator(YOU("y-c3")).dblclick();
+      await expect(page.locator(".card-inspect, [role=dialog]").first()).toBeVisible();
+      await page.waitForTimeout(500);
+      expect(await sent(page)).toEqual([]);
+    });
+
+    test(`Long-press with One-tap actions inspects without playing the card (#513) [${name}]`, async ({ page }) => {
+      test.skip(test.info().project.name !== "phone-375", "long-press is a touch gesture");
+      await openDemo(page, "", true);
+      const box = (await page.locator(HAND_CARD).nth(2).boundingBox())!;
+      const cdp = await page.context().newCDPSession(page);
+      const x = box.x + box.width / 2, y = box.y + box.height / 2;
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+      await page.waitForTimeout(900);
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await expect(page.locator(".card-inspect, [role=dialog]").first()).toBeVisible();
+      await page.waitForTimeout(500);
+      expect(await sent(page)).toEqual([]);
+    });
+
     test(`one-tap answers DON!! -2 on the second pick without Confirm (#502) [${name}]`, async ({ page }) => {
       await openDemo(page, "?prompt=don2", true);
       await expect(page.locator(".field-bar")).toBeVisible();

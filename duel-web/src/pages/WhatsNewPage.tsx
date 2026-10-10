@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { latestNoteDate, markSeen, notesFor, WhatsNewList } from "@optcg/patch-notes";
+import { markAllSeen, notesFor, WhatsNewList } from "@optcg/patch-notes";
 import { BackLink } from "./BackLink";
 import { NavMenu } from "../nav/NavMenu";
 
@@ -8,8 +8,7 @@ const NOTES = notesFor("duel");
 /** Everything that changed in the duel app, newest first. Opening it counts as seeing the latest update. */
 export function WhatsNewPage() {
   useEffect(() => {
-    const latest = latestNoteDate("duel");
-    if (latest) markSeen("duel", latest);
+    markAllSeen("duel");
   }, []);
   return (
     <div className="app-shell">

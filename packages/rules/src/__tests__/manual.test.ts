@@ -352,3 +352,61 @@ describe("turning Life face-down as a cost (OP08-063 Katakuri)", () => {
     expect(h.state.players[0].faceUpLife).toEqual([false, true, false]);
   });
 });
+
+describe("Life face-up/down costs that name a position (#492)", () => {
+  it("ST13-009 can turn any face-up Life card face-down, not just the top (#492)", () => {
+    const h = new Harness();
+    h.hand(0, "ST13-009");
+    h.don(0, 9);
+    h.life(0, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [false, true, false];
+    h.play(0, "ST13-009");
+    h.accept();
+    h.forced();
+    expect(h.state.players[0].faceUpLife).toEqual([false, false, false]);
+  });
+
+  it("ST13-009 lets the player choose which face-up Life card to turn face-down (#492)", () => {
+    const h = new Harness();
+    h.hand(0, "ST13-009");
+    h.don(0, 9);
+    h.life(0, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [true, false, true];
+    h.play(0, "ST13-009");
+    h.accept();
+    expect(h.choice?.request?.type).toBe("mode");
+    h.pick("Life card 3 (bottom)");
+    expect(h.state.players[0].faceUpLife).toEqual([true, false, false]);
+  });
+
+  it("ST13-009 is not offered when no Life card is face-up (#492)", () => {
+    const h = new Harness();
+    h.hand(0, "ST13-009");
+    h.don(0, 9);
+    h.life(0, FILLER, FILLER);
+    h.play(0, "ST13-009");
+    expect(h.choice).toBeUndefined();
+  });
+
+  it("ST36-005 can turn the bottom Life card face-up (#492)", () => {
+    const h = new Harness();
+    const [kid] = h.field(0, "ST36-005");
+    h.life(0, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [true, false, false];
+    const activate = h.legal(0).filter((i) => i.type === "activate_ability" && i.sourceId === kid!.id);
+    expect(activate.length).toBe(1);
+    h.act(0, activate[0]!);
+    h.forced();
+    expect(h.state.players[0].faceUpLife).toEqual([true, false, true]);
+  });
+
+  it("ST36-005 asks top or bottom when both ends can be turned face-up (#492)", () => {
+    const h = new Harness();
+    const [kid] = h.field(0, "ST36-005");
+    h.life(0, FILLER, FILLER, FILLER);
+    h.act(0, h.legal(0).find((i) => i.type === "activate_ability" && i.sourceId === kid!.id)!);
+    expect(h.choice?.request?.type).toBe("mode");
+    h.pick("Bottom");
+    expect(h.state.players[0].faceUpLife).toEqual([false, false, true]);
+  });
+});

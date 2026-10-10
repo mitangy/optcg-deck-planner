@@ -15,7 +15,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { CardDataFile, CardDataRow } from "../cards/cardData.js";
-import { cleanText, normalizeCardName, splitTrigger } from "./buildCardData.js";
+import { cleanText, normalizeCardName, splitTrigger, VARIANT_SUFFIX } from "./buildCardData.js";
 
 const BASE = "https://tcgcsv.com/tcgplayer/68";
 
@@ -34,7 +34,6 @@ export interface ImportResult {
   ignoredForeign: string[];
 }
 
-const VARIANT_SUFFIX = /\s+\((?:SP|Alternate Art|Manga)\)$/;
 const TYPES: Record<string, CardDataRow["type"]> = { leader: "leader", character: "character", event: "event", stage: "stage" };
 const MINUS = "−";
 

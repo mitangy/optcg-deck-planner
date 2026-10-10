@@ -82,3 +82,78 @@ test("deck editor edits stay a draft until Save, and leaving asks first (#481)",
   await page.getByRole("link", { name: "Back to decks" }).click();
   await expect(page).toHaveURL(/\/decks$/);
 });
+
+test("Back with unsaved deck edits asks Save / Discard / Keep editing (#483)", async ({ page }, info) => {
+  await page.route(`${FAKE_API}/**`, (route) => route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } }));
+  await page.addInitScript(
+    ([id, deck, key]) => {
+      if (sessionStorage.getItem("e2e-seeded")) return;
+      sessionStorage.setItem("e2e-seeded", "1");
+      localStorage.clear();
+      localStorage.setItem(key, JSON.stringify([{ id, name: "Red Vanilla", ...deck, updatedAt: 1 }]));
+    },
+    [DECK_ID, RED_VANILLA, KEY] as const,
+  );
+  const shotDir = process.env.BACK_SHOTS;
+  const shot = async (name: string) => {
+    if (shotDir) await page.screenshot({ path: `${shotDir}/${info.project.name}-${name}.png` });
+  };
+  const save = page.getByRole("button", { name: /^(Save|Saved)$/ });
+  const dialog = page.getByRole("dialog", { name: /Save changes to Red Vanilla\?/ });
+  const chopper = page.getByRole("button", { name: "Remove one Tony Tony.Chopper" });
+  const openEditor = async () => {
+    await page.goto("/decks");
+    await page.locator(".deck-list li", { hasText: "Red Vanilla" }).click();
+    await expect(page).toHaveURL(/configure$/);
+    await expect(save).toHaveText("Saved");
+  };
+
+  // Keep editing: Back stays on the editor with the edits; a second Back asks again.
+  await openEditor();
+  await chopper.click();
+  await expect(save).toHaveText("Save");
+  await page.goBack();
+  await expect(dialog).toBeVisible();
+  await expect(page).toHaveURL(/configure$/);
+  await shot("back-dialog");
+  await dialog.getByRole("button", { name: "Keep editing" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(save).toHaveText("Save");
+  await page.goBack();
+  await expect(dialog).toBeVisible();
+
+  // Discard goes where Back was heading, with the saved deck untouched.
+  await dialog.getByRole("button", { name: "Discard", exact: true }).click();
+  await expect(page).toHaveURL(/\/decks$/);
+  expect(await storedCards(page)).toBe(RED_VANILLA.cards.length);
+
+  // Save goes there too, with the edit stored, and Back from the list does not land on a stuck editor entry.
+  await openEditor();
+  await chopper.click();
+  await page.goBack();
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/decks$/);
+  expect(await storedCards(page)).toBe(RED_VANILLA.cards.length - 1);
+  await page.goForward();
+  await expect(page).toHaveURL(/configure$/);
+  await expect(dialog).toHaveCount(0);
+
+  // Saving in place drops the guard: Back is not swallowed by a leftover entry.
+  await page.getByRole("button", { name: "Remove one Tony Tony.Chopper" }).click();
+  await save.click();
+  await expect(save).toHaveText("Saved");
+  await page.goBack();
+  await expect(page).toHaveURL(/\/decks$/);
+  await expect(dialog).toHaveCount(0);
+
+  // A link click while dirty, then Discard, leaves no guard entry behind: Back returns to the list in one step.
+  await openEditor();
+  await chopper.click();
+  await page.getByRole("link", { name: "Back to decks" }).click();
+  await dialog.getByRole("button", { name: "Discard", exact: true }).click();
+  await expect(page).toHaveURL(/\/decks$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/configure$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/decks$/);
+});

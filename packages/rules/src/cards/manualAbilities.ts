@@ -661,7 +661,7 @@ const ENTRIES: [string, ManualEntry][] = [
     costs: [{ k: "trash_life", count: 1, position: "top_or_bottom" }],
     effect: { do: "hand_to_life", count: 1, min: 0, position: "top", faceUp: false, filter: { ...CHAR, cost: eq(5) } } }]),
   card("ST13-009", [{ trigger: "on_play", text: "[On Play] You may turn 1 of your face-up Life cards face-down",
-    costs: [{ k: "life_face_down", count: 1 }], effect: when(cmp({ count: { of: "hand", player: "opponent" } }, ">=", 7), { do: "trash_life", player: "opponent", count: 1 }) }]),
+    costs: [{ k: "life_face_down", count: 1, position: "any" }], effect: when(cmp({ count: { of: "hand", player: "opponent" } }, ">=", 7), { do: "trash_life", player: "opponent", count: 1 }) }]),
   card("ST13-016", [{ trigger: "on_play", text: "[On Play] Look at all your Life cards; place 1 at the top of your deck",
     effect: seq({ do: "look_life", player: "you", count: 99, rest: "any_order", prompt: "order your Life cards; the first card goes to the top of your deck" }, { do: "life_to_deck", player: "you", count: 1 }) }]),
   card("ST13-017", [{ trigger: "counter", text: "[Counter] Up to 1 of your Leader or Character cards gains +4000 power during this battle. Then, look at all",
@@ -680,9 +680,9 @@ const ENTRIES: [string, ManualEntry][] = [
   card("ST33-004", [{ trigger: "static", text: "During the turn in which a card in your hand is trashed by an effect",
     conditions: [{ c: "this_turn", what: "hand_trashed", player: "you" }], statics: [{ s: "play_cost", target: "self", amount: -3 }] }]),
   card("ST36-005", [{ trigger: "on_opp_attack", oncePerTurn: true, text: "[On Your Opponent's Attack] [Once Per Turn] You may turn 1 card from the top or bottom",
-    costs: [{ k: "life_face_down", count: 1 }], effect: { do: "redirect_attack", target: exactly(1, myChar({ names: ["Eustass\"Captain\"Kid"], basePower: ge(5000) })) } },
+    costs: [{ k: "life_face_down", count: 1, position: "top_or_bottom" }], effect: { do: "redirect_attack", target: exactly(1, myChar({ names: ["Eustass\"Captain\"Kid"], basePower: ge(5000) })) } },
     { trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] You may turn 1 card from the top or bottom of your Life cards face-up",
-      costs: [{ k: "life_face_up", count: 1 }], effect: { do: "give_don", target: myLeader, count: 1, donState: "rested" } }]),
+      costs: [{ k: "life_face_up", count: 1, position: "top_or_bottom" }], effect: { do: "give_don", target: myLeader, count: 1, donState: "rested" } }]),
 ];
 
 // Full replacement (the generated record dropped "and reveals their hand"): the opponent's remaining hand stays face up this turn (#491).

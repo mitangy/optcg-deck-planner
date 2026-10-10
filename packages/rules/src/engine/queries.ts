@@ -624,6 +624,27 @@ export function evalCond(state: MatchState, ctx: EvalCtx, cond: Cond): boolean {
 // Cost payability
 // ---------------------------------------------------------------------------
 
+/**
+ * The groups of Life cards (indices, 0 = top) a face-up/down turn may flip, each group being one legal choice.
+ * Default / "top": the top `count` cards, all of which must currently be the opposite way. "top_or_bottom":
+ * the top `count` or the bottom `count`. "any": any single card that is currently the opposite way (#492).
+ */
+export function lifeFaceGroups(faceUpLife: boolean[], count: number, toFaceUp: boolean, position: "top" | "top_or_bottom" | "any" = "top"): number[][] {
+  const n = faceUpLife.length;
+  if (n < count) return [];
+  const ok = (indices: number[]) => indices.every((i) => faceUpLife[i] !== toFaceUp);
+  const top = Array.from({ length: count }, (_, i) => i);
+  if (position === "top") return ok(top) ? [top] : [];
+  if (position === "top_or_bottom") {
+    const bottom = Array.from({ length: count }, (_, i) => n - count + i);
+    const groups = [top, bottom].filter(ok);
+    return groups.length === 2 && top.some((i) => bottom.includes(i)) ? [groups[0]!] : groups;
+  }
+  const flippable = faceUpLife.map((up, i) => (up !== toFaceUp ? i : -1)).filter((i) => i >= 0);
+  if (flippable.length < count) return [];
+  return count === 1 ? flippable.map((i) => [i]) : [flippable.slice(0, count)];
+}
+
 export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean {
   const p = state.players[ctx.seat];
   const src = locate(state, ctx.sourceId);
@@ -644,8 +665,8 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
     case "play_from_hand": return candidates(state, ctx, { player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }).length >= cost.count;
     case "hand_to_deck_top": return p.hand.filter((c) => c.id !== ctx.sourceId).length >= cost.count;
     case "trash_to_deck_shuffle": return p.trash.length >= cost.count;
-    case "life_face_down": return p.life.length >= cost.count && p.faceUpLife.slice(0, cost.count).every(Boolean);
-    case "life_face_up": return p.life.length >= cost.count && p.faceUpLife.slice(0, cost.count).every((up) => !up);
+    case "life_face_down": return lifeFaceGroups(p.faceUpLife, cost.count, false, cost.position).length > 0;
+    case "life_face_up": return lifeFaceGroups(p.faceUpLife, cost.count, true, cost.position).length > 0;
     case "mill": return p.deck.length >= cost.count;
     case "power": return cost.target !== "active_leader" || !p.leader.rested;
     case "give_opponent_don": { const o = state.players[otherSeat(ctx.seat)]; return o.costArea.filter((d) => d.rested).length >= cost.count && o.characters.length > 0; }

@@ -196,7 +196,7 @@ test("every page's header starts with the menu button (#460)", async ({ page }) 
 });
 
 test("Top bounties on the home page opens the full leaderboard (#460)", async ({ page }) => {
-  await fakeApi(page, { entries: players(100, null), me: { rank: 9, rating: 1740, games: 40 } });
+  await fakeApi(page, { entries: players(100, 8), me: { rank: 9, rating: 1740, games: 40 } });
   await page.goto("/");
   const card = page.getByRole("region", { name: "Top bounties" });
   await expect(card).toBeVisible();
