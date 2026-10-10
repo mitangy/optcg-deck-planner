@@ -122,6 +122,7 @@ test("at the last step the result lives inside the controls on a phone and shows
   expect(btn!.y).toBeGreaterThanOrEqual(group!.y);
   expect(btn!.y + btn!.height).toBeLessThanOrEqual(group!.y + group!.height);
   // The game is over, so What I saw shows the other hand too (#482).
+  await page.getByRole("button", { name: "What I saw" }).click();
   await expect(page.locator(FAR_FACE_DOWN)).toHaveCount(0);
   await expect(page.locator(FAR_FACE_UP).first()).toBeVisible();
 });
@@ -137,10 +138,19 @@ test("Play advances by itself and Pause stops it (#476)", async ({ page }) => {
   expect(await stepNow(page)).toBe(paused);
 });
 
+test("the replay opens with the opponent's hand face up (#488)", async ({ page }) => {
+  await setUp(page);
+  await openFromHistory(page);
+  await page.getByRole("button", { name: "Step forward" }).click();
+  await expect(page.locator(FAR_FACE_UP).first()).toBeVisible();
+  await expect(page.locator(FAR_FACE_DOWN)).toHaveCount(0);
+});
+
 test("What I saw keeps the far hand face down; Reveal all turns it face up (#476)", async ({ page }) => {
   await setUp(page);
   await openFromHistory(page);
   await page.getByRole("button", { name: "Step forward" }).click();
+  await page.getByRole("button", { name: "What I saw" }).click();
 
   await expect(page.locator(FAR_FACE_DOWN).first()).toBeVisible();
   await expect(page.locator(FAR_FACE_UP)).toHaveCount(0);
@@ -160,6 +170,7 @@ test("flipping the board swaps the sides without revealing the other hand (#476)
   await openFromHistory(page);
   const board = page.locator(".board-root");
   await expect(board).toHaveAttribute("data-seat", "0");
+  await page.getByRole("button", { name: "What I saw" }).click();
 
   const flip = page.getByRole("button", { name: /^Flip the board/ });
   if (!(await flip.isVisible())) await page.getByRole("button", { name: "More replay options" }).click();

@@ -107,7 +107,7 @@ export function useReplay(payload: ReplayPayload): Replay {
   const [quiet, setQuiet] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<PlaySpeed>(1);
-  const [revealAll, setRevealAll] = useState(false);
+  const [revealAll, setRevealAll] = useState(true);
   const [cameraSeat, setCameraSeat] = useState<Seat>(yourSeat);
 
   useEffect(() => {
