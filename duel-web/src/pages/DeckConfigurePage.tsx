@@ -196,8 +196,10 @@ export function DeckConfigurePage() {
     <div className="app-shell">
       <div className="deck-config deck-config-wide">
         <header className="deck-config-header">
-          <NavMenu />
-          <BackLink to="/decks" label="Decks" ariaLabel="Back to decks" />
+          <div className="deck-config-nav">
+            <NavMenu />
+            <BackLink to="/decks" label="Decks" ariaLabel="Back to decks" />
+          </div>
           <div className="deck-config-heading">
             <h1 className="deck-config-title">{deck.name}</h1>
             <p className="meta">

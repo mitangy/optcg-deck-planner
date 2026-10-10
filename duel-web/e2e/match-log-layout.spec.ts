@@ -102,8 +102,14 @@ test("jump chips scroll to that turn (#470)", async ({ page }) => {
     })
     .toBe(true);
   const top = await page.evaluate(() => document.getElementById("turn-3")!.getBoundingClientRect().top);
-  expect(top, "turn 3 is at the top of the viewport").toBeGreaterThan(0);
-  expect(top, "turn 3 is at the top of the viewport").toBeLessThan(120);
+  // Below the sticky page header and jump strip, and not far under them (#510).
+  const strip = await page.locator(".match-log-jump").evaluate((el) => el.getBoundingClientRect());
+  const header = (await page.locator(".page-header").boundingBox())!;
+  expect(header.y, "page header is stuck at the top").toBeCloseTo(0, 0);
+  expect(strip.top, "jump strip sticks under the page header").toBeGreaterThanOrEqual(header.y + header.height - 1);
+  const stripBottom = strip.bottom;
+  expect(top, "turn 3 is under the sticky strip").toBeGreaterThanOrEqual(stripBottom);
+  expect(top, "turn 3 is at the top of the viewport").toBeLessThan(stripBottom + 40);
   await expect.poll(() => page.evaluate(() => window.location.hash)).toBe("#turn-3");
   await expect(page).toHaveURL(/\/history\/m1#turn-3$/);
   const after = (await chip.boundingBox())!;

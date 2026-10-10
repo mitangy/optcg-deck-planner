@@ -352,6 +352,109 @@
   flex-wrap: wrap;
 }
 
+/* Sticky page header (#510): the menu, back link and title stay at the top of the window
+   while the page scrolls, like the lobby top bar. The header keeps its resting spot (the
+   negative top margin cancels its padding, so it clears the status bar once stuck without
+   moving down at rest); its bar paints from edge to edge through a ::before, so the
+   max-width column does not clip it. NavMenu publishes the stuck height as --sticky-head-h. */
+.page > .page-header,
+.deck-config > .deck-config-header {
+  --stick-pt: max(0.6rem, var(--safe-t));
+  --stick-pb: 0.6rem;
+  position: sticky;
+  top: 0;
+  /* Above page content and its menus (60), below sheets (100) and the nav drawer (120). */
+  z-index: 65;
+  isolation: isolate;
+  margin: calc(-1 * var(--stick-pt)) 0 calc(-1 * var(--stick-pb));
+  padding: var(--stick-pt) 0 var(--stick-pb);
+}
+
+.page > .page-header::before,
+.deck-config > .deck-config-header::before,
+.deck-config > .deck-config-header > .deck-config-nav::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  border-bottom: 1px solid var(--line);
+  background: rgb(var(--deep-rgb) / 0.72);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+/* Anchor jumps (Settings chips, scrollIntoView) land below the stuck header. */
+html {
+  scroll-padding-top: calc(var(--sticky-head-h, 0px) + 0.5rem);
+}
+
+/* Phones: the Decks and deck editor headers also carry a description and action buttons,
+   which would cover a quarter of the window. Only the menu and back link row stays stuck
+   there; the rest scrolls away with the page. */
+.deck-config-nav {
+  display: contents;
+}
+
+@media (max-width: 599px) {
+  .deck-config > .deck-config-header {
+    display: contents;
+  }
+
+  .deck-config > .deck-config-header::before {
+    display: none;
+  }
+
+  .deck-config > .deck-config-header > .deck-config-nav {
+    --stick-pt: max(0.6rem, var(--safe-t));
+    --stick-pb: 0.6rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    position: sticky;
+    top: 0;
+    z-index: 65;
+    isolation: isolate;
+    margin: calc(-1 * var(--stick-pt)) 0 calc(-1 * var(--stick-pb));
+    padding: var(--stick-pt) 0 var(--stick-pb);
+  }
+
+  .deck-config > .deck-config-header > :not(.deck-config-nav) {
+    flex: 0 0 auto;
+    align-self: flex-start;
+    margin-left: 0;
+    max-width: 100%;
+  }
+
+  .deck-config > .deck-config-header > .deck-config-heading {
+    align-self: stretch;
+  }
+}
+
+/* Short landscape windows keep the whole deck header stuck, so slim it to one tight row. */
+@media (min-width: 600px) and (max-height: 499px) {
+  .deck-config > .deck-config-header .deck-config-title {
+    font-size: 1.3rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .deck-config > .deck-config-header .deck-config-heading {
+    gap: 0.1rem;
+  }
+
+  .deck-config > .deck-config-header .meta {
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 .page-title {
   margin: 0;
   font-family: var(--font-display);

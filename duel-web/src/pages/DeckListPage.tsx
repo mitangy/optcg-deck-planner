@@ -439,8 +439,10 @@ export function DeckListPage() {
     <div className={`app-shell${drag ? " is-deck-dragging" : ""}`}>
       <div className="deck-config deck-config-wide deck-list-page">
         <header className="deck-config-header">
-          <NavMenu />
-          <BackLink to="/" label="Home" ariaLabel="Back to home" />
+          <div className="deck-config-nav">
+            <NavMenu />
+            <BackLink to="/" label="Home" ariaLabel="Back to home" />
+          </div>
           <div className="deck-config-heading">
             <h1 className="deck-config-title">Decks</h1>
             <p className="meta">Choose a deck to edit, or create a new one.</p>
