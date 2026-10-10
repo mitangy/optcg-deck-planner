@@ -685,4 +685,8 @@ const ENTRIES: [string, ManualEntry][] = [
       costs: [{ k: "life_face_up", count: 1 }], effect: { do: "give_don", target: myLeader, count: 1, donState: "rested" } }]),
 ];
 
+// Full replacement (the generated record dropped "and reveals their hand"): the opponent's remaining hand stays face up this turn (#491).
+ENTRIES.push(["OP07-090", { abilities: [{ id: "op07-090#0", trigger: "on_play", text: "[On Play] Your opponent trashes 1 card from their hand and reveals their hand. Then, your opponent draws 1 card.",
+  effect: seq({ do: "discard", player: "opponent", count: 1, chooser: "opponent" }, { do: "reveal", target: { ref: "all", selector: sel("opponent", "hand") } }, { do: "draw", player: "opponent", count: 1 }) }] }]);
+
 export const MANUAL_ABILITIES: Record<string, ManualEntry> = Object.fromEntries(ENTRIES);

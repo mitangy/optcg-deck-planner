@@ -197,12 +197,12 @@ test("a desktop spectator sees both hands as fans, near at the bottom and far al
   expect(duel.errors).toEqual([]);
 });
 
-test("a portrait phone spectator sees an overlapped fan strip for each hand (#346)", async ({ page, duel, browser }, info) => {
+test("a portrait phone spectator sees a row of small cards for each hand (#346)", async ({ page, duel, browser }, info) => {
   test.skip(info.project.name !== "phone-375", "portrait phone layout");
   const roomId = await practiceRoomId(page, duel);
   const { ctx, page: spec } = await newWatcher(browser, info.project.use);
   await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
-  await expect(spec.locator(".hand-row-fan .card-tile")).toHaveCount(5, { timeout: 30_000 });
+  await expect(spec.locator(".hand-row-spec-grid .card-tile")).toHaveCount(5, { timeout: 30_000 });
   await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
   const far = await boxes(spec, ".spec-far-cards .card-tile");
   const oppMat = (await spec.locator(".side-field.side-opp").boundingBox())!;
@@ -248,15 +248,15 @@ test.describe("landscape phone", () => {
     await page.screenshot({ path: info.outputPath("waiting-room-landscape.png") });
   });
 
-  test("a landscape phone spectator sees both hands as small fans in the right column, clear of the mats (#346)", async ({ page, duel, browser }, info) => {
+  test("a landscape phone spectator sees both hands as small card grids in the right column, clear of the mats (#346)", async ({ page, duel, browser }, info) => {
     test.skip(info.project.name !== "phone-375", "one landscape run is enough");
     const roomId = await practiceRoomId(page, duel);
     // The watcher is its own context: give it this describe's landscape window, not the project's.
     const { ctx, page: spec } = await newWatcher(browser, { ...info.project.use, viewport: { width: 812, height: 375 } });
     await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
-    await expect(spec.locator(".rail-hand-fan .card-tile")).toHaveCount(5, { timeout: 30_000 });
+    await expect(spec.locator(".rail-hand-spec .card-tile")).toHaveCount(5, { timeout: 30_000 });
     await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
-    const near = await boxes(spec, ".rail-hand-fan .card-tile");
+    const near = await boxes(spec, ".rail-hand-spec .card-tile");
     const far = await boxes(spec, ".spec-far-cards .card-tile");
     expectOnScreen([...near, ...far], 812, 375);
     // The far fan is above the near one, and neither touches a mat.
@@ -290,7 +290,7 @@ async function labelBox(page: Page, scope: string): Promise<Box> {
   return (await page.locator(`${scope} .hand-label`).first().boundingBox())!;
 }
 
-const NEAR_LABEL = ":is(.hand-fan, .rail-hand-fan, .hand-rail-head-spec)";
+const NEAR_LABEL = ":is(.hand-fan, .rail-hand-spec, .hand-rail-head-spec)";
 const FAR_LABEL = ".spec-far";
 
 test("the two desktop hand labels match and line up, and each fan is draggable by its grip, at 1280x720 and 1440x900 (#346)", async ({ page, duel, browser }, info) => {
@@ -380,7 +380,7 @@ test("both phone layouts label the two hands with the same pill, lined up (#346)
   // Portrait: both labels centred over their strips.
   const { ctx, page: spec } = await newWatcher(browser, info.project.use);
   await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
-  await expect(spec.locator(".hand-row-fan .card-tile")).toHaveCount(5, { timeout: 30_000 });
+  await expect(spec.locator(".hand-row-spec-grid .card-tile")).toHaveCount(5, { timeout: 30_000 });
   await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
   expect(await labelStyle(spec, NEAR_LABEL)).toEqual(await labelStyle(spec, FAR_LABEL));
   const nearP = await labelBox(spec, NEAR_LABEL);
@@ -398,7 +398,7 @@ test("both phone layouts label the two hands with the same pill, lined up (#346)
   // Landscape: both left-aligned in the right column.
   const land = await newWatcher(browser, { ...info.project.use, viewport: { width: 812, height: 375 } });
   await land.page.goto(`/watch/${encodeURIComponent(roomId)}`);
-  await expect(land.page.locator(".rail-hand-fan .card-tile")).toHaveCount(5, { timeout: 30_000 });
+  await expect(land.page.locator(".rail-hand-spec .card-tile")).toHaveCount(5, { timeout: 30_000 });
   expect(await labelStyle(land.page, NEAR_LABEL)).toEqual(await labelStyle(land.page, FAR_LABEL));
   const nearL = await labelBox(land.page, NEAR_LABEL);
   const farL = await labelBox(land.page, FAR_LABEL);
@@ -470,7 +470,7 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
   await watch.page.addInitScript(() => localStorage.setItem("optcg-duel:settings", JSON.stringify({ sortHandByCost: true })));
   await watch.page.goto(`/watch/${encodeURIComponent(roomId)}`);
   const phone = (info.project.use.viewport?.width ?? 1280) < 720;
-  const specNear = phone ? ".hand-row-fan .card-tile" : ".hand-fan-cards .card-tile";
+  const specNear = phone ? ".hand-row-spec-grid .card-tile" : ".hand-fan-cards .card-tile";
   await expect(watch.page.locator(specNear)).toHaveCount(5, { timeout: 30_000 });
   await expect(watch.page.locator(".spec-far-cards .card-tile")).toHaveCount(5);
   await expect(host.page.locator(HAND_CARDS)).toHaveCount(5, { timeout: 30_000 });

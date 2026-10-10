@@ -117,7 +117,7 @@ export function DuelPage() {
           </button>
         </div>
       ) : null}
-      {rating != null ? <div className="rating-chip">
+      {rating != null && !(role === "spectator" || view?.spectator) ? <div className="rating-chip">
           Your Bounty: <BountyAmount amount={rating} />
         </div> : null}
       <DuelBoard
