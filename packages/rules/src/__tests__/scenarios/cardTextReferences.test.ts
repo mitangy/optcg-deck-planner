@@ -51,14 +51,14 @@ const rows: CardScenario[] = [
     card: "OP11-088", name: "gains +5000 when the attacking Character has <Slash> (#515)",
     me: { field: ["OP11-088"] },
     opp: { field: [SLASH_ATTACKER] },
-    steps: [{ endTurn: true }, { attack: theirs(SLASH_ATTACKER), at: "leader" }],
+    steps: [{ endTurn: true }, { attack: theirs(SLASH_ATTACKER), at: "leader" }, { accept: true }],
     expect: { me: { power: { "OP11-088": 10000 } } },
   },
   {
     card: "OP11-088", name: "gains nothing when the attacking Character does not have <Slash> (#515)",
     me: { field: ["OP11-088"] },
     opp: { field: [STRIKE_ATTACKER] },
-    steps: [{ endTurn: true }, { attack: theirs(STRIKE_ATTACKER), at: "leader" }],
+    steps: [{ endTurn: true }, { attack: theirs(STRIKE_ATTACKER), at: "leader" }, { accept: true }],
     expect: { me: { power: { "OP11-088": 5000 } } },
   },
 ];

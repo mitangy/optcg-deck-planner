@@ -21,7 +21,7 @@ const rows: CardScenario[] = [
     leaders: { me: "OP10-042" },
     me: { field: [{ card: BELLAMY, rested: true }], deckTop: [KAROO] },
     opp: { field: [ROBIN] },
-    steps: [{ endTurn: true }, { attack: theirs(ROBIN), at: mine(BELLAMY) }, { passBattle: true }],
+    steps: [{ endTurn: true }, { attack: theirs(ROBIN), at: mine(BELLAMY) }, { passBattle: true }, { accept: true }],
     expect: { me: { hand: [KAROO], field: [], trash: [BELLAMY] } },
   },
   {
@@ -30,14 +30,14 @@ const rows: CardScenario[] = [
     me: { field: [{ card: KAROO, rested: true }], deckTop: [ROBIN] },
     opp: { field: [ROBIN] },
     steps: [{ endTurn: true }, { attack: theirs(ROBIN), at: mine(KAROO) }, { passBattle: true }],
-    expect: { me: { hand: [], field: [], trash: [KAROO] } },
+    expect: { me: { hand: [], field: [], trash: [KAROO] }, pending: "none" },
   },
   {
     card: "OP10-042", name: "still draws 1 when the opponent's effect returns your {Dressrosa} Character to your hand (#524)",
     leaders: { me: "OP10-042" },
     me: { field: [BELLAMY], deckTop: [KAROO] },
     opp: { hand: [MUGGY_BALL], don: { active: 2 } },
-    steps: [{ endTurn: true }, { play: MUGGY_BALL }, { pick: [BELLAMY] }],
+    steps: [{ endTurn: true }, { play: MUGGY_BALL }, { pick: [BELLAMY] }, { accept: true }],
     expect: { me: { hand: [BELLAMY, KAROO], field: [] } },
   },
 

@@ -689,4 +689,16 @@ const ENTRIES: [string, ManualEntry][] = [
 ENTRIES.push(["OP07-090", { abilities: [{ id: "op07-090#0", trigger: "on_play", text: "[On Play] Your opponent trashes 1 card from their hand and reveals their hand. Then, your opponent draws 1 card.",
   effect: seq({ do: "discard", player: "opponent", count: 1, chooser: "opponent" }, { do: "reveal", target: { ref: "all", selector: sel("opponent", "hand") } }, { do: "draw", player: "opponent", count: 1 }) }] }]);
 
+// Full replacement (#524). EB01-029 Q&A: a revealed card with a cost of 3 or less "is returned face-down to the top of your
+// deck"; only the cost 4 or more branch returns a Character and then places the revealed card at the bottom.
+ENTRIES.push(["EB01-029", { abilities: [
+  { id: "eb01-029#0", trigger: "counter", text: "[Counter] Reveal 1 card from the top of your deck. If the revealed card has a cost of 4 or more, return up to 1 of your Characters to the owner's hand. Then, place the revealed card at the bottom of your deck.",
+    effect: seq(
+      { do: "reveal_top", player: "you", bind: "_rev" },
+      when({ c: "var_all_match", name: "_rev", filter: { cost: ge(4) } }, seq({ do: "to_hand", target: upTo(1, myChar(CHAR), { bind: "_ret" }) }, { do: "to_deck", target: v("_rev"), position: "bottom" })),
+    ) },
+  { id: "eb01-029#1", trigger: "trigger", text: "[Trigger] Return up to 1 Character with a cost of 8 or less to the owner's hand.",
+    effect: { do: "to_hand", target: upTo(1, sel("any", "character", { ...CHAR, cost: le(8) })) } },
+] }]);
+
 export const MANUAL_ABILITIES: Record<string, ManualEntry> = Object.fromEntries(ENTRIES);

@@ -758,7 +758,6 @@ export function parseEffectBody(body: string, ctx: Ctx, split: (text: string) =>
     }
   }
   const steps: Effect[] = [];
-  const stepText: string[] = [];
   const failed: string[] = [];
   for (const sentence of split(body)) {
     const s = sentence.trim();
@@ -768,7 +767,7 @@ export function parseEffectBody(body: string, ctx: Ctx, split: (text: string) =>
     const restAnd = /^(then, )?(place the rest at the bottom of your deck in any order|trash the rest) and (.+)$/i.exec(clean(s));
     if (restAnd && steps.length && applyRestSentence(steps[steps.length - 1]!, restAnd[2]!)) {
       const tail = parseStatement(restAnd[3]!, ctx);
-      if (tail) { steps.push(tail); stepText.push(s); continue; }
+      if (tail) { steps.push(tail); continue; }
       failed.push(s); continue;
     }
     const eff = parseStatement(s, ctx);
@@ -776,47 +775,11 @@ export function parseEffectBody(body: string, ctx: Ctx, split: (text: string) =>
       if (eff.do === "if" && /^if you do, /i.test(clean(s))) linkIfYouDo(steps, eff, s, ctx);
       if (/^if the trashed card /i.test(clean(s)) && steps.length) bindTrashedCard(steps[steps.length - 1]!);
       steps.push(eff);
-      stepText.push(s);
     } else failed.push(s);
   }
   if (failed.length) return { effect: null, failed };
   if (steps.length === 0) return { effect: null, failed: [body] };
-  keepRevealedCard(steps, stepText);
   return { effect: steps.length === 1 ? steps[0]! : { do: "seq", steps }, failed: [] };
-}
-
-/**
- * "Reveal 1 card from the top of your deck. If the revealed card has a cost of 4 or more, return up to 1 of your
- * Characters to the owner's hand. Then, place the revealed card at the bottom of your deck." The Character picked in
- * the middle rebinds `_last`, so "the revealed card" would point at it (#524). When a step between the reveal and a
- * later mention of "the revealed card" rebinds `_last`, the reveal binds `_revealed` instead and every sentence that
- * says "the revealed card" reads it.
- */
-function keepRevealedCard(steps: Effect[], stepText: string[]): void {
-  const reveal = steps.findIndex((step) => step.do === "reveal_top" && step.bind === "_last");
-  if (reveal < 0) return;
-  const mentions = (i: number) => /\bthe revealed card\b/i.test(stepText[i]!);
-  const lastMention = stepText.map((_, i) => i).filter((i) => i > reveal && mentions(i)).pop();
-  if (lastMention === undefined) return;
-  let rebound = false;
-  for (let i = reveal + 1; i < lastMention; i += 1) if (bindsLast(steps[i]!)) rebound = true;
-  if (!rebound) return;
-  (steps[reveal] as Extract<Effect, { do: "reveal_top" }>).bind = "_revealed";
-  for (let i = reveal + 1; i < steps.length; i += 1) if (mentions(i)) steps[i] = renameVar(steps[i]!, "_last", "_revealed") as Effect;
-}
-
-/** Whether `node` writes `_last` anywhere inside it. */
-function bindsLast(node: unknown): boolean {
-  if (Array.isArray(node)) return node.some(bindsLast);
-  if (node === null || typeof node !== "object") return false;
-  return Object.entries(node).some(([key, value]) => (key === "bind" && value === "_last") || bindsLast(value));
-}
-
-/** Rename every read of variable `from` (a name stored in any field but `bind`) inside `node`. */
-function renameVar(node: unknown, from: string, to: string): unknown {
-  if (Array.isArray(node)) return node.map((child) => renameVar(child, from, to));
-  if (node === null || typeof node !== "object") return node;
-  return Object.fromEntries(Object.entries(node).map(([key, value]) => [key, key !== "bind" && value === from ? to : renameVar(value, from, to)]));
 }
 
 /** "Trash 1 card from the top of your deck. If the trashed card ...": the trash step binds the cards it trashed (`_last`) (#515). */

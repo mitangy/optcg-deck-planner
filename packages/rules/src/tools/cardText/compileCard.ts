@@ -72,7 +72,7 @@ const EVENT_RULES: [RegExp, (m: RegExpExecArray, ctx: Ctx) => EventTrigger | nul
   [/^when a card is added to your hand from your life$/i, () => ({ event: "life_to_hand", player: "you" })],
   [/^when a \[Trigger\] activates$/i, () => ({ event: "trigger_activated", player: "any" })],
   [/^when a card is removed from your opponent's life cards$/i, () => ({ event: "life_removed", player: "opponent" })],
-  [/^when a character is removed from the field by your effect$/i, () => ({ event: "character_removed_by_effect", player: "any" })],
+  [/^when a character is removed from the field by your effect$/i, () => ({ event: "character_removed_by_effect", player: "any", byYourEffect: true })],
   [/^when your (.+?) is removed from the field by an effect$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_removed_by_effect", player: "you", ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
   [/^when you play (?:a |an )?(.+?) from your hand$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_played", player: "you", fromZone: "hand", ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
   [/^when (?:one of )?your (?!opponent's )(.+?) (?:is|are) KO'd$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_ko", player: "you", ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
@@ -258,11 +258,15 @@ function compileUntimed(h: Header, body: string, ctx: Ctx, nextId: () => string)
   // "This effect can be activated when X. EFFECT" / "... at the start of your turn."
   const activatedWhen = /^this effect can be activated (when .+?|at the start of your turn)\. (.+)$/i.exec(body);
   if (activatedWhen) {
+    // "can be activated" is optional, and a [Once Per Turn] is only spent when the player uses it: declining
+    // leaves it available for a later occurrence the same turn.
+    const optional = (effect: Effect): Effect => ({ do: "may", then: effect, bind: "_did", prompt: restoreNames(activatedWhen[2]!, ctx.ph) });
     if (/start of your turn/i.test(activatedWhen[1]!)) {
       const parsed = parseEffectBody(activatedWhen[2]!, ctx, sentences);
-      return parsed.effect ? [{ id: nextId(), trigger: "start_of_your_turn", ...base, ...(h.conditions.length ? { conditions: h.conditions } : {}), effect: parsed.effect }] : null;
+      return parsed.effect ? [{ id: nextId(), trigger: "start_of_your_turn", ...base, ...(h.conditions.length ? { conditions: h.conditions } : {}), effect: optional(parsed.effect) }] : null;
     }
-    return compileUntimed(h, activatedWhen[1]! + ", " + activatedWhen[2]!, ctx, nextId);
+    const inner = compileUntimed(h, activatedWhen[1]! + ", " + activatedWhen[2]!, ctx, nextId);
+    return inner ? inner.map((a) => (a.effect && !a.costs?.length ? { ...a, effect: optional(a.effect) } : a)) : null;
   }
   // Costs before an event trigger: "You may trash 2 cards from your hand: When ..., ...".
   const costFirst = splitCostBody(body, ctx);
