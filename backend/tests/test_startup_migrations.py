@@ -12,7 +12,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app import db as app_db
-from app.models import AnalystAccess, AnalystMatchReview, AnalystUsage, Deck, DuelMatch, GroupBuy, User
+from app.models import AnalystAccess, AnalystMatchReview, AnalystUsage, Deck, DuelMatch, DuelMatchProgress, GroupBuy, User
 from tests.db_support import make_bare_engine, requires_postgres, using_postgres
 
 _PK = "SERIAL" if using_postgres() else "INTEGER"
@@ -40,6 +40,12 @@ _LEGACY_DDL = [
         winner_seat INTEGER NOT NULL, reason VARCHAR(64), ranked BOOLEAN,
         seat0_rating_before INTEGER NOT NULL, seat1_rating_before INTEGER NOT NULL,
         seat0_rating_after INTEGER NOT NULL, seat1_rating_after INTEGER NOT NULL, created_at {_TS})""",
+    # duel_match_progress before the closed flag (#476)
+    f"""CREATE TABLE duel_match_progress (
+        match_id VARCHAR(64) PRIMARY KEY,
+        seat0_user_id INTEGER NOT NULL REFERENCES users (id), seat1_user_id INTEGER NOT NULL REFERENCES users (id),
+        ranked BOOLEAN, seat0_leader_id VARCHAR(32), seat1_leader_id VARCHAR(32), turns INTEGER,
+        replay TEXT, seat0_log TEXT, seat1_log TEXT, updated_at {_TS})""",
     # analyst_match_reviews before citations
     f"""CREATE TABLE analyst_match_reviews (
         user_id INTEGER NOT NULL REFERENCES users (id), match_id VARCHAR(64) NOT NULL,
@@ -58,6 +64,8 @@ _LEGACY_DDL = [
     "INSERT INTO analyst_access (user_id, status, note) VALUES (1, 'approved', 'hi')",
     "INSERT INTO group_buys (host_user_id, title, status, invite_token) VALUES (1, 'Old pool', 'open', 'tok-old')",
     "INSERT INTO analyst_match_reviews (user_id, match_id, text) VALUES (1, 'old-match', 'You lost on turn 4.')",
+    "INSERT INTO duel_match_progress (match_id, seat0_user_id, seat1_user_id, ranked, turns, replay) "
+    "VALUES ('old-cut', 1, 1, FALSE, 4, '{}')",
     "INSERT INTO duel_matches (match_id, seat0_user_id, seat1_user_id, winner_seat, reason, ranked, "
     "seat0_rating_before, seat1_rating_before, seat0_rating_after, seat1_rating_after) "
     "VALUES ('old-match', 1, 1, 0, 'life', TRUE, 1000, 1000, 1016, 984)",
@@ -126,6 +134,15 @@ def test_old_usage_and_access_rows_read_back_with_the_credit_defaults_446(legacy
         assert (access.status, access.credit_usd, access.auto_approved, access.topup_usd, access.topup_month, access.topup_requested_at) == (
             "approved", None, False, 0.0, None, None,
         )
+
+
+def test_an_existing_duel_match_progress_table_gains_the_closed_column_476(legacy_engine):
+    """A cut-off game saved before rooms reported closing reads as not closed; its recording stays hidden until the staleness fallback."""
+    app_db.init_db()
+    assert "closed" in _columns(legacy_engine, "duel_match_progress")
+    with Session(legacy_engine) as db:
+        row = db.query(DuelMatchProgress).one()
+        assert (row.match_id, row.turns, row.closed) == ("old-cut", 4, False)
 
 
 def test_every_current_model_column_exists_after_migration(legacy_engine):

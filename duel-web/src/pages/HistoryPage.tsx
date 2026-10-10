@@ -54,6 +54,9 @@ export function HistoryPage() {
     [state],
   );
 
+  // Rows without a recording keep a blank slot so the rows with one stay aligned with them.
+  const anyReplay = rows.some((r) => r.replay);
+
   return (
     <div className="app-shell">
       <div className="page page-narrow">
@@ -101,7 +104,7 @@ export function HistoryPage() {
         {rows.length > 0 ? (
           <ol className="history-list">
             {rows.map((r) => (
-              <li key={r.id}>
+              <li key={r.id} className="history-item">
                 <Link
                   to={`/history/${encodeURIComponent(r.id)}`}
                   className="history-row history-row-link"
@@ -122,6 +125,19 @@ export function HistoryPage() {
                   {r.bountyDelta ? <span className="history-bounty" title="Bounty change">{r.bountyDelta}</span> : null}
                   <span className="history-chevron" aria-hidden>›</span>
                 </Link>
+                {r.replay ? (
+                  <Link
+                    className="history-replay-btn"
+                    to={`/replay/${encodeURIComponent(r.id)}`}
+                    aria-label={`Watch replay: ${r.yourLeader} vs ${r.opponentLeader}, ${r.opponent}`}
+                    title="Watch this game again"
+                  >
+                    <span aria-hidden>▶</span>
+                    <span className="history-replay-label">Watch</span>
+                  </Link>
+                ) : anyReplay ? (
+                  <span className="history-replay-slot" aria-hidden />
+                ) : null}
               </li>
             ))}
           </ol>

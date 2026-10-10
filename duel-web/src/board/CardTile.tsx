@@ -448,6 +448,15 @@ export function CardTile({
     },
   };
 
+  // A card the viewer may not see (a replay's hidden hand): a plain card back, nothing to inspect or hover.
+  if (defId === "HIDDEN") {
+    return (
+      <div className={`${className} card-tile-hidden`} style={style} role="img" aria-label="Hidden card" {...dropProps}>
+        <span className="card-tile-back" aria-hidden />
+      </div>
+    );
+  }
+
   return (
     <>
       {interactive ? (

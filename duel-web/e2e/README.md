@@ -22,6 +22,7 @@ npx playwright show-report               # traces and screenshots of failures
 | `playthrough.spec.ts` | A seeded practice match played to a winner by clicking only what the UI offers. Fails on a page error, a server rejection of an offered action, a turn with no way forward, or a new UI audit issue on any turn. | ~1 min per seed per size |
 | `spectate.spec.ts` | A second browser spectates a practice room (unranked) by room id and sees both opening hands face up. | ~10s |
 | `spectate-link.spec.ts` | `/watch/<room id>` opens straight into spectating (history replaced, `?seat=2` camera), a bad room says so in the lobby, a pre-start spectator sees waiting not an error, and the HUD / menu copy the link. | ~15s |
+| `replay.spec.ts` | History's Watch button opens a finished game on the board (#476): step, next turn and play, What I saw vs Reveal all, flip, the unavailable and still-being-played pages, and the controls fitting an 812x375 phone. The API is faked; the recording is a golden game re-run in the browser. | ~40s |
 | `demo-audit.spec.ts` | The UI audit on every `/demo` fixture screen (prompts, full board, statuses, match over) at each size. | ~1 min |
 
 Each runs at `desktop-1280` and `phone-375` (the rules scenario on desktop only).
