@@ -2,7 +2,8 @@
  * Life check (#495): the pop-up is just the Life card, big, floating over the
  * board with its buttons under it. At desktop, portrait-phone and
  * landscape-phone sizes the card and buttons sit fully on screen and the
- * buttons never cover the card.
+ * buttons never cover the card. SHOTS=1 also saves screenshots to
+ * /mnt/project-files/trigger-card/.
  */
 import { mkdirSync } from "node:fs";
 import { test, expect } from "./fixtures";
@@ -55,8 +56,10 @@ for (const demo of ["trigger", "notrigger"] as const) {
       expect(hide.y + hide.height).toBeLessThanOrEqual(card.y + 1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-      mkdirSync(SHOTS, { recursive: true });
-      await page.screenshot({ path: `${SHOTS}/${demo}-${size.width}x${size.height}.png` });
+      if (process.env.SHOTS) {
+        mkdirSync(SHOTS, { recursive: true });
+        await page.screenshot({ path: `${SHOTS}/${demo}-${size.width}x${size.height}.png` });
+      }
     });
   }
 }
