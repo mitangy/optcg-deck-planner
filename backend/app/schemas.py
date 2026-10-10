@@ -506,6 +506,8 @@ class DuelMatchProgressIngest(BaseModel):
     turns: int | None = Field(default=None, ge=0, le=10_000)
     replay: dict | None = None
     seat_logs: list[dict] | None = Field(default=None, min_length=2, max_length=2)
+    # True on the snapshot sent as the room closes (nobody is playing any more).
+    closed: bool = False
 
 
 class DuelMatchHistoryEntry(BaseModel):
@@ -525,6 +527,18 @@ class DuelMatchHistoryEntry(BaseModel):
     has_log: bool = False
     # False for a game that never sent a result (its log runs to the last saved turn).
     finished: bool = True
+    # The recording can be opened in the replay viewer: a kept replay of a finished game, or of a cut-off game whose room closed.
+    replay_ready: bool = False
+
+
+class DuelMatchReplayOut(BaseModel):
+    match_id: str
+    your_seat: int
+    players: list[str]
+    finished: bool
+    turns: int | None
+    # Seed, decks and accepted intents (@optcg/rules MatchReplay). Only the game's own players get it.
+    replay: dict
 
 
 class DuelMatchHistoryOut(BaseModel):

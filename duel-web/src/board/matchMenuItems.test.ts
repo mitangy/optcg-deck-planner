@@ -4,6 +4,15 @@ import { matchMenuItems } from "./matchMenuItems";
 const live = { spectating: false, over: false, hotseat: false, fullscreenOffered: false, canConcede: true };
 
 describe("match menu items", () => {
+  it("a replay's menu has no room links or concede (#476)", () => {
+    const items = matchMenuItems({ ...live, spectating: true, replay: true });
+    for (const id of ["copy-room", "copy-spectate", "concede"] as const) expect(items).not.toContain(id);
+    expect(items).toContain("settings");
+    expect(items).toContain("leave");
+    // Live play keeps them.
+    expect(matchMenuItems(live)).toContain("copy-room");
+  });
+
   it("offers Concede to a live player", () => {
     expect(matchMenuItems(live)).toContain("concede");
   });

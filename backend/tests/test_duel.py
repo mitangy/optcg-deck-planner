@@ -306,6 +306,7 @@ def test_my_matches_lists_only_my_games_from_my_seat(client):
         "has_replay": True,
         "has_log": False,
         "finished": True,
+        "replay_ready": True,
     }
     assert g1["rating_after"] > g1["rating_before"]
     assert (g2["your_seat"], g2["won"], g2["your_leader_id"], g2["opponent_leader_id"], g2["has_replay"]) == (
@@ -430,6 +431,104 @@ def test_oversized_progress_log_is_dropped(client, monkeypatch: pytest.MonkeyPat
     _progress(c, "small", a["user_id"], me["id"], seat_logs=[big, small])
     assert c.get("/duel/matches/me/big").json()["log"] is None
     assert c.get("/duel/matches/me/small").json()["log"] == small
+
+
+def _replay(tag: str = "x") -> dict:
+    return {"schema": 1, "seed": 42, "tag": tag, "intents": [{"seat": 0, "intent": {"type": "end_turn"}}]}
+
+
+def test_either_player_of_a_finished_match_gets_its_recording_and_their_seat_anyone_else_404_476(client):
+    c, _ = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()
+    _ingest(c, "as0", me["id"], a["user_id"], 0, replay=_replay("as0"), turns=7)
+    _ingest(c, "as1", a["user_id"], me["id"], 0, replay=_replay("as1"))
+    _ingest(c, "others", a["user_id"], b["user_id"], 0, replay=_replay("others"))
+    _ingest(c, "nolog", me["id"], a["user_id"], 0)
+
+    first = c.get("/duel/matches/me/as0/replay")
+    assert first.status_code == 200, first.text
+    body = first.json()
+    assert (body["your_seat"], body["finished"], body["turns"], body["replay"]) == (0, True, 7, _replay("as0"))
+    assert len(body["players"]) == 2 and all(body["players"])
+    assert first.headers["cache-control"] == "private, max-age=300"
+    second = c.get("/duel/matches/me/as1/replay").json()
+    assert (second["your_seat"], second["replay"]) == (1, _replay("as1"))
+
+    assert c.get("/duel/matches/me/others/replay").status_code == 404
+    assert c.get("/duel/matches/me/missing/replay").status_code == 404
+    kept_none = c.get("/duel/matches/me/nolog/replay")
+    assert (kept_none.status_code, kept_none.json()["detail"]) == (404, "No replay was kept for this match")
+
+
+def test_a_cut_off_games_recording_opens_only_after_its_room_closed_476(client):
+    c, _ = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    assert _progress(c, "cut", me["id"], a["user_id"], replay=_replay("cut"), turns=3).status_code == 204
+    still = c.get("/duel/matches/me/cut/replay")
+    assert (still.status_code, still.json()["detail"]) == (409, "This game is still being played")
+    assert _progress(c, "cut", me["id"], a["user_id"], replay=_replay("cut"), turns=3, closed=True).status_code == 204
+    opened = c.get("/duel/matches/me/cut/replay")
+    assert opened.status_code == 200, opened.text
+    assert (opened.json()["finished"], opened.json()["turns"], opened.json()["replay"]) == (False, 3, _replay("cut"))
+    # A game of two other players is not mine, closed or not.
+    b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()
+    _progress(c, "theirs", a["user_id"], b["user_id"], replay=_replay("theirs"), closed=True)
+    assert c.get("/duel/matches/me/theirs/replay").status_code == 404
+    # A closed game whose recording was too big to keep has nothing to watch.
+    _progress(c, "nolog", me["id"], a["user_id"], closed=True)
+    assert c.get("/duel/matches/me/nolog/replay").status_code == 404
+
+
+def _age_progress(SessionLocal, match_id: str, hours: float) -> None:
+    from datetime import datetime, timedelta, timezone
+    from app.models import DuelMatchProgress
+
+    db = SessionLocal()
+    try:
+        db.get(DuelMatchProgress, match_id).updated_at = datetime.now(timezone.utc) - timedelta(hours=hours)
+        db.commit()
+    finally:
+        db.close()
+
+
+def test_a_cut_off_game_with_no_snapshot_for_a_day_counts_as_closed_476(client):
+    c, SessionLocal = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    _progress(c, "quiet", me["id"], a["user_id"], replay=_replay())
+    _progress(c, "stale", me["id"], a["user_id"], replay=_replay())
+    _age_progress(SessionLocal, "quiet", 23)
+    _age_progress(SessionLocal, "stale", 25)
+    assert c.get("/duel/matches/me/quiet/replay").status_code == 409
+    assert c.get("/duel/matches/me/stale/replay").status_code == 200
+    ready = {m["match_id"]: m["replay_ready"] for m in c.get("/duel/matches/me").json()["matches"]}
+    assert ready == {"quiet": False, "stale": True}
+
+
+def test_history_marks_only_watchable_games_replay_ready_476(client):
+    c, _ = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    _ingest(c, "done", me["id"], a["user_id"], 0, replay=_replay())
+    _ingest(c, "done-nolog", me["id"], a["user_id"], 0)
+    _progress(c, "live", me["id"], a["user_id"], replay=_replay())
+    _progress(c, "closed", me["id"], a["user_id"], replay=_replay(), closed=True)
+    _progress(c, "closed-nolog", me["id"], a["user_id"], closed=True)
+    ready = {m["match_id"]: m["replay_ready"] for m in c.get("/duel/matches/me").json()["matches"]}
+    assert ready == {"done": True, "done-nolog": False, "live": False, "closed": True, "closed-nolog": False}
+    assert c.get("/duel/matches/me/done").json()["match"]["replay_ready"] is True
+    assert c.get("/duel/matches/me/live").json()["match"]["replay_ready"] is False
+
+
+def test_watching_a_replay_needs_sign_in_476(client):
+    c, _ = client
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()
+    _ingest(c, "m", a["user_id"], b["user_id"], 0, replay=_replay())
+    assert c.get("/duel/matches/me/m/replay").status_code == 401
 
 
 def test_new_guest_accounts_are_capped_per_client_ip_318(client, monkeypatch: pytest.MonkeyPatch):

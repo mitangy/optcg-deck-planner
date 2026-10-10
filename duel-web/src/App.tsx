@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { SiteFooter } from "@optcg/site-legal";
 import { LogPoseProvider } from "@optcg/analyst-client";
@@ -27,6 +27,9 @@ import { showsSiteFooter } from "./siteFooter";
 import { applyTextSize } from "./textSize";
 import { applyTheme, LIGHT_QUERY } from "./theme";
 import { useMediaQuery } from "./board/useMediaQuery";
+
+// The replay viewer carries the rules engine and its card data, so it loads only when someone opens /replay.
+const ReplayPage = lazy(() => import("./pages/ReplayPage"));
 
 export function App() {
   const { reduceMotion, theme, colorMode, textSize } = useDuelSettings();
@@ -64,6 +67,7 @@ export function App() {
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/history/:matchId" element={<MatchLogPage />} />
+        <Route path="/replay/:matchId" element={<Suspense fallback={null}><ReplayPage /></Suspense>} />
         <Route path="/auth/complete" element={<AuthCompletePage />} />
         <Route path="/welcome/username" element={<UsernameSetupPage />} />
         <Route path="/demo" element={<DemoPage />} />

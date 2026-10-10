@@ -12,7 +12,7 @@ import type { BindingValue, CardInstance, ChoiceOption, ChoiceRequest, GameEvent
 import { addModifier, expiryFor } from "./modifiers.js";
 import { forOpponent } from "./perspective.js";
 import {
-  basePowerOf, canPayCosts, canPayCost, costDependsOnHiddenInfo, selectorReadsHiddenZone, candidates, protectedFromSource, costOf, ctxFor, evalCond, evalValue, filterMatches, hasRestriction, isNegated, playerRestricted, powerOf, selectorMatches, type EvalCtx,
+  basePowerOf, canPayCosts, canPayCost, costDependsOnHiddenInfo, selectorReadsHiddenZone, candidates, lifeFaceGroups, protectedFromSource, costOf, ctxFor, evalCond, evalValue, filterMatches, hasRestriction, isNegated, playerRestricted, powerOf, selectorMatches, type EvalCtx,
 } from "./queries.js";
 import {
   activeDon, alloc, attachDon, drawCards, fieldCards, isOnField, locate, otherSeat, placeDonFromDeck, putCard, putOnField, returnDonById, returnDonToDeck, takeCard, type Located,
@@ -954,6 +954,18 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
     }
     case "life_face": {
       const p = state.players[seatOf(frame, effect.player)];
+      if (effect.position && effect.position !== "top") {
+        const groups = lifeFaceGroups(p.faceUpLife, effect.count, effect.faceUp, effect.position);
+        if (groups.length > 1 && frame.bindings._lifeFace === undefined) {
+          const options = groups.map((g, k) => ({ id: `m${k}`, label: effect.position === "top_or_bottom" ? (g[0] === 0 ? "Top" : "Bottom") : `Life card ${g[0]! + 1}${g[0] === 0 ? " (top)" : g[0] === p.life.length - 1 ? " (bottom)" : ""}`, eligible: true }));
+          pushChoice(sim, frame, { seat: frame.seat, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — turn which Life card face-${effect.faceUp ? "up" : "down"}?`, request: { type: "mode", options }, bindings: { __bind: "_lifeFace", __repeat: "1" } });
+          return "wait";
+        }
+        const chosen = groups[Number(frame.bindings._lifeFace ?? 0)] ?? [];
+        delete frame.bindings._lifeFace;
+        for (const i of chosen) p.faceUpLife[i] = effect.faceUp;
+        return "next";
+      }
       for (let i = 0; i < Math.min(effect.count, p.life.length); i += 1) p.faceUpLife[i] = effect.faceUp;
       return "next";
     }

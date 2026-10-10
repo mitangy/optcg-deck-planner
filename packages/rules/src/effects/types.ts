@@ -279,8 +279,8 @@ export type Cost =
   | { k: "play_from_hand"; count: number; filter?: Filter }
   | { k: "hand_to_deck_top"; count: number }
   | { k: "trash_to_deck_shuffle"; count: number }
-  | { k: "life_face_down"; count: number }
-  | { k: "life_face_up"; count: number }
+  | { k: "life_face_down"; count: number; position?: LifeFacePosition }
+  | { k: "life_face_up"; count: number; position?: LifeFacePosition }
   | { k: "mill"; count: number }
   | { k: "power"; target: "leader" | "self" | "active_leader"; amount: number }
   | { k: "give_opponent_don"; count: number }
@@ -291,6 +291,9 @@ export type Cost =
   | { k: "unattach_don"; count: number }
   /** "A or B": pay exactly one option (the player picks among payable ones). */
   | { k: "either"; options: Cost[][]; labels: string[] };
+
+/** Which Life cards a face-up/down turn may reach: the top N (default), the top or the bottom N, or any single card. */
+export type LifeFacePosition = "top" | "top_or_bottom" | "any";
 
 export type Placement = "deck_bottom" | "deck_top" | "trash" | "top_or_bottom" | "hand" | "shuffle";
 
@@ -361,7 +364,7 @@ export type Effect =
   | { do: "deck_to_life"; player: Rel; count: number; faceUp?: boolean }
   | { do: "life_to_hand"; player: Rel; count: number; position: "top" | "top_or_bottom" | "bottom"; min?: number }
   | { do: "trash_life"; player: Rel; count: Value; position?: "top" | "top_or_bottom" }
-  | { do: "life_face"; player: Rel; count: number; faceUp: boolean; min?: number }
+  | { do: "life_face"; player: Rel; count: number; faceUp: boolean; min?: number; position?: LifeFacePosition }
   /** `bind`: the trashed card(s), for "the trashed card" (#515). */
   | { do: "mill"; player: Rel; count: Value; bind?: string }
   /** `reveal`: the picked cards are shown to both players (printed "reveal"). Omitted = private. */

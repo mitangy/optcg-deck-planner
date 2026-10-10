@@ -26,7 +26,10 @@ export function TopBounties({ me }: { me: RatingMe | null | undefined }) {
 /** The card itself; hidden when there is nothing to show. */
 export function TopBountiesCard({ entries, me }: { entries: LeaderboardEntry[]; me: RatingMe | null | undefined }) {
   if (entries.length === 0) return null;
-  const you = pinnedYou(me ?? null, TOP_N);
+  const you = pinnedYou(
+    me ?? null,
+    entries.slice(0, TOP_N).map((e) => e.user_id),
+  );
 
   return (
     <section className="bounties" aria-label="Top bounties">

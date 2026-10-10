@@ -176,6 +176,14 @@ describe("sources in a Log Pose answer (#390)", () => {
   });
 });
 
+describe("Log Pose on a replay (#476)", () => {
+  it("a replay's board has no compass or panel (#476)", () => {
+    expect(showsLogPose("/replay/m1")).toBe(false);
+    expect(logPoseChromeFor("/replay/m1", false)).toEqual({ hidden: true, launcher: false });
+    expect(showsLogPose("/history/m1")).toBe(true);
+  });
+});
+
 describe("Log Pose on boards with a matchup brief (#401)", () => {
   it("Log Pose stays hidden on a board unless a brief is up, and never shows its compass there (#401)", () => {
     for (const path of ["/duel", "/hotseat", "/demo"]) {
