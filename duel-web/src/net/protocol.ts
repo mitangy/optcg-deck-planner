@@ -362,7 +362,7 @@ export function assertNoOpponentHand(view: PlayerView): void {
   }
   for (const choice of view.pendingChoices ?? []) {
     const request = choice.request;
-    const hiddenViewer = view.spectator || (choice.privateToSeat != null && choice.privateToSeat !== view.seat);
+    const hiddenViewer = choice.privateToSeat != null && (view.spectator || choice.privateToSeat !== view.seat);
     if (hiddenViewer && request && "options" in request && request.options.some((o) => o.defId && o.defId !== "HIDDEN" && !o.instanceId)) {
       throw new Error("privacy leak: private choice options visible to this viewer");
     }

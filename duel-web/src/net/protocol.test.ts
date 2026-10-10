@@ -99,6 +99,46 @@ describe("protocol parsers", () => {
     expect(() => assertNoOpponentHand(view)).not.toThrow();
   });
 
+  it("lets spectators see a public choice's trash options but not a private choice's (#494)", () => {
+    const base = sampleView();
+    // Seat 0 on purpose: a spectator whose seat equals privateToSeat must still be treated as hidden.
+    const view = { ...base, seat: 0 as const, spectator: true, you: { ...base.you, hand: [], handCount: 5 } } as unknown as PlayerView;
+    const publicSelect = {
+      id: "sel_1",
+      seat: 1 as const,
+      kind: "effect" as const,
+      cardDefId: "OP09-095",
+      optional: false,
+      prompt: "Choose from trash",
+      request: {
+        type: "select" as const,
+        min: 0,
+        max: 1,
+        options: [{ id: "o0", defId: "OP09-086", zone: "trash" as const, eligible: true }],
+      },
+    };
+    view.pendingChoices = [publicSelect];
+    expect(() => assertNoOpponentHand(view)).not.toThrow();
+    expect(() => parseView({ protocolVersion: PROTOCOL_VERSION, view })).not.toThrow();
+    expect(() => parseWelcome({ protocolVersion: PROTOCOL_VERSION, matchId: "m1", seat: 0, role: "spectator", view })).not.toThrow();
+
+    const privateLook = {
+      ...publicSelect,
+      privateToSeat: 0 as const,
+      request: {
+        type: "look" as const,
+        options: [{ id: "o0", defId: "OP09-086", zone: "deck" as const, eligible: true }],
+        minSelect: 0,
+        maxSelect: 1,
+        groups: [{ label: "Up to 1: add to hand", max: 1, eligibleIds: ["o0"] }],
+        rest: "deck_bottom" as const,
+        restLabel: "bottom",
+      },
+    };
+    view.pendingChoices = [privateLook];
+    expect(() => assertNoOpponentHand(view)).toThrow(/private choice/i);
+  });
+
   it("parses view, error, and match_over", () => {
     expect(
       parseView({ protocolVersion: PROTOCOL_VERSION, view: sampleView() }).view
