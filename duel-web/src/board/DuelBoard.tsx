@@ -62,6 +62,7 @@ import {
   counterIntentForCard,
   counterIntentForHand,
   counterPrimaryLabel,
+  soleCardButton,
   splitCardActions,
 } from "./cardActions";
 import {
@@ -80,7 +81,7 @@ import { ChoicePrompt } from "./ChoicePrompt";
 import { HandConfirmPrompt } from "./HandConfirmPrompt";
 import { handConfirmAnchor, handUseFromIntent, measureHandCard, type HandUse } from "./handPrompt";
 import { isHandPick } from "./fieldTargets";
-import { SPECTATOR_FAN_SPREAD, spectatorFans, usesPhoneFan, usesRailHand } from "./handLayout";
+import { SPECTATOR_FAN_SPREAD, spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand } from "./handLayout";
 import { SpectatorFarHand } from "./SpectatorFarHand";
 import { HandLabel } from "./HandLabel";
 import { useHandOrderSync } from "./handOrderSync";
@@ -147,6 +148,7 @@ import { RematchPanel, type RematchDecks } from "./RematchPanel";
 import { RoomChip } from "./RoomShare";
 import { PendingBoard, type BoardWaiting } from "./PendingBoard";
 import { fanPose, handDrawer } from "./handFan";
+import { farHandWithReveals, revealedIdSet } from "./handReveal";
 import { OppHandCorner, OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
 import { getLastHoverAt, getPreviewCard, setAutoPreviewCard, shouldAutoPreview } from "./cardPreview";
@@ -359,10 +361,13 @@ export function DuelBoard({
   /** "auto" (never chosen) is the Grid on a tall desktop window and the fan elsewhere. */
   const handLayout = resolveHandLayout(prefs.handLayout, wide && !lp && railHandTall);
   /**
-   * Spectators of unranked rooms see both hands face up, always fanned: their
-   * Hand setting (saved, untouched) only matters for hands they have to play.
+   * Spectators of unranked rooms see both hands face up: fanned on desktop,
+   * compact grids on phones. Their Hand setting (saved, untouched) only
+   * matters for hands they have to play.
    */
   const specFans = spectatorFans(Boolean((spectator || view?.spectator) && view?.revealedHands), wide, lp);
+  /** Phones: both hands are grids of small upright cards, so the mats get the height the fans took. */
+  const specGrid = spectatorHandGrid(specFans);
   /** Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). */
   const fanHand = wide && !lp && (specFans != null || handLayout !== "grid");
   /** Desktop fan: where the player dragged it (null = bottom centre of the board). */
@@ -418,8 +423,8 @@ export function DuelBoard({
   const tilted = wide && !lp && tiltFits && prefs.tiltedBoard;
   // Landscape phones keep the hand in the right column (a scrolling grid), never over the field.
   const railHand = usesRailHand(wide, lp, railHandTall, fanHand);
-  /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling. */
-  const phoneFan = usesPhoneFan(wide, specFans ? "fan" : handLayout);
+  /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling (spectators: a grid row). */
+  const phoneFan = usesPhoneFan(wide, specGrid ? "grid" : specFans ? "fan" : handLayout);
   /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
   const panelLayout = useMemo(() => parsePanelLayout(prefs.panelLayout), [prefs.panelLayout]);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
@@ -1089,8 +1094,11 @@ export function DuelBoard({
   const quickCounts = quickAttachCounts(quickDonIds.length);
 
   function quickAttach(count: number) {
-    if (!selectedBoardId) return;
-    const toSend = donQuickAttach(intents, selectedBoardId, count);
+    if (selectedBoardId) quickAttachTo(selectedBoardId, count);
+  }
+
+  function quickAttachTo(id: string, count: number) {
+    const toSend = donQuickAttach(intents, id, count);
     setHandFilter(null);
     setSelectedBoardId(null);
     // Sequential client-side intents (no batch protocol), like confirmAttach.
@@ -1135,6 +1143,28 @@ export function DuelBoard({
     }
   }
 
+  /** The card-action pop-up's buttons for a selection, as the render below computes them (pending choices own their answers). */
+  function popoverIntentsFor(selection: { handIndex: number | null; boardId: string | null }, dropGiveDonTo?: string): Intent[] {
+    if (!view || spectating || defendPrimary) return [];
+    const front = view.pendingChoices?.[0];
+    const base = front
+      ? view.legalIntents.filter((i) => i.type !== "resolve_pending_choice" && i.type !== "order_pending_effects")
+      : dropGiveDonTo
+        ? view.legalIntents.filter((i) => !(i.type === "give_don" && i.targetId === dropGiveDonTo))
+        : view.legalIntents;
+    return splitCardActions(filterIntentsForSelection(splitPrimaryIntent(base).rest, selection)).card;
+  }
+
+  function pressCardAction(intent: Intent) {
+    if (isReplacePlay(intent)) {
+      openReplace(intent.handIndex as number);
+      return;
+    }
+    setHandFilter(null);
+    setSelectedBoardId(null);
+    onSendIntent(intent);
+  }
+
   function selectHandCard(idx: number) {
     if (prefs.oneTapActions && !trayHere && defend?.phase === "counter") {
       const counter = counterIntentForHand(intents, idx);
@@ -1142,6 +1172,14 @@ export function DuelBoard({
         setHandFilter(null);
         setSelectedBoardId(null);
         onSendIntent(counter);
+        return;
+      }
+    }
+    // One-tap: a pop-up with a single button does it straight away (hand pop-ups have no DON!! row).
+    if (prefs.oneTapActions && handFilter !== idx && !dragPayload && !replaceOpen && !donSelectActive) {
+      const sole = soleCardButton(popoverIntentsFor({ handIndex: idx, boardId: null }), []);
+      if (sole?.kind === "action") {
+        pressCardAction(sole.action);
         return;
       }
     }
@@ -1167,6 +1205,25 @@ export function DuelBoard({
         setHandFilter(null);
         setSelectedBoardId(null);
         onSendIntent(block);
+        return;
+      }
+    }
+    // One-tap: a pop-up with a single button (one action, or a lone +1 DON!!) does it straight away.
+    if (prefs.oneTapActions && view && selectedBoardId !== id && !dragPayload && !replaceOpen && !donSelectActive) {
+      const quickRow =
+        dndEnabled && (view.you.leader.id === id || view.you.characters.some((c) => c.id === id))
+          ? quickAttachCounts(donIdsForTarget(intents, id).length)
+          : [];
+      const sole = soleCardButton(
+        popoverIntentsFor({ handIndex: null, boardId: id }, quickRow.length > 0 ? id : undefined),
+        quickRow,
+      );
+      if (sole?.kind === "action") {
+        pressCardAction(sole.action);
+        return;
+      }
+      if (sole?.kind === "don") {
+        quickAttachTo(id, sole.count);
         return;
       }
     }
@@ -1288,7 +1345,10 @@ export function DuelBoard({
   const oppHandRight = prefs.oppHandSpot === "right" && !farHand;
   // Match over (#482): the hand flips face up in place. Layout keeps keying off `farHand`
   // (spectators only) so nothing moves at game over.
-  const shownFarHand = farHand ?? (over ? view.revealedHands?.[oppSeat] : undefined);
+  const myRevealed = revealedIdSet(spectating ? undefined : view.handReveals?.[boardSeat]);
+  // While live, cards an effect revealed from their hand stay face up among the backs (#491).
+  const shownFarHand =
+    farHand ?? (over ? view.revealedHands?.[oppSeat] : farHandWithReveals(opp.handCount, view.handReveals?.[oppSeat]));
   const revealLife = over ? view.revealedLife : undefined;
   const lifeFaceUp = (seat: Seat, fallback: typeof opp.faceUpLife) =>
     revealLife ? revealLife[seat].map((defId, index) => ({ index, defId })) : fallback;
@@ -1468,7 +1528,8 @@ export function DuelBoard({
           }}
           ownerSeat={boardSeat}
           viewingSeat={viewingSeat}
-          classNameExtra={[unaffordable ? "hand-unaffordable" : "", marker?.id === c.id ? marker.cls : "", liftedHandId === c.id ? "card-lifted" : ""].filter(Boolean).join(" ") || undefined}
+          revealed={myRevealed.has(c.id)}
+          classNameExtra={[unaffordable ? "hand-unaffordable" : "", myRevealed.has(c.id) ? "hand-revealed" : "", marker?.id === c.id ? marker.cls : "", liftedHandId === c.id ? "card-lifted" : ""].filter(Boolean).join(" ") || undefined}
           style={pose(pos, order.length)}
         />
       );
@@ -1596,15 +1657,7 @@ export function DuelBoard({
     keyNum: cardTags[i]!.num,
     keyLetter: cardTags[i]!.letter,
     keyTag: prefs.shortcutTags ? cardTags[i]!.tag : "",
-    onPress: () => {
-      if (isReplacePlay(intent)) {
-        openReplace(intent.handIndex as number);
-        return;
-      }
-      setHandFilter(null);
-      setSelectedBoardId(null);
-      onSendIntent(intent);
-    },
+    onPress: () => pressCardAction(intent),
   }));
 
   // Desktop: the primary action (and any other phase-wide one: Keep / Mulligan,
@@ -1644,7 +1697,8 @@ export function DuelBoard({
       onCard={{ count: cardIntents.length, active: popoverOpen }}
       emptyHint={affordHint}
     />
-  ) : (
+  ) : !wide || lp ? null : (
+    // Phones: the HUD's SPECTATOR chip says it already, and the bar's height goes to the mats.
     <div className="intent-bar">
       <p className="intent-empty">
         {nearHand ? "Spectating — both hands shown; intents disabled" : "Spectating — both hands hidden; intents disabled"}
@@ -1711,12 +1765,10 @@ export function DuelBoard({
       />
     ),
     hand: railHand && specFans === "landscape" && nearHand ? (
-      <section className="rail-hand rail-hand-fan" aria-label={`${seatLabel(players, boardSeat)} hand: ${handCount} cards`}>
+      <section className="rail-hand rail-hand-spec" aria-label={`${seatLabel(players, boardSeat)} hand: ${handCount} cards`}>
         <HandLabel name={seatLabel(players, boardSeat)} count={handCount} />
-        <div className="hand-row hand-row-fan" ref={handRowRef}>
-          <div className="hand-row-inner hand-fan-cards" style={{ "--n": Math.max(handCount, 1) } as CSSProperties}>
-            {renderHandCards(true)}
-          </div>
+        <div className="hand-row hand-row-spec-grid" ref={handRowRef}>
+          <div className="hand-row-inner">{renderHandCards()}</div>
         </div>
       </section>
     ) : railHand ? (
@@ -1744,7 +1796,7 @@ export function DuelBoard({
     right: panelLayout.right.filter((id) => sidePanels[id] != null),
   };
   /** Bigger playing area: columns take their minimum width, so a dragged width is set aside (not lost). */
-  const bigBoard = prefs.bigBoard;
+  const bigBoard = prefs.bigBoard || (spectating && lp);
   /**
    * A desktop column with nothing in it (every panel hidden or moved away)
    * collapses so the board gets its width; while a panel is being dragged both
@@ -1904,7 +1956,7 @@ export function DuelBoard({
         dragPayload ? " is-dnd" : ""
       }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
-      }${
+      }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
       }${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
@@ -2498,7 +2550,7 @@ export function DuelBoard({
                     </div>
                   </div>
                 ) : (
-                  <div className="hand-row" ref={handRowRef}>
+                  <div className={`hand-row${specGrid ? " hand-row-spec-grid" : ""}`} ref={handRowRef}>
                     <div className="hand-row-inner">{renderHandCards()}</div>
                   </div>
                 )}

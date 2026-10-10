@@ -19,6 +19,20 @@ export function splitCardActions(shown: Intent[]): { card: Intent[]; bar: Intent
   };
 }
 
+/**
+ * One-tap: the only button a card's pop-up would show, if it is exactly one.
+ * `donCounts` is the quick DON!! row ([1], [1, 2], ...), empty when there is none.
+ * An action plus a DON!! row, or two or more buttons, is a real choice: null.
+ */
+export function soleCardButton<T>(
+  actions: readonly T[],
+  donCounts: readonly number[],
+): { kind: "action"; action: T } | { kind: "don"; count: number } | null {
+  if (actions.length === 1 && donCounts.length === 0) return { kind: "action", action: actions[0]! };
+  if (actions.length === 0 && donCounts.length === 1) return { kind: "don", count: donCounts[0]! };
+  return null;
+}
+
 /** "leader_give_rested_don" -> "Leader give rested don"; opaque ids ("a1") -> null. */
 export function humanizeAbilityId(id: unknown): string | null {
   if (typeof id !== "string" || !/^[a-z][a-z0-9]*(_[a-z0-9]+)+$/.test(id)) return null;

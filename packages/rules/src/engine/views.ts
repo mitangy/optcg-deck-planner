@@ -71,6 +71,16 @@ export function projectPendingChoice(choice: PendingChoice, viewerSeat: Seat | n
 
 type HandCard = { id: string; defId: string };
 
+/** Each seat's hand cards an effect revealed this turn, in hand order, indexed by seat. Public information (#491). */
+function handReveals(state: MatchState): { handReveals: [HandCard[], HandCard[]] } | null {
+  const of = (seat: Seat): HandCard[] => {
+    const ids = state.players[seat].revealedHandIds;
+    return ids?.length ? state.players[seat].hand.filter((c) => ids.includes(c.id)).map((c) => ({ id: c.id, defId: c.defId })) : [];
+  };
+  const reveals: [HandCard[], HandCard[]] = [of(0), of(1)];
+  return reveals[0].length || reveals[1].length ? { handReveals: reveals } : null;
+}
+
 export function getPlayerView(state: MatchState, seat: Seat) {
   const you = state.players[seat];
   const oppSeat = otherSeat(seat);
@@ -130,6 +140,8 @@ export function getPlayerView(state: MatchState, seat: Seat) {
     winner: state.winner,
     winReason: state.winReason,
     legalIntents: listLegalIntents(state, seat),
+    // Hand cards revealed by an effect stay face up for the rest of the turn; both seats ride along for everyone (#491).
+    ...handReveals(state),
     // Once the match is over nothing is left to protect (#482): both hands and every Life card
     // ride along, indexed by seat. Absent entirely while the game is live.
     ...(state.winner !== null
@@ -146,7 +158,8 @@ export function getPlayerView(state: MatchState, seat: Seat) {
  * no `hand`, so clients that guard against hand leaks keep working. With
  * `revealHands` (unranked rooms) both hands ride along as `revealedHands`,
  * indexed by seat. After the game ends (`winner` set) every view, ranked or not,
- * carries `revealedHands` and `revealedLife` (#482).
+ * carries `revealedHands` and `revealedLife` (#482). Like player views, it carries
+ * `handReveals` (cards revealed from hand this turn) when any exist (#491).
  */
 export function getSpectatorView(state: MatchState, cameraSeat: Seat = 0, opts: { revealHands?: boolean } = {}) {
   const base = getPlayerView(state, cameraSeat);

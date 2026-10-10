@@ -17,6 +17,12 @@ module.exports = {
   cwd: "packages/rules",
   runner: "vitest",
   mutations: [
+    {"id":"hand-reveal-not-recorded","file":"packages/rules/src/engine/runtime.ts","from":"        if (loc.zone === \"hand\") {\n          const p = state.players[loc.seat];","to":"        if (false as boolean) {\n          const p = state.players[loc.seat];","kills":["Cards revealed from hand stay visible to the opponent"]},
+    {"id":"hand-reveal-survives-turn","file":"packages/rules/src/engine/procedure.ts","from":"  for (const player of state.players) delete player.revealedHandIds;","to":"","kills":["Reveals end when the next turn begins"]},
+    {"id":"hand-reveal-survives-leaving-hand","file":"packages/rules/src/engine/state.ts","from":"      if (p.revealedHandIds) p.revealedHandIds = p.revealedHandIds.filter((id) => id !== loc.id);","to":"","kills":["no longer revealed, even if it returns"]},
+    {"id":"hand-reveal-whole-hand","file":"packages/rules/src/engine/views.ts","from":"state.players[seat].hand.filter((c) => ids.includes(c.id))","to":"state.players[seat].hand.filter(() => true)","kills":["stay visible to the opponent, and only those cards","Morgans reveals the opponent's remaining hand"]},
+    {"id":"hand-reveal-survives-mulligan","file":"packages/rules/src/engine/intents.ts","from":"      delete p.revealedHandIds;\n","to":"","kills":["A mulligan clears earlier reveals"]},
+    {"id":"hand-reveal-morgans-no-reveal","file":"packages/rules/src/cards/manualAbilities.ts","from":"{ do: \"reveal\", target: { ref: \"all\", selector: sel(\"opponent\", \"hand\") } }, ","to":"","kills":["Morgans reveals the opponent's remaining hand"]},
     {"id":"rush-pill-forever","file":"packages/rules/src/engine/views.ts","from":"if (c.summoningSick || (k !== \"rush\" && k !== \"rush_character\")) statuses.push","to":"statuses.push","kills":["shows its Rush pill only the turn it is played"]},
     {"id":"turn-draw-leaks-card","file":"packages/rules/src/engine/views.ts","from":"if (event.type === \"drew\" && event.defIds && viewerSeat !== event.seat) {","to":"if (false) {","kills":["names the Draw Phase card only for the player who drew it"]},
     {"id":"turn-draw-hidden-from-drawer","file":"packages/rules/src/engine/views.ts","from":"if (event.type === \"drew\" && event.defIds && viewerSeat !== event.seat) {","to":"if (event.type === \"drew\" && event.defIds) {","kills":["names the Draw Phase card only for the player who drew it"]},
