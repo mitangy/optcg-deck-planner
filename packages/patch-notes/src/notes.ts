@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-10
+  { date: "2026-10-10", app: "both", pr: 398, title: "Usernames can have a dot", text: "New players get a username suggestion of their first name and last initial, like Miko.T, and usernames can now include a dot. Group buy receipts now keep only the card lines, so shipping names and addresses are never saved." },
   { date: "2026-10-10", app: "duel", pr: 500, title: "Attach DON!! button fits again", text: "On big screens or with a larger Text size, the Attach DON!! confirm now grows with its text, so the button label no longer spills out." },
   { date: "2026-10-10", app: "duel", pr: 490, title: "Life face-up costs use the top Life cards", text: "Charlotte Pudding and other \"turn cards from the top of your Life face-up or face-down\" effects now only work when the top Life cards can actually be turned. A face-up top Life card no longer lets you flip the cards beneath it." },
   // 2026-10-09
