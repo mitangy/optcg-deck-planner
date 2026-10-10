@@ -1386,5 +1386,12 @@ module.exports = {
     { id: "rematch-no-keep-option", file: `${src}/board/RematchPanel.tsx`, from: '        <option value="">Keep same deck</option>\n', to: "", kills: ["offers Keep same deck first, then each saved deck, before asking (#479)"] },
     { id: "rematch-opp-note-reads-own-seat", file: `${src}/board/RematchPanel.tsx`, from: "state.newDeck[oppSeat]", to: "state.newDeck[mySeat]", kills: ["tells you when the opponent is bringing a different deck, not when you are (#479)"] },
     { id: "rematch-state-drops-new-deck", file: `${src}/net/protocol.ts`, from: "newDeck: [newDeck[0] === true, newDeck[1] === true],", to: "newDeck: [false, false],", kills: ["reads which seats are bringing a new deck, and treats a missing field as none (#479)"] },
+    // Gameplay settings groups (#496)
+    { id: "gp-groups-drop-row", file: `${src}/board/gameplayFields.ts`, from: 'rows: ["turnSound", "turnAlert"],', to: 'rows: ["turnSound"],', kills: ["every gameplay switch and select belongs to exactly one group and none is dropped (#496)"] },
+    { id: "gp-groups-duplicate-row", file: `${src}/board/gameplayFields.ts`, from: 'rows: ["handLayout", "sortHandByCost",', to: 'rows: ["handLayout", "bigBoard", "sortHandByCost",', kills: ["every gameplay switch and select belongs to exactly one group and none is dropped (#496)"] },
+    { id: "gp-groups-order-swapped", file: `${src}/board/gameplayFields.ts`, from: '    id: "motion",\n', to: '    id: "visual",\n', kills: ["keeps the six groups in order (#496)"] },
+    { id: "gp-groups-ignore-device", file: `${src}/board/gameplayFields.ts`, from: "groups.map((g) => ({ ...g, rows: g.rows.filter((r) => rowShown(r, d)) }))", to: "groups.map((g) => ({ ...g }))", kills: ["lists a row only in the groups where the device shows it, so phone and desktop differ (#496)", "a group with no rows on a device is hidden (#496)"] },
+    { id: "gp-groups-keep-empty", file: `${src}/board/gameplayFields.ts`, from: "    (g) => g.rows.length > 0,\n", to: "    () => true,\n", kills: ["a group with no rows on a device is hidden (#496)"] },
+    { id: "gp-groups-side-panels-on-phone", file: `${src}/board/gameplayFields.ts`, from: '    case "sidePanels":\n      return d.desktop;', to: '    case "sidePanels":\n      return true;', kills: ["lists a row only in the groups where the device shows it, so phone and desktop differ (#496)"] },
   ],
 };

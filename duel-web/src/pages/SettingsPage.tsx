@@ -112,12 +112,11 @@ export function SettingsPage() {
 
         <nav className="settings-jump" aria-label="Jump to a section">
           <a href="#account">Account</a>
-          <a href="#theme">Theme</a>
           <a href="#gameplay">Gameplay</a>
+          <a href="#appearance">Appearance</a>
           <a href="#deck-editor">Deck editor</a>
-          <a href="#playmat">Playmat</a>
-          <a href="#card-back">Card back</a>
-          <a href="#don-card">DON!! card</a>
+          {authUser ? <a href="#log-pose">Log Pose</a> : null}
+          <a href="#about">About</a>
         </nav>
 
         {/* Phones: one column in this order. 1024px and up: Gameplay on the right, the rest on the left. */}
@@ -194,53 +193,6 @@ export function SettingsPage() {
           ) : null}
         </section>
 
-        <section className="panel" id="theme">
-          <h2 className="panel-title" id="theme-title">Theme</h2>
-          <div className="segmented segmented-3" role="radiogroup" aria-label="Mode">
-            {MODE_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                role="radio"
-                aria-checked={settings.colorMode === o.value}
-                className={settings.colorMode === o.value ? "active" : undefined}
-                onClick={() => update({ colorMode: o.value })}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-          <div className="theme-grid" role="radiogroup" aria-labelledby="theme-title">
-            {THEMES.map((t) => (
-              <label
-                key={t.id}
-                className={`theme-option${settings.theme === t.id ? " is-active" : ""}`}
-              >
-                <input
-                  type="radio"
-                  name="theme"
-                  className="visually-hidden"
-                  value={t.id}
-                  checked={settings.theme === t.id}
-                  onChange={() => update({ theme: t.id })}
-                />
-                <span className="theme-chip" data-theme={t.id} aria-hidden>
-                  <span className="theme-chip-mat" />
-                  <span className="theme-chip-btn" />
-                  <span className="theme-chip-dot" />
-                </span>
-                <span className="theme-name">{t.name}</span>
-                <span className="theme-blurb">{t.blurb}</span>
-              </label>
-            ))}
-          </div>
-          <p className="field-hint">
-            Colours for the whole app, from One Piece crews and places. Light mode
-            brightens menus and panels; the playmat stays dark so cards read
-            clearly. Auto follows your device. {savedWhere}
-          </p>
-        </section>
-
         </div>
         <div className="settings-b">
         <section className="panel" id="gameplay">
@@ -256,6 +208,219 @@ export function SettingsPage() {
 
         </div>
         <div className="settings-c">
+        <div className="settings-section" id="appearance" role="group" aria-labelledby="appearance-title">
+          <h2 className="settings-section-title" id="appearance-title">Appearance</h2>
+          <section className="panel" id="theme">
+            <h2 className="panel-title" id="theme-title">Theme</h2>
+            <div className="segmented segmented-3" role="radiogroup" aria-label="Mode">
+              {MODE_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.colorMode === o.value}
+                  className={settings.colorMode === o.value ? "active" : undefined}
+                  onClick={() => update({ colorMode: o.value })}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <div className="theme-grid" role="radiogroup" aria-labelledby="theme-title">
+              {THEMES.map((t) => (
+                <label
+                  key={t.id}
+                  className={`theme-option${settings.theme === t.id ? " is-active" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="theme"
+                    className="visually-hidden"
+                    value={t.id}
+                    checked={settings.theme === t.id}
+                    onChange={() => update({ theme: t.id })}
+                  />
+                  <span className="theme-chip" data-theme={t.id} aria-hidden>
+                    <span className="theme-chip-mat" />
+                    <span className="theme-chip-btn" />
+                    <span className="theme-chip-dot" />
+                  </span>
+                  <span className="theme-name">{t.name}</span>
+                  <span className="theme-blurb">{t.blurb}</span>
+                </label>
+              ))}
+            </div>
+            <p className="field-hint">
+              Colours for the whole app, from One Piece crews and places. Light mode
+              brightens menus and panels; the playmat stays dark so cards read
+              clearly. Auto follows your device. {savedWhere}
+            </p>
+          </section>
+
+          <section className="panel" id="playmat">
+            <h2 className="panel-title">Playmat</h2>
+            <div
+              className={`playmat-preview${playmatUrl ? " has-art" : ""}`}
+              style={
+                playmatUrl
+                  ? {
+                      backgroundImage: `linear-gradient(rgba(5, 10, 14, ${settings.playmatDim}), rgba(5, 10, 14, ${settings.playmatDim})), linear-gradient(rgba(14, 34, 48, ${1 - settings.playmatOpacity}), rgba(14, 34, 48, ${1 - settings.playmatOpacity})), url("${playmatUrl}")`,
+                    }
+                  : undefined
+              }
+              aria-label={playmatUrl ? "Your playmat" : "Default playmat"}
+            >
+              {!playmatUrl ? <span>Default playmat</span> : null}
+            </div>
+            <p className="field-hint">
+              Official playmats are 24 × 14 in (12:7). You can crop, rotate and
+              flip after choosing an image. Shown on your side of the board.{" "}
+              {savedWhere}
+            </p>
+            <div className="btn-row">
+              <label className={`btn btn-secondary${matBusy ? " is-busy" : ""}`}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="visually-hidden"
+                  disabled={matBusy}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) setEditing({ kind: "playmat", file: f });
+                    e.target.value = "";
+                  }}
+                />
+                {matBusy
+                  ? "Processing…"
+                  : playmatUrl
+                    ? "Replace image"
+                    : "Upload image"}
+              </label>
+              {playmatUrl ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={matBusy}
+                  onClick={() =>
+                    void chooseCosmetic("playmat", null).catch((e: unknown) =>
+                      setMatError(e instanceof Error ? e.message : "Could not switch"),
+                    )
+                  }
+                >
+                  Use default
+                </button>
+              ) : null}
+            </div>
+            {playmatUrl ? (
+              <div className="field">
+                <label htmlFor="mat-dim">
+                  Dim art · {Math.round(settings.playmatDim * 100)}%
+                </label>
+                <input
+                  id="mat-dim"
+                  type="range"
+                  className="range"
+                  min={0}
+                  max={0.8}
+                  step={0.05}
+                  value={settings.playmatDim}
+                  onChange={(e) => update({ playmatDim: Number(e.target.value) })}
+                />
+              </div>
+            ) : null}
+            {playmatUrl ? (
+              <div className="field">
+                <label htmlFor="mat-opacity">
+                  Art transparency · {Math.round((1 - settings.playmatOpacity) * 100)}%
+                </label>
+                <input
+                  id="mat-opacity"
+                  type="range"
+                  className="range"
+                  min={0}
+                  max={0.8}
+                  step={0.05}
+                  value={1 - settings.playmatOpacity}
+                  onChange={(e) => update({ playmatOpacity: 1 - Number(e.target.value) })}
+                />
+              </div>
+            ) : null}
+            <CosmeticHistory kind="playmat" />
+            {matError ? <p className="error-text">{matError}</p> : null}
+          </section>
+
+          <section className="panel" id="card-back">
+            <h2 className="panel-title">Card back</h2>
+            <div className="card-back-settings">
+              <div
+                className="card-back-preview"
+                style={{
+                  backgroundImage: `${cardBackCssValue(cardBackUrl)}, linear-gradient(145deg, #243447, #15202c)`,
+                }}
+                role="img"
+                aria-label={cardBackUrl ? "Your card back" : "Official card back"}
+              />
+              <div className="card-back-settings-body">
+                <p className="field-hint">
+                  {cardBackUrl
+                    ? "Custom card back."
+                    : "Official ONE PIECE CARD GAME back."}{" "}
+                  Shown on your deck and Life cards; opponents see the official
+                  back. Crop, rotate and flip after choosing an image.{" "}
+                  {savedWhere}
+                </p>
+                <div className="btn-row">
+                  <label
+                    className={`btn btn-secondary${backBusy ? " is-busy" : ""}`}
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="visually-hidden"
+                      disabled={backBusy}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) setEditing({ kind: "cardBack", file: f });
+                        e.target.value = "";
+                      }}
+                    />
+                    {backBusy
+                      ? "Processing…"
+                      : cardBackUrl
+                        ? "Replace image"
+                        : "Upload image"}
+                  </label>
+                  {cardBackUrl ? (
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      disabled={backBusy}
+                      onClick={() =>
+                        void chooseCosmetic("cardBack", null).catch((e: unknown) =>
+                          setBackError(e instanceof Error ? e.message : "Could not switch"),
+                        )
+                      }
+                    >
+                      Use official
+                    </button>
+                  ) : null}
+                </div>
+                {backError ? <p className="error-text">{backError}</p> : null}
+              </div>
+            </div>
+            <CosmeticHistory kind="cardBack" />
+          </section>
+
+          <section className="panel" id="don-card">
+            <h2 className="panel-title">DON!! card</h2>
+            <DonArtPicker
+              value={settings.donArt}
+              onChange={(donArt) => update({ donArt })}
+              savedWhere={savedWhere}
+            />
+          </section>
+        </div>
+
         <section className="panel" id="deck-editor">
           <h2 className="panel-title">Deck editor</h2>
           <div className="gameplay-toggle">
@@ -272,169 +437,6 @@ export function SettingsPage() {
               planner. Shown as a Deck stats section when you edit a deck. {savedWhere}
             </p>
           </div>
-        </section>
-
-        <section className="panel" id="playmat">
-          <h2 className="panel-title">Playmat</h2>
-          <div
-            className={`playmat-preview${playmatUrl ? " has-art" : ""}`}
-            style={
-              playmatUrl
-                ? {
-                    backgroundImage: `linear-gradient(rgba(5, 10, 14, ${settings.playmatDim}), rgba(5, 10, 14, ${settings.playmatDim})), linear-gradient(rgba(14, 34, 48, ${1 - settings.playmatOpacity}), rgba(14, 34, 48, ${1 - settings.playmatOpacity})), url("${playmatUrl}")`,
-                  }
-                : undefined
-            }
-            aria-label={playmatUrl ? "Your playmat" : "Default playmat"}
-          >
-            {!playmatUrl ? <span>Default playmat</span> : null}
-          </div>
-          <p className="field-hint">
-            Official playmats are 24 × 14 in (12:7). You can crop, rotate and
-            flip after choosing an image. Shown on your side of the board.{" "}
-            {savedWhere}
-          </p>
-          <div className="btn-row">
-            <label className={`btn btn-secondary${matBusy ? " is-busy" : ""}`}>
-              <input
-                type="file"
-                accept="image/*"
-                className="visually-hidden"
-                disabled={matBusy}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) setEditing({ kind: "playmat", file: f });
-                  e.target.value = "";
-                }}
-              />
-              {matBusy
-                ? "Processing…"
-                : playmatUrl
-                  ? "Replace image"
-                  : "Upload image"}
-            </label>
-            {playmatUrl ? (
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={matBusy}
-                onClick={() =>
-                  void chooseCosmetic("playmat", null).catch((e: unknown) =>
-                    setMatError(e instanceof Error ? e.message : "Could not switch"),
-                  )
-                }
-              >
-                Use default
-              </button>
-            ) : null}
-          </div>
-          {playmatUrl ? (
-            <div className="field">
-              <label htmlFor="mat-dim">
-                Dim art · {Math.round(settings.playmatDim * 100)}%
-              </label>
-              <input
-                id="mat-dim"
-                type="range"
-                className="range"
-                min={0}
-                max={0.8}
-                step={0.05}
-                value={settings.playmatDim}
-                onChange={(e) => update({ playmatDim: Number(e.target.value) })}
-              />
-            </div>
-          ) : null}
-          {playmatUrl ? (
-            <div className="field">
-              <label htmlFor="mat-opacity">
-                Art transparency · {Math.round((1 - settings.playmatOpacity) * 100)}%
-              </label>
-              <input
-                id="mat-opacity"
-                type="range"
-                className="range"
-                min={0}
-                max={0.8}
-                step={0.05}
-                value={1 - settings.playmatOpacity}
-                onChange={(e) => update({ playmatOpacity: 1 - Number(e.target.value) })}
-              />
-            </div>
-          ) : null}
-          <CosmeticHistory kind="playmat" />
-          {matError ? <p className="error-text">{matError}</p> : null}
-        </section>
-
-        <section className="panel" id="card-back">
-          <h2 className="panel-title">Card back</h2>
-          <div className="card-back-settings">
-            <div
-              className="card-back-preview"
-              style={{
-                backgroundImage: `${cardBackCssValue(cardBackUrl)}, linear-gradient(145deg, #243447, #15202c)`,
-              }}
-              role="img"
-              aria-label={cardBackUrl ? "Your card back" : "Official card back"}
-            />
-            <div className="card-back-settings-body">
-              <p className="field-hint">
-                {cardBackUrl
-                  ? "Custom card back."
-                  : "Official ONE PIECE CARD GAME back."}{" "}
-                Shown on your deck and Life cards; opponents see the official
-                back. Crop, rotate and flip after choosing an image.{" "}
-                {savedWhere}
-              </p>
-              <div className="btn-row">
-                <label
-                  className={`btn btn-secondary${backBusy ? " is-busy" : ""}`}
-                >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="visually-hidden"
-                    disabled={backBusy}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) setEditing({ kind: "cardBack", file: f });
-                      e.target.value = "";
-                    }}
-                  />
-                  {backBusy
-                    ? "Processing…"
-                    : cardBackUrl
-                      ? "Replace image"
-                      : "Upload image"}
-                </label>
-                {cardBackUrl ? (
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    disabled={backBusy}
-                    onClick={() =>
-                      void chooseCosmetic("cardBack", null).catch((e: unknown) =>
-                        setBackError(e instanceof Error ? e.message : "Could not switch"),
-                      )
-                    }
-                  >
-                    Use official
-                  </button>
-                ) : null}
-              </div>
-              {backError ? <p className="error-text">{backError}</p> : null}
-            </div>
-          </div>
-          <CosmeticHistory kind="cardBack" />
-        </section>
-
-        <section className="panel" id="don-card">
-          <h2 className="panel-title">DON!! card</h2>
-          <DonArtPicker
-            value={settings.donArt}
-            onChange={(donArt) => update({ donArt })}
-            savedWhere={savedWhere}
-          />
         </section>
 
         {authUser ? <AnalystLinkPanel /> : null}

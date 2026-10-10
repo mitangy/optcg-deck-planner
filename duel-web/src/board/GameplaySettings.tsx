@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { Fragment, useEffect, type ReactNode } from "react";
 import type { OppHandSpot } from "./panelLayout";
 import { createPortal } from "react-dom";
 import {
@@ -15,11 +15,12 @@ import { useLockNote } from "./orientation";
 import { LAYOUT_RESET, layoutMoved } from "./layoutReset";
 import { playTurnChime } from "./turnAlert";
 import {
-  showOrientation,
   showToggleShown,
-  toggleShown,
   turnAlertCopy,
+  visibleGroups,
   type FieldDevice,
+  type GroupId,
+  type RowKey,
   type ShowKey,
   type ToggleKey,
 } from "./gameplayFields";
@@ -198,6 +199,14 @@ const ANIMATION_OPTIONS: { value: AnimationSpeed; label: string }[] = [
   { value: "off", label: "Off" },
 ];
 
+/** Scrolls a settings group under the sticky chip row (the group's scroll-margin-top clears it). */
+function jumpToGroup(id: GroupId) {
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document
+    .getElementById(`gp-${id}`)
+    ?.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
+}
+
 /** Gameplay preferences; saved in this browser and applied live. */
 export function GameplaySettingsFields() {
   const settings = useDuelSettings();
@@ -209,232 +218,304 @@ export function GameplaySettingsFields() {
   // Orientation lock and vibration are for phones and tablets, not a mouse and keyboard.
   const finePointer = useMediaQuery(FINE_POINTER_QUERY);
   const device: FieldDevice = { desktop, tiltFits, finePointer };
+  const groups = visibleGroups(device);
+  const toggleByKey = new Map<RowKey, Toggle>(TOGGLES.map((t) => [t.key, t]));
+
+  function renderRow(key: RowKey): ReactNode {
+    const toggle = toggleByKey.get(key);
+    if (toggle) {
+      const t = toggle.key === "turnAlert" ? { ...toggle, ...turnAlertCopy(device, toggle) } : toggle;
+      return (
+        <div className="gameplay-toggle" key={t.key}>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={
+                t.key === "oppHandTopRight" ? settings.oppHandSpot === "right" : settings[t.key]
+              }
+              onChange={(e) => {
+                if (t.key === "oppHandTopRight") {
+                  updateSettings({ oppHandSpot: e.target.checked ? "right" : "" });
+                  return;
+                }
+                updateSettings({ [t.key]: e.target.checked });
+                // Preview (and unlock audio on mobile with this tap).
+                if (t.key === "turnSound" && e.target.checked) playTurnChime();
+              }}
+            />
+            <span>{t.label}</span>
+          </label>
+          <p className="field-hint">{t.hint}</p>
+        </div>
+      );
+    }
+    switch (key) {
+      case "endTurnConfirm":
+        return (
+          <div className="field">
+            <label htmlFor="end-turn-confirm">Confirm before ending turn</label>
+            <select
+              id="end-turn-confirm"
+              value={settings.endTurnConfirm}
+              onChange={(e) => updateSettings({ endTurnConfirm: e.target.value as EndTurnConfirm })}
+            >
+              {END_TURN_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="field-hint">
+              “Only if DON!! or attackers are left” asks while you have active DON!! or a ready attacker, and the button says which.
+            </p>
+          </div>
+
+        );
+      case "responseStops":
+        return (
+          <div className="field">
+            <label htmlFor="response-stops">Stop for block and counter</label>
+            <select
+              id="response-stops"
+              value={settings.responseStops}
+              onChange={(e) => updateSettings({ responseStops: e.target.value as ResponseStops })}
+            >
+              {RESPONSE_STOP_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="field-hint">
+              Auto passes for you when you have no blocker or Counter card. Smart also passes the
+              counter step when all your Counter cards together can't save the attacked card;
+              Counter events always stop you. Your opponent may notice a quick pass.
+            </p>
+          </div>
+
+        );
+      case "screenOrientation":
+        return (
+          <div className="field">
+            <label htmlFor="screen-orientation">Screen orientation</label>
+            <select
+              id="screen-orientation"
+              value={settings.screenOrientation}
+              onChange={(e) =>
+                updateSettings({ screenOrientation: e.target.value as ScreenOrientationPref })
+              }
+            >
+              {ORIENTATION_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="field-hint">
+              Locks rotation while a match is open, where the browser allows it (Android, in full
+              screen or when installed).
+            </p>
+            {lockNote ? (
+              <p className="field-hint field-note" role="status">
+                Your browser can&apos;t lock rotation here; turn your phone instead (Android: try Full
+                screen from the ⋯ menu).
+              </p>
+            ) : null}
+          </div>
+
+        );
+      case "handLayout":
+        return (
+          <div className="field">
+            <label htmlFor="hand-layout">Hand</label>
+            <select
+              id="hand-layout"
+              value={settings.handLayout}
+              onChange={(e) => updateSettings({ handLayout: e.target.value as HandLayoutPref })}
+            >
+              {HAND_LAYOUT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="field-hint">
+              {desktop
+                ? "Automatic is the Grid on a desktop window at least 680 px tall (it never covers your DON!! row) and the fan elsewhere. The fan peeks off the bottom of the board and rises when you point at it; drag its grip to put it anywhere on the screen (on the bottom edge it still tucks away). Grid keeps the hand open as a side panel you can move to either column."
+                : "Fan overlaps the hand so every card fits; Grid shows them side by side and scrolls."}
+            </p>
+          </div>
+
+        );
+      case "sidePanels":
+        return (
+          <div className="field">
+            <span className="field-label" id="side-panels-label">Side panels</span>
+            <div className="panel-layout-row">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                aria-describedby="side-panels-label"
+                disabled={!layoutMoved(settings)}
+                onClick={() => updateSettings({ ...LAYOUT_RESET })}
+              >
+                Reset layout
+              </button>
+            </div>
+            <p className="field-hint">
+              With Drag handles on, drag the grip at the top of any side panel (card preview, battle
+              log, actions, Grid hand, chat ...) to snap it into the left or right column, and the
+              fanned hand&apos;s grip to move it anywhere (spectating, each of the two hands has its own). Drop the opponent hand on the top of the
+              playmat to pin it there. Drag the inner edge of a column, or the line between two panels, to
+              resize them (double-click an edge to reset it). Reset puts every panel, size, both
+              hands and moved pop-ups back.
+            </p>
+          </div>
+
+        );
+      case "oppHandSpot":
+        return (
+          <div className="field">
+            <label htmlFor="opp-hand-spot">Opponent hand position</label>
+            <select
+              id="opp-hand-spot"
+              value={settings.oppHandSpot}
+              onChange={(e) => updateSettings({ oppHandSpot: e.target.value as OppHandSpot })}
+            >
+              <option value="">In its side panel</option>
+              <option value="left">Left of the mat</option>
+              <option value="centre">Top centre of the mat</option>
+              <option value="right">Right of the mat</option>
+            </select>
+            <p className="field-hint">
+              Where the opponent&apos;s hand sits on a desktop window: in the right-hand panel, or
+              pinned beside or above their half of the playmat.
+            </p>
+          </div>
+
+        );
+      case "textSize":
+        return (
+          <div className="field">
+            <label htmlFor="text-size">Text size</label>
+            <select
+              id="text-size"
+              value={settings.textSize}
+              onChange={(e) => updateSettings({ textSize: e.target.value as TextSize })}
+            >
+              {TEXT_SIZE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="field-hint">
+              Text already grows with your window; this sets it larger or smaller on top, including
+              card power numbers and the card text on the left.
+            </p>
+          </div>
+
+        );
+      case "animationSpeed":
+        return (
+          <div className="field">
+            <label htmlFor="animation-speed">Animations</label>
+            <select
+              id="animation-speed"
+              value={settings.animationSpeed}
+              onChange={(e) => updateSettings({ animationSpeed: e.target.value as AnimationSpeed })}
+            >
+              {ANIMATION_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="field-hint">
+              How fast cards fly for draws, plays and KOs. Off skips card motion. “Reduce animations”
+              keeps its short fade instead of Normal or Fast.
+            </p>
+          </div>
+
+        );
+      case "cardSpotlight":
+        return (
+          <div className="gameplay-toggle">
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={settings.cardSpotlight}
+                disabled={settings.animationSpeed === "off"}
+                onChange={(e) => updateSettings({ cardSpotlight: e.target.checked })}
+              />
+              <span>Show played, trashed and drawn cards</span>
+            </label>
+            <p className="field-hint">
+              Each card that is played, used as a Counter, K.O.&apos;d or trashed by an effect (from
+              hand, deck, Life or the field) shows big over its owner&apos;s side for a moment, then
+              drops into its spot. Follows the Animations speed; Off hides it too.
+            </p>
+          </div>
+
+        );
+      case "showOnScreen":
+        return (
+          <div className="field gameplay-group" role="group" aria-labelledby="show-on-screen-label">
+            <span className="field-label" id="show-on-screen-label">Show on screen</span>
+            <p className="field-hint">
+              Hide the extras you don&apos;t use. Your hand, DON!!, Life, the turn and the Battle log always
+              stay; panels you hide keep their place in your layout.
+            </p>
+            {SHOW_TOGGLES.filter((t) => showToggleShown(t.key, device)).map((t) => (
+              <div className="gameplay-toggle" key={t.key}>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={settings[t.key]}
+                    onChange={(e) => updateSettings({ [t.key]: e.target.checked })}
+                  />
+                  <span>{t.label}</span>
+                </label>
+                <p className="field-hint">{t.hint}</p>
+              </div>
+            ))}
+          </div>
+
+        );
+      default:
+        return null;
+    }
+  }
+
   return (
     <div className="gameplay-settings">
-      <div className="field">
-        <label htmlFor="end-turn-confirm">Confirm before ending turn</label>
-        <select
-          id="end-turn-confirm"
-          value={settings.endTurnConfirm}
-          onChange={(e) => updateSettings({ endTurnConfirm: e.target.value as EndTurnConfirm })}
-        >
-          {END_TURN_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <p className="field-hint">
-          “Only if DON!! or attackers are left” asks while you have active DON!! or a ready attacker, and the button says which.
-        </p>
-      </div>
-      <div className="field">
-        <label htmlFor="response-stops">Stop for block and counter</label>
-        <select
-          id="response-stops"
-          value={settings.responseStops}
-          onChange={(e) => updateSettings({ responseStops: e.target.value as ResponseStops })}
-        >
-          {RESPONSE_STOP_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <p className="field-hint">
-          Auto passes for you when you have no blocker or Counter card. Smart also passes the
-          counter step when all your Counter cards together can't save the attacked card;
-          Counter events always stop you. Your opponent may notice a quick pass.
-        </p>
-      </div>
-      {showOrientation(device) ? (
-      <div className="field">
-        <label htmlFor="screen-orientation">Screen orientation</label>
-        <select
-          id="screen-orientation"
-          value={settings.screenOrientation}
-          onChange={(e) =>
-            updateSettings({ screenOrientation: e.target.value as ScreenOrientationPref })
-          }
-        >
-          {ORIENTATION_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <p className="field-hint">
-          Locks rotation while a match is open, where the browser allows it (Android, in full
-          screen or when installed).
-        </p>
-        {lockNote ? (
-          <p className="field-hint field-note" role="status">
-            Your browser can&apos;t lock rotation here; turn your phone instead (Android: try Full
-            screen from the ⋯ menu).
-          </p>
-        ) : null}
-      </div>
-      ) : null}
-      <div className="field">
-        <label htmlFor="hand-layout">Hand</label>
-        <select
-          id="hand-layout"
-          value={settings.handLayout}
-          onChange={(e) => updateSettings({ handLayout: e.target.value as HandLayoutPref })}
-        >
-          {HAND_LAYOUT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <p className="field-hint">
-          {desktop
-            ? "Automatic is the Grid on a desktop window at least 680 px tall (it never covers your DON!! row) and the fan elsewhere. The fan peeks off the bottom of the board and rises when you point at it; drag its grip to put it anywhere on the screen (on the bottom edge it still tucks away). Grid keeps the hand open as a side panel you can move to either column."
-            : "Fan overlaps the hand so every card fits; Grid shows them side by side and scrolls."}
-        </p>
-      </div>
-      {desktop ? (
-        <div className="field">
-          <span className="field-label" id="side-panels-label">Side panels</span>
-          <div className="panel-layout-row">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              aria-describedby="side-panels-label"
-              disabled={!layoutMoved(settings)}
-              onClick={() => updateSettings({ ...LAYOUT_RESET })}
-            >
-              Reset layout
-            </button>
-          </div>
-          <p className="field-hint">
-            With Drag handles on, drag the grip at the top of any side panel (card preview, battle
-            log, actions, Grid hand, chat ...) to snap it into the left or right column, and the
-            fanned hand&apos;s grip to move it anywhere (spectating, each of the two hands has its own). Drop the opponent hand on the top of the
-            playmat to pin it there. Drag the inner edge of a column, or the line between two panels, to
-            resize them (double-click an edge to reset it). Reset puts every panel, size, both
-            hands and moved pop-ups back.
-          </p>
-        </div>
-      ) : null}
-      {desktop ? (
-        <div className="field">
-          <label htmlFor="opp-hand-spot">Opponent hand position</label>
-          <select
-            id="opp-hand-spot"
-            value={settings.oppHandSpot}
-            onChange={(e) => updateSettings({ oppHandSpot: e.target.value as OppHandSpot })}
+      <nav className="settings-group-jump" aria-label="Gameplay sections">
+        {groups.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            className="settings-group-chip"
+            onClick={() => jumpToGroup(g.id)}
           >
-            <option value="">In its side panel</option>
-            <option value="left">Left of the mat</option>
-            <option value="centre">Top centre of the mat</option>
-            <option value="right">Right of the mat</option>
-          </select>
-          <p className="field-hint">
-            Where the opponent&apos;s hand sits on a desktop window: in the right-hand panel, or
-            pinned beside or above their half of the playmat.
-          </p>
-        </div>
-      ) : null}
-      <div className="field">
-        <label htmlFor="text-size">Text size</label>
-        <select
-          id="text-size"
-          value={settings.textSize}
-          onChange={(e) => updateSettings({ textSize: e.target.value as TextSize })}
-        >
-          {TEXT_SIZE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <p className="field-hint">
-          Text already grows with your window; this sets it larger or smaller on top, including
-          card power numbers and the card text on the left.
-        </p>
-      </div>
-      <div className="field">
-        <label htmlFor="animation-speed">Animations</label>
-        <select
-          id="animation-speed"
-          value={settings.animationSpeed}
-          onChange={(e) => updateSettings({ animationSpeed: e.target.value as AnimationSpeed })}
-        >
-          {ANIMATION_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <p className="field-hint">
-          How fast cards fly for draws, plays and KOs. Off skips card motion. “Reduce animations”
-          keeps its short fade instead of Normal or Fast.
-        </p>
-      </div>
-      <div className="gameplay-toggle">
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={settings.cardSpotlight}
-            disabled={settings.animationSpeed === "off"}
-            onChange={(e) => updateSettings({ cardSpotlight: e.target.checked })}
-          />
-          <span>Show played, trashed and drawn cards</span>
-        </label>
-        <p className="field-hint">
-          Each card that is played, used as a Counter, K.O.&apos;d or trashed by an effect (from
-          hand, deck, Life or the field) shows big over its owner&apos;s side for a moment, then
-          drops into its spot. Follows the Animations speed; Off hides it too.
-        </p>
-      </div>
-      <div className="field gameplay-group" role="group" aria-labelledby="show-on-screen-label">
-        <span className="field-label" id="show-on-screen-label">Show on screen</span>
-        <p className="field-hint">
-          Hide the extras you don&apos;t use. Your hand, DON!!, Life, the turn and the Battle log always
-          stay; panels you hide keep their place in your layout.
-        </p>
-        {SHOW_TOGGLES.filter((t) => showToggleShown(t.key, device)).map((t) => (
-          <div className="gameplay-toggle" key={t.key}>
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={settings[t.key]}
-                onChange={(e) => updateSettings({ [t.key]: e.target.checked })}
-              />
-              <span>{t.label}</span>
-            </label>
-            <p className="field-hint">{t.hint}</p>
-          </div>
+            {g.chip}
+          </button>
         ))}
-      </div>
-      {TOGGLES.filter((t) => toggleShown(t.key, device)).map((toggle) => {
-        const t = toggle.key === "turnAlert" ? { ...toggle, ...turnAlertCopy(device, toggle) } : toggle;
-        return (
-          <div className="gameplay-toggle" key={t.key}>
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={
-                  t.key === "oppHandTopRight" ? settings.oppHandSpot === "right" : settings[t.key]
-                }
-                onChange={(e) => {
-                  if (t.key === "oppHandTopRight") {
-                    updateSettings({ oppHandSpot: e.target.checked ? "right" : "" });
-                    return;
-                  }
-                  updateSettings({ [t.key]: e.target.checked });
-                  // Preview (and unlock audio on mobile with this tap).
-                  if (t.key === "turnSound" && e.target.checked) playTurnChime();
-                }}
-              />
-              <span>{t.label}</span>
-            </label>
-            <p className="field-hint">{t.hint}</p>
-          </div>
-        );
-      })}
+      </nav>
+      {groups.map((g) => (
+        <section
+          key={g.id}
+          className="settings-group"
+          id={`gp-${g.id}`}
+          aria-labelledby={`gp-${g.id}-title`}
+        >
+          <h3 className="settings-group-title" id={`gp-${g.id}-title`}>
+            {g.title}
+          </h3>
+          {g.rows.map((r) => (
+            <Fragment key={r}>{renderRow(r)}</Fragment>
+          ))}
+        </section>
+      ))}
     </div>
   );
 }
