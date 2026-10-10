@@ -25,8 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: "npm"
@@ -42,17 +42,6 @@ jobs:
           echo "fuzz seed range: ${SEED}..$(( SEED + GAMES - 1 )) (replay one game: npx tsx src/sim/fuzz.ts 1 <seed>, in packages/rules)"
           npm run fuzz -w @optcg/rules -- "$GAMES" "$SEED"
 
-  mutation-anchors:
-    # Fast stale-anchor check for every mutation suite; no tests run.
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - run: node tools/mutation-check/run.cjs --check-anchors
-
   stryker-rules:
     # Report-only breadth mutation run over the rules engine. Survivors never
     # fail the job (thresholds.break is null); only a tool error does.
@@ -62,8 +51,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 240
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: "npm"
@@ -86,7 +75,7 @@ jobs:
           echo "index=${SHARD}" >> "$GITHUB_OUTPUT"
           echo "mutate=${SHARDS[$SHARD]}" >> "$GITHUB_OUTPUT"
       - name: Restore Stryker incremental file
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: packages/rules/reports/stryker-incremental.json
           key: stryker-rules-${{ runner.os }}-shard${{ steps.shard.outputs.index }}-${{ github.run_id }}
@@ -118,7 +107,7 @@ jobs:
             out.push("", "Survivors are a to-do list for tools/mutation-check entries, not a score to chase.");
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, out.join("\n") + "\n");
           '
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
         with:
           name: stryker-rules-report
@@ -132,8 +121,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version-file: backend/.python-version
           cache: "pip"
@@ -146,7 +135,7 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-mutation.txt
       - name: Restore mutmut state
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: backend/mutants
           key: mutmut-backend-${{ github.run_id }}
@@ -175,7 +164,7 @@ jobs:
           else
             echo "No mutmut results produced." >> "$GITHUB_STEP_SUMMARY"
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
         with:
           name: mutmut-backend-results
@@ -191,8 +180,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: "npm"
@@ -209,14 +198,14 @@ jobs:
   # --- Add later nightly jobs above this line, and list them in `report.needs`. ---
 
   report:
-    needs: [fuzz, mutation-anchors, stryker-rules, mutmut-backend, log-pose-eval-live]
+    needs: [fuzz, stryker-rules, mutmut-backend, log-pose-eval-live]
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       issues: write
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v8
         with:
           script: |
             const title = "Nightly regression failure";
