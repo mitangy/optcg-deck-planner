@@ -5,6 +5,15 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Hand reveals stay face up among the opponent hand backs (#491)
+    {"id": "hand-reveal-hidden-first", "file": "duel-web/src/board/handReveal.ts", "from": "return [...faces, ...hidden];", "to": "return [...hidden, ...faces];", "kills": ["puts the revealed cards first and card-back placeholders after"]},
+    {"id": "hand-reveal-uncapped", "file": "duel-web/src/board/handReveal.ts", "from": "Math.max(Math.min(handCount, FAN_CAP), faces.length)", "to": "Math.max(handCount, faces.length)", "kills": ["caps the placeholders like the all-backs fan"]},
+    {"id": "hand-reveal-more-than-hand", "file": "duel-web/src/board/handReveal.ts", "from": "revealed.slice(0, handCount)", "to": "revealed", "kills": ["never shows more slots than the opponent holds cards"]},
+    {"id": "hand-reveal-empty-list", "file": "duel-web/src/board/handReveal.ts", "from": "if (!revealed?.length) return undefined;", "to": "if (!revealed) return undefined;", "kills": ["leaves the usual card backs when nothing is revealed"]},
+    {"id": "hand-reveal-hint-placeholder-face", "file": "duel-web/src/board/TurnStatusPanel.tsx", "from": "<span key={c.id} className=\"card-back opp-hand-face\" />", "to": "<span key={c.id} className=\"opp-hand-face\" />", "kills": ["shows placeholder slots as card backs and revealed cards as faces"]},
+    {"id": "hand-reveal-corner-placeholder-face", "file": "duel-web/src/board/TurnStatusPanel.tsx", "from": "if (card && card.defId !== HIDDEN_HAND_DEF) {", "to": "if (card) {", "kills": ["shows placeholder slots as card backs and revealed cards as faces"]},
+    {"id": "hand-reveal-fan-placeholder-face", "file": "duel-web/src/board/TurnStatusPanel.tsx", "from": "<span key={c.id} className=\"card-back opp-fan-card\" style={{ \"--i\": i - mid } as CSSProperties} />", "to": "<span key={c.id} className=\"opp-fan-card\" style={{ \"--i\": i - mid } as CSSProperties} />", "kills": ["shows placeholder slots as card backs and revealed cards as faces"]},
+    {"id": "hand-reveal-compact-placeholder-face", "file": "duel-web/src/board/TurnStatusPanel.tsx", "from": "<span key={c.id} className=\"card-back\" aria-hidden />", "to": "<span key={c.id} aria-hidden />", "kills": ["shows placeholder slots as card backs and revealed cards as faces"]},
     // Turn-start draw spotlight (#445)
     {"id": "draw-spotlight-opponent", "file": "duel-web/src/board/battleLog.ts", "from": "if (e.turnDraw === true && isYou(e.seat, youSeat) && ", "to": "if (e.turnDraw === true && ", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#445)"]},
     {"id": "draw-spotlight-effect-draws", "file": "duel-web/src/board/battleLog.ts", "from": "if (e.turnDraw === true && isYou(", "to": "if (isYou(", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#445)"]},
@@ -753,7 +762,7 @@ module.exports = {
     { id: "don-under-fixed-spacing", file: `${src}/board/donUnder.ts`, from: "const k = STEP_SCALE[n] ?? 0.5;", to: "const k = 1;", kills: ["tightens the spacing as the count grows (#251)"] },
     // spectators see the far hand face up (#250)
     {"id": "opp-hint-ignores-revealed-hand", "file": "duel-web/src/board/TurnStatusPanel.tsx", "from": "      {cards ? (\n        <div\n          className=\"opp-hand-backs opp-hand-faces\"", "to": "      {false ? (\n        <div\n          className=\"opp-hand-backs opp-hand-faces\"", "kills": ["shows the far player's hand face up instead of backs in the narrow strip (#250)"]},
-    {"id": "opp-fan-ignores-revealed-hand", "file": "duel-web/src/board/TurnStatusPanel.tsx", "from": "        {cards\n          ? cards.map((c, i) => (", "to": "        {false\n          ? [].map((c, i) => (", "kills": ["shows the far player's hand face up instead of backs in the rail fan (#250)"]},
+    {"id": "opp-fan-ignores-revealed-hand", "file": "duel-web/src/board/TurnStatusPanel.tsx", "from": "        {cards\n          ? cards.map((c, i) =>", "to": "        {false\n          ? [].map((c, i) =>", "kills": ["shows the far player's hand face up instead of backs in the rail fan (#250)"]},
     // on-card action popover, one-tap counters / blocks, Resolve label
     { id: "card-actions-globals-on-card", file: `${src}/board/cardActions.ts`, from: "    card: collapsed.filter((i) => !isGlobalIntent(i)),\n    bar: collapsed.filter(isGlobalIntent),", to: "    card: collapsed,\n    bar: [],", kills: ["splitCardActions keeps phase-wide intents in the bar and per-card ones on the card (#255)"] },
     { id: "card-actions-replace-not-collapsed", file: `${src}/board/cardActions.ts`, from: "  const collapsed = collapseReplacePlays(shown);", to: "  const collapsed = shown;", kills: ["splitCardActions collapses the per-Character replace plays into one button (#255)"] },

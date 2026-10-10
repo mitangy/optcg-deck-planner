@@ -65,3 +65,26 @@ describe("opponent hand after the match (#482)", () => {
     expect(html.match(/opp-compact-face/g)).toHaveLength(3);
   });
 });
+
+describe("opponent hand with revealed cards (#491)", () => {
+  const cards = [
+    { id: "o1", defId: "ST01-014" },
+    { id: "hidden-0", defId: "HIDDEN" },
+    { id: "hidden-1", defId: "HIDDEN" },
+  ];
+
+  it("shows placeholder slots as card backs and revealed cards as faces in every opp hand layout (#491)", () => {
+    const hint = renderToStaticMarkup(<OppHandHint count={3} cardBackUrl={null} cards={cards} ownerSeat={1} />);
+    expect(hint.match(/class="card-back opp-hand-face"/g)).toHaveLength(2);
+    expect(hint.match(/opp-hand-face"/g)).toHaveLength(3);
+    const corner = renderToStaticMarkup(<OppHandCorner count={3} cardBackUrl={null} variant="mat" cards={cards} ownerSeat={1} />);
+    expect(corner.match(/card-back opp-corner-card/g)).toHaveLength(2);
+    expect(corner.match(/opp-corner-face/g)).toHaveLength(1);
+    const fan = renderToStaticMarkup(<OppHandFan count={3} cardBackUrl={null} cards={cards} ownerSeat={1} />);
+    expect(fan.match(/card-back opp-fan-card/g)).toHaveLength(2);
+    expect(fan.match(/opp-fan-face/g)).toHaveLength(1);
+    const compact = renderToStaticMarkup(<OppHandFan count={3} cardBackUrl={null} cards={cards} ownerSeat={1} compact />);
+    expect(compact.match(/class="card-back"/g)).toHaveLength(2);
+    expect(compact.match(/opp-compact-face/g)).toHaveLength(1);
+  });
+});

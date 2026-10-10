@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-10
+  { date: "2026-10-10", app: "duel", pr: 492, title: "Revealed cards stay face up", text: "When an effect reveals cards from a hand, they now stay face up in that hand for the rest of the turn, so both players can see them. Your own revealed cards are marked Revealed." },
   // 2026-10-09
   { date: "2026-10-09", app: "duel", pr: 484, title: "Hands and Life revealed at game end", text: "When a match ends, both hands and every Life card flip face up for players and spectators, so you can see what your opponent was holding." },
   { date: "2026-10-09", app: "duel", pr: 483, title: "Save button in the deck editor", text: "Editing a deck now has a Save button, and leaving with unsaved changes asks first. Edits you save to a deck copied from the planner now stay in your games instead of being replaced by the planner version." },

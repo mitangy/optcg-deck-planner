@@ -1004,7 +1004,15 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       return "next";
     }
     case "reveal": {
-      for (const loc of targetsOf(effect.target)) sim.events.push({ type: "card_revealed", seat: loc.seat, defId: loc.defId });
+      for (const loc of targetsOf(effect.target)) {
+        sim.events.push({ type: "card_revealed", seat: loc.seat, defId: loc.defId });
+        // Revealed hand cards stay face up for the rest of the turn (#491).
+        if (loc.zone === "hand") {
+          const p = state.players[loc.seat];
+          const ids = p.revealedHandIds ?? (p.revealedHandIds = []);
+          if (!ids.includes(loc.id)) ids.push(loc.id);
+        }
+      }
       return "next";
     }
     case "look_life": {

@@ -119,6 +119,8 @@ export function beginTurn(sim: Sim): void {
   const seat = state.activeSeat;
   const p = state.players[seat];
   p.turnsStarted += 1;
+  // Hand reveals last for the turn they were made in (#491).
+  for (const player of state.players) delete player.revealedHandIds;
   // Refresh phase.
   const noRefresh = new Set(state.modifiers.filter((m) => m.target.kind === "card" && m.effect.type === "restrict" && m.effect.restriction === "no_refresh" && m.expires.kind === "next_refresh" && m.expires.seat === seat).map((m) => (m.target as { id: string }).id));
   state.modifiers = state.modifiers.filter((m) => !(m.expires.kind === "next_refresh" && m.expires.seat === seat));
