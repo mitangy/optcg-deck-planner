@@ -297,15 +297,24 @@ describe("turning Life face-up as a cost (OP08-058 Pudding)", () => {
     expect(h.choice).toBeUndefined();
   });
 
-  it("is offered with 2 face-down Life cards and adds a rested DON!!", () => {
+  it("is offered with the top 2 Life cards face-down and turns exactly those face-up, adding a rested DON!!", () => {
     const h = new Harness({ leaders: ["OP08-058", "ST01-001"] });
     h.life(0, FILLER, FILLER, FILLER, FILLER);
-    h.state.players[0].faceUpLife = [true, true, false, false];
+    h.state.players[0].faceUpLife = [false, false, false, false];
     const before = h.state.players[0].costArea.length;
     h.attack(h.state.players[0].leader, "leader");
     h.accept();
-    expect(h.state.players[0].faceUpLife).toEqual([true, true, true, true]);
+    expect(h.state.players[0].faceUpLife).toEqual([true, true, false, false]);
     expect(h.state.players[0].costArea.length).toBe(before + 1);
+  });
+
+  it("is not offered when the top 2 Life cards are already face-up, even with face-down cards below (#490)", () => {
+    const h = new Harness({ leaders: ["OP08-058", "ST01-001"] });
+    h.life(0, FILLER, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [true, true, false, false];
+    h.attack(h.state.players[0].leader, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[0].faceUpLife).toEqual([true, true, false, false]);
   });
 });
 
@@ -330,5 +339,16 @@ describe("turning Life face-down as a cost (OP08-063 Katakuri)", () => {
     h.accept();
     expect(h.state.players[0].faceUpLife).toEqual([false, false, false]);
     expect(h.state.players[0].costArea.length).toBe(8);
+  });
+
+  it("is not offered when only a lower Life card is face-up (#490)", () => {
+    const h = new Harness();
+    h.hand(0, "OP08-063");
+    h.don(0, 7);
+    h.life(0, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [false, true, false];
+    h.play(0, "OP08-063");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[0].faceUpLife).toEqual([false, true, false]);
   });
 });
