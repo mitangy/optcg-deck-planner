@@ -620,6 +620,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.awayUntil = [null, null];
     this.undoRequest = null;
     this.syncPublicState();
+    this.broadcastViews([]);
     this.stopSeatClock();
     this.clearTimerLoop();
     this.broadcastTimer();
@@ -902,7 +903,7 @@ export class DuelRoom extends Room implements PresenceSource {
       if (!slot) continue;
       const client = this.clients.find((c) => c.sessionId === slot.sessionId);
       if (!client) continue;
-      const view = getPlayerView(match, slot.seat);
+      const view = this.playerView(match, slot.seat);
       const welcome: WelcomeMessage = {
         protocolVersion: PROTOCOL_VERSION,
         matchId: this.matchId,
@@ -1139,6 +1140,7 @@ export class DuelRoom extends Room implements PresenceSource {
       phase: "game_over",
     };
     this.syncPublicState();
+    this.broadcastViews([]);
     this.undoRequest = null;
     this.broadcastUndoState();
     this.stopSeatClock();
@@ -1195,7 +1197,7 @@ export class DuelRoom extends Room implements PresenceSource {
       );
       client.send("view", {
         protocolVersion: PROTOCOL_VERSION,
-        view: getPlayerView(before, seat),
+        view: this.playerView(before, seat),
       });
       return;
     }
@@ -1505,7 +1507,7 @@ export class DuelRoom extends Room implements PresenceSource {
       if (!slot) continue;
       const client = this.clients.find((c) => c.sessionId === slot.sessionId);
       if (!client) continue;
-      const view = getPlayerView(this.match, slot.seat);
+      const view = this.playerView(this.match, slot.seat);
       client.send("events", {
         protocolVersion: PROTOCOL_VERSION,
         events: projectGameEvents(events, slot.seat),
@@ -1703,6 +1705,7 @@ export class DuelRoom extends Room implements PresenceSource {
       phase: "game_over",
     };
     this.syncPublicState();
+    this.broadcastViews([]);
     this.undoRequest = null;
     this.broadcastUndoState();
     this.stopSeatClock();
@@ -1719,6 +1722,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.endReason = "timeout";
     this.match = { ...this.match, winner, winReason: "leader_battle_at_zero_life", phase: "game_over" };
     this.syncPublicState();
+    this.broadcastViews([]);
     this.undoRequest = null;
     this.broadcastUndoState();
     this.stopSeatClock();
@@ -2007,7 +2011,7 @@ export class DuelRoom extends Room implements PresenceSource {
       this.sendError(client, "match_not_ready", "Match not started");
       return;
     }
-    const view = getPlayerView(this.match, seat);
+    const view = this.playerView(this.match, seat);
     const welcome: WelcomeMessage = {
       protocolVersion: PROTOCOL_VERSION,
       matchId: this.matchId,
@@ -2038,6 +2042,17 @@ export class DuelRoom extends Room implements PresenceSource {
       });
       if (!this.ranked) client.send("rematch_state", this.rematchState());
     }
+  }
+
+  /** Player view; after game over the revealed hands follow each player's arranged order (#482). */
+  private playerView(match: MatchState, seat: Seat) {
+    const view = getPlayerView(match, seat);
+    if (!view.revealedHands) return view;
+    const [h0, h1] = view.revealedHands;
+    return {
+      ...view,
+      revealedHands: [applyHandOrder(h0, this.seatHandOrder[0]), applyHandOrder(h1, this.seatHandOrder[1])] as typeof view.revealedHands,
+    };
   }
 
   /**

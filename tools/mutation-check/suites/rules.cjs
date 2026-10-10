@@ -492,5 +492,10 @@ module.exports = {
     scn("eb05-010-blocker-allowed", "EB05-010", (a) => { delete a[0].eventTrigger.filter.textExcludes; }, ["does not trigger for a Wisdom Character with Blocker"]),
     scn("eb05-043-ko-only", "EB05-043", (a) => { a[0].effect.steps[1].options[1].effect = a[0].effect.steps[1].options[0].effect; }, ["or to rest it instead"]),
     scn("eb05-052-mandatory", "EB05-052", (a) => { a[0].replacement.optional = false; }, ["declining takes the damage and keeps Gloriosa"]),
+    // Game-over reveal (#482)
+    {"id": "reveal-always", "file": "packages/rules/src/engine/views.ts", "from": "...(state.winner !== null\n      ? {\n          revealedHands", "to": "...(true\n      ? {\n          revealedHands", "kills": ["sends no revealed hands or life while the match is live (#482)"]},
+    {"id": "reveal-never", "file": "packages/rules/src/engine/views.ts", "from": "...(state.winner !== null\n      ? {\n          revealedHands", "to": "...(false\n      ? {\n          revealedHands", "kills": ["sends both seats' hands and Life to each player once there is a winner (#482)", "gives a spectator the hands after the game even when hands are not revealed live (#482)"]},
+    {"id": "reveal-life-seats-swapped", "file": "packages/rules/src/engine/views.ts", "from": "revealedLife: [[...state.players[0].life], [...state.players[1].life]]", "to": "revealedLife: [[...state.players[1].life], [...state.players[0].life]]", "kills": ["sends both seats' hands and Life to each player once there is a winner (#482)"]},
+    {"id": "reveal-hands-seats-swapped", "file": "packages/rules/src/engine/views.ts", "from": "revealedHands: [0, 1].map((s) =>", "to": "revealedHands: [1, 0].map((s) =>", "kills": ["sends both seats' hands and Life to each player once there is a winner (#482)"]},
   ],
 };

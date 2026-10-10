@@ -1375,6 +1375,9 @@ module.exports = {
     { id: "top-bounties-see-all-not-linked", file: `${src}/home/TopBounties.tsx`, from: "<Link to=\"/leaderboard\" className=\"bounties-see-all\"", to: "<Link to=\"/\" className=\"bounties-see-all\"", kills: ["links its title and a See all link to the full leaderboard (#460)"] },
     { id: "top-bounties-see-all-unnamed", file: `${src}/home/TopBounties.tsx`, from: "aria-label=\"See full leaderboard\"", to: "aria-label=\"See all\"", kills: ["links its title and a See all link to the full leaderboard (#460)"] },
     { id: "top-bounties-shown-when-empty", file: `${src}/home/TopBounties.tsx`, from: "  if (entries.length === 0) return null;\n", to: "", kills: ["stays hidden when there are no ranked players (#460)"] },
+    // Game-over hand reveal (#482)
+    { id: "opp-corner-ignores-revealed-cards", file: `${src}/board/TurnStatusPanel.tsx`, from: "const card = cards?.[i];", to: "const card = undefined as { id: string; defId: string } | undefined;", kills: ["shows the corner hand face up instead of backs once the cards are revealed (#482)"] },
+    { id: "opp-compact-ignores-revealed-cards", file: `${src}/board/TurnStatusPanel.tsx`, from: "        {cards ? (\n          cards.slice(0, 10).map", to: "        {false ? (\n          cards!.slice(0, 10).map", kills: ["shows the compact rail hand face up once the cards are revealed (#482)"] },
     // Rematch deck pick (#479)
     { id: "rematch-pick-ignored", file: `${src}/board/RematchPanel.tsx`, from: "(id ? options.find((o) => o.id === id)?.wire : undefined)", to: "(id ? undefined : undefined)", kills: ["asks for a rematch with the picked deck at the player's own seat (#479)", "practice sends each seat's own pick (#479)"] },
     { id: "rematch-always-sends-deck", file: `${src}/board/RematchPanel.tsx`, from: "return decks[0] || decks[1] ? decks : undefined;", to: "return decks;", kills: ["keeps the same deck by default: no deck is sent (#479)"] },
