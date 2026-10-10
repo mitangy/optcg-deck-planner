@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { cloneElement, isValidElement, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { movePile, type DonPiles } from "./donPiles";
 import type {
   ChatLine,
@@ -1645,7 +1645,22 @@ export function DuelBoard({
       emptyHint={affordHint}
     />
   ) : replay ? (
-    <div className="intent-bar replay-bar">{replay.controls}</div>
+    <div className="intent-bar replay-bar">
+      {/* The result lives in the controls' own slim row here, so it never covers the board. */}
+      {isValidElement(replay.controls)
+        ? cloneElement(replay.controls as React.ReactElement<{ resultSlot?: ReactNode }>, {
+            resultSlot:
+              over && resultHidden ? (
+                <>
+                  <span className={`match-result-inline-text match-result-${result.outcome}`}>{result.headline}</span>
+                  <button type="button" className="replay-result-btn" onClick={() => setResultHidden(false)}>
+                    Show result
+                  </button>
+                </>
+              ) : null,
+          })
+        : replay.controls}
+    </div>
   ) : (
     <div className="intent-bar">
       <p className="intent-empty">
@@ -2834,7 +2849,7 @@ export function DuelBoard({
         />
       ) : null}
 
-      {over && resultHidden ? (
+      {over && resultHidden && !(replay && !(wide && !lp)) ? (
         <div
           className={`match-result-pill match-result-${result.outcome}${wide && !lp ? " match-result-pill-rail" : ""}`}
           role="status"

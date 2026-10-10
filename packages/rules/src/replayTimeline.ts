@@ -141,9 +141,10 @@ export function timelineStateAt(t: ReplayTimeline, step: number, near?: { step: 
 export function getReplayView(state: MatchState, o: { cameraSeat: Seat; viewerSeat: Seat; revealAll: boolean }) {
   const base = getSpectatorView(state, o.cameraSeat, { revealHands: true });
   const hands = base.revealedHands!;
+  // Once the game is over both hands are public (#482), as they were for anyone watching live.
   // A hand the viewer may not see keeps its size (the count is public) but not its cards or instance ids.
   const mask = (seat: Seat) =>
-    o.revealAll || seat === o.viewerSeat ? hands[seat] : hands[seat].map((_, i) => ({ id: `hidden-${seat}-${i}`, defId: HIDDEN_CARD }));
+    o.revealAll || seat === o.viewerSeat || state.winner !== null ? hands[seat] : hands[seat].map((_, i) => ({ id: `hidden-${seat}-${i}`, defId: HIDDEN_CARD }));
   return {
     ...base,
     revealedHands: [mask(0), mask(1)] as [{ id: string; defId: string }[], { id: string; defId: string }[]],

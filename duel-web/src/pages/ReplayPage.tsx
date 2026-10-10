@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
 import type { SeatPlayers } from "../net/protocol";
@@ -54,21 +54,30 @@ const FAILURE_COPY: Record<ReplayLoadFailure, { title: string; text: string }> =
   error: { title: "Replay unavailable", text: "Could not load this replay. Try again in a moment." },
 };
 
+/**
+ * One slim line inside the controls (never over the board). It exists for the whole viewing when the
+ * recording drifted or stops early, so the controls keep their size when its words change.
+ */
+function replayNote(status: { kind: string } | undefined, atEnd: boolean, matchId: string): ReactNode {
+  if (status?.kind === "drift") return <span title="Recorded on an older rules version; some moments may play differently.">Older rules: some moments may differ</span>;
+  if (status?.kind === "partial") {
+    return atEnd ? (
+      <>
+        <span>Stops here: card rules changed.</span> <Link to={`/history/${encodeURIComponent(matchId)}`}>Full log →</Link>
+      </>
+    ) : (
+      <span title="Card rules changed since this game, so the replay stops early.">Card rules changed: stops early</span>
+    );
+  }
+  return null;
+}
+
 /** The recording on the board once it is loaded; the engine work happens in `useReplay`. */
 function ReplayBoard({ payload }: { payload: ReplayPayload }) {
   const navigate = useNavigate();
   const replay: Replay = useReplay(payload);
   const players = useMemo<SeatPlayers>(() => [{ name: payload.players[0] }, { name: payload.players[1] }], [payload.players]);
   const matchId = payload.match_id;
-  const [driftSeen, setDriftSeen] = useState(false);
-  const showsDrift = replay.phase === "ready" && replay.status.kind === "drift";
-  // The older-rules notice is a heads-up, not a blocker: it fades out on its own.
-  useEffect(() => {
-    if (!showsDrift) return;
-    const id = window.setTimeout(() => setDriftSeen(true), 10_000);
-    return () => window.clearTimeout(id);
-  }, [showsDrift]);
-
   if (replay.phase === "unavailable") {
     const text =
       replay.status.reason === "schema"
@@ -99,25 +108,11 @@ function ReplayBoard({ payload }: { payload: ReplayPayload }) {
         battleLog={ready?.battleLog}
         waiting={ready ? undefined : { status: `Rebuilding the game… ${Math.round(replay.phase === "building" ? replay.progress * 100 : 100)}%` }}
         leaveLabel="Exit replay"
-        replay={ready ? { controls: <ReplayControls state={ready.controls} actions={ready.actions} />, quiet: ready.quiet } : undefined}
+        replay={ready ? { controls: <ReplayControls state={ready.controls} actions={ready.actions} note={replayNote(status, ready.atEnd, matchId)} reserveRow={payload.replay.end != null} />, quiet: ready.quiet } : undefined}
         onSendIntent={() => undefined}
         onLeave={() => navigate("/history")}
         onClearError={() => undefined}
       />
-      {ready && status?.kind === "drift" && !driftSeen && !ready.atEnd ? (
-        <p className="replay-banner" role="status">
-          <span className="replay-banner-text">Recorded on an older rules version; some moments may play differently.</span>
-          <button type="button" className="replay-banner-close" aria-label="Dismiss" onClick={() => setDriftSeen(true)}>
-            ✕
-          </button>
-        </p>
-      ) : null}
-      {ready && status?.kind === "partial" && ready.atEnd ? (
-        <p className="replay-banner replay-banner-stop" role="status">
-          <span className="replay-banner-text">The replay stops here: card rules changed since this game.</span>
-          <Link to={`/history/${encodeURIComponent(matchId)}`}>Read the full log →</Link>
-        </p>
-      ) : null}
     </div>
   );
 }

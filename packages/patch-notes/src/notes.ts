@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-09
-  { date: "2026-10-09", app: "duel", pr: 0, title: "Watch your games again", text: "Tap Watch on a game in Match history to replay it on the board, step by step or at your chosen speed. Switch between what you saw and both hands, and flip the board to either side." },
+  { date: "2026-10-09", app: "duel", pr: 488, title: "Watch your games again", text: "Tap Watch on a game in Match history to replay it on the board, step by step or at your chosen speed. Switch between what you saw and both hands, and flip the board to either side." },
   { date: "2026-10-09", app: "duel", pr: 484, title: "Hands and Life revealed at game end", text: "When a match ends, both hands and every Life card flip face up for players and spectators, so you can see what your opponent was holding." },
   { date: "2026-10-09", app: "duel", pr: 483, title: "Save button in the deck editor", text: "Editing a deck now has a Save button, and leaving with unsaved changes asks first. Edits you save to a deck copied from the planner now stay in your games instead of being replaced by the planner version." },
   { date: "2026-10-09", app: "duel", pr: 474, title: "An even bigger playing area", text: "With Bigger playing area on, computers lose the top bar (its menu is the ⋯ button in the side column) and both computers and landscape phones get wider two-row playmats with bigger cards. Press F for full screen." },

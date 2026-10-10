@@ -61,6 +61,10 @@ test("History offers Watch only on games that can be watched, and it opens the b
   const errors = await setUp(page);
   await page.goto("/history");
   await expect(page.getByRole("link", { name: /^Watch replay/ })).toHaveCount(1);
+  // A row without a recording keeps the Watch button's room, so every row ends at the same edge.
+  const widths = await page.locator(".history-item > .history-row-link").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
+  expect(widths).toHaveLength(2);
+  expect(widths[0]).toBe(widths[1]);
   await openFromHistory(page);
   expect(await stepNow(page)).toBe(0);
   await expect(page.locator(".board-root")).toBeVisible();
@@ -96,6 +100,30 @@ test("stepping moves the log, next turn moves the turn, and the keys do the same
   await expect.poll(() => stepNow(page)).toBe(before + 1);
   await page.keyboard.press("ArrowLeft");
   await expect.poll(() => stepNow(page)).toBe(before);
+});
+
+test("at the last step the result lives inside the controls on a phone and shows both hands (#476)", async ({ page }, info) => {
+  test.skip(info.project.name !== "phone-375", "the floating pill is a phone-layout concern");
+  await setUp(page);
+  await openFromHistory(page);
+  await page.getByRole("button", { name: "Next turn" }).click();
+  const max = await slider(page).getAttribute("max");
+  await slider(page).evaluate((el, v) => {
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    set.call(el, String(v));
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }, Number(max));
+  const show = page.getByRole("button", { name: "Show result" });
+  await expect(show).toBeVisible();
+  // Not a floating pill over the board: the button sits inside the controls group.
+  await expect(page.locator(".match-result-pill")).toHaveCount(0);
+  const group = await page.getByRole("group", { name: "Replay controls" }).boundingBox();
+  const btn = await show.boundingBox();
+  expect(btn!.y).toBeGreaterThanOrEqual(group!.y);
+  expect(btn!.y + btn!.height).toBeLessThanOrEqual(group!.y + group!.height);
+  // The game is over, so What I saw shows the other hand too (#482).
+  await expect(page.locator(FAR_FACE_DOWN)).toHaveCount(0);
+  await expect(page.locator(FAR_FACE_UP).first()).toBeVisible();
 });
 
 test("Play advances by itself and Pause stops it (#476)", async ({ page }) => {
@@ -183,6 +211,9 @@ test.describe("landscape phone", () => {
       expect(b!.x + b!.width, name).toBeLessThanOrEqual(vp.width);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    // Neither mode label is clipped by its half of the toggle.
+    const clipped = await page.locator(".replay-seg-btn").evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth).map((e) => e.textContent));
+    expect(clipped).toEqual([]);
     // The near hand keeps its room above the controls instead of hiding behind them.
     const hand = await page.locator(".rail-hand-cards .card-tile, .hand-fan-cards .card-tile").first().boundingBox();
     expect(hand).not.toBeNull();

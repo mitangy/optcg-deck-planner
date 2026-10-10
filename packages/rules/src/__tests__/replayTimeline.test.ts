@@ -96,6 +96,19 @@ describe("replay timeline", () => {
     }
   });
 
+  it("What I saw shows both hands once the game is over, and still hides them one step before (#476)", () => {
+    const last = timelineStateAt(t, t.steps.length);
+    expect(last.winner).not.toBeNull();
+    const over = getReplayView(last, { cameraSeat: 0, viewerSeat: viewer, revealAll: false });
+    expect(over.revealedHands[1].map((c) => c.id)).toEqual(handIds(last, 1));
+    expect(over.revealedLife).toBeDefined();
+    const before = timelineStateAt(t, t.steps.length - 1);
+    expect(before.winner).toBeNull();
+    const live = getReplayView(before, { cameraSeat: 0, viewerSeat: viewer, revealAll: false });
+    expect(live.revealedHands[1].every((c) => c.defId === "HIDDEN")).toBe(true);
+    expect(live.revealedLife).toBeUndefined();
+  });
+
   it("Reveal all shows both hands (#476)", () => {
     const state = timelineStateAt(t, midGame);
     const view = getReplayView(state, { cameraSeat: 1, viewerSeat: viewer, revealAll: true });

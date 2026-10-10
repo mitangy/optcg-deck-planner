@@ -69,7 +69,7 @@ export function replayKeyAction(e: Pick<KeyboardEvent, "key" | "code" | "shiftKe
 /** Controls whose own keys (or Space) must win over the replay's. */
 const OWN_KEYS = "input, select, textarea, [contenteditable=true], [role=dialog], [aria-modal=true]";
 
-export function ReplayControls({ state, actions }: { state: ReplayControlsState; actions: ReplayControlsActions }) {
+export function ReplayControls({ state, actions, note = null, resultSlot = null, reserveRow = false }: { state: ReplayControlsState; actions: ReplayControlsActions; note?: ReactNode; resultSlot?: ReactNode; reserveRow?: boolean }) {
   const { step, total, turn, turns, playing, speed, revealAll, yourSeat, cameraSeat, playerNames } = state;
   // Desktop has room for every control; phones keep the transport, scrubber and mode toggle, and tuck the rest behind More.
   const compact = !useMediaQuery(DESKTOP_BOARD_QUERY);
@@ -140,6 +140,11 @@ export function ReplayControls({ state, actions }: { state: ReplayControlsState;
 
   return (
     <div className={`replay-controls${compact ? " replay-compact" : ""}`} role="group" aria-label="Replay controls">
+      {note || reserveRow ? (
+        <p className="replay-note" role="status">
+          {resultSlot ?? note}
+        </p>
+      ) : null}
       <div className="replay-row replay-transport">
         <button type="button" className="replay-btn" aria-label="Previous turn" title="Previous turn (Shift+←)" onClick={actions.prevTurn} disabled={step === 0}>
           {ICONS.prevTurn}
