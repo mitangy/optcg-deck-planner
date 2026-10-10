@@ -958,7 +958,11 @@ export function DemoPage() {
       ? {
           enabled: true,
           targetTurn: 3,
-          pending: params.get("undo") === "ask" ? { from: 1, toTurn: 2 } : null,
+          action: { seat: params.get("undo") === "ask" ? 1 : 0, label: params.get("undo") === "ask" ? "attack with Zoro" : "play Nami" },
+          pending:
+            params.get("undo") === "ask"
+              ? { from: 1, toTurn: 3, action: { seat: 1, label: "attack with Zoro" } }
+              : null,
         }
       : null,
   );
@@ -1086,7 +1090,9 @@ export function DemoPage() {
                       ? {
                           ...u,
                           pending:
-                            action === "request" ? { from: 0, toTurn: u.targetTurn ?? 1 } : null,
+                            action === "request"
+                              ? { from: 0, toTurn: u.targetTurn ?? 1, action: u.action }
+                              : null,
                         }
                       : u,
                   ),

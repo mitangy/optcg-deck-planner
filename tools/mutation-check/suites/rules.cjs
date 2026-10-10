@@ -4,6 +4,7 @@
  * Keep one entry per claimed behavior when adding tests (see ../README.md).
  */
 
+const R = "packages/rules/src/revealsHiddenInfo.ts";
 const GF = "packages/rules/src/sim/goldfish.ts";
 const ABILITIES = "packages/rules/src/cards/generated/abilities.json";
 const MANUAL = "packages/rules/src/cards/manualAbilities.ts";
@@ -497,5 +498,14 @@ module.exports = {
     {"id": "reveal-never", "file": "packages/rules/src/engine/views.ts", "from": "...(state.winner !== null\n      ? {\n          revealedHands", "to": "...(false\n      ? {\n          revealedHands", "kills": ["sends both seats' hands and Life to each player once there is a winner (#482)", "gives a spectator the hands after the game even when hands are not revealed live (#482)"]},
     {"id": "reveal-life-seats-swapped", "file": "packages/rules/src/engine/views.ts", "from": "revealedLife: [[...state.players[0].life], [...state.players[1].life]]", "to": "revealedLife: [[...state.players[1].life], [...state.players[0].life]]", "kills": ["sends both seats' hands and Life to each player once there is a winner (#482)"]},
     {"id": "reveal-hands-seats-swapped", "file": "packages/rules/src/engine/views.ts", "from": "revealedHands: [0, 1].map((s) =>", "to": "revealedHands: [1, 0].map((s) =>", "kills": ["sends both seats' hands and Life to each player once there is a winner (#482)"]},
+    // Undo stops at revealed cards (#497)
+    {"id": "reveals-always", "file": R, "from": "  const turnDrawn = new Set<InstanceId>();", "to": "  if (events.length >= 0) return true;\n  const turnDrawn = new Set<InstanceId>();", "kills": ["playing a vanilla card from hand reveals nothing (#497)", "the Draw Phase draw does not count, so an accidental end turn stays undoable (#497)"]},
+    {"id": "reveals-never", "file": R, "from": "  const turnDrawn = new Set<InstanceId>();", "to": "  if (events.length >= 0) return false;\n  const turnDrawn = new Set<InstanceId>();", "kills": ["an effect that draws a card reveals hidden info (#497)", "looking at the top of the deck reveals hidden info (#497)", "taking a Life card reveals hidden info (#497)"]},
+    {"id": "reveals-ignores-card-revealed", "file": R, "from": "  if (events.some((e) => e.type === \"card_revealed\")) return true;\n", "to": "", "kills": ["a revealed card counts even when no zone changed (#497)"]},
+    {"id": "reveals-ignores-deck-draw", "file": R, "from": "    for (const id of b.zoneInstanceIds.deck) if (!deckAfter.has(id) && !turnDrawn.has(id)) return true;\n", "to": "", "kills": ["an effect that draws a card reveals hidden info (#497)"]},
+    {"id": "reveals-turn-draw-counts", "file": R, "from": "if (!deckAfter.has(id) && !turnDrawn.has(id)) return true;", "to": "if (!deckAfter.has(id)) return true;", "kills": ["the Draw Phase draw does not count, so an accidental end turn stays undoable (#497)"]},
+    {"id": "reveals-ignores-life-taken", "file": R, "from": "    for (const id of b.zoneInstanceIds.life) if (!lifeAfter.has(id)) return true;\n", "to": "", "kills": ["a Life card leaving Life counts on its own, and so does turning one face up (#497)"]},
+    {"id": "reveals-ignores-life-face-up", "file": R, "from": "      if (a.faceUpLife[i] === true && faceUpBefore.get(a.zoneInstanceIds.life[i]!) === false) return true;\n", "to": "", "kills": ["a Life card leaving Life counts on its own, and so does turning one face up (#497)"]},
+    {"id": "reveals-ignores-looks", "file": R, "edits": [{"file": R, "from": "    if (c.privateToSeat != null) return true;\n", "to": ""}, {"file": R, "from": "    if (c.bindings && Object.values(c.bindings).some((v) => typeof v === \"string\" && secret.has(v))) return true;\n", "to": ""}], "kills": ["looking at the top of the deck reveals hidden info (#497)"]},
   ],
 };
