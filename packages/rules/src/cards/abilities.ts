@@ -111,10 +111,14 @@ export function programFor(abilityId: string): Program {
   if (hit) return hit;
   const entry = abilityById(abilityId);
   if (!entry) throw new Error(`Unknown ability ${abilityId}`);
-  const optionalCosts = entry.ability.trigger !== "activate_main";
-  const program = compileAbilityProgram(entry.ability, { optionalCosts });
+  const program = compileAbility(entry.ability);
   programs.set(abilityId, program);
   return program;
+}
+
+/** The program the engine runs for an ability: triggered abilities with costs ask before paying, Activate: Main pays up front. */
+export function compileAbility(ability: Ability): Program {
+  return compileAbilityProgram(ability, { optionalCosts: ability.trigger !== "activate_main" });
 }
 
 /** Compiled "instead" body of a replacement ability. */

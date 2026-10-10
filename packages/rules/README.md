@@ -36,7 +36,13 @@ npm run export-atlas # writes mobile/assets/cardAtlas.json
 SIM_GAMES=200 npm run sim
 npm run scenario-coverage             # supported cards no test mentions, by set (a to-do list, not a gate)
 npm run scenario-coverage -- --summary OP01 EB01
+npm run lint:programs                 # static lints over every compiled card program (also a vitest: programLint.test.ts)
+npm run lint:programs -- --all        # also list the allowlisted findings and why
 ```
+
+`lint:programs` reports a card that reads a variable no earlier step writes, and an "if you do / if they do not" payoff
+gated on a `may` that is not a cost (accepting and paying partly still pays off). Accepted findings live in
+`src/tools/cardText/programLintAllowlist.ts`, keyed by ability id, each with a reason.
 
 ## Golden replays
 
