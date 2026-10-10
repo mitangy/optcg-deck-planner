@@ -564,6 +564,20 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
   };
 }
 
+/** `?over`: the game-over reveal (#482), both hands and every Life card, as the server sends it. */
+function withGameOverReveal(base: PlayerView): PlayerView {
+  const sample = ["OP16-108", "OP09-082", "ST01-003", "ST01-009", "ST01-006", "ST01-014"];
+  const cycle = (n: number, offset: number) => Array.from({ length: n }, (_, i) => sample[(i + offset) % sample.length]!);
+  return {
+    ...base,
+    revealedHands: [
+      base.you.hand.map((c) => ({ id: c.id, defId: c.defId })),
+      cycle(base.opponent.handCount, 2).map((defId, i) => ({ id: `o-h${i + 1}`, defId })),
+    ],
+    revealedLife: [cycle(base.you.lifeCount, 1), cycle(base.opponent.lifeCount, 3)],
+  };
+}
+
 /** `?full`: a full board, so playing a Character asks which one to replace. */
 function withFullBoard(base: PlayerView): PlayerView {
   const extra = [
@@ -927,12 +941,13 @@ export function DemoPage() {
   const [haki, setHaki] = useState<"hand" | "asking" | "done">("hand");
   // `?counter=block`: the block step until No block (or a Counter drag) passes it.
   const [blockPassed, setBlockPassed] = useState(false);
-  const shown: PlayerView =
+  const live: PlayerView =
     haki !== "hand"
       ? withHakiResolving(view, haki === "asking")
       : params.get("counter") === "block" && !blockPassed
         ? withBlockStep(view)
         : view;
+  const shown: PlayerView = params.has("over") ? withGameOverReveal(live) : live;
   // `?motion`: one state per click; Replay remounts the board to replay the deal.
   const motionSteps = useMemo(() => (params.has("motion") ? motionDemoSteps(view) : null), []);
   const [motionStep, setMotionStep] = useState(0);

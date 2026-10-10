@@ -69,6 +69,8 @@ export function projectPendingChoice(choice: PendingChoice, viewerSeat: Seat | n
   return projected;
 }
 
+type HandCard = { id: string; defId: string };
+
 export function getPlayerView(state: MatchState, seat: Seat) {
   const you = state.players[seat];
   const oppSeat = otherSeat(seat);
@@ -128,16 +130,23 @@ export function getPlayerView(state: MatchState, seat: Seat) {
     winner: state.winner,
     winReason: state.winReason,
     legalIntents: listLegalIntents(state, seat),
+    // Once the match is over nothing is left to protect (#482): both hands and every Life card
+    // ride along, indexed by seat. Absent entirely while the game is live.
+    ...(state.winner !== null
+      ? {
+          revealedHands: [0, 1].map((s) => state.players[s as Seat].hand.map((c): HandCard => ({ id: c.id, defId: c.defId }))) as [HandCard[], HandCard[]],
+          revealedLife: [[...state.players[0].life], [...state.players[1].life]] as [string[], string[]],
+        }
+      : null),
   };
 }
-
-type HandCard = { id: string; defId: string };
 
 /**
  * Spectator view from `cameraSeat`. `you.hand` stays empty and the opponent has
  * no `hand`, so clients that guard against hand leaks keep working. With
  * `revealHands` (unranked rooms) both hands ride along as `revealedHands`,
- * indexed by seat.
+ * indexed by seat. After the game ends (`winner` set) every view, ranked or not,
+ * carries `revealedHands` and `revealedLife` (#482).
  */
 export function getSpectatorView(state: MatchState, cameraSeat: Seat = 0, opts: { revealHands?: boolean } = {}) {
   const base = getPlayerView(state, cameraSeat);

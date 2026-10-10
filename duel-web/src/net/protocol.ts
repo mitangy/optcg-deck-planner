@@ -342,8 +342,10 @@ export type PlayerView = {
   winner: Seat | null;
   winReason: string | null;
   legalIntents: Intent[];
-  /** Spectators of unranked rooms: both hands, indexed by seat. */
+  /** Spectators of unranked rooms, and every viewer once the match is over (#482): both hands, indexed by seat. */
   revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+  /** Once the match is over (#482): every Life card's defId, in life order, indexed by seat. */
+  revealedLife?: [string[], string[]];
 };
 
 export function isProtocolVersion(v: unknown): v is ProtocolVersion {

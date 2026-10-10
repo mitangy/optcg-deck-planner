@@ -1279,6 +1279,12 @@ export function DuelBoard({
   const oppHandOnMat = wide && !lp && !farHand && prefs.oppHandSpot ? prefs.oppHandSpot : null;
   /** Phones: "Opponent hand, top right" moves its row to the right of the opponent's half. */
   const oppHandRight = prefs.oppHandSpot === "right" && !farHand;
+  // Match over (#482): the hand flips face up in place. Layout keeps keying off `farHand`
+  // (spectators only) so nothing moves at game over.
+  const shownFarHand = farHand ?? (over ? view.revealedHands?.[oppSeat] : undefined);
+  const revealLife = over ? view.revealedLife : undefined;
+  const lifeFaceUp = (seat: Seat, fallback: typeof opp.faceUpLife) =>
+    revealLife ? revealLife[seat].map((defId, index) => ({ index, defId })) : fallback;
   const viewingSeat: Seat | undefined = spectating ? undefined : boardSeat;
   // Older servers omit firstSeat; they always started seat 0.
   const firstSeat: Seat = view.firstSeat ?? 0;
@@ -1679,7 +1685,7 @@ export function DuelBoard({
       <OppHandFan
         count={opp.handCount}
         cardBackUrl={oppCardBackUrl}
-        cards={farHand}
+        cards={shownFarHand}
         ownerSeat={oppSeat}
       />
     ),
@@ -2233,15 +2239,15 @@ export function DuelBoard({
                   dragging={panelDrag.draggingId === "oppHand"}
                   grip={prefs.layoutGrips ? panelDrag.gripProps("oppHand") : null}
                 >
-                  <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="mat" />
+                  <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="mat" cards={shownFarHand} ownerSeat={oppSeat} />
                 </SidePanel>
               </div>
             ) : oppHandRight ? (
               <div className="opp-hand-hint opp-hand-hint-right">
-                <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" />
+                <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" cards={shownFarHand} ownerSeat={oppSeat} />
               </div>
             ) : (
-              <OppHandHint count={opp.handCount} cardBackUrl={oppCardBackUrl} cards={farHand} ownerSeat={oppSeat} />
+              <OppHandHint count={opp.handCount} cardBackUrl={oppCardBackUrl} cards={shownFarHand} ownerSeat={oppSeat} />
             )}
 
             <SideField
@@ -2264,7 +2270,7 @@ export function DuelBoard({
                 deckCount: opp.deckCount,
                 trash: opp.trash,
                 lifeCount: opp.lifeCount,
-                faceUpLife: opp.faceUpLife,
+                faceUpLife: lifeFaceUp(oppSeat, opp.faceUpLife),
                 donDeckCount: opp.donDeckCount,
                 costAreaCount: opp.costAreaCount,
                 activeDonCount: opp.activeDonCount,
@@ -2311,7 +2317,7 @@ export function DuelBoard({
                 deckCount: you.deckCount,
                 trash: you.trash,
                 lifeCount: you.lifeCount,
-                faceUpLife: you.faceUpLife,
+                faceUpLife: lifeFaceUp(boardSeat, you.faceUpLife),
                 donDeckCount: you.donDeckCount,
                 costArea: you.costArea,
                 activeDonCount: you.activeDonCount,
@@ -2410,13 +2416,13 @@ export function DuelBoard({
                 name={seatLabel(players, oppSeat)}
               />
             ) : oppHandRight ? (
-              <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" />
+              <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" cards={shownFarHand} ownerSeat={oppSeat} />
             ) : (
               <OppHandFan
                 count={opp.handCount}
                 cardBackUrl={oppCardBackUrl}
                 compact
-                cards={farHand}
+                cards={shownFarHand}
                 ownerSeat={oppSeat}
               />
             )}
