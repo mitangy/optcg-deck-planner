@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -44,8 +44,8 @@ jobs:
       run:
         working-directory: duel-web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -61,8 +61,8 @@ jobs:
       run:
         working-directory: duel-web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -81,21 +81,28 @@ jobs:
           exit 1
       - name: Layout check
         run: node scripts/layout-check.mjs http://localhost:4173 layout-shots
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: duel-web-layout-shots
           path: duel-web/layout-shots
           if-no-files-found: ignore
 
-  duel-web-e2e:
+  duel-web-e2e-shard:
     # Click-through tests: duel-web in Chromium against a real local game
     # server (the FastAPI backend is faked in the browser). See duel-web/e2e/README.md.
+    # Split three ways so the suite's wall time is a third of a single job's (#485);
+    # each shard is its own runner, so the fixed ports never collide. The
+    # `duel-web-e2e` job below is the one PRs require.
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -107,16 +114,34 @@ jobs:
         working-directory: duel-web
       - run: npx playwright install --with-deps chromium
         working-directory: duel-web
-      - run: npx playwright test
+      - run: npx playwright test --shard=${{ matrix.shard }}/3
         working-directory: duel-web
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: duel-web-e2e-report
+          name: duel-web-e2e-report-${{ matrix.shard }}
           path: |
             duel-web/playwright-report
             duel-web/test-results
           if-no-files-found: ignore
+
+  duel-web-e2e:
+    # Aggregates the shards under the original check name, so branch protection
+    # and the PR checks list keep one `duel-web-e2e`. `!cancelled()` makes it
+    # run (and fail) when a shard fails or times out instead of being skipped,
+    # but not when a newer push cancels the whole run (always() would post a
+    # red check on the superseded commit).
+    needs: duel-web-e2e-shard
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every shard to pass
+        env:
+          SHARDS_RESULT: ${{ needs.duel-web-e2e-shard.result }}
+        run: |
+          echo "duel-web-e2e shards: ${SHARDS_RESULT}"
+          test "${SHARDS_RESULT}" = "success"
 
   frontend-e2e:
     # Click-through and layout-audit tests: the planner SPA in Chromium at 1200px
@@ -128,8 +153,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -138,7 +163,7 @@ jobs:
       - run: npx tsc -p e2e
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test --grep-invert @visual
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: frontend-e2e-report
@@ -157,8 +182,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -166,7 +191,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e:visual
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: frontend-visual-diffs
@@ -182,8 +207,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -199,8 +224,8 @@ jobs:
       run:
         working-directory: mobile
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -213,8 +238,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version-file: backend/.python-version
           cache: "pip"
@@ -253,8 +278,8 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version-file: backend/.python-version
           cache: "pip"
@@ -269,3 +294,79 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/optcg_test
         run: python -m pytest -q
+
+  mutation-proofs:
+    # Pull requests only: re-proves the mutation entries this PR adds or changes
+    # (tools/mutation-check/changed.cjs), so a new test cannot merge without a
+    # mutation that kills it. Installs only what the changed suites need, and
+    # finishes in seconds when no entry changed. Playwright suites (duel-e2e,
+    # frontend-e2e) are skipped here; run those locally.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Find the base the PR merges into
+        # The checkout is the PR's test merge commit, whose first parent is the
+        # base branch as GitHub merged it. pull_request.base.sha can be older
+        # than that (it isn't updated when the base moves), and diffing against
+        # it re-runs every mutation main gained since.
+        run: |
+          if git rev-parse -q --verify HEAD^2 >/dev/null; then
+            echo "BASE_SHA=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
+          else
+            echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Find changed mutations
+        id: changed
+        run: |
+          set -o pipefail
+          node tools/mutation-check/changed.cjs "$BASE_SHA" --list | tee "$RUNNER_TEMP/changed.txt"
+          # Lines look like "suite: id, id"; match the suite name before the colon.
+          need() { grep -qE "^($1):" "$RUNNER_TEMP/changed.txt" && echo true || echo false; }
+          {
+            echo "root=$(need 'rules|deck-analytics|patch-notes|analyst-client|analyst|game-server')"
+            echo "duel_web=$(need 'duel-web')"
+            echo "frontend=$(need 'frontend')"
+            echo "mobile=$(need 'mobile')"
+            echo "backend=$(need 'backend')"
+            echo "any=$(need 'rules|deck-analytics|patch-notes|analyst-client|analyst|game-server|duel-web|frontend|mobile|backend|importer|cosmetics')"
+          } >> "$GITHUB_OUTPUT"
+      - name: Install root workspace deps
+        if: steps.changed.outputs.root == 'true'
+        run: npm ci
+      - name: Install duel-web deps
+        if: steps.changed.outputs.duel_web == 'true'
+        run: npm ci
+        working-directory: duel-web
+      - name: Install frontend deps
+        if: steps.changed.outputs.frontend == 'true'
+        run: npm ci
+        working-directory: frontend
+      - name: Install mobile deps
+        if: steps.changed.outputs.mobile == 'true'
+        run: npm ci
+        working-directory: mobile
+      - uses: actions/setup-python@v7
+        if: steps.changed.outputs.backend == 'true'
+        with:
+          python-version-file: backend/.python-version
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend deps
+        if: steps.changed.outputs.backend == 'true'
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+          # run.cjs's pytest runner reads this; the importer and cosmetics
+          # suites use plain python3 (standard library only).
+          echo "BACKEND_PYTHON=$(which python)" >> "$GITHUB_ENV"
+      - name: Run changed mutation proofs
+        if: steps.changed.outputs.any == 'true'
+        run: node tools/mutation-check/changed.cjs "$BASE_SHA"

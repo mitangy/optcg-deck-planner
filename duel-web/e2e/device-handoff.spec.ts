@@ -85,7 +85,12 @@ async function practiceScenario({ page, duel, browser }: { page: Page; duel: Par
   await page.getByRole("button", { name: "Play here instead" }).click();
   await expect(page.getByRole("alertdialog")).toHaveCount(0, { timeout: 30_000 });
   await expect(b.page.getByRole("alertdialog")).toContainText("Continued on another device", { timeout: 30_000 });
-  expect((await board(page)).phase).toBe((await board(b.page)).phase);
+  // Both show the same game. Taking over rebuilds A's board from scratch: the notice goes as soon as
+  // the socket is back, and until the first state arrives the board is the "waiting" placeholder
+  // (data-phase="waiting"). So wait for A to catch up to B's phase rather than reading it once.
+  const phaseOnB = (await board(b.page)).phase;
+  expect(phaseOnB).not.toBe("waiting");
+  await expect.poll(async () => (await board(page)).phase, { timeout: 30_000 }).toBe(phaseOnB);
   await b.ctx.close();
   expect(duel.errors).toEqual([]);
 }
