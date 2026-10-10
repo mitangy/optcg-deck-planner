@@ -170,6 +170,8 @@ export async function refreshLinkedDeck(
   fetchDeck: (id: number, timeoutMs: number) => Promise<PlannerDeckDetail> = fetchPlannerDeck,
 ): Promise<SavedDeck> {
   if (!deck.plannerDeckId) return deck;
+  // Edits saved in the deck editor win over the planner's version (#481).
+  if (deck.editedLocally) return deck;
   try {
     const result = importPlannerDeckDetail(await fetchDeck(deck.plannerDeckId, timeoutMs));
     return result.ok ? result.deck : deck;

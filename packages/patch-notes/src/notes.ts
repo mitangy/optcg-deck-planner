@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-09
   { date: "2026-10-09", app: "duel", pr: 484, title: "Hands and Life revealed at game end", text: "When a match ends, both hands and every Life card flip face up for players and spectators, so you can see what your opponent was holding." },
+  { date: "2026-10-09", app: "duel", pr: 483, title: "Save button in the deck editor", text: "Editing a deck now has a Save button, and leaving with unsaved changes asks first. Edits you save to a deck copied from the planner now stay in your games instead of being replaced by the planner version." },
   { date: "2026-10-09", app: "duel", pr: 474, title: "An even bigger playing area", text: "With Bigger playing area on, computers lose the top bar (its menu is the ⋯ button in the side column) and both computers and landscape phones get wider two-row playmats with bigger cards. Press F for full screen." },
   { date: "2026-10-09", app: "duel", pr: 480, title: "Switch decks for a rematch", text: "When you ask for or accept a rematch you can now pick a different deck first. Your opponent sees that you're bringing a new deck." },
   { date: "2026-10-09", app: "both", pr: 473, title: "Log Pose sees the whole game in reviews", text: "Game reviews now see your hand, both boards, Life and DON!! each turn, both deck lists and the text of every card, so Log Pose can tell you which counters you held and what the opponent was doing. The opponent's hand and deck list are shown only once the game is over." },
