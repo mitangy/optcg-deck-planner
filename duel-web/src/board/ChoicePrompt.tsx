@@ -7,7 +7,7 @@ import { arrangementAnswer, arrangementRows, groupAnswer, initialArrangement, me
 import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "./liveTargets";
 import { promptSourceName, PromptHideButton } from "./HideablePrompt";
 import { promptBody } from "./promptText";
-import { boardPickSpots, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo, type BoardPick, type BoardSpot } from "./fieldTargets";
+import { answersAtPick, boardPickSpots, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo, type BoardPick, type BoardSpot } from "./fieldTargets";
 import { FieldTargetBar } from "./FieldTargetBar";
 import { useDuelSettings } from "../settings";
 import { useConfirmKeys } from "./useBoardHotkeys";
@@ -346,13 +346,14 @@ function useSelectPicks(request: Extract<ChoiceRequestView, { type: "select" }>,
   const oneTap = useDuelSettings().oneTapActions;
   const [selected, setSelected] = useState<string[]>([]);
   const answer = (ids: string[]) => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
-  // One-tap: with exactly one pick wanted, picking it is the answer.
   // "With different card names": a card whose name is already picked can't be added.
   const taken = nameTakenIds(request.options, selected, request.distinctNames, cardName);
   const toggle = (id: string) => {
     if (taken.has(id)) return;
-    if (resolvesOnPick(oneTap, request.min, request.max)) return answer([id]);
-    setSelected((cur) => toggleSelection(cur, id, request.max));
+    const next = toggleSelection(selected, id, request.max);
+    // One-tap: with exactly N picks wanted, the Nth pick is the answer.
+    if (!selected.includes(id) && answersAtPick(oneTap, request.min, request.max, next.length)) return answer(next);
+    setSelected(next);
   };
   const valid = selected.length >= request.min && selected.length <= request.max;
   const boardIds = request.options.filter((o) => o.eligible && o.instanceId && !taken.has(o.id)).map((o) => o.instanceId!);
@@ -496,8 +497,9 @@ function FieldSelectBar({ request, choice, spots, onSend }: {
   const open = taken.size ? new Map([...spots].filter(([id]) => !taken.has(id))) : spots;
   useBoardSpotClicks(open, (spot, chipId) => {
     const next = tapBoardSpot(pick, open, spot, request.max, chipId);
-    // One-tap: with exactly one pick wanted, picking it is the answer.
-    if (oneTap && next.selected.length === 1 && !pick.selected.includes(next.selected[0]!)) return answer(next.selected);
+    // One-tap: with exactly N picks wanted, the Nth pick is the answer.
+    const added = next.selected.some((id) => !pick.selected.includes(id));
+    if (added && answersAtPick(oneTapSetting, request.min, request.max, next.selected.length)) return answer(next.selected);
     setPick(next);
   });
   const { selected } = pick;

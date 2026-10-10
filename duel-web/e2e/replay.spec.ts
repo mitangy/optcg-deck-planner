@@ -215,7 +215,7 @@ test.describe("landscape phone", () => {
     const clipped = await page.locator(".replay-seg-btn").evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth).map((e) => e.textContent));
     expect(clipped).toEqual([]);
     // The near hand keeps its room above the controls instead of hiding behind them.
-    const hand = await page.locator(".rail-hand-cards .card-tile, .hand-fan-cards .card-tile").first().boundingBox();
+    const hand = await page.locator(".rail-hand-cards .card-tile, .hand-fan-cards .card-tile, .rail-hand-spec .card-tile").first().boundingBox();
     expect(hand).not.toBeNull();
     expect(hand!.y + hand!.height).toBeLessThanOrEqual(box!.y + 1);
     await page.screenshot({ path: info.outputPath("replay-landscape.png") });

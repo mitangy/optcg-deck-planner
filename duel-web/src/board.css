@@ -5520,17 +5520,21 @@ body.is-panel-drag * {
   z-index: 92;
 }
 
-/* Portrait phones: a strip above the top mat, smaller than the near one. */
-@media (max-width: 899px) and (orientation: portrait) {
-  .arena.arena-spec-top:not(.arena-wide) {
-    --fan-cw: clamp(48px, 14vw, 72px);
-    --fan-ch: calc(var(--fan-cw) * 1.4);
-  }
+/* Phones: both hands are grids of small upright cards (SpectatorFarHand grid
+   mode, and the plain hand row for the near hand), so the height the two fans
+   took goes to the mats. One shared card size, in px so the hint row can add
+   it up. */
+.arena.arena-spec-grid {
+  --spec-cw: clamp(40px, 12.5vw, 56px);
+  --spec-ch: calc(var(--spec-cw) * 1.4);
+}
 
-  .arena.arena-spec-top:not(.arena-wide) .playmat {
-    /* Under the Chat button and Battle log pill, which float over the top of the board. */
+/* Portrait: the far row sits under the Chat button and Battle log pill, which
+   float over the top of the board. */
+@media (max-width: 899px) and (orientation: portrait) {
+  .arena.arena-spec-grid:not(.arena-wide) .playmat {
     --spec-pills: 2.4rem;
-    --hint-h: calc(var(--fan-ch) * 1.1 + 4px + var(--spec-pills));
+    --hint-h: calc(var(--spec-ch) + 4px + var(--spec-pills));
   }
 }
 
@@ -5580,11 +5584,41 @@ body.is-panel-drag * {
   transform: translateY(calc(var(--drop, 0) * var(--fan-ch) * -1 + 12px)) rotate(calc(var(--rot, 0deg) * -1));
 }
 
-/* Portrait phones: full-width overlapped strip, like the near one. */
-.arena .spec-far-portrait .spec-far-cards {
+/* The grid: cards side by side, no overlap, rotation or drop. A hand wider than
+   the row scrolls sideways (never wraps) so the mats do not move as it grows. */
+.arena .spec-far-grid .spec-far-cards {
+  --fan-cw: var(--spec-cw);
+  --fan-ch: var(--spec-ch);
   width: 100%;
-  padding-inline: calc(var(--fan-cw) * 0.3);
-  --fan-gap: 0.4rem;
+  gap: 4px;
+  padding-inline: 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.arena .spec-far-grid .spec-far-cards::-webkit-scrollbar {
+  display: none;
+}
+
+/* Centred while it fits (auto margins collapse to nothing once it overflows). */
+.arena .spec-far-grid .spec-far-cards > :first-child {
+  margin-left: auto;
+}
+
+.arena .spec-far-grid .spec-far-cards > :last-child {
+  margin-right: auto;
+}
+
+.arena .spec-far-grid .spec-far-cards > * {
+  transform: none;
+  margin-left: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.arena .spec-far-grid .spec-far-cards > .card-tile:hover,
+.arena .spec-far-grid .spec-far-cards > .card-tile:focus-visible {
+  transform: none;
 }
 
 /* Portrait phones: both labels are centred over their strip. The far one sits
@@ -5607,34 +5641,54 @@ body.is-panel-drag * {
   justify-content: center;
 }
 
-.arena .spec-far-portrait .spec-far-cards.spec-far-scroll {
-  justify-content: flex-start;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-  gap: 0.3rem;
+/* Tiles this small keep their cost and power readable: a one-line name and
+   smaller badges than the hand's usual caption. */
+.arena .spec-far-grid .card-caption,
+.arena .hand-row-spec-grid .card-caption {
+  padding: 1px 2px;
 }
 
-.arena .spec-far-portrait .spec-far-cards.spec-far-scroll > * {
-  transform: none;
-  margin-left: 0;
+.arena .spec-far-grid .card-caption .name,
+.arena .hand-row-spec-grid .card-caption .name {
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: calc(var(--spec-cw) * 0.15);
+  line-height: 1.15;
 }
 
-/* Landscape phones: two small fans in the right column, the far one on top.
-   The mats are height-bound there and leave side margins, so the column
-   widens to give the overlapped cards room to show their cost and power. */
+.arena .spec-far-grid .card-caption .meta,
+.arena .hand-row-spec-grid .card-caption .meta {
+  font-size: calc(var(--spec-cw) * 0.14);
+  line-height: 1.1;
+}
+
+.arena .spec-far-grid .power-badge,
+.arena .hand-row-spec-grid .power-badge {
+  top: 2px;
+  right: 2px;
+  padding: 0 2px;
+  font-size: calc(var(--spec-cw) * 0.17);
+  line-height: 1.2;
+}
+
+/* Landscape phones: both hands are wrapping grids in the right column, the far
+   one on top. The mats are height-bound there and leave side margins, so the
+   column widens to give the cards room to show their cost and power. */
 .arena.arena-lp.arena-spec-lp {
   --rail-w: clamp(200px, 30vw, 260px);
 }
 
+.arena.arena-lp.arena-spec-grid {
+  --spec-cw: clamp(34px, 11vh, 44px);
+}
+
 .arena .spec-far-landscape {
-  --fan-cw: clamp(40px, 13vh, 52px);
-  --fan-ch: calc(var(--fan-cw) * 1.4);
   --hint-h: auto;
   height: auto;
   flex-direction: column;
   align-items: stretch;
-  padding: 0.2rem 0 calc(var(--fan-ch) * 0.1);
+  padding: 0.2rem 0 0.25rem;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent);
 }
@@ -5646,30 +5700,77 @@ body.is-panel-drag * {
 }
 
 .arena .spec-far-landscape .hand-label,
-.arena .rail-hand-fan > .hand-label-head .hand-label {
+.arena .rail-hand-spec > .hand-label-head .hand-label {
   min-height: 1.3rem;
   padding: 0 0.5rem;
   font-size: 0.62rem;
 }
 
-.arena .rail-hand-fan > .hand-label-head {
+.arena .rail-hand-spec > .hand-label-head {
   padding: 0.2rem 0.5rem 0;
 }
 
-.arena .spec-far-landscape .spec-far-cards {
-  width: 100%;
-  margin-top: calc(var(--fan-ch) * 0.1);
-  padding-inline: calc(var(--fan-cw) * 0.3);
-  --fan-gap: 0.25rem;
+.arena .spec-far-landscape.spec-far-grid .spec-far-cards {
+  height: auto;
+  margin-top: 0.2rem;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  overflow: visible;
+  padding-inline: 0.5rem;
 }
 
-.arena.arena-spec-lp .rail-hand-fan .hand-row-inner.hand-fan-cards {
-  --fan-cw: clamp(40px, 13vh, 52px);
-  --fan-ch: calc(var(--fan-cw) * 1.4);
-  --fan-gap: 0.25rem;
-  width: 100%;
-  box-sizing: border-box;
-  padding-inline: calc(var(--fan-cw) * 0.3);
+.arena .spec-far-landscape.spec-far-grid .spec-far-cards > * {
+  margin-inline: 0;
+}
+
+/* The near hand: the plain hand row, shrunk to the same small upright cards. */
+.arena .hand-row-spec-grid .hand-row-inner {
+  --spec-gap: 4px;
+  gap: var(--spec-gap);
+  padding: 0.2rem 0.1rem 0.15rem;
+}
+
+.arena .hand-row-spec-grid .hand-row-inner .card-tile.full {
+  width: var(--spec-cw);
+  height: var(--spec-ch);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.arena .hand-row-spec-grid .hand-row-inner .card-tile:hover {
+  transform: none;
+}
+
+/* Portrait: one row, centred while it fits and scrolling sideways past that. */
+.arena .hand-row-spec-grid .hand-row-inner > :first-child {
+  margin-left: auto;
+}
+
+.arena .hand-row-spec-grid .hand-row-inner > :last-child {
+  margin-right: auto;
+}
+
+.arena .hand-row-spec-grid {
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+}
+
+.arena .hand-row-spec-grid::-webkit-scrollbar {
+  display: none;
+}
+
+/* Landscape: wraps inside the column instead. */
+.arena .rail-hand-spec .hand-row-spec-grid {
+  overflow: visible;
+}
+
+.arena .rail-hand-spec .hand-row-spec-grid .hand-row-inner {
+  flex-wrap: wrap;
+  padding: 0.2rem 0.5rem 0.25rem;
+}
+
+.arena .rail-hand-spec .hand-row-spec-grid .hand-row-inner > :first-child,
+.arena .rail-hand-spec .hand-row-spec-grid .hand-row-inner > :last-child {
+  margin-inline: 0;
 }
 
 /* Holding a card must not open the phone's image sheet (iOS Save / Share), start
