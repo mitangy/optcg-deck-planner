@@ -1599,12 +1599,15 @@ html:has(.duel-root) body {
    runs out of room, so a big hand never widens the strip. */
 .opp-hand-faces {
   --face-w: 22px;
+  /* A definite width: the overlap margin below is a % of this box, which collapsed to 0 when it sized to its own cards. */
+  width: calc(var(--n) * (var(--face-w) + 0.2rem));
   flex: 0 1 auto;
   min-width: 0;
   gap: 0;
 }
 
-.opp-hand-faces .card-tile.opp-hand-face {
+.opp-hand-faces .card-tile.opp-hand-face,
+.opp-hand-faces .card-back.opp-hand-face {
   flex: 0 0 auto;
   width: var(--face-w);
   height: calc(var(--face-w) * 1.38);
