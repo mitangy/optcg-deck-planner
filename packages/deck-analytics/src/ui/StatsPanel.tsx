@@ -254,8 +254,8 @@ function StatsLoader({ cards, leaderId }: { cards: DeckStatsCard[]; leaderId: st
       {q.error ? (
         <>
           <p className="error">{(q.error as Error).message}</p>
-          <button type="button" className="btn secondary" onClick={() => void q.refetch()}>
-            Retry
+          <button type="button" className="btn secondary" onClick={() => (q.stale ? window.location.reload() : void q.refetch())}>
+            {q.stale ? "Reload" : "Retry"}
           </button>
         </>
       ) : (

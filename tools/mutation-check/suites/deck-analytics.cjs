@@ -125,5 +125,14 @@ module.exports = {
     { id: "delta-hint-not-first", file: hints, from: "parts.slice(0, 2)", to: "parts.slice(-2)", kills: ["shows a new hint ahead of the stats"] },
     { id: "delta-always-counter", file: hints, from: "if (fmtK(a.counter.average) !== fmtK(b.counter.average))", to: "if (true as boolean)", kills: ["says nothing when no tracked stat moved"] },
     { id: "delta-ignores-hints", file: hints, from: "  if (appeared) parts.push", to: "  if (false as boolean) parts.push", kills: ["shows a new hint ahead of the stats"] },
+    // atlas fetch after a deploy (#514)
+    // Two layers make an HTML 200 stale (content type, then the JSON parse); remove both.
+    { id: "atlas-html-not-stale", edits: [
+      { file: "packages/deck-analytics/src/atlasResponse.ts", from: '  if (!(res.headers.get("content-type") ?? "").toLowerCase().includes("json")) throw new StaleAtlasError();\n', to: "" },
+      { file: "packages/deck-analytics/src/atlasResponse.ts", from: "  } catch {\n    throw new StaleAtlasError();\n  }", to: "  } catch (e) {\n    throw e;\n  }" },
+    ], kills: ["an HTML 200 from the SPA fallback is a stale build"] },
+    { id: "atlas-404-not-stale", file: "packages/deck-analytics/src/atlasResponse.ts", from: "  if (res.status === 404) throw new StaleAtlasError();\n", to: "", kills: ["a 404 for the old hashed file is a stale build"] },
+    { id: "atlas-parse-failure-leaks", file: "packages/deck-analytics/src/atlasResponse.ts", from: "  } catch {\n    throw new StaleAtlasError();\n  }", to: "  } catch (e) {\n    throw e;\n  }", kills: ["not JSON under a JSON content type is a stale build"] },
+    { id: "atlas-500-stale", file: "packages/deck-analytics/src/atlasResponse.ts", from: "  if (!res.ok) throw new Error(`Card stats unavailable ($" + "{res.status})`);", to: "  if (!res.ok) throw new StaleAtlasError();", kills: ["a server error keeps the status message"] },
   ],
 };
