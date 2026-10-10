@@ -56,7 +56,7 @@ const TOGGLES: Toggle[] = [
   {
     key: "oneTapActions",
     label: "One-tap actions",
-    hint: "Skips the second tap: tapping a Counter card plays it, tapping a Blocker blocks, tapping a Leader or Character gives it the selected DON!!, and picking the only target of an effect resolves it.",
+    hint: "Skips the second tap: a card whose pop-up has one button does it straight away (Play, Attack, Activate, +1 DON!!), Counter and Blocker taps play at once, tapping a Leader or Character gives it the selected DON!!, and an effect that wants exactly N picks resolves on the last one.",
   },
   {
     key: "dimUnplayable",

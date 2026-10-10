@@ -62,6 +62,7 @@ import {
   counterIntentForCard,
   counterIntentForHand,
   counterPrimaryLabel,
+  soleCardButton,
   splitCardActions,
 } from "./cardActions";
 import {
@@ -1086,8 +1087,11 @@ export function DuelBoard({
   const quickCounts = quickAttachCounts(quickDonIds.length);
 
   function quickAttach(count: number) {
-    if (!selectedBoardId) return;
-    const toSend = donQuickAttach(intents, selectedBoardId, count);
+    if (selectedBoardId) quickAttachTo(selectedBoardId, count);
+  }
+
+  function quickAttachTo(id: string, count: number) {
+    const toSend = donQuickAttach(intents, id, count);
     setHandFilter(null);
     setSelectedBoardId(null);
     // Sequential client-side intents (no batch protocol), like confirmAttach.
@@ -1132,6 +1136,28 @@ export function DuelBoard({
     }
   }
 
+  /** The card-action pop-up's buttons for a selection, as the render below computes them (pending choices own their answers). */
+  function popoverIntentsFor(selection: { handIndex: number | null; boardId: string | null }, dropGiveDonTo?: string): Intent[] {
+    if (!view || spectating || defendPrimary) return [];
+    const front = view.pendingChoices?.[0];
+    const base = front
+      ? view.legalIntents.filter((i) => i.type !== "resolve_pending_choice" && i.type !== "order_pending_effects")
+      : dropGiveDonTo
+        ? view.legalIntents.filter((i) => !(i.type === "give_don" && i.targetId === dropGiveDonTo))
+        : view.legalIntents;
+    return splitCardActions(filterIntentsForSelection(splitPrimaryIntent(base).rest, selection)).card;
+  }
+
+  function pressCardAction(intent: Intent) {
+    if (isReplacePlay(intent)) {
+      openReplace(intent.handIndex as number);
+      return;
+    }
+    setHandFilter(null);
+    setSelectedBoardId(null);
+    onSendIntent(intent);
+  }
+
   function selectHandCard(idx: number) {
     if (prefs.oneTapActions && !trayHere && defend?.phase === "counter") {
       const counter = counterIntentForHand(intents, idx);
@@ -1139,6 +1165,14 @@ export function DuelBoard({
         setHandFilter(null);
         setSelectedBoardId(null);
         onSendIntent(counter);
+        return;
+      }
+    }
+    // One-tap: a pop-up with a single button does it straight away (hand pop-ups have no DON!! row).
+    if (prefs.oneTapActions && handFilter !== idx && !dragPayload && !replaceOpen && !donSelectActive) {
+      const sole = soleCardButton(popoverIntentsFor({ handIndex: idx, boardId: null }), []);
+      if (sole?.kind === "action") {
+        pressCardAction(sole.action);
         return;
       }
     }
@@ -1164,6 +1198,25 @@ export function DuelBoard({
         setHandFilter(null);
         setSelectedBoardId(null);
         onSendIntent(block);
+        return;
+      }
+    }
+    // One-tap: a pop-up with a single button (one action, or a lone +1 DON!!) does it straight away.
+    if (prefs.oneTapActions && view && selectedBoardId !== id && !dragPayload && !replaceOpen && !donSelectActive) {
+      const quickRow =
+        dndEnabled && (view.you.leader.id === id || view.you.characters.some((c) => c.id === id))
+          ? quickAttachCounts(donIdsForTarget(intents, id).length)
+          : [];
+      const sole = soleCardButton(
+        popoverIntentsFor({ handIndex: null, boardId: id }, quickRow.length > 0 ? id : undefined),
+        quickRow,
+      );
+      if (sole?.kind === "action") {
+        pressCardAction(sole.action);
+        return;
+      }
+      if (sole?.kind === "don") {
+        quickAttachTo(id, sole.count);
         return;
       }
     }
@@ -1595,15 +1648,7 @@ export function DuelBoard({
     keyNum: cardTags[i]!.num,
     keyLetter: cardTags[i]!.letter,
     keyTag: prefs.shortcutTags ? cardTags[i]!.tag : "",
-    onPress: () => {
-      if (isReplacePlay(intent)) {
-        openReplace(intent.handIndex as number);
-        return;
-      }
-      setHandFilter(null);
-      setSelectedBoardId(null);
-      onSendIntent(intent);
-    },
+    onPress: () => pressCardAction(intent),
   }));
 
   // Desktop: the primary action (and any other phase-wide one: Keep / Mulligan,

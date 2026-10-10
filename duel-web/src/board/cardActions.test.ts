@@ -9,6 +9,7 @@ import {
   counterPrimaryLabel,
   humanizeAbilityId,
   popoverPlacement,
+  soleCardButton,
   splitCardActions,
 } from "./cardActions";
 
@@ -185,5 +186,20 @@ describe("popoverPlacement (#255, #449)", () => {
     const out = popoverPlacement(low, { width: 160, height: 330 }, { width: 1280, height: 480 });
     expect(out.top + 330).toBeLessThanOrEqual(480 - 8);
     expect(out.top).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe("one-tap on a card with a single pop-up button (#502)", () => {
+  it("presses the lone action when there is no DON!! row, the lone +1 when there are no actions (#502)", () => {
+    expect(soleCardButton(["play"], [])).toEqual({ kind: "action", action: "play" });
+    expect(soleCardButton([], [1])).toEqual({ kind: "don", count: 1 });
+  });
+
+  it("keeps the pop-up when it holds a real choice (#502)", () => {
+    expect(soleCardButton([], [])).toBeNull();
+    expect(soleCardButton(["attack"], [1])).toBeNull();
+    expect(soleCardButton(["attack", "activate"], [])).toBeNull();
+    expect(soleCardButton([], [1, 2])).toBeNull();
+    expect(soleCardButton(["attack"], [1, 2])).toBeNull();
   });
 });
