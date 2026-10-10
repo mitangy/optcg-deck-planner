@@ -290,6 +290,7 @@ export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { 
     case "hand_to_life": {
       const bind = "_handToLife";
       out.push({ op: "select", bind, selector: { player: "you", zone: "hand", ...(effect.filter ? { filter: effect.filter } : {}) }, min: effect.min ?? effect.count, max: effect.count, chooser: "you", purpose: "add to Life" });
+      if (effect.reveal) out.push({ op: "act", effect: { do: "reveal", target: { ref: "var", name: bind } } });
       out.push({ op: "act", effect: { do: "to_life", target: { ref: "var", name: bind }, position: effect.position, faceUp: effect.faceUp } });
       return;
     }

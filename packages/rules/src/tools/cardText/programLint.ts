@@ -127,7 +127,7 @@ function initialDefs(ability: Ability): Defs {
   const defs: Defs = new Map();
   const bind = (name: string, def: Def = OTHER) => { defs.set(name, new Set([def])); };
   if (ability.trigger === "on_event" && ability.eventTrigger) {
-    const events = [ability.eventTrigger.event, ...(ability.eventTrigger.alsoEvents ?? [])];
+    const events = [ability.eventTrigger.event, ...(ability.eventTrigger.alsoEvents ?? []), ...(ability.eventTrigger.anyCauseEvents ?? [])];
     if (events.every((e) => EVENT_CARRIES_CARD[e])) bind("_event");
   }
   if (ability.trigger === "replacement") {

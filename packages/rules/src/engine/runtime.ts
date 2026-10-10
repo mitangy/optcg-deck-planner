@@ -124,16 +124,18 @@ export function dispatchEvent(state: MatchState, kind: GameEventKind, info: Even
       if (isNegated(state, card)) continue;
       for (const ability of abilitiesFor(card.defId)) {
         const et = ability.eventTrigger;
-        if (ability.trigger !== "on_event" || !et || (et.event !== kind && !et.alsoEvents?.includes(kind))) continue;
+        if (ability.trigger !== "on_event" || !et || (et.event !== kind && !et.alsoEvents?.includes(kind) && !et.anyCauseEvents?.includes(kind))) continue;
         if (kind === "self_ko") continue;
+        // Events listed only in `anyCauseEvents` ignore the by-effect flags below.
+        const anyCause = et.event !== kind && !et.alsoEvents?.includes(kind);
         if (kind === "self_rested" || kind === "self_attacked" || kind === "attack_damage" || kind === "battle_ended_vs_character") { if (info.card?.id !== card.id) continue; }
         else {
           const rel = info.seat === seat ? "you" : "opponent";
           if (et.player !== "any" && et.player !== rel) continue;
         }
-        if (et.byOpponentEffect && (info.byEffectOf == null || info.byEffectOf === info.seat)) continue;
-        if (et.byEffect && info.byEffectOf == null) continue;
-        if (et.byYourEffect && info.byEffectOf !== seat) continue;
+        if (!anyCause && et.byOpponentEffect && (info.byEffectOf == null || info.byEffectOf === info.seat)) continue;
+        if (!anyCause && et.byEffect && info.byEffectOf == null) continue;
+        if (!anyCause && et.byYourEffect && info.byEffectOf !== seat) continue;
         if (et.minCount != null && (info.count ?? 1) < et.minCount) continue;
         if (et.fromZone && info.fromZone !== et.fromZone) continue;
         {

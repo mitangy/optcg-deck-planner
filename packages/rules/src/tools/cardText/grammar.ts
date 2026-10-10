@@ -455,7 +455,13 @@ const EFFECT_RULES: EffectRule[] = [
   [/^choose (\d+) cards? from your opponent's hand; your opponent reveals (?:that card|those cards)$/i, (m) => ({ do: "seq", steps: [{ do: "select", bind: "_last", selector: { player: "opponent", zone: "hand" }, min: num(m[1]!), max: num(m[1]!), chooser: "you" }, { do: "reveal", target: { ref: "var", name: "_last" } }] })],
   [/^set up to (\d+) of your (.+?) and your leader as active$/i, (m, ctx) => { const p = parseCardPhrase("up to " + m[1] + " of your " + m[2], ctx); return p ? { do: "seq", steps: [{ do: "activate", target: toTarget(p) }, { do: "activate", target: { ref: "leader", player: "you" } }] } : null; }],
   [/^deal (\d+) damage to your opponent$/i, (m) => ({ do: "damage", player: "opponent", count: num(m[1]!) })],
-  [/^reveal up to (\d+) (.+?) from your deck and add (?:it|them) to your hand$/i, (m, ctx) => { const target = zoneTarget(m[1] ? "up to " + m[1] + " " + m[2] : m[2]!, "deck", ctx); return target ? { do: "seq", steps: [{ do: "to_hand", target }, { do: "shuffle", player: "you" }] } : null; }],
+  [/^reveal up to (\d+) (.+?) from your deck and add (?:it|them) to your hand$/i, (m, ctx) => {
+    const target = zoneTarget(m[1] ? "up to " + m[1] + " " + m[2] : m[2]!, "deck", ctx);
+    if (!target) return null;
+    // The opponent sees the card before it is added to the hand (#523).
+    if (target.ref === "choose" && target.bind) return { do: "seq", steps: [{ do: "reveal", target }, { do: "to_hand", target: { ref: "var", name: target.bind } }, { do: "shuffle", player: "you" }] };
+    return { do: "seq", steps: [{ do: "to_hand", target }, { do: "shuffle", player: "you" }] };
+  }],
   [/^you cannot add life cards to your hand using your own effects (during this turn)$/i, () => ({ do: "player_restrict", player: "you", restriction: "cannot_add_life_to_hand_by_effect", duration: "turn" })],
   [/^the next time you play (.+?) from your hand during this turn, the cost will be reduced by (\d+)$/i, (m, ctx) => { const p = parseCardPhrase("all " + m[1]!.replace(/^(?:a|an) /i, ""), ctx); return p ? { do: "play_cost_reduction", filter: p.selector.filter ?? {}, amount: -num(m[2]!), duration: "turn", next: true } : null; }],
   [new RegExp("^your opponent cannot activate the \\[Blocker\\] of any character with a cost of (\\d+) or less " + DUR + "$", "i"), (m) => { const d = parseDuration(m[2]); return d ? { do: "restrict", target: { ref: "self" }, restriction: "cannot_be_blocked_by_cost_or_less", value: num(m[1]!), duration: d } : null; }],
@@ -752,6 +758,7 @@ export function parseEffectBody(body: string, ctx: Ctx, split: (text: string) =>
     }
   }
   const steps: Effect[] = [];
+  const stepText: string[] = [];
   const failed: string[] = [];
   for (const sentence of split(body)) {
     const s = sentence.trim();
@@ -761,7 +768,7 @@ export function parseEffectBody(body: string, ctx: Ctx, split: (text: string) =>
     const restAnd = /^(then, )?(place the rest at the bottom of your deck in any order|trash the rest) and (.+)$/i.exec(clean(s));
     if (restAnd && steps.length && applyRestSentence(steps[steps.length - 1]!, restAnd[2]!)) {
       const tail = parseStatement(restAnd[3]!, ctx);
-      if (tail) { steps.push(tail); continue; }
+      if (tail) { steps.push(tail); stepText.push(s); continue; }
       failed.push(s); continue;
     }
     const eff = parseStatement(s, ctx);
@@ -769,11 +776,47 @@ export function parseEffectBody(body: string, ctx: Ctx, split: (text: string) =>
       if (eff.do === "if" && /^if you do, /i.test(clean(s))) linkIfYouDo(steps, eff, s, ctx);
       if (/^if the trashed card /i.test(clean(s)) && steps.length) bindTrashedCard(steps[steps.length - 1]!);
       steps.push(eff);
+      stepText.push(s);
     } else failed.push(s);
   }
   if (failed.length) return { effect: null, failed };
   if (steps.length === 0) return { effect: null, failed: [body] };
+  keepRevealedCard(steps, stepText);
   return { effect: steps.length === 1 ? steps[0]! : { do: "seq", steps }, failed: [] };
+}
+
+/**
+ * "Reveal 1 card from the top of your deck. If the revealed card has a cost of 4 or more, return up to 1 of your
+ * Characters to the owner's hand. Then, place the revealed card at the bottom of your deck." The Character picked in
+ * the middle rebinds `_last`, so "the revealed card" would point at it (#523). When a step between the reveal and a
+ * later mention of "the revealed card" rebinds `_last`, the reveal binds `_revealed` instead and every sentence that
+ * says "the revealed card" reads it.
+ */
+function keepRevealedCard(steps: Effect[], stepText: string[]): void {
+  const reveal = steps.findIndex((step) => step.do === "reveal_top" && step.bind === "_last");
+  if (reveal < 0) return;
+  const mentions = (i: number) => /\bthe revealed card\b/i.test(stepText[i]!);
+  const lastMention = stepText.map((_, i) => i).filter((i) => i > reveal && mentions(i)).pop();
+  if (lastMention === undefined) return;
+  let rebound = false;
+  for (let i = reveal + 1; i < lastMention; i += 1) if (bindsLast(steps[i]!)) rebound = true;
+  if (!rebound) return;
+  (steps[reveal] as Extract<Effect, { do: "reveal_top" }>).bind = "_revealed";
+  for (let i = reveal + 1; i < steps.length; i += 1) if (mentions(i)) steps[i] = renameVar(steps[i]!, "_last", "_revealed") as Effect;
+}
+
+/** Whether `node` writes `_last` anywhere inside it. */
+function bindsLast(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(bindsLast);
+  if (node === null || typeof node !== "object") return false;
+  return Object.entries(node).some(([key, value]) => (key === "bind" && value === "_last") || bindsLast(value));
+}
+
+/** Rename every read of variable `from` (a name stored in any field but `bind`) inside `node`. */
+function renameVar(node: unknown, from: string, to: string): unknown {
+  if (Array.isArray(node)) return node.map((child) => renameVar(child, from, to));
+  if (node === null || typeof node !== "object") return node;
+  return Object.fromEntries(Object.entries(node).map(([key, value]) => [key, key !== "bind" && value === from ? to : renameVar(value, from, to)]));
 }
 
 /** "Trash 1 card from the top of your deck. If the trashed card ...": the trash step binds the cards it trashed (`_last`) (#515). */

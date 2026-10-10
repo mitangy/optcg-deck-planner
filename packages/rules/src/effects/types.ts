@@ -360,7 +360,8 @@ export type Effect =
   | { do: "swap_base_power"; target: Target; duration: Duration; with?: Target }
   | { do: "discard"; player: Rel; count: Value; chooser?: Rel; filter?: Filter; min?: number; random?: boolean }
   | { do: "hand_to_deck"; player: Rel; count: number; position: "top" | "bottom" | "top_or_bottom"; chooser?: Rel; filter?: Filter; min?: number }
-  | { do: "hand_to_life"; count: number; position: "top" | "bottom"; faceUp: boolean; filter?: Filter; min?: number }
+  /** `reveal`: "Reveal up to 1 ... from your hand and add it to your Life cards" shows the card to the opponent first. */
+  | { do: "hand_to_life"; count: number; position: "top" | "bottom"; faceUp: boolean; filter?: Filter; min?: number; reveal?: boolean }
   | { do: "deck_to_life"; player: Rel; count: number; faceUp?: boolean }
   | { do: "life_to_hand"; player: Rel; count: number; position: "top" | "top_or_bottom" | "bottom"; min?: number }
   | { do: "trash_life"; player: Rel; count: Value; position?: "top" | "top_or_bottom" }
@@ -473,6 +474,11 @@ export interface EventTrigger {
   byYourEffect?: boolean;
   /** Further events that trigger the same ability ("When A or B"). */
   alsoEvents?: GameEventKind[];
+  /**
+   * Further events that trigger the same ability whatever caused them: `byOpponentEffect`, `byEffect` and
+   * `byYourEffect` do not apply to these ("removed from the field by your opponent's effect or K.O.'d").
+   */
+  anyCauseEvents?: GameEventKind[];
   /** Minimum count carried by the event (e.g. "2 or more DON!! cards are returned"). */
   minCount?: number;
   /** Played-from zone for character_played ("played from your trash"). */
