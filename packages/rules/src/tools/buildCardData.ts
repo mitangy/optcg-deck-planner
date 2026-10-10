@@ -60,10 +60,15 @@ export function splitTrigger(text: string): { effect: string; trigger: string } 
  * "Nico Robin (016) (SP)", "Shirahoshi (Manga)", "Nami (055) (Alternate Art)". Real parenthesised
  * names such as "Zephyr (Navy)" stay.
  */
+const PRINTING_MARKERS = ["SP", "Alternate Art", "Manga", "Parallel", "Treasure Rare", "Full Art", "Box Topper", "Jolly Roger Foil", "Pirate Foil", "Special Rare"];
+
+/** A trailing TCGPlayer printing marker such as " (Parallel)" or " (Alternate Art)". */
+export const VARIANT_SUFFIX = new RegExp(String.raw`\s+\((?:${PRINTING_MARKERS.join("|")})\)$`);
+
 export function normalizeCardName(name: string): string {
   let out = name.replace(/\s+-\s+(?:OP|ST|EB|PRB|P)\d*-\d+\s*\(.*\)$/, "");
   for (;;) {
-    const next = out.replace(/\s+\((?:[^()]*\d[^()]*|SP|Alternate Art|Manga|[^()]*(?:Event|Tournament|Battle|Fest|Release|Pack|Edition)[^()]*)\)$/, "");
+    const next = out.replace(new RegExp(String.raw`\s+\((?:[^()]*\d[^()]*|${PRINTING_MARKERS.join("|")}|[^()]*(?:Event|Tournament|Battle|Fest|Release|Pack|Edition)[^()]*)\)$`), "");
     if (next === out) return out.trim();
     out = next;
   }
