@@ -60,7 +60,8 @@ export function DonAttachConfirm({
 
   if (typeof document === "undefined") return null;
   const vw = window.innerWidth;
-  const width = Math.min(CONFIRM_W, vw - EDGE * 2);
+  // CSS sizes the confirm with its font; before the first measure assume the old 250px.
+  const width = size.width || Math.min(CONFIRM_W, vw - EDGE * 2);
   let style: CSSProperties;
   if (box) {
     // Above the card when it fits, else below, else slid back on screen.
@@ -80,7 +81,7 @@ export function DonAttachConfirm({
       className="don-attach-confirm"
       role="dialog"
       aria-label={`${attachLabel(pending.donIds.length)} to ${targetName}`}
-      style={{ ...style, width }}
+      style={style}
     >
       <div className="don-attach-title">
         <img src={donArt()} alt="" className="don-attach-icon" draggable={false} onError={fallbackToDefaultDon} />
