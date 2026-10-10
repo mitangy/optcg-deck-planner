@@ -603,6 +603,16 @@ function withGameOverReveal(base: PlayerView): PlayerView {
   };
 }
 
+/** `?reveal`: two of the opponent's hand cards and your first hand card revealed by an effect (#491). */
+function withHandReveals(base: PlayerView): PlayerView {
+  const sample = ["OP16-108", "ST01-014"];
+  const reveals: PlayerView["handReveals"] = [
+    base.you.hand.slice(0, 1).map((c) => ({ id: c.id, defId: c.defId })),
+    sample.slice(0, Math.min(2, base.opponent.handCount)).map((defId, i) => ({ id: `o-h${i + 1}`, defId })),
+  ];
+  return { ...base, handReveals: reveals };
+}
+
 /** `?full`: a full board, so playing a Character asks which one to replace. */
 function withFullBoard(base: PlayerView): PlayerView {
   const extra = [
@@ -972,7 +982,11 @@ export function DemoPage() {
       : params.get("counter") === "block" && !blockPassed
         ? withBlockStep(view)
         : view;
-  const shown: PlayerView = params.has("over") ? withGameOverReveal(live) : live;
+  const shown: PlayerView = params.has("over")
+    ? withGameOverReveal(live)
+    : params.has("reveal")
+      ? withHandReveals(live)
+      : live;
   // `?motion`: one state per click; Replay remounts the board to replay the deal.
   const motionSteps = useMemo(() => (params.has("motion") ? motionDemoSteps(view) : null), []);
   const [motionStep, setMotionStep] = useState(0);

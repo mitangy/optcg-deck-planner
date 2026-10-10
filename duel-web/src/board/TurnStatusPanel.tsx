@@ -4,6 +4,7 @@ import { cardBackCssValue } from "../cardBack";
 import { fanPose } from "./handFan";
 import { playerLabel, seatName } from "./playerNames";
 import { CardTile } from "./CardTile";
+import { HIDDEN_HAND_DEF } from "./handReveal";
 import { respondSubline } from "./promptLine";
 import { donTotal } from "./donTotals";
 
@@ -258,17 +259,26 @@ export function OppHandHint({
       {cards ? (
         <div
           className="opp-hand-backs opp-hand-faces"
-          style={{ "--n": Math.max(cards.length, 1) } as CSSProperties}
+          style={
+            {
+              "--n": Math.max(cards.length, 1),
+              ...(cardBackUrl ? { "--card-back-art": cardBackCssValue(cardBackUrl) } : null),
+            } as CSSProperties
+          }
         >
-          {cards.map((c) => (
-            <CardTile
-              key={c.id}
-              defId={c.defId}
-              ownerSeat={ownerSeat}
-              inspectOnClick
-              classNameExtra="opp-hand-face"
-            />
-          ))}
+          {cards.map((c) =>
+            c.defId === HIDDEN_HAND_DEF ? (
+              <span key={c.id} className="card-back opp-hand-face" />
+            ) : (
+              <CardTile
+                key={c.id}
+                defId={c.defId}
+                ownerSeat={ownerSeat}
+                inspectOnClick
+                classNameExtra="opp-hand-face"
+              />
+            ),
+          )}
         </div>
       ) : (
         <div
@@ -327,7 +337,7 @@ export function OppHandCorner({
         {Array.from({ length: shown }).map((_, i) => {
           const pose = fanPose(i, shown);
           const card = cards?.[i];
-          if (card) {
+          if (card && card.defId !== HIDDEN_HAND_DEF) {
             return (
               <CardTile
                 key={card.id}
@@ -380,15 +390,19 @@ export function OppHandFan({
         }
       >
         {cards ? (
-          cards.slice(0, 10).map((c) => (
-            <CardTile
-              key={c.id}
-              defId={c.defId}
-              ownerSeat={ownerSeat}
-              inspectOnClick
-              classNameExtra="opp-compact-face"
-            />
-          ))
+          cards.slice(0, 10).map((c) =>
+            c.defId === HIDDEN_HAND_DEF ? (
+              <span key={c.id} className="card-back" aria-hidden />
+            ) : (
+              <CardTile
+                key={c.id}
+                defId={c.defId}
+                ownerSeat={ownerSeat}
+                inspectOnClick
+                classNameExtra="opp-compact-face"
+              />
+            ),
+          )
         ) : (
           <span className="card-back" aria-hidden />
         )}
@@ -413,16 +427,20 @@ export function OppHandFan({
     >
       <div className="opp-hand-fan-cards">
         {cards
-          ? cards.map((c, i) => (
-              <CardTile
-                key={c.id}
-                defId={c.defId}
-                ownerSeat={ownerSeat}
-                inspectOnClick
-                classNameExtra="opp-fan-card opp-fan-face"
-                style={{ "--i": i - mid } as CSSProperties}
-              />
-            ))
+          ? cards.map((c, i) =>
+              c.defId === HIDDEN_HAND_DEF ? (
+                <span key={c.id} className="card-back opp-fan-card" style={{ "--i": i - mid } as CSSProperties} />
+              ) : (
+                <CardTile
+                  key={c.id}
+                  defId={c.defId}
+                  ownerSeat={ownerSeat}
+                  inspectOnClick
+                  classNameExtra="opp-fan-card opp-fan-face"
+                  style={{ "--i": i - mid } as CSSProperties}
+                />
+              ),
+            )
           : Array.from({ length: shown }).map((_, i) => (
               <span
                 key={i}
