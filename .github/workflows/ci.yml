@@ -304,12 +304,21 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      BASE_SHA: ${{ github.event.pull_request.base.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      - name: Find the base the PR merges into
+        # The checkout is the PR's test merge commit, whose first parent is the
+        # base branch as GitHub merged it. pull_request.base.sha can be older
+        # than that (it isn't updated when the base moves), and diffing against
+        # it re-runs every mutation main gained since.
+        run: |
+          if git rev-parse -q --verify HEAD^2 >/dev/null; then
+            echo "BASE_SHA=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
+          else
+            echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
+          fi
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
