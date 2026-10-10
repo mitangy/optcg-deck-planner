@@ -103,6 +103,7 @@ export function PendingBoard({ waiting, errorBanner, leaveLabel, onLeave, onClea
           <div className="playmat-inner">
             <SideField
               side="opp"
+              lifeFan={prefs.lifeFan}
               compact
               countRow={portraitMat}
               cardBackUrl={cardBackUrl}
@@ -117,6 +118,7 @@ export function PendingBoard({ waiting, errorBanner, leaveLabel, onLeave, onClea
             </div>
             <SideField
               side="you"
+              lifeFan={prefs.lifeFan}
               matImageUrl={playmatUrl}
               matDim={prefs.playmatDim}
               matOpacity={prefs.playmatOpacity}

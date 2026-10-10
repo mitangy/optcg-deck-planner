@@ -245,7 +245,7 @@ function withExtraOption(view: PlayerView): PlayerView {
 }
 
 /**
- * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|unpayable|empty|hand|order|mode|effects|don|don2`).
+ * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|trigger|notrigger|unpayable|empty|hand|order|mode|effects|don|don2`).
  * Searches and effect ordering float over the board; add `&box` to see the old pop-up.
  */
 export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
@@ -414,6 +414,31 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     prompt: "Monkey.D.Luffy — pay the cost to activate: [On Play] You may trash 2 cards from your hand: Return up to 1 Character with a cost of 4 or less to the owner's hand.",
     request: { type: "confirm" },
   }),
+  // Life check on a card with a [Trigger]: just the card with Activate Trigger / Add to hand (#495).
+  trigger: demoChoice({
+    id: "demo-trigger",
+    seat: 0,
+    kind: "life_trigger",
+    cardDefId: "OP01-029",
+    optional: true,
+    prompt: "Radical Beam!! — activate this card's [Trigger]?",
+    request: { type: "confirm" },
+    privateToSeat: 0,
+    hideCardDefFromOthers: true,
+  }),
+  // Life check on a card without [Trigger]: one No Trigger button (#352, #495).
+  notrigger: demoChoice({
+    id: "demo-notrigger",
+    seat: 0,
+    kind: "life_trigger",
+    cardDefId: "ST01-003",
+    optional: true,
+    noTrigger: true,
+    prompt: "Karoo has no [Trigger]. Add it to your hand.",
+    request: { type: "confirm" },
+    privateToSeat: 0,
+    hideCardDefFromOthers: true,
+  }),
   // The same cost prompt when the hand can't pay it: asked anyway so the opponent can't tell (#369).
   unpayable: demoChoice({
     id: "demo-unpayable",
@@ -576,6 +601,16 @@ function withGameOverReveal(base: PlayerView): PlayerView {
     ],
     revealedLife: [cycle(base.you.lifeCount, 1), cycle(base.opponent.lifeCount, 3)],
   };
+}
+
+/** `?reveal`: two of the opponent's hand cards and your first hand card revealed by an effect (#491). */
+function withHandReveals(base: PlayerView): PlayerView {
+  const sample = ["OP16-108", "ST01-014"];
+  const reveals: PlayerView["handReveals"] = [
+    base.you.hand.slice(0, 1).map((c) => ({ id: c.id, defId: c.defId })),
+    sample.slice(0, Math.min(2, base.opponent.handCount)).map((defId, i) => ({ id: `o-h${i + 1}`, defId })),
+  ];
+  return { ...base, handReveals: reveals };
 }
 
 /** `?full`: a full board, so playing a Character asks which one to replace. */
@@ -947,7 +982,11 @@ export function DemoPage() {
       : params.get("counter") === "block" && !blockPassed
         ? withBlockStep(view)
         : view;
-  const shown: PlayerView = params.has("over") ? withGameOverReveal(live) : live;
+  const shown: PlayerView = params.has("over")
+    ? withGameOverReveal(live)
+    : params.has("reveal")
+      ? withHandReveals(live)
+      : live;
   // `?motion`: one state per click; Replay remounts the board to replay the deal.
   const motionSteps = useMemo(() => (params.has("motion") ? motionDemoSteps(view) : null), []);
   const [motionStep, setMotionStep] = useState(0);
@@ -958,7 +997,11 @@ export function DemoPage() {
       ? {
           enabled: true,
           targetTurn: 3,
-          pending: params.get("undo") === "ask" ? { from: 1, toTurn: 2 } : null,
+          action: { seat: params.get("undo") === "ask" ? 1 : 0, label: params.get("undo") === "ask" ? "attack with Zoro" : "play Nami" },
+          pending:
+            params.get("undo") === "ask"
+              ? { from: 1, toTurn: 3, action: { seat: 1, label: "attack with Zoro" } }
+              : null,
         }
       : null,
   );
@@ -1086,7 +1129,9 @@ export function DemoPage() {
                       ? {
                           ...u,
                           pending:
-                            action === "request" ? { from: 0, toTurn: u.targetTurn ?? 1 } : null,
+                            action === "request"
+                              ? { from: 0, toTurn: u.targetTurn ?? 1, action: u.action }
+                              : null,
                         }
                       : u,
                   ),

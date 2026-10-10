@@ -7,6 +7,8 @@ import {
   parseError,
   parseMatchOver,
   parseRematchState,
+  parseUndoApplied,
+  parseUndoState,
   parseView,
   parseWelcome,
   type PlayerView,
@@ -97,6 +99,46 @@ describe("protocol parsers", () => {
     // The choosing player sees their own private options.
     view.pendingChoices = [{ ...look, seat: 0, privateToSeat: 0 as unknown as 1 }];
     expect(() => assertNoOpponentHand(view)).not.toThrow();
+  });
+
+  it("lets spectators see a public choice's trash options but not a private choice's (#494)", () => {
+    const base = sampleView();
+    // Seat 0 on purpose: a spectator whose seat equals privateToSeat must still be treated as hidden.
+    const view = { ...base, seat: 0 as const, spectator: true, you: { ...base.you, hand: [], handCount: 5 } } as unknown as PlayerView;
+    const publicSelect = {
+      id: "sel_1",
+      seat: 1 as const,
+      kind: "effect" as const,
+      cardDefId: "OP09-095",
+      optional: false,
+      prompt: "Choose from trash",
+      request: {
+        type: "select" as const,
+        min: 0,
+        max: 1,
+        options: [{ id: "o0", defId: "OP09-086", zone: "trash" as const, eligible: true }],
+      },
+    };
+    view.pendingChoices = [publicSelect];
+    expect(() => assertNoOpponentHand(view)).not.toThrow();
+    expect(() => parseView({ protocolVersion: PROTOCOL_VERSION, view })).not.toThrow();
+    expect(() => parseWelcome({ protocolVersion: PROTOCOL_VERSION, matchId: "m1", seat: 0, role: "spectator", view })).not.toThrow();
+
+    const privateLook = {
+      ...publicSelect,
+      privateToSeat: 0 as const,
+      request: {
+        type: "look" as const,
+        options: [{ id: "o0", defId: "OP09-086", zone: "deck" as const, eligible: true }],
+        minSelect: 0,
+        maxSelect: 1,
+        groups: [{ label: "Up to 1: add to hand", max: 1, eligibleIds: ["o0"] }],
+        rest: "deck_bottom" as const,
+        restLabel: "bottom",
+      },
+    };
+    view.pendingChoices = [privateLook];
+    expect(() => assertNoOpponentHand(view)).toThrow(/private choice/i);
   });
 
   it("parses view, error, and match_over", () => {
@@ -227,5 +269,35 @@ describe("parseRematchState", () => {
     const base = { protocolVersion: PROTOCOL_VERSION, available: true, requested: [true, false], declinedBy: null, chooser: null };
     expect(parseRematchState({ ...base, newDeck: [false, true] }).newDeck).toEqual([false, true]);
     expect(parseRematchState(base).newDeck).toEqual([false, false]);
+  });
+});
+
+describe("undo messages name the action they take back (#497)", () => {
+  const v = { protocolVersion: PROTOCOL_VERSION };
+
+  it("reads the last action and the one in an open request (#497)", () => {
+    const state = parseUndoState({
+      ...v,
+      enabled: true,
+      targetTurn: 3,
+      action: { seat: 1, label: "attack with Zoro" },
+      pending: { from: 0, toTurn: 3, action: { seat: 1, label: "attack with Zoro" } },
+    });
+    expect(state.action).toEqual({ seat: 1, label: "attack with Zoro" });
+    expect(state.pending).toEqual({ from: 0, toTurn: 3, action: { seat: 1, label: "attack with Zoro" } });
+  });
+
+  it("still reads a server that sends no action: the request survives with a null action (#497)", () => {
+    const state = parseUndoState({ ...v, enabled: true, targetTurn: 2, pending: { from: 1, toTurn: 2 } });
+    expect(state.action).toBeNull();
+    expect(state.pending).toEqual({ from: 1, toTurn: 2, action: null });
+  });
+
+  it("reads the step an applied undo rewound to, and tolerates its absence (#497)", () => {
+    const applied = parseUndoApplied({ ...v, toTurn: 2, toStep: 5, by: 1, action: { seat: 0, label: "play Nami" } });
+    expect(applied).toEqual({ toTurn: 2, toStep: 5, by: 1, action: { seat: 0, label: "play Nami" } });
+    const old = parseUndoApplied({ ...v, toTurn: 2, by: 0 });
+    expect(old.toStep).toBeUndefined();
+    expect(old.action).toBeNull();
   });
 });

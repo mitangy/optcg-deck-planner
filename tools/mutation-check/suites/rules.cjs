@@ -4,6 +4,7 @@
  * Keep one entry per claimed behavior when adding tests (see ../README.md).
  */
 
+const R = "packages/rules/src/revealsHiddenInfo.ts";
 const GF = "packages/rules/src/sim/goldfish.ts";
 const ABILITIES = "packages/rules/src/cards/generated/abilities.json";
 const MANUAL = "packages/rules/src/cards/manualAbilities.ts";
@@ -16,6 +17,12 @@ module.exports = {
   cwd: "packages/rules",
   runner: "vitest",
   mutations: [
+    {"id":"hand-reveal-not-recorded","file":"packages/rules/src/engine/runtime.ts","from":"        if (loc.zone === \"hand\") {\n          const p = state.players[loc.seat];","to":"        if (false as boolean) {\n          const p = state.players[loc.seat];","kills":["Cards revealed from hand stay visible to the opponent"]},
+    {"id":"hand-reveal-survives-turn","file":"packages/rules/src/engine/procedure.ts","from":"  for (const player of state.players) delete player.revealedHandIds;","to":"","kills":["Reveals end when the next turn begins"]},
+    {"id":"hand-reveal-survives-leaving-hand","file":"packages/rules/src/engine/state.ts","from":"      if (p.revealedHandIds) p.revealedHandIds = p.revealedHandIds.filter((id) => id !== loc.id);","to":"","kills":["no longer revealed, even if it returns"]},
+    {"id":"hand-reveal-whole-hand","file":"packages/rules/src/engine/views.ts","from":"state.players[seat].hand.filter((c) => ids.includes(c.id))","to":"state.players[seat].hand.filter(() => true)","kills":["stay visible to the opponent, and only those cards","Morgans reveals the opponent's remaining hand"]},
+    {"id":"hand-reveal-survives-mulligan","file":"packages/rules/src/engine/intents.ts","from":"      delete p.revealedHandIds;\n","to":"","kills":["A mulligan clears earlier reveals"]},
+    {"id":"hand-reveal-morgans-no-reveal","file":"packages/rules/src/cards/manualAbilities.ts","from":"{ do: \"reveal\", target: { ref: \"all\", selector: sel(\"opponent\", \"hand\") } }, ","to":"","kills":["Morgans reveals the opponent's remaining hand"]},
     {"id":"rush-pill-forever","file":"packages/rules/src/engine/views.ts","from":"if (c.summoningSick || (k !== \"rush\" && k !== \"rush_character\")) statuses.push","to":"statuses.push","kills":["shows its Rush pill only the turn it is played"]},
     {"id":"turn-draw-leaks-card","file":"packages/rules/src/engine/views.ts","from":"if (event.type === \"drew\" && event.defIds && viewerSeat !== event.seat) {","to":"if (false) {","kills":["names the Draw Phase card only for the player who drew it"]},
     {"id":"turn-draw-hidden-from-drawer","file":"packages/rules/src/engine/views.ts","from":"if (event.type === \"drew\" && event.defIds && viewerSeat !== event.seat) {","to":"if (event.type === \"drew\" && event.defIds) {","kills":["names the Draw Phase card only for the player who drew it"]},
@@ -499,6 +506,15 @@ module.exports = {
     {"id": "reveal-never", "file": "packages/rules/src/engine/views.ts", "from": "...(state.winner !== null\n      ? {\n          revealedHands", "to": "...(false\n      ? {\n          revealedHands", "kills": ["sends both seats' hands and Life to each player once there is a winner (#482)", "gives a spectator the hands after the game even when hands are not revealed live (#482)"]},
     {"id": "reveal-life-seats-swapped", "file": "packages/rules/src/engine/views.ts", "from": "revealedLife: [[...state.players[0].life], [...state.players[1].life]]", "to": "revealedLife: [[...state.players[1].life], [...state.players[0].life]]", "kills": ["sends both seats' hands and Life to each player once there is a winner (#482)"]},
     {"id": "reveal-hands-seats-swapped", "file": "packages/rules/src/engine/views.ts", "from": "revealedHands: [0, 1].map((s) =>", "to": "revealedHands: [1, 0].map((s) =>", "kills": ["sends both seats' hands and Life to each player once there is a winner (#482)"]},
+    // Undo stops at revealed cards (#497)
+    {"id": "reveals-always", "file": R, "from": "  const turnDrawn = new Set<InstanceId>();", "to": "  if (events.length >= 0) return true;\n  const turnDrawn = new Set<InstanceId>();", "kills": ["playing a vanilla card from hand reveals nothing (#497)", "the Draw Phase draw does not count, so an accidental end turn stays undoable (#497)"]},
+    {"id": "reveals-never", "file": R, "from": "  const turnDrawn = new Set<InstanceId>();", "to": "  if (events.length >= 0) return false;\n  const turnDrawn = new Set<InstanceId>();", "kills": ["an effect that draws a card reveals hidden info (#497)", "looking at the top of the deck reveals hidden info (#497)", "taking a Life card reveals hidden info (#497)"]},
+    {"id": "reveals-ignores-card-revealed", "file": R, "from": "  if (events.some((e) => e.type === \"card_revealed\")) return true;\n", "to": "", "kills": ["a revealed card counts even when no zone changed (#497)"]},
+    {"id": "reveals-ignores-deck-draw", "file": R, "from": "    for (const id of b.zoneInstanceIds.deck) if (!deckAfter.has(id) && !turnDrawn.has(id)) return true;\n", "to": "", "kills": ["an effect that draws a card reveals hidden info (#497)"]},
+    {"id": "reveals-turn-draw-counts", "file": R, "from": "if (!deckAfter.has(id) && !turnDrawn.has(id)) return true;", "to": "if (!deckAfter.has(id)) return true;", "kills": ["the Draw Phase draw does not count, so an accidental end turn stays undoable (#497)"]},
+    {"id": "reveals-ignores-life-taken", "file": R, "from": "    for (const id of b.zoneInstanceIds.life) if (!lifeAfter.has(id)) return true;\n", "to": "", "kills": ["a Life card leaving Life counts on its own, and so does turning one face up (#497)"]},
+    {"id": "reveals-ignores-life-face-up", "file": R, "from": "      if (a.faceUpLife[i] === true && faceUpBefore.get(a.zoneInstanceIds.life[i]!) === false) return true;\n", "to": "", "kills": ["a Life card leaving Life counts on its own, and so does turning one face up (#497)"]},
+    {"id": "reveals-ignores-looks", "file": R, "edits": [{"file": R, "from": "    if (c.privateToSeat != null) return true;\n", "to": ""}, {"file": R, "from": "    if (c.bindings && Object.values(c.bindings).some((v) => typeof v === \"string\" && secret.has(v))) return true;\n", "to": ""}], "kills": ["looking at the top of the deck reveals hidden info (#497)"]},
     // View projection and perspective (#487)
     {"id": "view-nested-choice-not-projected", "file": "packages/rules/src/engine/views.ts", "from": "projected.unorderedChoices = projected.unorderedChoices.map((nested) => projectPendingChoice(nested, viewerSeat));", "to": "projected.unorderedChoices = projected.unorderedChoices;", "kills": ["redacts a nested unordered choice for the other seat and spectators"]},
     {"id": "view-life-added-face-up-hidden", "file": "packages/rules/src/engine/views.ts", "from": "if (event.type === \"life_added\" && !event.faceUp) return", "to": "if (event.type === \"life_added\") return", "kills": ["shows the card of a face-up Life addition to every viewer"]},

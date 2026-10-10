@@ -39,6 +39,11 @@ export type BattleLogEntry = {
   important: boolean;
   segments: LogSegment[];
   /**
+   * Intents the room had applied when this line happened (the `step` of its
+   * events message). An undo to step N drops the lines past N (#497).
+   */
+  step?: number;
+  /**
    * Set when the line shows a card being revealed (a reveal, or a search that
    * reveals and adds to hand): the card to put on screen for the viewer.
    */
@@ -524,20 +529,24 @@ export function groupBattleLogByTurn(
 }
 
 /**
- * Battle log after an accepted undo: turns past `toTurn` no longer happened,
- * so their lines go (the replayed turns would otherwise merge into them);
- * `toTurn` keeps its lines and gains a marker so the rewind is visible.
+ * Battle log after an accepted undo: what the rewound action(s) did no longer
+ * happened, so those lines go (replayed ones would otherwise merge into them)
+ * and a marker names the action taken back. Lines carry the room's intent
+ * count (`step`): the ones past `toStep` go. Lines without a step (older
+ * servers) fall back to dropping turns after `toTurn`.
  */
 export function rewindBattleLog(
   entries: readonly BattleLogEntry[],
   toTurn: number,
   by: 0 | 1,
   youSeat: number | null,
+  toStep?: number,
+  actionLabel?: string,
 ): BattleLogEntry[] {
   const who = youSeat == null ? playerLabel(by) : by === youSeat ? "You" : "Opponent";
-  const text = `${who} undid the turn — rewound to the start of turn ${toTurn}.`;
+  const text = actionLabel ? `${who} undid: ${actionLabel}.` : `${who} undid the last action.`;
   return [
-    ...entries.filter((e) => e.turn <= toTurn),
+    ...entries.filter((e) => (e.step !== undefined && toStep !== undefined ? e.step <= toStep : e.turn <= toTurn)),
     {
       id: `${toTurn}-undo-${Math.random().toString(36).slice(2, 9)}`,
       turn: toTurn,
@@ -545,6 +554,7 @@ export function rewindBattleLog(
       tone: "effect",
       important: true,
       segments: [{ kind: "text", text }],
+      ...(toStep !== undefined ? { step: toStep } : {}),
     },
   ];
 }

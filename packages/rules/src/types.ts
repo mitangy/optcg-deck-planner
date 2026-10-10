@@ -228,6 +228,11 @@ export interface PlayerState {
   attachedDons: DonInstance[];
   mulliganDone: boolean;
   turnsStarted: number;
+  /**
+   * Instance ids of cards in `hand` that an effect revealed this turn (e.g. "reveal 2 Events from your hand"). They stay face up to
+   * the opponent until the next turn begins or the card leaves the hand (#491). Optional so older saved states still load.
+   */
+  revealedHandIds?: string[];
   /** DON!! cards this player owns in total (10 unless a rule changes it). */
   donTotal?: number;
   /** What happened this turn, for "during this turn" conditions. Reset when a turn starts. */

@@ -21,7 +21,7 @@ node tools/mutation-check/run.cjs rules --only "snapshot|rng"  # mutation ids ma
 `--check-anchors` runs no tests: it only checks that every mutation's `from`
 (and each `edits[].from`) still matches exactly once and every `json` patch
 applies, exiting 1 on any stale one. It takes about a second for all suites and
-runs in PR CI and nightly.
+runs in PR CI and on every push to main.
 
 ```bash
 node tools/mutation-check/run.cjs --check-anchors   # all suites, no tests
@@ -55,37 +55,61 @@ second run would "restore" files the first is mutating mid-test and make its
 mutations falsely survive. `run.cjs` holds `.run.lock` and refuses to start
 while another run is alive.
 
-## Breadth tools (nightly, report-only)
+## Changed mutations in PR CI
 
-The curated suites above prove that specific tests can fail. Two generic
-mutation tools run nightly (`.github/workflows/nightly.yml`) to find code that
-**no** test kills: StrykerJS for `packages/rules` (`src/engine`, `src/effects`;
-`packages/rules/stryker.config.json`) and mutmut for the backend pricing and
-aggregation modules (`backend/setup.cfg`).
+`changed.cjs` re-proves only the mutations a PR adds or changes, so a new test
+cannot merge without a mutation that kills it, without a multi-hour full run:
 
-- Survivors are a to-do list, not a score. Read the step summary, pick the ones
-  that are real behavior, and add a test plus a curated entry here. Many are
-  equivalent or cosmetic mutants (log strings, ids); ignore those and do not
-  chase a percentage. Neither tool fails the job on survivors
-  (`thresholds.break` is null; mutmut exits 0). Only tool errors fail the job
-  and open the nightly issue.
+```bash
+node tools/mutation-check/changed.cjs origin/main --list   # print "suite: id, id" per suite; run nothing
+node tools/mutation-check/changed.cjs origin/main          # run the changed ids, exit 1 if any fails
+```
+
+It loads each `suites/*.cjs` at the merge base with `<ref>` (via `git show`) and
+at HEAD, matches entries by `id`, and counts an entry as changed when its
+serialization differs. That covers `json` patch functions two ways: their
+source text, and the result of applying them to the current data file (so a
+patch built by a helper like `scn` in `rules.cjs` is caught even when the
+wrapper's text is unchanged). A suite that is new at HEAD counts entirely. It
+then runs `run.cjs <suite> --only '^(id1|id2)$'` per suite. Removed entries run
+nothing. Playwright suites (`duel-e2e`, `frontend-e2e`) are skipped with a
+"run locally" line; run those yourself with `run.cjs <suite> --only ...`.
+A summary goes to `$GITHUB_STEP_SUMMARY` when it is set.
+
+The `mutation-proofs` job in `.github/workflows/ci.yml` runs this on pull
+requests only, with `fetch-depth: 0` and the PR base SHA. It reads `--list`
+first and installs only what the changed suites need (root `npm ci`, the
+`duel-web`, `frontend` and `mobile` installs, or Python plus
+`backend/requirements.txt` with `BACKEND_PYTHON` set). With no changed entries
+it finishes in seconds and says so in the job summary.
+
+## Breadth tool (weekly, report-only)
+
+The curated suites above prove that specific tests can fail. StrykerJS runs
+weekly (Sunday, `.github/workflows/nightly.yml`, all five shards in parallel)
+over `packages/rules` (`src/engine`, `src/effects`;
+`packages/rules/stryker.config.json`) to find code that **no** test kills.
+
+- Survivors are a to-do list, not a score. Each shard prints one
+  `SURVIVOR <file>:<line>:<col> <mutatorName> <status> => <replacement>` line
+  per survivor and no-coverage mutant in its job log (the step summary keeps
+  the per-file table). A weekly Claude routine reads those lines, picks the
+  ones that are real behavior, and adds a test plus a curated entry here. Many
+  are equivalent or cosmetic mutants (log strings, ids); ignore those and do
+  not chase a percentage. Stryker does not fail the job on survivors
+  (`thresholds.break` is null); only tool errors fail the job and open the
+  nightly issue.
 - Smoke runs, from `packages/rules`: `npx stryker run --mutate src/engine/modifiers.ts`
   (about 3 minutes; `npm run mutation:stryker -w @optcg/rules` is the full run).
   Stryker works in a sandbox copy (`.stryker-tmp`), so it is safe next to
   `run.cjs`. Output goes to the git-ignored `packages/rules/reports/`.
 - Known caveat: with the vitest runner Stryker's incremental IDs can churn
   (stryker-js #6004), so the cached `reports/stryker-incremental.json` may
-  invalidate and re-run mutants it should have reused. The nightly cache is a
+  invalidate and re-run mutants it should have reused. The cache is a
   best-effort speedup; a cold run just takes longer.
-- mutmut install: `pip install -r backend/requirements-mutation.txt` after
-  `requirements.txt` (a separate step because the lock is hash-pinned). Smoke
-  run, from `backend`: `mutmut run "app.group_buy_merge*"`, then `mutmut results`.
-  mutmut 3 writes a copy of `app/` and `tests/` to the git-ignored
-  `backend/mutants/` and mutates there, but it runs pytest for every mutant and
-  reuses `backend/tests`, so treat it as heavy and CI-first. Never run it, or
-  Stryker's full run, at the same time as `run.cjs` in one checkout: both load
-  the machine and the timeouts they rely on become flaky, which produces false
-  survivors in the curated run.
+- Never run Stryker's full run at the same time as `run.cjs` in one checkout:
+  both load the machine and the timeouts they rely on become flaky, which
+  produces false survivors in the curated run.
 
 ## Adding a test
 

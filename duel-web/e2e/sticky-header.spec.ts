@@ -92,13 +92,13 @@ for (const path of ["/settings", "/whats-new", "/decks/e2e-you/configure"]) {
   });
 }
 
-test("a Settings chip jumps to a section below the header (#510)", async ({ page }) => {
+test("a Settings jump link lands a section below the header (#510)", async ({ page }) => {
   await open(page, "/settings");
-  await page.getByRole("navigation", { name: "Jump to a section" }).getByRole("link", { name: "Card back" }).click();
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(500);
+  await page.getByRole("navigation", { name: "Jump to a section" }).getByRole("link", { name: "Appearance" }).click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
   await scrollSettled(page, await page.evaluate(() => window.scrollY));
   const bar = (await stuckBar(page))!;
-  const top = await page.evaluate(() => document.getElementById("card-back")!.getBoundingClientRect().top);
+  const top = await page.evaluate(() => document.getElementById("appearance")!.getBoundingClientRect().top);
   expect(top, "the section is not hidden under the header").toBeGreaterThanOrEqual(bar.bottom);
   expect(top, "and sits right below it").toBeLessThan(bar.bottom + 40);
 });

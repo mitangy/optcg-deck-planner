@@ -251,21 +251,37 @@ describe("narrateEvents emphasis + card segments", () => {
 });
 
 describe("rewindBattleLog", () => {
-  const line = (turn: number, text: string): BattleLogEntry => ({
+  const line = (turn: number, text: string, step?: number): BattleLogEntry => ({
     id: `${turn}-${text}`,
     turn,
     text,
     tone: "routine",
     important: false,
     segments: [{ kind: "text", text }],
+    ...(step !== undefined ? { step } : {}),
   });
 
-  it("drops turns after the target and marks the rewind", () => {
+  it("drops only the lines of the undone action when they share a turn (#497)", () => {
+    const log = [line(2, "give DON", 4), line(2, "play Nami", 5), line(2, "attack", 6)];
+    const out = rewindBattleLog(log, 2, 1, 0, 5, "attack with Zoro");
+    expect(out.map((e) => e.text).slice(0, 2)).toEqual(["give DON", "play Nami"]);
+    expect(out).toHaveLength(3);
+  });
+
+  it("marks the rewind with the action that was taken back (#497)", () => {
+    const out = rewindBattleLog([line(2, "a", 1)], 2, 1, 0, 1, "attack with Zoro");
+    expect(out.at(-1)!.text).toBe("Opponent undid: attack with Zoro.");
+    expect(rewindBattleLog([line(2, "a", 1)], 2, 0, 0, 1, "play Nami").at(-1)!.text).toBe(
+      "You undid: play Nami.",
+    );
+  });
+
+  it("falls back to dropping later turns for lines without a step (#497)", () => {
     const out = rewindBattleLog([line(1, "a"), line(2, "b"), line(3, "c")], 2, 1, 0);
     expect(out.map((e) => e.text).slice(0, 2)).toEqual(["a", "b"]);
     expect(out).toHaveLength(3);
     expect(out[2]!.turn).toBe(2);
-    expect(out[2]!.text).toContain("Opponent undid the turn");
+    expect(out[2]!.text).toContain("Opponent undid");
   });
 });
 

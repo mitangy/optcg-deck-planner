@@ -4,16 +4,17 @@ import { CardTile } from "./CardTile";
 import { fanPose } from "./handFan";
 import { HandLabel } from "./HandLabel";
 import type { FanPos } from "./handFanPos";
-import { SPECTATOR_FAN_SPREAD, spectatorFarStrip, type SpectatorFans } from "./handLayout";
+import { SPECTATOR_FAN_SPREAD, spectatorHandGrid, type SpectatorFans } from "./handLayout";
 
 type HandCard = { id: string; defId: string };
 
 /**
  * The far player's hand for a spectator of an unranked room: a fan hanging from
- * the top of the board (a mirror of the near fan: the middle card sits lowest,
- * the outer cards lean out and sit higher, every card upright). Desktop and
- * portrait phones put it in the row above the top mat, landscape phones at the
- * top of the right column.
+ * the top of the board on desktop (a mirror of the near fan: the middle card
+ * sits lowest, the outer cards lean out and sit higher, every card upright).
+ * Phones get a grid of small upright cards instead, no overlap, tilt or drop:
+ * one scrolling row above the top mat in portrait, a wrapping grid at the top
+ * of the right column in landscape.
  */
 export function SpectatorFarHand({
   cards,
@@ -42,12 +43,11 @@ export function SpectatorFarHand({
   rootRef?: Ref<HTMLElement>;
 }) {
   const n = cards.length;
-  // A hand too big to read overlapped scrolls in a row on a portrait phone.
-  const scroll = mode === "portrait" && spectatorFarStrip(n) === "scroll";
+  const grid = spectatorHandGrid(mode);
   return (
     <section
       ref={rootRef}
-      className={`spec-far spec-far-${mode}${pos ? " spec-far-float" : ""}${moving ? " is-moving" : ""}${grip ? " has-grip" : ""}`}
+      className={`spec-far spec-far-${mode}${grid ? " spec-far-grid" : ""}${pos ? " spec-far-float" : ""}${moving ? " is-moving" : ""}${grip ? " has-grip" : ""}`}
       style={
         {
           "--n": Math.max(n, 1),
@@ -58,7 +58,7 @@ export function SpectatorFarHand({
       aria-label={`${name} hand: ${n} cards`}
     >
       <HandLabel name={name} count={n} grip={grip} />
-      <div className={`spec-far-cards${scroll ? " spec-far-scroll" : ""}`}>
+      <div className="spec-far-cards">
         {cards.map((c, i) => {
           const p = fanPose(i, n);
           return (
@@ -69,7 +69,7 @@ export function SpectatorFarHand({
               ownerSeat={ownerSeat}
               inspectOnClick
               style={
-                scroll ? undefined : ({ "--rot": `${p.rot.toFixed(2)}deg`, "--drop": p.drop.toFixed(4) } as CSSProperties)
+                grid ? undefined : ({ "--rot": `${p.rot.toFixed(2)}deg`, "--drop": p.drop.toFixed(4) } as CSSProperties)
               }
             />
           );

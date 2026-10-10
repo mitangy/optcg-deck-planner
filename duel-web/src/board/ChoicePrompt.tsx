@@ -7,7 +7,7 @@ import { arrangementAnswer, arrangementRows, groupAnswer, initialArrangement, me
 import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "./liveTargets";
 import { promptSourceName, PromptHideButton } from "./HideablePrompt";
 import { promptBody } from "./promptText";
-import { boardPickSpots, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo, type BoardPick, type BoardSpot } from "./fieldTargets";
+import { answersAtPick, boardPickSpots, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo, type BoardPick, type BoardSpot } from "./fieldTargets";
 import { FieldTargetBar } from "./FieldTargetBar";
 import { useDuelSettings } from "../settings";
 import { useConfirmKeys } from "./useBoardHotkeys";
@@ -346,13 +346,14 @@ function useSelectPicks(request: Extract<ChoiceRequestView, { type: "select" }>,
   const oneTap = useDuelSettings().oneTapActions;
   const [selected, setSelected] = useState<string[]>([]);
   const answer = (ids: string[]) => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
-  // One-tap: with exactly one pick wanted, picking it is the answer.
   // "With different card names": a card whose name is already picked can't be added.
   const taken = nameTakenIds(request.options, selected, request.distinctNames, cardName);
   const toggle = (id: string) => {
     if (taken.has(id)) return;
-    if (resolvesOnPick(oneTap, request.min, request.max)) return answer([id]);
-    setSelected((cur) => toggleSelection(cur, id, request.max));
+    const next = toggleSelection(selected, id, request.max);
+    // One-tap: with exactly N picks wanted, the Nth pick is the answer.
+    if (!selected.includes(id) && answersAtPick(oneTap, request.min, request.max, next.length)) return answer(next);
+    setSelected(next);
   };
   const valid = selected.length >= request.min && selected.length <= request.max;
   const boardIds = request.options.filter((o) => o.eligible && o.instanceId && !taken.has(o.id)).map((o) => o.instanceId!);
@@ -496,8 +497,9 @@ function FieldSelectBar({ request, choice, spots, onSend }: {
   const open = taken.size ? new Map([...spots].filter(([id]) => !taken.has(id))) : spots;
   useBoardSpotClicks(open, (spot, chipId) => {
     const next = tapBoardSpot(pick, open, spot, request.max, chipId);
-    // One-tap: with exactly one pick wanted, picking it is the answer.
-    if (oneTap && next.selected.length === 1 && !pick.selected.includes(next.selected[0]!)) return answer(next.selected);
+    // One-tap: with exactly N picks wanted, the Nth pick is the answer.
+    const added = next.selected.some((id) => !pick.selected.includes(id));
+    if (added && answersAtPick(oneTapSetting, request.min, request.max, next.selected.length)) return answer(next.selected);
     setPick(next);
   });
   const { selected } = pick;
@@ -664,19 +666,58 @@ export function confirmIntent(choice: Pick<PendingChoiceView, "kind" | "noTrigge
   return { type: "resolve_pending_choice", accept: (choice.kind === "life_trigger" && choice.noTrigger) || choice.unpayable ? false : accept };
 }
 
+/** Yes/No buttons; a Life card without [Trigger] or a cost that can't be paid has one decline button (#352, #369). */
+function ConfirmButtons({ choice, onSend }: { choice: PendingChoiceView; onSend: (i: Intent) => void }) {
+  const noTrigger = choice.kind === "life_trigger" && choice.noTrigger === true;
+  const cannotPay = choice.unpayable === true;
+  if (noTrigger || cannotPay) {
+    return (
+      <div className="ability-prompt-actions">
+        <button type="button" className="btn btn-primary" aria-keyshortcuts="Y Space N" onClick={() => onSend({ type: "resolve_pending_choice", accept: false })}>
+          {noTrigger ? "No Trigger" : "Can't pay"}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="ability-prompt-actions">
+      <button type="button" className="btn btn-primary" aria-keyshortcuts="Y Space" onClick={() => onSend({ type: "resolve_pending_choice", accept: true })}>
+        {choice.kind === "life_trigger" ? "Activate Trigger" : "Yes"}
+      </button>
+      {choice.optional ? (
+        <button type="button" className="btn btn-secondary" aria-keyshortcuts="N" onClick={() => onSend({ type: "resolve_pending_choice", accept: false })}>
+          {choice.kind === "life_trigger" ? "Add to hand" : "No"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view" | "hidden">) {
   const request: ChoiceRequestView = choice.request ?? { type: "confirm" };
   const liveCards = useContext(LiveCardsContext);
   const cards = useMemo(() => boardCards(liveCards), [liveCards]);
   const spots = request.type === "select" ? boardPickSpots(request.options, cards, mySeat) : null;
   const hidden = useContext(PromptHiddenContext);
-  const noTrigger = choice.kind === "life_trigger" && choice.noTrigger === true;
-  const cannotPay = choice.unpayable === true;
   useConfirmKeys(request.type === "confirm" && !hidden, choice.optional, (accept) => onSend(confirmIntent(choice, accept)));
   if (request.type === "select" && spots) {
     return <FieldSelectBar request={request} choice={choice} spots={spots} onSend={onSend} />;
   }
   const showSource = request.type === "confirm" && choice.cardDefId && choice.cardDefId !== "HIDDEN";
+  // Life check (#495): just the Life card, big, with its buttons under it; no box, header or prompt text.
+  if (choice.kind === "life_trigger" && request.type === "confirm" && showSource) {
+    return (
+      <div className="ability-prompt life-trigger-card choice-prompt choice-confirm" role="dialog" aria-label={choice.prompt}>
+        {onHide ? (
+          <div className="life-trigger-tools">
+            <PromptHideButton onHide={onHide} />
+          </div>
+        ) : null}
+        <CardTile defId={choice.cardDefId} inspectGestures viewingSeat={mySeat} />
+        <ConfirmButtons choice={choice} onSend={onSend} />
+      </div>
+    );
+  }
   return (
     <div className={`ability-prompt choice-prompt choice-${request.type}`} role="dialog" aria-label={choice.prompt}>
       <PromptHideButton onHide={onHide} />
@@ -685,23 +726,8 @@ function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view"
         {showSource ? <CardTile defId={choice.cardDefId} compact inspectGestures viewingSeat={mySeat} /> : null}
         <p>{promptBody(promptSourceName(choice), choice.prompt)}</p>
       </div>
-      {request.type === "confirm" && (noTrigger || cannotPay) ? (
-        <div className="ability-prompt-actions">
-          <button type="button" className="btn btn-primary" aria-keyshortcuts="Y Space N" onClick={() => onSend({ type: "resolve_pending_choice", accept: false })}>
-            {noTrigger ? "No Trigger" : "Can't pay"}
-          </button>
-        </div>
-      ) : request.type === "confirm" ? (
-        <div className="ability-prompt-actions">
-          <button type="button" className="btn btn-primary" aria-keyshortcuts="Y Space" onClick={() => onSend({ type: "resolve_pending_choice", accept: true })}>
-            {choice.kind === "life_trigger" ? "Activate Trigger" : "Yes"}
-          </button>
-          {choice.optional ? (
-            <button type="button" className="btn btn-secondary" aria-keyshortcuts="N" onClick={() => onSend({ type: "resolve_pending_choice", accept: false })}>
-              {choice.kind === "life_trigger" ? "Add to hand" : "No"}
-            </button>
-          ) : null}
-        </div>
+      {request.type === "confirm" ? (
+        <ConfirmButtons choice={choice} onSend={onSend} />
       ) : request.type === "mode" ? (
         <div className="ability-prompt-actions choice-modes">
           {request.options.map((option) => (
