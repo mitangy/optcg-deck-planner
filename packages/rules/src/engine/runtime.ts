@@ -405,10 +405,12 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
     case "confirm": {
       // Costs that depend on hidden cards (#369) are always asked: skipping the prompt would tell the opponent the
       // player cannot pay. An unpayable one is marked privately so only declining is legal.
+      // The opponent pays their own costs: payable means payable from their zones, in full (#515).
       let unpayable = false;
-      if (instr.costs && !canPayCosts(state, ctx, instr.costs)) {
+      const payCtx: EvalCtx = instr.chooser === "opponent" ? { ...ctx, seat: otherSeat(frame.seat) } : ctx;
+      if (instr.costs && !canPayCosts(state, payCtx, instr.costs)) {
         const hiddenCosts = state.privateChoicesV2 && instr.chooser !== "opponent" ? instr.costs.filter(costDependsOnHiddenInfo) : [];
-        if (hiddenCosts.length === 0 || !instr.costs.every((c) => hiddenCosts.includes(c) || canPayCost(state, ctx, c))) { frame.bindings[instr.bind] = false; frame.bindings.__declined = true; return "next"; }
+        if (hiddenCosts.length === 0 || !instr.costs.every((c) => hiddenCosts.includes(c) || canPayCost(state, payCtx, c))) { frame.bindings[instr.bind] = false; frame.bindings.__declined = true; return "next"; }
         unpayable = true;
       }
       const ability = abilityById(frame.abilityId)?.ability;
@@ -959,7 +961,12 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       const seat = seatOf(frame, effect.player);
       const p = state.players[seat];
       const n = evalValue(state, ctx, effect.count);
-      for (let i = 0; i < n && p.deck.length; i += 1) moveToZone(sim, { seat, zone: "deck", index: 0, id: p.zoneInstanceIds.deck[0]!, defId: p.deck[0]! }, "trash");
+      const trashed: string[] = [];
+      for (let i = 0; i < n && p.deck.length; i += 1) {
+        trashed.push(p.zoneInstanceIds.deck[0]!);
+        moveToZone(sim, { seat, zone: "deck", index: 0, id: p.zoneInstanceIds.deck[0]!, defId: p.deck[0]! }, "trash");
+      }
+      if (effect.bind) frame.bindings[effect.bind] = trashed;
       return "next";
     }
     case "shuffle": {

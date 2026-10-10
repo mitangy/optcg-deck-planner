@@ -206,7 +206,7 @@ const effect: V = tagged("do", {
   life_to_hand: variant("do", "life_to_hand", { player: rel, count: int(1), position: oneOf("top", "top_or_bottom", "bottom") }, { min: int(0) }),
   trash_life: variant("do", "trash_life", { player: rel, count: value }, { position: oneOf("top", "top_or_bottom") }),
   life_face: variant("do", "life_face", { player: rel, count: int(1), faceUp: bool }, { min: int(0) }),
-  mill: variant("do", "mill", { player: rel, count: value }),
+  mill: variant("do", "mill", { player: rel, count: value }, { bind: str }),
   look: variant("do", "look", { player: rel, count: value, picks: arr(lookPick), rest: placement }, { reveal: bool }),
   look_life: variant("do", "look_life", { player: relAny, count: int(1), rest: oneOf("top_or_bottom", "any_order") }, { prompt: str }),
   reveal_top: variant("do", "reveal_top", { player: rel, bind: str }, { zone: oneOf("deck", "life") }),
