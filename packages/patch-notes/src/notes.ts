@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-10
+  { date: "2026-10-10", app: "duel", pr: 502, title: "One-tap actions skip more taps", text: "With One-tap actions on, tapping a card whose pop-up has a single button (Play, Attack, Activate or +1 DON!!) does it straight away, and an effect that wants exactly 2 or 3 picks resolves on the last pick without a Confirm tap." },
   { date: "2026-10-10", app: "duel", pr: 490, title: "Life face-up costs use the top Life cards", text: "Charlotte Pudding and other \"turn cards from the top of your Life face-up or face-down\" effects now only work when the top Life cards can actually be turned. A face-up top Life card no longer lets you flip the cards beneath it." },
   // 2026-10-09
   { date: "2026-10-09", app: "duel", pr: 484, title: "Hands and Life revealed at game end", text: "When a match ends, both hands and every Life card flip face up for players and spectators, so you can see what your opponent was holding." },
