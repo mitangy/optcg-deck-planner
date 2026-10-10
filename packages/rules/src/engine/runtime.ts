@@ -952,8 +952,7 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
     }
     case "life_face": {
       const p = state.players[seatOf(frame, effect.player)];
-      let n = effect.count;
-      for (let i = 0; i < p.life.length && n > 0; i += 1) if (p.faceUpLife[i] !== effect.faceUp) { p.faceUpLife[i] = effect.faceUp; n -= 1; }
+      for (let i = 0; i < Math.min(effect.count, p.life.length); i += 1) p.faceUpLife[i] = effect.faceUp;
       return "next";
     }
     case "mill": {
