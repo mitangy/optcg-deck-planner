@@ -41,6 +41,8 @@ export type HandLayoutPref = "auto" | HandLayout;
 
 /** Text size across the app, on top of the automatic scaling with the window. */
 export type TextSize = "small" | "medium" | "large" | "xlarge";
+/** Which way a Life stack fans on the mat (#499). */
+export type LifeFan = "down" | "up";
 
 export type DuelSettings = {
   /** Mint tokens with a dev user key instead of the guest id (dev builds only). */
@@ -137,6 +139,12 @@ export type DuelSettings = {
   oppHandSpot: OppHandSpot;
   /** Text size (power numbers, card text, buttons), scaled further by the window size. */
   textSize: TextSize;
+  /**
+   * Which way your Life cards fan: "down" puts the top card at the bottom of
+   * the fan, nearest you; "up" puts it at the top, toward the middle. The
+   * opponent's Life fans the other way, mirroring yours (#499).
+   */
+  lifeFan: LifeFan;
   /** Desktop: tilt the board away from you, seen from your seat. */
   tiltedBoard: boolean;
   /**
@@ -212,6 +220,7 @@ const DEFAULTS: DuelSettings = {
   donUpright: false,
   oppHandSpot: "",
   textSize: "medium",
+  lifeFan: "down",
   tiltedBoard: false,
   bigBoard: false,
   showRecentPlays: true,
@@ -246,6 +255,7 @@ export function resolveHandLayout(pref: HandLayoutPref, tallDesktop: boolean): H
  */
 const LEGACY_RIGHT_FAN_POS = "0.88,1";
 export const TEXT_SIZES: readonly TextSize[] = ["small", "medium", "large", "xlarge"];
+export const LIFE_FANS: readonly LifeFan[] = ["down", "up"];
 const CHANGE_EVENT = "optcg-duel:settings-change";
 
 /** Stored values from older builds or hand edits fall back to defaults field by field. */
@@ -284,6 +294,7 @@ function sanitize(
   if (storedLayout === "fanRight" || storedLayout === "fanCenter") next.handLayout = "fan";
   if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;
   if (!TEXT_SIZES.includes(next.textSize)) next.textSize = DEFAULTS.textSize;
+  if (!LIFE_FANS.includes(next.lifeFan)) next.lifeFan = DEFAULTS.lifeFan;
   if (!PROMPT_DOCKS.includes(next.promptDock)) next.promptDock = DEFAULTS.promptDock;
   if (!OPP_HAND_SPOTS.includes(next.oppHandSpot)) next.oppHandSpot = DEFAULTS.oppHandSpot;
   // Builds before #295 had a separate "Opponent hand, top right" switch; on is

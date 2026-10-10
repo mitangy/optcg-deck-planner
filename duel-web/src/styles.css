@@ -1814,6 +1814,20 @@ html:has(.duel-root) body {
   margin-top: 0;
 }
 
+/* Fans up (#499): the last face (top of Life) sits at the top, still in front. */
+.zone-pile-life .zone-pile-stack.is-fan-up {
+  flex-direction: column-reverse;
+}
+
+.zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face {
+  margin-top: 0;
+  margin-bottom: -30px;
+}
+
+.zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face:first-child {
+  margin-bottom: 0;
+}
+
 .zone-pile-life .zone-pile-stack:empty::before {
   content: "";
   display: block;
@@ -3000,6 +3014,15 @@ img.zone-pile-face {
     width: 28px;
     height: 34px;
     margin-top: -24px;
+  }
+
+  .zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face {
+    margin-top: 0;
+    margin-bottom: -24px;
+  }
+
+  .zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face:first-child {
+    margin-bottom: 0;
   }
 
   .zone-pile-life .zone-pile-stack:empty::before {
