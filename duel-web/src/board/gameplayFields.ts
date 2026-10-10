@@ -89,6 +89,7 @@ export type SelectRowKey =
   | "oppHandSpot"
   | "sidePanels"
   | "textSize"
+  | "lifeFan"
   | "animationSpeed"
   | "cardSpotlight"
   | "showOnScreen";
@@ -132,6 +133,7 @@ export const GAMEPLAY_GROUPS: GameplayGroup[] = [
       "screenOrientation",
       "oppHandSpot",
       "oppHandTopRight",
+      "lifeFan",
       "previewBigCard",
       "layoutGrips",
       "sidePanels",
@@ -171,6 +173,7 @@ export function rowShown(key: RowKey, d: FieldDevice): boolean {
     case "responseStops":
     case "handLayout":
     case "textSize":
+    case "lifeFan":
     case "animationSpeed":
     case "cardSpotlight":
     case "showOnScreen":

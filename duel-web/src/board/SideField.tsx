@@ -9,7 +9,8 @@ import { DonStrip } from "./DonStrip";
 import type { DonPiles } from "./donPiles";
 import { donTotal } from "./donTotals";
 import { TrashViewer, trashNewestFirst } from "./TrashViewer";
-import { ZonePile, zonePileCountLabel } from "./ZonePile";
+import type { LifeFan } from "../settings";
+import { ZonePile, lifeFanForSide, zonePileCountLabel } from "./ZonePile";
 
 type SideData = {
   leader: CardView;
@@ -78,6 +79,8 @@ type BattleDropTargets = {
 
 type Props = {
   side: "you" | "opp";
+  /** Your Life fan setting; the opponent side draws the mirror of it (#499). */
+  lifeFan?: LifeFan;
   data: SideData;
   compact?: boolean;
   drag?: DragHandlers;
@@ -195,6 +198,7 @@ function CountChip({
 
 export function SideField({
   side,
+  lifeFan,
   data,
   compact,
   drag,
@@ -306,6 +310,7 @@ export function SideField({
             expectedCount={leaderLife ?? undefined}
             faceUp={faceUpLife}
             ownerSeat={ownerSeat}
+            lifeFan={lifeFanForSide(lifeFan ?? "down", side)}
             onOpen={faceUpLife.length ? () => setLifeOpen(true) : undefined}
           />
         </div>}

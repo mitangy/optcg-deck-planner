@@ -13,8 +13,8 @@ from tests.db_support import make_test_engine
 @pytest.fixture(autouse=True)
 def _fresh_rate_limits() -> None:
     # Rate limiters live at module level, so calls from earlier tests in the same
-    # process count against later ones (mutmut runs the whole suite twice in one
-    # process, and the second pass hit 429s on /duel/dev-token).
+    # process count against later ones (running the suite twice in one process
+    # hit 429s on /duel/dev-token).
     for name, module in list(sys.modules.items()):
         if name == "app" or name.startswith("app."):
             for value in list(vars(module).values()):

@@ -7,6 +7,7 @@ import {
   type AnimationSpeed,
   type EndTurnConfirm,
   type HandLayoutPref,
+  type LifeFan,
   type ResponseStops,
   type ScreenOrientationPref,
   type TextSize,
@@ -191,6 +192,11 @@ const TEXT_SIZE_OPTIONS: { value: TextSize; label: string }[] = [
   { value: "medium", label: "Medium" },
   { value: "large", label: "Large" },
   { value: "xlarge", label: "Extra large" },
+];
+
+const LIFE_FAN_OPTIONS: { value: LifeFan; label: string }[] = [
+  { value: "down", label: "Fans down (top card nearest you)" },
+  { value: "up", label: "Fans up (top card toward the middle)" },
 ];
 
 const ANIMATION_OPTIONS: { value: AnimationSpeed; label: string }[] = [
@@ -415,6 +421,27 @@ export function GameplaySettingsFields() {
             </p>
           </div>
 
+        );
+      case "lifeFan":
+        return (
+          <div className="field">
+            <label htmlFor="life-fan">Life stack direction</label>
+            <select
+              id="life-fan"
+              value={settings.lifeFan}
+              onChange={(e) => updateSettings({ lifeFan: e.target.value as LifeFan })}
+            >
+              {LIFE_FAN_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="field-hint">
+              Which way your Life cards fan out on your mat. The opponent&apos;s Life fans the other way
+              so it mirrors yours.
+            </p>
+          </div>
         );
       case "animationSpeed":
         return (
