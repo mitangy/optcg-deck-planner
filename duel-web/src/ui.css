@@ -2399,3 +2399,63 @@ label.btn.is-busy {
     display: none;
   }
 }
+
+/* —— Deck editor: Save / Discard and the leave-with-unsaved-edits dialog (#481) —— */
+
+/* Both buttons are always rendered with a fixed width, so Saved <-> Save never moves the row. */
+.deck-save-btn,
+.deck-discard-btn {
+  min-width: 5.25rem;
+  justify-content: center;
+}
+
+.leave-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1rem, var(--safe-t)) max(1rem, var(--safe-r)) max(1rem, var(--safe-b)) max(1rem, var(--safe-l));
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.leave-dialog {
+  width: 100%;
+  max-width: 24rem;
+  max-height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1.1rem;
+  background: var(--arena-panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.leave-dialog h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--chrome-bright);
+  overflow-wrap: anywhere;
+}
+
+.leave-dialog p {
+  margin: 0;
+}
+
+.leave-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+}
+
+.leave-dialog-actions .btn {
+  flex: 1 1 auto;
+  justify-content: center;
+}
