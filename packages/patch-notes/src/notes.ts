@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-10
-  { date: "2026-10-10", app: "duel", pr: 0, title: "Header stays on top", text: "The menu, back link and title now stay at the top of the screen while you scroll any page, so the menu is always one tap away." },
+  { date: "2026-10-10", app: "duel", pr: 520, title: "Header stays on top", text: "The menu, back link and title now stay at the top of the screen while you scroll any page, so the menu is always one tap away." },
   { date: "2026-10-10", app: "duel", pr: 507, title: "Settings grouped, with jump buttons", text: "Gameplay settings are now in headed groups: Turns and prompts, Hand, Board and layout, Visual aids, Animations, and Sound and alerts. Jump buttons at the top, sticky inside a match, take you straight to one. On the Settings page, Theme, Playmat, Card back and DON!! card now sit under an Appearance heading." },
   { date: "2026-10-10", app: "duel", pr: 501, title: "Undo takes back one action", text: "In casual and practice games, Undo now steps back one action at a time instead of the whole turn, and the button says which action it will undo. You can't undo past a card that was drawn by an effect, searched or revealed, or a Life card that was taken." },
   { date: "2026-10-10", app: "duel", pr: 506, title: "Choose which way your Life fans", text: "A new setting picks whether your Life cards fan down or up on your mat. Your opponent's Life now mirrors yours on their side of the board." },
