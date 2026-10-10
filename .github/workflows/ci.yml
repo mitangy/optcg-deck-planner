@@ -127,10 +127,12 @@ jobs:
 
   duel-web-e2e:
     # Aggregates the shards under the original check name, so branch protection
-    # and the PR checks list keep one `duel-web-e2e`. `if: always()` makes it
-    # run (and fail) when a shard fails or is cancelled instead of being skipped.
+    # and the PR checks list keep one `duel-web-e2e`. `!cancelled()` makes it
+    # run (and fail) when a shard fails or times out instead of being skipped,
+    # but not when a newer push cancels the whole run (always() would post a
+    # red check on the superseded commit).
     needs: duel-web-e2e-shard
-    if: always()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
