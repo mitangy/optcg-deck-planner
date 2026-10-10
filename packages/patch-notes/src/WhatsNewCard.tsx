@@ -1,6 +1,6 @@
 import { useState, type ComponentType, type ReactNode } from "react";
-import { latestNoteDate, notesFor, type AppName } from "./helpers";
-import { loadUnseen, markSeen } from "./lastSeen";
+import type { AppName } from "./helpers";
+import { loadUnseen, markAllSeen } from "./lastSeen";
 import { WHATS_NEW_PATH } from "./paths";
 
 export type WhatsNewLinkProps = { to: string; className?: string; onClick?: () => void; children: ReactNode };
@@ -11,7 +11,7 @@ const SHOWN = 3;
  * The once-per-update card: the newest few notes this browser hasn't seen, with
  * "See all" and "Got it". Fixed to the bottom corner, so showing or dismissing
  * it never moves the page. `Link` is the app's router link. Either button
- * records the newest note date as seen, so the card stays away until the next update.
+ * records every current note as seen, so the card stays away until the next update.
  */
 export function WhatsNewCard({ app, Link, to = WHATS_NEW_PATH }: { app: AppName; Link: ComponentType<WhatsNewLinkProps>; to?: string }) {
   // Read once per mount: a first run records today's notes as seen and shows nothing.
@@ -20,8 +20,7 @@ export function WhatsNewCard({ app, Link, to = WHATS_NEW_PATH }: { app: AppName;
   if (!open || unseen.length === 0) return null;
 
   const dismiss = () => {
-    const latest = latestNoteDate(app, notesFor(app));
-    if (latest) markSeen(app, latest);
+    markAllSeen(app);
     setOpen(false);
   };
   const shown = unseen.slice(0, SHOWN);
