@@ -1516,7 +1516,7 @@ export function DuelBoard({
           showCounter={prefs.handCounters}
           selected={handFilter === idx}
           onClick={() => selectHandCard(idx)}
-          instantClick
+          instantClick={!prefs.oneTapActions}
           dragEnabled={boardDrag || reorderable}
           dragPayload={payload}
           onDragStart={() => {

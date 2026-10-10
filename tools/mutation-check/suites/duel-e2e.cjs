@@ -18,6 +18,14 @@ module.exports = {
   cwd: "duel-web",
   runner: "playwright",
   mutations: [
+    // One-tap actions: a double-click inspects, it never plays / attacks (#513). Both hand and board tiles go back to firing on the first click.
+    { id: "e2e-one-tap-dblclick-acts", args: "one-tap.spec --project=desktop-1280 -g 513", edits: [
+      { file: "duel-web/src/board/DuelBoard.tsx", from: "          instantClick={!prefs.oneTapActions}\n", to: "          instantClick\n" },
+      { file: "duel-web/src/board/SideField.tsx", from: "const oneTap = useDuelSettings().oneTapActions;", to: "const oneTap = false;" },
+    ], kills: [
+      "Double-click with One-tap actions inspects without playing the card (#513)",
+      "Double-click with One-tap actions inspects a board card without attacking (#513)",
+    ] },
     // Revealed hand cards (#491)
     {"id": "e2e-hand-reveal-opp-cards-stay-backs", "args": "hand-reveal --project=desktop-1280", "file": "duel-web/src/board/DuelBoard.tsx", "from": "farHandWithReveals(opp.handCount, view.handReveals?.[oppSeat])", "to": "undefined", "kills": ["hand-reveal.spec.ts > revealed hand cards stay face up for the opponent and are marked in your hand (#491) [desktop-1280]", "hand-reveal.spec.ts > revealed cards also show when the opponent hand is pinned to a spot (#491) [desktop-1280]"]},
     {"id": "e2e-hand-reveal-own-marker-missing", "args": "hand-reveal --project=desktop-1280", "file": "duel-web/src/board/CardTile.tsx", "from": "      {revealed ? (", "to": "      {false ? (", "kills": ["hand-reveal.spec.ts > revealed hand cards stay face up for the opponent and are marked in your hand (#491) [desktop-1280]", "hand-reveal.spec.ts > revealed cards also show when the opponent hand is pinned to a spot (#491) [desktop-1280]"]},
