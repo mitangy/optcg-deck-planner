@@ -782,6 +782,19 @@ function bindTrashedCard(effect: Effect): void {
   else if (effect.do === "seq" && effect.steps.length) bindTrashedCard(effect.steps[effect.steps.length - 1]!);
 }
 
+/** Every `may` inside an effect tree. */
+function mayEffectsIn(effect: Effect | undefined): Extract<Effect, { do: "may" }>[] {
+  if (!effect) return [];
+  switch (effect.do) {
+    case "may": return [effect, ...mayEffectsIn(effect.then)];
+    case "seq": return effect.steps.flatMap(mayEffectsIn);
+    case "if": return [...mayEffectsIn(effect.then), ...mayEffectsIn(effect.else)];
+    case "pay": return mayEffectsIn(effect.then);
+    case "choose_one": return effect.options.flatMap((o) => mayEffectsIn(o.effect));
+    default: return [];
+  }
+}
+
 /**
  * Tie an "If you do, Y" sentence to the step before it.
  * After "you may X": X becomes a cost when it parses as one, so it is only offered when it can be paid in full
@@ -791,7 +804,14 @@ function bindTrashedCard(effect: Effect): void {
 function linkIfYouDo(steps: Effect[], gate: Extract<Effect, { do: "if" }>, sentence: string, ctx: Ctx): void {
   const prev = steps[steps.length - 1];
   if (!prev || gate.cond.c !== "var_count" || gate.cond.name !== "_did") return;
-  if (prev.do !== "may") { if (!JSON.stringify(prev).includes('"do":"may"')) gate.cond = { ...gate.cond, name: "_affected" }; return; }
+  if (prev.do !== "may") {
+    const nested = mayEffectsIn(prev);
+    if (!nested.length) gate.cond = { ...gate.cond, name: "_affected" };
+    // "If that card is X, you may play that card. If you do, Y": the "you may" sits inside the conditional, and a
+    // play that cannot happen is not "doing" it.
+    else if (nested.every((m) => !m.costs?.length)) gate.cond = { c: "and", conds: [gate.cond, { c: "var_count", name: "_affected", op: ">=", value: 1 }] };
+    return;
+  }
   if (!prev.prompt || prev.costs || prev.chooser) return;
   const costs = parseCosts(prev.prompt, ctx);
   if (costs?.length) steps[steps.length - 1] = { do: "may", costs, then: { do: "nothing" }, bind: prev.bind ?? "_did", prompt: prev.prompt };

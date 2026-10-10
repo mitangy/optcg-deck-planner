@@ -18,6 +18,7 @@
     "export-planner-stats": "tsx src/scripts/exportPlannerStats.ts",
     "export-protocol-fixtures": "tsx src/scripts/exportProtocolFixtures.ts",
     "scenario-coverage": "tsx src/scripts/scenarioCoverage.ts",
+    "lint:programs": "tsx src/scripts/lintPrograms.ts",
     "mutation:stryker": "stryker run",
     "typecheck": "tsc --noEmit"
   },
