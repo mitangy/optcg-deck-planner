@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-10
   { date: "2026-10-10", app: "duel", pr: 500, title: "Attach DON!! button fits again", text: "On big screens or with a larger Text size, the Attach DON!! confirm now grows with its text, so the button label no longer spills out." },
+  { date: "2026-10-10", app: "duel", pr: 490, title: "Life face-up costs use the top Life cards", text: "Charlotte Pudding and other \"turn cards from the top of your Life face-up or face-down\" effects now only work when the top Life cards can actually be turned. A face-up top Life card no longer lets you flip the cards beneath it." },
   // 2026-10-09
   { date: "2026-10-09", app: "duel", pr: 484, title: "Hands and Life revealed at game end", text: "When a match ends, both hands and every Life card flip face up for players and spectators, so you can see what your opponent was holding." },
   { date: "2026-10-09", app: "duel", pr: 483, title: "Save button in the deck editor", text: "Editing a deck now has a Save button, and leaving with unsaved changes asks first. Edits you save to a deck copied from the planner now stay in your games instead of being replaced by the planner version." },
