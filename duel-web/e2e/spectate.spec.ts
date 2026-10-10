@@ -42,7 +42,7 @@ test("a spectator of an unranked room sees both hands face up (#250)", async ({ 
   expect(duel.errors).toEqual([]);
 });
 
-test("a phone spectator sees both hands as compact grids and wider mats (#SPEC)", async ({ page, duel, browser }, info) => {
+test("a phone spectator sees both hands as compact grids and wider mats (#512)", async ({ page, duel, browser }, info) => {
   test.skip(info.project.name !== "phone-375", "phone layout");
   const created = page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
   await duel.startPractice({ seed: 7 });

@@ -34,7 +34,7 @@ describe("spectator hand fans (#346)", () => {
     expect(spectatorFans(false, false, false)).toBeNull();
   });
 
-  it("phones show a spectator's hands as grids, the desktop keeps the fans (#SPEC)", () => {
+  it("phones show a spectator's hands as grids, the desktop keeps the fans (#512)", () => {
     expect(spectatorHandGrid("portrait")).toBe(true);
     expect(spectatorHandGrid("landscape")).toBe(true);
     expect(spectatorHandGrid("desktop")).toBe(false);
