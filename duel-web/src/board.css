@@ -6126,3 +6126,37 @@ body.is-panel-drag * {
 .arena.arena-no-hud .float-layer-peek {
   padding-top: calc(var(--safe-t) + 0.75rem);
 }
+
+/* An effect revealed this hand card to the opponent (#491): a small pill across the top of the card.
+   Absolutely placed inside the tile, so the card keeps its size and the hand its layout. */
+.hand-revealed-badge {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  max-width: calc(100% - 4px);
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: rgba(8, 14, 22, 0.88);
+  border: 1px solid #f3c969;
+  color: #f3c969;
+  font-size: 0.5rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+}
+.card-tile.hand-revealed {
+  outline: 1px solid rgba(243, 201, 105, 0.55);
+  outline-offset: -1px;
+}
+
+/* Revealed cards sit among card backs (#491): paint them above their overlapping neighbours so they stay readable. */
+.opp-hand-corner .opp-corner-face,
+.opp-hand-fan .opp-fan-face,
+.opp-hand-faces .card-tile.opp-hand-face {
+  z-index: 2;
+}

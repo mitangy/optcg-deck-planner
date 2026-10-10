@@ -344,6 +344,8 @@ export type PlayerView = {
   legalIntents: Intent[];
   /** Spectators of unranked rooms, and every viewer once the match is over (#482): both hands, indexed by seat. */
   revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+  /** Hand cards an effect revealed this turn, per seat. Public: they stay face up until the next turn (#491). */
+  handReveals?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
   /** Once the match is over (#482): every Life card's defId, in life order, indexed by seat. */
   revealedLife?: [string[], string[]];
 };

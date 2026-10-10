@@ -89,6 +89,8 @@ type Props = {
   motionId?: string;
   /** Show the Counter value badge (hand cards). */
   showCounter?: boolean;
+  /** Own hand card an effect revealed to the opponent this turn: shows a small "Revealed" marker (#491). */
+  revealed?: boolean;
   /** Inline custom properties (hand fan pose). */
   style?: CSSProperties;
 };
@@ -123,6 +125,7 @@ export function CardTile({
   viewingSeat,
   playCost,
   showCounter = false,
+  revealed = false,
   style,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
@@ -328,6 +331,11 @@ export function CardTile({
       )}
       {/* Badges live in an overlay that counter-rotates on rested (sideways)
           tiles so power / DON!! / statuses stay upright and readable. */}
+      {revealed ? (
+        <span className="hand-revealed-badge" title="Revealed to opponent" aria-label="Revealed to opponent">
+          Revealed
+        </span>
+      ) : null}
       <div className="card-overlays">
         {pb || counter || attachedDonCount ? (
           <div className="card-stat-stack">
