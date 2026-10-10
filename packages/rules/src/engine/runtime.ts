@@ -12,7 +12,7 @@ import type { BindingValue, CardInstance, ChoiceOption, ChoiceRequest, GameEvent
 import { addModifier, expiryFor } from "./modifiers.js";
 import { forOpponent } from "./perspective.js";
 import {
-  basePowerOf, canPayCosts, canPayCost, costDependsOnHiddenInfo, selectorReadsHiddenZone, candidates, protectedFromSource, costOf, ctxFor, evalCond, evalValue, filterMatches, hasRestriction, isNegated, playerRestricted, powerOf, selectorMatches, type EvalCtx,
+  basePowerOf, canPayCosts, canPayCost, costDependsOnHiddenInfo, selectorReadsHiddenZone, candidates, lifeFaceGroups, protectedFromSource, costOf, ctxFor, evalCond, evalValue, filterMatches, hasRestriction, isNegated, playerRestricted, powerOf, selectorMatches, type EvalCtx,
 } from "./queries.js";
 import {
   activeDon, alloc, attachDon, drawCards, fieldCards, isOnField, locate, otherSeat, placeDonFromDeck, putCard, putOnField, returnDonById, returnDonToDeck, takeCard, type Located,
@@ -405,10 +405,12 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
     case "confirm": {
       // Costs that depend on hidden cards (#369) are always asked: skipping the prompt would tell the opponent the
       // player cannot pay. An unpayable one is marked privately so only declining is legal.
+      // The opponent pays their own costs: payable means payable from their zones, in full (#515).
       let unpayable = false;
-      if (instr.costs && !canPayCosts(state, ctx, instr.costs)) {
+      const payCtx: EvalCtx = instr.chooser === "opponent" ? { ...ctx, seat: otherSeat(frame.seat) } : ctx;
+      if (instr.costs && !canPayCosts(state, payCtx, instr.costs)) {
         const hiddenCosts = state.privateChoicesV2 && instr.chooser !== "opponent" ? instr.costs.filter(costDependsOnHiddenInfo) : [];
-        if (hiddenCosts.length === 0 || !instr.costs.every((c) => hiddenCosts.includes(c) || canPayCost(state, ctx, c))) { frame.bindings[instr.bind] = false; frame.bindings.__declined = true; return "next"; }
+        if (hiddenCosts.length === 0 || !instr.costs.every((c) => hiddenCosts.includes(c) || canPayCost(state, payCtx, c))) { frame.bindings[instr.bind] = false; frame.bindings.__declined = true; return "next"; }
         unpayable = true;
       }
       const ability = abilityById(frame.abilityId)?.ability;
@@ -952,6 +954,18 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
     }
     case "life_face": {
       const p = state.players[seatOf(frame, effect.player)];
+      if (effect.position && effect.position !== "top") {
+        const groups = lifeFaceGroups(p.faceUpLife, effect.count, effect.faceUp, effect.position);
+        if (groups.length > 1 && frame.bindings._lifeFace === undefined) {
+          const options = groups.map((g, k) => ({ id: `m${k}`, label: effect.position === "top_or_bottom" ? (g[0] === 0 ? "Top" : "Bottom") : `Life card ${g[0]! + 1}${g[0] === 0 ? " (top)" : g[0] === p.life.length - 1 ? " (bottom)" : ""}`, eligible: true }));
+          pushChoice(sim, frame, { seat: frame.seat, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — turn which Life card face-${effect.faceUp ? "up" : "down"}?`, request: { type: "mode", options }, bindings: { __bind: "_lifeFace", __repeat: "1" } });
+          return "wait";
+        }
+        const chosen = groups[Number(frame.bindings._lifeFace ?? 0)] ?? [];
+        delete frame.bindings._lifeFace;
+        for (const i of chosen) p.faceUpLife[i] = effect.faceUp;
+        return "next";
+      }
       for (let i = 0; i < Math.min(effect.count, p.life.length); i += 1) p.faceUpLife[i] = effect.faceUp;
       return "next";
     }
@@ -959,7 +973,12 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       const seat = seatOf(frame, effect.player);
       const p = state.players[seat];
       const n = evalValue(state, ctx, effect.count);
-      for (let i = 0; i < n && p.deck.length; i += 1) moveToZone(sim, { seat, zone: "deck", index: 0, id: p.zoneInstanceIds.deck[0]!, defId: p.deck[0]! }, "trash");
+      const trashed: string[] = [];
+      for (let i = 0; i < n && p.deck.length; i += 1) {
+        trashed.push(p.zoneInstanceIds.deck[0]!);
+        moveToZone(sim, { seat, zone: "deck", index: 0, id: p.zoneInstanceIds.deck[0]!, defId: p.deck[0]! }, "trash");
+      }
+      if (effect.bind) frame.bindings[effect.bind] = trashed;
       return "next";
     }
     case "shuffle": {

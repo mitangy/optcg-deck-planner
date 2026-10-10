@@ -43,7 +43,7 @@ export function LeaderboardPage() {
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
   const entries = state.status === "ready" ? state.entries : [];
-  const you = pinnedYou(me, entries.length);
+  const you = pinnedYou(me, entries.map((e) => e.user_id));
 
   return (
     <div className="app-shell">

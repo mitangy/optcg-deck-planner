@@ -17,14 +17,26 @@ export function latestNoteDate(app: AppName, notes: readonly PatchNote[] = PATCH
   return notesFor(app, notes)[0]?.date ?? null;
 }
 
+/** A stable identity for a note: its pull request when it has one, else its day and title. */
+export function noteKey(n: PatchNote): string {
+  return n.pr !== undefined ? `pr${n.pr}` : `${n.date}|${n.title}`;
+}
+
 /**
- * Notes strictly newer than `lastSeen`. A null `lastSeen` (a brand-new visitor,
- * or the first run after this shipped) gets none: the backlog is never dumped
- * on someone who hasn't seen the app change yet.
+ * Notes newer than `lastSeen`, plus notes ON `lastSeen` that are not in
+ * `seenOnLastDay` (the keys recorded for that day). A null `seenOnLastDay` is a
+ * date stored before keys existed: that whole day counts as seen. A null
+ * `lastSeen` (a brand-new visitor, or the first run after this shipped) gets
+ * none: the backlog is never dumped on someone who hasn't seen the app change yet.
  */
-export function unseenNotes(app: AppName, lastSeen: string | null, notes: readonly PatchNote[] = PATCH_NOTES): PatchNote[] {
+export function unseenNotes(
+  app: AppName,
+  lastSeen: string | null,
+  notes: readonly PatchNote[] = PATCH_NOTES,
+  seenOnLastDay: readonly string[] | null = null,
+): PatchNote[] {
   if (lastSeen === null) return [];
-  return notesFor(app, notes).filter((n) => n.date > lastSeen);
+  return notesFor(app, notes).filter((n) => n.date > lastSeen || (n.date === lastSeen && seenOnLastDay !== null && !seenOnLastDay.includes(noteKey(n))));
 }
 
 /** Splits newest-first notes into one group per day, keeping their order. */

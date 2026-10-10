@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 import type { StatsAtlas } from "../deckStats";
+import { StaleAtlasError, parseAtlasResponse } from "../atlasResponse";
 // Bundled as a hashed asset by each app's Vite build, fetched on first use only.
 import atlasUrl from "../../deckStats.json?url";
 
@@ -19,9 +20,7 @@ function subscribe(listener: () => void) {
 }
 
 async function fetchAtlas(): Promise<StatsAtlas> {
-  const res = await fetch(atlasUrl);
-  if (!res.ok) throw new Error(`Card stats unavailable (${res.status})`);
-  return (await res.json()) as StatsAtlas;
+  return parseAtlasResponse(await fetch(atlasUrl));
 }
 
 /** Starts the atlas download unless it is loaded or in flight. One retry before giving up. */
@@ -29,7 +28,8 @@ export function loadStatsAtlas(): void {
   if (state.data || state.loading) return;
   setState({ data: null, error: null, loading: true });
   fetchAtlas()
-    .catch(() => fetchAtlas())
+    // A stale build will not fix itself on retry; only other failures get the second try.
+    .catch((err: unknown) => (err instanceof StaleAtlasError ? Promise.reject(err) : fetchAtlas()))
     .then(
       (data) => setState({ data, error: null, loading: false }),
       (err: unknown) => setState({ data: null, error: err instanceof Error ? err : new Error("Card stats unavailable"), loading: false }),
@@ -42,5 +42,6 @@ export function useStatsAtlas() {
   useEffect(() => {
     if (!state.data && !state.error) loadStatsAtlas();
   }, []);
-  return { data: s.data ?? undefined, error: s.error, isLoading: !s.data && !s.error, refetch: loadStatsAtlas };
+  return { data: s.data ?? undefined, error: s.error, isLoading: !s.data && !s.error,
+    stale: s.error instanceof StaleAtlasError, refetch: loadStatsAtlas };
 }

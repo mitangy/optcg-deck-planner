@@ -143,10 +143,17 @@ function withRested(selector: Selector, rested: boolean): Selector {
   return { ...selector, filter: { ...(selector.filter ?? {}), rested }, ...(selector.also ? { also: selector.also.map((s) => withRested(s, rested)) } : {}) };
 }
 
-/** Expand one cost into selection + action instructions. Costs are exact (min = max). */
-export function compileCost(cost: Cost, out: Instr[]): void {
-  const select = (selector: Selector, count: number, purpose: string) => {
-    out.push({ op: "select", bind: "_cost", selector, min: count, max: count, chooser: "you", purpose });
+/** Costs an opponent can be asked to pay ("Your opponent may trash 3 cards from their hand. If they do not, ..."). */
+const OPPONENT_PAYABLE: ReadonlySet<Cost["k"]> = new Set(["trash_hand", "trash_life", "return_active_don"]);
+
+/**
+ * Expand one cost into selection + action instructions. Costs are exact (min = max).
+ * `who` is the payer, relative to the ability's controller: "opponent" for a `may` the opponent decides (#515).
+ */
+export function compileCost(cost: Cost, out: Instr[], who: Rel = "you"): void {
+  if (who !== "you" && !OPPONENT_PAYABLE.has(cost.k)) throw new Error(`Cost ${cost.k} cannot be paid by the opponent`);
+  const select = (selector: Selector, count: number, purpose: string, bind = "_cost") => {
+    out.push({ op: "select", bind, selector, min: count, max: count, chooser: who, purpose });
   };
   const self: Target = { ref: "self" };
   const costVar: Target = { ref: "var", name: "_cost" };
@@ -154,8 +161,9 @@ export function compileCost(cost: Cost, out: Instr[]): void {
     case "rest_don": out.push({ op: "act", effect: { do: "rest_don", player: "you", count: cost.count } }); return;
     // "DON!! −N": the player picks which N DON!! to return — active, rested, or attached.
     case "return_don": select({ player: "you", zone: "don_field" }, cost.count, "return to your DON!! deck (cost)"); out.push({ op: "act", effect: { do: "return_don", player: "you", target: costVar } }); return;
-    case "trash_hand": select({ player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }, cost.count, "trash (cost)"); out.push({ op: "act", effect: { do: "to_trash", target: costVar } }); return;
-    case "reveal_hand": select({ player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }, cost.count, "reveal (cost)"); out.push({ op: "act", effect: { do: "reveal", target: costVar } }); return;
+    case "trash_hand": select({ player: who, zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }, cost.count, "trash (cost)"); out.push({ op: "act", effect: { do: "to_trash", target: costVar } }); return;
+    // Bound as `_last` so "the revealed card" in the effect finds it, as after a revealed top card (#515).
+    case "reveal_hand": select({ player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }, cost.count, "reveal (cost)", "_last"); out.push({ op: "act", effect: { do: "reveal", target: { ref: "var", name: "_last" } } }); return;
     case "hand_to_deck_bottom": select({ player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }, cost.count, "place at the bottom of the deck (cost)"); out.push({ op: "act", effect: { do: "to_deck", target: costVar, position: "bottom" } }); return;
     case "rest_self": out.push({ op: "act", effect: { do: "rest", target: self } }); return;
     case "trash_self": out.push({ op: "act", effect: { do: "to_trash", target: self } }); return;
@@ -167,12 +175,12 @@ export function compileCost(cost: Cost, out: Instr[]): void {
     case "cards_to_deck_bottom": select(cost.selector, cost.count, "place at the bottom of the deck (cost)"); out.push({ op: "act", effect: { do: "to_deck", target: costVar, position: "bottom" } }); return;
     case "trash_to_deck_bottom": select({ player: "you", zone: "trash", ...(cost.filter ? { filter: cost.filter } : {}) }, cost.count, "place at the bottom of the deck (cost)"); out.push({ op: "act", effect: { do: "to_deck", target: costVar, position: "bottom" } }); return;
     case "life_to_hand": out.push({ op: "act", effect: { do: "life_to_hand", player: "you", count: cost.count, position: cost.position } }); return;
-    case "trash_life": out.push({ op: "act", effect: { do: "trash_life", player: "you", count: cost.count, ...(cost.position ? { position: cost.position } : {}) } }); return;
-    case "return_active_don": out.push({ op: "act", effect: { do: "return_don", player: "you", count: cost.count, activeOnly: true } }); return;
+    case "trash_life": out.push({ op: "act", effect: { do: "trash_life", player: who, count: cost.count, ...(cost.position ? { position: cost.position } : {}) } }); return;
+    case "return_active_don": out.push({ op: "act", effect: { do: "return_don", player: who, count: cost.count, activeOnly: true } }); return;
     case "ko_cards": select(cost.selector, cost.count, "K.O. (cost)"); out.push({ op: "act", effect: { do: "ko", target: costVar } }); return;
     case "give_don": select(cost.selector, 1, "receive DON!! (cost)"); out.push({ op: "act", effect: { do: "give_don", target: costVar, count: cost.count, donState: "active" } }); return;
-    case "life_face_down": out.push({ op: "act", effect: { do: "life_face", player: "you", count: cost.count, faceUp: false } }); return;
-    case "life_face_up": out.push({ op: "act", effect: { do: "life_face", player: "you", count: cost.count, faceUp: true } }); return;
+    case "life_face_down": out.push({ op: "act", effect: { do: "life_face", player: "you", count: cost.count, faceUp: false, ...(cost.position ? { position: cost.position } : {}) } }); return;
+    case "life_face_up": out.push({ op: "act", effect: { do: "life_face", player: "you", count: cost.count, faceUp: true, ...(cost.position ? { position: cost.position } : {}) } }); return;
     case "mill": out.push({ op: "act", effect: { do: "mill", player: "you", count: cost.count } }); return;
     case "power": out.push({ op: "act", effect: { do: "power", target: cost.target === "self" ? self : { ref: "leader", player: "you" }, amount: cost.amount, duration: "turn" } }); return;
     case "give_opponent_don": out.push({ op: "select", bind: "_cost", selector: { player: "opponent", zone: "character" }, min: 1, max: 1, chooser: "you", purpose: "receive your opponent's DON!! (cost)" }); out.push({ op: "act", effect: { do: "give_don", target: costVar, count: cost.count, donState: "rested", player: "opponent" } }); return;
@@ -226,7 +234,7 @@ export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { 
       out.push({ op: "confirm", bind, prompt: effect.prompt ?? "use this effect", ...(effect.costs?.length ? { costs: effect.costs } : {}), ...(effect.chooser ? { chooser: effect.chooser } : {}) });
       const jumpIndex = out.length;
       out.push({ op: "jumpIfFalse", name: bind, to: -1 });
-      for (const cost of effect.costs ?? []) compileCost(cost, out);
+      for (const cost of effect.costs ?? []) compileCost(cost, out, effect.chooser === "opponent" ? "opponent" : "you");
       compileEffect(effect.then, out, ctx);
       (out[jumpIndex] as Extract<Instr, { op: "jumpIfFalse" }>).to = out.length;
       return;

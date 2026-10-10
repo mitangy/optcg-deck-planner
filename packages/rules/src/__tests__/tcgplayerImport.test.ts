@@ -111,6 +111,27 @@ describe("card names from TCGPlayer printings (#458)", () => {
   });
 });
 
+describe("TCGPlayer printing markers beyond SP/Alternate Art/Manga (#459)", () => {
+  const nami = (id: number, name: string) => product(id, name, { ...base, Number: "OP17-001" });
+
+  it("TCGPlayer import keeps the base name when a Parallel printing sorts first (#459)", () => {
+    const out = mergeProducts({}, [nami(100, "Nami (Parallel)"), nami(101, "Nami")]);
+    expect(out.cards["OP17-001"]).toMatchObject({ name: "Nami", sourceUrl: "https://www.tcgplayer.com/product/101" });
+  });
+
+  it("TCGPlayer import strips the printing suffix when only a variant is listed (#459)", () => {
+    const out = mergeProducts({}, [nami(100, "Nami (Treasure Rare)")]);
+    expect(out.cards["OP17-001"]!.name).toBe("Nami");
+  });
+
+  it("normalizeCardName strips every known printing marker but keeps real parentheses (#459)", () => {
+    for (const marker of ["Parallel", "Treasure Rare", "Full Art", "Box Topper", "Jolly Roger Foil"]) {
+      expect(normalizeCardName(`Nami (${marker})`)).toBe("Nami");
+    }
+    expect(normalizeCardName("Gloriosa (Grandma Nyon)")).toBe("Gloriosa (Grandma Nyon)");
+  });
+});
+
 describe("Bandai rebuild keeps TCGPlayer rows (#458)", () => {
   const bandai = (id: string): CandidateCard => ({ id, name: "Official", type: "character", colors: ["red"], cost: 2, effectText: "official", sources: [{ url: "u", sha256: "x" }] });
   const tcg = row({ source: "tcgplayer", name: "From TCG", sourceUrl: "https://www.tcgplayer.com/product/1" });

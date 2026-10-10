@@ -1929,12 +1929,13 @@ export class DuelRoom extends Room implements PresenceSource {
    * never reaches a result (server restart, both players gone) still has one.
    * Sent at the start of every turn and when the room closes without a result.
    * `reveal` adds the opponent's hands to each log; only a game that can no
-   * longer be played (the room closing) gets them.
+   * longer be played (the room closing) gets them, and is marked `closed` so
+   * the backend lets the players watch its recording (#476).
    */
   private saveProgress(reveal = false): Promise<void> {
     const seats = this.ingestSeats();
     if (!Array.isArray(seats) || !this.replay) return Promise.resolve();
-    return this.progress.push({ matchId: this.gameKey(), payload: this.progressPayload(seats[0], seats[1], reveal) });
+    return this.progress.push({ matchId: this.gameKey(), payload: { ...this.progressPayload(seats[0], seats[1], reveal), ...(reveal ? { closed: true } : {}) } });
   }
 
   private progressPayload(s0: number, s1: number, reveal: boolean): MatchProgressPayload {

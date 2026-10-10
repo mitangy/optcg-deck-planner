@@ -135,8 +135,7 @@ export function DeckConfigurePage() {
       leave.clear();
       return;
     }
-    leave.clear();
-    navigate(to);
+    leave.go(to, navigate);
   }
 
   async function runPlannerAction(fn: () => Promise<string | null>) {

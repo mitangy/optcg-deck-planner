@@ -21,7 +21,10 @@ export type MatchResultPayload = {
 export type MatchProgressPayload = Pick<
   MatchResultPayload,
   "seat0_user_id" | "seat1_user_id" | "ranked" | "seat0_leader_id" | "seat1_leader_id" | "turns" | "replay" | "seat_logs"
->;
+> & {
+  /** Only on the snapshot sent as the room closes: nobody is playing any more, so the recording can be watched (#476). */
+  closed?: boolean;
+};
 
 export interface OutboxDatabase {
   query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;

@@ -23,6 +23,7 @@
       "@optcg/site-legal/*": ["../packages/site-legal/src/*"],
       "@optcg/patch-notes": ["../packages/patch-notes/src/index.ts"],
       "@optcg/patch-notes/*": ["../packages/patch-notes/src/*"],
+      "@optcg/rules/*": ["../packages/rules/src/*"],
       "@optcg/analyst-client": ["../packages/analyst-client/src/index.ts"],
       "@optcg/analyst-client/*": ["../packages/analyst-client/src/*"],
       "react": ["./node_modules/@types/react"],

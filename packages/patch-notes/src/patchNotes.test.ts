@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { groupByDate, latestNoteDate, notesFor, unseenNotes } from "./helpers";
-import { lastSeenKey, loadUnseen, markSeen, readLastSeen, type NotesStorage } from "./lastSeen";
+import { lastSeenKey, loadUnseen, markAllSeen, markSeen, readLastSeen, type NotesStorage } from "./lastSeen";
 import { PATCH_NOTES } from "./notes";
 import type { PatchNote } from "./types";
 
@@ -109,6 +109,65 @@ describe("last seen storage (#450)", () => {
     expect(readLastSeen("duel", broken)).toBeNull();
     expect(() => markSeen("duel", "2026-10-08", broken)).not.toThrow();
     expect(loadUnseen("duel", broken, NOTES)).toEqual([]);
+  });
+});
+
+describe("notes added later on a day you already saw (#455)", () => {
+  it("announces a note added on the day you last saw, once, and not the ones you already saw (#455)", () => {
+    const storage = memoryStorage();
+    loadUnseen("duel", storage, NOTES);
+    const later = [...NOTES, note("2026-10-08", "duel", "duel-same-day-late")];
+    expect(loadUnseen("duel", storage, later).map((n) => n.title)).toEqual(["duel-same-day-late"]);
+    // Dismissing records it, so it is not announced again.
+    markAllSeen("duel", storage, later);
+    expect(loadUnseen("duel", storage, later)).toEqual([]);
+    // A third note the same day is announced alone.
+    const third = [...later, note("2026-10-08", "both", "both-third")];
+    expect(loadUnseen("duel", storage, third).map((n) => n.title)).toEqual(["both-third"]);
+  });
+
+  it("keeps the old stored date meaning: that day is seen, later days are not (#455)", () => {
+    const storage = memoryStorage({ [lastSeenKey("duel")]: "2026-10-05" });
+    expect(loadUnseen("duel", storage, NOTES).map((n) => n.title)).toEqual(["duel-new-a", "duel-new-b"]);
+    const legacySameDay = memoryStorage({ [lastSeenKey("duel")]: "2026-10-08" });
+    expect(loadUnseen("duel", legacySameDay, NOTES)).toEqual([]);
+  });
+
+  it("tells same-day notes apart by pull request, and forgets a past day's keys when a newer day is seen (#455)", () => {
+    const storage = memoryStorage();
+    const day1: PatchNote[] = [{ ...note("2026-10-08", "duel", "same title"), pr: 1 }];
+    markAllSeen("duel", storage, day1);
+    const both = [...day1, { ...note("2026-10-08", "duel", "same title"), pr: 2 }];
+    expect(loadUnseen("duel", storage, both).map((n) => n.pr)).toEqual([2]);
+    markAllSeen("duel", storage, both);
+    const nextDay = [...both, note("2026-10-09", "duel", "next")];
+    expect(loadUnseen("duel", storage, nextDay).map((n) => n.title)).toEqual(["next"]);
+    markAllSeen("duel", storage, nextDay);
+    // The 10-08 notes are older than the recorded day, so they are never announced again.
+    expect(loadUnseen("duel", storage, nextDay)).toEqual([]);
+  });
+
+  it("does not wipe the day's seen notes when an older markAllSeen arrives (#455)", () => {
+    const storage = memoryStorage();
+    markAllSeen("duel", storage, NOTES);
+    markAllSeen("duel", storage, NOTES.filter((n) => n.date < "2026-10-08"));
+    const later = [...NOTES, note("2026-10-08", "duel", "duel-same-day-late")];
+    expect(loadUnseen("duel", storage, later).map((n) => n.title)).toEqual(["duel-same-day-late"]);
+  });
+
+  it("keeps notes already seen that day when a stale tab with fewer notes dismisses (#455)", () => {
+    const storage = memoryStorage();
+    markAllSeen("duel", storage, NOTES);
+    markAllSeen("duel", storage, NOTES.filter((n) => n.title !== "duel-new-b"));
+    expect(loadUnseen("duel", storage, NOTES)).toEqual([]);
+  });
+
+  it("does not reuse a past day's seen notes after the date moves on without them (#455)", () => {
+    const storage = memoryStorage();
+    markAllSeen("duel", storage, NOTES);
+    markSeen("duel", "2026-10-09", storage);
+    const next = [...NOTES, note("2026-10-09", "duel", "duel-next")];
+    expect(loadUnseen("duel", storage, next)).toEqual([]);
   });
 });
 

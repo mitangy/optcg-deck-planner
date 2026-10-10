@@ -444,6 +444,9 @@ class DuelMatchProgress(Base):
     replay: Mapped[str | None] = mapped_column(Text, nullable=True)
     seat0_log: Mapped[str | None] = mapped_column(Text, nullable=True)
     seat1_log: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The game server sets this on the snapshot it sends as the room closes: nobody is playing this
+    # game any more, so its recording (both hands included) can be watched (#476).
+    closed: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

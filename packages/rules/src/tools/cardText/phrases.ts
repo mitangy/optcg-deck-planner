@@ -9,6 +9,8 @@ export interface Ctx {
   ph: Placeholders;
   /** Printed type of the card whose text is being compiled. */
   selfType: "leader" | "character" | "event" | "stage";
+  /** Compiling an "On Event" ability: "that Character" is the card that caused the event (`_event`), not a chosen target. */
+  eventCard?: boolean;
 }
 
 export interface CardPhrase {
