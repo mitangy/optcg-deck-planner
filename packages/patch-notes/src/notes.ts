@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-10
   { date: "2026-10-10", app: "duel", pr: 501, title: "Undo takes back one action", text: "In casual and practice games, Undo now steps back one action at a time instead of the whole turn, and the button says which action it will undo. You can't undo past a card that was drawn by an effect, searched or revealed, or a Life card that was taken." },
+  { date: "2026-10-10", app: "duel", pr: 506, title: "Choose which way your Life fans", text: "A new setting picks whether your Life cards fan down or up on your mat. Your opponent's Life now mirrors yours on their side of the board." },
   { date: "2026-10-10", app: "duel", pr: 513, title: "One-tap actions skip more taps", text: "With One-tap actions on, tapping a card whose pop-up has a single button (Play, Attack, Activate or +1 DON!!) does it straight away, and an effect that wants exactly 2 or 3 picks resolves on the last pick without a Confirm tap." },
   { date: "2026-10-10", app: "duel", pr: 503, title: "Revealed cards stay face up", text: "When an effect reveals cards from a hand, they now stay face up in that hand for the rest of the turn, so both players can see them. Your own revealed cards are marked Revealed." },
   { date: "2026-10-10", app: "duel", pr: 498, title: "Spectators keep seeing the board update", text: "Spectators no longer get a \"privacy leak\" error banner, and the board keeps updating during effects that pick from the trash." },

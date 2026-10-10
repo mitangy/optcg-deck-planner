@@ -5,6 +5,10 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Life stack direction (#499)
+    { id: "life-fan-opp-not-mirrored", file: `${src}/board/ZonePile.tsx`, from: '  return pref === "down" ? "up" : "down";', to: "  return pref;", kills: ["mirrors the opponent's fan across the midline and follows the setting on your side (#499)", "fans your Life down and the opponent's up by default (#499)", "fans your Life up and the opponent's down with the Fans up setting (#499)"] },
+    { id: "life-fan-side-ignores-prop", file: `${src}/board/SideField.tsx`, from: 'lifeFan={lifeFanForSide(lifeFan ?? "down", side)}', to: 'lifeFan={lifeFanForSide("down", side)}', kills: ["fans your Life up and the opponent's down with the Fans up setting (#499)"] },
+    { id: "life-fan-setting-unsanitized", file: `${src}/settings.ts`, from: "  if (!LIFE_FANS.includes(next.lifeFan)) next.lifeFan = DEFAULTS.lifeFan;\n", to: "", kills: ["keeps a stored up and resets an unknown value to down (#499)"] },
     // Hand reveals stay face up among the opponent hand backs (#491)
     {"id": "hand-reveal-hidden-first", "file": "duel-web/src/board/handReveal.ts", "from": "return [...faces, ...hidden];", "to": "return [...hidden, ...faces];", "kills": ["puts the revealed cards first and card-back placeholders after"]},
     {"id": "hand-reveal-uncapped", "file": "duel-web/src/board/handReveal.ts", "from": "Math.max(Math.min(handCount, FAN_CAP), faces.length)", "to": "Math.max(handCount, faces.length)", "kills": ["caps the placeholders like the all-backs fan"]},
