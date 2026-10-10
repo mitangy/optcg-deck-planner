@@ -147,6 +147,7 @@ import { RematchPanel, type RematchDecks } from "./RematchPanel";
 import { RoomChip } from "./RoomShare";
 import { PendingBoard, type BoardWaiting } from "./PendingBoard";
 import { fanPose, handDrawer } from "./handFan";
+import { farHandWithReveals, revealedIdSet } from "./handReveal";
 import { OppHandCorner, OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
 import { getLastHoverAt, getPreviewCard, setAutoPreviewCard, shouldAutoPreview } from "./cardPreview";
@@ -1290,7 +1291,10 @@ export function DuelBoard({
   const oppHandRight = prefs.oppHandSpot === "right" && !farHand;
   // Match over (#482): the hand flips face up in place. Layout keeps keying off `farHand`
   // (spectators only) so nothing moves at game over.
-  const shownFarHand = farHand ?? (over ? view.revealedHands?.[oppSeat] : undefined);
+  const myRevealed = revealedIdSet(spectating ? undefined : view.handReveals?.[boardSeat]);
+  // While live, cards an effect revealed from their hand stay face up among the backs (#491).
+  const shownFarHand =
+    farHand ?? (over ? view.revealedHands?.[oppSeat] : farHandWithReveals(opp.handCount, view.handReveals?.[oppSeat]));
   const revealLife = over ? view.revealedLife : undefined;
   const lifeFaceUp = (seat: Seat, fallback: typeof opp.faceUpLife) =>
     revealLife ? revealLife[seat].map((defId, index) => ({ index, defId })) : fallback;
@@ -1468,7 +1472,8 @@ export function DuelBoard({
           }}
           ownerSeat={boardSeat}
           viewingSeat={viewingSeat}
-          classNameExtra={[unaffordable ? "hand-unaffordable" : "", marker?.id === c.id ? marker.cls : "", liftedHandId === c.id ? "card-lifted" : ""].filter(Boolean).join(" ") || undefined}
+          revealed={myRevealed.has(c.id)}
+          classNameExtra={[unaffordable ? "hand-unaffordable" : "", myRevealed.has(c.id) ? "hand-revealed" : "", marker?.id === c.id ? marker.cls : "", liftedHandId === c.id ? "card-lifted" : ""].filter(Boolean).join(" ") || undefined}
           style={pose(pos, order.length)}
         />
       );

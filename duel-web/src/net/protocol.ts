@@ -345,6 +345,8 @@ export type PlayerView = {
   legalIntents: Intent[];
   /** Spectators of unranked rooms, and every viewer once the match is over (#482): both hands, indexed by seat. A replay viewer gets `HIDDEN` placeholders for a hand it may not show. */
   revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+  /** Hand cards an effect revealed this turn, per seat. Public: they stay face up until the next turn (#491). */
+  handReveals?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
   /** Once the match is over (#482): every Life card's defId, in life order, indexed by seat. */
   revealedLife?: [string[], string[]];
 };
@@ -363,7 +365,7 @@ export function assertNoOpponentHand(view: PlayerView): void {
   }
   for (const choice of view.pendingChoices ?? []) {
     const request = choice.request;
-    const hiddenViewer = view.spectator || (choice.privateToSeat != null && choice.privateToSeat !== view.seat);
+    const hiddenViewer = choice.privateToSeat != null && (view.spectator || choice.privateToSeat !== view.seat);
     if (hiddenViewer && request && "options" in request && request.options.some((o) => o.defId && o.defId !== "HIDDEN" && !o.instanceId)) {
       throw new Error("privacy leak: private choice options visible to this viewer");
     }
