@@ -227,6 +227,8 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   position: fixed;
   z-index: 30;
   box-sizing: border-box;
+  /* Grows with the font (big screens, Text size) so the buttons keep fitting their labels (#493). */
+  width: min(max(250px, 18.5em), calc(100vw - 16px));
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
@@ -274,6 +276,8 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   font: inherit;
   font-weight: 700;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
 }
 
