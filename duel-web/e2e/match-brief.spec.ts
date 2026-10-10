@@ -69,6 +69,16 @@ async function expectNoSidewaysScroll(page: Page) {
 
 type Kind = "desktop" | "portrait" | "landscape";
 
+/**
+ * The panel has finished opening. It opens with a transform animation (it grows out of the compass, or slides in from
+ * its edge), and a box measured before that ends is one frame of the animation, not where the panel sits: CI caught
+ * the phone sheet's bottom edge at 813.4 in an 812px viewport while it was still sliding in. A settled panel is whole
+ * pixels, so everything below is measured only once the panel has no animation left.
+ */
+async function popSettled(panel: ReturnType<Page["locator"]>) {
+  await expect.poll(() => panel.evaluate((el) => el.getAnimations().length), { message: "the panel's open animation has finished" }).toBe(0);
+}
+
 /** The point at the middle of `box` belongs to `el` (nothing, such as a panel, sits on top of it). */
 async function reachable(page: Page, el: ReturnType<Page["locator"]>) {
   const box = (await el.boundingBox())!;
@@ -119,6 +129,7 @@ async function checkBrief(page: Page, duel: { startPractice: (o: { seed: number 
     expect(b.x + b.width).toBeLessThanOrEqual(vp.width + 1);
     expect(b.y + b.height).toBeLessThanOrEqual(vp.height + 1);
   };
+  await popSettled(panel);
   inside((await panel.boundingBox())!);
   const briefBox = (await brief.boundingBox())!;
   const panelBox = (await panel.boundingBox())!;
@@ -201,6 +212,7 @@ async function moveAndResize(page: Page, panel: ReturnType<Page["locator"]>, sta
   const near = (a: number, b: number, why: string, tol = 2) => expect(Math.abs(a - b), `${why}: ${a} vs ${b}`).toBeLessThanOrEqual(tol);
 
   // Shrink it from the top-left corner; the bottom-right corner stays where it was.
+  await popSettled(panel);
   const start = (await panel.boundingBox())!;
   const handle = panel.locator(".lp-resize-corner");
   const dw = 60;
@@ -246,6 +258,7 @@ async function moveAndResize(page: Page, panel: ReturnType<Page["locator"]>, sta
   await expect(panel).toBeVisible();
   // The panel slides in for a moment: wait for it to settle before measuring.
   await expect.poll(async () => Math.abs((await panel.boundingBox())!.x - placed.x)).toBeLessThanOrEqual(1);
+  await popSettled(panel);
   const kept = (await panel.boundingBox())!;
   for (const k of ["x", "y", "width", "height"] as const) near(kept[k], placed[k], `kept ${k}`, 1);
   await stable("after reopening the panel");
