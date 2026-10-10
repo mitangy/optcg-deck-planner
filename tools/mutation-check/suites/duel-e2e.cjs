@@ -637,7 +637,7 @@ module.exports = {
     { id: "e2e-show-default-hidden", args: "show-hide --project=desktop-1280 -g \"by default\"", file: "duel-web/src/settings.ts", from: "  showRecentPlays: true,\n", to: "  showRecentPlays: false,\n", kills: [
       "show-hide.spec.ts > every panel is shown by default (#449) [desktop-1280]",
     ] },
-    { id: "e2e-show-hiding-resets-layout", args: "show-hide --project=desktop-1280 -g \"keeps its place\"", file: "duel-web/src/board/GameplaySettings.tsx", from: "                onChange={(e) => updateSettings({ [t.key]: e.target.checked })}", to: "                onChange={(e) => updateSettings({ [t.key]: e.target.checked, panelLayout: \"\" })}", kills: [
+    { id: "e2e-show-hiding-resets-layout", args: "show-hide --project=desktop-1280 -g \"keeps its place\"", file: "duel-web/src/board/GameplaySettings.tsx", from: "                    onChange={(e) => updateSettings({ [t.key]: e.target.checked })}", to: "                    onChange={(e) => updateSettings({ [t.key]: e.target.checked, panelLayout: \"\" })}", kills: [
       "show-hide.spec.ts > a hidden panel keeps its place in the saved layout and returns to it (#449) [desktop-1280]",
     ] },
     { id: "e2e-show-empty-column-stays", args: "show-hide --project=desktop-1280 -g \"collapses\"", file: "duel-web/src/board/panelLayout.ts", from: "  const collapse = (c: PanelColumn) => !dragging && shown[c].length === 0 && !busy[c];", to: "  const collapse = (_c: PanelColumn) => false;", kills: [
@@ -714,6 +714,19 @@ module.exports = {
     ] },
     { id: "e2e-f-key-not-offered-on-board", args: "no-top-bar --project=desktop-1280 -g \"F toggles\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    fullscreenOffered,\n    onToggleFullscreen: toggleFullscreen,", to: "    fullscreenOffered: false,\n    onToggleFullscreen: toggleFullscreen,", kills: [
       "no-top-bar.spec.ts > F toggles full screen on the board, with or without Bigger playing area (#468) [desktop-1280]",
+    ] },
+    // Settings groups (#496)
+    { id: "e2e-settings-chip-does-nothing", args: "settings-groups --project=desktop-1280 -g \"in-match sheet\"", file: "duel-web/src/board/GameplaySettings.tsx", from: "onClick={() => jumpToGroup(g.id)}", to: "onClick={() => {}}", kills: [
+      "settings-groups.spec.ts > desktop-1280x720 > the in-match sheet lists the groups, and a chip jumps to its group under the sticky chip row (#496) [desktop-1280]",
+    ] },
+    { id: "e2e-settings-chip-row-not-sticky", args: "settings-groups --project=desktop-1280 -g \"in-match sheet\"", file: "duel-web/src/interactions.css", from: ".sheet .settings-group-jump {\n  position: sticky;\n  top: -0.9rem;\n", to: ".sheet .settings-group-jump {\n", kills: [
+      "settings-groups.spec.ts > desktop-1280x720 > the in-match sheet lists the groups, and a chip jumps to its group under the sticky chip row (#496) [desktop-1280]",
+    ] },
+    { id: "e2e-settings-appearance-heading-missing", args: "settings-groups --project=desktop-1280 -g \"Appearance\"", file: "duel-web/src/pages/SettingsPage.tsx", from: "          <h2 className=\"settings-section-title\" id=\"appearance-title\">Appearance</h2>\n", to: "", kills: [
+      "settings-groups.spec.ts > desktop-1280x720 > Settings groups the look panels under Appearance and the jump links follow the new order (#496) [desktop-1280]",
+    ] },
+    { id: "e2e-settings-jump-no-appearance", args: "settings-groups --project=desktop-1280 -g \"Appearance\"", file: "duel-web/src/pages/SettingsPage.tsx", from: "          <a href=\"#appearance\">Appearance</a>\n", to: "", kills: [
+      "settings-groups.spec.ts > desktop-1280x720 > Settings groups the look panels under Appearance and the jump links follow the new order (#496) [desktop-1280]",
     ] },
     // One-tap actions skip a pop-up with a single button, and answer an exactly-N pick on the Nth (#502)
     { id: "e2e-one-tap-hand-card-opens-popover", args: "one-tap --project=desktop-1280 -g \"plays a hand card\"", file: "duel-web/src/board/DuelBoard.tsx", from: "prefs.oneTapActions && handFilter !== idx && ", to: "false && ", kills: ["one-tap.spec.ts > one-tap plays a hand card whose pop-up is just Play (#502) [portrait] [desktop-1280]"] },
