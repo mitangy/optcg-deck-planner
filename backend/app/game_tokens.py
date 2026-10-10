@@ -31,7 +31,6 @@ def game_token_secret(settings: Settings | None = None) -> str:
 def mint_game_token(
     *,
     user_id: int,
-    email: str,
     name: str | None = None,
     settings: Settings | None = None,
     ttl_seconds: int = GAME_TOKEN_TTL_SECONDS,
@@ -39,7 +38,14 @@ def mint_game_token(
     settings = settings or get_settings()
     now = int(time.time())
     exp = now + ttl_seconds
-    payload: dict[str, Any] = {"uid": int(user_id), "email": email, "iat": now, "exp": exp}
+    # The game server requires an ``email`` string and only logs it as the player's id. It is
+    # an opaque per-user value, never the real address (#392); the public name is ``name``.
+    payload: dict[str, Any] = {
+        "uid": int(user_id),
+        "email": f"user-{int(user_id)}",
+        "iat": now,
+        "exp": exp,
+    }
     if name:
         # Display name for nameplates; signed so clients cannot spoof it.
         payload["name"] = name[:40]

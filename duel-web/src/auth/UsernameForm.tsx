@@ -88,7 +88,7 @@ export function UsernameForm({ initial, submitLabel, onSaved, current, autoFocus
           {message ??
             (saved
               ? "Saved. Opponents will see this name."
-              : "3–20 letters, numbers, _ or -. Shown to opponents in duels.")}
+              : "3–20 letters, numbers, _ - or a dot (Miko.T). Shown to opponents in duels.")}
         </p>
       </div>
     </form>

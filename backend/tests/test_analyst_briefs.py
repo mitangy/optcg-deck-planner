@@ -76,7 +76,7 @@ def test_a_game_token_is_not_a_brief_ticket(chat):
     """A game token, a ticket signed with the bare secret and a ticket for another purpose are all refused (#401)."""
     c, _ = chat
     me, body = _session(c)
-    game = mint_game_token(user_id=me["id"], email="dev@localhost")["token"]
+    game = mint_game_token(user_id=me["id"])["token"]
     assert _lookup(c, body["token"], "mb1." + game).status_code == 403
     # Ticket-shaped, but signed with the game-token secret itself.
     assert _lookup(c, body["token"], _ticket(salted=False)).status_code == 403

@@ -108,9 +108,7 @@ def _get_or_create_rating(db: Session, user_id: int) -> DuelRating:
 
 def _token_out(db: Session, user: User, settings: Settings) -> DuelTokenOut:
     display_name = duel_display_name(user)
-    minted = mint_game_token(
-        user_id=user.id, email=user.email, name=display_name, settings=settings
-    )
+    minted = mint_game_token(user_id=user.id, name=display_name, settings=settings)
     rating = _get_or_create_rating(db, user.id)
     db.commit()
     return DuelTokenOut(

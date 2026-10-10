@@ -189,6 +189,28 @@ def parse_receipt_line(raw: str) -> ParsedReceiptLine | None:
     )
 
 
+def _is_card_line(line: str) -> bool:
+    """A parsed receipt row that looks like a card (not an address line such as "123 Main St")."""
+    parsed = parse_receipt_line(line)
+    if parsed is None:
+        return False
+    return bool(
+        parsed.raw_description.lower().startswith(PRODUCT_LINE_PREFIXES)
+        or parsed.card_id_hint
+        or parsed.collector_number
+        or parsed.condition
+        or parsed.is_foil
+    )
+
+
+def card_lines_only(text: str) -> str:
+    """The receipt rows worth keeping: card lines, in order. Shipping name, address, payment
+    and every other line of a pasted order page are dropped (#392). Parsing the result gives
+    the same lines as parsing the original."""
+    raw = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    return "\n".join(line.strip() for line in raw.split("\n") if _is_card_line(line))
+
+
 def parse_tcgplayer_receipt(text: str) -> list[ParsedReceiptLine]:
     raw = (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
     if not raw:

@@ -71,7 +71,9 @@ def test_valid_usernames(name):
         "A" * 21,
         "has space",
         "emoji😀",
-        "dot.name",
+        ".Miko",
+        "Miko.",
+        "Mi..ko",
         "semi;colon",
         "ñandú",
     ],
@@ -111,14 +113,14 @@ def test_display_name_fallback(db):
 
 
 def test_suggestion_is_valid_and_available(db):
-    taken = User(email="t@example.com", name="Other", google_sub="t", username="Monkey_D_Luffy")
+    taken = User(email="t@example.com", name="Other", google_sub="t", username="Monkey.L")
     me = User(email="luffy@example.com", name="Monkey D. Luffy", google_sub="me")
     db.add_all([taken, me])
     db.commit()
     s = suggest_username(db, me)
     assert validate_username(s) == s
     assert not username_taken(db, s, exclude_user_id=me.id)
-    assert s.startswith("Monkey_D_Luffy"[:15])
+    assert s.startswith("Monkey.L") and s != "Monkey.L"  # taken: digits appended
 
 
 def test_suggestion_falls_back_for_unusable_names(db):
@@ -257,7 +259,7 @@ def test_username_suggestion_endpoint(client):
     r = c.get("/auth/me/username-suggestion")
     assert r.status_code == 200
     s = r.json()["username"]
-    assert s == "Dev_User"
+    assert s == "Dev.U"
     c.patch("/auth/me/username", json={"username": "Chopper"})
     assert c.get("/auth/me/username-suggestion").json()["username"] == "Chopper"
 
@@ -286,3 +288,41 @@ def test_duel_token_and_leaderboard_use_username(client):
     mine = c.get("/duel/rating/me").json()
     assert mine["name"] == "Usopp"
     assert mine["username"] == "Usopp"
+
+
+# --- First.L prefill for the username picker (#392) -----------------------------
+
+
+def _sign_in(db, name, *, email="miko@example.com", sub="sub-miko"):
+    from app.auth import resolve_google_user
+
+    return resolve_google_user(db, email=email, sub=sub, name=name)
+
+
+def test_sign_in_leaves_the_username_unset_so_the_picker_is_shown_392(db):
+    assert _sign_in(db, "Miko Tang").username is None
+    assert _sign_in(db, "Miko Tang").username is None
+
+
+def test_suggestion_is_first_name_and_last_initial_392(db):
+    assert suggest_username(db, _sign_in(db, "Miko Tang")) == "Miko.T"
+    zoro = _sign_in(db, "Zoro", email="z@example.com", sub="sub-z")
+    assert suggest_username(db, zoro) == "Zoro"
+
+
+def test_taken_suggestion_gets_digits_appended_392(db):
+    first = _sign_in(db, "Miko Tang")
+    first.username = "Miko.T"
+    db.commit()
+    second = _sign_in(db, "Miko Tran", email="tran@example.com", sub="sub-tran")
+    s = suggest_username(db, second)
+    assert s != "Miko.T" and s.startswith("Miko.T")
+    assert validate_username(s) == s
+
+
+def test_unusable_name_suggests_a_generic_handle_392(db):
+    assert suggest_username(db, _sign_in(db, "管理者")).startswith("Pirate_")
+
+
+def test_username_may_contain_a_dot_between_characters_392():
+    assert validate_username("Miko.T") == "Miko.T"

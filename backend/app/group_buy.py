@@ -39,7 +39,7 @@ from app.schemas import (
     GroupBuyReceiptUnmatchedOut,
     GroupBuySummary,
 )
-from app.tcgplayer_receipt import aggregate_receipt_matches, parse_tcgplayer_receipt
+from app.tcgplayer_receipt import aggregate_receipt_matches, card_lines_only, parse_tcgplayer_receipt
 from app import services
 
 FROZEN_STATUSES = frozenset({"locked", "ordered", "completed"})
@@ -50,7 +50,7 @@ MASS_ENTRY_URL_MAX_LEN = 1800
 
 
 def _display_name(user: User) -> str:
-    return (user.name or user.email or f"User {user.id}").strip()
+    return (user.name or user.username or f"User {user.id}").strip()
 
 
 def _parse_deck_ids(raw: str | None) -> list[int] | None:
@@ -1103,7 +1103,7 @@ def save_receipt_text(db: Session, user: User, group_id: int, receipt_text: str)
     _require_host(group, user)
     if group.status not in ("locked", "ordered"):
         raise PermissionError("Receipt can only be saved while locked or ordered")
-    cleaned = (receipt_text or "").strip()[:200_000]
+    cleaned = card_lines_only((receipt_text or "").strip()[:200_000])
     if cleaned != (group.receipt_text or ""):
         group.receipt_text = cleaned
         db.commit()
@@ -1258,7 +1258,7 @@ def apply_receipt_to_group_buy(
         raise PermissionError("Group buy cannot apply a receipt from this status")
 
     cleaned_receipt = (body.receipt_text or "").strip()[:200_000]
-    group.receipt_text = cleaned_receipt
+    group.receipt_text = card_lines_only(cleaned_receipt)
 
     report = build_receipt_match_report(db, user, group_id, cleaned_receipt)
     if not report.can_apply_partial:

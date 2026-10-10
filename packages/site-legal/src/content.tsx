@@ -152,8 +152,8 @@ const privacy: ReactNode = (
         shared it under, until you turn the link off.
       </li>
       <li>
-        Group buys: member names, quantities, prices and any receipt text you paste in to match an
-        order. Members of the group buy can see these.
+        Group buys: member names, quantities, prices and the card lines of any receipt you paste in to match an
+        order (we drop addresses and other lines). Members of the group buy can see these.
       </li>
       <li>
         The card scanner uses your camera only inside your browser. Camera images are not uploaded.

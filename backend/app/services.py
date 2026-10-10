@@ -1373,7 +1373,7 @@ def public_share_view(db: Session, token: str) -> PublicShoppingResponse:
     owner = db.get(User, link.user_id)
     if owner is None:
         raise LookupError("Share link not found")
-    owner_name = (owner.name or owner.email.split("@")[0] or "Collector").strip()
+    owner_name = (owner.name or owner.username or "Collector").strip()
 
     if link.kind == "deck":
         if link.deck_id is None:

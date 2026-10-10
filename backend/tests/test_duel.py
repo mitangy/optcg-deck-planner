@@ -52,11 +52,11 @@ def test_elo_moves_winner_up():
 
 def test_game_token_roundtrip():
     get_settings.cache_clear()
-    minted = mint_game_token(user_id=7, email="a@localhost")
+    minted = mint_game_token(user_id=7)
     payload = verify_game_token(minted["token"])
     assert payload is not None
     assert payload["uid"] == 7
-    assert payload["email"] == "a@localhost"
+    assert payload["email"] == "user-7"
 
 
 def test_dev_token_and_match_ingest(client):
@@ -480,6 +480,16 @@ def test_dev_token_new_accounts_share_the_cap_318(client, monkeypatch: pytest.Mo
     assert c.post("/duel/dev-token", json={"user_key": "capped-one"}).status_code == 200
     assert c.post("/duel/dev-token", json={"user_key": "capped-two"}).status_code == 429
     assert c.post("/duel/dev-token", json={"user_key": "capped-one"}).status_code == 200
+
+
+def test_game_token_carries_an_opaque_id_not_the_email_392(client):
+    c, _ = client
+    me = c.post("/auth/dev-login").json()
+    body = c.post("/duel/token").json()
+    payload = verify_game_token(body["token"])
+    assert payload["email"] == f"user-{me['id']}"
+    assert payload["name"] == body["display_name"]
+    assert "@" not in payload["email"]
 
 
 def _set_rating(SessionLocal, user_id: int, rating: int, games_played: int) -> None:
