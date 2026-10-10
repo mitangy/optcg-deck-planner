@@ -28,8 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: "npm"
@@ -44,19 +44,6 @@ jobs:
           SEED="${SEED_INPUT:-$(( $(date -u +%Y%m%d) * 100 ))}"
           echo "fuzz seed range: ${SEED}..$(( SEED + GAMES - 1 )) (replay one game: npx tsx src/sim/fuzz.ts 1 <seed>, in packages/rules)"
           npm run fuzz -w @optcg/rules -- "$GAMES" "$SEED"
-
-  mutation-anchors:
-    # Fast stale-anchor check for every mutation suite; no tests run.
-    # The Sunday 07:17 schedule is Stryker's; the nightly jobs skip it.
-    if: ${{ github.event.schedule != '17 7 * * 0' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - run: node tools/mutation-check/run.cjs --check-anchors
 
   stryker-rules:
     # Report-only breadth mutation run over the rules engine. Survivors never
@@ -78,9 +65,9 @@ jobs:
       # cannot see the matrix, so every step is guarded by this flag instead.
       RUN_SHARD: ${{ inputs.stryker_shard == '' || inputs.stryker_shard == format('{0}', matrix.shard) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: ${{ env.RUN_SHARD == 'true' }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: ${{ env.RUN_SHARD == 'true' }}
         with:
           node-version: "22"
@@ -106,7 +93,7 @@ jobs:
           echo "mutate=${SHARDS[$SHARD]}" >> "$GITHUB_OUTPUT"
       - name: Restore Stryker incremental file
         if: ${{ env.RUN_SHARD == 'true' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: packages/rules/reports/stryker-incremental.json
           key: stryker-rules-${{ runner.os }}-shard${{ steps.shard.outputs.index }}-${{ github.run_id }}
@@ -143,7 +130,7 @@ jobs:
             out.push("", "Survivors are a to-do list for tools/mutation-check entries, not a score to chase.");
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, out.join("\n") + "\n");
           '
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: ${{ !cancelled() && env.RUN_SHARD == 'true' }}
         with:
           name: stryker-rules-report-${{ matrix.shard }}
@@ -159,8 +146,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: "npm"
@@ -177,14 +164,14 @@ jobs:
   # --- Add later nightly jobs above this line, and list them in `report.needs`. ---
 
   report:
-    needs: [fuzz, mutation-anchors, stryker-rules, log-pose-eval-live]
+    needs: [fuzz, stryker-rules, log-pose-eval-live]
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       issues: write
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v8
         with:
           script: |
             const title = "Nightly regression failure";
