@@ -31,20 +31,20 @@ function setUp(card: string, revealed: string, opts: { cannotPlay: boolean; decl
 }
 
 describe.each(CASES)("$card $name: play the revealed Life card, then the Leader gets +2000", ({ card, revealed }) => {
-  it(`${card} accept: playing the revealed card gives the Leader +2000 (#213)`, () => {
+  it(`${card} accept: playing the revealed card gives the Leader +2000 (#519)`, () => {
     const h = setUp(card, revealed, { cannotPlay: false });
     expect(h.state.players[0].characters.map((c) => c.defId)).toEqual([revealed]);
     expect(h.state.players[0].life).toEqual([FILLER]);
     expect(powerOf(h.state, 0, h.state.players[0].leader)).toBe(5000 + 2000);
   });
 
-  it(`${card} accept but the play cannot happen: no +2000 (#213)`, () => {
+  it(`${card} accept but the play cannot happen: no +2000 (#519)`, () => {
     const h = setUp(card, revealed, { cannotPlay: true });
     expect(h.state.players[0].characters).toEqual([]);
     expect(powerOf(h.state, 0, h.state.players[0].leader)).toBe(5000);
   });
 
-  it(`${card} decline: the revealed card stays in Life and the Leader gets nothing (#213)`, () => {
+  it(`${card} decline: the revealed card stays in Life and the Leader gets nothing (#519)`, () => {
     const h = setUp(card, revealed, { cannotPlay: false, decline: true });
     expect(h.state.players[0].characters).toEqual([]);
     expect(h.state.players[0].life).toEqual([revealed, FILLER]);
