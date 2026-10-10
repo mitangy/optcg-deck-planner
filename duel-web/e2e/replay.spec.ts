@@ -183,6 +183,10 @@ test.describe("landscape phone", () => {
       expect(b!.x + b!.width, name).toBeLessThanOrEqual(vp.width);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    // The near hand keeps its room above the controls instead of hiding behind them.
+    const hand = await page.locator(".rail-hand-cards .card-tile, .hand-fan-cards .card-tile").first().boundingBox();
+    expect(hand).not.toBeNull();
+    expect(hand!.y + hand!.height).toBeLessThanOrEqual(box!.y + 1);
     await page.screenshot({ path: info.outputPath("replay-landscape.png") });
   });
 });
