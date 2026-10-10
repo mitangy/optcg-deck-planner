@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { spectatorFans, spectatorFarStrip, usesPhoneFan, usesRailHand } from "./handLayout";
+import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand } from "./handLayout";
 
 describe("hand layout (#271)", () => {
   it("portrait phones keep the fan when the hand grows past 8 cards (#445)", () => {
@@ -34,8 +34,10 @@ describe("spectator hand fans (#346)", () => {
     expect(spectatorFans(false, false, false)).toBeNull();
   });
 
-  it("the far strip on a portrait phone fans up to 8 cards and scrolls a bigger hand (#346)", () => {
-    expect(spectatorFarStrip(8)).toBe("fan");
-    expect(spectatorFarStrip(9)).toBe("scroll");
+  it("phones show a spectator's hands as grids, the desktop keeps the fans (#SPEC)", () => {
+    expect(spectatorHandGrid("portrait")).toBe(true);
+    expect(spectatorHandGrid("landscape")).toBe(true);
+    expect(spectatorHandGrid("desktop")).toBe(false);
+    expect(spectatorHandGrid(null)).toBe(false);
   });
 });

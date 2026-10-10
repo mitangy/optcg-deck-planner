@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-10
+  { date: "2026-10-10", app: "duel", title: "Watching on a phone: bigger board", text: "Spectating a match on a phone now shows both hands as compact rows of small cards, with the Bounty strip and the bottom hint gone, so the playmats get far more room. In landscape you get the two-row playmats of Bigger playing area." },
   { date: "2026-10-10", app: "duel", pr: 490, title: "Life face-up costs use the top Life cards", text: "Charlotte Pudding and other \"turn cards from the top of your Life face-up or face-down\" effects now only work when the top Life cards can actually be turned. A face-up top Life card no longer lets you flip the cards beneath it." },
   // 2026-10-09
   { date: "2026-10-09", app: "duel", pr: 484, title: "Hands and Life revealed at game end", text: "When a match ends, both hands and every Life card flip face up for players and spectators, so you can see what your opponent was holding." },

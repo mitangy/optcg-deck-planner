@@ -80,7 +80,7 @@ import { ChoicePrompt } from "./ChoicePrompt";
 import { HandConfirmPrompt } from "./HandConfirmPrompt";
 import { handConfirmAnchor, handUseFromIntent, measureHandCard, type HandUse } from "./handPrompt";
 import { isHandPick } from "./fieldTargets";
-import { SPECTATOR_FAN_SPREAD, spectatorFans, usesPhoneFan, usesRailHand } from "./handLayout";
+import { SPECTATOR_FAN_SPREAD, spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand } from "./handLayout";
 import { SpectatorFarHand } from "./SpectatorFarHand";
 import { HandLabel } from "./HandLabel";
 import { useHandOrderSync } from "./handOrderSync";
@@ -352,10 +352,13 @@ export function DuelBoard({
   /** "auto" (never chosen) is the Grid on a tall desktop window and the fan elsewhere. */
   const handLayout = resolveHandLayout(prefs.handLayout, wide && !lp && railHandTall);
   /**
-   * Spectators of unranked rooms see both hands face up, always fanned: their
-   * Hand setting (saved, untouched) only matters for hands they have to play.
+   * Spectators of unranked rooms see both hands face up: fanned on desktop,
+   * compact grids on phones. Their Hand setting (saved, untouched) only
+   * matters for hands they have to play.
    */
   const specFans = spectatorFans(Boolean((spectator || view?.spectator) && view?.revealedHands), wide, lp);
+  /** Phones: both hands are grids of small upright cards, so the mats get the height the fans took. */
+  const specGrid = spectatorHandGrid(specFans);
   /** Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). */
   const fanHand = wide && !lp && (specFans != null || handLayout !== "grid");
   /** Desktop fan: where the player dragged it (null = bottom centre of the board). */
@@ -411,8 +414,8 @@ export function DuelBoard({
   const tilted = wide && !lp && tiltFits && prefs.tiltedBoard;
   // Landscape phones keep the hand in the right column (a scrolling grid), never over the field.
   const railHand = usesRailHand(wide, lp, railHandTall, fanHand);
-  /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling. */
-  const phoneFan = usesPhoneFan(wide, specFans ? "fan" : handLayout);
+  /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling (spectators: a grid row). */
+  const phoneFan = usesPhoneFan(wide, specGrid ? "grid" : specFans ? "fan" : handLayout);
   /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
   const panelLayout = useMemo(() => parsePanelLayout(prefs.panelLayout), [prefs.panelLayout]);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
@@ -1635,7 +1638,8 @@ export function DuelBoard({
       onCard={{ count: cardIntents.length, active: popoverOpen }}
       emptyHint={affordHint}
     />
-  ) : (
+  ) : !wide || lp ? null : (
+    // Phones: the HUD's SPECTATOR chip says it already, and the bar's height goes to the mats.
     <div className="intent-bar">
       <p className="intent-empty">
         {nearHand ? "Spectating — both hands shown; intents disabled" : "Spectating — both hands hidden; intents disabled"}
@@ -1702,12 +1706,10 @@ export function DuelBoard({
       />
     ),
     hand: railHand && specFans === "landscape" && nearHand ? (
-      <section className="rail-hand rail-hand-fan" aria-label={`${seatLabel(players, boardSeat)} hand: ${handCount} cards`}>
+      <section className="rail-hand rail-hand-spec" aria-label={`${seatLabel(players, boardSeat)} hand: ${handCount} cards`}>
         <HandLabel name={seatLabel(players, boardSeat)} count={handCount} />
-        <div className="hand-row hand-row-fan" ref={handRowRef}>
-          <div className="hand-row-inner hand-fan-cards" style={{ "--n": Math.max(handCount, 1) } as CSSProperties}>
-            {renderHandCards(true)}
-          </div>
+        <div className="hand-row hand-row-spec-grid" ref={handRowRef}>
+          <div className="hand-row-inner">{renderHandCards()}</div>
         </div>
       </section>
     ) : railHand ? (
@@ -1735,7 +1737,7 @@ export function DuelBoard({
     right: panelLayout.right.filter((id) => sidePanels[id] != null),
   };
   /** Bigger playing area: columns take their minimum width, so a dragged width is set aside (not lost). */
-  const bigBoard = prefs.bigBoard;
+  const bigBoard = prefs.bigBoard || (spectating && lp);
   /**
    * A desktop column with nothing in it (every panel hidden or moved away)
    * collapses so the board gets its width; while a panel is being dragged both
@@ -1901,7 +1903,7 @@ export function DuelBoard({
         dragPayload ? " is-dnd" : ""
       }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
-      }${
+      }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
       }${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
@@ -2496,7 +2498,7 @@ export function DuelBoard({
                     </div>
                   </div>
                 ) : (
-                  <div className="hand-row" ref={handRowRef}>
+                  <div className={`hand-row${specGrid ? " hand-row-spec-grid" : ""}`} ref={handRowRef}>
                     <div className="hand-row-inner">{renderHandCards()}</div>
                   </div>
                 )}
