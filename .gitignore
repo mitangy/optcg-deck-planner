@@ -25,7 +25,6 @@ tools/mutation-check/.pending-restore.json
 tools/mutation-check/.run.lock
 tools/mutation-check/suites/.base-*
 
-# breadth mutation tools (Stryker, mutmut)
+# breadth mutation tool (Stryker)
 packages/rules/reports/
 packages/rules/.stryker-tmp/
-backend/mutants/

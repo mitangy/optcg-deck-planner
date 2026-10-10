@@ -281,6 +281,13 @@ function seatClockLabels(
   };
 }
 
+/** Tooltip of the undo button: names the action it would take back. */
+function undoTitle(state: UndoState | null, autoAccept: boolean): string {
+  if (!state || state.targetTurn == null) return "Nothing to undo";
+  const what = state.action ? `Undo: ${state.action.label}` : "Undo the last action";
+  return autoAccept ? what : `${what} (your opponent must accept)`;
+}
+
 export function DuelBoard({
   view,
   seat,
@@ -1414,6 +1421,8 @@ export function DuelBoard({
     undoState?.pending != null && !undo?.autoAccept && undoState.pending.from === boardSeat;
   const undoPendingTheirs =
     undoState?.pending != null && !undo?.autoAccept && undoState.pending.from !== boardSeat;
+  // One undo takes back the last action (by either seat); the button names it (#497).
+  const undoButtonTitle = undoTitle(undoState, undo?.autoAccept === true);
 
   /** Card showing where a hand card dragged over the hand would land, if it moves. */
   function reorderMarker(ids: readonly string[]): { id: string; cls: string } | null {
@@ -1902,13 +1911,7 @@ export function DuelBoard({
           confirmLabel="Undo?"
           reserveWidth
           ariaLabel="Undo"
-          title={
-            undoState.targetTurn == null
-              ? "Nothing to undo yet"
-              : `Rewind to the start of turn ${undoState.targetTurn}${
-                  undo.autoAccept ? "" : " (your opponent must accept)"
-                }`
-          }
+          title={undoButtonTitle}
           disabled={undoState.targetTurn == null}
           onConfirm={() => undo.onAction("request")}
         />
@@ -2136,16 +2139,9 @@ export function DuelBoard({
                 <ConfirmButton
                   className="hud-undo-btn"
                   label="↺ Undo"
-                  confirmLabel={
-                    undoState.targetTurn != null ? `Undo to turn ${undoState.targetTurn}?` : "Undo?"
-                  }
-                  title={
-                    undoState.targetTurn == null
-                      ? "Nothing to undo yet"
-                      : `Rewind to the start of turn ${undoState.targetTurn}${
-                          undo.autoAccept ? "" : " (your opponent must accept)"
-                        }`
-                  }
+                  confirmLabel="Undo?"
+                  reserveWidth
+                  title={undoButtonTitle}
                   disabled={undoState.targetTurn == null}
                   onConfirm={() => undo.onAction("request")}
                 />
@@ -2215,7 +2211,13 @@ export function DuelBoard({
         <div className="undo-request" role="alertdialog" aria-label="Undo request">
           <p>
             <strong>{seatName(players, undoState.pending.from) ?? "Your opponent"}</strong> wants to
-            undo back to the start of <strong>turn {undoState.pending.toTurn}</strong>.
+            undo {undoState.pending.action?.seat === boardSeat ? "your" : "their"} last action
+            {undoState.pending.action ? (
+              <>
+                : <strong>{undoState.pending.action.label}</strong>
+              </>
+            ) : null}
+            .
           </p>
           <div className="undo-request-actions">
             <button type="button" className="btn btn-primary" onClick={() => undo?.onAction("accept")}>
@@ -2331,6 +2333,7 @@ export function DuelBoard({
 
             <SideField
               side="opp"
+              lifeFan={prefs.lifeFan}
               compact
               countRow={portraitMat}
               turnOrder={firstSeat === oppSeat ? "first" : "second"}
@@ -2378,6 +2381,7 @@ export function DuelBoard({
 
             <SideField
               side="you"
+              lifeFan={prefs.lifeFan}
               compact={simpleOwnBoard}
               countRow={simpleOwnBoard}
               turnOrder={youFirst ? "first" : "second"}

@@ -191,6 +191,7 @@ module.exports = {
     { id: "e2e-battle-arrow-ignored", args: "gameplay-toggles --project=desktop-1280 -g \"Battle arrow off\"", file: "duel-web/src/board/DuelBoard.tsx", from: "view={over || !prefs.battleArrow ? null : view}", to: "view={over ? null : view}", kills: ["gameplay-toggles.spec.ts > Battle arrow off draws no attack arc during a battle (#301) [desktop-1280]"] },
     { id: "e2e-battle-arrow-default-off", args: "gameplay-toggles --project=desktop-1280 -g \"attack arc by default\"", file: "duel-web/src/settings.ts", from: "  battleArrow: true,\n", to: "  battleArrow: false,\n", kills: ["gameplay-toggles.spec.ts > a battle draws the attack arc by default (#301) [desktop-1280]"] },
     // Upright DON!! on rested cards (#351)
+    { id: "e2e-life-fan-up-no-reverse", args: "life-fan --project=desktop-1280", file: "duel-web/src/board.css", from: ".arena .side-field .zone-pile-life .zone-pile-stack.is-fan-up {\n  flex-direction: column-reverse;\n}", to: ".arena .side-field .zone-pile-life .zone-pile-stack.is-fan-up {\n  flex-direction: column;\n}", kills: ["life-fan.spec.ts > Life fans down on your mat and up on the opponent's by default (#499) [desktop-1280]", "life-fan.spec.ts > Fans up puts the top Life card at the top on your mat and the opponent's fans down (#499) [desktop-1280]"] },
     { id: "e2e-don-upright-ignored", args: "don-upright --project=desktop-1280 -g \"Upright DON!! on\"", file: "duel-web/src/board/DuelBoard.tsx", from: "}${prefs.donUpright ? \" don-upright\" : \"\"}`}", to: "}`}", kills: ["don-upright.spec.ts > Upright DON!! on: DON!! under a rested card stays upright (#351) [desktop-1280]"] },
     { id: "e2e-don-upright-default-on", args: "don-upright --project=desktop-1280 -g \"by default\"", file: "duel-web/src/settings.ts", from: "  donUpright: false,\n", to: "  donUpright: true,\n", kills: ["don-upright.spec.ts > DON!! under a rested card turns sideways with it by default (#351) [desktop-1280]"] },
     // Attack-ready glow (#412)
@@ -636,7 +637,7 @@ module.exports = {
     { id: "e2e-show-default-hidden", args: "show-hide --project=desktop-1280 -g \"by default\"", file: "duel-web/src/settings.ts", from: "  showRecentPlays: true,\n", to: "  showRecentPlays: false,\n", kills: [
       "show-hide.spec.ts > every panel is shown by default (#449) [desktop-1280]",
     ] },
-    { id: "e2e-show-hiding-resets-layout", args: "show-hide --project=desktop-1280 -g \"keeps its place\"", file: "duel-web/src/board/GameplaySettings.tsx", from: "                onChange={(e) => updateSettings({ [t.key]: e.target.checked })}", to: "                onChange={(e) => updateSettings({ [t.key]: e.target.checked, panelLayout: \"\" })}", kills: [
+    { id: "e2e-show-hiding-resets-layout", args: "show-hide --project=desktop-1280 -g \"keeps its place\"", file: "duel-web/src/board/GameplaySettings.tsx", from: "                    onChange={(e) => updateSettings({ [t.key]: e.target.checked })}", to: "                    onChange={(e) => updateSettings({ [t.key]: e.target.checked, panelLayout: \"\" })}", kills: [
       "show-hide.spec.ts > a hidden panel keeps its place in the saved layout and returns to it (#449) [desktop-1280]",
     ] },
     { id: "e2e-show-empty-column-stays", args: "show-hide --project=desktop-1280 -g \"collapses\"", file: "duel-web/src/board/panelLayout.ts", from: "  const collapse = (c: PanelColumn) => !dragging && shown[c].length === 0 && !busy[c];", to: "  const collapse = (_c: PanelColumn) => false;", kills: [
@@ -726,6 +727,19 @@ module.exports = {
     ] },
     { id: "e2e-f-key-not-offered-on-board", args: "no-top-bar --project=desktop-1280 -g \"F toggles\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    fullscreenOffered,\n    onToggleFullscreen: toggleFullscreen,", to: "    fullscreenOffered: false,\n    onToggleFullscreen: toggleFullscreen,", kills: [
       "no-top-bar.spec.ts > F toggles full screen on the board, with or without Bigger playing area (#468) [desktop-1280]",
+    ] },
+    // Settings groups (#496)
+    { id: "e2e-settings-chip-does-nothing", args: "settings-groups --project=desktop-1280 -g \"in-match sheet\"", file: "duel-web/src/board/GameplaySettings.tsx", from: "onClick={() => jumpToGroup(g.id)}", to: "onClick={() => {}}", kills: [
+      "settings-groups.spec.ts > desktop-1280x720 > the in-match sheet lists the groups, and a chip jumps to its group under the sticky chip row (#496) [desktop-1280]",
+    ] },
+    { id: "e2e-settings-chip-row-not-sticky", args: "settings-groups --project=desktop-1280 -g \"in-match sheet\"", file: "duel-web/src/interactions.css", from: ".sheet .settings-group-jump {\n  position: sticky;\n  top: -0.9rem;\n", to: ".sheet .settings-group-jump {\n", kills: [
+      "settings-groups.spec.ts > desktop-1280x720 > the in-match sheet lists the groups, and a chip jumps to its group under the sticky chip row (#496) [desktop-1280]",
+    ] },
+    { id: "e2e-settings-appearance-heading-missing", args: "settings-groups --project=desktop-1280 -g \"Appearance\"", file: "duel-web/src/pages/SettingsPage.tsx", from: "          <h2 className=\"settings-section-title\" id=\"appearance-title\">Appearance</h2>\n", to: "", kills: [
+      "settings-groups.spec.ts > desktop-1280x720 > Settings groups the look panels under Appearance and the jump links follow the new order (#496) [desktop-1280]",
+    ] },
+    { id: "e2e-settings-jump-no-appearance", args: "settings-groups --project=desktop-1280 -g \"Appearance\"", file: "duel-web/src/pages/SettingsPage.tsx", from: "          <a href=\"#appearance\">Appearance</a>\n", to: "", kills: [
+      "settings-groups.spec.ts > desktop-1280x720 > Settings groups the look panels under Appearance and the jump links follow the new order (#496) [desktop-1280]",
     ] },
     // One-tap actions skip a pop-up with a single button, and answer an exactly-N pick on the Nth (#502)
     { id: "e2e-one-tap-hand-card-opens-popover", args: "one-tap --project=desktop-1280 -g \"plays a hand card\"", file: "duel-web/src/board/DuelBoard.tsx", from: "prefs.oneTapActions && handFilter !== idx && ", to: "false && ", kills: ["one-tap.spec.ts > one-tap plays a hand card whose pop-up is just Play (#502) [portrait] [desktop-1280]"] },

@@ -266,7 +266,7 @@ function compileUntimed(h: Header, body: string, ctx: Ctx, nextId: () => string)
   const ev = parseEventTrigger(body, ctx);
   if (ev) {
     const split = splitCostBody(ev.rest, ctx);
-    const parsed = parseEffectBody(split ? split.rest : ev.rest, ctx, sentences);
+    const parsed = parseEffectBody(split ? split.rest : ev.rest, { ...ctx, eventCard: true }, sentences);
     if (!parsed.effect) return null;
     return [{ id: nextId(), trigger: "on_event", ...base, eventTrigger: ev.trigger, conditions: [...h.conditions, ...ev.conditions], ...(split?.costs.length ? { costs: split.costs } : {}), effect: parsed.effect }];
   }

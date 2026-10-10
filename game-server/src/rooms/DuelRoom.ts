@@ -13,6 +13,7 @@ import {
   MATCH_REPLAY_SCHEMA,
   REGISTRY_HASH,
   RULES_VERSION,
+  revealsHiddenInfo,
   seatLog,
   serializeMatch,
   skipMulligans,
@@ -74,6 +75,7 @@ import {
   type MatchProgressPayload,
   type MatchResultPayload,
 } from "../writeback.js";
+import { undoLabel } from "../undoLabel.js";
 import { applyHandOrder, idsInHand } from "../handOrder.js";
 import { presence, type PresenceEntry, type PresenceSource } from "../presence.js";
 import { DuelPublicState } from "./schema/DuelPublicState.js";
@@ -105,16 +107,21 @@ const CHAT_RATE_WINDOW_MS = 5000;
 const CHAT_HISTORY_LIMIT = 50;
 /** Any message type, per client: more than this in one second drops the client (intents alone allow 20). */
 const MAX_MESSAGES_PER_SECOND = 40;
-/** Turn-start snapshots kept for undo (unranked rooms only). */
-const UNDO_HISTORY_LIMIT = 20;
+/** Per-action snapshots kept for undo (unranked rooms only). */
+const UNDO_HISTORY_LIMIT = 40;
 
-type TurnSnapshot = {
+/** The state just before one applied intent; undoing restores it. */
+type UndoSnapshot = {
   /** serializeMatch() output — a deep copy the engine can never mutate. */
   match: string;
   rng: RngState;
   turnNumber: number;
   /** Replay intents up to this state, so an undo drops the rewound ones. */
   intentCount: number;
+  /** Seat that took the action this snapshot precedes. */
+  seat: Seat;
+  /** Short description of that action ("play Nami"). */
+  label: string;
 };
 
 export class DuelRoom extends Room implements PresenceSource {
@@ -196,11 +203,9 @@ export class DuelRoom extends Room implements PresenceSource {
   private rematchDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private lastTimerActiveSeat: Seat | null = null;
-  /** Start-of-turn states, oldest first (unranked rooms only). */
-  private turnSnapshots: TurnSnapshot[] = [];
-  /** True once anything happened after the newest snapshot. */
-  private actedSinceSnapshot = false;
-  private undoRequest: { from: Seat; toTurn: number } | null = null;
+  /** States before each applied action, oldest first (unranked rooms only). */
+  private undoStack: UndoSnapshot[] = [];
+  private undoRequest: UndoStateMessage["pending"] = null;
   private lastUndoStateKey = "";
   /** Turn of the last progress snapshot, so the log is saved once per turn. */
   private progressTurn: number | null = null;
@@ -889,7 +894,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.match = match;
     this.matchStarted = true;
     this.refreshMetadata();
-    this.recordTurnSnapshot();
+    this.recordUndoStep(null, null, []);
     this.matchUserIds = [this.seats[0]!.userId, this.seats[1]!.userId];
     this.seatNames = [this.seats[0]!.displayName, this.seats[1]!.displayName];
     this.syncPublicState();
@@ -1182,6 +1187,7 @@ export class DuelRoom extends Room implements PresenceSource {
     }
 
     const before = this.match;
+    const undoSnap = this.captureUndoSnapshot(seat, intent);
     const result = applyIntent(before, intent, { seat, rng: this.rng });
     if (!result.ok) {
       this.log("info", "illegal_intent", {
@@ -1204,7 +1210,7 @@ export class DuelRoom extends Room implements PresenceSource {
 
     this.match = result.state;
     this.replay?.intents.push({ seat, intent });
-    this.recordTurnSnapshot();
+    this.recordUndoStep(undoSnap, before, result.events);
     this.syncPublicState();
     this.broadcastViews(result.events);
     this.onMatchAdvanced();
@@ -1219,8 +1225,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.endReason = null;
     this.replay = null;
     this.progressTurn = null;
-    this.turnSnapshots = [];
-    this.actedSinceSnapshot = false;
+    this.undoStack = [];
     this.undoRequest = null;
     this.lastUndoStateKey = "";
     this.turnEndsAt = null;
@@ -1326,54 +1331,57 @@ export class DuelRoom extends Room implements PresenceSource {
   }
 
   /**
-   * Track start-of-turn states for undo. Call after every state change: a new
-   * turn number (outside mulligan) records a snapshot, anything else marks the
-   * current turn as having actions to undo. A state change also voids any
-   * open undo request, since it named a turn relative to the old state.
+   * Snapshot the state an undo of `intent` would restore. Call before the
+   * intent is applied; null when undo does not apply (ranked, mulligan, over).
    */
-  private recordTurnSnapshot() {
+  private captureUndoSnapshot(seat: Seat, intent: Intent): UndoSnapshot | null {
+    const m = this.match;
+    if (this.ranked || !m || !this.rng) return null;
+    if (m.phase === "mulligan" || m.winner !== null) return null;
+    return {
+      match: serializeMatch(m),
+      rng: this.rng.snapshot(),
+      turnNumber: m.turnNumber,
+      intentCount: this.replay?.intents.length ?? 0,
+      seat,
+      label: undoLabel(m, seat, intent),
+    };
+  }
+
+  /**
+   * Bookkeeping after every state change. Pushes the snapshot taken before the
+   * applied action, unless that action revealed hidden cards: then nothing
+   * before it can be undone any more (#497). A state change also voids any
+   * open undo request, since it named an action relative to the old state.
+   */
+  private recordUndoStep(snap: UndoSnapshot | null, before: MatchState | null, events: GameEvent[]) {
     if (this.match && this.match.winner === null && this.match.turnNumber !== this.progressTurn) {
       this.progressTurn = this.match.turnNumber;
       void this.saveProgress();
     }
-    if (this.ranked || !this.match || !this.rng) return;
-    const m = this.match;
-    const top = this.turnSnapshots.at(-1);
-    if (m.phase !== "mulligan" && m.winner === null && top?.turnNumber !== m.turnNumber) {
-      this.turnSnapshots.push({
-        match: serializeMatch(m),
-        rng: this.rng.snapshot(),
-        turnNumber: m.turnNumber,
-        intentCount: this.replay?.intents.length ?? 0,
-      });
-      if (this.turnSnapshots.length > UNDO_HISTORY_LIMIT) this.turnSnapshots.shift();
-      this.actedSinceSnapshot = false;
-    } else if (top) {
-      this.actedSinceSnapshot = true;
+    const after = this.match;
+    if (this.ranked || !after) return;
+    if (snap && before) {
+      if (revealsHiddenInfo(before, after, events)) {
+        this.undoStack = [];
+      } else {
+        this.undoStack.push(snap);
+        if (this.undoStack.length > UNDO_HISTORY_LIMIT) this.undoStack.shift();
+      }
     }
     this.undoRequest = null;
     this.broadcastUndoState();
   }
 
-  /**
-   * Snapshot an undo would restore: the current turn's start once something
-   * happened this turn, otherwise the previous turn's start.
-   */
-  private undoTargetIndex(): number | null {
-    const n = this.turnSnapshots.length;
-    if (n === 0) return null;
-    if (this.actedSinceSnapshot) return n - 1;
-    return n >= 2 ? n - 2 : null;
-  }
-
   private undoState(): UndoStateMessage {
     const enabled = !this.ranked;
     const over = !this.match || this.match.winner !== null || this.matchOverSent;
-    const idx = enabled && !over ? this.undoTargetIndex() : null;
+    const top = enabled && !over ? (this.undoStack.at(-1) ?? null) : null;
     return {
       protocolVersion: PROTOCOL_VERSION,
       enabled,
-      targetTurn: idx === null ? null : this.turnSnapshots[idx]!.turnNumber,
+      targetTurn: top ? top.turnNumber : null,
+      action: top ? { seat: top.seat, label: top.label } : null,
       pending: over ? null : this.undoRequest,
     };
   }
@@ -1424,12 +1432,16 @@ export class DuelRoom extends Room implements PresenceSource {
     const req = this.undoRequest;
     switch (action) {
       case "request": {
-        const idx = this.undoTargetIndex();
-        if (idx === null) {
+        const top = this.undoStack.at(-1);
+        if (!top) {
           this.sendError(client, "illegal_intent", "Nothing to undo yet");
           return;
         }
-        this.undoRequest = { from: seat, toTurn: this.turnSnapshots[idx]!.turnNumber };
+        this.undoRequest = {
+          from: seat,
+          toTurn: top.turnNumber,
+          action: { seat: top.seat, label: top.label },
+        };
         this.log("info", "undo_requested", {
           matchId: this.matchId,
           seat,
@@ -1466,28 +1478,33 @@ export class DuelRoom extends Room implements PresenceSource {
   }
 
   private applyUndo(by: Seat) {
-    const idx = this.undoTargetIndex();
-    if (idx === null) {
+    const snap = this.undoStack.pop();
+    if (!snap) {
       this.undoRequest = null;
       this.broadcastUndoState();
       return;
     }
-    const snap = this.turnSnapshots[idx]!;
     this.match = deserializeMatch(snap.match);
-    this.turnSnapshots = this.turnSnapshots.slice(0, idx + 1);
+    this.rng = createSeededRng(snap.rng);
     this.replay?.intents.splice(snap.intentCount);
-    // Restore the turn exactly: match.rng and deck order come back with the
+    // Restore the state exactly: match.rng and deck order come back with the
     // snapshot (the engine draws from match.rng), so drawing again gives the same
     // cards as before the undo (#449). Nothing is recorded in the replay; older
     // replays may still carry `reseeds` from the #369 behavior and keep working.
-    this.actedSinceSnapshot = false;
     this.undoRequest = null;
-    this.log("info", "undo_applied", { matchId: this.matchId, by, toTurn: snap.turnNumber });
+    this.log("info", "undo_applied", {
+      matchId: this.matchId,
+      by,
+      toTurn: snap.turnNumber,
+      label: snap.label,
+    });
 
     const applied: UndoAppliedMessage = {
       protocolVersion: PROTOCOL_VERSION,
       toTurn: snap.turnNumber,
+      toStep: snap.intentCount,
       by,
+      action: { seat: snap.seat, label: snap.label },
     };
     this.broadcast("undo_applied", applied);
     this.syncPublicState();
@@ -1503,6 +1520,8 @@ export class DuelRoom extends Room implements PresenceSource {
   private broadcastViews(events: GameEvent[]) {
     if (!this.match) return;
     this.updatePublicArt(events);
+    // Replay intents applied so far: lets clients drop battle-log lines on undo.
+    const step = this.replay?.intents.length ?? 0;
     for (const slot of this.seats) {
       if (!slot) continue;
       const client = this.clients.find((c) => c.sessionId === slot.sessionId);
@@ -1511,6 +1530,7 @@ export class DuelRoom extends Room implements PresenceSource {
       client.send("events", {
         protocolVersion: PROTOCOL_VERSION,
         events: projectGameEvents(events, slot.seat),
+        step,
       });
       client.send("view", {
         protocolVersion: PROTOCOL_VERSION,
@@ -1524,6 +1544,7 @@ export class DuelRoom extends Room implements PresenceSource {
       client.send("events", {
         protocolVersion: PROTOCOL_VERSION,
         events: projectGameEvents(events, null),
+        step,
       });
       client.send("view", {
         protocolVersion: PROTOCOL_VERSION,
@@ -1753,6 +1774,7 @@ export class DuelRoom extends Room implements PresenceSource {
       intentType: intent.type,
     });
     const before = this.match;
+    const undoSnap = this.captureUndoSnapshot(seat, intent);
     const result = applyIntent(before, intent, { seat, rng: this.rng });
     if (!result.ok) {
       this.refreshTurnClock();
@@ -1761,7 +1783,7 @@ export class DuelRoom extends Room implements PresenceSource {
     }
     this.match = result.state;
     this.replay?.intents.push({ seat, intent });
-    this.recordTurnSnapshot();
+    this.recordUndoStep(undoSnap, before, result.events);
     this.syncPublicState();
     this.broadcastViews(result.events);
     this.onMatchAdvanced();

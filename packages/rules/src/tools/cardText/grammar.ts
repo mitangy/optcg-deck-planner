@@ -110,8 +110,8 @@ const COND_RULES: Rule<Cond>[] = [
   [/^(?:there is|(you|your opponent) (?:has|have)) a character with a cost of (\d+) or with a cost of (\d+) or more$/i, (m) => ({ c: "exists", selector: { player: m[1] ? rel(m[1]) : "any", zone: "character", filter: { any: [{ cost: { op: "==", value: num(m[2]!) } }, { cost: { op: ">=", value: num(m[3]!) } }] } } })],
   [/^your deck has (\d+) cards$/i, (m) => ({ c: "compare", left: { count: { of: "deck", player: "you" } }, op: "==", right: num(m[1]!) })],
   [/^you only have (§T\d+§) type characters$/i, (m, ctx) => { const t = traitList(m[1]!, ctx); return t ? { c: "none", selector: { player: "you", zone: "character", filter: { notTraits: t } } } : null; }],
-  [/^(?:the trashed card) (?:is|has) (.+)$/i, (m, ctx) => { const body = m[1]!; const p = parseCardPhrase(/^(?:a|an|\d) /i.test(body) ? body : "all cards " + body, ctx) ?? parseCardPhrase("all cards with " + body, ctx); return p ? { c: "var_all_match", name: "_cost", filter: p.selector.filter ?? {} } : null; }],
-  [/^(?:that character) (?:is|has) (.+)$/i, (m, ctx) => { const body = m[1]!; const p = parseCardPhrase("all cards with " + body, ctx) ?? parseCardPhrase("all cards " + body, ctx); return p ? { c: "var_all_match", name: "_last", filter: p.selector.filter ?? {} } : null; }],
+  [/^(?:the trashed card) (?:is|has) (.+)$/i, (m, ctx) => { const body = m[1]!; const p = parseCardPhrase(/^(?:a|an|\d) /i.test(body) ? body : "all cards " + body, ctx) ?? parseCardPhrase("all cards with " + body, ctx); return p ? { c: "var_all_match", name: "_last", filter: p.selector.filter ?? {} } : null; }],
+  [/^(?:that character) (?:is|has) (.+)$/i, (m, ctx) => { const body = m[1]!; const p = parseCardPhrase("all cards with " + body, ctx) ?? parseCardPhrase("all cards " + body, ctx); return p ? { c: "var_all_match", name: ctx.eventCard ? "_event" : "_last", filter: p.selector.filter ?? {} } : null; }],
   [/^this (?:character|leader) has (\d+) power or (more|less)$/i, (m) => ({ c: "compare", left: { count: { of: "self_power" } }, op: m[2]!.toLowerCase() === "more" ? ">=" : "<=", right: num(m[1]!) })],
   [/^your leader has (\d+) power or (more|less)$/i, (m) => ({ c: "compare", left: { count: { of: "leader_power", player: "you" } }, op: m[2]!.toLowerCase() === "more" ? ">=" : "<=", right: num(m[1]!) })],
   [/^your leader has (\d+) power or (more|less) and the (§T\d+§) type$/i, (m, ctx) => { const t = traitList(m[3]!, ctx); return t ? { c: "and", conds: [{ c: "compare", left: { count: { of: "leader_power", player: "you" } }, op: m[2]!.toLowerCase() === "more" ? ">=" : "<=", right: num(m[1]!) }, { c: "leader_trait", traits: t }] } : null; }],
@@ -374,6 +374,14 @@ function parseLookPicks(text: string, ctx: Ctx): LookPick[] | null {
 
 type EffectRule = Rule<Effect>;
 
+/**
+ * "Your opponent may PAY. If they do not, Y": PAY is a cost the opponent pays, so it is offered only when they can pay
+ * it in full and paying part of it never counts as doing it (#515). The cost is written from the payer's view.
+ */
+function opponentMay(cost: Cost, prompt: string): Effect {
+  return { do: "may", chooser: "opponent", costs: [cost], then: { do: "nothing" }, bind: "_did", prompt };
+}
+
 const EFFECT_RULES: EffectRule[] = [
   [/^place the rest at the (top|bottom|top or bottom) of (?:your|the) deck$/i, (m) => ({ do: "to_deck", target: { ref: "var", name: "_last" }, position: m[1]!.toLowerCase() === "top or bottom" ? "top_or_bottom" : m[1]!.toLowerCase() as "top" | "bottom" })],
   [/^change the target of that attack to this leader or to one of your (.+)$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { do: "redirect_attack", target: { ref: "choose", selector: { player: "you", zone: "leader", also: [p.selector] }, min: 1, max: 1 } } : null; }],
@@ -407,12 +415,12 @@ const EFFECT_RULES: EffectRule[] = [
   [/^return any number of characters on your field to the owner's hand$/i, () => ({ do: "to_hand", target: { ref: "choose", selector: { player: "you", zone: "character" }, min: 0, max: 99 } })],
   [/^you may add this (?:character )?card to your hand$/i, () => ({ do: "may", then: { do: "to_hand", target: { ref: "self" } }, prompt: "add this card to your hand" })],
   [/^draw (\d+) cards?, look at up to (\d+) cards? from the top of your or your opponent's life cards,? and place it at the top or bottom of the life cards$/i, (m) => ({ do: "seq", steps: [{ do: "draw", player: "you", count: num(m[1]!) }, { do: "look_life", player: "any", count: num(m[2]!), rest: "top_or_bottom" }] })],
-  [/^your opponent may trash (\d+) cards? from their hand$/i, (m) => ({ do: "may", chooser: "opponent", bind: "_did", then: { do: "discard", player: "opponent", count: num(m[1]!), chooser: "opponent" }, prompt: "trash cards from your hand" })],
+  [/^your opponent may trash (\d+) cards? from their hand$/i, (m) => opponentMay({ k: "trash_hand", count: num(m[1]!) }, "trash cards from your hand")],
   [/^if they do not, (.+)$/i, (m, ctx) => { const inner = parseStatement(m[1]!, ctx); return inner ? { do: "if", cond: { c: "var_count", name: "_did", op: "==", value: 0 }, then: inner } : null; }],
   [/^if they do, (.+)$/i, (m, ctx) => { const inner = parseStatement(m[1]!, ctx); return inner ? { do: "if", cond: { c: "var_count", name: "_did", op: ">=", value: 1 }, then: inner } : null; }],
   [new RegExp("^give ([+-]\\d+) power " + DUR + " to (up to \\d+ .+)$", "i"), (m, ctx) => { const t = fieldTarget(m[3]!, ctx); const d = parseDuration(m[2]); return t && d ? { do: "power", target: t, amount: signed(m[1]!), duration: d } : null; }],
   [/^place up to (\d+) cards? from your opponent's trash at the bottom of the owner's deck$/i, (m) => ({ do: "to_deck", target: { ref: "choose", selector: { player: "opponent", zone: "trash" }, min: 0, max: num(m[1]!) }, position: "bottom" })],
-  [/^your opponent may return (\d+) of their active DON!! cards to their DON!! deck$/i, (m) => ({ do: "may", chooser: "opponent", bind: "_did", then: { do: "return_don", player: "opponent", count: num(m[1]!), activeOnly: true }, prompt: "return active DON!! to your DON!! deck" })],
+  [/^your opponent may return (\d+) of their active DON!! cards to their DON!! deck$/i, (m) => opponentMay({ k: "return_active_don", count: num(m[1]!) }, "return active DON!! to your DON!! deck")],
   [new RegExp("^your leader and this character's base power becomes? (\\d+) " + DUR + "$", "i"), (m) => { const d = parseDuration(m[2]); return d ? { do: "seq", steps: [{ do: "base_power", target: { ref: "leader", player: "you" }, value: num(m[1]!), duration: d }, { do: "base_power", target: { ref: "self" }, value: num(m[1]!), duration: d }] } : null; }],
   [new RegExp("^(.+?)'s? base power becomes the same as your opponent's leader's power " + DUR + "$", "i"), (m, ctx) => { const t = fieldTarget(m[1]!, ctx); const d = parseDuration(m[2]); return t && d ? { do: "base_power", target: t, value: { count: { of: "leader_power", player: "opponent" } }, duration: d } : null; }],
   [/^look at (\d+) cards? from the top of your deck; reveal up to (\d+) (.+?), add them to your hand and place the rest at the bottom of your deck(?: in any order)?$/i, (m, ctx) => { const pick = pickFrom(m[2]!, m[3]!, "hand", ctx); return pick ? { do: "look", player: "you", count: num(m[1]!), picks: [pick], rest: "deck_bottom", reveal: true } : null; }],
@@ -470,7 +478,7 @@ const EFFECT_RULES: EffectRule[] = [
   [new RegExp("^(.+?)'s? base power becomes the same as the power of your opponent's attacking leader or character " + DUR + "$", "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[2]); return target && d ? { do: "base_power", target, value: { count: { of: "battle_power", role: "attacker" } }, duration: d } : null; }],
   [/^(?:add|place) (.+?) (?:to|at) the top of your opponent's life cards face-up$/i, (m, ctx) => { const target = fieldTarget(m[1]!, ctx); return target ? { do: "to_life", target, position: "top", faceUp: true } : null; }],
   [/^(?:you and your opponent|each player) trash(?:es)? cards from (?:your|their) hands until you each have (\d+) cards in your hands$/i, () => null],
-  [/^your opponent may trash (\d+) cards? from the top of their life cards$/i, (m) => ({ do: "may", chooser: "opponent", then: { do: "trash_life", player: "opponent", count: num(m[1]!) }, prompt: "trash the top card of your Life" })],
+  [/^your opponent may trash (\d+) cards? from the top of their life cards$/i, (m) => opponentMay({ k: "trash_life", count: num(m[1]!) }, "trash the top card of your Life")],
   [/^your opponent returns all cards in their hand to their deck$/i, () => ({ do: "to_deck", target: { ref: "all", selector: { player: "opponent", zone: "hand" } }, position: "bottom" })],
   [/^(?:your opponent )?shuffles? their deck$/i, () => ({ do: "shuffle", player: "opponent" })],
   [new RegExp("^(.+?)'s? effects? (?:is|are) negated " + DUR + "$", "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[2]); return target && d ? { do: "negate", target, duration: d } : null; }],
@@ -759,12 +767,19 @@ export function parseEffectBody(body: string, ctx: Ctx, split: (text: string) =>
     const eff = parseStatement(s, ctx);
     if (eff) {
       if (eff.do === "if" && /^if you do, /i.test(clean(s))) linkIfYouDo(steps, eff, s, ctx);
+      if (/^if the trashed card /i.test(clean(s)) && steps.length) bindTrashedCard(steps[steps.length - 1]!);
       steps.push(eff);
     } else failed.push(s);
   }
   if (failed.length) return { effect: null, failed };
   if (steps.length === 0) return { effect: null, failed: [body] };
   return { effect: steps.length === 1 ? steps[0]! : { do: "seq", steps }, failed: [] };
+}
+
+/** "Trash 1 card from the top of your deck. If the trashed card ...": the trash step binds the cards it trashed (`_last`) (#515). */
+function bindTrashedCard(effect: Effect): void {
+  if (effect.do === "mill") effect.bind = "_last";
+  else if (effect.do === "seq" && effect.steps.length) bindTrashedCard(effect.steps[effect.steps.length - 1]!);
 }
 
 /**

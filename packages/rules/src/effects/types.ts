@@ -309,7 +309,10 @@ export interface LookPick {
 export type Effect =
   | { do: "seq"; steps: Effect[] }
   | { do: "if"; cond: Cond; then: Effect; else?: Effect }
-  /** "You may [costs]: [then]" — optional; declining skips `then`. */
+  /**
+   * "You may [costs]: [then]" — optional; declining skips `then`. With `chooser: "opponent"` the opponent decides and
+   * pays: `costs` are written from their view ("you" is the chooser), offered only when payable in full (#515).
+   */
   | { do: "may"; costs?: Cost[]; then: Effect; prompt?: string; bind?: string; chooser?: Rel }
   /** Pay costs without an optional prompt (e.g. mandatory costs inside a sequence). */
   | { do: "pay"; costs: Cost[]; then: Effect; bind?: string }
@@ -359,7 +362,8 @@ export type Effect =
   | { do: "life_to_hand"; player: Rel; count: number; position: "top" | "top_or_bottom" | "bottom"; min?: number }
   | { do: "trash_life"; player: Rel; count: Value; position?: "top" | "top_or_bottom" }
   | { do: "life_face"; player: Rel; count: number; faceUp: boolean; min?: number }
-  | { do: "mill"; player: Rel; count: Value }
+  /** `bind`: the trashed card(s), for "the trashed card" (#515). */
+  | { do: "mill"; player: Rel; count: Value; bind?: string }
   /** `reveal`: the picked cards are shown to both players (printed "reveal"). Omitted = private. */
   | { do: "look"; player: Rel; count: Value; picks: LookPick[]; rest: Placement; reveal?: boolean }
   | { do: "look_life"; player: RelOrAny; count: number; rest: "top_or_bottom" | "any_order"; prompt?: string }

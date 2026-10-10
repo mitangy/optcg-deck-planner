@@ -487,6 +487,20 @@
   margin-top: 0;
 }
 
+/* Fans up (#499): column-reverse puts the last face (top of Life) at the top, in front. */
+.arena .side-field .zone-pile-life .zone-pile-stack.is-fan-up {
+  flex-direction: column-reverse;
+}
+
+.arena .side-field .zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face {
+  margin-top: 0;
+  margin-bottom: calc(var(--c) * -0.46);
+}
+
+.arena .side-field .zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face:first-child {
+  margin-bottom: 0;
+}
+
 .arena .side-field .zone-pile-life .zone-pile-stack:empty::before {
   width: var(--c);
   height: calc(var(--c) / 1.4);
@@ -2217,6 +2231,82 @@ body.is-panel-drag * {
     margin: 0.55rem -0.85rem -0.75rem;
     padding: 0.45rem 0.85rem 0.75rem;
     background: rgb(var(--deep-rgb));
+  }
+}
+
+/* Life check (#495): only the Life card, big, floating over the board with its
+   buttons under it: no box, header or prompt text. */
+.arena .ability-prompt.life-trigger-card,
+.arena.arena-wide .ability-prompt.life-trigger-card {
+  --lt-w: min(240px, 62vw, calc((100dvh - 11rem) / 1.4));
+  width: max-content;
+  max-width: calc(100vw - 1.5rem);
+  max-height: none;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+.life-trigger-card .card-tile {
+  width: var(--lt-w);
+  height: calc(var(--lt-w) * 1.4);
+  flex: none;
+  border-radius: 10px;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.65),
+    0 4px 12px rgba(0, 0, 0, 0.5);
+}
+.life-trigger-card .card-tile .card-caption {
+  display: none;
+}
+.arena .ability-prompt.life-trigger-card .ability-prompt-actions {
+  position: static;
+  margin: 0;
+  padding: 0;
+  background: none;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+}
+.life-trigger-card .ability-prompt-actions .btn {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+/* Hide / dock stay reachable but small, in a row above the card (off the art). */
+.life-trigger-card .life-trigger-tools {
+  align-self: stretch;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: -0.3rem;
+}
+.life-trigger-card .life-trigger-tools .prompt-hide,
+.life-trigger-card .life-trigger-tools .prompt-dock-tools {
+  position: static;
+}
+.life-trigger-card .prompt-hide {
+  height: 1.4rem;
+  padding: 0 0.55rem;
+  font-size: 0.65rem;
+}
+.life-trigger-card .prompt-dock-btn {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+/* Phones pin pop-ups between both edges; centre the card between them instead. */
+@media (max-width: 640px) {
+  .arena .ability-prompt.life-trigger-card {
+    width: max-content;
+    margin-inline: auto;
   }
 }
 

@@ -40,6 +40,7 @@ export {
   isNegated,
 } from "./engine.js";
 export { describeEvents } from "./describeEvents.js";
+export { revealsHiddenInfo } from "./revealsHiddenInfo.js";
 export { reseedMatch } from "./reseed.js";
 export { MATCH_REPLAY_SCHEMA, replayMatch, replayStart, replayApply, type MatchReplay, type ReplayStep } from "./matchReplay.js";
 export {

@@ -112,6 +112,8 @@ export type WelcomeMessage = {
 export type EventsMessage = {
   protocolVersion: ProtocolVersion;
   events: GameEvent[];
+  /** Replay intents applied once these events happened (undo rewinds to a step). */
+  step?: number;
 };
 
 export type ViewMessage = {
@@ -532,28 +534,37 @@ export function parseHandOrderMessage(raw: unknown): string[] {
 }
 
 /**
- * Turn undo (unranked rooms only). A seat requests a rewind to the start of a
- * turn; the other seat accepts or declines. Practice clients auto-accept.
+ * Undo (unranked rooms only). A seat requests taking back the last action (#497);
+ * the other seat accepts or declines. Practice clients auto-accept.
  */
 export type UndoAction = "request" | "accept" | "decline" | "cancel";
+
+/** One undoable action: who took it and a short description ("play Nami"). */
+export type UndoActionInfo = { seat: Seat; label: string };
 
 /** Undo availability + any open request, pushed on join / sync / change. */
 export type UndoStateMessage = {
   protocolVersion: ProtocolVersion;
   /** False in ranked rooms (undo is never offered there). */
   enabled: boolean;
-  /** Turn an undo would rewind to right now, or null when nothing to undo. */
+  /** Turn of the state an undo would restore right now, or null when nothing to undo. */
   targetTurn: number | null;
+  /** The action an undo would take back (the last one, by either seat), or null. */
+  action: UndoActionInfo | null;
   /** Open request awaiting the other seat's answer. */
-  pending: { from: Seat; toTurn: number } | null;
+  pending: { from: Seat; toTurn: number; action: UndoActionInfo | null } | null;
 };
 
 /** Broadcast after an accepted undo rewinds the match. */
 export type UndoAppliedMessage = {
   protocolVersion: ProtocolVersion;
   toTurn: number;
+  /** Replay intent count after the rewind; battle-log lines past it are dropped. */
+  toStep: number;
   /** Seat that asked for the undo. */
   by: Seat;
+  /** The action that was taken back. */
+  action: UndoActionInfo;
 };
 
 /**
