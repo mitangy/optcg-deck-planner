@@ -8,6 +8,8 @@ const R = "packages/rules/src/revealsHiddenInfo.ts";
 const GF = "packages/rules/src/sim/goldfish.ts";
 const ABILITIES = "packages/rules/src/cards/generated/abilities.json";
 const MANUAL = "packages/rules/src/cards/manualAbilities.ts";
+const COMPILE_FILE = "packages/rules/src/tools/cardText/compileCard.ts";
+const GRAMMAR_FILE = "packages/rules/src/tools/cardText/grammar.ts";
 const LINT = "packages/rules/src/tools/cardText/programLint.ts";
 const LINT_REGISTRY = "no compiled program reads an unbound variable or pays off an ungated may";
 /** Scenario rows (src/__tests__/scenarios): alter one card's generated abilities; `kills` are row-name fragments. */
@@ -235,9 +237,9 @@ module.exports = {
     { id: "trashed-card-cost-5-counts", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP08-096"].abilities[0].effect.steps[1].cond.filter.cost.value = 5; }, kills: ["OP08-096 gives nothing when the trashed card costs 5"] },
     { id: "event-card-reads-last", edits: [
       { file: "packages/rules/src/tools/cardText/grammar.ts", from: "name: ctx.eventCard ? \"_event\" : \"_last\"", to: "name: \"_last\"" },
-      { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP11-088"].abilities[1].effect.cond.name = "_last"; } },
+      { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP11-088"].abilities[1].effect.then.cond.name = "_last"; } },
     ], kills: ["OP11-088 gains +5000 when the attacking Character has <Slash>"] },
-    { id: "event-card-any-attacker", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { const e = a["OP11-088"].abilities[1]; e.effect = e.effect.then; }, kills: ["OP11-088 gains nothing when the attacking Character does not have <Slash>"] },
+    { id: "event-card-any-attacker", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { const e = a["OP11-088"].abilities[1]; e.effect.then = e.effect.then.then; }, kills: ["OP11-088 gains nothing when the attacking Character does not have <Slash>"] },
     // "Your opponent may PAY. If they do not, Y": PAY is offered only when payable in full, from the opponent's own zones (#515)
     { id: "opponent-may-pay-free-maser-saber", edits: [
       { file: "packages/rules/src/tools/cardText/grammar.ts", from: "return { do: \"may\", chooser: \"opponent\", costs: [cost], then: { do: \"nothing\" }, bind: \"_did\", prompt };", to: "return { do: \"may\", chooser: \"opponent\", then: { do: \"nothing\" }, bind: \"_did\", prompt };" },
@@ -617,7 +619,7 @@ module.exports = {
     // to catch, brought back in the card data or the compiler; then breakages of the lint itself.
     { id: "lint-op08-096-mill-binds-nothing", json: ABILITIES, patch: (a) => { delete a["OP08-096"].abilities[0].effect.steps[0].bind; }, kills: [LINT_REGISTRY] },
     { id: "lint-op08-096-reads-cost", json: ABILITIES, patch: (a) => { a["OP08-096"].abilities[0].effect.steps[1].cond.name = "_cost"; }, kills: [LINT_REGISTRY] },
-    { id: "lint-op11-088-event-read-as-last", json: ABILITIES, patch: (a) => { a["OP11-088"].abilities[1].effect.cond.name = "_last"; }, kills: [LINT_REGISTRY] },
+    { id: "lint-op11-088-event-read-as-last", json: ABILITIES, patch: (a) => { a["OP11-088"].abilities[1].effect.then.cond.name = "_last"; }, kills: [LINT_REGISTRY] },
     { id: "lint-op11-088-event-without-card", json: ABILITIES, patch: (a) => { a["OP11-088"].abilities[1].eventTrigger.alsoEvents = ["don_returned"]; }, kills: [LINT_REGISTRY] },
     { id: "lint-op09-103-reads-did", json: ABILITIES, patch: (a) => { a["OP09-103"].abilities[1].effect.steps[1].cond.name = "_did"; }, kills: [LINT_REGISTRY] },
     { id: "lint-st22-001-reveal-cost-binds-cost", file: "packages/rules/src/effects/compile.ts", from: `cost.count, "reveal (cost)", "_last"); out.push({ op: "act", effect: { do: "reveal", target: { ref: "var", name: "_last" } } }); return;`, to: `cost.count, "reveal (cost)", "_cost"); out.push({ op: "act", effect: { do: "reveal", target: { ref: "var", name: "_cost" } } }); return;`, kills: [LINT_REGISTRY] },
@@ -654,5 +656,84 @@ module.exports = {
     { id: "lint-or-treated-as-and", file: LINT, from: `const vs = cond.conds.map((c) => evalWith(c, counts));\n      return vs.includes(true) ? true : vs.every((v) => v === false) ? false : undefined;`, to: `const vs = cond.conds.map((c) => evalWith(c, counts));\n      return vs.includes(false) ? false : vs.includes(true) ? true : undefined;`, kills: ["a condition on something other than the may, or on both outcomes"] },
     { id: "lint-allowlist-ignores-kind", file: "packages/rules/src/tools/cardText/programLintAllowlist.ts", from: "if (allowlist[f.abilityId]?.kind === f.kind) {", to: "if (allowlist[f.abilityId] !== undefined) {", kills: ["matches by ability id and kind"] },
     { id: "lint-allowlist-never-stale", file: "packages/rules/src/tools/cardText/programLintAllowlist.ts", from: "stale: Object.keys(allowlist).filter((id) => !used.has(id))", to: "stale: []", kills: ["matches by ability id and kind"] },
+
+    // #523: event triggers and replacements keep the qualifiers printed in the card text.
+    // OP10-042 Usopp: "removed from the field by your opponent's effect or K.O.'d" lost its "or K.O.'d".
+    { id: "scn-usopp-or-ko-dropped", edits: [
+      { file: COMPILE_FILE, from: `...(m[2] ? { anyCauseEvents: ["character_ko" as const] } : {}), `, to: `` },
+      { json: ABILITIES, patch: (a) => { delete a["OP10-042"].abilities[1].eventTrigger.anyCauseEvents; } },
+    ], kills: ["OP10-042 draws 1 when your {Dressrosa} Character is K.O.'d in battle"] },
+    { id: "usopp-ko-needs-opponent-effect", file: "packages/rules/src/engine/runtime.ts", from: `const anyCause = et.event !== kind && !et.alsoEvents?.includes(kind);`, to: `const anyCause = false;`, kills: ["OP10-042 draws 1 when your {Dressrosa} Character is K.O.'d in battle"] },
+    scn("usopp-any-character", "OP10-042", (a) => { delete a[1].eventTrigger.filter; }, ["OP10-042 draws nothing when a Character that is not {Dressrosa} is K.O.'d"]),
+    scn("usopp-ko-only", "OP10-042", (a) => { a[1].eventTrigger.event = "character_ko"; delete a[1].eventTrigger.anyCauseEvents; }, ["OP10-042 still draws 1 when the opponent's effect returns"]),
+    // OP14-045 Kuroobi / OP14-049 Jinbe: "by an effect". Hand-trashing by a rules action (a Counter) must not count: both the
+    // flag and the "no event for a Counter" are removed, so a Counter dispatching the event would grant [Rush].
+    { id: "kuroobi-trash-not-by-effect", file: "packages/rules/src/engine/runtime.ts", from: `if (info.byEffectOf == null && acting && !kinds.includes("character_ko")) info`, to: `if (info.byEffectOf == null && acting && !kinds.includes("character_ko") && !kinds.includes("card_trashed_from_hand")) info`, kills: ["OP14-045 gains [Rush] when an effect trashes a card from your hand", "OP14-045 gains [Rush] when the cost of an Event trashes a card from your hand", "OP14-049 gains [Rush] when an effect trashes a card from your hand"] },
+    { id: "scn-kuroobi-counter-trash-gives-rush", edits: [
+      { file: COMPILE_FILE, from: `( by an effect)?$/i, (m) => ({ event: "card_trashed_from_hand", player: "you", ...(m[1] ? { byEffect: true } : {}) })`, to: `(?: by an effect)?$/i, () => ({ event: "card_trashed_from_hand", player: "you" })` },
+      { json: ABILITIES, patch: (a) => { delete a["OP14-045"].abilities[0].eventTrigger.byEffect; } },
+      { file: "packages/rules/src/engine/intents.ts", from: `      putCard(state, seat, "trash", entry);\n      addModifier(state, seat, entry.id, { kind: "card", id: defender.id }, { type: "power", amount: value }, { kind: "battle" });`, to: `      putCard(state, seat, "trash", entry);\n      dispatchEvent(state, "card_trashed_from_hand", { seat, card: entry });\n      addModifier(state, seat, entry.id, { kind: "card", id: defender.id }, { type: "power", amount: value }, { kind: "battle" });` },
+    ], kills: ["OP14-045 does not gain [Rush] when you trash a Character from your hand as a Counter"] },
+    { id: "scn-jinbe-counter-trash-gives-rush", edits: [
+      { json: ABILITIES, patch: (a) => { delete a["OP14-049"].abilities[0].eventTrigger.byEffect; } },
+      { file: "packages/rules/src/engine/intents.ts", from: `      putCard(state, seat, "trash", entry);\n      addModifier(state, seat, entry.id, { kind: "card", id: defender.id }, { type: "power", amount: value }, { kind: "battle" });`, to: `      putCard(state, seat, "trash", entry);\n      dispatchEvent(state, "card_trashed_from_hand", { seat, card: entry });\n      addModifier(state, seat, entry.id, { kind: "card", id: defender.id }, { type: "power", amount: value }, { kind: "battle" });` },
+    ], kills: ["OP14-049 does not gain [Rush] when you trash a Character from your hand as a Counter"] },
+    // EB02-023 Crocodile: "by your effect".
+    { id: "scn-crocodile-by-any-effect", edits: [
+      { file: COMPILE_FILE, from: `...(m[1] ? { byYourEffect: true } : {})`, to: `` },
+      { json: ABILITIES, patch: (a) => { delete a["EB02-023"].abilities[0].eventTrigger.byYourEffect; } },
+    ], kills: ["EB02-023 does nothing when the opponent's own effect returns their Character on your turn"] },
+    { id: "crocodile-ignores-by-your-effect", file: "packages/rules/src/engine/runtime.ts", from: `if (!anyCause && et.byYourEffect && info.byEffectOf !== seat) return false;`, to: ``, kills: ["EB02-023 does nothing when the opponent's own effect returns their Character on your turn"] },
+    scn("crocodile-own-characters", "EB02-023", (a) => { a[0].eventTrigger.player = "you"; }, ["EB02-023 looks at 3 cards when your effect returns the opponent's Character"]),
+    // OP02-026 Sanji: "from your hand".
+    { id: "scn-sanji-from-any-zone", edits: [
+      { file: COMPILE_FILE, from: `player: "you", fromZone: "hand", ...(p.selector.filter`, to: `player: "you", ...(p.selector.filter` },
+      { json: ABILITIES, patch: (a) => { delete a["OP02-026"].abilities[0].eventTrigger.fromZone; } },
+    ], kills: ["OP02-026 does nothing when an effect plays a Character with no base effect from your trash"] },
+    { id: "event-trigger-ignores-from-zone", file: "packages/rules/src/engine/runtime.ts", from: `if (et.fromZone && info.fromZone !== et.fromZone) return false;`, to: ``, kills: ["OP02-026 does nothing when an effect plays a Character with no base effect from your trash"] },
+    scn("sanji-from-trash", "OP02-026", (a) => { a[0].eventTrigger.fromZone = "trash"; }, ["OP02-026 sets 2 DON!! active when you play a Character with no base effect from your hand"]),
+    // OP08-045 Thatch: any K.O. and any removal by the opponent's effect.
+    { id: "scn-thatch-only-opponent-ko", edits: [
+      { file: COMPILE_FILE, from: `if (/or KO'd/i.test(m[4]!)) return buildReplacement(`, to: `if (false as boolean && /or KO'd/i.test(m[4]!)) return buildReplacement(` },
+      { json: ABILITIES, patch: (a) => { const r = a["OP08-045"].abilities[0].replacement; delete r.alsoEvents; r.byOpponent = true; } },
+    ], kills: ["OP08-045 is trashed instead of returned to the hand by the opponent's effect", "OP08-045 is trashed and draws 1 card when your own effect K.O.s it"] },
+    scn("thatch-no-battle-ko", "OP08-045", (a) => { a[0].replacement.event = "removed_by_opponent_effect"; delete a[0].replacement.alsoEvents; }, ["OP08-045 is trashed and draws 1 card when it is K.O.'d in battle", "OP08-045 is trashed and draws 1 card when your own effect K.O.s it"]),
+    scn("thatch-covers-own-removal", "OP08-045", (a) => { a[0].replacement.alsoEvents = ["removed"]; }, ["OP08-045 is returned to the hand as usual by your own effect"]),
+    // EB01-029 Sorry. I'm a Goner. (manual): the revealed card is placed at the bottom only in the cost 4+ branch (Q&A), and is the revealed card, not the returned Character.
+    scnManual("goner-always-bottom", `when({ c: "var_all_match", name: "_rev", filter: { cost: ge(4) } }, seq({ do: "to_hand", target: upTo(1, myChar(CHAR), { bind: "_ret" }) }, { do: "to_deck", target: v("_rev"), position: "bottom" })),`, `{ do: "if", cond: { c: "var_all_match", name: "_rev", filter: { cost: ge(4) } }, then: { do: "to_hand", target: upTo(1, myChar(CHAR), { bind: "_ret" }) } }, { do: "to_deck", target: v("_rev"), position: "bottom" },`, ["EB01-029 leaves the revealed cost 3 card on top of the deck"]),
+    scnManual("goner-bottoms-returned-character", `{ do: "to_deck", target: v("_rev"), position: "bottom" })),`, `{ do: "to_deck", target: v("_ret"), position: "bottom" })),`, ["EB01-029 puts the revealed cost 6 card at the bottom of the deck"]),
+    scnManual("goner-threshold", `filter: { cost: ge(4) } }, seq({ do: "to_hand", target: upTo(1, myChar(CHAR), { bind: "_ret" }) }`, `filter: { cost: ge(3) } }, seq({ do: "to_hand", target: upTo(1, myChar(CHAR), { bind: "_ret" }) }`, ["EB01-029 leaves the revealed cost 3 card on top of the deck"]),
+    // Searches that say "reveal" show the card to the opponent.
+    { id: "scn-orochi-no-reveal", edits: [
+      { file: GRAMMAR_FILE, from: `if (target.ref === "choose" && target.bind) return { do: "seq", steps: [{ do: "reveal", target }`, to: `if (false as boolean && target.ref === "choose" && target.bind) return { do: "seq", steps: [{ do: "reveal", target }` },
+      { json: ABILITIES, patch: (a) => { const st = a["OP01-098"].abilities[0].effect.steps[0].steps; st.splice(0, 2, { do: "to_hand", target: st[0].target }); } },
+    ], kills: ["OP01-098 Kurozumi Orochi reveals the [Artificial Devil Fruit SMILE]"] },
+    { id: "hand-to-life-no-reveal", file: "packages/rules/src/effects/compile.ts", from: `if (effect.reveal) out.push(`, to: `if (false as boolean) out.push(`, kills: ["OP10-119 Trafalgar Law reveals", "ST13-005 Emporio.Ivankov reveals"] },
+    scnManual("law-no-reveal", `faceUp: false, reveal: true, filter: { ...CHAR, traits: ["Supernovas"] } }`, `faceUp: false, filter: { ...CHAR, traits: ["Supernovas"] } }`, ["OP10-119 Trafalgar Law reveals"]),
+    scnManual("ivankov-no-reveal", `faceUp: false, reveal: true, filter: { ...CHAR, cost: eq(5) } } }]),`, `faceUp: false, filter: { ...CHAR, cost: eq(5) } } }]),`, ["ST13-005 Emporio.Ivankov reveals"]),
+
+    // #524: "removed from the field by an effect" covers K.O., deck, trash and Life; one occurrence queues each ability once.
+    { id: "ko-by-effect-not-a-removal", file: "packages/rules/src/engine/runtime.ts", from: `cause.byEffectOf != null ? ["character_ko", "character_removed_by_effect"] : "character_ko"`, to: `"character_ko"`, kills: ["OP07-038 draws when your effect K.O.s the opponent's Character", "OP08-046 rests itself and makes the opponent place a card", "OP09-080 adds a rested DON!!"] },
+    { id: "ko-by-effect-dispatched-twice", file: "packages/rules/src/engine/runtime.ts", from: `  dispatchEvent(state, cause.byEffectOf != null ? ["character_ko", "character_removed_by_effect"] : "character_ko", { seat: loc.seat, card: entry, ...(cause.byEffectOf != null ? { byEffectOf: cause.byEffectOf } : {}) });`, to: `  dispatchEvent(state, "character_ko", { seat: loc.seat, card: entry, ...(cause.byEffectOf != null ? { byEffectOf: cause.byEffectOf } : {}) });\n  if (cause.byEffectOf != null) dispatchEvent(state, "character_removed_by_effect", { seat: loc.seat, card: entry, byEffectOf: cause.byEffectOf });`, kills: ["OP10-042 is offered once, not twice"] },
+    { id: "bottom-deck-not-a-removal", file: "packages/rules/src/engine/runtime.ts", from: `        removedByEffect(state, frame, loc);\n        moveToZone(sim, loc, "deck", { position });`, to: `        moveToZone(sim, loc, "deck", { position });`, kills: ["OP07-038 draws when your effect places the opponent's Character at the bottom of the deck", "OP10-042 draws when the opponent's effect places your {Dressrosa} Character at the bottom of the deck"] },
+    { id: "trash-by-effect-not-a-removal", file: "packages/rules/src/engine/runtime.ts", from: `\n        else removedByEffect(state, frame, loc);\n        moveToZone(sim, loc, "trash");`, to: `\n        moveToZone(sim, loc, "trash");`, kills: ["OP10-042 draws when the opponent's effect trashes your {Dressrosa} Character without a K.O."] },
+    { id: "trash-for-space-is-a-removal", file: "packages/rules/src/engine/runtime.ts", from: `\n        else removedByEffect(state, frame, loc);\n        moveToZone(sim, loc, "trash");`, to: `\n        removedByEffect(state, frame, loc);\n        moveToZone(sim, loc, "trash");`, kills: ["OP07-038 does not draw when a 6th Character is played and one is trashed to make room"] },
+    { id: "life-add-not-a-removal", file: "packages/rules/src/engine/runtime.ts", from: `        removedByEffect(state, frame, loc);\n        const entry = takeCard(state, loc);`, to: `        const entry = takeCard(state, loc);`, kills: ["OP07-038 draws when your effect adds the opponent's Character to their Life cards"] },
+    // OP07-038 Hancock / OP08-046 Shakuyaku: "by your effect".
+    { id: "scn-hancock-shakuyaku-by-any-effect", edits: [
+      { file: COMPILE_FILE, from: `player: "any", byYourEffect: true })],`, to: `player: "any" })],` },
+      { json: ABILITIES, patch: (a) => { delete a["OP07-038"].abilities[0].eventTrigger.byYourEffect; delete a["OP08-046"].abilities[0].eventTrigger.byYourEffect; } },
+    ], kills: ["OP07-038 does not draw when the opponent's [Trigger] K.O.s your Character", "OP07-038 does not draw when the opponent's [Trigger] returns your Character", "OP08-046 does nothing when the opponent's [Trigger] returns a Character"] },
+    // "This effect can be activated ..." is optional, and a declined [Once Per Turn] is not spent.
+    { id: "scn-activated-when-mandatory", edits: [
+      { file: COMPILE_FILE, from: `return inner ? inner.map((a) => (a.effect && !a.costs?.length ? { ...a, effect: optional(a.effect) } : a)) : null;`, to: `return inner;` },
+      { json: ABILITIES, patch: (a) => { for (const [id, i] of [["OP07-038", 0], ["OP10-042", 1], ["OP11-088", 1]]) { const ab = a[id].abilities[i]; if (ab.effect.do === "may") ab.effect = ab.effect.then; } } },
+    ], kills: ["OP07-038 can be declined once and still used for a later removal the same turn", "OP11-088 gains +5000 when the attacking Character has <Slash>", "OP10-042 is offered once, not twice"] },
+    { id: "declined-once-per-turn-stays-spent", file: "packages/rules/src/engine/runtime.ts", from: `  if (!ability?.oncePerTurn) return;\n  const card = locate(state, frame.sourceInstanceId)?.card;`, to: `  return;\n  const card = locate(state, frame.sourceInstanceId)?.card;`, kills: ["OP07-038 can be declined once and still used for a later removal the same turn"] },
+    // OP08-045 Thatch: the trash that replaces a K.O. is not a K.O. (Q&A).
+    scn("thatch-replacement-kos", "OP08-045", (a) => { a[0].replacement.instead.steps[0] = { do: "ko", target: { ref: "self" } }; }, ["EB01-047 does not trigger when Thatch is trashed instead of being K.O.'d"]),
+    // OP12-040 Kuzan: only {Navy} card effects, which includes Borsalino's replacement (Q&A).
+    scnManual("kuzan-any-source", `eventTrigger: { event: "card_trashed_from_hand", player: "you", sourceFilter: { traits: ["Navy"] } }, effect: draw(1) }]),`, `eventTrigger: { event: "card_trashed_from_hand", player: "you" }, effect: draw(1) }]),`, ["OP12-040 does not draw when a card that is not {Navy}"]),
+    scnManual("kuzan-wrong-source", `eventTrigger: { event: "card_trashed_from_hand", player: "you", sourceFilter: { traits: ["Navy"] } }, effect: draw(1) }]),`, `eventTrigger: { event: "card_trashed_from_hand", player: "you", sourceFilter: { traits: ["Marines"] } }, effect: draw(1) }]),`, ["OP12-040 draws when Borsalino trashes a card"]),
   ],
 };

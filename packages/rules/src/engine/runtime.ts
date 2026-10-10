@@ -112,38 +112,47 @@ export interface EventInfo {
   fromZone?: string;
 }
 
-/** Dispatch an internal rules event to "When …" abilities on the field. */
-export function dispatchEvent(state: MatchState, kind: GameEventKind, info: EventInfo): void {
-  if (info.byEffectOf == null && acting && kind !== "character_ko") info = { ...info, byEffectOf: acting.seat };
+/**
+ * Dispatch an internal rules event to "When …" abilities on the field. One occurrence can carry several kinds
+ * (a K.O. by an effect is both `character_ko` and `character_removed_by_effect`): each ability is queued at most once,
+ * when any of the kinds matches it under its own gates.
+ */
+export function dispatchEvent(state: MatchState, event: GameEventKind | readonly GameEventKind[], info: EventInfo): void {
+  const kinds: readonly GameEventKind[] = typeof event === "string" ? [event] : event;
+  if (info.byEffectOf == null && acting && !kinds.includes("character_ko")) info = { ...info, byEffectOf: acting.seat };
   const source = acting;
-  if (kind === "event_activated" && info.card) turnLog(state, info.seat).events.push(info.card.defId);
-  if (kind === "character_ko" && info.card) turnLog(state, info.seat).koed.push(info.card.defId);
-  if (kind === "card_trashed_from_hand" && info.byEffectOf != null) turnLog(state, info.seat).handTrashed += 1;
+  if (kinds.includes("event_activated") && info.card) turnLog(state, info.seat).events.push(info.card.defId);
+  if (kinds.includes("character_ko") && info.card) turnLog(state, info.seat).koed.push(info.card.defId);
+  if (kinds.includes("card_trashed_from_hand") && info.byEffectOf != null) turnLog(state, info.seat).handTrashed += 1;
   for (const seat of [0, 1] as Seat[]) {
     for (const card of fieldCards(state.players[seat])) {
       if (isNegated(state, card)) continue;
       for (const ability of abilitiesFor(card.defId)) {
         const et = ability.eventTrigger;
-        if (ability.trigger !== "on_event" || !et || (et.event !== kind && !et.alsoEvents?.includes(kind))) continue;
-        if (kind === "self_ko") continue;
-        if (kind === "self_rested" || kind === "self_attacked" || kind === "attack_damage" || kind === "battle_ended_vs_character") { if (info.card?.id !== card.id) continue; }
-        else {
-          const rel = info.seat === seat ? "you" : "opponent";
-          if (et.player !== "any" && et.player !== rel) continue;
-        }
-        if (et.byOpponentEffect && (info.byEffectOf == null || info.byEffectOf === info.seat)) continue;
-        if (et.byEffect && info.byEffectOf == null) continue;
-        if (et.byYourEffect && info.byEffectOf !== seat) continue;
-        if (et.minCount != null && (info.count ?? 1) < et.minCount) continue;
-        if (et.fromZone && info.fromZone !== et.fromZone) continue;
-        {
+        if (ability.trigger !== "on_event" || !et) continue;
+        const matches = (kind: GameEventKind): boolean => {
+          if (et.event !== kind && !et.alsoEvents?.includes(kind) && !et.anyCauseEvents?.includes(kind)) return false;
+          if (kind === "self_ko") return false;
+          // Events listed only in `anyCauseEvents` ignore the by-effect flags below.
+          const anyCause = et.event !== kind && !et.alsoEvents?.includes(kind);
+          if (kind === "self_rested" || kind === "self_attacked" || kind === "attack_damage" || kind === "battle_ended_vs_character") { if (info.card?.id !== card.id) return false; }
+          else {
+            const rel = info.seat === seat ? "you" : "opponent";
+            if (et.player !== "any" && et.player !== rel) return false;
+          }
+          if (!anyCause && et.byOpponentEffect && (info.byEffectOf == null || info.byEffectOf === info.seat)) return false;
+          if (!anyCause && et.byEffect && info.byEffectOf == null) return false;
+          if (!anyCause && et.byYourEffect && info.byEffectOf !== seat) return false;
+          if (et.minCount != null && (info.count ?? 1) < et.minCount) return false;
+          if (et.fromZone && info.fromZone !== et.fromZone) return false;
           const ctx = ctxFor(seat, card);
           const loc = info.card ? locate(state, info.card.id) : null;
           const cardMatch = et.filter ? (info.card ? loc != null && filterMatches(state, ctx, et.filter, loc) : true) : true;
           const srcLoc = source ? locate(state, source.id) : null;
           const srcMatch = et.sourceFilter ? srcLoc != null && filterMatches(state, ctx, et.sourceFilter, srcLoc) : true;
-          if (et.either ? !((et.filter != null && info.card != null && cardMatch) || (et.sourceFilter != null && srcMatch)) : !(cardMatch && srcMatch)) continue;
-        }
+          return et.either ? (et.filter != null && info.card != null && cardMatch) || (et.sourceFilter != null && srcMatch) : cardMatch && srcMatch;
+        };
+        if (!kinds.some(matches)) continue;
         if (!abilityGateOpen(state, seat, { id: card.id, defId: card.defId, card }, ability, info.card?.id)) continue;
         state.triggerQueue.push({ id: alloc(state, "trig"), seat, sourceInstanceId: card.id, sourceDefId: card.defId, abilityId: ability.id, window: "on_event", batch: state.triggerBatch, ...(info.card ? { eventCardId: info.card.id } : {}) });
       }
@@ -188,7 +197,8 @@ export function performKo(sim: Sim, loc: Located, cause: RemovalCause): void {
     if (!abilityGateOpen(state, loc.seat, { ...entry, ...(koed ? { card: koed } : {}) }, ability)) continue;
     state.triggerQueue.push({ id: alloc(state, "trig"), seat: loc.seat, sourceInstanceId: entry.id, sourceDefId: entry.defId, abilityId: ability.id, window: "on_event", batch: state.triggerBatch });
   }
-  dispatchEvent(state, "character_ko", { seat: loc.seat, card: entry, ...(cause.byEffectOf != null ? { byEffectOf: cause.byEffectOf } : {}) });
+  // A K.O. by an effect is also a removal from the field by that effect: one occurrence, so each ability queues once.
+  dispatchEvent(state, cause.byEffectOf != null ? ["character_ko", "character_removed_by_effect"] : "character_ko", { seat: loc.seat, card: entry, ...(cause.byEffectOf != null ? { byEffectOf: cause.byEffectOf } : {}) });
   if (loc.zone === "character") dispatchEvent(state, "character_left_field", { seat: loc.seat, card: entry, ...(cause.byEffectOf != null ? { byEffectOf: cause.byEffectOf } : {}) });
 }
 
@@ -611,6 +621,11 @@ export function pushReplacementFrame(sim: Sim, hit: { seat: Seat; card: CardInst
   state.resolutionFrames.push({ id: alloc(state, "frame"), seat: hit.seat, sourceInstanceId: hit.card.id, sourceDefId: hit.card.defId, abilityId: hit.ability.id, window: "replacement", operationIndex: 0, bindings: { _target: targetId, _last: [targetId], ...(parentId ? { _parent: parentId } : {}) }, program: "replacement" });
 }
 
+/** An effect is about to move a Character off the field (to hand, deck, trash or Life): "removed from the field by an effect". */
+function removedByEffect(state: MatchState, frame: ResolutionFrame, loc: Located): void {
+  if (loc.zone === "character") dispatchEvent(state, "character_removed_by_effect", { seat: loc.seat, card: loc, byEffectOf: frame.seat });
+}
+
 /** Apply a removal to each target in order; may pause for replacement prompts. */
 function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kind: "ko" | "return" | "remove" | "rest" | null, apply: (loc: Located) => void, done?: () => void): ExecResult {
   const { state } = sim;
@@ -708,7 +723,7 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       return forEachTarget(sim, frame, targets, "return", (loc) => {
         if (loc.zone === "leader" || loc.zone === "hand") return;
         if (isOnField(loc)) {
-          dispatchEvent(state, "character_removed_by_effect", { seat: loc.seat, card: loc, byEffectOf: frame.seat });
+          removedByEffect(state, frame, loc);
           dispatchEvent(state, "character_returned", { seat: loc.seat, card: loc, byEffectOf: frame.seat });
         }
         moveToZone(sim, loc, "hand");
@@ -725,6 +740,7 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       const targets = targetsOf(effect.target);
       return forEachTarget(sim, frame, targets, "remove", (loc) => {
         if (loc.zone === "leader") return;
+        removedByEffect(state, frame, loc);
         moveToZone(sim, loc, "deck", { position });
       }, () => { delete frame.bindings._end; });
     }
@@ -733,6 +749,7 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       return forEachTarget(sim, frame, targets, frame.program === "trash_for_space" ? null : "remove", (loc) => {
         if (loc.zone === "leader" || loc.zone === "trash") return;
         if (frame.program === "trash_for_space") sim.events.push({ type: "character_trashed_for_space", seat: loc.seat, defId: loc.defId });
+        else removedByEffect(state, frame, loc);
         moveToZone(sim, loc, "trash");
       });
     }
@@ -748,6 +765,7 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
         // Re-locate: an earlier move shifted the indexes of the zone it left.
         const loc = locate(state, target.id);
         if (!loc || loc.zone === "leader" || loc.zone === "life") continue;
+        removedByEffect(state, frame, loc);
         const entry = takeCard(state, loc);
         putCard(state, loc.seat, "life", entry, { position: lifePosition, faceUp: effect.faceUp });
         if (loc.zone === "character") dispatchEvent(state, "character_left_field", { seat: loc.seat, card: entry, byEffectOf: frame.seat });

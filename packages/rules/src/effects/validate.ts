@@ -201,7 +201,7 @@ const effect: V = tagged("do", {
   grant: variant("do", "grant", { ability: str, duration }),
   discard: variant("do", "discard", { player: rel, count: value }, { chooser: rel, filter, min: int(0), random: bool }),
   hand_to_deck: variant("do", "hand_to_deck", { player: rel, count: int(1), position: oneOf("top", "bottom", "top_or_bottom") }, { chooser: rel, filter, min: int(0) }),
-  hand_to_life: variant("do", "hand_to_life", { count: int(1), position: oneOf("top", "bottom"), faceUp: bool }, { filter, min: int(0) }),
+  hand_to_life: variant("do", "hand_to_life", { count: int(1), position: oneOf("top", "bottom"), faceUp: bool }, { filter, min: int(0), reveal: bool }),
   deck_to_life: variant("do", "deck_to_life", { player: rel, count: int(1) }, { faceUp: bool }),
   life_to_hand: variant("do", "life_to_hand", { player: rel, count: int(1), position: oneOf("top", "top_or_bottom", "bottom") }, { min: int(0) }),
   trash_life: variant("do", "trash_life", { player: rel, count: value }, { position: oneOf("top", "top_or_bottom") }),
@@ -248,7 +248,7 @@ const gatedStatic: V = (v, p, e) => {
 };
 const trigger = oneOf("static", "on_play", "when_attacking", "on_ko", "on_block", "on_opp_attack", "activate_main", "main", "counter", "trigger", "end_of_your_turn", "end_of_opponent_turn", "start_of_your_turn", "on_event", "replacement");
 const gameEvent = oneOf("character_ko", "character_played", "don_returned", "self_rested", "life_removed", "event_activated", "trigger_activated", "attack_declared", "card_trashed_from_hand", "self_attacked", "leader_damaged", "character_removed_by_effect", "character_returned", "attack_damage", "self_ko", "don_given", "blocker_activated", "battle_ko_opponent", "life_to_hand", "card_drawn_by_effect", "character_rested", "character_left_field", "leader_attacked", "battle_ended_vs_character");
-const eventTrigger = obj({ event: gameEvent, player: relAny }, { filter, byOpponentEffect: bool, byEffect: bool, byYourEffect: bool, alsoEvents: arr(gameEvent, 1), minCount: int(1), fromZone: oneOf("hand", "trash", "deck", "life"), sourceFilter: filter, either: bool });
+const eventTrigger = obj({ event: gameEvent, player: relAny }, { filter, byOpponentEffect: bool, byEffect: bool, byYourEffect: bool, alsoEvents: arr(gameEvent, 1), anyCauseEvents: arr(gameEvent, 1), minCount: int(1), fromZone: oneOf("hand", "trash", "deck", "life"), sourceFilter: filter, either: bool });
 const replacementEvent = oneOf("ko", "ko_by_effect", "removed_by_opponent_effect", "ko_in_battle", "life_damage", "rested_by_opponent_effect", "removed");
 const replacement = obj({ event: replacementEvent, target: (v, p, e) => { if (v === "self") return; selector(v, p, e); }, instead: effect, optional: bool }, { byOpponent: bool, alsoEvents: arr(replacementEvent, 1), sourceFilter: filter });
 

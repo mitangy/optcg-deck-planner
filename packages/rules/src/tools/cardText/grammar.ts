@@ -455,7 +455,13 @@ const EFFECT_RULES: EffectRule[] = [
   [/^choose (\d+) cards? from your opponent's hand; your opponent reveals (?:that card|those cards)$/i, (m) => ({ do: "seq", steps: [{ do: "select", bind: "_last", selector: { player: "opponent", zone: "hand" }, min: num(m[1]!), max: num(m[1]!), chooser: "you" }, { do: "reveal", target: { ref: "var", name: "_last" } }] })],
   [/^set up to (\d+) of your (.+?) and your leader as active$/i, (m, ctx) => { const p = parseCardPhrase("up to " + m[1] + " of your " + m[2], ctx); return p ? { do: "seq", steps: [{ do: "activate", target: toTarget(p) }, { do: "activate", target: { ref: "leader", player: "you" } }] } : null; }],
   [/^deal (\d+) damage to your opponent$/i, (m) => ({ do: "damage", player: "opponent", count: num(m[1]!) })],
-  [/^reveal up to (\d+) (.+?) from your deck and add (?:it|them) to your hand$/i, (m, ctx) => { const target = zoneTarget(m[1] ? "up to " + m[1] + " " + m[2] : m[2]!, "deck", ctx); return target ? { do: "seq", steps: [{ do: "to_hand", target }, { do: "shuffle", player: "you" }] } : null; }],
+  [/^reveal up to (\d+) (.+?) from your deck and add (?:it|them) to your hand$/i, (m, ctx) => {
+    const target = zoneTarget(m[1] ? "up to " + m[1] + " " + m[2] : m[2]!, "deck", ctx);
+    if (!target) return null;
+    // The opponent sees the card before it is added to the hand (#524).
+    if (target.ref === "choose" && target.bind) return { do: "seq", steps: [{ do: "reveal", target }, { do: "to_hand", target: { ref: "var", name: target.bind } }, { do: "shuffle", player: "you" }] };
+    return { do: "seq", steps: [{ do: "to_hand", target }, { do: "shuffle", player: "you" }] };
+  }],
   [/^you cannot add life cards to your hand using your own effects (during this turn)$/i, () => ({ do: "player_restrict", player: "you", restriction: "cannot_add_life_to_hand_by_effect", duration: "turn" })],
   [/^the next time you play (.+?) from your hand during this turn, the cost will be reduced by (\d+)$/i, (m, ctx) => { const p = parseCardPhrase("all " + m[1]!.replace(/^(?:a|an) /i, ""), ctx); return p ? { do: "play_cost_reduction", filter: p.selector.filter ?? {}, amount: -num(m[2]!), duration: "turn", next: true } : null; }],
   [new RegExp("^your opponent cannot activate the \\[Blocker\\] of any character with a cost of (\\d+) or less " + DUR + "$", "i"), (m) => { const d = parseDuration(m[2]); return d ? { do: "restrict", target: { ref: "self" }, restriction: "cannot_be_blocked_by_cost_or_less", value: num(m[1]!), duration: d } : null; }],

@@ -356,7 +356,7 @@ const ENTRIES: [string, ManualEntry][] = [
   card("OP10-118", [{ trigger: "replacement", oncePerTurn: true, text: "Once per turn, this Character cannot be KO'd by your opponent's effects.",
     replacement: { event: "ko_by_effect", target: "self", byOpponent: true, instead: { do: "nothing" }, optional: false } }]),
   card("OP10-119", [{ trigger: "on_play", text: "[On Play] Reveal up to 1 {Supernovas} type Character card from your hand",
-    effect: seq({ do: "hand_to_life", count: 1, min: 0, position: "top", faceUp: false, filter: { ...CHAR, traits: ["Supernovas"] } },
+    effect: seq({ do: "hand_to_life", count: 1, min: 0, position: "top", faceUp: false, reveal: true, filter: { ...CHAR, traits: ["Supernovas"] } },
       when(leaderTrait("Supernovas"), { do: "give_don", target: myLeader, count: 1, donState: "rested" })) }]),
   card("OP11-005", [{ trigger: "static", don: 1, text: "[DON!! x1] This Character cannot be KO'd by effects of Characters without",
     statics: [{ s: "restrict", target: "self", restriction: "cannot_be_ko_by_effect_from", filter: { ...CHAR, notAttributes: ["Special"] } }] }]),
@@ -659,7 +659,7 @@ const ENTRIES: [string, ManualEntry][] = [
     effect: seq({ do: "deck_to_life", player: "you", count: 1 }, { do: "look_life", player: "you", count: 99, rest: "any_order", prompt: "order your Life cards; the first card goes to the top of your deck" }, { do: "life_to_deck", player: "you", count: 1 }) }]),
   card("ST13-005", [{ trigger: "on_play", text: "[On Play] You may trash 1 card from the top or bottom of your Life cards",
     costs: [{ k: "trash_life", count: 1, position: "top_or_bottom" }],
-    effect: { do: "hand_to_life", count: 1, min: 0, position: "top", faceUp: false, filter: { ...CHAR, cost: eq(5) } } }]),
+    effect: { do: "hand_to_life", count: 1, min: 0, position: "top", faceUp: false, reveal: true, filter: { ...CHAR, cost: eq(5) } } }]),
   card("ST13-009", [{ trigger: "on_play", text: "[On Play] You may turn 1 of your face-up Life cards face-down",
     costs: [{ k: "life_face_down", count: 1, position: "any" }], effect: when(cmp({ count: { of: "hand", player: "opponent" } }, ">=", 7), { do: "trash_life", player: "opponent", count: 1 }) }]),
   card("ST13-016", [{ trigger: "on_play", text: "[On Play] Look at all your Life cards; place 1 at the top of your deck",
@@ -688,5 +688,17 @@ const ENTRIES: [string, ManualEntry][] = [
 // Full replacement (the generated record dropped "and reveals their hand"): the opponent's remaining hand stays face up this turn (#491).
 ENTRIES.push(["OP07-090", { abilities: [{ id: "op07-090#0", trigger: "on_play", text: "[On Play] Your opponent trashes 1 card from their hand and reveals their hand. Then, your opponent draws 1 card.",
   effect: seq({ do: "discard", player: "opponent", count: 1, chooser: "opponent" }, { do: "reveal", target: { ref: "all", selector: sel("opponent", "hand") } }, { do: "draw", player: "opponent", count: 1 }) }] }]);
+
+// Full replacement (#524). EB01-029 Q&A: a revealed card with a cost of 3 or less "is returned face-down to the top of your
+// deck"; only the cost 4 or more branch returns a Character and then places the revealed card at the bottom.
+ENTRIES.push(["EB01-029", { abilities: [
+  { id: "eb01-029#0", trigger: "counter", text: "[Counter] Reveal 1 card from the top of your deck. If the revealed card has a cost of 4 or more, return up to 1 of your Characters to the owner's hand. Then, place the revealed card at the bottom of your deck.",
+    effect: seq(
+      { do: "reveal_top", player: "you", bind: "_rev" },
+      when({ c: "var_all_match", name: "_rev", filter: { cost: ge(4) } }, seq({ do: "to_hand", target: upTo(1, myChar(CHAR), { bind: "_ret" }) }, { do: "to_deck", target: v("_rev"), position: "bottom" })),
+    ) },
+  { id: "eb01-029#1", trigger: "trigger", text: "[Trigger] Return up to 1 Character with a cost of 8 or less to the owner's hand.",
+    effect: { do: "to_hand", target: upTo(1, sel("any", "character", { ...CHAR, cost: le(8) })) } },
+] }]);
 
 export const MANUAL_ABILITIES: Record<string, ManualEntry> = Object.fromEntries(ENTRIES);
