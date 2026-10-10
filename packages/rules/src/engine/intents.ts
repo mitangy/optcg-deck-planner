@@ -253,6 +253,7 @@ function applyInner(sim: Sim, intent: Intent, seat: Seat): ApplyError {
       const cards = [...p.hand.map((c) => ({ defId: c.defId, id: c.id })), ...p.deck.map((defId, i) => ({ defId, id: p.zoneInstanceIds.deck[i]! }))];
       const shuffled = sim.rng.shuffle(cards);
       p.hand = [];
+      delete p.revealedHandIds;
       p.deck = shuffled.map((c) => c.defId);
       p.zoneInstanceIds.deck = shuffled.map((c) => c.id);
       for (let i = 0; i < 5 && p.deck.length; i += 1) p.hand.push(makeCard(p.deck.shift()!, p.zoneInstanceIds.deck.shift()!));

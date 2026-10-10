@@ -28,8 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -65,9 +65,9 @@ jobs:
       # cannot see the matrix, so every step is guarded by this flag instead.
       RUN_SHARD: ${{ inputs.stryker_shard == '' || inputs.stryker_shard == format('{0}', matrix.shard) }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         if: ${{ env.RUN_SHARD == 'true' }}
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         if: ${{ env.RUN_SHARD == 'true' }}
         with:
           node-version: "22"
@@ -93,7 +93,7 @@ jobs:
           echo "mutate=${SHARDS[$SHARD]}" >> "$GITHUB_OUTPUT"
       - name: Restore Stryker incremental file
         if: ${{ env.RUN_SHARD == 'true' }}
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: packages/rules/reports/stryker-incremental.json
           key: stryker-rules-${{ runner.os }}-shard${{ steps.shard.outputs.index }}-${{ github.run_id }}
@@ -130,7 +130,7 @@ jobs:
             out.push("", "Survivors are a to-do list for tools/mutation-check entries, not a score to chase.");
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, out.join("\n") + "\n");
           '
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() && env.RUN_SHARD == 'true' }}
         with:
           name: stryker-rules-report-${{ matrix.shard }}
@@ -146,8 +146,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -171,7 +171,7 @@ jobs:
     permissions:
       issues: write
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         with:
           script: |
             const title = "Nightly regression failure";
