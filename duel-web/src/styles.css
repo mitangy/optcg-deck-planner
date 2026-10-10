@@ -4890,8 +4890,8 @@ details.deck-config-section.deck-collapsible {
     grid-column: 2;
     grid-row: 1;
     position: sticky;
-    top: 1rem;
-    max-height: calc(100dvh - 2rem);
+    top: calc(var(--sticky-head-h, 0px) + 1rem);
+    max-height: calc(100dvh - var(--sticky-head-h, 0px) - 2rem);
     overflow-y: auto;
     overscroll-behavior: contain;
     display: flex;
@@ -5152,7 +5152,7 @@ details.deck-config-section.deck-collapsible {
 @media (max-width: 599px) {
   .deck-count-bar {
     position: sticky;
-    top: 0;
+    top: var(--sticky-head-h, 0px);
     z-index: 5;
     display: flex;
     align-items: center;

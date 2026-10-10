@@ -318,7 +318,7 @@
   border-radius: 12px;
   background: var(--arena-panel);
   min-width: 0;
-  scroll-margin-top: 4.5rem;
+  scroll-margin-top: 4rem;
 }
 
 .match-log-turn[data-yours] {
@@ -353,7 +353,7 @@
    nothing shifts; on phones it is one row that scrolls sideways inside itself. */
 .match-log-jump {
   position: sticky;
-  top: 0;
+  top: var(--sticky-head-h, 0px);
   z-index: 5;
   display: flex;
   flex-wrap: wrap;

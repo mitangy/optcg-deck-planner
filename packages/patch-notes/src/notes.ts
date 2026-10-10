@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-10
+  { date: "2026-10-10", app: "duel", pr: 0, title: "Header stays on top", text: "The menu, back link and title now stay at the top of the screen while you scroll any page, so the menu is always one tap away." },
   { date: "2026-10-10", app: "duel", pr: 500, title: "Attach DON!! button fits again", text: "On big screens or with a larger Text size, the Attach DON!! confirm now grows with its text, so the button label no longer spills out." },
   { date: "2026-10-10", app: "duel", pr: 490, title: "Life face-up costs use the top Life cards", text: "Charlotte Pudding and other \"turn cards from the top of your Life face-up or face-down\" effects now only work when the top Life cards can actually be turned. A face-up top Life card no longer lets you flip the cards beneath it." },
   // 2026-10-09

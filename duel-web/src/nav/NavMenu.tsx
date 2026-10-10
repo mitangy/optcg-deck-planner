@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import { getPlannerUrl } from "../config";
 import { activeNavHref, NAV_ITEMS } from "./navItems";
+import { useStickyHeadHeight } from "./useStickyHeadHeight";
 
 const FOCUSABLE = "a[href], button:not([disabled])";
 
@@ -20,6 +21,8 @@ export function NavMenu() {
   const active = activeNavHref(pathname);
 
   const close = useCallback(() => setOpen(false), []);
+
+  useStickyHeadHeight(buttonRef);
 
   // A navigation (link, back button) closes the drawer.
   useEffect(() => setOpen(false), [pathname]);

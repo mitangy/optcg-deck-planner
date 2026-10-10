@@ -707,5 +707,50 @@ module.exports = {
     { id: "e2e-f-key-not-offered-on-board", args: "no-top-bar --project=desktop-1280 -g \"F toggles\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    fullscreenOffered,\n    onToggleFullscreen: toggleFullscreen,", to: "    fullscreenOffered: false,\n    onToggleFullscreen: toggleFullscreen,", kills: [
       "no-top-bar.spec.ts > F toggles full screen on the board, with or without Bigger playing area (#468) [desktop-1280]",
     ] },
+
+    // Sticky page header (#510)
+    { id: "e2e-sticky-header-not-sticky-desktop", args: "sticky-header --project=desktop-1280 -g \"page header stays\"", edits: [
+      { file: "duel-web/src/ui.css", from: "  position: sticky;\n  top: 0;\n  /* Above page content and its menus (60), below sheets (100) and the nav drawer (120). */", to: "  position: static;\n  top: 0;\n  /* Above page content and its menus (60), below sheets (100) and the nav drawer (120). */" },
+      { file: "duel-web/src/ui.css", from: "    gap: 0.85rem;\n    position: sticky;\n    top: 0;", to: "    gap: 0.85rem;\n    position: static;\n    top: 0;" },
+    ], kills: [
+      "sticky-header.spec.ts > page header stays at the top while scrolling on /settings (#510) [desktop-1280]",
+      "sticky-header.spec.ts > page header stays at the top while scrolling on /whats-new (#510) [desktop-1280]",
+      "sticky-header.spec.ts > page header stays at the top while scrolling on /decks/e2e-you/configure (#510) [desktop-1280]",
+    ] },
+    { id: "e2e-sticky-header-not-sticky-phone", args: "sticky-header --project=phone-375 -g \"page header stays\"", edits: [
+      { file: "duel-web/src/ui.css", from: "  position: sticky;\n  top: 0;\n  /* Above page content and its menus (60), below sheets (100) and the nav drawer (120). */", to: "  position: static;\n  top: 0;\n  /* Above page content and its menus (60), below sheets (100) and the nav drawer (120). */" },
+      { file: "duel-web/src/ui.css", from: "    gap: 0.85rem;\n    position: sticky;\n    top: 0;", to: "    gap: 0.85rem;\n    position: static;\n    top: 0;" },
+    ], kills: [
+      "sticky-header.spec.ts > page header stays at the top while scrolling on /settings (#510) [phone-375]",
+      "sticky-header.spec.ts > page header stays at the top while scrolling on /whats-new (#510) [phone-375]",
+      "sticky-header.spec.ts > page header stays at the top while scrolling on /decks/e2e-you/configure (#510) [phone-375]",
+    ] },
+    { id: "e2e-sticky-header-bar-not-full-bleed", args: "sticky-header --project=desktop-1280 -g \"page header stays\"", file: "duel-web/src/ui.css", from: "  left: 50%;\n  width: 100vw;\n  transform: translateX(-50%);", to: "  left: 0;\n  width: 100%;\n  transform: none;", kills: [
+      "sticky-header.spec.ts > page header stays at the top while scrolling on /settings (#510) [desktop-1280]",
+      "sticky-header.spec.ts > page header stays at the top while scrolling on /whats-new (#510) [desktop-1280]",
+      "sticky-header.spec.ts > page header stays at the top while scrolling on /decks/e2e-you/configure (#510) [desktop-1280]",
+    ] },
+    { id: "e2e-sticky-header-anchor-jump-under-header", args: "sticky-header --project=desktop-1280 -g \"Settings chip\"", file: "duel-web/src/ui.css", from: "  scroll-padding-top: calc(var(--sticky-head-h, 0px) + 0.5rem);", to: "  scroll-padding-top: 0;", kills: [
+      "sticky-header.spec.ts > a Settings chip jumps to a section below the header (#510) [desktop-1280]",
+    ] },
+    { id: "e2e-sticky-header-height-not-published", args: "sticky-header --project=desktop-1280 -g \"Settings chip|search column\"", file: "duel-web/src/nav/NavMenu.tsx", from: "  useStickyHeadHeight(buttonRef);\n", to: "", kills: [
+      "sticky-header.spec.ts > a Settings chip jumps to a section below the header (#510) [desktop-1280]",
+      "sticky-header.spec.ts > the deck editor's card search column stays below the header (#510) [desktop-1280]",
+    ] },
+    { id: "e2e-sticky-header-search-column-ignores-header", args: "sticky-header --project=desktop-1280 -g \"search column\"", file: "duel-web/src/styles.css", from: "    top: calc(var(--sticky-head-h, 0px) + 1rem);", to: "    top: 1rem;", kills: [
+      "sticky-header.spec.ts > the deck editor's card search column stays below the header (#510) [desktop-1280]",
+    ] },
+    { id: "e2e-sticky-header-phone-whole-header-sticks", args: "sticky-header --project=phone-375 -g \"most of the window\"", edits: [
+      { file: "duel-web/src/ui.css", from: "  .deck-config > .deck-config-header {\n    display: contents;\n  }", to: "  .deck-config > .deck-config-header {\n    display: flex;\n  }" },
+      { file: "duel-web/src/ui.css", from: "    gap: 0.85rem;\n    position: sticky;\n    top: 0;", to: "    gap: 0.85rem;\n    position: static;\n    top: 0;" },
+    ], kills: [
+      "sticky-header.spec.ts > the stuck Decks and deck editor headers leave most of the window free on a phone (#510) [phone-375]",
+    ] },
+    { id: "e2e-sticky-header-landscape-header-not-slimmed", args: "sticky-header --project=phone-375 -g \"on its side\"", file: "duel-web/src/ui.css", from: "@media (min-width: 600px) and (max-height: 499px) {", to: "@media (min-width: 600px) and (max-height: 0px) {", kills: [
+      "sticky-header.spec.ts > the stuck Decks and deck editor headers leave most of the window free on a phone on its side (#510) [phone-375]",
+    ] },
+    { id: "e2e-match-log-jump-strip-under-page-header", args: "match-log-layout --project=desktop-1280 -g \"jump chips\"", file: "duel-web/src/history/history.css", from: "  position: sticky;\n  top: var(--sticky-head-h, 0px);", to: "  position: sticky;\n  top: 0;", kills: [
+      "match-log-layout.spec.ts > jump chips scroll to that turn (#470) [desktop-1280]",
+    ] },
   ],
 };
