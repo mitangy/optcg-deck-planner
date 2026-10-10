@@ -21,6 +21,8 @@
       "@optcg/deck-analytics/*": ["../packages/deck-analytics/src/*"],
       "@optcg/site-legal": ["../packages/site-legal/src/index.ts"],
       "@optcg/site-legal/*": ["../packages/site-legal/src/*"],
+      "@optcg/patch-notes": ["../packages/patch-notes/src/index.ts"],
+      "@optcg/patch-notes/*": ["../packages/patch-notes/src/*"],
       "@optcg/analyst-client": ["../packages/analyst-client/src/index.ts"],
       "@optcg/analyst-client/*": ["../packages/analyst-client/src/*"],
       "react": ["./node_modules/@types/react"],

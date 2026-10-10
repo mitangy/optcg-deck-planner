@@ -135,3 +135,209 @@
     padding-bottom: calc(52px + max(16px, env(safe-area-inset-bottom, 0px)));
   }
 }
+
+/* Matchup brief on the board (casual and practice games): pinned at the top of the Log Pose chat, so it scrolls
+   with the panel and never takes room from the board. Its header row folds the text away. */
+.match-brief-pinned {
+  box-sizing: border-box;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: 12px;
+  background: var(--lp-surface-2);
+  color: var(--lp-ink);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.mb-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mb-toggle:focus-visible {
+  outline: 2px solid var(--lp-focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.mb-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mb-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--lp-font-display);
+  font-size: 0.95rem;
+  color: var(--chrome-bright);
+}
+
+.mb-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lp-muted);
+  font-size: 0.75rem;
+}
+
+.mb-chevron {
+  flex: none;
+  color: var(--lp-muted);
+  transition: transform 0.15s ease;
+}
+
+.mb-toggle[aria-expanded="true"] .mb-chevron {
+  transform: rotate(180deg);
+}
+
+.mb-body {
+  min-width: 0;
+  max-height: min(40dvh, 18rem);
+  margin-top: 0.35rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+}
+
+.mb-status,
+.mb-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.4rem;
+  color: var(--lp-muted);
+}
+
+.mb-status .lp-status-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lp-accent);
+  animation: lp-pulse 1.2s ease-in-out infinite;
+}
+
+.mb-error {
+  margin: 0.4rem 0 0;
+  color: var(--lp-danger);
+}
+
+.mb-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-status .lp-status-dot {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .mb-status .lp-status-dot {
+  animation: none;
+}
+
+/* The Brief button in the top bar: a box sized by its fixed label, so loading, ready and error never change its size. */
+.hud-brief-btn {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  box-sizing: border-box;
+  height: 36px;
+  min-width: 36px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: 8px;
+  background: transparent;
+  color: var(--chrome-bright);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.hud-brief-btn.hud-brief-text {
+  width: auto;
+  padding: 0 0.7rem;
+}
+
+.hud-brief-btn.hud-icon-btn {
+  width: 36px;
+  padding: 0;
+}
+
+.hud-brief-btn[aria-expanded="true"] {
+  background: var(--lp-surface-2, rgb(255 255 255 / 0.08));
+}
+
+.hud-brief-btn:focus-visible {
+  outline: 2px solid var(--lp-focus, currentColor);
+  outline-offset: 2px;
+}
+
+.hud-brief-icon {
+  flex: none;
+}
+
+.hud-brief-label {
+  white-space: nowrap;
+}
+
+/* Busy shows only as a dot inside the box. */
+.hud-brief-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--chrome-bright);
+  opacity: 0;
+}
+
+.hud-brief-btn[data-busy="true"] .hud-brief-dot {
+  opacity: 1;
+  animation: lp-pulse 1.2s ease-in-out infinite;
+}
+
+@media (pointer: coarse) {
+  .hud-brief-btn,
+  .hud-brief-btn.hud-icon-btn {
+    height: 44px;
+    min-width: 44px;
+  }
+
+  .hud-brief-btn.hud-icon-btn {
+    width: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-brief-btn[data-busy="true"] .hud-brief-dot {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .hud-brief-btn[data-busy="true"] .hud-brief-dot {
+  animation: none;
+}

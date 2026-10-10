@@ -33,7 +33,7 @@ export async function rulesLookup(lib: OfficialLibrary, q: { section?: string; q
       return { id: s.id, path: sectionPath(doc, s.id), text: s.text, children };
     });
   }
-  const qa = q.query && faq ? searchQa(faq.general, q.query, 4).map((e) => ({ category: e.label, question: e.question, answer: e.answer })) : [];
+  const qa = q.query && faq ? searchQa(faq.general, q.query, Math.max(limit, 6)).map((e) => ({ category: e.label, question: e.question, answer: e.answer })) : [];
   return {
     source: doc
       ? { title: doc.title, version: doc.version, updated: doc.updated, url: lib.url("/pdf/rule_comprehensive.pdf") }

@@ -16,9 +16,11 @@ import { LAYOUT_RESET, layoutMoved } from "./layoutReset";
 import { playTurnChime } from "./turnAlert";
 import {
   showOrientation,
+  showToggleShown,
   toggleShown,
   turnAlertCopy,
   type FieldDevice,
+  type ShowKey,
   type ToggleKey,
 } from "./gameplayFields";
 import {
@@ -77,6 +79,16 @@ const TOGGLES: Toggle[] = [
     hint: "Draws the cannon-shot arc from the attacking card to its target during a battle.",
   },
   {
+    key: "attackGlow",
+    label: "Attack-ready glow",
+    hint: "Your Leader and Characters that can attack right now glow green.",
+  },
+  {
+    key: "compactOwnBoard",
+    label: "Simple board on phones",
+    hint: "Portrait phones: shows your own cards the way your opponent's are shown: Life, Deck, DON!! deck and Trash become a row of counts, and the cards get bigger. Tap Trash or face-up Life to open it.",
+  },
+  {
     key: "previewBigCard",
     label: "Big card preview",
     hint: "Desktop: the card preview on the left shows just the card, as big as it fits. Off shows a smaller card with its cost, colour, power and Counter icons and its text below.",
@@ -102,6 +114,11 @@ const TOGGLES: Toggle[] = [
     hint: "Desktop and landscape tablets: the board leans away from you like a real table, so your cards come out bigger and the opponent's side is a little smaller and further back.",
   },
   {
+    key: "bigBoard",
+    label: "Bigger playing area",
+    hint: "Gives the two playmats as much of the window as it can. On computers it hides the top bar (its menu moves to the ⋯ button at the top of a side column), shrinks the side columns to their minimum and trims the margins and gaps. Computers and landscape phones get wider two-row mats. A column width you dragged out comes back when this is off.",
+  },
+  {
     key: "turnSplash",
     label: "Turn banner",
     hint: "Shows “Your turn” / “Opponent's turn” over the board.",
@@ -120,6 +137,27 @@ const TOGGLES: Toggle[] = [
     key: "turnSound",
     label: "Sounds",
     hint: "A chime when your turn starts or you need to respond, a lower two-tone cue when you are attacked, a thud when a Life card is lost, and short effects for drawing, playing, attacking, blocking, countering, K.O.s, DON!!, Triggers and the result. Works on iPhone too.",
+  },
+];
+
+type ShowToggle = { key: ShowKey; label: string; hint: string };
+
+/** Non-core elements that can be hidden. The Battle log stays on screen, so it has no switch. */
+const SHOW_TOGGLES: ShowToggle[] = [
+  {
+    key: "showCardPreview",
+    label: "Card preview",
+    hint: "Desktop: the hovered card's art and text at the top of the left column. Off gives its room to the other panels in that column.",
+  },
+  {
+    key: "showRecentPlays",
+    label: "Recent plays",
+    hint: "Desktop: the strip of the latest plays and attacks in the left column. The Battle log keeps the full record.",
+  },
+  {
+    key: "showChat",
+    label: "Chat",
+    hint: "Online matches: the chat panel on desktop, the Chat pill on phones and the chat button on the landscape rail.",
   },
 ];
 
@@ -275,8 +313,8 @@ export function GameplaySettingsFields() {
             log, actions, Grid hand, chat ...) to snap it into the left or right column, and the
             fanned hand&apos;s grip to move it anywhere (spectating, each of the two hands has its own). Drop the opponent hand on the top of the
             playmat to pin it there. Drag the inner edge of a column, or the line between two panels, to
-            resize them (double-click an edge to reset it). Reset puts every panel, size and both
-            hands back.
+            resize them (double-click an edge to reset it). Reset puts every panel, size, both
+            hands and moved pop-ups back.
           </p>
         </div>
       ) : null}
@@ -289,13 +327,13 @@ export function GameplaySettingsFields() {
             onChange={(e) => updateSettings({ oppHandSpot: e.target.value as OppHandSpot })}
           >
             <option value="">In its side panel</option>
-            <option value="left">Top left of the mat</option>
+            <option value="left">Left of the mat</option>
             <option value="centre">Top centre of the mat</option>
-            <option value="right">Top right of the mat</option>
+            <option value="right">Right of the mat</option>
           </select>
           <p className="field-hint">
             Where the opponent&apos;s hand sits on a desktop window: in the right-hand panel, or
-            pinned above their half of the playmat.
+            pinned beside or above their half of the playmat.
           </p>
         </div>
       ) : null}
@@ -343,13 +381,33 @@ export function GameplaySettingsFields() {
             disabled={settings.animationSpeed === "off"}
             onChange={(e) => updateSettings({ cardSpotlight: e.target.checked })}
           />
-          <span>Show played and trashed cards</span>
+          <span>Show played, trashed and drawn cards</span>
         </label>
         <p className="field-hint">
           Each card that is played, used as a Counter, K.O.&apos;d or trashed by an effect (from
           hand, deck, Life or the field) shows big over its owner&apos;s side for a moment, then
           drops into its spot. Follows the Animations speed; Off hides it too.
         </p>
+      </div>
+      <div className="field gameplay-group" role="group" aria-labelledby="show-on-screen-label">
+        <span className="field-label" id="show-on-screen-label">Show on screen</span>
+        <p className="field-hint">
+          Hide the extras you don&apos;t use. Your hand, DON!!, Life, the turn and the Battle log always
+          stay; panels you hide keep their place in your layout.
+        </p>
+        {SHOW_TOGGLES.filter((t) => showToggleShown(t.key, device)).map((t) => (
+          <div className="gameplay-toggle" key={t.key}>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={settings[t.key]}
+                onChange={(e) => updateSettings({ [t.key]: e.target.checked })}
+              />
+              <span>{t.label}</span>
+            </label>
+            <p className="field-hint">{t.hint}</p>
+          </div>
+        ))}
       </div>
       {TOGGLES.filter((t) => toggleShown(t.key, device)).map((toggle) => {
         const t = toggle.key === "turnAlert" ? { ...toggle, ...turnAlertCopy(device, toggle) } : toggle;

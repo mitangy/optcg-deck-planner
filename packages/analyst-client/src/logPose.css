@@ -162,6 +162,33 @@
   border: 2px solid var(--lp-surface-d);
 }
 
+/* Pending access requests (owners): a count, not the unread dot. */
+.lp-compass-count {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--lp-needle-d);
+  border: 2px solid var(--lp-surface-d);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.lp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* ——— Panel: a full-height sheet on phones, a resizable drawer on desktop and tablets ——— */
 
 .lp-panel {
@@ -181,22 +208,14 @@
   height: var(--lp-sheet-h, var(--lp-vv-height, 100dvh));
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
   border-radius: 14px 14px 0 0;
-  animation: lp-sheet-in 0.2s ease-out;
   overscroll-behavior: contain;
 }
 
-@keyframes lp-sheet-in {
-  from {
-    transform: translateY(32px);
-    opacity: 0;
-  }
-}
-
-@keyframes lp-drawer-in {
-  from {
-    transform: translateX(24px);
-    opacity: 0;
-  }
+/* Opening and closing are played from LogPose.tsx (Web Animations): the panel grows out of the compass and
+   shrinks back into it, or a docked one slides from its edge. Nothing plays under reduced motion. While it
+   shrinks it no longer takes clicks. */
+.lp-panel[data-closing] {
+  pointer-events: none;
 }
 
 /* The sheet's grab handle: a 44px-tall hit area around a small bar. */
@@ -259,16 +278,138 @@
     border-radius: 0;
     border-left: 1px solid var(--lp-line-d);
     padding: 0 env(safe-area-inset-right, 0px) 0 0;
-    animation: lp-drawer-in 0.18s ease-out;
   }
 
-  /* Once resized it is a window anchored to the bottom-right corner (width and height come from inline style). */
+  /* Once resized or moved it is a window anchored to the bottom-right corner (width, height and the gap to the
+     corner come from inline style): a border and rounded corners all the way round. */
   .lp-panel[data-sized] {
     top: auto;
-    border-top: 1px solid var(--lp-line-d);
-    border-top-left-radius: var(--lp-radius-d);
+    border: 1px solid var(--lp-line-d);
+    border-radius: var(--lp-radius-d);
     max-width: calc(100vw - 16px);
     max-height: calc(100dvh - 16px);
+  }
+
+  /* Docked to a screen edge: a full-height strip, square, with a border on its inner side only. Its width is
+     inline (the remembered docked width); the page makes room for it (html[data-lp-dock], below). */
+  .lp-panel[data-dock] {
+    top: 0;
+    bottom: 0;
+    height: 100dvh;
+    max-width: 50vw;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .lp-panel[data-dock="right"] {
+    right: 0;
+    left: auto;
+    border-left: 1px solid var(--lp-line-d);
+  }
+
+  .lp-panel[data-dock="left"] {
+    left: 0;
+    right: auto;
+    padding: 0 0 0 env(safe-area-inset-left, 0px);
+    border-right: 1px solid var(--lp-line-d);
+  }
+
+  /* Docked into the game: an ordinary panel in the board's column, filling the slot its host gives it. */
+  .lp-panel[data-embedded] {
+    position: relative;
+    inset: auto;
+    z-index: auto;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    padding: 0;
+    border: 1px solid var(--line, var(--lp-line-d));
+    border-radius: 10px;
+    box-shadow: none;
+  }
+
+  /* A narrow board column: the header gives up its icon and tightens, and the title may shorten rather than push
+     the buttons out. */
+  .lp-panel[data-embedded] .lp-head {
+    gap: 4px;
+    padding: 6px 6px 6px 12px;
+    min-height: 48px;
+  }
+
+  .lp-panel[data-embedded] .lp-head-icon {
+    display: none;
+  }
+
+  .lp-panel[data-embedded] .lp-title {
+    font-size: 1rem;
+  }
+
+  .lp-panel[data-embedded] .lp-head .lp-btn-icon {
+    width: 32px;
+    min-height: 32px;
+  }
+
+  .lp-panel[data-embedded] .lp-head .lp-btn {
+    padding-inline: 8px;
+  }
+
+  .lp-panel[data-embedded] .lp-head .lp-btn-icon {
+    padding: 0;
+  }
+
+  /* A very narrow column (the board's left one by default): the title gets a row of its own and the composer
+     stacks, instead of squeezing the buttons and the field. */
+  .lp-panel[data-embedded] {
+    container: lp-embed / inline-size;
+  }
+
+  @container lp-embed (max-width: 249px) {
+    .lp-panel[data-embedded] .lp-head {
+      flex-wrap: wrap;
+      row-gap: 0;
+    }
+
+    .lp-panel[data-embedded] .lp-title {
+      flex: 1 0 100%;
+    }
+
+    .lp-panel[data-embedded] .lp-composer {
+      flex-wrap: wrap;
+    }
+
+    .lp-panel[data-embedded] .lp-input {
+      flex: 1 0 100%;
+    }
+
+    .lp-panel[data-embedded] .lp-btn-send {
+      margin-left: auto;
+    }
+  }
+
+  /* The page keeps clear of a docked strip: the room is padding on the body, so sticky bars and content shrink
+     with it and nothing scrolls sideways. */
+  html[data-lp-dock] body {
+    box-sizing: border-box;
+  }
+
+  html[data-lp-dock="right"] body {
+    padding-right: var(--lp-dock-w, 380px);
+  }
+
+  html[data-lp-dock="left"] body {
+    padding-left: var(--lp-dock-w, 380px);
+  }
+
+  /* The translucent area a drag would dock into. */
+  .lp-dock-preview {
+    position: fixed;
+    z-index: calc(var(--lp-z-panel, 85) - 1);
+    pointer-events: none;
+    border: 2px dashed var(--lp-accent-d);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--lp-accent-d) 16%, transparent);
   }
 
   .lp-resize {
@@ -342,6 +483,36 @@
     outline: none;
   }
 
+  .lp-panel[data-dock] .lp-resize-top,
+  .lp-panel[data-dock] .lp-resize-left,
+  .lp-panel[data-dock] .lp-resize-corner {
+    display: none;
+  }
+
+  .lp-resize-dock {
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: ew-resize;
+  }
+
+  .lp-resize-dock-right {
+    left: 0;
+  }
+
+  .lp-resize-dock-left {
+    right: 0;
+  }
+
+  .lp-resize-dock::after {
+    inset: 0 auto 0 0;
+    width: 2px;
+  }
+
+  .lp-resize-dock-left::after {
+    inset: 0 0 0 auto;
+  }
+
   .lp-grip {
     display: none;
   }
@@ -355,6 +526,33 @@
   min-height: 56px;
   padding: 8px 10px 8px 16px;
   border-bottom: 1px solid var(--lp-line-d);
+}
+
+/* Desktop: the header is the drag surface for moving the window. */
+.lp-head[data-movable] {
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lp-panel[data-moving] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lp-panel[data-moving] .lp-head {
+  cursor: grabbing;
+}
+
+.lp-move {
+  cursor: inherit;
+  touch-action: none;
+}
+
+/* What a page pins above the chat (the matchup brief on a board). */
+.lp-pinned {
+  flex: none;
 }
 
 .lp-head-icon {
@@ -374,6 +572,9 @@
   flex: 1;
   min-width: 0;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--lp-font-display, inherit);
   font-size: 1.15rem;
   font-weight: 650;
@@ -568,6 +769,8 @@
 
 .lp-context {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -1067,4 +1270,805 @@
   .lp-resize::after {
     transition: none;
   }
+}
+
+/* ——— Apply card: a deck edit Log Pose suggests (#400) ——— */
+
+.logpose {
+  --lp-ok-d: var(--lp-ok, #1f7a4d);
+}
+
+.lp-edit {
+  margin: 10px 0 0;
+  padding: 10px 12px 8px;
+  min-width: 0;
+  border: 1px solid var(--lp-line-d);
+  border-radius: 10px;
+  background: var(--lp-surface-d);
+  color: var(--lp-ink-d);
+  font-size: 0.875rem;
+}
+
+.lp-edit-head {
+  margin: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--lp-muted-d);
+  min-width: 0;
+}
+
+.lp-edit-head-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp-edit-summary {
+  margin: 4px 0 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lp-edit-rows {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 120ms ease;
+}
+
+.lp-edit[data-state="dismissed"] .lp-edit-rows {
+  opacity: 0.5;
+}
+
+.lp-edit-row {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    "badge name count"
+    ". reason reason"
+    ". own own";
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: center;
+  min-width: 0;
+}
+
+.lp-edit-row > * {
+  min-width: 0;
+}
+
+.lp-edit-badge {
+  grid-area: badge;
+  justify-self: stretch;
+  text-align: center;
+  padding: 2px 0;
+  border-radius: 6px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--lp-ok-d) 14%, transparent);
+  color: var(--lp-ok-d);
+}
+
+.lp-edit-row[data-dir="remove"] .lp-edit-badge {
+  background: color-mix(in srgb, var(--lp-danger-d) 12%, transparent);
+  color: var(--lp-danger-d);
+}
+
+.lp-edit-name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lp-edit-thumb {
+  flex: none;
+  width: 28px;
+  height: 39px;
+  border-radius: 3px;
+  background: var(--lp-surface-2-d);
+  overflow: hidden;
+}
+
+.lp-edit-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lp-edit-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.lp-edit-id {
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-edit-count {
+  grid-area: count;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--lp-muted-d);
+}
+
+.lp-edit-reason {
+  grid-area: reason;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+  overflow-wrap: anywhere;
+}
+
+.lp-edit-own {
+  grid-area: own;
+  justify-self: start;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--lp-line-d);
+  font-size: 0.75rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-edit-own[data-short="true"] {
+  border-color: color-mix(in srgb, var(--lp-danger-d) 45%, transparent);
+  color: var(--lp-danger-d);
+  font-weight: 600;
+}
+
+.lp-edit-legal {
+  margin-top: 10px;
+  min-width: 0;
+}
+
+.lp-edit-legal p,
+.lp-edit-problems {
+  margin: 0;
+}
+
+.lp-edit-ok {
+  color: var(--lp-ok-d);
+  font-weight: 600;
+}
+
+.lp-edit-bad {
+  color: var(--lp-danger-d);
+  font-weight: 600;
+}
+
+.lp-edit-problems {
+  padding-left: 1.1rem;
+  color: var(--lp-danger-d);
+  overflow-wrap: anywhere;
+}
+
+.lp-edit-muted {
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+  overflow-wrap: anywhere;
+}
+
+/* One fixed-height slot: each state's controls swap in place, the first control keeps its spot. */
+.lp-edit-actions {
+  margin-top: 10px;
+  min-height: 36px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lp-edit-actions > * {
+  min-width: 0;
+}
+
+.lp-edit-btn {
+  flex: none;
+  min-width: 5.5rem;
+}
+
+.lp-edit-primary,
+.lp-edit-done {
+  min-width: 7.5rem;
+}
+
+.lp-edit-primary {
+  border-color: var(--lp-accent-d);
+  background: var(--lp-accent-d);
+  color: var(--lp-on-accent-d);
+  font-weight: 600;
+}
+
+.lp-edit-done {
+  flex: none;
+  min-height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0 12px;
+  font-weight: 600;
+  color: var(--lp-ok-d);
+  white-space: nowrap;
+}
+
+.lp-edit-note {
+  flex: 1 1 auto;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  color: var(--lp-muted-d);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.lp-edit-link {
+  color: var(--lp-accent-d);
+  font-weight: 600;
+}
+
+.lp-edit-status {
+  margin: 4px 0 0;
+  min-height: 1.3em;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: var(--lp-muted-d);
+  overflow-wrap: anywhere;
+}
+
+.lp-edit-status[data-error="true"] {
+  color: var(--lp-danger-d);
+}
+
+/* Phones: touch-sized buttons that share the row. */
+.lp-panel[data-phone] .lp-edit-actions {
+  min-height: 44px;
+}
+
+.lp-panel[data-phone] .lp-edit-btn,
+.lp-panel[data-phone] .lp-edit-done {
+  flex: 1 1 0;
+  min-height: 44px;
+}
+
+.lp-panel[data-phone] .lp-edit-note {
+  flex: 1 1 0;
+}
+
+/* ——— Asking for access, and the owner's request list ——— */
+
+.lp-requests-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lp-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--lp-needle-d);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+.lp-access {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 480px;
+  min-width: 0;
+}
+
+.lp-access-heading,
+.lp-access-lead {
+  margin: 0;
+  font-family: var(--lp-font-display, inherit);
+  font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--lp-ink-d);
+}
+
+.lp-access-text {
+  margin: 0 0 4px;
+  color: var(--lp-muted-d);
+}
+
+.lp-access-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.lp-access-opt {
+  font-weight: 400;
+  color: var(--lp-muted-d);
+}
+
+.lp-access-note {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+}
+
+.lp-access-count {
+  margin: -4px 0 0;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-access-send {
+  align-self: flex-start;
+  min-width: 148px;
+}
+
+.lp-reqs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.lp-req {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--lp-line-d);
+  border-radius: 12px;
+  background: var(--lp-surface-2-d);
+  min-width: 0;
+}
+
+.lp-req-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.lp-req-name {
+  margin: 0;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.lp-req-meta {
+  margin: 2px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-req-status[data-status="pending"] {
+  color: var(--lp-ink-d);
+  border-color: var(--lp-accent-d);
+}
+
+.lp-req-status[data-status="denied"] {
+  color: var(--lp-danger-d);
+}
+
+.lp-req-note {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lp-req-actions {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lp-req-btn {
+  min-width: 84px;
+  min-height: 40px;
+}
+
+@media (max-width: 420px) {
+  .lp-head {
+    gap: 4px;
+    padding-left: 12px;
+  }
+  .lp-head .lp-btn:not(.lp-btn-icon) {
+    padding: 0 8px;
+  }
+  /* Owners' header carries Requests + New chat: drop the small icon so the title stays on one line. */
+  .lp-head[data-owner] .lp-head-icon {
+    display: none;
+  }
+}
+
+/* The model admin's model picker: a fixed-height strip under the header, so saving never moves anything. */
+.lp-model {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--lp-line-d);
+}
+
+.lp-model-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+.lp-model-label {
+  flex: none;
+  font-weight: 650;
+}
+
+.lp-model-select {
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--lp-line-d);
+  border-radius: 8px;
+  background: var(--lp-field-d);
+  color: var(--lp-ink-d);
+  font: inherit;
+}
+
+.lp-model-select:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+  outline-offset: 1px;
+}
+
+.lp-model-note {
+  margin: 0;
+  min-height: 2.6em;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--lp-muted-d);
+  overflow-wrap: anywhere;
+}
+
+.lp-model-note.lp-error {
+  color: var(--lp-danger-d);
+}
+
+/* ——— Credit meter, limit notices, saved-chats line, owner tabs, usage (#446) ——— */
+
+/* A fixed-height strip under the header, so the figure loading in or changing moves nothing. */
+.lp-credit {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 6px 16px 8px;
+  border-bottom: 1px solid var(--lp-line-d);
+}
+
+.lp-credit-text {
+  margin: 0;
+  min-height: 1.3em;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: var(--lp-muted-d);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lp-credit[data-low] .lp-credit-text,
+.lp-credit[data-empty] .lp-credit-text {
+  color: var(--lp-ink-d);
+  font-weight: 600;
+}
+
+.lp-credit-bar {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--lp-line-d);
+  overflow: hidden;
+}
+
+.lp-credit-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--lp-accent-d);
+}
+
+.lp-credit[data-low] .lp-credit-bar > span {
+  background: var(--lp-needle-d);
+}
+
+.lp-low {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-limit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--lp-line-d);
+  border-radius: 12px;
+  background: var(--lp-surface-2-d);
+}
+
+.lp-limit-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.lp-limit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lp-limit-btn {
+  flex: 1 1 200px;
+  min-height: 44px;
+  height: auto;
+  padding-block: 8px;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+}
+
+/* Short windows (a phone on its side): keep the notice compact so the chat above it stays readable. */
+@media (max-height: 480px) {
+  .lp-limit {
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .lp-limit-text {
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
+  .lp-limit-btn {
+    min-height: 36px;
+    padding-block: 4px;
+  }
+}
+
+/* One line, kept to one line: the delete confirmation takes its place. */
+.lp-saved {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 12px;
+  min-width: 0;
+  min-height: 28px;
+  font-size: 0.75rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-saved-text {
+  min-width: 0;
+}
+
+.lp-saved-btn {
+  min-height: 28px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--lp-accent-d);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.lp-saved-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lp-saved-danger {
+  color: var(--lp-danger-d);
+}
+
+.lp-tabs {
+  flex: none;
+  display: flex;
+  gap: 4px;
+  padding: 6px 12px 0;
+  border-bottom: 1px solid var(--lp-line-d);
+}
+
+.lp-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--lp-muted-d);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lp-tab[aria-selected="true"] {
+  color: var(--lp-ink-d);
+  border-bottom-color: var(--lp-accent-d);
+}
+
+.lp-access-spots {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--lp-accent-d);
+}
+
+.lp-spots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lp-spots-label {
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.lp-spots-input {
+  width: 84px;
+  min-height: 40px;
+  flex: none;
+}
+
+.lp-spots-save {
+  min-height: 40px;
+}
+
+.lp-spots-note {
+  margin: 0;
+  flex: 1 1 100%;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-req-credit,
+.lp-req-topup {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-req-topup {
+  color: var(--lp-ink-d);
+  font-weight: 600;
+}
+
+.lp-usage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.lp-usage-tiles {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lp-usage-tile {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--lp-line-d);
+  border-radius: 12px;
+  background: var(--lp-surface-2-d);
+}
+
+.lp-usage-tile dt {
+  font-size: 0.72rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-usage-tile dd {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-usage-heading {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--lp-muted-d);
+}
+
+.lp-usage-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lp-usage-row {
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--lp-line-d);
+  border-radius: 12px;
+  background: var(--lp-surface-2-d);
+}
+
+.lp-usage-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.lp-usage-name {
+  min-width: 0;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.lp-usage-money {
+  flex: none;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-usage-credit {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-usage-credit .lp-credit-bar {
+  flex: 0 0 56px;
+}
+
+.lp-usage-meta {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
 }

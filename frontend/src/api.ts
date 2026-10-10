@@ -385,6 +385,63 @@ export type GroupBuyReceiptMatchReport = {
   can_apply_partial: boolean;
 };
 
+export type MetaLeader = {
+  leader_id: string;
+  name: string;
+  color: string;
+  image_url: string;
+  decks: number;
+  share: number;
+  top8: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  win_rate: number | null;
+};
+
+export type MetaLeadersResponse = {
+  days: number;
+  min_players: number;
+  events: number;
+  total_decks: number;
+  source: string;
+  source_url: string;
+  leaders: MetaLeader[];
+};
+
+export type MetaDeckCard = {
+  card_id: string;
+  count: number;
+  name: string;
+  cost: string;
+  card_type: string;
+  image_url: string;
+};
+
+export type MetaDeck = {
+  id: number;
+  event_id: string;
+  event: string;
+  event_url: string;
+  /** YYYY-MM-DD */
+  date: string;
+  set_label?: string | null;
+  players: number;
+  placing: number | null;
+  record: { wins: number; losses: number; ties: number };
+  cards: MetaDeckCard[];
+  card_count: number;
+  /** OPTCGSim paste format, accepted as-is by POST /decks. */
+  text: string;
+};
+
+export type MetaDecksResponse = {
+  leader_id: string;
+  name: string;
+  image_url: string;
+  decks: MetaDeck[];
+};
+
 export const api = {
   apiUrl: API_URL,
   me: () => request<User | null>("/auth/me"),
@@ -395,6 +452,11 @@ export const api = {
     request<User>("/auth/claim", { method: "POST", body: JSON.stringify({ ticket }) }),
   devLogin: () => request<User>("/auth/dev-login", { method: "POST" }),
   googleLoginUrl: () => `${API_URL}/auth/google`,
+  metaLeaders: (days: number) => request<MetaLeadersResponse>(`/meta/leaders?days=${days}`),
+  metaDecks: (leader: string, days: number, top: number) =>
+    request<MetaDecksResponse>(
+      `/meta/decks?leader=${encodeURIComponent(leader)}&days=${days}&top=${top}&limit=50`,
+    ),
   decks: () => request<DeckSummary[]>("/decks"),
   deck: (id: number) => request<DeckDetail>(`/decks/${id}`),
   createDeck: (name: string, decklist: string) =>

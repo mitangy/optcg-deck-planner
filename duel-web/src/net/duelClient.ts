@@ -26,12 +26,15 @@ import {
   type PlayerView,
   type Seat,
   type SeatPlayers,
+  type BriefTicketWire,
   type TimerMessage,
   type HandOrderMessage,
+  type PlayerDeckWire,
   type RematchAction,
   type RematchState,
   type UndoAction,
   type UndoState,
+  TAKEN_OVER_CLOSE_CODE,
 } from "./protocol";
 import { Client, type Room } from "@colyseus/sdk";
 import { isSeatReservationExpiredError } from "./matchResume";
@@ -44,6 +47,8 @@ export type DuelClientHandlers = {
     view: PlayerView;
     role: "player" | "spectator";
     players?: SeatPlayers;
+    ranked?: boolean;
+    brief?: BriefTicketWire;
   }) => void;
   onView?: (view: PlayerView) => void;
   onEvents?: (events: unknown[]) => void;
@@ -64,6 +69,8 @@ export type DuelClientHandlers = {
   onPresence?: (awayUntil: [number | null, number | null]) => void;
   /** Rematch vote after the match ends. */
   onRematchState?: (state: RematchState) => void;
+  /** Another device took this seat over: stop sending, never reconnect on our own. */
+  onTakenOver?: () => void;
   onDisconnect?: (code: number) => void;
   /** Socket dropped unexpectedly; the SDK is retrying in the background. */
   onDrop?: (code: number) => void;
@@ -86,6 +93,10 @@ export type ConnectParams = {
   createOptions?: DuelCreateOptions;
   /** Deck for this seat (create or join). */
   deck?: { leaderId: string; deck: string[] };
+  /** Take over the seat `preferredSeat` this account holds in `roomId`. */
+  takeover?: boolean;
+  /** Practice: game token of the signed-in account that owns this seat. */
+  ownerToken?: string;
 };
 
 export class DuelClient {
@@ -105,6 +116,10 @@ export class DuelClient {
   private endTurnSentOn: number | null = null;
   /** Turn of the last rejected action, while its error is still on screen. */
   private illegalIntentOn: number | null = null;
+  /** Another device took the seat over; cleared by the next connect. */
+  private takenOverFlag = false;
+  /** A battle pass sent since the last view: a second one (a tap racing the automatic pass) could only be refused. */
+  private passSent: Intent["type"] | null = null;
 
   setHandlers(h: DuelClientHandlers) {
     this.handlers = h;
@@ -120,6 +135,7 @@ export class DuelClient {
 
   async connect(params: ConnectParams): Promise<{ matchId: string; seat: Seat }> {
     const seq = ++this.connectSeq;
+    this.takenOverFlag = false;
     const url = params.serverUrl ?? getGameServerUrl();
     const attempts = 3;
     let lastErr: unknown;
@@ -158,6 +174,9 @@ export class DuelClient {
         this.room = room;
         this.captureReconnectionToken(room);
         this.wireDuel(room);
+        // A takeover's welcome is sent during the join handshake, before the
+        // handlers above existed: ask again so the board always arrives (#451).
+        if (params.takeover) room.send("sync", { protocolVersion: PROTOCOL_VERSION });
 
         // Resolve as soon as the Colyseus room exists so the lobby can show the
         // room id while waiting for the second seat (welcome arrives via handlers).
@@ -179,6 +198,7 @@ export class DuelClient {
 
   /** Join ranked_queue until matched, then join the duel room. */
   async queueRanked(params: ConnectParams): Promise<{ matchId: string; seat: Seat }> {
+    this.takenOverFlag = false;
     await this.disconnect();
     const url = params.serverUrl ?? getGameServerUrl();
     this.client = new Client(url);
@@ -287,6 +307,7 @@ export class DuelClient {
     reconnectionToken?: string;
     attempts?: number;
   }): Promise<{ matchId: string; seat: Seat }> {
+    if (this.takenOverFlag) throw new Error("This match continues on another device.");
     const token = opts?.reconnectionToken ?? this.reconnectionToken;
     if (!token) throw new Error("No reconnection token");
     const url = opts?.serverUrl ?? getGameServerUrl();
@@ -330,6 +351,10 @@ export class DuelClient {
     // after End turn reaches the server in the opponent's turn: "Not your turn".
     if (lateForTurn(intent, this.endTurnSentOn, this.lastView)) return;
     if (intent.type === "end_turn" && this.lastView) this.endTurnSentOn = this.lastView.turnNumber;
+    if (ONCE_PER_VIEW.has(intent.type)) {
+      if (this.passSent === intent.type) return;
+      this.passSent = intent.type;
+    }
     this.room.send("intent", { protocolVersion: PROTOCOL_VERSION, intent });
   }
 
@@ -369,9 +394,10 @@ export class DuelClient {
     this.room.send("hand_order", { protocolVersion: PROTOCOL_VERSION, ids } satisfies HandOrderMessage);
   }
 
-  sendRematch(action: RematchAction) {
+  /** `deck` (a "request" only) swaps this seat's deck for the next game. */
+  sendRematch(action: RematchAction, deck?: PlayerDeckWire) {
     if (!this.room) throw new Error("Not connected");
-    this.room.send("rematch", { protocolVersion: PROTOCOL_VERSION, action });
+    this.room.send("rematch", { protocolVersion: PROTOCOL_VERSION, action, ...(deck ? { deck } : {}) });
   }
 
   sendUndo(action: UndoAction) {
@@ -454,7 +480,30 @@ export class DuelClient {
       preferredSeat: params.preferredSeat,
       role: params.role,
       deck: params.deck,
+      takeover: params.takeover || undefined,
+      ownerToken: params.ownerToken || undefined,
     };
+  }
+
+  /**
+   * Another device holds this seat now. Turn the SDK's background retry off
+   * (a retry would steal the seat straight back) and tell the app once.
+   */
+  private markTakenOver(room: Room) {
+    if (this.room !== room || this.takenOverFlag) return;
+    this.takenOverFlag = true;
+    this.reconnectionToken = null;
+    try {
+      room.reconnection.enabled = false;
+    } catch {
+      /* already closed */
+    }
+    this.handlers.onTakenOver?.();
+  }
+
+  /** True once the seat moved to another device (until the next connect). */
+  get takenOver(): boolean {
+    return this.takenOverFlag;
   }
 
   private captureReconnectionToken(room: Room) {
@@ -487,6 +536,7 @@ export class DuelClient {
 
   private noteView(view: PlayerView) {
     this.lastView = view;
+    this.passSent = null;
     if (view.turnNumber !== this.endTurnSentOn) this.endTurnSentOn = null;
     if (this.illegalIntentOn !== null && view.turnNumber !== this.illegalIntentOn) {
       this.illegalIntentOn = null;
@@ -505,6 +555,8 @@ export class DuelClient {
           view: msg.view,
           role: msg.role ?? (msg.view.spectator ? "spectator" : "player"),
           players: msg.players,
+          ranked: msg.ranked,
+          brief: msg.brief,
         });
         this.endTurnSentOn = null;
         this.noteView(msg.view);
@@ -544,6 +596,7 @@ export class DuelClient {
         if (err.code === "illegal_intent") {
           // A rejected End turn leaves the turn open: let the player act again.
           this.endTurnSentOn = null;
+          this.passSent = null;
           this.illegalIntentOn = this.lastView?.turnNumber ?? null;
         }
         this.handlers.onError?.(err);
@@ -644,8 +697,11 @@ export class DuelClient {
       }
     });
 
+    room.onMessage("taken_over", () => this.markTakenOver(room));
+
     room.onDrop((code) => {
       if (this.room !== room) return;
+      if (this.takenOverFlag) return;
       this.handlers.onDrop?.(code);
     });
 
@@ -664,6 +720,7 @@ export class DuelClient {
     room.onLeave((code) => {
       // A room we already detached from (Leave) must not clobber a newer one.
       if (this.room !== room) return;
+      if (code === TAKEN_OVER_CLOSE_CODE) this.markTakenOver(room);
       this.handlers.onDisconnect?.(code);
       this.room = null;
     });
@@ -672,6 +729,9 @@ export class DuelClient {
 
 /** Prompts can still be answered after End turn (end-of-turn effects); everything else waits for the next turn. */
 const AFTER_END_TURN = new Set<Intent["type"]>(["resolve_pending_choice", "order_pending_effects"]);
+
+/** Battle passes answer one step each: the next view brings the next step (#445). */
+const ONCE_PER_VIEW = new Set<Intent["type"]>(["pass_block", "pass_counter"]);
 
 /** An action sent after End turn, while the view still shows the turn that was ended. */
 export function lateForTurn(intent: Intent, endTurnSentOn: number | null, view: PlayerView | null): boolean {

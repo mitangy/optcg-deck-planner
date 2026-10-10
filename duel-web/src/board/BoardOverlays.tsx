@@ -3,14 +3,33 @@ import { createPortal } from "react-dom";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
-import { boxCenter } from "./battleArc";
-import { DON_CARD_ART } from "./donArt";
+import { fallbackToDefaultDon, useDonArt } from "./donArt";
 import { attachLabel, quickAttachLabel, type PendingAttach } from "./donSelection";
-import { popoverPlacement, type CardActionText } from "./cardActions";
+import { popoverPlacement, type CardActionText, type PopoverSize } from "./cardActions";
 import { useTrackedBoxes } from "./useTrackedBoxes";
 
 const CONFIRM_W = 250;
 const EDGE = 8;
+
+/** The element's laid-out size, re-read when its content or the window changes (0 until it mounts). */
+function useMeasuredSize(ref: { current: HTMLElement | null }, key: string): PopoverSize {
+  const [size, setSize] = useState<PopoverSize>({ width: 0, height: 0 });
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // scrollHeight: the natural height even while a short window caps it and scrolls.
+    const read = () => {
+      const next = { width: el.offsetWidth, height: Math.max(el.offsetHeight, el.scrollHeight) };
+      setSize((prev) => (prev.width === next.width && prev.height === next.height ? prev : next));
+    };
+    read();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref, key]);
+  return size;
+}
 
 /**
  * "Attach N DON!!" confirm, anchored to the tapped Leader / Character. Fixed
@@ -28,9 +47,12 @@ export function DonAttachConfirm({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const donArt = useDonArt();
   const boxes = useTrackedBoxes([pending.targetId]);
   const box = boxes?.[0] ?? null;
   const confirmRef = useRef<HTMLButtonElement | null>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const size = useMeasuredSize(ref, box == null ? "none" : "box");
 
   useEffect(() => {
     confirmRef.current?.focus({ preventScroll: true });
@@ -38,28 +60,31 @@ export function DonAttachConfirm({
 
   if (typeof document === "undefined") return null;
   const vw = window.innerWidth;
-  const half = Math.min(CONFIRM_W, vw - EDGE * 2) / 2;
+  // CSS sizes the confirm with its font; before the first measure assume the old 250px.
+  const width = size.width || Math.min(CONFIRM_W, vw - EDGE * 2);
   let style: CSSProperties;
   if (box) {
-    const c = boxCenter(box);
-    const x = Math.min(Math.max(c.x, EDGE + half), vw - EDGE - half);
-    const above = box.top > 84;
-    style = above
-      ? { left: x, top: box.top - 8, transform: "translate(-50%, -100%)" }
-      : { left: x, top: box.top + box.height + 8, transform: "translate(-50%, 0)" };
+    // Above the card when it fits, else below, else slid back on screen.
+    const place = popoverPlacement(box, { width, height: size.height }, { width: vw, height: window.innerHeight }, EDGE, -8);
+    style = {
+      left: place.left,
+      top: place.top,
+      transform: place.above ? "translate(-50%, -100%)" : "translate(-50%, 0)",
+    };
   } else {
     style = { left: "50%", bottom: "30%", transform: "translate(-50%, 0)" };
   }
 
   return createPortal(
     <div
+      ref={ref}
       className="don-attach-confirm"
       role="dialog"
       aria-label={`${attachLabel(pending.donIds.length)} to ${targetName}`}
-      style={{ ...style, width: half * 2 }}
+      style={style}
     >
       <div className="don-attach-title">
-        <img src={DON_CARD_ART} alt="" className="don-attach-icon" draggable={false} />
+        <img src={donArt()} alt="" className="don-attach-icon" draggable={false} onError={fallbackToDefaultDon} />
         <span>
           ×{pending.donIds.length} → <strong>{targetName}</strong>
         </span>
@@ -112,21 +137,24 @@ export function CardActionPopover({
   donCounts?: number[];
   onDon?: (count: number) => void;
 }) {
+  const donArt = useDonArt();
   const boxes = useTrackedBoxes([anchorId]);
   const box = boxes?.[0] ?? null;
   const ref = useRef<HTMLDivElement | null>(null);
-  const [width, setWidth] = useState(0);
   const shape = `${actions.map((a) => a.id).join("|")}/${donCounts.join(",")}`;
-  useLayoutEffect(() => {
-    setWidth(ref.current?.offsetWidth ?? 0);
-  }, [shape, box == null]);
+  const size = useMeasuredSize(ref, `${shape}/${box == null}`);
   if (!box || typeof document === "undefined") return null;
-  const place = popoverPlacement(box, width, window.innerWidth);
+  const place = popoverPlacement(box, size, { width: window.innerWidth, height: window.innerHeight });
   const style: CSSProperties = {
     left: place.left,
     top: place.top,
     transform: place.above ? "translate(-50%, -100%)" : "translate(-50%, 0)",
   };
+  // A window shorter than the popover scrolls its buttons rather than running them off screen.
+  if (size.height > window.innerHeight - EDGE * 2) {
+    style.maxHeight = window.innerHeight - EDGE * 2;
+    style.overflowY = "auto";
+  }
   return createPortal(
     <div
       ref={ref}
@@ -137,7 +165,7 @@ export function CardActionPopover({
     >
       {donCounts.length > 0 && onDon ? (
         <div className="card-actions-don" role="group" aria-label={`Give DON!! to ${cardName}`}>
-          <img src={DON_CARD_ART} alt="" className="don-quick-icon" draggable={false} />
+          <img src={donArt()} alt="" className="don-quick-icon" draggable={false} onError={fallbackToDefaultDon} />
           {donCounts.map((n, i) => (
             <button
               key={n}
@@ -183,6 +211,7 @@ export type GhostPayload =
  * drop hit-testing (elementFromPoint) sees the board underneath.
  */
 export function DragGhost({ payload }: { payload: GhostPayload | null }) {
+  const donArt = useDonArt();
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const active = payload != null;
 
@@ -199,7 +228,7 @@ export function DragGhost({ payload }: { payload: GhostPayload | null }) {
   if (!payload || !pos || typeof document === "undefined") return null;
   const src =
     payload.type === "give_don"
-      ? DON_CARD_ART
+      ? donArt()
       : resolveCardImageUrl(payload.defId, { ownerSeat: payload.ownerSeat, size: "thumb" });
   const label = payload.type === "give_don" ? "DON!!" : lookupCard(payload.defId).name;
 

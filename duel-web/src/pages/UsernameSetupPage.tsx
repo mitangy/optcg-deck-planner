@@ -4,6 +4,7 @@ import { stopAccountSync } from "../account/accountSync";
 import { UsernameForm } from "../auth/UsernameForm";
 import { fetchAuthMe, fetchUsernameSuggestion, logoutSession } from "../net/api";
 import { useDuelSession } from "../state/DuelSession";
+import { NavMenu } from "../nav/NavMenu";
 
 /**
  * First sign-in step: pick a public username before playing.
@@ -42,6 +43,7 @@ export function UsernameSetupPage() {
     <div className="app-shell">
       <div className="page page-narrow username-setup">
         <header className="page-header">
+          <NavMenu />
           <h1 className="page-title">Choose a username</h1>
         </header>
         <section className="panel">

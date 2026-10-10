@@ -164,3 +164,89 @@ test("edit mode opens the card editor and in-deck steppers without breaking layo
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
 });
+
+test("DON!! browser shows big card tiles and searches the DON!! catalog (#435)", async ({ page, planner }) => {
+  await page.getByRole("button", { name: /Available DON!! cards/ }).click();
+  const tiles = page.locator(".don-tile");
+  await expect(tiles).toHaveCount(3);
+  for (const img of await page.locator(".don-tile .thumb").all()) {
+    expect((await img.boundingBox())!.width).toBeGreaterThanOrEqual(120);
+  }
+  const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  expect(await noOverflow()).toBe(true);
+
+  const sent = page.waitForRequest((r) => r.url().includes("/catalog/cards") && r.url().includes("card_type=DON") && r.url().includes("q=zoro"));
+  await page.getByRole("searchbox", { name: "Search DON!! cards" }).fill("zoro");
+  await sent;
+  await expect(tiles).toHaveCount(1);
+  await expect(tiles.first()).toContainText("DON-002");
+
+  await page.getByRole("searchbox", { name: "Search DON!! cards" }).fill("nothing-like-this");
+  await expect(page.getByText("No DON!! cards match “nothing-like-this”.")).toBeVisible();
+  await page.getByRole("searchbox", { name: "Search DON!! cards" }).fill("zoro");
+  await expect(tiles).toHaveCount(1);
+
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+/** Opens the deck's stats where they live: the sticky dock at 1200, the sheet behind the Stats pill on a phone. */
+async function openStats(page: import("@playwright/test").Page) {
+  if (page.viewportSize()!.width >= 1000) return;
+  await page.getByRole("button", { name: /^Stats/ }).click();
+}
+
+test("Why? on a build hint opens Log Pose and sends the hint with the deck (#399)", async ({ page, planner }) => {
+  planner.enableLogPose();
+  await planner.open(`/decks/${DECK_ID}`);
+  await openStats(page);
+
+  await page.locator('[data-hint-id="count"]:visible').click();
+  const pop = page.locator(".dh-pop");
+  const why = pop.getByRole("button", { name: "Why? Ask Log Pose" });
+  const dismiss = pop.getByRole("button", { name: "Dismiss" });
+  const [whyBox, dismissBox] = [await why.boundingBox(), await dismiss.boundingBox()];
+  expect(whyBox!.height).toBe(dismissBox!.height);
+  expect(whyBox!.height).toBeGreaterThanOrEqual(page.viewportSize()!.width < 500 ? 44 : 32);
+  expect(whyBox!.y).toBe(dismissBox!.y);
+  await why.click();
+
+  await expect(page.getByRole("dialog", { name: "Log Pose" })).toBeVisible();
+  await expect(page.getByText("Because the deck has 15 cards.")).toBeVisible();
+  await expect(pop).toHaveCount(0);
+  expect(planner.chats).toHaveLength(1);
+  const chat = planner.chats[0]!;
+  expect(chat.message).toContain("14 of 50 cards");
+  expect(chat.context?.hint?.id).toBe("count");
+  expect(chat.context?.deck?.leaderId).toBe("EB01-001");
+  expect(chat.context?.deck?.plannerDeckId).toBe(DECK_ID);
+});
+
+test("no Why? on a hint while Log Pose is off (#399)", async ({ page }) => {
+  await openStats(page);
+  await page.locator('[data-hint-id="count"]:visible').click();
+  await expect(page.locator(".dh-pop").getByRole("button", { name: "Dismiss" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Ask Log Pose/ })).toHaveCount(0);
+});
+
+test("deck $ left prices wanted alt arts by their count (#433)", async ({ page }) => {
+  // Still needed: Izo 2 x $1.25, Kid & Killer 4 x $6.80, EB01-009 2 x $3.50, EB01-011 1 x $0.10 = $36.80.
+  const left = page.locator(".deck-progress-meta");
+  await expect(left).toHaveText("$36.80 left");
+
+  const filters = page.getByRole("button", { name: /^Filters/ });
+  await filters.click();
+  await page.getByLabel("Show alt arts").check();
+  await filters.click();
+
+  const inc = page.locator(IZO).getByRole("button", { name: /Increase want for/ });
+  const qty = page.locator(IZO).locator(".alt-want-qty");
+  // One alt copy at $14.99, the other still-needed copy at $1.25: 36.80 - 2.50 + 16.24.
+  await inc.click();
+  await expect(qty).toHaveText("1");
+  await expect(left).toHaveText("$50.54 left");
+  // Both still-needed copies as the alt: 36.80 - 2.50 + 29.98.
+  await inc.click();
+  await expect(qty).toHaveText("2");
+  await expect(left).toHaveText("$64.28 left");
+});

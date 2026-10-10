@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnalystError, BUDGET_MESSAGE, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, streamAnalyst } from "./client";
+import { AnalystError, BUSY_MESSAGE, CREDIT_MESSAGE, DAILY_MESSAGE, MONTHLY_MESSAGE, deleteThread, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, parseTurnPlan, stampPlan, streamAnalyst, ticketGameKey } from "./client";
 import { createSessionManager, needsRefresh } from "./session";
 
 const NOW = Date.parse("2026-10-06T12:00:00Z");
@@ -67,7 +67,38 @@ describe("analyst stream requests (#377)", () => {
     const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
     const err = await streamAnalyst(mgr, "/chat", { message: "hi" }, {}, undefined, f.impl).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(AnalystError);
-    expect(errorText(err as AnalystError)).toBe(BUDGET_MESSAGE);
+    expect(errorText(err as AnalystError)).toBe(DAILY_MESSAGE);
+  });
+
+  it("tells a spent credit, today's cap and the monthly cap apart on a 429 (#446)", async () => {
+    for (const [code, message] of [["credit", CREDIT_MESSAGE], ["daily", DAILY_MESSAGE], ["monthly", MONTHLY_MESSAGE]] as const) {
+      const f = fakeFetch([15 * 60_000], () => new Response(JSON.stringify({ error: "x", code }), { status: 429, headers: { "Content-Type": "application/json" } }));
+      const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+      const err = await streamAnalyst(mgr, "/chat", { message: "hi" }, {}, undefined, f.impl).catch((e: unknown) => e);
+      expect(err).toMatchObject({ code });
+      expect(errorText(err as AnalystError)).toBe(message);
+    }
+  });
+
+  it("tells them apart in a stream's error event too (#446)", async () => {
+    for (const [code, message] of [["credit", CREDIT_MESSAGE], ["daily", DAILY_MESSAGE], ["monthly", MONTHLY_MESSAGE]] as const) {
+      const f = fakeFetch([15 * 60_000], () => sse(`event: error\ndata: {"message":"cap","code":"${code}"}\n\n`));
+      const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+      const got: Array<{ code?: string }> = [];
+      const shown: string[] = [];
+      await streamAnalyst(mgr, "/chat", { message: "hi" }, { onError: (e) => (got.push(e), shown.push(errorText(e))) }, undefined, f.impl);
+      expect(got[0]!.code).toBe(code);
+      expect(shown).toEqual([message]);
+    }
+  });
+
+  it("deletes a chat with the cookie and treats an already-gone chat as deleted (#446)", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const impl = (status: number) => (async (url: string, init: RequestInit) => (calls.push({ url, init }), new Response(null, { status }))) as unknown as typeof fetch;
+    await deleteThread("https://api.test", 9, impl(204));
+    expect(calls[0]).toMatchObject({ url: "https://api.test/analyst/chat/threads/9", init: { method: "DELETE", credentials: "include" } });
+    await expect(deleteThread("/api", 9, impl(404))).resolves.toBeUndefined();
+    await expect(deleteThread("/api", 9, impl(500))).rejects.toThrow(/delete/);
   });
 
   it("shows the analyst's own reason when it refuses before streaming (#387)", async () => {
@@ -84,12 +115,12 @@ describe("analyst stream requests (#377)", () => {
     }
   });
 
-  it("shows the daily-limit message for an in-stream budget error (#377)", async () => {
-    const f = fakeFetch([15 * 60_000], () => sse('event: error\ndata: {"message":"cap hit","code":"budget"}\n\n'));
+  it("shows its own message, not the daily-limit one, when another stream is still running (#377)", async () => {
+    const f = fakeFetch([15 * 60_000], () => sse('event: error\ndata: {"message":"still answering","code":"busy"}\n\n'));
     const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
     const shown: string[] = [];
     await streamAnalyst(mgr, "/chat", { message: "hi" }, { onError: (e) => shown.push(errorText(e)) }, undefined, f.impl);
-    expect(shown).toEqual([BUDGET_MESSAGE]);
+    expect(shown).toEqual([BUSY_MESSAGE]);
   });
 
   it("hands thread, status, text and done events to their handlers in order (#377)", async () => {
@@ -154,5 +185,120 @@ describe("cite events and saved citations (#390)", () => {
       { at: 0, source: "rule:1-1", title: "", cited_text: "" },
     ]);
     expect((await fetchSavedReview("https://api.test", "m1", impl))!.citations).toEqual([]);
+  });
+});
+
+describe("deck edit events (#400)", () => {
+  const wire = {
+    id: "t1",
+    version: 1,
+    target: { ref: "duel:d1", name: "Luffy", leader_id: "ST01-001" },
+    summary: "Tune",
+    lines: [{ id: "ST01-016", name: "Diable Jambe", before: 0, after: 2, reason: "Cheaper" }],
+    base: [{ id: "ST01-015", copies: 2 }],
+    legality: { legal: true, count: 50, problems: [], upcoming: [], ban_list_checked: true },
+  };
+
+  it("hands a proposal event to onProposal and ignores one with no usable lines (#400)", async () => {
+    const f = fakeFetch([15 * 60_000], () =>
+      sse(`event: proposal\ndata: ${JSON.stringify(wire)}\n\nevent: proposal\ndata: ${JSON.stringify({ ...wire, id: "t2", lines: [] })}\n\n`),
+    );
+    const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+    const seen: unknown[] = [];
+    await streamAnalyst(mgr, "/chat", { message: "hi" }, { onProposal: (p) => seen.push(p) }, undefined, f.impl);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ id: "t1", target: { ref: "duel:d1", name: "Luffy", leaderId: "ST01-001" }, legality: { banListChecked: true } });
+  });
+
+  it("reads a saved thread's deck edits and drops unusable ones (#400)", async () => {
+    const impl = (async () =>
+      Response.json({ id: 4, title: "t", messages: [{ role: "user", text: "hi" }, { role: "assistant", text: "See the card.", proposals: [wire, { id: "bad" }] }] })) as unknown as typeof fetch;
+    const thread = await fetchThread("https://api.test", 4, impl);
+    expect(thread!.messages[0]!.proposals).toEqual([]);
+    expect(thread!.messages[1]!.proposals!.map((p) => p.id)).toEqual(["t1"]);
+  });
+});
+
+describe("turn plans (#416)", () => {
+  const plan = {
+    id: "toolu_1",
+    turn: 3,
+    summary: "Play Nami, then swing.",
+    steps: [
+      { action: "play", card: "c12", label: "Play Nami (cost 1)", why: "Curve out", extra: "dropped" },
+      { action: "give_don", target: "leader1", count: 2, label: "Give 2 DON!! to Luffy" },
+      { action: "activate", source: "c3", abilityId: "a1", label: "Use Zoro" },
+      { action: "attack", attacker: "leader1", target: "oppLeader", label: "Attack the Leader" },
+      { action: "end_turn", label: "End turn" },
+    ],
+  };
+
+  it("keeps every kind of step and only the fields it knows (#416)", () => {
+    const parsed = parseTurnPlan(plan)!;
+    expect(parsed.steps.map((s) => s.action)).toEqual(["play", "give_don", "activate", "attack", "end_turn"]);
+    expect(parsed.steps[0]).toEqual({ action: "play", card: "c12", label: "Play Nami (cost 1)", why: "Curve out" });
+    expect(parsed.steps[1]).toMatchObject({ action: "give_don", target: "leader1", count: 2 });
+    expect(parsed).toMatchObject({ id: "toolu_1", turn: 3, summary: "Play Nami, then swing." });
+  });
+
+  it("drops a plan with a step it can't run instead of running the rest (#416)", () => {
+    const bad = [
+      { action: "give_don", target: "leader1", count: 0, label: "x" },
+      { action: "give_don", target: "leader1", count: 11, label: "x" },
+      { action: "give_don", target: "leader1", count: 1.5, label: "x" },
+      { action: "give_don", target: "leader1", label: "x" },
+      { action: "play", label: "x" },
+      { action: "attack", attacker: "a", label: "x" },
+      { action: "teleport", label: "x" },
+      { action: "end_turn" },
+      "end_turn",
+    ];
+    for (const step of bad) expect(parseTurnPlan({ ...plan, steps: [plan.steps[0], step, plan.steps[4]] })).toBeNull();
+  });
+
+  it("needs an id, a summary, a turn and 1 to 15 steps (#416)", () => {
+    const one = plan.steps[4];
+    expect(parseTurnPlan({ ...plan, steps: [] })).toBeNull();
+    expect(parseTurnPlan({ ...plan, steps: Array.from({ length: 16 }, () => one) })).toBeNull();
+    expect(parseTurnPlan({ ...plan, steps: Array.from({ length: 15 }, () => one) })?.steps).toHaveLength(15);
+    expect(parseTurnPlan({ ...plan, id: "" })).toBeNull();
+    expect(parseTurnPlan({ ...plan, summary: " " })).toBeNull();
+    expect(parseTurnPlan({ ...plan, turn: "3" })).toBeNull();
+    expect(parseTurnPlan(null)).toBeNull();
+    expect(parseTurnPlan({ ...plan, summary: "s".repeat(500) })!.summary).toHaveLength(300);
+  });
+
+  it("hands a plan event to onPlan and ignores a malformed one (#416)", async () => {
+    const f = fakeFetch([15 * 60_000], () =>
+      sse(`event: text\ndata: {"delta":"Here."}\n\nevent: plan\ndata: ${JSON.stringify(plan)}\n\nevent: plan\ndata: ${JSON.stringify({ ...plan, id: "t2", steps: [] })}\n\n`),
+    );
+    const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+    const seen: unknown[] = [];
+    await streamAnalyst(mgr, "/chat", { message: "plan" }, { onPlan: (p) => seen.push(p) }, undefined, f.impl);
+    expect(seen.map((p) => (p as { id: string }).id)).toEqual(["toolu_1"]);
+  });
+});
+
+describe("which game a turn plan belongs to (#419)", () => {
+  const p = { id: "t1", turn: 3, summary: "Go", steps: [{ action: "end_turn" as const, label: "End turn" }] };
+  const ticket = (mid: string, exp: number) => `mb1.${btoa(JSON.stringify({ mid, seat: 0, exp })).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}.sig`;
+  const ctx = (t: string) => ({ game: { ticket: t, snapshot: {} as never } });
+
+  it("keys a game by its match, the same across a reconnect's fresh tickets and different in a rematch (#419)", () => {
+    expect(ticketGameKey(ticket("m1", 100))).toBe("m1");
+    expect(ticketGameKey(ticket("m1", 999))).toBe("m1");
+    expect(ticketGameKey(ticket("m1-r1", 100))).toBe("m1-r1");
+    expect(ticketGameKey("not-a-ticket")).toBe("not-a-ticket");
+  });
+
+  it("stamps the plan with the game its message was sent for, not the ticket string (#419)", () => {
+    expect(stampPlan(p, ctx(ticket("m1", 100))).gameKey).toBe("m1");
+    expect(stampPlan(p, ctx(ticket("m1", 999))).gameKey).toBe("m1");
+    expect(stampPlan(p, ctx(ticket("m1-r1", 100))).gameKey).toBe("m1-r1");
+  });
+
+  it("leaves a plan unstamped when the message carried no game (#419)", () => {
+    expect(stampPlan(p, undefined)).not.toHaveProperty("gameKey");
+    expect(stampPlan(p, { page: "decks" })).not.toHaveProperty("gameKey");
   });
 });

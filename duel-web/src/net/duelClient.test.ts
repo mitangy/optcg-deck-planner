@@ -3,8 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const sdkReconnect = vi.fn((_token: string) => new Promise<never>(() => {}));
 const sdkJoinOrCreate = vi.fn((_name: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
 const sdkCreate = vi.fn((_name: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
+const sdkJoinById = vi.fn((_id: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
 vi.mock("@colyseus/sdk", () => ({
   Client: class {
+    joinById(id: string, opts: unknown) {
+      return sdkJoinById(id, opts);
+    }
     reconnect(token: string) {
       return sdkReconnect(token);
     }
@@ -34,6 +38,7 @@ function fakeRoom(opts: { answersPing: boolean }) {
     connection: { isOpen: true, close: vi.fn() },
     reconnection: { enabled: true, isReconnecting: false },
     onMessage: vi.fn(),
+    send: vi.fn(),
     onDrop: on("drop"),
     onReconnect: on("reconnect"),
     onLeave: on("leave"),
@@ -200,6 +205,28 @@ describe("DuelClient turn guard", () => {
     expect(t.sent()).toEqual(["end_turn", "play_card"]);
   });
 
+  it("sends one Pass block when a tap races the automatic pass, and passes again on the next step (#445)", () => {
+    const t = wired();
+    t.view(3, 1);
+    // The tap and the automatic pass both answer the block step before its result arrives: the second is dropped.
+    t.client.sendIntent({ type: "pass_block" });
+    t.client.sendIntent({ type: "pass_block" });
+    expect(t.sent()).toEqual(["pass_block"]);
+    // The counter step's view: its own pass goes out once too.
+    t.view(3, 1);
+    t.client.sendIntent({ type: "pass_counter" });
+    t.client.sendIntent({ type: "pass_counter" });
+    expect(t.sent()).toEqual(["pass_block", "pass_counter"]);
+    // The next attack's counter step is a new view: it is answered too.
+    t.view(3, 1);
+    t.client.sendIntent({ type: "pass_counter" });
+    expect(t.sent()).toEqual(["pass_block", "pass_counter", "pass_counter"]);
+    // A refused pass can be tried again.
+    t.error("illegal_intent", "Counter step: use a Counter or pass");
+    t.client.sendIntent({ type: "pass_counter" });
+    expect(t.sent()).toEqual(["pass_block", "pass_counter", "pass_counter", "pass_counter"]);
+  });
+
   it("still answers an end-of-turn prompt after End turn (#328)", () => {
     const t = wired();
     t.view(3, 0);
@@ -239,5 +266,73 @@ describe("DuelClient turn guard", () => {
     expect(t.onStaleIllegalIntent).toHaveBeenCalledTimes(1);
     t.view(5, 0);
     expect(t.onStaleIllegalIntent).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DuelClient takeover (#451)", () => {
+  function takenOverSetup() {
+    const client = new DuelClient();
+    const onTakenOver = vi.fn();
+    const onDrop = vi.fn();
+    const onDisconnect = vi.fn();
+    client.setHandlers({ onTakenOver, onDrop, onDisconnect });
+    const room = fakeRoom({ answersPing: true });
+    attach(client, room);
+    const message = (name: string, payload: unknown = {}) =>
+      (room.onMessage.mock.calls.find((c) => c[0] === name)![1] as (raw: unknown) => void)(payload);
+    return { client, room, onTakenOver, onDrop, onDisconnect, message };
+  }
+
+  it("taken_over turns the SDK's auto-reconnect off and tells the app once", () => {
+    const t = takenOverSetup();
+    t.message("taken_over", { seat: 0 });
+    t.message("taken_over", { seat: 0 });
+    expect(t.room.reconnection.enabled).toBe(false);
+    expect(t.onTakenOver).toHaveBeenCalledTimes(1);
+    expect(t.client.takenOver).toBe(true);
+    // The old reconnection token is dead: nothing may try to reclaim with it.
+    expect(t.client.getReconnectionToken()).toBeNull();
+  });
+
+  it("a takeover close (4451) counts as taken over", () => {
+    const t = takenOverSetup();
+    t.room.emit("leave", 4451);
+    expect(t.onTakenOver).toHaveBeenCalledTimes(1);
+    expect(t.onDisconnect).toHaveBeenCalledWith(4451);
+  });
+
+  it("an ordinary drop is not a takeover", () => {
+    const t = takenOverSetup();
+    t.room.emit("drop", 1006);
+    expect(t.onTakenOver).not.toHaveBeenCalled();
+    expect(t.onDrop).toHaveBeenCalledWith(1006);
+    expect(t.room.reconnection.enabled).toBe(true);
+  });
+
+  it("refuses to reconnect a seat that moved to another device", async () => {
+    const t = takenOverSetup();
+    t.message("taken_over");
+    sdkReconnect.mockClear();
+    await expect(t.client.reconnect({ serverUrl: "http://gs", reconnectionToken: "r:tok" })).rejects.toThrow(
+      /another device/,
+    );
+    expect(sdkReconnect).not.toHaveBeenCalled();
+  });
+
+  it("sends takeover and ownerToken in the join options", async () => {
+    const room = fakeRoom({ answersPing: true });
+    sdkJoinById.mockResolvedValueOnce(room);
+    const client = new DuelClient();
+    await client.connect({
+      roomId: "abc",
+      preferredSeat: 1,
+      gameToken: "tok",
+      takeover: true,
+      ownerToken: "owner",
+    });
+    expect(sdkJoinById).toHaveBeenCalledWith(
+      "abc",
+      expect.objectContaining({ preferredSeat: 1, takeover: true, ownerToken: "owner" }),
+    );
   });
 });

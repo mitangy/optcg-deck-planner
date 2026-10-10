@@ -101,6 +101,7 @@ import {
 } from "./intentFilter";
 import { dockIntents, splitPrimaryIntent } from "./primaryIntent";
 import { SideField } from "./SideField";
+import { DonArtContext, donArtUrl } from "./donArt";
 import { lookupCard } from "../cards/atlas";
 import { sortHandIndices } from "./handSort";
 import { moveToSlot, reconcileHandOrder } from "./handOrder";
@@ -111,7 +112,7 @@ import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { sideSkins } from "./seatSkins";
 import { resolveHandLayout, updateSettings, useDuelSettings } from "../settings";
-import { PANEL_LABELS, parsePanelLayout, serializePanelLayout, type PanelColumn, type PanelId } from "./panelLayout";
+import { PANEL_LABELS, collapsedColumns, parsePanelLayout, serializePanelLayout, type PanelColumn, type PanelId } from "./panelLayout";
 import { parsePanelSizes, serializePanelSizes } from "./panelSizes";
 import { usePanelResize } from "./usePanelResize";
 import { SidePanel, usePanelDrag } from "./SidePanels";
@@ -141,7 +142,8 @@ import { handCardOutOfReach, needsDonHint } from "./handAffordance";
 import { phaseLabel } from "./phaseLabel";
 import { playerLabel, seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
-import { RematchPanel } from "./RematchPanel";
+import type { RematchDeckOption } from "../decks/rematchDecks";
+import { RematchPanel, type RematchDecks } from "./RematchPanel";
 import { RoomChip } from "./RoomShare";
 import { PendingBoard, type BoardWaiting } from "./PendingBoard";
 import { fanPose, handDrawer } from "./handFan";
@@ -152,6 +154,10 @@ import { latestOpponentPlay, opponentPlayCaption } from "./opponentPlay";
 import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY, RAIL_HAND_QUERY, TILT_BOARD_QUERY } from "./useMediaQuery";
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
+import { useMatchBrief } from "./MatchBrief";
+import { useLogPoseDock, useLogPoseDockHost } from "@optcg/analyst-client";
+import { useLogPoseCopilot } from "./LogPoseCopilot";
+import type { BriefTicketWire } from "../net/protocol";
 import { matchMenuItems } from "./matchMenuItems";
 import { openFeedback } from "../feedbackDialog";
 import { isPromptHidden, promptOpenFor } from "./promptHide";
@@ -195,14 +201,26 @@ type Props = {
   /** Rematch vote on the match-over screen (unranked rooms). */
   rematch?: {
     state: RematchState | null;
-    onAction: (action: RematchAction) => void;
+    onAction: (action: RematchAction, decks?: RematchDecks) => void;
     autoAccept?: boolean;
+    /** Saved decks to switch to for the next game. */
+    deckOptions?: readonly RematchDeckOption[];
   };
   /** Opponent dropped: epoch ms until which they may reconnect before forfeiting. */
   opponentAwayUntil?: number | null;
   /** Online: each seat's shared custom playmat / card back (shown for the opponent only). */
   seatSkins?: readonly [SeatSkin | null, SeatSkin | null];
   leaveLabel?: string;
+  /**
+   * Log Pose matchup brief for casual and practice games: the game server's ticket and whether the room is
+   * ranked. The board shows a Brief button and card only when the pair says unranked, a player and a ticket.
+   */
+  matchBrief?: {
+    brief: BriefTicketWire | null;
+    ranked: boolean | null;
+    /** The seat the ticket is for (hotseat: seat 0, the player's). Online it is the board's own `seat`. The Log Pose copilot is offered on that seat's turns only. */
+    ticketSeat?: Seat;
+  };
   /** Searches and effect ordering float cards over the board instead of a pop-up (always in matches; `/demo?box` shows the pop-up fallback). */
   floatingPrompts?: boolean;
   /** Before the first view: what the empty board says (queueing, connecting, starting). */
@@ -277,6 +295,7 @@ export function DuelBoard({
   rematch,
   loadMatchRecord,
   leaveLabel = "Leave",
+  matchBrief,
   floatingPrompts = true,
   waiting,
   onSendIntent: sendIntent,
@@ -315,8 +334,17 @@ export function DuelBoard({
   const compactHud = useMediaQuery(COMPACT_HUD_QUERY);
   const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
   const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_QUERY);
+  /** "Simple board on phones": your own mat gets the count row and bigger cards the opponent's has (portrait only). */
+  const simpleOwnBoard = prefs.compactOwnBoard && portraitMat;
   /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
   const lp = wide && landscapePhone;
+  // Log Pose docked to a side: its panel renders into a host at the top of that side column, only while it is open.
+  // Narrow windows and landscape phones have no side columns, so there it floats.
+  const logPoseDock = useLogPoseDock();
+  const [logPoseHostL, setLogPoseHostL] = useState<HTMLElement | null>(null);
+  const [logPoseHostR, setLogPoseHostR] = useState<HTMLElement | null>(null);
+  useLogPoseDockHost(wide && !lp, logPoseHostL, logPoseHostR);
+  const logPoseSide = wide && !lp && logPoseDock.open ? logPoseDock.dock : null;
   const [promptSlot, setPromptSlot] = useState<HTMLElement | null>(null);
   const promptSlotValue = useMemo(() => ({ slot: promptSlot, setSlot: setPromptSlot }), [promptSlot]);
   /** Tall desktop, Grid layout: the hand is an always-open grid side panel (no dock). */
@@ -384,13 +412,7 @@ export function DuelBoard({
   // Landscape phones keep the hand in the right column (a scrolling grid), never over the field.
   const railHand = usesRailHand(wide, lp, railHandTall, fanHand);
   /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling. */
-  const phoneFan = usesPhoneFan(
-    wide,
-    specFans ? "fan" : handLayout,
-    specFans && view?.revealedHands
-      ? (view.revealedHands[seat ?? view.seat]?.length ?? 0)
-      : (view?.you.hand.length ?? 0),
-  );
+  const phoneFan = usesPhoneFan(wide, specFans ? "fan" : handLayout);
   /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
   const panelLayout = useMemo(() => parsePanelLayout(prefs.panelLayout), [prefs.panelLayout]);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
@@ -547,6 +569,25 @@ export function DuelBoard({
   }, [over]);
   const mySeat = seat ?? view?.seat ?? null;
   const spectating = spectator || Boolean(view?.spectator);
+  const brief = useMatchBrief({
+    source: matchBrief,
+    role: spectating ? "spectator" : "player",
+    roomMatchId: matchId,
+    phase: view?.phase,
+    over,
+    layout: lp ? "landscape" : wide ? "desktop" : "portrait",
+  });
+  const copilot = useLogPoseCopilot({
+    source: matchBrief,
+    role: spectating ? "spectator" : "player",
+    view,
+    battleLog,
+    onSendIntent,
+    over,
+    layout: lp ? "landscape" : wide ? "desktop" : "portrait",
+    ticketSeat: matchBrief?.ticketSeat ?? seat,
+    errorBanner,
+  });
   const result = describeMatchResult({
     winner: matchOver?.winner ?? view?.winner,
     // The room's reason (concede / clock) beats the engine's view.winReason.
@@ -848,6 +889,12 @@ export function DuelBoard({
     }
   }
 
+  /** Portrait phones: fold the hand away under its title row, or open it again. */
+  function toggleHandCollapsed() {
+    setHandCollapsed((v) => !v);
+    setHandFilter(null);
+  }
+
   /** Under the handle: Hide / Show, only with Keep hand open (H does the same). */
   const hideHandBtn = prefs.keepHandOpen ? (
     <button
@@ -919,6 +966,8 @@ export function DuelBoard({
     onHideHand: toggleHandHidden,
     onSortHand: () => setHandSorted((v) => !v),
     onHelp: () => setHelpOpen(true),
+    fullscreenOffered,
+    onToggleFullscreen: toggleFullscreen,
   });
 
   const donSelectActive = selectedDonIds.size > 0 || pendingAttach != null;
@@ -1006,6 +1055,9 @@ export function DuelBoard({
     }
     return ids;
   }, [dndEnabled, view, intents]);
+
+  // Attack-ready glow (#412): your Leader / Characters with a legal declare_attack.
+  const attackReadyIds = prefs.attackGlow ? draggableAttackerIds : EMPTY_IDS;
 
   // Targets for the attacker being dragged, else for the tapped attacker.
   const attackerId = dragPayload?.type === "attack" ? dragPayload.attackerId : selectedBoardId;
@@ -1227,6 +1279,12 @@ export function DuelBoard({
   const oppHandOnMat = wide && !lp && !farHand && prefs.oppHandSpot ? prefs.oppHandSpot : null;
   /** Phones: "Opponent hand, top right" moves its row to the right of the opponent's half. */
   const oppHandRight = prefs.oppHandSpot === "right" && !farHand;
+  // Match over (#482): the hand flips face up in place. Layout keeps keying off `farHand`
+  // (spectators only) so nothing moves at game over.
+  const shownFarHand = farHand ?? (over ? view.revealedHands?.[oppSeat] : undefined);
+  const revealLife = over ? view.revealedLife : undefined;
+  const lifeFaceUp = (seat: Seat, fallback: typeof opp.faceUpLife) =>
+    revealLife ? revealLife[seat].map((defId, index) => ({ index, defId })) : fallback;
   const viewingSeat: Seat | undefined = spectating ? undefined : boardSeat;
   // Older servers omit firstSeat; they always started seat 0.
   const firstSeat: Seat = view.firstSeat ?? 0;
@@ -1585,16 +1643,17 @@ export function DuelBoard({
     </div>
   );
 
-  const chatPanel = chat ? (
+  const chatPanel = chat && prefs.showChat ? (
     <ChatPanel
       lines={chat.lines}
       mySeat={spectating ? null : boardSeat}
       onSend={chat.onSend}
+      onConcede={onConcede && !spectating && !over ? onConcede : undefined}
       defaultOpen={wide}
     />
   ) : null;
   const skins = sideSkins({
-    own: { playmat: playmatUrl, cardBack: cardBackUrl },
+    own: { playmat: playmatUrl, cardBack: cardBackUrl, donArt: prefs.donArt },
     seatSkins,
     nearSeat: boardSeat,
     farSeat: oppSeat,
@@ -1603,11 +1662,18 @@ export function DuelBoard({
   });
   const oppMatUrl = skins.far.playmat;
   const oppCardBackUrl = skins.far.cardBack;
+  const nearDonUrl = donArtUrl(skins.near.donArt);
+  const farDonUrl = donArtUrl(skins.far.donArt);
+  /** DON!! face for a seat's half; no seat (or your own) is the near half. */
+  const donArtForSeat = (s?: Seat) => (s != null && s === oppSeat && s !== boardSeat ? farDonUrl : nearDonUrl);
 
   /** Desktop side panels, by id; null when a panel has nothing to show right now. */
   const sidePanels: Record<PanelId, React.ReactNode> = {
-    preview: <CardPreviewPanel />,
-    recent: <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} />,
+    // Hidden panels are null: they keep their place in panelLayout and come back in it.
+    preview: prefs.showCardPreview ? <CardPreviewPanel /> : null,
+    recent: prefs.showRecentPlays ? (
+      <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} />
+    ) : null,
     log: (
       <BattleLogPanel
         entries={battleLog}
@@ -1619,7 +1685,7 @@ export function DuelBoard({
       <OppHandFan
         count={opp.handCount}
         cardBackUrl={oppCardBackUrl}
-        cards={farHand}
+        cards={shownFarHand}
         ownerSeat={oppSeat}
       />
     ),
@@ -1668,6 +1734,35 @@ export function DuelBoard({
     left: panelLayout.left.filter((id) => sidePanels[id] != null),
     right: panelLayout.right.filter((id) => sidePanels[id] != null),
   };
+  /** Bigger playing area: columns take their minimum width, so a dragged width is set aside (not lost). */
+  const bigBoard = prefs.bigBoard;
+  /**
+   * A desktop column with nothing in it (every panel hidden or moved away)
+   * collapses so the board gets its width; while a panel is being dragged both
+   * stay open as drop targets.
+   */
+  const collapsed = collapsedColumns(shownPanels, panelDrag.draggingId != null, {
+    right: railDefend && defendTray != null,
+  });
+  /**
+   * Bigger playing area on a computer: no top bar. Its buttons ride in a row at the top of the right column, or
+   * of the left one when the right has nothing in it. The side follows what is on screen when nothing is being
+   * dragged, so the row stays put while a panel is carried over the columns; with both columns empty the right
+   * one stays open for the row (it is the only way to the match menu).
+   */
+  const noTopBar = bigBoard && wide && !lp && !compactHud;
+  const idleCollapsed = collapsedColumns(shownPanels, false, { right: railDefend && defendTray != null });
+  const actionsSide: PanelColumn | null = !noTopBar ? null : idleCollapsed.right && !idleCollapsed.left ? "left" : "right";
+  const noLeftCol = wide && !lp && collapsed.left && actionsSide !== "left";
+  const noRightCol = wide && !lp && collapsed.right && actionsSide !== "right";
+  const arenaStyle: CSSProperties | undefined =
+    wide && !lp
+      ? ({
+          ...(bigBoard ? null : panelResize.arenaStyle(shownPanels)),
+          ...(noLeftCol ? { "--left-w": "0px" } : null),
+          ...(noRightCol ? { "--rail-w": "0px" } : null),
+        } as CSSProperties)
+      : undefined;
   function renderColumnPanels(column: PanelColumn) {
     const ids = shownPanels[column];
     const sized = ids.some((id) => panelResize.shown.heights[id] != null);
@@ -1756,7 +1851,7 @@ export function DuelBoard({
     </>
   );
   const reportProblem = () => openFeedback("Report a problem");
-  const matchMenuEl = (placement: "top" | "left") => (
+  const matchMenuEl = (placement: "top" | "left" | "anchor") => (
     <MatchMenu
       placement={placement}
       items={matchMenuItems({
@@ -1787,24 +1882,35 @@ export function DuelBoard({
     />
   );
 
+  /** The no-top-bar action row: same buttons as the phone bar, a fixed height so nothing moves when one comes or goes. */
+  const columnActions = (
+    <div className="col-actions">
+      {brief.trigger}
+      {copilot.trigger}
+      {hudUndoPass}
+      {matchMenuEl("anchor")}
+    </div>
+  );
+
   return (
     <MatchViewerSeatContext.Provider value={spectating ? null : boardSeat}>
     <PromptSlotContext.Provider value={promptSlotValue}>
+    <DonArtContext.Provider value={donArtForSeat}>
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
       }${
         tilted ? " arena-tilt" : ""
-      }${prefs.donUpright ? " don-upright" : ""}`}
+      }${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
       data-phase={view.phase}
       data-turn={view.turnNumber}
       data-seat={boardSeat}
-      style={wide && !lp ? panelResize.arenaStyle(shownPanels) : undefined}
+      style={arenaStyle}
     >
-      {lp ? null : compactHud ? (
+      {lp || noTopBar ? null : compactHud ? (
         <header className="hud-bar hud-compact">
           <div className={`hud-status${yourTurn ? " pulse" : ""}`}>
             {mulliganPhase && decidingMulligan ? null : (
@@ -1858,6 +1964,8 @@ export function DuelBoard({
             ) : null}
           </div>
           <div className="hud-actions">
+            {brief.trigger}
+            {copilot.trigger}
             {hudUndoPass}
             {matchMenuEl("top")}
           </div>
@@ -1932,6 +2040,8 @@ export function DuelBoard({
             ) : null}
           </div>
           <div className="hud-actions">
+            {brief.trigger}
+            {copilot.trigger}
             {hotseatPass ? null : <RoomChip roomId={matchId} />}
             {undo && undoState?.enabled && !spectating && !over ? (
               undoPendingMine ? (
@@ -2052,6 +2162,8 @@ export function DuelBoard({
         </button>
       ) : null}
 
+      {copilot.pill}
+
       {mulliganPhase && !spectating ? (
         <div
           className={`mulligan-banner${view.you.mulliganDone ? "" : " mulligan-banner-explainer"}`}
@@ -2080,16 +2192,28 @@ export function DuelBoard({
         {panelDrag.overlay}
         {lp ? (
           <LandscapeRail
-            open={lpPanel}
-            onToggle={(panel) => setLpPanel((cur) => (cur === panel ? null : panel))}
-            hasChat={Boolean(chat)}
+            open={brief.open ? "brief" : lpPanel}
+            onToggle={(panel) => {
+              if (panel === "brief") {
+                setLpPanel(null);
+                brief.setOpen(!brief.open);
+              } else {
+                brief.setOpen(false);
+                setLpPanel((cur) => (cur === panel ? null : panel));
+              }
+            }}
+            hasBrief={brief.shown}
+            extra={copilot.railTrigger}
+            hasChat={chatPanel != null}
             logCount={battleLog.length}
             menu={matchMenuEl("left")}
           />
         ) : wide ? (
           <aside className="arena-left board-col" data-panel-col="left" aria-label="Side panels, left">
+            {actionsSide === "left" ? columnActions : null}
+            {logPoseSide === "left" ? <div ref={setLogPoseHostL} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("left")}
-            {prefs.layoutGrips ? (
+            {prefs.layoutGrips && !bigBoard ? (
               <div className="col-resize col-resize-left" {...panelResize.columnHandleProps("left")} />
             ) : null}
           </aside>
@@ -2107,21 +2231,23 @@ export function DuelBoard({
                 rootRef={farRef}
               />
             ) : oppHandOnMat ? (
-              <div className={`opp-hand-mat opp-hand-mat-${oppHandOnMat}`}>
+              <div
+                className={`opp-hand-mat opp-hand-mat-${oppHandOnMat}${oppHandOnMat === "centre" ? "" : " opp-hand-mat-side"}`}
+              >
                 <SidePanel
                   id="oppHand"
                   dragging={panelDrag.draggingId === "oppHand"}
                   grip={prefs.layoutGrips ? panelDrag.gripProps("oppHand") : null}
                 >
-                  <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="mat" />
+                  <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="mat" cards={shownFarHand} ownerSeat={oppSeat} />
                 </SidePanel>
               </div>
             ) : oppHandRight ? (
               <div className="opp-hand-hint opp-hand-hint-right">
-                <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" />
+                <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" cards={shownFarHand} ownerSeat={oppSeat} />
               </div>
             ) : (
-              <OppHandHint count={opp.handCount} cardBackUrl={oppCardBackUrl} cards={farHand} ownerSeat={oppSeat} />
+              <OppHandHint count={opp.handCount} cardBackUrl={oppCardBackUrl} cards={shownFarHand} ownerSeat={oppSeat} />
             )}
 
             <SideField
@@ -2132,6 +2258,7 @@ export function DuelBoard({
               activeTurn={oppActive}
               matImageUrl={oppMatUrl}
               cardBackUrl={oppCardBackUrl}
+              donArtUrl={farDonUrl}
               matDim={playmatDim}
               matOpacity={playmatOpacity}
               ownerSeat={oppSeat}
@@ -2143,7 +2270,7 @@ export function DuelBoard({
                 deckCount: opp.deckCount,
                 trash: opp.trash,
                 lifeCount: opp.lifeCount,
-                faceUpLife: opp.faceUpLife,
+                faceUpLife: lifeFaceUp(oppSeat, opp.faceUpLife),
                 donDeckCount: opp.donDeckCount,
                 costAreaCount: opp.costAreaCount,
                 activeDonCount: opp.activeDonCount,
@@ -2167,21 +2294,20 @@ export function DuelBoard({
                 </div>
               ) : rotateHintShown ? (
                 <RotateHint onClose={closeRotateHint} />
-              ) : (
-                <div className="midline-ornament" aria-hidden>
-                  <span />
-                </div>
-              )}
+              ) : null}
             </div>
 
             <SideField
               side="you"
+              compact={simpleOwnBoard}
+              countRow={simpleOwnBoard}
               turnOrder={youFirst ? "first" : "second"}
               activeTurn={youActive}
               matImageUrl={skins.near.playmat}
               matDim={playmatDim}
               matOpacity={playmatOpacity}
               cardBackUrl={skins.near.cardBack}
+              donArtUrl={nearDonUrl}
               ownerSeat={boardSeat}
               viewingSeat={viewingSeat}
               data={{
@@ -2191,7 +2317,7 @@ export function DuelBoard({
                 deckCount: you.deckCount,
                 trash: you.trash,
                 lifeCount: you.lifeCount,
-                faceUpLife: you.faceUpLife,
+                faceUpLife: lifeFaceUp(boardSeat, you.faceUpLife),
                 donDeckCount: you.donDeckCount,
                 costArea: you.costArea,
                 activeDonCount: you.activeDonCount,
@@ -2210,6 +2336,7 @@ export function DuelBoard({
                       actionableIds: actionableBoardIds,
                     }
               }
+              attackReadyIds={attackReadyIds}
               attackDrag={
                 draggableAttackerIds.size > 0
                   ? {
@@ -2266,8 +2393,10 @@ export function DuelBoard({
 
         {wide && !lp ? (
           <div className="arena-rail board-col" data-panel-col="right">
+            {actionsSide === "right" ? columnActions : null}
+            {logPoseSide === "right" ? <div ref={setLogPoseHostR} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("right")}
-            {prefs.layoutGrips ? (
+            {prefs.layoutGrips && !bigBoard ? (
               <div className="col-resize col-resize-right" {...panelResize.columnHandleProps("right")} />
             ) : null}
             {/* Reserves the strip the collapsed hand dock peeks into. */}
@@ -2287,13 +2416,13 @@ export function DuelBoard({
                 name={seatLabel(players, oppSeat)}
               />
             ) : oppHandRight ? (
-              <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" />
+              <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" cards={shownFarHand} ownerSeat={oppSeat} />
             ) : (
               <OppHandFan
                 count={opp.handCount}
                 cardBackUrl={oppCardBackUrl}
                 compact
-                cards={farHand}
+                cards={shownFarHand}
                 ownerSeat={oppSeat}
               />
             )}
@@ -2323,8 +2452,25 @@ export function DuelBoard({
                     <HandLabel name={seatLabel(players, boardSeat)} count={handCount} />
                   ) : (
                     <>
-                      <span className="hand-rail-title">{spectating ? (nearHand ? "Seat hand" : "Seat hand (hidden)") : "Hand"}</span>
-                      <span className="hand-rail-count">{handCount}</span>
+                      {spectating ? (
+                        <>
+                          <span className="hand-rail-title">{nearHand ? "Seat hand" : "Seat hand (hidden)"}</span>
+                          <span className="hand-rail-count">{handCount}</span>
+                        </>
+                      ) : (
+                        // The whole title row is a Hide / Show target too (#445): it stays
+                        // put and the same size while the hand folds, unlike the small button.
+                        <button
+                          type="button"
+                          className="hand-rail-toggle"
+                          aria-expanded={!(handCollapsed && !handPick)}
+                          aria-label={`${handCollapsed && !handPick ? "Show" : "Hide"} your hand, ${handCount} cards`}
+                          onClick={toggleHandCollapsed}
+                        >
+                          <span className="hand-rail-title">Hand</span>
+                          <span className="hand-rail-count">{handCount}</span>
+                        </button>
+                      )}
                     </>
                   )}
                   {!spectating ? (
@@ -2332,14 +2478,8 @@ export function DuelBoard({
                       {sortHandBtn}
                       <button
                         type="button"
-                        className="hand-rail-btn"
-                        onClick={() => {
-                          setHandCollapsed((v) => {
-                            const next = !v;
-                            if (next) setHandFilter(null);
-                            return next;
-                          });
-                        }}
+                        className="hand-rail-btn hand-collapse-btn"
+                        onClick={toggleHandCollapsed}
                       >
                         {handCollapsed && !handPick ? "Show" : "Hide"}
                       </button>
@@ -2377,8 +2517,11 @@ export function DuelBoard({
         )}
       </div>
 
-      {lp && lpPanel ? (
-        <LandscapeOverlay panel={lpPanel} onClose={() => setLpPanel(null)}>
+      {lp && lpPanel && !(lpPanel === "chat" && chatPanel == null) ? (
+        <LandscapeOverlay
+          panel={lpPanel}
+          onClose={() => setLpPanel(null)}
+        >
           {lpPanel === "log" ? (
             <BattleLogPanel
               entries={battleLog}
@@ -2571,6 +2714,7 @@ export function DuelBoard({
         <HideablePrompt
           name="Order effects"
           dodge={promptBattle}
+          dockable={wide && !lp}
           hidden={isPromptHidden(hiddenChoiceId, view.pendingChoices[0].id)}
           onShow={() => setHiddenChoiceId(null)}
         >
@@ -2593,6 +2737,7 @@ export function DuelBoard({
         <HideablePrompt
           name={promptSourceName(view.pendingChoices[0])}
           dodge={promptBattle}
+          dockable={wide && !lp}
           hidden={isPromptHidden(hiddenChoiceId, view.pendingChoices[0].id)}
           onShow={() => setHiddenChoiceId(null)}
         >
@@ -2670,7 +2815,7 @@ export function DuelBoard({
         <DonAttachConfirm
           pending={pendingAttach}
           targetName={pendingAttachName}
-          onConfirm={confirmAttach}
+          onConfirm={() => confirmAttach()}
           onCancel={clearDonSelection}
         />
       ) : null}
@@ -2717,6 +2862,7 @@ export function DuelBoard({
                 mySeat={boardSeat}
                 players={players}
                 autoAccept={rematch.autoAccept}
+                deckOptions={rematch.deckOptions}
                 onAction={rematch.onAction}
               />
             ) : null}
@@ -2727,6 +2873,7 @@ export function DuelBoard({
         </div>
       ) : null}
     </div>
+    </DonArtContext.Provider>
     </PromptSlotContext.Provider>
     </MatchViewerSeatContext.Provider>
   );

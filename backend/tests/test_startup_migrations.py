@@ -12,7 +12,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app import db as app_db
-from app.models import AnalystMatchReview, Deck, DuelMatch, GroupBuy, User
+from app.models import AnalystAccess, AnalystMatchReview, AnalystUsage, Deck, DuelMatch, GroupBuy, User
 from tests.db_support import make_bare_engine, requires_postgres, using_postgres
 
 _PK = "SERIAL" if using_postgres() else "INTEGER"
@@ -44,8 +44,18 @@ _LEGACY_DDL = [
     f"""CREATE TABLE analyst_match_reviews (
         user_id INTEGER NOT NULL REFERENCES users (id), match_id VARCHAR(64) NOT NULL,
         text TEXT NOT NULL, created_at {_TS}, PRIMARY KEY (user_id, match_id))""",
+    # analyst_usage / analyst_access before the analytics, credit and free-spot columns (#446)
+    f"""CREATE TABLE analyst_usage (
+        id {_PK} PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users (id), kind VARCHAR(16) NOT NULL,
+        model VARCHAR(64), input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER,
+        cache_write_tokens INTEGER, cost_usd FLOAT, created_at {_TS})""",
+    f"""CREATE TABLE analyst_access (
+        id {_PK} PRIMARY KEY, user_id INTEGER NOT NULL UNIQUE REFERENCES users (id), status VARCHAR(16),
+        note VARCHAR(500), created_at {_TS}, updated_at {_TS}, decided_at {_TS})""",
     "INSERT INTO users (email, name, google_sub) VALUES ('old@example.com', 'Old', 'sub-old')",
     "INSERT INTO decks (user_id, name, leader_card_id, sort_order) VALUES (1, 'Red Luffy', 'OP01-001', 0)",
+    "INSERT INTO analyst_usage (user_id, kind, model, cost_usd) VALUES (1, 'chat', 'claude-sonnet-5-5', 0.07)",
+    "INSERT INTO analyst_access (user_id, status, note) VALUES (1, 'approved', 'hi')",
     "INSERT INTO group_buys (host_user_id, title, status, invite_token) VALUES (1, 'Old pool', 'open', 'tok-old')",
     "INSERT INTO analyst_match_reviews (user_id, match_id, text) VALUES (1, 'old-match', 'You lost on turn 4.')",
     "INSERT INTO duel_matches (match_id, seat0_user_id, seat1_user_id, winner_seat, reason, ranked, "
@@ -106,9 +116,21 @@ def test_an_old_review_gets_a_citations_column_and_reads_back_without_sources(le
         assert (review.match_id, review.text, review.citations) == ("old-match", "You lost on turn 4.", None)
 
 
+def test_old_usage_and_access_rows_read_back_with_the_credit_defaults_446(legacy_engine):
+    """Rows from before #446 keep their cost and approval; the new columns read as an ok chat, the default credit and no spot used."""
+    app_db.init_db()
+    with Session(legacy_engine) as db:
+        usage = db.query(AnalystUsage).one()
+        assert (usage.cost_usd, usage.outcome, usage.refusal, usage.thread_id, usage.tool_calls, usage.duration_ms) == (0.07, "ok", None, None, 0, 0)
+        access = db.query(AnalystAccess).one()
+        assert (access.status, access.credit_usd, access.auto_approved, access.topup_usd, access.topup_month, access.topup_requested_at) == (
+            "approved", None, False, 0.0, None, None,
+        )
+
+
 def test_every_current_model_column_exists_after_migration(legacy_engine):
     app_db.init_db()
-    for model in (User, Deck, GroupBuy, DuelMatch):
+    for model in (User, Deck, GroupBuy, DuelMatch, AnalystUsage, AnalystAccess):
         table = model.__table__
         assert set(table.columns.keys()) <= set(_columns(legacy_engine, table.name)), table.name
 

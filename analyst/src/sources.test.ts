@@ -6,7 +6,9 @@ import { adaptToolResult, deckSourceId, gameResults, groupTurns, recordSentence,
 const catalog = loadCatalog();
 
 const results = (blocks: ToolContent[] | null) => (blocks ?? []).filter((b): b is SearchResultBlock => b.type === "search_result");
-const sources = (blocks: ToolContent[] | null) => results(blocks).map((b) => b.source);
+const allSources = (blocks: ToolContent[] | null) => results(blocks).map((b) => b.source);
+/** The sources a tool's facts got, leaving out the note: source its loose notes are folded into (#394). */
+const sources = (blocks: ToolContent[] | null) => allSources(blocks).filter((s) => !s.startsWith("note:"));
 const texts = (b: SearchResultBlock) => b.content.map((c) => c.text);
 const adapt = (tool: string, value: unknown) => adaptToolResult(tool, JSON.stringify(value));
 
@@ -64,6 +66,23 @@ describe("tool answers as citable sources (#390)", () => {
     }
   });
 
+  it("quotes the opponent's opening hand in a review overview only when the game revealed it (#472)", () => {
+    const overview = (g: object) => texts(gameResults("match", "m1", g)[0]!);
+    expect(overview({ ...GAME, opponentOpeningHand: ["Lucci", "Kaku"] })).toContain("Opponent's opening hand (revealed after the game): Lucci, Kaku.");
+    expect(overview(GAME).join(" ")).not.toContain("Opponent's opening hand");
+  });
+
+  it("quotes the deck lists in the overview of a review and of a corpus game (#472)", () => {
+    const overview = (prefix: "match" | "game", g: object) => texts(gameResults(prefix, "x1", g)[0]!).join("\n");
+    const mine = overview("match", { ...GAME, yourDeck: [{ id: "OP01-001", name: "Roronoa Zoro", copies: 1 }, { id: "OP01-016", name: "Nami", copies: 4 }] });
+    expect(mine).toContain("Your deck list: 1x Roronoa Zoro (OP01-001), 4x Nami (OP01-016).");
+    expect(mine).not.toContain("Opponent's deck list");
+    expect(overview("match", { ...GAME, opponentDeck: [{ id: "OP02-001", name: "Rob Lucci", copies: 3 }] })).toContain("Opponent's deck list (revealed after the game): 3x Rob Lucci (OP02-001).");
+    const corpus = overview("game", { leaders: { A: "Zoro", B: "Lucci" }, wentFirst: "A", decks: { A: [{ id: "OP01-016", name: "Nami", copies: 2 }], B: [{ id: "OP02-001", name: "Rob Lucci", copies: 3 }] }, log: [] });
+    expect(corpus).toContain("Player A deck list: 2x Nami (OP01-016).");
+    expect(corpus).toContain("Player B deck list: 3x Rob Lucci (OP02-001).");
+  });
+
   it("drops blank facts and gives no source at all when nothing is left to quote (#390)", () => {
     expect(searchResult("card:X", "X", ["a", "  ", "", null, undefined, false, " b "])!.content.map((c) => c.text)).toEqual(["a", "b"]);
     expect(searchResult("card:X", "X", ["  ", null])).toBeNull();
@@ -81,7 +100,7 @@ describe("tool answers as citable sources (#390)", () => {
     expect(texts(rule!)).toEqual(["6-5-3 Blocker activates when attacked.", "6-5-3-1 Rest this card."]);
     expect(qa!.source).toMatch(/^ruling:general#[0-9a-f]{8}$/);
     expect(texts(qa!)).toEqual(["Q: Can I block twice?", "A: No. Only once per battle. Choose one."]);
-    expect(blocks!.at(-1)).toMatchObject({ type: "text" });
+    expect(blocks!.at(-1)).toMatchObject({ type: "search_result", source: "note:rules_lookup" });
   });
 
   it("numbers a card's official rulings ruling:<card>#<n> and keeps errata and ban status as their own sources (#390)", () => {
@@ -138,6 +157,111 @@ describe("tool answers as citable sources (#390)", () => {
     expect(texts(results(overall)[0]!)[0]).toBe("Play share: 25.0% of recorded games.");
   });
 
+  it("puts tournament records under tourney:, apart from the stats: sources of optcgduel.app games, in the record sentence format (#397)", () => {
+    const rec = (games: number, wins: number, ties = 0) => ({ games, wins, win_rate: wins / games, interval: [0.3, 0.7], too_few_games: false, ties });
+    const meta = { source: "Limitless TCG tournaments", days: 30, min_players: 8 };
+    const leader = adapt("tournament_stats", {
+      ...meta,
+      leader: "OP01-001",
+      leader_name: "Zoro",
+      events: [{ id: "e1", name: "Cup", date: "2026-10-01", players: 32 }],
+      meta: { decks: 7, total_decks: 28, share: 0.25 },
+      overall: rec(40, 22, 2),
+      mirror_games: 3,
+      opponents: [
+        { opponent: "OP02-001", opponent_name: "Whitebeard", ...rec(10, 6) },
+        { opponent: "OP03-001", games: 2, wins: null, win_rate: null, interval: null, too_few_games: true, ties: 0 },
+      ],
+      decklists: 6,
+      too_few_decks: false,
+      cards: [{ id: "OP01-016", id_name: "Nami", decks: 5, rate: 0.833, average_copies: 3.8 }],
+      top_placings: [],
+    });
+    expect(sources(leader)).toEqual(["tourney:OP01-001", "tourney:OP01-001~OP02-001", "tourney:OP01-001~OP03-001", "tourney:OP01-001#OP01-016"]);
+    const overall = texts(results(leader)[0]!);
+    expect(overall).toContain("Meta share: 25.0% of tournament decks (7 of 28 decks in 1 events).");
+    expect(overall).toContain("Tournament record against other leaders: 55.0% win rate, 22 wins in 40 games (95% interval 30.0% to 70.0%).");
+    expect(overall).toContain("Ties not counted as games: 2.");
+    expect(overall).toContain("Mirror matches: 3 games, left out of the record.");
+    expect(overall.at(-1)).toMatch(/Limitless TCG tournament results.*last 30 days.*not games from optcgduel\.app/);
+    expect(texts(results(leader)[1]!)[0]).toBe("Tournament record: 60.0% win rate, 6 wins in 10 games (95% interval 30.0% to 70.0%).");
+    expect(texts(results(leader)[2]!)[0]).toBe("Tournament record: too few games (2) for a win rate.");
+    expect(texts(results(leader)[3]!)[0]).toBe("Included in 83.3% of 6 Limitless decklists (5 decks), average 3.8 copies.");
+
+    const few = adapt("tournament_stats", { ...meta, leader: "OP01-001", events: [], meta: { decks: 3, total_decks: 9, share: 0.3 }, overall: rec(10, 5), opponents: [], decklists: 3, too_few_decks: true, cards: [{ id: "OP01-016", decks: 2, rate: 0.667, average_copies: 4 }], top_placings: [] });
+    expect(texts(results(few)[1]!)).toContain("Only 3 decklists, too few to call this a trend.");
+    expect(texts(results(leader)[3]!).join(" ")).not.toContain("too few");
+
+    const matchup = adapt("tournament_stats", { ...meta, leader: "OP01-001", opponent: "OP02-001", ...rec(10, 6) });
+    expect(sources(matchup)).toEqual(["tourney:OP01-001~OP02-001"]);
+    const mirror = adapt("tournament_stats", { ...meta, leader: "OP01-001", opponent: "OP01-001", mirror: true, games: 3 });
+    expect(texts(results(mirror)[0]!)[0]).toMatch(/^Mirror match: 3 tournament games.*no win rate/);
+  });
+
+  it("ranks the meta overview with its minimum sample and gives each leader a meta share (#397)", () => {
+    const rec = (games: number, wins: number) => ({ games, wins, win_rate: wins / games, interval: [0.4, 0.8], too_few_games: false, ties: 0 });
+    const blocks = adapt("tournament_stats", {
+      source: "Limitless TCG tournaments",
+      days: 30,
+      min_players: 8,
+      events: [{ id: "e1" }, { id: "e2" }],
+      total_decks: 100,
+      total_games: 300,
+      leaders: [{ leader: "OP01-001", leader_name: "Zoro", decks: 20, share: 0.2, ...rec(60, 36) }],
+      top_win_rate: [{ leader: "OP01-001", leader_name: "Zoro", ...rec(60, 36) }],
+      top_win_rate_min_games: 20,
+    });
+    expect(sources(blocks)).toEqual(["tourney:meta", "tourney:OP01-001"]);
+    expect(texts(results(blocks)[0]!)[0]).toBe("100 decks and 300 finished games from 2 events.");
+    expect(texts(results(blocks)[0]!)[1]).toBe("Top win rate 1, Zoro (OP01-001) (at least 20 games): 60.0% win rate, 36 wins in 60 games (95% interval 40.0% to 80.0%).");
+    expect(texts(results(blocks)[1]!)[0]).toBe("Meta share: 20.0% of tournament decks (20 decks).");
+  });
+
+  it("makes an event: source of each event a leader placed at, with the finish, record and decklist (#397)", () => {
+    const blocks = adapt("tournament_stats", {
+      source: "Limitless TCG tournaments",
+      days: 30,
+      min_players: 8,
+      leader: "OP01-001",
+      leader_name: "Zoro",
+      events: [],
+      meta: { decks: 1, total_decks: 2, share: 0.5 },
+      overall: { games: 0, wins: null, win_rate: null, interval: null, too_few_games: true, ties: 0 },
+      mirror_games: 0,
+      opponents: [],
+      cards: [],
+      top_placings: [
+        { event_id: "6abc", event: "ChinoizeCup #119", date: "2026-10-06", players: 64, placing: 1, record: { wins: 6, losses: 0, ties: 0 }, decklist: { "OP01-006": 3, "OP01-016": 4 } },
+        { event_id: "6abc", event: "ChinoizeCup #119", date: "2026-10-06", players: 64, placing: 12, record: { wins: 4, losses: 1, ties: 1 }, decklist: {} },
+      ],
+    });
+    expect(sources(blocks)).toEqual(["tourney:OP01-001", "event:6abc"]);
+    const event = results(blocks)[1]!;
+    expect(event.title).toBe("ChinoizeCup #119, 2026-10-06");
+    expect(texts(event)).toEqual([
+      "ChinoizeCup #119: 2026-10-06, 64 players.",
+      "Zoro (OP01-001) finished 1st (6-0).",
+      "Decklist: 4xOP01-016, 3xOP01-006.",
+      "Zoro (OP01-001) finished 12th (4-1-1).",
+      expect.stringMatching(/^Source: Limitless TCG/),
+    ]);
+  });
+
+  it("offers tournament_stats beside matchup_stats only when the planner API is configured, and asks for tournament data (#397)", async () => {
+    expect(buildTools(catalog).map((t) => t.name)).not.toContain("tournament_stats");
+    const urls: string[] = [];
+    const fetchImpl = (async (url: string) => {
+      urls.push(url);
+      return new Response(JSON.stringify({ source: "Limitless TCG tournaments", days: 30, min_players: 8, leader: "OP01-001", opponent: "OP02-001", games: 12, wins: 6, win_rate: 0.5, interval: [0.25, 0.75], too_few_games: false }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const api = { baseUrl: "https://api.test", serviceSecret: "svc", fetchImpl };
+    const tools = buildTools(catalog, undefined, undefined, { stats: api });
+    expect(tools.map((t) => t.name)).toEqual(expect.arrayContaining(["matchup_stats", "tournament_stats"]));
+    const out = await tools.find((t) => t.name === "tournament_stats")!.run({ leader: "OP01-001", opponent: "OP02-001", minPlayers: 16 });
+    expect(urls).toEqual(["https://api.test/analyst/tournaments/stats?leader=OP01-001&opponent=OP02-001&min_players=16"]);
+    expect(allSources(adaptToolResult("tournament_stats", out.content[0]!.text))).toEqual(["tourney:OP01-001~OP02-001"]);
+  });
+
   it("titles a playbook note with whether a player reviewed it and the set it was written for (#390)", () => {
     const meta = (status: string, stale: boolean) => ({ leader: "OP13-004", name: "Sabo", format: "OP17", status, stale });
     const leader = adapt("playbook", { currentFormat: "OP18", leader: meta("draft", true), sections: { "Game plan": "Go wide.\nPressure every turn.", Mulligan: "- Keep Saul." }, notes: [] });
@@ -161,11 +285,18 @@ describe("tool answers as citable sources (#390)", () => {
     expect(results(vs)[1]!.title).toBe("Whitebeard vs Sabo playbook (Draft, OP17)");
   });
 
-  it("makes the playbook's general principles a playbook:general source and keeps the leader index as plain text (#390)", () => {
+  it("makes the playbook's general principles a playbook:general source and keeps the leader index as a note (#390)", () => {
     const blocks = adapt("playbook", { currentFormat: "OP17", notes: [{ leader: "OP13-004", name: "Sabo", status: "draft", format: "OP17", stale: false }], general: { Mulligan: "Keep a 2-drop." } });
-    expect(sources(blocks)).toEqual(["playbook:general"]);
-    expect(blocks!.at(-1)).toMatchObject({ type: "text" });
-    expect((blocks!.at(-1) as { text: string }).text).toContain("OP13-004 Sabo (draft, OP17)");
+    expect(allSources(blocks)).toEqual(["playbook:general", "note:playbook"]);
+    expect(texts(results(blocks).at(-1)!).join(" ")).toContain("OP13-004 Sabo (draft, OP17)");
+  });
+
+  it("sends a tool result made only of search results, with its notes as one note: source, since the API refuses a mix (#394)", () => {
+    const blocks = adapt("playbook", { currentFormat: "OP17", notes: [{ leader: "OP13-004", name: "Sabo", status: "draft", format: "OP17", stale: false }], general: { Mulligan: "Keep a 2-drop." } });
+    expect(blocks!.every((b) => b.type === "search_result")).toBe(true);
+    const hits = adapt("search_matches", { total: 40, offset: 0, window_days: 30, games: Array.from({ length: 30 }, (_, i) => ({ game_id: `g_${i}`, turns: 5, A: { leader: "OP01-001", won: true }, B: { leader: "OP02-001", won: false } })) });
+    expect(hits!.every((b) => b.type === "search_result")).toBe(true);
+    expect(allSources(hits).filter((s) => s === "note:search_matches")).toHaveLength(1);
   });
 
   it("gives a saved lesson its own lesson: source (#390)", () => {
@@ -243,6 +374,35 @@ describe("tool answers as citable sources (#390)", () => {
     expect(texts(results(first)[0]!)).toContain("By turn 2: 55.5% to have seen at least 2 (going first).");
   });
 
+  it("makes a goldfish run one sim: source with a sentence per turn and the engine-support warning (#402)", () => {
+    const fixture = {
+      sourceId: "sim:1a2b3c4d",
+      deck: { name: "Red Zoro", leader: { id: "OP01-001", name: "Roronoa Zoro" }, mainDeckCount: 50 },
+      setup: { runs: 100, runsRequested: 100, truncated: false, goingFirst: true, turns: 5, opponent: { life: 4, power: 5000 }, mulligan: "auto", keepCards: [], line: "auto", seed: 1 },
+      lethal: {
+        wins: 37,
+        byTurn: [
+          { turn: 1, wins: 0, percent: 0, interval: [0, 3.7] },
+          { turn: 5, wins: 37, percent: 37, interval: [28.2, 46.8] },
+        ],
+        fastestWinTurn: 4,
+        medianWinTurn: 5,
+      },
+      openingHand: { mulligans: 10, mulliganPercent: 10, keepCardPercent: null },
+      curve: [],
+      cards: [],
+      example: null,
+      support: { complete: false, flagged: [{ id: "OP09-001", name: "Some Leader", support: "partial" }], runsAffected: 23 },
+      errors: { runs: 0, first: null },
+      notes: ["Turn N means your own Nth turn."],
+    };
+    const blocks = adapt("simulate", fixture);
+    expect(sources(blocks)).toEqual(["sim:1a2b3c4d", "sim:1a2b3c4d#curve"]);
+    const facts = texts(results(blocks)[0]!);
+    expect(facts).toContain("Won by your turn 5 in 37 of 100 games (37.0%, 95% interval 28.2% to 46.8%).");
+    expect(facts.some((f) => f.includes("not fully supported") && f.includes("23 of 100 games"))).toBe(true);
+  });
+
   it("splits a long paragraph into sentences and a bullet list into its items (#390)", () => {
     expect(splitFacts("- one\n- two")).toEqual(["one", "two"]);
     const long = `${"Alpha beta gamma. ".repeat(14)}Last one.`;
@@ -250,5 +410,35 @@ describe("tool answers as citable sources (#390)", () => {
     expect(parts.length).toBe(15);
     expect(parts.at(-1)).toBe("Last one.");
     expect(splitFacts("Short sentence. Another short one.")).toEqual(["Short sentence. Another short one."]);
+  });
+});
+
+describe("suggested deck edits as a source (#400)", () => {
+  const proposal = {
+    version: 1,
+    target: { ref: "duel:d1", name: "Luffy", leader_id: "ST01-001" },
+    summary: "Tune",
+    lines: [
+      { id: "ST01-016", name: "Diable Jambe", before: 0, after: 2, reason: "Cheaper" },
+      { id: "ST01-015", name: "Gum-Gum Jet Pistol", before: 2, after: 0, reason: "Too slow" },
+    ],
+    base: [{ id: "ST01-015", copies: 2 }, { id: "ST01-003", copies: 4 }],
+    legality: { legal: false, count: 49, problems: ["49 of 50 cards"], upcoming: ["ST01-003 is banned. (from 2031-01-01)"], ban_list_checked: true },
+  };
+
+  it("sends a deck edit back to the model as one cited deck source (#400)", () => {
+    const blocks = adapt("propose_deck_edit", proposal);
+    expect(blocks!.every((b) => b.type === "search_result")).toBe(true);
+    const [one] = results(blocks);
+    expect(results(blocks)).toHaveLength(1);
+    expect(one!.source).toBe(deckSourceId("ST01-001", [{ id: "ST01-003", copies: 4 }, { id: "ST01-016", copies: 2 }]));
+    expect(one!.title).toBe("Suggested edit: Luffy");
+    expect(texts(one!)).toEqual([
+      "Shown to the player as an Apply card; nothing has changed yet.",
+      "+2 Diable Jambe (ST01-016): Cheaper",
+      "-2 Gum-Gum Jet Pistol (ST01-015): Too slow",
+      "After the change: 49 cards. Still not legal: 49 of 50 cards.",
+      "Ban list: ST01-003 is banned. (from 2031-01-01)",
+    ]);
   });
 });

@@ -1,10 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
 import type { BoardWaiting } from "../board/PendingBoard";
+import { MovedElsewhereOverlay } from "../board/MovedElsewhereOverlay";
 import { BountyAmount } from "../Bounty";
 import { useFriends } from "../friends/FriendsPanel";
 import { pollsInvitesWhileWaiting, type FriendInvite } from "../friends/friendsApi";
+import { rematchDeckOptions } from "../decks/rematchDecks";
+import { setSelectedDeckId } from "../decks/storage";
 import { fetchMatchDetail } from "../history/historyApi";
 import { useDuelSession } from "../state/DuelSession";
 
@@ -18,6 +21,8 @@ export function DuelPage() {
     launching,
     queueing,
     connected,
+    takenOver,
+    takeOver,
     canReconnect,
     resuming,
     reconnecting,
@@ -34,6 +39,8 @@ export function DuelPage() {
     leave,
     clearError,
     role,
+    ranked,
+    brief,
     battleLog,
     timer,
     chat,
@@ -46,6 +53,7 @@ export function DuelPage() {
     rematch,
     sendRematch,
   } = useDuelSession();
+  const deckOptions = useMemo(() => rematchDeckOptions(), []);
 
 
   const leftRef = useRef(false);
@@ -121,14 +129,29 @@ export function DuelPage() {
         players={players}
         timer={timer}
         spectator={role === "spectator" || Boolean(view?.spectator)}
+        matchBrief={role === "player" ? { brief, ranked } : undefined}
         battleLog={battleLog}
         vsHuman
         chat={{ lines: chat, onSend: sendChat }}
         onConcede={connected && role === "player" ? () => concede() : undefined}
         onHandOrder={connected && role === "player" ? sendHandOrder : undefined}
         undo={role === "player" ? { state: undo, onAction: sendUndo } : undefined}
-        onSendIntent={sendIntent}
-        rematch={role === "player" ? { state: rematch, onAction: sendRematch } : undefined}
+        onSendIntent={takenOver ? () => undefined : sendIntent}
+        rematch={
+          role === "player"
+            ? {
+                state: rematch,
+                deckOptions,
+                onAction: (action, decks) => {
+                  const deck = seat === 0 || seat === 1 ? decks?.[seat] : undefined;
+                  sendRematch(action, deck);
+                  // Remember the pick so the lobby defaults to it next time.
+                  const picked = deck ? deckOptions.find((o) => o.wire === deck) : undefined;
+                  if (picked) setSelectedDeckId(picked.id);
+                },
+              }
+            : undefined
+        }
         loadMatchRecord={role === "player" ? loadMatchRecord : undefined}
         seatSkins={seatSkins}
         opponentAwayUntil={seat === 0 || seat === 1 ? awayUntil[seat === 0 ? 1 : 0] : null}
@@ -140,6 +163,15 @@ export function DuelPage() {
         }}
         onClearError={clearError}
       />
+      {takenOver && matchId && (seat === 0 || seat === 1) ? (
+        <MovedElsewhereOverlay
+          onPlayHere={() => takeOver(matchId, seat)}
+          onLeave={() => {
+            void leave();
+            navigate("/", { replace: true });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

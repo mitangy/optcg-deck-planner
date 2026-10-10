@@ -3,7 +3,7 @@
  * a bad or finished room says so back in the lobby.
  */
 import type { BrowserContext, Page } from "@playwright/test";
-import { test, expect, mintGameToken, FAKE_API, RED_VANILLA } from "./fixtures";
+import { test, expect, mintGameToken, FAKE_API, GAME_SERVER, RED_VANILLA } from "./fixtures";
 
 const NEAR_HAND = ":is(.rail-hand-cards, .hand-row-inner, .hand-fan-cards, .hand-dock-cards) .card-tile";
 const FAR_HAND = ":is(.spec-far-cards .card-tile, .opp-fan-face, .opp-hand-face) >> visible=true";
@@ -81,7 +81,7 @@ test("a spectator who arrives before the match starts sees waiting, not an error
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Play", exact: true }).click();
-  await page.getByRole("button", { name: /^Private room/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
   await page.getByRole("button", { name: "Create room" }).click();
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
   const roomId = (body.room?.roomId ?? body.roomId)!;
@@ -235,7 +235,7 @@ test.describe("landscape phone", () => {
     });
     await page.goto("/");
     await page.getByRole("button", { name: "Play", exact: true }).click();
-    await page.getByRole("button", { name: /^Private room/ }).click();
+    await page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
     await page.getByRole("button", { name: "Create room" }).click();
     await expect(page.locator(".room-invite-id")).toBeVisible({ timeout: 30_000 });
     // The waiting board used to drop its mat (and the card on it) into the 44px icon-rail column.
@@ -449,13 +449,13 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
   // Two real online players in a private room (practice is hotseat and sends no hand order).
   const host = await newPlayer(browser, info.project.use, 21, "host");
   const created = host.page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
-  await host.page.route("http://127.0.0.1:2567/matchmake/create/**", (route) => {
+  await host.page.route(`${GAME_SERVER}/matchmake/create/**`, (route) => {
     const body = JSON.parse(route.request().postData() ?? "{}");
     return route.continue({ postData: JSON.stringify({ ...body, seed: 7 }) });
   });
   await host.page.goto("/");
   await host.page.getByRole("button", { name: "Play", exact: true }).click();
-  await host.page.getByRole("button", { name: /^Private room/ }).click();
+  await host.page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
   await host.page.getByRole("button", { name: "Create room" }).click();
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
   const roomId = (body.room?.roomId ?? body.roomId)!;

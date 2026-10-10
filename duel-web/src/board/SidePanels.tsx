@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import {
   PANEL_LABELS,
   matSpotAt,
+  MAT_SIDE_MIN_ASPECT,
   movePanel,
   nudgePanel,
   panelDropAt,
@@ -41,7 +42,9 @@ function measure(root: HTMLElement) {
   for (const col of root.querySelectorAll<HTMLElement>("[data-panel-col]")) {
     const column = col.dataset.panelCol as PanelColumn;
     const r = col.getBoundingClientRect();
-    columns[column] = { left: r.left, right: r.right, top: r.top };
+    // An empty column's drop line goes under the action row (no top bar), not over it.
+    const actions = col.querySelector<HTMLElement>(":scope > .col-actions");
+    columns[column] = { left: r.left, right: r.right, top: actions ? actions.getBoundingClientRect().bottom : r.top };
     for (const p of col.querySelectorAll<HTMLElement>(":scope > [data-panel]")) {
       const pr = p.getBoundingClientRect();
       panels.push({ id: p.dataset.panel as PanelId, column, top: pr.top, bottom: pr.bottom });
@@ -82,11 +85,25 @@ export function usePanelDrag(
       const matEl = latest.current.matPin?.id === id ? root.querySelector<HTMLElement>("[data-mat-drop]") : null;
       if (matEl) {
         const r = matEl.getBoundingClientRect();
-        const spot = matSpotAt(r, x, y);
+        // Open space beside the opponent's mat is where left / right sit; a
+        // narrow or tilted board has none and falls back to the top strip.
+        const inner = matEl.querySelector<HTMLElement>(".playmat-inner");
+        const roomy =
+          inner != null &&
+          !matEl.closest(".arena-tilt") &&
+          inner.clientWidth >= inner.clientHeight * MAT_SIDE_MIN_ASPECT;
+        const gutter = roomy ? matEl.querySelector<HTMLElement>(".side-field.side-opp")?.getBoundingClientRect() : undefined;
+        const spot = matSpotAt(r, x, y, gutter);
         if (spot) {
-          const width = r.width / 3;
-          const left = r.left + (spot === "left" ? 0 : spot === "centre" ? width : 2 * width);
-          mat = { spot, left, top: r.top, width, height: Math.min(r.height * 0.2, 96) };
+          if (gutter && spot !== "centre") {
+            const left = spot === "left" ? r.left : gutter.right;
+            const width = spot === "left" ? gutter.left - r.left : r.right - gutter.right;
+            mat = { spot, left, top: gutter.top, width, height: gutter.bottom - gutter.top };
+          } else {
+            const width = r.width / 3;
+            const left = r.left + (spot === "left" ? 0 : spot === "centre" ? width : 2 * width);
+            mat = { spot, left, top: r.top, width, height: Math.min(r.height * 0.2, 96) };
+          }
         }
       }
       setDrag({ id, x, y, drop, line: { left: col.left, width: col.right - col.left, top }, mat });

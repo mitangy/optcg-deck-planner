@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { CitedAnswer, Markdown, messageContext, parseSource, type PlacedCitation } from "@optcg/analyst-client";
-import { deckContext, reviewMode, showsLogPose, sourceHref } from "./logPose";
+import { CitedAnswer, DeckEditCard, Markdown, messageContext, parseProposal, parseSource, RequestAccessView, type DeckEditor, type PlacedCitation } from "@optcg/analyst-client";
+import { HintActions } from "@optcg/deck-analytics/ui";
+import { boardOpensLogPose, deckContext, logPoseChromeFor, reviewMode, setBoardBrief, setBoardCopilot, showsLogPose, sourceHref } from "./logPose";
 
 describe("Log Pose compass placement (#377)", () => {
   it("stays off every route that renders a board (#377)", () => {
@@ -17,9 +18,10 @@ describe("Log Pose compass placement (#377)", () => {
 
 describe("Log Pose page context (#377)", () => {
   it("sends the deck being edited as one entry per card with its copies (#377)", () => {
-    const ctx = deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100", "OP05-100", "OP05-101", "OP05-100"] });
+    const ctx = deckContext({ id: "d-1", name: "Enel", leaderId: "OP05-098", cards: ["OP05-100", "OP05-100", "OP05-101", "OP05-100"] });
     expect(ctx).toEqual({
       name: "Enel",
+      ref: "duel:d-1",
       leaderId: "OP05-098",
       cards: [
         { id: "OP05-100", copies: 3 },
@@ -29,9 +31,54 @@ describe("Log Pose page context (#377)", () => {
   });
 
   it("leaves the deck out of the next message after the chip's × is pressed, keeping the page id (#377)", () => {
-    const page = { page: "deck-editor", label: "Enel", deck: deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"] }) };
+    const page = { page: "deck-editor", label: "Enel", deck: deckContext({ id: "d-1", name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"] }) };
     expect(messageContext(page, false)).toEqual({ page: "deck-editor", deck: page.deck });
     expect(messageContext(page, true)).toEqual({ page: "deck-editor" });
+  });
+});
+
+describe("Log Pose Apply card (#400)", () => {
+  const wire = {
+    id: "t1",
+    version: 1,
+    target: { ref: "duel:d-1", name: "Luffy", leader_id: "ST01-001" },
+    summary: "Trim the slow event",
+    lines: [
+      { id: "ST01-016", name: "Diable Jambe", before: 0, after: 2, reason: "Cheaper trade for the same effect" },
+      { id: "ST01-015", name: "Gum-Gum Jet Pistol", before: 2, after: 0, reason: "Too slow on turn two" },
+    ],
+    base: [{ id: "ST01-015", copies: 2 }],
+    legality: { legal: false, count: 49, problems: ["49 of 50 cards"], upcoming: [], ban_list_checked: true },
+  };
+  const editor: DeckEditor = { ref: "duel:d-1", cards: [{ id: "ST01-015", copies: 2 }], apply: async () => {} };
+
+  it("shows each change with its reason and the legality result (#400)", () => {
+    const html = renderToStaticMarkup(<DeckEditCard proposal={parseProposal(wire)!} editor={editor} />);
+    expect(html).toContain("Suggested edit · Luffy");
+    expect(html).toContain("Cheaper trade for the same effect");
+    expect(html).toContain("Too slow on turn two");
+    expect(html).toContain("Still not legal:");
+    expect(html).toContain("49 of 50 cards");
+    expect(html).toContain(">Apply<");
+    const ok = renderToStaticMarkup(<DeckEditCard proposal={parseProposal({ ...wire, legality: { ...wire.legality, legal: true, count: 50, problems: [] } })!} editor={editor} />);
+    expect(ok).toContain("Legal after this change · 50 cards");
+  });
+});
+
+describe("Why? on a build hint (#399)", () => {
+  const actions = (onAsk?: () => void) => renderToStaticMarkup(<HintActions dismissed={false} onDismiss={() => {}} onRestore={() => {}} onAsk={onAsk} />);
+
+  it("shows Why? in a hint's popover only when Log Pose can answer (#399)", () => {
+    expect(actions()).not.toContain("Ask Log Pose");
+    expect(actions()).toContain("Dismiss");
+    const withAsk = actions(() => {});
+    expect(withAsk).toContain("Why? Ask Log Pose");
+    expect(withAsk.indexOf("Why? Ask Log Pose")).toBeLessThan(withAsk.indexOf("Dismiss"));
+  });
+
+  it("tells Log Pose the planner deck a duel deck is linked to (#399)", () => {
+    expect(deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"], plannerDeckId: 42 }).plannerDeckId).toBe(42);
+    expect(deckContext({ name: "Enel", leaderId: "OP05-098", cards: ["OP05-100"] })).not.toHaveProperty("plannerDeckId");
   });
 });
 
@@ -126,5 +173,76 @@ describe("sources in a Log Pose answer (#390)", () => {
     expect(sourceHref(parseSource("match:a%b/c#t2"))).toBe("/history/a%25b%2Fc#turn-2");
     expect(sourceHref(parseSource("game:g_9#t3"))).toBeNull();
     expect(sourceHref(parseSource("card:OP01-001"))).toBeNull();
+  });
+});
+
+describe("Log Pose on boards with a matchup brief (#401)", () => {
+  it("Log Pose stays hidden on a board unless a brief is up, and never shows its compass there (#401)", () => {
+    for (const path of ["/duel", "/hotseat", "/demo"]) {
+      expect(logPoseChromeFor(path, false), path).toEqual({ hidden: true, launcher: false });
+      // With a brief up the panel may open (from "Ask Log Pose"), but the compass is not drawn on a board.
+      expect(logPoseChromeFor(path, true), path).toEqual({ hidden: false, launcher: false });
+    }
+    // Everywhere else Log Pose is as before.
+    for (const path of ["/", "/decks", "/history"]) {
+      expect(logPoseChromeFor(path, false), path).toEqual({ hidden: false, launcher: true });
+    }
+  });
+});
+
+describe("Log Pose on boards with the copilot (#416)", () => {
+  it("the panel opens over a board while the copilot or a brief is up, and closes only when neither is (#416)", () => {
+    expect(boardOpensLogPose()).toBe(false);
+    setBoardCopilot(true);
+    expect(boardOpensLogPose()).toBe(true);
+    setBoardBrief(true);
+    setBoardCopilot(false);
+    // The brief unmounting must not take the copilot's permission with it, nor the reverse.
+    expect(boardOpensLogPose()).toBe(true);
+    setBoardCopilot(true);
+    setBoardBrief(false);
+    expect(boardOpensLogPose()).toBe(true);
+    setBoardCopilot(false);
+    expect(boardOpensLogPose()).toBe(false);
+  });
+});
+
+describe("asking for Log Pose: the request view (#393)", () => {
+  const view = (access: "none" | "pending" | "denied", spots: { freeSpots?: number; spotsLeft?: number; freeCreditUsd?: number } = {}) =>
+    renderToStaticMarkup(<RequestAccessView apiBase="/api" access={access} onSent={() => {}} {...spots} />);
+
+  it("offers the form with a 500 character note to someone who hasn't asked (#393)", () => {
+    const html = view("none");
+    expect(html).toContain("Claim your free Log Pose credit");
+    expect(html).toContain('maxLength="500"');
+    expect(html).toContain("Claim free credit</button>");
+  });
+
+  it("shows no form once a request is waiting (#393)", () => {
+    const html = view("pending");
+    expect(html).toContain("You’re on the waitlist.");
+    expect(html).not.toContain("<textarea");
+    expect(html).not.toContain("<button");
+  });
+
+  it("says how many free spots are left while there are some (#446)", () => {
+    const html = view("none", { freeSpots: 50, spotsLeft: 12, freeCreditUsd: 5 });
+    expect(html).toContain("12 of 50 free spots left");
+    expect(html).toContain("Claim $5.00 of free credit every month");
+    expect(html).toContain("Claim free credit</button>");
+  });
+
+  it("offers the waitlist, naming the live number of spots, once they are all taken (#446)", () => {
+    const html = view("none", { freeSpots: 20, spotsLeft: 0 });
+    expect(html).toContain("All 20 free spots are taken. Join the waitlist and we&#x27;ll let you know.");
+    expect(html).toContain("Join the waitlist</button>");
+    expect(html).not.toContain("Claim free credit");
+    expect(html).not.toContain("free spots left");
+  });
+
+  it("says the request wasn't approved and offers the form again (#393)", () => {
+    const html = view("denied");
+    expect(html).toContain("approved this time");
+    expect(html).toContain("<textarea");
   });
 });

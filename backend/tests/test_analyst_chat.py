@@ -20,6 +20,8 @@ def chat(analyst, monkeypatch: pytest.MonkeyPatch):  # noqa: F811
     monkeypatch.setenv("ANALYST_CHAT_EMAILS", "Someone@else.example, DEV@localhost")
     monkeypatch.setenv("ANALYST_CHAT_DAILY_USD", "1.0")
     monkeypatch.setenv("ANALYST_CHAT_MONTHLY_USD", "5.0")
+    # No free spots here: requests wait for an owner, as the access tests expect (#446 tests turn spots on).
+    monkeypatch.setenv("ANALYST_FREE_SPOTS", "0")
     get_settings.cache_clear()
     yield analyst
     get_settings.cache_clear()
@@ -41,7 +43,7 @@ def test_the_chat_panel_is_only_on_for_allowlisted_players(analyst, monkeypatch)
     monkeypatch.setenv("ANALYST_CHAT_EMAILS", "someone@else.example")
     get_settings.cache_clear()
     _, body = _session(c)
-    assert body == {"enabled": False, "token": None, "expires_at": None, "chat_url": None}
+    assert body["enabled"] is False and body["token"] is None and body["chat_url"] is None
 
     monkeypatch.setenv("ANALYST_CHAT_EMAILS", "someone@else.example, DEV@localhost")
     get_settings.cache_clear()
@@ -136,8 +138,8 @@ def test_threads_store_messages_as_sent_and_show_only_the_conversation(chat):
 
     view = c.get(f"/analyst/chat/threads/{tid}").json()
     assert view["messages"] == [
-        {"role": "user", "text": "How is my Zoro?", "citations": []},
-        {"role": "assistant", "text": "Let me look.\n\nIt's legal.", "citations": []},
+        {"role": "user", "text": "How is my Zoro?", "citations": [], "proposals": []},
+        {"role": "assistant", "text": "Let me look.\n\nIt's legal.", "citations": [], "proposals": []},
     ]
     c.post("/analyst/chat/threads", json={"title": "never answered"}, headers=h)
     assert [t["id"] for t in c.get("/analyst/chat/threads").json()["threads"]] == [tid]
@@ -245,14 +247,15 @@ def test_the_corpus_is_anonymized_and_puts_the_leader_on_side_a(analyst):
     """Corpus games carry opaque ids and rating bands, never names or match ids; side A is the asked leader (#377)."""
     c, _ = analyst
     a, b = _users(c, "alice", "bob")
-    _zoro_vs_lucci(c, "g", b, a, [(1, 0)])  # seat 0 Zoro (bob), seat 1 Lucci (alice) wins
+    # A match id no opaque id can contain by chance (they are letters and digits only).
+    _zoro_vs_lucci(c, "secret-match-", b, a, [(1, 0)])  # seat 0 Zoro (bob), seat 1 Lucci (alice) wins
     r = c.get("/analyst/corpus/games", params={"leader": LUCCI}, headers=SERVICE)
     assert r.status_code == 200, r.text
     out = r.json()
     assert out["total"] == 1
     game = out["games"][0]
     assert game["A"]["leader"] == LUCCI and game["A"]["won"] is True and game["B"]["leader"] == ZORO
-    assert game["game_id"].startswith("g_") and "g0" not in str(game) and "alice" not in str(game)
+    assert game["game_id"].startswith("g_") and "secret-match" not in str(game) and "alice" not in str(game)
     assert game["A"]["rating_band"].endswith("99")
 
     replay = c.get(f"/analyst/corpus/games/{game['game_id']}/replay", headers=SERVICE).json()
@@ -286,3 +289,116 @@ def test_opted_out_players_games_leave_the_corpus(analyst):
     assert c.put("/analyst/sharing", json={"share_matches": False}).status_code == 200
     assert c.get("/analyst/corpus/games", headers=SERVICE).json()["total"] == 0
     assert c.get(f"/analyst/corpus/games/{gid}/replay", headers=SERVICE).status_code == 404
+
+def _edit(pid: str, name: str = "Luffy") -> dict:
+    """A deck edit as the analyst saves it (#400)."""
+    return {
+        "id": pid,
+        "version": 1,
+        "target": {"ref": "duel:d1", "name": name, "leader_id": "ST01-001"},
+        "summary": "Tune the list",
+        "lines": [
+            {"id": "ST01-016", "name": "Diable Jambe", "before": 0, "after": 2, "reason": "Cheaper"},
+            {"id": "ST01-015", "name": "Gum-Gum Jet Pistol", "before": 2, "after": 0, "reason": "Too slow"},
+        ],
+        "base": [{"id": "ST01-015", "copies": 2}],
+        "legality": {"legal": True, "count": 50, "problems": [], "upcoming": [], "ban_list_checked": False},
+    }
+
+
+def _propose_turn(call_id: str, answer: str, name: str = "propose_deck_edit") -> list[dict]:
+    return [
+        {"role": "user", "content": [{"type": "text", "text": "<context>page: deck</context>"}, {"type": "text", "text": f"Review {call_id}"}]},
+        # The turn's tool_use message has no text, like a model that goes straight to the tool.
+        {"role": "assistant", "content": [{"type": "tool_use", "id": call_id, "name": name, "input": {}}]},
+        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": call_id, "content": "ok"}]},
+        {"role": "assistant", "content": [{"type": "text", "text": answer}]},
+    ]
+
+
+def test_a_proposal_must_come_from_a_propose_deck_edit_call_in_its_thread(chat):
+    """A deck edit is kept only when its id is a stored propose_deck_edit tool_use of this thread (#400)."""
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Luffy"}, headers=h).json()["id"]
+    messages = _propose_turn("t1", "See the card.") + _propose_turn("t2", "Another.", name="get_cards")
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
+    url = f"/analyst/chat/threads/{tid}/proposals"
+    # Neither an id the thread never had, nor a call to some other tool.
+    assert c.post(url, json={"proposals": [_edit("nope")]}, headers=h).status_code == 400
+    assert c.post(url, json={"proposals": [_edit("t2")]}, headers=h).status_code == 400
+    # One bad one refuses the batch.
+    assert c.post(url, json={"proposals": [_edit("t1"), _edit("nope")]}, headers=h).status_code == 400
+    assert [m["proposals"] for m in c.get(f"/analyst/chat/threads/{tid}").json()["messages"]] == [[], [], [], []]
+    assert c.post(url, json={"proposals": [_edit("t1")]}, headers=h).status_code == 204
+    # Saving the same one again is ignored; the first stays.
+    assert c.post(url, json={"proposals": [_edit("t1", name="Changed")]}, headers=h).status_code == 204
+    shown = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
+    assert [p["target"]["name"] for m in shown for p in m["proposals"]] == ["Luffy"]
+
+
+def test_the_thread_view_shows_a_deck_edit_under_the_answer_that_made_it(chat):
+    """The edit from the second turn sits on that turn's answer, not the first one's (#400)."""
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Luffy"}, headers=h).json()["id"]
+    first = [
+        {"role": "user", "content": [{"type": "text", "text": "Hi"}]},
+        {"role": "assistant", "content": [{"type": "text", "text": "Ahoy."}]},
+    ]
+    messages = first + _propose_turn("t1", "See the card.")
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
+    assert c.post(f"/analyst/chat/threads/{tid}/proposals", json={"proposals": [_edit("t1")]}, headers=h).status_code == 204
+    view = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
+    assert [(m["role"], m["text"], [p["id"] for p in m["proposals"]]) for m in view] == [
+        ("user", "Hi", []),
+        ("assistant", "Ahoy.", []),
+        ("user", "Review t1", []),
+        ("assistant", "See the card.", ["t1"]),
+    ]
+    assert view[3]["proposals"][0] == _edit("t1")
+    # The model's own history is unchanged.
+    assert c.get(f"/analyst/chat/threads/{tid}/content", headers=h).json()["messages"] == messages
+
+
+def test_only_the_model_admin_can_change_the_chat_model_428(chat, monkeypatch):
+    """Everyone with the chat sees the model; PUT is for ANALYST_MODEL_ADMIN_EMAILS only, and only for offered models (#428)."""
+    c, _ = chat
+    _session(c)  # DEV@localhost is a chat owner but not the model admin
+    got = c.get("/analyst/settings/model").json()
+    assert got == {"model": "claude-sonnet-5-5", "options": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-haiku-4-5"], "can_edit": False}
+    assert c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"}).status_code == 403
+    assert c.get("/analyst/settings/model").json()["model"] == "claude-sonnet-5-5"
+
+    monkeypatch.setenv("ANALYST_MODEL_ADMIN_EMAILS", " dev@LOCALHOST ")
+    get_settings.cache_clear()
+    assert c.get("/analyst/settings/model").json()["can_edit"] is True
+    assert c.put("/analyst/settings/model", json={"model": "gpt-5"}).status_code == 422
+    r = c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"})
+    assert r.status_code == 200 and r.json()["model"] == "claude-opus-5-5" and r.json()["can_edit"] is True
+
+
+def test_the_model_admin_can_pick_either_haiku_430(chat, monkeypatch):
+    """Haiku 5.5 and 4.5 are offered too; the saved choice is what the setting and the budget report (#430)."""
+    c, _ = chat
+    _, body = _session(c)
+    monkeypatch.setenv("ANALYST_MODEL_ADMIN_EMAILS", "dev@localhost")
+    get_settings.cache_clear()
+    for model in ("claude-haiku-5-5", "claude-haiku-4-5"):
+        r = c.put("/analyst/settings/model", json={"model": model})
+        assert r.status_code == 200 and r.json()["model"] == model
+        assert c.get("/analyst/settings/model").json()["model"] == model
+        assert c.get("/analyst/chat/budget", headers=_as(body["token"])).json()["model"] == model
+
+
+def test_the_budget_carries_the_saved_chat_model_428(chat, monkeypatch):
+    """The analyst learns the model on the budget call it already makes, the same for every player (#428)."""
+    c, _ = chat
+    _, body = _session(c)
+    assert c.get("/analyst/chat/budget", headers=_as(body["token"])).json()["model"] == "claude-sonnet-5-5"
+    monkeypatch.setenv("ANALYST_MODEL_ADMIN_EMAILS", "dev@localhost")
+    get_settings.cache_clear()
+    assert c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"}).status_code == 200
+    assert c.get("/analyst/chat/budget", headers=_as(body["token"])).json()["model"] == "claude-opus-5-5"

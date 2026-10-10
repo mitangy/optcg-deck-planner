@@ -88,3 +88,20 @@ export {
   type CardSupportIssue,
 } from "./cards/effectCatalog.js";
 export { deckConstructionErrors } from "./cards/deckRules.js";
+export {
+  GOLDFISH_DUMMY_LEADER,
+  GOLDFISH_DUMMY_CARD,
+  bestDeploy,
+  shouldMulligan,
+  wilsonPercent,
+  flaggedCards,
+  setDummyLife,
+  goldfishRun,
+  summarizeGoldfish,
+  type GoldfishLine,
+  type GoldfishSetup,
+  type GoldfishTurn,
+  type GoldfishRun,
+  type GoldfishSummary,
+  type DeployCandidate,
+} from "./sim/goldfish.js";

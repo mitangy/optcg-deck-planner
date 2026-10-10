@@ -13,6 +13,7 @@ import {
   type AnalystLessonStatus,
 } from "./historyApi";
 import { lessonRows } from "./lessonRow";
+import { MatchBriefSettings } from "./MatchBriefSettings";
 
 const cardName = (id: string) => lookupCard(id).name || id;
 const STATUS_LABEL: Record<AnalystLessonStatus, string> = { draft: "Needs review", approved: "Approved", rejected: "Rejected" };
@@ -29,6 +30,11 @@ export function AnalystLinkPanel() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // "Use Log Pose in your own Claude" in the chat panel lands here.
+  useEffect(() => {
+    if (window.location.hash === "#log-pose") document.getElementById("log-pose")?.scrollIntoView({ block: "start" });
+  }, []);
 
   useEffect(() => {
     void fetchAnalystLink()
@@ -100,8 +106,9 @@ export function AnalystLinkPanel() {
   }
 
   return (
-    <section className="panel" aria-labelledby="analyst-title">
+    <section className="panel" id="log-pose" aria-labelledby="analyst-title">
       <h2 className="panel-title" id="analyst-title">Log Pose (Claude)</h2>
+      <MatchBriefSettings />
       <p className="panel-copy">
         Add this link to Claude as a custom connector (Settings, then Connectors) and Claude can read your
         decks, review your games turn by turn and draft lessons from them. Treat it like a password.

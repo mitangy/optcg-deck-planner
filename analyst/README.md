@@ -12,12 +12,14 @@ Design doc: https://claude.ai/artifact/DHEmpEwqp9UD1btA2BN5Rv
 | `get_cards` | Full printed text, stats, timings, effect kinds and the parsed ability structure, by card number or exact name. |
 | `analyze_deck` | Loads a pasted list (OPTCGSim `4xOP01-006`, Limitless `4 OP01-006`) or a deck planner share link and returns legality, build hints, curve, counters, roles, opening-hand expectations and searcher odds (from `@optcg/deck-analytics`). |
 | `draw_odds` | Exact odds of seeing at least N hits by each turn, going first or second, with or without a mulligan. |
+| `simulate` | Goldfish games in the duel engine against a dummy that never blocks, counters or attacks: win-by-turn with 95% intervals, DON!! curve, mulligan rate, card timing and an example line. A speed check, not a win rate. Up to about 20 s, one at a time. |
 | `export_deck` | Deck list text for OPTCGSim or Limitless. |
 | `rules_lookup` | Searches the official Comprehensive Rules by words, or reads a numbered section (`7-1`, `10-1-4`) with everything under it, plus matching official general rules Q&A. |
 | `card_rulings` | Official FAQ answers for each card, rulings on other cards that mention it, errata (before and after), and ban status, including announced bans and their start date. |
 | `ban_list` | Banned cards, restricted cards and banned pairs in force today, plus announced changes. `analyze_deck` also checks a deck against it. |
 | `playbook` | Strategy notes from [`playbook/`](playbook/README.md): a leader's game plan, key cards, mulligan, lines and matchups, both sides of a matchup, or notes mentioning a card. |
 | `matchup_stats` | Win rates from recorded duels: a leader's overall record, going first and second, each matchup (mirrors apart), and per-card rates with and without the card. Totals only, with a Wilson interval; buckets under 5 games are held back. Needs `ANALYST_SERVICE_SECRET`. |
+| `tournament_stats` | Results of real tournaments from [Limitless TCG](https://play.limitlesstcg.com) (recent public events with decklists and at least 8 players): a leader's meta share, its record against each opponent leader (mirrors apart, ties noted), its best placings with event, record and decklist, and how often each card is played. Kept apart from `matchup_stats`, which is optcgduel.app games. Same Wilson intervals and 5-game minimum. Needs `ANALYST_SERVICE_SECRET`. |
 
 | `search_matches` | Searches every recorded duel from players who share their games (not just yours): by leader, opponent, a card in the deck, result, who went first, turns. Games come back anonymized: an opaque game id, sides A and B, rating bands, never names or match ids. Needs `ANALYST_SERVICE_SECRET`. |
 | `replay_match` | Re-runs one of those games with every card named (both hands, Life and deck), sides labeled Player A and Player B. |
@@ -31,6 +33,10 @@ A personal link (below) adds five more:
 | `review_match` | Re-runs one of your games in the duel engine and returns a turn-by-turn log from your seat, your opening hand, the result and the final board. The opponent's face-down cards stay hidden. |
 | `draft_lesson` | Saves a lesson Claude learned from your games (with the leader, opponent, cards and match ids it came from) as a draft for you to review. |
 | `my_lessons` | Your approved lessons (or drafts), optionally for one leader, so Claude can apply them in later chats. |
+
+### Tournament data
+
+The API pulls events from Limitless TCG's public API in the background (every 6 hours; `TOURNAMENT_SYNC=true|false`, default on in production only; `TOURNAMENT_SYNC_DAYS`, default 30). It keeps each event's leaders, decklists, records and who beat which leader, never player names or handles, and asks Limitless for at most one request every 7 seconds. `GET /analyst/tournaments/sync-status` (analyst service secret) shows what is stored and how the last run went.
 
 ### Learning loop
 
@@ -52,11 +58,11 @@ The duel app and the deck planner show a Log Pose compass in the corner for play
 
 1. The app asks `POST /analyst/chat/session` (signed-in cookie) for a 30-minute chat token, signed with `ANALYST_SERVICE_SECRET`.
 2. It streams `POST /chat` or `POST /review-match` on this server with `Authorization: Bearer <token>`. Answers come back as server-sent events: `thread`, `status`, `text`, `cite`, `done`, `error`.
-3. This server checks the token and the spend caps with the API, runs the Claude API (`ANALYST_CHAT_MODEL`, default `claude-opus-5-5`) with the same tools as a personal link, and saves the thread, the cost and any review through the API.
+3. This server checks the token and the spend caps with the API, runs the Claude API (`ANALYST_CHAT_MODEL`, default `claude-sonnet-5-5`) with the same tools as a personal link, and saves the thread, the cost and any review through the API.
 
 Sources: fact-bearing tool results (cards, rules and rulings, win rates, playbook, your lessons and games, deck checks, draw odds) go to the model as Claude API `search_result` blocks (`src/sources.ts`), so its sentences carry citations. A `cite` event carries the citations (`source`, `title`, `cited_text`) of the text streamed so far; the panel puts a numbered marker after that text. Source ids: `card:<id>`, `rule:<section>`, `ruling:<card>#<n>`, `stats:<leader>[~<opponent>|#<card>]`, `playbook:<leader>[~<opponent>]`, `lesson:<id>`, `match:<match_id>[#t<turn>]`, `game:<game_id>[#t<turn>]`, `deck:<hash>`, `odds:<shape>`. The stored thread keeps the model's content, citations included; reviews store their citations with their text.
 
-Spend is capped per player per day (`ANALYST_CHAT_DAILY_USD`, default 3) and for everyone per month (`ANALYST_CHAT_MONTHLY_USD`, default 50); past a cap, `/chat` answers 429. Browsers may call it from `ANALYST_CHAT_ORIGINS` (default the two production sites), `*.vercel.app` previews and localhost.
+Spend is limited three ways, all set on the planner API (optcg-api): each approved player has a monthly credit (`ANALYST_USER_CREDIT_USD`, default 5; owners have none), each player a daily cap (`ANALYST_CHAT_DAILY_USD`, default 1) and everyone together a monthly cap (`ANALYST_CHAT_MONTHLY_USD`, default 250). `ANALYST_FREE_SPOTS` (default 50, owners can change it in the panel) is how many players are approved at once when they ask. The analyst checks the limits before each request and again between tool rounds; `/chat` answers 429 with the code `monthly`, `credit` or `daily` (checked in that order), or `busy`, and every refusal is logged as a $0 usage row. Browsers may call it from `ANALYST_CHAT_ORIGINS` (default the two production sites), `*.vercel.app` previews and localhost.
 
 Needs `ANTHROPIC_API_KEY` here, plus `ANALYST_PUBLIC_URL`, `ANALYST_CHAT_EMAILS` and the shared `ANALYST_SERVICE_SECRET` on `optcg-api`. Without the key, `/chat` answers 503 and the connector works as before.
 
@@ -87,3 +93,33 @@ node tools/mutation-check/run.cjs analyst
 `PLANNER_API_URL` (default `https://optcg-deck-planner.app/api`) is where share links are read from.
 
 Card data comes from `packages/rules/src/cards/cardData.json`, `packages/rules/src/cards/generated/abilities.json` and `packages/deck-analytics/deckStats.json`, so new cards arrive with the daily card import and a redeploy.
+
+## Evals
+
+`analyst/evals/` is the Log Pose eval set (#403): 50 cases run through the real chat loop (`runChat`) against a fake in-memory planner API.
+
+- **A, rulings (15):** answered from the official FAQ. Gold is looked up from Bandai's FAQ by card id and question hash.
+- **B, engine-verified interactions (12):** gold comes from `@optcg/rules` scenarios.
+- **C, legality and odds (13):** gold is re-derived with the same tools the analyst uses.
+- **D, matchup and build (10):** graded by a rubric judge (Sonnet 5.5).
+- **E01, E02:** tournament stats and goldfish simulation. They run only when those tools exist.
+
+Each answer is graded `{correct, cited, grounded, rubric?}`. Cases whose FAQ answer went `stale` or `gold_drift` are left out of scores.
+
+Commands (run from `analyst/`):
+
+```
+npm run eval:validate                 # free, runs in CI: cases load and the offline gold still holds
+npm run eval -- --model-api scripted  # free dry run: oracle model, fake planner, offline judge
+npm run eval:check-live               # free, nightly: FAQ cases against Bandai's live site
+ANTHROPIC_API_KEY=... npm run eval -- --selftest
+ANTHROPIC_API_KEY=... npm run eval -- --only "A01|B03|C11|C15|D05" --reps 1   # pilot
+ANTHROPIC_API_KEY=... npm run eval    # full: variant baseline, 2 reps, --max-usd 15
+npm run eval:grade -- evals/out/baseline   # fill in human grades, then
+npm run eval -- --write-baseline
+npm run eval:compare -- evals/out/<variant>
+```
+
+`--planner live` needs `PLANNER_API_URL` and `ANALYST_SERVICE_SECRET`. The paid run is manual; run it after a change to the prompt, tools or model, never in CI. Output goes to `evals/out/` (git-ignored).
+
+Bandai's FAQ text never goes in `cases.ts`, `baseline.json` or `human-grades.jsonl`. Cases hold only the card id and a question hash.

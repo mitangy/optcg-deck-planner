@@ -4,6 +4,7 @@
  */
 
 import { lookupCard } from "../cards/atlas";
+import { asDonArtId } from "../board/donArt";
 
 export const PROTOCOL_VERSION = 5 as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
@@ -24,7 +25,14 @@ export type DuelJoinOptions = {
   role?: "player" | "spectator";
   /** Optional deck for this seat. */
   deck?: PlayerDeckWire;
+  /** Take over the seat `preferredSeat` that this account already holds (move a live match to this device). */
+  takeover?: boolean;
+  /** Practice only: game token of the signed-in account that owns this (guest-identity) seat. */
+  ownerToken?: string;
 };
+
+/** Close code the server uses on a socket whose seat another device took over. */
+export const TAKEN_OVER_CLOSE_CODE = 4451;
 
 export type DuelCreateOptions = {
   protocolVersion?: ProtocolVersion;
@@ -64,6 +72,14 @@ export type SeatPlayerInfo = {
 /** Seat-indexed player names; null entries when unknown (older servers). */
 export type SeatPlayers = [SeatPlayerInfo, SeatPlayerInfo];
 
+/** The game server's signed key to a Log Pose matchup brief: this seat's leader and deck against the other leader. */
+export type BriefTicketWire = {
+  ticket: string;
+  leaderId: string;
+  opponentId: string;
+  deck: string[];
+};
+
 export type WelcomeMessage = {
   protocolVersion: ProtocolVersion;
   matchId: string;
@@ -71,7 +87,20 @@ export type WelcomeMessage = {
   role?: "player" | "spectator";
   view: PlayerView;
   players?: SeatPlayers;
+  /** Whether the room is ranked; absent from an older server. */
+  ranked?: boolean;
+  /** Players of unranked rooms only. */
+  brief?: BriefTicketWire;
 };
+
+/** A brief ticket as sent, or undefined unless every part is the right shape. */
+export function parseBriefTicket(raw: unknown): BriefTicketWire | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.ticket !== "string" || typeof o.leaderId !== "string" || typeof o.opponentId !== "string") return undefined;
+  if (!Array.isArray(o.deck) || !o.deck.every((c) => typeof c === "string")) return undefined;
+  return { ticket: o.ticket, leaderId: o.leaderId, opponentId: o.opponentId, deck: o.deck as string[] };
+}
 
 function parseSeatPlayers(raw: unknown): SeatPlayers | undefined {
   if (!Array.isArray(raw) || raw.length !== 2) return undefined;
@@ -142,6 +171,8 @@ export type CosmeticsMessage = {
 export type SeatSkin = {
   playmat: string | null;
   cardBack: string | null;
+  /** TCGPlayer productId of the DON!! card art (#440); null = the bundled art. */
+  donArt: number | null;
 };
 
 export type SkinMessage = {
@@ -175,6 +206,7 @@ export function parseSkin(raw: unknown): SkinMessage {
     skin: {
       playmat: asSkinImage(skin.playmat, SKIN_MAX_PLAYMAT_CHARS),
       cardBack: asSkinImage(skin.cardBack, SKIN_MAX_CARD_BACK_CHARS),
+      donArt: asDonArtId(skin.donArt),
     },
   };
 }
@@ -310,8 +342,10 @@ export type PlayerView = {
   winner: Seat | null;
   winReason: string | null;
   legalIntents: Intent[];
-  /** Spectators of unranked rooms: both hands, indexed by seat. */
+  /** Spectators of unranked rooms, and every viewer once the match is over (#482): both hands, indexed by seat. */
   revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+  /** Once the match is over (#482): every Life card's defId, in life order, indexed by seat. */
+  revealedLife?: [string[], string[]];
 };
 
 export function isProtocolVersion(v: unknown): v is ProtocolVersion {
@@ -368,6 +402,9 @@ export function parseWelcome(raw: unknown): WelcomeMessage {
     role,
     view,
     players: parseSeatPlayers(o.players),
+    ranked: typeof o.ranked === "boolean" ? o.ranked : undefined,
+    // A spectator is never offered a brief, whatever the server sent.
+    brief: role === "spectator" || view.spectator ? undefined : parseBriefTicket(o.brief),
   };
 }
 
@@ -644,6 +681,8 @@ export type RematchState = {
   /** Over, unranked, and both players still in the room. */
   available: boolean;
   requested: [boolean, boolean];
+  /** That seat's current request carries a different deck for the next game. */
+  newDeck: [boolean, boolean];
   declinedBy: Seat | null;
   /** Both agreed: the loser picks who goes first. */
   chooser: Seat | null;
@@ -656,10 +695,12 @@ export function parseRematchState(raw: unknown): RematchState {
   const o = raw as Record<string, unknown>;
   if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
   const req = Array.isArray(o.requested) ? o.requested : [];
+  const newDeck = Array.isArray(o.newDeck) ? o.newDeck : [];
   const seatOrNull = (v: unknown): Seat | null => (v === 0 || v === 1 ? v : null);
   return {
     available: o.available === true,
     requested: [req[0] === true, req[1] === true],
+    newDeck: [newDeck[0] === true, newDeck[1] === true],
     declinedBy: seatOrNull(o.declinedBy),
     chooser: seatOrNull(o.chooser),
   };

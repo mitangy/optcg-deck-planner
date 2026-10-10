@@ -14,12 +14,15 @@ import { matchMaker } from "colyseus";
 import { createHmac } from "node:crypto";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
 import type { MatchProgressPayload, MatchResultPayload } from "../src/writeback.js";
+import { deviceHandoffTests } from "./deviceHandoff.js";
 import { replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
 
 type PlayerView = {
   seat: 0 | 1;
   you: { hand: { id: string; defId: string }[]; lifeCount: number; mulliganDone: boolean };
   opponent: { handCount: number };
+  revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+  revealedLife?: [string[], string[]];
   legalIntents: (Record<string, unknown> & { type: string })[];
   winner: 0 | 1 | null;
   phase: string;
@@ -430,6 +433,8 @@ describe("DuelRoom", () => {
       spectator?: boolean;
       you: PlayerView["you"] & { handCount?: number };
       revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+      revealedLife?: [string[], string[]];
+      winner?: 0 | 1 | null;
     };
   };
 
@@ -501,6 +506,92 @@ describe("DuelRoom", () => {
   });
 
   const handIds = (hand: { id: string }[] | undefined) => (hand ?? []).map((c) => c.id);
+
+  type RawWelcome = {
+    seat: 0 | 1;
+    role?: string;
+    ranked?: boolean;
+    brief?: { ticket: string; leaderId: string; opponentId: string; deck: string[] };
+  };
+  const ticketClaims = (ticket: string) =>
+    JSON.parse(Buffer.from(ticket.split(".")[1]!, "base64url").toString("utf8")) as Record<string, unknown>;
+  const zoroDeckFor = (extra: string) => ({
+    leaderId: "OP01-001",
+    deck: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", extra].flatMap((id) => [id, id, id, id]),
+  });
+  const luffyDeck = { leaderId: "ST01-001", deck: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "ST01-014"].flatMap((id) => [id, id, id, id]) };
+
+  /** Two seats with different leaders and decks (one card apart), plus a spectator, keeping each raw welcome. */
+  async function briefRoom(createOpts: Record<string, unknown>, decks: boolean) {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 42,
+      autoSkipMulligan: true,
+      ...createOpts,
+    });
+    const welcomes: RawWelcome[] = [];
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const seatDeck = (d: unknown) => (decks ? { deck: d } : {});
+    const c0 = await colyseus.connectTo(room, { ...joinOpts("a", 0), ...seatDeck(zoroDeckFor("ST01-013")) });
+    attach(c0, bags[0]);
+    c0.onMessage("welcome", (m: RawWelcome) => welcomes.push(m));
+    const c1 = await colyseus.connectTo(room, { ...joinOpts("b", 1), ...seatDeck(luffyDeck) });
+    attach(c1, bags[1]);
+    c1.onMessage("welcome", (m: RawWelcome) => welcomes.push(m));
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    const spec = await colyseus.connectTo(room, {
+      protocolVersion: PROTOCOL_VERSION,
+      devUserId: "watcher",
+      role: "spectator",
+      preferredSeat: 0,
+    });
+    spec.onMessage("welcome", (m: RawWelcome) => welcomes.push(m));
+    spec.send("sync", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => welcomes.some((w) => w.role === "spectator"), 8000);
+    return { room, welcomes };
+  }
+
+  it("an unranked room gives each player a brief ticket for their own seat and the other seat's leader (#401)", async () => {
+    const { welcomes } = await briefRoom({}, true);
+    const w0 = welcomes.find((w) => w.role === "player" && w.seat === 0)!;
+    const w1 = welcomes.find((w) => w.role === "player" && w.seat === 1)!;
+    assert.equal(w0.ranked, false);
+    assert.equal(w0.brief!.leaderId, "OP01-001");
+    assert.equal(w0.brief!.opponentId, "ST01-001");
+    assert.equal(w1.brief!.leaderId, "ST01-001");
+    assert.equal(w1.brief!.opponentId, "OP01-001");
+    assert.equal(w0.brief!.deck.length, 20);
+    assert.notDeepEqual(w0.brief!.deck, w1.brief!.deck);
+    const c0 = ticketClaims(w0.brief!.ticket);
+    assert.equal(c0.seat, 0);
+    assert.equal(c0.leader, "OP01-001");
+    assert.equal(c0.opponent, "ST01-001");
+    assert.deepEqual(c0.deck, w0.brief!.deck);
+    const c1 = ticketClaims(w1.brief!.ticket);
+    assert.equal(c1.leader, "ST01-001");
+    assert.equal(c1.opponent, "OP01-001");
+  });
+
+  it("a ranked room's welcome says ranked and carries no brief ticket (#401)", async () => {
+    const { welcomes } = await briefRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() }, false);
+    const players = welcomes.filter((w) => w.role === "player");
+    assert.deepEqual(new Set(players.map((w) => w.seat)), new Set([0, 1]));
+    for (const w of players) {
+      assert.equal(w.ranked, true);
+      assert.equal(w.brief, undefined);
+    }
+  });
+
+  it("spectators never get a brief ticket (#401)", async () => {
+    const { welcomes } = await briefRoom({}, true);
+    const spec = welcomes.find((w) => w.role === "spectator")!;
+    assert.equal(spec.ranked, false);
+    assert.equal(spec.brief, undefined);
+  });
 
   it("a player's hand_order reorders the hands spectators see, and the other player is unaffected (#346)", async () => {
     const { welcome, bags, c0, specViews } = await watchRoom({});
@@ -605,19 +696,19 @@ describe("DuelRoom", () => {
     const dupB = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("same-user"));
     await waitUntil(() => aLeft, 3000);
 
+    // Listen before the second player joins: pairing runs inside that join, so `matched` for dupB can arrive
+    // before the join call returns. Pairing creates a duel room, which can be slow on a loaded CI runner.
+    const matched = (c: typeof dupB) =>
+      new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error("matched timeout")), 20000);
+        c.onMessage("matched", (m: { roomId: string; seat: number }) => {
+          clearTimeout(t);
+          resolve(m);
+        });
+      });
+    const mineP = matched(dupB);
     const other = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("other-user"));
-    const [mine, theirs] = await Promise.all(
-      [dupB, other].map(
-        (c) =>
-          new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
-            const t = setTimeout(() => reject(new Error("matched timeout")), 5000);
-            c.onMessage("matched", (m: { roomId: string; seat: number }) => {
-              clearTimeout(t);
-              resolve(m);
-            });
-          }),
-      ),
-    );
+    const [mine, theirs] = await Promise.all([mineP, matched(other)]);
     assert.equal(mine!.roomId, theirs!.roomId);
     assert.notEqual(mine!.seat, theirs!.seat);
     await dupB.leave(true);
@@ -1014,6 +1105,25 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+  it("conceding flips both hands and all Life face up for players and ranked spectators, never before (#482)", async () => {
+    const { bags, c0, specViews } = await watchRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() });
+    assert.ok(bags[0].welcome!.you.hand.length > 0);
+    for (const bag of bags) assert.ok(bag.views.every((v) => v.revealedHands === undefined && v.revealedLife === undefined), "live views carry no hidden cards");
+
+    c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => bags.every((b) => b.views.at(-1)?.winner != null) && specViews.at(-1)?.winner != null, 8000);
+
+    const ids = (hand: { id: string }[] | undefined) => (hand ?? []).map((c) => c.id);
+    const hand0 = ids(bags[0].welcome!.you.hand);
+    const hand1 = ids(bags[1].welcome!.you.hand);
+    for (const final of [bags[0].views.at(-1)!, bags[1].views.at(-1)!, specViews.at(-1)!]) {
+      assert.deepEqual(ids(final.revealedHands?.[0]), hand0);
+      assert.deepEqual(ids(final.revealedHands?.[1]), hand1);
+      assert.equal(final.revealedLife?.[0].length, bags[0].welcome!.you.lifeCount);
+      assert.equal(final.revealedLife?.[1].length, bags[1].welcome!.you.lifeCount);
+    }
+  });
+
   it("rematch: both agree, the loser picks turn order, a fresh game starts", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -1055,6 +1165,90 @@ describe("DuelRoom", () => {
     assert.equal(fresh.winner, null);
     assert.equal(fresh.firstSeat, 1);
     assert.equal(fresh.you.lifeCount > 0, true);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  /** Two default-deck seats at match over (seat 0 conceded), ready to trade rematch requests. */
+  async function rematchRoom(seed: number) {
+    type Rematch = { available: boolean; requested: [boolean, boolean]; newDeck: [boolean, boolean]; chooser: 0 | 1 | null };
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const rematch: Rematch[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("rematch_state", (msg: Rematch) => rematch.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => rematch.some((r) => r.available), 8000);
+    return { c0, c1, bags, rematch };
+  }
+  const leaderOf = (bag: SeatBag) => (bag.views.at(-1) as PlayerView & { you: { leader: { defId: string } } }).you.leader.defId;
+  const altDeck = {
+    leaderId: "OP01-001",
+    deck: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "ST01-014"].flatMap((id) => [id, id, id, id]),
+  };
+
+  it("rematch: a player who picks a different deck plays it in the next game (#479)", async () => {
+    const { c0, c1, bags, rematch } = await rematchRoom(43);
+    assert.equal(leaderOf(bags[0]), "ST01-001");
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request", deck: altDeck });
+    await waitUntil(() => rematch.at(-1)!.requested[0], 5000);
+    assert.deepEqual(rematch.at(-1)!.newDeck, [true, false]);
+    c1.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await waitUntil(() => rematch.at(-1)!.chooser === 0, 5000);
+    assert.deepEqual(rematch.at(-1)!.newDeck, [true, false]);
+
+    const before = [bags[0].views.length, bags[1].views.length];
+    bags[0].welcome = undefined;
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "first" });
+    await waitUntil(() => bags[0].welcome != null && bags[0].views.length > before[0], 5000);
+    await waitUntil(() => bags[1].views.length > before[1], 5000);
+    assert.equal(leaderOf(bags[0]), "OP01-001");
+    assert.equal(leaderOf(bags[1]), "ST01-001");
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("rematch: declining drops a picked deck (#479)", async () => {
+    const { c0, c1, bags, rematch } = await rematchRoom(44);
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request", deck: altDeck });
+    await waitUntil(() => rematch.at(-1)!.newDeck[0], 5000);
+    c1.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "decline" });
+    await waitUntil(() => rematch.at(-1)!.newDeck[0] === false && !rematch.at(-1)!.requested[0], 5000);
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    c1.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await waitUntil(() => rematch.at(-1)!.chooser === 0, 5000);
+
+    const before = bags[0].views.length;
+    bags[0].welcome = undefined;
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "first" });
+    await waitUntil(() => bags[0].welcome != null && bags[0].views.length > before, 5000);
+    assert.equal(leaderOf(bags[0]), "ST01-001");
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("rematch: a deck with unknown cards is refused (#479)", async () => {
+    const { c0, c1, bags, rematch } = await rematchRoom(45);
+    const badDeck = { leaderId: "ST01-001", deck: Array.from({ length: 50 }, () => "ZZ99-999") };
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request", deck: badDeck });
+    await waitUntil(() => bags[0].errors.some((e) => e.code === "bad_protocol"), 5000);
+    assert.equal(rematch.at(-1)!.requested[0], false);
+    assert.deepEqual(rematch.at(-1)!.newDeck, [false, false]);
 
     await c0.leave(true);
     await c1.leave(true);
@@ -1195,13 +1389,12 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("an accepted undo re-seeds the rng instead of restoring it, and the replay still rebuilds (#369)", async () => {
+  it("an accepted undo restores the turn exactly, so the same cards are drawn again, and the replay rebuilds (#449)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 53,
       autoSkipMulligan: true,
     });
-    Object.assign(room, { freshSeed: () => 777_001 });
     const bags: [SeatBag, SeatBag] = [
       { views: [], errors: [] },
       { views: [], errors: [] },
@@ -1222,30 +1415,23 @@ describe("DuelRoom", () => {
     const atTurnStart = internals(room).replay!.intents.length;
     const next = (1 - active) as 0 | 1;
     await waitUntil(() => bags[next].views.at(-1)!.activeSeat === next, 5000);
+    const turnStart = JSON.stringify(internals(room).match);
+    // The next player ends their turn: the following turn's draw happens here.
     clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
     await waitUntil(() => internals(room).replay!.intents.length > atTurnStart, 5000);
+    const afterFirst = JSON.stringify(internals(room).match);
     clients[active].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
     await new Promise((r) => setTimeout(r, 50));
     clients[next].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
     await waitUntil(() => applied.length === 1, 5000);
 
-    assert.equal(internals(room).match.rng.seed, 777_001);
-    assert.deepEqual(internals(room).replay!.reseeds, [{ atIntent: atTurnStart, seed: 777_001, shuffleDecks: true }]);
-    // Both players saw their next draws, so the decks are reshuffled: same cards, new order.
-    const snapped = JSON.parse((room as unknown as { turnSnapshots: { match: string }[] }).turnSnapshots.at(-1)!.match) as MatchState;
-    for (const seat of [0, 1] as const) {
-      const now = internals(room).match.players[seat];
-      const was = snapped.players[seat];
-      assert.deepEqual([...now.zoneInstanceIds.deck].sort(), [...was.zoneInstanceIds.deck].sort());
-      assert.notDeepEqual(now.zoneInstanceIds.deck, was.zoneInstanceIds.deck);
-      assert.deepEqual(now.life, was.life);
-      assert.equal(now.deck.length, now.zoneInstanceIds.deck.length);
-    }
-    // The game goes on from the new seed and the recording still rebuilds it.
-    const moved = internals(room).replay!.intents.length;
+    // Rewound exactly: same rng, same deck order, nothing recorded as a re-seed.
+    assert.equal(JSON.stringify(internals(room).match), turnStart);
+        assert.equal(internals(room).replay!.reseeds?.length ?? 0, 0);
+    // Playing the same move again draws the same cards as before the undo.
     clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
-    await waitUntil(() => internals(room).replay!.intents.length > moved, 5000);
-    assert.equal(internals(room).match.rng.seed, 777_001);
+    await waitUntil(() => internals(room).replay!.intents.length > atTurnStart, 5000);
+    assert.equal(JSON.stringify(internals(room).match), afterFirst);
     assertReplayRebuilds(room);
 
     await c0.leave(true);
@@ -1469,6 +1655,64 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+  /** Seat 1 brings an Imu leader (mandatory start-of-game Stage prompt); seat 0 is the first player. */
+  async function imuSecondRoom(timer: Record<string, number>) {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 8,
+      autoSkipMulligan: false,
+      timer,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const imuDeck = {
+      leaderId: "OP13-079",
+      deck: ["OP13-099", "ST01-003", "ST01-006", "ST01-008", "ST01-009", "ST01-014"].flatMap((id) => [id, id, id, id]),
+    };
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, { ...joinOpts("bob", 1), deck: imuDeck });
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    const m = internals(room).match;
+    assert.equal(m.phase, "mulligan");
+    assert.equal(m.activeSeat, 0);
+    assert.equal(m.pendingChoices[0]?.seat, 1, "the Imu seat owes the Stage prompt");
+    return { room, c0, c1, bags };
+  }
+
+  it("per-player clock: the Imu seat's open Stage prompt drains its own bank, not the first player's (#353)", async () => {
+    const { room, c0, c1, bags } = await imuSecondRoom({ seatSeconds: 900 });
+    assert.equal(internals(room).clockSeat, 1);
+
+    // Seat 0 cannot mulligan yet, so its bank must hold while seat 1's runs out.
+    internals(room).seatRemainingMs[0] = 1;
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(internals(room).match.winner, null);
+    assert.equal(bags[0].over, undefined);
+
+    internals(room).seatRemainingMs[1] = 1;
+    await waitUntil(() => bags[0].over != null, 5000);
+    assert.deepEqual(bags[0].over!.result, { winner: 0, reason: "timeout" });
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("match clock: expiry while the Imu seat's Stage prompt is open names the prompt owner the loser (#353)", async () => {
+    const { room, c0, c1, bags } = await imuSecondRoom({ matchSeconds: 900 });
+
+    internals(room).matchEndsAt = Date.now() - 1;
+    await waitUntil(() => bags[0].over != null, 5000);
+    assert.deepEqual(bags[0].over!.result, { winner: 0, reason: "match_timeout" });
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
   it("match clock: a defender sitting on the block step loses on time, not the attacker (#248)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -1578,4 +1822,6 @@ describe("DuelRoom", () => {
     assert.ok(pongs < 100, `answered ${pongs} of 100 pings`);
     assert.equal(colyseus.getRoomById(room.roomId)?.clients.length ?? 0, 0);
   });
+
+  deviceHandoffTests(() => colyseus);
 });

@@ -30,6 +30,7 @@ const SUITES = {
   backend: require("./suites/backend.cjs"),
   frontend: require("./suites/frontend.cjs"),
   "deck-analytics": require("./suites/deck-analytics.cjs"),
+  "patch-notes": require("./suites/patch-notes.cjs"),
   "analyst-client": require("./suites/analyst-client.cjs"),
   analyst: require("./suites/analyst.cjs"),
   "game-server": require("./suites/game-server.cjs"),

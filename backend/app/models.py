@@ -495,6 +495,53 @@ class DuelMatchSeat(Base):
     )
 
 
+class Tournament(Base):
+    """A Limitless TCG event whose results feed Log Pose tournament stats. No player data is kept."""
+
+    __tablename__ = "tournaments"
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    name: Mapped[str] = mapped_column(String(300))
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    players: Mapped[int] = mapped_column(Integer)
+    set_label: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    online: Mapped[bool] = mapped_column(Boolean, default=False)
+    platform: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class TournamentDeck(Base):
+    """One entrant's deck at an event: leader, list as {card id: copies}, final record and placing. No names."""
+
+    __tablename__ = "tournament_decks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tournament_id: Mapped[str] = mapped_column(
+        ForeignKey("tournaments.id", ondelete="CASCADE"), index=True
+    )
+    leader_id: Mapped[str] = mapped_column(String(32), index=True)
+    decklist: Mapped[str] = mapped_column(Text, default="{}")
+    wins: Mapped[int] = mapped_column(Integer, default=0)
+    losses: Mapped[int] = mapped_column(Integer, default=0)
+    ties: Mapped[int] = mapped_column(Integer, default=0)
+    placing: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class TournamentGame(Base):
+    """One finished pairing: the two leaders and who won (A, B or tie). Byes and unfinished pairings are not kept."""
+
+    __tablename__ = "tournament_games"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tournament_id: Mapped[str] = mapped_column(
+        ForeignKey("tournaments.id", ondelete="CASCADE"), index=True
+    )
+    round: Mapped[int] = mapped_column(Integer)
+    leader_a: Mapped[str] = mapped_column(String(32), index=True)
+    leader_b: Mapped[str] = mapped_column(String(32), index=True)
+    winner: Mapped[str] = mapped_column(String(3))
+
+
 class AnalystPrefs(Base):
     """Whether a player's games count toward Log Pose stats (on unless they turn it off)."""
 
@@ -502,6 +549,48 @@ class AnalystPrefs(Base):
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     share_matches: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class AnalystAccess(Base):
+    """A player's request to use the Log Pose chat panel, and the owner's answer.
+
+    Holds no email or name: the owner list shows the player's display name, looked up live.
+    """
+
+    __tablename__ = "analyst_access"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    # "pending" | "approved" | "denied"
+    status: Mapped[str] = mapped_column(String(16), default="pending")
+    note: Mapped[str] = mapped_column(String(500), default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # This player's monthly credit in dollars; NULL means the default (ANALYST_USER_CREDIT_USD).
+    credit_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Extra credit an owner granted for one month: topup_usd counts only while topup_month ("2026-10") is the current month.
+    topup_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    topup_month: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    # Approved at once by the free-spots rule (it keeps its spot used even if later revoked).
+    auto_approved: Mapped[bool] = mapped_column(Boolean, default=False)
+    # When a player out of credit asked for more; cleared when an owner grants or dismisses it.
+    topup_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AnalystSetting(Base):
+    """One global Log Pose setting (today only the chat model), the same for every player and both apps."""
+
+    __tablename__ = "analyst_settings"
+
+    key: Mapped[str] = mapped_column(String(32), primary_key=True)
+    value: Mapped[str] = mapped_column(String(64))
 
 
 class AnalystLesson(Base):
@@ -575,6 +664,22 @@ class AnalystMessage(Base):
     )
 
 
+class AnalystProposal(Base):
+    """A deck edit Log Pose suggested in a thread (an Apply card), kept so the card comes back after a reload (#400).
+
+    `id` is the model's tool_use id; `payload` is the proposal as JSON.
+    """
+
+    __tablename__ = "analyst_proposals"
+
+    thread_id: Mapped[int] = mapped_column(ForeignKey("analyst_threads.id", ondelete="CASCADE"), primary_key=True)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class AnalystUsage(Base):
     """What one Log Pose model call cost, for the daily and monthly spend caps."""
 
@@ -589,8 +694,34 @@ class AnalystUsage(Base):
     cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cache_write_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    # The thread a chat call belonged to. No foreign key: deleting a thread keeps its usage rows (cost totals stay), with this nulled.
+    thread_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    # ok | error | aborted | refused
+    outcome: Mapped[str] = mapped_column(String(16), default="ok")
+    # Why a refused request was turned away: credit | daily | monthly | busy.
+    refusal: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    tool_calls: Mapped[int] = mapped_column(Integer, default=0)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class AnalystMatchBrief(Base):
+    """Log Pose's matchup brief for a casual or practice game, written once per (variant, leaders, deck) and shared."""
+
+    __tablename__ = "analyst_match_briefs"
+
+    # sha256 of variant|leader|opponent|sorted deck counts (see brief_tickets.brief_key).
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    variant: Mapped[str] = mapped_column(String(32))
+    leader_id: Mapped[str] = mapped_column(String(32))
+    opponent_id: Mapped[str] = mapped_column(String(32))
+    text: Mapped[str] = mapped_column(Text)
+    # JSON list of the citations placed in the text; NULL when there were none.
+    citations: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
 

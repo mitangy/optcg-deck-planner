@@ -12,7 +12,8 @@ import { auditPage, formatIssues, issueKey, type AuditIssue } from "./audit";
 
 export const GAME_TOKEN_SECRET = "e2e-secret";
 export const FAKE_API = "http://127.0.0.1:8765";
-export const GAME_SERVER = "http://127.0.0.1:2567";
+/** The local game server; E2E_GAME_SERVER moves it when another run already holds the default port. */
+export const GAME_SERVER = process.env.E2E_GAME_SERVER ?? "http://127.0.0.1:2567";
 
 export type DeckList = { leaderId: string; cards: string[] };
 
@@ -31,6 +32,19 @@ export async function preferFan(page: Page): Promise<void> {
 }
 
 /** 50-card mono-red list of plain Characters: games are decided by attacks, not effects. */
+/**
+ * Practice: both players keep their opening hands. The device passes to the second player after the first keeps, so
+ * the second tap waits for that; tapped straight away it can land on the first player's button again (#445).
+ */
+export async function keepBothHands(page: Page): Promise<void> {
+  const root = page.locator(".board-root");
+  const keep = page.getByRole("button", { name: "Keep opening hand" });
+  const first = (await root.getAttribute("data-seat")) ?? "";
+  await keep.click();
+  await expect(root).not.toHaveAttribute("data-seat", first);
+  await keep.click();
+}
+
 export const RED_VANILLA: DeckList = {
   leaderId: "ST01-001",
   cards: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "OP12-002"].flatMap((id) => [id, id, id, id]),
@@ -44,6 +58,47 @@ function b64url(buf: Buffer | string): string {
 export function mintGameToken(uid: number, name: string): string {
   const body = b64url(JSON.stringify({ uid, email: `${name}@e2e.test`, exp: Math.floor(Date.now() / 1000) + 3600, name }));
   return `${body}.${b64url(createHmac("sha256", GAME_TOKEN_SECRET).update(body).digest())}`;
+}
+
+export type FakeAccount = { uid: number; name: string; username?: string };
+
+/**
+ * Make `page` a signed-in browser: the fake `/auth/me` answers as `account` and
+ * `/duel/token` mints that account's game token, so a second browser context
+ * given the same account is the same player on another device (#451). Other
+ * paths fall through to whatever route was registered before this one (the
+ * `duel` fixture's guest-token mint), then to a 404 so the lobby panels stay empty.
+ */
+export async function signInAs(page: Page, account: FakeAccount): Promise<void> {
+  const user = { id: account.uid, email: `${account.name}@e2e.test`, name: account.name, username: account.username ?? account.name };
+  await page.route(`${FAKE_API}/**`, (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/health") return route.fulfill({ json: { ok: true } });
+    if (path === "/auth/me") return route.fulfill({ json: user });
+    if (path === "/duel/token") {
+      return route.fulfill({
+        json: { token: mintGameToken(account.uid, account.name), expires_at: 0, user_id: account.uid, email: user.email, rating: 1000, games_played: 0 },
+      });
+    }
+    if (path === "/duel/rating/me") {
+      return route.fulfill({ json: { user_id: account.uid, ...user, rating: 1000, games_played: 0, wins: 0, losses: 0, rank: null } });
+    }
+    if (path === "/duel/leaderboard") return route.fulfill({ json: { entries: [] } });
+    if (path === "/duel/matches/me") return route.fulfill({ json: { matches: [] } });
+    if (path === "/friends") return route.fulfill({ json: { friends: [], incoming: [], outgoing: [], invites: [] } });
+    return route.fallback();
+  });
+}
+
+/** Seed the saved decks a lobby needs before it can start anything. */
+export async function seedDecks(page: Page, you: DeckList = RED_VANILLA): Promise<void> {
+  await page.addInitScript((d) => {
+    if (sessionStorage.getItem("e2e-seeded")) return;
+    sessionStorage.setItem("e2e-seeded", "1");
+    localStorage.clear();
+    localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify([{ id: "e2e-you", name: "E2E You", ...d, updatedAt: 1 }]));
+    localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
+  }, you);
 }
 
 type Duel = {
@@ -102,7 +157,7 @@ export const test = base.extend<{ duel: Duel }>({
         }, decks);
         await page.goto("/");
         await page.getByRole("button", { name: "Play", exact: true }).click();
-        await page.getByRole("button", { name: /^Practice/ }).click();
+        await page.getByRole("dialog").getByRole("button", { name: /^Practice/ }).click();
         await page.getByLabel("Opponent deck").selectOption("e2e-opp");
         await page.getByRole("button", { name: "Start practice" }).click();
         await expect(page.getByRole("button", { name: "Keep opening hand" })).toBeVisible({ timeout: 30_000 });

@@ -4,9 +4,25 @@ import {
   parseCreateOptions,
   parseIntentMessage,
   parseJoinOptions,
+  parseSkinMessage,
 } from "../src/protocol.js";
 
 describe("protocol parsers", () => {
+  it("relays only a positive 31-bit integer as the DON!! art id, never a string or URL (#440)", () => {
+    const donArt = (v: unknown) =>
+      parseSkinMessage({ protocolVersion: PROTOCOL_VERSION, skin: { donArt: v } }).donArt;
+    assert.equal(donArt(512345), 512345);
+    assert.equal(donArt(2_147_483_647), 2_147_483_647);
+    for (const bad of ["512345", "https://evil.example/x.jpg", -5, 0, 1.5, 2_147_483_648, NaN, {}, true]) {
+      assert.equal(donArt(bad), null, String(bad));
+    }
+    // Old clients send no donArt at all.
+    assert.equal(
+      parseSkinMessage({ protocolVersion: PROTOCOL_VERSION, skin: { playmat: null, cardBack: null } }).donArt,
+      null,
+    );
+  });
+
   it("parses join options", () => {
     const j = parseJoinOptions({
       protocolVersion: PROTOCOL_VERSION,
@@ -17,6 +33,30 @@ describe("protocol parsers", () => {
     assert.equal(j.devUserId, "dev-1");
     assert.equal(j.preferredSeat, 1);
     assert.equal(j.secret, "s");
+  });
+
+  it("parses takeover and ownerToken join options, and refuses a takeover that names no seat (#451)", () => {
+    const j = parseJoinOptions({
+      protocolVersion: PROTOCOL_VERSION,
+      gameToken: "t.s",
+      preferredSeat: 1,
+      takeover: true,
+      ownerToken: " o.k ",
+    });
+    assert.equal(j.takeover, true);
+    assert.equal(j.ownerToken, "o.k");
+    assert.equal(parseJoinOptions({ protocolVersion: PROTOCOL_VERSION, devUserId: "d" }).takeover, undefined);
+    const bad = (extra: Record<string, unknown>) =>
+      assert.throws(
+        () => parseJoinOptions({ protocolVersion: PROTOCOL_VERSION, devUserId: "d", takeover: true, ...extra }),
+        (err: Error & { code?: string }) => err.code === "bad_protocol",
+      );
+    bad({}); // no preferredSeat
+    bad({ preferredSeat: 0, role: "spectator" });
+    assert.throws(
+      () => parseJoinOptions({ protocolVersion: PROTOCOL_VERSION, devUserId: "d", preferredSeat: 0, takeover: "yes" }),
+      (err: Error & { code?: string }) => err.code === "bad_protocol",
+    );
   });
 
   it("parses spectator join role", () => {

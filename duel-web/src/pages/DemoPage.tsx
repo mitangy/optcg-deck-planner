@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CardView, ChatLine, PlayerView, RematchState, UndoState } from "../net/protocol";
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
+import type { RematchDeckOption } from "../decks/rematchDecks";
 import { motionDemoSteps } from "./motionDemo";
 import type { MatchHistoryEntry } from "../history/historyApi";
 
@@ -563,6 +564,20 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
   };
 }
 
+/** `?over`: the game-over reveal (#482), both hands and every Life card, as the server sends it. */
+function withGameOverReveal(base: PlayerView): PlayerView {
+  const sample = ["OP16-108", "OP09-082", "ST01-003", "ST01-009", "ST01-006", "ST01-014"];
+  const cycle = (n: number, offset: number) => Array.from({ length: n }, (_, i) => sample[(i + offset) % sample.length]!);
+  return {
+    ...base,
+    revealedHands: [
+      base.you.hand.map((c) => ({ id: c.id, defId: c.defId })),
+      cycle(base.opponent.handCount, 2).map((defId, i) => ({ id: `o-h${i + 1}`, defId })),
+    ],
+    revealedLife: [cycle(base.you.lifeCount, 1), cycle(base.opponent.lifeCount, 3)],
+  };
+}
+
 /** `?full`: a full board, so playing a Character asks which one to replace. */
 function withFullBoard(base: PlayerView): PlayerView {
   const extra = [
@@ -832,13 +847,19 @@ function withOneActiveDon(base: PlayerView): PlayerView {
  * undo (`?undo=ask` shows an incoming request), `?waiting` the invite screen,
  * `?oppturn` the opponent's turn, `?unaffordable` your main phase with 1 active DON!! (costlier hand cards gray out), `?clock` per-player clocks, `?away` a
  * disconnected opponent, `?over` the match-over screen (`&guest`: no saved match) with a rematch vote
- * (`&rematch=ask|wait|choose|left`), `?full` a full board, `?rest=N` / `?restlead` /
- * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
+ * (`&rematch=ask|wait|choose|left`, `&oppdeck`: the opponent picked a new deck), `?full` a full board, `?rest=N` / `?restlead` /
+ * `?oppfull` rested cards (see withRestedField), `?green` a Green Leader and Character (attack-ready glow colour), `?statuses` stacked status
  * icons (see withManyStatuses), `?motion` a button that steps
  * through every card animation, `?box` the old pop-up instead of floating-card
  * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=newgate`: long names on both sides; `=haki`: the Haki's Yes/No above the hand; `=block`: the block step, to skip it with a Counter drag) drag QA (see
  * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts and `?hand=N` hand size: see applyDemoZoneParams.
  */
+/** Saved decks offered on the demo rematch panel (`?over`). */
+const DEMO_REMATCH_DECKS: RematchDeckOption[] = [
+  { id: "demo-zoro", name: "Zoro Aggro", leaderName: "Roronoa Zoro", cards: 50, wire: { leaderId: "OP01-001", deck: [] } },
+  { id: "demo-luffy", name: "Straw Hat Midrange with a Very Long Deck Name", leaderName: "Monkey.D.Luffy", cards: 48, wire: { leaderId: "ST01-001", deck: [] } },
+];
+
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
   const prompt = params.get("prompt");
@@ -866,22 +887,38 @@ export function DemoPage() {
     params.has("dons") ? withAttachedDon(withStatuses) : withStatuses,
     params,
   );
+  // `?green`: swap in a Green Leader and a Green Character (y-c3), to check
+  // the attack-ready glow stays visible on green art (#449).
+  const colored: PlayerView = params.has("green")
+    ? {
+        ...board,
+        you: {
+          ...board.you,
+          leader: { ...board.you.leader, defId: "ST02-001" },
+          characters: board.you.characters.map((c) => (c.id === "y-c3" ? { ...c, defId: "ST02-005" } : c)),
+        },
+      }
+    : board;
   // `?cantattack`: your main phase where only the Leader may attack, so the
   // summoning-sick / rested Characters show the "can't attack" warning.
   // `?unaffordable` is the same with only 1 active DON!!, so the costlier hand
-  // cards are grayed out (#356).
+  // cards are grayed out (#356). Add `&attackready` to let y-c3 attack too,
+  // so the attack-ready glow shows on a Character as well (#412).
   const mainPhase: PlayerView = params.has("cantattack") || params.has("unaffordable")
     ? {
-        ...(params.has("unaffordable") ? withOneActiveDon(board) : board),
+        ...(params.has("unaffordable") ? withOneActiveDon(colored) : colored),
         phase: "main",
         battle: null,
         legalIntents: [
           { type: "end_turn" },
           { type: "declare_attack", attackerId: "y-leader", target: { kind: "leader" } },
-          ...board.legalIntents.filter((i) => i.type === "give_don"),
+          ...(params.has("attackready")
+            ? [{ type: "declare_attack", attackerId: "y-c3", target: { kind: "leader" } }]
+            : []),
+          ...colored.legalIntents.filter((i) => i.type === "give_don"),
         ],
       }
-    : board;
+    : colored;
   const withTurn: PlayerView = withWaiting(
     params.has("oppturn") ? { ...mainPhase, activeSeat: 1 } : mainPhase,
     params.get("wait"),
@@ -904,12 +941,13 @@ export function DemoPage() {
   const [haki, setHaki] = useState<"hand" | "asking" | "done">("hand");
   // `?counter=block`: the block step until No block (or a Counter drag) passes it.
   const [blockPassed, setBlockPassed] = useState(false);
-  const shown: PlayerView =
+  const live: PlayerView =
     haki !== "hand"
       ? withHakiResolving(view, haki === "asking")
       : params.get("counter") === "block" && !blockPassed
         ? withBlockStep(view)
         : view;
+  const shown: PlayerView = params.has("over") ? withGameOverReveal(live) : live;
   // `?motion`: one state per click; Replay remounts the board to replay the deal.
   const motionSteps = useMemo(() => (params.has("motion") ? motionDemoSteps(view) : null), []);
   const [motionStep, setMotionStep] = useState(0);
@@ -949,6 +987,7 @@ export function DemoPage() {
     return {
       available: mode !== "left",
       requested: mode === "ask" ? [false, true] : mode === "wait" ? [true, false] : mode === "choose" ? [true, true] : [false, false],
+      newDeck: [false, params.has("oppdeck")],
       declinedBy: null,
       chooser: mode === "choose" ? 0 : null,
     };
@@ -982,6 +1021,7 @@ export function DemoPage() {
           params.has("over")
             ? {
                 state: rematch,
+                deckOptions: DEMO_REMATCH_DECKS,
                 onAction: (action) =>
                   setRematch((r) =>
                     action === "request"
@@ -1011,7 +1051,14 @@ export function DemoPage() {
               }
             : undefined
         }
-        onConcede={params.has("practice") ? undefined : () => undefined}
+        onConcede={
+          params.has("practice")
+            ? undefined
+            : () => {
+                const w = window as { __demoConcedes?: number };
+                w.__demoConcedes = (w.__demoConcedes ?? 0) + 1;
+              }
+        }
         timer={
           params.has("clock")
             ? {

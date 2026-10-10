@@ -10,7 +10,10 @@ from app.db import get_db
 from app.duel_ratings import apply_elo
 from app.game_tokens import mint_game_token, verify_game_token
 from app.main import app
-from app.models import DuelMatch, User
+from datetime import datetime, timedelta, timezone
+
+from app.models import DuelLobbySeen, DuelMatch, DuelPresence, DuelRating, User
+from app.routers import duel as duel_router
 
 
 @pytest.fixture()
@@ -22,6 +25,7 @@ def client(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("FRONTEND_ORIGIN", "http://localhost:5173")
     monkeypatch.setenv("DATABASE_URL", "sqlite://")
     get_settings.cache_clear()
+    duel_router.reset_live_cache()
 
     engine = make_test_engine()
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -486,3 +490,116 @@ def test_game_token_carries_an_opaque_id_not_the_email_392(client):
     assert payload["email"] == f"user-{me['id']}"
     assert payload["name"] == body["display_name"]
     assert "@" not in payload["email"]
+
+
+def _set_rating(SessionLocal, user_id: int, rating: int, games_played: int) -> None:
+    with SessionLocal() as db:
+        row = db.get(DuelRating, user_id)
+        if row is None:
+            db.add(DuelRating(user_id=user_id, rating=rating, games_played=games_played))
+        else:
+            row.rating, row.games_played = rating, games_played
+        db.commit()
+
+
+def test_rating_me_counts_wins_losses_and_rank_431(client):
+    c, SessionLocal = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()["user_id"]
+    b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()["user_id"]
+    d = c.post("/duel/dev-token", json={"user_key": "dave"}).json()["user_id"]
+    # Win from seat 1, loss from seat 0, unranked win from seat 0, and a game I'm not in.
+    _ingest(c, "w1", a, me["id"], 1)
+    _ingest(c, "l1", me["id"], b, 1)
+    _ingest(c, "u1", me["id"], a, 0, ranked=False)
+    _ingest(c, "x1", a, b, 0)
+    _set_rating(SessionLocal, me["id"], 1100, 2)
+    _set_rating(SessionLocal, a, 1200, 5)  # higher, played
+    _set_rating(SessionLocal, b, 1100, 4)  # tied, not strictly higher
+    _set_rating(SessionLocal, d, 1900, 0)  # higher but never played
+
+    body = c.get("/duel/rating/me").json()
+    assert body["wins"] == 2
+    assert body["losses"] == 1
+    assert body["rank"] == 2
+    assert body["rating"] == 1100 and body["games_played"] == 2
+
+
+def test_rating_me_rank_is_null_without_ranked_games_431(client):
+    c, SessionLocal = client
+    c.post("/auth/dev-login")
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()["user_id"]
+    _set_rating(SessionLocal, a, 1300, 3)
+    body = c.get("/duel/rating/me").json()
+    assert body["rank"] is None
+    assert body["wins"] == 0 and body["losses"] == 0
+
+
+def test_leaderboard_skips_players_with_no_games_431(client):
+    c, SessionLocal = client
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()["user_id"]
+    b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()["user_id"]
+    _set_rating(SessionLocal, a, 1400, 0)
+    _set_rating(SessionLocal, b, 1000, 1)
+    ids = [e["user_id"] for e in c.get("/duel/leaderboard").json()["entries"]]
+    assert ids == [b]
+
+
+def _live_user(c, key: str) -> int:
+    return c.post("/duel/dev-token", json={"user_key": key}).json()["user_id"]
+
+
+def _presence(SessionLocal, user_id: int, room: str, *, role="player", phase="playing", age_s=0):
+    with SessionLocal() as db:
+        db.add(
+            DuelPresence(
+                user_id=user_id,
+                room_id=room,
+                instance_id="gs-1",
+                role=role,
+                phase=phase,
+                updated_at=datetime.now(timezone.utc) - timedelta(seconds=age_s),
+            )
+        )
+        db.commit()
+
+
+def test_live_counts_fresh_playing_rooms_and_online_users_431(client):
+    c, SessionLocal = client
+    keys = ("p1", "p2", "p3", "wait", "fin", "stale", "spec", "seen", "oldseen", "seenplay")
+    u = {k: _live_user(c, k) for k in keys}
+    # Room r1: two players are one match. A spectator is online but adds no match,
+    # even in a room of its own.
+    _presence(SessionLocal, u["p1"], "r1")
+    _presence(SessionLocal, u["p2"], "r1")
+    _presence(SessionLocal, u["spec"], "r7", role="spectator")
+    _presence(SessionLocal, u["p3"], "r2")
+    # A waiting room is online but not a match.
+    _presence(SessionLocal, u["wait"], "r3", phase="waiting")
+    # Finished rooms and stale rows count for nothing.
+    _presence(SessionLocal, u["fin"], "r4", phase="finished")
+    _presence(SessionLocal, u["stale"], "r5", age_s=600)
+    _presence(SessionLocal, u["seenplay"], "r6", phase="waiting")
+    with SessionLocal() as db:
+        now = datetime.now(timezone.utc)
+        db.add(DuelLobbySeen(user_id=u["seen"], seen_at=now))
+        db.add(DuelLobbySeen(user_id=u["oldseen"], seen_at=now - timedelta(seconds=600)))
+        db.add(DuelLobbySeen(user_id=u["seenplay"], seen_at=now))  # counted once
+        db.commit()
+
+    r = c.get("/duel/live")
+    assert r.status_code == 200
+    # online: p1 p2 p3 spec wait seen seenplay
+    assert r.json() == {"online": 7, "matches": 2}
+
+
+def test_live_result_is_cached_for_30_seconds_431(client, monkeypatch: pytest.MonkeyPatch):
+    c, SessionLocal = client
+    clock = [1000.0]
+    monkeypatch.setattr(duel_router, "_live_clock", lambda: clock[0])
+    assert c.get("/duel/live").json() == {"online": 0, "matches": 0}
+    _presence(SessionLocal, _live_user(c, "p1"), "r1")
+    clock[0] += 29
+    assert c.get("/duel/live").json() == {"online": 0, "matches": 0}
+    clock[0] += 2
+    assert c.get("/duel/live").json() == {"online": 1, "matches": 1}

@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import { cardBackCssValue } from "../cardBack";
 import { lookupCard } from "../cards/atlas";
+import { attackReadyClass } from "./attackGlow";
 import type { CardView, Seat } from "../net/protocol";
 import { CardInspect } from "./CardInspect";
 import { CardTile } from "./CardTile";
@@ -88,6 +89,8 @@ type Props = {
   target?: TargetHandlers;
   /** Drag-to-attack from this side's Leader / Characters. */
   attackDrag?: AttackDragHandlers;
+  /** Your Leader / Characters that can attack now: they glow green (#412). */
+  attackReadyIds?: ReadonlySet<string>;
   /** Drop targets for an attack / counter drag on this side. */
   battleDrop?: BattleDropTargets;
   /** Seat that owns cards on this half of the board. */
@@ -104,6 +107,8 @@ type Props = {
   turnOrder?: "first" | "second";
   /** Custom card back (object URL) for face-down cards on this half. */
   cardBackUrl?: string | null;
+  /** DON!! face for this half (already resolved to a URL); the bundled art when absent (#440). */
+  donArtUrl?: string;
   /** This half's player is taking the current turn (glow + tag). */
   activeTurn?: boolean;
   /**
@@ -197,6 +202,7 @@ export function SideField({
   select,
   target,
   attackDrag,
+  attackReadyIds,
   battleDrop,
   ownerSeat,
   viewingSeat,
@@ -205,6 +211,7 @@ export function SideField({
   matOpacity = 1,
   turnOrder,
   cardBackUrl,
+  donArtUrl,
   activeTurn = false,
   countRow = false,
 }: Props) {
@@ -213,7 +220,9 @@ export function SideField({
   const [trashOpen, setTrashOpen] = useState(false);
   const [trashTopInspect, setTrashTopInspect] = useState(false);
   const [lifeOpen, setLifeOpen] = useState(false);
-  const counts = countRow && side === "opp";
+  /** Count row instead of piles: the opponent's mat on a portrait phone, and yours with "Simple board". */
+  const counts = countRow;
+  const who = side === "you" ? "Your" : "Opponent";
   const faceUpLife = data.faceUpLife ?? [];
   const trashTop = data.trash.length ? data.trash[data.trash.length - 1] : null;
   const trashTitle = side === "you" ? "Your trash" : "Opponent trash";
@@ -252,7 +261,7 @@ export function SideField({
         matImageUrl ? " has-mat-art" : ""
       }${activeTurn ? " is-active-turn" : ""}${counts ? " side-counts" : ""}`}
       style={
-        matImageUrl || cardBackUrl
+        matImageUrl || cardBackUrl || donArtUrl
           ? ({
               ...(matImageUrl
                 ? { "--mat-art": `url("${matImageUrl}")`, "--mat-dim": String(matDim),
@@ -260,6 +269,7 @@ export function SideField({
                   }
                 : null),
               ...(cardBackUrl ? { "--card-back-art": cardBackCssValue(cardBackUrl) } : null),
+              ...(donArtUrl ? { "--don-face-art": `url("${donArtUrl}")` } : null),
             } as CSSProperties)
           : undefined
       }
@@ -272,18 +282,18 @@ export function SideField({
             <CountChip
               kind="life"
               text={zonePileCountLabel(data.lifeCount, leaderLife ?? undefined)}
-              label={`Opponent life: ${data.lifeCount} cards${
+              label={`${who} life: ${data.lifeCount} cards${
                 faceUpLife.length ? `, ${faceUpLife.length} face up` : ""
               }`}
               extra={faceUpLife.length ? `${faceUpLife.length}\u2191` : undefined}
               onOpen={faceUpLife.length ? () => setLifeOpen(true) : undefined}
             />
-            <CountChip kind="deck" text={String(data.deckCount)} label={`Opponent deck: ${data.deckCount} cards`} />
-            <CountChip kind="don" text={String(data.donDeckCount)} label={`Opponent DON!! deck: ${data.donDeckCount} cards`} />
+            <CountChip kind="deck" text={String(data.deckCount)} label={`${who} deck: ${data.deckCount} cards`} />
+            <CountChip kind="don" text={String(data.donDeckCount)} label={`${who} DON!! deck: ${data.donDeckCount} cards`} />
             <CountChip
               kind="trash"
               text={String(data.trash.length)}
-              label={`View opponent trash, ${data.trash.length} cards`}
+              label={`View ${who.toLowerCase()} trash, ${data.trash.length} cards`}
               onOpen={() => setTrashOpen(true)}
             />
           </div>
@@ -334,6 +344,7 @@ export function SideField({
               const extraClass = [
                 isTargetable ? "attack-target" : "",
                 isActionable && !isSelected ? "has-actions" : "",
+                attackReadyIds?.has(c.id) && !isSelected && !isTargetable ? attackReadyClass(lookupCard(c.defId).colors) : "",
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -405,6 +416,7 @@ export function SideField({
             const extraClass = [
               isTargetable ? "attack-target" : "",
               isActionable && !isSelected ? "has-actions" : "",
+              attackReadyIds?.has(leaderId) && !isSelected && !isTargetable ? attackReadyClass(lookupCard(data.leader.defId).colors) : "",
             ]
               .filter(Boolean)
               .join(" ");
@@ -497,6 +509,7 @@ export function SideField({
         <div className="zone-cost">
           <DonStrip
             side={side}
+            donArt={donArtUrl}
             tokens={data.costArea}
             activeCount={data.activeDonCount}
             totalCount={data.costAreaCount ?? data.costArea?.length ?? 0}

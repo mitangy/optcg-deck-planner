@@ -300,12 +300,17 @@ export function OppHandCorner({
   count,
   cardBackUrl,
   variant,
+  cards,
+  ownerSeat,
 }: {
   count: number;
   cardBackUrl: string | null;
   variant: "row" | "mat";
+  /** After the match ends: the hand, face up (#482). Same boxes as the backs, so nothing shifts. */
+  cards?: readonly HandCard[];
+  ownerSeat?: Seat;
 }) {
-  const shown = Math.min(count, variant === "row" ? 8 : 10);
+  const shown = cards ? Math.min(cards.length, variant === "row" ? 8 : 10) : Math.min(count, variant === "row" ? 8 : 10);
   return (
     <div
       className={`opp-hand-corner opp-hand-corner-${variant}`}
@@ -321,6 +326,19 @@ export function OppHandCorner({
       <div className="opp-corner-cards">
         {Array.from({ length: shown }).map((_, i) => {
           const pose = fanPose(i, shown);
+          const card = cards?.[i];
+          if (card) {
+            return (
+              <CardTile
+                key={card.id}
+                defId={card.defId}
+                ownerSeat={ownerSeat}
+                inspectOnClick
+                classNameExtra="opp-corner-card opp-corner-face"
+                style={{ "--rot": `${pose.rot}deg` } as CSSProperties}
+              />
+            );
+          }
           return (
             <span
               key={i}
@@ -361,7 +379,19 @@ export function OppHandFan({
             : undefined
         }
       >
-        <span className="card-back" aria-hidden />
+        {cards ? (
+          cards.slice(0, 10).map((c) => (
+            <CardTile
+              key={c.id}
+              defId={c.defId}
+              ownerSeat={ownerSeat}
+              inspectOnClick
+              classNameExtra="opp-compact-face"
+            />
+          ))
+        ) : (
+          <span className="card-back" aria-hidden />
+        )}
         <span className="opp-hand-fan-count">
           <OppHandCount count={count} /> in hand
         </span>

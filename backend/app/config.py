@@ -31,8 +31,14 @@ class Settings(BaseSettings):
     # In-app Log Pose chat: who may use it (comma-separated emails) and its spend caps in USD.
     # The daily cap is per player; the monthly cap covers everyone. Off when no emails are set.
     analyst_chat_emails: str = ""
-    analyst_chat_daily_usd: float = 3.0
-    analyst_chat_monthly_usd: float = 50.0
+    analyst_chat_daily_usd: float = 1.0
+    analyst_chat_monthly_usd: float = 250.0
+    # Each approved player's monthly Log Pose credit (analyst_access.credit_usd overrides it per player); owners are exempt.
+    analyst_user_credit_usd: float = 5.0
+    # How many players are approved at once when they ask (an owner can change it; the setting wins).
+    analyst_free_spots: int = 50
+    # Who may change the model Log Pose runs on (comma-separated emails); everyone with the chat sees the choice.
+    analyst_model_admin_emails: str = "gamefreakmichaeltang@gmail.com"
     # Extra CORS origins for Expo / duel-web (comma-separated).
     duel_cors_origins: str = (
         "http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,"
@@ -56,6 +62,14 @@ class Settings(BaseSettings):
     # Cookie-free POST /duel/dev-token for duel-web / Expo staging demos.
     # Safe to enable in production staging; does not unlock /auth/dev-login.
     enable_duel_dev_token: bool = False
+    # Background pull of Limitless TCG tournament results for Log Pose. Unset: on in
+    # production, off everywhere else (tests, local dev). TOURNAMENT_SYNC=true/false overrides.
+    tournament_sync: bool | None = None
+    tournament_sync_days: int = 30
+
+    @property
+    def analyst_model_admin_email_set(self) -> set[str]:
+        return {e.strip().lower() for e in self.analyst_model_admin_emails.split(",") if e.strip()}
 
     @property
     def analyst_chat_email_set(self) -> set[str]:
@@ -87,6 +101,10 @@ class Settings(BaseSettings):
             if url.startswith(prefix):
                 return "postgresql+psycopg2://" + url[len(prefix) :]
         return url
+
+    @property
+    def tournament_sync_enabled(self) -> bool:
+        return self.is_production if self.tournament_sync is None else self.tournament_sync
 
     @property
     def is_production(self) -> bool:

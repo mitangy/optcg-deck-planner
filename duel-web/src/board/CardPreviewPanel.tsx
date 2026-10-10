@@ -58,6 +58,7 @@ export function CardPreviewPanel() {
         className="card-preview-img"
         src={src}
         alt={entry.name}
+        draggable={false}
         onError={() => setFailed(src)}
         onLoad={(e) => {
           if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) setFailed(src);
@@ -80,14 +81,6 @@ export function CardPreviewPanel() {
         <div className="card-preview-stage">
           {art}
           {preview.caption ? <p className="card-preview-caption card-preview-caption-big">{preview.caption}</p> : null}
-          {preview.live ? (
-            <LiveCardStatus
-              live={preview.live}
-              atlasPower={entry.power}
-              atlasCost={entry.cost}
-              className="card-preview-live card-preview-live-big"
-            />
-          ) : null}
         </div>
       ) : (
         <>

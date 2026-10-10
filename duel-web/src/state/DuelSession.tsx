@@ -8,6 +8,8 @@ import React, {
 } from "react";
 import { flushSync } from "react-dom";
 import { DuelClient } from "../net/duelClient";
+import { mintAccountGameToken } from "../net/api";
+import { getGameServerUrl } from "../config";
 import {
   clearMatchResume,
   isResumeWithinGrace,
@@ -17,9 +19,11 @@ import {
   touchMatchResume,
 } from "../net/matchResume";
 import type {
+  BriefTicketWire,
   ChatLine,
   Intent,
   MatchOverMessage,
+  PlayerDeckWire,
   PlayerView,
   Seat,
   SeatPlayers,
@@ -33,6 +37,7 @@ import type {
 import { SKIN_MAX_CARD_BACK_CHARS, SKIN_MAX_PLAYMAT_CHARS } from "../net/protocol";
 import { cardBackShareUrl } from "../cardBack";
 import { playmatShareUrl } from "../playmat";
+import { currentSettings } from "../settings";
 import {
   initSeatArtPrefsFromStorage,
   replaceSeatArtPrefs,
@@ -56,6 +61,9 @@ type ConnectOpts = {
   preferredSeat?: Seat;
   role?: "player" | "spectator";
   deck?: { leaderId: string; deck: string[] };
+  /** Take over the seat `preferredSeat` this account holds in `roomId` (#451). */
+  takeover?: boolean;
+  ownerToken?: string;
   createOptions?: {
     ranked?: boolean;
     players?: [
@@ -97,6 +105,13 @@ type DuelSession = {
    */
   startMatch: (launch: MatchLaunch, task: (launchGen: number) => Promise<void>) => void;
   connected: boolean;
+  /** Another device took this seat over (#451): the board is frozen and nothing reconnects. */
+  takenOver: boolean;
+  /**
+   * Move a live match to this device: take over `seat` of `roomId` behind the
+   * board. `mintToken` supplies the account's game token (default: sign-in session).
+   */
+  takeOver: (roomId: string, seat: Seat, mintToken?: () => Promise<string>) => void;
   queueing: boolean;
   canReconnect: boolean;
   /** True while a sessionStorage resume is in flight (blocks lobby redirect). */
@@ -109,6 +124,10 @@ type DuelSession = {
   view: PlayerView | null;
   /** Seat-indexed display names from the server welcome (usernames when set). */
   players: SeatPlayers | null;
+  /** Whether the room is ranked, from the welcome; null until then or from an older server. */
+  ranked: boolean | null;
+  /** The key to a Log Pose matchup brief (players of unranked rooms only). */
+  brief: BriefTicketWire | null;
   battleLog: BattleLogEntry[];
   clearBattleLog: () => void;
   errorBanner: string | null;
@@ -127,7 +146,7 @@ type DuelSession = {
   seatSkins: [SeatSkin | null, SeatSkin | null];
   /** Rematch vote once the match is over (null until the server reports it). */
   rematch: RematchState | null;
-  sendRematch: (action: RematchAction) => void;
+  sendRematch: (action: RematchAction, deck?: PlayerDeckWire) => void;
   sendUndo: (action: UndoAction) => void;
   rating: number | null;
   lastServerUrl: string | null;
@@ -161,6 +180,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const serverUrlRef = useRef<string | null>(null);
   const seatRef = useRef<Seat | null>(null);
   const [connected, setConnected] = useState(false);
+  const [takenOver, setTakenOver] = useState(false);
   const [launch, setLaunch] = useState<MatchLaunch | null>(null);
   const [launching, setLaunching] = useState(false);
   /** Bumped by every startMatch / leave: a connect that finishes under an older value was abandoned. */
@@ -176,6 +196,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const connectRoleRef = useRef<"player" | "spectator">("player");
   const [view, setView] = useState<PlayerView | null>(null);
   const [players, setPlayers] = useState<SeatPlayers | null>(null);
+  const [ranked, setRanked] = useState<boolean | null>(null);
+  const [brief, setBrief] = useState<BriefTicketWire | null>(null);
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
   const viewRef = useRef<PlayerView | null>(null);
   /** Board instance ids → cards, so log lines can name attackers / blockers. */
@@ -211,8 +233,10 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
 
     function wireHandlers() {
       client.setHandlers({
-        onWelcome: ({ matchId: id, seat: s, view: v, role: r, players: p }) => {
+        onWelcome: ({ matchId: id, seat: s, view: v, role: r, players: p, ranked: rk, brief: b }) => {
           setPlayers(p ?? null);
+          setRanked(typeof rk === "boolean" ? rk : null);
+          setBrief(r === "player" ? (b ?? null) : null);
           seatRef.current = s;
           setMatchId(id);
           setSeat(s);
@@ -241,7 +265,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
               playmatShareUrl(SKIN_MAX_PLAYMAT_CHARS),
               cardBackShareUrl(SKIN_MAX_CARD_BACK_CHARS),
             ]).then(([playmat, cardBack]) => {
-              if (playmat || cardBack) client.sendSkin({ playmat, cardBack });
+              const donArt = currentSettings().donArt;
+              if (playmat || cardBack || donArt) client.sendSkin({ playmat, cardBack, donArt });
             });
           }
           const tok = client.getReconnectionToken();
@@ -318,6 +343,17 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           const youSeat = viewRef.current?.spectator ? null : seatRef.current;
           setBattleLog((prev) => rewindBattleLog(prev, toTurn, by, youSeat));
         },
+        onTakenOver: () => {
+          // The seat is theirs now: keep the last board on screen, stop every
+          // path that would reclaim it, and drop the (dead) resume token.
+          setTakenOver(true);
+          setConnected(false);
+          setReconnecting(false);
+          setCanReconnect(false);
+          setQueueing(false);
+          setResuming(false);
+          clearMatchResume();
+        },
         onDisconnect: () => {
           setConnected(false);
           setReconnecting(false);
@@ -357,6 +393,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       setCosmeticsPublisher(null);
       resetAllSeatArtPrefs();
       setSeatSkins([null, null]);
+      setTakenOver(false);
       // Don't wait for the server's close handshake (slow on a cold / busy
       // server): reset locally and let the socket close in the background.
       void client.disconnect(true);
@@ -373,6 +410,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       setRole("player");
       setView(null);
       setPlayers(null);
+      setRanked(null);
+      setBrief(null);
       setMatchOver(null);
       setTimer(null);
       setChat([]);
@@ -384,6 +423,25 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       launch,
       launching,
       connected,
+      takenOver,
+      takeOver(roomId, seat, mintToken) {
+        value.startMatch(
+          { status: "Moving the match here…", leaderId: null, invite: false },
+          async (gen) => {
+            const gameToken = mintToken ? await mintToken() : (await mintAccountGameToken()).token;
+            await value.connect(
+              {
+                serverUrl: serverUrlRef.current ?? getGameServerUrl(),
+                gameToken,
+                roomId,
+                preferredSeat: seat,
+                takeover: true,
+              },
+              gen,
+            );
+          },
+        );
+      },
       queueing,
       canReconnect,
       resuming,
@@ -393,6 +451,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       role,
       view,
       players,
+      ranked,
+      brief,
       battleLog,
       clearBattleLog: () => setBattleLog([]),
       errorBanner,
@@ -411,9 +471,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       awayUntil,
       seatSkins,
       rematch,
-      sendRematch(action) {
+      sendRematch(action, deck) {
         try {
-          client.sendRematch(action);
+          client.sendRematch(action, deck);
         } catch (e) {
           setErrorBanner(e instanceof Error ? e.message : "Rematch failed");
         }
@@ -433,11 +493,14 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         // touch neither the client nor the newer match's state.
         if (launchGenRef.current !== gen) throw cancelled();
         setErrorBanner(null);
+        setTakenOver(false);
         setMatchOver(null);
         setTimer(null);
         setChat([]);
         setUndo(null);
         setView(null);
+        setRanked(null);
+        setBrief(null);
         setQueueing(false);
         setResuming(false);
         setRole(opts.role ?? "player");
@@ -467,6 +530,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setChat([]);
         setUndo(null);
         setView(null);
+        setTakenOver(false);
         setQueueing(true);
         setResuming(false);
         if (opts.serverUrl) {
@@ -591,6 +655,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         const gen = ++launchGenRef.current;
         launchingRef.current = true;
         setErrorBanner(null);
+        setTakenOver(false);
         setView(null);
         setMatchId(null);
         setSeat(null);
@@ -627,6 +692,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     launch,
     launching,
     connected,
+    takenOver,
     queueing,
     canReconnect,
     resuming,
@@ -636,6 +702,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     role,
     view,
     players,
+    ranked,
+    brief,
     battleLog,
     errorBanner,
     matchOver,

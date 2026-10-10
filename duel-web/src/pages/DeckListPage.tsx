@@ -27,6 +27,7 @@ import { useSwipeMove } from "../decks/useSwipeMove";
 import { DESKTOP_DECKS_QUERY, useMediaQuery } from "../board/useMediaQuery";
 import { fetchAuthMe, googleLoginUrl, type AuthUser } from "../net/api";
 import type { ImportIntoDeckResult } from "../decks/storage";
+import { NavMenu } from "../nav/NavMenu";
 
 type PlannerState =
   | { status: "loading" }
@@ -438,18 +439,28 @@ export function DeckListPage() {
     <div className={`app-shell${drag ? " is-deck-dragging" : ""}`}>
       <div className="deck-config deck-config-wide deck-list-page">
         <header className="deck-config-header">
+          <NavMenu />
           <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <div className="deck-config-heading">
             <h1 className="deck-config-title">Decks</h1>
             <p className="meta">Choose a deck to edit, or create a new one.</p>
           </div>
-          <button
-            type="button"
-            className="btn btn-primary deck-list-new"
-            onClick={() => navigate("/decks/new")}
-          >
-            New deck
-          </button>
+          <div className="deck-list-header-actions">
+            <button
+              type="button"
+              className="btn btn-secondary deck-list-meta"
+              onClick={() => navigate("/decks/meta")}
+            >
+              Meta decks
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary deck-list-new"
+              onClick={() => navigate("/decks/new")}
+            >
+              New deck
+            </button>
+          </div>
         </header>
 
         <div className="deck-list-columns">

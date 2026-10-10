@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request
-from sqlalchemy import delete, or_, select, text
+from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
@@ -29,12 +29,14 @@ from app.models import (
     DuelMatch,
     DuelMatchLog,
     DuelMatchProgress,
+    DuelLobbySeen,
     DuelMatchSeatLog,
     DuelPresence,
     DuelRating,
     User,
 )
 from app.rate_limit import RateLimiter, client_ip
+from app.routers.friends import ONLINE_TTL, PRESENCE_TTL, _utc
 from app.reporter import identify_reporter
 from app.usernames import duel_display_name
 from app.routers.api import _require_catalog_token
@@ -53,6 +55,7 @@ from app.schemas import (
     DuelMatchProgressIngest,
     DuelMatchOut,
     DuelPresenceSnapshot,
+    DuelLiveOut,
     DuelRatingOut,
     DuelTokenOut,
 )
@@ -425,6 +428,25 @@ def my_rating(
 ) -> DuelRatingOut:
     rating = _get_or_create_rating(db, user.id)
     db.commit()
+    seat0 = DuelMatch.seat0_user_id == user.id
+    seat1 = DuelMatch.seat1_user_id == user.id
+    wins = db.scalar(
+        select(func.count(DuelMatch.id)).where(
+            or_(
+                (seat0) & (DuelMatch.winner_seat == 0),
+                (seat1) & (DuelMatch.winner_seat == 1),
+            )
+        )
+    )
+    played = db.scalar(select(func.count(DuelMatch.id)).where(or_(seat0, seat1)))
+    rank = None
+    if rating.games_played > 0:
+        ahead = db.scalar(
+            select(func.count())
+            .select_from(DuelRating)
+            .where(DuelRating.games_played > 0, DuelRating.rating > rating.rating)
+        )
+        rank = 1 + (ahead or 0)
     return DuelRatingOut(
         user_id=user.id,
         email=user.email,
@@ -432,6 +454,9 @@ def my_rating(
         username=user.username,
         rating=rating.rating,
         games_played=rating.games_played,
+        wins=wins or 0,
+        losses=(played or 0) - (wins or 0),
+        rank=rank,
     )
 
 
@@ -583,6 +608,7 @@ def leaderboard(
     rows = db.execute(
         select(DuelRating, User)
         .join(User, User.id == DuelRating.user_id)
+        .where(DuelRating.games_played > 0)
         .order_by(DuelRating.rating.desc(), DuelRating.games_played.desc())
         .limit(limit)
     ).all()
@@ -597,6 +623,41 @@ def leaderboard(
         for rating, user in rows
     ]
     return DuelLeaderboardOut(entries=entries)
+
+
+LIVE_CACHE_S = 30.0
+_live_clock = time.monotonic
+_live_cache: tuple[float, DuelLiveOut] | None = None
+
+
+def reset_live_cache() -> None:
+    global _live_cache
+    _live_cache = None
+
+
+@router.get("/live", response_model=DuelLiveOut)
+def live_counts(db: Annotated[Session, Depends(get_db)]) -> DuelLiveOut:
+    """Public headcount for the lobby: players online and matches in progress (counts only)."""
+    global _live_cache
+    tick = _live_clock()
+    if _live_cache is not None and tick - _live_cache[0] < LIVE_CACHE_S:
+        return _live_cache[1]
+    now = datetime.now(timezone.utc)
+    online: set[int] = set()
+    rooms: set[str] = set()
+    for row in db.scalars(select(DuelPresence)):
+        if now - _utc(row.updated_at) > PRESENCE_TTL:
+            continue
+        if row.phase != "finished":
+            online.add(row.user_id)
+        if row.role == "player" and row.phase == "playing":
+            rooms.add(row.room_id)
+    for seen in db.scalars(select(DuelLobbySeen)):
+        if now - _utc(seen.seen_at) <= ONLINE_TTL:
+            online.add(seen.user_id)
+    out = DuelLiveOut(online=len(online), matches=len(rooms))
+    _live_cache = (tick, out)
+    return out
 
 
 def _report_out(row: CardReport, user: User | None) -> CardReportOut:

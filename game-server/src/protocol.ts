@@ -25,7 +25,20 @@ export type DuelJoinOptions = {
   role?: "player" | "spectator";
   /** Optional deck for this seat (overrides create-time placeholder for that seat). */
   deck?: PlayerDeckWire;
+  /**
+   * Move a live match to this device: rebind the seat the signed-in account
+   * holds to this connection (#451). Needs role "player" and a preferredSeat.
+   */
+  takeover?: boolean;
+  /**
+   * Practice only: a game token of the account that controls this (guest) seat,
+   * so that account can later take the seat over. Ignored when invalid.
+   */
+  ownerToken?: string;
 };
+
+/** Close code sent to a socket whose seat moved to another device (#451). */
+export const TAKEN_OVER_CLOSE_CODE = 4451;
 
 export type PlayerDeckWire = {
   leaderId: string;
@@ -70,6 +83,17 @@ export type SeatPlayerInfo = {
   name: string | null;
 };
 
+/** Signed matchup-brief ticket for one player seat of an unranked room. */
+export type BriefTicketWire = {
+  ticket: string;
+  /** The seat's own leader. */
+  leaderId: string;
+  /** The other seat's leader. */
+  opponentId: string;
+  /** The seat's own 50-card deck (no leader). */
+  deck: string[];
+};
+
 export type WelcomeMessage = {
   protocolVersion: ProtocolVersion;
   matchId: string;
@@ -79,6 +103,10 @@ export type WelcomeMessage = {
   view: unknown;
   /** Indexed by seat. */
   players?: [SeatPlayerInfo, SeatPlayerInfo];
+  /** Whether the room is ranked. Absent from older servers. */
+  ranked?: boolean;
+  /** Players of unranked rooms only: the key to a Log Pose matchup brief. */
+  brief?: BriefTicketWire;
 };
 
 export type EventsMessage = {
@@ -121,6 +149,8 @@ export type CosmeticsMessage = {
 export type SeatSkin = {
   playmat: string | null;
   cardBack: string | null;
+  /** TCGPlayer productId of the DON!! card art (#440); null = the bundled art. */
+  donArt: number | null;
 };
 
 export type SkinMessage = {
@@ -134,6 +164,13 @@ export const SKIN_MAX_PLAYMAT_CHARS = 450_000;
 export const SKIN_MAX_CARD_BACK_CHARS = 90_000;
 
 const SKIN_DATA_URL = /^data:image\/(?:jpeg|webp|png);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+/** A positive 31-bit integer (a TCGPlayer productId); anything else is dropped to null, never relayed. */
+function asDonArtId(raw: unknown): number | null {
+  return typeof raw === "number" && Number.isSafeInteger(raw) && raw > 0 && raw <= 2_147_483_647
+    ? raw
+    : null;
+}
 
 function asSkinImage(raw: unknown, maxChars: number, field: string): string | null {
   if (raw === null || raw === undefined) return null;
@@ -162,6 +199,7 @@ export function parseSkinMessage(raw: unknown): SeatSkin {
   return {
     playmat: asSkinImage(skin.playmat, SKIN_MAX_PLAYMAT_CHARS, "playmat"),
     cardBack: asSkinImage(skin.cardBack, SKIN_MAX_CARD_BACK_CHARS, "cardBack"),
+    donArt: asDonArtId(skin.donArt),
   };
 }
 
@@ -211,8 +249,23 @@ export function parseJoinOptions(raw: unknown): DuelJoinOptions {
   if (o.deck !== undefined) {
     deck = asPlayerDeck(o.deck);
   }
+  if (o.takeover !== undefined && typeof o.takeover !== "boolean") {
+    throw Object.assign(new Error("takeover must be a boolean"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  const takeover = o.takeover === true ? true : undefined;
+  if (takeover && (role === "spectator" || preferredSeat === undefined)) {
+    throw Object.assign(new Error("takeover needs a player role and preferredSeat"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  const ownerToken =
+    typeof o.ownerToken === "string" && o.ownerToken.trim() ? o.ownerToken.trim() : undefined;
   return {
     protocolVersion: PROTOCOL_VERSION,
+    takeover,
+    ownerToken,
     devUserId,
     gameToken,
     secret: typeof o.secret === "string" ? o.secret : undefined,
@@ -505,7 +558,9 @@ export type UndoAppliedMessage = {
 
 /**
  * Rematch (unranked rooms): both seats "request", then the loser picks
- * "first" or "second"; "decline" withdraws / refuses.
+ * "first" or "second"; "decline" withdraws / refuses. A "request" may carry
+ * a `deck` to play the next game with instead of the seat's current deck;
+ * a deck on any other action is a protocol error.
  */
 export type RematchAction = "request" | "decline" | "first" | "second";
 
@@ -514,12 +569,14 @@ export type RematchStateMessage = {
   /** Match is over, the room is unranked and both players are still here. */
   available: boolean;
   requested: [boolean, boolean];
+  /** True when that seat's current request carries a different deck. */
+  newDeck: [boolean, boolean];
   declinedBy: Seat | null;
   /** Set once both agreed: the loser, who picks first / second. */
   chooser: Seat | null;
 };
 
-export function parseRematchMessage(raw: unknown): RematchAction {
+export function parseRematchMessage(raw: unknown): { action: RematchAction; deck?: PlayerDeckWire } {
   if (!raw || typeof raw !== "object") {
     throw Object.assign(new Error("rematch message body required"), { code: "bad_protocol" as const });
   }
@@ -532,7 +589,13 @@ export function parseRematchMessage(raw: unknown): RematchAction {
       code: "bad_protocol" as const,
     });
   }
-  return o.action;
+  if (o.deck === undefined || o.deck === null) return { action: o.action };
+  if (o.action !== "request") {
+    throw Object.assign(new Error("rematch deck is only allowed with action request"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  return { action: o.action, deck: asPlayerDeck(o.deck) };
 }
 
 export function parseUndoMessage(raw: unknown): UndoAction {

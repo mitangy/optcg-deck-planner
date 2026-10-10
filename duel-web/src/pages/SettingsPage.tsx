@@ -10,6 +10,7 @@ import {
 } from "../account/cosmeticsSync";
 import { startAccountSync, stopAccountSync } from "../account/accountSync";
 import { CARD_BACK_ASPECT, cardBackCssValue, useCardBackUrl } from "../cardBack";
+import { DonArtPicker } from "./DonArtPicker";
 import { CosmeticHistory } from "../cosmetics/CosmeticHistory";
 import { ImageEditor } from "../cosmetics/ImageEditor";
 import {
@@ -32,6 +33,7 @@ import { VersionStatus } from "../VersionStatus";
 import { openFeedback } from "../feedbackDialog";
 import { AnalystLinkPanel } from "../history/AnalystLinkPanel";
 import "../history/history.css";
+import { NavMenu } from "../nav/NavMenu";
 
 const MODE_OPTIONS: { value: ColorMode; label: string }[] = [
   { value: "dark", label: "Dark" },
@@ -103,6 +105,7 @@ export function SettingsPage() {
     <div className="app-shell">
       <div className="page page-narrow page-settings">
         <header className="page-header">
+          <NavMenu />
           <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <h1 className="page-title">Settings</h1>
         </header>
@@ -114,6 +117,7 @@ export function SettingsPage() {
           <a href="#deck-editor">Deck editor</a>
           <a href="#playmat">Playmat</a>
           <a href="#card-back">Card back</a>
+          <a href="#don-card">DON!! card</a>
         </nav>
 
         {/* Phones: one column in this order. 1024px and up: Gameplay on the right, the rest on the left. */}
@@ -424,6 +428,15 @@ export function SettingsPage() {
           <CosmeticHistory kind="cardBack" />
         </section>
 
+        <section className="panel" id="don-card">
+          <h2 className="panel-title">DON!! card</h2>
+          <DonArtPicker
+            value={settings.donArt}
+            onChange={(donArt) => update({ donArt })}
+            savedWhere={savedWhere}
+          />
+        </section>
+
         {authUser ? <AnalystLinkPanel /> : null}
 
         <section className="panel panel-quiet" id="about">
@@ -434,6 +447,9 @@ export function SettingsPage() {
           </p>
           <VersionStatus actions />
           <div className="about-feedback">
+            <Link to="/whats-new" className="btn btn-ghost btn-sm about-feedback-btn">
+              What’s new
+            </Link>
             <button type="button" className="btn btn-ghost btn-sm about-feedback-btn" onClick={() => openFeedback("Send feedback")}>
               Send feedback
             </button>

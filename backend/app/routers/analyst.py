@@ -14,10 +14,12 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.analyst_stats import matchup_stats
+from app.tournament_stats import tournament_stats
+from app.tournament_sync import sync_status
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.models import AnalystLesson, AnalystPrefs, AnalystToken, Deck, DuelMatch, DuelMatchLog, User
+from app.models import AnalystAccess, AnalystLesson, AnalystPrefs, AnalystSetting, AnalystToken, Deck, DuelMatch, DuelMatchLog, User
 from app.routers.duel import match_history
 from app.schemas import (
     CARD_ID_PATTERN,
@@ -90,13 +92,45 @@ def _chat_sig(settings: Settings, uid: int, exp: int) -> str:
     return hmac.new(settings.analyst_service_secret.encode(), f"chat.{uid}.{exp}".encode(), hashlib.sha256).hexdigest()
 
 
-def chat_enabled_for(settings: Settings, user: User) -> bool:
-    """The in-app chat panel is on for allowlisted players once the analyst service is configured."""
-    return bool(
-        settings.analyst_service_secret
-        and settings.analyst_public_url
-        and user.email.strip().lower() in settings.analyst_chat_email_set
-    )
+def is_chat_owner(settings: Settings, user: User) -> bool:
+    """Owners are everyone on ANALYST_CHAT_EMAILS: they always have the chat and answer access requests."""
+    return user.email.strip().lower() in settings.analyst_chat_email_set
+
+
+def is_model_admin(settings: Settings, user: User) -> bool:
+    """Only ANALYST_MODEL_ADMIN_EMAILS may change the model Log Pose runs on."""
+    return user.email.strip().lower() in settings.analyst_model_admin_email_set
+
+
+# The models the chat may run on; the first is the default.
+CHAT_MODELS = ("claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-haiku-4-5")
+
+
+def chat_model(db: Session) -> str:
+    """The saved chat model, or the default when none is saved (or the saved one is no longer offered)."""
+    value = db.scalar(select(AnalystSetting.value).where(AnalystSetting.key == "chat_model"))
+    return value if value in CHAT_MODELS else CHAT_MODELS[0]
+
+
+def _service_configured(settings: Settings) -> bool:
+    return bool(settings.analyst_service_secret and settings.analyst_public_url)
+
+
+def access_status(db: Session, user: User) -> str | None:
+    row = db.scalar(select(AnalystAccess.status).where(AnalystAccess.user_id == user.id))
+    return row
+
+
+def chat_enabled_for(settings: Settings, user: User, db: Session) -> bool:
+    """The in-app chat panel is on for owners, and for players an owner approved, once the analyst service is configured."""
+    if not _service_configured(settings):
+        return False
+    return is_chat_owner(settings, user) or access_status(db, user) == "approved"
+
+
+def requests_open(settings: Settings) -> bool:
+    """Players can ask for access only when the service is on and someone is there to approve."""
+    return _service_configured(settings) and bool(settings.analyst_chat_email_set)
 
 
 def mint_chat_token(settings: Settings, user: User, now: int) -> tuple[str, int]:
@@ -117,7 +151,7 @@ def _chat_token_user(db: Session, settings: Settings, token: str) -> User | None
     if int(exp) < int(datetime.now(timezone.utc).timestamp()):
         return None
     user = db.get(User, int(uid))
-    return user if user is not None and chat_enabled_for(settings, user) else None
+    return user if user is not None and chat_enabled_for(settings, user, db) else None
 
 
 def analyst_user(
@@ -219,6 +253,34 @@ def analyst_matchup_stats(
     if opponent and not leader:
         raise HTTPException(status_code=400, detail="Give a leader with the opponent")
     return matchup_stats(db, leader, opponent, days, ranked_only)
+
+
+@router.get("/tournaments/stats")
+def analyst_tournament_stats(
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    leader: Annotated[str | None, Query(pattern=CARD_ID_PATTERN)] = None,
+    opponent: Annotated[str | None, Query(pattern=CARD_ID_PATTERN)] = None,
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
+    min_players: Annotated[int, Query(ge=1, le=1000)] = 8,
+    x_analyst_service: Annotated[str | None, Header()] = None,
+) -> dict:
+    """Leader and matchup results from Limitless TCG tournaments (no player names), for the analyst service."""
+    require_service(settings, x_analyst_service)
+    if opponent and not leader:
+        raise HTTPException(status_code=400, detail="Give a leader with the opponent")
+    return tournament_stats(db, leader, opponent, days, min_players)
+
+
+@router.get("/tournaments/sync-status")
+def analyst_tournament_sync_status(
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_analyst_service: Annotated[str | None, Header()] = None,
+) -> dict:
+    """What the Limitless sync has stored, and how its last run went."""
+    require_service(settings, x_analyst_service)
+    return sync_status(db)
 
 
 @router.get("/sharing", response_model=AnalystSharing)

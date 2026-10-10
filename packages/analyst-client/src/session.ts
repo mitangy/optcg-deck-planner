@@ -1,8 +1,23 @@
 /** The chat session: a short-lived token for the analyst service, minted by the API (cookie auth). */
 
+/** Where a player's request for Log Pose stands (only sent when requests are open for them). */
+export type AccessState = "none" | "pending" | "denied";
+
 export type ChatSession =
-  | { enabled: false }
-  | { enabled: true; token: string; expires_at: string; chat_url: string };
+  | {
+      enabled: false;
+      access?: AccessState;
+      /** Free spots in all, how many are left, and the monthly credit a spot brings (only when requests are open). */
+      freeSpots?: number;
+      spotsLeft?: number;
+      freeCreditUsd?: number;
+    }
+  | { enabled: true; token: string; expires_at: string; chat_url: string; owner?: boolean; pendingRequests?: number };
+
+/** The access state from a session body; anything unknown means "can't ask". */
+export function parseAccess(value: unknown): AccessState | undefined {
+  return value === "none" || value === "pending" || value === "denied" ? value : undefined;
+}
 
 /** What a request to the analyst service needs. */
 export type ChatAuth = { token: string; chatUrl: string };
@@ -22,9 +37,38 @@ export async function fetchChatSession(apiBase: string, fetchImpl: typeof fetch 
   try {
     const res = await fetchImpl(`${apiBase}/analyst/chat/session`, { method: "POST", credentials: "include" });
     if (!res.ok) return { enabled: false };
-    const body = (await res.json()) as Partial<{ enabled: boolean; token: string; expires_at: string; chat_url: string }>;
-    if (body.enabled !== true || !body.token || !body.chat_url || !body.expires_at) return { enabled: false };
-    return { enabled: true, token: body.token, expires_at: body.expires_at, chat_url: body.chat_url.replace(/\/+$/, "") };
+    const body = (await res.json()) as Partial<{
+      enabled: boolean;
+      token: string;
+      expires_at: string;
+      chat_url: string;
+      access: unknown;
+      owner: unknown;
+      pending_requests: unknown;
+      free_spots: unknown;
+      spots_left: unknown;
+      free_credit_usd: unknown;
+    }>;
+    if (body.enabled !== true || !body.token || !body.chat_url || !body.expires_at) {
+      const access = parseAccess(body.access);
+      if (!access) return { enabled: false };
+      const out: ChatSession = { enabled: false, access };
+      const count = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : undefined);
+      const freeSpots = count(body.free_spots);
+      const spotsLeft = count(body.spots_left);
+      if (freeSpots !== undefined) out.freeSpots = freeSpots;
+      if (spotsLeft !== undefined) out.spotsLeft = spotsLeft;
+      if (typeof body.free_credit_usd === "number" && body.free_credit_usd > 0) out.freeCreditUsd = body.free_credit_usd;
+      return out;
+    }
+    const out: ChatSession = { enabled: true, token: body.token, expires_at: body.expires_at, chat_url: body.chat_url.replace(/\/+$/, "") };
+    if (body.owner === true) {
+      out.owner = true;
+      if (typeof body.pending_requests === "number" && Number.isFinite(body.pending_requests) && body.pending_requests > 0) {
+        out.pendingRequests = Math.floor(body.pending_requests);
+      }
+    }
+    return out;
   } catch {
     return { enabled: false };
   }

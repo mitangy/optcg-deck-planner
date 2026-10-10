@@ -23,7 +23,7 @@ export function useMediaQuery(query: string): boolean {
  * in board.css (desktop, or landscape phones).
  */
 export const WIDE_BOARD_QUERY =
-  "(min-width: 900px) and (min-height: 500px), (orientation: landscape) and (min-width: 600px) and (max-height: 499px)";
+  "(min-width: 900px) and (min-height: 500px), (orientation: landscape) and (min-width: 480px) and (max-height: 499px)";
 
 /**
  * Compact HUD: everything except a real desktop window (>=900x500). Phones in
@@ -47,7 +47,7 @@ export const DESKTOP_BOARD_QUERY = "(min-width: 900px) and (min-height: 500px)";
 
 /** Landscape phones (the wide board with the short-viewport layout). */
 export const LANDSCAPE_PHONE_QUERY =
-  "(orientation: landscape) and (min-width: 600px) and (max-height: 499px)";
+  "(orientation: landscape) and (min-width: 480px) and (max-height: 499px)";
 
 /**
  * Tall desktop windows: the hand is an always-open grid in the right rail

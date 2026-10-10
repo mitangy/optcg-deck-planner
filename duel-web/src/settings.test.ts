@@ -26,6 +26,37 @@ describe("loadSettings", () => {
   });
 });
 
+describe("DON!! art setting (#440)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps a stored product id and defaults to the bundled art", () => {
+    stubStored({ donArt: 512345 });
+    expect(loadSettings().donArt).toBe(512345);
+    stubStored({});
+    expect(loadSettings().donArt).toBeNull();
+  });
+
+  it("falls back to the bundled art for anything that is not a positive integer", () => {
+    for (const bad of ["512345", -3, 0, 2.5, true, {}, "https://evil.example/x.jpg"]) {
+      stubStored({ donArt: bad });
+      expect(loadSettings().donArt, String(bad)).toBeNull();
+    }
+  });
+
+  it("follows the account: a chosen art is saved, and the default saves as 0 and loads back as null", () => {
+    stubStored({ donArt: 512345 });
+    expect(syncedSettings(loadSettings()).donArt).toBe(512345);
+    stubStored({});
+    expect(syncedSettings(loadSettings()).donArt).toBe(0);
+    expect(mergeRemoteSettings(loadSettings(), { donArt: 0 }).donArt).toBeNull();
+    stubStored({ donArt: 7 });
+    expect(mergeRemoteSettings(loadSettings(), { donArt: 0 }).donArt).toBeNull();
+    expect(mergeRemoteSettings(loadSettings(), { donArt: 99 }).donArt).toBe(99);
+  });
+});
+
 describe("end-turn confirm default", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -192,6 +223,20 @@ describe("account settings", () => {
     expect(synced).not.toHaveProperty("devUserKey");
   });
 
+  it("keeps where pop-ups open on this device, not the account (#422)", () => {
+    stubStored({ promptPos: "-40,-200" });
+    expect(syncedSettings(loadSettings())).not.toHaveProperty("promptPos");
+    expect(mergeRemoteSettings(loadSettings(), { promptPos: "9,9" }).promptPos).toBe("-40,-200");
+  });
+
+  it("follows the account for the column pop-ups dock into, and drops an unknown side (#449)", () => {
+    stubStored({ promptDock: "left" });
+    expect(syncedSettings(loadSettings()).promptDock).toBe("left");
+    expect(mergeRemoteSettings(loadSettings(), { promptDock: "right" }).promptDock).toBe("right");
+    stubStored({ promptDock: "top" });
+    expect(loadSettings().promptDock).toBe("");
+  });
+
   it("applies account settings but keeps this device's device-only fields", () => {
     stubStored({ useDevKey: true, devUserKey: "mine", handLayout: "fan" });
     const merged = mergeRemoteSettings(loadSettings(), {
@@ -238,5 +283,24 @@ describe("hand, one-tap and text size settings", () => {
     expect(loadSettings().textSize).toBe("xlarge");
     stubStored({ textSize: "huge" });
     expect(loadSettings().textSize).toBe("medium");
+  });
+});
+
+describe("Show on screen and Bigger playing area (#449)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("follow the account: saved with it and applied from it", () => {
+    stubStored({});
+    const synced = syncedSettings(loadSettings());
+    expect(synced).toMatchObject({ bigBoard: false, showChat: true, showRecentPlays: true, showCardPreview: true });
+    const merged = mergeRemoteSettings(loadSettings(), {
+      bigBoard: true,
+      showChat: false,
+      showRecentPlays: false,
+      showCardPreview: false,
+    });
+    expect(merged).toMatchObject({ bigBoard: true, showChat: false, showRecentPlays: false, showCardPreview: false });
   });
 });

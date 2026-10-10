@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -26,11 +26,14 @@ import {
   optcgSimFilename,
 } from "./optcgsimExport";
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
+import { deckRemainingMarket, remainingCostForCard } from "./deckCost";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
+import { WhatsNewCard } from "@optcg/patch-notes";
 import { submitFeedback } from "./feedback";
-import { LogPoseProvider, useLogPosePage } from "@optcg/analyst-client";
-import { DECK_STARTERS, defaultLogPosePage, plannerDeckContext, showsLogPose } from "./logPose";
+import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
+import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose } from "./logPose";
 import { LegalPage } from "./LegalPage";
+import { WhatsNewPage } from "./WhatsNewPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
   CardSearchInput,
@@ -52,11 +55,12 @@ import {
 import { BuildTag } from "./BuildTag";
 import { collectionTotals, invalidateOwnedViews, patchOwnedCollection } from "./ownedCollection";
 import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
-import { deckDelta, type DeckStatsCard } from "@optcg/deck-analytics";
+import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analytics";
 import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
 import { CompassIcon } from "./ThemeIcons";
 import { HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
+import { MetaPage } from "./MetaPage";
 import { cardImageUrl } from "./cardImage";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
 import { CardScanner, useImageDrop } from "./CardScanner";
@@ -271,34 +275,6 @@ function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["group-buys"] });
 }
 
-function shoppingRemainingForItem(item: {
-  still_need: number;
-  product_id?: number | null;
-  market_price: number | null;
-  alt_arts?: { product_id: number; wanted?: number; market_price: number | null }[];
-}): number | null {
-  const still = item.still_need;
-  if (still <= 0) return 0;
-  let remaining = still;
-  let total = 0;
-  let missingPrice = false;
-  for (const alt of item.alt_arts ?? []) {
-    if (remaining <= 0) break;
-    const want = alt.wanted ?? 0;
-    const take = Math.min(Math.max(0, want), remaining);
-    if (take <= 0) continue;
-    if (alt.market_price == null) missingPrice = true;
-    else total += take * alt.market_price;
-    remaining -= take;
-  }
-  if (remaining > 0) {
-    if (item.market_price == null) missingPrice = true;
-    else total += remaining * item.market_price;
-  }
-  if (missingPrice) return null;
-  return Math.round(total * 100) / 100;
-}
-
 function applyAltWantOptimistic(
   qc: ReturnType<typeof useQueryClient>,
   cardId: string,
@@ -319,7 +295,7 @@ function applyAltWantOptimistic(
       const alt_arts = (item.alt_arts ?? []).map((a) =>
         a.product_id === productId ? { ...a, wanted: qty } : a,
       );
-      const patched = { ...item, alt_arts, remaining_cost: shoppingRemainingForItem({ ...item, alt_arts }) };
+      const patched = { ...item, alt_arts, remaining_cost: remainingCostForCard({ ...item, alt_arts }) };
       cardsStill += patched.still_need;
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return patched;
@@ -348,10 +324,19 @@ function applyAltWantOptimistic(
   });
 }
 
-function patchOwnedQty(cardId: string, qty: number, need: number, market: number | null | undefined) {
+function patchOwnedQty(
+  cardId: string,
+  qty: number,
+  need: number,
+  market: number | null | undefined,
+  alt_arts?: { product_id: number; wanted?: number; market_price: number | null }[],
+) {
   const still = Math.max(0, need - qty);
-  const remaining =
-    market != null && !Number.isNaN(market) ? Math.round(still * market * 100) / 100 : null;
+  const remaining = remainingCostForCard({
+    still_need: still,
+    market_price: market != null && !Number.isNaN(market) ? market : null,
+    alt_arts,
+  });
   return { owned: qty, still_need: still, remaining_cost: remaining };
 }
 
@@ -436,7 +421,7 @@ function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: str
         if (item.remaining_cost != null) remaining += item.remaining_cost;
         return item;
       }
-      const patched = patchOwnedQty(id, qty, item.need, item.market_price);
+      const patched = patchOwnedQty(id, qty, item.need, item.market_price, item.alt_arts);
       cardsStill += patched.still_need;
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return { ...item, ...patched };
@@ -476,6 +461,15 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
     },
   });
   const shortName = (user.name || user.email).split("@")[0];
+  const navRef = useRef<HTMLElement>(null);
+  const { pathname } = useLocation();
+  // On phones the nav row scrolls inside itself; keep the active link visible.
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector<HTMLElement>("a.active");
+    if (!nav || !active) return;
+    nav.scrollLeft = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
+  }, [pathname]);
 
   return (
     <div className="app">
@@ -493,11 +487,12 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
               <span>Planner</span>
             </Link>
           </div>
-          <nav aria-label="Primary">
+          <nav aria-label="Primary" ref={navRef}>
             <NavLink to="/" end>
               Shopping
             </NavLink>
             <NavLink to="/decks">Decks</NavLink>
+            <NavLink to="/meta">Meta</NavLink>
             <NavLink to="/collection">Collection</NavLink>
             <NavLink to="/group-buys">Group buys</NavLink>
             <NavLink to="/import">Import</NavLink>
@@ -518,6 +513,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
         </div>
       </header>
       <main className="app-main">{children}</main>
+      <WhatsNewCard app="planner" Link={Link} />
     </div>
   );
 }
@@ -2550,10 +2546,7 @@ function summarizeDeckProgress(cards: CardView[]) {
   const copiesNeeded = cards.reduce((sum, c) => sum + c.needed, 0);
   const copiesStill = cards.reduce((sum, c) => sum + c.still_need, 0);
   const copiesOwned = copiesNeeded - copiesStill;
-  const remainingMarket = cards.reduce((sum, c) => {
-    if (c.still_need <= 0 || c.market_price == null) return sum;
-    return sum + c.still_need * c.market_price;
-  }, 0);
+  const remainingMarket = deckRemainingMarket(cards);
   return {
     uniqueTotal,
     uniqueComplete,
@@ -3180,10 +3173,18 @@ function AvailableDonSection({
 }) {
   const [err, setErr] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(query.trim()), 250);
+    return () => window.clearTimeout(t);
+  }, [query]);
   const donQ = useQuery({
-    queryKey: ["catalog-don"],
-    queryFn: () => api.searchCatalog({ card_type: "DON", limit: 100 }),
+    queryKey: ["catalog-don", debouncedQ],
+    queryFn: () => api.searchCatalog({ q: debouncedQ || undefined, card_type: "DON", limit: 100 }),
     staleTime: 60_000,
+    // Keep the grid on screen while the next search loads so typing never collapses it to a skeleton.
+    placeholderData: keepPreviousData,
   });
 
   const neededById = useMemo(() => {
@@ -3217,7 +3218,7 @@ function AvailableDonSection({
   const resultCount = donQ.data?.length ?? 0;
   const summary = [
     `${donCount}/${DON_DECK_LIMIT} in deck`,
-    resultCount > 0 ? `${resultCount} available` : null,
+    resultCount > 0 ? `${resultCount} ${debouncedQ ? "found" : "available"}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -3230,41 +3231,47 @@ function AvailableDonSection({
         storageKey={DECK_DON_AVAILABLE_OPEN_KEY}
         defaultOpen={false}
       >
+        <div className="deck-editor-filters">
+          <CardSearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search DON!! by name, set or ID"
+            label="Search DON!! cards"
+          />
+        </div>
         {err && <p className="error deck-editor-status">{err}</p>}
         {donQ.isLoading && <InlineSkeleton lines={3} label="Loading DON!! cards…" />}
         {donQ.error && <p className="error deck-editor-status">{(donQ.error as Error).message}</p>}
         {donQ.data && donQ.data.length === 0 && (
-          <p className="muted deck-editor-status">No DON!! cards in the catalog yet.</p>
+          <p className="muted deck-editor-status">
+            {debouncedQ ? `No DON!! cards match “${debouncedQ}”.` : "No DON!! cards in the catalog yet."}
+          </p>
         )}
         {donQ.data && donQ.data.length > 0 && (
-          <ul className="deck-editor-results don-available-list">
+          <ul className="don-available-list">
             {donQ.data.map((card) => {
               const inDeck = neededById.get(card.card_id) ?? 0;
               const busy = pendingId === card.card_id;
               const atCap = donCount >= DON_DECK_LIMIT && inDeck === 0;
               return (
-                <li key={card.card_id} className="deck-editor-result">
-                  <div className="deck-editor-result-main">
-                    <CardThumb src={card.image_url || undefined} alt={card.name} />
-                    <div>
-                      <div className="card-id">{card.card_id}</div>
-                      <div>{card.name}</div>
-                      <div className="muted">
-                        {[card.group_name, money(card.market_price)].filter(Boolean).join(" · ")}
-                        {inDeck > 0 ? ` · In deck ×${inDeck}` : ""}
-                      </div>
+                <li key={card.card_id} className="don-tile">
+                  <CardThumb src={card.image_url || undefined} alt={card.name} />
+                  <div className="don-tile-text">
+                    <div className="card-id">{card.card_id}</div>
+                    <div className="don-tile-name">{card.name}</div>
+                    <div className="muted don-tile-meta">
+                      {[card.group_name, money(card.market_price)].filter(Boolean).join(" · ")}
                     </div>
+                    {inDeck > 0 && <div className="don-tile-indeck">In deck ×{inDeck}</div>}
                   </div>
-                  <div className="deck-editor-result-actions">
-                    <button
-                      type="button"
-                      className="btn secondary"
-                      disabled={busy || atCap}
-                      onClick={() => void addOne(card)}
-                    >
-                      {inDeck > 0 ? "Add another" : "Add"}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="btn secondary don-tile-add"
+                    disabled={busy || atCap}
+                    onClick={() => void addOne(card)}
+                  >
+                    {inDeck > 0 ? "Add another" : "Add"}
+                  </button>
                 </li>
               );
             })}
@@ -3394,6 +3401,29 @@ function DeckDetailPage() {
     invalidateAltWantViews(qc);
   };
 
+  // Log Pose's Apply card: what is owned (for the chips) and how this page saves a suggested change.
+  const { data: ownedData } = useQuery({ queryKey: ["owned"], queryFn: api.ownedCollection, staleTime: 300_000 });
+  const logPoseEditor = useMemo<DeckEditor | null>(() => {
+    if (!data || !logPoseDeck) return null;
+    const ownedById = new Map((ownedData?.items ?? []).map((i) => [i.card_id.toUpperCase(), i.owned]));
+    return {
+      ref: `planner:${data.id}`,
+      cards: logPoseDeck.cards,
+      owned: (id) => data.cards.find((c) => c.card_id === id)?.owned ?? ownedById.get(id) ?? (ownedData ? 0 : undefined),
+      apply: async (ops) => {
+        try {
+          const detail = await applyPlannerEdit((cardId, needed) => setDeckCardNeeded(deckId, cardId, needed), ops);
+          if (detail) applyDeckUpdate(detail);
+        } catch (e) {
+          // A rollback may have run: show the deck as the server has it.
+          void qc.invalidateQueries({ queryKey: ["deck", deckId] });
+          throw e;
+        }
+      },
+    };
+  }, [data, logPoseDeck, ownedData, deckId, qc]);
+  useLogPoseDeckEditor(logPoseEditor);
+
   const changeNeeded = async (cardId: string, needed: number) => {
     setNeededErr(null);
     setNeededBusyId(cardId);
@@ -3489,7 +3519,13 @@ function DeckDetailPage() {
     [progressCards],
   );
   // While editing the 50-card count stays quiet; once the user is done (or just viewing) it is checked.
-  const hints = useDeckHints(deckId, statsCards, data?.leader_card_id ?? null, !editing);
+  const baseHints = useDeckHints(deckId, statsCards, data?.leader_card_id ?? null, !editing);
+  // "Why? Ask Log Pose" on a hint, only while Log Pose can answer here.
+  const askLogPose = useLogPoseAsk();
+  const hints = useMemo(
+    () => (askLogPose ? { ...baseHints, onAsk: (h: DeckHint) => askLogPose(hintAsk(h)) } : baseHints),
+    [baseHints, askLogPose],
+  );
   const filterSummary = useMemo(() => {
     const parts: string[] = [];
     if (onlyNeed) parts.push("Still need");
@@ -3924,6 +3960,46 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <Shell user={user}>{children}</Shell>;
 }
 
+/** Meta browsing is public: signed-in users get the app shell, everyone else the slim public header. */
+function MetaRoute() {
+  const { data: user, isLoading } = useMe();
+  if (isLoading) return <AuthLoadingSkeleton label="Loading…" />;
+  if (user) {
+    return (
+      <Shell user={user}>
+        <MetaPage user={user} />
+      </Shell>
+    );
+  }
+  return (
+    <div className="app public-app">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand">
+            <Link to="/login">
+              <img className="brand-logo" src="/optcg-logo.png" alt="ONE PIECE CARD GAME" width={562} height={145} />
+              <span>Planner</span>
+            </Link>
+          </div>
+          <div className="user">
+            <BuildTag />
+            <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
+              Play Duel
+            </a>
+            <ThemeToggle />
+            <Link className="btn secondary" to="/login">
+              Sign in
+            </Link>
+          </div>
+        </div>
+      </header>
+      <main className="app-main">
+        <MetaPage user={null} />
+      </main>
+    </div>
+  );
+}
+
 function PublicSharePage() {
   const { token = "" } = useParams();
   const [onlyNeed, setOnlyNeed] = useState(true);
@@ -4150,12 +4226,14 @@ export default function App() {
   const { data: me } = useMe();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   return (
-    <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null}>
+    <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={PLANNER_SOURCE_HOOKS}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />
+        <Route path="/meta" element={<MetaRoute />} />
         <Route path="/group-buy/join/:token" element={<GroupBuyJoinPage />} />
         <Route path="/group-buy/view/:token" element={<PublicGroupBuyPage />} />
+        <Route path="/whats-new" element={<WhatsNewPage />} />
         <Route path="/terms" element={<LegalPage kind="terms" />} />
         <Route path="/privacy" element={<LegalPage kind="privacy" />} />
         <Route path="/cookies" element={<LegalPage kind="cookies" />} />

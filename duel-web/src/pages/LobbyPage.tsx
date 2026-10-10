@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
 import { isIncompleteDeck } from "../decks/deckStatus";
+import { NavMenu } from "../nav/NavMenu";
 import { getApiBaseUrl, getGameServerUrl, getPlannerUrl } from "../config";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { refreshLinkedDeck } from "../decks/planner";
@@ -18,14 +19,23 @@ import {
 } from "../decks/storage";
 import {
   fetchAuthMe,
+  fetchRatingMe,
   googleLoginUrl,
   mintDevGameToken,
   mintGuestGameToken,
+  mintOwnerToken,
   mintSessionGameToken,
   warmDuelServices,
   type AuthUser,
+  type RatingMe,
 } from "../net/api";
 import { clearMatchResume, loadMatchResume } from "../net/matchResume";
+import {
+  activeMatchModeLabel,
+  fetchActiveMatches,
+  pickOtherDeviceMatch,
+  type ActiveMatch,
+} from "../net/activeMatches";
 import { devKeyAllowed, loadSettings } from "../settings";
 import { LaunchCancelledError, useDuelSession, type MatchLaunch } from "../state/DuelSession";
 import { needsUsername } from "../auth/username";
@@ -33,6 +43,16 @@ import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel
 import { dismissInvite, inviteFriend, inviteFrom, type Friend, type FriendInvite } from "../friends/friendsApi";
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
 import { UpdateNotice, VersionStatus } from "../VersionStatus";
+import { WhatsNewCard } from "@optcg/patch-notes";
+import { IntroStrip } from "../home/IntroStrip";
+import { LiveLine } from "../home/LiveLine";
+import { LogPoseTile } from "../home/LogPoseTile";
+import { TopBounties } from "../home/TopBounties";
+import { VoyageCard } from "../home/VoyageCard";
+import { introDone, introVisible, markIntroDone } from "../home/intro";
+import { leaderGlow } from "../home/leaderGlow";
+import { readLastMode, writeLastMode, type LastMode } from "../home/lastMode";
+import { modeTiles, primaryAction } from "../home/primaryAction";
 
 const SPECTATE_GONE = /not found|locked/i;
 export const SPECTATE_GONE_MESSAGE = "That match has ended or the spectate link is wrong.";
@@ -64,30 +84,36 @@ const MODE_CARDS: Array<{
   mode: PlayMode;
   title: string;
   blurb: string;
+  /** Under the title on the home tiles. */
+  short: string;
   glyph: string;
 }> = [
   {
     mode: "hotseat",
     title: "Practice",
     blurb: "Play both sides on this device.",
+    short: "Both sides",
     glyph: "☸︎",
   },
   {
     mode: "queue",
     title: "Ranked",
     blurb: "Match a random opponent. 15 minutes per player.",
+    short: "15 min each",
     glyph: "⚓︎",
   },
   {
     mode: "create",
     title: "Private room",
     blurb: "Create a room or join a friend's by id.",
+    short: "Play a friend",
     glyph: "✉︎",
   },
   {
     mode: "spectate",
     title: "Spectate",
     blurb: "Watch a room in progress.",
+    short: "Watch a room",
     glyph: "◎︎",
   },
 ];
@@ -163,6 +189,7 @@ function DeckSwitcher({
 }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const glow = leaderGlow(lookupCard(selectedDeck.leaderId).colors);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -186,6 +213,7 @@ function DeckSwitcher({
       <button
         type="button"
         className={`home-deck${open ? " open" : ""}`}
+        style={glow ? ({ "--glow": glow } as CSSProperties) : undefined}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -195,13 +223,20 @@ function DeckSwitcher({
           <span className="home-deck-label">Sailing with</span>
           <span className="home-deck-name">{selectedDeck.name}</span>
           <span className="home-deck-leader">
-            {lookupCard(selectedDeck.leaderId).name} <IncompleteBadge deck={selectedDeck} />
+            {lookupCard(selectedDeck.leaderId).name} · {selectedDeck.cards.length} cards{" "}
+            <IncompleteBadge deck={selectedDeck} />
+          </span>
+          <span className="home-deck-change">
+            Change deck{" "}
+            <span className="home-deck-chevron" aria-hidden>
+              ▾
+            </span>
           </span>
         </span>
-        <span className="home-deck-chevron" aria-hidden>
-          ▾
-        </span>
       </button>
+      <Link to={`/decks/${selectedDeck.id}/configure`} className="home-deck-edit">
+        Edit deck
+      </Link>
 
       {open ? (
         <div className="deck-menu" role="listbox" aria-label="Choose a deck">
@@ -268,7 +303,7 @@ function DeckSwitcher({
 
 export function LobbyPage() {
   const navigate = useNavigate();
-  const { client, connect, queueRanked, cancelQueue, queueing, setRating, startMatch } =
+  const { client, connect, queueRanked, cancelQueue, queueing, setRating, startMatch, takeOver } =
     useDuelSession();
   const location = useLocation();
   // `/watch/:roomId` (a shared spectate link) goes straight into that match.
@@ -286,6 +321,10 @@ export function LobbyPage() {
   const [busyStatus, setBusyStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bounty, setBounty] = useState<number | null>(null);
+  /** Your Bounty, record and rank: undefined while loading, null when signed out or the call failed. */
+  const [me, setMe] = useState<RatingMe | null | undefined>(undefined);
+  const [lastMode, setLastMode] = useState<LastMode | null>(() => readLastMode());
+  const [introClosed, setIntroClosed] = useState(() => introDone());
 
   const [decks, setDecks] = useState<SavedDeck[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -304,6 +343,66 @@ export function LobbyPage() {
     : devKeyAllowed() && settings.useDevKey
       ? "dev"
       : "guest";
+
+  /** Account that could hold a match on another device (guest ids are per browser). */
+  const matchOwner: "session" | "dev" | undefined =
+    authMode === "google" ? "session" : authMode === "dev" && settings.devUserKey.trim() ? "dev" : undefined;
+  /** A live match this account holds a seat in that this tab does not already resume (#451). */
+  const [otherDevice, setOtherDevice] = useState<ActiveMatch | null>(null);
+
+  useEffect(() => {
+    if (!authChecked || !matchOwner) {
+      setOtherDevice(null);
+      return;
+    }
+    let cancelled = false;
+    async function refresh() {
+      try {
+        const token = await mintOwnerToken(matchOwner, settings.devUserKey.trim());
+        if (!token || cancelled) return;
+        const matches = await fetchActiveMatches(serverUrl, token);
+        if (cancelled) return;
+        setOtherDevice(pickOtherDeviceMatch(matches, loadMatchResume()));
+      } catch {
+        /* optional card: stay silent */
+      }
+    }
+    void refresh();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authChecked, matchOwner]);
+
+  function resumeOnThisDevice(m: ActiveMatch) {
+    clearMatchResume();
+    if (m.practice) {
+      navigate("/hotseat", {
+        state: {
+          serverUrl,
+          userKey: hotseatUserKey(),
+          useToken: true,
+          deckWire: { leaderId: "", deck: [] },
+          deckName: "",
+          owner: matchOwner,
+          takeover: { roomId: m.roomId },
+        },
+      });
+      return;
+    }
+    const devKey = settings.devUserKey.trim();
+    takeOver(m.roomId, m.seats[0], async () => {
+      const token = await mintOwnerToken(matchOwner, devKey);
+      if (!token) throw new Error("Sign in to move a match to this device.");
+      return token;
+    });
+    navigate("/duel");
+  }
 
   const friendsEnabled = authMode === "google" && Boolean(authUser?.username);
   const friends = useFriends(friendsEnabled);
@@ -452,7 +551,16 @@ export function LobbyPage() {
     warmDuelServices(getApiBaseUrl(), serverUrl);
     void fetchAuthMe()
       .then((u) => {
-        if (u) setAuthUser(u);
+        if (u) {
+          setAuthUser(u);
+          // Fills the top bar's Bounty and the Your voyage card without minting a token.
+          void fetchRatingMe()
+            .then((r) => {
+              setMe(r);
+              if (r) setBounty(r.rating);
+            })
+            .catch(() => setMe(null));
+        }
         // Signed in but never picked a username (e.g. closed the tab mid-setup).
         // A spectate link works without one.
         if (needsUsername(u) && !watchRoomId) navigate("/welcome/username", { replace: true });
@@ -509,10 +617,32 @@ export function LobbyPage() {
     setSelectedDeckId(id);
   }
 
-  function openSheet() {
+  /** The sheet at the mode chooser, or straight at one mode. */
+  function openSheet(at: PlayMode | null = null) {
     setError(null);
     setMode(null);
+    if (at) pickMode(at);
     setSheetOpen(true);
+  }
+
+  /** Play button or a mode tile: Ranked starts the queue at once, the rest open their setup. */
+  function playFrom(at: LastMode | null) {
+    const action = primaryAction(at);
+    if (action.act === "start") {
+      // Anything that would fail on the spot is shown in the sheet, which has room for the message.
+      if (!selectedDeck || (authMode === "dev" && !settings.devUserKey.trim())) {
+        openSheet(action.mode);
+        return;
+      }
+      void confirmSetup(action.mode);
+      return;
+    }
+    openSheet(action.mode);
+  }
+
+  function dismissIntro() {
+    markIntroDone();
+    setIntroClosed(true);
   }
 
   function closeSheet() {
@@ -552,8 +682,7 @@ export function LobbyPage() {
     return settings.devUserKey.trim() || "web-dev";
   }
 
-  async function confirmSetup() {
-    if (!mode) return;
+  async function confirmSetup(mode: PlayMode) {
     if (authMode === "dev" && !settings.devUserKey.trim()) {
       setError("Set a dev user key in Settings first.");
       return;
@@ -566,6 +695,11 @@ export function LobbyPage() {
       setError("Select a deck first.");
       return;
     }
+    // Play repeats this mode next time; the how-it-works strip has done its job.
+    writeLastMode(mode);
+    setLastMode(readLastMode());
+    markIntroDone();
+    setIntroClosed(true);
     setBusy(true);
     setBusyStatus(mode === "hotseat" ? "Starting…" : "Connecting…");
     setError(null);
@@ -590,6 +724,7 @@ export function LobbyPage() {
             enemyDeckWire: deckToWire(enemy),
             deckName: selectedDeck!.name,
             enemyDeckName: enemy.name,
+            owner: matchOwner,
           },
         });
         return;
@@ -639,6 +774,9 @@ export function LobbyPage() {
       navigate("/duel");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Connect failed");
+      // A tile starts without the sheet open: show the error where it can be read.
+      setMode(mode);
+      setSheetOpen(true);
     } finally {
       setBusy(false);
       setBusyStatus(null);
@@ -687,9 +825,12 @@ export function LobbyPage() {
     <div className="app-shell home-shell">
       <header className="topbar">
         <div className="topbar-inner">
-          <Link to="/" className="topbar-mark" aria-label="OPTCG Duel home">
-            OPTCG Duel
-          </Link>
+          <div className="topbar-left">
+            <NavMenu />
+            <Link to="/" className="topbar-mark" aria-label="OPTCG Duel home">
+              OPTCG Duel
+            </Link>
+          </div>
           <div className="topbar-right">
             {authMode === "guest" ? (
               <a className="btn btn-primary btn-sm" href={googleLoginUrl()}>
@@ -709,7 +850,7 @@ export function LobbyPage() {
               href={getPlannerUrl()}
               target="_blank"
               rel="noopener"
-              className="icon-btn"
+              className="icon-btn topbar-in-menu"
               aria-label="Deck planner"
               title="Deck planner"
             >
@@ -721,7 +862,7 @@ export function LobbyPage() {
               </svg>
               <span className="icon-btn-label">Planner</span>
             </a>
-            <Link to="/history" className="icon-btn" aria-label="Match history" title="Match history">
+            <Link to="/history" className="icon-btn topbar-in-menu" aria-label="Match history" title="Match history">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
                 <path
                   fill="currentColor"
@@ -752,115 +893,167 @@ export function LobbyPage() {
           </div>
         </div>
 
-        <UpdateNotice />
+        <div className="home-primary">
+          <UpdateNotice />
 
-        {pendingResume ? (
-          <section className="notice notice-gold" aria-label="Resume match">
-            <div className="notice-body">
-              <strong>Match in progress</strong>
-              <span>
-                A {pendingResume.mode === "hotseat" ? "practice" : "online"} match is saved in
-                this tab.
-              </span>
-            </div>
-            <div className="notice-actions">
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() =>
-                  navigate(pendingResume.mode === "hotseat" ? "/hotseat" : "/duel", {
-                    replace: true,
-                  })
-                }
-              >
-                Resume
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  clearMatchResume();
-                  setPendingResume(null);
-                }}
-              >
-                Discard
-              </button>
-            </div>
-          </section>
-        ) : null}
+          {pendingResume ? (
+            <section className="notice notice-gold" aria-label="Resume match">
+              <div className="notice-body">
+                <strong>Match in progress</strong>
+                <span>
+                  A {pendingResume.mode === "hotseat" ? "practice" : "online"} match is saved in
+                  this tab.
+                </span>
+              </div>
+              <div className="notice-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() =>
+                    navigate(pendingResume.mode === "hotseat" ? "/hotseat" : "/duel", {
+                      replace: true,
+                    })
+                  }
+                >
+                  Resume
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    clearMatchResume();
+                    setPendingResume(null);
+                  }}
+                >
+                  Discard
+                </button>
+              </div>
+            </section>
+          ) : null}
 
-        {queueing ? (
-          <section className="notice" aria-live="polite">
-            <div className="notice-body">
-              <strong>Searching for an opponent…</strong>
-              <span>Ranked queue · 15 minutes per player</span>
-            </div>
-            <div className="notice-actions">
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => void cancelQueue()}
-              >
-                Cancel
-              </button>
-            </div>
-          </section>
-        ) : null}
+          {otherDevice ? (
+            <section className="notice notice-gold" aria-label="Resume match from another device">
+              <div className="notice-body">
+                <strong>Match in progress on another device</strong>
+                <span>
+                  Your {activeMatchModeLabel(otherDevice)} match is still running. Resume it here
+                  to take over your seat.
+                </span>
+              </div>
+              <div className="notice-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => resumeOnThisDevice(otherDevice)}
+                >
+                  Resume match
+                </button>
+              </div>
+            </section>
+          ) : null}
 
-        {friends.state ? (
-          <FriendInvites
-            invites={friends.state.invites}
-            busy={busy || queueing}
-            onJoin={joinInvite}
-            onDismissed={() => void friends.refresh()}
-          />
-        ) : null}
+          {queueing ? (
+            <section className="notice" aria-live="polite">
+              <div className="notice-body">
+                <strong>Searching for an opponent…</strong>
+                <span>Ranked queue · 15 minutes per player</span>
+              </div>
+              <div className="notice-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => void cancelQueue()}
+                >
+                  Cancel
+                </button>
+              </div>
+            </section>
+          ) : null}
 
-        <div className="home-actions">
-          <button
-            type="button"
-            className="btn btn-play"
-            disabled={busy || queueing}
-            onClick={openSheet}
-          >
-            Play
-          </button>
-        </div>
+          {friends.state ? (
+            <FriendInvites
+              invites={friends.state.invites}
+              busy={busy || queueing}
+              onJoin={joinInvite}
+              onDismissed={() => void friends.refresh()}
+            />
+          ) : null}
 
-        {showIosHint ? (
-          <div className="install-hint" role="note" aria-label="Install on your iPhone">
-            <span>
-              <strong>Install:</strong> tap Share, then Add to Home Screen.
-            </span>
+          {selectedDeck ? (
+            <DeckSwitcher decks={decks} selectedDeck={selectedDeck} onChoose={chooseDeck} />
+          ) : null}
+
+          <div className="home-actions">
             <button
               type="button"
-              className="install-hint-close"
-              aria-label="Dismiss install tip"
-              onClick={() => {
-                dismissIosHint(readInstallEnv());
-                setShowIosHint(false);
-              }}
+              className="btn btn-play"
+              disabled={busy || queueing}
+              aria-describedby="play-subline"
+              onClick={() => playFrom(lastMode)}
             >
-              ✕
+              Play
+              <span id="play-subline" className="btn-play-sub" aria-hidden>
+                {primaryAction(lastMode).subline}
+              </span>
             </button>
+            <div className={`mode-tiles${lastMode ? "" : " mode-tiles-4"}`}>
+              {modeTiles(lastMode).map((m) => {
+                const card = MODE_CARDS.find((c) => c.mode === m)!;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    className="mode-tile"
+                    disabled={busy || queueing}
+                    onClick={() => playFrom(m)}
+                  >
+                    <span className="mode-tile-title">{card.title}</span>
+                    <span className="mode-tile-blurb">{card.short}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        ) : null}
 
-        {selectedDeck ? (
-          <DeckSwitcher decks={decks} selectedDeck={selectedDeck} onChoose={chooseDeck} />
-        ) : null}
+          {showIosHint ? (
+            <div className="install-hint" role="note" aria-label="Install on your iPhone">
+              <span>
+                <strong>Install:</strong> tap Share, then Add to Home Screen.
+              </span>
+              <button
+                type="button"
+                className="install-hint-close"
+                aria-label="Dismiss install tip"
+                onClick={() => {
+                  dismissIosHint(readInstallEnv());
+                  setShowIosHint(false);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ) : null}
 
-        {friendError ? <p className="error-text">{friendError}</p> : null}
-        {busy && busyStatus && !sheetOpen ? <p className="friends-note">{busyStatus}</p> : null}
-        <FriendsPanel
-          signedIn={friendsEnabled}
-          state={friends.state}
-          loadError={friends.loadError}
-          refresh={friends.refresh}
-          busy={busy || queueing}
-          onInvite={inviteToPrivateRoom}
-          onSpectate={spectateFriend}
-        />
+          {authChecked && introVisible(authMode, introClosed) ? <IntroStrip onDismiss={dismissIntro} /> : null}
+        </div>
+
+        <div className="home-side">
+          {friendError ? <p className="error-text">{friendError}</p> : null}
+          {busy && busyStatus && !sheetOpen ? <p className="friends-note">{busyStatus}</p> : null}
+          <LogPoseTile deck={selectedDeck} />
+          {authMode === "google" ? <VoyageCard me={me} /> : null}
+          <FriendsPanel
+            signedIn={friendsEnabled}
+            state={friends.state}
+            loadError={friends.loadError}
+            refresh={friends.refresh}
+            busy={busy || queueing}
+            onInvite={inviteToPrivateRoom}
+            onSpectate={spectateFriend}
+          />
+          <TopBounties me={authMode === "google" ? me : null} />
+          <LiveLine />
+        </div>
         <div className="home-version">
           <VersionStatus />
         </div>
@@ -1014,7 +1207,7 @@ export function LobbyPage() {
                   type="button"
                   className="btn btn-primary btn-lg sheet-confirm"
                   disabled={busy || queueing}
-                  onClick={() => void confirmSetup()}
+                  onClick={() => void confirmSetup(mode)}
                 >
                   {busy && busyStatus ? busyStatus : confirmLabel}
                 </button>
@@ -1023,6 +1216,7 @@ export function LobbyPage() {
           </div>
         </div>
       ) : null}
+      <WhatsNewCard app="duel" Link={Link} />
     </div>
   );
 }
