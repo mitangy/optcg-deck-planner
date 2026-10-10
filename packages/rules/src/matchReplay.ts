@@ -44,10 +44,9 @@ export interface ReplayStep {
   state: MatchState;
 }
 
-/** Re-run a recorded game. Throws if an intent the room accepted is now illegal. */
-export function replayMatch(replay: MatchReplay, onStep?: (step: ReplayStep) => void): MatchState {
-  const rng = createSeededRng(replay.seed);
-  let state = createMatch({
+/** The match as dealt (mulligans skipped when the room skipped them), before the first intent. */
+export function replayStart(replay: MatchReplay): MatchState {
+  const state = createMatch({
     seed: replay.seed,
     firstSeat: replay.firstSeat,
     lifeCheckEveryHit: replay.lifeCheckEveryHit ?? false,
@@ -57,22 +56,36 @@ export function replayMatch(replay: MatchReplay, onStep?: (step: ReplayStep) => 
       { leaderId: replay.players[1].leaderId, deck: [...replay.players[1].deck] },
     ],
   });
-  if (replay.skipMulligans) state = skipMulligans(state, rng);
-  const reseedAt = (i: number) => {
-    for (const r of replay.reseeds ?? []) {
-      if (r.atIntent === i) state = reseedMatch(state, r.seed, r.shuffleDecks === true);
-    }
-  };
+  return replay.skipMulligans ? skipMulligans(state, createSeededRng(replay.seed)) : state;
+}
+
+/** Re-seed the match for every reseed recorded at `i` (before intent `i`, or after the last one). */
+function reseedAt(state: MatchState, replay: MatchReplay, i: number): MatchState {
+  let next = state;
+  for (const r of replay.reseeds ?? []) {
+    if (r.atIntent === i) next = reseedMatch(next, r.seed, r.shuffleDecks === true);
+  }
+  return next;
+}
+
+/** Apply recorded intent `i` to the state before it. Throws if the room's accepted move is now illegal. */
+export function replayApply(state: MatchState, replay: MatchReplay, i: number): { state: MatchState; events: GameEvent[] } {
+  const { seat, intent } = replay.intents[i]!;
+  const result = applyIntent(reseedAt(state, replay, i), intent, { seat, rng: createSeededRng(replay.seed) });
+  if (!result.ok) {
+    throw new Error(`Replay diverged at intent ${i} (${intent.type}): ${result.error?.message ?? "illegal"}`);
+  }
+  return { state: result.state, events: result.events };
+}
+
+/** Re-run a recorded game. Throws if an intent the room accepted is now illegal. */
+export function replayMatch(replay: MatchReplay, onStep?: (step: ReplayStep) => void): MatchState {
+  let state = replayStart(replay);
   replay.intents.forEach(({ seat, intent }, i) => {
-    reseedAt(i);
-    const result = applyIntent(state, intent, { seat, rng });
-    if (!result.ok) {
-      throw new Error(`Replay diverged at intent ${i} (${intent.type}): ${result.error?.message ?? "illegal"}`);
-    }
-    state = result.state;
-    onStep?.({ seat, intent, events: result.events, state });
+    const applied = replayApply(state, replay, i);
+    state = applied.state;
+    onStep?.({ seat, intent, events: applied.events, state });
   });
   // An undo with no move since still left the live state on its fresh seed.
-  reseedAt(replay.intents.length);
-  return state;
+  return reseedAt(state, replay, replay.intents.length);
 }

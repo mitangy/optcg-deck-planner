@@ -127,6 +127,23 @@ describe("DuelClient background reconnect", () => {
   });
 });
 
+describe("DuelClient undo plumbing (#497)", () => {
+  const messageHandler = (room: ReturnType<typeof fakeRoom>, type: string) =>
+    room.onMessage.mock.calls.find((c) => c[0] === type)![1] as (raw: unknown) => void;
+
+  it("hands the room's intent count to the events handler so an undo can trim the log (#497)", () => {
+    const client = new DuelClient();
+    const onEvents = vi.fn();
+    client.setHandlers({ onEvents });
+    const room = fakeRoom({ answersPing: true });
+    attach(client, room);
+    messageHandler(room, "events")({ protocolVersion: PROTOCOL_VERSION, events: [{ type: "x" }], step: 7 });
+    expect(onEvents).toHaveBeenCalledWith([{ type: "x" }], 7);
+    messageHandler(room, "events")({ protocolVersion: PROTOCOL_VERSION, events: [] });
+    expect(onEvents).toHaveBeenLastCalledWith([], undefined);
+  });
+});
+
 describe("DuelClient ranked queue", () => {
   it("stops searching when the queue room closes before a match (#302)", async () => {
     vi.useFakeTimers();

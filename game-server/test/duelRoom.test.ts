@@ -937,7 +937,7 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("undo: request/accept rewinds to the turn start in unranked rooms", async () => {
+  it("undo: request/accept takes back the last action in unranked rooms (#497)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 21,
@@ -946,19 +946,20 @@ describe("DuelRoom", () => {
     type UndoState = {
       enabled: boolean;
       targetTurn: number | null;
-      pending: { from: 0 | 1; toTurn: number } | null;
+      action: { seat: 0 | 1; label: string } | null;
+      pending: { from: 0 | 1; toTurn: number; action: { seat: 0 | 1; label: string } | null } | null;
     };
     const bags: [SeatBag, SeatBag] = [
       { views: [], errors: [] },
       { views: [], errors: [] },
     ];
     const undo: [UndoState[], UndoState[]] = [[], []];
-    const applied: { toTurn: number; by: number }[] = [];
+    const applied: { toTurn: number; toStep: number; by: number; action: { seat: 0 | 1; label: string } }[] = [];
 
     const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
     attach(c0, bags[0]);
     c0.onMessage("undo_state", (msg: UndoState) => undo[0].push(msg));
-    c0.onMessage("undo_applied", (msg: { toTurn: number; by: number }) => applied.push(msg));
+    c0.onMessage("undo_applied", (msg: (typeof applied)[number]) => applied.push(msg));
     const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
     attach(c1, bags[1]);
     c1.onMessage("undo_state", (msg: UndoState) => undo[1].push(msg));
@@ -969,6 +970,7 @@ describe("DuelRoom", () => {
     assert.equal(undo[0].at(-1)!.enabled, true);
     // Nothing has happened yet: nothing to undo.
     assert.equal(undo[0].at(-1)!.targetTurn, null);
+    assert.equal(undo[0].at(-1)!.action, null);
 
     const start = bags[0].views.at(-1)!;
     const active = start.activeSeat;
@@ -980,12 +982,14 @@ describe("DuelRoom", () => {
       () => (bags[0].views.at(-1) as unknown as { turnNumber: number }).turnNumber === startTurn + 1,
       5000,
     );
-    // Fresh turn with no actions: undo targets the previous turn's start.
+    // The last action was ending the turn: that is what an undo takes back.
     await waitUntil(() => undo[1].at(-1)?.targetTurn === startTurn, 5000);
+    assert.deepEqual(undo[1].at(-1)!.action, { seat: active, label: "end turn" });
 
     // The requester cannot accept their own request.
     other.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
     await waitUntil(() => undo[0].at(-1)?.pending != null, 5000);
+    assert.deepEqual(undo[0].at(-1)!.pending!.action, { seat: active, label: "end turn" });
     other.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
     const otherBag = bags[active === 0 ? 1 : 0];
     await waitUntil(() => otherBag.errors.some((e) => e.code === "unauthorized"), 5000);
@@ -993,6 +997,8 @@ describe("DuelRoom", () => {
     activeClient.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
     await waitUntil(() => applied.length === 1, 5000);
     assert.equal(applied[0]!.toTurn, startTurn);
+    assert.deepEqual(applied[0]!.action, { seat: active, label: "end turn" });
+    assert.equal(applied[0]!.toStep, 0);
     await waitUntil(
       () => (bags[0].views.at(-1) as unknown as { turnNumber: number }).turnNumber === startTurn,
       5000,
@@ -1003,6 +1009,116 @@ describe("DuelRoom", () => {
       start.you.hand.map((c) => c.id),
     );
     assert.equal(undo[0].at(-1)!.pending, null);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("one undo takes back one action, not the whole turn, and repeats step further back (#497)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 21,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const applied: { toStep: number; action: { label: string } }[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("undo_applied", (msg: (typeof applied)[number]) => applied.push(msg));
+    const steps: unknown[] = [];
+    c0.onMessage("events", (msg: { step?: number }) => steps.push(msg.step));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    const clients: [ClientRoom, ClientRoom] = [c0, c1];
+    const active = bags[0].views.at(-1)!.activeSeat;
+    const other = (1 - active) as 0 | 1;
+
+    const undoOnce = async () => {
+      const n = applied.length;
+      clients[other].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+      await new Promise((r) => setTimeout(r, 50));
+      clients[active].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
+      await waitUntil(() => applied.length === n + 1, 5000);
+    };
+
+    const atStart = JSON.stringify(internals(room).match);
+    // Action 1: give DON!! (reveals nothing). Action 2: end the turn.
+    const give = bags[active].views.at(-1)!.legalIntents.find((x) => x.type === "give_don")!;
+    assert.ok(give, "the opening player can give DON!!");
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: give });
+    await waitUntil(() => internals(room).replay!.intents.length === 1, 5000);
+    const afterGive = JSON.stringify(internals(room).match);
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).replay!.intents.length === 2, 5000);
+    const afterEnd = JSON.stringify(internals(room).match);
+    assert.notEqual(afterEnd, afterGive);
+    // Each events message says how many intents had been applied, so clients can trim their log on undo.
+    await waitUntil(() => steps.includes(2), 5000);
+    assert.ok(steps.includes(1));
+
+    // The opponent of the player who acts asks, and the last action by either seat is the one undone.
+    await undoOnce();
+    assert.equal(applied.at(-1)!.action.label, "end turn");
+    assert.equal(applied.at(-1)!.toStep, 1);
+    // Back to right after the first action: DON!! is still given, the turn is not rewound to its start.
+    assert.equal(JSON.stringify(internals(room).match), afterGive);
+    assert.equal(internals(room).replay!.intents.length, 1);
+
+    await undoOnce();
+    assert.match(applied.at(-1)!.action.label, /^give DON!! to /);
+    assert.equal(applied.at(-1)!.toStep, 0);
+    assert.equal(JSON.stringify(internals(room).match), atStart);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("undo cannot go back past an action that revealed cards (#497)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 21,
+      autoSkipMulligan: true,
+    });
+    type UndoState = { targetTurn: number | null; action: unknown };
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const undo: UndoState[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("undo_state", (msg: UndoState) => undo.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    const clients: [ClientRoom, ClientRoom] = [c0, c1];
+    const active = bags[0].views.at(-1)!.activeSeat;
+
+    // A harmless action first: it can be undone.
+    const give = bags[active].views.at(-1)!.legalIntents.find((x) => x.type === "give_don")!;
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: give });
+    await waitUntil(() => undo.at(-1)?.action != null, 5000);
+
+    // Swap a hand card for one that looks at the top of the deck (OP01-016 Nami, cost 1) and play it.
+    const m = internals(room).match as unknown as {
+      players: { hand: { defId: string }[]; costArea: { rested: boolean }[]; donDeck: { rested: boolean }[] }[];
+    };
+    m.players[active]!.hand[0]!.defId = "OP01-016";
+    // The one DON!! was given away; hand the player another to pay with.
+    m.players[active]!.costArea.push(m.players[active]!.donDeck.pop()!);
+    clients[active].send("intent", {
+      protocolVersion: PROTOCOL_VERSION,
+      intent: { type: "play_card", handIndex: 0 },
+    });
+    await waitUntil(() => internals(room).replay!.intents.length === 2, 5000);
+    await waitUntil(() => undo.at(-1)?.action == null, 5000);
+    assert.equal(undo.at(-1)!.targetTurn, null);
 
     await c0.leave(true);
     await c1.leave(true);
@@ -1521,6 +1637,7 @@ describe("DuelRoom", () => {
       const text = JSON.stringify(payload.seat_logs);
       assert.ok(!text.includes('"opponentHand"'), "no opponent hand in a live snapshot");
       assert.ok(!text.includes('"opponentOpeningHand"'));
+      assert.equal(payload.closed, undefined, "a live snapshot is not closed (#476)");
     }
 
     // The hand count stays in a live snapshot, so the page can still show it.
@@ -1539,6 +1656,7 @@ describe("DuelRoom", () => {
     await waitUntil(() => sent.length > live, 5000);
     const closing = sent.at(-1)!.seat_logs!;
     assert.ok(closing.every((l) => l.opponentOpeningHand && l.turns.some((t) => t.opponentHand)));
+    assert.equal(sent.at(-1)!.closed, true, "the closing snapshot opens the recording to the players (#476)");
   });
 
   it("the result sent to the backend carries leaders, turns, the replay, each seat's log and how it ended (#244, #252)", async () => {

@@ -7,7 +7,7 @@ import { lookupCard } from "./cards/atlas";
  * Routes that hide the compass and panel: anything that renders a board (online, hotseat,
  * spectating, demo) plus the sign-in hand-off pages.
  */
-const NO_LOG_POSE = ["/duel", "/hotseat", "/watch", "/demo", "/auth/complete", "/welcome"];
+const NO_LOG_POSE = ["/duel", "/hotseat", "/watch", "/demo", "/replay", "/auth/complete", "/welcome"];
 
 export function showsLogPose(pathname: string): boolean {
   return !NO_LOG_POSE.some((p) => pathname === p || pathname.startsWith(`${p}/`));

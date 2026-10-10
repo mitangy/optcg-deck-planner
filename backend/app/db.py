@@ -211,6 +211,12 @@ def _ensure_analyst_access_credit_columns() -> None:
     )
 
 
+def _ensure_duel_progress_closed() -> None:
+    """Add duel_match_progress.closed (room closed; its recording can be watched) on existing DBs (#476)."""
+    false = "FALSE" if engine.dialect.name == "postgresql" else "0"
+    _add_columns("duel_match_progress", [("closed", f"BOOLEAN DEFAULT {false}")])
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_group_buy_columns()
@@ -219,6 +225,7 @@ def init_db() -> None:
     _ensure_user_sum_across_leaders()
     _ensure_user_username()
     _ensure_duel_match_replay_columns()
+    _ensure_duel_progress_closed()
     _ensure_analyst_review_citations()
     _ensure_analyst_usage_columns()
     _ensure_analyst_access_credit_columns()

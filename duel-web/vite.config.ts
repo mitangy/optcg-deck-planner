@@ -51,6 +51,8 @@ export default defineConfig(() => {
         { find: /^@optcg\/deck-analytics/, replacement: fileURLToPath(new URL("../packages/deck-analytics/src", import.meta.url)) },
         { find: /^@optcg\/site-legal/, replacement: fileURLToPath(new URL("../packages/site-legal/src", import.meta.url)) },
         { find: /^@optcg\/patch-notes/, replacement: fileURLToPath(new URL("../packages/patch-notes/src", import.meta.url)) },
+        // The rules engine, for the replay viewer only: import "@optcg/rules/replayTimeline" from the lazy replay chunk, never the package index.
+        { find: /^@optcg\/rules/, replacement: fileURLToPath(new URL("../packages/rules/src", import.meta.url)) },
         { find: /^@optcg\/analyst-client/, replacement: fileURLToPath(new URL("../packages/analyst-client/src", import.meta.url)) },
       ],
       // Package sources sit outside this app, so pin React to this app's copy.
