@@ -245,7 +245,7 @@ function withExtraOption(view: PlayerView): PlayerView {
 }
 
 /**
- * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|unpayable|empty|hand|order|mode|effects|don|don2`).
+ * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|trigger|notrigger|unpayable|empty|hand|order|mode|effects|don|don2`).
  * Searches and effect ordering float over the board; add `&box` to see the old pop-up.
  */
 export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
@@ -413,6 +413,31 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     optional: true,
     prompt: "Monkey.D.Luffy — pay the cost to activate: [On Play] You may trash 2 cards from your hand: Return up to 1 Character with a cost of 4 or less to the owner's hand.",
     request: { type: "confirm" },
+  }),
+  // Life check on a card with a [Trigger]: just the card with Activate Trigger / Add to hand (#495).
+  trigger: demoChoice({
+    id: "demo-trigger",
+    seat: 0,
+    kind: "life_trigger",
+    cardDefId: "OP01-029",
+    optional: true,
+    prompt: "Radical Beam!! — activate this card's [Trigger]?",
+    request: { type: "confirm" },
+    privateToSeat: 0,
+    hideCardDefFromOthers: true,
+  }),
+  // Life check on a card without [Trigger]: one No Trigger button (#352, #495).
+  notrigger: demoChoice({
+    id: "demo-notrigger",
+    seat: 0,
+    kind: "life_trigger",
+    cardDefId: "ST01-003",
+    optional: true,
+    noTrigger: true,
+    prompt: "Karoo has no [Trigger]. Add it to your hand.",
+    request: { type: "confirm" },
+    privateToSeat: 0,
+    hideCardDefFromOthers: true,
   }),
   // The same cost prompt when the hand can't pay it: asked anyway so the opponent can't tell (#369).
   unpayable: demoChoice({
