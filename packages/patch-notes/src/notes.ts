@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-10
-  { date: "2026-10-10", app: "duel", title: "Settings grouped, with jump buttons", text: "Gameplay settings are now in headed groups: Turns and prompts, Hand, Board and layout, Visual aids, Animations, and Sound and alerts. Jump buttons at the top, sticky inside a match, take you straight to one. On the Settings page, Theme, Playmat, Card back and DON!! card now sit under an Appearance heading." },
+  { date: "2026-10-10", app: "duel", pr: 507, title: "Settings grouped, with jump buttons", text: "Gameplay settings are now in headed groups: Turns and prompts, Hand, Board and layout, Visual aids, Animations, and Sound and alerts. Jump buttons at the top, sticky inside a match, take you straight to one. On the Settings page, Theme, Playmat, Card back and DON!! card now sit under an Appearance heading." },
   { date: "2026-10-10", app: "duel", pr: 500, title: "Attach DON!! button fits again", text: "On big screens or with a larger Text size, the Attach DON!! confirm now grows with its text, so the button label no longer spills out." },
   { date: "2026-10-10", app: "duel", pr: 490, title: "Life face-up costs use the top Life cards", text: "Charlotte Pudding and other \"turn cards from the top of your Life face-up or face-down\" effects now only work when the top Life cards can actually be turned. A face-up top Life card no longer lets you flip the cards beneath it." },
   // 2026-10-09
