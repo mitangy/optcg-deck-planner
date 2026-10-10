@@ -111,3 +111,48 @@ test("tapping Attach DON!! on the confirm sends the give_don and closes it (#449
     .toEqual([{ type: "give_don", donId: "d1", targetId: "y-leader" }]);
   await expect(page.locator(".don-attach-confirm")).toHaveCount(0);
 });
+
+// The confirm had a fixed 250px width while the font grew with the window and Text size, so the OK label spilled out.
+test("the Attach DON!! button fits its label on a big screen with Extra large text (#493)", async ({ page }) => {
+  await page.addInitScript(() => {
+    const key = "optcg-duel:settings";
+    let cur: Record<string, unknown> = {};
+    try {
+      cur = JSON.parse(localStorage.getItem(key) ?? "{}") ?? {};
+    } catch {
+      cur = {};
+    }
+    localStorage.setItem(key, JSON.stringify({ ...cur, textSize: "xlarge" }));
+  });
+  for (const [w, h] of [
+    [2560, 1440],
+    [1920, 1080],
+  ]) {
+    await page.setViewportSize({ width: w, height: h });
+    await openDemo(page);
+    await page.locator('.don-strip-you .don-chip-btn[data-don-id="d1"]').click({ force: true });
+    await page.locator('.side-you [data-instance-id="y-c1"]').dispatchEvent("click");
+    await expect(page.locator(".don-attach-confirm")).toBeVisible();
+    const report = await page.evaluate(() => {
+      const box = document.querySelector(".don-attach-confirm")!.getBoundingClientRect();
+      const fit = (sel: string) => {
+        const b = document.querySelector<HTMLElement>(sel)!;
+        const r = b.getBoundingClientRect();
+        return {
+          sel,
+          overflow: b.scrollWidth - b.clientWidth,
+          inside: r.left >= box.left - 0.5 && r.right <= box.right + 0.5,
+        };
+      };
+      return {
+        buttons: [fit(".don-attach-ok"), fit(".don-attach-cancel")],
+        onScreen: box.left >= 0 && box.right <= window.innerWidth && box.top >= 0 && box.bottom <= window.innerHeight,
+      };
+    });
+    for (const b of report.buttons) {
+      expect(b.overflow, `${w}x${h} ${b.sel} label overflow`).toBeLessThanOrEqual(1);
+      expect(b.inside, `${w}x${h} ${b.sel} inside the confirm`).toBe(true);
+    }
+    expect(report.onScreen, `${w}x${h} confirm on screen`).toBe(true);
+  }
+});
