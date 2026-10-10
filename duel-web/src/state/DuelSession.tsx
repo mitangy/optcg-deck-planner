@@ -277,7 +277,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           indexViewInstances(v, instancesRef.current);
           setView(v);
         },
-        onEvents: (events) => {
+        onEvents: (events, step) => {
           const turn = viewRef.current?.turnNumber ?? 1;
           // Spectators follow a camera seat but are not "You".
           const youSeat = viewRef.current?.spectator ? null : seatRef.current;
@@ -287,7 +287,10 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
             turnNumber: turn,
             instances: instancesRef.current,
           });
-          if (lines.length) setBattleLog((prev) => [...prev, ...lines]);
+          if (lines.length) {
+            const stamped = step === undefined ? lines : lines.map((l) => ({ ...l, step }));
+            setBattleLog((prev) => [...prev, ...stamped]);
+          }
         },
         onCosmetics: (msg) => {
           replaceSeatArtPrefs(msg.seat, msg.artPrefs);
@@ -339,9 +342,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         onUndoState: (state) => setUndo(state),
         onPresence: (away) => setAwayUntil(away),
         onRematchState: (state) => setRematch(state),
-        onUndoApplied: ({ toTurn, by }) => {
+        onUndoApplied: ({ toTurn, toStep, by, action }) => {
           const youSeat = viewRef.current?.spectator ? null : seatRef.current;
-          setBattleLog((prev) => rewindBattleLog(prev, toTurn, by, youSeat));
+          setBattleLog((prev) => rewindBattleLog(prev, toTurn, by, youSeat, toStep, action?.label));
         },
         onTakenOver: () => {
           // The seat is theirs now: keep the last board on screen, stop every

@@ -7,6 +7,8 @@ import {
   parseError,
   parseMatchOver,
   parseRematchState,
+  parseUndoApplied,
+  parseUndoState,
   parseView,
   parseWelcome,
   type PlayerView,
@@ -267,5 +269,35 @@ describe("parseRematchState", () => {
     const base = { protocolVersion: PROTOCOL_VERSION, available: true, requested: [true, false], declinedBy: null, chooser: null };
     expect(parseRematchState({ ...base, newDeck: [false, true] }).newDeck).toEqual([false, true]);
     expect(parseRematchState(base).newDeck).toEqual([false, false]);
+  });
+});
+
+describe("undo messages name the action they take back (#497)", () => {
+  const v = { protocolVersion: PROTOCOL_VERSION };
+
+  it("reads the last action and the one in an open request (#497)", () => {
+    const state = parseUndoState({
+      ...v,
+      enabled: true,
+      targetTurn: 3,
+      action: { seat: 1, label: "attack with Zoro" },
+      pending: { from: 0, toTurn: 3, action: { seat: 1, label: "attack with Zoro" } },
+    });
+    expect(state.action).toEqual({ seat: 1, label: "attack with Zoro" });
+    expect(state.pending).toEqual({ from: 0, toTurn: 3, action: { seat: 1, label: "attack with Zoro" } });
+  });
+
+  it("still reads a server that sends no action: the request survives with a null action (#497)", () => {
+    const state = parseUndoState({ ...v, enabled: true, targetTurn: 2, pending: { from: 1, toTurn: 2 } });
+    expect(state.action).toBeNull();
+    expect(state.pending).toEqual({ from: 1, toTurn: 2, action: null });
+  });
+
+  it("reads the step an applied undo rewound to, and tolerates its absence (#497)", () => {
+    const applied = parseUndoApplied({ ...v, toTurn: 2, toStep: 5, by: 1, action: { seat: 0, label: "play Nami" } });
+    expect(applied).toEqual({ toTurn: 2, toStep: 5, by: 1, action: { seat: 0, label: "play Nami" } });
+    const old = parseUndoApplied({ ...v, toTurn: 2, by: 0 });
+    expect(old.toStep).toBeUndefined();
+    expect(old.action).toBeNull();
   });
 });
