@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-10
+  { date: "2026-10-10", app: "both", pr: 516, title: "Deck stats after an update", text: "If the site updates while a tab is open, deck stats now ask you to reload instead of showing an error." },
   { date: "2026-10-10", app: "duel", pr: 488, title: "Watch your games again", text: "Tap Watch on a game in Match history to replay it on the board, step by step or at your chosen speed. Both hands are shown, and you can switch to just what you saw. Flip the board to either side." },
   { date: "2026-10-10", app: "duel", pr: 517, title: "Six cards now work as printed", text: "Ace & Newgate puts its revealed card back on top of your deck, People's Dreams Don't Ever End!! and Shu read the trashed card and the attacker correctly, and Maser Saber and both Amazons only let your opponent pay when they really can (3 cards in hand, a Life card, an active DON!!), so they can no longer dodge the effect by paying part of it." },
   { date: "2026-10-10", app: "duel", pr: 507, title: "Settings grouped, with jump buttons", text: "Gameplay settings are now in headed groups: Turns and prompts, Hand, Board and layout, Visual aids, Animations, and Sound and alerts. Jump buttons at the top, sticky inside a match, take you straight to one. On the Settings page, Theme, Playmat, Card back and DON!! card now sit under an Appearance heading." },
