@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
+import type { LifeFan } from "../settings";
 import { inspectOnContextMenu } from "./inspectGestures";
 
 /** Life/deck pile count label — never secret (life used to show "??"). */
@@ -8,6 +9,12 @@ export function zonePileCountLabel(count: number, expectedCount?: number): strin
   if (count > 0) return String(count);
   if (expectedCount != null && expectedCount > 0) return `0 / ${expectedCount}`;
   return "0";
+}
+
+/** The fan direction drawn on a side: yours follows the setting, the opponent's mirrors it across the midline (#499). */
+export function lifeFanForSide(pref: LifeFan, side: "you" | "opp"): LifeFan {
+  if (side === "you") return pref;
+  return pref === "down" ? "up" : "down";
 }
 
 /** Visible face-down cards in the life fan — one per life, capped at 5. */
@@ -52,6 +59,8 @@ type Props = {
   /** Optional top-face art (trash top card). */
   topDefId?: string | null;
   ownerSeat?: Seat;
+  /** Life only: which way the faces fan (default down). */
+  lifeFan?: LifeFan;
   /** Opens zone browser when set (typically trash). */
   onOpen?: () => void;
   /** Right-click (mouse) opens the top card's details instead of the browser menu. */
@@ -66,6 +75,7 @@ export function ZonePile({
   topDefId,
   faceUp,
   ownerSeat,
+  lifeFan = "down",
   onOpen,
   onInspectTop,
 }: Props) {
@@ -81,7 +91,7 @@ export function ZonePile({
 
   const stack =
     variant === "life" ? (
-      <div className="zone-pile-stack" aria-hidden>
+      <div className={`zone-pile-stack${lifeFan === "up" ? " is-fan-up" : ""}`} aria-hidden>
         {lifePileFaces(count, faceUp).map((defId, i) =>
           defId ? (
             <span

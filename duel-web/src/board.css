@@ -487,6 +487,20 @@
   margin-top: 0;
 }
 
+/* Fans up (#499): column-reverse puts the last face (top of Life) at the top, in front. */
+.arena .side-field .zone-pile-life .zone-pile-stack.is-fan-up {
+  flex-direction: column-reverse;
+}
+
+.arena .side-field .zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face {
+  margin-top: 0;
+  margin-bottom: calc(var(--c) * -0.46);
+}
+
+.arena .side-field .zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face:first-child {
+  margin-bottom: 0;
+}
+
 .arena .side-field .zone-pile-life .zone-pile-stack:empty::before {
   width: var(--c);
   height: calc(var(--c) / 1.4);

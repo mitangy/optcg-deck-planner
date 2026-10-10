@@ -2252,6 +2252,7 @@ export function DuelBoard({
 
             <SideField
               side="opp"
+              lifeFan={prefs.lifeFan}
               compact
               countRow={portraitMat}
               turnOrder={firstSeat === oppSeat ? "first" : "second"}
@@ -2299,6 +2300,7 @@ export function DuelBoard({
 
             <SideField
               side="you"
+              lifeFan={prefs.lifeFan}
               compact={simpleOwnBoard}
               countRow={simpleOwnBoard}
               turnOrder={youFirst ? "first" : "second"}
