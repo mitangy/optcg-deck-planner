@@ -16,6 +16,9 @@ type Options = {
   onHideHand: () => void;
   onSortHand: () => void;
   onHelp: () => void;
+  /** Full screen is offered here (see canOfferFullscreen): F calls onToggleFullscreen. */
+  fullscreenOffered: boolean;
+  onToggleFullscreen: () => void;
 };
 
 const MODAL_SELECTOR =
@@ -118,6 +121,7 @@ export function useBoardHotkeys(opts: Options) {
       else if (action === "hide_hand") o.onHideHand();
       else if (action === "sort_hand") o.onSortHand();
       else if (action === "help") o.onHelp();
+      else if (action === "fullscreen") o.onToggleFullscreen();
       else {
         const btn = document.querySelector<HTMLButtonElement>(
           ".board-root .intent-btn-primary:not(:disabled)",
@@ -159,6 +163,7 @@ export function useBoardHotkeys(opts: Options) {
         cardKeys: o.cardKeys,
         escOwned: document.querySelector(ESC_OWNER_SELECTOR) != null,
         handHides: o.handHides,
+        fullscreenOffered: o.fullscreenOffered,
       });
       if (!action) return;
       e.preventDefault();

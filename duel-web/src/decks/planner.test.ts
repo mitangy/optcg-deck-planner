@@ -119,6 +119,16 @@ describe("saveDeck planner link", () => {
   });
 });
 
+describe("editedLocally (#481)", () => {
+  it("is cleared when the planner version replaces the deck, and kept by plain saves", () => {
+    saveDeck({ id: "planner-7", name: "A", leaderId: "ST01-001", cards: ["ST01-003"], plannerDeckId: 7, editedLocally: true });
+    saveDeck({ id: "planner-7", name: "A2", leaderId: "ST01-001", cards: ["ST01-003", "ST01-006"] });
+    expect(getSavedDeck("planner-7")?.editedLocally).toBe(true);
+    upsertPlannerDeck({ plannerId: 7, name: "A", text: "1xST01-001\n3xST01-003" });
+    expect(getSavedDeck("planner-7")?.editedLocally).toBe(false);
+  });
+});
+
 describe("refreshLinkedDeck", () => {
   const linked = () =>
     saveDeck({ id: "planner-7", name: "Old", leaderId: "ST01-001", cards: [], plannerDeckId: 7 });
@@ -160,6 +170,18 @@ describe("refreshLinkedDeck", () => {
     const local = linked();
     const deck = await refreshLinkedDeck(local, 100, async () => detail({ leader_card_id: null, cards: [{ card_id: "ST01-003", needed: 4 }] }));
     expect(deck).toBe(local);
+  });
+
+  it("keeps a linked deck you saved edits to and does not fetch (#481)", async () => {
+    const edited = saveDeck({ id: "planner-7", name: "Old", leaderId: "ST01-001", cards: ["ST01-003"], plannerDeckId: 7, editedLocally: true });
+    let called = false;
+    const deck = await refreshLinkedDeck(edited, 100, async () => {
+      called = true;
+      return detail();
+    });
+    expect(called).toBe(false);
+    expect(deck.cards).toEqual(["ST01-003"]);
+    expect(getSavedDeck("planner-7")?.cards).toEqual(["ST01-003"]);
   });
 
   it("does not fetch for an unlinked deck", async () => {

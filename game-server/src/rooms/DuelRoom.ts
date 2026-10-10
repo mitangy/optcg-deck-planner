@@ -192,6 +192,8 @@ export class DuelRoom extends Room implements PresenceSource {
   private gameNumber = 0;
   private rematchRequested: [boolean, boolean] = [false, false];
   private rematchDeclinedBy: Seat | null = null;
+  /** Deck each seat picked with its rematch request (null: keep the current deck). */
+  private rematchDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private lastTimerActiveSeat: Seat | null = null;
   /** Start-of-turn states, oldest first (unranked rooms only). */
@@ -618,6 +620,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.awayUntil = [null, null];
     this.undoRequest = null;
     this.syncPublicState();
+    this.broadcastViews([]);
     this.stopSeatClock();
     this.clearTimerLoop();
     this.broadcastTimer();
@@ -900,7 +903,7 @@ export class DuelRoom extends Room implements PresenceSource {
       if (!slot) continue;
       const client = this.clients.find((c) => c.sessionId === slot.sessionId);
       if (!client) continue;
-      const view = getPlayerView(match, slot.seat);
+      const view = this.playerView(match, slot.seat);
       const welcome: WelcomeMessage = {
         protocolVersion: PROTOCOL_VERSION,
         matchId: this.matchId,
@@ -1137,6 +1140,7 @@ export class DuelRoom extends Room implements PresenceSource {
       phase: "game_over",
     };
     this.syncPublicState();
+    this.broadcastViews([]);
     this.undoRequest = null;
     this.broadcastUndoState();
     this.stopSeatClock();
@@ -1193,7 +1197,7 @@ export class DuelRoom extends Room implements PresenceSource {
       );
       client.send("view", {
         protocolVersion: PROTOCOL_VERSION,
-        view: getPlayerView(before, seat),
+        view: this.playerView(before, seat),
       });
       return;
     }
@@ -1225,6 +1229,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.clockSeat = null;
     this.rematchRequested = [false, false];
     this.rematchDeclinedBy = null;
+    this.rematchDecks = [null, null];
     this.seatHandOrder = [[], []];
     this.publicArtDefs = [new Set(), new Set()];
     this.sentPublicArt = ["{}", "{}"];
@@ -1242,6 +1247,7 @@ export class DuelRoom extends Room implements PresenceSource {
       protocolVersion: PROTOCOL_VERSION,
       available,
       requested: [...this.rematchRequested],
+      newDeck: [this.rematchDecks[0] != null, this.rematchDecks[1] != null],
       declinedBy: this.rematchDeclinedBy,
       chooser: available && both && this.match?.winner != null ? ((1 - this.match.winner) as Seat) : null,
     };
@@ -1264,8 +1270,10 @@ export class DuelRoom extends Room implements PresenceSource {
       return;
     }
     let action: RematchAction;
+    let deck: PlayerDeckWire | undefined;
     try {
-      action = parseRematchMessage(message);
+      ({ action, deck } = parseRematchMessage(message));
+      if (deck) assertKnownDeck(deck);
     } catch (e) {
       const err = e as Error & { code?: ErrorCode };
       this.sendError(client, err.code ?? "bad_protocol", err.message);
@@ -1283,11 +1291,13 @@ export class DuelRoom extends Room implements PresenceSource {
     switch (action) {
       case "request":
         this.rematchRequested[seat] = true;
+        this.rematchDecks[seat] = deck ?? null;
         this.rematchDeclinedBy = null;
         this.broadcastRematchState();
         return;
       case "decline":
         this.rematchRequested = [false, false];
+        this.rematchDecks = [null, null];
         this.rematchDeclinedBy = seat;
         this.broadcastRematchState();
         return;
@@ -1299,7 +1309,16 @@ export class DuelRoom extends Room implements PresenceSource {
         }
         const firstSeat: Seat = action === "first" ? seat : ((1 - seat) as Seat);
         this.seed = gameSeed();
-        this.log("info", "rematch_start", { matchId: this.matchId, game: this.gameNumber + 1, firstSeat });
+        this.log("info", "rematch_start", {
+          matchId: this.matchId,
+          game: this.gameNumber + 1,
+          firstSeat,
+          newDeck: [this.rematchDecks[0] != null, this.rematchDecks[1] != null],
+        });
+        for (const s of [0, 1] as const) {
+          const picked = this.rematchDecks[s];
+          if (picked) this.seatDecks[s] = picked;
+        }
         this.startMatch(firstSeat);
         return;
       }
@@ -1488,7 +1507,7 @@ export class DuelRoom extends Room implements PresenceSource {
       if (!slot) continue;
       const client = this.clients.find((c) => c.sessionId === slot.sessionId);
       if (!client) continue;
-      const view = getPlayerView(this.match, slot.seat);
+      const view = this.playerView(this.match, slot.seat);
       client.send("events", {
         protocolVersion: PROTOCOL_VERSION,
         events: projectGameEvents(events, slot.seat),
@@ -1686,6 +1705,7 @@ export class DuelRoom extends Room implements PresenceSource {
       phase: "game_over",
     };
     this.syncPublicState();
+    this.broadcastViews([]);
     this.undoRequest = null;
     this.broadcastUndoState();
     this.stopSeatClock();
@@ -1702,6 +1722,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.endReason = "timeout";
     this.match = { ...this.match, winner, winReason: "leader_battle_at_zero_life", phase: "game_over" };
     this.syncPublicState();
+    this.broadcastViews([]);
     this.undoRequest = null;
     this.broadcastUndoState();
     this.stopSeatClock();
@@ -1991,7 +2012,7 @@ export class DuelRoom extends Room implements PresenceSource {
       this.sendError(client, "match_not_ready", "Match not started");
       return;
     }
-    const view = getPlayerView(this.match, seat);
+    const view = this.playerView(this.match, seat);
     const welcome: WelcomeMessage = {
       protocolVersion: PROTOCOL_VERSION,
       matchId: this.matchId,
@@ -2022,6 +2043,17 @@ export class DuelRoom extends Room implements PresenceSource {
       });
       if (!this.ranked) client.send("rematch_state", this.rematchState());
     }
+  }
+
+  /** Player view; after game over the revealed hands follow each player's arranged order (#482). */
+  private playerView(match: MatchState, seat: Seat) {
+    const view = getPlayerView(match, seat);
+    if (!view.revealedHands) return view;
+    const [h0, h1] = view.revealedHands;
+    return {
+      ...view,
+      revealedHands: [applyHandOrder(h0, this.seatHandOrder[0]), applyHandOrder(h1, this.seatHandOrder[1])] as typeof view.revealedHands,
+    };
   }
 
   /**

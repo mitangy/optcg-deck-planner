@@ -45,6 +45,10 @@ module.exports = {
     { id: "e2e-don-chip-clicks-ignored", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/ChoicePrompt.tsx", from: "  const chip = target?.closest?.<HTMLElement>(\".don-strip .don-chip-btn[data-don-id]\");", to: "  const chip = null as HTMLElement | null;", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [desktop-1280]"] },
     { id: "e2e-don-chip-disabled", args: "demo-audit --project=phone-375", file: "duel-web/src/board/DonStrip.tsx", from: "      tabIndex={canDrag ? undefined : -1}\n", to: "      disabled={!canDrag}\n", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [phone-375]"] },
 
+    // Match log: two turns per row on desktop, jump chips (#470)
+    { id: "e2e-match-log-hands-not-beside", args: "match-log-layout --project=desktop-1280", file: "duel-web/src/history/history.css", from: "  .match-log-turn-body[data-hands] {\n    display: grid;", to: "  .match-log-turn-body[data-hands] {\n    display: block;", kills: ["match-log-layout.spec.ts > hands sit beside the turn's plays on desktop (#470) [desktop-1280]"] },
+    { id: "e2e-match-log-chip-jumps-wrong-turn", args: "match-log-layout --project=phone-375", file: "duel-web/src/pages/MatchLogPage.tsx", from: "document.getElementById(`turn-${turn}`)?.scrollIntoView({ behavior", to: "document.getElementById(`turn-${turn + 1}`)?.scrollIntoView({ behavior", kills: ["match-log-layout.spec.ts > jump chips scroll to that turn (#470) [phone-375]"] },
+
     // Dock sits in the gap between the mats (#368). Both layers: the taller strip and the reserve.
     { id: "e2e-dock-covers-mats", args: "dock-room --project=desktop-1280", edits: [
       { file: "duel-web/src/board.css", from: "  --midline-h: calc(var(--dock-h) + 0.5rem);\n", to: "" },
@@ -264,8 +268,11 @@ module.exports = {
     ] },
     { id: "e2e-prompt-pos-reset-not-saved", args: "prompt-drag --project=desktop-1280 -g double", file: "duel-web/src/board/promptDrag.ts", from: "        write({ x: 0, y: 0 });\n        save(offset);\n", to: "        write({ x: 0, y: 0 });\n", kills: ["prompt-drag.spec.ts > double-clicking a moved prompt's header puts it back (#324) [desktop-1280]"] },
     // Face-up Life reaches both mats (#327)
-    { id: "e2e-your-face-up-life-not-passed", args: "demo-audit --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/DuelBoard.tsx", from: "                faceUpLife: you.faceUpLife,\n", to: "", kills: ["demo-audit.spec.ts > face-up Life cards show face up on both mats (#327) [desktop-1280]"] },
-    { id: "e2e-opp-face-up-life-portrait-only", args: "demo-audit --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/DuelBoard.tsx", from: "                faceUpLife: opp.faceUpLife,", to: "                faceUpLife: portraitMat ? opp.faceUpLife : undefined,", kills: ["demo-audit.spec.ts > face-up Life cards show face up on both mats (#327) [desktop-1280]"] },
+    { id: "e2e-your-face-up-life-not-passed", args: "demo-audit --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/DuelBoard.tsx", from: "                faceUpLife: lifeFaceUp(boardSeat, you.faceUpLife),\n", to: "", kills: ["demo-audit.spec.ts > face-up Life cards show face up on both mats (#327) [desktop-1280]"] },
+    { id: "e2e-opp-face-up-life-portrait-only", args: "demo-audit --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/DuelBoard.tsx", from: "                faceUpLife: lifeFaceUp(oppSeat, opp.faceUpLife),", to: "                faceUpLife: portraitMat ? lifeFaceUp(oppSeat, opp.faceUpLife) : undefined,", kills: ["demo-audit.spec.ts > face-up Life cards show face up on both mats (#327) [desktop-1280]"] },
+    // Game-over reveal (#482): the board shows the revealed hand and Life
+    { id: "e2e-game-over-hand-stays-hidden", args: "game-over-reveal", file: "duel-web/src/board/DuelBoard.tsx", from: "  const shownFarHand = farHand ?? (over ? view.revealedHands?.[oppSeat] : undefined);", to: "  const shownFarHand = farHand;", kills: ["game-over-reveal.spec.ts > after the match the opponent's hand and every Life card show face up (#482) [desktop-1280]", "game-over-reveal.spec.ts > after the match the opponent's hand and every Life card show face up (#482) [phone-375]"] },
+    { id: "e2e-game-over-life-stays-hidden", args: "game-over-reveal", file: "duel-web/src/board/DuelBoard.tsx", from: "  const revealLife = over ? view.revealedLife : undefined;", to: "  const revealLife = undefined as typeof view.revealedLife;", kills: ["game-over-reveal.spec.ts > after the match the opponent's hand and every Life card show face up (#482) [desktop-1280]", "game-over-reveal.spec.ts > after the match the opponent's hand and every Life card show face up (#482) [phone-375]"] },
     // Phone hand-pick Confirm at the bottom, pop-up Confirm pinned (#341)
     { id: "e2e-hand-pick-confirm-stays-top", args: "phone-confirm-bottom --project=phone-375", file: "duel-web/src/board/FieldTargetBar.tsx", from: "        {top && slot ? createPortal(actions, slot) : actions}", to: "        {actions}", kills: ["phone-confirm-bottom.spec.ts > hand pick Confirm sits bottom right where End turn is on portrait phones (#341) [phone-375]"] },
     { id: "e2e-hand-pick-landscape-top", args: "phone-confirm-bottom --project=phone-375", file: "duel-web/src/board/FieldTargetBar.tsx", from: "  const top = handPick && !mid && !wide;", to: "  const top = handPick && !mid;", kills: ["phone-confirm-bottom.spec.ts > hand pick bar stays at the bottom of the board on landscape phones (#341) [phone-375]"] },
@@ -419,11 +426,15 @@ module.exports = {
     ], kills: ["match-brief.spec.ts > a spectator of a practice room gets no Brief button or card, even with Log Pose on (#401) [desktop-1280]"] },
 
     // Log Pose Apply card (#400)
-    { id: "e2e-edit-no-refresh", args: "log-pose-apply --project=desktop-1280", file: "duel-web/src/pages/DeckConfigurePage.tsx", from: "              setTick((n) => n + 1);\n            },\n            note:", to: "            },\n            note:", kills: ["log-pose-apply.spec.ts > applies a Log Pose deck edit and undoes it (#400) [desktop-1280]"] },
+    { id: "e2e-edit-no-refresh", args: "log-pose-apply --project=desktop-1280", file: "duel-web/src/pages/DeckConfigurePage.tsx", from: "    setTick((n) => n + 1);\n    setSaveMsg(\"Saved.\");", to: "    setSaveMsg(\"Saved.\");", kills: ["log-pose-apply.spec.ts > applies a Log Pose deck edit and undoes it (#400) [desktop-1280]"] },
+    // Deck editor Save (#481)
+    { id: "e2e-deck-edit-autosaves-481", args: "deck-save --project=desktop-1280", file: "duel-web/src/pages/DeckConfigurePage.tsx", from: "    setEdits({ ...next, deckId: saved!.id });", to: "    setEdits({ ...next, deckId: saved!.id });\n    saveDeckDraft(saved!.id, next);", kills: ["deck-save.spec.ts > deck editor edits stay a draft until Save, and leaving asks first (#481) [desktop-1280]"] },
+    { id: "e2e-deck-leave-unguarded-481", args: "deck-save --project=desktop-1280", file: "duel-web/src/decks/useLeaveGuard.tsx", from: "      setPending(to);", to: "      return;", kills: ["deck-save.spec.ts > deck editor edits stay a draft until Save, and leaving asks first (#481) [desktop-1280]"] },
+    { id: "e2e-deck-save-never-enabled-481", args: "deck-save --project=desktop-1280", file: "duel-web/src/pages/DeckConfigurePage.tsx", from: "  const dirty = Boolean(saved && draft && isDeckDirty(saved, draft));", to: "  const dirty = false;", kills: ["deck-save.spec.ts > deck editor edits stay a draft until Save, and leaving asks first (#481) [desktop-1280]"] },
     // Log Pose copilot (#416)
     { id: "e2e-copilot-setting-ignored", args: "copilot --project=desktop-1280 -g \"not on the board while\"", file: "duel-web/src/board/copilot.ts", from: "  return briefShown(o);", to: "  return briefShown({ ...o, setting: true });", kills: ["copilot.spec.ts > the Log Pose button is not on the board while the copilot setting is off (#416) [desktop-1280]"] },
     { id: "e2e-copilot-no-game-context", args: "copilot --project=desktop-1280 -g \"plans a turn\"", file: "duel-web/src/board/LogPoseCopilot.tsx", from: "        return { ticket, snapshot: buildSnapshot(v, battle, v.pendingChoices?.[0]), ...(log.length ? { log } : {}) };", to: "        return null;", kills: ["copilot.spec.ts > practice: Log Pose plans a turn, plays it only after approval, and moves nothing on the board (#416) [desktop-1280]"] },
-    { id: "e2e-copilot-sends-before-approval", args: "copilot --project=desktop-1280 -g \"plans a turn\"", file: "duel-web/src/board/LogPoseCopilot.tsx", from: "      renderPlan: (plan, ctx) => <PlanCardConnector key={plan.id} plan={plan} store={store} actions={actions} ctx={ctx} />,", to: "      renderPlan: (plan, ctx) => {\n        setTimeout(() => actions.play(plan), 0);\n        return <PlanCardConnector key={plan.id} plan={plan} store={store} actions={actions} ctx={ctx} />;\n      },", kills: ["copilot.spec.ts > practice: Log Pose plans a turn, plays it only after approval, and moves nothing on the board (#416) [desktop-1280]"] },
+    { id: "e2e-copilot-sends-before-approval", args: "copilot --project=desktop-1280 -g \"plans a turn\"", file: "duel-web/src/board/LogPoseCopilot.tsx", from: "      renderPlan: (plan, ctx) => <PlanCardConnector key={plan.id} plan={plan} store={store} actions={actions} gameKey={gameKeyNow()} ctx={ctx} />,", to: "      renderPlan: (plan, ctx) => {\n        setTimeout(() => actions.play(plan), 0);\n        return <PlanCardConnector key={plan.id} plan={plan} store={store} actions={actions} gameKey={gameKeyNow()} ctx={ctx} />;\n      },", kills: ["copilot.spec.ts > practice: Log Pose plans a turn, plays it only after approval, and moves nothing on the board (#416) [desktop-1280]"] },
     { id: "e2e-copilot-no-pill", args: "copilot --project=desktop-1280 -g \"plans a turn\"", file: "duel-web/src/board/LogPoseCopilot.tsx", from: "  const pill = running && activeRun ? <CopilotPill run={activeRun} onStop={actions.stop} /> : null;", to: "  const pill = null;", kills: ["copilot.spec.ts > practice: Log Pose plans a turn, plays it only after approval, and moves nothing on the board (#416) [desktop-1280]"] },
     // The hotseat defender's view is the other seat's: the plan must wait for it, not stop (the button hides there, the plan does not).
     { id: "e2e-copilot-plan-stops-at-other-seat", args: "copilot --project=desktop-1280 -g \"plans a turn\"", file: "duel-web/src/board/LogPoseCopilot.tsx", from: "    if (!offered) store.set({ run: stopRun(run, \"Log Pose left the board.\") });", to: "    if (!shown) store.set({ run: stopRun(run, \"Log Pose left the board.\") });", kills: ["copilot.spec.ts > practice: Log Pose plans a turn, plays it only after approval, and moves nothing on the board (#416) [desktop-1280]"] },
@@ -580,6 +591,25 @@ module.exports = {
     { id: "e2e-big-board-rail-too-narrow", args: "bigger-board --project=desktop-1280 -g \"keeps the board clean\"", file: "duel-web/src/board.css", from: "  --rail-w: clamp(250px, 17vw, 330px);\n}", to: "  --rail-w: clamp(110px, 9vw, 130px);\n}", kills: [
       "bigger-board.spec.ts > Bigger playing area keeps the board clean and End turn reachable at desktop 1280x720 (#449) [desktop-1280]",
     ] },
+    // Two-row mats (#468): the desktop and landscape-phone grids lose their rule, so the cost row comes back under the Leader.
+    { id: "e2e-big-board-two-row-desktop-missing", args: "bigger-board --project=desktop-1280 -g \"makes your mat|Leader's row\"", file: "duel-web/src/board.css", from: ".arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-grid {\n  --g: 1.4cqh;", to: ".arena.arena-big.arena-wide.arena-tilt:not(.arena-lp) .side-grid {\n  --g: 1.4cqh;", kills: [
+      "bigger-board.spec.ts > Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at desktop 1280x720 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at desktop 1280x720 (#449) [desktop-1280]",
+    ] },
+    // Two-row mats leave no room beside the opponent mat, so a left/right opponent hand takes the top strip (#468): both layers off.
+    { id: "e2e-big-board-opp-hand-side-over-mat", args: "bigger-board --project=desktop-1280 -g \"docked opponent hand\"", edits: [
+      { file: "duel-web/src/board.css", from: ".arena.arena-wide.arena-big:not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) {", to: ".arena.arena-wide.arena-big.arena-tilt:not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) {" },
+      { file: "duel-web/src/board.css", from: "  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-side {", to: "  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-side {" },
+    ], kills: [
+      "bigger-board.spec.ts > with Bigger playing area a left-docked opponent hand sits above the opponent mat, not over it, at 1280x720 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a right-docked opponent hand sits above the opponent mat, not over it, at 1280x720 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a left-docked opponent hand sits above the opponent mat, not over it, at 1440x900 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a right-docked opponent hand sits above the opponent mat, not over it, at 1440x900 (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-big-board-two-row-landscape-missing", args: "bigger-board --project=desktop-1280 -g \"makes your mat|Leader's row\"", file: "duel-web/src/board.css", from: "  .arena.arena-big.arena-lp .side-grid {\n    --g: 1.2cqh;\n    --c: min(\n      calc((100cqw - 3cqw", to: "  .arena.arena-big.arena-lp.arena-tilt .side-grid {\n    --g: 1.2cqh;\n    --c: min(\n      calc((100cqw - 3cqw", kills: [
+      "bigger-board.spec.ts > Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at phone landscape 812x375 (#468) [desktop-1280]",
+      "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at phone landscape 812x375 (#449) [desktop-1280]",
+    ] },
     // Show on screen (#449)
     { id: "e2e-show-preview-ignored", args: "show-hide --project=desktop-1280 -g \"showCardPreview\"", file: "duel-web/src/board/DuelBoard.tsx", from: "preview: prefs.showCardPreview ? <CardPreviewPanel /> : null,", to: "preview: <CardPreviewPanel />,", kills: [
       "show-hide.spec.ts > showCardPreview off removes only the preview panel and the Battle log stays (#449) [desktop-1280]",
@@ -661,5 +691,29 @@ module.exports = {
     { id: "e2e-replay-first-move-plays", args: "replay --project=desktop-1280", file: "duel-web/src/replay/replayStatus.ts", from: "    return diverged.atIntent === 0\n      ? { kind: \"unavailable\", reason: \"first-move\" }\n      : ", to: "    return ", kills: ["replay.spec.ts > a recording that diverges at intent 0 shows Replay unavailable with a link to the match log (#476) [desktop-1280]"] },
     { id: "e2e-replay-409-not-mapped", args: "replay --project=desktop-1280", file: "duel-web/src/replay/replayApi.ts", from: "  if (status === 409) return \"in-progress\";\n", to: "", kills: ["replay.spec.ts > a game still being played says so and links the log (#476) [desktop-1280]"] },
     { id: "e2e-replay-landscape-rule-removed", args: "replay --project=phone-375", file: "duel-web/src/replay/replay.css", from: "@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {\n  .replay-compact {", to: "@media print {\n  .replay-compact {", kills: ["replay.spec.ts > the controls sit fully inside an 812x375 screen and nothing scrolls sideways (#476) [phone-375]"] },
+
+    // No top bar with Bigger playing area on a computer; F toggles full screen (#468)
+    { id: "e2e-no-top-bar-bar-still-renders", args: "no-top-bar --project=desktop-1280 -g \"no top bar|right column empty\"", file: "duel-web/src/board/DuelBoard.tsx", from: "      {lp || noTopBar ? null : compactHud ? (", to: "      {lp ? null : compactHud ? (", kills: [
+      "no-top-bar.spec.ts > Bigger playing area on a computer has no top bar and the board starts at the top of the window (#468) [desktop-1280]",
+      "no-top-bar.spec.ts > with the right column empty the action row moves to the left column and its menu stays on screen (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-no-top-bar-row-stays-in-empty-column", args: "no-top-bar --project=desktop-1280 -g \"right column empty\"", file: "duel-web/src/board/DuelBoard.tsx", from: "!noTopBar ? null : idleCollapsed.right && !idleCollapsed.left ? \"left\" : \"right\";", to: "!noTopBar ? null : \"right\";", kills: [
+      "no-top-bar.spec.ts > with the right column empty the action row moves to the left column and its menu stays on screen (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-no-top-bar-menu-not-anchored", args: "no-top-bar --project=desktop-1280 -g \"right column empty\"", file: "duel-web/src/board/MatchMenu.tsx", from: "style={placement === \"anchor\" ? anchorStyle : undefined}", to: "style={undefined}", kills: [
+      "no-top-bar.spec.ts > with the right column empty the action row moves to the left column and its menu stays on screen (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-no-top-bar-phone-loses-bar", args: "no-top-bar --project=desktop-1280 -g \"portrait phone\"", file: "duel-web/src/board/DuelBoard.tsx", from: "const noTopBar = bigBoard && wide && !lp && !compactHud;", to: "const noTopBar = bigBoard && !lp;", kills: [
+      "no-top-bar.spec.ts > a portrait phone keeps its compact top bar with Bigger playing area on (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-no-top-bar-off-without-big-board", args: "no-top-bar --project=desktop-1280 -g \"still there\"", file: "duel-web/src/board/DuelBoard.tsx", from: "const noTopBar = bigBoard && wide && !lp && !compactHud;", to: "const noTopBar = wide && !lp && !compactHud;", kills: [
+      "no-top-bar.spec.ts > the top bar is still there on a computer without Bigger playing area (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-f-key-does-not-toggle-full-screen", args: "no-top-bar --project=desktop-1280 -g \"F toggles\"", file: "duel-web/src/board/useBoardHotkeys.ts", from: "      else if (action === \"fullscreen\") o.onToggleFullscreen();\n", to: "", kills: [
+      "no-top-bar.spec.ts > F toggles full screen on the board, with or without Bigger playing area (#468) [desktop-1280]",
+    ] },
+    { id: "e2e-f-key-not-offered-on-board", args: "no-top-bar --project=desktop-1280 -g \"F toggles\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    fullscreenOffered,\n    onToggleFullscreen: toggleFullscreen,", to: "    fullscreenOffered: false,\n    onToggleFullscreen: toggleFullscreen,", kills: [
+      "no-top-bar.spec.ts > F toggles full screen on the board, with or without Bigger playing area (#468) [desktop-1280]",
+    ] },
   ],
 };

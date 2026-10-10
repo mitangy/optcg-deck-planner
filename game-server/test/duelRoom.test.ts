@@ -21,6 +21,8 @@ type PlayerView = {
   seat: 0 | 1;
   you: { hand: { id: string; defId: string }[]; lifeCount: number; mulliganDone: boolean };
   opponent: { handCount: number };
+  revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+  revealedLife?: [string[], string[]];
   legalIntents: (Record<string, unknown> & { type: string })[];
   winner: 0 | 1 | null;
   phase: string;
@@ -431,6 +433,8 @@ describe("DuelRoom", () => {
       spectator?: boolean;
       you: PlayerView["you"] & { handCount?: number };
       revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+      revealedLife?: [string[], string[]];
+      winner?: 0 | 1 | null;
     };
   };
 
@@ -1101,6 +1105,25 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+  it("conceding flips both hands and all Life face up for players and ranked spectators, never before (#482)", async () => {
+    const { bags, c0, specViews } = await watchRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() });
+    assert.ok(bags[0].welcome!.you.hand.length > 0);
+    for (const bag of bags) assert.ok(bag.views.every((v) => v.revealedHands === undefined && v.revealedLife === undefined), "live views carry no hidden cards");
+
+    c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => bags.every((b) => b.views.at(-1)?.winner != null) && specViews.at(-1)?.winner != null, 8000);
+
+    const ids = (hand: { id: string }[] | undefined) => (hand ?? []).map((c) => c.id);
+    const hand0 = ids(bags[0].welcome!.you.hand);
+    const hand1 = ids(bags[1].welcome!.you.hand);
+    for (const final of [bags[0].views.at(-1)!, bags[1].views.at(-1)!, specViews.at(-1)!]) {
+      assert.deepEqual(ids(final.revealedHands?.[0]), hand0);
+      assert.deepEqual(ids(final.revealedHands?.[1]), hand1);
+      assert.equal(final.revealedLife?.[0].length, bags[0].welcome!.you.lifeCount);
+      assert.equal(final.revealedLife?.[1].length, bags[1].welcome!.you.lifeCount);
+    }
+  });
+
   it("rematch: both agree, the loser picks turn order, a fresh game starts", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -1142,6 +1165,90 @@ describe("DuelRoom", () => {
     assert.equal(fresh.winner, null);
     assert.equal(fresh.firstSeat, 1);
     assert.equal(fresh.you.lifeCount > 0, true);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  /** Two default-deck seats at match over (seat 0 conceded), ready to trade rematch requests. */
+  async function rematchRoom(seed: number) {
+    type Rematch = { available: boolean; requested: [boolean, boolean]; newDeck: [boolean, boolean]; chooser: 0 | 1 | null };
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const rematch: Rematch[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("rematch_state", (msg: Rematch) => rematch.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => rematch.some((r) => r.available), 8000);
+    return { c0, c1, bags, rematch };
+  }
+  const leaderOf = (bag: SeatBag) => (bag.views.at(-1) as PlayerView & { you: { leader: { defId: string } } }).you.leader.defId;
+  const altDeck = {
+    leaderId: "OP01-001",
+    deck: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "ST01-014"].flatMap((id) => [id, id, id, id]),
+  };
+
+  it("rematch: a player who picks a different deck plays it in the next game (#479)", async () => {
+    const { c0, c1, bags, rematch } = await rematchRoom(43);
+    assert.equal(leaderOf(bags[0]), "ST01-001");
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request", deck: altDeck });
+    await waitUntil(() => rematch.at(-1)!.requested[0], 5000);
+    assert.deepEqual(rematch.at(-1)!.newDeck, [true, false]);
+    c1.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await waitUntil(() => rematch.at(-1)!.chooser === 0, 5000);
+    assert.deepEqual(rematch.at(-1)!.newDeck, [true, false]);
+
+    const before = [bags[0].views.length, bags[1].views.length];
+    bags[0].welcome = undefined;
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "first" });
+    await waitUntil(() => bags[0].welcome != null && bags[0].views.length > before[0], 5000);
+    await waitUntil(() => bags[1].views.length > before[1], 5000);
+    assert.equal(leaderOf(bags[0]), "OP01-001");
+    assert.equal(leaderOf(bags[1]), "ST01-001");
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("rematch: declining drops a picked deck (#479)", async () => {
+    const { c0, c1, bags, rematch } = await rematchRoom(44);
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request", deck: altDeck });
+    await waitUntil(() => rematch.at(-1)!.newDeck[0], 5000);
+    c1.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "decline" });
+    await waitUntil(() => rematch.at(-1)!.newDeck[0] === false && !rematch.at(-1)!.requested[0], 5000);
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    c1.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await waitUntil(() => rematch.at(-1)!.chooser === 0, 5000);
+
+    const before = bags[0].views.length;
+    bags[0].welcome = undefined;
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "first" });
+    await waitUntil(() => bags[0].welcome != null && bags[0].views.length > before, 5000);
+    assert.equal(leaderOf(bags[0]), "ST01-001");
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("rematch: a deck with unknown cards is refused (#479)", async () => {
+    const { c0, c1, bags, rematch } = await rematchRoom(45);
+    const badDeck = { leaderId: "ST01-001", deck: Array.from({ length: 50 }, () => "ZZ99-999") };
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request", deck: badDeck });
+    await waitUntil(() => bags[0].errors.some((e) => e.code === "bad_protocol"), 5000);
+    assert.equal(rematch.at(-1)!.requested[0], false);
+    assert.deepEqual(rematch.at(-1)!.newDeck, [false, false]);
 
     await c0.leave(true);
     await c1.leave(true);

@@ -428,6 +428,24 @@ describe("chat", () => {
     expect(JSON.stringify(seen[1]!.messages.slice(0, 2))).not.toContain("thinking");
   });
 
+  it("drops an earlier assistant turn that was only thinking instead of resending its signature (#425)", async () => {
+    const earlier = [
+      { role: "user", content: [{ type: "text", text: "Hi" }] },
+      { role: "assistant", content: [{ type: "thinking", thinking: "", signature: "sigA" }] },
+    ];
+    const { api } = planner({
+      "GET /analyst/chat/threads/4/content": { id: 4, title: "t", messages: earlier },
+      "POST /analyst/chat/threads/4/messages": null,
+      "POST /analyst/chat/usage": null,
+      "GET /analyst/chat/budget": BUDGET,
+    });
+    const { seen, callModel } = scriptedModel([{ content: [{ type: "text", text: "Sure." }], stop_reason: "end_turn", usage: usage(10, 5) }]);
+    await runChat(deps(api, callModel), "chat.tok", { thread_id: 4, message: "Again?" }, () => {}, new AbortController().signal);
+    expect(JSON.stringify(seen[0]!.messages)).not.toContain("thinking");
+    expect(seen[0]!.messages.some((m: any) => m.role === "assistant")).toBe(false);
+    expect(seen[0]!.messages.every((m: any) => m.content.length > 0)).toBe(true);
+  });
+
   it("doesn't save a turn the model never finished, but still counts what it cost (#377)", async () => {
     const { calls, api } = planner({
       "POST /analyst/chat/threads": { id: 9 },
@@ -689,6 +707,61 @@ describe("sources and citations (#390)", () => {
       text: "You lost on turn 3. Next time keep Nami back.",
       citations: [{ at: 19, source: "match:m1#t3", title: "T", cited_text: "Seat 1 takes Life" }],
     });
+  });
+
+  it("gives the review a card reference with every card's text, and the opponent's deck only once the game is over (#472)", async () => {
+    // Seat 1's deck holds OP12-002 (never played) and ST01-009 (played); neither is in seat 0's deck.
+    const all = buildTestDeck(20);
+    const players: MatchReplay["players"] = [
+      { leaderId: DEFAULT_LEADER_ID, deck: all.slice(0, 12) },
+      { leaderId: DEFAULT_LEADER_ID, deck: all.slice(8, 20) },
+    ];
+    const rng = createSeededRng(17);
+    let state = skipMulligans(createMatch({ seed: 17, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }), rng);
+    const intents: MatchReplay["intents"] = [];
+    for (let i = 0; i < 8; i++) {
+      const seat = (([0, 1] as Seat[]).find((s) => listLegalIntents(state, s).length > 0))!;
+      const legal = listLegalIntents(state, seat);
+      const intent = legal.find((x) => x.type === "play_card") ?? legal.find((x) => x.type.startsWith("pass")) ?? legal.find((x) => x.type === "end_turn") ?? legal[0]!;
+      state = applyIntent(state, intent, { seat, rng }).state;
+      intents.push({ seat, intent });
+    }
+    const finished: MatchReplay = { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed: 17, firstSeat: 0, skipMulligans: true, players, intents, end: { winner: 1, reason: "concede" } };
+    const reference = async (r: MatchReplay) => {
+      const { api } = planner({
+        "GET /analyst/matches/m1/replay": { match_id: "m1", your_seat: 0, replay: r },
+        "POST /analyst/chat/usage": null,
+        "PUT /analyst/reviews/m1": { match_id: "m1", text: "x", created_at: null },
+      });
+      const { seen, callModel } = scriptedModel([{ content: [{ type: "text", text: "ok" }], stop_reason: "end_turn", usage: usage(10, 5) }]);
+      await runReview(deps(api, callModel), "chat.tok", { match_id: "m1" }, () => undefined, new AbortController().signal);
+      const blocks = seen[0]!.messages[0].content as { type: string; text?: string }[];
+      const refs = blocks.filter((b) => b.type === "text" && b.text?.startsWith("Card reference:"));
+      expect(refs).toHaveLength(1);
+      // After the per-turn sources, before the closing instruction.
+      expect(blocks.indexOf(refs[0]!)).toBe(blocks.length - 2);
+      expect(blocks[blocks.length - 1]!.text).toContain("Write the post-game analysis.");
+      return refs[0]!.text!.split("\n");
+    };
+    const row = (lines: string[], id: string) => lines.find((l) => l.startsWith(`- ${id} `));
+    const printed = (id: string) => {
+      const c = catalog.cards.get(id)!;
+      const stats = [c.type, c.cost !== undefined ? `cost ${c.cost}` : "", `power ${c.power}`, c.counter ? `counter ${c.counter}` : ""].filter(Boolean);
+      return { head: `- ${id} ${c.name} (${stats.join(", ")})`, text: c.text.slice(0, 40) };
+    };
+    const over = await reference(finished);
+    let withText = 0;
+    for (const id of [DEFAULT_LEADER_ID, "ST01-003", "ST01-006", "ST01-008", "ST01-009", "OP12-002"]) {
+      const { head, text } = printed(id);
+      expect(row(over, id)).toContain(head);
+      if (text) withText += 1;
+      expect(row(over, id)).toContain(text);
+    }
+    expect(withText).toBeGreaterThan(0);
+    const hidden = await reference({ ...finished, end: undefined });
+    expect(row(hidden, "ST01-003")).toBeDefined();
+    expect(row(hidden, "ST01-009")).toBeDefined();
+    expect(row(hidden, "OP12-002")).toBeUndefined();
   });
 
   it("passes the Claude stream's text and search-result citations on, ignoring other kinds (#390)", async () => {

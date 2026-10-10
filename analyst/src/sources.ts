@@ -373,6 +373,9 @@ export function groupTurns(log: string[]): { turn: number; who: string; lines: s
 
 const listCards = (cards: unknown) => (Array.isArray(cards) ? cards.map((c) => c ?? "a hidden card").join(", ") : "");
 
+/** A deck list as "4x Name (ID), ...", or "" when the game carries none. */
+const listDeck = (deck: unknown) => (Array.isArray(deck) ? deck.map((d: Rec) => `${d.copies}x ${d.name ?? d.id} (${d.id})`).join(", ") : "");
+
 /** A narrated game as search results: one overview and one per turn, `<prefix>:<id>` and `<prefix>:<id>#t<n>`. */
 export function gameResults(prefix: "match" | "game", id: string, game: Rec): SearchResultBlock[] {
   const mine = prefix === "match";
@@ -381,12 +384,17 @@ export function gameResults(prefix: "match" | "game", id: string, game: Rec): Se
     ? [
         `Your leader ${game.yourLeader} against ${game.opponentLeader}; you went ${game.wentFirst ? "first" : "second"}.`,
         game.yourOpeningHand && `Your opening hand: ${listCards(game.yourOpeningHand)}.`,
+        game.opponentOpeningHand && `Opponent's opening hand (revealed after the game): ${listCards(game.opponentOpeningHand)}.`,
+        listDeck(game.yourDeck) && `Your deck list: ${listDeck(game.yourDeck)}.`,
+        listDeck(game.opponentDeck) && `Opponent's deck list (revealed after the game): ${listDeck(game.opponentDeck)}.`,
         game.result && `Result: you ${game.result.won ? "won" : "lost"} (${game.result.reason}).`,
         game.finalState && `Final state, turn ${game.finalState.turn}: your life ${game.finalState.yourLife}, opponent life ${game.finalState.opponentLife}; your board: ${listCards(game.finalState.yourBoard) || "empty"}; opponent board: ${listCards(game.finalState.opponentBoard) || "empty"}.`,
       ]
     : [
         `Player A: ${game.leaders?.A}, Player B: ${game.leaders?.B}; Player ${game.wentFirst} went first.`,
         game.openingHands && `Player A opening hand: ${listCards(game.openingHands.A)}. Player B opening hand: ${listCards(game.openingHands.B)}.`,
+        listDeck(game.decks?.A) && `Player A deck list: ${listDeck(game.decks?.A)}.`,
+        listDeck(game.decks?.B) && `Player B deck list: ${listDeck(game.decks?.B)}.`,
         game.result && `Result: Player ${game.result.winner} won (${game.result.reason}).`,
         game.finalState && `Final state, turn ${game.finalState.turn}: Player A life ${game.finalState.A?.life}, board ${listCards(game.finalState.A?.board) || "empty"}; Player B life ${game.finalState.B?.life}, board ${listCards(game.finalState.B?.board) || "empty"}.`,
       ];

@@ -8,7 +8,7 @@ import type { Catalog } from "./catalog";
 import { PlannerApiError, plannerCall, reviewMatch, tokenIsValid, type PlannerApi } from "./matches";
 import { newestFormat } from "./playbook";
 import { buildTools, instructionsFor, type Knowledge, type ToolDef } from "./server";
-import { COPILOT_INSTRUCTIONS, gameContext, gameContextBlock, PLAN_TOOL, turnPlanTool, verifyGame, type TurnPlan } from "./copilot";
+import { cardReferenceLine, COPILOT_INSTRUCTIONS, gameContext, gameContextBlock, PLAN_TOOL, turnPlanTool, verifyGame, type TurnPlan } from "./copilot";
 import { deckEditTool, PROPOSE_TOOL, type DeckEditProposal } from "./proposals";
 import { adaptToolResult, gameResults } from "./sources";
 
@@ -208,7 +208,8 @@ You're writing the post-game analysis shown when the player opens one of their g
 2. Key turns: two to four turns that mattered, what happened, and the better line when there was one.
 3. What the opponent's deck showed: the cards and plan you saw.
 4. One or two concrete things to do differently next time.
-You never saw the opponent's hidden cards; don't state guesses about them as fact. Use only cards named in the log.
+Each turn lists the player's hand after the draw and, because the game is over, the opponent's hand (revealed only after the game), with counter values. Use them to judge which counters were held, missed lines and what the opponent could have done.
+Each turn also lists both boards (power, rested, attached DON!!, Life, deck, DON!!, trash). The overview has the deck lists, and a Card reference gives every card's cost, power, counter and text. Judge the player's decisions by what they could know at the time: they didn't see the opponent's hand during the game. Use only cards named in the log.
 Each turn of the game is a source the app turns into numbered citations. Ground what happened in the turns (state it in sentences you can cite, one turn's events at a time) and mark your own advice and reads as your judgement. Don't write source ids or citation numbers yourself.`;
 
 export const BRIEF_INSTRUCTIONS = `
@@ -284,10 +285,12 @@ export function apiTools(tools: ToolDef[]) {
 
 /** Earlier assistant turns without their thinking blocks: a signature is bound to the system prompt and tools it was made under, which can differ now (#424). */
 function withoutOldThinking(history: Message[]): Message[] {
-  return history.map((m) => {
-    if (m.role !== "assistant" || !Array.isArray(m.content)) return m;
+  return history.flatMap((m) => {
+    if (m.role !== "assistant" || !Array.isArray(m.content)) return [m];
     const kept = m.content.filter((b) => b.type !== "thinking" && b.type !== "redacted_thinking");
-    return kept.length && kept.length < m.content.length ? { ...m, content: kept } : m;
+    // A turn that was only thinking (cut off by max_tokens, say) has nothing left to resend: drop it (#425).
+    if (!kept.length) return m.content.length ? [] : [m];
+    return [kept.length < m.content.length ? { ...m, content: kept } : m];
   });
 }
 
@@ -667,11 +670,25 @@ export async function runReview(deps: ChatDeps, token: string, body: z.infer<typ
   }
 }
 
+/** Lines of a game a review reads: whole games, including the board lines each turn adds. */
+const REVIEW_MAX_LINES = 1500;
+
+/** Every card of the game with its printed stats and text: both decks and leaders (the opponent's only once revealed) and each card seen in the log. */
+export function reviewCardReference(catalog: Catalog, game: Awaited<ReturnType<typeof reviewMatch>>): string {
+  const g = game as { yourLeaderId: string; opponentLeaderId: string; yourDeck: { id: string }[]; opponentDeck?: { id: string }[]; cardsInGame: string[] };
+  const ids = new Set<string>([g.yourLeaderId, g.opponentLeaderId, ...g.yourDeck.map((d) => d.id), ...(g.opponentDeck ?? []).map((d) => d.id), ...g.cardsInGame]);
+  const lines = [...ids].flatMap((id) => {
+    const c = catalog.cards.get(id);
+    return c ? [cardReferenceLine(c)] : [];
+  });
+  return ["Card reference:", ...lines].join("\n");
+}
+
 async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof reviewBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
   const { api } = deps;
   let game: Awaited<ReturnType<typeof reviewMatch>>;
   try {
-    game = await reviewMatch(api, token, body.match_id, { maxLines: 700 });
+    game = await reviewMatch(api, token, body.match_id, { maxLines: REVIEW_MAX_LINES });
   } catch (err) {
     if (err instanceof PlannerApiError && err.status === 404) throw new ChatHttpError(404, "No replay was kept for this game.", "bad_request");
     throw err;
@@ -697,6 +714,7 @@ async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof re
             content: [
               { type: "text", text: "Here is the game, from my seat: an overview, then each turn as its own source." },
               ...gameResults("match", game.matchId, game),
+              { type: "text", text: reviewCardReference(deps.catalog, game) },
               { type: "text", text: [...game.notes, "Write the post-game analysis."].join(" ") },
             ],
           },

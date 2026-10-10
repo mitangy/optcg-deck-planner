@@ -46,7 +46,7 @@ const PERSONAL_INSTRUCTIONS = `
 
 This is the player's personal link, so you can also see their own games and decks:
 - list_my_decks lists their deck planner decks; pass a deck's cards to analyze_deck.
-- list_my_matches lists their recent duels (leaders, result, turns). review_match replays one game turn by turn from their seat. Review it like a coach: the turns that decided the game, misplays and better lines, and what the opponent's deck showed. You never see the opponent's hidden cards, so don't guess them as fact.
+- list_my_matches lists their recent duels (leaders, result, turns). review_match replays one game turn by turn from their seat. Review it like a coach: the turns that decided the game, misplays and better lines, and what the opponent's deck showed. Each turn lists the player's hand after the draw, both boards and, once the game is over, the opponent's hand and deck list; use them to judge counters held, missed lines and what the opponent could have done, but judge the player's decisions by what they could know at the time (they didn't see the opponent's hand during the game).
 - Lessons: when reviews show a pattern the player can act on, offer to save it with draft_lesson: one or two specific sentences, the leader and opponent it applies to, and the match ids it came from. Drafts wait for the player to approve them in the duel app (Settings, Log Pose). my_lessons returns their approved lessons; check it with playbook before advising on a leader they play.`;
 
 const cardColors = z.enum(["red", "green", "blue", "purple", "black", "yellow"]);
@@ -491,7 +491,7 @@ function registerCorpus(add: Add, api: PlannerApi) {
         gameId: z.string().max(40),
         fromTurn: z.number().int().min(1).max(200).optional(),
         toTurn: z.number().int().min(1).max(200).optional(),
-        maxLines: z.number().int().min(20).max(1000).optional().describe("Default 400"),
+        maxLines: z.number().int().min(20).max(1000).optional().describe("Default 600"),
       },
       annotations: readOnly,
     },
@@ -549,12 +549,12 @@ function registerPersonalTools(add: Add, { api, token }: PersonalContext) {
       title: "Review match",
       description:
         "Replay one of the player's duels (a match_id from list_my_matches with has_replay) and return a turn-by-turn log from their seat, " +
-        "their opening hand, the result and the final board. Long games are cut at maxLines; use fromTurn/toTurn to read a stretch.",
+        "their opening hand, their hand after the draw each turn (plus the opponent's hand, revealed only for finished games) with counter values, both boards (power, rested, DON!!, Life, deck, trash) each turn, deck lists (the opponent's only for finished games), the result and the final board. Long games are cut at maxLines; use fromTurn/toTurn to read a stretch.",
       inputSchema: {
         matchId: z.string().max(80),
         fromTurn: z.number().int().min(1).max(200).optional(),
         toTurn: z.number().int().min(1).max(200).optional(),
-        maxLines: z.number().int().min(20).max(1000).optional().describe("Default 400"),
+        maxLines: z.number().int().min(20).max(1000).optional().describe("Default 600"),
       },
       annotations: readOnly,
     },

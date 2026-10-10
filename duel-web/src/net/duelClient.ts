@@ -29,6 +29,7 @@ import {
   type BriefTicketWire,
   type TimerMessage,
   type HandOrderMessage,
+  type PlayerDeckWire,
   type RematchAction,
   type RematchState,
   type UndoAction,
@@ -393,9 +394,10 @@ export class DuelClient {
     this.room.send("hand_order", { protocolVersion: PROTOCOL_VERSION, ids } satisfies HandOrderMessage);
   }
 
-  sendRematch(action: RematchAction) {
+  /** `deck` (a "request" only) swaps this seat's deck for the next game. */
+  sendRematch(action: RematchAction, deck?: PlayerDeckWire) {
     if (!this.room) throw new Error("Not connected");
-    this.room.send("rematch", { protocolVersion: PROTOCOL_VERSION, action });
+    this.room.send("rematch", { protocolVersion: PROTOCOL_VERSION, action, ...(deck ? { deck } : {}) });
   }
 
   sendUndo(action: UndoAction) {
