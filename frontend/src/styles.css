@@ -5707,6 +5707,57 @@ tr.row-flash > td {
   margin-left: auto;
 }
 
+.shopping-add {
+  margin-bottom: 0.75rem;
+}
+
+.shopping-add .deck-editor-result-actions {
+  margin-left: auto;
+}
+
+/* Add and the copies-to-buy stepper share one slot so swapping them moves nothing. */
+.shopping-extra-control {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 7.75rem;
+}
+
+.deck-editor-result-meta {
+  font-size: 0.85rem;
+}
+
+/* Used-in text with a small Remove beside it; the button keeps its size as the text wraps. */
+.used-in-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.5rem;
+  min-width: 0;
+}
+
+.used-in-cell > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+button.remove-extra {
+  flex: 0 0 auto;
+  min-height: 2rem;
+  min-width: 2.75rem;
+  padding: 0.15rem 0;
+  font-size: 0.82rem;
+}
+
+.grid-card-extra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 0.5rem;
+  font-size: 0.82rem;
+}
+
 /* Shared feedback dialog (packages/site-legal): map its tokens to the planner palette. */
 .feedback-backdrop {
   --fb-bg: var(--card);

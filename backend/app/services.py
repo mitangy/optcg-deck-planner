@@ -28,6 +28,7 @@ from app.models import (
     DeckCardPrinting,
     Owned,
     ShareLink,
+    ShoppingExtra,
     User,
 )
 from app.schemas import (
@@ -987,11 +988,16 @@ def shopping_list(
     db: Session,
     user: User,
     deck_ids: list[int] | None = None,
+    include_extras: bool = True,
 ) -> ShoppingResponse:
     """Master shopping list for a user.
 
     Need per card is the MAX copies required by any single selected deck
     (not the sum across decks). Owned is shared, so still_need = max(0, need − owned).
+
+    Cards added directly (ShoppingExtra) carry a target number of copies to own.
+    They fold into Need by max with the deck Need, never summed, and are included
+    whatever ``deck_ids`` selects unless ``include_extras`` is False.
     """
     decks = db.scalars(
         select(Deck)
@@ -1023,6 +1029,18 @@ def shopping_list(
         card_id: sum(by_group.values()) if sum_leaders else max(by_group.values())
         for card_id, by_group in need_by_group.items()
     }
+    deck_need = dict(need)
+    extras: dict[str, int] = {}
+    if include_extras:
+        extras = {
+            row.card_id: row.qty
+            for row in db.scalars(
+                select(ShoppingExtra).where(ShoppingExtra.user_id == user.id)
+            ).all()
+            if row.qty > 0
+        }
+        for card_id, qty in extras.items():
+            need[card_id] = max(need.get(card_id, 0), qty)
 
     # Leader group order = earliest selected deck for that leader.
     leader_group_rank: dict[str, int] = {}
@@ -1103,6 +1121,9 @@ def shopping_list(
                 within_rank = wi
                 break
         deck_sort_key = f"{group_rank:04d}-{within_rank:04d}-{primary_idx:04d}"
+        if not indexes:
+            # Added directly: after every deck card.
+            deck_sort_key = "9999-9999-9999"
 
         card_leader_ids = {
             decks[i].leader_card_id
@@ -1146,6 +1167,8 @@ def shopping_list(
                     else []
                 ),
                 need_summed=sum_leaders,
+                extra_qty=extras.get(card_id, 0),
+                deck_need=deck_need.get(card_id, 0),
             )
         )
     return ShoppingResponse(
@@ -1163,6 +1186,12 @@ def owned_collection(db: Session, user: User) -> OwnedCollectionResponse:
     standard printing's market price (the same price the shopping list shows).
     """
     owned = {card_id: qty for card_id, qty in _owned_map(db, user.id).items() if qty > 0}
+    # Still-to-buy copies on the full list (all decks + directly added cards).
+    buying = {
+        item.card_id: item.still_need
+        for item in shopping_list(db, user).items
+        if item.still_need > 0
+    }
     catalog = _catalog_map(db, set(owned))
     product_ids = _primary_product_ids(db, set(owned))
     decks = db.scalars(
@@ -1205,6 +1234,7 @@ def owned_collection(db: Session, user: User) -> OwnedCollectionResponse:
                 tcgplayer_url=cat.tcgplayer_url if cat else "",
                 product_id=product_ids.get(card_id),
                 used_in=used_in.get(card_id, []),
+                buying=buying.get(card_id, 0),
             )
         )
     return OwnedCollectionResponse(
@@ -1228,6 +1258,32 @@ def set_owned(db: Session, user: User, card_id: str, qty: int) -> int:
         row.qty = qty
     db.commit()
     return row.qty
+
+
+def set_shopping_extra(db: Session, user: User, card_id: str, qty: int) -> int:
+    """Set the target copies to own for a card added directly to Master Shopping.
+
+    qty 0 removes it. Unknown card ids are rejected so typos leave no junk rows.
+    """
+    card_id = card_id.upper().strip()
+    row = db.scalar(
+        select(ShoppingExtra).where(
+            ShoppingExtra.user_id == user.id, ShoppingExtra.card_id == card_id
+        )
+    )
+    if qty == 0:
+        if row is not None:
+            db.delete(row)
+            db.commit()
+        return 0
+    if db.get(CatalogCard, card_id) is None:
+        raise LookupError("Card not found in catalog")
+    if row is None:
+        db.add(ShoppingExtra(user_id=user.id, card_id=card_id, qty=qty))
+    else:
+        row.qty = qty
+    db.commit()
+    return qty
 
 
 def reset_deck_owned(db: Session, user: User, deck_id: int) -> tuple[int, DeckDetail]:

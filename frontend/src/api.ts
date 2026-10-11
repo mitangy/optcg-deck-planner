@@ -170,6 +170,10 @@ export type ShoppingItem = {
   need_by_leader?: { label: string; need: number }[];
   /** True when `need` adds need_by_leader together; false when it takes the max. */
   need_summed?: boolean;
+  /** Target copies added straight to Master Shopping without a deck; 0 when none. */
+  extra_qty?: number;
+  /** Need from decks alone (`need` also folds in `extra_qty` by max). */
+  deck_need?: number;
 };
 
 /** "Need 7 = Luffy 4 + Sabo 3" / "Need 4 = most of Luffy 4, Sabo 3"; "" for one leader. */
@@ -220,6 +224,8 @@ export type OwnedCard = {
   tcgplayer_url: string;
   product_id?: number | null;
   used_in: string[];
+  /** Copies still to buy on the full shopping list (decks + added directly); 0 when covered. */
+  buying?: number;
 };
 
 export type OwnedCollectionResponse = {
@@ -522,13 +528,21 @@ export const api = {
     const qs = params.toString();
     return request<CatalogCardResult[]>(`/catalog/cards${qs ? `?${qs}` : ""}`);
   },
-  shopping: (deckIds?: number[]) => {
+  shopping: (deckIds?: number[], opts?: { extras?: boolean }) => {
     const params = new URLSearchParams();
     for (const id of deckIds ?? []) params.append("deck_ids", String(id));
+    // Directly added cards are on by default; only the off state needs sending.
+    if (opts?.extras === false) params.set("extras", "false");
     const qs = params.toString();
     return request<ShoppingResponse>(`/shopping${qs ? `?${qs}` : ""}`);
   },
   ownedCollection: () => request<OwnedCollectionResponse>("/owned"),
+  /** Set the target copies to own for a card added straight to Master Shopping; 0 removes it. */
+  setShoppingExtra: (cardId: string, qty: number) =>
+    request<{ card_id: string; qty: number }>(`/shopping/extras/${encodeURIComponent(cardId)}`, {
+      method: "PUT",
+      body: JSON.stringify({ qty }),
+    }),
   setOwned: (cardId: string, qty: number) =>
     request<{ card_id: string; qty: number }>(`/owned/${encodeURIComponent(cardId)}`, {
       method: "PUT",

@@ -209,6 +209,10 @@ class ShoppingItem(BaseModel):
     need_by_leader: list[LeaderNeed] = Field(default_factory=list)
     # Whether ``need`` sums need_by_leader (True) or takes its max (False).
     need_summed: bool = False
+    # Target copies added directly to Master Shopping (no deck); 0 when none.
+    extra_qty: int = 0
+    # Need from selected decks alone (``need`` also folds in ``extra_qty`` by max).
+    deck_need: int = 0
 
 
 class ShoppingResponse(BaseModel):
@@ -234,6 +238,8 @@ class OwnedCardItem(BaseModel):
     tcgplayer_url: str = ""
     product_id: int | None = None
     used_in: list[str] = []
+    # Copies still to buy for this card on the full shopping list (all decks + added directly).
+    buying: int = 0
 
 
 class OwnedCollectionResponse(BaseModel):
@@ -246,6 +252,12 @@ class OwnedCollectionResponse(BaseModel):
 
 
 class OwnedUpdate(BaseModel):
+    qty: int = Field(ge=0, le=10_000)
+
+
+class ShoppingExtraUpdate(BaseModel):
+    """Target copies to own for a card added straight to Master Shopping."""
+
     qty: int = Field(ge=0, le=10_000)
 
 
