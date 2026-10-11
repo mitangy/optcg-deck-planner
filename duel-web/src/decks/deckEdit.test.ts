@@ -157,11 +157,11 @@ describe("editing an unsaved draft (#481)", () => {
   });
 
   it("is dirty for a swapped card or leader, not for the same cards in another order (#481)", () => {
-    const saved = { leaderId: "ST01-001", cards: ["ST01-006", "ST01-008", "ST01-006"] };
-    expect(isDeckDirty(saved, { leaderId: "ST01-001", cards: ["ST01-008", "ST01-006", "ST01-006"] })).toBe(false);
-    expect(isDeckDirty(saved, { leaderId: "ST01-001", cards: ["ST01-006", "ST01-008", "ST01-009"] })).toBe(true);
-    expect(isDeckDirty(saved, { leaderId: "ST01-001", cards: ["ST01-006", "ST01-008"] })).toBe(true);
-    expect(isDeckDirty(saved, { leaderId: "ST01-002", cards: saved.cards })).toBe(true);
+    const saved = { name: "Deck", leaderId: "ST01-001", cards: ["ST01-006", "ST01-008", "ST01-006"] };
+    expect(isDeckDirty(saved, { name: "Deck", leaderId: "ST01-001", cards: ["ST01-008", "ST01-006", "ST01-006"] })).toBe(false);
+    expect(isDeckDirty(saved, { name: "Deck", leaderId: "ST01-001", cards: ["ST01-006", "ST01-008", "ST01-009"] })).toBe(true);
+    expect(isDeckDirty(saved, { name: "Deck", leaderId: "ST01-001", cards: ["ST01-006", "ST01-008"] })).toBe(true);
+    expect(isDeckDirty(saved, { name: "Deck", leaderId: "ST01-002", cards: saved.cards })).toBe(true);
   });
 
   it("saving a draft marks a planner-linked deck edited and drops art prefs of removed cards (#481)", () => {
@@ -173,15 +173,43 @@ describe("editing an unsaved draft (#481)", () => {
       artPrefs: { "ST01-006": "p1", "ST01-008": "p1" },
       plannerDeckId: 5,
     });
-    const result = saveDeckDraft("draft-linked", { leaderId: "ST01-001", cards: ["ST01-006"] });
+    const result = saveDeckDraft("draft-linked", { name: "Linked", leaderId: "ST01-001", cards: ["ST01-006"] });
     expect(result.ok).toBe(true);
     const deck = getSavedDeck("draft-linked")!;
     expect(deck.cards).toEqual(["ST01-006"]);
     expect(deck.editedLocally).toBe(true);
     expect(deck.artPrefs).toEqual({ "ST01-006": "p1" });
     saveDeck({ id: "draft-plain", name: "Plain", leaderId: "ST01-001", cards: [] });
-    saveDeckDraft("draft-plain", { leaderId: "ST01-001", cards: ["ST01-006"] });
+    saveDeckDraft("draft-plain", { name: "Plain", leaderId: "ST01-001", cards: ["ST01-006"] });
     expect(getSavedDeck("draft-plain")!.editedLocally).toBeUndefined();
+  });
+});
+
+describe("deck rename (#526)", () => {
+  const cards = ["ST01-006", "ST01-008"];
+
+  it("a changed name makes the draft dirty, ignoring surrounding spaces (#526)", () => {
+    const saved = { name: "Straw Hats", leaderId: "ST01-001", cards };
+    expect(isDeckDirty(saved, { ...saved, name: "Straw Hats 2" })).toBe(true);
+    expect(isDeckDirty(saved, { ...saved, name: "  Straw Hats " })).toBe(false);
+  });
+
+  it("saveDeckDraft persists the trimmed new name and marks a planner-linked deck edited (#526)", () => {
+    saveDeck({ id: "rename-linked", name: "Old", leaderId: "ST01-001", cards, plannerDeckId: 9 });
+    const result = saveDeckDraft("rename-linked", { name: "  New name ", leaderId: "ST01-001", cards });
+    expect(result.ok).toBe(true);
+    const deck = getSavedDeck("rename-linked")!;
+    expect(deck.name).toBe("New name");
+    expect(deck.editedLocally).toBe(true);
+  });
+
+  it("saveDeckDraft refuses a blank name and leaves the deck as it was (#526)", () => {
+    saveDeck({ id: "rename-blank", name: "Keep me", leaderId: "ST01-001", cards });
+    const result = saveDeckDraft("rename-blank", { name: "   ", leaderId: "ST01-001", cards: ["ST01-006"] });
+    expect(result).toEqual({ ok: false, error: "Enter a deck name." });
+    const deck = getSavedDeck("rename-blank")!;
+    expect(deck.name).toBe("Keep me");
+    expect(deck.cards).toEqual(cards);
   });
 });
 

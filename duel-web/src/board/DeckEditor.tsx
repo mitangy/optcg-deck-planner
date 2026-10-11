@@ -263,7 +263,7 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
   function edit(change: (cards: readonly string[]) => CardsEditResult): string | null {
     const result = change(currentDeck.cards);
     if (!result.ok) return result.error;
-    onChange({ leaderId: currentDeck.leaderId, cards: result.cards });
+    onChange({ name: currentDeck.name, leaderId: currentDeck.leaderId, cards: result.cards });
     return null;
   }
 
