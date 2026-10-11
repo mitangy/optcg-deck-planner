@@ -179,9 +179,9 @@ export function rowShown(key: RowKey, d: FieldDevice): boolean {
     case "sideColumns":
     case "sidePanels":
       return d.desktop;
-    // The hover card pop-up is desktop-only, and so is the setting that sizes it.
+    // Sizes every pop-up in a match, phones included.
     case "popupSize":
-      return d.desktop;
+      return true;
     case "endTurnConfirm":
     case "responseStops":
     case "handLayout":

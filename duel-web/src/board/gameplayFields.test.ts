@@ -43,9 +43,9 @@ describe("gameplay rows by device", () => {
     expect(toggleShown("previewPopup", phone)).toBe(false);
   });
 
-  it("lists the Pop-up size row only on a desktop window, in the Board group (#555)", () => {
+  it("lists the Pop-up size row on phones and desktop windows, in the Board group (#555)", () => {
     expect(rowShown("popupSize", desktop)).toBe(true);
-    expect(rowShown("popupSize", phone)).toBe(false);
+    expect(rowShown("popupSize", phone)).toBe(true);
     expect(groupOf("popupSize")).toBe("board");
   });
 

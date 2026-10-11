@@ -533,7 +533,7 @@ export function GameplaySettingsFields() {
               onChange={(e) => updateSettings({ popupSize: clampPopupSize(Number(e.target.value)) })}
             />
             <p className="field-hint">
-              How big the pop-ups are: the hover card, choices and searches, card actions, DON!! and hand confirms, reveals and pick bars. The − and + buttons in a pop-up\u2019s top bar change this too. Reset layout puts it back to 100%.
+              How big the pop-ups are: the hover card, choices and searches, card actions, DON!! and hand confirms, reveals and pick bars. The − and + buttons in a pop-up’s top bar change this too. Reset layout puts it back to 100%.
             </p>
           </div>
         );
