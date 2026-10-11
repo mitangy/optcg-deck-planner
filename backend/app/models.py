@@ -45,6 +45,9 @@ class User(Base):
 
     decks: Mapped[list[Deck]] = relationship(back_populates="user", cascade="all, delete-orphan")
     owned: Mapped[list[Owned]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    shopping_extras: Mapped[list[ShoppingExtra]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 # Case-insensitive uniqueness for usernames (NULLs allowed on SQLite + Postgres).
@@ -123,6 +126,27 @@ class Owned(Base):
     qty: Mapped[int] = mapped_column(Integer, default=0)
 
     user: Mapped[User] = relationship(back_populates="owned")
+
+
+class ShoppingExtra(Base):
+    """Card added straight to Master Shopping without a deck.
+
+    ``qty`` is a TARGET number of copies to own (like a deck's needed count),
+    combined with deck need by max, not a count of copies to buy.
+    """
+
+    __tablename__ = "shopping_extras"
+    __table_args__ = (UniqueConstraint("user_id", "card_id", name="uq_user_shopping_extra"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    user: Mapped[User] = relationship(back_populates="shopping_extras")
 
 
 class ShareLink(Base):

@@ -670,6 +670,49 @@ button {
   letter-spacing: 0.04em;
 }
 
+/* Deck name: an input that reads as the h1 (#526). Same box as plain title text, so editing shifts nothing. */
+.deck-config-title.deck-name-heading {
+  display: block;
+  min-width: 0;
+}
+
+.deck-name-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 2px;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed transparent;
+  border-radius: 0;
+  outline: none;
+  text-overflow: ellipsis;
+  cursor: text;
+  transition: border-color 0.12s ease;
+}
+
+.deck-name-input:hover {
+  border-bottom-color: var(--line);
+}
+
+.deck-name-input:focus-visible {
+  border-bottom: 1px solid var(--chrome-bright);
+}
+
+.deck-name-input[aria-invalid="true"] {
+  border-bottom: 1px solid var(--danger);
+}
+
+.deck-name-input::placeholder {
+  color: currentColor;
+  opacity: 0.55;
+}
+
 .deck-config-switcher {
   display: flex;
   flex-direction: column;

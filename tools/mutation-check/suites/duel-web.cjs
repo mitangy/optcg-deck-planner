@@ -5,6 +5,13 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Deck rename (#526)
+    { id: "rename-dirty-ignores-name", file: `${src}/decks/editDeck.ts`, from: "  if (saved.name.trim() !== draft.name.trim()) return true;\n", to: "", kills: ["a changed name makes the draft dirty, ignoring surrounding spaces (#526)"] },
+    { id: "rename-dirty-compares-untrimmed", file: `${src}/decks/editDeck.ts`, from: "saved.name.trim() !== draft.name.trim()", to: "saved.name !== draft.name", kills: ["a changed name makes the draft dirty, ignoring surrounding spaces (#526)"] },
+    { id: "rename-save-keeps-old-name", file: `${src}/decks/editDeck.ts`, from: "      name,\n      leaderId: draft.leaderId,", to: "      name: deck.name,\n      leaderId: draft.leaderId,", kills: ["saveDeckDraft persists the trimmed new name and marks a planner-linked deck edited (#526)"] },
+    { id: "rename-save-allows-blank-name", file: `${src}/decks/editDeck.ts`, from: "  if (!name) return { ok: false, error: BLANK_DECK_NAME_ERROR };\n", to: "", kills: ["saveDeckDraft refuses a blank name and leaves the deck as it was (#526)"] },
+    // Search pop-up floats over the board with no scrim (#542)
+    { id: "float-search-scrim", file: `${src}/board/FloatingPrompt.tsx`, from: "      <div className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", to: "      <div className=\"float-scrim\" aria-hidden />\n      <div className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", kills: ["search pop-up floats cards with no gray backdrop (#542)"] },
     // Replay viewer (#476)
     { id: "history-watch-for-any-recording", file: matchRowFile, from: "    replay: m.replay_ready === true,", to: "    replay: m.has_replay,", kills: ["offers Watch replay only for games whose recording is ready (#476)"] },
     { id: "history-watch-for-every-game", file: matchRowFile, from: "    replay: m.replay_ready === true,", to: "    replay: true,", kills: ["offers Watch replay only for games whose recording is ready (#476)"] },
@@ -1183,10 +1190,10 @@ module.exports = {
     { id: "logpose-dropped-chip-still-sent", file: "packages/analyst-client/src/ask.ts", from: "  if (!dropped) {\n    if (page.deck)", to: "  {\n    if (page.deck)", kills: ["leaves the deck out of the next message after the chip's"] },
     { id: "logpose-reviews-cut-off-games", file: `${src}/logPose.ts`, from: "  if (finished === false) return \"cut-off\";\n", to: "", kills: ["never generates a review for a game that was cut off (#377)"] },
     { id: "logpose-review-while-off", file: `${src}/logPose.ts`, from: "  if (enabled !== true) return \"hidden\";", to: "  if (enabled === false) return \"hidden\";", kills: ["shows nothing while chat is off or unknown (#377)"] },
-    { id: "logpose-markdown-injects-html", file: "packages/analyst-client/src/Markdown.tsx", from: "            {splitMarks(n.v).map((part, j) => (typeof part === \"number\" ? <Fragment key={j}>{mark ? mark(part) : null}</Fragment> : part))}", to: "            <span dangerouslySetInnerHTML={{ __html: n.v }} />", kills: ["renders HTML in an answer as text, never as markup (#377)"] },
+    { id: "logpose-markdown-injects-html", file: "packages/analyst-client/src/Markdown.tsx", from: "            {splitMarks(n.v).map((part, j) => (typeof part === \"number\" ? <Fragment key={j}>{mark ? mark(part) : null}</Fragment> : text ? <Fragment key={j}>{text(part)}</Fragment> : part))}", to: "            <span dangerouslySetInnerHTML={{ __html: n.v }} />", kills: ["renders HTML in an answer as text, never as markup (#377)"] },
     { id: "logpose-markdown-link-opener", file: "packages/analyst-client/src/Markdown.tsx", from: "<a key={k} href={n.href.replace(MARK_RE, \"\")} target=\"_blank\" rel=\"noopener noreferrer\">", to: "<a key={k} href={n.href.replace(MARK_RE, \"\")} target=\"_blank\">", kills: ["renders a javascript: link as plain text and http links in a new tab with noopener (#377)"] },
     { id: "logpose-markdown-unsafe-href", file: "packages/analyst-client/src/markdown.ts", from: "  return url.protocol === \"http:\" || url.protocol === \"https:\" ? url.href : null;", to: "  return url.href;", kills: ["renders a javascript: link as plain text"] },
-    { id: "logpose-markdown-table-as-text", file: "packages/analyst-client/src/Markdown.tsx", from: "                    <td key={m}>{inlines(c, mark)}</td>", to: "                    <th key={m}>{inlines(c, mark)}</th>", kills: ["renders a streamed answer's list and table as list and table elements (#377)"] },
+    { id: "logpose-markdown-table-as-text", file: "packages/analyst-client/src/Markdown.tsx", from: "                    <td key={m}>{inlines(c, mark, text)}</td>", to: "                    <th key={m}>{inlines(c, mark, text)}</th>", kills: ["renders a streamed answer's list and table as list and table elements (#377)"] },
     // sources in the panel (#390)
     { id: "logpose-no-judgement-note", file: "packages/analyst-client/src/Sources.tsx", from: "done && text.trim() ?", to: "false ?", kills: ["says an answer that cites nothing is Log Pose's own judgement"] },
     { id: "logpose-judgement-while-streaming", file: "packages/analyst-client/src/Sources.tsx", from: "done && text.trim() ?", to: "text.trim() ?", kills: ["says an answer that cites nothing is Log Pose's own judgement"] },

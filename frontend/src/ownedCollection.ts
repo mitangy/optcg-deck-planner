@@ -36,7 +36,10 @@ export function patchOwnedCollection(
   const items = old.items.map((item) => {
     if (item.card_id.toUpperCase() !== id) return item;
     const value = item.market_price == null ? null : Math.round(qty * item.market_price * 100) / 100;
-    return { ...item, owned: qty, value };
+    // Still-to-buy copies shrink or grow with Owned while the card is on the list;
+    // a card already covered (0) is left alone until the next refetch.
+    const buying = item.buying ? Math.max(0, item.owned + item.buying - qty) : item.buying;
+    return { ...item, owned: qty, value, buying };
   });
   const totals = collectionTotals(items.filter((i) => i.owned > 0));
   return {
