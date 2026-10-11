@@ -16,6 +16,7 @@ import {
   type SourceEntry,
 } from "./citations";
 import { Markdown } from "./Markdown";
+import { citedCardNames, findMentions } from "./mentions";
 
 /** What the host app adds to sources: links into the app and card data. Both are optional. */
 export type SourceHooks = {
@@ -160,6 +161,104 @@ function CitePopover({ anchor, label, onClose, children }: { anchor: HTMLElement
   );
 }
 
+/** The card picture a mention shows: fixed in place next to it, never in the way of the pointer. */
+const PEEK_W = 240;
+const PEEK_RATIO = 7 / 5;
+
+function CardPeek({ anchor, name, src }: { anchor: HTMLElement; name: string; src: string }) {
+  const [pos, setPos] = useState<{ left: number; top: number; w: number; h: number } | null>(null);
+  const [broken, setBroken] = useState(false);
+  useLayoutEffect(() => {
+    const vp = viewport();
+    const w = Math.max(Math.min(PEEK_W, vp.w - 16, (vp.h - 16) / PEEK_RATIO), 80);
+    const size = { w, h: Math.round(w * PEEK_RATIO) };
+    const r = anchor.getBoundingClientRect();
+    const p = placePopover({ left: r.left, top: r.top, width: r.width, height: r.height }, size, vp);
+    setPos({ left: p.left, top: p.top, ...size });
+  }, [anchor]);
+  if (typeof document === "undefined" || broken) return null;
+  return createPortal(
+    <div
+      className="logpose lp-peek"
+      role="img"
+      aria-label={name}
+      style={pos ? { left: pos.left, top: pos.top, width: pos.w, height: pos.h } : { left: 0, top: 0, visibility: "hidden" }}
+    >
+      <img src={src} alt="" decoding="async" onError={() => setBroken(true)} />
+    </div>,
+    document.body,
+  );
+}
+
+/**
+ * A card named in an answer. A mouse shows its picture while hovering; the keyboard, while focused; a finger,
+ * after a tap (and a tap elsewhere or Escape puts it away). The text never moves.
+ */
+function CardMention({ text, name, src }: { text: string; name: string; src: string }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const mouse = useRef(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const el = ref.current;
+    const shut = () => setOpen(false);
+    const onPointer = (e: PointerEvent) => {
+      if (e.target instanceof Node && el?.contains(e.target)) return;
+      shut();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      // Put away the picture, not the panel behind it.
+      e.preventDefault();
+      shut();
+    };
+    document.addEventListener("pointerdown", onPointer, true);
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("scroll", shut, true);
+    window.addEventListener("resize", shut);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer, true);
+      document.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("scroll", shut, true);
+      window.removeEventListener("resize", shut);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={ref}
+        type="button"
+        className="lp-mention"
+        data-open={open ? "true" : undefined}
+        aria-label={`${text}: show card`}
+        onPointerDown={(e) => {
+          mouse.current = e.pointerType === "mouse";
+        }}
+        onPointerEnter={(e) => {
+          if (e.pointerType === "mouse") setOpen(true);
+        }}
+        onPointerLeave={(e) => {
+          if (e.pointerType === "mouse" && document.activeElement !== ref.current) setOpen(false);
+        }}
+        onFocus={(e) => {
+          if (e.currentTarget.matches(":focus-visible")) setOpen(true);
+        }}
+        onBlur={() => setOpen(false)}
+        onClick={() => {
+          // A mouse already shows it on hover; a finger or the keyboard toggles it.
+          if (!mouse.current) setOpen((o) => !o);
+          mouse.current = false;
+        }}
+      >
+        {text}
+      </button>
+      {open && ref.current ? <CardPeek anchor={ref.current} name={name} src={src} /> : null}
+    </>
+  );
+}
+
 function SourcesList({ entries }: { entries: SourceEntry[] }) {
   const hooks = useContext(SourceHooksContext);
   return (
@@ -206,6 +305,7 @@ function SourcesList({ entries }: { entries: SourceEntry[] }) {
 export function CitedAnswer({ text, citations, done = true }: { text: string; citations: readonly PlacedCitation[]; done?: boolean }) {
   const { entries, marks } = useMemo(() => buildSources(citations), [citations]);
   const marked = useMemo(() => placeMarkers(text, marks), [text, marks]);
+  const hooks = useContext(SourceHooksContext);
   const [active, setActive] = useState<{ index: number; el: HTMLElement } | null>(null);
   const close = useCallback(() => setActive(null), []);
 
@@ -231,11 +331,23 @@ export function CitedAnswer({ text, citations, done = true }: { text: string; ci
     [marks, active],
   );
 
+  const renderText = useMemo(() => {
+    const cardOf = hooks.card;
+    if (!cardOf) return undefined;
+    const names = citedCardNames(entries, (id) => cardOf(id)?.name);
+    const img = (id: string) => cardOf(id)?.imageUrl || undefined;
+    return (t: string): ReactNode => {
+      const parts = findMentions(t, names, (id) => Boolean(img(id)));
+      if (parts.length === 1 && typeof parts[0] === "string") return t;
+      return parts.map((p, k) => (typeof p === "string" ? p : <CardMention key={k} text={p.text} name={cardOf(p.id)?.name || p.text} src={img(p.id)!} />));
+    };
+  }, [entries, hooks]);
+
   const open = active ? marks[active.index] : undefined;
   const entry = open ? entries.find((e) => e.n === open.n) : undefined;
   return (
     <>
-      <Markdown text={marked} renderMark={renderMark} />
+      <Markdown text={marked} renderMark={renderMark} renderText={renderText} />
       {active && open && entry ? (
         <CitePopover anchor={active.el} label={`Source ${open.n}: ${entry.title}`} onClose={close}>
           <SourceBody parsed={entry.parsed} title={entry.title} quote={open.citation.cited_text} showCard />
