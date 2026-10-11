@@ -1,7 +1,12 @@
 import type { GameEvent, InstanceId, MatchState, Seat } from "./types.js";
 
 /**
- * True when applying one intent (`before` -> `after`, emitting `events`) exposed
+ * Why applying one intent (`before` -> `after`, emitting `events`) exposed
+ * hidden information, as short player-facing text ("cards were drawn"), or
+ * null when it exposed nothing. The undo menu shows it as the reason a rewind
+ * is blocked (#536); `revealsHiddenInfo` is just "reason != null".
+ *
+ * Applying one intent (`before` -> `after`, emitting `events`) exposed
  * hidden information, so a rewind past it would let a player take back a peek
  * (#497). Covers: a card leaving a deck or Life zone, a Life card turned face
  * up, a `card_revealed` event that shows hidden info, and a new pending choice
@@ -18,14 +23,14 @@ import type { GameEvent, InstanceId, MatchState, Seat } from "./types.js";
  * order plus the RNG are restored exactly by an undo, so the same card comes
  * back. Without the exemption an accidental "end turn" could never be undone.
  */
-export function revealsHiddenInfo(before: MatchState, after: MatchState, events: readonly GameEvent[]): boolean {
+export function revealReason(before: MatchState, after: MatchState, events: readonly GameEvent[]): string | null {
   for (const e of events) {
     if (e.type !== "card_revealed") continue;
-    if (revealedFromHiddenTop(before, after, e.seat, e.defId)) return true;
+    if (revealedFromHiddenTop(before, after, e.seat, e.defId)) return "the top card of a deck or Life was revealed";
   }
   for (let seat = 0; seat < after.players.length; seat += 1) {
     const had = new Set(before.players[seat]?.revealedHandIds ?? []);
-    if ((after.players[seat]!.revealedHandIds ?? []).some((id) => !had.has(id))) return true;
+    if ((after.players[seat]!.revealedHandIds ?? []).some((id) => !had.has(id))) return "a hand card was revealed";
   }
 
   const turnDrawn = new Set<InstanceId>();
@@ -41,13 +46,13 @@ export function revealsHiddenInfo(before: MatchState, after: MatchState, events:
     const b = before.players[seat]!;
     const a = after.players[seat]!;
     const deckAfter = new Set(a.zoneInstanceIds.deck);
-    for (const id of b.zoneInstanceIds.deck) if (!deckAfter.has(id) && !turnDrawn.has(id)) return true;
+    for (const id of b.zoneInstanceIds.deck) if (!deckAfter.has(id) && !turnDrawn.has(id)) return "cards were drawn from a deck";
     const lifeAfter = new Set(a.zoneInstanceIds.life);
-    for (const id of b.zoneInstanceIds.life) if (!lifeAfter.has(id)) return true;
+    for (const id of b.zoneInstanceIds.life) if (!lifeAfter.has(id)) return "a Life card was taken";
     // A Life card staying in place but turning face up shows it to everyone.
     const faceUpBefore = new Map(b.zoneInstanceIds.life.map((id, i) => [id, b.faceUpLife[i] === true]));
     for (let i = 0; i < a.zoneInstanceIds.life.length; i += 1) {
-      if (a.faceUpLife[i] === true && faceUpBefore.get(a.zoneInstanceIds.life[i]!) === false) return true;
+      if (a.faceUpLife[i] === true && faceUpBefore.get(a.zoneInstanceIds.life[i]!) === false) return "a Life card was revealed";
     }
   }
 
@@ -56,21 +61,26 @@ export function revealsHiddenInfo(before: MatchState, after: MatchState, events:
   for (const p of after.players) for (const id of [...p.zoneInstanceIds.deck, ...p.zoneInstanceIds.life]) secret.add(id);
   for (const c of after.pendingChoices) {
     if (knownChoices.has(c.id)) continue;
-    if (c.kind === "life_trigger") return true;
+    if (c.kind === "life_trigger") return "a Life trigger was revealed";
     for (const v of Object.values(c.bindings ?? {})) {
       if (typeof v !== "string") continue;
-      if (secret.has(v)) return true;
+      if (secret.has(v)) return "a deck or Life card was looked at";
       for (let seat = 0; seat < after.players.length; seat += 1) {
-        if (seat !== c.seat && after.players[seat]!.hand.some((c) => c.id === v)) return true;
+        if (seat !== c.seat && after.players[seat]!.hand.some((c) => c.id === v)) return "a hand card was looked at";
       }
     }
     const options = c.request && "options" in c.request ? c.request.options : [];
     for (const o of options) {
-      if (o.zone === "deck" || o.zone === "life") return true;
-      if (o.zone === "hand" && o.ownerSeat !== c.seat) return true;
+      if (o.zone === "deck" || o.zone === "life") return "a deck or Life card was looked at";
+      if (o.zone === "hand" && o.ownerSeat !== c.seat) return "a hand card was looked at";
     }
   }
-  return false;
+  return null;
+}
+
+/** True when the intent exposed hidden information; see `revealReason`. */
+export function revealsHiddenInfo(before: MatchState, after: MatchState, events: readonly GameEvent[]): boolean {
+  return revealReason(before, after, events) !== null;
 }
 
 /** reveal_top shows the top card of a deck/Life zone; compare against both snapshots since the card may have moved. */

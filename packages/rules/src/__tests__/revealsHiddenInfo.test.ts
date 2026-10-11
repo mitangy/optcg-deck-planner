@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyIntent, createMatch, skipMulligans } from "../engine.js";
 import { createSeededRng } from "../rng.js";
-import { revealsHiddenInfo } from "../revealsHiddenInfo.js";
+import { revealReason, revealsHiddenInfo } from "../revealsHiddenInfo.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { Intent, MatchState, PendingChoice, Seat } from "../types.js";
 
@@ -168,5 +168,70 @@ describe("revealsHiddenInfo keeps Undo alive for public and own-hand actions (#5
     const h = new Harness();
     expect(revealsHiddenInfo(h.state, withChoice(h, { kind: "life_trigger" }), [])).toBe(true);
     expect(revealsHiddenInfo(h.state, withChoice(h, {}), [])).toBe(false);
+  });
+});
+
+describe("revealReason says why an undo is blocked (#536)", () => {
+  function withChoice(h: Harness, choice: Partial<PendingChoice>): MatchState {
+    const next = structuredClone(h.state) as MatchState;
+    next.pendingChoices.push({ id: "choice_x", seat: 0, kind: "effect", cardDefId: FILLER, optional: false, prompt: "", ...choice });
+    return next;
+  }
+
+  it("is null when the action exposed nothing, and agrees with revealsHiddenInfo (#536)", () => {
+    const h = new Harness();
+    expect(revealReason(h.state, structuredClone(h.state) as MatchState, [])).toBeNull();
+    const event = { type: "card_revealed", seat: 0, defId: FILLER } as const;
+    expect(revealReason(h.state, h.state, [event])).not.toBeNull();
+    expect(revealsHiddenInfo(h.state, h.state, [event])).toBe(true);
+    expect(revealsHiddenInfo(h.state, h.state, [])).toBe(false);
+  });
+
+  it("names drawn cards for an effect draw (#536)", () => {
+    const h = new Harness();
+    h.hand(0, DRAW_ON_PLAY);
+    h.don(0, 5);
+    const before = structuredClone(h.state) as MatchState;
+    const r = h.try(0, { type: "play_card", handIndex: 0 });
+    if (!r.ok) throw new Error(r.error?.message);
+    expect(revealReason(before, r.state, r.events)).toBe("cards were drawn from a deck");
+  });
+
+  it("names the Life card for damage, and a different reason for flipping one face up (#536)", () => {
+    const h = new Harness();
+    h.life(1, FILLER, FILLER, FILLER);
+    const gone = structuredClone(h.state) as MatchState;
+    gone.players[1].zoneInstanceIds.life.shift();
+    gone.players[1].life.shift();
+    gone.players[1].faceUpLife.shift();
+    expect(revealReason(h.state, gone, [])).toBe("a Life card was taken");
+    const flipped = structuredClone(h.state) as MatchState;
+    flipped.players[1].faceUpLife[1] = true;
+    expect(revealReason(h.state, flipped, [])).toBe("a Life card was revealed");
+  });
+
+  it("names a revealed hand card and a revealed deck top apart (#536)", () => {
+    const h = new Harness();
+    const [card] = h.hand(0, "ST01-009");
+    const next = structuredClone(h.state) as MatchState;
+    next.players[0].revealedHandIds = [card!.id];
+    expect(revealReason(h.state, next, [])).toBe("a hand card was revealed");
+    h.deckTop(0, "ST01-012");
+    expect(revealReason(h.state, h.state, [{ type: "card_revealed", seat: 0, defId: "ST01-012" }])).toBe(
+      "the top card of a deck or Life was revealed",
+    );
+  });
+
+  it("names a Life trigger, a look at deck/Life and a look at the opponent's hand apart (#536)", () => {
+    const h = new Harness();
+    expect(revealReason(h.state, withChoice(h, { kind: "life_trigger" }), [])).toBe("a Life trigger was revealed");
+    const look = withChoice(h, {
+      request: { type: "select", min: 0, max: 1, options: [{ id: "o0", zone: "deck", ownerSeat: 0, eligible: true }] },
+    });
+    expect(revealReason(h.state, look, [])).toBe("a deck or Life card was looked at");
+    const theirHand = withChoice(h, {
+      request: { type: "select", min: 1, max: 1, options: [{ id: "o0", zone: "hand", ownerSeat: 1, eligible: true }] },
+    });
+    expect(revealReason(h.state, theirHand, [])).toBe("a hand card was looked at");
   });
 });
