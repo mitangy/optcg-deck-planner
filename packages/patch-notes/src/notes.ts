@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-11
   { date: "2026-10-11", app: "both", pr: 543, title: "Resize Log Pose from any side", text: "A floating Log Pose window now resizes from every edge and corner, not just the top and left." },
+  { date: "2026-10-11", app: "duel", pr: 541, title: "See the cards Log Pose talks about", text: "Hover a card name or number in a Log Pose answer to see the card. On a phone, tap it." },
   { date: "2026-10-11", app: "both", pr: 531, title: "Shorter Log Pose answers", text: "Log Pose now answers in a few lines unless you ask for a full breakdown. In a game it leads with the play and a short why instead of recapping the board, and turn plans skip the step-by-step recap." },
   { date: "2026-10-11", app: "planner", pr: 527, title: "Add cards to buy without a deck", text: "Master Shopping now has an Add cards search: find any card and add it to your list, no deck needed, then step how many copies you want to buy. The Collection shows what you're still buying next to each card. The planner now remembers your filters (Still need only, color and type) between visits." },
   { date: "2026-10-11", app: "both", pr: 526, title: "Rename your decks", text: "Tap the name at the top of a deck in the duel app, or the pencil next to it in the planner, to give the deck a new name. In the duel app the new name is saved with the Save button." },
