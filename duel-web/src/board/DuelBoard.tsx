@@ -1986,7 +1986,7 @@ export function DuelBoard({
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
       }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
-      }${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}`}
+      }${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}${prefs.totalPower ? " power-total" : ""}`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
       data-phase={view.phase}
       data-turn={view.turnNumber}

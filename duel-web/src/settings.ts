@@ -130,6 +130,8 @@ export type DuelSettings = {
   previewBigCard: boolean;
   /** DON!! given to a rested Leader or Character stays upright under it instead of turning sideways with it. */
   donUpright: boolean;
+  /** Board power badges show only the total instead of printed power plus the bonus (#534). */
+  totalPower: boolean;
   /**
    * Desktop: the opponent's hand pinned above the playmat ("left", "centre" or
    * "right") instead of in its side panel; "" keeps it in the panel. Phones
@@ -218,6 +220,7 @@ const DEFAULTS: DuelSettings = {
   compactOwnBoard: false,
   previewBigCard: false,
   donUpright: false,
+  totalPower: false,
   oppHandSpot: "",
   textSize: "medium",
   lifeFan: "down",

@@ -3415,6 +3415,14 @@ img.zone-pile-face {
     letter-spacing: -0.02em;
   }
 }
+/* "Show total power" (#534): same collapse as above, on any tile size. */
+.power-total .card-stat-stack .power-badge-buffed .power-base,
+.power-total .card-stat-stack .power-badge-buffed .power-mod {
+  display: none;
+}
+.power-total .card-stat-stack .power-badge-buffed .power-now {
+  display: inline;
+}
 /* Narrowest tiles (phone landscape and 320px portrait): even the small
    "DON×1" is wider than the tile, so the green badge keeps just "×1". */
 @container (max-width: 44px) {
