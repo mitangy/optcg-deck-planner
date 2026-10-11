@@ -31,6 +31,8 @@ type PlayerView = {
 
 type SeatBag = {
   welcome?: PlayerView;
+  /** The latest welcome's firstSeatPickedBy (null = coin flip). */
+  pickedBy?: 0 | 1 | null;
   players?: { name: string | null }[];
   views: PlayerView[];
   errors: { code: string; message: string }[];
@@ -48,8 +50,9 @@ function joinOpts(devUserId: string, preferredSeat?: 0 | 1) {
 function attach(client: ClientRoom, bag: SeatBag) {
   client.onMessage(
     "welcome",
-    (msg: { seat: 0 | 1; view: PlayerView; players?: { name: string | null }[] }) => {
+    (msg: { seat: 0 | 1; view: PlayerView; players?: { name: string | null }[]; firstSeatPickedBy?: 0 | 1 | null }) => {
       bag.welcome = msg.view;
+      bag.pickedBy = msg.firstSeatPickedBy;
       bag.players = msg.players;
       bag.views.push(msg.view);
     },
@@ -1420,6 +1423,35 @@ describe("DuelRoom", () => {
     }
   });
 
+  it("the first game starts with the seat the room was created for and calls it a coin flip (#549)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 41,
+      firstSeat: 1,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    for (const bag of bags) {
+      const view = bag.welcome as PlayerView & { firstSeat?: number };
+      assert.equal(view.firstSeat, 1);
+      assert.equal(view.activeSeat, 1);
+      assert.equal(bag.pickedBy, null);
+    }
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
   it("rematch: both agree, the loser picks turn order, a fresh game starts", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -1461,6 +1493,9 @@ describe("DuelRoom", () => {
     assert.equal(fresh.winner, null);
     assert.equal(fresh.firstSeat, 1);
     assert.equal(fresh.you.lifeCount > 0, true);
+    // The mulligan banner credits the loser (seat 0) with the choice (#549).
+    assert.equal(bags[0].pickedBy, 0);
+    assert.equal(bags[1].pickedBy, 0);
 
     await c0.leave(true);
     await c1.leave(true);

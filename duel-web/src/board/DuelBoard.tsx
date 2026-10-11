@@ -144,6 +144,7 @@ import {
 import { RotateHint } from "./RotateHint";
 import { handCardOutOfReach, needsDonHint } from "./handAffordance";
 import { phaseLabel } from "./phaseLabel";
+import { firstSeatLine } from "./firstSeatLine";
 import { playerLabel, seatLabel, seatName, winnerHeadline } from "./playerNames";
 import { ConfirmButton } from "./ConfirmButton";
 import type { RematchDeckOption } from "../decks/rematchDecks";
@@ -237,6 +238,8 @@ type Props = {
     /** The seat the ticket is for (hotseat: seat 0, the player's). Online it is the board's own `seat`. The Log Pose copilot is offered on that seat's turns only. */
     ticketSeat?: Seat;
   };
+  /** How the turn order was decided (the welcome's firstSeatPickedBy): null = coin flip, a seat = who chose; undefined = unknown. */
+  firstSeatPickedBy?: Seat | null;
   /** Searches and effect ordering float cards over the board instead of a pop-up (always in matches; `/demo?box` shows the pop-up fallback). */
   floatingPrompts?: boolean;
   /** Before the first view: what the empty board says (queueing, connecting, starting). */
@@ -313,6 +316,7 @@ export function DuelBoard({
   leaveLabel = "Leave",
   replay,
   matchBrief,
+  firstSeatPickedBy,
   floatingPrompts = true,
   waiting,
   onSendIntent: sendIntent,
@@ -2259,7 +2263,14 @@ export function DuelBoard({
             </>
           ) : (
             <>
-              <strong>{youFirst ? "You go first." : "You go second."}</strong>{" "}
+              <strong>
+                {firstSeatLine({
+                  youFirst,
+                  boardSeat,
+                  pickedBy: firstSeatPickedBy,
+                  opponentName: seatName(players, oppSeat) ?? undefined,
+                })}
+              </strong>{" "}
               {youFirst
                 ? "No draw and 1 DON!! on your first turn."
                 : "You draw and get 2 DON!! on your first turn."}{" "}

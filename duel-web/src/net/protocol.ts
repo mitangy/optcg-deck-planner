@@ -90,6 +90,8 @@ export type WelcomeMessage = {
   players?: SeatPlayers;
   /** Whether the room is ranked; absent from an older server. */
   ranked?: boolean;
+  /** How the game's turn order was decided: null = coin flip, a seat = the rematch loser who chose; absent from an older server. */
+  firstSeatPickedBy?: Seat | null;
   /** Players of unranked rooms only. */
   brief?: BriefTicketWire;
 };
@@ -406,6 +408,8 @@ export function parseWelcome(raw: unknown): WelcomeMessage {
     view,
     players: parseSeatPlayers(o.players),
     ranked: typeof o.ranked === "boolean" ? o.ranked : undefined,
+    firstSeatPickedBy:
+      o.firstSeatPickedBy === null ? null : o.firstSeatPickedBy === 0 || o.firstSeatPickedBy === 1 ? o.firstSeatPickedBy : undefined,
     // A spectator is never offered a brief, whatever the server sent.
     brief: role === "spectator" || view.spectator ? undefined : parseBriefTicket(o.brief),
   };

@@ -127,6 +127,8 @@ type DuelSession = {
   players: SeatPlayers | null;
   /** Whether the room is ranked, from the welcome; null until then or from an older server. */
   ranked: boolean | null;
+  /** How the turn order was decided, from the welcome: null = coin flip, a seat = who chose; undefined from an older server. */
+  firstSeatPickedBy: Seat | null | undefined;
   /** The key to a Log Pose matchup brief (players of unranked rooms only). */
   brief: BriefTicketWire | null;
   battleLog: BattleLogEntry[];
@@ -198,6 +200,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [view, setView] = useState<PlayerView | null>(null);
   const [players, setPlayers] = useState<SeatPlayers | null>(null);
   const [ranked, setRanked] = useState<boolean | null>(null);
+  const [firstSeatPickedBy, setFirstSeatPickedBy] = useState<Seat | null | undefined>(undefined);
   const [brief, setBrief] = useState<BriefTicketWire | null>(null);
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
   const viewRef = useRef<PlayerView | null>(null);
@@ -234,8 +237,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
 
     function wireHandlers() {
       client.setHandlers({
-        onWelcome: ({ matchId: id, seat: s, view: v, role: r, players: p, ranked: rk, brief: b }) => {
+        onWelcome: ({ matchId: id, seat: s, view: v, role: r, players: p, ranked: rk, firstSeatPickedBy: pb, brief: b }) => {
           setPlayers(p ?? null);
+          setFirstSeatPickedBy(pb);
           setRanked(typeof rk === "boolean" ? rk : null);
           setBrief(r === "player" ? (b ?? null) : null);
           seatRef.current = s;
@@ -415,6 +419,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       setView(null);
       setPlayers(null);
       setRanked(null);
+      setFirstSeatPickedBy(undefined);
       setBrief(null);
       setMatchOver(null);
       setTimer(null);
@@ -456,6 +461,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       view,
       players,
       ranked,
+      firstSeatPickedBy,
       brief,
       battleLog,
       clearBattleLog: () => setBattleLog([]),
@@ -504,6 +510,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setUndo(null);
         setView(null);
         setRanked(null);
+        setFirstSeatPickedBy(undefined);
         setBrief(null);
         setQueueing(false);
         setResuming(false);
@@ -707,6 +714,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     view,
     players,
     ranked,
+    firstSeatPickedBy,
     brief,
     battleLog,
     errorBanner,
