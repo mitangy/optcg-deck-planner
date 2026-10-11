@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type RefObject } from "react";
 import { clampPos, dragPos, keyPos, readPos, roomAt, writePos, type Pos } from "./panelPos";
-import { clampDockW, dockAt, dragDockW, floatBeside, floatSize, keyDock, looseAt, pulledLoose, type Dock, type DockSide } from "./panelDock";
+import { clampDockW, dockAt, dragDockW, floatBeside, floatSize, keyDock, looseAt, pulledLoose, type Dock, type DockSide, type DockSides } from "./panelDock";
 import type { Rect } from "./panelMotion";
 import { clampSheet, clampSize, dragRect, dragSheet, keyRect, maxSize, MIN_H, MIN_W, readSheet, readSize, writeSheet, writeSize, type Edge, type Frame, type Size } from "./panelSize";
 
@@ -223,7 +223,7 @@ function boardColumns(): { left: DOMRect | null; right: DOMRect | null } {
   const out: { left: DOMRect | null; right: DOMRect | null } = { left: null, right: null };
   for (const col of document.querySelectorAll<HTMLElement>("[data-panel-col]")) {
     const side = col.dataset.panelCol;
-    if (side === "left" || side === "right") out[side] = col.getBoundingClientRect();
+    if ((side === "left" || side === "right") && col.dataset.colOff === undefined) out[side] = col.getBoundingClientRect();
   }
   return out;
 }
@@ -236,6 +236,8 @@ export type DockControl = {
   enabled: boolean;
   /** On a game board: docking targets the board's columns, and the width is the column's. */
   inGame: boolean;
+  /** On a game board, the sides that have a column shown; a drag or key never docks to the others. */
+  sides?: DockSides;
   width: number;
   setDock: (dock: Dock) => void;
 };
@@ -308,7 +310,7 @@ export function useHeaderMove(
     d.last = dragPos(d.pos, dx, dy, d.size, dw.viewport);
     dw.set(d.size);
     dw.setPos(d.last);
-    const target = c.enabled ? dockAt(e.clientX, dw.viewport.w, c.inGame ? boardColumns() : undefined) : null;
+    const target = c.enabled ? dockAt(e.clientX, dw.viewport.w, c.inGame ? boardColumns() : undefined, c.inGame ? c.sides : undefined) : null;
     if (target !== d.target) {
       d.target = target;
       preview(target ? previewFor(target) : null);
@@ -373,7 +375,7 @@ export function useHeaderMove(
       onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
         const { pos, size } = current();
         const vp = drawer.viewport;
-        const act = ctl.enabled || ctl.dock ? keyDock(ctl.dock, e.key, { left: pos.r + size.w >= vp.w, right: pos.r <= 0 }) : null;
+        const act = ctl.enabled || ctl.dock ? keyDock(ctl.dock, e.key, { left: pos.r + size.w >= vp.w, right: pos.r <= 0 }, ctl.inGame ? ctl.sides : undefined) : null;
         if (act === "undock") {
           e.preventDefault();
           const s = floatSize(drawer.size, vp);

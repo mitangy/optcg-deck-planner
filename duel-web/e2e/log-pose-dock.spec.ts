@@ -458,6 +458,45 @@ test("on a board, docking puts the panel in that side's column in place of an em
   await expect(page.locator(".lp-dock-host")).toHaveCount(0);
 });
 
+test.describe("one side column (#554)", () => {
+  /** The Side columns setting and the remembered dock side, written before the board loads. */
+  const stored = (sideColumns: string, dock?: string) => ({
+    "optcg-duel:settings": JSON.stringify({ sideColumns, previewPopup: false }),
+    ...(dock ? { "optcg-logpose:dock": dock } : {}),
+  });
+
+  test("with only the right column, dragging to the left edge shows no dock preview and the panel stays visible (#554)", async ({ page, duel }) => {
+    await duel.startPractice({ seed: 11, storage: stored("right") });
+    await expect(panel(page)).toBeVisible();
+    await expect.poll(() => panel(page).evaluate((el) => el.getAnimations().length)).toBe(0);
+    await expect(page.locator('[data-panel-col="left"]')).toHaveAttribute("data-col-off", "");
+
+    await dragHeader(page, { x: 4, y: 300 }, false);
+    await expect(page.locator(".lp-dock-preview")).toHaveCount(0);
+    await page.mouse.up();
+    await expect(panel(page)).toBeVisible();
+    await expect(panel(page)).not.toHaveAttribute("data-dock", /.+/);
+    await expect(page.locator(".lp-dock-host")).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem("optcg-logpose:dock"))).toBeNull();
+    await shot(page, "30-one-column-left-edge-does-not-dock");
+
+    // The right edge still docks it into the column that is shown.
+    await dragHeader(page, { x: 1276, y: 300 });
+    await expect(page.locator('[data-panel-col="right"] .lp-dock-host .lp-panel')).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem("optcg-logpose:dock"))).toBe("right");
+  });
+
+  test("a left dock remembered from two columns opens in the right column when only the right one is shown (#554)", async ({ page, duel }) => {
+    await duel.startPractice({ seed: 11, storage: stored("right", "left") });
+    await expect(panel(page)).toBeVisible();
+    await expect(page.locator('[data-panel-col="right"] .lp-dock-host .lp-panel')).toBeVisible();
+    await expect(page.locator('[data-panel-col="left"] .lp-dock-host')).toHaveCount(0);
+    // The remembered side is not rewritten: the left column gets it back when both columns return.
+    expect(await page.evaluate(() => localStorage.getItem("optcg-logpose:dock"))).toBe("left");
+    await shot(page, "31-left-dock-shown-in-right-column");
+  });
+});
+
 test.describe("phones", () => {
   test.use({ viewport: { width: 375, height: 812 }, hasTouch: true });
 
