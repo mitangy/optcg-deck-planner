@@ -93,6 +93,8 @@ export type DuelSettings = {
    * corner; "" = the default spot at the top right of the board. Stays on this device.
    */
   previewPopupPos: string;
+  /** Desktop card preview pop-up: pinned = it stays open on the last hovered card instead of only showing while the mouse is on a card. Stays on this device. */
+  previewPopupPinned: boolean;
   /**
    * Desktop: the side column pop-ups dock into ("left" / "right"), or "" to
    * float. Follows the account; phones and landscape phones (no side columns)
@@ -221,6 +223,7 @@ const DEFAULTS: DuelSettings = {
   spectatorFarFanPos: "",
   promptPos: "",
   previewPopupPos: "",
+  previewPopupPinned: false,
   promptDock: "",
   keepHandOpen: false,
   panelLayout: "",
@@ -339,6 +342,7 @@ function sanitize(
 const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
   "useDevKey",
   "previewPopupPos",
+  "previewPopupPinned",
   "devUserKey",
   "promptPos",
 ];

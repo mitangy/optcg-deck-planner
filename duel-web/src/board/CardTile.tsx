@@ -17,7 +17,7 @@ import {
 } from "../decks/seatArtPrefs";
 import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "./CardInspect";
-import { refreshPreviewLive, setPreviewCard, type PreviewLive } from "./cardPreview";
+import { endPreviewHover, hoverPreviewCard, refreshPreviewLive, type PreviewLive } from "./cardPreview";
 import { counterValueFor, formatCounter } from "../cards/counterValue";
 import { costBreakdown, formatPowerDelta, powerBreakdown, tileStatusLabels } from "./powerDisplay";
 import {
@@ -276,7 +276,11 @@ export function CardTile({
   }
 
   function handlePointerEnter(e: PointerEvent) {
-    if (e.pointerType === "mouse") setPreviewCard({ defId, ownerSeat, instanceId, live });
+    if (e.pointerType === "mouse") hoverPreviewCard({ defId, ownerSeat, instanceId, live });
+  }
+
+  function handlePointerLeave(e: PointerEvent) {
+    if (e.pointerType === "mouse") endPreviewHover();
   }
 
   function handlePointerCancel(e: PointerEvent) {
@@ -441,6 +445,7 @@ export function CardTile({
     onPointerUp: handlePointerUp,
     onPointerCancel: handlePointerCancel,
     onPointerEnter: handlePointerEnter,
+    onPointerLeave: handlePointerLeave,
     onDoubleClick: handleDoubleClick,
     onContextMenu: (e: MouseEvent) => {
       clickDeferRef.current?.cancel();

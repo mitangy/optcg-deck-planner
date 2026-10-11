@@ -3,6 +3,7 @@ import {
   DEFAULT_PANEL_LAYOUT,
   collapsedColumns,
   mergeIntoColumn,
+  splitMergedLayout,
   movePanel,
   nudgePanel,
   panelDropAt,
@@ -193,5 +194,19 @@ describe("one combined side column (#529)", () => {
   it("a drop is never aimed at a column that is not there (#529)", () => {
     const only = { right: { left: 900, right: 1200 } };
     expect(panelDropAt(only, [], "log", 5, 100).column).toBe("right");
+  });
+});
+
+describe("reordering in the one combined column (#529)", () => {
+  const saved = { left: ["preview", "log"] as PanelId[], right: ["turn", "chat", "hand"] as PanelId[] };
+
+  it("an untouched order gives back the saved split (#529)", () => {
+    expect(splitMergedLayout(mergeIntoColumn(saved, "right"), saved, "right")).toEqual(saved);
+    expect(splitMergedLayout(mergeIntoColumn(saved, "left"), saved, "left")).toEqual(saved);
+  });
+
+  it("a reorder keeps each column's panel count, so both stay populated (#529)", () => {
+    const moved = { left: [], right: ["log", "turn", "chat", "hand", "preview"] as PanelId[] };
+    expect(splitMergedLayout(moved, saved, "right")).toEqual({ right: ["log", "turn", "chat"], left: ["hand", "preview"] });
   });
 });

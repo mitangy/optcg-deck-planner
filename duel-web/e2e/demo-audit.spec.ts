@@ -682,7 +682,7 @@ test("light mode secondary text meets 4.5:1 contrast in every theme (#262)", asy
   const low: string[] = [];
   for (const theme of LIGHT_THEMES) {
     await page.addInitScript(
-      (t) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ theme: t, colorMode: "light" })),
+      (t) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ theme: t, colorMode: "light", previewPopupPinned: true })),
       theme,
     );
     for (const [url, selectors] of Object.entries(LIGHT_TEXT)) {

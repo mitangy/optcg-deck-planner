@@ -2,7 +2,7 @@ import { useState } from "react";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { BattleLogEntry } from "./battleLog";
-import { setPreviewCard } from "./cardPreview";
+import { endPreviewHover, hoverPreviewCard, setPreviewCard } from "./cardPreview";
 import { CardInspect } from "./CardInspect";
 import { inspectOnContextMenu } from "./inspectGestures";
 import { recentPlays, type RecentPlay } from "./recentPlays";
@@ -34,7 +34,10 @@ export function RecentPlaysStrip({
                   aria-label={p.label}
                   title={p.label}
                   onPointerEnter={(e) => {
-                    if (e.pointerType === "mouse") setPreviewCard({ defId: p.defId, ownerSeat: p.ownerSeat });
+                    if (e.pointerType === "mouse") hoverPreviewCard({ defId: p.defId, ownerSeat: p.ownerSeat });
+                  }}
+                  onPointerLeave={(e) => {
+                    if (e.pointerType === "mouse") endPreviewHover();
                   }}
                   onFocus={() => setPreviewCard({ defId: p.defId, ownerSeat: p.ownerSeat })}
                   onClick={() => setPreviewCard({ defId: p.defId, ownerSeat: p.ownerSeat })}

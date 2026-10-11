@@ -114,7 +114,7 @@ import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { sideSkins } from "./seatSkins";
 import { resolveHandLayout, updateSettings, useDuelSettings } from "../settings";
-import { PANEL_LABELS, collapsedColumns, mergeIntoColumn, parsePanelLayout, serializePanelLayout, type PanelColumn, type PanelId } from "./panelLayout";
+import { PANEL_LABELS, collapsedColumns, mergeIntoColumn, parsePanelLayout, serializePanelLayout, splitMergedLayout, type PanelColumn, type PanelId } from "./panelLayout";
 import { panelSizesForMode, panelSizesPatch } from "./panelSizes";
 import { usePanelResize } from "./usePanelResize";
 import { SidePanel, usePanelDrag } from "./SidePanels";
@@ -444,8 +444,11 @@ export function DuelBoard({
   const panelDrag = usePanelDrag(
     arenaBodyRef,
     panelLayout,
-    // Reordering in the one column is the player's own change, so it is the layout that gets saved.
-    (next) => updateSettings({ panelLayout: serializePanelLayout(singleSide ? mergeIntoColumn(next, singleSide) : next) }),
+    // A reorder in the one column is split back into the two saved columns (same counts), so Both still has two.
+    (next) =>
+      updateSettings({
+        panelLayout: serializePanelLayout(singleSide ? splitMergedLayout(next, parsePanelLayout(prefs.panelLayout), singleSide) : next),
+      }),
     {
       id: "oppHand",
       spot: prefs.oppHandSpot || null,

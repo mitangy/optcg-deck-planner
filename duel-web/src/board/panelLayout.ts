@@ -172,6 +172,19 @@ export function mergeIntoColumn(layout: PanelLayout, side: PanelColumn): PanelLa
   return { [side]: [...layout[side], ...layout[other]], [other]: [] } as PanelLayout;
 }
 
+/**
+ * A reorder made in the one combined column, split back into the saved two:
+ * the new order's first panels go to `side` (as many as it held before), the
+ * rest to the other column, so switching back to Both still gives two
+ * populated columns and an untouched order restores the saved layout.
+ */
+export function splitMergedLayout(next: PanelLayout, saved: PanelLayout, side: PanelColumn): PanelLayout {
+  const other: PanelColumn = side === "left" ? "right" : "left";
+  const order = [...next[side], ...next[other]];
+  const keep = saved[side].length;
+  return { [side]: order.slice(0, keep), [other]: order.slice(keep) } as PanelLayout;
+}
+
 export function samePanelLayout(a: PanelLayout, b: PanelLayout): boolean {
   return serializePanelLayoutRaw(a) === serializePanelLayoutRaw(b);
 }

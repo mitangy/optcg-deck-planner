@@ -619,7 +619,8 @@ module.exports = {
       "card-preview-popup.spec.ts > hovering a card opens a large pop-up, and the side column no longer holds the preview (#529) [desktop-1280]",
       "card-preview-popup.spec.ts > the pop-up drags by its header, stays on screen, and is where it was left after a reload (#529) [desktop-1280]",
       "card-preview-popup.spec.ts > double-clicking the header puts the pop-up back (#529) [desktop-1280]",
-      "card-preview-popup.spec.ts > the x closes the pop-up and hovering the same card again reopens it (#529) [desktop-1280]",
+      "card-preview-popup.spec.ts > the pop-up hides shortly after the pointer leaves the card (#529) [desktop-1280]",
+      "card-preview-popup.spec.ts > moving from the card onto the pop-up keeps it open until the pointer leaves it (#529) [desktop-1280]",
       "card-preview-popup.spec.ts > hovering a face-up Life card shows it in the pop-up without opening the Life list (#529) [desktop-1280]"
     ] },
     { id: "e2e-popup-position-not-saved", args: "card-preview-popup --project=desktop-1280 -g \"drags by its header\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "updateSettings({ previewPopupPos: serializePreviewPopupPos(moved) });", to: "void 0;", kills: [
@@ -631,13 +632,29 @@ module.exports = {
     { id: "e2e-popup-double-click-ignored", args: "card-preview-popup --project=desktop-1280 -g \"puts the pop-up back\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "if (saved) updateSettings({ previewPopupPos: \"\" });", to: "void 0;", kills: [
       "card-preview-popup.spec.ts > double-clicking the header puts the pop-up back (#529) [desktop-1280]"
     ] },
-    { id: "e2e-popup-close-ignored", args: "card-preview-popup --project=desktop-1280 -g \"x closes\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "onClick={clearPreviewCard}", to: "onClick={() => undefined}", kills: [
-      "card-preview-popup.spec.ts > the x closes the pop-up and hovering the same card again reopens it (#529) [desktop-1280]"
+    { id: "e2e-popup-close-ignored", args: "card-preview-popup --project=desktop-1280 -g \"pinned pop-up\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "              updateSettings({ previewPopupPinned: false });\n              setOverPopup(false);\n              clearPreviewCard();", to: "              setOverPopup(false);", kills: [
+      "card-preview-popup.spec.ts > a pinned pop-up stays open when the pointer leaves, and unpinning or the x closes it (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-popup-leave-ignored", args: "card-preview-popup --project=desktop-1280 -g \"hides shortly|pinned pop-up\"", file: "duel-web/src/board/cardPreview.ts", from: "  if (!hovering) return;\n  hovering = false;\n  emit();", to: "  if (!hovering) return;", kills: [
+      "card-preview-popup.spec.ts > the pop-up hides shortly after the pointer leaves the card (#529) [desktop-1280]",
+      "card-preview-popup.spec.ts > a pinned pop-up stays open when the pointer leaves, and unpinning or the x closes it (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-popup-no-linger", args: "card-preview-popup --project=desktop-1280 -g \"keeps it open until\"", file: "duel-web/src/board/cardPreview.ts", from: "export const POPUP_LEAVE_MS = 250;", to: "export const POPUP_LEAVE_MS = 0;", kills: [
+      "card-preview-popup.spec.ts > moving from the card onto the pop-up keeps it open until the pointer leaves it (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-popup-over-ignored", args: "card-preview-popup --project=desktop-1280 -g \"keeps it open until\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "onPointerEnter={() => setOverPopup(true)}", to: "onPointerEnter={() => undefined}", kills: [
+      "card-preview-popup.spec.ts > moving from the card onto the pop-up keeps it open until the pointer leaves it (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-popup-pin-ignored", args: "card-preview-popup --project=desktop-1280 -g \"pinned pop-up\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "const pinned = settings.previewPopupPinned;", to: "const pinned = false;", kills: [
+      "card-preview-popup.spec.ts > a pinned pop-up stays open when the pointer leaves, and unpinning or the x closes it (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-popup-auto-opens", args: "card-preview-popup --project=desktop-1280 -g \"opens with an opponent\"", file: "duel-web/src/board/cardPreview.ts", from: "export function setAutoPreviewCard(next: PreviewCard | null): void {\n  applyPreview(next);", to: "export function setAutoPreviewCard(next: PreviewCard | null): void {\n  hoverPreviewCard(next);", kills: [
+      "card-preview-popup.spec.ts > a demo that opens with an opponent's play showing has no pop-up until a card is hovered (#529) [desktop-1280]"
     ] },
     { id: "e2e-popup-setting-ignored", args: "card-preview-popup --project=desktop-1280 -g \"turning the pop-up off\"", file: "duel-web/src/board/DuelBoard.tsx", from: "const previewPopup = prefs.previewPopup && prefs.showCardPreview && wide && !lp;", to: "const previewPopup = prefs.showCardPreview && wide && !lp;", kills: [
       "card-preview-popup.spec.ts > turning the pop-up off puts the preview back in its side column (#529) [desktop-1280]"
     ] },
-    { id: "e2e-life-face-hover-ignored", args: "card-preview-popup --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/ZonePile.tsx", from: "if (e.pointerType === \"mouse\") setPreviewCard({ defId, ownerSeat });", to: "void 0;", kills: [
+    { id: "e2e-life-face-hover-ignored", args: "card-preview-popup --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/ZonePile.tsx", from: "if (e.pointerType === \"mouse\") hoverPreviewCard({ defId, ownerSeat });", to: "void 0;", kills: [
       "card-preview-popup.spec.ts > hovering a face-up Life card shows it in the pop-up without opening the Life list (#529) [desktop-1280]"
     ] },
     { id: "e2e-popup-on-phone", args: "card-preview-popup --project=phone-375 -g \"phones show no pop-up\"", file: "duel-web/src/board/DuelBoard.tsx", from: "const previewPopup = prefs.previewPopup && prefs.showCardPreview && wide && !lp;", to: "const previewPopup = prefs.previewPopup && prefs.showCardPreview;", kills: [

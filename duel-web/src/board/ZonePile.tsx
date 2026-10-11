@@ -3,7 +3,7 @@ import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import type { LifeFan } from "../settings";
 import { inspectOnContextMenu } from "./inspectGestures";
-import { setPreviewCard } from "./cardPreview";
+import { endPreviewHover, hoverPreviewCard } from "./cardPreview";
 
 /** Life/deck pile count label — never secret (life used to show "??"). */
 export function zonePileCountLabel(count: number, expectedCount?: number): string {
@@ -104,7 +104,10 @@ export function ZonePile({
               data-def-id={defId}
               // Hovering a face-up Life card shows it in the preview, like a field card (#529).
               onPointerEnter={(e) => {
-                if (e.pointerType === "mouse") setPreviewCard({ defId, ownerSeat });
+                if (e.pointerType === "mouse") hoverPreviewCard({ defId, ownerSeat });
+              }}
+              onPointerLeave={(e) => {
+                if (e.pointerType === "mouse") endPreviewHover();
               }}
               onContextMenu={onInspectFace ? (e) => inspectOnContextMenu(e, () => onInspectFace(defId)) : undefined}
               style={{ "--life-face-art": `url("${resolveCardImageUrl(defId, { ownerSeat, size: "thumb" })}")` } as CSSProperties}

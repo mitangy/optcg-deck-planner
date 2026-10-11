@@ -230,9 +230,11 @@ describe("account settings", () => {
   });
 
   it("keeps where the card preview pop-up was dragged on this device, and syncs the Bigger playing area widths (#529)", () => {
-    stubStored({ previewPopupPos: "640,72", panelSizesBig: "L=200" });
+    stubStored({ previewPopupPos: "640,72", previewPopupPinned: true, panelSizesBig: "L=200" });
     const synced = syncedSettings(loadSettings());
     expect(synced).not.toHaveProperty("previewPopupPos");
+    expect(synced).not.toHaveProperty("previewPopupPinned");
+    expect(mergeRemoteSettings(loadSettings(), { previewPopupPinned: false }).previewPopupPinned).toBe(true);
     expect(synced.panelSizesBig).toBe("L=200");
     expect(mergeRemoteSettings(loadSettings(), { previewPopupPos: "1,1" }).previewPopupPos).toBe("640,72");
   });

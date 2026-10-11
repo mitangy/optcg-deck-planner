@@ -1,7 +1,7 @@
 /**
  * The card preview as a draggable pop-up (#529): hovering a card opens a large
- * floating box you can drag anywhere, close with the x and put back with a
- * double-click; hovering a face-up Life card shows it directly; and Bigger
+ * floating box that shows while you hover a card (or pin it open), that you can
+ * drag anywhere and put back with a double-click; hovering a face-up Life card shows it directly; and Bigger
  * playing area's side columns can be dragged to their own widths.
  *
  * SHOTS=1 also saves screenshots to /mnt/project-files/card-preview-popup/.
@@ -105,16 +105,68 @@ test("double-clicking the header puts the pop-up back (#529)", async ({ page }) 
   expect(back.y).toBeCloseTo(home.y, 0);
 });
 
-test("the x closes the pop-up and hovering the same card again reopens it (#529)", async ({ page }) => {
+const EMPTY_BOARD = { x: 300, y: 20 };
+const pin = (page: Page) => page.getByRole("button", { name: "Pin card preview" });
+
+test("a demo that opens with an opponent's play showing has no pop-up until a card is hovered (#529)", async ({ page }) => {
+  desktopOnly();
+  await openDemo(page);
+  // The opponent's latest play is previewed automatically (the docked panel would show it); the pop-up does not open for it.
+  await page.waitForTimeout(600);
+  await expect(page.locator(POPUP)).toHaveCount(0);
+  await hoverLeader(page);
+  await expect(page.locator(POPUP)).toBeVisible();
+});
+
+test("the pop-up hides shortly after the pointer leaves the card (#529)", async ({ page }) => {
   desktopOnly();
   await openDemo(page);
   await hoverLeader(page);
   await expect(page.locator(POPUP)).toBeVisible();
-  await page.getByRole("button", { name: "Close card preview" }).click();
+  await page.mouse.move(EMPTY_BOARD.x, EMPTY_BOARD.y, { steps: 4 });
   await expect(page.locator(POPUP)).toHaveCount(0);
-  await page.mouse.move(5, 400);
+  // The same card hovered again reopens it.
   await hoverLeader(page);
   await expect(page.locator(POPUP)).toBeVisible();
+});
+
+test("moving from the card onto the pop-up keeps it open until the pointer leaves it (#529)", async ({ page }) => {
+  desktopOnly();
+  await openDemo(page);
+  await hoverLeader(page);
+  const h = (await page.locator(HEAD).boundingBox())!;
+  await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2, { steps: 3 });
+  await page.waitForTimeout(700);
+  await expect(page.locator(POPUP)).toBeVisible();
+  await page.mouse.move(EMPTY_BOARD.x, EMPTY_BOARD.y, { steps: 6 });
+  await expect(page.locator(POPUP)).toHaveCount(0);
+});
+
+test("a pinned pop-up stays open when the pointer leaves, and unpinning or the x closes it (#529)", async ({ page }) => {
+  desktopOnly();
+  await openDemo(page);
+  await hoverLeader(page);
+  await expect(page.locator(`${POPUP} .card-preview-popup-close`)).toHaveCount(0);
+  await pin(page).click();
+  await expect(page.getByRole("button", { name: "Unpin card preview" })).toHaveAttribute("aria-pressed", "true");
+  await page.mouse.move(EMPTY_BOARD.x, EMPTY_BOARD.y, { steps: 6 });
+  await page.waitForTimeout(700);
+  await expect(page.locator(POPUP)).toBeVisible();
+  // Still there after a reload (a device setting), showing the card once there is one.
+  await page.reload();
+  await page.locator(".board-root").waitFor();
+  await hoverLeader(page);
+  await page.mouse.move(EMPTY_BOARD.x, EMPTY_BOARD.y, { steps: 6 });
+  await page.waitForTimeout(700);
+  await expect(page.locator(POPUP)).toBeVisible();
+  // The x unpins and hides it; the next hover shows the plain hover pop-up again.
+  await page.getByRole("button", { name: "Close card preview" }).click();
+  await expect(page.locator(POPUP)).toHaveCount(0);
+  await hoverLeader(page);
+  await expect(page.locator(POPUP)).toBeVisible();
+  await expect(pin(page)).toHaveAttribute("aria-pressed", "false");
+  await page.mouse.move(EMPTY_BOARD.x, EMPTY_BOARD.y, { steps: 4 });
+  await expect(page.locator(POPUP)).toHaveCount(0);
 });
 
 test("turning the pop-up off puts the preview back in its side column (#529)", async ({ page }) => {
@@ -193,6 +245,13 @@ test("SHOTS=1 saves the pop-up at desktop and phone sizes (#529)", async ({ page
     await page.waitForTimeout(300);
     expect(await page.locator(POPUP).count(), `${w}x${h} pop-up`).toBe(wide ? 1 : 0);
     await page.screenshot({ path: `${SHOT_DIR}/popup-${w}x${h}.png` });
+    if (wide) {
+      await pin(page).click();
+      await page.mouse.move(EMPTY_BOARD.x, EMPTY_BOARD.y, { steps: 4 });
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `${SHOT_DIR}/popup-pinned-${w}x${h}.png` });
+      await page.getByRole("button", { name: "Close card preview" }).click();
+    }
   }
 });
 
