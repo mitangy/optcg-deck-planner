@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from app.models import CatalogCard, Deck
 from app.services import (
     delete_deck,
@@ -291,3 +293,42 @@ def test_list_decks_reports_owned_copies_excluding_don(db):
     summary = next(d for d in list_decks(db, user) if d.id == deck.id)
     assert summary.main_cards == 6
     assert summary.owned_copies == 5
+
+
+def test_rename_deck_changes_only_own_deck_name_and_trims_it_526(db):
+    from app.services import rename_deck
+
+    _seed_leader_catalog(db)
+    owner = make_user(db, email="r1@test", name="R1", sub="r1")
+    other = make_user(db, email="r2@test", name="R2", sub="r2")
+    mine = _make_leader_deck(db, owner, "Old name", {"OP01-001": 1, "OP01-016": 4}, sort_order=1)
+    theirs = _make_leader_deck(db, other, "Their deck", {"OP01-001": 1, "OP01-016": 4}, sort_order=1)
+
+    detail = rename_deck(db, owner, mine.id, "  New name  ")
+    assert detail.name == "New name"
+    assert [d.name for d in list_decks(db, owner)] == ["New name"]
+
+    with pytest.raises(LookupError):
+        rename_deck(db, owner, theirs.id, "Stolen")
+    assert [d.name for d in list_decks(db, other)] == ["Their deck"]
+
+
+def test_rename_deck_refuses_blank_name_526(db):
+    from app.services import rename_deck
+
+    _seed_leader_catalog(db)
+    user = make_user(db, email="r3@test", name="R3", sub="r3")
+    deck = _make_leader_deck(db, user, "Keep", {"OP01-001": 1, "OP01-016": 4}, sort_order=1)
+    with pytest.raises(ValueError):
+        rename_deck(db, user, deck.id, "   ")
+    assert [d.name for d in list_decks(db, user)] == ["Keep"]
+
+
+def test_deck_rename_body_rejects_blank_and_strips_526():
+    from pydantic import ValidationError
+
+    from app.schemas import DeckRename
+
+    assert DeckRename(name="  Hi ").name == "Hi"
+    with pytest.raises(ValidationError):
+        DeckRename(name="   ")
