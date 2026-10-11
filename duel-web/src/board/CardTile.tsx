@@ -17,7 +17,7 @@ import {
 } from "../decks/seatArtPrefs";
 import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "./CardInspect";
-import { refreshPreviewLive, setPreviewCard, type PreviewLive } from "./cardPreview";
+import { endPreviewHover, hoverPreviewCard, refreshPreviewLive, type PreviewLive } from "./cardPreview";
 import { counterValueFor, formatCounter } from "../cards/counterValue";
 import { costBreakdown, formatPowerDelta, powerBreakdown, tileStatusLabels } from "./powerDisplay";
 import {
@@ -171,6 +171,14 @@ export function CardTile({
     if (instanceId && live) refreshPreviewLive(instanceId, live);
   }, [instanceId, live]);
 
+  /** The mouse is over this tile: a tile played or K.O.'d from under it gets no pointerleave, so unmounting ends the hover (#529). */
+  const hoveredRef = useRef(false);
+  useEffect(
+    () => () => {
+      if (hoveredRef.current) endPreviewHover();
+    },
+    [],
+  );
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
 
@@ -276,7 +284,15 @@ export function CardTile({
   }
 
   function handlePointerEnter(e: PointerEvent) {
-    if (e.pointerType === "mouse") setPreviewCard({ defId, ownerSeat, instanceId, live });
+    if (e.pointerType !== "mouse") return;
+    hoveredRef.current = true;
+    hoverPreviewCard({ defId, ownerSeat, instanceId, live });
+  }
+
+  function handlePointerLeave(e: PointerEvent) {
+    if (e.pointerType !== "mouse") return;
+    hoveredRef.current = false;
+    endPreviewHover();
   }
 
   function handlePointerCancel(e: PointerEvent) {
@@ -441,6 +457,7 @@ export function CardTile({
     onPointerUp: handlePointerUp,
     onPointerCancel: handlePointerCancel,
     onPointerEnter: handlePointerEnter,
+    onPointerLeave: handlePointerLeave,
     onDoubleClick: handleDoubleClick,
     onContextMenu: (e: MouseEvent) => {
       clickDeferRef.current?.cancel();

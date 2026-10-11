@@ -37,10 +37,12 @@ export type MatPin = { id: PanelId; spot: MatSpot | null; onChange: (spot: MatSp
 
 /** Measure the desktop side columns and their panels inside `root`. */
 function measure(root: HTMLElement) {
-  const columns = {} as Record<PanelColumn, ColumnRect & { top: number }>;
+  const columns: Partial<Record<PanelColumn, ColumnRect & { top: number }>> = {};
   const panels: PanelRect[] = [];
   for (const col of root.querySelectorAll<HTMLElement>("[data-panel-col]")) {
     const column = col.dataset.panelCol as PanelColumn;
+    // The column the single-column setting folded away is not a drop target.
+    if (col.hasAttribute("data-col-off")) continue;
     const r = col.getBoundingClientRect();
     // An empty column's drop line goes under the action row (no top bar), not over it.
     const actions = col.querySelector<HTMLElement>(":scope > .col-actions");
@@ -75,9 +77,9 @@ export function usePanelDrag(
       const root = rootRef.current;
       if (!root) return;
       const { columns, panels } = measure(root);
-      if (!columns.left || !columns.right) return;
+      if (!columns.left && !columns.right) return;
       const drop = panelDropAt(columns, panels, id, x, y);
-      const col = columns[drop.column];
+      const col = columns[drop.column]!;
       const rest = panels.filter((p) => p.column === drop.column && p.id !== id);
       const before = drop.beforeId ? rest.find((p) => p.id === drop.beforeId) : null;
       const top = before ? before.top : rest.length ? Math.max(...rest.map((p) => p.bottom)) : col.top;

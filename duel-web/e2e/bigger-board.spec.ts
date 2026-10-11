@@ -106,8 +106,8 @@ for (const vp of VIEWPORTS.filter((v) => v.twoRow)) {
   });
 }
 
-test("a column width dragged out does not fight Bigger playing area, and comes back when it is off (#449)", async ({ page }) => {
-  const saved = { panelSizes: "L=330;R=400" };
+test("a column width dragged out in the normal layout does not carry into Bigger playing area, and comes back when it is off (#529)", async ({ page }) => {
+  const saved = { panelSizes: "L=330;R=400", sideColumns: "both" };
   const colWidths = () =>
     page.evaluate(() => ({
       left: document.querySelector(".arena-left")!.getBoundingClientRect().width,
@@ -122,27 +122,66 @@ test("a column width dragged out does not fight Bigger playing area, and comes b
   const on = await colWidths();
   expect(on.left).toBeLessThan(260);
   expect(on.right).toBeLessThan(340);
-  // No drag handle either: dragging one would save a width this mode ignores.
-  await expect(page.locator(".col-resize")).toHaveCount(0);
+  // The handles are there: a width dragged in this mode is saved apart (panelSizesBig).
+  await expect(page.locator(".col-resize")).toHaveCount(2);
 });
 
-// Two-row mats fill the board's width, so there is no open space beside the
-// opponent's mat for a hand docked left or right (#462): it goes back to the
-// strip above the mat instead of covering the mat's cards (#468).
+// A left / right opponent hand sits in a gutter beside the opponent's mat, and the
+// mats shrink to leave it room (#529; it used to fall back to the top strip, #468).
 for (const vp of [
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
 ]) {
   for (const spot of ["left", "right"] as const) {
-    test(`with Bigger playing area a ${spot}-docked opponent hand sits above the opponent mat, not over it, at ${vp.width}x${vp.height} (#468)`, async ({ page, duel }, info) => {
-      await openDemo(page, vp, "?full", { bigBoard: true, oppHandSpot: spot });
+    test(`with Bigger playing area a ${spot}-docked opponent hand sits beside the opponent mat, not over it or above it, at ${vp.width}x${vp.height} (#529)`, async ({ page, duel }, info) => {
+      await openDemo(page, vp, "?full", { bigBoard: true, oppHandSpot: spot, previewPopup: false });
       await expect(page.locator(`.opp-hand-mat-${spot} .opp-hand-corner`)).toBeVisible();
       const hand = (await page.locator(".opp-hand-mat").boundingBox())!;
       const mat = (await page.locator(".side-field.side-opp").boundingBox())!;
-      expect(hand.y + hand.height, "hand bottom above the opponent mat").toBeLessThanOrEqual(mat.y + 1);
+      const own = (await page.locator(".side-field.side-you").boundingBox())!;
+      if (process.env.SHOTS) {
+        await page.screenshot({ path: `/mnt/project-files/card-preview-popup/opp-hand-big-${spot}-${vp.width}x${vp.height}-${process.env.OPP_SHOT ?? "after"}.png` });
+      }
+      // Beside, not above: it shares the mat's rows and sits wholly to one side of it.
+      expect(hand.y, "hand starts within the opponent mat's rows").toBeGreaterThanOrEqual(mat.y - 1);
+      expect(hand.y + hand.height, "hand ends within the opponent mat's rows").toBeLessThanOrEqual(mat.y + mat.height + 1);
+      if (spot === "left") expect(hand.x + hand.width, "hand left of the mat").toBeLessThanOrEqual(mat.x + 1);
+      else expect(hand.x, "hand right of the mat").toBeGreaterThanOrEqual(mat.x + mat.width - 1);
+      // The mats shrank to make room instead of sliding under the hand: both stay clear of it.
+      if (spot === "left") expect(own.x).toBeGreaterThanOrEqual(hand.x + hand.width - 1);
+      else expect(own.x + own.width).toBeLessThanOrEqual(hand.x + 1);
+      const vw = await page.evaluate(() => ({ s: document.documentElement.scrollWidth, w: window.innerWidth }));
+      expect(vw.s, "no sideways scroll").toBeLessThanOrEqual(vw.w);
       const issues = (await duel.audit()).filter((i) => !isKnown(i));
       if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
       expect(issues, formatIssues(issues)).toEqual([]);
     });
   }
+}
+
+// Ten DON!! in the cost area stand in one horizontal line: the cost area takes three columns of the
+// mat, not two (#529).
+for (const vp of [
+  { width: 1280, height: 720 },
+  { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+  { width: 812, height: 375 },
+  { width: 667, height: 375 },
+]) {
+  test(`with Bigger playing area ten DON!! share one row at ${vp.width}x${vp.height} (#529)`, async ({ page }) => {
+    await openDemo(page, vp, "?don=10&dondeck=0&faceup=2", { bigBoard: true, previewPopup: false });
+    const chips = page.locator(".side-you .don-strip .don-chip");
+    await expect(chips).toHaveCount(10);
+    if (process.env.SHOTS) {
+      await page.screenshot({ path: `/mnt/project-files/card-preview-popup/don-row-${vp.width}x${vp.height}-${process.env.DON_SHOT ?? "after"}.png` });
+    }
+    const tops = await chips.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+    expect(Math.max(...tops) - Math.min(...tops), `chip tops ${tops.join(",")}`).toBeLessThanOrEqual(2);
+    const strip = (await page.locator(".side-you .don-strip").boundingBox())!;
+    const last = (await chips.last().boundingBox())!;
+    expect(last.x + last.width, "last chip inside the strip").toBeLessThanOrEqual(strip.x + strip.width + 1);
+    // Face-up Life is still on the mat to hover.
+    await expect(page.locator(".side-you .zone-pile-life .zone-pile-face.is-face-up").first()).toBeVisible();
+  });
 }

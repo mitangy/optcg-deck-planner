@@ -6,8 +6,9 @@ import { test, expect, formatIssues } from "./fixtures";
 import { isKnown } from "./known-issues";
 import type { Page } from "@playwright/test";
 
+// These test the docked panel; the pop-up (#529) has its own spec.
 async function openDemo(page: Page, settings: Record<string, unknown>) {
-  await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), settings);
+  await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), { previewPopup: false, sideColumns: "both", ...settings });
   await page.goto("/demo");
   await page.locator(".board-root").waitFor();
 }

@@ -3,6 +3,7 @@ import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import type { LifeFan } from "../settings";
 import { inspectOnContextMenu } from "./inspectGestures";
+import { endPreviewHover, hoverPreviewCard } from "./cardPreview";
 
 /** Life/deck pile count label — never secret (life used to show "??"). */
 export function zonePileCountLabel(count: number, expectedCount?: number): string {
@@ -65,6 +66,8 @@ type Props = {
   onOpen?: () => void;
   /** Right-click (mouse) opens the top card's details instead of the browser menu. */
   onInspectTop?: () => void;
+  /** Life only: right-click (mouse) on a face-up Life card opens that card's details. */
+  onInspectFace?: (defId: string) => void;
 };
 
 export function ZonePile({
@@ -78,6 +81,7 @@ export function ZonePile({
   lifeFan = "down",
   onOpen,
   onInspectTop,
+  onInspectFace,
 }: Props) {
   const openable = Boolean(onOpen);
   const countLabel = zonePileCountLabel(count, expectedCount);
@@ -98,6 +102,14 @@ export function ZonePile({
               key={i}
               className="zone-pile-face is-face-up"
               data-def-id={defId}
+              // Hovering a face-up Life card shows it in the preview, like a field card (#529).
+              onPointerEnter={(e) => {
+                if (e.pointerType === "mouse") hoverPreviewCard({ defId, ownerSeat });
+              }}
+              onPointerLeave={(e) => {
+                if (e.pointerType === "mouse") endPreviewHover();
+              }}
+              onContextMenu={onInspectFace ? (e) => inspectOnContextMenu(e, () => onInspectFace(defId)) : undefined}
               style={{ "--life-face-art": `url("${resolveCardImageUrl(defId, { ownerSeat, size: "thumb" })}")` } as CSSProperties}
             />
           ) : (

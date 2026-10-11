@@ -4,7 +4,7 @@ import type { BattleLogEntry, LogSegment, LogTone } from "./battleLog";
 import { glueSegments, groupBattleLogByTurn } from "./battleLog";
 import { CardInspect } from "./CardInspect";
 import { inspectOnContextMenu } from "./inspectGestures";
-import { setPreviewCard } from "./cardPreview";
+import { endPreviewHover, hoverPreviewCard, setPreviewCard } from "./cardPreview";
 
 type Props = {
   entries: readonly BattleLogEntry[];
@@ -50,7 +50,10 @@ function CardName({
       className="log-card"
       title={`${seg.name} — click to inspect`}
       onPointerEnter={(e) => {
-        if (e.pointerType === "mouse") setPreviewCard({ defId: seg.defId, ownerSeat: seg.ownerSeat });
+        if (e.pointerType === "mouse") hoverPreviewCard({ defId: seg.defId, ownerSeat: seg.ownerSeat });
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType === "mouse") endPreviewHover();
       }}
       onFocus={() => setPreviewCard({ defId: seg.defId, ownerSeat: seg.ownerSeat })}
       onClick={() => onInspect(seg)}

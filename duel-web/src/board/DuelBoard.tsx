@@ -19,6 +19,7 @@ import { UndoControl } from "./UndoControl";
 import { undoForceable, undoRequestText } from "./undoMenu";
 import { BattleLogPanel } from "./BattleLogPanel";
 import { CardPreviewPanel } from "./CardPreviewPanel";
+import { CardPreviewPopup } from "./CardPreviewPopup";
 import { RecentPlaysStrip } from "./RecentPlaysStrip";
 import { MatchViewerSeatContext } from "./artOwnership";
 import { PromptSlotContext } from "./promptSlot";
@@ -116,8 +117,8 @@ import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { sideSkins } from "./seatSkins";
 import { resolveHandLayout, updateSettings, useDuelSettings } from "../settings";
-import { PANEL_LABELS, collapsedColumns, parsePanelLayout, serializePanelLayout, type PanelColumn, type PanelId } from "./panelLayout";
-import { parsePanelSizes, serializePanelSizes } from "./panelSizes";
+import { PANEL_LABELS, collapsedColumns, mergeIntoColumn, parsePanelLayout, serializePanelLayout, splitMergedLayout, type PanelColumn, type PanelId } from "./panelLayout";
+import { panelSizesForMode, panelSizesPatch } from "./panelSizes";
 import { usePanelResize } from "./usePanelResize";
 import { SidePanel, usePanelDrag } from "./SidePanels";
 import { fanDocked, farFanPosForDrop, parseFanPos, serializeFanPos } from "./handFanPos";
@@ -365,7 +366,9 @@ export function DuelBoard({
   const [logPoseHostL, setLogPoseHostL] = useState<HTMLElement | null>(null);
   const [logPoseHostR, setLogPoseHostR] = useState<HTMLElement | null>(null);
   useLogPoseDockHost(wide && !lp, logPoseHostL, logPoseHostR);
-  const logPoseSide = wide && !lp && logPoseDock.open ? logPoseDock.dock : null;
+  /** Desktop with one combined side column (the `sideColumns` setting): its side, else null (two columns). */
+  const singleSide: PanelColumn | null = wide && !lp && prefs.sideColumns !== "both" ? prefs.sideColumns : null;
+  const logPoseSide = wide && !lp && logPoseDock.open ? (singleSide ?? logPoseDock.dock) : null;
   const [promptSlot, setPromptSlot] = useState<HTMLElement | null>(null);
   const promptSlotValue = useMemo(() => ({ slot: promptSlot, setSlot: setPromptSlot }), [promptSlot]);
   /** Tall desktop, Grid layout: the hand is an always-open grid side panel (no dock). */
@@ -438,23 +441,35 @@ export function DuelBoard({
   /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling (spectators: a grid row). */
   const phoneFan = usesPhoneFan(wide, specGrid ? "grid" : specFans ? "fan" : handLayout);
   /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
-  const panelLayout = useMemo(() => parsePanelLayout(prefs.panelLayout), [prefs.panelLayout]);
+  // One combined column folds the other column's panels in for display only; the saved layout keeps its split.
+  const panelLayout = useMemo(() => {
+    const saved = parsePanelLayout(prefs.panelLayout);
+    return singleSide ? mergeIntoColumn(saved, singleSide) : saved;
+  }, [prefs.panelLayout, singleSide]);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
   const panelDrag = usePanelDrag(
     arenaBodyRef,
     panelLayout,
-    (next) => updateSettings({ panelLayout: serializePanelLayout(next) }),
+    // A reorder in the one column is split back into the two saved columns (same counts), so Both still has two.
+    (next) =>
+      updateSettings({
+        panelLayout: serializePanelLayout(singleSide ? splitMergedLayout(next, parsePanelLayout(prefs.panelLayout), singleSide) : next),
+      }),
     {
       id: "oppHand",
       spot: prefs.oppHandSpot || null,
       onChange: (spot) => updateSettings({ oppHandSpot: spot ?? "" }),
     },
   );
-  const panelSizes = useMemo(() => parsePanelSizes(prefs.panelSizes), [prefs.panelSizes]);
+  // Bigger playing area keeps its own column widths (heights are shared), so its narrow columns stay narrow.
+  const panelSizes = useMemo(
+    () => panelSizesForMode(prefs.bigBoard, prefs.panelSizes, prefs.panelSizesBig),
+    [prefs.bigBoard, prefs.panelSizes, prefs.panelSizesBig],
+  );
   const panelResize = usePanelResize(
     arenaBodyRef,
     panelSizes,
-    (next) => updateSettings({ panelSizes: serializePanelSizes(next) }),
+    (next) => updateSettings(panelSizesPatch(prefs.bigBoard, next, prefs.panelSizes)),
   );
   const [lpPanel, setLpPanel] = useState<LandscapePanel | null>(null);
   // Starting a drag (or leaving landscape) must never leave an overlay over the board.
@@ -1765,10 +1780,12 @@ export function DuelBoard({
   /** DON!! face for a seat's half; no seat (or your own) is the near half. */
   const donArtForSeat = (s?: Seat) => (s != null && s === oppSeat && s !== boardSeat ? farDonUrl : nearDonUrl);
 
+  /** Desktop: the card preview floats as a draggable pop-up instead of sitting in a side column (#529). */
+  const previewPopup = prefs.previewPopup && prefs.showCardPreview && wide && !lp;
   /** Desktop side panels, by id; null when a panel has nothing to show right now. */
   const sidePanels: Record<PanelId, React.ReactNode> = {
     // Hidden panels are null: they keep their place in panelLayout and come back in it.
-    preview: prefs.showCardPreview ? <CardPreviewPanel /> : null,
+    preview: prefs.showCardPreview && !previewPopup ? <CardPreviewPanel /> : null,
     recent: prefs.showRecentPlays ? (
       <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} />
     ) : null,
@@ -1837,8 +1854,10 @@ export function DuelBoard({
    * collapses so the board gets its width; while a panel is being dragged both
    * stay open as drop targets.
    */
-  const collapsed = collapsedColumns(shownPanels, panelDrag.draggingId != null, {
-    right: railDefend && defendTray != null,
+  /** The column the defend tray rides in. */
+  const defendCol: PanelColumn = singleSide ?? "right";
+  const collapsed = collapsedColumns(shownPanels, panelDrag.draggingId != null && !singleSide, {
+    [defendCol]: railDefend && defendTray != null,
   });
   /**
    * Bigger playing area on a computer: no top bar. Its buttons ride in a row at the top of the right column, or
@@ -1847,14 +1866,18 @@ export function DuelBoard({
    * one stays open for the row (it is the only way to the match menu).
    */
   const noTopBar = bigBoard && wide && !lp && !compactHud;
-  const idleCollapsed = collapsedColumns(shownPanels, false, { right: railDefend && defendTray != null });
+  const idleCollapsed = collapsedColumns(shownPanels, false, { [defendCol]: railDefend && defendTray != null });
   const actionsSide: PanelColumn | null = !noTopBar ? null : idleCollapsed.right && !idleCollapsed.left ? "left" : "right";
   const noLeftCol = wide && !lp && collapsed.left && actionsSide !== "left";
   const noRightCol = wide && !lp && collapsed.right && actionsSide !== "right";
   const arenaStyle: CSSProperties | undefined =
     wide && !lp
       ? ({
-          ...(bigBoard ? null : panelResize.arenaStyle(shownPanels)),
+          ...panelResize.arenaStyle(shownPanels),
+          // The one column holds the Turn panel too, so on the left it opens as wide as the right one does.
+          ...(singleSide === "left" && panelResize.shown.widths.left == null
+            ? { "--left-w": bigBoard ? "clamp(250px, 17vw, 330px)" : "clamp(260px, 22vw, 400px)" }
+            : null),
           ...(noLeftCol ? { "--left-w": "0px" } : null),
           ...(noRightCol ? { "--rail-w": "0px" } : null),
         } as CSSProperties)
@@ -1866,7 +1889,7 @@ export function DuelBoard({
       renderSidePanel(id, i > 0 ? ids[i - 1]! : null, i === ids.length - 1, sized),
     );
     // Answering an attack: the defend tray rides under Turn and clocks (not movable).
-    if (column === "right" && railDefend && defendTray) {
+    if (column === defendCol && railDefend && defendTray) {
       const at = ids.indexOf("turn") + 1;
       panels.splice(
         at,
@@ -1993,13 +2016,14 @@ export function DuelBoard({
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
       }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
-      }${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}${prefs.totalPower ? " power-total" : ""}`}
+      }${singleSide ? " arena-single-col" : ""}${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}${prefs.totalPower ? " power-total" : ""}`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
       data-phase={view.phase}
       data-turn={view.turnNumber}
       data-seat={boardSeat}
       style={arenaStyle}
     >
+      {previewPopup ? <CardPreviewPopup /> : null}
       {lp || noTopBar ? null : compactHud ? (
         <header className="hud-bar hud-compact">
           <div className={`hud-status${yourTurn ? " pulse" : ""}`}>
@@ -2303,11 +2327,11 @@ export function DuelBoard({
             menu={matchMenuEl("left")}
           />
         ) : wide ? (
-          <aside className="arena-left board-col" data-panel-col="left" aria-label="Side panels, left">
+          <aside className="arena-left board-col" data-panel-col="left" data-col-off={singleSide === "right" ? "" : undefined} aria-label="Side panels, left">
             {actionsSide === "left" ? columnActions : null}
             {logPoseSide === "left" ? <div ref={setLogPoseHostL} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("left")}
-            {prefs.layoutGrips && !bigBoard ? (
+            {prefs.layoutGrips ? (
               <div className="col-resize col-resize-left" {...panelResize.columnHandleProps("left")} />
             ) : null}
           </aside>
@@ -2488,11 +2512,11 @@ export function DuelBoard({
         </div>
 
         {wide && !lp ? (
-          <div className="arena-rail board-col" data-panel-col="right">
+          <div className="arena-rail board-col" data-panel-col="right" data-col-off={singleSide === "left" ? "" : undefined}>
             {actionsSide === "right" ? columnActions : null}
             {logPoseSide === "right" ? <div ref={setLogPoseHostR} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("right")}
-            {prefs.layoutGrips && !bigBoard ? (
+            {prefs.layoutGrips ? (
               <div className="col-resize col-resize-right" {...panelResize.columnHandleProps("right")} />
             ) : null}
             {/* Reserves the strip the collapsed hand dock peeks into. */}

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { LAYOUT_RESET, layoutMoved } from "./layoutReset";
 
-const DEFAULT = { panelLayout: "", panelSizes: "", handFanPos: "", oppHandSpot: "", spectatorNearFanPos: "", spectatorFarFanPos: "", promptPos: "", promptDock: "" };
-const PIECES = ["panelLayout", "panelSizes", "handFanPos", "oppHandSpot", "spectatorNearFanPos", "spectatorFarFanPos", "promptPos", "promptDock"] as const;
+const DEFAULT = { panelLayout: "", panelSizes: "", handFanPos: "", oppHandSpot: "", spectatorNearFanPos: "", spectatorFarFanPos: "", promptPos: "", previewPopupPos: "", panelSizesBig: "", promptDock: "" };
+const PIECES = ["panelLayout", "panelSizes", "handFanPos", "oppHandSpot", "spectatorNearFanPos", "spectatorFarFanPos", "promptPos", "previewPopupPos", "panelSizesBig", "promptDock"] as const;
 
 describe("Reset layout", () => {
   it("is offered, and puts back, each moved piece of the layout including both spectator fans (#346) where pop-ups open (#422) and the column they dock into (#449)", () => {

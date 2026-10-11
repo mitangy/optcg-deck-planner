@@ -24,6 +24,7 @@ export type ToggleKey =
   | "attackGlow"
   | "compactOwnBoard"
   | "previewBigCard"
+  | "previewPopup"
   | "donUpright"
   | "totalPower"
   | "oppHandTopRight"
@@ -58,6 +59,8 @@ export function toggleShown(key: ToggleKey, d: FieldDevice): boolean {
   if (key === "layoutGrips") return d.desktop;
   // The card preview panel is the desktop side column; phones don't show it.
   if (key === "previewBigCard") return d.desktop;
+  // The pop-up replaces that same panel.
+  if (key === "previewPopup") return d.desktop;
   // The tucked-away fan / corner dock only exists on desktop windows.
   if (key === "keepHandOpen") return d.desktop;
   // Key tabs are only drawn with a mouse and keyboard.
@@ -91,6 +94,7 @@ export type SelectRowKey =
   | "sidePanels"
   | "textSize"
   | "lifeFan"
+  | "sideColumns"
   | "animationSpeed"
   | "cardSpotlight"
   | "showOnScreen";
@@ -135,7 +139,9 @@ export const GAMEPLAY_GROUPS: GameplayGroup[] = [
       "oppHandSpot",
       "oppHandTopRight",
       "lifeFan",
+      "sideColumns",
       "previewBigCard",
+      "previewPopup",
       "layoutGrips",
       "sidePanels",
       "showOnScreen",
@@ -168,6 +174,7 @@ export function rowShown(key: RowKey, d: FieldDevice): boolean {
       return showOrientation(d);
     // Desktop picks the spot in a list; phones get the Opponent hand, top right switch.
     case "oppHandSpot":
+    case "sideColumns":
     case "sidePanels":
       return d.desktop;
     case "endTurnConfirm":

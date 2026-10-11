@@ -36,7 +36,8 @@ export const PANEL_MIN_HEIGHT_PX: Record<PanelId, number> = {
   oppHand: PANEL_MIN_PX,
   turn: PANEL_MIN_PX,
   hand: PANEL_MIN_PX,
-  chat: PANEL_MIN_PX,
+  // Its header and input row (about 5.4rem) plus a line or two of messages.
+  chat: 120,
 };
 /** Panels that size to their content (never shrink below it). */
 export const CONTENT_SIZED_PANELS: readonly PanelId[] = ["turn", "oppHand"];
@@ -171,4 +172,27 @@ export function setShares(
     else heights[id] = clampShare(share);
   }
   return { ...sizes, heights };
+}
+
+/**
+ * The sizes the board uses. Bigger playing area keeps its own column widths
+ * (`panelSizesBig`, its widths only) so turning it on still gives narrow
+ * columns; panel heights are shared with the normal layout.
+ */
+export function panelSizesForMode(big: boolean, normalSaved: string, bigSaved: string): PanelSizes {
+  const normal = parsePanelSizes(normalSaved);
+  return big ? { widths: parsePanelSizes(bigSaved).widths, heights: normal.heights } : normal;
+}
+
+/** The settings to save after a drag in the current mode; the other mode's widths stay as they were. */
+export function panelSizesPatch(
+  big: boolean,
+  next: PanelSizes,
+  normalSaved: string,
+): { panelSizes: string; panelSizesBig?: string } {
+  if (!big) return { panelSizes: serializePanelSizes(next) };
+  return {
+    panelSizes: serializePanelSizes({ widths: parsePanelSizes(normalSaved).widths, heights: next.heights }),
+    panelSizesBig: serializePanelSizes({ widths: next.widths, heights: {} }),
+  };
 }

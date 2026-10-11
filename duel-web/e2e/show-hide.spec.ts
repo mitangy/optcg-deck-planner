@@ -9,7 +9,11 @@ import type { Page } from "@playwright/test";
 
 async function openDemo(page: Page, settings: Record<string, unknown>, size?: { width: number; height: number }) {
   if (size) await page.setViewportSize(size);
-  await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), settings);
+  // The two-column layout with the preview docked in it (the pop-up and one column are #529's defaults).
+  await page.addInitScript(
+    (s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)),
+    { previewPopup: false, sideColumns: "both", ...settings },
+  );
   await page.goto("/demo?chat");
   await page.locator(".board-root").waitFor();
   await page.waitForTimeout(300);

@@ -110,13 +110,13 @@ export type PanelDrop = { column: PanelColumn; beforeId: PanelId | null };
  * it whose middle is below the pointer, else at the end.
  */
 export function panelDropAt(
-  columns: Record<PanelColumn, ColumnRect>,
+  columns: Partial<Record<PanelColumn, ColumnRect>>,
   panels: readonly PanelRect[],
   dragId: PanelId,
   x: number,
   y: number,
 ): PanelDrop {
-  const dist = (c: ColumnRect) => (x < c.left ? c.left - x : x > c.right ? x - c.right : 0);
+  const dist = (c: ColumnRect | undefined) => (!c ? Infinity : x < c.left ? c.left - x : x > c.right ? x - c.right : 0);
   const column: PanelColumn = dist(columns.left) <= dist(columns.right) ? "left" : "right";
   const inColumn = panels
     .filter((p) => p.column === column && p.id !== dragId)
@@ -159,6 +159,30 @@ export function collapsedColumns(
 ): Record<PanelColumn, boolean> {
   const collapse = (c: PanelColumn) => !dragging && shown[c].length === 0 && !busy[c];
   return { left: collapse("left"), right: collapse("right") };
+}
+
+/**
+ * One combined column (the `sideColumns` setting): every panel goes into
+ * `side`, that column's own panels first, then the other column's, each in its
+ * saved order. The saved layout is never written from this, so the split comes
+ * back with "both".
+ */
+export function mergeIntoColumn(layout: PanelLayout, side: PanelColumn): PanelLayout {
+  const other: PanelColumn = side === "left" ? "right" : "left";
+  return { [side]: [...layout[side], ...layout[other]], [other]: [] } as PanelLayout;
+}
+
+/**
+ * A reorder made in the one combined column, split back into the saved two:
+ * the new order's first panels go to `side` (as many as it held before), the
+ * rest to the other column, so switching back to Both still gives two
+ * populated columns and an untouched order restores the saved layout.
+ */
+export function splitMergedLayout(next: PanelLayout, saved: PanelLayout, side: PanelColumn): PanelLayout {
+  const other: PanelColumn = side === "left" ? "right" : "left";
+  const order = [...next[side], ...next[other]];
+  const keep = saved[side].length;
+  return { [side]: order.slice(0, keep), [other]: order.slice(keep) } as PanelLayout;
 }
 
 export function samePanelLayout(a: PanelLayout, b: PanelLayout): boolean {
