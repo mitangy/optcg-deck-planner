@@ -701,4 +701,20 @@ ENTRIES.push(["EB01-029", { abilities: [
     effect: { do: "to_hand", target: upTo(1, sel("any", "character", { ...CHAR, cost: le(8) })) } },
 ] }]);
 
+// Full replacement (#537). The official FAQ only rules on the attack duration ("cannot attack until the end of your opponent's
+// next turn"); the owner ruled that the Character's negation lasts only for the turn Teach is activated. The Leader negate is "turn" too.
+ENTRIES.push(["OP09-093", { abilities: [
+  { id: "op09-093#0", trigger: "static", text: "[Blocker]", statics: [{ s: "keyword", target: "self", keyword: "blocker" }] },
+  { id: "op09-093#1", trigger: "activate_main", oncePerTurn: true,
+    text: "[Activate: Main] [Once Per Turn] If your Leader has the {Blackbeard Pirates} type and this Character was played on this turn, negate the effect of up to 1 of your opponent's Leader during this turn. Then, negate the effect of up to 1 of your opponent's Characters and that Character cannot attack until the end of your opponent's next turn.",
+    effect: seq(
+      when({ c: "and", conds: [leaderTrait("Blackbeard Pirates"), { c: "self_played_this_turn" }] },
+        { do: "negate", target: { ref: "all", selector: sel("opponent", "leader", { types: ["leader"] }) }, duration: "turn" }),
+      seq(
+        { do: "negate", target: upTo(1, oppChar(CHAR), { bind: "_last" }), duration: "turn" },
+        restrict(v("_last"), "cannot_attack", "until_end_of_opponent_next_turn"),
+      ),
+    ) },
+] }]);
+
 export const MANUAL_ABILITIES: Record<string, ManualEntry> = Object.fromEntries(ENTRIES);
