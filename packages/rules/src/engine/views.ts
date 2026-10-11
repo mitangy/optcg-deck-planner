@@ -15,9 +15,11 @@ function cardView(state: MatchState, seat: Seat, c: CardInstance) {
   if (isNegated(state, c)) statuses.push("Effects negated");
   if (hasRestriction(state, seat, c, "cannot_attack")) statuses.push("Cannot attack");
   const rush = keywords.includes("rush") || keywords.includes("rush_character");
-  if (c.summoningSick && !rush && def.type === "character") statuses.push("Summoning sick");
+  // Summoning sickness only matters on its controller's own turn; the flag lingers until their next Refresh.
+  const sick = Boolean(c.summoningSick) && state.activeSeat === seat;
+  if (sick && !rush && def.type === "character") statuses.push("Summoning sick");
   // Rush only matters the turn the card is played; afterwards its pill is noise (the keyword stays in `keywords`).
-  for (const k of keywords) if (c.summoningSick || (k !== "rush" && k !== "rush_character")) statuses.push(KEYWORD_LABELS[k] ?? k);
+  for (const k of keywords) if (sick || (k !== "rush" && k !== "rush_character")) statuses.push(KEYWORD_LABELS[k] ?? k);
   if (hasRestriction(state, seat, c, "no_refresh")) statuses.push("Won't refresh");
   for (const label of c.statusLabels ?? []) if (!statuses.includes(label)) statuses.push(label);
   return {
@@ -28,7 +30,7 @@ function cardView(state: MatchState, seat: Seat, c: CardInstance) {
     power: powerOf(state, seat, c),
     printedPower: def.power ?? null,
     fieldCost: def.type === "character" ? costOf(state, seat, c) : def.cost,
-    summoningSick: Boolean(c.summoningSick && !rush),
+    summoningSick: sick && !rush,
     rush,
     keywords,
     statusLabels: statuses,

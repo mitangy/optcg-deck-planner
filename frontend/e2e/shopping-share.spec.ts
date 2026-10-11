@@ -18,8 +18,12 @@ test("shopping list hides fully owned cards and passes the audit", async ({ page
 
   const price = page.getByRole("button", { name: /\$6\.80/ });
   await expectStationary(price, () => price.click(), "shopping market price");
-  await expect(page.getByRole("region", { name: "Last 3 sold prices" })).toBeVisible();
-  const issues = await planner.audit();
+  const panel = page.getByRole("region", { name: "Last 3 sold prices" });
+  await expect(panel).toBeInViewport({ ratio: 1 });
+  // The audit scrolls the whole page and the open panel follows its price off
+  // screen (the Add cards drawer moved the list down, #527); its on-screen fit
+  // is the toBeInViewport check above, as in deck.spec.
+  const issues = await planner.audit({ offscreenOk: [".market-sales"] });
   expect(issues, formatIssues(issues)).toEqual([]);
 });
 

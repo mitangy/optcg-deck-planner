@@ -5,6 +5,13 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Deck rename (#526)
+    { id: "rename-dirty-ignores-name", file: `${src}/decks/editDeck.ts`, from: "  if (saved.name.trim() !== draft.name.trim()) return true;\n", to: "", kills: ["a changed name makes the draft dirty, ignoring surrounding spaces (#526)"] },
+    { id: "rename-dirty-compares-untrimmed", file: `${src}/decks/editDeck.ts`, from: "saved.name.trim() !== draft.name.trim()", to: "saved.name !== draft.name", kills: ["a changed name makes the draft dirty, ignoring surrounding spaces (#526)"] },
+    { id: "rename-save-keeps-old-name", file: `${src}/decks/editDeck.ts`, from: "      name,\n      leaderId: draft.leaderId,", to: "      name: deck.name,\n      leaderId: draft.leaderId,", kills: ["saveDeckDraft persists the trimmed new name and marks a planner-linked deck edited (#526)"] },
+    { id: "rename-save-allows-blank-name", file: `${src}/decks/editDeck.ts`, from: "  if (!name) return { ok: false, error: BLANK_DECK_NAME_ERROR };\n", to: "", kills: ["saveDeckDraft refuses a blank name and leaves the deck as it was (#526)"] },
+    // Search pop-up floats over the board with no scrim (#542)
+    { id: "float-search-scrim", file: `${src}/board/FloatingPrompt.tsx`, from: "      <div className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", to: "      <div className=\"float-scrim\" aria-hidden />\n      <div className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", kills: ["search pop-up floats cards with no gray backdrop (#542)"] },
     // Replay viewer (#476)
     { id: "history-watch-for-any-recording", file: matchRowFile, from: "    replay: m.replay_ready === true,", to: "    replay: m.has_replay,", kills: ["offers Watch replay only for games whose recording is ready (#476)"] },
     { id: "history-watch-for-every-game", file: matchRowFile, from: "    replay: m.replay_ready === true,", to: "    replay: true,", kills: ["offers Watch replay only for games whose recording is ready (#476)"] },
