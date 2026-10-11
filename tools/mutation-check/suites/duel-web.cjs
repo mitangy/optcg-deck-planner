@@ -5,6 +5,8 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Search pop-up floats over the board with no scrim (#542)
+    { id: "float-search-scrim", file: `${src}/board/FloatingPrompt.tsx`, from: "      <div className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", to: "      <div className=\"float-scrim\" aria-hidden />\n      <div className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", kills: ["search pop-up floats cards with no gray backdrop (#542)"] },
     // Replay viewer (#476)
     { id: "history-watch-for-any-recording", file: matchRowFile, from: "    replay: m.replay_ready === true,", to: "    replay: m.has_replay,", kills: ["offers Watch replay only for games whose recording is ready (#476)"] },
     { id: "history-watch-for-every-game", file: matchRowFile, from: "    replay: m.replay_ready === true,", to: "    replay: true,", kills: ["offers Watch replay only for games whose recording is ready (#476)"] },

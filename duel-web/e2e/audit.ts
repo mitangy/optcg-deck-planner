@@ -60,7 +60,6 @@ const DEFAULT_OVERLAYS = [
   "[aria-modal=true]",
   ".sheet-backdrop",
   ".modal-backdrop",
-  ".float-scrim",
   ".lp-overlay-backdrop",
   // The attack arrow and target reticle are drawn over the cards on purpose.
   ".attack-overlay",
