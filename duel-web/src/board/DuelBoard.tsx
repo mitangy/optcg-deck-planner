@@ -12,8 +12,11 @@ import type {
   RematchState,
   TimerMessage,
   UndoAction,
+  UndoRequestOptions,
   UndoState,
 } from "../net/protocol";
+import { UndoControl } from "./UndoControl";
+import { undoForceable, undoRequestText } from "./undoMenu";
 import { BattleLogPanel } from "./BattleLogPanel";
 import { CardPreviewPanel } from "./CardPreviewPanel";
 import { RecentPlaysStrip } from "./RecentPlaysStrip";
@@ -195,7 +198,13 @@ type Props = {
    * Turn undo (private rooms / practice). `autoAccept` = the other seat is
    * also this player (practice), so no request / answer UI is shown.
    */
-  undo?: { state: UndoState | null; onAction: (action: UndoAction) => void; autoAccept?: boolean };
+  undo?: {
+    state: UndoState | null;
+    onAction: (action: UndoAction, opts?: UndoRequestOptions) => void;
+    autoAccept?: boolean;
+    /** Open the choice menu on mount (demo screenshots). */
+    defaultOpen?: boolean;
+  };
   /**
    * Online ranked / casual matches: loads the saved match (History's entry) so the
    * match-over card can show the rating change and link the match log.
@@ -282,13 +291,6 @@ function seatClockLabels(
     oppLow: opp < 60_000,
     running: timer.clockSeat === youSeat ? "you" : timer.clockSeat === oppSeat ? "opp" : null,
   };
-}
-
-/** Tooltip of the undo button: names the action it would take back. */
-function undoTitle(state: UndoState | null, autoAccept: boolean): string {
-  if (!state || state.targetTurn == null) return "Nothing to undo";
-  const what = state.action ? `Undo: ${state.action.label}` : "Undo the last action";
-  return autoAccept ? what : `${what} (your opponent must accept)`;
 }
 
 export function DuelBoard({
@@ -578,6 +580,7 @@ export function DuelBoard({
         ? describeBattle(view, (defId) => lookupCard(defId).name, !(spectator || view.spectator))
         : null
     : null;
+  const midlineBattle = !!view?.battle && !view?.pendingChoices?.length;
   // On phones every pending prompt already shows its sentence (sheet, field bar or floating
   // card), so the midline would repeat it. It still blocks other hints from using the strip.
   const midlineShown = !wide && view?.pendingChoices?.length ? null : midlineText;
@@ -1425,8 +1428,10 @@ export function DuelBoard({
     undoState?.pending != null && !undo?.autoAccept && undoState.pending.from === boardSeat;
   const undoPendingTheirs =
     undoState?.pending != null && !undo?.autoAccept && undoState.pending.from !== boardSeat;
-  // One undo takes back the last action (by either seat); the button names it (#497).
-  const undoButtonTitle = undoTitle(undoState, undo?.autoAccept === true);
+  // The Undo button opens a menu: the last action (by either seat) or the whole turn (#497, #536).
+  const undoReqText =
+    undoPendingTheirs && undoState?.pending ? undoRequestText(undoState.pending, boardSeat) : null;
+  const undoNothingYet = undoState != null && undoState.targetTurn == null && !undoForceable(undoState);
 
   /** Card showing where a hand card dragged over the hand would land, if it moves. */
   function reorderMarker(ids: readonly string[]): { id: string; cls: string } | null {
@@ -1908,16 +1913,15 @@ export function DuelBoard({
         >
           ↺ Cancel
         </button>
-      ) : undoPendingTheirs || (compactHud && undoState.targetTurn == null) ? null : (
-        <ConfirmButton
+      ) : undoPendingTheirs || (compactHud && undoNothingYet) ? null : (
+        <UndoControl
           className="hud-undo-btn hud-icon-btn"
           label="↺"
-          confirmLabel="Undo?"
-          reserveWidth
           ariaLabel="Undo"
-          title={undoButtonTitle}
-          disabled={undoState.targetTurn == null}
-          onConfirm={() => undo.onAction("request")}
+          state={undoState}
+          autoAccept={undo.autoAccept === true}
+          defaultOpen={undo.defaultOpen}
+          onAction={undo.onAction}
         />
       )
     ) : null}
@@ -1989,7 +1993,7 @@ export function DuelBoard({
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
       }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
-      }${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}`}
+      }${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}${prefs.totalPower ? " power-total" : ""}`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
       data-phase={view.phase}
       data-turn={view.turnNumber}
@@ -2140,14 +2144,13 @@ export function DuelBoard({
                   Undo asked · Cancel
                 </button>
               ) : undoPendingTheirs ? null : (
-                <ConfirmButton
+                <UndoControl
                   className="hud-undo-btn"
                   label="↺ Undo"
-                  confirmLabel="Undo?"
-                  reserveWidth
-                  title={undoButtonTitle}
-                  disabled={undoState.targetTurn == null}
-                  onConfirm={() => undo.onAction("request")}
+                  state={undoState}
+                  autoAccept={undo.autoAccept === true}
+                  defaultOpen={undo.defaultOpen}
+                  onAction={undo.onAction}
                 />
               )
             ) : null}
@@ -2214,15 +2217,14 @@ export function DuelBoard({
       {undoPendingTheirs && undoState?.pending ? (
         <div className="undo-request" role="alertdialog" aria-label="Undo request">
           <p>
-            <strong>{seatName(players, undoState.pending.from) ?? "Your opponent"}</strong> wants to
-            undo {undoState.pending.action?.seat === boardSeat ? "your" : "their"} last action
-            {undoState.pending.action ? (
-              <>
-                : <strong>{undoState.pending.action.label}</strong>
-              </>
-            ) : null}
-            .
+            <strong>{seatName(players, undoState.pending.from) ?? "Your opponent"}</strong> wants to{" "}
+            {undoReqText?.what}.
           </p>
+          {undoReqText?.warning ? (
+            <p className="undo-request-warn" role="note">
+              {undoReqText.warning}
+            </p>
+          ) : null}
           <div className="undo-request-actions">
             <button type="button" className="btn btn-primary" onClick={() => undo?.onAction("accept")}>
               Allow
@@ -2382,7 +2384,7 @@ export function DuelBoard({
 
             <div className={`midline${docked && midlineShown ? " midline-docked" : ""}`}>
               {midlineShown ? (
-                <div className="prompt" title={midlineTitle ?? undefined}>
+                <div className={`prompt${midlineBattle ? " prompt-battle" : ""}`} title={midlineTitle ?? undefined}>
                   <span className="prompt-text">{midlineShown}</span>
                 </div>
               ) : rotateHintShown ? (

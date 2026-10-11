@@ -647,6 +647,34 @@ export function parseChatHistory(raw: unknown): ChatLine[] {
 /** One undoable action: who took it and a short description ("play Nami"). */
 export type UndoActionInfo = { seat: Seat; label: string };
 
+/** What an undo request takes back: the last action, or every action of that turn (#536). */
+export type UndoScope = "action" | "turn";
+
+/** Whether one scope can be requested now, and why not (#536). */
+export type UndoOption = {
+  /** Can be requested without force. */
+  available: boolean;
+  /** Actions it would take back. */
+  steps: number;
+  blockedReason?: string;
+  /** Blocked only by a reveal: a forced request goes through. */
+  forceable: boolean;
+  /** What was revealed, when a reveal sits in the range. */
+  revealReason?: string;
+};
+
+/** An open request awaiting the other seat's answer. */
+export type UndoPending = {
+  from: Seat;
+  toTurn: number;
+  action: UndoActionInfo | null;
+  scope: UndoScope;
+  steps: number;
+  /** Asked past a reveal. */
+  force: boolean;
+  revealReason: string | null;
+};
+
 /** Undo availability pushed by the server (enabled only in unranked rooms). */
 export type UndoState = {
   enabled: boolean;
@@ -654,8 +682,11 @@ export type UndoState = {
   targetTurn: number | null;
   /** The last action, which an undo would take back; null when nothing to undo. */
   action: UndoActionInfo | null;
-  /** Open request awaiting the other seat's answer. */
-  pending: { from: Seat; toTurn: number; action: UndoActionInfo | null } | null;
+  /** Per-scope availability; null from an older server (then only the last action can be undone). */
+  options: { action: UndoOption; turn: UndoOption } | null;
+  /** Why nothing can be requested plainly; null when something can. */
+  blockedReason: string | null;
+  pending: UndoPending | null;
 };
 
 /** Broadcast after an accepted undo. */
@@ -665,6 +696,9 @@ export type UndoApplied = {
   toStep?: number;
   by: Seat;
   action: UndoActionInfo | null;
+  /** What went; "action" from older servers. */
+  scope: UndoScope;
+  steps?: number;
 };
 
 /** Client to room: your hand's order (card instance ids, left to right) for spectators' fans. */
@@ -675,17 +709,51 @@ export type HandOrderMessage = {
 
 export type UndoAction = "request" | "accept" | "decline" | "cancel";
 
+/** Extra fields of a "request": default is the last action, not forced. */
+export type UndoRequestOptions = { scope?: UndoScope; force?: boolean };
+
+function parseUndoOption(raw: unknown): UndoOption | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.available !== "boolean") return null;
+  return {
+    available: o.available,
+    steps: typeof o.steps === "number" ? o.steps : 0,
+    ...(typeof o.blockedReason === "string" ? { blockedReason: o.blockedReason } : {}),
+    forceable: o.forceable === true,
+    ...(typeof o.revealReason === "string" ? { revealReason: o.revealReason } : {}),
+  };
+}
+
 export function parseUndoState(raw: unknown): UndoState {
   if (!raw || typeof raw !== "object") throw new Error("undo_state body required");
   const o = raw as Record<string, unknown>;
   if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
   const turn = typeof o.targetTurn === "number" ? o.targetTurn : null;
   const p = o.pending as Record<string, unknown> | null | undefined;
-  const pending =
+  const pending: UndoPending | null =
     p && typeof p === "object" && (p.from === 0 || p.from === 1) && typeof p.toTurn === "number"
-      ? { from: p.from as Seat, toTurn: p.toTurn, action: parseUndoActionInfo(p.action) }
+      ? {
+          from: p.from as Seat,
+          toTurn: p.toTurn,
+          action: parseUndoActionInfo(p.action),
+          scope: p.scope === "turn" ? "turn" : "action",
+          steps: typeof p.steps === "number" ? p.steps : 1,
+          force: p.force === true,
+          revealReason: typeof p.revealReason === "string" ? p.revealReason : null,
+        }
       : null;
-  return { enabled: o.enabled === true, targetTurn: turn, action: parseUndoActionInfo(o.action), pending };
+  const opts = o.options as Record<string, unknown> | null | undefined;
+  const optAction = opts && typeof opts === "object" ? parseUndoOption(opts.action) : null;
+  const optTurn = opts && typeof opts === "object" ? parseUndoOption(opts.turn) : null;
+  return {
+    enabled: o.enabled === true,
+    targetTurn: turn,
+    action: parseUndoActionInfo(o.action),
+    options: optAction && optTurn ? { action: optAction, turn: optTurn } : null,
+    blockedReason: typeof o.blockedReason === "string" ? o.blockedReason : null,
+    pending,
+  };
 }
 
 /** Lenient: an older server sends no action, and a malformed one is just dropped. */
@@ -707,6 +775,8 @@ export function parseUndoApplied(raw: unknown): UndoApplied {
     ...(typeof o.toStep === "number" ? { toStep: o.toStep } : {}),
     by: o.by,
     action: parseUndoActionInfo(o.action),
+    scope: o.scope === "turn" ? "turn" : "action",
+    ...(typeof o.steps === "number" ? { steps: o.steps } : {}),
   };
 }
 

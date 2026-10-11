@@ -32,6 +32,7 @@ import type {
   RematchState,
   SeatSkin,
   UndoAction,
+  UndoRequestOptions,
   UndoState,
 } from "../net/protocol";
 import { SKIN_MAX_CARD_BACK_CHARS, SKIN_MAX_PLAYMAT_CHARS } from "../net/protocol";
@@ -149,7 +150,7 @@ type DuelSession = {
   /** Rematch vote once the match is over (null until the server reports it). */
   rematch: RematchState | null;
   sendRematch: (action: RematchAction, deck?: PlayerDeckWire) => void;
-  sendUndo: (action: UndoAction) => void;
+  sendUndo: (action: UndoAction, opts?: UndoRequestOptions) => void;
   rating: number | null;
   lastServerUrl: string | null;
   /** `launchGen` is the startMatch generation; a superseded launch never reaches the client. */
@@ -346,9 +347,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         onUndoState: (state) => setUndo(state),
         onPresence: (away) => setAwayUntil(away),
         onRematchState: (state) => setRematch(state),
-        onUndoApplied: ({ toTurn, toStep, by, action }) => {
+        onUndoApplied: ({ toTurn, toStep, by, action, scope }) => {
           const youSeat = viewRef.current?.spectator ? null : seatRef.current;
-          setBattleLog((prev) => rewindBattleLog(prev, toTurn, by, youSeat, toStep, action?.label));
+          setBattleLog((prev) => rewindBattleLog(prev, toTurn, by, youSeat, toStep, action?.label, scope === "turn"));
         },
         onTakenOver: () => {
           // The seat is theirs now: keep the last board on screen, stop every
@@ -487,9 +488,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setErrorBanner(e instanceof Error ? e.message : "Rematch failed");
         }
       },
-      sendUndo(action) {
+      sendUndo(action, opts) {
         try {
-          client.sendUndo(action);
+          client.sendUndo(action, opts);
         } catch (e) {
           setErrorBanner(e instanceof Error ? e.message : "Undo failed");
         }

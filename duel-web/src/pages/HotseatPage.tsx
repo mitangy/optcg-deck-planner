@@ -323,8 +323,8 @@ export function HotseatPage() {
           if (!alive()) return;
           bump((n) => n + 1);
         },
-        onUndoApplied: ({ toTurn, toStep, by, action }) => {
-          bag.battleLog = rewindBattleLog(bag.battleLog, toTurn, by, bag.seat, toStep, action?.label);
+        onUndoApplied: ({ toTurn, toStep, by, action, scope }) => {
+          bag.battleLog = rewindBattleLog(bag.battleLog, toTurn, by, bag.seat, toStep, action?.label, scope === "turn");
           if (!alive()) return;
           bump((n) => n + 1);
         },
@@ -1024,9 +1024,9 @@ export function HotseatPage() {
         undo={{
           state: bag.undo ?? null,
           autoAccept: true,
-          onAction: (action) => {
+          onAction: (action, opts) => {
             try {
-              bag.client.sendUndo(action);
+              bag.client.sendUndo(action, opts);
             } catch {
               /* disconnected; the board shows the reconnect state */
             }

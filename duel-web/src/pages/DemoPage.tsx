@@ -881,11 +881,47 @@ function demoPickedBy(v: string | null): Seat | null | undefined {
   return v === "0" ? 0 : v === "1" ? 1 : undefined;
 }
 
+/** Sample undo states for `?undo[=ask|force|menu|blocked|limit]` (#536). */
+export function demoUndoState(kind: string | null): UndoState {
+  const free = { available: true, forceable: false } as const;
+  const base: UndoState = {
+    enabled: true,
+    targetTurn: 3,
+    action: { seat: 0, label: "play Nami" },
+    options: { action: { ...free, steps: 1 }, turn: { ...free, steps: 3 } },
+    blockedReason: null,
+    pending: null,
+  };
+  const looked = "a deck or Life card was looked at";
+  if (kind === "ask") {
+    return { ...base, action: { seat: 1, label: "attack with Zoro" }, pending: { from: 1, toTurn: 3, action: { seat: 1, label: "attack with Zoro" }, scope: "action", steps: 1, force: false, revealReason: null } };
+  }
+  if (kind === "force") {
+    return { ...base, action: { seat: 1, label: "play Nami" }, pending: { from: 1, toTurn: 3, action: { seat: 1, label: "play Nami" }, scope: "turn", steps: 3, force: true, revealReason: looked } };
+  }
+  if (kind === "blocked") {
+    const reason = `Undo stops here: ${looked}`;
+    const blocked = { available: false, forceable: true, blockedReason: reason, revealReason: looked } as const;
+    return { ...base, options: { action: { ...blocked, steps: 1 }, turn: { ...blocked, steps: 3 } }, blockedReason: reason };
+  }
+  if (kind === "limit") {
+    return {
+      ...base,
+      options: {
+        action: { ...free, steps: 1 },
+        turn: { available: false, forceable: false, steps: 0, blockedReason: "Undo history limit reached" },
+      },
+    };
+  }
+  return base;
+}
+
 /**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
  * state (`&first=1` makes the opponent go first, `&pickedby=coin|0|1` says how that was decided), `?practice` hotseat chrome
  * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
- * undo (`?undo=ask` shows an incoming request), `?waiting` the invite screen,
+ * undo (`?undo=ask` shows an incoming request, `?undo=force` one past a reveal,
+ * `?undo=menu` the open choice menu, `?undo=blocked` / `?undo=limit` a blocked one with its reason), `?waiting` the invite screen,
  * `?oppturn` the opponent's turn, `?unaffordable` your main phase with 1 active DON!! (costlier hand cards gray out), `?clock` per-player clocks, `?away` a
  * disconnected opponent, `?over` the match-over screen (`&guest`: no saved match) with a rematch vote
  * (`&rematch=ask|wait|choose|left`, `&oppdeck`: the opponent picked a new deck), `?full` a full board, `?rest=N` / `?restlead` /
@@ -998,19 +1034,7 @@ export function DemoPage() {
   const [motionStep, setMotionStep] = useState(0);
   const [motionRun, setMotionRun] = useState(0);
   const nextMotion = motionSteps?.[motionStep + 1];
-  const [undo, setUndo] = useState<UndoState | null>(() =>
-    params.has("undo")
-      ? {
-          enabled: true,
-          targetTurn: 3,
-          action: { seat: params.get("undo") === "ask" ? 1 : 0, label: params.get("undo") === "ask" ? "attack with Zoro" : "play Nami" },
-          pending:
-            params.get("undo") === "ask"
-              ? { from: 1, toTurn: 3, action: { seat: 1, label: "attack with Zoro" } }
-              : null,
-        }
-      : null,
-  );
+  const [undo, setUndo] = useState<UndoState | null>(() => (params.has("undo") ? demoUndoState(params.get("undo")) : null));
   const [chat, setChat] = useState<ChatLine[]>(DEMO_CHAT);
   // `?reveal`: the opponent reveals a card (then another) a moment after load.
   const [log, setLog] = useState<BattleLogEntry[]>(DEMO_BATTLE_LOG);
@@ -1130,14 +1154,23 @@ export function DemoPage() {
           undo
             ? {
                 state: undo,
-                onAction: (action) =>
+                defaultOpen: ["menu", "blocked", "limit"].includes(params.get("undo") ?? ""),
+                onAction: (action, opts) =>
                   setUndo((u) =>
                     u
                       ? {
                           ...u,
                           pending:
                             action === "request"
-                              ? { from: 0, toTurn: u.targetTurn ?? 1, action: u.action }
+                              ? {
+                                  from: 0,
+                                  toTurn: u.targetTurn ?? 1,
+                                  action: u.action,
+                                  scope: opts?.scope ?? "action",
+                                  steps: opts?.scope === "turn" ? (u.options?.turn.steps ?? 1) : 1,
+                                  force: opts?.force === true,
+                                  revealReason: opts?.force ? "a deck or Life card was looked at" : null,
+                                }
                               : null,
                         }
                       : u,
