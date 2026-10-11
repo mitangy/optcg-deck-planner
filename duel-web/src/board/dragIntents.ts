@@ -213,6 +213,9 @@ export function canDragCounter(intents: Intent[], handIndex: number): boolean {
  * Map a drag payload + drop target to the legal intent(s) to send, in send
  * order. give_don with multiple donIds resolves to one intent per don that
  * has a legal give_don to this target (client sends them sequentially).
+ * A hand card dragged to play (play_card) is played wherever it is dropped
+ * (an empty spot, any zone), except on a Character to trash, which picks that
+ * Character. Dropping back on the hand is the caller's job (it never gets here).
  */
 export function resolveDropIntents(
   payload: DragPayload | null,
@@ -220,7 +223,16 @@ export function resolveDropIntents(
   intents: Intent[],
   ctx: DropContext = {},
 ): Intent[] {
-  if (!payload || !drop) return [];
+  if (!payload) return [];
+  if (payload.type === "play_card") {
+    if (drop?.kind === "play_trash") {
+      const intent = matchPlayCardTrash(intents, payload.handIndex, drop.characterId);
+      return intent ? [intent] : [];
+    }
+    const intent = matchPlayCardOnField(intents, payload.handIndex);
+    return intent ? [intent] : [];
+  }
+  if (!drop) return [];
   if (payload.type === "attack" && drop.kind === "attack_target") {
     if (!ctx.opponentLeaderId) return [];
     const intent = findAttackIntent(
@@ -243,14 +255,6 @@ export function resolveDropIntents(
   }
   if (payload.type === "give_don" && drop.kind === "give_don_target") {
     return matchGiveDonMulti(intents, payload.donIds, drop.targetId);
-  }
-  if (payload.type === "play_card" && drop.kind === "play_field") {
-    const intent = matchPlayCardOnField(intents, payload.handIndex);
-    return intent ? [intent] : [];
-  }
-  if (payload.type === "play_card" && drop.kind === "play_trash") {
-    const intent = matchPlayCardTrash(intents, payload.handIndex, drop.characterId);
-    return intent ? [intent] : [];
   }
   return [];
 }

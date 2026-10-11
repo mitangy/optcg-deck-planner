@@ -109,16 +109,19 @@ export function useHandReorder(
     setState({ cardId, inZone: true, slot: null });
   }, []);
 
-  /** Drop at (x, y): true when it landed on the hand (and was reordered). */
+  /**
+   * Drop at (x, y): true when it landed on the hand. It is reordered only
+   * when `move` is true (a sorted hand keeps its order but still never plays).
+   */
   const end = useCallback(
-    (x: number, y: number) => {
+    (x: number, y: number, move = true) => {
       const cardId = cardIdRef.current;
       cardIdRef.current = null;
       setState(null);
       if (!cardId) return false;
       const slot = follow(cardId, x, y);
       if (slot == null) return false;
-      onReorder(cardId, slot, x, y);
+      if (move) onReorder(cardId, slot, x, y);
       return true;
     },
     [onReorder, follow],

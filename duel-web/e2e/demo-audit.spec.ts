@@ -1077,6 +1077,117 @@ for (const handLayout of ["fan", "grid"]) {
   });
 }
 
+// A playable hand card dropped anywhere outside the hand is played, not only on
+// the Characters / Stage zone (#552). Dropped back on the hand it never plays,
+// sorted or not. Phone landscape is covered as well as portrait.
+const dragAnywhere: Array<{ name: string; only?: string; viewport?: { width: number; height: number } }> = [
+  { name: "" },
+  { name: " (landscape)", only: "phone-375", viewport: { width: 812, height: 375 } },
+];
+for (const variant of dragAnywhere) {
+  test.describe(`drag anywhere${variant.name}`, () => {
+    if (variant.viewport) test.use({ viewport: variant.viewport });
+    test.beforeEach(() => {
+      test.skip(variant.only != null && test.info().project.name !== variant.only, "phone only");
+    });
+
+    // Drag the card at `from` to `to`: touch on phones, the mouse on desktop.
+    async function dragCard(page: import("@playwright/test").Page, id: string, to: { x: number; y: number }) {
+      const touch = test.info().project.name === "phone-375";
+      const card = page.locator(`[data-motion-id="${id}"]`).first();
+      if (!touch) await page.mouse.move(4, 4);
+      await page.waitForFunction(() =>
+        document
+          .getAnimations()
+          .every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Infinity),
+      );
+      let b = (await card.boundingBox())!;
+      if (!touch) {
+        await page.mouse.move(b.x + b.width / 2, b.y + 12);
+        await page.waitForTimeout(450);
+        b = (await card.boundingBox())!;
+      }
+      const start = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      if (touch) {
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [start] });
+        // The landscape hand is a side rail that scrolls up and down, so lift it sideways there.
+        const wide = (page.viewportSize()?.width ?? 0) > (page.viewportSize()?.height ?? 0);
+        const lift = wide ? { x: start.x - 16, y: start.y } : { x: start.x, y: start.y - 16 };
+        for (const p of [lift, { x: to.x, y: wide ? to.y : start.y - 16 }, to]) {
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [p] });
+          await page.waitForTimeout(30);
+        }
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        return;
+      }
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(start.x, start.y - 14, { steps: 4 });
+      await page.mouse.move(to.x, to.y, { steps: 10 });
+      await page.mouse.up();
+    }
+
+    // A point on the opponent's side that is not any drop zone.
+    async function emptySpot(page: import("@playwright/test").Page) {
+      const spot = await page.evaluate(() => {
+        const side = document.querySelector(".side-opp")!.getBoundingClientRect();
+        for (let fy = 0.5; fy < 1; fy += 0.05) {
+          for (let fx = 0.05; fx < 1; fx += 0.05) {
+            const x = side.left + side.width * fx;
+            const y = side.top + side.height * fy;
+            const el = document.elementFromPoint(x, y);
+            if (el && el.closest(".side-opp") && !el.closest("[data-dnd-drop]") && !el.closest(".card-tile")) return { x, y };
+          }
+        }
+        return null;
+      });
+      expect(spot, "an empty spot on the opponent's side").not.toBeNull();
+      return spot!;
+    }
+
+    test(`a playable hand card dropped on an empty spot off the field is played (#552)${variant.name}`, async ({ page }) => {
+      await page.goto("/demo");
+      await page.locator(".board-root").waitFor();
+      const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
+      const cards = page.locator(
+        ".hand-fan-cards > .card-tile, .hand-row-inner > .card-tile, .rail-hand-cards > .card-tile, .hand-dock-cards > .card-tile",
+      );
+      const first = await cards.first().getAttribute("data-motion-id");
+      const spot = await emptySpot(page);
+      await dragCard(page, first!, spot);
+      await expect.poll(sent).toEqual([{ type: "play_card", handIndex: 0 }]);
+    });
+
+    test(`with Sort on, a card dropped back on the hand is not played or moved (#552)${variant.name}`, async ({ page }) => {
+      await page.addInitScript(() =>
+        localStorage.setItem("optcg-duel:settings", JSON.stringify({ sortHandByCost: true })),
+      );
+      await page.goto("/demo");
+      await page.locator(".board-root").waitFor();
+      await expect(page.locator(".hand-sort-btn.active").first()).toBeVisible();
+      const cards = page.locator(
+        ".hand-fan-cards > .card-tile, .hand-row-inner > .card-tile, .rail-hand-cards > .card-tile, .hand-dock-cards > .card-tile",
+      );
+      const order = () => cards.evaluateAll((els) => els.map((e) => e.getAttribute("data-motion-id")));
+      const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
+      const before = await order();
+      // y-h1 is hand card 0 (a playable one); sorting only moves it on screen.
+      const id = before.find((x) => x === "y-h1") ?? before[0]!;
+      // Over a neighbouring card in the hand.
+      const neighbour = (await cards.nth(before.indexOf(id) === 0 ? 1 : 0).boundingBox())!;
+      await dragCard(page, id!, { x: neighbour.x + neighbour.width / 2, y: neighbour.y + neighbour.height / 2 });
+      await page.waitForTimeout(500);
+      expect(await sent()).toEqual([]);
+      expect(await order()).toEqual(before);
+      // Dropped off the hand it is still played.
+      const spot = await emptySpot(page);
+      await dragCard(page, id!, spot);
+      await expect.poll(sent).toEqual([{ type: "play_card", handIndex: 0 }]);
+    });
+  });
+}
+
 // A floating fan over your field: a card dragged out of it and back down onto
 // a field zone under it is played. Coming back over the fan used to count as
 // a drop in the hand, so it was moved there instead (#294).
