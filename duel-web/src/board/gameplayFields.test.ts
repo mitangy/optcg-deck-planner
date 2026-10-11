@@ -43,6 +43,12 @@ describe("gameplay rows by device", () => {
     expect(toggleShown("previewPopup", phone)).toBe(false);
   });
 
+  it("lists the Pop-up size row only on a desktop window, in the Board group (#555)", () => {
+    expect(rowShown("popupSize", desktop)).toBe(true);
+    expect(rowShown("popupSize", phone)).toBe(false);
+    expect(groupOf("popupSize")).toBe("board");
+  });
+
   it("lists Simple board only on phones and tablets, not a desktop window (#445)", () => {
     expect(toggleShown("compactOwnBoard", phone)).toBe(true);
     expect(toggleShown("compactOwnBoard", desktop)).toBe(false);
@@ -66,7 +72,7 @@ describe("Gameplay settings groups (#496)", () => {
     "endTurnConfirm", "responseStops", "handLayout", "screenOrientation", "oppHandSpot", "sidePanels", "textSize", "lifeFan", "sideColumns",
     "animationSpeed", "cardSpotlight", "showOnScreen",
     "sortHandByCost", "keepHandOpen", "layoutGrips", "oneTapActions", "dimUnplayable", "shortcutTags", "handCounters",
-    "cantAttackWarning", "battleArrow", "attackGlow", "compactOwnBoard", "previewBigCard", "previewPopup", "donUpright", "totalPower", "oppHandTopRight",
+    "cantAttackWarning", "battleArrow", "attackGlow", "compactOwnBoard", "previewBigCard", "previewPopup", "popupSize", "donUpright", "totalPower", "oppHandTopRight",
     "tiltedBoard", "bigBoard", "turnSplash", "reduceMotion", "turnAlert", "turnSound",
   ];
 

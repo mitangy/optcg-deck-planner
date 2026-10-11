@@ -6,6 +6,8 @@ import { useClickCopy } from "./clickCopy";
 import { floatLookAnswer, moveId, nearestSlot, tapInOrder } from "./floatOrder";
 import "./float.css";
 import { BackPill, promptSourceName } from "./HideablePrompt";
+import { PopupSizeButtons } from "./PopupSizeButtons";
+import { useFitPopupScale } from "./useFitPopupScale";
 import { usePromptDrag } from "./promptDrag";
 import { useDuelSettings } from "../settings";
 
@@ -155,14 +157,17 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
   const free = choice.kind === "order_effects";
   const wrapRef = useRef<HTMLDivElement | null>(null);
   usePromptDrag(wrapRef, useDuelSettings().promptPos, FLOATING_NO_DOCK);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  useFitPopupScale(stageRef);
   const layer = peek ? (
     <BackPill label={`Back to ${name} · ${count} card${count === 1 ? "" : "s"}`} onShow={() => onPeek(false)} />
   ) : (
     <div className={`float-layer${free ? " float-layer-free" : ""}`} role="dialog" aria-label={choice.prompt} style={{ "--n": count } as CSSProperties}>
-      <div className={`float-stage${free ? " float-stage-free" : ""}`}>
+      <div ref={stageRef} className={`float-stage${free ? " float-stage-free" : ""}`}>
         <div className="float-head">
           <strong>{name}</strong>
           <span className="float-prompt">{choice.prompt}</span>
+          <PopupSizeButtons className="float-size-btn" />
         </div>
         {children}
         <div className="float-axis" aria-hidden>

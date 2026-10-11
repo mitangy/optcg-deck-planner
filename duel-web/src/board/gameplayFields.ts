@@ -97,6 +97,7 @@ export type SelectRowKey =
   | "sideColumns"
   | "animationSpeed"
   | "cardSpotlight"
+  | "popupSize"
   | "showOnScreen";
 
 export type RowKey = ToggleKey | SelectRowKey;
@@ -142,6 +143,7 @@ export const GAMEPLAY_GROUPS: GameplayGroup[] = [
       "sideColumns",
       "previewBigCard",
       "previewPopup",
+      "popupSize",
       "layoutGrips",
       "sidePanels",
       "showOnScreen",
@@ -176,6 +178,9 @@ export function rowShown(key: RowKey, d: FieldDevice): boolean {
     case "oppHandSpot":
     case "sideColumns":
     case "sidePanels":
+      return d.desktop;
+    // The hover card pop-up is desktop-only, and so is the setting that sizes it.
+    case "popupSize":
       return d.desktop;
     case "endTurnConfirm":
     case "responseStops":

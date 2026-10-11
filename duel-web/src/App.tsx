@@ -25,6 +25,7 @@ import { FeedbackHost } from "./FeedbackHost";
 import { openFeedback } from "./feedbackDialog";
 import { showsSiteFooter } from "./siteFooter";
 import { applyTextSize } from "./textSize";
+import { applyPopupSize } from "./board/popupSize";
 import { applyTheme, LIGHT_QUERY } from "./theme";
 import { useMediaQuery } from "./board/useMediaQuery";
 
@@ -32,7 +33,7 @@ import { useMediaQuery } from "./board/useMediaQuery";
 const ReplayPage = lazy(() => import("./pages/ReplayPage"));
 
 export function App() {
-  const { reduceMotion, theme, colorMode, textSize } = useDuelSettings();
+  const { reduceMotion, theme, colorMode, textSize, popupSize } = useDuelSettings();
   // Re-applies when the device switches light / dark while on "Match my device".
   const deviceLight = useMediaQuery(LIGHT_QUERY);
   const { pathname } = useLocation();
@@ -43,6 +44,7 @@ export function App() {
   // flashes the old palette.
   useLayoutEffect(() => applyTheme(theme, colorMode), [theme, colorMode, deviceLight]);
   useLayoutEffect(() => applyTextSize(textSize), [textSize]);
+  useLayoutEffect(() => applyPopupSize(popupSize), [popupSize]);
   // CSS mirrors its prefers-reduced-motion rules under [data-motion="reduce"].
   useEffect(() => {
     if (reduceMotion) document.documentElement.dataset.motion = "reduce";

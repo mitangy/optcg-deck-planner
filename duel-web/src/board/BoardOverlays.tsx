@@ -1,25 +1,39 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import { fallbackToDefaultDon, useDonArt } from "./donArt";
 import { attachLabel, quickAttachLabel, type PendingAttach } from "./donSelection";
-import { popoverPlacement, type CardActionText, type PopoverSize } from "./cardActions";
+import { updateSettings, useDuelSettings } from "../settings";
+import {
+  applyPopoverOffset,
+  parsePopoverOffset,
+  popoverPlacement,
+  serializePopoverOffset,
+  type CardActionText,
+  type PopoverOffset,
+  type PopoverSize,
+} from "./cardActions";
+import { usePopupScale } from "./PopupSizeButtons";
 import { useTrackedBoxes } from "./useTrackedBoxes";
 
 const CONFIRM_W = 250;
 const EDGE = 8;
 
-/** The element's laid-out size, re-read when its content or the window changes (0 until it mounts). */
-function useMeasuredSize(ref: { current: HTMLElement | null }, key: string): PopoverSize {
+/**
+ * The element's laid-out size on screen (laid-out size x `scale`, the Pop-up size setting: popupScale.css
+ * scales these pop-ups without changing their layout box), re-read when its content or the window changes
+ * (0 until it mounts).
+ */
+function useMeasuredSize(ref: { current: HTMLElement | null }, key: string, scale = 1): PopoverSize {
   const [size, setSize] = useState<PopoverSize>({ width: 0, height: 0 });
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     // scrollHeight: the natural height even while a short window caps it and scrolls.
     const read = () => {
-      const next = { width: el.offsetWidth, height: Math.max(el.offsetHeight, el.scrollHeight) };
+      const next = { width: el.offsetWidth * scale, height: Math.max(el.offsetHeight, el.scrollHeight) * scale };
       setSize((prev) => (prev.width === next.width && prev.height === next.height ? prev : next));
     };
     read();
@@ -27,7 +41,7 @@ function useMeasuredSize(ref: { current: HTMLElement | null }, key: string): Pop
     const ro = new ResizeObserver(read);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [ref, key]);
+  }, [ref, key, scale]);
   return size;
 }
 
@@ -52,7 +66,8 @@ export function DonAttachConfirm({
   const box = boxes?.[0] ?? null;
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
-  const size = useMeasuredSize(ref, box == null ? "none" : "box");
+  const scale = usePopupScale();
+  const size = useMeasuredSize(ref, box == null ? "none" : "box", scale);
 
   useEffect(() => {
     confirmRef.current?.focus({ preventScroll: true });
@@ -61,7 +76,7 @@ export function DonAttachConfirm({
   if (typeof document === "undefined") return null;
   const vw = window.innerWidth;
   // CSS sizes the confirm with its font; before the first measure assume the old 250px.
-  const width = size.width || Math.min(CONFIRM_W, vw - EDGE * 2);
+  const width = size.width || Math.min(CONFIRM_W * scale, vw - EDGE * 2);
   let style: CSSProperties;
   if (box) {
     // Above the card when it fits, else below, else slid back on screen.
@@ -142,9 +157,46 @@ export function CardActionPopover({
   const box = boxes?.[0] ?? null;
   const ref = useRef<HTMLDivElement | null>(null);
   const shape = `${actions.map((a) => a.id).join("|")}/${donCounts.join(",")}`;
-  const size = useMeasuredSize(ref, `${shape}/${box == null}`);
+  const scale = usePopupScale();
+  const size = useMeasuredSize(ref, `${shape}/${box == null}`, scale);
+  const saved = parsePopoverOffset(useDuelSettings().actionPopoverOffset);
+  /** The offset while the grip is being dragged. */
+  const [drag, setDrag] = useState<PopoverOffset | null>(null);
+  /** The offset as last drawn (after the viewport clamp): what a drop saves. */
+  const shownOffset = useRef<PopoverOffset | null>(null);
   if (!box || typeof document === "undefined") return null;
-  const place = popoverPlacement(box, size, { width: window.innerWidth, height: window.innerHeight });
+  const viewport = { width: window.innerWidth, height: window.innerHeight };
+  const normal = popoverPlacement(box, size, viewport);
+  const place = applyPopoverOffset(normal, size, drag ?? saved, viewport);
+  shownOffset.current = { dx: place.left - normal.left, dy: place.top - normal.top };
+
+  const onGripDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const grip = e.currentTarget;
+    const start = { x: e.clientX, y: e.clientY };
+    const from = shownOffset.current ?? { dx: 0, dy: 0 };
+    let moved = false;
+    e.preventDefault();
+    e.stopPropagation();
+    grip.setPointerCapture?.(e.pointerId);
+    const move = (ev: PointerEvent) => {
+      moved = true;
+      setDrag({ dx: from.dx + ev.clientX - start.x, dy: from.dy + ev.clientY - start.y });
+    };
+    const end = (ev: PointerEvent) => {
+      grip.removeEventListener("pointermove", move);
+      grip.removeEventListener("pointerup", end);
+      grip.removeEventListener("pointercancel", end);
+      if (moved && ev.type === "pointerup" && shownOffset.current) {
+        updateSettings({ actionPopoverOffset: serializePopoverOffset(shownOffset.current) });
+      }
+      setDrag(null);
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", end);
+    grip.addEventListener("pointercancel", end);
+  };
+
   const style: CSSProperties = {
     left: place.left,
     top: place.top,
@@ -152,7 +204,7 @@ export function CardActionPopover({
   };
   // A window shorter than the popover scrolls its buttons rather than running them off screen.
   if (size.height > window.innerHeight - EDGE * 2) {
-    style.maxHeight = window.innerHeight - EDGE * 2;
+    style.maxHeight = (window.innerHeight - EDGE * 2) / scale;
     style.overflowY = "auto";
   }
   return createPortal(
@@ -163,6 +215,19 @@ export function CardActionPopover({
       aria-label={`Actions for ${cardName}`}
       style={style}
     >
+      <div
+        className={`card-actions-grip${drag ? " is-dragging" : ""}`}
+        role="button"
+        tabIndex={-1}
+        aria-label="Move actions"
+        title="Drag to move, double-click to put back"
+        onPointerDown={onGripDown}
+        onDoubleClick={() => {
+          if (saved) updateSettings({ actionPopoverOffset: "" });
+        }}
+      >
+        <span aria-hidden>⠿</span>
+      </div>
       {donCounts.length > 0 && onDon ? (
         <div className="card-actions-don" role="group" aria-label={`Give DON!! to ${cardName}`}>
           <img src={donArt()} alt="" className="don-quick-icon" draggable={false} onError={fallbackToDefaultDon} />

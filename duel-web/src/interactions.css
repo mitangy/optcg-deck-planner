@@ -346,6 +346,32 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
 }
 
+/* Drag handle at the top of the popover: the only part that moves it. */
+.card-actions-grip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  margin: -2px 0 -2px;
+  color: var(--muted);
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card-actions-grip:hover,
+.card-actions-grip.is-dragging {
+  color: var(--chrome-bright);
+}
+
+.card-actions-grip.is-dragging {
+  cursor: grabbing;
+}
+
 .card-actions-don {
   display: flex;
   align-items: center;
@@ -804,8 +830,8 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
 .reveal-card img,
 .reveal-fallback {
   display: block;
-  height: min(62dvh, 26rem);
-  max-width: min(78vw, 22rem);
+  height: min(calc(62dvh / var(--popup-scale, 1)), 26rem);
+  max-width: min(calc(78vw / var(--popup-scale, 1)), 22rem);
   width: auto;
   aspect-ratio: 5 / 7;
   object-fit: contain;
@@ -820,7 +846,7 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   color: var(--chrome-bright, #f0dca8);
 }
 .reveal-caption {
-  max-width: min(90vw, 26rem);
+  max-width: min(calc(90vw / var(--popup-scale, 1)), 26rem);
   padding: 6px 12px;
   border-radius: 999px;
   background: rgba(8, 14, 20, 0.92);
@@ -848,7 +874,7 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   }
   .reveal-card img,
   .reveal-fallback {
-    height: min(78dvh, 20rem);
+    height: min(calc(78dvh / var(--popup-scale, 1)), 20rem);
   }
 }
 :root[data-motion="reduce"] .reveal-card {

@@ -1,0 +1,93 @@
+/* —— Pop-up size (#555) ——
+   The Pop-up size setting writes --popup-scale (1 = 100%) on the page root
+   (applyPopupSize). Each in-game pop-up grows with the individual `scale`
+   property, and its width / height limits are divided by the scale, so even at
+   160% it still fits the window. `scale` is applied after `translate` (the drag
+   offsets) and before `transform` (the centring), and getBoundingClientRect
+   reports the scaled box, so dragging, dodging and clamping keep working.
+   transform-origin is always the left edge (x = 0): with a `translate(-50%, …)`
+   centring that keeps the pop-up centred on its anchor; y = 0 for top / centre
+   anchored pop-ups, 100% for ones that sit on the bottom edge.
+   The hover card pop-up (board.css) and the card actions pop-up (BoardOverlays.tsx)
+   size themselves from the same variable. Docked pop-ups keep their column width. */
+
+/* Anchored to a card: JS places the top-left corner and measures the scaled box. */
+:root .card-actions,
+:root .don-attach-confirm {
+  scale: var(--popup-scale, 1);
+  transform-origin: 0 0;
+}
+
+:root .card-actions {
+  max-width: min(260px, calc((100vw - 16px) / var(--popup-scale, 1)));
+}
+
+:root .don-attach-confirm {
+  width: min(max(250px, 18.5em), calc((100vw - 16px) / var(--popup-scale, 1)));
+}
+
+/* Yes / No above a played card: only the bubble grows (the held card stays at its hand size), up and out from its bottom centre. */
+:root .hand-confirm-bubble {
+  scale: var(--popup-scale, 1);
+  transform-origin: 50% 100%;
+  max-width: min(100%, calc((100vw - 16px) / var(--popup-scale, 1)));
+}
+
+/* Choice pop-ups (and the life trigger card, effect order). */
+:root .arena .prompt-hide-wrap:not([data-docked]) .ability-prompt {
+  scale: var(--popup-scale, 1);
+  transform-origin: 0 100%;
+  width: min(420px, calc((100vw - 1.5rem) / var(--popup-scale, 1)));
+  max-width: calc((100vw - 1rem) / var(--popup-scale, 1));
+  max-height: calc((100dvh - 8rem) / var(--popup-scale, 1));
+}
+
+/* Dodged to the top of the board while a battle's target sits under the bottom spot. */
+:root .arena .prompt-hide-wrap[data-top]:not([data-docked]) .ability-prompt {
+  transform-origin: 0 0;
+}
+
+:root .arena.arena-wide .prompt-hide-wrap:not([data-docked]) .ability-prompt {
+  width: min(460px, calc((100vw - var(--left-w) - var(--rail-w) - 1.5rem) / var(--popup-scale, 1)));
+  max-height: calc((100dvh - 6.5rem) / var(--popup-scale, 1));
+}
+
+@media (max-width: 640px) {
+  :root .arena .prompt-hide-wrap:not([data-docked]) .ability-prompt {
+    right: auto;
+    width: calc((100vw - 1rem) / var(--popup-scale, 1));
+  }
+}
+
+/* Field-target bar. */
+:root .field-bar {
+  scale: var(--popup-scale, 1);
+  transform-origin: 0 100%;
+  right: auto;
+  width: calc((100vw - max(0.5rem, var(--safe-l)) - max(0.5rem, var(--safe-r))) / var(--popup-scale, 1));
+}
+
+:root .arena .field-bar.field-bar-top {
+  transform-origin: 0 0;
+}
+
+:root .arena.arena-wide .field-bar {
+  width: min(560px, calc((100vw - var(--left-w) - var(--rail-w) - 1.5rem) / var(--popup-scale, 1)));
+}
+
+:root .arena .field-bar.field-bar-mid {
+  transform-origin: 0 0;
+  width: calc(var(--mid-w) / var(--popup-scale, 1));
+}
+
+/* Opponent reveal card. */
+:root .reveal-card {
+  scale: var(--popup-scale, 1);
+  max-height: calc(100% / var(--popup-scale, 1));
+}
+
+/* Floating card rows (look / search, effect order): the stage is narrower by the scale and scaled back up, so it fills the same room. */
+:root .float-stage {
+  scale: var(--popup-scale, 1);
+  width: calc(100% / var(--popup-scale, 1));
+}

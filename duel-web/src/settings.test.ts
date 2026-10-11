@@ -239,6 +239,19 @@ describe("account settings", () => {
     expect(mergeRemoteSettings(loadSettings(), { previewPopupPos: "1,1" }).previewPopupPos).toBe("640,72");
   });
 
+  it("keeps the card pop-up size and the action pop-up spot on this device, and pulls a bad size back into range (#555)", () => {
+    stubStored({ popupSize: 130, actionPopoverOffset: "30,-40" });
+    const synced = syncedSettings(loadSettings());
+    expect(synced).not.toHaveProperty("popupSize");
+    expect(synced).not.toHaveProperty("actionPopoverOffset");
+    expect(mergeRemoteSettings(loadSettings(), { popupSize: 70, actionPopoverOffset: "1,1" })).toMatchObject({
+      popupSize: 130,
+      actionPopoverOffset: "30,-40",
+    });
+    stubStored({ popupSize: 900 });
+    expect(loadSettings().popupSize).toBe(160);
+  });
+
   it("takes the one-column choice from the account and falls back to one column on the right for an unknown value (#529)", () => {
     stubStored({ sideColumns: "left" });
     expect(syncedSettings(loadSettings()).sideColumns).toBe("left");

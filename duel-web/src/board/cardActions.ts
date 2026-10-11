@@ -169,3 +169,42 @@ export function popoverPlacement(
   const top = Math.min(Math.max(preferred, edge), Math.max(edge, viewport.height - edge - size.height));
   return { left, top, above: false };
 }
+
+export type PopoverOffset = { dx: number; dy: number };
+
+/** The saved `actionPopoverOffset` ("dx,dy" px from the normal spot); "" or anything unreadable is no offset (null). */
+export function parsePopoverOffset(s: string): PopoverOffset | null {
+  const [x, y, ...rest] = s.split(",");
+  if (y === undefined || rest.length > 0 || !x.trim() || !y.trim()) return null;
+  const dx = Number(x);
+  const dy = Number(y);
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return null;
+  return dx === 0 && dy === 0 ? null : { dx, dy };
+}
+
+export function serializePopoverOffset(o: PopoverOffset): string {
+  return `${Math.round(o.dx)},${Math.round(o.dy)}`;
+}
+
+/**
+ * The normal placement moved by the player's saved offset, then clamped so the
+ * whole popover stays `edge` px inside the viewport (a popover taller than the
+ * viewport keeps its top on screen). `left` is the popover's centre, `top` its
+ * bottom when `above`, its top otherwise, as in popoverPlacement.
+ */
+export function applyPopoverOffset(
+  place: PopoverPlacement,
+  size: PopoverSize,
+  offset: PopoverOffset | null,
+  viewport: PopoverSize,
+  edge = 8,
+): PopoverPlacement {
+  if (!offset) return place;
+  const w = Math.min(size.width, viewport.width - edge * 2);
+  const h = Math.min(size.height, viewport.height - edge * 2);
+  const x = place.left - w / 2 + offset.dx;
+  const y = (place.above ? place.top - h : place.top) + offset.dy;
+  const cx = Math.max(edge, Math.min(x, viewport.width - edge - w));
+  const cy = Math.max(edge, Math.min(y, viewport.height - edge - h));
+  return { left: cx + w / 2, top: place.above ? cy + h : cy, above: place.above };
+}
