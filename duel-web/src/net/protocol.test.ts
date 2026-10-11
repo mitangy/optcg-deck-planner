@@ -284,20 +284,57 @@ describe("undo messages name the action they take back (#497)", () => {
       pending: { from: 0, toTurn: 3, action: { seat: 1, label: "attack with Zoro" } },
     });
     expect(state.action).toEqual({ seat: 1, label: "attack with Zoro" });
-    expect(state.pending).toEqual({ from: 0, toTurn: 3, action: { seat: 1, label: "attack with Zoro" } });
+    expect(state.pending).toMatchObject({ from: 0, toTurn: 3, action: { seat: 1, label: "attack with Zoro" } });
   });
 
   it("still reads a server that sends no action: the request survives with a null action (#497)", () => {
     const state = parseUndoState({ ...v, enabled: true, targetTurn: 2, pending: { from: 1, toTurn: 2 } });
     expect(state.action).toBeNull();
-    expect(state.pending).toEqual({ from: 1, toTurn: 2, action: null });
+    expect(state.pending).toMatchObject({ from: 1, toTurn: 2, action: null });
+  });
+
+  it("reads per-scope availability, the reason it is blocked and a forced request (#536)", () => {
+    const state = parseUndoState({
+      ...v,
+      enabled: true,
+      targetTurn: 3,
+      action: { seat: 0, label: "play Nami" },
+      options: {
+        action: { available: false, steps: 1, blockedReason: "Undo stops here: cards were drawn from a deck", forceable: true, revealReason: "cards were drawn from a deck" },
+        turn: { available: true, steps: 3, forceable: false },
+      },
+      blockedReason: null,
+      pending: { from: 1, toTurn: 3, action: null, scope: "turn", steps: 3, force: true, revealReason: "cards were drawn from a deck" },
+    });
+    expect(state.options?.action).toEqual({
+      available: false,
+      steps: 1,
+      blockedReason: "Undo stops here: cards were drawn from a deck",
+      forceable: true,
+      revealReason: "cards were drawn from a deck",
+    });
+    expect(state.options?.turn).toEqual({ available: true, steps: 3, forceable: false });
+    expect(state.pending).toMatchObject({ scope: "turn", steps: 3, force: true, revealReason: "cards were drawn from a deck" });
+    expect(parseUndoState({ ...v, enabled: true, targetTurn: null, blockedReason: "Nothing to undo yet" }).blockedReason).toBe("Nothing to undo yet");
+  });
+
+  it("still reads a server that sends no scopes: the last action, not forced (#536)", () => {
+    const state = parseUndoState({ ...v, enabled: true, targetTurn: 2, pending: { from: 1, toTurn: 2 } });
+    expect(state.options).toBeNull();
+    expect(state.blockedReason).toBeNull();
+    expect(state.pending).toMatchObject({ scope: "action", force: false, revealReason: null });
   });
 
   it("reads the step an applied undo rewound to, and tolerates its absence (#497)", () => {
     const applied = parseUndoApplied({ ...v, toTurn: 2, toStep: 5, by: 1, action: { seat: 0, label: "play Nami" } });
-    expect(applied).toEqual({ toTurn: 2, toStep: 5, by: 1, action: { seat: 0, label: "play Nami" } });
+    expect(applied).toEqual({ toTurn: 2, toStep: 5, by: 1, action: { seat: 0, label: "play Nami" }, scope: "action" });
     const old = parseUndoApplied({ ...v, toTurn: 2, by: 0 });
     expect(old.toStep).toBeUndefined();
     expect(old.action).toBeNull();
+  });
+
+  it("reads that a whole turn was taken back (#536)", () => {
+    const applied = parseUndoApplied({ ...v, toTurn: 2, toStep: 5, by: 1, scope: "turn", steps: 3 });
+    expect(applied).toMatchObject({ scope: "turn", steps: 3 });
   });
 });

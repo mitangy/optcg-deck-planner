@@ -276,6 +276,13 @@ describe("rewindBattleLog", () => {
     );
   });
 
+  it("rewinding a whole turn drops every line of its steps and says so (#536)", () => {
+    const log = [line(1, "old", 2), line(2, "give DON", 4), line(2, "play Nami", 5), line(2, "attack", 6)];
+    const out = rewindBattleLog(log, 2, 0, 0, 3, "attack with Zoro", true);
+    expect(out.map((e) => e.text)).toEqual(["old", "You undid the whole turn."]);
+    expect(rewindBattleLog(log, 2, 1, 0, 3, "attack with Zoro", true).at(-1)!.text).toBe("Opponent undid the whole turn.");
+  });
+
   it("falls back to dropping later turns for lines without a step (#497)", () => {
     const out = rewindBattleLog([line(1, "a"), line(2, "b"), line(3, "c")], 2, 1, 0);
     expect(out.map((e) => e.text).slice(0, 2)).toEqual(["a", "b"]);

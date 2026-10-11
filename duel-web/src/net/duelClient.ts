@@ -33,6 +33,7 @@ import {
   type RematchAction,
   type RematchState,
   type UndoAction,
+  type UndoRequestOptions,
   type UndoApplied,
   type UndoState,
   TAKEN_OVER_CLOSE_CODE,
@@ -402,9 +403,15 @@ export class DuelClient {
     this.room.send("rematch", { protocolVersion: PROTOCOL_VERSION, action, ...(deck ? { deck } : {}) });
   }
 
-  sendUndo(action: UndoAction) {
+  /** `opts` (a "request" only): take back the whole turn, and/or force past a reveal (#536). */
+  sendUndo(action: UndoAction, opts?: UndoRequestOptions) {
     if (!this.room) throw new Error("Not connected");
-    this.room.send("undo", { protocolVersion: PROTOCOL_VERSION, action });
+    this.room.send("undo", {
+      protocolVersion: PROTOCOL_VERSION,
+      action,
+      ...(action === "request" && opts?.scope ? { scope: opts.scope } : {}),
+      ...(action === "request" && opts?.force ? { force: true } : {}),
+    });
   }
 
   ping(t = Date.now()) {

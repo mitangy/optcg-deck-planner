@@ -534,13 +534,34 @@ export function parseHandOrderMessage(raw: unknown): string[] {
 }
 
 /**
- * Undo (unranked rooms only). A seat requests taking back the last action (#497);
- * the other seat accepts or declines. Practice clients auto-accept.
+ * Undo (unranked rooms only). A seat requests taking back the last action (#497)
+ * or the whole turn (#536); the other seat accepts or declines. Practice
+ * clients auto-accept.
  */
 export type UndoAction = "request" | "accept" | "decline" | "cancel";
 
+/** What a request takes back: the last action, or every action of that turn. */
+export type UndoScope = "action" | "turn";
+
+/** A parsed undo message: `scope` / `force` only matter on a "request". */
+export type UndoRequestBody = { action: UndoAction; scope: UndoScope; force: boolean };
+
 /** One undoable action: who took it and a short description ("play Nami"). */
 export type UndoActionInfo = { seat: Seat; label: string };
+
+/** Whether one scope can be undone right now, and why not. */
+export type UndoOption = {
+  /** Can be requested without force. */
+  available: boolean;
+  /** Actions it would take back (0 when none). */
+  steps: number;
+  /** Why it cannot be requested plainly; absent when `available`. */
+  blockedReason?: string;
+  /** Blocked only by a reveal, so a forced request is accepted. */
+  forceable: boolean;
+  /** What was revealed, when a reveal sits in the range (forced undo lets them redo it). */
+  revealReason?: string;
+};
 
 /** Undo availability + any open request, pushed on join / sync / change. */
 export type UndoStateMessage = {
@@ -551,8 +572,23 @@ export type UndoStateMessage = {
   targetTurn: number | null;
   /** The action an undo would take back (the last one, by either seat), or null. */
   action: UndoActionInfo | null;
+  /** Per-scope availability (#536); absent from older servers. */
+  options: { action: UndoOption; turn: UndoOption } | null;
+  /** Why no scope can be requested plainly ("Nothing to undo yet", "Undo stops here: ..."); null when one can. */
+  blockedReason: string | null;
   /** Open request awaiting the other seat's answer. */
-  pending: { from: Seat; toTurn: number; action: UndoActionInfo | null } | null;
+  pending: {
+    from: Seat;
+    toTurn: number;
+    action: UndoActionInfo | null;
+    scope: UndoScope;
+    /** Actions the request takes back. */
+    steps: number;
+    /** Requested past a reveal. */
+    force: boolean;
+    /** What was revealed, set when `force`. */
+    revealReason: string | null;
+  } | null;
 };
 
 /** Broadcast after an accepted undo rewinds the match. */
@@ -563,8 +599,12 @@ export type UndoAppliedMessage = {
   toStep: number;
   /** Seat that asked for the undo. */
   by: Seat;
-  /** The action that was taken back. */
+  /** The action that was taken back (the last one when the whole turn went). */
   action: UndoActionInfo;
+  /** What was taken back; "action" from older servers. */
+  scope: UndoScope;
+  /** How many actions went. */
+  steps: number;
 };
 
 /**
@@ -609,7 +649,7 @@ export function parseRematchMessage(raw: unknown): { action: RematchAction; deck
   return { action: o.action, deck: asPlayerDeck(o.deck) };
 }
 
-export function parseUndoMessage(raw: unknown): UndoAction {
+export function parseUndoMessage(raw: unknown): UndoRequestBody {
   if (!raw || typeof raw !== "object") {
     throw Object.assign(new Error("undo message body required"), {
       code: "bad_protocol" as const,
@@ -631,5 +671,11 @@ export function parseUndoMessage(raw: unknown): UndoAction {
       code: "bad_protocol" as const,
     });
   }
-  return o.action;
+  if (o.scope !== undefined && o.scope !== "action" && o.scope !== "turn") {
+    throw Object.assign(new Error("undo scope must be action|turn"), { code: "bad_protocol" as const });
+  }
+  if (o.force !== undefined && typeof o.force !== "boolean") {
+    throw Object.assign(new Error("undo force must be a boolean"), { code: "bad_protocol" as const });
+  }
+  return { action: o.action, scope: o.scope ?? "action", force: o.force === true };
 }
