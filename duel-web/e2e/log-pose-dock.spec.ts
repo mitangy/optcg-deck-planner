@@ -112,6 +112,76 @@ test("pressing a header button and moving the pointer does not drag the window (
   expect([after.x, after.y]).toEqual([before.x, before.y]);
 });
 
+test("a floating window resizes from its right edge, bottom edge and bottom-right corner, keeping the opposite side put, and remembers it (#532)", async ({ page }) => {
+  await freshProfile(page);
+  await page.goto("/decks");
+  await openFromCompass(page);
+  await dragHeader(page, { x: 500, y: 320 });
+  await expect(panel(page)).toHaveAttribute("data-sized", "true");
+
+  const handleAt = async (edge: string) => {
+    const box = (await panel(page).locator(`.lp-resize-${edge}`).boundingBox())!;
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  };
+  const pull = async (edge: string, dx: number, dy: number) => {
+    const from = await handleAt(edge);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x + dx / 2, from.y + dy / 2, { steps: 4 });
+    await page.mouse.move(from.x + dx, from.y + dy, { steps: 4 });
+    await page.mouse.up();
+  };
+  const within = (a: number, b: number, why: string) => expect(Math.abs(a - b), `${why}: ${a} vs ${b}`).toBeLessThanOrEqual(1);
+
+  // The window starts about as tall as the screen: shorten it from the top and lift it, so there is room to grow downward.
+  await pull("top", 0, 200);
+  const title = (await panel(page).locator("#lp-title").boundingBox())!;
+  await dragHeader(page, { x: 500, y: title.y + title.height / 2 - 150 });
+  const start = (await panel(page).boundingBox())!;
+  await shot(page, "20-resize-before");
+  const corner = await handleAt("bottom-right");
+  await page.mouse.move(corner.x, corner.y);
+  await shot(page, "21-resize-corner-hovered");
+  await page.mouse.down();
+  await page.mouse.move(corner.x + 80, corner.y + 60, { steps: 6 });
+  // While the button is still down the left and top edges are already holding still.
+  const live = (await panel(page).boundingBox())!;
+  within(live.x, start.x, "left edge stays mid-drag");
+  within(live.y, start.y, "top edge stays mid-drag");
+  within(live.width - start.width, 80, "wider mid-drag");
+  await page.mouse.up();
+  const grown = (await panel(page).boundingBox())!;
+  within(grown.width - start.width, 80, "wider");
+  within(grown.height - start.height, 60, "taller");
+  within(grown.x, start.x, "left edge stays");
+  within(grown.y, start.y, "top edge stays");
+  await shot(page, "22-resize-after");
+
+  await pull("right", -50, 0);
+  const narrower = (await panel(page).boundingBox())!;
+  within(grown.width - narrower.width, 50, "right edge narrows");
+  within(narrower.x, grown.x, "left edge stays on a right-edge drag");
+  within(narrower.height, grown.height, "a right-edge drag leaves the height");
+
+  await pull("bottom", 0, -40);
+  const shorter = (await panel(page).boundingBox())!;
+  within(narrower.height - shorter.height, 40, "bottom edge shortens");
+  within(shorter.y, narrower.y, "top edge stays on a bottom-edge drag");
+
+  // No handle sits over a button: the header's Close and the composer's Send keep every corner of their hit area.
+  for (const name of ["Close Log Pose", /^Send/]) {
+    const b = (await panel(page).getByRole("button", { name }).first().boundingBox())!;
+    for (const [x, y] of [[b.x + 1, b.y + 1], [b.x + b.width - 2, b.y + 1], [b.x + 1, b.y + b.height - 2], [b.x + b.width - 2, b.y + b.height - 2]]) {
+      expect(await page.evaluate(([px, py]) => document.elementFromPoint(px!, py!)?.closest(".lp-resize") != null, [x, y]), `a resize handle covers ${name}`).toBe(false);
+    }
+  }
+
+  await page.reload();
+  await openFromCompass(page);
+  const again = (await panel(page).boundingBox())!;
+  for (const k of ["x", "y", "width", "height"] as const) within(again[k], shorter[k], `${k} after reload`);
+});
+
 test("the panel grows out of the compass, and closing shrinks it back before the compass returns (#432)", async ({ page }) => {
   await freshProfile(page);
   await page.goto("/decks");
