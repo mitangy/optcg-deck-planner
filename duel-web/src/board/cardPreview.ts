@@ -76,6 +76,14 @@ export function setAutoPreviewCard(next: PreviewCard | null): void {
   applyPreview(next);
 }
 
+/**
+ * Close the preview (the pop-up's ×). Leaves the hover timestamp alone, and
+ * because the current card is gone, hovering the same card again reopens it.
+ */
+export function clearPreviewCard(): void {
+  applyPreview(null);
+}
+
 export function getLastHoverAt(): number {
   return lastHoverAt;
 }

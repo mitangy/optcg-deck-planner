@@ -38,7 +38,12 @@ export const usePromptDockControls = () => useContext(PromptDockContext);
 
 /** The side column element for `side` on the desktop board, if it is shown. */
 export function dockColumn(side: "left" | "right"): HTMLElement | null {
-  return document.querySelector<HTMLElement>(`.arena [data-panel-col="${side}"]`);
+  const col = document.querySelector<HTMLElement>(`.arena [data-panel-col="${side}"]`);
+  // With one combined column, a pop-up docked to the folded-away side lands in the open one.
+  if (col?.hasAttribute("data-col-off")) {
+    return document.querySelector<HTMLElement>(`.arena [data-panel-col="${side === "left" ? "right" : "left"}"]`);
+  }
+  return col;
 }
 
 /** Both columns' horizontal spans, for `dockAt`. */

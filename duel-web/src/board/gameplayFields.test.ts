@@ -38,6 +38,11 @@ describe("gameplay rows by device", () => {
     expect(toggleShown("turnSound", phone)).toBe(true);
   });
 
+  it("lists the Card preview pop-up switch only on a desktop window (#529)", () => {
+    expect(toggleShown("previewPopup", desktop)).toBe(true);
+    expect(toggleShown("previewPopup", phone)).toBe(false);
+  });
+
   it("lists Simple board only on phones and tablets, not a desktop window (#445)", () => {
     expect(toggleShown("compactOwnBoard", phone)).toBe(true);
     expect(toggleShown("compactOwnBoard", desktop)).toBe(false);
@@ -58,10 +63,10 @@ describe("Show on screen rows by device (#449)", () => {
 describe("Gameplay settings groups (#496)", () => {
   // Every row the Gameplay fields can render: the switches and the selects. A row left out of the groups would vanish from the UI.
   const ALL_ROWS: RowKey[] = [
-    "endTurnConfirm", "responseStops", "handLayout", "screenOrientation", "oppHandSpot", "sidePanels", "textSize", "lifeFan",
+    "endTurnConfirm", "responseStops", "handLayout", "screenOrientation", "oppHandSpot", "sidePanels", "textSize", "lifeFan", "sideColumns",
     "animationSpeed", "cardSpotlight", "showOnScreen",
     "sortHandByCost", "keepHandOpen", "layoutGrips", "oneTapActions", "dimUnplayable", "shortcutTags", "handCounters",
-    "cantAttackWarning", "battleArrow", "attackGlow", "compactOwnBoard", "previewBigCard", "donUpright", "oppHandTopRight",
+    "cantAttackWarning", "battleArrow", "attackGlow", "compactOwnBoard", "previewBigCard", "previewPopup", "donUpright", "oppHandTopRight",
     "tiltedBoard", "bigBoard", "turnSplash", "reduceMotion", "turnAlert", "turnSound",
   ];
 

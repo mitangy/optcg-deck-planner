@@ -602,11 +602,50 @@ module.exports = {
     { id: "e2e-big-board-default-on", args: "bigger-board --project=desktop-1280 -g \"bigger\"", file: "duel-web/src/settings.ts", from: "  bigBoard: false,\n", to: "  bigBoard: true,\n", kills: [
       "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at desktop 1280x720 (#449) [desktop-1280]",
     ] },
-    { id: "e2e-big-board-saved-width-wins", args: "bigger-board --project=desktop-1280 -g \"dragged out\"", file: "duel-web/src/board/DuelBoard.tsx", from: "          ...(bigBoard ? null : panelResize.arenaStyle(shownPanels)),", to: "          ...panelResize.arenaStyle(shownPanels),", kills: [
-      "bigger-board.spec.ts > a column width dragged out does not fight Bigger playing area, and comes back when it is off (#449) [desktop-1280]",
+    { id: "e2e-big-board-saved-width-wins", args: "bigger-board --project=desktop-1280 -g \"dragged out\"", file: "duel-web/src/board/panelSizes.ts", from: "return big ? { widths: parsePanelSizes(bigSaved).widths, heights: normal.heights } : normal;", to: "return normal;", kills: [
+      "bigger-board.spec.ts > a column width dragged out in the normal layout does not carry into Bigger playing area, and comes back when it is off (#529) [desktop-1280]",
     ] },
-    { id: "e2e-big-board-column-handles-stay", args: "bigger-board --project=desktop-1280 -g \"dragged out\"", file: "duel-web/src/board/DuelBoard.tsx", from: "            {prefs.layoutGrips && !bigBoard ? (\n              <div className=\"col-resize col-resize-left\"", to: "            {prefs.layoutGrips ? (\n              <div className=\"col-resize col-resize-left\"", kills: [
-      "bigger-board.spec.ts > a column width dragged out does not fight Bigger playing area, and comes back when it is off (#449) [desktop-1280]",
+    { id: "e2e-big-board-column-handles-hidden", args: "bigger-board --project=desktop-1280 -g \"dragged out\"", file: "duel-web/src/board/DuelBoard.tsx", from: "            {prefs.layoutGrips ? (\n              <div className=\"col-resize col-resize-left\"", to: "            {prefs.layoutGrips && !bigBoard ? (\n              <div className=\"col-resize col-resize-left\"", kills: [
+      "bigger-board.spec.ts > a column width dragged out in the normal layout does not carry into Bigger playing area, and comes back when it is off (#529) [desktop-1280]",
+    ] },
+    { id: "e2e-big-board-drag-saves-normal", args: "card-preview-popup --project=desktop-1280 -g \"keeps its own width\"", file: "duel-web/src/board/DuelBoard.tsx", from: "updateSettings(panelSizesPatch(prefs.bigBoard, next, prefs.panelSizes))", to: "updateSettings(panelSizesPatch(false, next, prefs.panelSizes))", kills: [
+      "card-preview-popup.spec.ts > a column dragged in Bigger playing area keeps its own width, apart from the normal layout's (#529) [desktop-1280]",
+    ] },
+    // Card preview pop-up, one column, chat, hover Life (#529)
+    { id: "e2e-popup-panel-still-docked", args: "card-preview-popup --project=desktop-1280 -g \"hovering a card opens\"", file: "duel-web/src/board/DuelBoard.tsx", from: "preview: prefs.showCardPreview && !previewPopup ? <CardPreviewPanel /> : null,", to: "preview: prefs.showCardPreview ? <CardPreviewPanel /> : null,", kills: [
+      "card-preview-popup.spec.ts > hovering a card opens a large pop-up, and the side column no longer holds the preview (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-popup-not-rendered", args: "card-preview-popup --project=desktop-1280 -g \"pop-up|x closes|face-up Life|header\"", file: "duel-web/src/board/DuelBoard.tsx", from: "{previewPopup ? <CardPreviewPopup /> : null}", to: "{null}", kills: [
+      "card-preview-popup.spec.ts > hovering a card opens a large pop-up, and the side column no longer holds the preview (#529) [desktop-1280]",
+      "card-preview-popup.spec.ts > the pop-up drags by its header, stays on screen, and is where it was left after a reload (#529) [desktop-1280]",
+      "card-preview-popup.spec.ts > double-clicking the header puts the pop-up back (#529) [desktop-1280]",
+      "card-preview-popup.spec.ts > the x closes the pop-up and hovering the same card again reopens it (#529) [desktop-1280]",
+      "card-preview-popup.spec.ts > hovering a face-up Life card shows it in the pop-up without opening the Life list (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-popup-position-not-saved", args: "card-preview-popup --project=desktop-1280 -g \"drags by its header\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "updateSettings({ previewPopupPos: serializePreviewPopupPos(moved) });", to: "void 0;", kills: [
+      "card-preview-popup.spec.ts > the pop-up drags by its header, stays on screen, and is where it was left after a reload (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-popup-edge-gap", args: "card-preview-popup --project=desktop-1280 -g \"drags by its header\"", file: "duel-web/src/board/previewPopupPos.ts", from: "export const POPUP_EDGE = 8;", to: "export const POPUP_EDGE = 0;", kills: [
+      "card-preview-popup.spec.ts > the pop-up drags by its header, stays on screen, and is where it was left after a reload (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-popup-double-click-ignored", args: "card-preview-popup --project=desktop-1280 -g \"puts the pop-up back\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "if (saved) updateSettings({ previewPopupPos: \"\" });", to: "void 0;", kills: [
+      "card-preview-popup.spec.ts > double-clicking the header puts the pop-up back (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-popup-close-ignored", args: "card-preview-popup --project=desktop-1280 -g \"x closes\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "onClick={clearPreviewCard}", to: "onClick={() => undefined}", kills: [
+      "card-preview-popup.spec.ts > the x closes the pop-up and hovering the same card again reopens it (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-popup-setting-ignored", args: "card-preview-popup --project=desktop-1280 -g \"turning the pop-up off\"", file: "duel-web/src/board/DuelBoard.tsx", from: "const previewPopup = prefs.previewPopup && prefs.showCardPreview && wide && !lp;", to: "const previewPopup = prefs.showCardPreview && wide && !lp;", kills: [
+      "card-preview-popup.spec.ts > turning the pop-up off puts the preview back in its side column (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-life-face-hover-ignored", args: "card-preview-popup --project=desktop-1280 -g \"face-up Life\"", file: "duel-web/src/board/ZonePile.tsx", from: "if (e.pointerType === \"mouse\") setPreviewCard({ defId, ownerSeat });", to: "void 0;", kills: [
+      "card-preview-popup.spec.ts > hovering a face-up Life card shows it in the pop-up without opening the Life list (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-popup-on-phone", args: "card-preview-popup --project=phone-375 -g \"phones show no pop-up\"", file: "duel-web/src/board/DuelBoard.tsx", from: "const previewPopup = prefs.previewPopup && prefs.showCardPreview && wide && !lp;", to: "const previewPopup = prefs.previewPopup && prefs.showCardPreview;", kills: [
+      "card-preview-popup.spec.ts > phones show no pop-up (#529) [phone-375]"
+    ] },
+    { id: "e2e-chat-body-min-height", args: "chat-panel-clip --project=desktop-1280", file: "duel-web/src/board.css", from: ".arena.arena-wide .board-col .chat-panel .chat-body {\n  min-height: 0;", to: ".arena.arena-wide .board-col .chat-panel .chat-body {\n  min-height: 3rem;", kills: [
+      "chat-panel-clip.spec.ts > dragging the divider above chat all the way down keeps its input row visible (#529) [desktop-1280]",
+      "chat-panel-clip.spec.ts > chat in the one combined column of a short window keeps its input row visible (#529) [desktop-1280]",
     ] },
     { id: "e2e-big-board-rail-too-narrow", args: "bigger-board --project=desktop-1280 -g \"keeps the board clean\"", file: "duel-web/src/board.css", from: "  --rail-w: clamp(250px, 17vw, 330px);\n}", to: "  --rail-w: clamp(110px, 9vw, 130px);\n}", kills: [
       "bigger-board.spec.ts > Bigger playing area keeps the board clean and End turn reachable at desktop 1280x720 (#449) [desktop-1280]",
@@ -616,22 +655,30 @@ module.exports = {
       "bigger-board.spec.ts > Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at desktop 1280x720 (#468) [desktop-1280]",
       "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at desktop 1280x720 (#449) [desktop-1280]",
     ] },
-    // Two-row mats leave no room beside the opponent mat, so a left/right opponent hand takes the top strip (#468): both layers off.
-    { id: "e2e-big-board-opp-hand-side-over-mat", args: "bigger-board --project=desktop-1280 -g \"docked opponent hand\"", edits: [
-      { file: "duel-web/src/board.css", from: ".arena.arena-wide.arena-big:not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) {", to: ".arena.arena-wide.arena-big.arena-tilt:not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) {" },
-      { file: "duel-web/src/board.css", from: "  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-side {", to: "  .arena.arena-wide:not(.arena-tilt) .opp-hand-mat-side {" },
-    ], kills: [
-      "bigger-board.spec.ts > with Bigger playing area a left-docked opponent hand sits above the opponent mat, not over it, at 1280x720 (#468) [desktop-1280]",
-      "bigger-board.spec.ts > with Bigger playing area a right-docked opponent hand sits above the opponent mat, not over it, at 1280x720 (#468) [desktop-1280]",
-      "bigger-board.spec.ts > with Bigger playing area a left-docked opponent hand sits above the opponent mat, not over it, at 1440x900 (#468) [desktop-1280]",
-      "bigger-board.spec.ts > with Bigger playing area a right-docked opponent hand sits above the opponent mat, not over it, at 1440x900 (#468) [desktop-1280]",
+    // A left/right opponent hand sits in a gutter beside the opponent mat in Bigger playing area (#529).
+    { id: "e2e-big-board-opp-hand-side-gutter", args: "bigger-board --project=desktop-1280 -g \"docked opponent hand\"", file: "duel-web/src/board.css", from: "  .arena.arena-wide.arena-big:not(.arena-lp):not(.arena-tilt) .opp-hand-mat-side {", to: "  .arena.arena-wide.arena-big.arena-tilt:not(.arena-lp) .opp-hand-mat-side {", kills: [
+      "bigger-board.spec.ts > with Bigger playing area a left-docked opponent hand sits beside the opponent mat, not over it or above it, at 1280x720 (#529) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a right-docked opponent hand sits beside the opponent mat, not over it or above it, at 1280x720 (#529) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a left-docked opponent hand sits beside the opponent mat, not over it or above it, at 1440x900 (#529) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a right-docked opponent hand sits beside the opponent mat, not over it or above it, at 1440x900 (#529) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a left-docked opponent hand sits beside the opponent mat, not over it or above it, at 1920x1080 (#529) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area a right-docked opponent hand sits beside the opponent mat, not over it or above it, at 1920x1080 (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-big-board-ten-don-one-row", args: "bigger-board --project=desktop-1280 -g \"ten DON\"", file: "duel-web/src/board.css", from: "\n    \"life cost cost cost leader stage dondeck trash\";", to: "\n    \"life cost cost leader stage dondeck . trash\";", kills: [
+      "bigger-board.spec.ts > with Bigger playing area ten DON!! share one row at 1280x720 (#529) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area ten DON!! share one row at 1440x900 (#529) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area ten DON!! share one row at 1920x1080 (#529) [desktop-1280]"
+    ] },
+    { id: "e2e-big-board-ten-don-one-row-landscape", args: "bigger-board --project=desktop-1280 -g \"ten DON\"", file: "duel-web/src/board.css", from: "\n      \"life cost cost cost leader stage dondeck trash\";", to: "\n      \"life cost cost leader stage dondeck . trash\";", kills: [
+      "bigger-board.spec.ts > with Bigger playing area ten DON!! share one row at 812x375 (#529) [desktop-1280]",
+      "bigger-board.spec.ts > with Bigger playing area ten DON!! share one row at 667x375 (#529) [desktop-1280]"
     ] },
     { id: "e2e-big-board-two-row-landscape-missing", args: "bigger-board --project=desktop-1280 -g \"makes your mat|Leader's row\"", file: "duel-web/src/board.css", from: "  .arena.arena-big.arena-lp .side-grid {\n    --g: 1.2cqh;\n    --c: min(\n      calc((100cqw - 3cqw", to: "  .arena.arena-big.arena-lp.arena-tilt .side-grid {\n    --g: 1.2cqh;\n    --c: min(\n      calc((100cqw - 3cqw", kills: [
       "bigger-board.spec.ts > Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at phone landscape 812x375 (#468) [desktop-1280]",
       "bigger-board.spec.ts > Bigger playing area makes your mat and its cards bigger at phone landscape 812x375 (#449) [desktop-1280]",
     ] },
     // Show on screen (#449)
-    { id: "e2e-show-preview-ignored", args: "show-hide --project=desktop-1280 -g \"showCardPreview\"", file: "duel-web/src/board/DuelBoard.tsx", from: "preview: prefs.showCardPreview ? <CardPreviewPanel /> : null,", to: "preview: <CardPreviewPanel />,", kills: [
+    { id: "e2e-show-preview-ignored", args: "show-hide --project=desktop-1280 -g \"showCardPreview\"", file: "duel-web/src/board/DuelBoard.tsx", from: "preview: prefs.showCardPreview && !previewPopup ? <CardPreviewPanel /> : null,", to: "preview: <CardPreviewPanel />,", kills: [
       "show-hide.spec.ts > showCardPreview off removes only the preview panel and the Battle log stays (#449) [desktop-1280]",
     ] },
     { id: "e2e-show-recent-ignored", args: "show-hide --project=desktop-1280 -g \"showRecentPlays\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    recent: prefs.showRecentPlays ? (\n      <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} />\n    ) : null,", to: "    recent: <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} />,", kills: [

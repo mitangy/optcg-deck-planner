@@ -229,6 +229,21 @@ describe("account settings", () => {
     expect(mergeRemoteSettings(loadSettings(), { promptPos: "9,9" }).promptPos).toBe("-40,-200");
   });
 
+  it("keeps where the card preview pop-up was dragged on this device, and syncs the Bigger playing area widths (#529)", () => {
+    stubStored({ previewPopupPos: "640,72", panelSizesBig: "L=200" });
+    const synced = syncedSettings(loadSettings());
+    expect(synced).not.toHaveProperty("previewPopupPos");
+    expect(synced.panelSizesBig).toBe("L=200");
+    expect(mergeRemoteSettings(loadSettings(), { previewPopupPos: "1,1" }).previewPopupPos).toBe("640,72");
+  });
+
+  it("takes the one-column choice from the account and falls back to one column on the right for an unknown value (#529)", () => {
+    stubStored({ sideColumns: "left" });
+    expect(syncedSettings(loadSettings()).sideColumns).toBe("left");
+    expect(mergeRemoteSettings(loadSettings(), { sideColumns: "both" }).sideColumns).toBe("both");
+    expect(mergeRemoteSettings(loadSettings(), { sideColumns: "middle" }).sideColumns).toBe("right");
+  });
+
   it("follows the account for the column pop-ups dock into, and drops an unknown side (#449)", () => {
     stubStored({ promptDock: "left" });
     expect(syncedSettings(loadSettings()).promptDock).toBe("left");

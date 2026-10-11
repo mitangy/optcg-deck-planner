@@ -4,6 +4,8 @@ import {
   columnMinPx,
   panelMinHeight,
   nudgeColumnWidth,
+  panelSizesForMode,
+  panelSizesPatch,
   parsePanelSizes,
   serializePanelSizes,
   splitHeights,
@@ -82,5 +84,29 @@ describe("panel sizes (#347)", () => {
     expect(splitHeights(300, 200, -900, 72, 72)).toEqual([72, 428]);
     // Dragging the divider above Turn fully down: Turn is below.
     expect(splitHeights(300, 300, 900, 72, minTurn)).toEqual([350, 250]);
+  });
+});
+
+describe("Bigger playing area keeps its own column widths (#529)", () => {
+  const normal = "L=300;R=400;preview=0.4";
+  const big = "L=200;R=260";
+
+  it("normal layout uses its own widths, the big one its own with the shared heights (#529)", () => {
+    expect(panelSizesForMode(false, normal, big)).toEqual({ widths: { left: 300, right: 400 }, heights: { preview: 0.4 } });
+    expect(panelSizesForMode(true, normal, big)).toEqual({ widths: { left: 200, right: 260 }, heights: { preview: 0.4 } });
+  });
+
+  it("big mode with nothing saved starts at the default narrow columns, not the normal widths (#529)", () => {
+    expect(panelSizesForMode(true, normal, "").widths).toEqual({});
+  });
+
+  it("a drag in big mode saves widths apart and leaves the normal widths alone (#529)", () => {
+    const next = { widths: { left: 220, right: 280 }, heights: { preview: 0.5 } };
+    expect(panelSizesPatch(true, next, normal)).toEqual({ panelSizes: "L=300;R=400;preview=0.5", panelSizesBig: "L=220;R=280" });
+  });
+
+  it("a drag in the normal layout leaves the big widths alone (#529)", () => {
+    const next = { widths: { left: 310 }, heights: {} };
+    expect(panelSizesPatch(false, next, normal)).toEqual({ panelSizes: "L=310" });
   });
 });

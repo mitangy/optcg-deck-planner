@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PANEL_LAYOUT,
   collapsedColumns,
+  mergeIntoColumn,
   movePanel,
   nudgePanel,
   panelDropAt,
@@ -173,5 +174,24 @@ describe("collapsedColumns", () => {
       left: false,
       right: false,
     });
+  });
+});
+
+describe("one combined side column (#529)", () => {
+  const layout = { left: ["preview", "log"] as PanelId[], right: ["turn", "chat"] as PanelId[] };
+
+  it("puts the chosen column's panels first, then the other's, each in its own order (#529)", () => {
+    expect(mergeIntoColumn(layout, "right")).toEqual({ left: [], right: ["turn", "chat", "preview", "log"] });
+    expect(mergeIntoColumn(layout, "left")).toEqual({ left: ["preview", "log", "turn", "chat"], right: [] });
+  });
+
+  it("does not change the layout it is given, so the split comes back with Both (#529)", () => {
+    mergeIntoColumn(layout, "left");
+    expect(layout).toEqual({ left: ["preview", "log"], right: ["turn", "chat"] });
+  });
+
+  it("a drop is never aimed at a column that is not there (#529)", () => {
+    const only = { right: { left: 900, right: 1200 } };
+    expect(panelDropAt(only, [], "log", 5, 100).column).toBe("right");
   });
 });

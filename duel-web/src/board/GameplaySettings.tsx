@@ -8,6 +8,7 @@ import {
   type EndTurnConfirm,
   type HandLayoutPref,
   type LifeFan,
+  type SideColumns,
   type ResponseStops,
   type ScreenOrientationPref,
   type TextSize,
@@ -96,6 +97,11 @@ const TOGGLES: Toggle[] = [
     hint: "Desktop: the card preview on the left shows just the card, as big as it fits. Off shows a smaller card with its cost, colour, power and Counter icons and its text below.",
   },
   {
+    key: "previewPopup",
+    label: "Card preview pop-up",
+    hint: "Desktop: the card preview floats over the board as a large pop-up you can drag anywhere (double-click its top bar to put it back) instead of sitting in a side column. Needs Card preview on.",
+  },
+  {
     key: "donUpright",
     label: "Upright DON!! on rested cards",
     hint: "DON!! given to a Leader or Character stays upright under it when the card rests, instead of turning sideways with it.",
@@ -118,7 +124,7 @@ const TOGGLES: Toggle[] = [
   {
     key: "bigBoard",
     label: "Bigger playing area",
-    hint: "Gives the two playmats as much of the window as it can. On computers it hides the top bar (its menu moves to the ⋯ button at the top of a side column), shrinks the side columns to their minimum and trims the margins and gaps. Computers and landscape phones get wider two-row mats. A column width you dragged out comes back when this is off.",
+    hint: "Gives the two playmats as much of the window as it can. On computers it hides the top bar (its menu moves to the ⋯ button at the top of a side column), shrinks the side columns to their minimum and trims the margins and gaps. Computers and landscape phones get wider two-row mats. You can still drag the column edges; this mode keeps its own widths, so the ones you set for the normal layout are untouched.",
   },
   {
     key: "turnSplash",
@@ -375,6 +381,27 @@ export function GameplaySettingsFields() {
               playmat to pin it there. Drag the inner edge of a column, or the line between two panels, to
               resize them (double-click an edge to reset it). Reset puts every panel, size, both
               hands and moved pop-ups back.
+            </p>
+          </div>
+
+        );
+      case "sideColumns":
+        return (
+          <div className="field">
+            <label htmlFor="side-columns">Side columns</label>
+            <select
+              id="side-columns"
+              value={settings.sideColumns}
+              onChange={(e) => updateSettings({ sideColumns: e.target.value as SideColumns })}
+            >
+              <option value="right">One, on the right</option>
+              <option value="left">One, on the left</option>
+              <option value="both">Both</option>
+            </select>
+            <p className="field-hint">
+              Desktop: put every side panel in a single column on the side you pick, so the board gets
+              the room of the other one. Both keeps the left and right columns; your saved panel
+              positions come back when you switch to it.
             </p>
           </div>
 

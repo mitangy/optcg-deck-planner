@@ -44,6 +44,9 @@ export type TextSize = "small" | "medium" | "large" | "xlarge";
 /** Which way a Life stack fans on the mat (#499). */
 export type LifeFan = "down" | "up";
 
+/** Desktop side columns: one combined column on the right or left, or both. */
+export type SideColumns = "both" | "right" | "left";
+
 export type DuelSettings = {
   /** Mint tokens with a dev user key instead of the guest id (dev builds only). */
   useDevKey: boolean;
@@ -86,6 +89,11 @@ export type DuelSettings = {
    */
   promptPos: string;
   /**
+   * Desktop card preview pop-up: where it was dragged, as the "x,y" pixel position of its top-left
+   * corner; "" = the default spot at the top right of the board. Stays on this device.
+   */
+  previewPopupPos: string;
+  /**
    * Desktop: the side column pop-ups dock into ("left" / "right"), or "" to
    * float. Follows the account; phones and landscape phones (no side columns)
    * ignore it. See board/promptDock.ts.
@@ -100,11 +108,18 @@ export type DuelSettings = {
    */
   panelLayout: string;
   /**
+   * Desktop: "right" / "left" puts every side panel into that one column (the other collapses and
+   * the saved panelLayout is left as it was); "both" keeps the two. Landscape phones ignore it.
+   */
+  sideColumns: SideColumns;
+  /**
    * Desktop: column widths and panel heights dragged out by the panel edges,
    * e.g. "L=260;R=340;preview=0.45"; "" keeps every default.
    * See board/panelSizes.ts.
    */
   panelSizes: string;
+  /** Desktop, Bigger playing area: its own column widths (same format, only "L=" / "R=" are read). */
+  panelSizesBig: string;
   /** Desktop: show the grips that drag side panels and the fanned hand around. */
   layoutGrips: boolean;
   /**
@@ -128,6 +143,8 @@ export type DuelSettings = {
   compactOwnBoard: boolean;
   /** Desktop card preview: only the card, as big as fits (on), or a smaller card with its stat icons and text (off). */
   previewBigCard: boolean;
+  /** Desktop: the card preview floats as a large pop-up you can drag anywhere, instead of sitting in a side column. */
+  previewPopup: boolean;
   /** DON!! given to a rested Leader or Character stays upright under it instead of turning sideways with it. */
   donUpright: boolean;
   /**
@@ -203,10 +220,13 @@ const DEFAULTS: DuelSettings = {
   spectatorNearFanPos: "",
   spectatorFarFanPos: "",
   promptPos: "",
+  previewPopupPos: "",
   promptDock: "",
   keepHandOpen: false,
   panelLayout: "",
+  sideColumns: "right",
   panelSizes: "",
+  panelSizesBig: "",
   layoutGrips: true,
   oneTapActions: false,
   dimUnplayable: true,
@@ -217,6 +237,7 @@ const DEFAULTS: DuelSettings = {
   attackGlow: true,
   compactOwnBoard: false,
   previewBigCard: false,
+  previewPopup: true,
   donUpright: false,
   oppHandSpot: "",
   textSize: "medium",
@@ -256,6 +277,7 @@ export function resolveHandLayout(pref: HandLayoutPref, tallDesktop: boolean): H
 const LEGACY_RIGHT_FAN_POS = "0.88,1";
 export const TEXT_SIZES: readonly TextSize[] = ["small", "medium", "large", "xlarge"];
 export const LIFE_FANS: readonly LifeFan[] = ["down", "up"];
+export const SIDE_COLUMNS: readonly SideColumns[] = ["both", "right", "left"];
 const CHANGE_EVENT = "optcg-duel:settings-change";
 
 /** Stored values from older builds or hand edits fall back to defaults field by field. */
@@ -303,6 +325,7 @@ function sanitize(
   // A theme removed in a later build (or synced from a newer one) falls back to the default.
   if (!THEME_IDS.includes(next.theme)) next.theme = DEFAULTS.theme;
   if (!COLOR_MODES.includes(next.colorMode)) next.colorMode = DEFAULTS.colorMode;
+  if (!SIDE_COLUMNS.includes(next.sideColumns)) next.sideColumns = DEFAULTS.sideColumns;
   // Accounts store "no art" as 0 (their settings take only strings, numbers and booleans).
   next.donArt = asDonArtId(next.donArt);
   for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
@@ -315,6 +338,7 @@ function sanitize(
 /** Fields that stay on this device (dev keys, pixel offsets); everything else follows the account. */
 const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
   "useDevKey",
+  "previewPopupPos",
   "devUserKey",
   "promptPos",
 ];

@@ -12,6 +12,12 @@ const ENDED_MESSAGE = "That match has ended or the spectate link is wrong.";
 async function newWatcher(browser: import("@playwright/test").Browser, use: object): Promise<{ ctx: BrowserContext; page: Page }> {
   const ctx = await browser.newContext({ ...use, permissions: ["clipboard-read", "clipboard-write"] });
   const page = await ctx.newPage();
+  // The two-column board with no card preview pop-up, as before #529 (what these layouts were written for).
+  await page.addInitScript(() => {
+    const key = "optcg-duel:settings";
+    const cur = JSON.parse(localStorage.getItem(key) || "{}");
+    localStorage.setItem(key, JSON.stringify({ sideColumns: "both", previewPopup: false, ...cur }));
+  });
   await page.route(`${FAKE_API}/**`, (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === "/health") return route.fulfill({ json: { ok: true } });

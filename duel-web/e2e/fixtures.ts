@@ -110,7 +110,35 @@ type Duel = {
   errors: string[];
 };
 
-export const test = base.extend<{ duel: Duel }>({
+export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
+  /**
+   * Specs written before #529 expect the two-column board with the card preview docked in a column; this
+   * fills those two settings in (never over a value the spec stored itself). A spec about the new defaults
+   * turns it off with `test.use({ legacyLayout: false })`.
+   */
+  legacyLayout: [true, { option: true }],
+  page: async ({ page, legacyLayout }, use) => {
+    if (legacyLayout) {
+      const goto = page.goto.bind(page);
+      let seeded = false;
+      page.goto = (async (...args: Parameters<typeof goto>) => {
+        if (!seeded) {
+          seeded = true;
+          await page.addInitScript(() => {
+            try {
+              const key = "optcg-duel:settings";
+              const cur = JSON.parse(localStorage.getItem(key) || "{}");
+              localStorage.setItem(key, JSON.stringify({ sideColumns: "both", previewPopup: false, ...cur }));
+            } catch {
+              /* storage blocked: the board keeps its defaults */
+            }
+          });
+        }
+        return goto(...args);
+      }) as typeof page.goto;
+    }
+    await use(page);
+  },
   duel: async ({ page }, use) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));

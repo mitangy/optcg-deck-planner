@@ -227,6 +227,8 @@ export function SideField({
   const [trashOpen, setTrashOpen] = useState(false);
   const [trashTopInspect, setTrashTopInspect] = useState(false);
   const [lifeOpen, setLifeOpen] = useState(false);
+  /** A face-up Life card opened by right-click on the pile. */
+  const [lifeFaceInspect, setLifeFaceInspect] = useState<string | null>(null);
   /** Count row instead of piles: the opponent's mat on a portrait phone, and yours with "Simple board". */
   const counts = countRow;
   const who = side === "you" ? "Your" : "Opponent";
@@ -315,6 +317,7 @@ export function SideField({
             ownerSeat={ownerSeat}
             lifeFan={lifeFanForSide(lifeFan ?? "down", side)}
             onOpen={faceUpLife.length ? () => setLifeOpen(true) : undefined}
+            onInspectFace={setLifeFaceInspect}
           />
         </div>}
 
@@ -557,6 +560,15 @@ export function SideField({
           note="face up"
           emptyText="No face-up Life cards."
           onClose={() => setLifeOpen(false)}
+          ownerSeat={ownerSeat}
+          viewingSeat={viewingSeat}
+        />
+      ) : null}
+      {lifeFaceInspect ? (
+        <CardInspect
+          defId={lifeFaceInspect}
+          open
+          onClose={() => setLifeFaceInspect(null)}
           ownerSeat={ownerSeat}
           viewingSeat={viewingSeat}
         />
