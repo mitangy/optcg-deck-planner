@@ -149,8 +149,9 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
   actions: ReactNode;
 }) {
   const name = choice.kind === "order_effects" ? "Order effects" : sourceName(choice);
-  // Effect ordering is a free-standing pop-up like the other choice prompts (#449): no scrim, the
-  // board and the battle behind it stay clickable and visible, and its header drags it (promptPos).
+  // No floating prompt dims the board (#449, #542): the cards hover over it and the board behind
+  // the empty parts stays visible and clickable. Effect ordering is also a free-standing pop-up
+  // like the other choice prompts: its header drags it (promptPos).
   const free = choice.kind === "order_effects";
   const wrapRef = useRef<HTMLDivElement | null>(null);
   usePromptDrag(wrapRef, useDuelSettings().promptPos, FLOATING_NO_DOCK);
@@ -158,7 +159,6 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
     <BackPill label={`Back to ${name} · ${count} card${count === 1 ? "" : "s"}`} onShow={() => onPeek(false)} />
   ) : (
     <div className={`float-layer${free ? " float-layer-free" : ""}`} role="dialog" aria-label={choice.prompt} style={{ "--n": count } as CSSProperties}>
-      {free ? null : <div className="float-scrim" aria-hidden />}
       <div className={`float-stage${free ? " float-stage-free" : ""}`}>
         <div className="float-head">
           <strong>{name}</strong>

@@ -296,7 +296,7 @@ module.exports = {
       { file: "duel-web/src/board/promptDrag.ts", from: "      if (next.x !== offset.x || next.y !== offset.y) write(next);\n", to: "" },
     ], kills: ["prompt-drag.spec.ts > a prompt dragged during a battle stays on screen where it was dropped (#335) [desktop-1280]"] },
     // The effect-order pop-up does not dim the board and drags by its header (#449)
-    { id: "e2e-effect-order-scrim", args: "effect-order-popup -g \"undimmed\"", file: "duel-web/src/board/FloatingPrompt.tsx", from: "      {free ? null : <div className=\"float-scrim\" aria-hidden />}", to: "      <div className=\"float-scrim\" aria-hidden />", kills: [
+    { id: "e2e-effect-order-scrim", args: "effect-order-popup -g \"undimmed\"", file: "duel-web/src/board/FloatingPrompt.tsx", from: "      <div className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", to: "      <div className=\"float-scrim\" aria-hidden />\n      <div className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", kills: [
       "effect-order-popup.spec.ts > ordering simultaneous effects leaves the board undimmed and clickable behind it (#449) [desktop-1280]",
       "effect-order-popup.spec.ts > ordering simultaneous effects leaves the board undimmed and clickable behind it (#449) [phone-375]",
     ] },

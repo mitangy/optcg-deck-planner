@@ -25,6 +25,7 @@ from app.schemas import (
     DeckCardPrintingUpdate,
     DeckCardUpsert,
     DeckCreate,
+    DeckRename,
     DeckDetail,
     DeckOwnedResetResult,
     DeckSummary,
@@ -43,6 +44,7 @@ from app.schemas import (
     GroupBuySummary,
     OwnedCollectionResponse,
     OwnedUpdate,
+    ShoppingExtraUpdate,
     PrintingView,
     PublicShoppingResponse,
     RecentSalesResponse,
@@ -102,6 +104,21 @@ def remove_deck(
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"ok": True}
+
+
+@router.patch("/decks/{deck_id}", response_model=DeckDetail)
+def rename_deck(
+    deck_id: int,
+    body: DeckRename,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return services.rename_deck(db, user, deck_id, body.name)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/decks/{deck_id}/set-main", response_model=DeckDetail)
@@ -257,9 +274,29 @@ def get_shopping(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     deck_ids: Annotated[list[int] | None, Query()] = None,
+    extras: Annotated[bool, Query()] = True,
 ):
-    """Optional deck_ids filters Need/Still Need to only the selected decks."""
-    return services.shopping_list(db, user, deck_ids=deck_ids)
+    """Optional deck_ids filters Need/Still Need to only the selected decks.
+
+    Cards added directly (no deck) are included whatever deck_ids selects;
+    pass extras=false to leave them out.
+    """
+    return services.shopping_list(db, user, deck_ids=deck_ids, include_extras=extras)
+
+
+@router.put("/shopping/extras/{card_id}")
+def put_shopping_extra(
+    card_id: str,
+    body: ShoppingExtraUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Set the target copies to own for a card added straight to Master Shopping."""
+    try:
+        qty = services.set_shopping_extra(db, user, card_id, body.qty)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"card_id": card_id.upper().strip(), "qty": qty}
 
 
 @router.patch("/preferences", response_model=UserOut)
