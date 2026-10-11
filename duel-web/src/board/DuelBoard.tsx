@@ -1148,7 +1148,7 @@ export function DuelBoard({
     if (
       toSend.length === 0 &&
       payload.type === "play_card" &&
-      drop?.kind === "play_field" &&
+      drop?.kind !== "play_trash" &&
       playNeedsReplace(intents, payload.handIndex)
     ) {
       // Dropped on a full board without picking a Character: ask which one.
@@ -1451,7 +1451,7 @@ export function DuelBoard({
   /** Card showing where a hand card dragged over the hand would land, if it moves. */
   function reorderMarker(ids: readonly string[]): { id: string; cls: string } | null {
     const r = handReorder.reorder;
-    if (!r || r.slot == null) return null;
+    if (handSorted || !r || r.slot == null) return null;
     const others = ids.filter((id) => id !== r.cardId);
     if (others.length === 0 || ids.indexOf(r.cardId) === r.slot) return null;
     return r.slot < others.length
@@ -1545,13 +1545,13 @@ export function DuelBoard({
           dragPayload={payload}
           onDragStart={() => {
             setLiftedHandId(c.id);
-            if (reorderable) handReorder.begin(c.id);
+            handReorder.begin(c.id);
             if (boardDrag) setDragPayload(payload);
           }}
           onDragEnd={(x, y) => {
             setLiftedHandId(null);
-            // Dropped back on the hand: a new spot in the hand, never a play.
-            if (reorderable && handReorder.end(x, y)) setDragPayload(null);
+            // Dropped back on the hand: a new spot in the hand (or no move when sorted), never a play.
+            if (handReorder.end(x, y, reorderable)) setDragPayload(null);
             else if (boardDrag) commitDrop(payload, x, y);
           }}
           onDragCancel={() => {
