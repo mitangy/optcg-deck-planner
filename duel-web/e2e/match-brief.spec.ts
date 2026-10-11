@@ -214,7 +214,7 @@ async function moveAndResize(page: Page, panel: ReturnType<Page["locator"]>, sta
   // Shrink it from the top-left corner; the bottom-right corner stays where it was.
   await popSettled(panel);
   const start = (await panel.boundingBox())!;
-  const handle = panel.locator(".lp-resize-corner");
+  const handle = panel.locator(".lp-resize-top-left");
   const dw = 60;
   const dh = 120;
   await drag(handle, dw, dh);

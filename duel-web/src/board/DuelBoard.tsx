@@ -576,6 +576,7 @@ export function DuelBoard({
         ? describeBattle(view, (defId) => lookupCard(defId).name, !(spectator || view.spectator))
         : null
     : null;
+  const midlineBattle = !!view?.battle && !view?.pendingChoices?.length;
   // On phones every pending prompt already shows its sentence (sheet, field bar or floating
   // card), so the midline would repeat it. It still blocks other hints from using the strip.
   const midlineShown = !wide && view?.pendingChoices?.length ? null : midlineText;
@@ -1988,7 +1989,7 @@ export function DuelBoard({
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
       }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
-      }${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}`}
+      }${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}${prefs.totalPower ? " power-total" : ""}`}
       // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
       data-phase={view.phase}
       data-turn={view.turnNumber}
@@ -2372,7 +2373,7 @@ export function DuelBoard({
 
             <div className={`midline${docked && midlineShown ? " midline-docked" : ""}`}>
               {midlineShown ? (
-                <div className="prompt" title={midlineTitle ?? undefined}>
+                <div className={`prompt${midlineBattle ? " prompt-battle" : ""}`} title={midlineTitle ?? undefined}>
                   <span className="prompt-text">{midlineShown}</span>
                 </div>
               ) : rotateHintShown ? (

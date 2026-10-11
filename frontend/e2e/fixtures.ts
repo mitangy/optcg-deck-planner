@@ -61,6 +61,10 @@ type Planner = {
   owned: Map<string, number>;
   /** Wanted alt-art copies as the fake backend holds them, keyed `CARD-ID:productId`. */
   altWants: Map<string, number>;
+  /** Cards added straight to Master Shopping (target copies to own), as the fake backend holds them. */
+  extras: Map<string, number>;
+  /** Start with no decks, so Shopping only lists cards added directly (call before `open`). */
+  noDecks(): void;
   /** Requests the page made to the fake API, e.g. "PUT /owned/EB01-002". */
   requests: string[];
   /** Page errors and console errors collected so far (network noise excluded). */
@@ -88,6 +92,8 @@ export const test = base.extend<{ planner: Planner }>({
     const createdDecks: Planner["createdDecks"] = [];
     const owned = new Map(CARDS.map((c) => [c.card_id, c.owned]));
     const altWants = new Map<string, number>();
+    const extras = new Map<string, number>();
+    let hasDecks = true;
     const cardView = (c: FixtureCard) => {
       const o = owned.get(c.card_id) ?? 0;
       return {
@@ -132,19 +138,44 @@ export const test = base.extend<{ planner: Planner }>({
       }
       return Math.round((total + left * v.market_price) * 100) / 100;
     };
-    const shopping = () => {
-      const items = CARDS.filter((c) => c.card_type !== "Leader").map((c) => {
+    const shopping = (withExtras = true) => {
+      // Mirrors the backend: Need is the max of the deck need and the direct target, never the sum.
+      const deckCards = hasDecks ? CARDS.filter((c) => c.card_type !== "Leader") : [];
+      const fromDecks = deckCards.map((c) => {
         const v = cardView(c);
+        const extra = withExtras ? (extras.get(c.card_id) ?? 0) : 0;
+        const need = Math.max(v.needed, extra);
+        const item = { ...v, need, still_need: Math.max(0, need - v.owned) };
         return {
-          ...v,
-          need: v.needed,
-          remaining_cost: remainingCost(v),
+          ...item,
+          remaining_cost: remainingCost(item),
           used_in: ["Oden Red/Green"],
           primary_leader_card_id: "EB01-001",
           primary_leader_name: "Kouzuki Oden",
           leader_count: 1,
+          extra_qty: extra,
+          deck_need: v.needed,
         };
       });
+      const onlyExtras = withExtras
+        ? CARDS.filter((c) => !deckCards.includes(c) && (extras.get(c.card_id) ?? 0) > 0).map((c) => {
+            const v = cardView(c);
+            const need = extras.get(c.card_id)!;
+            const item = { ...v, need, still_need: Math.max(0, need - v.owned) };
+            return {
+              ...item,
+              remaining_cost: remainingCost(item),
+              used_in: [] as string[],
+              primary_leader_card_id: null,
+              primary_leader_name: null,
+              leader_count: 1,
+              deck_sort_key: "9999-9999-9999",
+              extra_qty: need,
+              deck_need: 0,
+            };
+          })
+        : [];
+      const items = [...fromDecks, ...onlyExtras];
       return {
         items,
         cards_still_needed: items.reduce((s, i) => s + i.still_need, 0),
@@ -256,6 +287,7 @@ export const test = base.extend<{ planner: Planner }>({
       if (path === "/auth/me") return json({ id: 1, email: "nami@e2e.test", name: "Nami", sum_across_leaders: false });
       if (path === "/decks") {
         const d = deckDetail();
+        if (!hasDecks) return json([]);
         return json([
           {
             id: DECK_ID,
@@ -274,12 +306,20 @@ export const test = base.extend<{ planner: Planner }>({
         ]);
       }
       if (path === `/decks/${DECK_ID}`) return json(deckDetail());
-      if (path === "/shopping") return json(shopping());
+      if (path === "/shopping") return json(shopping(new URL(req.url()).searchParams.get("extras") !== "false"));
+      if ((m = path.match(/^\/shopping\/extras\/(.+)$/)) && method === "PUT") {
+        const cardId = decodeURIComponent(m[1]!);
+        const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
+        if (qty > 0) extras.set(cardId, qty);
+        else extras.delete(cardId);
+        return json({ card_id: cardId, qty });
+      }
       if (path === "/share/shopping") return json(null);
       if (path === "/owned" && method === "GET") {
         const items = CARDS.filter((c) => (owned.get(c.card_id) ?? 0) > 0).map((c) => {
           const v = cardView(c);
-          return { ...v, value: Math.round(v.owned * v.market_price * 100) / 100, used_in: ["Oden Red/Green"] };
+          const buying = shopping().items.find((i) => i.card_id === c.card_id)?.still_need ?? 0;
+          return { ...v, value: Math.round(v.owned * v.market_price * 100) / 100, used_in: ["Oden Red/Green"], buying };
         });
         return json({
           items,
@@ -371,6 +411,10 @@ export const test = base.extend<{ planner: Planner }>({
     await use({
       owned,
       altWants,
+      extras,
+      noDecks() {
+        hasDecks = false;
+      },
       requests,
       errors,
       chats,

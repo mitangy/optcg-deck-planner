@@ -345,6 +345,36 @@ export function usePersistedOpen(storageKey: string | undefined, defaultOpen: bo
   return [open, setOpen] as const;
 }
 
+/** Stored value if it is one of `allowed` (when given), otherwise the default. */
+export function parsePersistedChoice(
+  raw: string | null,
+  defaultValue: string,
+  allowed?: readonly string[],
+): string {
+  if (raw === null) return defaultValue;
+  if (allowed && !allowed.includes(raw)) return defaultValue;
+  return raw;
+}
+
+/** A string filter choice (select) remembered in localStorage across reloads. */
+export function usePersistedChoice(storageKey: string, defaultValue: string, allowed?: readonly string[]) {
+  const [value, setValue] = useState(() => {
+    try {
+      return parsePersistedChoice(localStorage.getItem(storageKey), defaultValue, allowed);
+    } catch {
+      return defaultValue;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, value);
+    } catch {
+      /* ignore */
+    }
+  }, [value, storageKey]);
+  return [value, setValue] as const;
+}
+
 export function CollapsibleDrawer({
   label,
   summary,

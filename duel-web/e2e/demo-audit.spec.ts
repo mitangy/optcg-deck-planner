@@ -783,6 +783,30 @@ test("the Mulligan button has a solid background, not see-through (#461)", async
   expect(alpha, `background was ${bg}`).toBe(1);
 });
 
+// A battle in the midline must stand out from the felt: opaque fill and a gold edge (#539).
+test("the battle strip has a solid background and a gold edge (#539)", async ({ page }) => {
+  await page.goto("/demo?counter");
+  await page.locator(".board-root").waitFor();
+  const strip = page.locator(".arena .midline .prompt");
+  await expect(strip).toBeVisible();
+  await expect(strip).toContainText("→");
+  const { bg, border, chrome } = await strip.evaluate((el) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--chrome)";
+    el.closest(".arena")!.appendChild(probe);
+    const chrome = getComputedStyle(probe).color;
+    probe.remove();
+    const cs = getComputedStyle(el);
+    return { bg: cs.backgroundColor, border: cs.borderTopColor, chrome };
+  });
+  const m = bg.match(/^rgba?\(([^)]+)\)$/);
+  expect(m, `unparseable background ${bg}`).not.toBeNull();
+  const parts = m![1].split(/[\s,/]+/).filter(Boolean);
+  const alpha = parts.length > 3 ? Number(parts[3]) : 1;
+  expect(alpha, `background was ${bg}`).toBe(1);
+  expect(border).toBe(chrome);
+});
+
 // The opponent hand pins to the playmat (beside the opponent's mat for left /
 // right, above it for centre) instead of its side panel, and drags back into a
 // column (#264, #462).
