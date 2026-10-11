@@ -2014,6 +2014,80 @@ tr.done td {
   margin-bottom: 0.25rem;
 }
 
+/* Tall enough for the rename form, so swapping the title for it moves nothing. */
+.deck-detail-title-row {
+  min-height: 2.75rem;
+}
+
+.deck-rename-trigger {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: var(--muted, inherit);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.deck-rename-trigger:hover,
+.deck-rename-trigger:focus-visible {
+  color: inherit;
+  border-color: currentColor;
+}
+
+/* The form overlays the title row (which keeps its size, its own content hidden), so renaming shifts nothing. */
+.deck-detail-title-row {
+  position: relative;
+}
+
+.deck-detail-title-row.is-renaming > :not(.deck-rename-form) {
+  visibility: hidden;
+}
+
+.deck-rename-form {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  max-width: 30rem;
+  height: 2.75rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.deck-rename-input {
+  flex: 1 1 8rem;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 0 0.6rem;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.deck-rename-form .btn.deck-rename-btn {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  min-height: 40px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.deck-rename-error {
+  margin: 0.3rem 0 0;
+}
+
 .deck-detail-head {
   display: flex;
   gap: 1rem;

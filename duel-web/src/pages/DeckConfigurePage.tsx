@@ -6,7 +6,15 @@ import { useLogPoseDeckEditor, useLogPosePage, type DeckEditor as LogPoseDeckEdi
 import { DECK_EDITOR_STARTERS, deckContext } from "../logPose";
 import { DeckEditor } from "../board/DeckEditor";
 import { DeckImportPanel } from "../board/DeckImportPanel";
-import { applyOps, isDeckDirty, MAX_MAIN_DECK_SIZE, saveDeckDraft, type DeckDraft } from "../decks/editDeck";
+import {
+  applyOps,
+  BLANK_DECK_NAME_ERROR,
+  isDeckDirty,
+  MAX_DECK_NAME_LENGTH,
+  MAX_MAIN_DECK_SIZE,
+  saveDeckDraft,
+  type DeckDraft,
+} from "../decks/editDeck";
 import { useLeaveGuard } from "../decks/useLeaveGuard";
 import { pullPlannerDeck, saveDeckToPlanner } from "../decks/planner";
 import { fetchAuthMe } from "../net/api";
@@ -45,9 +53,11 @@ export function DeckConfigurePage() {
     return deckId ? getSavedDeck(deckId) : undefined;
   }, [deckId, tick]);
   const draft: DeckDraft | null = saved ? (edits && edits.deckId === saved.id ? edits : saved) : null;
-  /** The saved deck with the draft's leader and cards: what the editor, stats and Log Pose see. */
-  const deck: SavedDeck | undefined = saved && draft ? { ...saved, leaderId: draft.leaderId, cards: draft.cards } : undefined;
+  /** The saved deck with the draft's name, leader and cards: what the editor, stats and Log Pose see. */
+  const deck: SavedDeck | undefined =
+    saved && draft ? { ...saved, name: draft.name, leaderId: draft.leaderId, cards: draft.cards } : undefined;
   const dirty = Boolean(saved && draft && isDeckDirty(saved, draft));
+  const blankName = Boolean(draft && !draft.name.trim());
   const leave = useLeaveGuard(dirty);
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -101,7 +111,7 @@ export function DeckConfigurePage() {
             apply: async (ops) => {
               const result = applyOps(deck.cards, ops);
               if (!result.ok) throw new Error(result.error);
-              if (!commit({ leaderId: deck.leaderId, cards: result.cards })) throw new Error("Could not save the deck");
+              if (!commit({ name: deck.name, leaderId: deck.leaderId, cards: result.cards })) throw new Error("Could not save the deck");
             },
             note: deck.plannerDeckId ? "Saved in the duel app; it stays your game deck until you refresh from the planner." : undefined,
           }
@@ -183,7 +193,7 @@ export function DeckConfigurePage() {
       return;
     }
     // Replaces the draft only; Save keeps it.
-    onChangeDraft({ leaderId: v.leaderId, cards: v.cards });
+    onChangeDraft({ name: draft!.name, leaderId: v.leaderId, cards: v.cards });
     setImportText("");
     setImportMsg(
       `Imported (${v.cards.length} main), not saved yet${
@@ -201,9 +211,19 @@ export function DeckConfigurePage() {
             <BackLink to="/decks" label="Decks" ariaLabel="Back to decks" />
           </div>
           <div className="deck-config-heading">
-            <h1 className="deck-config-title">{deck.name}</h1>
-            <p className="meta">
-              Leader {lookupCard(deck.leaderId).name} · {deck.cards.length}/{MAX_MAIN_DECK_SIZE} main
+            <h1 className="deck-config-title deck-name-heading">
+              <DeckNameField
+                key={saved.id}
+                value={draft.name}
+                invalid={blankName}
+                onCommit={(name) => onChangeDraft({ ...draft, name })}
+              />
+            </h1>
+            {/* The blank-name message takes the meta line's place, so nothing below shifts. */}
+            <p className={blankName ? "meta error-text" : "meta"} role={blankName ? "alert" : undefined}>
+              {blankName
+                ? BLANK_DECK_NAME_ERROR
+                : `Leader ${lookupCard(deck.leaderId).name} · ${deck.cards.length}/${MAX_MAIN_DECK_SIZE} main`}
             </p>
           </div>
           <div className="deck-planner-actions deck-header-actions">
@@ -214,7 +234,7 @@ export function DeckConfigurePage() {
               type="button"
               className="btn btn-primary deck-save-btn"
               onClick={() => commit(draft)}
-              disabled={!dirty}
+              disabled={!dirty || blankName}
             >
               {dirty ? "Save" : "Saved"}
             </button>
@@ -288,7 +308,7 @@ export function DeckConfigurePage() {
               if (e.key === "Escape") leave.clear();
             }}
           >
-            <h2 id="leave-dialog-title">Save changes to {deck.name}?</h2>
+            <h2 id="leave-dialog-title">Save changes to {saved.name}?</h2>
             <p className="meta">You have edits that are not saved yet.</p>
             <div className="leave-dialog-actions">
               <button type="button" className="btn btn-primary" autoFocus onClick={() => leaveTo(leave.pending!, true)}>
@@ -305,5 +325,46 @@ export function DeckConfigurePage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The deck name as an h1-looking text field (#526). Typing edits the page's draft straight away, so Save lights up
+ * while the field still has focus; Enter leaves the field, Escape puts back the name it had on focus.
+ */
+function DeckNameField({
+  value,
+  invalid,
+  onCommit,
+}: {
+  value: string;
+  invalid: boolean;
+  onCommit: (name: string) => void;
+}) {
+  const onFocusValue = useRef(value);
+  return (
+    <input
+      className="deck-name-input"
+      type="text"
+      aria-label="Deck name"
+      aria-invalid={invalid || undefined}
+      maxLength={MAX_DECK_NAME_LENGTH}
+      value={value}
+      placeholder="Deck name"
+      spellCheck={false}
+      autoComplete="off"
+      onFocus={() => {
+        onFocusValue.current = value;
+      }}
+      onChange={(e) => onCommit(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.currentTarget.blur();
+        } else if (e.key === "Escape") {
+          onCommit(onFocusValue.current);
+          e.currentTarget.blur();
+        }
+      }}
+    />
   );
 }
