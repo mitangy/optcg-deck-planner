@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { assertProductionAuthConfig, requireGameToken } from "../src/env.js";
-import { gameSeed } from "../src/matchmakeGuard.js";
+import { gameFirstSeat, gameSeed } from "../src/matchmakeGuard.js";
 import { parseCreateOptions } from "../src/protocol.js";
 
 /** Runs `fn` with REQUIRE_GAME_TOKEN=true, as on the deployed server. */
@@ -30,6 +30,28 @@ describe("shuffle seeds", () => {
     } finally {
       Date.now = realNow;
     }
+  });
+});
+
+describe("first seat", () => {
+  it("flips a coin on deployed servers whatever the client asks for (#549)", async () => {
+    await withTokensRequired(() => {
+      const unpinned = new Set(Array.from({ length: 64 }, () => gameFirstSeat()));
+      assert.deepEqual([...unpinned].sort(), [0, 1]);
+      const pinned = new Set(Array.from({ length: 64 }, () => gameFirstSeat(0)));
+      assert.ok(pinned.has(1), "a client asking for seat 0 must not pin it");
+    });
+  });
+
+  it("lets local dev pin the first seat and defaults to seat 0 (#549)", () => {
+    assert.equal(gameFirstSeat(1), 1);
+    assert.equal(gameFirstSeat(), 0);
+    assert.equal(parseCreateOptions({ firstSeat: 1 }).firstSeat, 1);
+  });
+
+  it("rejects a firstSeat other than 0 or 1 (#549)", () => {
+    assert.throws(() => parseCreateOptions({ firstSeat: 2 }), /firstSeat/);
+    assert.throws(() => parseCreateOptions({ firstSeat: "1" }), /firstSeat/);
   });
 });
 

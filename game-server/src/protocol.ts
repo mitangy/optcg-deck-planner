@@ -3,7 +3,7 @@
  * Intents / views come from @optcg/rules; this module only validates envelopes.
  */
 import type { GameEvent, Intent, Seat } from "@optcg/rules";
-import { gameSeed } from "./matchmakeGuard.js";
+import { gameFirstSeat, gameSeed } from "./matchmakeGuard.js";
 
 export const PROTOCOL_VERSION = 5 as const;
 
@@ -50,6 +50,8 @@ export type DuelCreateOptions = {
   seed?: number;
   /** Default true for Step 2 scripts. */
   autoSkipMulligan?: boolean;
+  /** Who goes first in the first game. Honored only on local/dev servers; deployed servers flip a coin (#549). */
+  firstSeat?: 0 | 1;
   players?: [PlayerDeckWire, PlayerDeckWire];
   /**
    * Optional clocks. Ranked queue always forces a 15 minute chess clock per player (seatSeconds), no match clock and no turn clock.
@@ -105,6 +107,11 @@ export type WelcomeMessage = {
   players?: [SeatPlayerInfo, SeatPlayerInfo];
   /** Whether the room is ranked. Absent from older servers. */
   ranked?: boolean;
+  /**
+   * How this game's turn order was decided: null = coin flip (the first game), otherwise the seat that
+   * chose (a rematch's loser). Absent from older servers.
+   */
+  firstSeatPickedBy?: Seat | null;
   /** Players of unranked rooms only: the key to a Log Pose matchup brief. */
   brief?: BriefTicketWire;
 };
@@ -280,6 +287,8 @@ export function parseJoinOptions(raw: unknown): DuelJoinOptions {
 export function parseCreateOptions(raw: unknown): {
   protocolVersion: ProtocolVersion;
   seed: number;
+  /** Seat that goes first in the room's first game. */
+  firstSeat: Seat;
   autoSkipMulligan: boolean;
   ranked: boolean;
   seatUserIds?: [number, number];
@@ -295,6 +304,10 @@ export function parseCreateOptions(raw: unknown): {
   const seed = gameSeed(
     typeof o.seed === "number" && Number.isFinite(o.seed) ? Math.floor(o.seed) : undefined,
   );
+  if (o.firstSeat !== undefined && o.firstSeat !== 0 && o.firstSeat !== 1) {
+    throw Object.assign(new Error("firstSeat must be 0 or 1"), { code: "bad_protocol" as const });
+  }
+  const firstSeat = gameFirstSeat(o.firstSeat as Seat | undefined);
   const autoSkipMulligan = o.autoSkipMulligan !== false;
   // A browser can create a public `duel` room directly. DuelRoom decides
   // whether this request is actually ranked after verifying its attestation.
@@ -356,6 +369,7 @@ export function parseCreateOptions(raw: unknown): {
   return {
     protocolVersion: PROTOCOL_VERSION,
     seed,
+    firstSeat,
     autoSkipMulligan,
     ranked,
     seatUserIds,

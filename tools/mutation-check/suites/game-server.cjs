@@ -192,6 +192,17 @@ module.exports = {
     // Rematch deck pick (#479)
     { id: "rematch-pick-not-applied", file: room, from: "          if (picked) this.seatDecks[s] = picked;", to: "          void picked;", kills: ["rematch: a player who picks a different deck plays it in the next game (#479)"] },
     { id: "rematch-decline-keeps-pick", file: room, from: "        this.rematchRequested = [false, false];\n        this.rematchDecks = [null, null];\n        this.rematchDeclinedBy = seat;", to: "        this.rematchRequested = [false, false];\n        this.rematchDeclinedBy = seat;", kills: ["rematch: declining drops a picked deck (#479)"] },
+    { id: "first-seat-always-zero", file: guard, from: "  return randomInt(0, 2) as Seat;", to: "  return 0;", kills: ["flips a coin on deployed servers whatever the client asks for (#549)"] },
+    { id: "first-seat-client-pinned-in-prod", file: guard, from: "  if (!requireGameToken()) return clientFirstSeat ?? 0;\n  return randomInt(0, 2) as Seat;", to: "  if (clientFirstSeat !== undefined) return clientFirstSeat;\n  return randomInt(0, 2) as Seat;", kills: ["flips a coin on deployed servers whatever the client asks for (#549)"] },
+    { id: "first-seat-dev-ignores-pin", file: guard, from: "return clientFirstSeat ?? 0;", to: "return 0;", kills: ["lets local dev pin the first seat and defaults to seat 0 (#549)"] },
+    { id: "create-first-seat-dropped", file: proto, from: "const firstSeat = gameFirstSeat(o.firstSeat as Seat | undefined);", to: "const firstSeat = gameFirstSeat(undefined);", kills: ["lets local dev pin the first seat and defaults to seat 0 (#549)"] },
+    { id: "create-first-seat-unchecked", file: proto, from: "  if (o.firstSeat !== undefined && o.firstSeat !== 0 && o.firstSeat !== 1) {", to: "  if (false) {", kills: ["rejects a firstSeat other than 0 or 1 (#549)"] },
+    { id: "room-first-game-seat-zero", file: room, from: "this.startMatch(this.firstGameSeat, null);", to: "this.startMatch(0, null);", kills: ["the first game starts with the seat the room was created for and calls it a coin flip (#549)"] },
+    { id: "welcome-first-seat-picker-missing", edits: [
+      { file: room, from: "        ranked: this.ranked,\n        firstSeatPickedBy: this.firstSeatPickedBy,\n        brief: this.briefFor(slot.seat),", to: "        ranked: this.ranked,\n        brief: this.briefFor(slot.seat)," },
+      { file: room, from: "      ranked: this.ranked,\n      firstSeatPickedBy: this.firstSeatPickedBy,\n      brief: this.briefFor(seat),", to: "      ranked: this.ranked,\n      brief: this.briefFor(seat)," },
+    ], kills: ["rematch: both agree, the loser picks turn order, a fresh game starts", "the first game starts with the seat the room was created for and calls it a coin flip (#549)"] },
+    { id: "rematch-picker-credited-to-winner", file: room, from: "this.startMatch(firstSeat, seat);", to: "this.startMatch(firstSeat, (1 - seat) as Seat);", kills: ["rematch: both agree, the loser picks turn order, a fresh game starts"] },
     { id: "rematch-deck-unchecked", file: room, from: "      if (deck) assertKnownDeck(deck);\n", to: "", kills: ["rematch: a deck with unknown cards is refused (#479)"] },
   ],
 };

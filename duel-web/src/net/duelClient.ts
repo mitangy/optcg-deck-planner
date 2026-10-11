@@ -49,6 +49,7 @@ export type DuelClientHandlers = {
     role: "player" | "spectator";
     players?: SeatPlayers;
     ranked?: boolean;
+    firstSeatPickedBy?: Seat | null;
     brief?: BriefTicketWire;
   }) => void;
   onView?: (view: PlayerView) => void;
@@ -558,6 +559,7 @@ export class DuelClient {
           role: msg.role ?? (msg.view.spectator ? "spectator" : "player"),
           players: msg.players,
           ranked: msg.ranked,
+          firstSeatPickedBy: msg.firstSeatPickedBy,
           brief: msg.brief,
         });
         this.endTurnSentOn = null;

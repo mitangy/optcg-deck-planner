@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CardView, ChatLine, PlayerView, RematchState, UndoState } from "../net/protocol";
+import type { CardView, ChatLine, PlayerView, RematchState, Seat, UndoState } from "../net/protocol";
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
 import type { RematchDeckOption } from "../decks/rematchDecks";
@@ -875,9 +875,15 @@ function withOneActiveDon(base: PlayerView): PlayerView {
   };
 }
 
+/** `?turn0&pickedby=coin|0|1`: how the turn order was decided, for the mulligan banner's opening line (#549). */
+function demoPickedBy(v: string | null): Seat | null | undefined {
+  if (v === "coin") return null;
+  return v === "0" ? 0 : v === "1" ? 1 : undefined;
+}
+
 /**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
- * state (`&first=1` makes the opponent go first), `?practice` hotseat chrome
+ * state (`&first=1` makes the opponent go first, `&pickedby=coin|0|1` says how that was decided), `?practice` hotseat chrome
  * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
  * undo (`?undo=ask` shows an incoming request), `?waiting` the invite screen,
  * `?oppturn` the opponent's turn, `?unaffordable` your main phase with 1 active DON!! (costlier hand cards gray out), `?clock` per-player clocks, `?away` a
@@ -1057,6 +1063,7 @@ export function DemoPage() {
         view={params.has("waiting") ? null : (motionSteps?.[motionStep]?.view ?? shown)}
         seat={0}
         matchId="demo-playmat"
+        firstSeatPickedBy={demoPickedBy(params.get("pickedby"))}
         errorBanner={null}
         matchOver={params.has("over") ? { winner: 1, reason: "leader_battle_at_zero_life" } : null}
         loadMatchRecord={params.has("over") && !params.has("guest") ? loadDemoRecord : undefined}

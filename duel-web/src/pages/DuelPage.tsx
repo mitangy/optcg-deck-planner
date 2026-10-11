@@ -40,6 +40,7 @@ export function DuelPage() {
     clearError,
     role,
     ranked,
+    firstSeatPickedBy,
     brief,
     battleLog,
     timer,
@@ -131,6 +132,7 @@ export function DuelPage() {
         spectator={role === "spectator" || Boolean(view?.spectator)}
         matchBrief={role === "player" ? { brief, ranked } : undefined}
         battleLog={battleLog}
+        firstSeatPickedBy={firstSeatPickedBy}
         vsHuman
         chat={{ lines: chat, onSend: sendChat }}
         onConcede={connected && role === "player" ? () => concede() : undefined}

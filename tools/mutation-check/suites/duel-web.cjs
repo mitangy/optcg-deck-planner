@@ -1449,5 +1449,10 @@ module.exports = {
     { id: "gp-groups-ignore-device", file: `${src}/board/gameplayFields.ts`, from: "groups.map((g) => ({ ...g, rows: g.rows.filter((r) => rowShown(r, d)) }))", to: "groups.map((g) => ({ ...g }))", kills: ["lists a row only in the groups where the device shows it, so phone and desktop differ (#496)", "a group with no rows on a device is hidden (#496)"] },
     { id: "gp-groups-keep-empty", file: `${src}/board/gameplayFields.ts`, from: "    (g) => g.rows.length > 0,\n", to: "    () => true,\n", kills: ["a group with no rows on a device is hidden (#496)"] },
     { id: "gp-groups-side-panels-on-phone", file: `${src}/board/gameplayFields.ts`, from: '    case "sidePanels":\n      return d.desktop;', to: '    case "sidePanels":\n      return true;', kills: ["lists a row only in the groups where the device shows it, so phone and desktop differ (#496)"] },
+    // Who went first, and why (#549)
+    { id: "first-seat-line-coin-as-plain", file: `${src}/board/firstSeatLine.ts`, from: '  if (o.pickedBy === null) return `Coin flip: you go ${order}.`;', to: '  if (o.pickedBy === null) return `You go ${order}.`;', kills: ["calls the first game's order a coin flip for both seats (#549)"] },
+    { id: "first-seat-line-chooser-is-opponent", file: `${src}/board/firstSeatLine.ts`, from: "if (o.pickedBy === o.boardSeat)", to: "if (o.pickedBy !== o.boardSeat)", kills: ["credits the rematch loser who chose, from either side of the table (#549)"] },
+    { id: "first-seat-line-ignores-name", file: `${src}/board/firstSeatLine.ts`, from: '${o.opponentName ?? "Opponent"} chose', to: "Opponent chose", kills: ["credits the rematch loser who chose, from either side of the table (#549)"] },
+    { id: "first-seat-line-unknown-as-coin", file: `${src}/board/firstSeatLine.ts`, from: '  if (o.pickedBy === undefined) return `You go ${order}.`;\n  if (o.pickedBy === null)', to: "  if (o.pickedBy == null)", kills: ["keeps the plain line when an older server does not say how (#549)"] },
   ],
 };

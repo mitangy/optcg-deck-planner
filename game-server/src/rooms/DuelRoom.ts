@@ -141,6 +141,10 @@ export class DuelRoom extends Room implements PresenceSource {
   private rng: Rng | null = null;
   private matchId = "";
   private seed = 0;
+  /** Seat that goes first in the room's first game (a coin flip on deployed servers, #549). */
+  private firstGameSeat: Seat = 0;
+  /** How the current game's order was decided: null = coin flip (game 1), else the rematch chooser. */
+  private firstSeatPickedBy: Seat | null = null;
   /** This game's inputs, sent with the result for the backend to keep. Never sent to players. */
   private replay: MatchReplay | null = null;
   private autoSkipMulligan = true;
@@ -236,6 +240,7 @@ export class DuelRoom extends Room implements PresenceSource {
     // stranger's id-less matchmake join can never land in, or fill, someone's room.
     void this.setPrivate(true);
     this.seed = parsed.seed;
+    this.firstGameSeat = parsed.firstSeat;
     this.autoSkipMulligan = parsed.autoSkipMulligan;
     this.createPlayers = parsed.players;
     if (parsed.players) {
@@ -524,7 +529,7 @@ export class DuelRoom extends Room implements PresenceSource {
     });
 
     if (this.seats[0] && this.seats[1] && !this.matchStarted) {
-      this.startMatch();
+      this.startMatch(this.firstGameSeat, null);
     } else if (this.matchStarted && this.match) {
       this.sendSync(client);
     }
@@ -833,7 +838,8 @@ export class DuelRoom extends Room implements PresenceSource {
     return null;
   }
 
-  private startMatch(firstSeat: Seat = 0) {
+  private startMatch(firstSeat: Seat, pickedBy: Seat | null) {
+    this.firstSeatPickedBy = pickedBy;
     this.resetPerGameState();
     this.rng = createSeededRng(this.seed);
     const deckA = this.seatDecks[0]?.deck ?? this.createPlayers?.[0]?.deck ?? buildTestDeck(20);
@@ -917,6 +923,7 @@ export class DuelRoom extends Room implements PresenceSource {
         view,
         players: this.playersInfo(),
         ranked: this.ranked,
+        firstSeatPickedBy: this.firstSeatPickedBy,
         brief: this.briefFor(slot.seat),
       };
       client.send("welcome", welcome);
@@ -1324,7 +1331,7 @@ export class DuelRoom extends Room implements PresenceSource {
           const picked = this.rematchDecks[s];
           if (picked) this.seatDecks[s] = picked;
         }
-        this.startMatch(firstSeat);
+        this.startMatch(firstSeat, seat);
         return;
       }
     }
@@ -2043,6 +2050,7 @@ export class DuelRoom extends Room implements PresenceSource {
       view,
       players: this.playersInfo(),
       ranked: this.ranked,
+      firstSeatPickedBy: this.firstSeatPickedBy,
       brief: this.briefFor(seat),
     };
     client.send("welcome", welcome);
@@ -2107,6 +2115,7 @@ export class DuelRoom extends Room implements PresenceSource {
       view,
       players: this.playersInfo(),
       ranked: this.ranked,
+      firstSeatPickedBy: this.firstSeatPickedBy,
     };
     client.send("welcome", welcome);
     client.send("view", {
