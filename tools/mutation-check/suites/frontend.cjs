@@ -8,6 +8,14 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // shopping extras (#525)
+    { id: "extra-plus-ignores-owned", file: "frontend/src/shoppingExtras.ts", from: "const listTarget = owned + stillNeed;", to: "const listTarget = stillNeed;", kills: ["+ on a card that is covered targets one copy beyond what is owned"] },
+    { id: "extra-plus-two-copies", file: "frontend/src/shoppingExtras.ts", from: "if (delta > 0) return listTarget + 1;", to: "if (delta > 0) return listTarget + 2;", kills: ["+ buys one more than the list already wants", "+ on a deck-driven card goes above the deck need"] },
+    { id: "extra-minus-keeps-covered-extra", file: "frontend/src/shoppingExtras.ts", from: "if (next <= Math.max(owned, deckNeed)) return 0;", to: "if (next < Math.max(owned, deckNeed)) return 0;", kills: ["\u2212 removes the extra once owned copies or decks already cover the lower target"] },
+    { id: "extra-minus-ignores-deck-need", file: "frontend/src/shoppingExtras.ts", from: "if (next <= Math.max(owned, deckNeed)) return 0;", to: "if (next <= owned) return 0;", kills: ["\u2212 removes the extra once owned copies or decks already cover the lower target"] },
+    { id: "extra-minus-goes-negative", file: "frontend/src/shoppingExtras.ts", from: "if (next <= Math.max(owned, deckNeed)) return 0;", to: "if (next <= Math.max(owned, deckNeed)) return next;", kills: ["\u2212 never goes below zero", "\u2212 removes the extra once owned copies or decks already cover the lower target"] },
+    { id: "collection-buying-stale-after-step", file: "frontend/src/ownedCollection.ts", from: "Math.max(0, item.owned + item.buying - qty)", to: "item.buying", kills: ["stepping Owned shrinks Buying for a card on the list"] },
+    { id: "collection-buying-negative", file: "frontend/src/ownedCollection.ts", from: "Math.max(0, item.owned + item.buying - qty)", to: "item.owned + item.buying - qty", kills: ["stepping Owned shrinks Buying for a card on the list"] },
     // analytics URL redaction
     { id: "analytics-keeps-share-token", file: "frontend/src/analytics.ts", from: "      path = `${prefix}[token]`;", to: "      path = path;", kills: ["replaces public share and group-buy tokens"] },
     { id: "analytics-keeps-group-buy-token", file: "frontend/src/analytics.ts", from: "const TOKEN_ROUTES = [\"/share/\", \"/group-buy/join/\", \"/group-buy/view/\"];", to: "const TOKEN_ROUTES = [\"/share/\"];", kills: ["replaces public share and group-buy tokens"] },
@@ -88,7 +96,7 @@ module.exports = {
     { id: "mass-alt-uncapped", file: mass, from: "    const take = Math.min(Math.max(0, want), remaining);", to: "    const take = Math.max(0, want);", kills: ["caps alt allocation by still_need"] },
     // Collection page (owned cards + value), #268
     { id: "collection-unpriced-not-counted", file: "frontend/src/ownedCollection.ts", from: "    if (item.value == null) unpriced += 1;", to: "    if (item.value == null) unpriced += 0;", kills: ["totals leave unpriced cards out of the value"] },
-    { id: "collection-patch-value-stale", file: "frontend/src/ownedCollection.ts", from: "    return { ...item, owned: qty, value };", to: "    return { ...item, owned: qty };", kills: ["stepping Owned reprices the card"] },
+    { id: "collection-patch-value-stale", file: "frontend/src/ownedCollection.ts", from: "    return { ...item, owned: qty, value, buying };", to: "    return { ...item, owned: qty, buying };", kills: ["stepping Owned reprices the card"] },
     { id: "collection-zero-kept-in-totals", file: "frontend/src/ownedCollection.ts", from: "  const totals = collectionTotals(items.filter((i) => i.owned > 0));", to: "  const totals = collectionTotals(items);", kills: ["a card stepped to 0 stays listed but leaves the totals"] },
     { id: "value-sort-uses-price", file: "frontend/src/cardListControls.tsx", from: "  if (key === \"value\") return compareDesc(a.value, b.value);", to: "  if (key === \"value\") return compareDesc(a.market_price, b.market_price);", kills: ["Value sort puts the most valuable holding first"] },
     // Log Pose chat (#377)

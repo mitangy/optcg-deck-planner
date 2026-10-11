@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-11
+  { date: "2026-10-11", app: "planner", pr: 0, title: "Add cards to buy without a deck", text: "Master Shopping now has an Add cards search: find any card and add it to your list, no deck needed, then step how many copies you want to buy. The Collection shows what you're still buying next to each card." },
   // 2026-10-10
   { date: "2026-10-10", app: "duel", pr: 524, title: "Thirteen cards now work as printed", text: "\"Removed from the field by an effect\" now includes a K.O. and being sent to the deck, trash or Life, so Usopp (OP10-042), Boa Hancock (OP07-038), Shakuyaku (OP08-046), Moby Dick, Thousand Sunny and Oro Jackson trigger on those too; Usopp also draws when your {Dressrosa} Character is K.O.'d in battle, and Hancock and Shakuyaku only count your own effects. \"This effect can be activated\" cards (Hancock, Usopp, Shu, Shanks and others) now ask you first, and a declined Once Per Turn stays available. Thatch (OP08-045) trashes itself and draws 1 instead of any K.O. or removal by your opponent's effect, Sanji (OP02-026) only counts Characters played from your hand, Crocodile (EB02-023) only counts your own effects, \"Sorry. I'm a Goner.\" leaves a revealed card of cost 3 or less on top of your deck, and Kurozumi Orochi, Trafalgar Law and Emporio.Ivankov show your opponent the card they reveal." },
   { date: "2026-10-10", app: "duel", pr: 520, title: "Header stays on top", text: "The menu, back link and title now stay at the top of the screen while you scroll any page, so the menu is always one tap away." },
