@@ -262,7 +262,7 @@
   background: var(--lp-accent-d);
 }
 
-/* Resize handles (drawer only): top edge, left edge and the corner between them. */
+/* Resize handles (floating window only): all four edges and all four corners. */
 .lp-resize {
   display: none;
 }
@@ -420,27 +420,70 @@
     background: transparent;
   }
 
+  /* Edges and corners sit inside the window's border. Where the header and the composer have buttons they are
+     kept clear of them: the header's buttons start 8px down and end 10px in from the right, the composer's send
+     button ends 12px above the bottom and 12px in from the right, so the strips and corners stay in that padding. */
   .lp-resize-top {
     top: 0;
-    left: 14px;
-    right: 56px;
+    left: 16px;
+    right: 16px;
+    height: 8px;
+    cursor: ns-resize;
+  }
+
+  .lp-resize-bottom {
+    bottom: 0;
+    left: 12px;
+    right: 12px;
     height: 8px;
     cursor: ns-resize;
   }
 
   .lp-resize-left {
-    top: 14px;
-    bottom: 0;
+    top: 16px;
+    bottom: 12px;
     left: 0;
     width: 8px;
     cursor: ew-resize;
   }
 
-  .lp-resize-corner {
+  .lp-resize-right {
+    top: 8px;
+    bottom: 12px;
+    right: 0;
+    width: 6px;
+    cursor: ew-resize;
+  }
+
+  .lp-resize-top-left {
     top: 0;
     left: 0;
     width: 16px;
     height: 16px;
+    cursor: nwse-resize;
+  }
+
+  .lp-resize-top-right {
+    top: 0;
+    right: 0;
+    width: 16px;
+    height: 8px;
+    cursor: nesw-resize;
+  }
+
+  .lp-resize-bottom-left {
+    bottom: 0;
+    left: 0;
+    width: 12px;
+    height: 12px;
+    cursor: nesw-resize;
+  }
+
+  .lp-resize-bottom-right {
+    bottom: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
     cursor: nwse-resize;
   }
 
@@ -458,19 +501,59 @@
     height: 2px;
   }
 
+  .lp-resize-bottom::after {
+    inset: auto 0 0 0;
+    height: 2px;
+  }
+
   .lp-resize-left::after {
     inset: 0 auto 0 0;
     width: 2px;
   }
 
-  .lp-resize-corner::after {
-    inset: 0 auto auto 0;
+  .lp-resize-right::after {
+    inset: 0 0 0 auto;
+    width: 2px;
+  }
+
+  .lp-resize-top-left::after,
+  .lp-resize-top-right::after,
+  .lp-resize-bottom-left::after,
+  .lp-resize-bottom-right::after {
     width: 10px;
     height: 10px;
-    border-top-left-radius: var(--lp-radius-d);
     background: transparent;
-    border-top: 3px solid var(--lp-accent-d);
-    border-left: 3px solid var(--lp-accent-d);
+    border: 0 solid var(--lp-accent-d);
+  }
+
+  .lp-resize-top-left::after {
+    inset: 0 auto auto 0;
+    border-top-left-radius: var(--lp-radius-d);
+    border-width: 3px 0 0 3px;
+  }
+
+  .lp-resize-top-right::after {
+    inset: 0 0 auto auto;
+    width: 8px;
+    height: 8px;
+    border-top-right-radius: var(--lp-radius-d);
+    border-width: 3px 3px 0 0;
+  }
+
+  .lp-resize-bottom-left::after {
+    inset: auto auto 0 0;
+    width: 8px;
+    height: 8px;
+    border-bottom-left-radius: var(--lp-radius-d);
+    border-width: 0 0 3px 3px;
+  }
+
+  .lp-resize-bottom-right::after {
+    inset: auto 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-bottom-right-radius: var(--lp-radius-d);
+    border-width: 0 3px 3px 0;
   }
 
   .lp-resize:hover::after,
@@ -483,9 +566,7 @@
     outline: none;
   }
 
-  .lp-panel[data-dock] .lp-resize-top,
-  .lp-panel[data-dock] .lp-resize-left,
-  .lp-panel[data-dock] .lp-resize-corner {
+  .lp-panel[data-dock] .lp-resize:not(.lp-resize-dock) {
     display: none;
   }
 
