@@ -18,6 +18,9 @@ module.exports = {
   cwd: "frontend",
   runner: "playwright",
   mutations: [
+    // Remembered filters (#527)
+    { id: "e2e-shopping-only-need-not-remembered", args: "shopping-extras --project=desktop-1200 -g \"#527\"", file: app, from: "const [onlyNeed, setOnlyNeed] = usePersistedOpen(SHOPPING_ONLY_NEED_KEY, true);", to: "const [onlyNeed, setOnlyNeed] = useState(true);", kills: ["shopping-extras.spec.ts > Shopping remembers Still need only and the Add cards color after a reload (#527) [desktop-1200]"] },
+    { id: "e2e-add-drawer-color-not-remembered", args: "shopping-extras --project=desktop-1200 -g \"#527\"", file: app, from: "const [color, setColor] = usePersistedChoice(`${storageKey}_color`, \"\", [\"\", ...COLOR_ORDER]);", to: "const [color, setColor] = useState(\"\");", kills: ["shopping-extras.spec.ts > Shopping remembers Still need only and the Add cards color after a reload (#527) [desktop-1200]"] },
     // Master Shopping Add cards drawer (#525)
     { id: "e2e-shopping-needs-a-deck", args: "shopping-extras --project=desktop-1200 -g \"no decks\"", file: app, from: "    // Runs with zero decks too: cards added directly make a list on their own.\n    enabled: filterReady,", to: "    enabled: filterReady && allDeckIds.length > 0,", kills: ["shopping-extras.spec.ts > with no decks, cards added from the drawer make the shopping list (#525) [desktop-1200]"] },
     { id: "e2e-shopping-remove-extra-sets-one", args: "shopping-extras --project=desktop-1200 -g \"no decks\"", file: app, from: "mutationFn: (cardId: string) => api.setShoppingExtra(cardId, 0),", to: "mutationFn: (cardId: string) => api.setShoppingExtra(cardId, 1),", kills: ["shopping-extras.spec.ts > with no decks, cards added from the drawer make the shopping list (#525) [desktop-1200]"] },

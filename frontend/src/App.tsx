@@ -48,6 +48,7 @@ import {
   SORT_LABELS,
   SortMenu,
   useCardSorts,
+  usePersistedChoice,
   usePersistedOpen,
   useShowAltArts,
   type SortKey,
@@ -92,6 +93,11 @@ const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
 const SHOW_SHOPPING_DONS_KEY = "optcg_show_shopping_dons";
 const SHOPPING_ADD_OPEN_KEY = "optcg_shopping_add_open";
 const SHOPPING_EXTRAS_KEY = "optcg_shopping_include_extras";
+const SHOPPING_ONLY_NEED_KEY = "optcg_shopping_only_need";
+const DECK_ONLY_NEED_KEY = "optcg_deck_only_need";
+const SHARE_ONLY_NEED_KEY = "optcg_share_only_need";
+const DECK_EDITOR_COLOR_KEY = "optcg_deck_editor_color";
+const DECK_EDITOR_TYPE_KEY = "optcg_deck_editor_card_type";
 const DECK_SEARCH_OPEN_KEY = "optcg_deck_search_open";
 const DECK_DON_AVAILABLE_OPEN_KEY = "optcg_deck_don_available_open";
 
@@ -1176,7 +1182,7 @@ function ShoppingPage() {
       invalidateAltWantViews(qc);
     },
   });
-  const [onlyNeed, setOnlyNeed] = useState(true);
+  const [onlyNeed, setOnlyNeed] = usePersistedOpen(SHOPPING_ONLY_NEED_KEY, true);
   const [showDons, setShowDons] = useState(loadShowShoppingDons);
   const shoppingUnavailableSorts = useMemo(() => ["user"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, shoppingUnavailableSorts);
@@ -2081,8 +2087,8 @@ function CatalogAddDrawer({
 }) {
   const [query, setQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
-  const [color, setColor] = useState("");
-  const [cardType, setCardType] = useState("");
+  const [color, setColor] = usePersistedChoice(`${storageKey}_color`, "", ["", ...COLOR_ORDER]);
+  const [cardType, setCardType] = usePersistedChoice(`${storageKey}_card_type`, "", CATALOG_TYPE_FILTERS);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(query.trim()), 250);
@@ -3196,8 +3202,8 @@ function DeckEditorPanel({
 
   const [query, setQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
-  const [color, setColor] = useState("");
-  const [cardType, setCardType] = useState("");
+  const [color, setColor] = usePersistedChoice(DECK_EDITOR_COLOR_KEY, "", ["", ...COLOR_ORDER]);
+  const [cardType, setCardType] = usePersistedChoice(DECK_EDITOR_TYPE_KEY, "", CATALOG_TYPE_FILTERS);
   const [err, setErr] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -3569,7 +3575,7 @@ function DeckDetailPage() {
   const lastError = useRef<Error | null>(null);
   if (error) lastError.current = error as Error;
   else if (data) lastError.current = null;
-  const [onlyNeed, setOnlyNeed] = useState(true);
+  const [onlyNeed, setOnlyNeed] = usePersistedOpen(DECK_ONLY_NEED_KEY, true);
   const deckUnavailableSorts = useMemo(() => ["deck", "user"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, deckUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
@@ -4259,7 +4265,7 @@ function MetaRoute() {
 
 function PublicSharePage() {
   const { token = "" } = useParams();
-  const [onlyNeed, setOnlyNeed] = useState(true);
+  const [onlyNeed, setOnlyNeed] = usePersistedOpen(SHARE_ONLY_NEED_KEY, true);
   const [search, setSearch] = useState("");
   const [layout, setLayout] = useCardLayout();
   const { data, isLoading, error } = useQuery({

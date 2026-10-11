@@ -16,6 +16,9 @@ module.exports = {
     { id: "extra-minus-goes-negative", file: "frontend/src/shoppingExtras.ts", from: "if (next <= Math.max(owned, deckNeed)) return 0;", to: "if (next <= Math.max(owned, deckNeed)) return next;", kills: ["\u2212 never goes below zero", "\u2212 removes the extra once owned copies or decks already cover the lower target"] },
     { id: "collection-buying-stale-after-step", file: "frontend/src/ownedCollection.ts", from: "Math.max(0, item.owned + item.buying - qty)", to: "item.buying", kills: ["stepping Owned shrinks Buying for a card on the list"] },
     { id: "collection-buying-negative", file: "frontend/src/ownedCollection.ts", from: "Math.max(0, item.owned + item.buying - qty)", to: "item.owned + item.buying - qty", kills: ["stepping Owned shrinks Buying for a card on the list"] },
+    // remembered filter choices (#527)
+    { id: "persisted-choice-accepts-stale", file: "frontend/src/cardListControls.tsx", from: "  if (allowed && !allowed.includes(raw)) return defaultValue;\n", to: "", kills: ["falls back to the default for a stale value or nothing stored (#527)"] },
+    { id: "persisted-choice-drops-all-choice", file: "frontend/src/cardListControls.tsx", from: "  if (raw === null) return defaultValue;\n  if (allowed", to: "  if (raw === null || raw === \"\") return defaultValue;\n  if (allowed", kills: ["keeps a stored value that is still an option, including the empty All choice (#527)"] },
     // analytics URL redaction
     { id: "analytics-keeps-share-token", file: "frontend/src/analytics.ts", from: "      path = `${prefix}[token]`;", to: "      path = path;", kills: ["replaces public share and group-buy tokens"] },
     { id: "analytics-keeps-group-buy-token", file: "frontend/src/analytics.ts", from: "const TOKEN_ROUTES = [\"/share/\", \"/group-buy/join/\", \"/group-buy/view/\"];", to: "const TOKEN_ROUTES = [\"/share/\"];", kills: ["replaces public share and group-buy tokens"] },

@@ -72,3 +72,19 @@ test("turning off Added directly leaves directly added copies out of the list (#
   await expect(page.getByText(note)).toHaveCount(0);
   await expect(page.getByText("Oden Red/Green").filter({ visible: true }).first()).toBeVisible();
 });
+
+test("Shopping remembers Still need only and the Add cards color after a reload (#527)", async ({ page, planner }) => {
+  await planner.open("/");
+  await page.getByRole("button", { name: /Filters/ }).click();
+  await expect(page.getByLabel("Still need only")).toBeChecked();
+  await page.getByLabel("Still need only").uncheck();
+
+  await addPanel(page).getByRole("button", { name: /Add cards/ }).click();
+  const color = addPanel(page).getByLabel("Filter catalog by color");
+  await color.selectOption("Blue");
+
+  await page.reload();
+  // The Filters drawer remembers that it was open, so it is already showing the checkbox.
+  await expect(page.getByLabel("Still need only")).not.toBeChecked();
+  await expect(addPanel(page).getByLabel("Filter catalog by color")).toHaveValue("Blue");
+});
