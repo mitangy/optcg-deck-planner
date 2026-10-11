@@ -36,6 +36,18 @@ class DeckCreate(BaseModel):
     decklist: str = Field(min_length=1, max_length=100_000)
 
 
+class DeckRename(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Deck name cannot be blank")
+        return value
+
+
 class DeckCardUpsert(BaseModel):
     """Set absolute copy count for a card in a deck. needed=0 removes the line."""
 

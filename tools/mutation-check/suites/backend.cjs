@@ -32,6 +32,11 @@ module.exports = {
   cwd: "backend",
   runner: "pytest",
   mutations: [
+    // Deck rename (#526)
+    { id: "rename-deck-any-users-deck", file: services, from: "Raises LookupError for a deck that is not theirs.\"\"\"\n    deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))", to: "Raises LookupError for a deck that is not theirs.\"\"\"\n    deck = db.scalar(select(Deck).where(Deck.id == deck_id))", kills: ["test_rename_deck_changes_only_own_deck_name_and_trims_it_526"], args: "tests/test_main_deck.py" },
+    { id: "rename-deck-name-not-trimmed", file: services, from: "    name = name.strip()\n    if not name or len(name) > 200:", to: "    if not name.strip() or len(name) > 200:", kills: ["test_rename_deck_changes_only_own_deck_name_and_trims_it_526"], args: "tests/test_main_deck.py" },
+    { id: "rename-deck-allows-blank", file: services, from: "    if not name or len(name) > 200:\n        raise ValueError(\"Deck name must be 1 to 200 characters\")\n", to: "", kills: ["test_rename_deck_refuses_blank_name_526"], args: "tests/test_main_deck.py" },
+    { id: "rename-body-allows-blank", file: "backend/app/schemas.py", from: "        if not value:\n            raise ValueError(\"Deck name cannot be blank\")\n", to: "", kills: ["test_deck_rename_body_rejects_blank_and_strips_526"], args: "tests/test_main_deck.py" },
     // duel card reports
     { id: "card-report-game-token-ignored", file: reporter, from: "    payload = verify_game_token(token.strip(), settings)\n    if payload is None:\n        return None\n    return db.get(User, payload[\"uid\"])", to: "    return None", kills: ["test_game_token_holder_is_recorded_as_reporter", "test_game_token_holder_is_recorded_as_sender_371"] },
     { id: "card-report-session-ignored", file: reporter, from: "    if session_user is not None:\n        return session_user\n", to: "", kills: ["test_session_user_takes_precedence_over_game_token", "test_session_user_takes_precedence_over_game_token_371"] },
