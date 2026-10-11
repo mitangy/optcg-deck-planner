@@ -5,6 +5,7 @@ import {
   DOCK_W_KEY,
   dockAt,
   dragDockW,
+  fitDock,
   floatBeside,
   floatSize,
   keyDock,
@@ -35,6 +36,37 @@ describe("docking the Log Pose window (#432)", () => {
     expect(dockAt(950, 1200, columns)).toBe("right");
     expect(dockAt(600, 1200, columns)).toBeNull();
     expect(dockAt(200, 1200)).toBeNull();
+  });
+
+  it("never docks to a side the board has no column for, by the screen edge or by its column (#554)", () => {
+    const columns = { left: { left: 0, right: 260 }, right: { left: 900, right: 1200 } };
+    const rightOnly = { left: false, right: true };
+    expect(dockAt(5, 1200, undefined, rightOnly)).toBeNull();
+    expect(dockAt(200, 1200, columns, rightOnly)).toBeNull();
+    expect(dockAt(1195, 1200, undefined, rightOnly)).toBe("right");
+    expect(dockAt(950, 1200, columns, rightOnly)).toBe("right");
+    const leftOnly = { left: true, right: false };
+    expect(dockAt(1195, 1200, undefined, leftOnly)).toBeNull();
+    expect(dockAt(5, 1200, undefined, leftOnly)).toBe("left");
+    expect(dockAt(5, 1200, columns, { left: true, right: true })).toBe("left");
+  });
+
+  it("fits a remembered dock to the columns that are shown, keeping it when its column is there (#554)", () => {
+    expect(fitDock("left", { left: false, right: true })).toBe("right");
+    expect(fitDock("right", { left: true, right: false })).toBe("left");
+    expect(fitDock("left", { left: true, right: true })).toBe("left");
+    expect(fitDock("right", { left: true, right: true })).toBe("right");
+    expect(fitDock("left", { left: false, right: false })).toBeNull();
+    expect(fitDock("left")).toBe("left");
+    expect(fitDock("right", null)).toBe("right");
+    expect(fitDock(null, { left: true, right: true })).toBeNull();
+  });
+
+  it("ignores an arrow key toward an edge whose column is not shown (#554)", () => {
+    const touches = { left: true, right: true };
+    expect(keyDock(null, "ArrowLeft", touches, { left: false, right: true })).toBeNull();
+    expect(keyDock(null, "ArrowRight", touches, { left: false, right: true })).toBe("right");
+    expect(keyDock(null, "ArrowLeft", touches, { left: true, right: true })).toBe("left");
   });
 
   it("lets go of a docked panel only after the header is dragged 32px (#432)", () => {

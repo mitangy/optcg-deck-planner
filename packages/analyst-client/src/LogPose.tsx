@@ -34,7 +34,7 @@ import { logPoseChrome } from "./chrome";
 import { DeckEditCard } from "./DeckEditCard";
 import { isEmptyAnswer, type DeckEditor, type DeckEditProposal } from "./proposals";
 import { DockHandle, ResizeHandles, SheetGrip, useDrawerSize, useHeaderMove, useSheetHeight, type DockPreview } from "./PanelResize";
-import { clampDockW, DOCK_W_DEFAULT, readDock, readDockW, writeDock, writeDockW, type Dock } from "./panelDock";
+import { clampDockW, DOCK_W_DEFAULT, fitDock, readDock, readDockW, writeDock, writeDockW, type Dock, type DockSides } from "./panelDock";
 import { compassRect, growOrigin, popFrames, POP_MS, slideFrames, type Rect } from "./panelMotion";
 import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
 import { RequestAccessView, RequestsList } from "./AccessViews";
@@ -98,7 +98,7 @@ export type LogPoseGame = {
  * Where a game board lets Log Pose dock: `columns` is false when the board has no side columns (narrow window,
  * landscape phone), and the panel then floats. `left` / `right` are the elements the panel renders into.
  */
-export type DockHosts = { columns: boolean; left: HTMLElement | null; right: HTMLElement | null };
+export type DockHosts = { columns: boolean; left: HTMLElement | null; right: HTMLElement | null; sides?: DockSides };
 
 type LogPoseValue = {
   /** null until the session endpoint answers. */
@@ -212,13 +212,15 @@ export function useLogPoseDock() {
 }
 
 /** Registers the board's dock hosts while the calling component is mounted (see DockHosts). */
-export function useLogPoseDockHost(columns: boolean, left: HTMLElement | null, right: HTMLElement | null) {
+export function useLogPoseDockHost(columns: boolean, left: HTMLElement | null, right: HTMLElement | null, sides?: DockSides) {
   const { setDockHost } = useContext(LogPoseContext);
   const owner = useRef({}).current;
+  const sideL = sides?.left;
+  const sideR = sides?.right;
   useEffect(() => {
-    setDockHost(owner, { columns, left, right });
+    setDockHost(owner, { columns, left, right, sides: sideL === undefined || sideR === undefined ? undefined : { left: sideL, right: sideR } });
     return () => setDockHost(owner, null);
-  }, [columns, left, right, owner, setDockHost]);
+  }, [columns, left, right, sideL, sideR, owner, setDockHost]);
 }
 
 /** Sent when the player taps Ask again on an edit whose deck changed. */
@@ -509,7 +511,7 @@ export function LogPoseProvider({
   }, []);
   const inGame = hosts !== null;
   const dockable = wideEnough && (!inGame || hosts.columns);
-  const dockedTo: Dock = dockable ? dock : null;
+  const dockedTo: Dock = dockable ? fitDock(dock, inGame ? hosts.sides : undefined) : null;
   const embedded = dockedTo && hosts ? hosts[dockedTo] : null;
 
   const [game, setGameState] = useState<LogPoseGame | null>(null);
@@ -593,6 +595,7 @@ export function LogPoseProvider({
             dock={dockedTo}
             canDock={dockable}
             inGame={inGame}
+            sides={hosts?.sides}
             embedded={embedded}
             dockW={dockW}
             onDockW={setDockW}
@@ -695,6 +698,7 @@ function LogPosePanel({
   dock,
   canDock,
   inGame,
+  sides,
   embedded,
   dockW,
   onDockW,
@@ -725,6 +729,8 @@ function LogPosePanel({
   /** Docking is possible on this page (a game board without side columns can't). */
   canDock: boolean;
   inGame: boolean;
+  /** On a game board, which sides have a column shown. */
+  sides?: DockSides;
   /** The board element a docked panel renders into; null while it has none (the panel waits). */
   embedded: HTMLElement | null;
   dockW: number;
@@ -755,7 +761,7 @@ function LogPosePanel({
   const drawer = useDrawerSize();
   const sheet = useSheetHeight(panelRef, phone);
   const [preview, setPreview] = useState<DockPreview | null>(null);
-  const move = useHeaderMove(drawer, panelRef, { dock: phone ? null : dock, enabled: !phone && canDock, inGame, width: dockW, setDock: onDock }, setPreview);
+  const move = useHeaderMove(drawer, panelRef, { dock: phone ? null : dock, enabled: !phone && canDock, inGame, sides, width: dockW, setDock: onDock }, setPreview);
   const pending = !phone && dock !== null && inGame && !embedded;
   const edge = !phone && dock !== null && !inGame;
 
