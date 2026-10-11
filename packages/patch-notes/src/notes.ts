@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-11
+  { date: "2026-10-11", app: "duel", pr: 545, title: "Battle line stands out", text: "The battle line between the mats now has a solid background and a gold edge, so it's easier to spot." },
   { date: "2026-10-11", app: "both", pr: 543, title: "Resize Log Pose from any side", text: "A floating Log Pose window now resizes from every edge and corner, not just the top and left." },
   { date: "2026-10-11", app: "duel", pr: 541, title: "See the cards Log Pose talks about", text: "Hover a card name or number in a Log Pose answer to see the card. On a phone, tap it." },
   { date: "2026-10-11", app: "both", pr: 531, title: "Shorter Log Pose answers", text: "Log Pose now answers in a few lines unless you ask for a full breakdown. In a game it leads with the play and a short why instead of recapping the board, and turn plans skip the step-by-step recap." },

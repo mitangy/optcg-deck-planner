@@ -236,6 +236,11 @@ module.exports = {
       "demo-audit.spec.ts > the Mulligan button has a solid background, not see-through (#461) [desktop-1280]",
       "demo-audit.spec.ts > the Mulligan button has a solid background, not see-through (#461) [phone-375]",
     ] },
+    // The battle strip carries the solid gold-edged look (#539)
+    { id: "e2e-battle-strip-class-dropped", args: "demo-audit -g \"battle strip has a solid background\"", file: "duel-web/src/board/DuelBoard.tsx", from: "`prompt${midlineBattle ? \" prompt-battle\" : \"\"}`", to: "`prompt${\"\"}`", kills: [
+      "demo-audit.spec.ts > the battle strip has a solid background and a gold edge (#539) [desktop-1280]",
+      "demo-audit.spec.ts > the battle strip has a solid background and a gold edge (#539) [phone-375]",
+    ] },
     // "Opponent hand, top right" is the top-right spot (#297)
     { id: "e2e-opp-hand-top-right-not-migrated", args: "demo-audit -g \"Opponent hand, top right\"", file: "duel-web/src/settings.ts", from: "  if (oppHandTopRight === true && !next.oppHandSpot) next.oppHandSpot = \"right\";\n", to: "", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [desktop-1280]", "demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [phone-375]"] },
     { id: "e2e-opp-hand-top-right-switch-on-desktop", args: "demo-audit --project=desktop-1280 -g \"Opponent hand, top right\"", file: "duel-web/src/board/gameplayFields.ts", from: "  if (key === \"oppHandTopRight\") return !d.desktop;\n", to: "", kills: ["demo-audit.spec.ts > Opponent hand, top right pins the hand top right on desktop and phones (#297) [desktop-1280]"] },
