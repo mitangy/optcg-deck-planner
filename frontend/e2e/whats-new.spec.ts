@@ -3,8 +3,8 @@
  * the signed-in pages. Runs at desktop-1200 and phone-375.
  */
 import type { Page } from "@playwright/test";
-import { PATCH_NOTES } from "../../packages/patch-notes/src/notes";
 import { expect, formatIssues, test } from "./fixtures";
+import { PATCH_NOTES } from "../../packages/patch-notes/src/notes";
 
 const KEY = "optcg.patchNotes.lastSeen.planner";
 
@@ -22,12 +22,14 @@ async function seedLastSeen(page: Page, day: string | null) {
 
 const card = (page: Page) => page.getByRole("region", { name: "What's new" });
 
+/** The newest note the planner shows; the card lists the newest few, so an older title drops out as notes are added. */
+const newestPlannerNote = PATCH_NOTES.find((n) => n.app !== "duel")!.title;
+
 test("the card shows after an update, overlays the page, and Got it keeps it away after a reload (#450)", async ({ page, planner }) => {
   await seedLastSeen(page, "2026-10-05");
   await planner.open("/decks");
   await expect(card(page)).toBeVisible();
-  // The card leads with the newest planner-visible note, whichever that is today.
-  await expect(card(page)).toContainText(PATCH_NOTES.find((n) => n.app !== "duel")!.title);
+  await expect(card(page)).toContainText(newestPlannerNote);
   await expect(card(page)).not.toContainText("Choose your DON!! art"); // duel-only note
 
   const vp = page.viewportSize()!;

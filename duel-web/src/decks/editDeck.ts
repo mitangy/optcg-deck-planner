@@ -12,7 +12,10 @@ export type DeckEditResult =
 export type CardsEditResult = { ok: true; cards: string[] } | { ok: false; error: string };
 
 /** The part of a deck the editor changes before Save. */
-export type DeckDraft = { leaderId: string; cards: string[] };
+export type DeckDraft = { name: string; leaderId: string; cards: string[] };
+
+export const BLANK_DECK_NAME_ERROR = "Enter a deck name.";
+export const MAX_DECK_NAME_LENGTH = 80;
 
 function countInDeck(cards: readonly string[], defId: string): number {
   return cards.reduce((n, id) => (id === defId ? n + 1 : n), 0);
@@ -81,8 +84,9 @@ export function applyOps(cards: readonly string[], ops: DeckOp[]): CardsEditResu
   return { ok: true, cards: next };
 }
 
-/** Whether the draft differs from the saved deck: another leader, or other cards (order does not matter) (#481). */
+/** Whether the draft differs from the saved deck: another name, another leader, or other cards (order does not matter) (#481, #526). */
 export function isDeckDirty(saved: DeckDraft, draft: DeckDraft): boolean {
+  if (saved.name.trim() !== draft.name.trim()) return true;
   if (saved.leaderId !== draft.leaderId) return true;
   if (saved.cards.length !== draft.cards.length) return true;
   const a = [...saved.cards].sort();
@@ -134,18 +138,21 @@ export function countCardInDeck(deck: Pick<SavedDeck, "cards">, defId: string): 
 
 /**
  * Save the editor's draft as the deck (#481). Keeps art prefs only for cards still in the deck, and marks a
- * planner-linked deck `editedLocally` so games keep it instead of re-importing the planner's version.
+ * planner-linked deck `editedLocally` so games keep it instead of re-importing the planner's version (a rename
+ * counts too). A blank name is refused (#526).
  */
 export function saveDeckDraft(deckId: string, draft: DeckDraft): DeckEditResult {
   const deck = getSavedDeck(deckId);
   if (!deck) return { ok: false, error: "Deck not found" };
+  const name = draft.name.trim();
+  if (!name) return { ok: false, error: BLANK_DECK_NAME_ERROR };
   const inDeck = new Set([draft.leaderId, ...draft.cards]);
   const artPrefs = Object.fromEntries(Object.entries(deck.artPrefs ?? {}).filter(([defId]) => inDeck.has(defId)));
   return {
     ok: true,
     deck: saveDeck({
       id: deck.id,
-      name: deck.name,
+      name,
       leaderId: draft.leaderId,
       cards: draft.cards,
       artPrefs,

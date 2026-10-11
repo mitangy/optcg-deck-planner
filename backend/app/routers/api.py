@@ -25,6 +25,7 @@ from app.schemas import (
     DeckCardPrintingUpdate,
     DeckCardUpsert,
     DeckCreate,
+    DeckRename,
     DeckDetail,
     DeckOwnedResetResult,
     DeckSummary,
@@ -103,6 +104,21 @@ def remove_deck(
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"ok": True}
+
+
+@router.patch("/decks/{deck_id}", response_model=DeckDetail)
+def rename_deck(
+    deck_id: int,
+    body: DeckRename,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return services.rename_deck(db, user, deck_id, body.name)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/decks/{deck_id}/set-main", response_model=DeckDetail)

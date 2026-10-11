@@ -472,6 +472,11 @@ export const api = {
     }),
   deleteDeck: (id: number) =>
     request<{ ok: boolean }>(`/decks/${id}`, { method: "DELETE" }),
+  renameDeck: (id: number, name: string) =>
+    request<DeckDetail>(`/decks/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
   setDeckAsMain: (id: number) =>
     request<DeckDetail>(`/decks/${id}/set-main`, { method: "POST" }),
   resetDeckOwned: (id: number) =>

@@ -461,6 +461,19 @@ def delete_deck(db: Session, user: User, deck_id: int) -> None:
     db.commit()
 
 
+def rename_deck(db: Session, user: User, deck_id: int, name: str) -> DeckDetail:
+    """Rename one of the user's decks (#526). Raises LookupError for a deck that is not theirs."""
+    deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
+    if deck is None:
+        raise LookupError("Deck not found")
+    name = name.strip()
+    if not name or len(name) > 200:
+        raise ValueError("Deck name must be 1 to 200 characters")
+    deck.name = name
+    db.commit()
+    return get_deck_detail(db, user, deck_id)
+
+
 def set_deck_as_main(db: Session, user: User, deck_id: int) -> DeckDetail:
     """Mark this deck as Main for its leader; other same-leader decks compare against it."""
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))

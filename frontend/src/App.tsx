@@ -3607,6 +3607,8 @@ function DeckDetailPage() {
   const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
   const [altWantErr, setAltWantErr] = useState<string | null>(null);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [renameText, setRenameText] = useState("");
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const shareDeck = useMutation({
@@ -3729,6 +3731,30 @@ function DeckDetailPage() {
     onError: (e: Error) => setResetMsg(e.message),
   });
 
+  const rename = useMutation({
+    mutationFn: (name: string) => api.renameDeck(deckId, name),
+    onSuccess: (detail) => {
+      applyDeckUpdate(detail);
+      setRenaming(false);
+      void qc.invalidateQueries({ queryKey: ["decks"] });
+      // Same-leader decks list this one by name under "Compared to Main".
+      void qc.invalidateQueries({ queryKey: ["deck"] });
+    },
+  });
+  const submitRename = () => {
+    const name = renameText.trim();
+    if (!name || rename.isPending) return;
+    if (name === data?.name) {
+      setRenaming(false);
+      return;
+    }
+    rename.mutate(name);
+  };
+  const cancelRename = () => {
+    rename.reset();
+    setRenaming(false);
+  };
+
   const setMain = useMutation({
     mutationFn: () => api.setDeckAsMain(deckId),
     onSuccess: (detail) => {
@@ -3833,13 +3859,71 @@ function DeckDetailPage() {
           <p className="eyebrow">
             <Link to="/decks">← Decks</Link>
           </p>
-          <div className="deck-detail-title-row">
+          <div className={`deck-detail-title-row${renaming ? " is-renaming" : ""}`}>
+            {renaming && (
+              <form
+                className="deck-rename-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitRename();
+                }}
+              >
+                <input
+                  className="deck-rename-input"
+                  aria-label="Deck name"
+                  value={renameText}
+                  maxLength={200}
+                  autoFocus
+                  onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => setRenameText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelRename();
+                    }
+                  }}
+                />
+                <button
+                  type="submit"
+                  className="btn primary deck-rename-btn"
+                  disabled={rename.isPending || !renameText.trim()}
+                >
+                  Save
+                </button>
+                <button type="button" className="btn secondary deck-rename-btn" onClick={cancelRename}>
+                  Cancel
+                </button>
+              </form>
+            )}
             <h1>{data.name}</h1>
+            <button
+              type="button"
+              className="deck-rename-trigger"
+              aria-label="Rename deck"
+              title="Rename deck"
+              onClick={() => {
+                rename.reset();
+                setRenameText(data.name);
+                setRenaming(true);
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                <path
+                  d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3zM14.5 7.5l3 3"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
             {data.is_main && <span className="deck-main-badge">Main deck</span>}
             <span className="muted deck-size-inline">
               Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {donCount}/{DON_DECK_LIMIT}
             </span>
           </div>
+          {rename.isError && <p className="error deck-rename-error">{(rename.error as Error).message}</p>}
           <p className="muted">
             {data.leader_card_id
               ? `Leader ${data.leader_card_id}${data.leader_name ? ` · ${data.leader_name}` : ""}`
